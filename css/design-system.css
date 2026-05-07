@@ -1,0 +1,105 @@
+/* ════════════════════════════════════════════════
+   NEXUNOVA RMS — Design System v2.0
+   Enterprise SaaS ERP — Powered by Nexunova
+   Aligned with: nexunova.com visual identity
+════════════════════════════════════════════════ */
+:root {
+  /* Core Palette */
+  --ink: #0A0E1A;
+  --ink2: #111827;
+  --canvas: #F8FAFF;
+  --surface: #FFFFFF;
+  --surface2: #F3F6FD;
+  --surface3: #EDF1FB;
+
+  /* Borders */
+  --line: rgba(99,120,180,0.12);
+  --line2: rgba(99,120,180,0.07);
+
+  /* Text */
+  --text: #0D1424;
+  --t2: #2D3A52;
+  --t3: #6B7999;
+  --t4: #A8B4CC;
+
+  /* Brand — Nexunova Cyan (primary) */
+  --brand: #0284c7;
+  --brand2: #0ea5e9;
+  --brand3: #38bdf8;
+  --brand-bg: rgba(2,132,199,0.08);
+  --brand-glow: 0 0 24px rgba(2,132,199,0.22);
+  --sh-brand: 0 8px 32px rgba(2,132,199,0.25);
+
+  /* Nexunova identity colors (website) */
+  --nxn-cyan: #00d9ff;
+  --nxn-purple: #a855f7;
+  --nxn-cyan-dim: rgba(0,217,255,0.12);
+  --nxn-purple-dim: rgba(168,85,247,0.12);
+  --nxn-deep: #050709;
+
+  /* Accent — Purple */
+  --cyan: #0ea5e9;
+  --cyan-bg: rgba(14,165,233,0.08);
+  --purple: #a855f7;
+  --purple-bg: rgba(168,85,247,0.09);
+
+  /* Semantic */
+  --ok: #10B981;
+  --ok-bg: rgba(16,185,129,0.09);
+  --warn: #F59E0B;
+  --warn-bg: rgba(245,158,11,0.09);
+  --err: #EF4444;
+  --err-bg: rgba(239,68,68,0.09);
+  --info: #3B82F6;
+  --info-bg: rgba(59,130,246,0.09);
+
+  /* Shadows */
+  --sh: 0 1px 3px rgba(10,14,26,0.05), 0 4px 20px rgba(10,14,26,0.04);
+  --sh2: 0 8px 40px rgba(10,14,26,0.10), 0 2px 8px rgba(10,14,26,0.06);
+  --sh3: 0 20px 60px rgba(10,14,26,0.14);
+
+  /* Radius */
+  --r: 14px;
+  --rm: 10px;
+  --rs: 7px;
+  --rx: 20px;
+
+  /* Nav */
+  --nav-w: 248px;
+
+  /* Typography — Nexunova brand fonts */
+  --font: 'Sora', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.16,1,0.3,1);
+  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Reset & Base ── */
+*, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--canvas);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+input, button, select, textarea { font-family: inherit; font-size: inherit; }
+button { cursor: pointer; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: linear-gradient(var(--nxn-cyan), var(--nxn-purple)); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand2); }
+
+/* ════════════════════════════════════════════════
+   SCREEN SYSTEM
+════════════════════════════════════════════════ */
+.scr { display: none; min-height: 100vh; }
+.scr.on { display: flex; }
+
