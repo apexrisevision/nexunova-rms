@@ -1,0 +1,112 @@
+/* ════════════════════════════════════════════════
+   NEXUNOVA RMS — Design System v4.0
+   Frosted Glass — Enterprise Dark
+════════════════════════════════════════════════ */
+:root {
+  /* ── Core ── */
+  --canvas:   #0A0B0F;
+  --surface:  #13141A;
+  --surface2: #1C1E27;
+  --surface3: #252830;
+
+  /* ── Glass ── */
+  --glass:          rgba(255,255,255,0.04);
+  --glass2:         rgba(255,255,255,0.06);
+  --glass-border:   rgba(255,255,255,0.08);
+  --glass-border2:  rgba(255,255,255,0.025);
+  --glass-inset:    inset 0 1px 0 rgba(255,255,255,0.05);
+  --glass-shadow:   0 8px 32px rgba(0,0,0,0.4);
+  --glass-blur:     blur(20px) saturate(140%);
+
+  /* ── Borders ── */
+  --line:  rgba(255,255,255,0.06);
+  --line2: rgba(255,255,255,0.04);
+
+  /* ── Text ── */
+  --text: rgba(255,255,255,0.92);
+  --t2:   rgba(255,255,255,0.70);
+  --t3:   rgba(255,255,255,0.52);
+  --t4:   rgba(255,255,255,0.35);
+
+  /* ── Brand — Muted Slate ── */
+  --brand:    #7C8FB0;
+  --brand2:   #9AA8C4;
+  --brand3:   #B8C5D9;
+  --brand-bg: rgba(124,143,176,0.08);
+  --sh-brand: 0 4px 20px rgba(124,143,176,0.2);
+
+  /* ── Nexunova identity (login only) ── */
+  --nxn-cyan:       #00d9ff;
+  --nxn-purple:     #a855f7;
+  --nxn-cyan-dim:   rgba(0,217,255,0.12);
+  --nxn-purple-dim: rgba(168,85,247,0.12);
+  --nxn-deep:       #050709;
+
+  /* ── Legacy accent vars (kept for other pages) ── */
+  --cyan:      #7C8FB0;
+  --cyan-bg:   rgba(124,143,176,0.08);
+  --purple:    #9B7FC4;
+  --purple-bg: rgba(155,127,196,0.08);
+
+  /* ── Semantic — MUTED ── */
+  --ok:      #7FB069;
+  --ok-bg:   rgba(127,176,105,0.10);
+  --warn:    #D4A574;
+  --warn-bg: rgba(212,165,116,0.10);
+  --err:     #C77A7A;
+  --err-bg:  rgba(199,122,122,0.10);
+  --info:    #7C8FB0;
+  --info-bg: rgba(124,143,176,0.10);
+
+  /* ── Shadows — black only ── */
+  --sh:  0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.15);
+  --sh2: 0 8px 32px rgba(0,0,0,0.4);
+  --sh3: 0 20px 60px rgba(0,0,0,0.5);
+
+  /* ── Radius ── */
+  --r:  12px;
+  --rm: 8px;
+  --rs: 6px;
+  --rx: 14px;
+
+  /* ── Nav ── */
+  --nav-w: 240px;
+
+  /* ── Typography ── */
+  --font:         'Inter', sans-serif;
+  --font-display: 'Inter', sans-serif;
+  --mono:         'JetBrains Mono', monospace;
+
+  /* ── Transitions ── */
+  --ease:       cubic-bezier(0.4,0,0.2,1);
+  --transition: 200ms cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Reset & Base ── */
+*, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 13px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font);
+  background:
+    radial-gradient(ellipse 65% 55% at 12% 22%, rgba(59,74,107,0.13) 0%, transparent 58%),
+    radial-gradient(ellipse 50% 60% at 88% 78%, rgba(74,59,107,0.09) 0%, transparent 58%),
+    #0A0B0F;
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+input, button, select, textarea { font-family: inherit; font-size: inherit; }
+button { cursor: pointer; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+/* ════════════════════════════════════════════════
+   SCREEN SYSTEM
+════════════════════════════════════════════════ */
+.scr { display: none; min-height: 100vh; }
+.scr.on { display: flex; }
