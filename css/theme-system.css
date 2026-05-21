@@ -1,0 +1,569 @@
+/* ============================================
+   NEXUNOVA RMS - DUAL THEME SYSTEM
+   ============================================ */
+
+/* Suppress transitions on initial load and during theme init */
+html.no-transitions *,
+html.no-transitions *::before,
+html.no-transitions *::after {
+  transition: none !important;
+}
+
+/* Smooth transitions for theme switch */
+*, *::before, *::after {
+  transition: background-color 200ms ease,
+              border-color 200ms ease,
+              color 200ms ease,
+              fill 200ms ease,
+              stroke 200ms ease;
+}
+
+/* DARK THEME (Default - Premium Space Tech) */
+[data-theme="dark"] {
+  --canvas: #0a0e1a;
+  --surface: #0f1420;
+  --surface-2: #161b2e;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --brand: #22d3ee;
+  --brand-glow: rgba(34, 211, 238, 0.3);
+  --ok: #10b981;
+  --err: #ef4444;
+  --warn: #f59e0b;
+  --sh: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --r: 12px;
+  --glass-bg: rgba(15, 20, 32, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  /* ── Sidebar & Layout tokens ── */
+  --bg-sidebar:         #0F172A;
+  --bg-sidebar-hover:   rgba(255,255,255,0.04);
+  --bg-sidebar-slot:    #1E293B;
+  --border-sidebar:     #1E293B;
+  --text-sidebar:       #CBD5E1;
+  --text-sidebar-muted: #64748B;
+  --group-label:        #475569;
+  --bg-page:            #0B1120;
+  --bg-card:            #111827;
+}
+
+/* LIGHT THEME (Apple-Level Glassmorphism) */
+[data-theme="light"] {
+  --canvas: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 50%, #fce7f3 100%);
+  --surface: rgba(255, 255, 255, 0.7);
+  --surface-2: rgba(255, 255, 255, 0.85);
+  --surface2: rgba(241, 245, 249, 0.85);
+  --surface3: rgba(226, 232, 240, 0.85);
+  --border: rgba(255, 255, 255, 0.8);
+  /* ── Text — dark on light ── */
+  --text:  #0f172a;
+  --t1:    #0f172a;
+  --t2:    #1e293b;
+  --t3:    #475569;
+  --t4:    #94a3b8;
+  --text-muted: #64748b;
+  /* ── Lines & Hover ── */
+  --line:  rgba(15, 23, 42, 0.10);
+  --line2: rgba(15, 23, 42, 0.06);
+  --hover: rgba(15, 23, 42, 0.04);
+  /* ── Brand ── */
+  --brand:    #0891b2;
+  --brand2:   #0e7490;
+  --brand3:   #06b6d4;
+  --brand-bg: rgba(8, 145, 178, 0.08);
+  --brand-glow: rgba(8, 145, 178, 0.2);
+  /* ── Semantic ── */
+  --ok:      #059669;
+  --ok-bg:   rgba(5, 150, 105, 0.08);
+  --err:     #dc2626;
+  --err-bg:  rgba(220, 38, 38, 0.08);
+  --warn:    #d97706;
+  --warn-bg: rgba(217, 119, 6, 0.08);
+  --info:    #0891b2;
+  --info-bg: rgba(8, 145, 178, 0.08);
+  /* ── Shadows & Radius ── */
+  --sh: 0 8px 32px rgba(31, 38, 135, 0.08);
+  --r: 14px;
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  /* ── Sidebar & Layout tokens ── */
+  --bg-sidebar:         #FFFFFF;
+  --bg-sidebar-hover:   #F1F5F9;
+  --bg-sidebar-slot:    #F1F5F9;
+  --border-sidebar:     #E2E8F0;
+  --text-sidebar:       #334155;
+  --text-sidebar-muted: #94A3B8;
+  --group-label:        #94A3B8;
+  --bg-page:            #F1F5F9;
+  --bg-card:            #FFFFFF;
+}
+
+/* Light mode body gradient with floating orbs */
+[data-theme="light"] body {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 50%, #fce7f3 100%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+[data-theme="light"] body::before {
+  content: '';
+  position: fixed;
+  top: -200px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="light"] body::after {
+  content: '';
+  position: fixed;
+  bottom: -200px;
+  left: -200px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Glass card effect for light mode */
+[data-theme="light"] .card,
+[data-theme="light"] .panel {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Theme toggle button styling */
+.theme-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: all 300ms ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--brand);
+  box-shadow: 0 0 10px var(--brand-glow);
+}
+
+.theme-toggle-thumb {
+  width: 16px;
+  height: 16px;
+  background: #22d3ee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .theme-toggle-thumb {
+  transform: translateX(18px);
+}
+
+/* ============================================
+   LIGHT MODE TEXT FIXES - Force readable colors
+   ============================================ */
+
+[data-theme="light"] {
+  color: #0f172a;
+}
+
+[data-theme="light"] body,
+[data-theme="light"] body * {
+  color: inherit;
+}
+
+/* Headings */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+  color: #0f172a !important;
+}
+
+/* Paragraphs and labels */
+[data-theme="light"] p,
+[data-theme="light"] span,
+[data-theme="light"] label,
+[data-theme="light"] div {
+  color: inherit;
+}
+
+/* Sidebar text */
+[data-theme="light"] .sidebar,
+[data-theme="light"] aside,
+[data-theme="light"] nav {
+  color: #0f172a;
+}
+
+[data-theme="light"] .sidebar *,
+[data-theme="light"] aside *,
+[data-theme="light"] nav * {
+  color: #0f172a;
+}
+
+/* Sidebar group headers (uppercase labels) */
+[data-theme="light"] .sidebar-group-header,
+[data-theme="light"] .nav-section-title,
+[data-theme="light"] [class*="section-title"] {
+  color: #64748b !important;
+}
+
+/* Quick action buttons */
+[data-theme="light"] button,
+[data-theme="light"] .btn {
+  color: #0f172a;
+}
+
+/* KPI numbers */
+[data-theme="light"] .kpi-value,
+[data-theme="light"] [class*="metric"] {
+  color: #0f172a !important;
+}
+
+/* Labels (uppercase small text) */
+[data-theme="light"] [class*="label"],
+[data-theme="light"] .uppercase,
+[data-theme="light"] small {
+  color: #64748b !important;
+}
+
+/* Muted text */
+[data-theme="light"] .muted,
+[data-theme="light"] .text-muted,
+[data-theme="light"] [class*="muted"] {
+  color: #64748b !important;
+}
+
+/* Cards content */
+[data-theme="light"] .card,
+[data-theme="light"] .panel,
+[data-theme="light"] [class*="card"] {
+  color: #0f172a;
+}
+
+[data-theme="light"] .card *,
+[data-theme="light"] .panel * {
+  color: inherit;
+}
+
+/* Tables */
+[data-theme="light"] table,
+[data-theme="light"] th,
+[data-theme="light"] td {
+  color: #0f172a;
+}
+
+[data-theme="light"] th {
+  color: #64748b !important;
+}
+
+/* Search inputs and fields */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="light"] input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Status semantic colors */
+[data-theme="light"] .ok,
+[data-theme="light"] [class*="green"],
+[data-theme="light"] [style*="color: #10b981"],
+[data-theme="light"] [style*="color:#10b981"] {
+  color: #059669 !important;
+}
+
+[data-theme="light"] .err,
+[data-theme="light"] [class*="red"],
+[data-theme="light"] [style*="color: #ef4444"],
+[data-theme="light"] [style*="color:#ef4444"] {
+  color: #dc2626 !important;
+}
+
+[data-theme="light"] .warn,
+[data-theme="light"] [class*="orange"],
+[data-theme="light"] [style*="color: #f59e0b"] {
+  color: #d97706 !important;
+}
+
+/* Brand cyan - darker in light mode */
+[data-theme="light"] [style*="color: #22d3ee"],
+[data-theme="light"] [style*="color:#22d3ee"],
+[data-theme="light"] .brand {
+  color: #0891b2 !important;
+}
+
+/* Topbar */
+[data-theme="light"] header,
+[data-theme="light"] .topbar,
+[data-theme="light"] .header {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(20px);
+  color: #0f172a !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="light"] header *,
+[data-theme="light"] .topbar * {
+  color: #0f172a;
+}
+
+/* KPI CARD TEXT FIX */
+[data-theme="light"] .card *,
+[data-theme="light"] .card h1,
+[data-theme="light"] .card h2,
+[data-theme="light"] .card h3,
+[data-theme="light"] .card p,
+[data-theme="light"] .card span,
+[data-theme="light"] .card div {
+  color: #0f172a !important;
+}
+
+/* Numbers specifically */
+[data-theme="light"] .card [style*="color: white"],
+[data-theme="light"] .card [style*="color:#fff"],
+[data-theme="light"] .card [style*="color: #fff"],
+[data-theme="light"] .card [style*="color:white"] {
+  color: #0f172a !important;
+}
+
+/* Force ALL white text dark in light mode globally */
+[data-theme="light"] [style*="color: white"],
+[data-theme="light"] [style*="color:#fff"],
+[data-theme="light"] [style*="color: #fff"],
+[data-theme="light"] [style*="color:white"],
+[data-theme="light"] [style*="color: #ffffff"],
+[data-theme="light"] [style*="color:#ffffff"] {
+  color: #0f172a !important;
+}
+
+/* Light colored text that disappears on light bg */
+[data-theme="light"] [style*="color: #e2e8f0"],
+[data-theme="light"] [style*="color:#e2e8f0"],
+[data-theme="light"] [style*="color: #cbd5e1"],
+[data-theme="light"] [style*="color:#cbd5e1"],
+[data-theme="light"] [style*="color: #94a3b8"],
+[data-theme="light"] [style*="color:#94a3b8"],
+[data-theme="light"] [style*="color: #f1f5f9"],
+[data-theme="light"] [style*="color:#f1f5f9"] {
+  color: #475569 !important;
+}
+
+/* ============================================
+   LOGIN SCREEN ISOLATION (#s-login)
+   Theme rules do NOT apply here — added at end
+   so these win over earlier same-specificity rules
+   ============================================ */
+
+[data-theme="light"] #s-login {
+  background: #050709 !important;
+}
+
+/* Headings stay white */
+[data-theme="light"] #s-login h1,
+[data-theme="light"] #s-login h2,
+[data-theme="light"] #s-login h3,
+[data-theme="light"] #s-login h4,
+[data-theme="light"] #s-login h5,
+[data-theme="light"] #s-login h6,
+[data-theme="light"] #s-login .lx-headline,
+[data-theme="light"] #s-login .lx-form-title {
+  color: white !important;
+}
+
+/* Inputs restore dark style */
+[data-theme="light"] #s-login input,
+[data-theme="light"] #s-login .lx-input {
+  color: white !important;
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+[data-theme="light"] #s-login input::placeholder,
+[data-theme="light"] #s-login .lx-input::placeholder {
+  color: rgba(255,255,255,0.2) !important;
+}
+
+/* Sign-in button */
+[data-theme="light"] #s-login .lx-btn {
+  color: #050709 !important;
+}
+
+/* Inline white/light text in login — restore */
+[data-theme="light"] #s-login [style*="color: white"],
+[data-theme="light"] #s-login [style*="color:#fff"],
+[data-theme="light"] #s-login [style*="color: #fff"],
+[data-theme="light"] #s-login [style*="color:white"],
+[data-theme="light"] #s-login [style*="color: #ffffff"],
+[data-theme="light"] #s-login [style*="color:#ffffff"] {
+  color: white !important;
+}
+
+/* Muted white text in login */
+[data-theme="light"] #s-login [style*="color: #e2e8f0"],
+[data-theme="light"] #s-login [style*="color:#e2e8f0"],
+[data-theme="light"] #s-login .lx-desc,
+[data-theme="light"] #s-login .lx-form-sub,
+[data-theme="light"] #s-login .lx-feat-desc,
+[data-theme="light"] #s-login .lx-stat-lbl,
+[data-theme="light"] #s-login .lx-footer {
+  color: rgba(240,240,255,0.45) !important;
+}
+
+/* Light gray text that needs to stay light */
+[data-theme="light"] #s-login [style*="color: #94a3b8"],
+[data-theme="light"] #s-login [style*="color:#94a3b8"],
+[data-theme="light"] #s-login [style*="color: #cbd5e1"],
+[data-theme="light"] #s-login [style*="color:#cbd5e1"],
+[data-theme="light"] #s-login [style*="color: #f1f5f9"],
+[data-theme="light"] #s-login [style*="color:#f1f5f9"] {
+  color: rgba(255,255,255,0.35) !important;
+}
+
+/* Body background orbs — hide behind login screen */
+[data-theme="light"] #s-login ~ * { z-index: auto; }
+
+/* ============================================
+   DASHBOARD KPI + FINANCE — LIGHT MODE TEXT FIX
+   ============================================ */
+
+/* KPI card numbers (268, 185, 83) */
+[data-theme="light"] .dkpi-val,
+[data-theme="light"] .dash-kpi.blue  .dkpi-val,
+[data-theme="light"] .dash-kpi.green .dkpi-val,
+[data-theme="light"] .dash-kpi.orange .dkpi-val {
+  color: #0f172a !important;
+}
+
+/* KPI card labels (TOTAL UNITS, UNITS SOLD, AVAILABLE) */
+[data-theme="light"] .dkpi-lbl {
+  color: #475569 !important;
+}
+
+/* ============================================
+   REPORTS — LIGHT MODE FIXES
+   ============================================ */
+
+/* Gallery card hover — use light surface not dark --surface2 */
+[data-theme="light"] .rpt-card:hover {
+  background: rgba(241, 245, 249, 0.95) !important;
+}
+
+/* Viewer header and filter bar backgrounds */
+[data-theme="light"] .rpt-vh,
+[data-theme="light"] .rpt-fbar {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+/* Sub-type tabs bar */
+[data-theme="light"] .rpt-stabs {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+/* Run Report button — keep white text on colored bg */
+[data-theme="light"] .rpt-run,
+[data-theme="light"] .rpt-stab.active {
+  color: #fff !important;
+}
+
+/* Active tab bg uses brand color — keep it */
+[data-theme="light"] .rpt-stab.active {
+  background: var(--brand) !important;
+}
+
+/* Date inputs in filter bar */
+[data-theme="light"] .rpt-dinp {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+  color: #0f172a !important;
+}
+
+/* Report banner strip */
+[data-theme="light"] .rpt-banner,
+[data-theme="light"] [class*="rpt"] div[style*="background:var(--canvas)"] {
+  background: rgba(241, 245, 249, 0.9) !important;
+}
+
+/* Report table semantic colors — restore in light mode */
+[data-theme="light"] .c-g  { color: #059669 !important; }
+[data-theme="light"] .mono { color: inherit; }
+
+/* Badges must keep their bg colors */
+[data-theme="light"] .badge { color: inherit !important; }
+[data-theme="light"] .bo   { color: #059669 !important; }
+[data-theme="light"] .br   { color: #dc2626 !important; }
+[data-theme="light"] .bi   { color: #0891b2 !important; }
+[data-theme="light"] .bj   { color: #d97706 !important; }
+
+/* Finance bar labels (TOTAL COLLECTED, OUTSTANDING, etc.) */
+[data-theme="light"] .dash-fin-lbl {
+  color: #64748b !important;
+}
+
+/* THIS MONTH value (was rgba white) */
+[data-theme="light"] .dash-fin-val.blue {
+  color: #0891b2 !important;
+}
+
+/* Recovery Rate — pctColor is inline var(--ok/warn/err), those vars are already dark in light mode */
+/* Finance bar: keep green/red semantic colors readable */
+[data-theme="light"] .dash-fin-val.green { color: #059669 !important; }
+[data-theme="light"] .dash-fin-val.red   { color: #dc2626 !important; }
+
+/* ────────────────────────────────────────────────────
+   SIDEBAR — LIGHT MODE OVERRIDES
+   ──────────────────────────────────────────────────── */
+[data-theme="light"] .sb-user-zone {
+  background: #F8FAFC !important;
+}
+[data-theme="light"] .sb-user-zone:hover {
+  background: var(--bg-sidebar-slot) !important;
+}
+[data-theme="light"] .sb-user-pop {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 8px 24px rgba(15,23,42,0.12) !important;
+}
+[data-theme="light"] .sb-pop-div {
+  background: #E2E8F0 !important;
+}
+[data-theme="light"] .sb-pop-item {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+}
+[data-theme="light"] .sb-pop-item:hover {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+}
+[data-theme="light"] .topbar {
+  border-bottom: 1px solid #E2E8F0 !important;
+}

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download Nexunova RMS Desktop — Windows App</title>
+<meta name="description" content="Download the Nexunova RMS desktop app for Windows. Native Windows application for real estate recovery management — full RMS power, no browser required.">
+<link rel="canonical" href="https://rms.nexunova.com/download">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/nexunova-logo.png">
+<link rel="apple-touch-icon" href="assets/nexunova-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════
+   RESET + TOKENS — same as nexunova-rms/index.html
+═══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+:root {
+  --bg:          #050709;
+  --bg-1:        #07090f;
+  --bg-card:     #0d111c;
+  --bg-card-2:   #111826;
+  --border:      rgba(255,255,255,0.06);
+  --border-2:    rgba(255,255,255,0.11);
+  --white:       #fff;
+  --white-dim:   rgba(240,244,255,0.72);
+  --white-muted: rgba(240,244,255,0.48);
+  --white-faint: rgba(240,244,255,0.28);
+  --cyan:        #00D4FF;
+  --cyan-deep:   #0EA5E9;
+  --purple:      #7C3AED;
+  --purple-l:    #a855f7;
+  --green:       #10b981;
+  --green-l:     #34d399;
+  --grad-brand:  linear-gradient(135deg,#00D4FF 0%,#0EA5E9 60%,#7C3AED 100%);
+  --t:           0.2s;
+  --t-fast:      0.12s;
+  --radius:      14px;
+  --radius-sm:   8px;
+  --radius-pill: 100px;
+  --glass:       rgba(255,255,255,0.04);
+  --glass-2:     rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.12);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white-dim);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.6}
+a{text-decoration:none;color:inherit}
+img{display:block;max-width:100%}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.3);border-radius:4px}
+
+/* ═══════════════════════════════════════════════════════════
+   STICKY HEADER / NAV
+═══════════════════════════════════════════════════════════ */
+.site-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 0 clamp(1rem,4vw,2.5rem);
+  height: 72px;
+  background: rgba(5,7,9,0.82);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--t) ease, box-shadow var(--t) ease;
+}
+.site-nav.scrolled {
+  background: rgba(5,7,9,0.96);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 0.6rem;
+  flex-shrink: 0; text-decoration: none;
+}
+.logo-wrapper img{width:36px;height:36px;object-fit:contain;border-radius:8px}
+.nav-brand-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.05rem;color:var(--white);letter-spacing:-0.3px}
+.nav-brand-name span{color:var(--cyan)}
+#sectionPillNav{display:flex;align-items:center;margin:0 auto}
+.nav-actions{display:flex;align-items:center;gap:0.75rem;flex-shrink:0;margin-left:auto}
+.nav-cta-ghost {
+  padding: 7px 16px; border-radius: var(--radius-pill);
+  font-size: 0.82rem; font-weight: 600; color: var(--white-muted);
+  border: 1px solid var(--border-2); transition: all var(--t);
+}
+.nav-cta-ghost:hover{color:var(--white);border-color:rgba(255,255,255,0.25);background:var(--glass)}
+.nav-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 20px; border-radius: var(--radius-pill);
+  background: linear-gradient(135deg,var(--cyan),var(--cyan-deep));
+  color: #000; font-size: 0.83rem; font-weight: 700;
+  transition: all var(--t); white-space: nowrap;
+}
+.nav-cta:hover{box-shadow:0 0 24px rgba(0,212,255,0.45);transform:translateY(-1px)}
+.nav-mobile-btn{display:none;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:36px;height:36px;background:none;border:1px solid var(--border-2);border-radius:8px;cursor:pointer;padding:0;flex-shrink:0}
+.nav-mobile-btn span{width:16px;height:1.5px;background:var(--white-muted);border-radius:2px;transition:all 0.25s}
+.nav-mobile-panel{position:fixed;top:80px;left:1rem;right:1rem;background:rgba(8,12,20,0.97);backdrop-filter:blur(28px);border:1px solid var(--border-2);border-radius:var(--radius);padding:1rem;z-index:199;display:none;flex-direction:column;gap:0.25rem}
+.nav-mobile-panel.open{display:flex}
+.nav-mobile-panel a{padding:0.85rem 1rem;font-size:0.95rem;font-weight:600;color:var(--white-muted);border-radius:var(--radius-sm);transition:all var(--t)}
+.nav-mobile-panel a:hover{background:var(--glass);color:var(--white)}
+.nav-mobile-panel .nav-cta{margin-top:0.5rem;justify-content:center;color:#000}
+@media(max-width:880px){
+  #sectionPillNav{display:none}
+  .nav-mobile-btn{display:flex}
+  .nav-actions{gap:0.5rem}
+  .nav-cta-ghost{display:none}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION PILL NAV — exact same as nexunova.com
+═══════════════════════════════════════════════════════════ */
+#sectionPillNav{}
+.spn-track{display:flex;align-items:center;gap:4px;padding:5px 6px;background:rgba(8,12,26,0.82);backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);border:1px solid rgba(255,255,255,0.08);border-radius:100px;box-shadow:0 8px 32px rgba(0,0,0,0.45),0 0 0 1px rgba(0,212,255,0.04),inset 0 1px 0 rgba(255,255,255,0.06);white-space:nowrap;position:relative}
+.spn-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;font-family:'Inter',sans-serif;font-size:0.78rem;font-weight:500;color:rgba(240,244,255,0.52);text-decoration:none;border:1px solid transparent;transition:color 0.2s ease,background 0.2s ease,border-color 0.2s ease,box-shadow 0.2s ease;position:relative;z-index:1;overflow:visible;transform-style:preserve-3d;will-change:transform;letter-spacing:0.1px}
+.spn-pill:hover{color:rgba(240,244,255,0.9);background:rgba(255,255,255,0.05)}
+.spn-pill.spn-active{color:#fff;background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.32);box-shadow:0 0 14px rgba(0,212,255,0.18);font-weight:600}
+.spn-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:0;flex-shrink:0;transition:opacity 0.2s ease}
+.spn-pill.spn-active .spn-dot{opacity:1;background:#00D4FF;box-shadow:0 0 8px rgba(0,212,255,0.9)}
+.spn-sep{width:1px;height:14px;background:rgba(255,255,255,0.08);flex-shrink:0}
+.spn-indicator{position:absolute;top:4px;height:calc(100% - 8px);border-radius:100px;pointer-events:none;z-index:0;background:linear-gradient(135deg,rgba(0,212,255,0.16) 0%,rgba(123,47,247,0.12) 100%);border:1px solid rgba(0,212,255,0.40);box-shadow:0 0 24px rgba(0,212,255,0.30),0 0 48px rgba(0,212,255,0.10),inset 0 1px 0 rgba(255,255,255,0.10);opacity:0;transition:left 0.4s cubic-bezier(0.32,0.72,0,1),width 0.4s cubic-bezier(0.32,0.72,0,1),opacity 0.22s ease}
+.spn-spotlight{position:absolute;width:180px;height:80px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,212,255,0.13) 0%,rgba(123,47,247,0.06) 45%,transparent 70%);transform:translate(-50%,-50%);pointer-events:none;opacity:0;z-index:0;transition:opacity 0.3s ease}
+.spn-glare{position:absolute;inset:0;border-radius:100px;pointer-events:none;z-index:2;opacity:0;transition:opacity 0.18s ease}
+.spn-ring{position:absolute;inset:-5px;border-radius:100px;border:1.5px solid rgba(0,212,255,0.60);pointer-events:none;z-index:3;opacity:0;transform:scale(0.82);transition:opacity 0.28s ease,transform 0.40s cubic-bezier(0.32,0.72,0,1);box-shadow:0 0 14px rgba(0,212,255,0.45),inset 0 0 10px rgba(0,212,255,0.10)}
+
+/* ═══════════════════════════════════════════════════════════
+   HOVER FX SYSTEM — exact same as nexunova.com
+═══════════════════════════════════════════════════════════ */
+.spn-spark{position:fixed;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:99999;animation:spnSparkFly 0.65s ease-out forwards}
+@keyframes spnSparkFly{0%{transform:translate(0,0) scale(1.3);opacity:1}100%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(0);opacity:0}}
+.spn-ripple{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.65) 0%,rgba(123,47,247,0.35) 40%,transparent 70%);pointer-events:none;z-index:99999;transform:scale(0);animation:spnRipplePop 0.65s cubic-bezier(0.22,1,0.36,1) forwards}
+@keyframes spnRipplePop{to{transform:scale(1);opacity:0}}
+
+/* ═══════════════════════════════════════════════════════════
+   HERO SECTION
+═══════════════════════════════════════════════════════════ */
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 140px clamp(1.5rem,5vw,4rem) 80px;
+  text-align: center;
+  position: relative; overflow: hidden;
+  background: var(--bg);
+  id: top;
+}
+.hero-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(80px)}
+.hero-orb-1{width:700px;height:700px;background:radial-gradient(circle,rgba(0,212,255,0.07) 0%,transparent 70%);top:-200px;left:50%;transform:translateX(-50%)}
+.hero-orb-2{width:400px;height:400px;background:radial-gradient(circle,rgba(124,58,237,0.09) 0%,transparent 70%);bottom:0;right:0}
+.hero-orb-3{width:300px;height:300px;background:radial-gradient(circle,rgba(14,165,233,0.07) 0%,transparent 70%);bottom:100px;left:0}
+.hero-inner{max-width:800px;margin:0 auto;position:relative;z-index:1}
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
+  border-radius: var(--radius-pill); padding: 6px 18px 6px 10px;
+  font-size: 0.78rem; font-weight: 600; color: var(--cyan);
+  letter-spacing: 0.3px; margin-bottom: 2rem;
+}
+.hero-badge-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(0,212,255,0.8);animation:blink 2.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.8)}}
+
+.hero-title {
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size: clamp(2.4rem,6vw,4.2rem);
+  font-weight: 900; line-height: 1.08;
+  letter-spacing: -2px; color: var(--white);
+  margin-bottom: 1.5rem;
+}
+.hero-title .grad {
+  background: linear-gradient(135deg,#00D4FF 0%,#7C3AED 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-title .sub-label{display:block;font-size:clamp(1rem,2vw,1.3rem);font-weight:600;color:var(--white-muted);letter-spacing:0;margin-bottom:0.5rem}
+
+.hero-sub {
+  font-size: clamp(1rem,2vw,1.18rem);
+  color: var(--white-muted); line-height: 1.75;
+  max-width: 580px; margin: 0 auto 2.5rem;
+}
+
+.hero-download-wrap{display:flex;flex-direction:column;align-items:center;gap:1rem;margin-bottom:3rem}
+
+.btn-download {
+  display: inline-flex; align-items: center; gap: 14px;
+  padding: 18px 40px; border-radius: var(--radius-pill);
+  background: linear-gradient(135deg,#00D4FF 0%,#0EA5E9 60%,#7C3AED 100%);
+  color: #fff; font-size: 1.1rem; font-weight: 800;
+  letter-spacing: -0.3px;
+  box-shadow: 0 8px 40px rgba(0,212,255,0.4), 0 2px 16px rgba(124,58,237,0.3);
+  transition: all 0.25s; cursor: pointer; border: none;
+  position: relative; overflow: visible; transform-style: preserve-3d;
+}
+.btn-download:hover{transform:translateY(-3px);box-shadow:0 16px 56px rgba(0,212,255,0.5),0 4px 24px rgba(124,58,237,0.4)}
+.btn-download svg{flex-shrink:0;width:22px;height:22px}
+.btn-download-meta{font-size:0.8rem;color:var(--white-faint);font-weight:400}
+.btn-download-meta span{color:rgba(0,212,255,0.7);font-weight:600}
+
+.hero-or {
+  display: flex; align-items: center; gap: 1rem;
+  color: var(--white-faint); font-size: 0.8rem;
+  margin: 0.5rem auto; max-width: 240px; width: 100%;
+}
+.hero-or::before,.hero-or::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.btn-demo-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border-2); color: var(--white-muted);
+  font-size: 0.88rem; font-weight: 600;
+  transition: all var(--t); position: relative; overflow: visible; transform-style: preserve-3d;
+}
+.btn-demo-secondary:hover{color:var(--white);border-color:rgba(255,255,255,0.25);background:var(--glass)}
+
+.hero-stats {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; flex-wrap: wrap;
+  border: 1px solid var(--border); border-radius: 20px;
+  background: rgba(13,17,28,0.7); backdrop-filter: blur(20px);
+  overflow: hidden; max-width: 640px; margin: 0 auto;
+}
+.hero-stat {
+  flex: 1; min-width: 130px; padding: 22px 20px; text-align: center;
+  border-right: 1px solid var(--border);
+}
+.hero-stat:last-child{border-right:none}
+.hero-stat-num{font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:700;color:var(--white);line-height:1;margin-bottom:5px}
+.hero-stat-num span{font-size:1rem;color:var(--cyan)}
+.hero-stat-label{font-size:0.72rem;color:rgba(240,244,255,0.38);font-weight:500;text-transform:uppercase;letter-spacing:0.8px}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION COMMON
+═══════════════════════════════════════════════════════════ */
+section{padding:90px 0}
+.wrap{max-width:1200px;margin:0 auto;padding:0 clamp(1.5rem,5vw,3rem)}
+
+.section-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--cyan); margin-bottom: 1rem;
+}
+.section-eyebrow::before{content:'';width:18px;height:2px;background:var(--cyan);border-radius:1px}
+.section-title {
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size: clamp(1.8rem,4vw,3rem);
+  font-weight: 800; letter-spacing: -1.2px; line-height: 1.15;
+  color: var(--white); margin-bottom: 1rem;
+}
+.section-title .hl{background:linear-gradient(135deg,var(--cyan),var(--purple-l,#a855f7));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.section-sub{font-size:1.05rem;color:var(--white-muted);line-height:1.75;max-width:520px}
+
+/* ═══════════════════════════════════════════════════════════
+   FEATURES GRID
+═══════════════════════════════════════════════════════════ */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:3.5rem}
+.feat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+.feat-card:hover{border-color:rgba(0,212,255,0.28);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 0 1px rgba(0,212,255,0.08);transform:translateY(-4px)}
+.feat-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top left,rgba(0,212,255,0.05),transparent 60%);pointer-events:none;opacity:0;transition:opacity 0.3s}
+.feat-card:hover::before{opacity:1}
+.feat-card-top{height:3px;position:absolute;top:0;left:0;right:0;border-radius:var(--radius) var(--radius) 0 0}
+.feat-icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cyan); margin-bottom: 1.1rem;
+}
+.feat-icon svg{width:22px;height:22px}
+.feat-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:1rem;font-weight:700;color:var(--white);margin-bottom:0.5rem;letter-spacing:-0.2px}
+.feat-desc{font-size:0.875rem;color:var(--white-muted);line-height:1.7}
+
+/* ═══════════════════════════════════════════════════════════
+   INSTALL STEPS
+═══════════════════════════════════════════════════════════ */
+.steps-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;margin-top:3.5rem;position:relative}
+.steps-wrap::before{content:'';position:absolute;top:36px;left:calc(16.66% + 24px);right:calc(16.66% + 24px);height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.3),transparent);pointer-events:none}
+.step-card{text-align:center;padding:32px 20px}
+.step-num {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(0,212,255,0.1); border: 1.5px solid rgba(0,212,255,0.35);
+  color: var(--cyan); font-family:'JetBrains Mono',monospace;
+  font-size: 1rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.2rem; box-shadow: 0 0 20px rgba(0,212,255,0.15);
+}
+.step-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.05rem;font-weight:700;color:var(--white);margin-bottom:0.6rem}
+.step-desc{font-size:0.875rem;color:var(--white-muted);line-height:1.7}
+.step-desc code{font-family:'JetBrains Mono',monospace;font-size:0.8rem;background:rgba(0,212,255,0.08);color:var(--cyan);padding:2px 7px;border-radius:5px;border:1px solid rgba(0,212,255,0.18)}
+
+/* ═══════════════════════════════════════════════════════════
+   SYSTEM REQUIREMENTS
+═══════════════════════════════════════════════════════════ */
+.req-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:3.5rem;max-width:760px}
+.req-row{display:flex;align-items:flex-start;gap:14px;padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.req-icon{width:36px;height:36px;border-radius:10px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.15);display:flex;align-items:center;justify-content:center;color:var(--cyan);flex-shrink:0}
+.req-icon svg{width:16px;height:16px}
+.req-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--white-faint);margin-bottom:4px}
+.req-val{font-size:0.9rem;color:var(--white);font-weight:500}
+.req-note{font-size:0.78rem;color:var(--white-muted);margin-top:2px}
+@media(max-width:600px){.req-grid{grid-template-columns:1fr}}
+
+/* ═══════════════════════════════════════════════════════════
+   TRUST STRIP
+═══════════════════════════════════════════════════════════ */
+.trust-strip{padding:56px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.trust-inner{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:800px;margin:0 auto;border:1px solid var(--border);border-radius:20px;background:rgba(13,17,28,0.7);backdrop-filter:blur(20px);overflow:hidden}
+.trust-stat{flex:1;min-width:140px;padding:24px 18px;text-align:center;border-right:1px solid var(--border)}
+.trust-stat:last-child{border-right:none}
+.trust-num{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--white);line-height:1;margin-bottom:4px}
+.trust-num .u{font-size:0.9rem;color:var(--cyan)}
+.trust-label{font-size:0.68rem;color:rgba(240,244,255,0.35);font-weight:500;text-transform:uppercase;letter-spacing:0.8px}
+
+/* ═══════════════════════════════════════════════════════════
+   FINAL CTA
+═══════════════════════════════════════════════════════════ */
+.final-cta-section{padding:100px 0;text-align:center}
+.final-cta-section .section-title{margin:0 auto 1rem}
+.final-cta-section .section-sub{margin:0 auto 2.5rem}
+.final-cta-btns{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════ */
+@media(max-width:700px){
+  .hero{padding-top:120px}
+  .hero-stats{border-radius:14px}
+  .hero-stat{min-width:50%;border-bottom:1px solid var(--border)}
+  .steps-wrap::before{display:none}
+  .feat-grid{grid-template-columns:1fr}
+}
+</style>
+<!-- ══ CRISP LIVE CHAT + AI BOT ══ -->
+<script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="032f6ce9-493a-4be9-8048-342e6102b364";(function(){var d=document;var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     STICKY HEADER
+═══════════════════════════════════════════════════════════ -->
+<header class="site-nav" id="siteNav">
+  <a href="./index.html" class="nav-brand" aria-label="Nexunova RMS Home">
+    <div class="logo-wrapper">
+      <img src="assets/nexunova-logo.png" alt="Nexunova RMS" width="72" height="72">
+    </div>
+    <span class="nav-brand-name">Nexunova <span>RMS</span></span>
+  </a>
+
+  <nav id="sectionPillNav" aria-label="Page sections">
+    <div class="spn-track">
+      <a href="#top"          class="spn-pill spn-active" data-spn="top"><span class="spn-dot"></span>Download</a>
+      <span class="spn-sep"></span>
+      <a href="#features"     class="spn-pill" data-spn="features"><span class="spn-dot"></span>Features</a>
+      <span class="spn-sep"></span>
+      <a href="#install"      class="spn-pill" data-spn="install"><span class="spn-dot"></span>Install</a>
+      <span class="spn-sep"></span>
+      <a href="#requirements" class="spn-pill" data-spn="requirements"><span class="spn-dot"></span>Requirements</a>
+    </div>
+  </nav>
+
+  <div class="nav-actions">
+    <a href="./index.html" class="nav-cta-ghost">Back to RMS</a>
+    <a href="./login.html" class="nav-cta">
+      Sign In
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+
+  <button class="nav-mobile-btn" id="navMobileBtn" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<div class="nav-mobile-panel" id="navMobilePanel">
+  <a href="#top">Download</a>
+  <a href="#features">Features</a>
+  <a href="#install">Install Guide</a>
+  <a href="#requirements">Requirements</a>
+  <a href="./index.html">← Back to RMS</a>
+  <a href="./login.html" class="nav-cta">Sign In &rarr;</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════════════ -->
+<section id="top" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:140px clamp(1.5rem,5vw,4rem) 80px;text-align:center;position:relative;overflow:hidden;background:var(--bg)">
+  <div class="hero-orb hero-orb-1"></div>
+  <div class="hero-orb hero-orb-2"></div>
+  <div class="hero-orb hero-orb-3"></div>
+
+  <div style="max-width:760px;margin:0 auto;position:relative;z-index:1">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Nexunova RMS Desktop &middot; Windows App &middot; v2.4
+    </div>
+
+    <h1 class="hero-title">
+      <span class="sub-label">The full power of RMS</span>
+      <span class="grad">Native on your</span> Desktop
+    </h1>
+
+    <p class="hero-sub">
+      Real-time recovery radar, smart WhatsApp payment links, multi-level ledgers and KYC-verified agent tracking — all as a native Windows desktop app. No browser tabs. No lost sessions. No distractions.
+    </p>
+
+    <div class="hero-download-wrap">
+      <!-- ══ DOWNLOAD BUTTON — update href to your .exe path ══ -->
+      <a href="./downloads/NexunovaRMS-Setup.exe" class="btn-download" download id="mainDownloadBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Windows
+      </a>
+      <div class="btn-download-meta">
+        <span>v2.0</span> &nbsp;·&nbsp; Windows 10 / 11 &nbsp;·&nbsp; 64-bit &nbsp;·&nbsp; ~87 MB &nbsp;·&nbsp; <span>Free installer</span>
+      </div>
+
+      <div class="hero-or">or</div>
+
+      <a href="./login.html" class="btn-demo-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Use Web Version Instead
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">PKR 2B<span>+</span></div>
+        <div class="hero-stat-label">Receivables Managed</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">68<span>%</span></div>
+        <div class="hero-stat-label">Overdue Reduction</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">40<span>+</span></div>
+        <div class="hero-stat-label">Active Projects</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">99.9<span>%</span></div>
+        <div class="hero-stat-label">Uptime SLA</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DESKTOP FEATURES
+═══════════════════════════════════════════════════════════ -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-eyebrow">Why Desktop</div>
+    <h2 class="section-title">Everything the <span class="hl">web version has</span>,<br>built for Windows</h2>
+    <p class="section-sub">The desktop app is a native Windows shell around the live Nexunova RMS platform — giving you a dedicated, distraction-free workspace that stays signed in and always ready.</p>
+
+    <div class="feat-grid">
+
+      <div class="feat-card">
+        <div class="feat-card-top" style="background:linear-gradient(90deg,#00D4FF,#0EA5E9)"></div>
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <div class="feat-title">No Browser Required</div>
+        <div class="feat-desc">Runs as a standalone Windows app. No browser tab clutter, no accidental closures, no competing with other tabs for RAM.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-card-top" style="background:linear-gradient(90deg,#7C3AED,#a855f7)"></div>
+        <div class="feat-icon" style="background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.25);color:#a855f7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+        <div class="feat-title">System Tray Integration</div>
+        <div class="feat-desc">RMS lives in your Windows taskbar tray. One click to open, hide, or jump straight to the recovery radar — even when the window is minimised.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-card-top" style="background:linear-gradient(90deg,#10b981,#34d399)"></div>
+        <div class="feat-icon" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.2);color:#34d399"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+        <div class="feat-title">Native Windows Notifications</div>
+        <div class="feat-desc">Get real Windows push notifications for overdue instalments, pending promises, and agent check-ins — even when RMS is minimised to tray.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-card-top" style="background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div>
+        <div class="feat-icon" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.2);color:#fbbf24"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+        <div class="feat-title">Automatic Updates</div>
+        <div class="feat-desc">Always on the latest version of RMS. The app silently checks for updates in the background and applies them on next launch — zero manual work.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-card-top" style="background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div>
+        <div class="feat-icon" style="background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.2);color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></div>
+        <div class="feat-title">Session Persistence</div>
+        <div class="feat-desc">Stay signed in indefinitely. No browser cookie expiry, no "you were signed out" surprises mid-recovery-call. Your session is yours.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-card-top" style="background:linear-gradient(90deg,#ef4444,#f87171)"></div>
+        <div class="feat-icon" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);color:#f87171"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div class="feat-title">Secure &amp; Isolated</div>
+        <div class="feat-desc">No shared browser history. No extensions reading your RMS data. The desktop app runs in an isolated Chromium sandbox — your recovery data stays private.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HOW TO INSTALL
+═══════════════════════════════════════════════════════════ -->
+<section id="install" style="background:rgba(255,255,255,0.015)">
+  <div class="wrap">
+    <div style="text-align:center;margin-bottom:0">
+      <div class="section-eyebrow" style="justify-content:center">Setup Guide</div>
+      <h2 class="section-title" style="text-align:center;margin:0 auto 0.75rem">Up and running in <span class="hl">under 2 minutes</span></h2>
+      <p class="section-sub" style="margin:0 auto">Three steps. No IT department required.</p>
+    </div>
+
+    <div class="steps-wrap">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-title">Download the Installer</div>
+        <div class="step-desc">Click the Download button at the top. Your browser will save <code>NexunovaRMS-Setup.exe</code> — ~95 MB, digitally signed by Nexunova.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-title">Run the Setup</div>
+        <div class="step-desc">Double-click the downloaded file. If Windows SmartScreen appears, click <code>More info → Run anyway</code>. The installer completes in under a minute.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-title">Sign In &amp; Work</div>
+        <div class="step-desc">Log in with your existing Nexunova RMS credentials. All your projects, clients, ledgers, and payment links load automatically. Done.</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:3rem">
+      <a href="./downloads/NexunovaRMS-Setup.exe" class="btn-download" download style="font-size:0.95rem;padding:14px 32px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download NexunovaRMS-Setup.exe
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SYSTEM REQUIREMENTS
+═══════════════════════════════════════════════════════════ -->
+<section id="requirements">
+  <div class="wrap">
+    <div class="section-eyebrow">System Requirements</div>
+    <h2 class="section-title">Runs on almost <span class="hl">any Windows PC</span></h2>
+    <p class="section-sub">Lightweight by design. The desktop app is a thin native shell — the heavy lifting happens on our servers.</p>
+
+    <div class="req-grid">
+      <div class="req-row">
+        <div class="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+        <div>
+          <div class="req-label">Operating System</div>
+          <div class="req-val">Windows 10 or Windows 11</div>
+          <div class="req-note">64-bit only · Version 1903 or later</div>
+        </div>
+      </div>
+      <div class="req-row">
+        <div class="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+        <div>
+          <div class="req-label">Processor</div>
+          <div class="req-val">Intel Core i3 / AMD Ryzen 3 or better</div>
+          <div class="req-note">1.6 GHz minimum · Dual-core recommended</div>
+        </div>
+      </div>
+      <div class="req-row">
+        <div class="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4v16M18 4v16M2 8h4M18 8h4M2 12h20M2 16h4M18 16h4"/></svg></div>
+        <div>
+          <div class="req-label">Memory (RAM)</div>
+          <div class="req-val">4 GB minimum · 8 GB recommended</div>
+          <div class="req-note">For smooth parallel operations</div>
+        </div>
+      </div>
+      <div class="req-row">
+        <div class="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+        <div>
+          <div class="req-label">Storage</div>
+          <div class="req-val">200 MB available disk space</div>
+          <div class="req-note">Installer: ~95 MB · Installed: ~200 MB</div>
+        </div>
+      </div>
+      <div class="req-row">
+        <div class="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg></div>
+        <div>
+          <div class="req-label">Internet Connection</div>
+          <div class="req-val">Broadband required (cloud-based)</div>
+          <div class="req-note">5 Mbps+ recommended for real-time radar</div>
+        </div>
+      </div>
+      <div class="req-row">
+        <div class="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div>
+          <div class="req-label">Account</div>
+          <div class="req-val">Active Nexunova RMS subscription</div>
+          <div class="req-note"><a href="./signup.html?plan=free" style="color:var(--cyan)">Start a free 7-day trial →</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TRUST STRIP
+═══════════════════════════════════════════════════════════ -->
+<div class="trust-strip">
+  <div class="wrap">
+    <div class="trust-inner">
+      <div class="trust-stat">
+        <div class="trust-num">PKR 2B<span class="u">+</span></div>
+        <div class="trust-label">Receivables Managed</div>
+      </div>
+      <div class="trust-stat">
+        <div class="trust-num">68<span class="u">%</span></div>
+        <div class="trust-label">Overdue Reduction</div>
+      </div>
+      <div class="trust-stat">
+        <div class="trust-num">40<span class="u">+</span></div>
+        <div class="trust-label">Active Projects</div>
+      </div>
+      <div class="trust-stat">
+        <div class="trust-num">99.9<span class="u">%</span></div>
+        <div class="trust-label">Uptime SLA</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FINAL CTA
+═══════════════════════════════════════════════════════════ -->
+<section class="final-cta-section">
+  <div class="wrap">
+    <div class="section-eyebrow" style="justify-content:center">Ready?</div>
+    <h2 class="section-title" style="text-align:center;margin:0 auto 1rem;max-width:560px">
+      Download RMS Desktop<br><span class="hl">and never lose a rupee again</span>
+    </h2>
+    <p class="section-sub" style="margin:0 auto 2.5rem;text-align:center">
+      One installer. Your entire recovery operation on your desktop. PKR 2 billion in receivables managed and counting.
+    </p>
+    <div class="final-cta-btns">
+      <a href="./downloads/NexunovaRMS-Setup.exe" class="btn-download" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Windows — Free
+      </a>
+      <a href="./signup.html?plan=free" class="btn-demo-secondary">
+        Or try the web version
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// NAV SCROLL SHADOW
+// ═══════════════════════════════════════════════════════════
+(function () {
+  var nav = document.getElementById('siteNav');
+  if (!nav) return;
+  window.addEventListener('scroll', function () {
+    nav.classList.toggle('scrolled', window.scrollY > 24);
+  }, { passive: true });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// MOBILE NAV TOGGLE
+// ═══════════════════════════════════════════════════════════
+(function () {
+  var btn   = document.getElementById('navMobileBtn');
+  var panel = document.getElementById('navMobilePanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function () {
+    var open = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function (e) {
+    if (!panel.classList.contains('open')) return;
+    if (panel.contains(e.target) || btn.contains(e.target)) return;
+    panel.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+  panel.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      panel.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION PILL NAV — scrollspy active highlight
+// ═══════════════════════════════════════════════════════════
+(function () {
+  var pills = document.querySelectorAll('.spn-pill[data-spn]');
+  if (!pills.length) return;
+  var sections = Array.from(pills).map(function (pill) {
+    return { id: pill.getAttribute('data-spn'), el: document.getElementById(pill.getAttribute('data-spn')), pill: pill };
+  }).filter(function (s) { return s.el; });
+  var headerH = 110;
+  function setActive(id) {
+    pills.forEach(function (p) {
+      p.classList.toggle('spn-active', p.getAttribute('data-spn') === id);
+    });
+  }
+  function onScroll() {
+    var scrollY = window.scrollY;
+    var current = sections[0].id;
+    for (var i = 0; i < sections.length; i++) {
+      var top = sections[i].el.getBoundingClientRect().top + scrollY - headerH - 60;
+      if (scrollY >= top) current = sections[i].id;
+    }
+    setActive(current);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION PILL NAV — ADVANCED HOVER FX
+// 3D tilt · specular glare · sparks · neon ring · indicator
+// ═══════════════════════════════════════════════════════════
+(function () {
+  var track = document.querySelector('.spn-track');
+  if (!track) return;
+  var pills = Array.from(track.querySelectorAll('.spn-pill'));
+
+  var ind = document.createElement('span');
+  ind.className = 'spn-indicator';
+  track.insertBefore(ind, track.firstChild);
+
+  function moveInd(pill) {
+    var tr = track.getBoundingClientRect();
+    var pr = pill.getBoundingClientRect();
+    ind.style.opacity = '1';
+    ind.style.left    = (pr.left - tr.left) + 'px';
+    ind.style.width   = pr.width + 'px';
+  }
+
+  var spot = document.createElement('span');
+  spot.className = 'spn-spotlight';
+  track.appendChild(spot);
+
+  track.addEventListener('mousemove', function (e) {
+    var r = track.getBoundingClientRect();
+    spot.style.left    = (e.clientX - r.left) + 'px';
+    spot.style.top     = (e.clientY - r.top) + 'px';
+    spot.style.opacity = '1';
+  });
+  track.addEventListener('mouseleave', function () {
+    spot.style.opacity = '0';
+    ind.style.opacity  = '0';
+    pills.forEach(resetPill);
+  });
+
+  var sparkColors = ['#00D4FF','#7B2FF7','#a855f7','#0EA5E9','#ffffff','#34d399'];
+  function fireSparks(x, y, count) {
+    count = count || 10;
+    for (var i = 0; i < count; i++) {
+      (function () {
+        var s = document.createElement('span');
+        s.className = 'spn-spark';
+        var angle = Math.random() * Math.PI * 2;
+        var dist  = 16 + Math.random() * 32;
+        s.style.left = (x - 2.5) + 'px';
+        s.style.top  = (y - 2.5) + 'px';
+        s.style.setProperty('--tx', (Math.cos(angle) * dist) + 'px');
+        s.style.setProperty('--ty', (Math.sin(angle) * dist) + 'px');
+        var c = sparkColors[Math.floor(Math.random() * sparkColors.length)];
+        s.style.background = c;
+        s.style.boxShadow  = '0 0 8px ' + c + ', 0 0 16px ' + c;
+        s.style.animationDelay = (Math.random() * 60) + 'ms';
+        document.body.appendChild(s);
+        s.addEventListener('animationend', function () { s.remove(); });
+      }());
+    }
+  }
+
+  function resetPill(p) {
+    p.style.transition = 'transform 0.55s cubic-bezier(0.32,0.72,0,1)';
+    p.style.transform  = '';
+    var gl = p.querySelector('.spn-glare');
+    if (gl) { gl.style.opacity = '0'; }
+    var rg = p.querySelector('.spn-ring');
+    if (rg) { rg.style.opacity = '0'; rg.style.transform = 'scale(0.82)'; }
+  }
+
+  pills.forEach(function (pill) {
+    var glare = document.createElement('span');
+    glare.className = 'spn-glare';
+    pill.appendChild(glare);
+
+    var ring = document.createElement('span');
+    ring.className = 'spn-ring';
+    pill.appendChild(ring);
+
+    pill.addEventListener('mouseenter', function (e) {
+      moveInd(pill);
+      fireSparks(e.clientX, e.clientY, 10);
+      ring.style.opacity   = '1';
+      ring.style.transform = 'scale(1.10)';
+    });
+
+    pill.addEventListener('mousemove', function (e) {
+      var r  = pill.getBoundingClientRect();
+      var x  = e.clientX - r.left;
+      var y  = e.clientY - r.top;
+      var nx = (x / r.width  - 0.5) * 2;
+      var ny = (y / r.height - 0.5) * 2;
+      var rotX = ny * -13;
+      var rotY = nx *  13;
+      var tx   = nx * 3.5;
+      var ty   = ny * 3.5;
+      pill.style.transition = 'transform 0.05s linear';
+      pill.style.transform  =
+        'perspective(300px)' +
+        ' rotateX(' + rotX + 'deg)' +
+        ' rotateY(' + rotY + 'deg)' +
+        ' translate(' + tx + 'px,' + ty + 'px)' +
+        ' scale(1.12)';
+      var gx = (x / r.width)  * 100;
+      var gy = (y / r.height) * 100;
+      glare.style.opacity    = '1';
+      glare.style.background =
+        'radial-gradient(circle at ' + gx + '% ' + gy + '%,' +
+        ' rgba(255,255,255,0.30) 0%,' +
+        ' rgba(255,255,255,0.08) 35%,' +
+        ' transparent 68%)';
+    });
+
+    pill.addEventListener('mouseleave', function () { resetPill(pill); });
+
+    pill.addEventListener('click', function (e) {
+      fireSparks(e.clientX, e.clientY, 14);
+      var size   = 90;
+      var ripple = document.createElement('span');
+      ripple.className   = 'spn-ripple';
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left  = (e.clientX - size / 2) + 'px';
+      ripple.style.top   = (e.clientY - size / 2) + 'px';
+      document.body.appendChild(ripple);
+      ripple.addEventListener('animationend', function () { ripple.remove(); });
+    });
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// ALL CTA BUTTONS — 3D tilt · glare · sparks · ring · ripple
+// ═══════════════════════════════════════════════════════════
+(function () {
+  var SEL = '.btn-download,.nav-cta,.nav-cta-ghost,.btn-demo-secondary';
+  var sparkColors = ['#00D4FF','#7B2FF7','#a855f7','#0EA5E9','#ffffff','#34d399'];
+
+  function fireSparks(x, y, n) {
+    for (var i = 0; i < (n || 8); i++) {
+      (function () {
+        var s = document.createElement('span');
+        s.className = 'spn-spark';
+        var a = Math.random() * Math.PI * 2;
+        var d = 14 + Math.random() * 26;
+        s.style.left = (x - 2.5) + 'px';
+        s.style.top  = (y - 2.5) + 'px';
+        s.style.setProperty('--tx', (Math.cos(a) * d) + 'px');
+        s.style.setProperty('--ty', (Math.sin(a) * d) + 'px');
+        var c = sparkColors[Math.floor(Math.random() * sparkColors.length)];
+        s.style.background = c;
+        s.style.boxShadow  = '0 0 8px ' + c + ', 0 0 16px ' + c;
+        s.style.animationDelay = (Math.random() * 60) + 'ms';
+        document.body.appendChild(s);
+        s.addEventListener('animationend', function () { s.remove(); });
+      }());
+    }
+  }
+
+  document.querySelectorAll(SEL).forEach(function (btn) {
+    btn.style.position       = 'relative';
+    btn.style.overflow       = 'visible';
+    btn.style.transformStyle = 'preserve-3d';
+
+    var glare = document.createElement('span');
+    glare.style.cssText =
+      'position:absolute;inset:0;border-radius:inherit;' +
+      'pointer-events:none;z-index:10;opacity:0;' +
+      'transition:opacity 0.18s ease;';
+    btn.appendChild(glare);
+
+    var ring = document.createElement('span');
+    ring.style.cssText =
+      'position:absolute;inset:-5px;border-radius:inherit;' +
+      'border:1.5px solid rgba(0,212,255,0.55);' +
+      'pointer-events:none;z-index:11;opacity:0;' +
+      'transform:scale(0.85);' +
+      'transition:opacity 0.28s ease,transform 0.40s cubic-bezier(0.32,0.72,0,1);' +
+      'box-shadow:0 0 16px rgba(0,212,255,0.42),inset 0 0 8px rgba(0,212,255,0.08);';
+    btn.appendChild(ring);
+
+    btn.addEventListener('mouseenter', function (e) {
+      fireSparks(e.clientX, e.clientY, 8);
+      ring.style.opacity   = '1';
+      ring.style.transform = 'scale(1.08)';
+    });
+
+    btn.addEventListener('mousemove', function (e) {
+      var r  = btn.getBoundingClientRect();
+      var x  = e.clientX - r.left;
+      var y  = e.clientY - r.top;
+      var nx = (x / r.width  - 0.5) * 2;
+      var ny = (y / r.height - 0.5) * 2;
+      btn.style.transition = 'transform 0.06s linear';
+      btn.style.transform  =
+        'perspective(400px)' +
+        ' rotateX(' + (ny * -11) + 'deg)' +
+        ' rotateY(' + (nx *  11) + 'deg)' +
+        ' translate(' + (nx * 3.5) + 'px,' + (ny * 3.5) + 'px)' +
+        ' scale(1.07)';
+      glare.style.opacity    = '1';
+      glare.style.background =
+        'radial-gradient(circle at ' +
+        ((x / r.width)  * 100) + '% ' +
+        ((y / r.height) * 100) + '%,' +
+        ' rgba(255,255,255,0.26) 0%,' +
+        ' rgba(255,255,255,0.06) 40%,' +
+        ' transparent 68%)';
+    });
+
+    btn.addEventListener('mouseleave', function () {
+      btn.style.transition = 'transform 0.5s cubic-bezier(0.32,0.72,0,1)';
+      btn.style.transform  = '';
+      glare.style.opacity  = '0';
+      ring.style.opacity   = '0';
+      ring.style.transform = 'scale(0.85)';
+    });
+
+    btn.addEventListener('click', function (e) {
+      fireSparks(e.clientX, e.clientY, 12);
+      var size   = 100;
+      var ripple = document.createElement('span');
+      ripple.className   = 'spn-ripple';
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left  = (e.clientX - size / 2) + 'px';
+      ripple.style.top   = (e.clientY - size / 2) + 'px';
+      document.body.appendChild(ripple);
+      ripple.addEventListener('animationend', function () { ripple.remove(); });
+    });
+  });
+})();
+</script>
+</body>
+</html>

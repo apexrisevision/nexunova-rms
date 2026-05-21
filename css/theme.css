@@ -1,0 +1,167 @@
+/* ══════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — Master Theme Token System v1.0
+   Single source of truth. Loaded first. All other CSS inherits.
+   Defines canonical tokens + aliases for legacy variable names.
+══════════════════════════════════════════════════════════════ */
+
+/* ── Brand tokens (theme-independent) ────────────────────── */
+:root {
+  --primary:        #4F46E5;
+  --primary-hover:  #4338CA;
+  --success:        #16A34A;
+  --warning:        #D97706;
+  --danger:         #DC2626;
+  --info:           #2563EB;
+}
+
+/* ══ LIGHT THEME ══════════════════════════════════════════ */
+[data-theme="light"] {
+
+  /* ── Surfaces ── */
+  --bg-page:           #F1F5F9;
+  --bg-card:           #FFFFFF;
+  --bg-card-hover:     #F8FAFC;
+  --bg-sidebar:        #FFFFFF;
+  --bg-sidebar-hover:  #F1F5F9;
+  --bg-sidebar-slot:   #F1F5F9;
+  --bg-sidebar-active: #EEF2FF;
+  --bg-topbar:         #FFFFFF;
+  --bg-modal:          #FFFFFF;
+  --bg-modal-overlay:  rgba(15,23,42,0.45);
+  --bg-input:          #FFFFFF;
+  --bg-input-hover:    #F8FAFC;
+  --bg-chip:           #F1F5F9;
+  --bg-chip-active:    #EEF2FF;
+  --bg-row-hover:      #F8FAFC;
+  --bg-row-stripe:     #FAFBFC;
+
+  /* ── Borders ── */
+  --border:            #E2E8F0;
+  --border-strong:     #CBD5E1;
+  --border-sidebar:    #E2E8F0;
+  --border-focus:      #4F46E5;
+
+  /* ── Text ── */
+  --text:                  #0F172A;
+  --text-soft:             #334155;
+  --text-muted:            #64748B;
+  --text-faint:            #94A3B8;
+  --text-on-primary:       #FFFFFF;
+  --text-sidebar:          #334155;
+  --text-sidebar-muted:    #94A3B8;
+  --text-sidebar-active:   #4F46E5;
+  --text-link:             #4F46E5;
+  --group-label:           #94A3B8;
+
+  /* ── Shadows ── */
+  --shadow-sm:  0 1px 2px rgba(15,23,42,0.04);
+  --shadow:     0 1px 3px rgba(15,23,42,0.06);
+  --shadow-md:  0 4px 12px rgba(15,23,42,0.08);
+  --shadow-lg:  0 20px 40px rgba(15,23,42,0.12);
+
+  /* ── Status tints ── */
+  --bg-danger-soft:  #FEF2F2;
+  --bg-success-soft: #F0FDF4;
+  --bg-warning-soft: #FFFBEB;
+  --bg-info-soft:    #EFF6FF;
+  --bg-primary-soft: #EEF2FF;
+
+  /* ── Aliases: dashboard-premium.css uses these names ── */
+  --bg-surface:   #FFFFFF;
+  --bg-elevated:  #F8FAFC;
+  --border-color: #E2E8F0;
+  --text-primary: #0F172A;
+
+  /* ── Reports hub vars ── */
+  --rh-bg:         #F1F5F9;
+  --rh-nav-bg:     #FFFFFF;
+  --rh-nav-border: #E2E8F0;
+  --rh-card-bg:    #FFFFFF;
+  --rh-card-bdr:   #E2E8F0;
+  --rh-hdr-bg:     rgba(255,255,255,0.90);
+  --rh-hdr-border: #E2E8F0;
+  --rh-input-bg:   #F8FAFC;
+  --rh-text:       #0F172A;
+  --rh-text-muted: #64748B;
+  --rh-text-faint: #94A3B8;
+  --rh-pill-bg:    #F1F5F9;
+  --rh-pill-text:  #475569;
+  --rh-skel-bg:    #FFFFFF;
+  --rh-skel-shine: #E2E8F0;
+}
+
+/* ══ DARK THEME ═══════════════════════════════════════════ */
+[data-theme="dark"] {
+
+  /* ── Surfaces ── */
+  --bg-page:           #0B1120;
+  --bg-card:           #111827;
+  --bg-card-hover:     #1A2235;
+  --bg-sidebar:        #0F172A;
+  --bg-sidebar-hover:  rgba(255,255,255,0.04);
+  --bg-sidebar-slot:   #1E293B;
+  --bg-sidebar-active: rgba(79,70,229,0.18);
+  --bg-topbar:         #111827;
+  --bg-modal:          #1A2235;
+  --bg-modal-overlay:  rgba(0,0,0,0.6);
+  --bg-input:          #1A2235;
+  --bg-input-hover:    #1E293B;
+  --bg-chip:           #1E293B;
+  --bg-chip-active:    rgba(79,70,229,0.2);
+  --bg-row-hover:      rgba(255,255,255,0.03);
+  --bg-row-stripe:     rgba(255,255,255,0.015);
+
+  /* ── Borders ── */
+  --border:            #1E293B;
+  --border-strong:     #334155;
+  --border-sidebar:    #1E293B;
+  --border-focus:      #6366F1;
+
+  /* ── Text ── */
+  --text:                  #F1F5F9;
+  --text-soft:             #CBD5E1;
+  --text-muted:            #94A3B8;
+  --text-faint:            #64748B;
+  --text-on-primary:       #FFFFFF;
+  --text-sidebar:          #CBD5E1;
+  --text-sidebar-muted:    #64748B;
+  --text-sidebar-active:   #FFFFFF;
+  --text-link:             #818CF8;
+  --group-label:           #475569;
+
+  /* ── Shadows ── */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow:     0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:  0 20px 40px rgba(0,0,0,0.7);
+
+  /* ── Status tints ── */
+  --bg-danger-soft:  rgba(220,38,38,0.12);
+  --bg-success-soft: rgba(22,163,74,0.12);
+  --bg-warning-soft: rgba(217,119,6,0.12);
+  --bg-info-soft:    rgba(37,99,235,0.12);
+  --bg-primary-soft: rgba(79,70,229,0.18);
+
+  /* ── Aliases: dashboard-premium.css uses these names ── */
+  --bg-surface:   #111827;
+  --bg-elevated:  #1A2235;
+  --border-color: #1E293B;
+  --text-primary: #F1F5F9;
+
+  /* ── Reports hub vars ── */
+  --rh-bg:         #0B1120;
+  --rh-nav-bg:     #0F172A;
+  --rh-nav-border: #1E293B;
+  --rh-card-bg:    #111827;
+  --rh-card-bdr:   #1E293B;
+  --rh-hdr-bg:     rgba(17,24,39,0.95);
+  --rh-hdr-border: #1E293B;
+  --rh-input-bg:   #1A2235;
+  --rh-text:       #F1F5F9;
+  --rh-text-muted: #94A3B8;
+  --rh-text-faint: #64748B;
+  --rh-pill-bg:    #1E293B;
+  --rh-pill-text:  #CBD5E1;
+  --rh-skel-bg:    #1A2235;
+  --rh-skel-shine: #1E293B;
+}

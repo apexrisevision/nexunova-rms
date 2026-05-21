@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Get Started — Nexunova RMS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.34.0/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:#05080f;font-family:'Inter','Segoe UI',sans-serif;color:#fff;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:4px}
+
+/* Electron drag region */
+.titlebar{-webkit-app-region:drag;position:fixed;top:0;left:0;right:0;height:32px;z-index:999;}
+.titlebar-close{-webkit-app-region:no-drag;position:fixed;top:8px;right:14px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;z-index:1000;transition:all .15s;}
+.titlebar-close:hover{background:rgba(239,68,68,.2);color:#ef4444;border-color:rgba(239,68,68,.4);}
+
+.shell{display:flex;height:100vh;overflow:hidden;}
+
+/* ── LEFT PANEL ── */
+.left{flex:1;background:linear-gradient(160deg,#05080f 0%,#080b18 40%,#0a0c1e 100%);position:relative;overflow:hidden;display:flex;flex-direction:column;padding:60px 32px 24px;}
+.orb{position:absolute;border-radius:50%;pointer-events:none;}
+.orb1{width:500px;height:500px;background:radial-gradient(circle,rgba(90,50,240,.18) 0%,transparent 70%);top:-120px;left:-100px;}
+.orb2{width:350px;height:350px;background:radial-gradient(circle,rgba(56,189,248,.1) 0%,transparent 70%);bottom:0;right:100px;}
+.orb3{width:200px;height:200px;background:radial-gradient(circle,rgba(139,92,246,.12) 0%,transparent 70%);bottom:80px;left:60px;}
+.skyline{position:absolute;bottom:0;left:0;right:0;height:200px;pointer-events:none;}
+
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;position:relative;z-index:1;}
+.logo-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;color:#fff;}
+.logo-tag{font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:2px;margin-left:2px;}
+
+.hero{position:relative;z-index:1;margin-bottom:22px;}
+.hero-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:30px;font-weight:900;line-height:1.18;letter-spacing:-.8px;margin-bottom:10px;}
+.grad-text1{background:linear-gradient(90deg,#fff 0%,#c4b5fd 60%,#93c5fd 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.grad-text2{background:linear-gradient(90deg,#c4b5fd 0%,#60a5fa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-sub{font-size:12.5px;color:rgba(255,255,255,.4);line-height:1.6;max-width:380px;}
+
+.features{position:relative;z-index:1;margin-bottom:22px;}
+.feat{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
+.feat-icon{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(139,92,246,.2));border:1px solid rgba(99,102,241,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#a5b4fc;}
+.feat-text{font-size:12px;color:rgba(255,255,255,.5);line-height:1.5;}
+.feat-text strong{color:rgba(255,255,255,.78);font-weight:600;}
+
+.trust{position:relative;z-index:1;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.trust-badge{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:7px 11px;}
+.trust-badge span{font-size:10.5px;color:rgba(255,255,255,.38);}
+
+.left-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;position:relative;z-index:1;}
+.foot-brand{font-size:10px;color:rgba(255,255,255,.18);font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.foot-ver{font-size:10px;color:rgba(255,255,255,.18);}
+
+/* ── RIGHT PANEL ── */
+.right{width:440px;min-width:440px;background:linear-gradient(160deg,#0c0f1e 0%,#111827 100%);border-left:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;padding:60px 32px 24px;overflow-y:auto;position:relative;}
+.right-orb{position:absolute;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.08) 0%,transparent 70%);top:-80px;right:-80px;pointer-events:none;}
+
+/* Step indicator */
+.steps-wrap{display:flex;align-items:center;margin-bottom:22px;}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:all .25s;flex-shrink:0;}
+.step-dot.done{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 2px 10px rgba(99,102,241,.4);}
+.step-dot.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.2);}
+.step-dot.pending{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);}
+.step-line{flex:1;height:1px;background:rgba(255,255,255,.08);transition:background .3s;}
+.step-line.done{background:rgba(99,102,241,.5);}
+
+/* Step panels */
+.step-panel{display:none;flex-direction:column;}
+.step-panel.active{display:flex;}
+.step-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;color:#fff;letter-spacing:-.4px;margin-bottom:3px;}
+.step-sub{font-size:12px;color:rgba(255,255,255,.35);margin-bottom:20px;line-height:1.5;}
+
+/* Fields */
+.field{width:100%;margin-bottom:13px;}
+.field label{display:block;font-size:11px;font-weight:600;color:rgba(255,255,255,.45);margin-bottom:5px;letter-spacing:.4px;text-transform:uppercase;}
+.inp{width:100%;height:43px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-size:13.5px;padding:0 13px;outline:none;transition:border-color .2s,box-shadow .2s;font-family:'Inter',sans-serif;}
+.inp:focus{border-color:rgba(99,102,241,.6);box-shadow:0 0 0 3px rgba(99,102,241,.14);}
+.inp::placeholder{color:rgba(255,255,255,.18);}
+.inp.err{border-color:rgba(239,68,68,.5)!important;box-shadow:0 0 0 3px rgba(239,68,68,.1)!important;}
+select.inp{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;}
+select.inp option{background:#1a1f2e;color:#fff;}
+
+/* Password */
+.pwd-wrap{position:relative;}
+.pwd-wrap .inp{padding-right:44px;}
+.eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;padding:4px;display:flex;align-items:center;line-height:1;transition:color .15s;}
+.eye-btn:hover{color:rgba(255,255,255,.6);}
+.strength-wrap{margin-top:7px;}
+.strength-bg{height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-bottom:4px;}
+.strength-fill{height:100%;width:0;transition:width .3s,background .3s;border-radius:2px;}
+.strength-lbl{font-size:10px;color:rgba(255,255,255,.3);}
+
+/* Billing toggle */
+.billing-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.tog-track{width:40px;height:20px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);position:relative;cursor:pointer;transition:background .2s,border-color .2s;flex-shrink:0;}
+.tog-track.on{background:linear-gradient(135deg,#6366f1,#8b5cf6);border-color:transparent;}
+.tog-thumb{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.tog-track.on .tog-thumb{transform:translateX(20px);}
+.tog-lbl{font-size:12px;font-weight:600;color:rgba(255,255,255,.35);transition:color .2s;}
+.tog-lbl.active{color:rgba(255,255,255,.85);}
+.save-badge{font-size:10px;background:rgba(110,231,183,.1);border:1px solid rgba(110,231,183,.25);color:#6ee7b7;padding:2px 8px;border-radius:5px;font-weight:700;}
+
+/* Plan cards */
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pcard{border-radius:12px;border:1.5px solid rgba(255,255,255,.08);padding:14px 13px;cursor:pointer;transition:all .2s;position:relative;background:rgba(255,255,255,.025);}
+.pcard:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.06);}
+.pcard.sel{border-color:rgba(99,102,241,.7);background:rgba(99,102,241,.1);box-shadow:0 0 0 1px rgba(99,102,241,.2);}
+.pcard.popular-card{border-color:rgba(167,139,250,.3);}
+.pop-badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#6366f1,#8b5cf6);font-size:9px;font-weight:700;color:#fff;padding:2px 9px;border-radius:5px;white-space:nowrap;letter-spacing:.3px;}
+.pcard-name{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px;}
+.pcard-price{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#fff;line-height:1.1;}
+.pcard-cycle{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px;}
+.pcard-sep{height:1px;background:rgba(255,255,255,.06);margin:9px 0;}
+.pcard-feats{display:flex;flex-direction:column;gap:3px;}
+.pcard-feat{font-size:10px;color:rgba(255,255,255,.4);display:flex;align-items:center;gap:4px;line-height:1.4;}
+.pcard-feat::before{content:'✓';color:#6ee7b7;font-size:9px;font-weight:700;flex-shrink:0;}
+.pcard.sel .pcard-name{color:#a5b4fc;}
+.pcard.sel .pcard-feat{color:rgba(255,255,255,.6);}
+
+/* Error */
+.err-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:9px;padding:10px 13px;color:#fca5a5;font-size:12px;margin-bottom:14px;display:none;align-items:center;gap:8px;line-height:1.4;}
+
+/* Buttons */
+.btn-row{display:flex;gap:10px;margin-top:18px;}
+.btn-next{flex:1;height:45px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 18px rgba(99,102,241,.38);transition:all .2s;letter-spacing:.3px;}
+.btn-next:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 26px rgba(99,102,241,.5);}
+.btn-next:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-back{height:45px;width:45px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.btn-back:hover{background:rgba(255,255,255,.09);color:#fff;border-color:rgba(255,255,255,.18);}
+
+/* Signin link */
+.signin-link{text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.28);}
+.signin-link a{color:#a5b4fc;font-weight:600;text-decoration:none;}
+.signin-link a:hover{color:#c4b5fd;}
+
+/* Success */
+.success-wrap{display:none;flex-direction:column;align-items:center;padding:8px 0;}
+.success-ring{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(52,211,153,.08));border:1.5px solid rgba(16,185,129,.4);display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 0 32px rgba(16,185,129,.15);}
+.success-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:#fff;margin-bottom:5px;}
+.success-sub{font-size:12.5px;color:rgba(255,255,255,.38);text-align:center;margin-bottom:20px;line-height:1.55;}
+.cred-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:4px 18px;width:100%;margin-bottom:14px;}
+.cred-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;}
+.cred-row+.cred-row{border-top:1px solid rgba(255,255,255,.06);}
+.cred-lbl{font-size:10px;color:rgba(255,255,255,.35);font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.cred-val{font-size:13.5px;font-weight:700;color:#a5b4fc;letter-spacing:.5px;}
+.cred-val.green{color:#6ee7b7;}
+.copy-btn{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);color:#a5b4fc;border-radius:6px;padding:3px 9px;font-size:10px;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;transition:all .15s;white-space:nowrap;}
+.copy-btn:hover{background:rgba(99,102,241,.22);}
+.note-box{background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.18);border-radius:9px;padding:10px 13px;font-size:11.5px;color:rgba(234,179,8,.85);width:100%;margin-bottom:14px;line-height:1.55;}
+.btn-signin{width:100%;height:45px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 18px rgba(99,102,241,.38);transition:all .2s;}
+.btn-signin:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(99,102,241,.5);}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+
+.sb-peek{padding:11px 16px;font-size:.75rem}.sb-peek-cta-text::before{font-size:.9rem;margin-right:6px}.sb-expand{width:calc(100vw - 32px)}}
+/* ── HOVER FX SYSTEM — exact same as nexunova.com ── */
+.spn-spark{position:fixed;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:99999;animation:spnSparkFly 0.65s ease-out forwards}
+@keyframes spnSparkFly{0%{transform:translate(0,0) scale(1.3);opacity:1}100%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(0);opacity:0}}
+.spn-ripple{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.65) 0%,rgba(123,47,247,0.35) 40%,transparent 70%);pointer-events:none;z-index:99999;transform:scale(0);animation:spnRipplePop 0.65s cubic-bezier(0.22,1,0.36,1) forwards}
+@keyframes spnRipplePop{to{transform:scale(1);opacity:0}}
+</style>
+<style id="nx-price-panel-css">
+#priceBackdrop{position:fixed;inset:0;z-index:8998;background:rgba(2,5,14,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .38s ease}
+#priceBackdrop.is-open{opacity:1;pointer-events:all}
+#priceTab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:9001;width:34px;padding:28px 0;border:0;border-radius:12px 0 0 12px;background:rgba(7,10,22,.9);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:'Inter',sans-serif;transition:width .28s cubic-bezier(.4,0,.2,1),background .22s ease,box-shadow .22s ease,transform .42s cubic-bezier(.32,.72,0,1),opacity .3s ease;box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}
+#priceTab::before{content:'';position:absolute;top:0;bottom:0;left:0;width:2px;border-radius:12px 0 0 12px;background:linear-gradient(180deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}
+#priceTab:hover{width:38px;background:rgba(10,14,30,.97);box-shadow:-6px 0 48px rgba(0,212,255,.3),-3px 0 18px rgba(123,47,247,.2),inset 1px 0 0 rgba(255,255,255,.1)}
+#nx-price-bar.is-open #priceTab{transform:translateY(-50%) translateX(100%);opacity:0;pointer-events:none;animation:none}
+.pt-icon{color:rgba(0,212,255,.65);display:flex;flex-shrink:0;transition:color .2s ease,transform .22s ease}
+.pt-icon svg{width:13px;height:13px}
+#priceTab:hover .pt-icon{color:#00D4FF;transform:scale(1.12)}
+.pt-label{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:.56rem;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:rgba(255,255,255,.55);transition:color .2s ease;white-space:nowrap;user-select:none}
+#priceTab:hover .pt-label{color:rgba(255,255,255,.88)}
+.pt-dot{width:5px;height:5px;border-radius:50%;background:#34d399;box-shadow:0 0 6px rgba(52,211,153,.85);flex-shrink:0;animation:ptPulse 2.2s ease-in-out infinite}
+@keyframes ptPulse{0%,100%{opacity:1;box-shadow:0 0 6px rgba(52,211,153,.85)}50%{opacity:.55;box-shadow:0 0 12px rgba(52,211,153,.4)}}
+#priceTab:hover .pt-dot{animation-duration:.75s;box-shadow:0 0 10px rgba(52,211,153,1),0 0 20px rgba(52,211,153,.5)}
+.pt-shimmer{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:10}
+.pt-shimmer::after{content:'';position:absolute;left:0;right:0;height:60%;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.14) 40%,rgba(255,255,255,.28) 50%,rgba(255,255,255,.14) 60%,transparent 100%);top:-60%}
+#priceTab:hover .pt-shimmer::after{animation:ptShimmer .65s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes ptShimmer{from{top:-60%}to{top:160%}}
+.pt-peek{position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%) translateX(10px);background:rgba(6,9,20,.96);backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);border:1px solid rgba(0,212,255,.18);border-radius:10px;padding:9px 14px 9px 12px;white-space:nowrap;font-size:.74rem;font-weight:600;color:rgba(220,235,255,.8);letter-spacing:.1px;opacity:0;pointer-events:none;transition:opacity .28s ease,transform .32s cubic-bezier(.32,.72,0,1);box-shadow:0 8px 28px rgba(0,0,0,.48),0 0 0 1px rgba(255,255,255,.03),0 0 20px rgba(0,212,255,.08)}
+.pt-peek::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%) rotate(45deg);width:9px;height:9px;background:rgba(6,9,20,.96);border-right:1px solid rgba(0,212,255,.18);border-top:1px solid rgba(0,212,255,.18)}
+#priceTab:hover .pt-peek{opacity:1;transform:translateY(-50%) translateX(0)}
+#priceTab:hover::before{box-shadow:0 0 18px rgba(0,212,255,.85),0 0 36px rgba(123,47,247,.55),0 0 60px rgba(0,212,255,.2);animation:ptBorderPulse 1s ease-in-out infinite}
+@keyframes ptBorderPulse{0%,100%{opacity:1}50%{opacity:.7}}
+#nx-price-bar:not(.is-open) #priceTab{animation:tabBreathe 2.8s ease-in-out infinite}
+@keyframes tabBreathe{0%,100%{box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}50%{box-shadow:-12px 0 64px rgba(0,212,255,.52),-6px 0 30px rgba(123,47,247,.38),inset 1px 0 0 rgba(255,255,255,.14),0 0 50px rgba(0,212,255,.12)}}
+#nx-price-bar:not(.is-open) #priceTab::before{animation:tabBorderBreath 2.8s ease-in-out infinite}
+@keyframes tabBorderBreath{0%,100%{box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}50%{box-shadow:0 0 26px rgba(0,212,255,1),0 0 55px rgba(123,47,247,.72),0 0 100px rgba(0,212,255,.22)}}
+#nx-price-bar:not(.is-open) #priceTab:hover,#nx-price-bar:not(.is-open) #priceTab:hover::before{animation:none}
+#priceDrawer{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100vw;z-index:9002;background:rgba(6,9,20,.98);backdrop-filter:blur(40px) saturate(1.9) brightness(1.04);-webkit-backdrop-filter:blur(40px) saturate(1.9) brightness(1.04);border-left:1px solid rgba(0,212,255,.12);box-shadow:-28px 0 90px rgba(0,0,0,.6),-4px 0 20px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .48s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;overflow:hidden;font-family:'Inter',sans-serif}
+#priceDrawer.is-open{transform:translateX(0)}
+#priceDrawer::before{content:'';display:block;height:2px;background:linear-gradient(90deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);flex-shrink:0;box-shadow:0 0 20px rgba(0,212,255,.55)}
+.pd-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;flex-shrink:0}
+.pd-title-wrap{display:flex;flex-direction:column;gap:4px}
+.pd-title{font-family:'Plus Jakarta Sans','Inter',sans-serif;font-size:1rem;font-weight:800;background:linear-gradient(135deg,#fff 10%,#00D4FF 55%,#a855f7 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
+.pd-sub{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.4px;color:rgba(0,212,255,.5)}
+.pd-close{width:32px;height:32px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.02);color:rgba(255,255,255,.4);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,border-color .18s ease,color .18s ease;flex-shrink:0;font-family:inherit}
+.pd-close:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff}
+.pd-divider{height:1px;background:rgba(255,255,255,.05);margin:0 22px;flex-shrink:0}
+.pd-body{flex:1;overflow-y:auto;padding:20px 22px 32px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;scrollbar-color:rgba(0,212,255,.18) transparent}
+.pd-body::-webkit-scrollbar{width:4px}
+.pd-body::-webkit-scrollbar-track{background:transparent}
+.pd-body::-webkit-scrollbar-thumb{background:rgba(0,212,255,.18);border-radius:2px}
+.pd-section{font-family:'JetBrains Mono',monospace;font-size:.57rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:-2px}
+.nx-sb-billing{position:relative;display:flex;align-items:center;height:34px;padding:3px;border-radius:100px;background:transparent;border:1px solid rgba(255,255,255,.08);width:100%}
+.nx-bill-opt{position:relative;z-index:2;appearance:none;background:transparent;border:0;padding:0 16px;height:100%;border-radius:100px;font-family:inherit;font-size:.72rem;font-weight:600;letter-spacing:.2px;color:rgba(240,244,255,.5);cursor:pointer;transition:color .2s ease;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;flex:1}
+.nx-bill-opt.is-active{color:#050709}
+.nx-bill-opt:hover:not(.is-active){color:rgba(240,244,255,.9)}
+.nx-bill-save{font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:.5px;padding:1px 5px;border-radius:100px;background:rgba(16,185,129,.18);color:#34d399;font-weight:700}
+.nx-bill-opt.is-active .nx-bill-save{background:rgba(5,7,9,.15);color:#047857}
+.nx-bill-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:100px;background:linear-gradient(135deg,#00D4FF,#7B2FF7);box-shadow:0 2px 12px rgba(0,212,255,.38);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:1}
+.nx-sb-billing[data-bill="yearly"] .nx-bill-thumb{transform:translateX(100%)}
+.nx-pills{display:flex;flex-direction:column;gap:7px;width:100%}
+.nx-pill{position:relative;width:100%}
+.nx-pill-btn{appearance:none;border:1px solid transparent;background:transparent;border-radius:12px;padding:11px 14px;font-size:.81rem;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;transition:transform .2s cubic-bezier(.4,0,.2,1),background .2s ease,border-color .2s ease,box-shadow .2s ease;text-decoration:none;letter-spacing:.08px}
+.nx-pill-btn:hover{transform:translateX(3px)}
+.nx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.nx-pill-price{display:inline-block;transition:opacity .18s ease,transform .18s ease}
+.nx-pill-price.is-flipping{opacity:0;transform:translateY(-3px)}
+.nx-pill-meta{margin-left:auto;font-size:.67rem;font-weight:500;opacity:.42;white-space:nowrap}
+.nx-pill-free .nx-pill-btn{color:#34d399;border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.06)}
+.nx-pill-free .nx-pill-dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.7)}
+.nx-pill-free .nx-pill-btn:hover{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.55);box-shadow:0 4px 18px rgba(16,185,129,.18)}
+.nx-pill-basic .nx-pill-btn{color:#60a5fa;border-color:rgba(96,165,250,.28);background:rgba(59,130,246,.06)}
+.nx-pill-basic .nx-pill-dot{background:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,.7)}
+.nx-pill-basic .nx-pill-btn:hover{background:rgba(59,130,246,.12);border-color:rgba(96,165,250,.55);box-shadow:0 4px 18px rgba(59,130,246,.18)}
+.nx-pill-pro .nx-pill-btn{color:#00D4FF;border-color:rgba(0,212,255,.32);background:rgba(0,212,255,.06)}
+.nx-pill-pro .nx-pill-dot{background:#00D4FF;box-shadow:0 0 8px rgba(0,212,255,.7)}
+.nx-pill-pro .nx-pill-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.55);box-shadow:0 4px 18px rgba(0,212,255,.18)}
+.nx-pill-ult .nx-pill-btn{color:#c084fc;border-color:rgba(192,132,252,.32);background:rgba(168,85,247,.06)}
+.nx-pill-ult .nx-pill-dot{background:#a855f7;box-shadow:0 0 8px rgba(168,85,247,.7)}
+.nx-pill-ult .nx-pill-btn:hover{background:rgba(168,85,247,.12);border-color:rgba(192,132,252,.55);box-shadow:0 4px 18px rgba(168,85,247,.18)}
+.nx-demos{display:flex;flex-direction:column;gap:7px}
+.nx-demo{display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:600;padding:11px 14px;border-radius:12px;border:1px solid;text-decoration:none;transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.nx-demo svg{width:11px;height:11px;flex-shrink:0}
+.nx-demo-rms{color:#00D4FF;border-color:rgba(0,212,255,.28);background:rgba(0,212,255,.04)}
+.nx-demo-rms:hover{background:rgba(0,212,255,.11);border-color:rgba(0,212,255,.55);box-shadow:0 4px 18px rgba(0,212,255,.16);transform:translateX(3px)}
+.nx-demo-crm{color:#c084fc;border-color:rgba(192,132,252,.28);background:rgba(168,85,247,.04)}
+.nx-demo-crm:hover{background:rgba(168,85,247,.11);border-color:rgba(192,132,252,.55);box-shadow:0 4px 18px rgba(168,85,247,.16);transform:translateX(3px)}
+.pd-cta{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#00D4FF 0%,#7B2FF7 100%);color:#050709;font-weight:800;font-size:.84rem;letter-spacing:.2px;padding:13px 20px;border-radius:12px;text-decoration:none;box-shadow:0 6px 24px rgba(0,212,255,.3),0 2px 8px rgba(123,47,247,.25);transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;font-family:inherit;border:0;cursor:pointer;width:100%;margin-top:4px}
+.pd-cta:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 10px 36px rgba(0,212,255,.4),0 4px 14px rgba(123,47,247,.35)}
+@media(max-width:640px){#priceDrawer{width:100vw;border-left:0}#priceTab{width:28px}}
+</style>
+<!-- ══ CRISP LIVE CHAT + AI BOT ══ -->
+<script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="032f6ce9-493a-4be9-8048-342e6102b364";(function(){var d=document;var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
+</head>
+<body>
+
+<div class="titlebar"></div>
+<button class="titlebar-close" onclick="window.close ? window.close() : window.history.back()">✕</button>
+
+<div class="shell">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div class="left">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+
+    <svg class="skyline" viewBox="0 0 1000 220" preserveAspectRatio="xMidYMax meet">
+      <defs>
+        <linearGradient id="bldg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e1b4b" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#0a0c1e" stop-opacity="1"/>
+        </linearGradient>
+        <linearGradient id="bldgLight" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2d2060" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#0a0c1e" stop-opacity="1"/>
+        </linearGradient>
+      </defs>
+      <rect x="0"   y="155" width="50"  height="65"  fill="url(#bldg)"/>
+      <rect x="12"  y="120" width="28"  height="100" fill="url(#bldgLight)"/>
+      <rect x="55"  y="140" width="65"  height="80"  fill="url(#bldg)"/>
+      <rect x="62"  y="95"  width="30"  height="125" fill="url(#bldgLight)"/>
+      <rect x="96"  y="75"  width="38"  height="145" fill="url(#bldg)"/>
+      <rect x="102" y="52"  width="16"  height="168" fill="url(#bldgLight)"/>
+      <rect x="140" y="110" width="70"  height="110" fill="url(#bldg)"/>
+      <rect x="155" y="65"  width="35"  height="155" fill="url(#bldgLight)"/>
+      <rect x="162" y="40"  width="14"  height="180" fill="url(#bldg)"/>
+      <rect x="220" y="125" width="58"  height="95"  fill="url(#bldg)"/>
+      <rect x="232" y="85"  width="26"  height="135" fill="url(#bldgLight)"/>
+      <rect x="288" y="100" width="75"  height="120" fill="url(#bldg)"/>
+      <rect x="305" y="48"  width="38"  height="172" fill="url(#bldgLight)"/>
+      <rect x="312" y="22"  width="14"  height="198" fill="url(#bldg)"/>
+      <rect x="375" y="118" width="62"  height="102" fill="url(#bldg)"/>
+      <rect x="388" y="72"  width="32"  height="148" fill="url(#bldgLight)"/>
+      <rect x="448" y="90"  width="88"  height="130" fill="url(#bldg)"/>
+      <rect x="468" y="35"  width="42"  height="185" fill="url(#bldgLight)"/>
+      <rect x="476" y="12"  width="15"  height="208" fill="url(#bldg)"/>
+      <rect x="548" y="105" width="65"  height="115" fill="url(#bldg)"/>
+      <rect x="562" y="60"  width="30"  height="160" fill="url(#bldgLight)"/>
+      <rect x="625" y="80"  width="80"  height="140" fill="url(#bldg)"/>
+      <rect x="642" y="38"  width="42"  height="182" fill="url(#bldgLight)"/>
+      <rect x="718" y="115" width="58"  height="105" fill="url(#bldg)"/>
+      <rect x="732" y="68"  width="28"  height="152" fill="url(#bldgLight)"/>
+      <rect x="792" y="88"  width="70"  height="132" fill="url(#bldg)"/>
+      <rect x="810" y="42"  width="36"  height="178" fill="url(#bldgLight)"/>
+      <rect x="872" y="112" width="62"  height="108" fill="url(#bldg)"/>
+      <rect x="888" y="65"  width="30"  height="155" fill="url(#bldgLight)"/>
+      <rect x="942" y="95"  width="58"  height="125" fill="url(#bldg)"/>
+      <rect x="16"  y="128" width="4" height="4" fill="#a5b4fc" opacity=".5" rx="1"/>
+      <rect x="16"  y="140" width="4" height="4" fill="#a5b4fc" opacity=".35" rx="1"/>
+      <rect x="106" y="62"  width="4" height="4" fill="#c4b5fd" opacity=".6" rx="1"/>
+      <rect x="159" y="50"  width="4" height="4" fill="#93c5fd" opacity=".55" rx="1"/>
+      <rect x="308" y="30"  width="4" height="4" fill="#c4b5fd" opacity=".7" rx="1"/>
+      <rect x="472" y="22"  width="4" height="4" fill="#a5b4fc" opacity=".65" rx="1"/>
+      <rect x="646" y="48"  width="4" height="4" fill="#93c5fd" opacity=".6" rx="1"/>
+      <rect x="814" y="52"  width="4" height="4" fill="#c4b5fd" opacity=".55" rx="1"/>
+      <rect x="0" y="215" width="1000" height="5" fill="rgba(99,102,241,0.08)"/>
+    </svg>
+
+    <!-- Logo -->
+    <a href="./index.html" class="logo" style="text-decoration:none">
+      <img src="Logo/Nexunova logos/NexuNova_Icon_256px.png" alt="Nexunova" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;">
+      <div class="logo-name">RMS</div>
+      <div class="logo-tag">Recovery Management System</div>
+    </a>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-title">
+        <span class="grad-text1">Start Free.</span><br>
+        <span class="grad-text2">Scale Fearlessly.</span>
+      </div>
+      <div class="hero-sub">Join real estate developers using Nexunova RMS to eliminate overdue receivables and automate recovery at scale.</div>
+    </div>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="feat">
+        <div class="feat-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="feat-text"><strong>7-day free trial</strong> — no credit card required</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="feat-text"><strong>Real-time Recovery Radar</strong> across all your projects</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="feat-text"><strong>Smart WhatsApp Payment Links</strong> — send in one click</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="feat-text"><strong>KYC-verified agents</strong> with complete ledger history</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="feat-text"><strong>Complete audit trail</strong> — every action, every user logged</div>
+      </div>
+    </div>
+
+    <!-- Trust badges -->
+    <div class="trust">
+      <div class="trust-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>256-bit SSL</span>
+      </div>
+      <div class="trust-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>GDPR Compliant</span>
+      </div>
+      <div class="trust-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>99.9% Uptime</span>
+      </div>
+    </div>
+
+    <div class="left-footer">
+      <div class="foot-brand">NEXUNOVA</div>
+      <div class="foot-ver">v2.0.0 &bull; Enterprise Grade Security</div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="right">
+    <div class="right-orb"></div>
+
+    <!-- Step indicator -->
+    <div class="steps-wrap" id="steps-wrap">
+      <div class="step-dot active" id="dot-1">1</div>
+      <div class="step-line" id="line-1"></div>
+      <div class="step-dot pending" id="dot-2">2</div>
+      <div class="step-line" id="line-2"></div>
+      <div class="step-dot pending" id="dot-3">3</div>
+      <div class="step-line" id="line-3"></div>
+      <div class="step-dot pending" id="dot-4">4</div>
+    </div>
+
+    <!-- Error box -->
+    <div class="err-box" id="err-box">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="err-txt"></span>
+    </div>
+
+    <!-- ── STEP 1: Your Details ── -->
+    <div class="step-panel active" id="step-1">
+      <div class="step-title">Your Details</div>
+      <div class="step-sub">This becomes your admin account — you can add team members later.</div>
+
+      <div class="field">
+        <label>Full Name *</label>
+        <input class="inp" id="f-name" placeholder="e.g. Ahmed Khan" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Email Address *</label>
+        <input class="inp" id="f-email" type="email" placeholder="ahmed@yourbusiness.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Phone Number *</label>
+        <input class="inp" id="f-phone" placeholder="+92 300 1234567" autocomplete="tel">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-next" onclick="nextStep()">
+          <span>Next — Company Info</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Company ── -->
+    <div class="step-panel" id="step-2">
+      <div class="step-title">Your Company</div>
+      <div class="step-sub">We'll create a private workspace for your organisation.</div>
+
+      <div class="field">
+        <label>Company Name *</label>
+        <input class="inp" id="f-company" placeholder="e.g. Al-Noor Builders" autocomplete="organization">
+      </div>
+      <div class="field">
+        <label>Country</label>
+        <select class="inp" id="f-country">
+          <option value="Pakistan" selected>Pakistan</option>
+          <option value="UAE">UAE</option>
+          <option value="Saudi Arabia">Saudi Arabia</option>
+          <option value="Qatar">Qatar</option>
+          <option value="Bahrain">Bahrain</option>
+          <option value="Kuwait">Kuwait</option>
+          <option value="Oman">Oman</option>
+          <option value="UK">UK</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>City <span style="color:rgba(255,255,255,.2);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <input class="inp" id="f-city" placeholder="e.g. Lahore" autocomplete="address-level2">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep()" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <button class="btn-next" onclick="nextStep()">
+          <span>Next — Choose Plan</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Plan ── -->
+    <div class="step-panel" id="step-3">
+      <div class="step-title">Choose Your Plan</div>
+      <div class="step-sub">Start free — upgrade anytime as you grow.</div>
+
+      <div class="billing-row">
+        <span class="tog-lbl active" id="lbl-monthly">Monthly</span>
+        <div class="tog-track" id="billing-toggle" onclick="toggleBilling()">
+          <div class="tog-thumb"></div>
+        </div>
+        <span class="tog-lbl" id="lbl-yearly">Yearly</span>
+        <span class="save-badge">Save 10%</span>
+      </div>
+
+      <div class="plan-grid" id="plan-grid"></div>
+
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn-back" onclick="prevStep()" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <button class="btn-next" onclick="nextStep()">
+          <span>Next — Set Password</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Password ── -->
+    <div class="step-panel" id="step-4">
+      <div class="step-title">Set Your Password</div>
+      <div class="step-sub">Choose a strong password to secure your admin account.</div>
+
+      <div class="field">
+        <label>Password *</label>
+        <div class="pwd-wrap">
+          <input class="inp" id="f-pwd" type="password" placeholder="Min. 8 characters" autocomplete="new-password" oninput="checkStrength()">
+          <button class="eye-btn" type="button" onclick="toggleEye('f-pwd','eye1')" id="eye1">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="strength-wrap">
+          <div class="strength-bg"><div class="strength-fill" id="strength-fill"></div></div>
+          <div class="strength-lbl" id="strength-lbl">Enter a password</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Confirm Password *</label>
+        <div class="pwd-wrap">
+          <input class="inp" id="f-cpwd" type="password" placeholder="Re-enter your password" autocomplete="new-password">
+          <button class="eye-btn" type="button" onclick="toggleEye('f-cpwd','eye2')" id="eye2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep()" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <button class="btn-next" id="submit-btn" onclick="submitSignup()">
+          <span>Create Account</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── SUCCESS ── -->
+    <div class="success-wrap" id="success-wrap">
+      <div class="success-ring">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="success-title">Account Created!</div>
+      <div class="success-sub">Your Nexunova RMS workspace is ready.<br>Save your login credentials below.</div>
+
+      <div class="cred-box">
+        <div class="cred-row">
+          <span class="cred-lbl">Company Code</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="cred-val" id="res-code">—</span>
+            <button class="copy-btn" onclick="copyVal('res-code',this)">Copy</button>
+          </div>
+        </div>
+        <div class="cred-row">
+          <span class="cred-lbl">Username</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="cred-val" id="res-user">—</span>
+            <button class="copy-btn" onclick="copyVal('res-user',this)">Copy</button>
+          </div>
+        </div>
+        <div class="cred-row">
+          <span class="cred-lbl">Plan</span>
+          <span class="cred-val green" id="res-plan">—</span>
+        </div>
+      </div>
+
+      <div class="note-box" id="res-note"></div>
+
+      <button class="btn-signin" onclick="goToLogin()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Sign In Now
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="signin-link" id="signin-link">Already have an account? <a href="./login.html">Sign In</a></div>
+  </div>
+
+</div>
+
+<script>
+const { createClient } = window.supabase;
+const sb = createClient(
+  'https://itqxljtfbrppntgyfush.supabase.co',
+  'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG'
+);
+
+let currentStep = 1;
+let selectedGroup = 'free_trial';
+let billingYearly = false;
+
+const PLANS = [
+  { group:'free_trial', name:'Free Trial',  price_m:0,     price_y:0,      code_m:'free_trial',      code_y:'free_trial',      projects:1,  units:10,    clients:10,    users:1,  popular:false },
+  { group:'basic',      name:'Basic',        price_m:10000, price_y:108000, code_m:'basic_monthly',   code_y:'basic_yearly',    projects:1,  units:500,   clients:500,   users:3,  popular:false },
+  { group:'pro',        name:'Pro',          price_m:25000, price_y:270000, code_m:'pro_monthly',     code_y:'pro_yearly',      projects:3,  units:1500,  clients:1500,  users:4,  popular:true  },
+  { group:'ultimate',   name:'Ultimate',     price_m:50000, price_y:540000, code_m:'ultimate_monthly',code_y:'ultimate_yearly', projects:10, units:10000, clients:10000, users:16, popular:false },
+];
+
+function fmtUnits(n){ return n >= 1000 ? (n/1000).toFixed(0)+'K' : n.toString(); }
+
+function renderPlans(){
+  const grid = document.getElementById('plan-grid');
+  grid.innerHTML = PLANS.map(p => {
+    const price = billingYearly ? p.price_y : p.price_m;
+    const priceStr = price === 0 ? 'Free' : 'PKR ' + (price/1000).toFixed(0) + 'K';
+    const cycleStr = p.group === 'free_trial' ? '7 days trial' : (billingYearly ? '/year' : '/month');
+    const sel = selectedGroup === p.group;
+    return `<div class="pcard${sel?' sel':''}${p.popular?' popular-card':''}" onclick="selectPlan('${p.group}')">
+      ${p.popular ? '<div class="pop-badge">POPULAR</div>' : ''}
+      <div class="pcard-name">${p.name}</div>
+      <div class="pcard-price">${priceStr}</div>
+      <div class="pcard-cycle">${cycleStr}</div>
+      <div class="pcard-sep"></div>
+      <div class="pcard-feats">
+        <div class="pcard-feat">${p.projects} Project${p.projects>1?'s':''}</div>
+        <div class="pcard-feat">${fmtUnits(p.units)} Units</div>
+        <div class="pcard-feat">${p.users} User${p.users>1?'s':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectPlan(group){
+  selectedGroup = group;
+  renderPlans();
+}
+
+function toggleBilling(){
+  billingYearly = !billingYearly;
+  document.getElementById('billing-toggle').classList.toggle('on', billingYearly);
+  document.getElementById('lbl-monthly').classList.toggle('active', !billingYearly);
+  document.getElementById('lbl-yearly').classList.toggle('active', billingYearly);
+  renderPlans();
+}
+
+const CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function updateStepDots(n){
+  for(let i=1;i<=4;i++){
+    const dot = document.getElementById('dot-'+i);
+    if(i < n){ dot.className='step-dot done'; dot.innerHTML=CHECK_SVG; }
+    else if(i===n){ dot.className='step-dot active'; dot.textContent=i; }
+    else{ dot.className='step-dot pending'; dot.textContent=i; }
+    const line = document.getElementById('line-'+i);
+    if(line) line.className = i<n ? 'step-line done' : 'step-line';
+  }
+}
+
+function showErr(msg){
+  const box = document.getElementById('err-box');
+  document.getElementById('err-txt').textContent = msg;
+  box.style.display = 'flex';
+}
+function hideErr(){ document.getElementById('err-box').style.display='none'; }
+
+function validate(s){
+  if(s===1){
+    const name  = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    if(!name)  { showErr('Please enter your full name.'); document.getElementById('f-name').focus(); return false; }
+    if(!email) { showErr('Please enter your email address.'); document.getElementById('f-email').focus(); return false; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('Please enter a valid email address.'); document.getElementById('f-email').focus(); return false; }
+    if(!phone) { showErr('Please enter your phone number.'); document.getElementById('f-phone').focus(); return false; }
+  }
+  if(s===2){
+    const co = document.getElementById('f-company').value.trim();
+    if(!co || co.length<2){ showErr('Please enter your company name (at least 2 characters).'); document.getElementById('f-company').focus(); return false; }
+  }
+  if(s===4){
+    const pwd  = document.getElementById('f-pwd').value;
+    const cpwd = document.getElementById('f-cpwd').value;
+    if(pwd.length<8){ showErr('Password must be at least 8 characters.'); document.getElementById('f-pwd').focus(); return false; }
+    if(pwd!==cpwd)  { showErr('Passwords do not match.'); document.getElementById('f-cpwd').focus(); return false; }
+  }
+  hideErr();
+  return true;
+}
+
+function nextStep(){
+  if(!validate(currentStep)) return;
+  if(currentStep>=4) return;
+  document.getElementById('step-'+currentStep).classList.remove('active');
+  currentStep++;
+  document.getElementById('step-'+currentStep).classList.add('active');
+  updateStepDots(currentStep);
+  document.querySelector('.right').scrollTop = 0;
+}
+
+function prevStep(){
+  if(currentStep<=1) return;
+  hideErr();
+  document.getElementById('step-'+currentStep).classList.remove('active');
+  currentStep--;
+  document.getElementById('step-'+currentStep).classList.add('active');
+  updateStepDots(currentStep);
+  document.querySelector('.right').scrollTop = 0;
+}
+
+function checkStrength(){
+  const val = document.getElementById('f-pwd').value;
+  const fill = document.getElementById('strength-fill');
+  const lbl  = document.getElementById('strength-lbl');
+  let score = 0;
+  if(val.length>=8)            score++;
+  if(val.length>=12)           score++;
+  if(/[A-Z]/.test(val))        score++;
+  if(/[0-9]/.test(val))        score++;
+  if(/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [
+    {w:'0%',  bg:'transparent', t:'Enter a password',  c:'rgba(255,255,255,.3)'},
+    {w:'25%', bg:'#ef4444',     t:'Too weak',          c:'#ef4444'},
+    {w:'50%', bg:'#f59e0b',     t:'Fair',              c:'#f59e0b'},
+    {w:'65%', bg:'#3b82f6',     t:'Good',              c:'#3b82f6'},
+    {w:'82%', bg:'#10b981',     t:'Strong',            c:'#10b981'},
+    {w:'100%',bg:'#10b981',     t:'Very strong',       c:'#10b981'},
+  ];
+  const lv = levels[score] || levels[0];
+  fill.style.width = lv.w;
+  fill.style.background = lv.bg;
+  lbl.textContent = lv.t;
+  lbl.style.color = lv.c;
+}
+
+function toggleEye(inputId, btnId){
+  const inp = document.getElementById(inputId);
+  const show = inp.type==='password';
+  inp.type = show ? 'text' : 'password';
+  document.getElementById(btnId).innerHTML = show
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+}
+
+async function submitSignup(){
+  if(!validate(4)) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div><span>Creating Account…</span>';
+
+  const plan = PLANS.find(p => p.group === selectedGroup);
+  const planCode    = billingYearly ? plan.code_y : plan.code_m;
+  const billingCycle = (selectedGroup==='free_trial') ? 'monthly' : (billingYearly ? 'yearly' : 'monthly');
+
+  try {
+    const cityVal = document.getElementById('f-city').value.trim();
+    const { data, error } = await sb.rpc('signup_new_company', {
+      p_full_name:     document.getElementById('f-name').value.trim(),
+      p_email:         document.getElementById('f-email').value.trim().toLowerCase(),
+      p_phone:         document.getElementById('f-phone').value.trim(),
+      p_company_name:  document.getElementById('f-company').value.trim(),
+      p_password:      document.getElementById('f-pwd').value,
+      p_country:       document.getElementById('f-country').value,
+      p_city:          cityVal || null,
+      p_plan_code:     planCode,
+      p_billing_cycle: billingCycle,
+    });
+
+    if(error) throw new Error(error.message);
+
+    if(!data?.success){
+      const errMap = {
+        email_taken:  'This email is already registered. Please sign in or use a different email.',
+        server_error: 'A server error occurred. Please try again.',
+      };
+      showErr(errMap[data?.error] || data?.message || 'Signup failed. Please try again.');
+      btn.disabled = false;
+      btn.innerHTML = '<span>Create Account</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+      return;
+    }
+
+    // Show success screen
+    document.getElementById('res-code').textContent = (data.company_code || '').toUpperCase();
+    document.getElementById('res-user').textContent = data.username || '';
+    document.getElementById('res-plan').textContent = plan.name + (selectedGroup==='free_trial' ? ' — 7 Days' : '');
+
+    const noteEl = document.getElementById('res-note');
+    if(data.status === 'trialing'){
+      noteEl.textContent = 'Your 7-day free trial is now active. No payment required during the trial. Upgrade anytime from Settings.';
+    } else if(data.status === 'pending_payment'){
+      noteEl.textContent = 'Your account is ready. Invoice ' + (data.invoice_number||'') + ' has been generated. Complete payment to activate your subscription.';
+    } else {
+      noteEl.textContent = 'Your account is active and ready to use.';
+    }
+
+    document.getElementById('step-4').classList.remove('active');
+    document.getElementById('success-wrap').style.display = 'flex';
+    document.getElementById('steps-wrap').style.display   = 'none';
+    document.getElementById('signin-link').style.display  = 'none';
+    hideErr();
+
+  } catch(e){
+    showErr(e.message || 'Connection error. Please check your internet and try again.');
+    btn.disabled = false;
+    btn.innerHTML = '<span>Create Account</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+  }
+}
+
+function copyVal(id, btn){
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.background = 'rgba(16,185,129,.15)';
+    btn.style.borderColor = 'rgba(16,185,129,.35)';
+    btn.style.color = '#6ee7b7';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 1800);
+  }).catch(() => {});
+}
+
+function goToLogin(){
+  window.location.href = './login.html';
+}
+
+// Enter key navigation
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Enter' || e.shiftKey) return;
+  const tag = document.activeElement?.tagName;
+  if(tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
+  if(currentStep < 4) nextStep();
+  else submitSignup();
+});
+
+// Init — pre-select plan from URL param (?plan=pro etc.)
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var p = params.get('plan');
+  if(p && PLANS.find(function(pl){ return pl.group === p; })){
+    selectedGroup = p;
+  }
+})();
+renderPlans();
+</script>
+
+    </div>
+    <div class="sb-peek-center" aria-hidden="true"></div>
+    <div class="sb-peek-right">
+      <div class="sb-peek-cta" aria-hidden="true">
+        <span class="sb-peek-cta-text">See Plans</span>
+        <span class="sb-peek-chevron">&#9660;</span>
+      </div>
+    </div>
+  </button>
+  <div class="sb-expand">
+    <div class="sb-inner">
+      <div class="sb-billing" role="group" aria-label="Billing period">
+        <button type="button" class="sb-bill-opt is-active" data-bill="monthly" id="sbBillMonthly">Monthly</button>
+        <button type="button" class="sb-bill-opt" data-bill="yearly" id="sbBillYearly">Yearly <span class="sb-bill-save">-10%</span></button>
+        <span class="sb-bill-thumb" aria-hidden="true"></span>
+      </div>
+      <div class="sb-pills" id="sbPills" data-billing="monthly" role="group" aria-label="Pricing plans">
+        <div class="sb-pill sb-pill-free">
+          <a href="./signup.html?plan=free" data-plan="free" class="sb-pill-btn">
+            <span class="sb-pill-dot" aria-hidden="true"></span>
+            Free Trial
+          </a>
+        </div>
+        <div class="sb-pill sb-pill-basic">
+          <a href="./signup.html?plan=basic" data-plan="basic" class="sb-pill-btn">
+            <span class="sb-pill-dot" aria-hidden="true"></span>
+            Basic &middot; PKR <span class="sb-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo
+          </a>
+        </div>
+        <div class="sb-pill sb-pill-pro">
+          <a href="./signup.html?plan=pro" data-plan="pro" class="sb-pill-btn">
+            <span class="sb-pill-dot" aria-hidden="true"></span>
+            Pro &middot; PKR <span class="sb-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo
+          </a>
+        </div>
+        <div class="sb-pill sb-pill-ult">
+          <a href="./signup.html?plan=ultimate" data-plan="ultimate" class="sb-pill-btn">
+            <span class="sb-pill-dot" aria-hidden="true"></span>
+            Ultimate &middot; PKR <span class="sb-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo
+          </a>
+        </div>
+      </div>
+      <div class="sb-demos">
+        <a href="./login.html?demo=true" class="sb-demo sb-demo-rms" aria-label="Try RMS live demo">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span><span class="sb-demo-label-full">Demo </span>RMS</span>
+        </a>
+        <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="sb-demo sb-demo-crm" aria-label="Try NexusCRM live demo">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span><span class="sb-demo-label-full">Demo </span>CRM</span>
+        </a>
+      </div>
+      <button type="button" class="sb-mobile-toggle" id="sbMobileToggle" aria-label="Open menu" aria-expanded="false" aria-controls="sbDrawer">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="sb-drawer" id="sbDrawer" role="region" aria-label="Plans &amp; demos">
+    <div class="sb-drawer-section">Pricing</div>
+    <a href="./signup.html?plan=free" data-plan="free" class="sb-drawer-pill free"><span>Free Trial</span><span class="sb-drawer-pill-meta">7 days &middot; 1 Project &middot; 10 Units</span></a>
+    <a href="./signup.html?plan=basic" data-plan="basic" class="sb-drawer-pill basic"><span>Basic</span><span class="sb-drawer-pill-meta">PKR <span class="sb-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo &middot; 1 Project</span></a>
+    <a href="./signup.html?plan=pro" data-plan="pro" class="sb-drawer-pill pro"><span>Pro</span><span class="sb-drawer-pill-meta">PKR <span class="sb-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo &middot; 3 Projects</span></a>
+    <a href="./signup.html?plan=ultimate" data-plan="ultimate" class="sb-drawer-pill ult"><span>Ultimate</span><span class="sb-drawer-pill-meta">PKR <span class="sb-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo &middot; White Label</span></a>
+    <div class="sb-drawer-section">Live Demos</div>
+    <a href="./login.html?demo=true" class="sb-drawer-pill"><span>&#9654; Demo RMS</span><span class="sb-drawer-pill-meta">Recovery Management</span></a>
+    <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="sb-drawer-pill"><span>&#9654; Demo NexusCRM</span><span class="sb-drawer-pill-meta">Field Sales Platform</span></a>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="site-footer" id="siteFooter">
+  <button type="button" class="footer-peek" id="footerPeek" aria-label="Toggle footer" aria-expanded="false">
+    <div class="peek-left" aria-hidden="true">
+      <div class="peek-live">
+        <span class="peek-live-dot"></span>
+        <span class="peek-live-dot"></span>
+        <span class="peek-live-dot"></span>
+      </div>
+    </div>
+    <div class="peek-center">
+      <span class="peek-label">Offices</span>
+      <span class="peek-sep" aria-hidden="true">&middot;</span>
+      <span class="peek-label">Product</span>
+      <span class="peek-sep" aria-hidden="true">&middot;</span>
+      <span class="peek-label">Contact</span>
+      <div class="peek-status" role="status" aria-label="All systems operational">
+        <span class="peek-status-dot" aria-hidden="true"></span>
+        All Systems Live
+      </div>
+    </div>
+    <div class="peek-right" aria-hidden="true">
+      <span class="peek-chevron">&#9650;</span>
+    </div>
+  </button>
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="./index.html" class="footer-brand-stage" aria-label="Nexunova home">
+          <div class="footer-brand-logo-wrap">
+            <img src="assets/nexunova-logo.png" alt="Nexunova — Enterprise Software Platform">
+          </div>
+          <div class="footer-brand-text">
+            <div class="footer-brand-name" aria-label="Nexunova"><span>N</span><span>e</span><span>x</span><span>u</span><span>n</span><span>o</span><span>v</span><span>a</span></div>
+            <p class="footer-brand-tag">Recovery Management System</p>
+            <span class="footer-brand-ver">v2.0 · Enterprise Edition</span>
+          </div>
+        </a>
+        <p>Asia's most advanced Recovery Management System. Built for real estate developers, builders, and housing societies across Pakistan and the Gulf.</p>
+        <div class="footer-socials">
+          <a href="https://www.nexunova.com/" target="_blank" rel="noopener" class="footer-social" aria-label="Nexunova website"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
+          <a href="mailto:info@nexunova.com" class="footer-social" aria-label="Email"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></a>
+          <a href="https://wa.me/971556325362" target="_blank" rel="noopener" class="footer-social" aria-label="WhatsApp"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></a>
+          <a href="https://linkedin.com" target="_blank" rel="noopener" class="footer-social" aria-label="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="./index.html#features">Features</a></li>
+          <li><a href="./index.html#modules">All Modules</a></li>
+          <li><a href="./index.html#pricing">Pricing</a></li>
+          <li><a href="./signup.html">Start Free Trial</a></li>
+          <li><a href="./login.html">Sign In</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="https://www.nexunova.com/" target="_blank" rel="noopener">Nexunova.com</a></li>
+          <li><a href="https://crm.nexunova.com" target="_blank" rel="noopener">NexusCRM</a></li>
+          <li><a href="https://www.nexunova.com/#about" target="_blank" rel="noopener">About Us</a></li>
+          <li><a href="https://www.nexunova.com/#contact" target="_blank" rel="noopener">Contact Sales</a></li>
+          <li><a href="mailto:careers@nexunova.com">Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Support</h5>
+        <ul>
+          <li><a href="mailto:support@nexunova.com">support@nexunova.com</a></li>
+          <li><a href="mailto:sales@nexunova.com">sales@nexunova.com</a></li>
+          <li><a href="mailto:billing@nexunova.com">billing@nexunova.com</a></li>
+          <li><a href="https://www.nexunova.com/#contact" target="_blank" rel="noopener">Book a Demo</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-offices">
+      <div class="office-pill" tabindex="0">
+        <span class="office-flag" aria-hidden="true">&#127482;&#127480;</span>
+        <span class="office-city">New York</span>
+        <span class="office-meta">HQ</span>
+        <span class="office-addr">One World Trade Center, 22nd Floor, Lower Manhattan</span>
+      </div>
+      <div class="office-pill" tabindex="0">
+        <span class="office-flag" aria-hidden="true">&#127462;&#127466;</span>
+        <span class="office-city">Dubai</span>
+        <span class="office-meta" style="color:#fb923c;background:rgba(251,146,60,0.08);border-color:rgba(251,146,60,0.22)">MENA</span>
+        <span class="office-addr">Dubai World Trade Centre, Sheikh Zayed Road</span>
+      </div>
+      <div class="office-pill" tabindex="0">
+        <span class="office-flag" aria-hidden="true">&#127468;&#127463;</span>
+        <span class="office-city">London</span>
+        <span class="office-addr">30 St Mary Axe, EC3A 8EP</span>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copy">&copy; 2026 Nexunova. All rights reserved.</span>
+      <span class="footer-by">Engineered for Pakistan &amp; the Gulf &middot; <a href="https://www.nexunova.com/">nexunova.com</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ═══ FOOTER PEEK toggle ═══
+(function(){
+  var footerEl=document.getElementById('siteFooter');
+  var footerPeek=document.getElementById('footerPeek');
+  if(!footerEl||!footerPeek)return;
+  footerPeek.addEventListener('click',function(e){e.stopPropagation();var isOpen=footerEl.classList.toggle('is-open');footerPeek.setAttribute('aria-expanded',isOpen?'true':'false');});
+  document.addEventListener('click',function(e){if(!footerEl.classList.contains('is-open'))return;if(footerEl.contains(e.target))return;footerEl.classList.remove('is-open');footerPeek.setAttribute('aria-expanded','false');});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&footerEl.classList.contains('is-open')){footerEl.classList.remove('is-open');footerPeek.setAttribute('aria-expanded','false');}});
+})();
+
+
+// ═══════════════════════════════════════════════════════════
+// ALL CTA BUTTONS — 3D tilt · glare · sparks · ring · ripple
+// ═══════════════════════════════════════════════════════════
+(function () {
+  var SEL = '.btn-next,.btn-signin,.btn-back';
+  var sparkColors = ['#00D4FF','#7B2FF7','#a855f7','#0EA5E9','#ffffff','#34d399'];
+  function fireSparks(x, y, n) {
+    for (var i = 0; i < (n || 8); i++) {
+      (function () {
+        var s = document.createElement('span');
+        s.className = 'spn-spark';
+        var a = Math.random() * Math.PI * 2;
+        var d = 14 + Math.random() * 26;
+        s.style.left = (x - 2.5) + 'px';
+        s.style.top  = (y - 2.5) + 'px';
+        s.style.setProperty('--tx', (Math.cos(a) * d) + 'px');
+        s.style.setProperty('--ty', (Math.sin(a) * d) + 'px');
+        var c = sparkColors[Math.floor(Math.random() * sparkColors.length)];
+        s.style.background = c;
+        s.style.boxShadow  = '0 0 8px ' + c + ',0 0 16px ' + c;
+        s.style.animationDelay = (Math.random() * 60) + 'ms';
+        document.body.appendChild(s);
+        s.addEventListener('animationend', function () { s.remove(); });
+      }());
+    }
+  }
+  document.querySelectorAll(SEL).forEach(function (btn) {
+    btn.style.position       = 'relative';
+    btn.style.overflow       = 'visible';
+    btn.style.transformStyle = 'preserve-3d';
+    var glare = document.createElement('span');
+    glare.style.cssText = 'position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:10;opacity:0;transition:opacity .18s ease;';
+    btn.appendChild(glare);
+    var ring = document.createElement('span');
+    ring.style.cssText =
+      'position:absolute;inset:-5px;border-radius:inherit;' +
+      'border:1.5px solid rgba(0,212,255,0.55);' +
+      'pointer-events:none;z-index:11;opacity:0;' +
+      'transform:scale(0.85);' +
+      'transition:opacity 0.28s ease,transform 0.40s cubic-bezier(0.32,0.72,0,1);' +
+      'box-shadow:0 0 16px rgba(0,212,255,0.42),inset 0 0 8px rgba(0,212,255,0.08);';
+    btn.appendChild(ring);
+    btn.addEventListener('mouseenter', function (e) {
+      fireSparks(e.clientX, e.clientY, 8);
+      ring.style.opacity   = '1';
+      ring.style.transform = 'scale(1.08)';
+    });
+    btn.addEventListener('mousemove', function (e) {
+      var r  = btn.getBoundingClientRect();
+      var x  = e.clientX - r.left;
+      var y  = e.clientY - r.top;
+      var nx = (x / r.width  - .5) * 2;
+      var ny = (y / r.height - .5) * 2;
+      btn.style.transition = 'transform .06s linear';
+      btn.style.transform  = 'perspective(400px) rotateX(' + (ny * -11) + 'deg) rotateY(' + (nx * 11) + 'deg) translate(' + (nx * 3.5) + 'px,' + (ny * 3.5) + 'px) scale(1.07)';
+      glare.style.opacity    = '1';
+      glare.style.background = 'radial-gradient(circle at ' + ((x/r.width)*100) + '% ' + ((y/r.height)*100) + '%,rgba(255,255,255,.26) 0%,rgba(255,255,255,.06) 40%,transparent 68%)';
+    });
+    btn.addEventListener('mouseleave', function () {
+      btn.style.transition = 'transform .5s cubic-bezier(.32,.72,0,1)';
+      btn.style.transform  = '';
+      glare.style.opacity  = '0';
+      ring.style.opacity   = '0';
+      ring.style.transform = 'scale(.85)';
+    });
+    btn.addEventListener('click', function (e) {
+      fireSparks(e.clientX, e.clientY, 12);
+      var size = 100;
+      var rpl  = document.createElement('span');
+      rpl.className   = 'spn-ripple';
+      rpl.style.width = rpl.style.height = size + 'px';
+      rpl.style.left  = (e.clientX - size / 2) + 'px';
+      rpl.style.top   = (e.clientY - size / 2) + 'px';
+      document.body.appendChild(rpl);
+      rpl.addEventListener('animationend', function () { rpl.remove(); });
+    });
+  });
+})();
+</script>
+<!-- NEXUNOVA PRICE PANEL -->
+<div id="nx-price-bar">
+  <button type="button" id="priceTab" aria-label="View pricing &amp; demos" aria-expanded="false" aria-controls="priceDrawer">
+    <span class="pt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3Z"/></svg></span>
+    <span class="pt-label" aria-hidden="true">PLANS</span>
+    <span class="pt-dot" aria-hidden="true"></span>
+    <span class="pt-shimmer" aria-hidden="true"></span>
+    <span class="pt-peek" aria-hidden="true">Plans &amp; Demos &rarr;</span>
+  </button>
+  <div id="priceBackdrop" aria-hidden="true"></div>
+  <div id="priceDrawer" role="dialog" aria-modal="true" aria-label="Pricing &amp; demos" aria-hidden="true">
+    <div class="pd-head">
+      <div class="pd-title-wrap">
+        <span class="pd-title">Pricing &amp; Live Demos</span>
+        <span class="pd-sub">7-day free trial &middot; No card required</span>
+      </div>
+      <button type="button" class="pd-close" id="priceClose" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="pd-divider"></div>
+    <div class="pd-body">
+      <span class="pd-section">Billing period</span>
+      <div class="nx-sb-billing" data-bill="monthly" role="group">
+        <button type="button" class="nx-bill-opt is-active" data-bill="monthly" id="nxBillMonthly" aria-pressed="true">Monthly</button>
+        <button type="button" class="nx-bill-opt" data-bill="yearly" id="nxBillYearly" aria-pressed="false">Yearly <span class="nx-bill-save">&#x2212;10%</span></button>
+        <span class="nx-bill-thumb" aria-hidden="true"></span>
+      </div>
+      <span class="pd-section">Choose a plan</span>
+      <div class="nx-pills" id="nxPills" data-billing="monthly" role="group">
+        <div class="nx-pill nx-pill-free"><a href="https://rms.nexunova.com/signup.html?plan=free" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Free Trial</span><span class="nx-pill-meta">7 days &middot; 1 Project</span></a></div>
+        <div class="nx-pill nx-pill-basic"><a href="https://rms.nexunova.com/signup.html?plan=basic" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Basic &middot; PKR <span class="nx-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo</span><span class="nx-pill-meta">500 Units</span></a></div>
+        <div class="nx-pill nx-pill-pro"><a href="https://rms.nexunova.com/signup.html?plan=pro" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Pro &middot; PKR <span class="nx-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo</span><span class="nx-pill-meta">3 Projects</span></a></div>
+        <div class="nx-pill nx-pill-ult"><a href="https://rms.nexunova.com/signup.html?plan=ultimate" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Ultimate &middot; PKR <span class="nx-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo</span><span class="nx-pill-meta">White Label</span></a></div>
+      </div>
+      <span class="pd-section">Live demos</span>
+      <div class="nx-demos">
+        <a href="https://rms.nexunova.com/login.html?demo=true" target="_blank" rel="noopener" class="nx-demo nx-demo-rms"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Demo NexusRMS</span></a>
+        <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="nx-demo nx-demo-crm"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Demo NexusCRM</span></a>
+      </div>
+      <a href="https://rms.nexunova.com/signup.html?plan=free" target="_blank" rel="noopener" class="pd-cta">Start Free Trial &rarr;</a>
+    </div>
+  </div>
+</div>
+<script>
+(function(){var b=document.getElementById('nx-price-bar'),t=document.getElementById('priceTab'),d=document.getElementById('priceDrawer'),c=document.getElementById('priceClose'),k=document.getElementById('priceBackdrop');if(!b||!t||!d)return;function o(){b.classList.add('is-open');d.classList.add('is-open');d.setAttribute('aria-hidden','false');t.setAttribute('aria-expanded','true');if(k)k.classList.add('is-open')}function cl(){b.classList.remove('is-open');d.classList.remove('is-open');d.setAttribute('aria-hidden','true');t.setAttribute('aria-expanded','false');if(k)k.classList.remove('is-open')}var isTouch=window.matchMedia('(hover: none)').matches,tm=null;if(!isTouch){t.addEventListener('mouseenter',function(){clearTimeout(tm);o()});t.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)});d.addEventListener('mouseenter',function(){clearTimeout(tm)});d.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)})}else{t.addEventListener('click',o)}if(c)c.addEventListener('click',cl);if(k)k.addEventListener('click',cl);document.addEventListener('keydown',function(e){if(e.key==='Escape'&&b.classList.contains('is-open'))cl()});var bl=d.querySelector('.nx-sb-billing'),pl=document.getElementById('nxPills'),mb=document.getElementById('nxBillMonthly'),yb=document.getElementById('nxBillYearly');if(bl&&mb&&yb){function sb(m){bl.setAttribute('data-bill',m);mb.classList.toggle('is-active',m==='monthly');mb.setAttribute('aria-pressed',String(m==='monthly'));yb.classList.toggle('is-active',m==='yearly');yb.setAttribute('aria-pressed',String(m==='yearly'));if(pl)pl.setAttribute('data-billing',m);d.querySelectorAll('.nx-pill-price').forEach(function(s){s.classList.add('is-flipping');setTimeout(function(){s.textContent=s.getAttribute('data-'+m)||s.textContent;s.classList.remove('is-flipping')},110)})}mb.addEventListener('click',function(){sb('monthly')});yb.addEventListener('click',function(){sb('yearly')})}})();
+</script>
+
+<style>
+.dl-bar{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:rgba(5,7,9,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(0,212,255,0.12);padding:10px 24px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:0.8rem;color:rgba(240,244,255,0.45);font-family:'Inter',sans-serif}
+.dl-bar svg{width:13px;height:13px;color:#00D4FF;flex-shrink:0}
+.dl-bar a{color:#00D4FF;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.dl-bar a:hover{text-decoration:underline}
+.dl-bar-x{background:none;border:none;color:rgba(240,244,255,0.25);cursor:pointer;font-size:1.1rem;line-height:1;padding:2px 6px;margin-left:6px;font-family:inherit}
+.dl-bar-x:hover{color:rgba(240,244,255,0.6)}
+</style>
+<div class="dl-bar" id="dlBar">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+  Prefer a dedicated desktop experience?
+  <a href="./download.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Download Windows App
+  </a>
+  &mdash; free with any plan
+  <button class="dl-bar-x" onclick="document.getElementById('dlBar').remove()" aria-label="Dismiss">×</button>
+</div>
+</body>
+</html>

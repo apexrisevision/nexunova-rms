@@ -1,0 +1,1824 @@
+/* ════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — ENTERPRISE POLISH v2.0
+   Complete production-grade refactor
+   Inspired by Linear · Stripe · Vercel · Notion
+   ════════════════════════════════════════════════════════════ */
+
+/* ───────────────────────────────────────────────────────────
+   1. SEMANTIC TOKEN SYSTEM
+   Single source of truth — proper contrast in both themes
+   ─────────────────────────────────────────────────────────── */
+
+:root,
+:root[data-theme="dark"] {
+  /* Brand */
+  --x-brand:        #6366F1;
+  --x-brand-hover:  #818CF8;
+  --x-brand-soft:   rgba(99, 102, 241, 0.12);
+  --x-brand-ring:   rgba(99, 102, 241, 0.28);
+
+  /* Accent */
+  --x-accent:       #10B981;
+  --x-accent-soft:  rgba(16, 185, 129, 0.12);
+
+  /* Status */
+  --x-success:      #10B981;
+  --x-success-soft: rgba(16, 185, 129, 0.12);
+  --x-warning:      #F59E0B;
+  --x-warning-soft: rgba(245, 158, 11, 0.12);
+  --x-danger:       #EF4444;
+  --x-danger-soft:  rgba(239, 68, 68, 0.12);
+
+  /* Surface (DARK) */
+  --x-bg:           #0d0d12;
+  --x-bg-2:         #13131a;
+  --x-surface:      #1a1a24;
+  --x-surface-2:    #1e2230;
+  --x-surface-3:    #252B3B;
+  --x-surface-hover:#222838;
+  --x-elevated:     #1F2535;
+  --x-modal-bg:     #1A1F2C;
+  --x-input-bg:     #0F1320;
+
+  /* Border */
+  --x-border:       rgba(255, 255, 255, 0.07);
+  --x-border-2:     rgba(255, 255, 255, 0.16);
+  --x-border-3:     rgba(255, 255, 255, 0.22);
+
+  /* TEXT — proper hierarchy with strong contrast */
+  --x-text:         #F4F5F8;       /* primary headings, big numbers */
+  --x-text-2:       #DDE0E8;       /* body text, labels */
+  --x-text-3:       #A0A4B5;       /* secondary, captions */
+  --x-text-4:       #6E7385;       /* muted, placeholders */
+  --x-text-disabled:#4B4F5E;
+
+  /* Shadows */
+  --x-shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.30);
+  --x-shadow:     0 1px 3px rgba(0, 0, 0, 0.30), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --x-shadow-md:  0 4px 16px rgba(0, 0, 0, 0.40), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --x-shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.50);
+  --x-shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+
+  /* Radius */
+  --x-r-xs:  4px;
+  --x-r-sm:  6px;
+  --x-r-md:  8px;
+  --x-r-lg:  12px;
+  --x-r-xl:  16px;
+
+  /* Spacing */
+  --x-s-1:   4px;
+  --x-s-2:   8px;
+  --x-s-3:   12px;
+  --x-s-4:   16px;
+  --x-s-5:   20px;
+  --x-s-6:   24px;
+  --x-s-8:   32px;
+  --x-s-10:  40px;
+
+  /* Transitions */
+  --x-t:     150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --x-ease:  cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme="light"] {
+  /* Surface (LIGHT) */
+  --x-bg:           #f4f4f8;
+  --x-bg-2:         #FFFFFF;
+  --x-surface:      #FFFFFF;
+  --x-surface-2:    #F4F6FA;
+  --x-surface-3:    #E9ECF3;
+  --x-surface-hover:#EDF0F5;
+  --x-elevated:     #FFFFFF;
+  --x-modal-bg:     #FFFFFF;
+  --x-input-bg:     #FFFFFF;
+
+  /* Border */
+  --x-border:       rgba(15, 23, 42, 0.07);
+  --x-border-2:     rgba(15, 23, 42, 0.14);
+  --x-border-3:     rgba(15, 23, 42, 0.22);
+
+  /* TEXT (LIGHT) — strong contrast */
+  --x-text:         #0F172A;       /* primary */
+  --x-text-2:       #1F2937;       /* body */
+  --x-text-3:       #4B5563;       /* secondary */
+  --x-text-4:       #6B7280;       /* muted */
+  --x-text-disabled:#9CA3AF;
+
+  /* Shadows */
+  --x-shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.06);
+  --x-shadow:     0 1px 3px rgba(15, 23, 42, 0.10), 0 1px 2px rgba(15, 23, 42, 0.05);
+  --x-shadow-md:  0 4px 12px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.05);
+  --x-shadow-lg:  0 12px 24px rgba(15, 23, 42, 0.12);
+  --x-shadow-modal: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+}
+
+/* ───────────────────────────────────────────────────────────
+   2. GLOBAL TYPOGRAPHY RESET
+   ─────────────────────────────────────────────────────────── */
+
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--x-bg) !important;
+  color: var(--x-text) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Kill light-mode body gradient orbs */
+:root[data-theme="light"] body::before,
+:root[data-theme="light"] body::after { display: none !important; }
+
+/* Inherit text color throughout app */
+.main, .pw, .card, .pg, .scr, .topbar, .sb {
+  color: var(--x-text) !important;
+}
+
+/* Strip bad theme-system overrides that force colors with !important */
+[data-theme="light"] .card *,
+[data-theme="light"] .panel *,
+[data-theme="dark"] .card *,
+[data-theme="dark"] .panel * {
+  color: inherit;
+}
+
+/* ───────────────────────────────────────────────────────────
+   3. KILL WASHED-OUT LOOK
+   ─────────────────────────────────────────────────────────── */
+
+.card, .panel, .dash-kpi, .dash-fin-bar, .dash-pay-card,
+.dash-qa-btn, .kpi {
+  background: var(--x-surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--x-border) !important;
+  border-radius: var(--x-r-lg) !important;
+  box-shadow: var(--x-shadow-sm) !important;
+  color: var(--x-text) !important;
+  transition: border-color var(--x-t), box-shadow var(--x-t), transform var(--x-t) !important;
+}
+
+.card:hover, .dash-kpi:hover, .dash-qa-btn:hover {
+  border-color: var(--x-border-2) !important;
+  box-shadow: var(--x-shadow-md) !important;
+}
+
+/* Topbar */
+.topbar {
+  background: var(--x-bg-2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid var(--x-border) !important;
+  height: 56px !important;
+  padding: 0 24px !important;
+}
+
+.tb-l, .tb-title { color: var(--x-text) !important; font-size: 14px !important; font-weight: 600 !important; }
+.tb-r { gap: 10px !important; }
+
+.tb-chip {
+  background: var(--x-surface-2) !important;
+  border: 1px solid var(--x-border) !important;
+  color: var(--x-text-2) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  font-feature-settings: 'tnum' 1 !important;
+}
+
+.tb-search {
+  background: var(--x-surface-2) !important;
+  border: 1px solid var(--x-border) !important;
+  color: var(--x-text-3) !important;
+  padding: 7px 12px !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+  min-width: 180px !important;
+}
+.tb-search:hover {
+  border-color: var(--x-brand) !important;
+  background: var(--x-surface-hover) !important;
+  color: var(--x-text) !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   4. TYPOGRAPHY HIERARCHY
+   ─────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--x-text) !important;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  letter-spacing: -0.3px !important;
+  line-height: 1.25 !important;
+}
+
+p, span, div, label, td, th, button, input, select, textarea {
+  color: inherit;
+}
+
+/* Greeting */
+.dash-greeting, .dashboard-greeting, h1.greeting, h2.dash-greeting {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.6px !important;
+  color: var(--x-text) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--x-text) !important;
+  background-clip: unset !important;
+  margin-bottom: 4px !important;
+  line-height: 1.2 !important;
+}
+
+.dash-date {
+  color: var(--x-text-3) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* Card headers */
+.card h3, .ch h3 {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.2px !important;
+  color: var(--x-text) !important;
+}
+.card p, .ch p {
+  font-size: 12px !important;
+  color: var(--x-text-3) !important;
+  margin-top: 2px !important;
+}
+
+/* Small labels — readable */
+.dash-section-lbl, .dash-fin-lbl, .dkpi-lbl, .kpi-label, .kpi-lbl,
+.skpi-lbl, .fl, .nav-sec {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  color: var(--x-text-3) !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   5. KPI CARDS
+   ─────────────────────────────────────────────────────────── */
+
+.dash-kpi-row {
+  gap: var(--x-s-4) !important;
+  margin-bottom: var(--x-s-5) !important;
+}
+
+.dash-kpi {
+  padding: 18px 20px !important;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.dash-kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  bottom: auto;
+  height: 2px;
+  background: var(--x-brand);
+  opacity: 0;
+  transition: opacity var(--x-t);
+}
+.dash-kpi:hover::before { opacity: 1; }
+.dash-kpi:hover { transform: translateY(-2px) !important; }
+
+.dkpi-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 14px !important;
+}
+
+.dkpi-icon {
+  font-size: 18px !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--x-surface-2) !important;
+  border-radius: var(--x-r-md) !important;
+  border: 1px solid var(--x-border) !important;
+}
+
+.dkpi-trend {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 3px 9px !important;
+  border-radius: 999px !important;
+  background: var(--x-surface-2) !important;
+  color: var(--x-text-3) !important;
+  border: 1px solid var(--x-border) !important;
+}
+.dkpi-trend.ok { background: var(--x-success-soft) !important; color: var(--x-success) !important; border-color: transparent !important; }
+.dkpi-trend.warn { background: var(--x-warning-soft) !important; color: var(--x-warning) !important; border-color: transparent !important; }
+
+.dkpi-val, .kpi-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -1px !important;
+  color: var(--x-text) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--x-text) !important;
+  background-clip: unset !important;
+  margin-bottom: 4px !important;
+  font-feature-settings: 'tnum' 1, 'lnum' 1 !important;
+}
+
+/* Hide ALL Lakhs/Crores suffix elements */
+.fm-suffix { display: none !important; }
+
+/* ───────────────────────────────────────────────────────────
+   6. FINANCE BAR
+   ─────────────────────────────────────────────────────────── */
+
+.dash-fin-bar {
+  padding: 18px 22px !important;
+  margin-bottom: var(--x-s-5) !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 0 !important;
+}
+
+.dash-fin-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 0 18px !important;
+  border-right: 1px solid var(--x-border) !important;
+  min-width: 0;
+}
+.dash-fin-item:last-child { border-right: none !important; }
+.dash-fin-item:first-child { padding-left: 0 !important; }
+
+.dash-fin-icon {
+  font-size: 18px !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--x-surface-2) !important;
+  border-radius: var(--x-r-md) !important;
+  flex-shrink: 0 !important;
+}
+
+.dash-fin-lbl {
+  font-size: 10.5px !important;
+  margin-bottom: 3px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-fin-val {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.4px !important;
+  color: var(--x-text) !important;
+  font-feature-settings: 'tnum' 1, 'lnum' 1 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-fin-val.green { color: var(--x-success) !important; }
+.dash-fin-val.red   { color: var(--x-danger)  !important; }
+.dash-fin-val.blue  { color: var(--x-brand)   !important; }
+.dash-fin-sep { display: none !important; }
+
+/* ───────────────────────────────────────────────────────────
+   7. QUICK ACTIONS
+   ─────────────────────────────────────────────────────────── */
+
+.dash-section-hd {
+  margin: var(--x-s-6) 0 var(--x-s-3) !important;
+  padding: 0 !important;
+}
+
+.dash-qa-row {
+  gap: var(--x-s-3) !important;
+  margin-bottom: var(--x-s-5) !important;
+}
+
+.dash-qa-btn,
+.dash-qa-btn.green-qa,
+.dash-qa-btn.blue-qa,
+.dash-qa-btn.brand-qa,
+.dash-qa-btn.dark-qa {
+  padding: 18px !important;
+  text-align: left !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  cursor: pointer;
+  background: var(--x-surface) !important;
+  border: 1px solid var(--x-border) !important;
+  color: var(--x-text) !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--x-r-lg) !important;
+  box-shadow: var(--x-shadow-sm) !important;
+}
+
+.dash-qa-btn:hover {
+  border-color: var(--x-brand) !important;
+  background: var(--x-surface-hover) !important;
+  transform: translateY(-2px) !important;
+}
+
+.dqa-icon {
+  font-size: 22px !important;
+  width: 40px !important;
+  height: 40px !important;
+  background: var(--x-brand-soft) !important;
+  border-radius: var(--x-r-md) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 4px !important;
+}
+
+.dqa-text {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--x-text) !important;
+}
+.dqa-sub {
+  font-size: 11.5px !important;
+  color: var(--x-text-3) !important;
+  font-weight: 500 !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   8. OVERDUE & FOLLOW-UP LISTS — clear separation
+   ─────────────────────────────────────────────────────────── */
+
+.dash-2col {
+  gap: var(--x-s-4) !important;
+  margin-bottom: var(--x-s-5) !important;
+}
+
+.od-row, .overdue-row, .followup-row {
+  display: grid !important;
+  grid-template-columns: 4px 28px minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 14px 18px !important;
+  border-bottom: 1px solid var(--x-border) !important;
+  cursor: pointer;
+  transition: background var(--x-t) !important;
+  position: relative;
+}
+
+/* Subtle alternating bg for scanability */
+.card > div > .od-row:nth-child(even),
+.card > div > .overdue-row:nth-child(even),
+.card > div > .followup-row:nth-child(even) {
+  background: var(--x-surface-2) !important;
+}
+
+.od-row:last-child,
+.overdue-row:last-child,
+.followup-row:last-child { border-bottom: none !important; }
+
+.od-row:hover,
+.overdue-row:hover,
+.followup-row:hover {
+  background: var(--x-surface-hover) !important;
+  transform: none !important;
+}
+
+.od-severity-bar {
+  width: 4px !important;
+  height: 32px !important;
+  border-radius: 2px !important;
+  background: var(--x-danger) !important;
+}
+
+.od-rank {
+  width: 26px !important;
+  height: 26px !important;
+  background: var(--x-surface-2) !important;
+  border: 1px solid var(--x-border) !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--x-text-2) !important;
+}
+
+.od-info { min-width: 0; }
+
+.od-name {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--x-text) !important;
+  margin-bottom: 2px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.od-cust { color: var(--x-text-3) !important; font-weight: 500 !important; }
+.od-sep { color: var(--x-text-4) !important; margin: 0 4px !important; }
+
+.od-days {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+}
+
+.od-amount {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  font-feature-settings: 'tnum' 1, 'lnum' 1 !important;
+  letter-spacing: -0.3px !important;
+  text-align: right;
+  color: var(--x-text) !important;
+}
+
+.fu-type-ic {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: var(--x-r-sm) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+  background: var(--x-surface-2) !important;
+}
+
+.more-link {
+  padding: 12px 18px !important;
+  text-align: center !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--x-brand) !important;
+  border-top: 1px solid var(--x-border) !important;
+  cursor: pointer;
+  transition: background var(--x-t) !important;
+}
+.more-link:hover { background: var(--x-surface-2) !important; }
+
+.card .ch {
+  padding: 16px 18px !important;
+  border-bottom: 1px solid var(--x-border) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   9. PAYMENTS TABLE
+   ─────────────────────────────────────────────────────────── */
+
+.pay-tbl-wrap {
+  overflow-x: hidden !important;
+  width: 100% !important;
+}
+
+.pay-tbl {
+  width: 100% !important;
+  min-width: 0 !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: auto !important;
+}
+
+.pay-tbl thead th {
+  background: var(--x-surface-2) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--x-text-3) !important;
+  padding: 11px 16px !important;
+  border-bottom: 1px solid var(--x-border) !important;
+  text-align: left !important;
+}
+
+.pay-tbl tbody td {
+  padding: 13px 16px !important;
+  font-size: 13px !important;
+  color: var(--x-text-2) !important;
+  border-bottom: 1px solid var(--x-border) !important;
+}
+.pay-tbl tbody tr:last-child td { border-bottom: none !important; }
+.pay-tbl tbody tr:hover { background: var(--x-surface-2) !important; }
+
+.pay-unit-chip {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  background: var(--x-surface-2) !important;
+  border: 1px solid var(--x-border) !important;
+  border-radius: 4px !important;
+  color: var(--x-text) !important;
+}
+.pay-amt-cell {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--x-success) !important;
+  text-align: right !important;
+  font-feature-settings: 'tnum' 1 !important;
+}
+.pay-type-pill {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: var(--x-text-3) !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   10. ALERT CHIPS
+   ─────────────────────────────────────────────────────────── */
+
+.dash-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: var(--x-s-4) !important;
+  margin-bottom: var(--x-s-5) !important;
+  flex-wrap: wrap !important;
+}
+
+.dash-alert-chips {
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.dash-chip,
+.status-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--x-border) !important;
+  background: var(--x-surface) !important;
+  color: var(--x-text-2) !important;
+  cursor: pointer;
+  transition: all var(--x-t) !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+.dash-chip:hover, .status-pill:hover {
+  border-color: var(--x-border-2) !important;
+  background: var(--x-surface-hover) !important;
+  transform: none !important;
+  box-shadow: var(--x-shadow-sm) !important;
+}
+
+.dash-chip.warn, .status-pill.warning {
+  background: var(--x-warning-soft) !important;
+  color: var(--x-warning) !important;
+  border-color: transparent !important;
+}
+
+.dash-chip.danger, .status-pill.danger {
+  background: var(--x-danger-soft) !important;
+  color: var(--x-danger) !important;
+  border-color: transparent !important;
+}
+
+.status-pill.danger::before,
+.dash-chip.danger::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--x-danger);
+  border-radius: 50%;
+  animation: x-pulse 1.5s ease-in-out infinite;
+  box-shadow: none !important;
+}
+@keyframes x-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+.sec-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  padding: 0 7px !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  background: var(--x-danger) !important;
+  color: white !important;
+  border-radius: 999px !important;
+  font-feature-settings: 'tnum' 1 !important;
+}
+.sec-badge.ok { background: var(--x-success) !important; }
+
+/* ───────────────────────────────────────────────────────────
+   11. THEME TOGGLE — clearly visible, accessible
+   ─────────────────────────────────────────────────────────── */
+
+.theme-toggle {
+  width: 46px !important;
+  height: 26px !important;
+  background: var(--x-surface-3) !important;
+  border: 1px solid var(--x-border-2) !important;
+  border-radius: 999px !important;
+  padding: 2px !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center !important;
+  position: relative;
+  transition: all var(--x-t) !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+.theme-toggle:hover {
+  border-color: var(--x-brand) !important;
+  background: var(--x-brand-soft) !important;
+}
+.theme-toggle:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--x-brand-ring) !important;
+}
+
+.theme-toggle-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  background: linear-gradient(135deg, var(--x-brand) 0%, var(--x-brand-hover) 100%) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(255,255,255,0.1) inset !important;
+  color: white !important;
+  transform: translateX(0) !important;
+}
+[data-theme="light"] .theme-toggle-thumb {
+  transform: translateX(20px) !important;
+  background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%) !important;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255,255,255,0.3) inset !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   13. MODAL SYSTEM — readable, contrasted
+   ─────────────────────────────────────────────────────────── */
+
+.mov {
+  background: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+[data-theme="light"] .mov {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+.mov .md {
+  background: var(--x-modal-bg) !important;
+  border: 1px solid var(--x-border) !important;
+  border-radius: var(--x-r-xl) !important;
+  box-shadow: var(--x-shadow-modal) !important;
+  color: var(--x-text) !important;
+  overflow: hidden !important;
+}
+
+/* Modal header */
+.mov .mh {
+  padding: 18px 22px !important;
+  border-bottom: 1px solid var(--x-border) !important;
+  background: var(--x-surface-2) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+.mov .mh h3 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--x-text) !important;
+  margin: 0 !important;
+  letter-spacing: -0.2px !important;
+}
+.mov .mh p {
+  font-size: 12px !important;
+  color: var(--x-text-3) !important;
+  margin-top: 3px !important;
+}
+
+.mov .mx {
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: 1px solid var(--x-border) !important;
+  border-radius: var(--x-r-sm) !important;
+  color: var(--x-text-3) !important;
+  cursor: pointer;
+  font-size: 16px !important;
+  transition: all var(--x-t) !important;
+}
+.mov .mx:hover {
+  background: var(--x-danger-soft) !important;
+  border-color: var(--x-danger) !important;
+  color: var(--x-danger) !important;
+}
+
+/* Modal body */
+.mov .mb {
+  padding: 22px !important;
+  background: var(--x-modal-bg) !important;
+  color: var(--x-text) !important;
+}
+
+/* Modal footer */
+.mov .mf {
+  padding: 14px 22px !important;
+  border-top: 1px solid var(--x-border) !important;
+  background: var(--x-surface-2) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+}
+
+/* Form rows */
+.mov .fr {
+  margin-bottom: 14px !important;
+}
+.mov .g2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  margin-bottom: 14px !important;
+}
+
+/* Form labels */
+.mov .fl, .fl {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--x-text-2) !important;
+  margin-bottom: 6px !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+/* Inputs / selects / textareas */
+.mov .inp-light,
+.mov input,
+.mov select,
+.mov textarea,
+.inp-light {
+  width: 100% !important;
+  padding: 9px 12px !important;
+  background: var(--x-input-bg) !important;
+  border: 1px solid var(--x-border-2) !important;
+  border-radius: var(--x-r-md) !important;
+  font-size: 13px !important;
+  font-family: 'Inter', sans-serif !important;
+  color: var(--x-text) !important;
+  outline: none !important;
+  transition: all var(--x-t) !important;
+}
+
+.mov .inp-light:focus,
+.mov input:focus,
+.mov select:focus,
+.mov textarea:focus,
+.inp-light:focus {
+  border-color: var(--x-brand) !important;
+  box-shadow: 0 0 0 3px var(--x-brand-ring) !important;
+  background: var(--x-input-bg) !important;
+}
+
+.mov .inp-light::placeholder,
+.mov input::placeholder,
+.mov textarea::placeholder,
+.inp-light::placeholder {
+  color: var(--x-text-4) !important;
+  opacity: 1 !important;
+}
+
+.mov select option {
+  background: var(--x-modal-bg) !important;
+  color: var(--x-text) !important;
+}
+
+.mov textarea {
+  resize: vertical !important;
+  min-height: 70px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Toast */
+.toast {
+  background: var(--x-elevated) !important;
+  border: 1px solid var(--x-border-2) !important;
+  color: var(--x-text) !important;
+  border-radius: var(--x-r-md) !important;
+  box-shadow: var(--x-shadow-md) !important;
+  padding: 10px 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   14. BUTTONS — global consistent system
+   ─────────────────────────────────────────────────────────── */
+
+.btn {
+  font-family: 'Inter', sans-serif !important;
+  cursor: pointer;
+  transition: all var(--x-t) !important;
+}
+
+.btn-gh {
+  background: var(--x-surface-2) !important;
+  border: 1px solid var(--x-border) !important;
+  color: var(--x-text-2) !important;
+  border-radius: var(--x-r-md) !important;
+  padding: 8px 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+}
+.btn-gh:hover {
+  background: var(--x-surface-hover) !important;
+  border-color: var(--x-border-2) !important;
+  color: var(--x-text) !important;
+}
+
+/* Print button — cyan accent so 🖨 buttons are easy to spot */
+.btn-print {
+  background: rgba(14, 165, 233, .1) !important;
+  border: 1px solid rgba(14, 165, 233, .45) !important;
+  color: #0EA5E9 !important;
+  -webkit-text-fill-color: #0EA5E9 !important;
+  border-radius: var(--x-r-md) !important;
+  padding: 8px 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+}
+.btn-print:hover {
+  background: rgba(14, 165, 233, .2) !important;
+  border-color: rgba(14, 165, 233, .7) !important;
+}
+:root[data-theme="light"] .btn-print {
+  background: rgba(2, 132, 199, .08) !important;
+  border-color: rgba(2, 132, 199, .4) !important;
+  color: #0369A1 !important;
+  -webkit-text-fill-color: #0369A1 !important;
+}
+:root[data-theme="light"] .btn-print:hover {
+  background: rgba(2, 132, 199, .15) !important;
+}
+
+.btn-d, .btn-g, .btn-gr {
+  background: var(--x-brand) !important;
+  border: 1px solid var(--x-brand) !important;
+  color: white !important;
+  border-radius: var(--x-r-md) !important;
+  padding: 8px 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+}
+.btn-d:hover, .btn-g:hover, .btn-gr:hover {
+  background: var(--x-brand-hover) !important;
+  border-color: var(--x-brand-hover) !important;
+  color: white !important;
+}
+
+.btn-r {
+  background: var(--x-danger) !important;
+  border: 1px solid var(--x-danger) !important;
+  color: white !important;
+  border-radius: var(--x-r-md) !important;
+  padding: 6px 12px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+}
+.btn-r:hover { opacity: 0.9 !important; }
+
+.btn-xs { padding: 5px 10px !important; font-size: 11px !important; }
+.btn-sm { padding: 7px 12px !important; font-size: 12px !important; }
+.btn-w { width: 100% !important; }
+
+/* ───────────────────────────────────────────────────────────
+   15. TABLES — generic
+   ─────────────────────────────────────────────────────────── */
+
+table.t, .tw table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: auto !important;
+  min-width: 0 !important;
+}
+
+table.t thead th, .tw thead th {
+  background: var(--x-surface-2) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--x-text-3) !important;
+  padding: 11px 14px !important;
+  border-bottom: 1px solid var(--x-border) !important;
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+table.t tbody td, .tw tbody td {
+  padding: 12px 14px !important;
+  font-size: 13px !important;
+  color: var(--x-text-2) !important;
+  border-bottom: 1px solid var(--x-border) !important;
+}
+table.t tbody tr:last-child td, .tw tbody tr:last-child td { border-bottom: none !important; }
+table.t tbody tr:hover, .tw tbody tr:hover { background: var(--x-surface-2) !important; }
+table.t tbody tr.cr { cursor: pointer; }
+
+.tw {
+  overflow-x: auto !important;
+  width: 100% !important;
+  border-radius: 0 0 var(--x-r-lg) var(--x-r-lg) !important;
+}
+
+/* Filter bar */
+.fbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  padding: 14px 16px !important;
+  background: var(--x-surface) !important;
+  border: 1px solid var(--x-border) !important;
+  border-radius: var(--x-r-lg) !important;
+  margin-bottom: 14px !important;
+}
+.fbar .fg { display: flex; flex-direction: column; gap: 4px; }
+.fbar .fl {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: var(--x-text-3) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+.fbar input, .fbar select {
+  background: var(--x-input-bg) !important;
+  border: 1px solid var(--x-border) !important;
+  color: var(--x-text) !important;
+  padding: 7px 11px !important;
+  border-radius: var(--x-r-sm) !important;
+  font-size: 12px !important;
+  outline: none !important;
+}
+.fbar input:focus, .fbar select:focus {
+  border-color: var(--x-brand) !important;
+  box-shadow: 0 0 0 2px var(--x-brand-ring) !important;
+}
+
+/* Page header */
+.ph {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+  flex-wrap: wrap !important;
+}
+.ph h2 {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--x-text) !important;
+  letter-spacing: -0.4px !important;
+}
+.ph p {
+  font-size: 13px !important;
+  color: var(--x-text-3) !important;
+  margin-top: 3px !important;
+}
+.ph-r {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  flex-shrink: 0 !important;
+}
+.ph-r .btn { font-size: 12px !important; padding: 7px 14px !important; }
+.ph-r .btn-xs { font-size: 11px !important; padding: 5px 10px !important; }
+
+/* ───────────────────────────────────────────────────────────
+   16. BADGES — semantic, consistent
+   ─────────────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 3px 9px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  letter-spacing: 0 !important;
+}
+.badge.ba, .badge-available { background: var(--x-brand-soft) !important; color: var(--x-brand) !important; }
+.badge.bi, .badge-paid      { background: var(--x-success-soft) !important; color: var(--x-success) !important; }
+.badge.bj                    { background: var(--x-warning-soft) !important; color: var(--x-warning) !important; }
+.badge.bc                    { background: var(--x-success-soft) !important; color: var(--x-success) !important; }
+.badge.bd, .badge-overdue   { background: var(--x-danger-soft) !important; color: var(--x-danger) !important; }
+.badge-partial               { background: var(--x-warning-soft) !important; color: var(--x-warning) !important; }
+.badge.bin                   { background: var(--x-success-soft) !important; color: var(--x-success) !important; }
+.badge.bwp                   { background: var(--x-success-soft) !important; color: var(--x-success) !important; }
+.badge.bni                   { background: var(--x-danger-soft) !important; color: var(--x-danger) !important; }
+.badge.bdi                   { background: var(--x-warning-soft) !important; color: var(--x-warning) !important; }
+.badge.bnr                   { background: var(--x-surface-2) !important; color: var(--x-text-3) !important; }
+.b-dot { display: none !important; }
+
+/* Empty states */
+.empty {
+  padding: 40px 20px !important;
+  text-align: center !important;
+}
+.empty .ei { font-size: 32px !important; margin-bottom: 8px !important; opacity: 0.5 !important; }
+.empty .et { color: var(--x-text-3) !important; font-size: 13px !important; font-weight: 500 !important; }
+
+/* ───────────────────────────────────────────────────────────
+   17. FOOTER — clean, no overflow
+   ─────────────────────────────────────────────────────────── */
+
+.erp-footer {
+  background: var(--x-bg-2) !important;
+  border-top: 1px solid var(--x-border) !important;
+  padding: 14px 28px !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  overflow: hidden !important;
+}
+
+.erp-footer-brand,
+.erp-footer-contact,
+.erp-footer-links {
+  font-size: 11.5px !important;
+  color: var(--x-text-3) !important;
+}
+.erp-footer-brand strong {
+  background: linear-gradient(90deg, var(--x-brand), #A855F7) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  font-weight: 700 !important;
+}
+.erp-footer-links a { color: var(--x-text-3) !important; text-decoration: none !important; }
+.erp-footer-links a:hover { color: var(--x-brand) !important; }
+
+/* ───────────────────────────────────────────────────────────
+   18. SCROLLBAR — refined
+   ─────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-thumb {
+  background: var(--x-border-2) !important;
+  border-radius: 4px !important;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--x-border-3) !important; }
+
+/* ───────────────────────────────────────────────────────────
+   19. CRITICAL: HORIZONTAL OVERFLOW FIX
+   This is the root cause of the bottom scrollbar bug.
+   ─────────────────────────────────────────────────────────── */
+
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+#s-app, #s-app.scr, #s-app.scr.on {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100% !important;
+}
+
+#s-app > .main {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+#s-app > .main > .pw {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Kill min-width forcing horizontal overflow */
+.pay-tbl, .ss-tbl, table.t {
+  min-width: 0 !important;
+}
+
+/* Constrain wrappers */
+.pay-tbl-wrap, .tw, .sell-sched-wrap {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+/* Dashboard chip min-width override */
+.dash-chip { min-width: 0 !important; }
+
+/* All grids constrain */
+.dash-kpi-row, .dash-fin-bar, .dash-qa-row, .dash-2col, .dashboard-grid {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.dash-kpi, .dash-qa-btn, .dash-fin-item, .card {
+  min-width: 0 !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   20. CRITICAL LAYOUT — sidebar+main flex, no gap
+   ─────────────────────────────────────────────────────────── */
+
+#s-app.scr.on {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  min-height: 100vh !important;
+}
+
+#s-app > .sb {
+  width: var(--nav-w, 240px) !important;
+  flex: 0 0 var(--nav-w, 240px) !important;
+  margin: 0 !important;
+}
+
+#s-app > .main {
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+#s-app > .sb.collapsed {
+  width: 64px !important;
+  flex-basis: 64px !important;
+}
+
+#s-app > .main > .pw {
+  padding: 24px 28px !important;
+  flex: 1;
+}
+
+.ani { animation: x-fadein 280ms var(--x-ease) both !important; }
+@keyframes x-fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ───────────────────────────────────────────────────────────
+   21. RESPONSIVE
+   ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .dash-fin-bar { grid-template-columns: repeat(2, 1fr) !important; }
+  .dash-fin-item:nth-child(2) { border-right: none !important; }
+  .dash-fin-item:nth-child(3) { padding-left: 0 !important; }
+  .dash-qa-row { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 900px) {
+  .dash-2col { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 768px) {
+  #s-app > .sb { flex: 0 0 0 !important; width: 0 !important; }
+  .dash-kpi-row { grid-template-columns: 1fr !important; }
+  .dash-fin-bar { grid-template-columns: 1fr !important; }
+  .dash-fin-item {
+    border-right: none !important;
+    border-bottom: 1px solid var(--x-border) !important;
+    padding: 10px 0 !important;
+  }
+  .dash-fin-item:last-child { border-bottom: none !important; }
+  .dash-qa-row { grid-template-columns: 1fr !important; }
+  #s-app > .main > .pw { padding: 16px !important; }
+  .mov .g2 { grid-template-columns: 1fr !important; }
+  .mov .md { margin: 16px !important; max-width: calc(100vw - 32px) !important; }
+}
+
+/* ───────────────────────────────────────────────────────────
+   22. KILL LIGHT-MODE LEGACY OVERRIDES
+   Strip out theme-system.css force-rules that hurt contrast
+   ─────────────────────────────────────────────────────────── */
+
+[data-theme="light"] .card,
+[data-theme="light"] .panel,
+[data-theme="light"] .dash-kpi,
+[data-theme="light"] .dash-fin-bar,
+[data-theme="light"] .dash-qa-btn,
+[data-theme="light"] .dash-pay-card {
+  background: var(--x-surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="light"] .topbar,
+[data-theme="light"] .erp-footer {
+  background: var(--x-bg-2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="light"] .mov .md,
+[data-theme="light"] .mov .mb {
+  background: var(--x-modal-bg) !important;
+}
+
+/* ════════════════════════════════════════════════
+   MODAL FORM TEXT VISIBILITY FIX
+   The modal labels and inputs were inheriting
+   conflicting colors from older CSS. Force them.
+   ════════════════════════════════════════════════ */
+
+/* All labels inside modal — VISIBLE with strong contrast */
+.mov label,
+.mov .fl,
+#m-unit label, #m-rec label, #m-con label, #m-client label,
+#m-project label, #m-agent label, #m-user label, #m-wa label {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--x-text-2) !important;
+  -webkit-text-fill-color: var(--x-text-2) !important;
+  margin-bottom: 6px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+}
+
+/* Modal headings — fully visible */
+.mov .mh h3,
+.mov h3, .mov h2, .mov h4 {
+  color: var(--x-text) !important;
+  -webkit-text-fill-color: var(--x-text) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+.mov .mh p {
+  color: var(--x-text-3) !important;
+  -webkit-text-fill-color: var(--x-text-3) !important;
+  opacity: 1 !important;
+}
+
+/* Inputs — proper bg in DARK mode (not light gray!) */
+:root[data-theme="dark"] .mov input,
+:root[data-theme="dark"] .mov select,
+:root[data-theme="dark"] .mov textarea,
+:root[data-theme="dark"] .mov .inp-light,
+:root[data-theme="dark"] .inp-light {
+  background: #0F1320 !important;
+  color: #F4F5F8 !important;
+  -webkit-text-fill-color: #F4F5F8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+
+:root[data-theme="dark"] .mov input::placeholder,
+:root[data-theme="dark"] .mov textarea::placeholder,
+:root[data-theme="dark"] .inp-light::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.35) !important;
+  opacity: 1 !important;
+}
+
+/* Inputs — proper bg in LIGHT mode */
+:root[data-theme="light"] .mov input,
+:root[data-theme="light"] .mov select,
+:root[data-theme="light"] .mov textarea,
+:root[data-theme="light"] .mov .inp-light {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+}
+
+:root[data-theme="light"] .mov input::placeholder,
+:root[data-theme="light"] .mov textarea::placeholder {
+  color: #94A3B8 !important;
+  -webkit-text-fill-color: #94A3B8 !important;
+  opacity: 1 !important;
+}
+
+/* Select dropdown options */
+.mov select option {
+  background: var(--x-modal-bg) !important;
+  color: var(--x-text) !important;
+}
+:root[data-theme="dark"] .mov select option {
+  background: #1A1F2C !important;
+  color: #F4F5F8 !important;
+}
+:root[data-theme="light"] .mov select option {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+/* Focus state — clear ring */
+.mov input:focus,
+.mov select:focus,
+.mov textarea:focus,
+.mov .inp-light:focus,
+.inp-light:focus {
+  border-color: var(--x-brand) !important;
+  box-shadow: 0 0 0 3px var(--x-brand-ring) !important;
+  outline: none !important;
+}
+
+/* Modal close (X) button — visible */
+.mov .mx {
+  color: var(--x-text-2) !important;
+  -webkit-text-fill-color: var(--x-text-2) !important;
+  font-weight: 600 !important;
+}
+
+/* Modal Cancel button — visible in dark mode */
+.mov .mf .btn-gh {
+  color: var(--x-text-2) !important;
+  -webkit-text-fill-color: var(--x-text-2) !important;
+}
+
+/* Section dividers inside modal (e.g. "Personal", "Notes") */
+.mov .mb > div[style*="text-transform"],
+.mov .mb > div[style*="uppercase"] {
+  color: var(--x-text-3) !important;
+  -webkit-text-fill-color: var(--x-text-3) !important;
+  opacity: 1 !important;
+}
+
+/* Strip ANY inline color that breaks visibility in modals */
+.mov .mb [style*="color: rgba"],
+.mov .mb [style*="color:rgba"] {
+  color: inherit !important;
+}
+
+/* Form row spacing */
+.mov .fr {
+  margin-bottom: 14px !important;
+}
+.mov .fr:last-child { margin-bottom: 0 !important; }
+
+/* Grid 2-column inside modal */
+.mov .g2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  margin-bottom: 14px !important;
+}
+
+/* Error text under fields */
+.mov [class*="-err"] {
+  color: var(--x-danger) !important;
+  -webkit-text-fill-color: var(--x-danger) !important;
+  font-size: 11px !important;
+  margin-top: 4px !important;
+  font-weight: 500 !important;
+}
+
+/* ════════════════════════════════════════════════
+   FINAL MODAL VISIBILITY FIX
+   Modal MUST follow theme — not be force-darked
+   ════════════════════════════════════════════════ */
+
+/* DARK THEME MODAL */
+:root[data-theme="dark"] .mov,
+:root[data-theme="dark"] .mov.on {
+  background: rgba(0, 0, 0, 0.55) !important;
+}
+:root[data-theme="dark"] .mov .md {
+  background: #1A1F2C !important;
+  color: #F4F5F8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+:root[data-theme="dark"] .mov .mh,
+:root[data-theme="dark"] .mov .mf {
+  background: #1D2230 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+:root[data-theme="dark"] .mov .mb {
+  background: #1A1F2C !important;
+}
+:root[data-theme="dark"] .mov .mh h3,
+:root[data-theme="dark"] .mov .mh > div > h3 {
+  color: #F4F5F8 !important;
+  -webkit-text-fill-color: #F4F5F8 !important;
+}
+:root[data-theme="dark"] .mov .mh p {
+  color: #A0A4B5 !important;
+  -webkit-text-fill-color: #A0A4B5 !important;
+}
+:root[data-theme="dark"] .mov label,
+:root[data-theme="dark"] .mov .fl {
+  color: #DDE0E8 !important;
+  -webkit-text-fill-color: #DDE0E8 !important;
+}
+:root[data-theme="dark"] .mov input,
+:root[data-theme="dark"] .mov select,
+:root[data-theme="dark"] .mov textarea,
+:root[data-theme="dark"] .mov .inp-light {
+  background: #0F1320 !important;
+  color: #F4F5F8 !important;
+  -webkit-text-fill-color: #F4F5F8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+:root[data-theme="dark"] .mov input::placeholder,
+:root[data-theme="dark"] .mov textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* LIGHT THEME MODAL — proper white bg, dark text */
+:root[data-theme="light"] .mov,
+:root[data-theme="light"] .mov.on {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+}
+:root[data-theme="light"] .mov .md {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+:root[data-theme="light"] .mov .mh {
+  background: #F4F6FA !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+:root[data-theme="light"] .mov .mf {
+  background: #F4F6FA !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+:root[data-theme="light"] .mov .mb {
+  background: #FFFFFF !important;
+}
+:root[data-theme="light"] .mov .mh h3,
+:root[data-theme="light"] .mov .mh > div > h3,
+:root[data-theme="light"] .mov h3,
+:root[data-theme="light"] .mov h2 {
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+}
+:root[data-theme="light"] .mov .mh p {
+  color: #4B5563 !important;
+  -webkit-text-fill-color: #4B5563 !important;
+}
+:root[data-theme="light"] .mov label,
+:root[data-theme="light"] .mov .fl {
+  color: #1F2937 !important;
+  -webkit-text-fill-color: #1F2937 !important;
+}
+:root[data-theme="light"] .mov input,
+:root[data-theme="light"] .mov select,
+:root[data-theme="light"] .mov textarea,
+:root[data-theme="light"] .mov .inp-light {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.20) !important;
+}
+:root[data-theme="light"] .mov input:focus,
+:root[data-theme="light"] .mov select:focus,
+:root[data-theme="light"] .mov textarea:focus,
+:root[data-theme="light"] .mov .inp-light:focus {
+  border-color: #6366F1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.20) !important;
+}
+:root[data-theme="light"] .mov input::placeholder,
+:root[data-theme="light"] .mov textarea::placeholder {
+  color: #9CA3AF !important;
+  -webkit-text-fill-color: #9CA3AF !important;
+}
+
+/* Section dividers in modal body (e.g. "👤 Personal", "📝 Notes") */
+:root[data-theme="light"] .mov .mb > div[style*="text-transform"],
+:root[data-theme="light"] .mov .mb > div[style*="uppercase"] {
+  color: #4B5563 !important;
+  -webkit-text-fill-color: #4B5563 !important;
+}
+:root[data-theme="dark"] .mov .mb > div[style*="text-transform"],
+:root[data-theme="dark"] .mov .mb > div[style*="uppercase"] {
+  color: #A0A4B5 !important;
+  -webkit-text-fill-color: #A0A4B5 !important;
+}
+
+/* Close (X) button — visible in both themes */
+:root[data-theme="light"] .mov .mx {
+  color: #4B5563 !important;
+  -webkit-text-fill-color: #4B5563 !important;
+  background: transparent !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+:root[data-theme="dark"] .mov .mx {
+  color: #DDE0E8 !important;
+  -webkit-text-fill-color: #DDE0E8 !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+.mov .mx:hover {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #EF4444 !important;
+  -webkit-text-fill-color: #EF4444 !important;
+  border-color: #EF4444 !important;
+}
+
+/* Cancel button in modal footer */
+:root[data-theme="light"] .mov .mf .btn-gh {
+  background: #F4F6FA !important;
+  color: #1F2937 !important;
+  -webkit-text-fill-color: #1F2937 !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+}
+:root[data-theme="dark"] .mov .mf .btn-gh {
+  background: #1D2230 !important;
+  color: #DDE0E8 !important;
+  -webkit-text-fill-color: #DDE0E8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Strip ANY inline color override that hurts visibility */
+.mov .mb [style*="color: rgba(255"],
+.mov .mb [style*="color:rgba(255"],
+.mov .mb [style*="color: var(--t3"],
+.mov .mb [style*="color: var(--t4"],
+.mov .mb [style*="color:var(--t3"],
+.mov .mb [style*="color:var(--t4"] {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* ════════════════════════════════════════════════
+   23. UNIT PICKER MODAL — searchable selector
+   ════════════════════════════════════════════════ */
+
+#m-unit-picker.mov {
+  background: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(4px);
+}
+:root[data-theme="light"] #m-unit-picker.mov {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+#m-unit-picker .md {
+  background: var(--x-modal-bg) !important;
+  border: 1px solid var(--x-border) !important;
+}
+
+#m-unit-picker .mh {
+  background: var(--x-surface-2) !important;
+  padding: 16px 18px !important;
+}
+
+#m-unit-picker .mh h3 {
+  color: var(--x-text) !important;
+  -webkit-text-fill-color: var(--x-text) !important;
+  font-size: 15px !important;
+}
+#m-unit-picker .mh p {
+  color: var(--x-text-3) !important;
+  -webkit-text-fill-color: var(--x-text-3) !important;
+  font-size: 12px !important;
+}
+
+#m-unit-picker #up-search {
+  background: var(--x-input-bg) !important;
+  color: var(--x-text) !important;
+  border: 1px solid var(--x-border-2) !important;
+}
+#m-unit-picker #up-search::placeholder {
+  color: var(--x-text-4) !important;
+}
+#m-unit-picker #up-search:focus {
+  border-color: var(--x-brand) !important;
+  box-shadow: 0 0 0 3px var(--x-brand-ring) !important;
+}
+
+#m-unit-picker .up-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Smooth scrollbar in picker list */
+#m-unit-picker #up-list::-webkit-scrollbar { width: 6px; }
+#m-unit-picker #up-list::-webkit-scrollbar-thumb {
+  background: var(--x-border-2);
+  border-radius: 3px;
+}
+
+/* ── intl-tel-input phone field: prevent dial-code button from overlapping text ── */
+#m-agent .iti input[type=tel],
+#m-client .iti input[type=tel] {
+  padding-left: 90px !important;
+}
+
+/* ── inp-err: must beat theme-specific border !important rules above ── */
+:root[data-theme] .inp-light.inp-err,
+:root[data-theme] .mov .inp-light.inp-err,
+:root[data-theme] input.inp-err,
+:root[data-theme] select.inp-err,
+:root[data-theme] textarea.inp-err {
+  border-color: var(--err) !important;
+  box-shadow: 0 0 0 2.5px rgba(239,68,68,.18) !important;
+}
+
+
+
+/* ── Print overrides: reset x-vars to light values so table cells print correctly ── */
+@media print {
+  :root, :root[data-theme="dark"] {
+    --x-bg:           #fff;
+    --x-bg-2:         #fff;
+    --x-surface:      #fff;
+    --x-surface-2:    #f5f7fa;
+    --x-surface-3:    #eef0f5;
+    --x-surface-hover:#f0f4f8;
+    --x-border:       rgba(0,0,0,0.10);
+    --x-border-2:     rgba(0,0,0,0.14);
+    --x-text:         #0f172a;
+    --x-text-2:       #1f2937;
+    --x-text-3:       #4b5563;
+    --x-text-4:       #6b7280;
+  }
+  body { background: #fff !important; color: #111 !important; }
+  table.t tbody td, .tw tbody td { color: #111 !important; border-bottom: 1px solid #eee !important; }
+  table.t thead th, .tw thead th { background: #1E2D47 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table.t tbody tr:hover, .tw tbody tr:hover { background: transparent !important; }
+  .tw { overflow: visible !important; }
+}
+
+/* ── Fix: checkboxes/radios must NOT get 100% width or 9px padding from .mov input ── */
+:root .mov input[type="checkbox"],
+:root .mov input[type="radio"] {
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 1px solid rgba(128,128,128,.4) !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  font-size: inherit !important;
+}
+
+/* ── Fix: custom-allocation row amount inputs must keep their fixed width ── */
+#ca-table input[type="number"] {
+  width: 108px !important;
+  padding: 6px 8px !important;
+}
+
+/* ── Fix: restore SVG dropdown arrow on selects whose background was reset ──
+   enterprise-polish uses `background:` shorthand on .fbar select, .inp-light,
+   and .mov select which resets background-image to none, removing the custom
+   chevron arrow injected by saas-polish.css. Re-apply it here with higher
+   specificity to win the cascade.
+   padding-right is only forced on .fbar and .mov selects — inline-styled table
+   cells keep their own tighter padding (they still get the arrow via bg-image). */
+select.inp-light,
+.fbar select,
+.mov select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(0%2C217%2C255%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+}
+.fbar select,
+.mov select {
+  padding-right: 28px !important;
+}
+[data-theme="light"] select.inp-light,
+[data-theme="light"] .fbar select,
+[data-theme="light"] .mov select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(99%2C102%2C241%2C0.7)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+}

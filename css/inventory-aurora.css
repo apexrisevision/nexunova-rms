@@ -1,0 +1,423 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   INVENTORY (ALL UNITS) — Aurora polish layer
+   Polishes the existing inventory.css with cyan/violet brand accents,
+   glass card feel, smoother hovers — same language as topbar/footer/drawer.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Page header — bigger, premium ───────────────────────────────── */
+.inv-page .inv-ph { padding: 18px 0 12px !important; }
+.inv-page .inv-breadcrumb {
+  font-size: 11px !important;
+  letter-spacing: 0.02em;
+}
+.inv-page .inv-breadcrumb .lnk { color: rgba(0,217,255,0.78) !important; }
+.inv-page .inv-breadcrumb .lnk:hover { color: #00d9ff !important; }
+.inv-page .inv-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  background: linear-gradient(90deg, var(--text) 0%, var(--text-soft) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  padding-left: 12px;
+}
+.inv-page .inv-title::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #00d9ff, #c084fc);
+  box-shadow: 0 0 12px rgba(0,217,255,0.55);
+}
+
+/* Action buttons in header */
+.inv-page .inv-ph-actions .btn-gh,
+.inv-page .inv-ph-actions .btn-g {
+  border-radius: 8px !important;
+  transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+.inv-page .inv-ph-actions .btn-gh:hover {
+  border-color: rgba(0,217,255,0.40) !important;
+  background: rgba(0,217,255,0.06) !important;
+  color: var(--text) !important;
+  transform: translateY(-1px);
+}
+.inv-page .inv-ph-actions .btn-g {
+  background: linear-gradient(90deg, #00d9ff, #818cf8) !important;
+  border: none !important;
+  color: #0a0c14 !important;
+  font-weight: 700 !important;
+}
+.inv-page .inv-ph-actions .btn-g:hover {
+  background: linear-gradient(90deg, #00c7eb, #7077e6) !important;
+  box-shadow: 0 6px 22px rgba(0,217,255,0.30) !important;
+  transform: translateY(-1px);
+}
+
+/* ── 2. KPI Tiles — glass card with brand accent ─────────────────── */
+.inv-page .inv-kpi-tile {
+  background:
+    radial-gradient(ellipse 200px 100px at 100% 0%,
+      rgba(99,102,241,0.06),
+      transparent 60%),
+    var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  height: 96px !important;
+  padding: 14px 16px !important;
+  transition:
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+.inv-page .inv-kpi-tile::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent, var(--kpi-color, var(--primary)), transparent);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.inv-page .inv-kpi-tile:hover {
+  border-color: color-mix(in srgb, var(--kpi-color, var(--primary)) 35%, var(--border)) !important;
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--kpi-color, var(--primary)) 12%, transparent) !important;
+}
+.inv-page .inv-kpi-tile:hover::after { opacity: 1; }
+
+.inv-page .inv-kpi-tile.active {
+  border: 1.5px solid var(--kpi-color, var(--primary)) !important;
+  background:
+    radial-gradient(ellipse 240px 120px at 100% 0%,
+      color-mix(in srgb, var(--kpi-color, var(--primary)) 14%, transparent),
+      transparent 60%),
+    color-mix(in srgb, var(--kpi-color, var(--primary)) 4%, var(--bg-card)) !important;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--kpi-color, var(--primary)) 10%, transparent),
+    0 8px 24px color-mix(in srgb, var(--kpi-color, var(--primary)) 18%, transparent) !important;
+}
+.inv-page .inv-kpi-tile.active::after {
+  opacity: 1;
+  height: 3px;
+  box-shadow: 0 0 12px var(--kpi-color, var(--primary));
+}
+
+.inv-page .inv-kpi-icon {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 9px !important;
+  background: color-mix(in srgb, var(--kpi-color, var(--primary)) 12%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--kpi-color, var(--primary)) 18%, transparent);
+  transition: all 220ms ease;
+}
+.inv-page .inv-kpi-tile:hover .inv-kpi-icon {
+  background: color-mix(in srgb, var(--kpi-color, var(--primary)) 18%, transparent) !important;
+  transform: scale(1.06);
+}
+.inv-page .inv-kpi-tile.active .inv-kpi-icon {
+  background: color-mix(in srgb, var(--kpi-color, var(--primary)) 24%, transparent) !important;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--kpi-color, var(--primary)) 35%, transparent);
+}
+
+.inv-page .inv-kpi-label {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.10em !important;
+  color: var(--text-muted) !important;
+}
+.inv-page .inv-kpi-value {
+  font-family: 'JetBrains Mono', 'Inter', monospace !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text) !important;
+}
+.inv-page .inv-kpi-sub {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  font-weight: 500;
+}
+
+/* ── 3. Toolbar — cleaner glass ──────────────────────────────────── */
+.inv-page .inv-toolbar {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,0.02) inset,
+    0 1px 3px rgba(0,0,0,0.04) !important;
+}
+
+/* Search input — cyan focus */
+.inv-page .inv-search-inp {
+  border-radius: 8px !important;
+  transition: all 200ms ease !important;
+}
+.inv-page .inv-search-inp:focus {
+  border-color: #00d9ff !important;
+  box-shadow:
+    0 0 0 3px rgba(0,217,255,0.15),
+    0 0 14px rgba(0,217,255,0.10) !important;
+}
+.inv-page .inv-search-icon { color: rgba(0,217,255,0.55) !important; }
+.inv-page .inv-search-inp:focus + .inv-search-icon,
+.inv-page .inv-search-wrap:focus-within .inv-search-icon {
+  color: #00d9ff !important;
+}
+
+/* Filter chips — aurora accent */
+.inv-page .inv-fc {
+  border-radius: 8px !important;
+  transition: all 200ms ease !important;
+}
+.inv-page .inv-fc:hover {
+  border-color: rgba(0,217,255,0.35) !important;
+  color: var(--text) !important;
+}
+.inv-page .inv-fc.active {
+  background: linear-gradient(90deg,
+    rgba(0,217,255,0.12),
+    rgba(168,85,247,0.08)) !important;
+  border-color: rgba(0,217,255,0.45) !important;
+  color: #00d9ff !important;
+  box-shadow: 0 0 0 3px rgba(0,217,255,0.08);
+}
+.inv-page .inv-fc.active .inv-fc-val { color: #00d9ff !important; }
+
+/* Sort button */
+.inv-page .inv-sort-btn {
+  border-radius: 8px !important;
+  transition: all 200ms ease !important;
+}
+.inv-page .inv-sort-btn:hover {
+  border-color: rgba(0,217,255,0.35) !important;
+  color: var(--text) !important;
+}
+
+/* View toggle */
+.inv-page .inv-view-toggle {
+  border-radius: 8px !important;
+  background: var(--bg-page) !important;
+}
+.inv-page .inv-view-btn.on {
+  background: linear-gradient(135deg, rgba(0,217,255,0.14), rgba(168,85,247,0.10)) !important;
+  color: #00d9ff !important;
+  box-shadow:
+    0 1px 3px rgba(0,217,255,0.20),
+    inset 0 0 0 1px rgba(0,217,255,0.25) !important;
+}
+
+/* ── 4. Active filters bar — cyan pills ─────────────────────────── */
+.inv-page .inv-af-tag {
+  border-radius: 99px !important;
+  background: linear-gradient(90deg,
+    rgba(0,217,255,0.10),
+    rgba(168,85,247,0.06)) !important;
+  border: 1px solid rgba(0,217,255,0.25) !important;
+  color: #00d9ff !important;
+  height: 26px !important;
+  font-weight: 600 !important;
+  transition: all 200ms ease;
+}
+.inv-page .inv-af-tag:hover {
+  background: linear-gradient(90deg,
+    rgba(0,217,255,0.18),
+    rgba(168,85,247,0.10)) !important;
+  border-color: rgba(0,217,255,0.45) !important;
+}
+.inv-page .inv-af-lbl { color: var(--text-muted); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; }
+.inv-page .inv-af-clear-all { color: #00d9ff !important; font-weight: 600; }
+
+/* ── 5. Table — premium feel ────────────────────────────────────── */
+.inv-page .inv-table-wrap {
+  border-radius: 12px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg-card) !important;
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,0.02) inset,
+    0 1px 3px rgba(0,0,0,0.04) !important;
+}
+.inv-page .inv-thead tr {
+  background: var(--bg-page) !important;
+  border-bottom: 1px solid var(--border) !important;
+  height: 42px !important;
+}
+.inv-page .inv-th {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.10em !important;
+  color: var(--text-muted) !important;
+}
+.inv-page .inv-th.sorted { color: #00d9ff !important; }
+.inv-page .inv-th.sorted .inv-sort-ic { color: #00d9ff !important; }
+
+.inv-page .inv-tr {
+  height: 46px !important;
+  border-left: 2px solid transparent !important;
+  transition:
+    background 160ms ease,
+    border-left-color 160ms ease,
+    box-shadow 160ms ease !important;
+}
+.inv-page .inv-tr:hover {
+  background: rgba(0,217,255,0.06) !important;
+  border-left-color: #00d9ff !important;
+}
+.inv-page .inv-tr.sel {
+  background: linear-gradient(90deg,
+    rgba(0,217,255,0.10),
+    rgba(168,85,247,0.05)) !important;
+  border-left-color: #00d9ff !important;
+}
+.inv-page .inv-td.inv-td-no { color: var(--text) !important; font-weight: 700 !important; }
+.inv-page .inv-td.inv-td-code {
+  color: rgba(0,217,255,0.70) !important;
+  font-weight: 600;
+}
+.inv-page .inv-td.inv-td-r,
+.inv-page .inv-td.inv-td-price {
+  font-family: 'JetBrains Mono', 'Inter', monospace !important;
+  font-variant-numeric: tabular-nums;
+}
+.inv-page .inv-prj-dot {
+  width: 7px !important; height: 7px !important;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* Kebab row button */
+.inv-page .inv-row-keb {
+  border-radius: 7px !important;
+  transition: all 180ms ease !important;
+}
+.inv-page .inv-row-keb:hover {
+  background: rgba(0,217,255,0.10) !important;
+  border-color: rgba(0,217,255,0.30) !important;
+  color: #00d9ff !important;
+}
+
+/* Status pill — subtle glow */
+.inv-page .u-status-pill {
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  box-shadow: 0 0 0 1px currentColor inset;
+}
+
+/* ── 6. Empty state — glass card ────────────────────────────────── */
+.inv-page .inv-empty {
+  padding: 64px 24px !important;
+}
+.inv-page .inv-empty-ic {
+  width: 64px !important; height: 64px !important;
+  background: linear-gradient(135deg,
+    rgba(0,217,255,0.10),
+    rgba(168,85,247,0.06)) !important;
+  border: 1px solid rgba(0,217,255,0.20) !important;
+  color: #00d9ff !important;
+  box-shadow:
+    0 0 0 8px rgba(0,217,255,0.04),
+    0 8px 24px rgba(0,217,255,0.12);
+}
+.inv-page .inv-empty h4 {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+}
+.inv-page .inv-empty p {
+  font-size: 12.5px !important;
+  color: var(--text-muted) !important;
+}
+
+/* ── 7. Pager — modern pills ────────────────────────────────────── */
+.inv-page .inv-pg-btn {
+  border-radius: 8px !important;
+  transition: all 180ms ease !important;
+}
+.inv-page .inv-pg-btn:hover {
+  border-color: rgba(0,217,255,0.35) !important;
+  color: #00d9ff !important;
+}
+.inv-page .inv-pg-btn.on {
+  background: linear-gradient(90deg, #00d9ff, #818cf8) !important;
+  border-color: transparent !important;
+  color: #0a0c14 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0,217,255,0.30);
+}
+
+/* ── 8. Board view — premium ────────────────────────────────────── */
+.inv-page .inv-board-col {
+  border-radius: 12px !important;
+  background: var(--bg-page) !important;
+  border-color: var(--border) !important;
+}
+.inv-page .inv-board-col-hd {
+  background: var(--bg-page) !important;
+  border-bottom: 1px solid var(--border) !important;
+  position: relative;
+}
+.inv-page .inv-board-col-hd::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 16px; right: 16px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(0,217,255,0.40), transparent);
+}
+.inv-page .inv-board-card {
+  border-radius: 10px !important;
+  transition: all 200ms ease !important;
+}
+.inv-page .inv-board-card:hover {
+  border-color: rgba(0,217,255,0.40) !important;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.06),
+    0 0 0 1px rgba(0,217,255,0.10) !important;
+  transform: translateY(-2px);
+}
+
+/* ── 9. Dropdown menu — glass ────────────────────────────────────── */
+.inv-dd {
+  border-radius: 10px !important;
+  border: 1px solid rgba(0,217,255,0.18) !important;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.12),
+    0 0 0 1px rgba(0,217,255,0.05) inset !important;
+}
+.inv-dd-item { font-size: 12.5px !important; transition: all 160ms ease; }
+.inv-dd-item:hover {
+  background: linear-gradient(90deg,
+    rgba(0,217,255,0.08),
+    rgba(168,85,247,0.04)) !important;
+  color: #00d9ff !important;
+}
+
+/* ── 10. Bulk action bar — premium ────────────────────────────── */
+.inv-bulk-bar {
+  border-radius: 12px !important;
+  background: var(--bg-card) !important;
+  border: 1px solid rgba(0,217,255,0.30) !important;
+  box-shadow:
+    0 16px 40px rgba(0,0,0,0.18),
+    0 0 0 4px rgba(0,217,255,0.08) !important;
+}
+.inv-bb {
+  border-radius: 7px !important;
+  transition: all 180ms ease !important;
+}
+.inv-bb:hover {
+  background: rgba(0,217,255,0.10) !important;
+  border-color: rgba(0,217,255,0.30) !important;
+  color: #00d9ff !important;
+}

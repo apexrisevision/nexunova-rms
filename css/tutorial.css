@@ -1,0 +1,294 @@
+/* ════════════════════════════════════════════════════════════════════
+   TUTORIAL — Getting Started checklist
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Overlay / backdrop */
+.tut-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.52);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 920;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.tut-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Modal card */
+.tut-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.48), 0 4px 16px rgba(0,0,0,0.24);
+  overflow: hidden;
+  transform: translateY(14px) scale(0.97);
+  transition: transform 280ms cubic-bezier(0.22,1,0.36,1);
+}
+.tut-overlay.is-open .tut-card {
+  transform: translateY(0) scale(1);
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.tut-hd {
+  padding: 22px 22px 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tut-icon-wrap {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: rgba(108,99,255,0.14);
+  border: 1px solid rgba(108,99,255,0.28);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.tut-hd-text { flex: 1; padding-top: 1px; }
+.tut-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin: 0 0 3px;
+  line-height: 1.3;
+}
+.tut-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+.tut-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 5px;
+  border-radius: 7px;
+  transition: background 130ms, color 130ms;
+  flex-shrink: 0;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.tut-close:hover {
+  background: var(--bg-row-hover);
+  color: var(--text);
+}
+
+/* ── Progress bar ────────────────────────────────────────────────── */
+.tut-progress-wrap {
+  margin: 16px 22px 0;
+}
+.tut-progress {
+  height: 5px;
+  background: var(--bg-chip);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.tut-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), #00d9ff);
+  border-radius: 99px;
+  transition: width 500ms cubic-bezier(0.22,1,0.36,1);
+  min-width: 0;
+}
+.tut-progress-lbl {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+.tut-progress-lbl strong {
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+/* ── Steps list ──────────────────────────────────────────────────── */
+.tut-steps {
+  padding: 10px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Single step row */
+.tut-step {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  transition: background 130ms ease;
+}
+.tut-step:hover {
+  background: var(--bg-row-hover);
+}
+.tut-step.is-done { opacity: 0.55; }
+
+/* Number / check circle */
+.tut-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 11.5px; font-weight: 700;
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg-chip);
+  transition: background 240ms, border-color 240ms, color 240ms;
+}
+.tut-step.is-done .tut-num {
+  background: rgba(16,185,129,0.14);
+  border-color: rgba(16,185,129,0.55);
+  color: #10b981;
+}
+
+/* Step body */
+.tut-step-body { flex: 1; min-width: 0; }
+.tut-step-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.tut-step.is-done .tut-step-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.tut-step-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Go button */
+.tut-go {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 13px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity 130ms, transform 130ms;
+  letter-spacing: 0.01em;
+}
+.tut-go:hover {
+  opacity: 0.85;
+  transform: translateX(2px);
+}
+
+/* ── All-done banner ─────────────────────────────────────────────── */
+.tut-done-banner {
+  margin: 4px 14px 8px;
+  padding: 12px 14px;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.22);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #10b981;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.tut-done-banner svg { flex-shrink: 0; }
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.tut-foot {
+  padding: 10px 22px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+}
+.tut-foot-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+.tut-foot-btns { display: flex; gap: 8px; flex-shrink: 0; }
+.tut-btn-ghost {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  border-radius: 7px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 130ms, color 130ms, border-color 130ms;
+}
+.tut-btn-ghost:hover {
+  background: var(--bg-row-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* ── Topbar help button ───────────────────────────────────────────── */
+.tb-help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  background: rgba(108,99,255,0.10);
+  border: 1px solid rgba(108,99,255,0.24);
+  color: var(--primary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+  letter-spacing: 0.01em;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+.tb-help-btn:hover {
+  background: rgba(108,99,255,0.20);
+  border-color: rgba(108,99,255,0.42);
+}
+.tb-help-btn svg { flex-shrink: 0; }
+
+/* Notification dot on help button (shows when tutorial incomplete) */
+.tb-help-btn .tb-help-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #f87171;
+  flex-shrink: 0;
+}
+.tb-help-btn .tb-help-dot.is-done {
+  background: #10b981;
+}
+
+/* ── Light theme ─────────────────────────────────────────────────── */
+[data-theme="light"] .tut-card {
+  box-shadow: 0 16px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .tut-overlay {
+  background: rgba(0,0,0,0.28);
+}
+[data-theme="light"] .tb-help-btn {
+  background: rgba(108,99,255,0.07);
+  border-color: rgba(108,99,255,0.18);
+}

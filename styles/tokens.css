@@ -1,0 +1,124 @@
+/* ════════════════════════════════════════════════
+   NEXUNOVA RMS — Design Tokens v1
+   nx-* namespace. Dark default, light override.
+   Import: Google Fonts (Inter + JetBrains Mono)
+════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ── Dark (default) ── */
+:root[data-theme="dark"] {
+
+  /* ── Backgrounds ── */
+  --nx-bg-base:     #0A0A0F !important;
+  --nx-bg-surface:  #111118 !important;
+  --nx-bg-elevated: #1A1A24 !important;
+  --nx-bg-hover:    #22222E !important;
+
+  /* ── Borders ── */
+  --nx-border-subtle:  rgba(255,255,255,0.06) !important;
+  --nx-border-default: rgba(255,255,255,0.10) !important;
+  --nx-border-strong:  rgba(255,255,255,0.18) !important;
+
+  /* ── Text ── */
+  --nx-text-primary:   #F0F0FF !important;
+  --nx-text-secondary: #8A8AA8 !important;
+  --nx-text-muted:     #55556A !important;
+
+  /* ── Brand ── */
+  --nx-brand:     #6C63FF !important;
+  --nx-brand-dim: rgba(108,99,255,0.12) !important;
+  --nx-accent:    #00D4AA !important;
+
+  /* ── Status ── */
+  --nx-success:     #00856A !important;
+  --nx-success-bg:  rgba(0,133,106,0.12) !important;
+  --nx-warning:     #FFB547 !important;
+  --nx-warning-bg:  rgba(255,181,71,0.10) !important;
+  --nx-danger:      #9A3050 !important;
+  --nx-danger-bg:   rgba(154,48,80,0.12) !important;
+  --nx-info:        #38BDF8 !important;
+  --nx-info-bg:     rgba(56,189,248,0.10) !important;
+
+  /* ── Glass layers ── */
+  --nx-glass-1: rgba(255,255,255,0.03) !important;
+  --nx-glass-2: rgba(255,255,255,0.05) !important;
+  --nx-glass-3: rgba(255,255,255,0.08) !important;
+  --nx-glass-blur: blur(20px) saturate(140%) !important;
+  --nx-glass-inset: inset 0 1px 0 rgba(255,255,255,0.05) !important;
+
+  /* ── Shadows ── */
+  --nx-shadow-sm:    0 1px 3px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.20) !important;
+  --nx-shadow-md:    0 4px 16px rgba(0,0,0,0.40), 0 2px 6px rgba(0,0,0,0.20) !important;
+  --nx-shadow-lg:    0 8px 32px rgba(0,0,0,0.50) !important;
+  --nx-shadow-brand: 0 0 0 3px rgba(108,99,255,0.25) !important;
+  --nx-shadow-glow:  0 0 24px rgba(108,99,255,0.15) !important;
+
+  /* ── Spacing (4px base) ── */
+  --nx-space-1:  4px !important;
+  --nx-space-2:  8px !important;
+  --nx-space-3:  12px !important;
+  --nx-space-4:  16px !important;
+  --nx-space-5:  20px !important;
+  --nx-space-6:  24px !important;
+  --nx-space-8:  32px !important;
+  --nx-space-10: 40px !important;
+  --nx-space-12: 48px !important;
+
+  /* ── Border radius ── */
+  --nx-radius-xs: 4px !important;
+  --nx-radius-sm: 6px !important;
+  --nx-radius-md: 10px !important;
+  --nx-radius-lg: 14px !important;
+  --nx-radius-xl: 20px !important;
+
+  /* ── Typography scale ── */
+  --nx-text-xs:   11px !important;
+  --nx-text-sm:   13px !important;
+  --nx-text-base: 15px !important;
+  --nx-text-lg:   17px !important;
+  --nx-text-xl:   20px !important;
+  --nx-text-2xl:  24px !important;
+  --nx-text-3xl:  30px !important;
+  --nx-text-4xl:  38px !important;
+
+  /* ── Font families ── */
+  --nx-font:      'Inter', system-ui, -apple-system, sans-serif !important;
+  --nx-font-mono: 'JetBrains Mono', 'Fira Code', monospace !important;
+
+  /* ── Transitions ── */
+  --nx-ease:       cubic-bezier(0.4,0,0.2,1) !important;
+  --nx-transition: 150ms cubic-bezier(0.4,0,0.2,1) !important;
+}
+
+/* ── Light theme overrides ── */
+:root[data-theme="light"] {
+  --nx-bg-base:     #EEEEFF !important;
+  --nx-bg-surface:  rgba(255,255,255,0.60) !important;
+  --nx-bg-elevated: rgba(240,240,255,0.80) !important;
+  --nx-bg-hover:    rgba(232,232,245,0.90) !important;
+
+  --nx-border-subtle:  rgba(0,0,0,0.07) !important;
+  --nx-border-default: rgba(0,0,0,0.12) !important;
+  --nx-border-strong:  rgba(0,0,0,0.22) !important;
+
+  --nx-text-primary:   #18182E !important;
+  --nx-text-secondary: #4A4A68 !important;
+  --nx-text-muted:     #9090B0 !important;
+
+  --nx-glass-1: rgba(255,255,255,0.60) !important;
+  --nx-glass-2: rgba(255,255,255,0.55) !important;
+  --nx-glass-3: rgba(255,255,255,0.70) !important;
+  --nx-glass-blur: blur(28px) saturate(160%) !important;
+  --nx-glass-inset: inset 0 1px 0 rgba(255,255,255,0.80) !important;
+
+  --nx-shadow-sm:    0 1px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05) !important;
+  --nx-shadow-md:    0 4px 18px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06) !important;
+  --nx-shadow-lg:    0 8px 32px rgba(0,0,0,0.14) !important;
+  --nx-shadow-brand: 0 0 0 3px rgba(108,99,255,0.20) !important;
+
+  --nx-success-bg:  rgba(0,133,106,0.12) !important;
+  --nx-danger-bg:   rgba(154,48,80,0.12) !important;
+  --nx-warning-bg:  rgba(255,181,71,0.12) !important;
+  --nx-info-bg:     rgba(56,189,248,0.12) !important;
+  --nx-brand-dim:   rgba(108,99,255,0.10) !important;
+}

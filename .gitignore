@@ -1,0 +1,38 @@
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── Electron build outputs ───────────────────────────────
+dist/
+
+# ── Vestigial / dev-only ─────────────────────────────────
+demo-react/
+
+# ── Backup files ─────────────────────────────────────────
+*.bak
+*.bak-*
+*.electron-bak
+
+# ── Tooling / Editors ────────────────────────────────────
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# ── OS noise ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Internal docs (not for public repo) ──────────────────
+*.docx
+BLUEPRINT.md
+REPORT.md
+STEP_*_REPORT.md
+
+# ── Local helpers ────────────────────────────────────────
+test-splash.js

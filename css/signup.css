@@ -1,0 +1,1136 @@
+/* ════════════════════════════════════════════════
+   SIGNUP — Multi-step company registration
+   Matches premium dark login theme exactly
+════════════════════════════════════════════════ */
+
+#s-signup {
+  background: #050709;
+  position: fixed !important;
+  inset: 0 !important;
+  overflow-y: auto !important;
+  min-height: unset;
+  align-items: stretch;
+}
+
+/* ── RIGHT PANEL (wider for multi-step form) ── */
+.sg-right {
+  width: 520px !important;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 40px;
+  position: relative;
+  z-index: 3;
+  background: rgba(6,10,18,0.88);
+  border-left: 1px solid rgba(0,217,255,0.14);
+  backdrop-filter: blur(30px);
+  overflow-y: auto;
+}
+
+.sg-form-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 8px 0 40px;
+}
+
+/* ── Form logo top ── */
+.sg-form-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.sg-form-logo img {
+  height: 72px;
+  width: auto;
+  filter:
+    drop-shadow(0 0 14px rgba(0,217,255,0.6))
+    drop-shadow(0 0 6px rgba(168,85,247,0.4));
+}
+.sg-form-logo-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  background: linear-gradient(90deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sg-form-logo-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.52);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+/* ── Step progress bar ── */
+.sg-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 28px;
+}
+.sg-step-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  position: relative;
+}
+.sg-step-dot:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: calc(50% + 14px);
+  right: calc(-50% + 14px);
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.3s ease;
+}
+.sg-step-dot.done:not(:last-child)::after,
+.sg-step-dot.active:not(:last-child)::after {
+  background: linear-gradient(90deg, #00d9ff, rgba(0,217,255,0.3));
+}
+.sg-dot-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  color: rgba(255,255,255,0.58);
+  background: rgba(255,255,255,0.06);
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+.sg-step-dot.active .sg-dot-circle {
+  border-color: #00d9ff;
+  color: #00d9ff;
+  background: rgba(0,217,255,0.1);
+  box-shadow: 0 0 12px rgba(0,217,255,0.4);
+}
+.sg-step-dot.done .sg-dot-circle {
+  border-color: #00d9ff;
+  color: #050709;
+  background: linear-gradient(135deg, #00d9ff, #0ea5e9);
+  box-shadow: 0 0 8px rgba(0,217,255,0.3);
+}
+.sg-dot-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.sg-step-dot.active .sg-dot-label { color: rgba(0,217,255,0.8); }
+.sg-step-dot.done .sg-dot-label   { color: rgba(0,217,255,0.5); }
+
+/* ── Step header ── */
+.sg-header {
+  margin-bottom: 22px;
+}
+.sg-step-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.sg-step-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,0.58);
+}
+
+/* ── Step panels (show/hide) ── */
+.sg-step-panel {
+  display: none;
+}
+.sg-step-panel.sg-active {
+  display: block;
+  animation: sgFadeIn 0.22s ease;
+}
+@keyframes sgFadeIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Form fields (reuse lx- names where possible, add sg- variants) ── */
+.sg-field {
+  margin-bottom: 13px;
+  position: relative;
+}
+.sg-label {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: rgba(0,217,255,0.90);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+.sg-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: #0d1320 !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+.sg-input::placeholder {
+  color: rgba(255,255,255,0.38) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.38) !important;
+}
+.sg-input:focus {
+  border-color: rgba(0,217,255,0.6) !important;
+  background: #0f1828 !important;
+  box-shadow: 0 0 0 3px rgba(0,217,255,0.12) !important;
+}
+.sg-input.valid {
+  border-color: rgba(0,217,255,0.45) !important;
+}
+.sg-input.invalid {
+  border-color: rgba(239,68,68,0.6) !important;
+  background: #120d0d !important;
+}
+.sg-select {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #0d1320 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='rgba(0,217,255,0.6)' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 8px !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  cursor: pointer;
+  appearance: none;
+  color-scheme: dark;
+  padding-right: 36px;
+}
+.sg-select:focus {
+  border-color: rgba(0,217,255,0.6) !important;
+  box-shadow: 0 0 0 3px rgba(0,217,255,0.12) !important;
+}
+.sg-select option { background: #0d1320; color: #ffffff; }
+
+/* ── Two-column row ── */
+.sg-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── Field status icon ── */
+.sg-field-status {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  pointer-events: none;
+  margin-top: 11px;
+}
+
+/* ── Hint / error text under field ── */
+.sg-hint {
+  font-size: 12px;
+  margin-top: 5px;
+  min-height: 16px;
+  color: rgba(255,255,255,0.48);
+  font-family: 'Inter', sans-serif;
+}
+.sg-hint.err  { color: #FCA5A5; }
+.sg-hint.ok   { color: rgba(0,217,255,0.7); }
+.sg-hint.warn { color: rgba(251,191,36,0.8); }
+
+/* ── Password strength meter ── */
+.sg-strength {
+  margin-top: 7px;
+}
+.sg-strength-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+.sg-strength-fill {
+  height: 100%;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.sg-strength-fill.s1 { width: 25%; background: #ef4444; }
+.sg-strength-fill.s2 { width: 50%; background: #f97316; }
+.sg-strength-fill.s3 { width: 75%; background: #eab308; }
+.sg-strength-fill.s4 { width: 100%; background: linear-gradient(90deg, #00d9ff, #a855f7); }
+.sg-strength-label {
+  font-size: 10px;
+  font-family: 'Space Mono', monospace;
+  color: rgba(255,255,255,0.48);
+}
+.sg-strength-label.s1 { color: #fca5a5; }
+.sg-strength-label.s2 { color: #fdba74; }
+.sg-strength-label.s3 { color: #fde047; }
+.sg-strength-label.s4 { color: rgba(0,217,255,0.8); }
+
+/* ── Plan cards ── */
+.sg-billing-toggle {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 18px;
+  gap: 4px;
+}
+.sg-billing-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.62);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+.sg-billing-btn.active {
+  background: linear-gradient(135deg, rgba(0,217,255,0.15), rgba(168,85,247,0.15));
+  color: white;
+  border: 1px solid rgba(0,217,255,0.25);
+}
+.sg-billing-save {
+  font-size: 10px;
+  color: rgba(0,217,255,0.7);
+  font-family: 'Space Mono', monospace;
+  margin-left: 4px;
+}
+
+/* ── Toggle-track billing row ── */
+.billing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.tog-lbl {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  transition: color 0.2s ease;
+  user-select: none;
+}
+.tog-lbl.active {
+  color: rgba(255,255,255,0.92);
+}
+.tog-track {
+  width: 42px;
+  height: 23px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease;
+  flex-shrink: 0;
+}
+.tog-track.on {
+  background: rgba(0,217,255,0.18);
+  border-color: rgba(0,217,255,0.40);
+}
+.tog-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.25s ease;
+}
+.tog-track.on .tog-thumb {
+  transform: translateX(19px);
+  background: #00d9ff;
+  box-shadow: 0 0 6px rgba(0,217,255,0.6);
+}
+.save-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(0,217,255,0.85);
+  background: rgba(0,217,255,0.08);
+  border: 1px solid rgba(0,217,255,0.20);
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Plan cards — 2×2 grid ── */
+.sg-plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  overflow: visible;
+}
+.sg-pcard {
+  border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,0.09);
+  padding: 14px 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  background: rgba(255,255,255,0.03);
+}
+.sg-pcard:hover {
+  border-color: rgba(0,217,255,0.35);
+  background: rgba(0,217,255,0.04);
+}
+.sg-pcard.sg-pcard-sel {
+  border-color: rgba(0,217,255,0.65);
+  background: rgba(0,217,255,0.08);
+  box-shadow: 0 0 0 1px rgba(0,217,255,0.18);
+}
+.sg-pcard.sg-pcard-pop {
+  border-color: rgba(168,85,247,0.32);
+  padding-top: 22px;
+}
+.sg-pcard.sg-pcard-pop.sg-pcard-sel {
+  border-color: rgba(168,85,247,0.65);
+  background: rgba(168,85,247,0.08);
+  box-shadow: 0 0 0 1px rgba(168,85,247,0.18);
+}
+.sg-pop-badge {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  font-size: 9px;
+  font-weight: 700;
+  color: #050709;
+  padding: 2px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  font-family: 'Space Mono', monospace;
+}
+.sg-pc-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: 'Space Mono', monospace;
+}
+.sg-pcard.sg-pcard-sel .sg-pc-name { color: rgba(0,217,255,0.8); }
+.sg-pcard.sg-pcard-pop.sg-pcard-sel .sg-pc-name { color: rgba(168,85,247,0.8); }
+.sg-pc-price {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+.sg-pc-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  -webkit-text-fill-color: rgba(255,255,255,0.3);
+  margin-top: 2px;
+}
+.sg-pc-sep {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 8px 0;
+}
+.sg-pc-feats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sg-pc-feat {
+  font-size: 10px;
+  color: rgba(255,255,255,0.42);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.4;
+}
+.sg-pc-feat::before {
+  content: '✓';
+  color: rgba(0,217,255,0.6);
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.sg-pcard.sg-pcard-sel .sg-pc-feat { color: rgba(255,255,255,0.6); }
+
+/* ── Agreement step ── */
+.sg-terms-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.7;
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+.sg-terms-box::-webkit-scrollbar { width: 4px; }
+.sg-terms-box::-webkit-scrollbar-track { background: transparent; }
+.sg-terms-box::-webkit-scrollbar-thumb { background: rgba(0,217,255,0.2); border-radius: 2px; }
+
+.sg-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.sg-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 1px;
+  accent-color: #00d9ff;
+}
+.sg-check-lbl {
+  font-size: 12px;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.5;
+}
+.sg-check-lbl a {
+  color: rgba(0,217,255,0.7);
+  text-decoration: none;
+}
+
+/* ── Summary card (step 5) ── */
+.sg-summary {
+  background: rgba(0,217,255,0.04);
+  border: 1px solid rgba(0,217,255,0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+.sg-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.sg-summary-row:last-child { border-bottom: none; }
+.sg-summary-key {
+  color: rgba(255,255,255,0.52);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.sg-summary-val {
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-word;
+}
+
+/* ── Navigation buttons ── */
+.sg-nav {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+.sg-btn-back {
+  padding: 13px 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.sg-btn-back:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
+.sg-btn-next {
+  flex: 1;
+  padding: 13px 20px;
+  background: linear-gradient(135deg, #00d9ff 0%, #0ea5e9 50%, #a855f7 100%);
+  background-size: 200% 200%;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #050709;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 24px rgba(0,217,255,0.3), 0 2px 8px rgba(168,85,247,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+}
+.sg-btn-next:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(0,217,255,0.45), 0 4px 14px rgba(168,85,247,0.25);
+}
+.sg-btn-next:active { transform: translateY(0); }
+.sg-btn-next:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.sg-btn-next .sg-btn-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  transform: translateX(-100%);
+  border-radius: inherit;
+}
+.sg-btn-next.loading .sg-btn-shimmer {
+  animation: sgShimmer 1.2s ease infinite;
+}
+@keyframes sgShimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(200%); }
+}
+
+/* ── Global error banner ── */
+.sg-err {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #FCA5A5;
+  margin-bottom: 14px;
+  display: none;
+  animation: sgFadeIn 0.2s ease;
+}
+
+/* ── Footer link ── */
+.sg-footer {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  font-size: 12px;
+  color: rgba(255,255,255,0.42);
+  text-align: center;
+}
+.sg-footer a {
+  color: rgba(0,217,255,0.85);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+.sg-footer a:hover { color: #19d3ff; text-shadow: 0 0 8px rgba(0,217,255,0.4); }
+
+/* ── Success screen ── */
+.sg-success {
+  text-align: center;
+  padding: 32px 0 16px;
+}
+.sg-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0,217,255,0.15), rgba(168,85,247,0.15));
+  border: 2px solid rgba(0,217,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto 20px;
+  animation: sgSuccessPop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+@keyframes sgSuccessPop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.sg-success-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 8px;
+}
+.sg-success-msg {
+  font-size: 13px;
+  color: rgba(255,255,255,0.68);
+  line-height: 1.6;
+  max-width: 320px;
+  margin: 0 auto 24px;
+}
+.sg-code-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,217,255,0.08);
+  border: 1px solid rgba(0,217,255,0.2);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+}
+.sg-code-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: rgba(0,217,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.sg-code-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 1px;
+}
+
+/* ── Pending activation screen ── */
+.sg-pending {
+  text-align: center;
+  padding: 32px 0 16px;
+}
+.sg-pending-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(251,191,36,0.1);
+  border: 2px solid rgba(251,191,36,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto 20px;
+  animation: sgSuccessPop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+/* ── Left panel contrast overrides (scoped — does not affect login) ── */
+#s-signup .lx-headline {
+  color: #ffffff !important;
+}
+#s-signup .lx-brand-label {
+  color: rgba(0,217,255,0.92) !important;
+  letter-spacing: 4px;
+}
+#s-signup .lx-desc {
+  color: rgba(220,232,255,0.82) !important;
+  font-weight: 400;
+}
+#s-signup .lx-feat-title {
+  color: #ffffff !important;
+  font-weight: 700;
+}
+#s-signup .lx-feat-desc {
+  color: rgba(200,215,240,0.70) !important;
+}
+#s-signup .lx-feat-icon {
+  background: rgba(0,217,255,0.12) !important;
+  border-color: rgba(0,217,255,0.25) !important;
+}
+
+/* ── Step dots — size + visibility ── */
+#s-signup .sg-dot-circle {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: rgba(255,255,255,0.65) !important;
+  border-color: rgba(255,255,255,0.32) !important;
+  background: rgba(255,255,255,0.07) !important;
+}
+#s-signup .sg-step-dot:not(:last-child)::after {
+  top: 17px !important;
+}
+#s-signup .sg-step-dot.active .sg-dot-circle {
+  color: #00d9ff !important;
+  border-color: #00d9ff !important;
+  background: rgba(0,217,255,0.14) !important;
+  box-shadow: 0 0 16px rgba(0,217,255,0.55) !important;
+}
+#s-signup .sg-step-dot.done .sg-dot-circle {
+  color: #050709 !important;
+  border-color: #00d9ff !important;
+  background: linear-gradient(135deg, #00d9ff, #0ea5e9) !important;
+}
+#s-signup .sg-dot-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
+  color: rgba(255,255,255,0.55) !important;
+}
+#s-signup .sg-step-dot.active .sg-dot-label {
+  color: rgba(0,217,255,0.95) !important;
+}
+#s-signup .sg-step-dot.done .sg-dot-label {
+  color: rgba(0,217,255,0.65) !important;
+}
+
+/* ── Step header ── */
+#s-signup .sg-step-title {
+  color: #ffffff !important;
+  font-size: 24px !important;
+  margin-bottom: 6px !important;
+}
+#s-signup .sg-step-sub {
+  color: rgba(200,215,240,0.72) !important;
+  font-size: 13.5px !important;
+}
+
+/* ── Field labels (FULL NAME, WORK EMAIL, etc.) ── */
+#s-signup .sg-label {
+  color: rgba(0,217,255,0.95) !important;
+  font-size: 11.5px !important;
+  letter-spacing: 1.5px !important;
+  margin-bottom: 7px !important;
+}
+
+/* ── Footer — "Already have an account? Sign in" ── */
+#s-signup .sg-footer {
+  color: rgba(200,215,240,0.60) !important;
+  font-size: 13.5px !important;
+  margin-top: 24px !important;
+  padding-top: 18px !important;
+}
+#s-signup .sg-footer a {
+  color: #19d3ff !important;
+  font-weight: 700 !important;
+  font-size: 13.5px !important;
+}
+
+/* ── Form logo ── */
+#s-signup .sg-form-logo-text {
+  font-size: 22px !important;
+}
+#s-signup .sg-form-logo-sub {
+  font-size: 11px !important;
+  color: rgba(200,215,240,0.62) !important;
+  letter-spacing: 2px !important;
+}
+
+/* ── Textarea inside signup ── */
+#s-signup textarea.sg-input {
+  resize: vertical;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ── Onboarding screen inputs ── */
+#s-onboarding .sg-input {
+  background: #0d1320 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(255,255,255,0.16) !important;
+  color-scheme: dark;
+}
+#s-onboarding .sg-label {
+  color: rgba(0,217,255,0.92) !important;
+}
+#s-onboarding .sg-btn-back {
+  color: rgba(255,255,255,0.72) !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  #s-signup .lx-left { display: none; }
+  .sg-right { width: 100% !important; border-left: none; background: rgba(6,10,18,0.97); }
+}
+@media (max-width: 500px) {
+  .sg-right { padding: 24px 20px; }
+  .sg-row { grid-template-columns: 1fr; }
+}
+
+/* ── Terms box + success screen visibility (beat enterprise-polish overrides) ── */
+#s-signup .sg-terms-box              { color: rgba(255,255,255,0.65) !important; }
+#s-signup .sg-terms-box *            { color: inherit !important; }
+#s-signup .sg-success-title          { color: #ffffff !important; }
+#s-signup .sg-success-msg            { color: rgba(255,255,255,0.68) !important; }
+
+/* ════════════════════════════════════════════════
+   FORGOT PASSWORD / RESET PASSWORD SCREENS
+════════════════════════════════════════════════ */
+
+#s-forgot,
+#s-reset {
+  position: fixed !important;
+  inset: 0 !important;
+  background: #050709;
+  overflow-y: auto;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 110;
+}
+
+.fp-center {
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+  padding: 60px 20px 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.fp-card {
+  width: 100%;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(0,217,255,0.12);
+  border-radius: 16px;
+  padding: 36px 40px;
+  backdrop-filter: blur(30px);
+}
+
+.fp-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.fp-icon-ring {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(0,217,255,0.08);
+  border: 1.5px solid rgba(0,217,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  animation: fpPop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+@keyframes fpPop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.fp-spinner {
+  width: 36px;
+  height: 36px;
+  border: 2.5px solid rgba(0,217,255,0.12);
+  border-top-color: rgba(0,217,255,0.65);
+  border-radius: 50%;
+  animation: fpSpin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes fpSpin { to { transform: rotate(360deg); } }
+
+.fp-link {
+  color: rgba(0,217,255,0.7);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s;
+  font-weight: 600;
+}
+.fp-link:hover { color: #19d3ff; }
+
+.fp-back-row {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  text-align: center;
+  font-size: 13px;
+}
+
+.lx-forgot-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: rgba(0,217,255,0.55);
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.lx-forgot-link:hover { color: rgba(0,217,255,0.9); }
+
+@media (max-width: 500px) {
+  .fp-card { padding: 28px 24px; }
+}
+
+/* ════════════════════════════════════════════════
+   ENTERPRISE-POLISH OVERRIDE LAYER
+   Ensures text is visible in ANY theme (dark or light)
+   on the dark-background auth panels.
+   signup.css loads after enterprise-polish.css, so
+   scoped ID + !important wins the cascade.
+════════════════════════════════════════════════ */
+
+/* ── SIGNUP: back & next button sizing ── */
+#s-signup .sg-btn-next {
+  padding: 11px 18px !important;
+  font-size: 13px !important;
+  letter-spacing: 0.2px !important;
+}
+#s-signup .sg-btn-back {
+  padding: 10px 16px !important;
+  font-size: 12px !important;
+  color: rgba(255,255,255,0.70) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.70) !important;
+}
+#s-signup .sg-btn-back:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ── SIGNUP: field hint text ── */
+#s-signup .sg-hint      { color: rgba(255,255,255,0.45) !important; }
+#s-signup .sg-hint.err  { color: #FCA5A5 !important; }
+#s-signup .sg-hint.ok   { color: rgba(0,217,255,0.72) !important; }
+#s-signup .sg-hint.warn { color: rgba(251,191,36,0.82) !important; }
+
+/* ── SIGNUP: agreement checkbox label ── */
+#s-signup .sg-check-lbl   { color: rgba(255,255,255,0.72) !important; }
+#s-signup .sg-check-lbl a { color: rgba(0,217,255,0.78) !important; -webkit-text-fill-color: rgba(0,217,255,0.78) !important; }
+
+/* ── SIGNUP: review summary (step 5) ── */
+#s-signup .sg-summary-key { color: rgba(255,255,255,0.52) !important; -webkit-text-fill-color: rgba(255,255,255,0.52) !important; }
+#s-signup .sg-summary-val { color: rgba(255,255,255,0.92) !important; -webkit-text-fill-color: rgba(255,255,255,0.92) !important; }
+
+/* ── SIGNUP: billing toggle ── */
+#s-signup .tog-lbl              { color: rgba(255,255,255,0.36) !important; }
+#s-signup .tog-lbl.active       { color: rgba(255,255,255,0.92) !important; }
+#s-signup .save-badge           { color: rgba(0,217,255,0.88) !important; -webkit-text-fill-color: rgba(0,217,255,0.88) !important; }
+#s-signup .sg-billing-btn       { color: rgba(255,255,255,0.65) !important; }
+#s-signup .sg-billing-btn.active{ color: #ffffff !important; }
+
+/* ── SIGNUP: plan card sub-text & features (content/prices untouched) ── */
+#s-signup .sg-pc-sub  {
+  color: rgba(255,255,255,0.32) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.32) !important;
+}
+#s-signup .sg-pc-feat {
+  color: rgba(255,255,255,0.45) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.45) !important;
+}
+#s-signup .sg-pcard.sg-pcard-sel .sg-pc-feat {
+  color: rgba(255,255,255,0.68) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.68) !important;
+}
+
+/* ── FORGOT PASSWORD screen — full text visibility ── */
+#s-forgot .fp-card { color: rgba(255,255,255,0.82) !important; }
+#s-forgot .lx-form-logo-sub {
+  color: rgba(255,255,255,0.38) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.38) !important;
+}
+#s-forgot .lx-form-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 20px !important;
+}
+#s-forgot .lx-form-sub {
+  color: rgba(255,255,255,0.44) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.44) !important;
+}
+#s-forgot .lx-label {
+  color: rgba(0,217,255,0.85) !important;
+  -webkit-text-fill-color: rgba(0,217,255,0.85) !important;
+}
+#s-forgot .fp-back-row {
+  color: rgba(255,255,255,0.38) !important;
+}
+#s-forgot .fp-link {
+  color: rgba(0,217,255,0.72) !important;
+  -webkit-text-fill-color: rgba(0,217,255,0.72) !important;
+}
+#s-forgot .fp-link:hover {
+  color: #19d3ff !important;
+  -webkit-text-fill-color: #19d3ff !important;
+}
+#s-forgot .lx-btn {
+  padding: 11px 18px !important;
+  font-size: 13px !important;
+}
+
+/* ── RESET PASSWORD screen — full text visibility ── */
+#s-reset .fp-card { color: rgba(255,255,255,0.82) !important; }
+#s-reset .lx-form-logo-sub {
+  color: rgba(255,255,255,0.38) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.38) !important;
+}
+#s-reset .lx-form-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 20px !important;
+}
+#s-reset .lx-form-sub {
+  color: rgba(255,255,255,0.44) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.44) !important;
+}
+#s-reset .lx-label {
+  color: rgba(0,217,255,0.85) !important;
+  -webkit-text-fill-color: rgba(0,217,255,0.85) !important;
+}
+#s-reset .fp-back-row {
+  color: rgba(255,255,255,0.38) !important;
+}
+#s-reset .fp-link {
+  color: rgba(0,217,255,0.72) !important;
+  -webkit-text-fill-color: rgba(0,217,255,0.72) !important;
+}
+#s-reset .fp-link:hover {
+  color: #19d3ff !important;
+  -webkit-text-fill-color: #19d3ff !important;
+}
+#s-reset #rp-exchanging p {
+  color: rgba(255,255,255,0.42) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.42) !important;
+}
+#s-reset .lx-btn {
+  padding: 11px 18px !important;
+  font-size: 13px !important;
+}

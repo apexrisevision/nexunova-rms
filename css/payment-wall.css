@@ -1,0 +1,1780 @@
+/* ══ PAYMENT WALL ══════════════════════════════════════════════════════ */
+
+#s-payment-wall {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #050709;
+  z-index: 900;
+  overflow-y: auto;
+}
+#s-payment-wall.on { display: flex; }
+
+.pw-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ── Left trust panel ── */
+.pw-left {
+  width: 300px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(0,217,255,0.04) 0%, rgba(168,85,247,0.04) 100%);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding: 40px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.pw-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.pw-logo-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.pw-trust-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  margin-bottom: 16px;
+}
+.pw-trust-items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.pw-trust-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pw-trust-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.pw-trust-text {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.5;
+}
+.pw-trust-text strong {
+  color: rgba(255,255,255,0.82);
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pw-wa-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(37,211,102,0.12);
+  border: 1px solid rgba(37,211,102,0.25);
+  border-radius: 10px;
+  color: #25d366;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+  margin-bottom: 10px;
+}
+.pw-wa-btn:hover { background: rgba(37,211,102,0.2); }
+.pw-email-link {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+}
+.pw-email-link a { color: rgba(0,217,255,0.6); text-decoration: none; }
+
+/* ── Main content area ── */
+.pw-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 32px;
+  overflow-y: auto;
+}
+.pw-card {
+  width: 100%;
+  max-width: 620px;
+}
+.pw-card-header {
+  margin-bottom: 32px;
+}
+.pw-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.pw-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  transition: all 0.3s;
+}
+.pw-step-dot.active {
+  background: #00d9ff;
+  box-shadow: 0 0 8px rgba(0,217,255,0.5);
+  width: 24px;
+  border-radius: 4px;
+}
+.pw-step-dot.done { background: rgba(0,217,255,0.4); }
+.pw-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+.pw-sub {
+  font-size: 14px;
+  color: rgba(255,255,255,0.45);
+}
+
+/* ── Invoice card ── */
+.pw-invoice-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(0,217,255,0.15);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.pw-invoice-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00d9ff, #a855f7);
+}
+.pw-invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.pw-inv-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(0,217,255,0.7);
+  background: rgba(0,217,255,0.08);
+  border: 1px solid rgba(0,217,255,0.2);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.pw-inv-status {
+  font-size: 11px;
+  color: rgba(255,180,0,0.8);
+  background: rgba(255,180,0,0.08);
+  border: 1px solid rgba(255,180,0,0.2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.pw-inv-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 24px;
+  margin-bottom: 20px;
+}
+.pw-inv-row label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 4px;
+}
+.pw-inv-row span {
+  font-size: 14px;
+  color: rgba(255,255,255,0.82);
+  font-weight: 500;
+}
+.pw-inv-amount {
+  grid-column: 1 / -1;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 14px;
+}
+.pw-inv-amount span {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Country picker ── */
+.pw-country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.pw-country-card {
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 18px 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.pw-country-card:hover {
+  border-color: rgba(0,217,255,0.35);
+  background: rgba(0,217,255,0.04);
+  transform: translateY(-1px);
+}
+.pw-country-card.selected {
+  border-color: rgba(0,217,255,0.6);
+  background: rgba(0,217,255,0.07);
+  box-shadow: 0 0 0 3px rgba(0,217,255,0.08);
+}
+.pw-country-flag { font-size: 28px; margin-bottom: 8px; }
+.pw-country-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.pw-country-currency {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 3px;
+}
+
+/* ── Partner card ── */
+.pw-partner-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.pw-partner-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d9ff22, #a855f722);
+  border: 2px solid rgba(0,217,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.pw-partner-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.pw-partner-role {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 6px;
+}
+.pw-partner-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pw-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(0,217,255,0.08);
+  border: 1px solid rgba(0,217,255,0.2);
+  color: rgba(0,217,255,0.8);
+  font-weight: 500;
+}
+
+/* ── Payment method cards ── */
+.pw-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.pw-method-card {
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pw-method-card:hover { border-color: rgba(0,217,255,0.25); }
+.pw-method-card.selected {
+  border-color: rgba(0,217,255,0.55);
+  background: rgba(0,217,255,0.05);
+}
+.pw-method-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.pw-method-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.pw-method-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.pw-method-type {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.pw-method-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+}
+.pw-detail-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 500;
+}
+.pw-detail-value {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  font-family: 'Space Mono', monospace;
+  word-break: break-all;
+}
+
+/* ── Why personal account info card ── */
+.pw-info-toggle {
+  background: rgba(255,180,0,0.06);
+  border: 1px solid rgba(255,180,0,0.15);
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  color: rgba(255,180,0,0.75);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  user-select: none;
+}
+.pw-info-body {
+  display: none;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.7;
+  padding: 0 4px 4px;
+}
+.pw-info-body.open { display: block; }
+
+/* ── Upload form ── */
+.pw-form { display: flex; flex-direction: column; gap: 16px; }
+.pw-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.pw-field label span.req { color: rgba(0,217,255,0.7); }
+.pw-input, .pw-select, .pw-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: white;
+  font-size: 14px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.pw-input:focus, .pw-select:focus, .pw-textarea:focus {
+  outline: none;
+  border-color: rgba(0,217,255,0.4);
+}
+.pw-input::placeholder { color: rgba(255,255,255,0.2); }
+.pw-select option { background: #0d1117; color: white; }
+.pw-textarea { resize: vertical; min-height: 80px; }
+.pw-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ── File upload ── */
+.pw-file-zone {
+  border: 2px dashed rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.pw-file-zone:hover, .pw-file-zone.drag-over {
+  border-color: rgba(0,217,255,0.4);
+  background: rgba(0,217,255,0.03);
+}
+.pw-file-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.pw-file-icon { font-size: 32px; margin-bottom: 8px; }
+.pw-file-label { font-size: 13px; color: rgba(255,255,255,0.55); }
+.pw-file-hint { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 4px; }
+.pw-file-preview {
+  margin-top: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 200px;
+  display: none;
+}
+.pw-file-preview img { width: 100%; height: auto; max-height: 200px; object-fit: contain; }
+.pw-file-name {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(0,217,255,0.8);
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── Action button ── */
+.pw-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #00d9ff 0%, #0ea5e9 50%, #a855f7 100%);
+  background-size: 200% 200%;
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s;
+  margin-top: 8px;
+}
+.pw-btn:hover { background-position: right center; transform: translateY(-1px); }
+.pw-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.pw-btn-ghost {
+  width: 100%;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.6);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.pw-btn-ghost:hover { background: rgba(255,255,255,0.07); color: white; }
+.pw-err {
+  padding: 10px 14px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  color: rgba(239,68,68,0.9);
+  display: none;
+}
+
+/* ── Confirmation / waiting screen ── */
+.pw-confirm {
+  text-align: center;
+  padding: 20px 0;
+}
+.pw-confirm-icon { font-size: 56px; margin-bottom: 16px; }
+.pw-confirm-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 8px;
+}
+.pw-confirm-sub {
+  font-size: 14px;
+  color: rgba(255,255,255,0.45);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+.pw-timeline {
+  text-align: left;
+  border-left: 2px solid rgba(255,255,255,0.08);
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.pw-tl-item {
+  position: relative;
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+}
+.pw-tl-item::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.pw-tl-item.done { color: rgba(0,217,255,0.8); }
+.pw-tl-item.done::before {
+  background: #00d9ff;
+  border-color: #00d9ff;
+  box-shadow: 0 0 8px rgba(0,217,255,0.5);
+}
+.pw-tl-item.active { color: rgba(255,180,0,0.8); }
+.pw-tl-item.active::before {
+  background: rgba(255,180,0,0.3);
+  border-color: rgba(255,180,0,0.6);
+  animation: pulse-dot 1.5s infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,180,0,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(255,180,0,0); }
+}
+
+/* ── Rejection banner ── */
+.pw-rejection-banner {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.pw-rejection-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(239,68,68,0.9);
+  margin-bottom: 6px;
+}
+.pw-rejection-reason {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.6;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .pw-left { display: none; }
+  .pw-main { padding: 28px 16px; }
+  .pw-row { grid-template-columns: 1fr; }
+  .pw-inv-rows { grid-template-columns: 1fr; }
+  .pw-country-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ══ PW v2 — Step Bar ═══════════════════════════════════════════════════ */
+
+.pw-step-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 28px;
+}
+.pw-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pw-sdot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.3);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: all 0.3s;
+}
+.pw-sdot-active {
+  background: rgba(0,217,255,0.12);
+  border-color: rgba(0,217,255,0.55);
+  color: #00d9ff;
+  box-shadow: 0 0 0 4px rgba(0,217,255,0.08);
+}
+.pw-sdot-done {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.5);
+  color: #10b981;
+}
+.pw-slbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,.28);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+.pw-sline {
+  flex: 1;
+  height: 1.5px;
+  background: rgba(255,255,255,0.08);
+  margin: 0 6px;
+  margin-bottom: 16px;
+  transition: background 0.4s;
+}
+.pw-sline-done { background: rgba(16,185,129,0.4); }
+
+/* ══ PW v2 — Plan Hero ══════════════════════════════════════════════════ */
+
+.pw2-plan-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+.pw2-plan-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pw2-plan-info { flex: 1; min-width: 0; }
+.pw2-plan-name {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 3px;
+}
+.pw2-plan-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,.38);
+}
+.pw2-plan-amt { text-align: right; flex-shrink: 0; }
+.pw2-plan-price {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+  white-space: nowrap;
+}
+.pw2-plan-cycle {
+  font-size: 10px;
+  color: rgba(255,255,255,.3);
+  text-align: right;
+  margin-top: 1px;
+}
+
+/* ══ PW v2 — Invoice Card ═══════════════════════════════════════════════ */
+
+.pw2-invoice-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.pw2-inv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.pw2-inv-row:last-child { border-bottom: none; }
+.pw2-inv-key {
+  font-size: 11px;
+  color: rgba(255,255,255,.32);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.pw2-inv-val {
+  font-size: 13px;
+  color: rgba(255,255,255,.8);
+  font-weight: 500;
+  text-align: right;
+}
+.pw2-inv-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  margin: 6px 0;
+}
+.pw2-inv-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+}
+.pw2-inv-total-lbl {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.45);
+}
+.pw2-inv-total-val {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ══ PW v2 — Features Card ══════════════════════════════════════════════ */
+
+.pw2-feats-card {
+  background: rgba(16,185,129,0.04);
+  border: 1px solid rgba(16,185,129,0.15);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 6px;
+}
+.pw2-feats-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,.38);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 12px;
+}
+.pw2-feats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+.pw2-feat-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: rgba(255,255,255,.65);
+  font-weight: 500;
+}
+
+/* ══ PW v2 — Amount Banner ══════════════════════════════════════════════ */
+
+.pw2-amount-banner {
+  text-align: center;
+  padding: 22px 20px;
+  background: rgba(0,217,255,0.05);
+  border: 1px solid rgba(0,217,255,0.18);
+  border-radius: 14px;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.pw2-amount-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00d9ff, #a855f7);
+}
+.pw2-amount-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(0,217,255,.55);
+  margin-bottom: 6px;
+}
+.pw2-amount-value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00d9ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.pw2-amount-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.28);
+}
+
+/* ══ PW v2 — Note Box ═══════════════════════════════════════════════════ */
+
+.pw2-note-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 15px;
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,.5);
+  line-height: 1.55;
+  margin-bottom: 18px;
+}
+.pw2-note-box svg { flex-shrink: 0; margin-top: 1px; }
+
+.pw2-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,.28);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+
+/* ══ PW v2 — Account Cards ══════════════════════════════════════════════ */
+
+.pw2-account-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: border-color 0.2s;
+}
+.pw2-account-card:hover { border-color: rgba(0,217,255,0.2); }
+.pw2-account-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.pw2-account-icon {
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.pw2-account-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.pw2-account-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.35);
+  margin-top: 1px;
+}
+.pw2-account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: rgba(255,255,255,0.025);
+  border-radius: 8px;
+  padding: 4px 0;
+  overflow: hidden;
+}
+.pw2-acc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  flex-wrap: wrap;
+}
+.pw2-acc-row:last-child { border-bottom: none; }
+.pw2-acc-key {
+  font-size: 10px;
+  color: rgba(255,255,255,.3);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.pw2-acc-val {
+  font-size: 12px;
+  color: rgba(255,255,255,.78);
+  font-weight: 500;
+  word-break: break-all;
+}
+.pw2-copy-btn {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: rgba(0,217,255,0.08);
+  border: 1px solid rgba(0,217,255,0.22);
+  color: rgba(0,217,255,0.8);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+.pw2-copy-btn:hover {
+  background: rgba(0,217,255,0.14);
+  color: #00d9ff;
+}
+
+/* ══ PW v2 — Upload Form ════════════════════════════════════════════════ */
+
+.pw2-step-success-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: rgba(16,185,129,0.07);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 9px;
+  font-size: 12px;
+  color: rgba(255,255,255,.58);
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+.pw2-step-success-note svg { flex-shrink: 0; }
+
+.pw2-form { display: flex; flex-direction: column; gap: 14px; }
+
+.pw2-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pw2-field { display: flex; flex-direction: column; gap: 0; }
+.pw2-field > label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,.45);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.pw2-req { color: rgba(0,217,255,.75); }
+
+.pw2-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 9px;
+  padding: 10px 13px;
+  color: white;
+  font-size: 13px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.pw2-input:focus { outline: none; border-color: rgba(0,217,255,0.4); }
+.pw2-input::placeholder { color: rgba(255,255,255,.2); }
+.pw2-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.pw2-select option { background: #0d1117; color: white; }
+
+.pw2-file-zone {
+  border: 2px dashed rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 26px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.pw2-file-zone:hover {
+  border-color: rgba(0,217,255,0.3);
+  background: rgba(0,217,255,0.025);
+}
+.pw2-drag-over {
+  border-color: rgba(0,217,255,0.55) !important;
+  background: rgba(0,217,255,0.06) !important;
+}
+.pw2-file-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+.pw2-file-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+/* ══ PW v2 — Buttons ════════════════════════════════════════════════════ */
+
+.pw2-btn-primary {
+  width: 100%;
+  padding: 13px 20px;
+  background: linear-gradient(135deg, #00d9ff 0%, #0ea5e9 50%, #a855f7 100%);
+  background-size: 200% 200%;
+  border: none;
+  border-radius: 11px;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s;
+  letter-spacing: 0.1px;
+}
+.pw2-btn-primary:hover { background-position: right center; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,217,255,0.2); }
+.pw2-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.pw2-btn-ghost {
+  width: 100%;
+  padding: 11px 20px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 11px;
+  color: rgba(255,255,255,.45);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.pw2-btn-ghost:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,.72); }
+
+.pw2-wa-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 20px;
+  background: rgba(37,211,102,0.1);
+  border: 1px solid rgba(37,211,102,0.25);
+  border-radius: 11px;
+  color: #25d366;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pw2-wa-btn:hover { background: rgba(37,211,102,0.18); transform: translateY(-1px); }
+
+/* ══ PW v2 — Confirmation Screen ════════════════════════════════════════ */
+
+.pw2-confirm-wrap {
+  text-align: center;
+  padding: 12px 0 28px;
+}
+.pw2-confirm-icon-ring {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(16,185,129,0.12);
+  border: 2px solid rgba(16,185,129,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  box-shadow: 0 0 0 8px rgba(16,185,129,0.05);
+  animation: ring-pop 0.5s ease-out both;
+}
+@keyframes ring-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pw2-confirm-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 8px;
+}
+.pw2-confirm-sub {
+  font-size: 14px;
+  color: rgba(255,255,255,.42);
+  line-height: 1.65;
+}
+
+/* ══ PW v2 — Timeline ═══════════════════════════════════════════════════ */
+
+.pw2-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 22px;
+  padding: 4px 0;
+}
+.pw2-tl-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.pw2-tl-dot-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.pw2-tl-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+.pw2-tl-dot-done {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.45);
+  color: #10b981;
+}
+.pw2-tl-dot-active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.45);
+  animation: tl-pulse 1.5s ease-in-out infinite;
+}
+@keyframes tl-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.35); }
+  50%  { box-shadow: 0 0 0 7px rgba(245,158,11,0); }
+}
+.pw2-tl-connector {
+  width: 2px;
+  flex: 1;
+  min-height: 20px;
+  background: rgba(255,255,255,0.06);
+  margin: 3px 0;
+}
+.pw2-tl-connector-done { background: rgba(16,185,129,0.3); }
+.pw2-tl-content {
+  padding: 2px 0 22px;
+  flex: 1;
+}
+.pw2-tl-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  margin-bottom: 2px;
+}
+.pw2-tl-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.3);
+  line-height: 1.4;
+}
+.pw2-tl-row:last-child .pw2-tl-content { padding-bottom: 0; }
+.pw2-tl-done .pw2-tl-label { color: rgba(16,185,129,.85); }
+.pw2-tl-active .pw2-tl-label { color: rgba(245,158,11,.9); }
+
+.pw2-confirm-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: rgba(56,189,248,0.06);
+  border: 1px solid rgba(56,189,248,0.15);
+  border-radius: 9px;
+  font-size: 12px;
+  color: rgba(255,255,255,.45);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.pw2-confirm-info svg { flex-shrink: 0; }
+
+/* ══ PW v2 — Rejection Banner ═══════════════════════════════════════════ */
+
+.pw2-rejection {
+  background: rgba(239,68,68,0.07);
+  border: 1px solid rgba(239,68,68,0.22);
+  border-radius: 11px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+/* ══ PW v2 — Mono helper ════════════════════════════════════════════════ */
+.mono { font-family: 'Space Mono', monospace; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PMX — Premium payment-method cards (v3)
+   Brand-themed accent bar, glow on hover, prominent account number.
+   Drives off --pmx-brand / --pmx-brand-to CSS vars set inline per card.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.pmx-card {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%),
+    rgba(10,12,20,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 16px 18px 14px;
+  overflow: hidden;
+  transition: border-color .25s ease, transform .25s ease, box-shadow .25s ease;
+  isolation: isolate;
+}
+.pmx-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0;
+  background: radial-gradient(120% 80% at 0% 0%,
+              color-mix(in srgb, var(--pmx-brand) 18%, transparent) 0%,
+              transparent 55%);
+  opacity: 0;
+  transition: opacity .3s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.pmx-card:hover {
+  border-color: color-mix(in srgb, var(--pmx-brand) 45%, transparent);
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 36px -16px color-mix(in srgb, var(--pmx-brand) 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--pmx-brand) 18%, transparent) inset;
+}
+.pmx-card:hover::before { opacity: 1; }
+
+/* Top accent bar — full-bleed gradient stripe */
+.pmx-accent {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--pmx-brand), var(--pmx-brand-to));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pmx-brand) 50%, transparent);
+}
+
+/* Header row: icon · titles · chip */
+.pmx-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.pmx-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg,
+              color-mix(in srgb, var(--pmx-brand) 22%, transparent) 0%,
+              color-mix(in srgb, var(--pmx-brand-to) 12%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--pmx-brand) 30%, transparent);
+  color: var(--pmx-brand);
+  box-shadow: 0 0 18px -4px color-mix(in srgb, var(--pmx-brand) 40%, transparent),
+              inset 0 1px 0 rgba(255,255,255,0.05);
+}
+/* Brand-logo variant — transparent tile, image fills as natural brand chip.
+   Per user request: no colored backgrounds — let the PNG's own background
+   define the chip (HBL=teal, JazzCash=white, EasyPaisa=white). */
+.pmx-icon.pmx-icon-img {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.4) !important;
+  padding: 0 !important;
+  overflow: hidden;
+  width: 48px;
+  height: 48px;
+}
+.pmx-icon.pmx-icon-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.pmx-titles { flex: 1; min-width: 0; }
+.pmx-label {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #fff;
+  line-height: 1.2;
+}
+.pmx-sub {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+  letter-spacing: 0.01em;
+}
+.pmx-chip {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 99px;
+  color: var(--pmx-brand);
+  background: color-mix(in srgb, var(--pmx-brand) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pmx-brand) 35%, transparent);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Body: stacked rows with clear hierarchy */
+.pmx-body {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 11px;
+  overflow: hidden;
+}
+.pmx-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.pmx-row:last-child { border-bottom: none; }
+.pmx-row-key {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+.pmx-row-val {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.96);
+  letter-spacing: -0.005em;
+}
+
+/* Account-number row — hero treatment */
+.pmx-row-num { padding-top: 10px; padding-bottom: 12px; }
+.pmx-num-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pmx-num {
+  font-family: 'JetBrains Mono', 'Space Mono', monospace;
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff !important;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--pmx-brand) 35%, transparent);
+}
+.pmx-num-sm { font-size: 13px; }
+
+/* Copy button — brand-tinted, prominent */
+.pmx-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--pmx-brand);
+  background: color-mix(in srgb, var(--pmx-brand) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pmx-brand) 35%, transparent);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .15s ease, box-shadow .15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pmx-copy:hover {
+  background: color-mix(in srgb, var(--pmx-brand) 22%, transparent);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--pmx-brand) 70%, transparent);
+}
+.pmx-copy:active { transform: translateY(0); }
+.pmx-copy svg { flex-shrink: 0; }
+
+/* Copy success state — flips to filled brand for 1s */
+.pmx-copy.copied {
+  background: var(--pmx-brand);
+  color: #fff;
+  border-color: var(--pmx-brand);
+}
+
+/* Responsive: stack number + copy on narrow */
+@media (max-width: 480px) {
+  .pmx-card { padding: 14px 14px 12px; }
+  .pmx-num { font-size: 16px; }
+  .pmx-num-wrap { align-items: stretch; }
+  .pmx-copy { justify-content: center; width: 100%; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PMX — Global typography / hierarchy polish (v3)
+   Applies the index-page theme to ALL payment-wall steps:
+   - brighten too-faint labels (was .28-.45 alpha → readable .60-.78)
+   - upgrade keys to uppercase tracked caps with brand-accent dots
+   - bigger, gradient titles per the login screen palette
+   - tighter inputs / labels with focus glow
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Page-wide background — same deep gradient orb feel as login.
+   Also forces a base text color that wins over enterprise-polish.css's
+   `.scr { color: var(--x-text) !important }` which was wiping out the
+   green WhatsApp button text, the cyan email link, and other accents. */
+#s-payment-wall {
+  background:
+    radial-gradient(900px 600px at 18% 8%,  rgba(0,217,255,0.07)  0%, transparent 55%),
+    radial-gradient(800px 700px at 92% 88%, rgba(168,85,247,0.06) 0%, transparent 60%),
+    #050709;
+  color: rgba(255,255,255,0.92) !important;
+}
+/* Restore branded link/button colors that .scr stripped */
+#s-payment-wall .pw-wa-btn        { color: #25d366 !important; background: rgba(37,211,102,0.14) !important; border-color: rgba(37,211,102,0.35) !important; }
+#s-payment-wall .pw-wa-btn:hover  { background: rgba(37,211,102,0.22) !important; }
+#s-payment-wall .pw-email-link    { color: rgba(255,255,255,0.62) !important; }
+#s-payment-wall .pw-email-link a  { color: rgba(0,217,255,0.85) !important; text-decoration: none; }
+#s-payment-wall .pw-logo-text     { -webkit-text-fill-color: initial; }
+#s-payment-wall .pw2-wa-btn       { color: #25d366 !important; background: rgba(37,211,102,0.12) !important; border-color: rgba(37,211,102,0.3) !important; }
+/* Plan-name color (set inline as plan.color) should win over .scr */
+#s-payment-wall .pw2-plan-name    { color: inherit; }
+/* Brand badge chip — its brand-color was being overridden */
+#s-payment-wall .pmx-chip         { color: var(--pmx-brand) !important; }
+#s-payment-wall .pmx-icon         { color: var(--pmx-brand) !important; }
+#s-payment-wall .pmx-copy         { color: var(--pmx-brand) !important; }
+#s-payment-wall .pmx-copy:hover   { color: #ffffff !important; }
+/* The big gradient amount in the banner needs its fill back */
+#s-payment-wall .pw2-amount-value,
+#s-payment-wall .pw2-inv-total-val,
+#s-payment-wall .pw-logo-text {
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PMX TEXT VISIBILITY — hard override
+   enterprise-polish.css forces `.scr { color: var(--x-text) !important }`
+   onto every descendant. Our .pmx-* / .pw2-* classes didn't have
+   !important, so the app-theme text color won. Re-assert ours.
+   ════════════════════════════════════════════════════════════════ */
+
+#s-payment-wall .pmx-card,
+#s-payment-wall .pmx-card * {
+  -webkit-text-fill-color: currentColor;
+}
+
+#s-payment-wall .pmx-label     { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+#s-payment-wall .pmx-sub       { color: rgba(255,255,255,0.70) !important; -webkit-text-fill-color: rgba(255,255,255,0.70) !important; }
+#s-payment-wall .pmx-row-key   { color: rgba(255,255,255,0.55) !important; -webkit-text-fill-color: rgba(255,255,255,0.55) !important; }
+#s-payment-wall .pmx-row-val   { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+#s-payment-wall .pmx-num       { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+#s-payment-wall .pmx-chip      { color: var(--pmx-brand) !important; -webkit-text-fill-color: var(--pmx-brand) !important; }
+#s-payment-wall .pmx-copy      { color: var(--pmx-brand) !important; -webkit-text-fill-color: var(--pmx-brand) !important; }
+#s-payment-wall .pmx-copy:hover{ color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+
+/* Same hammer for the rest of step 1/3/confirmation classes */
+#s-payment-wall .pw2-inv-key,
+#s-payment-wall .pw2-inv-val,
+#s-payment-wall .pw2-inv-total-lbl,
+#s-payment-wall .pw2-plan-sub,
+#s-payment-wall .pw2-plan-cycle,
+#s-payment-wall .pw2-feats-title,
+#s-payment-wall .pw2-feat-item,
+#s-payment-wall .pw2-amount-label,
+#s-payment-wall .pw2-amount-sub,
+#s-payment-wall .pw2-section-title,
+#s-payment-wall .pw2-note-box,
+#s-payment-wall .pw2-step-success-note,
+#s-payment-wall .pw2-field > label,
+#s-payment-wall .pw2-confirm-sub,
+#s-payment-wall .pw2-tl-label,
+#s-payment-wall .pw2-tl-sub,
+#s-payment-wall .pw2-confirm-info,
+#s-payment-wall .pw-slbl,
+#s-payment-wall .pw-trust-label,
+#s-payment-wall .pw-trust-text,
+#s-payment-wall .pw-trust-text strong,
+#s-payment-wall .pw-title,
+#s-payment-wall .pw-sub,
+#s-payment-wall .pw2-confirm-title,
+#s-payment-wall .pw2-plan-name,
+#s-payment-wall .pw2-file-inner > div {
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* Section title — index-page small-caps brand label */
+.pw2-section-title {
+  font-family: 'Plus Jakarta Sans','Inter',sans-serif !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase;
+  color: rgba(0,217,255,0.85) !important;
+  margin-bottom: 14px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pw2-section-title::before {
+  content: '';
+  width: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, #00d9ff, #a855f7);
+  border-radius: 2px;
+}
+
+/* Card titles / values across all steps */
+.pw2-plan-name,
+.pw2-confirm-title,
+.pw-title,
+.pw2-account-label,
+.pw-method-name,
+.pw-partner-name {
+  color: #fff !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Step subtitle (under main title) — readable */
+.pw-sub { color: rgba(255,255,255,0.65) !important; font-size: 13.5px !important; }
+
+/* ── Invoice rows (step 1) ── */
+.pw2-inv-key { color: rgba(255,255,255,0.55) !important; font-size: 11.5px !important; font-weight: 600 !important; letter-spacing: 0.02em; }
+.pw2-inv-val { color: rgba(255,255,255,0.95) !important; font-size: 13.5px !important; font-weight: 600 !important; }
+.pw2-inv-total-lbl { color: rgba(255,255,255,0.7) !important; font-size: 13px !important; font-weight: 700 !important; letter-spacing: 0.02em; }
+
+/* ── Plan hero ── */
+.pw2-plan-hero {
+  background:
+    linear-gradient(135deg, rgba(0,217,255,0.04), rgba(168,85,247,0.04)),
+    rgba(255,255,255,0.025) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+.pw2-plan-sub { color: rgba(255,255,255,0.55) !important; font-size: 12.5px !important; }
+.pw2-plan-price { color: #fff !important; }
+.pw2-plan-cycle { color: rgba(255,255,255,0.5) !important; font-size: 10.5px !important; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* ── Features card ── */
+.pw2-feats-title {
+  color: rgba(16,185,129,0.85) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.14em !important;
+}
+.pw2-feat-item { color: rgba(255,255,255,0.82) !important; font-size: 12.5px !important; font-weight: 500 !important; }
+
+/* ── Amount banner (step 2 top) ── */
+.pw2-amount-label { color: rgba(0,217,255,0.85) !important; font-weight: 800 !important; letter-spacing: 0.18em !important; font-size: 10.5px !important; }
+.pw2-amount-sub { color: rgba(255,255,255,0.55) !important; font-size: 12px !important; }
+
+/* ── Note box (yellow info) ── */
+.pw2-note-box {
+  color: rgba(255,255,255,0.78) !important;
+  background: rgba(245,158,11,0.07) !important;
+  border-color: rgba(245,158,11,0.32) !important;
+}
+
+/* ── Form labels (step 3) ── */
+.pw2-field > label {
+  color: rgba(255,255,255,0.72) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.10em !important;
+}
+.pw2-input,
+.pw2-input.pw2-select {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.14) !important;
+  color: #fff !important;
+  font-size: 13.5px !important;
+}
+.pw2-input::placeholder { color: rgba(255,255,255,0.30) !important; }
+.pw2-input:focus,
+.pw2-input.pw2-select:focus {
+  border-color: rgba(0,217,255,0.55) !important;
+  box-shadow: 0 0 0 4px rgba(0,217,255,0.10) !important;
+}
+
+/* Success note above upload */
+.pw2-step-success-note {
+  color: rgba(255,255,255,0.78) !important;
+  background: rgba(16,185,129,0.08) !important;
+  border-color: rgba(16,185,129,0.30) !important;
+  font-size: 12.5px !important;
+}
+
+/* File zone — visible dashed border + label */
+.pw2-file-zone { border-color: rgba(255,255,255,0.18) !important; }
+.pw2-file-inner > div:first-of-type { color: rgba(255,255,255,0.72) !important; }
+.pw2-file-inner > div:last-of-type  { color: rgba(255,255,255,0.45) !important; }
+
+/* ── Step bar ── */
+.pw-sdot { color: rgba(255,255,255,0.55) !important; background: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.16) !important; }
+.pw-slbl { color: rgba(255,255,255,0.55) !important; font-weight: 700 !important; }
+.pw-sline { background: rgba(255,255,255,0.10) !important; }
+
+/* ── Confirmation/waiting screen ── */
+.pw2-confirm-sub { color: rgba(255,255,255,0.72) !important; font-size: 14px !important; }
+.pw2-confirm-sub strong { color: #fff !important; }
+.pw2-tl-label { color: rgba(255,255,255,0.92) !important; font-size: 13.5px !important; font-weight: 700 !important; }
+.pw2-tl-sub { color: rgba(255,255,255,0.55) !important; font-size: 12px !important; }
+.pw2-tl-done .pw2-tl-label   { color: rgba(16,185,129,0.95) !important; }
+.pw2-tl-active .pw2-tl-label { color: rgba(245,158,11,1) !important; }
+.pw2-confirm-info { color: rgba(255,255,255,0.75) !important; background: rgba(56,189,248,0.08) !important; border-color: rgba(56,189,248,0.28) !important; font-size: 12.5px !important; }
+
+/* ── Ghost back button ── */
+.pw2-btn-ghost { color: rgba(255,255,255,0.72) !important; background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.12) !important; }
+.pw2-btn-ghost:hover { color: #fff !important; background: rgba(255,255,255,0.08) !important; }
+
+/* ── Trust panel (left rail) ── */
+.pw-trust-label { color: rgba(0,217,255,0.7) !important; letter-spacing: 0.18em !important; font-weight: 800 !important; }
+.pw-trust-text { color: rgba(255,255,255,0.7) !important; font-size: 12.5px !important; }
+.pw-trust-text strong { color: #fff !important; }
+.pw-email-link { color: rgba(255,255,255,0.55) !important; }
+
+/* Page title — bigger, solid bright white (gradient-clip was making it invisible) */
+.pw-title {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  letter-spacing: -0.015em !important;
+  text-shadow: 0 0 24px rgba(0,217,255,0.18);
+}
+
+/* Rejection banner contrast */
+.pw2-rejection { color: rgba(255,255,255,0.82) !important; }
+.pw-rejection-title { color: #fca5a5 !important; }
+.pw-rejection-reason { color: rgba(255,255,255,0.75) !important; }
+
+/* ── "Important" note box — Company Code visibility ──
+   The earlier inline <strong style="color:#fff"> was getting wiped by
+   `.scr { color: var(--x-text) !important }` + inherited text-fill-color
+   resets. Use explicit classes with !important + force a brand-cyan code
+   chip so the Company Code value is impossible to miss. */
+#s-payment-wall .pw2-note-box {
+  color: rgba(255,255,255,0.85) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.85) !important;
+  align-items: flex-start;
+  padding: 14px 16px !important;
+}
+#s-payment-wall .pw2-note-label {
+  color: #fbbf24 !important;
+  -webkit-text-fill-color: #fbbf24 !important;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-family: 'Plus Jakarta Sans','Inter',sans-serif;
+}
+#s-payment-wall .pw2-note-text {
+  color: rgba(255,255,255,0.88) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.88) !important;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+#s-payment-wall .pw2-cc-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 700;
+}
+#s-payment-wall .pw2-cc-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  margin: 0 2px;
+  border-radius: 6px;
+  background: rgba(0,217,255,0.18) !important;
+  color: #6df0ff !important;
+  -webkit-text-fill-color: #6df0ff !important;
+  font-family: 'JetBrains Mono','Space Mono',monospace !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(0,217,255,0.45) !important;
+  box-shadow: 0 0 0 1px rgba(0,217,255,0.06), 0 4px 12px -4px rgba(0,217,255,0.25);
+  vertical-align: baseline;
+}
+
+/* ══ PW v2 — Responsive ═════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .pw2-plan-hero { flex-wrap: wrap; }
+  .pw2-plan-amt { width: 100%; text-align: left; }
+  .pw2-field-row { grid-template-columns: 1fr; }
+  .pw2-feats-grid { grid-template-columns: 1fr; }
+  .pw-step-bar { gap: 2px; }
+  .pw-slbl { font-size: 9px; }
+  .pw2-amount-value { font-size: 26px; }
+}

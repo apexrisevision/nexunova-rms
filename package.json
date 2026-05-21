@@ -1,0 +1,55 @@
+{
+  "name": "nexunova-rms",
+  "version": "1.0.0",
+  "description": "Nexunova RMS — Recovery Management System",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:dir": "electron-builder --win --dir",
+    "shots": "node scripts/capture-screenshots.js"
+  },
+  "build": {
+    "appId": "com.nexunova.rms",
+    "productName": "Nexunova RMS",
+    "copyright": "Copyright © 2026 Nexunova",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!demo-react/**",
+      "!supabase/**",
+      "!*.md",
+      "!*.docx",
+      "!node_modules/.cache/**",
+      "!node_modules/electron/**",
+      "!node_modules/electron-builder/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nexunova RMS"
+    }
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^25.1.8"
+  }
+}

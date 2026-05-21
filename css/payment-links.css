@@ -1,0 +1,247 @@
+/* ══════════════════════════════════════════════════════════════════
+   SMART PAYMENT LINKS — CSS
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Hero stat cards ─────────────────────────────────────────────── */
+.pl-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.pl-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .18s, transform .18s;
+}
+.pl-stat-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,.12);
+  transform: translateY(-2px);
+}
+.pl-stat-card .pl-sc-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+.pl-stat-card .pl-sc-icon { font-size: 22px; margin-bottom: 8px; }
+.pl-stat-card .pl-sc-val {
+  font-size: 26px; font-weight: 800; color: var(--text); line-height: 1;
+}
+.pl-stat-card .pl-sc-lbl {
+  font-size: 11px; color: var(--t3); margin-top: 4px; text-transform: uppercase;
+  letter-spacing: .5px; font-weight: 600;
+}
+
+/* ── Status badges ───────────────────────────────────────────────── */
+.pl-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.pl-badge.sent       { background: rgba(245,158,11,.12); color: #d97706; }
+.pl-badge.screenshot { background: rgba(249,115,22,.12); color: #ea580c; }
+.pl-badge.verified   { background: rgba(16,185,129,.12); color: #059669; }
+.pl-badge.rejected   { background: rgba(239,68,68,.12);  color: #dc2626; }
+.pl-badge.expired    { background: rgba(107,114,128,.12);color: #6b7280; }
+.pl-badge.cancelled  { background: rgba(75,85,99,.12);   color: #4b5563; }
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.pl-tabs {
+  display: flex; border-bottom: 2px solid var(--line);
+  margin-bottom: 16px; gap: 0; overflow-x: auto;
+}
+.pl-tab {
+  padding: 9px 18px; border: none; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; font-size: 13px; font-weight: 600;
+  color: var(--t3); background: none; cursor: pointer; white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.pl-tab:hover { color: var(--text); }
+.pl-tab.active {
+  color: var(--brand); border-bottom-color: var(--brand); font-weight: 700;
+}
+.pl-tab .pl-tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  font-size: 10px; font-weight: 800; margin-left: 6px;
+  background: var(--brand); color: #fff;
+}
+
+/* ── Table ───────────────────────────────────────────────────────── */
+.pl-table-wrap { overflow-x: auto; }
+.pl-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.pl-table th {
+  padding: 10px 12px; text-align: left;
+  font-size: 11px; font-weight: 700; color: var(--t3);
+  text-transform: uppercase; letter-spacing: .4px;
+  border-bottom: 2px solid var(--line); white-space: nowrap;
+}
+.pl-table td {
+  padding: 11px 12px; border-bottom: 1px solid var(--line);
+  vertical-align: middle; color: var(--text);
+}
+.pl-table tr:hover td { background: var(--hover); }
+.pl-table .pl-ref {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  font-weight: 700; color: var(--brand);
+}
+.pl-table .pl-amount {
+  font-weight: 700; color: var(--text); white-space: nowrap;
+}
+.pl-table .pl-date { color: var(--t3); font-size: 12px; }
+
+/* ── Action buttons in table ─────────────────────────────────────── */
+.pl-actions { display: flex; gap: 5px; flex-wrap: nowrap; }
+.pl-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 6px; border: none;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: opacity .15s; white-space: nowrap;
+}
+.pl-btn:hover { opacity: .8; }
+.pl-btn.green  { background: rgba(16,185,129,.12); color: #059669; }
+.pl-btn.orange { background: rgba(249,115,22,.12); color: #ea580c; }
+.pl-btn.red    { background: rgba(239,68,68,.12);  color: #dc2626; }
+.pl-btn.blue   { background: rgba(99,102,241,.12); color: #6366f1; }
+.pl-btn.gray   { background: var(--hover); color: var(--t3); }
+
+/* ── Modals ──────────────────────────────────────────────────────── */
+.pl-modal-wide .md { max-width: 860px; width: 100%; }
+.pl-modal-medium .md { max-width: 580px; width: 100%; }
+
+.pl-preview-box {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px; font-size: 12px; line-height: 1.7;
+  color: var(--text); font-family: 'JetBrains Mono', monospace;
+  white-space: pre-wrap; max-height: 260px; overflow-y: auto;
+  word-break: break-word;
+}
+
+.pl-screenshot-preview {
+  max-width: 100%; max-height: 320px; border-radius: 8px;
+  border: 1px solid var(--line); cursor: zoom-in;
+  display: block; margin: 0 auto;
+}
+
+.pl-split-modal {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+}
+@media (max-width: 640px) {
+  .pl-split-modal { grid-template-columns: 1fr; }
+  .pl-stats-grid  { grid-template-columns: repeat(2, 1fr); }
+}
+
+.pl-claim-box {
+  background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px;
+  padding: 14px 16px;
+}
+.pl-claim-row { display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.pl-claim-row:last-child { border-bottom: none; }
+.pl-claim-label { color: var(--t3); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; }
+.pl-claim-val { font-weight: 600; color: var(--text); text-align: right; }
+
+/* ── Payment methods settings page ───────────────────────────────── */
+.pm-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.pm-card {
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px;
+  padding: 18px; cursor: pointer; transition: border-color .18s, box-shadow .18s;
+  position: relative;
+}
+.pm-card:hover { border-color: var(--brand); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.pm-card.inactive { opacity: .55; }
+.pm-card .pm-type-badge {
+  position: absolute; top: 12px; right: 12px;
+  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+  background: rgba(108,99,255,.12); color: var(--brand);
+}
+.pm-card .pm-icon { font-size: 28px; margin-bottom: 10px; }
+.pm-card .pm-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.pm-card .pm-number {
+  font-size: 12px; color: var(--t3); font-family: 'JetBrains Mono', monospace;
+  margin-top: 4px;
+}
+.pm-card .pm-bank { font-size: 11px; color: var(--t3); margin-top: 3px; }
+.pm-card .pm-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* ── Status timeline ─────────────────────────────────────────────── */
+.pl-timeline { padding: 0; margin: 0; list-style: none; }
+.pl-timeline li {
+  display: flex; gap: 14px; padding: 10px 0;
+  border-bottom: 1px solid var(--line); font-size: 13px;
+}
+.pl-timeline li:last-child { border-bottom: none; }
+.pl-tl-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--brand); margin-top: 4px; flex-shrink: 0;
+}
+.pl-tl-time { font-size: 11px; color: var(--t3); white-space: nowrap; }
+
+/* ── Upload drop zone ────────────────────────────────────────────── */
+.pl-dropzone {
+  border: 2px dashed var(--line); border-radius: 10px;
+  padding: 30px; text-align: center; cursor: pointer;
+  transition: border-color .18s, background .18s;
+}
+.pl-dropzone:hover, .pl-dropzone.over {
+  border-color: var(--brand); background: rgba(108,99,255,.04);
+}
+.pl-dropzone .pl-dz-icon { font-size: 36px; margin-bottom: 8px; }
+.pl-dropzone .pl-dz-hint { font-size: 12px; color: var(--t3); margin-top: 4px; }
+
+/* ── Dashboard widget ────────────────────────────────────────────── */
+.pl-widget {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px;
+}
+.pl-widget-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+}
+.pl-widget-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.pl-widget-row { display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.pl-widget-row:last-child { border-bottom: none; }
+
+/* ── Loading shimmer ─────────────────────────────────────────────── */
+.pl-shimmer {
+  background: linear-gradient(90deg, var(--line) 25%, var(--hover) 50%, var(--line) 75%);
+  background-size: 200% 100%; animation: plShim 1.4s infinite;
+  border-radius: 6px; height: 14px;
+}
+@keyframes plShim {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Filters bar ─────────────────────────────────────────────────── */
+.pl-filters {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: flex-end; margin-bottom: 14px;
+}
+.pl-filters .fg { display: flex; flex-direction: column; gap: 4px; }
+.pl-filters label { font-size: 10px; color: var(--t3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .4px; }
+
+/* ── Method selector checkboxes in create modal ──────────────────── */
+.pl-method-list { display: flex; flex-direction: column; gap: 8px; }
+.pl-method-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px;
+  cursor: pointer; transition: border-color .15s;
+}
+.pl-method-item:hover { border-color: var(--brand); }
+.pl-method-item.selected { border-color: var(--brand);
+  background: rgba(108,99,255,.05); }
+.pl-method-item input[type=checkbox] { flex-shrink: 0; }
+.pl-method-icon { font-size: 18px; }
+.pl-method-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.pl-method-num  { font-size: 11px; color: var(--t3); font-family: 'JetBrains Mono',monospace; }

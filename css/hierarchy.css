@@ -1,0 +1,524 @@
+/* ══════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — VISUAL HIERARCHY SYSTEM v1.0
+   5-level typography scale · module colors · section/card patterns
+   Adapts automatically to both dark and light themes
+══════════════════════════════════════════════════════════════ */
+
+/* ══ GLOBAL PAGE TITLE FIX ══════════════════════════════════
+   Overrides .ph h2 across EVERY page (17px/500 → 26px/800)
+   One rule, instant fix for 12+ pages simultaneously
+══════════════════════════════════════════════════════════════ */
+.ph h2 {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.ph p {
+  font-size: 13px !important;
+  margin-top: 4px !important;
+}
+
+/* ══ MODULE COLOR TOKENS ═════════════════════════════════════
+   Set on a wrapper element; all children inherit --mc / --mc-bg
+══════════════════════════════════════════════════════════════ */
+.module-recovery  { --mc: #DC2626; --mc-bg: rgba(220,38,38,0.10); }
+.module-sales     { --mc: #059669; --mc-bg: rgba(5,150,105,0.10); }
+.module-inventory { --mc: #2563EB; --mc-bg: rgba(37,99,235,0.10); }
+.module-client    { --mc: #7C3AED; --mc-bg: rgba(124,58,237,0.10); }
+.module-agent     { --mc: #D97706; --mc-bg: rgba(217,119,6,0.10); }
+.module-operations{ --mc: #0D9488; --mc-bg: rgba(13,148,136,0.10); }
+.module-financial { --mc: #4F46E5; --mc-bg: rgba(79,70,229,0.10); }
+.module-executive { --mc: #6B7280; --mc-bg: rgba(107,114,128,0.10); }
+
+/* ══ ANIMATION ════════════════════════════════════════════ */
+@keyframes hFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══ LEVEL 1 — PAGE TITLE UTILITIES ══════════════════════ */
+.h-page-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--t1);
+}
+.h-page-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--t3);
+  margin-top: 4px;
+}
+
+/* ══ LEVEL 2 — SECTION TITLE UTILITIES ═══════════════════ */
+.h-section-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--t1);
+}
+.h-section-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--t3);
+  line-height: 1.5;
+}
+
+/* ══ LEVEL 3 — CARD TITLE UTILITIES ══════════════════════ */
+.h-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+  color: var(--t1);
+}
+.h-card-subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--t3);
+  line-height: 1.3;
+}
+
+/* ══ LEVEL 4 — CARD VALUE UTILITIES ══════════════════════ */
+.h-card-value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--t1);
+}
+.h-card-value-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t4);
+  margin-top: 2px;
+}
+
+/* ══ LEVEL 5 — META / CAPTION ════════════════════════════ */
+.h-meta {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--t4);
+  letter-spacing: 0.01em;
+}
+
+/* ══ STAT ROW ════════════════════════════════════════════
+   Used for KPI summary strips at top of list pages
+   Add class "module-XXX" to the row for color theming
+══════════════════════════════════════════════════════════ */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* ══ STAT CARD ══════════════════════════════════════════
+   The signature card with animated top-accent on hover
+══════════════════════════════════════════════════════════ */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface, rgba(255,255,255,0.04));
+  border: 1px solid var(--line, rgba(255,255,255,0.06));
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+  animation: hFadeUp 0.35s cubic-bezier(0.4,0,0.2,1) backwards;
+  text-align: left;
+}
+
+/* Signature accent line — slides in from left on hover */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--mc, var(--brand, #6366F1));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--mc, var(--brand));
+  box-shadow: 0 8px 20px rgba(0,0,0,0.20);
+}
+
+.stat-card:hover::before { transform: scaleX(1); }
+
+/* Active state (when used as a filter tab) */
+.stat-card.active,
+.stat-card.on {
+  border-color: var(--mc, var(--brand));
+}
+.stat-card.active::before,
+.stat-card.on::before {
+  transform: scaleX(1);
+}
+
+/* Value inside stat card */
+.stat-val {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--t1);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Label inside stat card */
+.stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 5px;
+}
+
+/* Stagger entrance for stat row items */
+.stat-row > .stat-card:nth-child(1) { animation-delay: 0.03s; }
+.stat-row > .stat-card:nth-child(2) { animation-delay: 0.06s; }
+.stat-row > .stat-card:nth-child(3) { animation-delay: 0.09s; }
+.stat-row > .stat-card:nth-child(4) { animation-delay: 0.12s; }
+.stat-row > .stat-card:nth-child(5) { animation-delay: 0.15s; }
+
+/* ══ APP SECTION ═════════════════════════════════════════
+   Full section container with colored left border
+   Wrap any logical group of cards in this
+══════════════════════════════════════════════════════════ */
+.app-section {
+  background: var(--surface, rgba(255,255,255,0.04));
+  border: 1px solid var(--line, rgba(255,255,255,0.06));
+  border-left: 4px solid var(--mc, var(--brand, #6366F1));
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  position: relative;
+  animation: hFadeUp 0.4s cubic-bezier(0.4,0,0.2,1) backwards;
+}
+
+.app-section:nth-child(2) { animation-delay: 0.05s; }
+.app-section:nth-child(3) { animation-delay: 0.10s; }
+.app-section:nth-child(4) { animation-delay: 0.15s; }
+.app-section:nth-child(5) { animation-delay: 0.20s; }
+
+[data-theme="light"] .app-section {
+  background: #ffffff;
+  border-color: rgba(15,23,42,0.07);
+  border-left-color: var(--mc, #6366F1);
+  box-shadow: 0 1px 4px rgba(15,23,42,0.05);
+}
+
+/* Section header row */
+.app-section-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line, rgba(255,255,255,0.06));
+}
+[data-theme="light"] .app-section-hdr {
+  border-bottom-color: rgba(15,23,42,0.06);
+}
+
+/* Big icon anchors the section */
+.app-section-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--mc-bg, rgba(99,102,241,0.10));
+  color: var(--mc, var(--brand));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+/* This must DOMINATE over card titles — 22px vs 13px */
+.app-section-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--t1);
+  line-height: 1.2;
+  flex: 1;
+}
+
+.app-section-badge {
+  background: var(--mc, var(--brand));
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Description indented to align with title (48px icon + 12px gap) */
+.app-section-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--t3);
+  margin-top: 4px;
+  margin-left: 60px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+/* ══ APP CARD ════════════════════════════════════════════
+   Compact card with the signature animated top-accent line
+══════════════════════════════════════════════════════════ */
+.app-card {
+  position: relative;
+  padding: 15px;
+  min-height: 148px;
+  border-radius: 12px;
+  background: var(--surface2, rgba(255,255,255,0.04));
+  border: 1px solid var(--line, rgba(255,255,255,0.06));
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  animation: hFadeUp 0.4s cubic-bezier(0.4,0,0.2,1) backwards;
+}
+
+[data-theme="light"] .app-card {
+  background: #fff;
+  border-color: #EAECF0;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+}
+
+/* Signature accent line — slides from left on hover */
+.app-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--mc, var(--brand, #6366F1));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.app-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--mc, var(--brand));
+  box-shadow: 0 8px 22px rgba(0,0,0,0.20);
+}
+
+.app-card:hover::before { transform: scaleX(1); }
+
+/* Card grid */
+.app-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+/* Stagger entrance for card grid items */
+.app-card-grid > .app-card:nth-child(1) { animation-delay: 0.03s; }
+.app-card-grid > .app-card:nth-child(2) { animation-delay: 0.06s; }
+.app-card-grid > .app-card:nth-child(3) { animation-delay: 0.09s; }
+.app-card-grid > .app-card:nth-child(4) { animation-delay: 0.12s; }
+.app-card-grid > .app-card:nth-child(5) { animation-delay: 0.15s; }
+.app-card-grid > .app-card:nth-child(6) { animation-delay: 0.18s; }
+.app-card-grid > .app-card:nth-child(7) { animation-delay: 0.21s; }
+.app-card-grid > .app-card:nth-child(8) { animation-delay: 0.24s; }
+
+/* Card internal layout */
+.app-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.app-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--mc-bg, rgba(99,102,241,0.10));
+  color: var(--mc, var(--brand));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.app-card-text { flex: 1; min-width: 0; }
+
+/* QUIET — must be clearly smaller than section title */
+.app-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t1);
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+
+.app-card-subtitle {
+  font-size: 11px;
+  color: var(--t3);
+  line-height: 1.3;
+}
+
+.app-card-fav {
+  flex-shrink: 0;
+  color: var(--t4);
+  cursor: pointer;
+  font-size: 15px;
+  background: none;
+  border: none;
+  padding: 2px;
+  transition: color 0.2s, transform 0.2s;
+  font-family: var(--font);
+  line-height: 1;
+}
+.app-card-fav:hover,
+.app-card-fav.on { color: #F59E0B; transform: scale(1.12); }
+
+/* BIG number inside compact card — pops */
+.app-card-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--t1);
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+.app-card-value-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--t4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+.app-card-sparkline {
+  width: 100%;
+  height: 24px;
+  margin: 8px 0;
+  opacity: 0.65;
+  transition: opacity 0.2s;
+}
+.app-card:hover .app-card-sparkline { opacity: 1; }
+
+/* Footer whispers */
+.app-card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line2, rgba(255,255,255,0.04));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+[data-theme="light"] .app-card-footer { border-top-color: #F1F5F9; }
+
+.app-card-meta {
+  font-size: 10px;
+  color: var(--t4);
+  font-weight: 500;
+}
+
+.app-card-cta {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mc, var(--brand));
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transition: gap 0.2s;
+}
+.app-card:hover .app-card-cta { gap: 5px; }
+
+/* ══ UNIFIED BADGE SYSTEM ════════════════════════════════ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge.success  { background: rgba(5,150,105,0.12);  color: var(--ok,  #059669); }
+.badge.warning  { background: rgba(217,119,6,0.12);  color: var(--warn,#D97706); }
+.badge.danger   { background: rgba(220,38,38,0.12);  color: var(--err, #DC2626); }
+.badge.info     { background: rgba(37,99,235,0.12);  color: var(--info,#2563EB); }
+.badge.neutral  { background: rgba(107,114,128,0.12);color: var(--t3); }
+.badge.purple   { background: rgba(124,58,237,0.12); color: #7C3AED; }
+
+/* ══ APP PAGE HEADER ══════════════════════════════════ */
+.app-page-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+/* ══ DASHBOARD SECTION HEADING OVERRIDE ══════════════
+   .dash-section-lbl is 10px/500 — too small for sections
+   Bump to proper section label size
+══════════════════════════════════════════════════════ */
+.dash-section-lbl {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  letter-spacing: -0.01em !important;
+  color: var(--t2) !important;
+}
+
+/* ══ CARD HEADER (.ch h3) OVERRIDE ══════════════════
+   Currently 12px/500 — bump to 14px/600 for clarity
+══════════════════════════════════════════════════════ */
+.ch h3 {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: -0.005em !important;
+  color: var(--t1) !important;
+}
+
+/* ══ RESPONSIVE ══════════════════════════════════════ */
+@media (max-width: 768px) {
+  .ph h2               { font-size: 21px !important; }
+  .app-section-title   { font-size: 18px; }
+  .app-section         { padding: 16px 18px; }
+  .app-card-grid       { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-row            { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .app-section-desc    { margin-left: 0; }
+}
+
+@media (max-width: 480px) {
+  .ph h2               { font-size: 18px !important; }
+  .app-card-grid       { grid-template-columns: 1fr; }
+  .stat-row            { grid-template-columns: repeat(2, 1fr); }
+}

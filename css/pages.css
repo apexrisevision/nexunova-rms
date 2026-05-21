@@ -1,0 +1,189 @@
+/* ── Unit Detail 2-col grid ── */
+.ud {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── Info row (label + value pairs in detail cards) ── */
+.ir {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  gap: 8px;
+}
+.ir:last-child { border-bottom: none; }
+.ir-l {
+  font-size: 12px;
+  color: var(--t3);
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+.ir-r {
+  font-size: 14px;
+  color: var(--t1);
+  font-weight: 500;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .kgrid { grid-template-columns: repeat(2, 1fr); }
+  .ud { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .sb { transform: translateX(-100%); }
+  .main { margin-left: 0; }
+  .lx-left { display: none; }
+  .lx-right { width: 100%; }
+  .kgrid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 500px) {
+  .kgrid { grid-template-columns: 1fr; }
+  .lx-headline { font-size: 32px; }
+}
+
+/* ── ERP App Footer ── */
+.erp-footer {
+  padding: 14px 28px;
+  background: var(--surface);
+  border-top: 1px solid var(--line2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.erp-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--t3);
+}
+.erp-footer-brand strong {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  background: linear-gradient(90deg, var(--nxn-cyan), var(--nxn-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.3px;
+}
+.erp-footer-links {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--t4);
+}
+.erp-footer-links a {
+  color: var(--t4);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.erp-footer-links a:hover { color: var(--brand); }
+.erp-footer-contact {
+  font-size: 11px;
+  color: var(--t4);
+  font-family: var(--mono);
+  letter-spacing: 0.3px;
+}
+
+/* ── Topbar Nexunova branding ── */
+.tb-brand-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+  color: var(--brand);
+  padding: 4px 10px;
+  background: var(--brand-bg);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 99px;
+}
+
+@media (max-width: 768px) {
+  .erp-footer { display: none; }
+}
+
+/* ── Print ── */
+@media print {
+  /* hide all chrome */
+  .sb, .topbar, #nav-actions, .bk, .no-p,
+  .rpt-vh, .rpt-stabs, .rpt-fbar, .rpt-run, .rpt-vback,
+  .erp-footer, .tb-hamburger, .tb-search, .tb-icon-btn,
+  .btn, .ftb, .sbar, .rpt-cards, .rpt-gallery-sec,
+  .more-link { display: none !important; }
+
+  /* layout reset */
+  html, body { background: #fff !important; color: #111 !important; font-size: 11px; }
+  .main { margin-left: 0 !important; min-height: unset !important; }
+  .pw, .pw.rpt-mode { padding: 8px !important; overflow: visible !important; height: auto !important; display: block !important; }
+  .pw.rpt-mode .pg { display: block !important; overflow: visible !important; }
+  .rpt-viewer { overflow: visible !important; height: auto !important; display: block !important; }
+  .rpt-vbody { overflow: visible !important; padding: 0 !important; }
+
+  /* show print-only elements */
+  .print-header { display: block !important; }
+
+  /* cards */
+  .card { box-shadow: none !important; border: 1px solid #dde !important;
+    background: #fff !important; backdrop-filter: none !important; border-radius: 4px !important; }
+  .card:hover { transform: none !important; }
+  .ch { background: #f5f7fa !important; border-bottom: 1px solid #dde !important; }
+  .ch h3 { color: #1E2D47 !important; }
+
+  /* KPI cards */
+  .kpi { background: #f9fafb !important; border: 1px solid #dde !important;
+    box-shadow: none !important; backdrop-filter: none !important; }
+  .kpi::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .kpi-val { color: #1E2D47 !important; }
+  .kpi-lbl { color: #555 !important; }
+  .kpi-sub { color: #777 !important; }
+
+  /* tables */
+  .tbl-wrap, .tw { overflow: visible !important; border: 1px solid #dde !important;
+    box-shadow: none !important; backdrop-filter: none !important; }
+  .tbl, .t { width: 100%; border-collapse: collapse !important; font-size: 10px !important; }
+  .tbl th, .t thead th { background: #1E2D47 !important; color: #fff !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    padding: 5px 8px !important; font-size: 9px !important; }
+  .tbl td, .t tbody td, .t tfoot td { padding: 5px 8px !important; border-bottom: 1px solid #eee !important;
+    color: #111 !important; font-size: 10px !important; }
+  .tbl tbody tr:nth-child(even), .t tbody tr:nth-child(even) { background: #f9fafb !important; }
+  .tbl td:first-child { color: #1E2D47 !important; font-weight: 600; }
+  .t tfoot tr { background: #f0f4f8 !important; font-weight: 700 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* badges */
+  .badge, .ba, .bi, .bj, .br, .bo, .bd, .bc, .bnr, .bwp, .bni, .bdi, .bin, .sec-badge {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bo, .ba, .bwp { background: #dcfce7 !important; color: #16a34a !important; }
+  .br, .bni { background: #fee2e2 !important; color: #b91c1c !important; }
+  .bi, .bin { background: #dbeafe !important; color: #1e40af !important; }
+  .bj, .bdi { background: #fef3c7 !important; color: #92400e !important; }
+
+  /* color utility overrides */
+  .c-g { color: #16a34a !important; }
+  .c-r { color: #b91c1c !important; }
+  .t2 { color: #333 !important; }
+  .t3 { color: #555 !important; }
+  .t4 { color: #777 !important; }
+
+  /* page breaks */
+  .card { page-break-inside: avoid; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  /* page setup */
+  @page { margin: 1cm; size: A4 landscape; }
+}

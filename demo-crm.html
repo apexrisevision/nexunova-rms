@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NexusCRM Demo — Pakistan's Smartest Real Estate CRM</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:#0a0a0f;color:#e8e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6;min-height:100vh}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(16px);border-bottom:1px solid rgba(168,85,247,.1);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;text-decoration:none;color:#e8e8f0}
+.nav-brand-dot{width:8px;height:8px;border-radius:50%;background:#a855f7}
+.nav-links{display:flex;align-items:center;gap:4px}
+.nav-links a{color:rgba(232,232,240,.5);text-decoration:none;font-size:13px;padding:5px 10px;border-radius:6px;transition:color .2s}
+.nav-links a:hover{color:#e8e8f0}
+.nav-cta{background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#a855f7!important;border-radius:7px;padding:6px 14px!important;font-weight:600;font-size:13px!important;transition:background .2s!important}
+.nav-cta:hover{background:rgba(168,85,247,.25)!important}
+
+/* HERO */
+.hero{padding:120px 24px 80px;text-align:center;max-width:760px;margin:0 auto}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);border-radius:20px;padding:5px 14px;font-size:12px;color:#c084fc;letter-spacing:.4px;margin-bottom:28px}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:#a855f7;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+h1{font-size:clamp(28px,5vw,52px);font-weight:800;line-height:1.1;letter-spacing:-1px;margin-bottom:18px}
+h1 .accent{background:linear-gradient(135deg,#a855f7,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{color:rgba(232,232,240,.55);font-size:16px;max-width:520px;margin:0 auto 36px;line-height:1.7}
+.hero-ctas{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:700;font-size:15px;transition:opacity .2s,transform .15s}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+.btn-secondary{display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);color:#c084fc;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:14px;transition:background .2s}
+.btn-secondary:hover{background:rgba(168,85,247,.14)}
+
+/* INFO CARDS */
+.info-strip{max-width:760px;margin:0 auto 64px;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.info-card{background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.12);border-radius:12px;padding:18px 16px;text-align:center}
+.info-card-icon{font-size:20px;margin-bottom:8px}
+.info-card-title{font-size:13px;font-weight:600;color:#e8e8f0;margin-bottom:4px}
+.info-card-desc{font-size:12px;color:rgba(232,232,240,.4);line-height:1.5}
+
+/* STATS BAR */
+.stats-bar{max-width:900px;margin:0 auto 80px;padding:0 24px}
+.stats-inner{background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.1);border-radius:14px;padding:24px 32px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:20px}
+.stat{text-align:center}
+.stat-val{font-size:28px;font-weight:800;color:#a855f7;line-height:1}
+.stat-label{font-size:12px;color:rgba(232,232,240,.4);margin-top:4px}
+
+/* HIERARCHY SECTION */
+.section{max-width:900px;margin:0 auto 80px;padding:0 24px}
+.section-label{font-size:11px;font-weight:700;letter-spacing:1.2px;color:rgba(168,85,247,.6);text-transform:uppercase;margin-bottom:10px}
+.section-title{font-size:clamp(22px,3.5vw,34px);font-weight:800;letter-spacing:-.5px;margin-bottom:10px}
+.section-sub{color:rgba(232,232,240,.45);font-size:15px;margin-bottom:36px}
+.hierarchy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.h-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:24px 20px;transition:border-color .2s}
+.h-card:hover{border-color:rgba(168,85,247,.25)}
+.h-card-tier{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;padding:3px 8px;border-radius:5px;display:inline-block}
+.tier-ceo{color:#f59e0b;background:rgba(245,158,11,.1)}
+.tier-mgr{color:#a855f7;background:rgba(168,85,247,.1)}
+.tier-agent{color:#22d3ee;background:rgba(34,211,238,.1)}
+.h-card-title{font-size:16px;font-weight:700;margin-bottom:8px}
+.h-card-sub{font-size:13px;color:rgba(232,232,240,.45);line-height:1.5;margin-bottom:14px}
+.h-card-list{list-style:none}
+.h-card-list li{font-size:12px;color:rgba(232,232,240,.55);padding:3px 0;display:flex;align-items:center;gap:6px}
+.h-card-list li::before{content:'';width:4px;height:4px;border-radius:50%;background:rgba(168,85,247,.5);flex-shrink:0}
+
+/* FEATURE GRID */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.feat-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:20px 18px;transition:border-color .2s,background .2s}
+.feat-card:hover{border-color:rgba(168,85,247,.2);background:rgba(168,85,247,.04)}
+.feat-icon{font-size:22px;margin-bottom:10px}
+.feat-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.feat-desc{font-size:12px;color:rgba(232,232,240,.45);line-height:1.6}
+.feat-tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.5px;padding:2px 7px;border-radius:4px;margin-top:8px;background:rgba(168,85,247,.1);color:#c084fc}
+
+/* MODULE HIGHLIGHTS */
+.mod-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.mod-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:22px 20px;transition:border-color .2s}
+.mod-card:hover{border-color:rgba(168,85,247,.2)}
+.mod-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.mod-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(168,85,247,.1);flex-shrink:0}
+.mod-name{font-size:14px;font-weight:700}
+.mod-sub{font-size:12px;color:rgba(232,232,240,.4)}
+.mod-list{list-style:none}
+.mod-list li{font-size:12px;color:rgba(232,232,240,.5);padding:3px 0;display:flex;align-items:center;gap:6px}
+.mod-list li::before{content:'';width:3px;height:3px;border-radius:50%;background:rgba(168,85,247,.45);flex-shrink:0}
+
+/* BOTTOM CTA */
+.bottom-cta{max-width:640px;margin:0 auto 80px;padding:0 24px;text-align:center}
+.bottom-cta-box{background:linear-gradient(135deg,rgba(168,85,247,.1),rgba(124,58,237,.06));border:1px solid rgba(168,85,247,.2);border-radius:20px;padding:48px 32px}
+.bottom-cta h2{font-size:28px;font-weight:800;margin-bottom:12px;letter-spacing:-.5px}
+.bottom-cta p{color:rgba(232,232,240,.45);font-size:14px;margin-bottom:28px}
+.bottom-cta-btns{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+
+/* FOOTER */
+footer{border-top:1px solid rgba(255,255,255,.06);padding:32px 24px;text-align:center}
+.footer-links{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 20px;margin-bottom:16px}
+.footer-links a{color:rgba(232,232,240,.35);text-decoration:none;font-size:13px;transition:color .2s}
+.footer-links a:hover{color:rgba(232,232,240,.7)}
+.footer-copy{font-size:12px;color:rgba(232,232,240,.2)}
+
+/* ── PRICE DRAWER ── */
+#nx-price-bar{position:fixed;top:0;right:0;bottom:0;z-index:999;display:flex;align-items:center;pointer-events:none}
+#nx-price-bar>*{pointer-events:auto}
+#priceTab{position:absolute;right:0;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;background:rgba(18,18,26,.96);border:1px solid rgba(255,255,255,.08);border-right:none;border-radius:10px 0 0 10px;padding:18px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:background .2s;color:#e8e8f0}
+#priceTab:hover{background:rgba(30,30,42,.98)}
+.pt-label{font-size:11px;font-weight:700;letter-spacing:1.5px;color:rgba(232,232,240,.6)}
+.pt-dot{width:6px;height:6px;border-radius:50%;background:#a855f7;animation:pdPulse 3s ease-in-out infinite}
+@keyframes pdPulse{0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,.4)}50%{box-shadow:0 0 0 5px rgba(168,85,247,0)}}
+.pt-peek{font-size:10px;color:rgba(232,232,240,.3);letter-spacing:.5px}
+#priceBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s}
+#nx-price-bar.is-open #priceBackdrop{opacity:1;pointer-events:auto}
+#priceDrawer{position:absolute;right:0;top:0;height:100vh;width:360px;background:rgba(14,14,20,.98);border-left:1px solid rgba(255,255,255,.06);transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+#priceDrawer::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(168,85,247,.4),transparent)}
+#nx-price-bar.is-open #priceDrawer{transform:translateX(0)}
+.pd-head{padding:20px 20px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.pd-title{font-size:14px;font-weight:700;color:#e8e8f0}
+.pd-close{background:rgba(255,255,255,.06);border:none;color:rgba(232,232,240,.5);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.pd-close:hover{background:rgba(255,255,255,.1)}
+.pd-divider{height:1px;background:rgba(255,255,255,.06);flex-shrink:0;margin:0 20px}
+.pd-body{padding:16px 20px;overflow-y:auto;flex:1}
+.pd-body::-webkit-scrollbar{width:3px}
+.pd-body::-webkit-scrollbar-track{background:transparent}
+.pd-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.pd-section{display:block;font-size:10px;font-weight:700;letter-spacing:1.2px;color:rgba(232,232,240,.3);text-transform:uppercase;margin:16px 0 8px}
+.pd-section:first-child{margin-top:0}
+.pd-trial-group{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.pd-trial-rms{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-radius:11px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);color:#e8e8f0;text-decoration:none;font-size:13px;font-weight:600;transition:background .2s,border-color .2s}
+.pd-trial-rms:hover{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.35)}
+.pd-trial-crm{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-radius:11px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.28);color:#e8e8f0;text-decoration:none;font-size:13px;font-weight:600;transition:background .2s,border-color .2s}
+.pd-trial-crm:hover{background:rgba(168,85,247,.14);border-color:rgba(168,85,247,.4)}
+.pd-trial-icon{font-size:16px}
+.pd-trial-text{flex:1;margin:0 8px}
+.pd-trial-name{display:block;font-size:13px;font-weight:700}
+.pd-trial-hint{display:block;font-size:11px;opacity:.45;font-weight:400}
+.pd-trial-arrow{font-size:14px;opacity:.4}
+.pd-demo-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.pd-demo-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:rgba(232,232,240,.7);text-decoration:none;font-size:13px;font-weight:500;transition:background .2s,color .2s}
+.pd-demo-row:hover{background:rgba(255,255,255,.06);color:#e8e8f0}
+.pd-demo-badge{font-size:10px;font-weight:600;letter-spacing:.4px;padding:2px 7px;border-radius:4px;background:rgba(34,197,94,.1);color:#4ade80}
+.pd-plans-group{margin-bottom:14px}
+.sb-billing{display:flex;background:rgba(255,255,255,.05);border-radius:8px;padding:3px;margin-bottom:10px;position:relative}
+.sb-bill-opt{flex:1;border:none;background:none;color:rgba(232,232,240,.4);font-size:12px;font-weight:600;padding:6px 4px;border-radius:6px;cursor:pointer;transition:color .2s;position:relative;z-index:1}
+.sb-bill-opt.is-active{color:#e8e8f0}
+.sb-bill-thumb{position:absolute;top:3px;left:3px;height:calc(100% - 6px);width:calc(50% - 3px);background:rgba(255,255,255,.09);border-radius:6px;transition:transform .22s cubic-bezier(.4,0,.2,1)}
+[data-bill="yearly"] .sb-bill-thumb{transform:translateX(100%)}
+.sb-pills{display:flex;flex-direction:column;gap:6px}
+.sb-pill{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);cursor:default}
+.sb-pill-left{display:flex;align-items:center;gap:8px}
+.sb-pill-dot{width:7px;height:7px;border-radius:50%}
+.sb-pill-name{font-size:12px;font-weight:600;color:rgba(232,232,240,.7)}
+.sb-pill-price{font-size:12px;font-weight:700;color:rgba(232,232,240,.5)}
+.pd-util-group{display:flex;flex-direction:column;gap:4px}
+.pd-util-row{display:block;padding:8px 10px;border-radius:7px;color:rgba(232,232,240,.3);text-decoration:none;font-size:12px;transition:color .2s,background .2s}
+.pd-util-row:hover{color:rgba(232,232,240,.6);background:rgba(255,255,255,.04)}
+@media(max-width:640px){
+  .hierarchy-grid{grid-template-columns:1fr}
+  .mod-grid{grid-template-columns:1fr}
+  .info-strip{grid-template-columns:1fr}
+  .stats-inner{gap:16px}
+  #priceDrawer{width:320px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="./index.html" class="nav-brand">
+    <span class="nav-brand-dot" style="background:#a855f7"></span>
+    NexusCRM
+  </a>
+  <div class="nav-links">
+    <a href="./features.html">Features</a>
+    <a href="./demo-rms.html">RMS Demo</a>
+    <a href="#" onclick="openPriceDrawer();return false">Pricing</a>
+    <a href="https://crm.nexunova.com/signup" class="nav-cta">Start Free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    Live Demo — no signup required
+  </div>
+  <h1>Pakistan's <span class="accent">Smartest</span><br>Real Estate CRM</h1>
+  <p class="hero-sub">3-layer intelligence hierarchy built for how real estate actually works — CEO oversight, manager control, agent execution. All in one platform.</p>
+  <div class="hero-ctas">
+    <a href="https://crm.nexunova.com/login?demo=true" class="btn-primary">✦ Launch Demo</a>
+    <a href="https://crm.nexunova.com/signup" class="btn-secondary">Start Free Trial →</a>
+  </div>
+</section>
+
+<!-- INFO CARDS -->
+<div class="info-strip">
+  <div class="info-card">
+    <div class="info-card-icon">🧪</div>
+    <div class="info-card-title">Live Sample Data</div>
+    <div class="info-card-desc">Leads, agents, deals and pipelines pre-loaded so every feature is live immediately</div>
+  </div>
+  <div class="info-card">
+    <div class="info-card-icon">🏗️</div>
+    <div class="info-card-title">All Modules Active</div>
+    <div class="info-card-desc">Every module unlocked — CEO dashboard, GPS, WhatsApp, Facebook ROI and more</div>
+  </div>
+  <div class="info-card">
+    <div class="info-card-icon">🔒</div>
+    <div class="info-card-title">Isolated Sandbox</div>
+    <div class="info-card-desc">Fully isolated demo account — click anything, add data, nothing affects real users</div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Intelligence Layers</div></div>
+    <div class="stat"><div class="stat-val">8+</div><div class="stat-label">Core Modules</div></div>
+    <div class="stat"><div class="stat-val">2s</div><div class="stat-label">Facebook Lead Import</div></div>
+    <div class="stat"><div class="stat-val">2</div><div class="stat-label">Platforms (Web + Android)</div></div>
+    <div class="stat"><div class="stat-val">1-tap</div><div class="stat-label">WhatsApp Send</div></div>
+  </div>
+</div>
+
+<!-- HIERARCHY SECTION -->
+<div class="section">
+  <div class="section-label">Core Architecture</div>
+  <div class="section-title">3-Layer Intelligence Hierarchy</div>
+  <div class="section-sub">Every role sees exactly what they need — no more, no less.</div>
+  <div class="hierarchy-grid">
+    <div class="h-card">
+      <span class="h-card-tier tier-ceo">CEO Layer</span>
+      <div class="h-card-title">Full Intelligence View</div>
+      <div class="h-card-sub">Bird's-eye view across every project, agent, deal and team metric in real time.</div>
+      <ul class="h-card-list">
+        <li>Cross-project revenue dashboard</li>
+        <li>Agent performance leaderboard</li>
+        <li>Facebook & WhatsApp ROI analytics</li>
+        <li>Deal conversion funnel</li>
+        <li>Financial snapshot & forecasts</li>
+      </ul>
+    </div>
+    <div class="h-card">
+      <span class="h-card-tier tier-mgr">Manager Layer</span>
+      <div class="h-card-title">Team & Pipeline Control</div>
+      <div class="h-card-sub">Assign leads, monitor follow-ups, and track team performance across projects.</div>
+      <ul class="h-card-list">
+        <li>Lead assignment & reallocation</li>
+        <li>Follow-up compliance monitoring</li>
+        <li>Pipeline stage management</li>
+        <li>Meeting scheduling & tracking</li>
+        <li>Deal approval workflows</li>
+      </ul>
+    </div>
+    <div class="h-card">
+      <span class="h-card-tier tier-agent">Agent Layer</span>
+      <div class="h-card-title">Daily Execution Tools</div>
+      <div class="h-card-sub">Mobile-first tools for calling, visiting, logging and closing leads on the go.</div>
+      <ul class="h-card-list">
+        <li>My leads with priority flags</li>
+        <li>1-tap WhatsApp message send</li>
+        <li>GPS check-in & site visits</li>
+        <li>Meeting log + notes</li>
+        <li>Deal progress & commission view</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="section">
+  <div class="section-label">Key Features</div>
+  <div class="section-title">Built for Pakistan's Real Estate Market</div>
+  <div class="section-sub">Every feature designed around how Pakistani property sales actually work.</div>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">Lead Management</div>
+      <div class="feat-desc">Auto-capture from Facebook, web forms and manual entry. Smart scoring, deduplication, and priority queuing.</div>
+      <span class="feat-tag">AI Scoring</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📘</div>
+      <div class="feat-title">Facebook ROI Tracker</div>
+      <div class="feat-desc">Imports leads from Meta Lead Ads in under 2 seconds via the Graph API. Track cost-per-lead, cost-per-deal and campaign ROI automatically.</div>
+      <span class="feat-tag">2-sec Import</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">💬</div>
+      <div class="feat-title">WhatsApp 1-Tap Send</div>
+      <div class="feat-desc">Pre-built templates for follow-up, meeting confirmation, and deal updates. Send branded WhatsApp messages from any lead card in one tap.</div>
+      <span class="feat-tag">Instant</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📍</div>
+      <div class="feat-title">GPS Site Visit Tracking</div>
+      <div class="feat-desc">Verify agent visits with GPS coordinates and timestamps. View visit history per lead and per agent on the manager dashboard.</div>
+      <span class="feat-tag">Live GPS</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🛡️</div>
+      <div class="feat-title">Anti-Fraud Engine</div>
+      <div class="feat-desc">Detects duplicate leads, ghost visits, and inflated activity logs. Flags suspicious patterns automatically and alerts managers in real time.</div>
+      <span class="feat-tag">Auto-detect</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📅</div>
+      <div class="feat-title">Meeting Module</div>
+      <div class="feat-desc">Schedule, assign and track every client meeting. Auto-remind agents, log outcomes, and feed results back into the lead pipeline.</div>
+      <span class="feat-tag">Full Lifecycle</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🏢</div>
+      <div class="feat-title">Project Management</div>
+      <div class="feat-desc">Multi-project setup with phase tracking, inventory status, pricing sheets and availability maps per tower or block.</div>
+      <span class="feat-tag">Multi-project</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📱</div>
+      <div class="feat-title">Android Agent App</div>
+      <div class="feat-desc">Native Android app for agents — offline-first lead list, GPS check-ins, call logs, and WhatsApp send all in one pocket tool.</div>
+      <span class="feat-tag">Android + Web</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE HIGHLIGHTS -->
+<div class="section">
+  <div class="section-label">Try in Demo</div>
+  <div class="section-title">Explore These Modules</div>
+  <div class="section-sub">These are the most popular modules in the live demo — click into them first.</div>
+  <div class="mod-grid">
+    <div class="mod-card">
+      <div class="mod-header">
+        <div class="mod-icon">📊</div>
+        <div>
+          <div class="mod-name">CEO Intelligence Dashboard</div>
+          <div class="mod-sub">Full org-wide visibility</div>
+        </div>
+      </div>
+      <ul class="mod-list">
+        <li>Live revenue + conversion metrics</li>
+        <li>Agent performance heatmap</li>
+        <li>Facebook campaign ROI breakdown</li>
+        <li>Deal funnel by project</li>
+        <li>Top leads needing attention</li>
+      </ul>
+    </div>
+    <div class="mod-card">
+      <div class="mod-header">
+        <div class="mod-icon">📋</div>
+        <div>
+          <div class="mod-name">Lead Pipeline</div>
+          <div class="mod-sub">End-to-end lead management</div>
+        </div>
+      </div>
+      <ul class="mod-list">
+        <li>Kanban + table view switching</li>
+        <li>Auto-import from Facebook Ads</li>
+        <li>Smart scoring and priority tags</li>
+        <li>1-tap WhatsApp follow-up</li>
+        <li>Full lead history timeline</li>
+      </ul>
+    </div>
+    <div class="mod-card">
+      <div class="mod-header">
+        <div class="mod-icon">📍</div>
+        <div>
+          <div class="mod-name">GPS Field Tracker</div>
+          <div class="mod-sub">Agent location intelligence</div>
+        </div>
+      </div>
+      <ul class="mod-list">
+        <li>Real-time agent location map</li>
+        <li>Site visit verification with coords</li>
+        <li>Visit frequency per lead</li>
+        <li>Ghost visit fraud detection</li>
+        <li>Manager review + approval</li>
+      </ul>
+    </div>
+    <div class="mod-card">
+      <div class="mod-header">
+        <div class="mod-icon">🤝</div>
+        <div>
+          <div class="mod-name">Deals & Commissions</div>
+          <div class="mod-sub">Closing pipeline to payout</div>
+        </div>
+      </div>
+      <ul class="mod-list">
+        <li>Deal stages with approval gates</li>
+        <li>Installment plan structuring</li>
+        <li>Commission calculator per agent</li>
+        <li>Payment milestone tracking</li>
+        <li>Exportable deal summary PDF</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM CTA -->
+<div class="bottom-cta">
+  <div class="bottom-cta-box">
+    <h2>Ready to see it live?</h2>
+    <p>Launch the demo now — full data, all modules, no signup. Or start a free trial and bring your own leads.</p>
+    <div class="bottom-cta-btns">
+      <a href="https://crm.nexunova.com/signup" class="btn-primary">Start Free Trial — 7 Days</a>
+      <a href="https://crm.nexunova.com/login?demo=true" class="btn-secondary">Continue in Demo</a>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-links">
+    <a href="https://nexunova.com">nexunova.com</a>
+    <a href="./index.html">NexusRMS</a>
+    <a href="./demo-rms.html">RMS Demo</a>
+    <a href="./features.html">Features</a>
+    <a href="./download.html">Download</a>
+    <a href="./login.html">Sign In</a>
+  </div>
+  <div class="footer-copy">© 2026 Nexunova · NexusCRM · All rights reserved</div>
+</footer>
+
+<!-- PRICE DRAWER -->
+<div id="nx-price-bar">
+  <button id="priceTab" aria-label="Get Started">
+    <span class="pt-label">START</span>
+    <span class="pt-dot"></span>
+    <span class="pt-peek">Get Started →</span>
+  </button>
+  <div id="priceBackdrop"></div>
+  <div id="priceDrawer" role="dialog" aria-label="Get Started">
+    <div class="pd-head">
+      <span class="pd-title">Get Started</span>
+      <button class="pd-close" id="pdClose" aria-label="Close">✕</button>
+    </div>
+    <div class="pd-divider"></div>
+    <div class="pd-body">
+
+      <span class="pd-section">Free Trial — 7 days full access</span>
+      <div class="pd-trial-group">
+        <a href="./signup.html?plan=free" class="pd-trial-rms">
+          <span class="pd-trial-icon">🚀</span>
+          <span class="pd-trial-text">
+            <span class="pd-trial-name">Start Free — NexusRMS</span>
+            <span class="pd-trial-hint">7-day trial · no credit card</span>
+          </span>
+          <span class="pd-trial-arrow">→</span>
+        </a>
+        <a href="https://crm.nexunova.com/signup" class="pd-trial-crm">
+          <span class="pd-trial-icon">✦</span>
+          <span class="pd-trial-text">
+            <span class="pd-trial-name">Start Free — NexusCRM</span>
+            <span class="pd-trial-hint">7-day trial · no credit card</span>
+          </span>
+          <span class="pd-trial-arrow">→</span>
+        </a>
+      </div>
+
+      <span class="pd-section">Live Demo — no signup needed</span>
+      <div class="pd-demo-group">
+        <a href="./demo-rms.html" class="pd-demo-row pd-demo-rms">
+          ▶ Demo NexusRMS
+          <span class="pd-demo-badge">instant</span>
+        </a>
+        <a href="./demo-crm.html" class="pd-demo-row pd-demo-crm">
+          ▶ Demo NexusCRM
+          <span class="pd-demo-badge">instant</span>
+        </a>
+      </div>
+
+      <div class="pd-plans-group">
+        <span class="pd-section">NexusRMS Plans</span>
+        <div class="sb-billing" data-bill="monthly">
+          <button class="sb-bill-opt is-active" id="sbBillMonthly">Monthly</button>
+          <button class="sb-bill-opt" id="sbBillYearly">Yearly -10%</button>
+          <span class="sb-bill-thumb"></span>
+        </div>
+        <div class="sb-pills" id="sbPills">
+          <div class="sb-pill">
+            <div class="sb-pill-left">
+              <span class="sb-pill-dot" style="background:#6b7280"></span>
+              <span class="sb-pill-name">Free</span>
+            </div>
+            <span class="sb-pill-price" data-m="₨0" data-y="₨0">₨0</span>
+          </div>
+          <div class="sb-pill">
+            <div class="sb-pill-left">
+              <span class="sb-pill-dot" style="background:#3b82f6"></span>
+              <span class="sb-pill-name">Basic</span>
+            </div>
+            <span class="sb-pill-price" data-m="₨10,000/mo" data-y="₨9,000/mo">₨10,000/mo</span>
+          </div>
+          <div class="sb-pill">
+            <div class="sb-pill-left">
+              <span class="sb-pill-dot" style="background:#a855f7"></span>
+              <span class="sb-pill-name">Pro</span>
+            </div>
+            <span class="sb-pill-price" data-m="₨25,000/mo" data-y="₨22,500/mo">₨25,000/mo</span>
+          </div>
+          <div class="sb-pill">
+            <div class="sb-pill-left">
+              <span class="sb-pill-dot" style="background:#f59e0b"></span>
+              <span class="sb-pill-name">Ultimate</span>
+            </div>
+            <span class="sb-pill-price" data-m="₨50,000/mo" data-y="₨45,000/mo">₨50,000/mo</span>
+          </div>
+        </div>
+      </div>
+
+      <span class="pd-section">Utilities</span>
+      <div class="pd-util-group">
+        <a href="./download.html" class="pd-util-row">⬇ Download NexusRMS for Windows</a>
+        <a href="./login.html" class="pd-util-row">Already subscribed? Sign in to RMS</a>
+        <a href="https://crm.nexunova.com/login" class="pd-util-row">Sign in to NexusCRM</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var bar=document.getElementById('nx-price-bar'),
+      tab=document.getElementById('priceTab'),
+      backdrop=document.getElementById('priceBackdrop'),
+      closeBtn=document.getElementById('pdClose'),
+      closeTimer=null;
+  function open(){clearTimeout(closeTimer);bar.classList.add('is-open')}
+  function close(){bar.classList.remove('is-open')}
+  function schedClose(){closeTimer=setTimeout(close,300)}
+  tab.addEventListener('mouseenter',open);
+  tab.addEventListener('click',open);
+  bar.addEventListener('mouseleave',schedClose);
+  bar.addEventListener('mouseenter',function(){clearTimeout(closeTimer)});
+  backdrop.addEventListener('click',close);
+  closeBtn.addEventListener('click',close);
+  window.openPriceDrawer=open;
+
+  var d=document,
+      bl=d.querySelector('.sb-billing'),
+      pl=document.getElementById('sbPills'),
+      mb=document.getElementById('sbBillMonthly'),
+      yb=document.getElementById('sbBillYearly');
+  function setBill(mode){
+    bl.dataset.bill=mode;
+    mb.classList.toggle('is-active',mode==='monthly');
+    yb.classList.toggle('is-active',mode==='yearly');
+    d.querySelectorAll('.sb-pill-price').forEach(function(s){
+      s.textContent=mode==='yearly'?(s.dataset.y||s.textContent):(s.dataset.m||s.textContent);
+    });
+  }
+  mb&&mb.addEventListener('click',function(){setBill('monthly')});
+  yb&&yb.addEventListener('click',function(){setBill('yearly')});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,761 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — SAAS POLISH (light, brand-aligned)
+   One unified design layer applied globally. No backdrop-filter, no heavy
+   effects. Just refined typography, premium buttons/inputs/cards/tables.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Brand palette (logo-aligned) */
+  --nx-cyan:    #00d9ff;
+  --nx-blue:    #3b82f6;
+  --nx-indigo:  #6366f1;
+  --nx-purple:  #c084fc;
+  --nx-violet:  #a855f7;
+  --nx-mint:    #34d399;
+  --nx-pink:    #f43f5e;
+  --nx-amber:   #fbbf24;
+
+  /* Aurora gradient (used everywhere) */
+  --nx-grad:    linear-gradient(90deg, #00d9ff 0%, #6366f1 50%, #c084fc 100%);
+  --nx-grad-v:  linear-gradient(180deg, #00d9ff 0%, #6366f1 50%, #c084fc 100%);
+}
+
+/* ════════════════ 1. TYPOGRAPHY — premium hierarchy ════════════════ */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-feature-settings: 'cv11', 'ss03', 'ss04', 'cv02' !important;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  letter-spacing: -0.015em !important;
+  font-weight: 700 !important;
+}
+.tbl td, .tbl th, .inv-td, .inv-th,
+[class*="amount"], [class*="-amt"], [class*="-num"], [class*="-val"] {
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Page header titles (.ph h2, .inv-title, etc.) — bigger, premium */
+.ph h2,
+.inv-title,
+h1.page-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-weight: 800 !important;
+  font-size: 22px !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text) !important;
+  margin: 0 !important;
+}
+
+/* ════════════════ 2. BUTTONS — refined SaaS feel ════════════════ */
+.btn {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.005em !important;
+  transition: background 180ms ease, border-color 180ms ease,
+              color 180ms ease, transform 160ms ease, box-shadow 200ms ease !important;
+}
+.btn:active { transform: scale(0.97) !important; }
+
+/* Primary — aurora gradient (light, no heavy shadow) */
+.btn-g {
+  background: var(--nx-grad) !important;
+  border: none !important;
+  color: #0a0c14 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(0,217,255,0.18) !important;
+}
+.btn-g:hover {
+  filter: brightness(1.06) !important;
+  box-shadow: 0 4px 16px rgba(0,217,255,0.28) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Ghost — cyan hover */
+.btn-gh {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--t2) !important;
+}
+.btn-gh:hover {
+  background: rgba(0,217,255,0.06) !important;
+  border-color: rgba(0,217,255,0.40) !important;
+  color: var(--text) !important;
+}
+
+/* Danger — soft + accessible */
+.btn-r {
+  background: rgba(244,63,94,0.10) !important;
+  border: 1px solid rgba(244,63,94,0.30) !important;
+  color: #f87171 !important;
+}
+.btn-r:hover {
+  background: rgba(244,63,94,0.18) !important;
+  border-color: rgba(244,63,94,0.50) !important;
+}
+
+/* Success — green tint */
+.btn-gr {
+  background: linear-gradient(90deg, #10b981, #34d399) !important;
+  border: none !important;
+  color: #0a0c14 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(52,211,153,0.18) !important;
+}
+.btn-gr:hover { box-shadow: 0 4px 16px rgba(52,211,153,0.28) !important; transform: translateY(-1px) !important; }
+
+[data-theme="light"] .btn-gh {
+  background: #fff !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  color: #0f0f1a !important;
+}
+[data-theme="light"] .btn-gh:hover {
+  background: rgba(99,102,241,0.06) !important;
+  border-color: rgba(99,102,241,0.40) !important;
+}
+
+/* ════════════════ 3. INPUTS — cyan focus ring ════════════════ */
+.inp,
+.inp-light,
+input[type="text"]:not(.aurora-foot input):not(.atb-item input),
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+  font-family: 'Inter', sans-serif !important;
+  border-radius: 8px !important;
+  transition: border-color 180ms ease, box-shadow 180ms ease !important;
+}
+.inp:focus,
+.inp-light:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--nx-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(0,217,255,0.15) !important;
+  outline: none !important;
+}
+
+/* ════════════════ 4. CARDS — refined surface ════════════════ */
+.card {
+  border-radius: 12px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+  transition: border-color 200ms ease, box-shadow 200ms ease !important;
+}
+.card:hover {
+  border-color: rgba(0,217,255,0.20) !important;
+}
+.card-pad { padding: 18px 20px !important; }
+
+/* Card header */
+.ch {
+  padding: 14px 18px !important;
+  border-bottom: 1px solid var(--line) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+.ch h3 {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text) !important;
+  margin: 0 !important;
+}
+.cb { padding: 18px !important; }
+
+[data-theme="light"] .card {
+  background: #fff !important;
+  border-color: rgba(0,0,0,0.07) !important;
+  box-shadow: 0 1px 3px rgba(15,15,26,0.05) !important;
+}
+[data-theme="light"] .card:hover {
+  border-color: rgba(99,102,241,0.25) !important;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.08) !important;
+}
+
+/* ════════════════ 5. TABLES — premium data view ════════════════ */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px !important;
+}
+.tbl thead tr {
+  background: rgba(255,255,255,0.02) !important;
+  border-bottom: 1px solid var(--line) !important;
+  height: 42px !important;
+}
+.tbl th {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.10em !important;
+  color: var(--t3) !important;
+  padding: 0 14px !important;
+}
+.tbl tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  transition: background 140ms ease, border-left-color 140ms ease !important;
+  border-left: 2px solid transparent !important;
+}
+.tbl tbody tr:hover {
+  background: rgba(0,217,255,0.04) !important;
+  border-left-color: var(--nx-cyan) !important;
+}
+.tbl td {
+  padding: 11px 14px !important;
+  color: var(--t2) !important;
+}
+.tbl td.num,
+.tbl td[class*="-amt"],
+.tbl th.num { text-align: right !important; }
+
+[data-theme="light"] .tbl thead tr { background: #fafafd !important; }
+[data-theme="light"] .tbl tbody tr:hover { background: rgba(99,102,241,0.04) !important; border-left-color: var(--nx-indigo) !important; }
+
+/* ════════════════ 6. BADGES — refined pills ════════════════ */
+.badge {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  padding: 3px 9px !important;
+  border-radius: 99px !important;
+  border: 1px solid currentColor !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+}
+
+/* ════════════════ 7. FORM LABELS ════════════════ */
+.fl,
+.lb {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--t3) !important;
+  margin-bottom: 5px !important;
+  display: block !important;
+}
+.req-star,
+.req {
+  color: var(--nx-pink) !important;
+  font-weight: 700 !important;
+}
+
+/* ════════════════ 8. MODALS — cleaner ════════════════ */
+.mov {
+  background: rgba(8, 10, 16, 0.55) !important;
+}
+.mov .mob,
+.mov .mob-inner {
+  border-radius: 14px !important;
+  border: 1px solid rgba(0,217,255,0.20) !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.40) !important;
+}
+.mh {
+  border-bottom: 1px solid var(--line) !important;
+  padding: 16px 20px !important;
+}
+.mh h3 {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  margin: 0 !important;
+}
+.mh p {
+  font-size: 12px !important;
+  color: var(--t3) !important;
+  margin: 2px 0 0 !important;
+}
+.mx {
+  border-radius: 8px !important;
+  width: 30px !important;
+  height: 30px !important;
+  transition: all 180ms ease !important;
+}
+.mx:hover {
+  background: rgba(244,63,94,0.10) !important;
+  border-color: rgba(244,63,94,0.30) !important;
+  color: var(--nx-pink) !important;
+}
+
+/* ════════════════ 9. KPI / STAT CARDS (generic) ════════════════ */
+.kpi,
+.stat-card,
+.dkpi,
+.dash-kpi {
+  border-radius: 12px !important;
+  border: 1px solid var(--line) !important;
+  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease !important;
+}
+.kpi:hover,
+.stat-card:hover,
+.dkpi:hover,
+.dash-kpi:hover {
+  border-color: rgba(0,217,255,0.30) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0,217,255,0.08) !important;
+}
+
+/* ════════════════ 10. EMPTY STATES — global ════════════════ */
+.empty,
+.t-empty,
+.ud-empty,
+.inv-empty {
+  padding: 56px 24px !important;
+  text-align: center !important;
+}
+.empty .ei,
+.t-empty .ei,
+.ud-empty-ic,
+.inv-empty-ic {
+  width: 60px !important;
+  height: 60px !important;
+  margin: 0 auto 14px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg, rgba(0,217,255,0.08), rgba(168,85,247,0.05)) !important;
+  border: 1px solid rgba(0,217,255,0.18) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--nx-cyan) !important;
+}
+
+/* ════════════════ 11. SCROLLBARS — refined ════════════════ */
+::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-thumb {
+  background: rgba(0,217,255,0.15) !important;
+  border-radius: 99px !important;
+  transition: background 180ms ease;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0,217,255,0.30) !important; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.20) !important; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.35) !important; }
+
+/* ════════════════ 12. LINKS ════════════════ */
+.lnk,
+a.lnk {
+  color: var(--nx-cyan) !important;
+  cursor: pointer;
+  transition: color 160ms ease !important;
+}
+.lnk:hover { color: #00c0e0 !important; text-decoration: underline; }
+[data-theme="light"] .lnk { color: var(--nx-indigo) !important; }
+[data-theme="light"] .lnk:hover { color: #4f52d6 !important; }
+
+/* ════════════════ 13. TABS / SEGMENTED CONTROLS ════════════════ */
+.tab,
+.seg-btn,
+.pill {
+  border-radius: 7px !important;
+  font-weight: 600 !important;
+  transition: all 180ms ease !important;
+}
+.tab.on,
+.tab.active,
+.seg-btn.on,
+.pill.on {
+  background: linear-gradient(90deg, rgba(0,217,255,0.14), rgba(168,85,247,0.10)) !important;
+  color: var(--nx-cyan) !important;
+  border-color: rgba(0,217,255,0.35) !important;
+}
+
+/* ════════════════ 14. SIDEBAR ITEMS — cyan accent ════════════════ */
+.ni:hover {
+  background: rgba(0,217,255,0.06) !important;
+}
+.ni.on,
+.ni.active {
+  background: linear-gradient(90deg, rgba(0,217,255,0.14), rgba(168,85,247,0.08)) !important;
+  color: var(--nx-cyan) !important;
+  box-shadow: inset 2px 0 0 0 var(--nx-cyan) !important;
+}
+.nav-grp-hd:hover { color: var(--nx-cyan) !important; }
+
+/* ════════════════ 15. FOCUS RING (keyboard navigation) ════════════════ */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--nx-cyan) !important;
+  outline-offset: 2px !important;
+}
+
+/* ════════════════ 16. TOOLTIP / NOTIFICATIONS ════════════════ */
+.tooltip,
+.tipster {
+  border-radius: 7px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  padding: 6px 10px !important;
+  background: rgba(15,16,22,0.95) !important;
+  border: 1px solid rgba(0,217,255,0.25) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.30) !important;
+}
+
+/* ════════════════ 17. CHIPS / DATA PILLS ════════════════ */
+.chip,
+.tag {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  padding: 3px 9px !important;
+  border-radius: 99px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: var(--t2) !important;
+}
+
+/* ════════════════ 18. SECTION DIVIDERS ════════════════ */
+.divider,
+hr {
+  border: none !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, var(--line), transparent) !important;
+  margin: 18px 0 !important;
+}
+
+/* ════════════════ 19. STATUS DOTS / INDICATORS ════════════════ */
+.dot,
+.status-dot {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  display: inline-block;
+}
+.dot.ok, .status-dot.ok { background: var(--nx-mint) !important; box-shadow: 0 0 6px var(--nx-mint); }
+.dot.warn, .status-dot.warn { background: var(--nx-amber) !important; box-shadow: 0 0 6px var(--nx-amber); }
+.dot.err, .status-dot.err { background: var(--nx-pink) !important; box-shadow: 0 0 6px var(--nx-pink); }
+.dot.info, .status-dot.info { background: var(--nx-cyan) !important; box-shadow: 0 0 6px var(--nx-cyan); }
+
+/* ════════════════ 20. PAGE HEADER (.ph) ════════════════ */
+.ph {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 16px 0 14px !important;
+  gap: 16px !important;
+  margin-bottom: 16px !important;
+}
+.ph-l { display: flex; flex-direction: column; gap: 2px; }
+.ph p {
+  font-size: 12.5px !important;
+  color: var(--t3) !important;
+  margin: 0 !important;
+  font-weight: 500 !important;
+}
+.ph-r { display: flex; align-items: center; gap: 8px; }
+
+/* Print-safe: skip polish in print */
+@media print {
+  .btn, .card, .tbl, .badge { box-shadow: none !important; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 100ms !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SAAS OVERHAUL v2 — Deep polish layer
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Z-Index System ────────────────────────────────────────────────────────── */
+:root {
+  --z-base:         0;
+  --z-raised:       10;
+  --z-dropdown:     200;
+  --z-sticky:       300;
+  --z-overlay:      400;
+  --z-modal:        500;
+  --z-popover:      600;
+  --z-toast:        700;
+  --z-tooltip:      800;
+  --z-max:          9999;
+}
+
+/* ── Selection ─────────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(0,217,255,0.20) !important;
+  color: #fff !important;
+}
+
+/* ── Page wrapper fade-in ──────────────────────────────────────────────────── */
+@keyframes nx-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pg.on {
+  animation: nx-fadein 220ms cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* ── Skeleton shimmer ──────────────────────────────────────────────────────── */
+@keyframes nx-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.10) 50%,
+    rgba(255,255,255,0.04) 100%) !important;
+  background-size: 200% 100% !important;
+  animation: nx-shimmer 1.4s ease-in-out infinite !important;
+  border-radius: 6px !important;
+  color: transparent !important;
+}
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg,
+    rgba(0,0,0,0.04) 0%,
+    rgba(0,0,0,0.09) 50%,
+    rgba(0,0,0,0.04) 100%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* ── Glow pill (accent highlight) ─────────────────────────────────────────── */
+.glow-pill {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       4px 12px;
+  border-radius: 99px;
+  font-size:     11px;
+  font-weight:   700;
+  letter-spacing: 0.04em;
+  background:    linear-gradient(90deg, rgba(0,217,255,0.12), rgba(168,85,247,0.09));
+  border:        1px solid rgba(0,217,255,0.28);
+  color:         var(--nx-cyan);
+}
+
+/* ── Data table — enhanced ─────────────────────────────────────────────────── */
+.tbl thead th {
+  position: relative;
+  white-space: nowrap;
+}
+.tbl thead th::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--nx-cyan), var(--nx-purple));
+  opacity: 0.35;
+}
+.tbl tbody tr:last-child { border-bottom: none !important; }
+.tbl tbody tr td:first-child { font-weight: 500 !important; color: var(--text) !important; }
+
+/* ── Enhanced Cards ────────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,217,255,0.20), transparent);
+  pointer-events: none;
+}
+
+/* ── Button — focus ring ───────────────────────────────────────────────────── */
+.btn:focus-visible {
+  outline: 2px solid rgba(0,217,255,0.60) !important;
+  outline-offset: 3px !important;
+}
+.btn-g:focus-visible {
+  outline-color: rgba(0,217,255,0.80) !important;
+}
+
+/* ── Input enhancements ────────────────────────────────────────────────────── */
+.inp,
+.inp-light,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  letter-spacing: 0.01em;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--t4) !important;
+  font-style: italic;
+}
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: rgba(0,0,0,0.28) !important;
+}
+
+/* ── Select arrow polish ───────────────────────────────────────────────────── */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(0,217,255,0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  padding-right: 30px !important;
+}
+[data-theme="light"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(99,102,241,0.7)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+}
+
+/* ── Modal enhancements ────────────────────────────────────────────────────── */
+.mov {
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+.mob, .mob-inner {
+  position: relative;
+  overflow: hidden;
+}
+.mob::before, .mob-inner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,217,255,0.40), rgba(168,85,247,0.30), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── KPI / Stat cards — deeper hover ──────────────────────────────────────── */
+.kpi:hover,
+.stat-card:hover,
+.dkpi:hover,
+.dash-kpi:hover {
+  box-shadow: 0 0 0 1px rgba(0,217,255,0.18), 0 8px 24px rgba(0,217,255,0.08) !important;
+}
+
+/* ── Sidebar nav item — active left accent ─────────────────────────────────── */
+.ni.on,
+.ni.active {
+  border-radius: 8px !important;
+}
+
+/* ── Page content padding ──────────────────────────────────────────────────── */
+.pg > .inv,
+.pg > .p-wrap,
+.pg > .page-wrap {
+  padding: 20px 24px !important;
+}
+
+/* ── Topbar chip — company pill ────────────────────────────────────────────── */
+#tb-c {
+  font-size:     11.5px !important;
+  font-weight:   600 !important;
+  padding:       4px 10px !important;
+  border-radius: 99px !important;
+  background:    rgba(255,255,255,0.05) !important;
+  border:        1px solid rgba(255,255,255,0.10) !important;
+  white-space:   nowrap !important;
+  max-width:     160px !important;
+  overflow:      hidden !important;
+  text-overflow: ellipsis !important;
+}
+[data-theme="light"] #tb-c {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+}
+
+/* ── Date chip in topbar ───────────────────────────────────────────────────── */
+#tb-d {
+  font-size:      11px !important;
+  font-weight:    500 !important;
+  color:          rgba(255,255,255,0.50) !important;
+  letter-spacing: 0.02em !important;
+  padding:        4px 8px !important;
+  background:     rgba(255,255,255,0.03) !important;
+  border-radius:  6px !important;
+}
+[data-theme="light"] #tb-d {
+  color: rgba(0,0,0,0.40) !important;
+  background: transparent !important;
+}
+
+/* ── Footer strip text ─────────────────────────────────────────────────────── */
+.aurora-foot-brand-name {
+  font-weight: 800 !important;
+  background: linear-gradient(90deg, #22D3EE, #A855F7) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ── Toast notifications ───────────────────────────────────────────────────── */
+.toast,
+.notify-item,
+.n-item {
+  border-radius: 10px !important;
+  border: 1px solid rgba(0,217,255,0.18) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.30), 0 0 0 1px rgba(0,217,255,0.08) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* ── Section / group headers ───────────────────────────────────────────────── */
+.sec-hd, .inv-sec-hd {
+  font-size:      10.5px !important;
+  font-weight:    700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color:          var(--nx-cyan) !important;
+  padding-bottom: 8px !important;
+  border-bottom:  1px solid rgba(0,217,255,0.15) !important;
+  margin-bottom:  12px !important;
+}
+
+/* ── Utility: text-gradient shorthand ─────────────────────────────────────── */
+.text-aurora {
+  background: var(--nx-grad) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ── Subtle row striping for dense tables ──────────────────────────────────── */
+.tbl-striped tbody tr:nth-child(even) {
+  background: rgba(255,255,255,0.015) !important;
+}
+[data-theme="light"] .tbl-striped tbody tr:nth-child(even) {
+  background: rgba(0,0,0,0.015) !important;
+}
+
+/* ── Right-aligned amount column ───────────────────────────────────────────── */
+.tbl td.amt, .tbl th.amt {
+  text-align:         right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-weight:        600 !important;
+  color:              var(--text) !important;
+}
+
+/* ── Light theme overrides ─────────────────────────────────────────────────── */
+[data-theme="light"] .tbl tbody tr { border-bottom-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .tbl tbody tr:hover { background: rgba(99,102,241,0.04) !important; }
+[data-theme="light"] .card::before {
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.15), transparent) !important;
+}
+[data-theme="light"] .mob::before, [data-theme="light"] .mob-inner::before {
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.30), transparent) !important;
+}
+[data-theme="light"] .aurora-foot-brand-name {
+  background: linear-gradient(90deg, #0ea5e9, #7c3aed) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Print-safe v2 */
+@media print {
+  ::selection { background: #e8e8e8 !important; color: #000 !important; }
+  .skeleton, .glow-pill { animation: none !important; }
+}

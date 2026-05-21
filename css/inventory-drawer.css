@@ -1,0 +1,436 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   INVENTORY DRAWER — Aurora glass redesign
+   Slides in from right with a curved left edge (vertical dome).
+   Glass blur + cyan/violet tint + premium typography.
+   Overrides the legacy inventory.css drawer styles.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ──────────────────────────────────────────────────────────── */
+.inv-drawer-bd {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(8, 10, 16, 0.35) !important;
+  z-index: 299 !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease !important;
+}
+.inv-drawer-bd.show { opacity: 1 !important; pointer-events: all !important; }
+
+/* ── Panel — full-height curved glass slab ──────────────────────────── */
+.inv-drawer-panel {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  height: 100dvh !important;
+  width: 420px !important;
+  z-index: 300 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  font-family: 'Inter', sans-serif !important;
+  background:
+    radial-gradient(ellipse 520px 320px at 100% 0%,   rgba(0,217,255,0.16),  transparent 60%),
+    radial-gradient(ellipse 520px 320px at 100% 100%, rgba(168,85,247,0.14), transparent 60%),
+    linear-gradient(180deg, #0c0e16 0%, #121626 100%) !important;
+  border-left: 1px solid rgba(0,217,255,0.30) !important;
+  box-shadow:
+    -20px 0 60px rgba(0,0,0,0.45),
+    inset 1px 0 0 0 rgba(0,217,255,0.18) !important;
+  /* CURVED LEFT EDGE — pronounced dome but text-safe (40px padding clears it) */
+  clip-path: ellipse(115% 135% at 100% 50%);
+  -webkit-clip-path: ellipse(115% 135% at 100% 50%);
+  transform: translateX(100%) !important;
+  transition:
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 360ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  pointer-events: none;
+  isolation: isolate;
+  overflow: hidden;
+  color: rgba(255,255,255,0.92);
+}
+.inv-drawer-panel.open {
+  transform: translateX(0) !important;
+  clip-path: ellipse(102% 135% at 100% 50%);
+  -webkit-clip-path: ellipse(102% 135% at 100% 50%);
+  pointer-events: auto !important;
+}
+
+/* Dot-grid texture overlay */
+.inv-drawer-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at right, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at right, black 30%, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.7;
+}
+
+/* Subtle accent line that pulses on the curved left edge */
+.inv-drawer-panel::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 4px;
+  transform: translateY(-50%);
+  width: 3px; height: 56px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, transparent, #00d9ff 30%, #c084fc 70%, transparent);
+  filter: blur(0.4px);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 5;
+  animation: invDrawerPulse 2.4s ease-in-out infinite;
+}
+@keyframes invDrawerPulse {
+  0%, 100% { opacity: 0.55; height: 48px; }
+  50%      { opacity: 1;    height: 72px; }
+}
+
+/* ── Header (compact) ───────────────────────────────────────────────── */
+.inv-drawer-hd {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 14px 18px 12px 40px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  height: auto !important;
+  flex-shrink: 0 !important;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(0,217,255,0.04), transparent);
+  gap: 10px;
+}
+.inv-drawer-unit-no {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.15 !important;
+  background: linear-gradient(90deg, #ffffff 0%, rgba(255,255,255,0.65) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.inv-drawer-hd-right { display: flex !important; align-items: center !important; gap: 6px !important; flex-shrink: 0; }
+.inv-drawer-hd-right .btn-sm { font-size: 11px !important; padding: 5px 9px !important; height: 26px !important; }
+
+/* ── Body ───────────────────────────────────────────────────────────── */
+.inv-drawer-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  position: relative;
+  z-index: 1;
+}
+.inv-drawer-body::-webkit-scrollbar { width: 6px; }
+.inv-drawer-body::-webkit-scrollbar-track { background: transparent; }
+.inv-drawer-body::-webkit-scrollbar-thumb { background: rgba(0,217,255,0.20); border-radius: 99px; }
+.inv-drawer-body::-webkit-scrollbar-thumb:hover { background: rgba(0,217,255,0.35); }
+
+/* Hero (price + area) — compact */
+.inv-dw-hero {
+  padding: 14px 22px 14px 40px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  background:
+    radial-gradient(ellipse 260px 70px at 30% 100%, rgba(0,217,255,0.10), transparent 70%);
+}
+.inv-dw-price {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 6px !important;
+  margin-bottom: 3px !important;
+}
+.inv-dw-pkr {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: rgba(0,217,255,0.95) !important;
+  letter-spacing: 0.10em !important;
+  text-transform: uppercase !important;
+  position: static !important;
+  top: auto !important;
+}
+.inv-dw-amount {
+  font-family: 'JetBrains Mono', 'Inter', monospace !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: rgba(255,255,255,0.98) !important;
+  letter-spacing: -0.02em !important;
+  font-variant-numeric: tabular-nums !important;
+  white-space: nowrap;
+}
+.inv-dw-sub {
+  font-size: 11.5px !important;
+  color: rgba(255,255,255,0.55) !important;
+  font-weight: 500 !important;
+}
+
+/* Facts grid — compact dense */
+.inv-dw-facts {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px 10px !important;
+  padding: 14px 22px 14px 40px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+.inv-dw-fact {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  padding: 7px 10px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  transition: border-color 220ms ease, background 220ms ease;
+  min-width: 0;
+}
+.inv-dw-fact:hover {
+  border-color: rgba(0,217,255,0.30);
+  background: rgba(0,217,255,0.04);
+}
+.inv-dw-fact-lbl {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(0,217,255,0.75) !important;
+}
+.inv-dw-fact-val {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: rgba(255,255,255,0.94) !important;
+  letter-spacing: -0.005em !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Section — compact */
+.inv-dw-section {
+  padding: 12px 22px 12px 40px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+.inv-dw-sec-hd {
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.12em !important;
+  color: rgba(0,217,255,0.70) !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.inv-dw-sec-hd::before {
+  content: '';
+  width: 12px; height: 1.5px;
+  background: linear-gradient(90deg, #00d9ff, transparent);
+  border-radius: 1px;
+}
+
+/* Activity items — compact */
+.inv-dw-act-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 9px !important;
+  padding: 7px 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+}
+.inv-dw-act-item:last-child { border-bottom: none !important; }
+.inv-dw-act-ic {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 7px !important;
+  flex-shrink: 0 !important;
+  background: linear-gradient(135deg, rgba(0,217,255,0.18), rgba(168,85,247,0.14)) !important;
+  border: 1px solid rgba(0,217,255,0.25);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #00d9ff !important;
+}
+.inv-dw-act-ic svg { width: 12px !important; height: 12px !important; }
+.inv-dw-act-txt {
+  font-size: 12px !important;
+  color: rgba(255,255,255,0.88) !important;
+  line-height: 1.35 !important;
+  font-weight: 500 !important;
+}
+.inv-dw-act-time {
+  font-size: 10px !important;
+  color: rgba(255,255,255,0.42) !important;
+  margin-top: 1px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  letter-spacing: -0.01em;
+}
+
+/* Timeline */
+.inv-dw-timeline { display: flex; flex-direction: column; gap: 0; }
+.inv-dw-tl-item {
+  display: flex !important;
+  gap: 12px !important;
+  padding-bottom: 12px !important;
+  position: relative !important;
+}
+.inv-dw-tl-item:not(:last-child)::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 5px !important; top: 14px !important;
+  width: 1px !important; bottom: -2px !important;
+  background: rgba(0,217,255,0.20) !important;
+}
+.inv-dw-tl-dot {
+  width: 11px !important; height: 11px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  margin-top: 3px !important;
+  background: rgba(255,255,255,0.30) !important;
+  box-shadow: 0 0 0 2px rgba(12,14,22,1), 0 0 0 3px rgba(255,255,255,0.20);
+}
+.inv-dw-tl-dot.active {
+  background: #34d399 !important;
+  box-shadow: 0 0 0 2px rgba(12,14,22,1), 0 0 0 3px rgba(52,211,153,0.50),
+              0 0 10px rgba(52,211,153,0.80) !important;
+}
+.inv-dw-tl-txt { font-size: 12.5px !important; color: rgba(255,255,255,0.80) !important; line-height: 1.45 !important; }
+.inv-dw-tl-time { font-size: 11px !important; color: rgba(255,255,255,0.42) !important; margin-top: 1px !important; font-family: 'JetBrains Mono', monospace; }
+
+/* ── Footer (action buttons) — compact ───────────────────────────── */
+.inv-drawer-footer {
+  padding: 10px 18px 10px 36px !important;
+  border-top: 1px solid rgba(0,217,255,0.18) !important;
+  background:
+    linear-gradient(180deg, transparent, rgba(0,217,255,0.04)) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: auto !important;
+  flex-shrink: 0 !important;
+  position: relative;
+  z-index: 1;
+}
+.inv-drawer-footer .btn-sm {
+  font-size: 11.5px !important;
+  padding: 6px 11px !important;
+  height: 30px !important;
+}
+
+/* Polish the buttons inside the drawer */
+.inv-drawer-panel .btn-gh {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: rgba(255,255,255,0.85) !important;
+  transition: all 240ms ease !important;
+  border-radius: 8px !important;
+}
+.inv-drawer-panel .btn-gh:hover {
+  background: linear-gradient(90deg, rgba(0,217,255,0.14), rgba(168,85,247,0.10)) !important;
+  border-color: rgba(0,217,255,0.45) !important;
+  color: rgba(255,255,255,1) !important;
+  transform: translateY(-1px);
+}
+.inv-drawer-panel .btn-g {
+  background: linear-gradient(90deg, #00d9ff, #818cf8) !important;
+  border: none !important;
+  color: #0a0c14 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  transition: all 240ms ease !important;
+}
+.inv-drawer-panel .btn-g:hover {
+  background: linear-gradient(90deg, #00c7eb, #7077e6) !important;
+  box-shadow: 0 6px 22px rgba(0,217,255,0.32) !important;
+  transform: translateY(-1px);
+}
+
+/* Status badge inside header (Available / Sold / etc.) — glow */
+.inv-drawer-hd .badge {
+  border: 1px solid currentColor;
+  box-shadow: 0 0 12px currentColor;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* ── Light theme ────────────────────────────────────────────────────── */
+[data-theme="light"] .inv-drawer-panel {
+  background:
+    radial-gradient(ellipse 520px 320px at 100% 0%,   rgba(99,102,241,0.10),  transparent 60%),
+    radial-gradient(ellipse 520px 320px at 100% 100%, rgba(168,85,247,0.08), transparent 60%),
+    linear-gradient(180deg, rgba(245,247,255,0.94) 0%, rgba(238,242,252,0.96) 100%) !important;
+  border-left-color: rgba(99,102,241,0.25) !important;
+  color: #0f0f1a;
+  box-shadow: -20px 0 60px rgba(15,15,26,0.16), inset 1px 0 0 0 rgba(99,102,241,0.15) !important;
+}
+[data-theme="light"] .inv-drawer-panel::before {
+  background-image: radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px);
+}
+[data-theme="light"] .inv-drawer-bd { background: rgba(245,247,255,0.55) !important; }
+[data-theme="light"] .inv-drawer-unit-no {
+  background: linear-gradient(90deg, #0f0f1a, rgba(15,15,26,0.55));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="light"] .inv-dw-pkr,
+[data-theme="light"] .inv-dw-sec-hd,
+[data-theme="light"] .inv-dw-fact-lbl { color: rgba(0,140,170,0.85) !important; }
+[data-theme="light"] .inv-dw-amount,
+[data-theme="light"] .inv-dw-fact-val { color: #0f0f1a !important; }
+[data-theme="light"] .inv-dw-sub { color: rgba(15,15,26,0.55) !important; }
+[data-theme="light"] .inv-dw-fact {
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(0,0,0,0.06);
+}
+[data-theme="light"] .inv-dw-fact:hover {
+  background: rgba(99,102,241,0.05);
+  border-color: rgba(99,102,241,0.30);
+}
+[data-theme="light"] .inv-dw-act-ic {
+  background: linear-gradient(135deg, rgba(99,102,241,0.14), rgba(168,85,247,0.10)) !important;
+  color: #6366f1 !important;
+  border-color: rgba(99,102,241,0.22);
+}
+[data-theme="light"] .inv-dw-act-txt { color: rgba(15,15,26,0.85) !important; }
+[data-theme="light"] .inv-dw-tl-txt { color: rgba(15,15,26,0.80) !important; }
+[data-theme="light"] .inv-drawer-panel .btn-gh {
+  background: rgba(255,255,255,0.85) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  color: #0f0f1a !important;
+}
+[data-theme="light"] .inv-drawer-panel .btn-gh:hover {
+  background: linear-gradient(90deg, rgba(99,102,241,0.10), rgba(168,85,247,0.06)) !important;
+  border-color: rgba(99,102,241,0.40) !important;
+}
+
+/* ── #pg-units animation override ───────────────────────────────────── */
+/* saas-polish.css applies `transform: translateY(...)` to .pg.on which makes
+   #pg-units a containing block for position:fixed children (the drawer).
+   When the user scrolls, the drawer scrolls with the page and disappears.
+   Override the animation to use opacity only — no transform. */
+@keyframes inv-pg-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#pg-units.on {
+  animation: inv-pg-fadein 220ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .inv-drawer-panel { width: 92% !important; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .inv-drawer-panel, .inv-drawer-bd, .inv-drawer-panel::after {
+    transition-duration: 120ms !important;
+    animation: none !important;
+  }
+}
