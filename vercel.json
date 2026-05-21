@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "buildCommand": "",
+  "installCommand": ""
 }
