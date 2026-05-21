@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -487,6 +487,14 @@ footer{padding:28px 24px;border-top:1px solid rgba(255,255,255,.06);text-align:c
   var bl=d.querySelector('.sb-billing'),pl=document.getElementById('sbPills'),mb=document.getElementById('sbBillMonthly'),yb=document.getElementById('sbBillYearly');
   if(bl&&mb&&yb){function sb(m){bl.setAttribute('data-bill',m);mb.classList.toggle('is-active',m==='monthly');mb.setAttribute('aria-pressed',String(m==='monthly'));yb.classList.toggle('is-active',m==='yearly');yb.setAttribute('aria-pressed',String(m==='yearly'));if(pl)pl.setAttribute('data-billing',m);d.querySelectorAll('.sb-pill-price').forEach(function(s){s.classList.add('is-flipping');setTimeout(function(){s.textContent=s.getAttribute('data-'+m)||s.textContent;s.classList.remove('is-flipping')},110)})}mb.addEventListener('click',function(){sb('monthly')});yb.addEventListener('click',function(){sb('yearly')})}
 })();
+</script>
+
+<!-- Crisp Live Chat -->
+<script type="text/javascript">
+window.$crisp=[];window.CRISP_WEBSITE_ID="032f6ce9-493a-4be9-8048-342e6102b364";
+(function(){d=document;s=d.createElement("script");
+s.src="https://client.crisp.chat/l.js";
+s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();
 </script>
 </body>
 </html>
