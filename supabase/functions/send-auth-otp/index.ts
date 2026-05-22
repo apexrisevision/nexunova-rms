@@ -123,9 +123,13 @@ serve(async (req) => {
       }),
     });
 
+    const resendStatus = emailRes.status;
+    const resendBody   = await emailRes.json().catch(() => ({}));
+    console.log("[send-auth-otp] Resend status:", resendStatus);
+    console.log("[send-auth-otp] Resend body:",   JSON.stringify(resendBody));
+
     if (!emailRes.ok) {
-      const errData = await emailRes.json().catch(() => ({}));
-      console.error("[send-auth-otp] Resend error:", errData);
+      console.error("[send-auth-otp] Resend error (status", resendStatus, "):", JSON.stringify(resendBody));
       return json({ error: "Failed to send verification code. Please try again." });
     }
 
