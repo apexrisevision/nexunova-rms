@@ -350,3 +350,101 @@ async function _adminLoadAudit(ct) {
   }
 }
 
+// ══ CHANGE PASSWORD PAGE ══════════════════════════════════════════════
+
+function rChangepassword() {
+  const el = document.getElementById('pg-changepassword');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="ph">
+      <div>
+        <h2>Change Password</h2>
+        <p>Update your login password. You will stay logged in after the change.</p>
+      </div>
+    </div>
+    <div style="max-width:420px">
+      <div class="card">
+        <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+          <div class="fo">
+            <label class="fl">Current Password *</label>
+            <input id="cp-cur" class="fi" type="password" placeholder="Your current password" autocomplete="current-password">
+          </div>
+          <div class="fo">
+            <label class="fl">New Password *</label>
+            <input id="cp-new" class="fi" type="password" placeholder="Min 8 characters" autocomplete="new-password"
+              oninput="document.getElementById('cp-match-hint').textContent=''">
+          </div>
+          <div class="fo">
+            <label class="fl">Confirm New Password *</label>
+            <input id="cp-conf" class="fi" type="password" placeholder="Repeat new password" autocomplete="new-password"
+              oninput="document.getElementById('cp-match-hint').textContent=this.value&&this.value===document.getElementById('cp-new').value?'Passwords match':''">
+            <div id="cp-match-hint" style="font-size:11px;color:var(--ok);margin-top:4px"></div>
+          </div>
+          <div id="cp-err" style="display:none;color:var(--err);font-size:12px;padding:6px 0"></div>
+          <button class="btn btn-primary" id="cp-btn" onclick="submitChangePassword()" style="align-self:flex-start">
+            Update Password
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function submitChangePassword() {
+  const curPwd  = (document.getElementById('cp-cur')?.value  || '');
+  const newPwd  = (document.getElementById('cp-new')?.value  || '');
+  const confPwd = (document.getElementById('cp-conf')?.value || '');
+  const errEl   = document.getElementById('cp-err');
+  const btn     = document.getElementById('cp-btn');
+
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+  const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.style.display = ''; } };
+
+  if (!curPwd)             { showErr('Current password is required.'); return; }
+  if (newPwd.length < 8)  { showErr('New password must be at least 8 characters.'); return; }
+  if (newPwd !== confPwd) { showErr('New passwords do not match.'); return; }
+  if (newPwd === curPwd)  { showErr('New password must be different from current password.'); return; }
+
+  if (btn) btn.disabled = true;
+
+  try {
+    // Step 1: Verify current password via verify_login RPC
+    const { data: chk, error: chkErr } = await supabase.rpc('verify_login', {
+      p_company_code: S.coCode || '',
+      p_username:     S.username || '',
+      p_password:     curPwd
+    });
+
+    if (chkErr || !chk?.success) {
+      showErr('Current password is incorrect.');
+      if (btn) btn.disabled = false;
+      return;
+    }
+
+    // Step 2: Update password via update_app_user RPC
+    const { data: res, error: updErr } = await supabase.rpc('update_app_user', {
+      p_user_id:    S.userId,
+      p_company_id: S.cid,
+      p_password:   newPwd
+    });
+
+    if (updErr) throw updErr;
+    if (!res?.success) throw new Error(res?.message || 'Password update failed.');
+
+    ['cp-cur','cp-new','cp-conf'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const hint = document.getElementById('cp-match-hint');
+    if (hint) hint.textContent = '';
+
+    notify.success('Password updated successfully.');
+
+  } catch(e) {
+    showErr(e.message || 'An error occurred. Please try again.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+

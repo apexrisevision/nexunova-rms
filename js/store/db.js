@@ -17,14 +17,15 @@ async function loadAppUsersCache(companyId) {
     const { data, error } = await supabase.rpc('list_app_users', { p_company_id: companyId });
     if (error) { console.error('[loadAppUsersCache]', error); return false; }
     window._appUsersCache = (data || []).map(u => ({
-      id:       u.id,
-      fullName: u.full_name || '',
-      name:     u.full_name || '',
-      username: u.username  || '',
-      email:    u.email     || '',
-      phone:    u.phone     || '',
-      role:     u.role      || 'staff',
-      status:   u.status    || 'active'
+      id:          u.id,
+      fullName:    u.full_name || '',
+      name:        u.full_name || '',
+      username:    u.username  || '',
+      email:       u.email     || '',
+      phone:       u.phone     || '',
+      role:        u.role      || 'staff',
+      status:      u.status    || 'active',
+      permissions: u.module_permissions || {}
     }));
     console.log(`✅ App users cache loaded: ${window._appUsersCache.length} users`);
     return true;
@@ -544,7 +545,6 @@ async function loadProjectsCache(companyId) {
 async function saveProject(data) {
   try {
     const { id, ...prjData } = data;
-    console.log('[saveProject] payload:', JSON.stringify(prjData, null, 2));
     if (id) {
       const { data: r, error } = await supabase.from('projects').update(prjData).eq('id', id).select();
       if (error) { console.error('[saveProject] UPDATE failed — code:', error.code, '| message:', error.message, '| hint:', error.hint, '| details:', error.details); return { _error: error }; }

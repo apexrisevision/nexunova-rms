@@ -145,7 +145,8 @@ async function rProjects() {
   const atLimit = gprojects().length >= window._nxnMaxProjects;
   const total   = gprojects().length;
   const maxP    = window._nxnMaxProjects;
-  const planLbl = maxP <= 1 ? 'Starter plan' : maxP <= 5 ? 'Pro plan' : 'Enterprise plan';
+  const _pc = (S.planCode || '').toLowerCase();
+  const planLbl = _pc.includes('ultimate') ? 'Ultimate' : _pc.includes('pro') ? 'Pro' : _pc.includes('basic') ? 'Basic' : _pc === 'free_trial' ? 'Free Trial' : 'Basic';
 
   document.getElementById('_prjDrawerOverlay')?.remove();
   document.getElementById('_prjDrawer')?.remove();
@@ -1060,6 +1061,21 @@ async function saveProjectForm() {
   if (hasErr) return;
 
   const existingId = document.getElementById('pf-prj-id')?.value?.trim() || '';
+
+  // Plan limit check — only for new projects, not edits
+  if (!existingId) {
+    try {
+      const { data: sub } = await supabase.from('subscriptions')
+        .select('subscription_plans(max_projects)')
+        .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const maxProjects    = sub?.subscription_plans?.max_projects ?? 0;
+      const currentProjects = gprojects().length;
+      if (maxProjects > 0 && currentProjects >= maxProjects) {
+        toast(`Project limit reached — your plan allows ${maxProjects} project${maxProjects > 1 ? 's' : ''}. Upgrade to add more.`, 'err');
+        return;
+      }
+    } catch(e) { /* non-blocking */ }
+  }
 
   const btn = document.getElementById('prj-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }

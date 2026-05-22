@@ -38,7 +38,7 @@ async function rUsers() {
         <h2>User Management</h2>
         <p>Manage staff accounts and permissions for your company.</p>
       </div>
-      <button class="btn btn-primary" onclick="openAddUserModal()">+ Add User</button>
+      <button class="btn btn-primary" id="um-add-btn" onclick="openAddUserModal()">+ Add User</button>
     </div>
     <div id="users-list-wrap">
       <div class="card"><div class="cb" style="text-align:center;padding:32px;color:var(--t3)">Loading users…</div></div>
@@ -47,6 +47,27 @@ async function rUsers() {
   `;
 
   await _loadUsers();
+  await _checkUserLimitUI();
+}
+
+async function _checkUserLimitUI() {
+  const btn = document.getElementById('um-add-btn');
+  if (!btn) return;
+  try {
+    const [subRes, usersRes] = await Promise.all([
+      supabase.from('subscriptions').select('subscription_plans(max_users)')
+        .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('app_users').select('id', { count: 'exact', head: true }).eq('company_id', S.cid).eq('status', 'active')
+    ]);
+    if (subRes?.error || usersRes?.error) return;
+    const maxUsers    = subRes.data?.subscription_plans?.max_users ?? 0;
+    const currentUsers = usersRes.count || 0;
+    if (maxUsers > 0 && currentUsers >= maxUsers) {
+      btn.disabled = true;
+      btn.title = `User limit reached (${currentUsers}/${maxUsers}). Upgrade your plan to add more.`;
+      btn.textContent = `+ Add User (${currentUsers}/${maxUsers})`;
+    }
+  } catch(e) { /* UI hint only — not blocking */ }
 }
 
 async function _loadUsers() {
@@ -248,15 +269,30 @@ async function saveUserModal() {
   errEl.style.display = 'none';
 
   if (!name) { errEl.textContent = 'Full name is required.'; errEl.style.display = ''; return; }
-  if (!isEdit && (!pass || pass.length < 8)) {
-    errEl.textContent = 'Password must be at least 8 characters.';
-    errEl.style.display = '';
-    return;
+  if (!isEdit) {
+    if (!pass) {
+      errEl.textContent = 'Password is required.';
+      errEl.style.display = '';
+      return;
+    }
+    if (typeof validatePasswordStrength === 'function') {
+      const chk = validatePasswordStrength(pass);
+      if (!chk.valid) { errEl.textContent = chk.message; errEl.style.display = ''; return; }
+    } else if (pass.length < 8) {
+      errEl.textContent = 'Password must be at least 8 characters.';
+      errEl.style.display = '';
+      return;
+    }
   }
-  if (isEdit && pass !== null && pass.length > 0 && pass.length < 8) {
-    errEl.textContent = 'New password must be at least 8 characters.';
-    errEl.style.display = '';
-    return;
+  if (isEdit && pass !== null && pass.length > 0) {
+    if (typeof validatePasswordStrength === 'function') {
+      const chk = validatePasswordStrength(pass);
+      if (!chk.valid) { errEl.textContent = chk.message; errEl.style.display = ''; return; }
+    } else if (pass.length < 8) {
+      errEl.textContent = 'New password must be at least 8 characters.';
+      errEl.style.display = '';
+      return;
+    }
   }
 
   // Collect module permissions
@@ -268,20 +304,30 @@ async function saveUserModal() {
 
   // Plan limit check — only when creating a new user, not editing
   if (!isEdit) {
+    let subRes, usersRes;
     try {
-      const [subRes, usersRes] = await Promise.all([
+      [subRes, usersRes] = await Promise.all([
         supabase.from('subscriptions').select('subscription_plans(max_users)')
           .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('app_users').select('id', { count: 'exact', head: true }).eq('company_id', S.cid)
+        supabase.from('app_users').select('id', { count: 'exact', head: true }).eq('company_id', S.cid).eq('status', 'active')
       ]);
-      const maxUsers    = subRes.data?.subscription_plans?.max_users ?? 0;
-      const currentUsers = usersRes.count || 0;
-      if (maxUsers > 0 && currentUsers >= maxUsers) {
-        errEl.textContent = `User limit reached — your plan allows ${maxUsers} users. Upgrade your plan to add more team members.`;
-        errEl.style.display = '';
-        return;
-      }
-    } catch(e) { /* non-blocking */ }
+    } catch(e) {
+      errEl.textContent = 'Could not verify plan limits. Please check your connection and try again.';
+      errEl.style.display = '';
+      return;
+    }
+    if (subRes?.error || usersRes?.error) {
+      errEl.textContent = 'Could not verify plan limits. Please check your connection and try again.';
+      errEl.style.display = '';
+      return;
+    }
+    const maxUsers    = subRes.data?.subscription_plans?.max_users ?? 0;
+    const currentUsers = usersRes.count || 0;
+    if (maxUsers > 0 && currentUsers >= maxUsers) {
+      errEl.textContent = `User limit reached — your plan allows ${maxUsers} users. Upgrade your plan to add more team members.`;
+      errEl.style.display = '';
+      return;
+    }
   }
 
   btn.disabled = true;

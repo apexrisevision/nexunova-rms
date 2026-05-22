@@ -578,6 +578,7 @@ select.inp option{background:#1a1f2e;color:#fff;}
 
 </div>
 
+<script src="js/helpers.js?v=20260522d"></script>
 <script>
 const { createClient } = window.supabase;
 const sb = createClient(
@@ -660,8 +661,10 @@ function validate(s){
     const phone = document.getElementById('f-phone').value.trim();
     if(!name)  { showErr('Please enter your full name.'); document.getElementById('f-name').focus(); return false; }
     if(!email) { showErr('Please enter your email address.'); document.getElementById('f-email').focus(); return false; }
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('Please enter a valid email address.'); document.getElementById('f-email').focus(); return false; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length < 6){ showErr('Please enter a valid email address (e.g. ahmed@gmail.com).'); document.getElementById('f-email').focus(); return false; }
     if(!phone) { showErr('Please enter your phone number.'); document.getElementById('f-phone').focus(); return false; }
+    const phoneDigits = phone.replace(/\D/g,'');
+    if(phoneDigits.length < 7 || phoneDigits.length > 15){ showErr('Please enter a valid phone number (7–15 digits, e.g. +92 300 1234567).'); document.getElementById('f-phone').focus(); return false; }
   }
   if(s===2){
     const co = document.getElementById('f-company').value.trim();
@@ -670,7 +673,12 @@ function validate(s){
   if(s===4){
     const pwd  = document.getElementById('f-pwd').value;
     const cpwd = document.getElementById('f-cpwd').value;
-    if(pwd.length<8){ showErr('Password must be at least 8 characters.'); document.getElementById('f-pwd').focus(); return false; }
+    if(typeof validatePasswordStrength === 'function'){
+      const chk = validatePasswordStrength(pwd);
+      if(!chk.valid){ showErr(chk.message); document.getElementById('f-pwd').focus(); return false; }
+    } else {
+      if(pwd.length<8){ showErr('Password must be at least 8 characters.'); document.getElementById('f-pwd').focus(); return false; }
+    }
     if(pwd!==cpwd)  { showErr('Passwords do not match.'); document.getElementById('f-cpwd').focus(); return false; }
   }
   hideErr();
@@ -769,19 +777,24 @@ async function submitSignup(){
       return;
     }
 
+    // Send email confirmation link
+    const confirmRedirectTo = window.location.origin + '/login.html?flow=confirm';
+    await sb.auth.resend({
+      type: 'signup',
+      email: document.getElementById('f-email').value.trim().toLowerCase(),
+      options: { emailRedirectTo: confirmRedirectTo }
+    }).catch(() => {});
+
     // Show success screen
     document.getElementById('res-code').textContent = (data.company_code || '').toUpperCase();
     document.getElementById('res-user').textContent = data.username || '';
     document.getElementById('res-plan').textContent = plan.name + (selectedGroup==='free_trial' ? ' — 7 Days' : '');
 
     const noteEl = document.getElementById('res-note');
-    if(data.status === 'trialing'){
-      noteEl.textContent = 'Your 7-day free trial is now active. No payment required during the trial. Upgrade anytime from Settings.';
-    } else if(data.status === 'pending_payment'){
-      noteEl.textContent = 'Your account is ready. Invoice ' + (data.invoice_number||'') + ' has been generated. Complete payment to activate your subscription.';
-    } else {
-      noteEl.textContent = 'Your account is active and ready to use.';
-    }
+    noteEl.innerHTML = '&#128231; A confirmation link has been sent to <strong>' +
+      document.getElementById('f-email').value.trim() +
+      '</strong>. Please click it to verify your email before signing in.' +
+      (data.status === 'pending_payment' ? '<br><br>Invoice ' + (data.invoice_number||'') + ' has been generated — complete payment after verification.' : '');
 
     document.getElementById('step-4').classList.remove('active');
     document.getElementById('success-wrap').style.display = 'flex';

@@ -82,6 +82,15 @@ const SV = {
       this.setHint('cname', 'Company name is required (min 2 chars)', 'err');
       this.setValid('sg-cname', false);
       ok = false;
+    } else if (this.companyAvailable === false) {
+      this.setHint('cname', 'Already taken — choose a different company name', 'err');
+      this.setValid('sg-cname', false);
+      ok = false;
+    } else if (this.companyAvailable === null && cname.length >= 2) {
+      // Check in flight — trigger it and block
+      this.triggerCompanyCheck(cname);
+      this.setHint('cname', 'Checking availability…', 'warn');
+      ok = false;
     } else {
       this.setHint('cname', '', '');
       this.setValid('sg-cname', true);
@@ -172,6 +181,61 @@ const SV = {
     const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
     label.textContent = pass ? (labels[score] || '') : '';
     label.className = 'sg-strength-label' + (score > 0 ? ' s' + score : '');
+  },
+
+  // ── Live company name / slug availability check ───────────────────
+  _companyTimer: null,
+  companyAvailable: null,
+
+  triggerCompanyCheck(rawName) {
+    clearTimeout(this._companyTimer);
+    this.companyAvailable = null;
+    const slug = rawName ? rawName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) : '';
+    if (!slug || slug.length < 2) return;
+    this.setHint('cname', 'Checking…', 'warn');
+    this._companyTimer = setTimeout(async () => {
+      try {
+        // Try dedicated RPC first; fall back to direct table query if it doesn't exist
+        let taken = null;
+        try {
+          const { data, error } = await supabase.rpc('check_company_available', { p_company_code: slug });
+          if (!error && data !== null) {
+            taken = data?.available === false || data === false;
+          }
+        } catch(_) { /* RPC may not exist yet — fall through */ }
+
+        if (taken === null) {
+          // Fallback: query companies table directly
+          const { data: rows, error: qErr } = await supabase
+            .from('companies')
+            .select('id', { count: 'exact', head: true })
+            .eq('code', slug);
+          if (!qErr) taken = (rows === null ? false : false); // head:true returns null data on 0 rows
+          // count-based check
+          if (!qErr && typeof rows === 'number') taken = rows > 0;
+        }
+
+        if (taken === null) {
+          // Could not determine — clear hint and allow progression
+          this.companyAvailable = null;
+          this.setHint('cname', '', '');
+          return;
+        }
+
+        this.companyAvailable = !taken;
+        if (!taken) {
+          this.setHint('cname', 'Company name available', 'ok');
+          this.setValid('sg-cname', true);
+        } else {
+          this.setHint('cname', 'Already taken — choose a different company name', 'err');
+          this.setValid('sg-cname', false);
+        }
+      } catch(e) {
+        // Network error — clear check, allow progression (fail-open)
+        this.companyAvailable = null;
+        this.setHint('cname', '', '');
+      }
+    }, 600);
   },
 
   // ── Live email check ──────────────────────────────────────────────

@@ -1231,6 +1231,24 @@ async function saveClientForm() {
   if (hasErr) return;
 
   const existingId = (document.getElementById('cf-client-id')?.value || '').trim();
+
+  // Plan limit check — only for new clients, not edits
+  if (!existingId) {
+    try {
+      const [subRes, clientRes] = await Promise.all([
+        supabase.from('subscriptions').select('subscription_plans(max_clients)')
+          .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('company_id', S.cid)
+      ]);
+      const maxClients    = subRes.data?.subscription_plans?.max_clients ?? 0;
+      const currentClients = clientRes.count || 0;
+      if (maxClients > 0 && currentClients >= maxClients) {
+        toast(`Client limit reached — your plan allows ${maxClients} clients. Upgrade to add more.`, 'err');
+        return;
+      }
+    } catch(e) { /* non-blocking */ }
+  }
+
   const btn = document.getElementById('cf-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 

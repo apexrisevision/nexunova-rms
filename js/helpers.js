@@ -118,12 +118,59 @@ function parseAmt(v) {
 function hasPermission(perm){
   if(!S)return false;
   if(S.role==='admin'||S.role==='owner')return true;
-  const role=S.role==='user'?'recovery':S.role;
-  const perms={
-    recovery:['dashboard','units.view','clients.view','clients.add','payments.view','payments.add','contacts.view','contacts.add'],
-    accounts:['dashboard','payments.view','reports','clients.view','agents.view','financial']
+
+  // Per-user module_permissions take priority when explicitly set.
+  // The permission key in the DB uses the module key (e.g. 'projects', 'recovery', 'reports').
+  // Map nav page IDs to module keys where they differ.
+  const _pageToModule = {
+    units:'units', unitdetail:'units', addunit:'units',
+    clients:'clients', clientdetail:'clients',
+    recovery:'recovery', addpayment:'recovery', receipts:'recovery', pdc:'recovery',
+    contacts:'contacts',
+    reports:'reports',
+    documents:'documents',
+    agents:'agents',
+    search:'search',
+    projects:'projects', projectdetail:'projects',
+    sales:'projects', salesdetail:'projects',
+    cancelledunits:'units', transferunits:'units',
+    ledgers:'reports', 'ledger-client':'reports', 'ledger-unit':'reports',
+    'ledger-agent':'reports', 'ledger-project':'reports',
+    commissions:'agents',
+    reminders:'contacts',
+    paylinks:'recovery', 'paylink-detail':'recovery',
+    healthcenter:'clients',
+    radar:'recovery',
+    promises:'contacts',
+    officerledger:'reports', receivingledger:'reports',
+    audit:'reports',
   };
-  return(perms[role]||[]).includes(perm);
+  const moduleKey = _pageToModule[perm] || perm;
+
+  const userPerms = (S && S.permissions) ? S.permissions : null;
+  const hasExplicit = userPerms && Object.keys(userPerms).length > 0;
+
+  // dashboard is always accessible to any authenticated user
+  if(perm === 'dashboard') return true;
+
+  const role = S.role === 'user' ? 'recovery' : S.role;
+
+  if(role === 'manager' || role === 'staff'){
+    // Fully permissions-driven — no hardcoded fallback
+    return hasExplicit ? !!(userPerms[moduleKey]) : false;
+  }
+
+  // For recovery / accounts: explicit per-user permissions win when set,
+  // otherwise fall back to hardcoded role defaults (backward compatibility).
+  if(hasExplicit && moduleKey in userPerms){
+    return !!(userPerms[moduleKey]);
+  }
+
+  const defaults = {
+    recovery:['dashboard','units','clients','recovery','contacts'],
+    accounts:['dashboard','recovery','reports','clients','agents']
+  };
+  return(defaults[role]||[]).includes(moduleKey);
 }
 
 function effectiveRole(){return(!S)?'':S.role==='user'?'recovery':S.role;}
@@ -136,4 +183,27 @@ function getCoLogo(){
   const db=gdb();
   const co=(db.companies||[]).find(c=>c.id===S?.cid);
   return co?.logo||null;
+}
+
+// ── Password Strength Validator (Fix 7) ──────────────────────────────
+const _PWD_BLOCKLIST = [
+  'password','12345678','qwerty123','pakistan1','admin123',
+  'nexunova1','00000000','11111111','password1','abc12345',
+  'letmein1','welcome1','iloveyou','monkey123','dragon123'
+];
+
+function validatePasswordStrength(pwd) {
+  if (!pwd || pwd.length < 8)
+    return { valid: false, message: 'Password must be at least 8 characters.' };
+  if (!/[A-Z]/.test(pwd))
+    return { valid: false, message: 'Password must contain at least one uppercase letter.' };
+  if (!/[a-z]/.test(pwd))
+    return { valid: false, message: 'Password must contain at least one lowercase letter.' };
+  if (!/[0-9]/.test(pwd))
+    return { valid: false, message: 'Password must contain at least one number.' };
+  if (!/[^A-Za-z0-9]/.test(pwd))
+    return { valid: false, message: 'Password must contain at least one special character (e.g. @, #, $, !).' };
+  if (_PWD_BLOCKLIST.includes(pwd.toLowerCase()))
+    return { valid: false, message: 'This password is too common. Please choose a stronger one.' };
+  return { valid: true, message: '' };
 }

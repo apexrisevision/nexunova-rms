@@ -2,7 +2,7 @@
 // Auto-login using the actual doLogin() flow.
 // - If ?demo / autoDemo flag set (Try Demo button on landing): demo@DEMO / Demo1234
 // - Otherwise: KBH / admin123 (developer auto-login)
-const DEV_AUTO_LOGIN = true;
+const DEV_AUTO_LOGIN = false;
 
 window.addEventListener('load', function () {
   // Detect "Try Demo" handoff from landing page (sessionStorage.autoDemo)

@@ -398,6 +398,30 @@ function buildSB(){
         { id:'documents', ic:'printer',     lb:'Documents' },
       ]},
     ];
+  } else {
+    // manager, staff, or any other role — permission-driven sidebar
+    // Only include modules the user has explicit access to via module_permissions
+    const _allModuleItems = [
+      { key:'projects',  id:'projects',   ic:'building-2',  lb:'Projects' },
+      { key:'units',     id:'units',      ic:'home',        lb:'All Units' },
+      { key:'clients',   id:'clients',    ic:'user-check',  lb:'Clients' },
+      { key:'recovery',  id:'recovery',   ic:'banknote',    lb:'Payments' },
+      { key:'recovery',  id:'addpayment', ic:'credit-card', lb:'Add Payment' },
+      { key:'contacts',  id:'contacts',   ic:'phone',       lb:'Call Logs' },
+      { key:'reports',   id:'reports',    ic:'bar-chart-3', lb:'Reports' },
+      { key:'documents', id:'documents',  ic:'printer',     lb:'Documents' },
+      { key:'agents',    id:'agents',     ic:'users',       lb:'Sales Agents' },
+      { key:'search',    id:'search',     ic:'search',      lb:'Quick Search' },
+    ];
+    const allowedItems = _allModuleItems.filter(m =>
+      typeof hasPermission === 'function' ? hasPermission(m.id) : false
+    );
+    navGroups = [
+      { label: null, items: [{ id:'dashboard', ic:'layout-grid', lb:'Dashboard' }] },
+    ];
+    if(allowedItems.length){
+      navGroups.push({ label:'My Modules', items: allowedItems });
+    }
   }
 
   // ── Build HTML ──
@@ -492,11 +516,24 @@ function nav(pg,x){
   // ── Permission guard ──
   if(S&&S.role!=='admin'&&S.role!=='owner'){
     const r=effectiveRole();
-    const allow={
-      recovery:['dashboard','units','unitdetail','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','paylinks','paylink-detail'],
-      accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
-    };
-    if(!(allow[r]||[]).includes(pg))pg='dashboard';
+    // Always-allowed pages for any authenticated non-admin user
+    const _alwaysAllow=['dashboard','changepassword'];
+    if(!_alwaysAllow.includes(pg)){
+      // Role-based baseline allow-list (backward-compatible for existing users)
+      const allow={
+        recovery:['dashboard','units','unitdetail','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','paylinks','paylink-detail'],
+        accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
+      };
+      // For manager/staff: rely entirely on hasPermission()
+      // For recovery/accounts: must be in baseline list AND pass hasPermission()
+      const inBaseline=(allow[r]||[]).includes(pg);
+      const permitted=typeof hasPermission==='function'?hasPermission(pg):false;
+      if(r==='manager'||r==='staff'){
+        if(!permitted)pg='dashboard';
+      }else{
+        if(!inBaseline||!permitted)pg='dashboard';
+      }
+    }
   }
   const curActive=document.querySelector('.pg.on')?.id?.replace('pg-','');
   if(curActive&&curActive!==pg){
@@ -535,7 +572,7 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods};
+  const fns={dashboard:rDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword};
   const fn = fns[pg];
   if(fn) {
     const result = fn(x);

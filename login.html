@@ -413,7 +413,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div class="lx-field">
         <label class="lx-label">Username</label>
         <input id="li-u" class="lx-input" placeholder="username@COMPANYCODE" autocomplete="off">
-        <div class="lx-hint">Format: username@YOURCOMPANYCODE</div>
+        <div class="lx-hint">Staff &amp; Users: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">ali@samsung</code> &nbsp;·&nbsp; Admin/Owner: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">samsung</code></div>
       </div>
       <div class="lx-field">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
@@ -516,6 +516,54 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
         <a onclick="hideForgotPassword()" class="fp-link">← Back to Sign In</a>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     EMAIL CONFIRMATION SCREEN
+════════════════════════════════════════════ -->
+<div id="s-email-confirm" class="scr">
+  <div class="lx-grid-lines"></div>
+  <div class="lx-orb lx-orb-1"></div>
+  <div class="lx-orb lx-orb-2"></div>
+  <div class="fp-center">
+    <div class="fp-card">
+      <div class="fp-logo">
+        <img src="Logo/Nexunova logos/NexuNova_Icon_256px.png" alt="Nexunova" style="height:64px;width:auto;filter:drop-shadow(0 0 12px rgba(0,217,255,.5))">
+        <div>
+          <div class="lx-form-logo-text">Nexunova RMS</div>
+          <div class="lx-form-logo-sub">Email Verification</div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div id="ec-loading" style="text-align:center;padding:32px 0">
+        <div class="fp-spinner"></div>
+        <p style="margin-top:14px;font-size:13px;color:rgba(255,255,255,.4)">Verifying your email…</p>
+      </div>
+
+      <!-- Success -->
+      <div id="ec-success" style="display:none;text-align:center;padding:12px 0">
+        <div class="fp-icon-ring">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,.9)" stroke-width="1.8"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="lx-form-title" style="margin-bottom:10px">Email Verified!</div>
+        <p style="font-size:13px;color:rgba(255,255,255,.45);line-height:1.65">Your email has been confirmed. Redirecting to sign in…</p>
+      </div>
+
+      <!-- Error -->
+      <div id="ec-error" style="display:none;text-align:center;padding:12px 0">
+        <div class="fp-icon-ring" style="border-color:rgba(239,68,68,.3)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(239,68,68,.9)" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="lx-form-title" style="margin-bottom:10px;color:#fca5a5">Verification Failed</div>
+        <p id="ec-msg" style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.65;margin-bottom:20px"></p>
+      </div>
+
+      <div class="fp-back-row">
+        <a onclick="hideForgotPassword()" class="fp-link">← Back to Sign In</a>
+      </div>
     </div>
   </div>
 </div>
@@ -734,7 +782,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
             <label class="sg-label" for="sg-cname">Company / Project Name *</label>
             <input id="sg-cname" class="sg-input" type="text" placeholder="e.g. Al-Noor Builders"
               autocomplete="organization"
-              oninput="SV.setHint('cname','','');SV.setValid('sg-cname',null)">
+              oninput="SV.companyAvailable=null;SV.setHint('cname','','');SV.setValid('sg-cname',null);SV.triggerCompanyCheck(this.value.trim())"
+              onblur="SV.triggerCompanyCheck(this.value.trim())">
             <div class="sg-hint" id="sh-cname"></div>
           </div>
           <div class="sg-field">
@@ -1150,7 +1199,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
     <!-- User Popover -->
     <div class="sb-user-pop" id="sb-user-pop">
-      <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Profile</button>
+      <button class="sb-pop-item" onclick="_sbCloseUserMenu();nav('changepassword')">Change Password</button>
       <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Notifications</button>
       <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Help &amp; docs</button>
       <div class="sb-pop-div"></div>
@@ -1284,6 +1333,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div id="pg-paylinks"         class="pg"></div>
       <div id="pg-paylink-detail"   class="pg"></div>
       <div id="pg-payment-methods"  class="pg"></div>
+      <div id="pg-changepassword"    class="pg"></div>
     </div>
 
   </div>
@@ -4069,14 +4119,17 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 1. Supabase client -->
 <script src="js/supabase.js"></script>
 
-<!-- 1.1. Forgot / Reset password -->
-<script src="js/forgot-password.js"></script>
+<!-- 1.1. OTP overlay (used by forgot-password + admin login) -->
+<script src="js/otp.js?v=20260522a"></script>
+
+<!-- 1.2. Forgot / Reset password -->
+<script src="js/forgot-password.js?v=20260522c"></script>
 
 <!-- 1.2. Notify notification system -->
 <script src="js/notify.js"></script>
 
 <!-- 1.5. Database store functions -->
-<script src="js/store/db.js?v=20260512a"></script>
+<script src="js/store/db.js?v=20260522a"></script>
 
 <!-- 2. Data layer: SEED_UNITS, globals, DB read/write -->
 <script src="js/data.js"></script>
@@ -4085,7 +4138,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/utils.js?v=20260517b"></script>
 
 <!-- 3. Data helpers: queries over DB -->
-<script src="js/helpers.js?v=20260517b"></script>
+<script src="js/helpers.js?v=20260522d"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
 <script src="js/ui.js?v=20260516i"></script>
@@ -4093,7 +4146,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/footer-aurora.js?v=20260517a"></script>
 
 <!-- 5. Auth: login/logout -->
-<script src="js/auth.js?v=20260517a"></script>
+<script src="js/auth.js?v=20260522d"></script>
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js"></script>
@@ -4103,8 +4156,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 6. Page renderers -->
 <script src="js/pages/dashboard.js?v=20260516e"></script>
 <script src="js/pages/units.js?v=20260517b"></script>
-<script src="js/pages/clients.js?v=20260517d"></script>
-<script src="js/pages/projects.js?v=20260517a"></script>
+<script src="js/pages/clients.js?v=20260522a"></script>
+<script src="js/pages/projects.js?v=20260522a"></script>
 <script src="js/pages/agents.js?v=20260517c"></script>
 <script src="js/pages/sales.js?v=20260517c"></script>
 <script src="js/pages/recovery.js?v=20260517a"></script>
@@ -4137,8 +4190,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/backup.js?v=20260517b"></script>
 <script src="js/pages/admin.js?v=20260517c"></script>
 <script src="js/pages/categories.js?v=20260517a"></script>
-<script src="js/pages/users.js?v=20260517a"></script>
-<script src="js/pages/payment-wall.js?v=20260517j"></script>
+<script src="js/pages/users.js?v=20260522a"></script>
+<script src="js/pages/payment-wall.js?v=20260522a"></script>
 <script src="js/pages/super-admin.js?v=20260517a"></script>
 <script src="js/whatsapp-helper.js"></script>
 <script src="js/pages/payment-links.js?v=20260517a"></script>
@@ -4178,7 +4231,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/logo.js"></script>
 <script src="js/theme.js?v=20260516a"></script>
 <script src="js/dashboard-animations.js?v=20260512"></script>
-<script src="js/dev-helper.js"></script>
+<script src="js/dev-helper.js?v=20260522a"></script>
 
 <script>
 // ── Site-footer: show on login/signup, hide everywhere else ──
