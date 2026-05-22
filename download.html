@@ -948,5 +948,156 @@ section{padding:90px 0}
   });
 })();
 </script>
+
+<style id="nx-price-panel-css">
+#priceBackdrop{position:fixed;inset:0;z-index:8998;background:rgba(2,5,14,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .38s ease}
+#priceBackdrop.is-open{opacity:1;pointer-events:all}
+#priceTab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:9001;width:34px;padding:28px 0;border:0;border-radius:12px 0 0 12px;background:rgba(7,10,22,.9);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:'Inter',sans-serif;transition:width .28s cubic-bezier(.4,0,.2,1),background .22s ease,box-shadow .22s ease,transform .42s cubic-bezier(.32,.72,0,1),opacity .3s ease;box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}
+#priceTab::before{content:'';position:absolute;top:0;bottom:0;left:0;width:2px;border-radius:12px 0 0 12px;background:linear-gradient(180deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}
+#priceTab:hover{width:38px;background:rgba(10,14,30,.97);box-shadow:-6px 0 48px rgba(0,212,255,.3),-3px 0 18px rgba(123,47,247,.2),inset 1px 0 0 rgba(255,255,255,.1)}
+#nx-price-bar.is-open #priceTab{transform:translateY(-50%) translateX(100%);opacity:0;pointer-events:none;animation:none}
+.pt-icon{color:rgba(0,212,255,.65);display:flex;flex-shrink:0;transition:color .2s ease,transform .22s ease}
+.pt-icon svg{width:13px;height:13px}
+#priceTab:hover .pt-icon{color:#00D4FF;transform:scale(1.12)}
+.pt-label{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:.56rem;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:rgba(255,255,255,.55);transition:color .2s ease;white-space:nowrap;user-select:none}
+#priceTab:hover .pt-label{color:rgba(255,255,255,.88)}
+.pt-dot{width:5px;height:5px;border-radius:50%;background:#34d399;box-shadow:0 0 6px rgba(52,211,153,.85);flex-shrink:0;animation:ptPulse 2.2s ease-in-out infinite}
+@keyframes ptPulse{0%,100%{opacity:1;box-shadow:0 0 6px rgba(52,211,153,.85)}50%{opacity:.55;box-shadow:0 0 12px rgba(52,211,153,.4)}}
+#priceTab:hover .pt-dot{animation-duration:.75s;box-shadow:0 0 10px rgba(52,211,153,1),0 0 20px rgba(52,211,153,.5)}
+.pt-shimmer{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:10}
+.pt-shimmer::after{content:'';position:absolute;left:0;right:0;height:60%;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.14) 40%,rgba(255,255,255,.28) 50%,rgba(255,255,255,.14) 60%,transparent 100%);top:-60%}
+#priceTab:hover .pt-shimmer::after{animation:ptShimmer .65s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes ptShimmer{from{top:-60%}to{top:160%}}
+.pt-peek{position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%) translateX(10px);background:rgba(6,9,20,.96);backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);border:1px solid rgba(0,212,255,.18);border-radius:10px;padding:9px 14px 9px 12px;white-space:nowrap;font-size:.74rem;font-weight:600;color:rgba(220,235,255,.8);letter-spacing:.1px;opacity:0;pointer-events:none;transition:opacity .28s ease,transform .32s cubic-bezier(.32,.72,0,1);box-shadow:0 8px 28px rgba(0,0,0,.48),0 0 0 1px rgba(255,255,255,.03),0 0 20px rgba(0,212,255,.08)}
+.pt-peek::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%) rotate(45deg);width:9px;height:9px;background:rgba(6,9,20,.96);border-right:1px solid rgba(0,212,255,.18);border-top:1px solid rgba(0,212,255,.18)}
+#priceTab:hover .pt-peek{opacity:1;transform:translateY(-50%) translateX(0)}
+#priceTab:hover::before{box-shadow:0 0 18px rgba(0,212,255,.85),0 0 36px rgba(123,47,247,.55),0 0 60px rgba(0,212,255,.2);animation:ptBorderPulse 1s ease-in-out infinite}
+@keyframes ptBorderPulse{0%,100%{opacity:1}50%{opacity:.7}}
+#nx-price-bar:not(.is-open) #priceTab{animation:tabBreathe 2.8s ease-in-out infinite}
+@keyframes tabBreathe{0%,100%{box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}50%{box-shadow:-12px 0 64px rgba(0,212,255,.52),-6px 0 30px rgba(123,47,247,.38),inset 1px 0 0 rgba(255,255,255,.14),0 0 50px rgba(0,212,255,.12)}}
+#nx-price-bar:not(.is-open) #priceTab::before{animation:tabBorderBreath 2.8s ease-in-out infinite}
+@keyframes tabBorderBreath{0%,100%{box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}50%{box-shadow:0 0 26px rgba(0,212,255,1),0 0 55px rgba(123,47,247,.72),0 0 100px rgba(0,212,255,.22)}}
+#nx-price-bar:not(.is-open) #priceTab:hover,#nx-price-bar:not(.is-open) #priceTab:hover::before{animation:none}
+#priceDrawer{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100vw;z-index:9002;background:rgba(6,9,20,.98);backdrop-filter:blur(40px) saturate(1.9) brightness(1.04);-webkit-backdrop-filter:blur(40px) saturate(1.9) brightness(1.04);border-left:1px solid rgba(0,212,255,.12);box-shadow:-28px 0 90px rgba(0,0,0,.6),-4px 0 20px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .48s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;overflow:hidden;font-family:'Inter',sans-serif}
+#priceDrawer.is-open{transform:translateX(0)}
+#priceDrawer::before{content:'';display:block;height:2px;background:linear-gradient(90deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);flex-shrink:0;box-shadow:0 0 20px rgba(0,212,255,.55)}
+.pd-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;flex-shrink:0}
+.pd-title-wrap{display:flex;flex-direction:column;gap:4px}
+.pd-title{font-family:'Plus Jakarta Sans','Inter',sans-serif;font-size:1rem;font-weight:800;background:linear-gradient(135deg,#fff 10%,#00D4FF 55%,#a855f7 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
+.pd-sub{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.4px;color:rgba(0,212,255,.5)}
+.pd-close{width:32px;height:32px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.02);color:rgba(255,255,255,.4);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,border-color .18s ease,color .18s ease;flex-shrink:0;font-family:inherit}
+.pd-close:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff}
+.pd-divider{height:1px;background:rgba(255,255,255,.05);margin:0 22px;flex-shrink:0}
+.pd-body{flex:1;overflow-y:auto;padding:20px 22px 32px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;scrollbar-color:rgba(0,212,255,.18) transparent}
+.pd-body::-webkit-scrollbar{width:4px}
+.pd-body::-webkit-scrollbar-track{background:transparent}
+.pd-body::-webkit-scrollbar-thumb{background:rgba(0,212,255,.18);border-radius:2px}
+.pd-section{font-family:'JetBrains Mono',monospace;font-size:.57rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:-2px}
+.nx-sb-billing{position:relative;display:flex;align-items:center;height:34px;padding:3px;border-radius:100px;background:transparent;border:1px solid rgba(255,255,255,.08);width:100%}
+.nx-bill-opt{position:relative;z-index:2;appearance:none;background:transparent;border:0;padding:0 16px;height:100%;border-radius:100px;font-family:inherit;font-size:.72rem;font-weight:600;letter-spacing:.2px;color:rgba(240,244,255,.5);cursor:pointer;transition:color .2s ease;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;flex:1}
+.nx-bill-opt.is-active{color:#050709}
+.nx-bill-opt:hover:not(.is-active){color:rgba(240,244,255,.9)}
+.nx-bill-save{font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:.5px;padding:1px 5px;border-radius:100px;background:rgba(16,185,129,.18);color:#34d399;font-weight:700}
+.nx-bill-opt.is-active .nx-bill-save{background:rgba(5,7,9,.15);color:#047857}
+.nx-bill-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:100px;background:linear-gradient(135deg,#00D4FF,#7B2FF7);box-shadow:0 2px 12px rgba(0,212,255,.38);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:1}
+.nx-sb-billing[data-bill="yearly"] .nx-bill-thumb{transform:translateX(100%)}
+.nx-pills{display:flex;flex-direction:column;gap:7px;width:100%}
+.nx-pill{position:relative;width:100%}
+.nx-pill-btn{appearance:none;border:1px solid transparent;background:transparent;border-radius:12px;padding:11px 14px;font-size:.81rem;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;transition:transform .2s cubic-bezier(.4,0,.2,1),background .2s ease,border-color .2s ease,box-shadow .2s ease;text-decoration:none;letter-spacing:.08px}
+.nx-pill-btn:hover{transform:translateX(3px)}
+.nx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.nx-pill-price{display:inline-block;transition:opacity .18s ease,transform .18s ease}
+.nx-pill-price.is-flipping{opacity:0;transform:translateY(-3px)}
+.nx-pill-meta{margin-left:auto;font-size:.67rem;font-weight:500;opacity:.42;white-space:nowrap}
+.nx-pill-free .nx-pill-btn{color:#34d399;border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.06)}
+.nx-pill-free .nx-pill-dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.7)}
+.nx-pill-free .nx-pill-btn:hover{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.55);box-shadow:0 4px 18px rgba(16,185,129,.18)}
+.nx-pill-basic .nx-pill-btn{color:#60a5fa;border-color:rgba(96,165,250,.28);background:rgba(59,130,246,.06)}
+.nx-pill-basic .nx-pill-dot{background:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,.7)}
+.nx-pill-basic .nx-pill-btn:hover{background:rgba(59,130,246,.12);border-color:rgba(96,165,250,.55);box-shadow:0 4px 18px rgba(59,130,246,.18)}
+.nx-pill-pro .nx-pill-btn{color:#00D4FF;border-color:rgba(0,212,255,.32);background:rgba(0,212,255,.06)}
+.nx-pill-pro .nx-pill-dot{background:#00D4FF;box-shadow:0 0 8px rgba(0,212,255,.7)}
+.nx-pill-pro .nx-pill-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.55);box-shadow:0 4px 18px rgba(0,212,255,.18)}
+.nx-pill-ult .nx-pill-btn{color:#c084fc;border-color:rgba(192,132,252,.32);background:rgba(168,85,247,.06)}
+.nx-pill-ult .nx-pill-dot{background:#a855f7;box-shadow:0 0 8px rgba(168,85,247,.7)}
+.nx-pill-ult .nx-pill-btn:hover{background:rgba(168,85,247,.12);border-color:rgba(192,132,252,.55);box-shadow:0 4px 18px rgba(168,85,247,.18)}
+.nx-demos{display:flex;flex-direction:column;gap:7px}
+.nx-demo{display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:600;padding:11px 14px;border-radius:12px;border:1px solid;text-decoration:none;transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.nx-demo svg{width:11px;height:11px;flex-shrink:0}
+.nx-demo-rms{color:#00D4FF;border-color:rgba(0,212,255,.28);background:rgba(0,212,255,.04)}
+.nx-demo-rms:hover{background:rgba(0,212,255,.11);border-color:rgba(0,212,255,.55);box-shadow:0 4px 18px rgba(0,212,255,.16);transform:translateX(3px)}
+.nx-demo-crm{color:#c084fc;border-color:rgba(192,132,252,.28);background:rgba(168,85,247,.04)}
+.nx-demo-crm:hover{background:rgba(168,85,247,.11);border-color:rgba(192,132,252,.55);box-shadow:0 4px 18px rgba(168,85,247,.16);transform:translateX(3px)}
+.pd-cta{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#00D4FF 0%,#7B2FF7 100%);color:#050709;font-weight:800;font-size:.84rem;letter-spacing:.2px;padding:13px 20px;border-radius:12px;text-decoration:none;box-shadow:0 6px 24px rgba(0,212,255,.3),0 2px 8px rgba(123,47,247,.25);transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;font-family:inherit;border:0;cursor:pointer;width:100%;margin-top:4px}
+.pd-cta:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 10px 36px rgba(0,212,255,.4),0 4px 14px rgba(123,47,247,.35)}
+@media(max-width:640px){#priceDrawer{width:100vw;border-left:0}#priceTab{width:28px}}
+</style>
+
+<!-- NEXUNOVA PRICE PANEL -->
+<div id="nx-price-bar">
+  <button type="button" id="priceTab" aria-label="View pricing &amp; demos" aria-expanded="false" aria-controls="priceDrawer">
+    <span class="pt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3Z"/></svg></span>
+    <span class="pt-label" aria-hidden="true">PLANS</span>
+    <span class="pt-dot" aria-hidden="true"></span>
+    <span class="pt-shimmer" aria-hidden="true"></span>
+    <span class="pt-peek" aria-hidden="true">Plans &amp; Demos &rarr;</span>
+  </button>
+  <div id="priceBackdrop" aria-hidden="true"></div>
+  <div id="priceDrawer" role="dialog" aria-modal="true" aria-label="Pricing &amp; demos" aria-hidden="true">
+    <div class="pd-head">
+      <div class="pd-title-wrap">
+        <span class="pd-title">Pricing &amp; Live Demos</span>
+        <span class="pd-sub">7-day free trial &middot; No card required</span>
+      </div>
+      <button type="button" class="pd-close" id="priceClose" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="pd-divider"></div>
+    <div class="pd-body">
+      <span class="pd-section">Billing period</span>
+      <div class="nx-sb-billing" data-bill="monthly" role="group">
+        <button type="button" class="nx-bill-opt is-active" data-bill="monthly" id="nxBillMonthly" aria-pressed="true">Monthly</button>
+        <button type="button" class="nx-bill-opt" data-bill="yearly" id="nxBillYearly" aria-pressed="false">Yearly <span class="nx-bill-save">&#x2212;10%</span></button>
+        <span class="nx-bill-thumb" aria-hidden="true"></span>
+      </div>
+      <span class="pd-section">Choose a plan</span>
+      <div class="nx-pills" id="nxPills" data-billing="monthly" role="group">
+        <div class="nx-pill nx-pill-free"><a href="https://rms.nexunova.com/signup.html?plan=free" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Free Trial</span><span class="nx-pill-meta">7 days &middot; 1 Project</span></a></div>
+        <div class="nx-pill nx-pill-basic"><a href="https://rms.nexunova.com/signup.html?plan=basic" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Basic &middot; PKR <span class="nx-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo</span><span class="nx-pill-meta">500 Units</span></a></div>
+        <div class="nx-pill nx-pill-pro"><a href="https://rms.nexunova.com/signup.html?plan=pro" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Pro &middot; PKR <span class="nx-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo</span><span class="nx-pill-meta">3 Projects</span></a></div>
+        <div class="nx-pill nx-pill-ult"><a href="https://rms.nexunova.com/signup.html?plan=ultimate" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Ultimate &middot; PKR <span class="nx-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo</span><span class="nx-pill-meta">White Label</span></a></div>
+      </div>
+      <span class="pd-section">Live demos</span>
+      <div class="nx-demos">
+        <a href="https://rms.nexunova.com/login.html?demo=true" target="_blank" rel="noopener" class="nx-demo nx-demo-rms"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Demo NexusRMS</span></a>
+        <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="nx-demo nx-demo-crm"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Demo NexusCRM</span></a>
+      </div>
+      <a href="https://rms.nexunova.com/signup.html?plan=free" target="_blank" rel="noopener" class="pd-cta">Start Free Trial &rarr;</a>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var b=document.getElementById('nx-price-bar'),t=document.getElementById('priceTab'),d=document.getElementById('priceDrawer'),c=document.getElementById('priceClose'),k=document.getElementById('priceBackdrop');
+  if(!b||!t||!d)return;
+  function o(){b.classList.add('is-open');d.classList.add('is-open');d.setAttribute('aria-hidden','false');t.setAttribute('aria-expanded','true');if(k)k.classList.add('is-open')}
+  function cl(){b.classList.remove('is-open');d.classList.remove('is-open');d.setAttribute('aria-hidden','true');t.setAttribute('aria-expanded','false');if(k)k.classList.remove('is-open')}
+  var isTouch=window.matchMedia('(hover: none)').matches,tm=null;
+  if(!isTouch){
+    t.addEventListener('mouseenter',function(){clearTimeout(tm);o()});
+    t.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)});
+    d.addEventListener('mouseenter',function(){clearTimeout(tm)});
+    d.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)});
+  }else{t.addEventListener('click',o)}
+  if(c)c.addEventListener('click',cl);
+  if(k)k.addEventListener('click',cl);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&b.classList.contains('is-open'))cl()});
+  var bl=d.querySelector('.nx-sb-billing'),pl=document.getElementById('nxPills'),mb=document.getElementById('nxBillMonthly'),yb=document.getElementById('nxBillYearly');
+  if(bl&&mb&&yb){
+    function sb(m){bl.setAttribute('data-bill',m);mb.classList.toggle('is-active',m==='monthly');mb.setAttribute('aria-pressed',String(m==='monthly'));yb.classList.toggle('is-active',m==='yearly');yb.setAttribute('aria-pressed',String(m==='yearly'));if(pl)pl.setAttribute('data-billing',m);d.querySelectorAll('.nx-pill-price').forEach(function(s){s.classList.add('is-flipping');setTimeout(function(){s.textContent=s.getAttribute('data-'+m)||s.textContent;s.classList.remove('is-flipping')},110)})}
+    mb.addEventListener('click',function(){sb('monthly')});
+    yb.addEventListener('click',function(){sb('yearly')});
+  }
+})();
+</script>
 </body>
 </html>
