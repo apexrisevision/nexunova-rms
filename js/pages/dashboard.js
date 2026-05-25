@@ -381,10 +381,10 @@ async function _rDashAdmin() {
 
   </div>
 
-  <!-- ROW 2: Collection Trend (60%) + Today's Follow-ups (40%) -->
-  <div class="db-grid-r1">
+  <!-- ROW 2: Collection Trend (full width — Today's Follow-ups moved to Recovery Dashboard) -->
+  <div>
 
-    <!-- Left 60%: 30-day bar chart -->
+    <!-- 30-day bar chart -->
     <div class="db-card">
       <div class="db-card-ch">
         <div class="db-card-hl">
@@ -398,41 +398,12 @@ async function _rDashAdmin() {
       </div>
     </div>
 
-    <!-- Right 40%: Today's Follow-ups -->
-    <div class="db-card">
-      <div class="db-card-ch">
-        <div class="db-card-hl">
-          <p class="db-card-title">${_icPhone(14)} Today's Follow-ups</p>
-          <p class="db-card-sub">${fuToday.length} due today · ${fus.upcoming.length} upcoming</p>
-        </div>
-        <button class="db-btn" onclick="nav('contacts')">All →</button>
-      </div>
-      ${fuToday.length===0
-        ? `<div class="db-empty"><span class="db-empty-ic">${_icCheck(24)}</span><p class="db-empty-tx">No follow-ups due today</p></div>`
-        : fuToday.map(c => {
-            const u    = gunit(c.unit_id);
-            const pend = u ? actualPending(u) : 0;
-            const isOd = c.next_followup_date < td();
-            return `<div class="db-fu-row2">
-              <div class="db-fu2-body">
-                <div class="db-fu2-name">${esc(c.client_name||u?.customerName||'—')}</div>
-                <div class="db-fu2-unit">${esc(u?.unitNo||'—')}${isOd?' · <span style="color:#DC2626;font-size:10px">Overdue</span>':''}</div>
-              </div>
-              <div class="db-fu2-amt">${pend>0?'PKR '+fM(pend):'—'}</div>
-              <button class="db-fu2-call" onclick="event.stopPropagation();openUD('${c.unit_id||''}')">
-                ${_icPhone(11)} Call
-              </button>
-            </div>`;
-          }).join('')
-      }
-    </div>
-
   </div>
 
-  <!-- ROW 3: Recent Payments (50%) + Top Overdue Units (50%) -->
-  <div class="db-grid-r2">
+  <!-- ROW 3: Recent Payments (full width — Top Overdue Units moved to Recovery Dashboard) -->
+  <div>
 
-    <!-- Left 50%: Recent Payments -->
+    <!-- Recent Payments -->
     <div class="db-card">
       <div class="db-card-ch">
         <div class="db-card-hl">
@@ -456,37 +427,6 @@ async function _rDashAdmin() {
                 <td><span class="db-unit-chip">${esc(u?.unitNo||r.unit_number||'—')}</span></td>
                 <td><span class="db-meth-badge ${mc}">${ml}</span></td>
                 <td class="db-tbl-amt">PKR ${fM(Number(r.amount))}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table></div>`
-      }
-    </div>
-
-    <!-- Right 50%: Top Overdue Units -->
-    <div class="db-card">
-      <div class="db-card-ch">
-        <div class="db-card-hl">
-          <p class="db-card-title">${_icCircI()} Top Overdue Units</p>
-          <p class="db-card-sub">${overdueUnits.length} unit${overdueUnits.length!==1?'s':''} past due · by highest amount</p>
-        </div>
-        <button class="db-btn" onclick="nav('recovery')">All →</button>
-      </div>
-      ${!overdueUnits.length
-        ? `<div class="db-empty"><span class="db-empty-ic">${_icCheck(24)}</span><p class="db-empty-tx">No overdue units — great work!</p></div>`
-        : `<div class="db-tbl-wrap"><table class="db-tbl">
-            <thead><tr><th>Unit</th><th>Client</th><th>Days</th><th>Overdue Amt</th><th></th></tr></thead>
-            <tbody>${overdueUnits.slice(0,5).map(u=>{
-              const d2  = daysSincePay(u);
-              const sev = overdueSeverity(u);
-              const clr = sev==='critical'?'#DC2626':'#D97706';
-              return `<tr>
-                <td><span class="db-unit-chip">${esc(u.unitNo||'—')}</span></td>
-                <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" class="db-tbl-mute">${esc((u.customerName||'—').substring(0,16))}</td>
-                <td style="color:${clr};font-weight:600;font-size:12px;white-space:nowrap">${d2===null?'Never':d2+'d'}</td>
-                <td style="color:${clr};font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap">PKR ${fM(actualPending(u))}</td>
-                <td style="text-align:right">
-                  <button class="db-btn" style="height:26px;padding:0 10px;font-size:11px" onclick="openUD('${u.id}')">View</button>
-                </td>
               </tr>`;
             }).join('')}</tbody>
           </table></div>`

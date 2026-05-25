@@ -235,7 +235,7 @@ function updateCoLogo(){
     if(logo){
       tbC.innerHTML='<img src="'+logo+'" style="height:32px;max-width:110px;object-fit:contain;background:transparent;vertical-align:middle;display:inline-block" alt="'+coName+'">';
     }else{
-      tbC.innerHTML='<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#4F46E5;color:white;font-size:11px;font-weight:700;margin-right:5px;vertical-align:middle;flex-shrink:0">'+ini_+'</span>'+coName;
+      tbC.innerHTML='<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#2563EB;color:white;font-size:10px;font-weight:700;flex-shrink:0">'+ini_+'</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;padding-left:5px">'+coName+'</span>';
     }
   }
 }
@@ -273,6 +273,8 @@ function _sbi(name, size){
     'settings':       '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     'database':       '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
     'history':        '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+    'list-checks':    '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+    'target':         '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
     'tag':            '<path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/>',
     'repeat':              '<path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
     'arrow-down-circle':   '<circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m8 12 4 4 4-4"/>',
@@ -280,6 +282,10 @@ function _sbi(name, size){
     'alert-triangle':      '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
     'shield-off':          '<path d="M19.69 14a6.9 6.9 0 0 0 .31-2V5l-8-3-3.16 1.18"/><path d="m2 2 20 20"/><path d="M4.73 4.73 4 5v7c0 6 8 10 8 10a20.29 20.29 0 0 0 5.62-4.38"/>',
     'scale':               '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21H17"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+    'megaphone':           '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+    'message-square':      '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    'map-pin':             '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+    'file-check':          '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/>',
   };
   return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'+(P[name]||'')+'</svg>';
 }
@@ -306,108 +312,97 @@ function buildSB(){
 
   if(isA){
     navGroups = [
-      { label: null, items: [
+      { label: 'Main', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
         { id:'contacts',  ic:'inbox',       lb:'Inbox',   bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Setup', items: [
-        { id:'projects',   ic:'building-2', lb:'Projects' },
-        { id:'categories', ic:'layers',     lb:'Types & Floors' },
-        { id:'agents',     ic:'users',      lb:'Sales Agents' },
-      ]},
-      // ── Inventory: every unit-related screen lives here ──
-      // All Units → Sales & Bookings → Cancelled → Transferred
-      // (Clients moved to CRM section since they're people, not units.)
-      { label: 'Inventory', items: [
-        { id:'units',          ic:'home',      lb:'All Units', bdg:totalU||null },
-        { id:'sales',          ic:'file-text', lb:'Sales & Bookings' },
-        { id:'cancelledunits', ic:'tag',       lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat',    lb:'Transferred Units' },
+      { label: 'Operations', items: [
+        { id:'recovery-dashboard', ic:'target', lb:'Recovery Dashboard' },
+        { id:'recovery',     ic:'list-checks', lb:'Recovery Queue' },
+        { id:'projects',     ic:'building-2', lb:'Projects' },
+        { id:'categories',   ic:'layers',     lb:'Types & Floors' },
+        { id:'agents',       ic:'users',      lb:'Sales Agents' },
+        { id:'units',        ic:'home',       lb:'All Units', bdg:totalU||null },
+        { id:'sales',        ic:'file-text',  lb:'Sales & Bookings' },
+        { id:'cancelledunits', ic:'tag',      lb:'Cancelled Units' },
+        { id:'transferunits',  ic:'repeat',   lb:'Transferred Units' },
+        { id:'clients',      ic:'user-check', lb:'Clients' },
+        { id:'healthcenter', ic:'heart',      lb:'Client Health' },
+        { id:'promises',     ic:'handshake',  lb:'Promise Tracker' },
+        { id:'radar',        ic:'radar',      lb:'Recovery Radar' },
+        { id:'campaigns',    ic:'megaphone',  lb:'Campaigns' },
+        { id:'forecasting',  ic:'trending-up',lb:'Forecasting' },
+        { id:'reminders',    ic:'bell',       lb:'Reminders' },
+        { id:'contacts',     ic:'phone',      lb:'Call Logs' },
+        { id:'paylinks',     ic:'link',       lb:'Payment Links' },
+        { id:'commscenter',  ic:'message-square', lb:'Comms Center' },
+        { id:'noc',          ic:'file-check',     lb:'NOC Management' },
+        { id:'fieldvisits',  ic:'map-pin',        lb:'Field Visits' },
       ]},
       { label: 'Finance', items: [
-        { id:'recovery',    ic:'banknote',      lb:'Payments' },
-        { id:'addpayment',  ic:'credit-card',   lb:'Add Payment' },
-        { id:'receipts',    ic:'receipt',       lb:'Receipt Vouchers' },
-        { id:'pdc',         ic:'calendar-clock',lb:'PDC Register' },
-        { id:'commissions', ic:'trending-up',   lb:'Commissions' },
-        { id:'reports',     ic:'alert-circle',  lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
+        { id:'receipts',          ic:'receipt',          lb:'Receipt Vouchers' },
+        { id:'pdc',               ic:'calendar-clock',   lb:'PDC Register' },
+        { id:'commissions',       ic:'trending-up',      lb:'Commissions' },
+        { id:'reports',           ic:'alert-circle',     lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
+        { id:'payables',          ic:'arrow-down-circle',lb:'Payables' },
+        { id:'receivables',       ic:'arrow-up-circle',  lb:'Additional Receivables' },
+        { id:'agenttransactions', ic:'trending-up',      lb:'Agent Transactions' },
+        { id:'escalations',       ic:'alert-triangle',   lb:'Escalations' },
+        { id:'legalcases',        ic:'scale',            lb:'Legal Cases' },
+        { id:'blacklist',         ic:'shield-off',       lb:'Blacklist Register' },
+        { id:'banks',             ic:'banknote',         lb:'Banks Master' },
       ]},
-      { label: 'Clients & CRM', items: [
-        { id:'clients',      ic:'user-check',lb:'Clients' },
-        { id:'reminders',    ic:'bell',      lb:'Reminders' },
-        { id:'contacts',     ic:'phone',     lb:'Call Logs' },
-        { id:'promises',     ic:'handshake', lb:'Promise Tracker' },
-        { id:'healthcenter', ic:'heart',     lb:'Client Health' },
-        { id:'radar',        ic:'radar',     lb:'Recovery Radar' },
-        { id:'paylinks',     ic:'link',      lb:'Payment Links' },
-      ]},
-      { label: 'Reports & Analytics', items: [
+      { label: 'System', items: [
+        { id:'executive', ic:'bar-chart-3', lb:'Executive Dashboard' },
         { id:'reports',   ic:'bar-chart-3', lb:'Reports & Export' },
         { id:'ledgers',   ic:'book-open',   lb:'Ledgers' },
         { id:'documents', ic:'printer',     lb:'Documents' },
-      ]},
-      { label: 'Finance & Compliance', items: [
-        { id:'payables',          ic:'arrow-down-circle', lb:'Payables' },
-        { id:'receivables',       ic:'arrow-up-circle',   lb:'Additional Receivables' },
-        { id:'escalations',       ic:'alert-triangle',    lb:'Escalations' },
-        { id:'legalcases',        ic:'scale',             lb:'Legal Cases' },
-        { id:'blacklist',         ic:'shield-off',        lb:'Blacklist Register' },
-        { id:'agenttransactions', ic:'trending-up',       lb:'Agent Transactions' },
-      ]},
-      { label: 'Admin', items: [
-        { id:'users',  ic:'shield',   lb:'Users & Roles' },
-        { id:'admin',  ic:'settings', lb:'Settings' },
-        { id:'banks',  ic:'banknote', lb:'Banks Master' },
-        { id:'backup', ic:'database', lb:'Backup' },
-        { id:'audit',  ic:'history',  lb:'Audit Trail' },
+        { id:'users',     ic:'shield',      lb:'Users & Roles' },
+        { id:'admin',     ic:'settings',    lb:'Settings' },
+        { id:'backup',    ic:'database',    lb:'Backup' },
+        { id:'audit',     ic:'history',     lb:'Audit Trail' },
       ]},
     ];
   } else if(isR){
     navGroups = [
-      { label: null, items: [
+      { label: 'Main', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
         { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Inventory', items: [
-        { id:'units',          ic:'home',   lb:'All Units' },
-        { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat', lb:'Transferred Units' },
+      { label: 'Operations', items: [
+        { id:'recovery-dashboard', ic:'target',  lb:'Recovery Dashboard' },
+        { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
+        { id:'units',          ic:'home',        lb:'All Units' },
+        { id:'cancelledunits', ic:'tag',         lb:'Cancelled Units' },
+        { id:'transferunits',  ic:'repeat',      lb:'Transferred Units' },
+        { id:'clients',        ic:'user-check',  lb:'Clients' },
+        { id:'ledgers',        ic:'book-open',   lb:'Ledgers' },
       ]},
-      { label: 'Clients & Payments', items: [
-        { id:'clients',    ic:'user-check', lb:'Clients' },
-        { id:'addpayment', ic:'credit-card',lb:'Add Payment' },
-        { id:'ledgers',    ic:'book-open',  lb:'Ledgers' },
-      ]},
-      { label: 'Follow-Up', items: [
-        { id:'recovery',  ic:'banknote',      lb:'Payments' },
-        { id:'receipts',  ic:'receipt',       lb:'Receipt Vouchers' },
-        { id:'pdc',       ic:'calendar-clock',lb:'PDC Register' },
-        { id:'reminders', ic:'bell',          lb:'Reminders' },
-        { id:'contacts',  ic:'phone',         lb:'Call Logs' },
-        { id:'paylinks',  ic:'link',          lb:'Payment Links' },
+      { label: 'Finance', items: [
+        { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers' },
+        { id:'pdc',         ic:'calendar-clock', lb:'PDC Register' },
+        { id:'reminders',   ic:'bell',           lb:'Reminders' },
+        { id:'contacts',    ic:'phone',          lb:'Call Logs' },
+        { id:'paylinks',    ic:'link',           lb:'Payment Links' },
+        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
       ]},
     ];
   } else if(isAc){
     navGroups = [
-      { label: null, items: [
+      { label: 'Main', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
       ]},
-      { label: 'Inventory', items: [
+      { label: 'Operations', items: [
         { id:'sales',          ic:'file-text', lb:'Sales & Bookings' },
         { id:'cancelledunits', ic:'tag',       lb:'Cancelled Units' },
         { id:'transferunits',  ic:'repeat',    lb:'Transferred Units' },
-      ]},
-      { label: 'People & Ledgers', items: [
-        { id:'clients', ic:'user-check', lb:'Clients' },
-        { id:'agents',  ic:'users',      lb:'Sales Agents' },
-        { id:'ledgers', ic:'book-open',  lb:'Ledgers' },
+        { id:'clients',        ic:'user-check',lb:'Clients' },
+        { id:'agents',         ic:'users',     lb:'Sales Agents' },
+        { id:'ledgers',        ic:'book-open', lb:'Ledgers' },
       ]},
       { label: 'Finance', items: [
-        { id:'recovery',   ic:'banknote',   lb:'Payments' },
-        { id:'addpayment', ic:'credit-card',lb:'Add Payment' },
-        { id:'paylinks',   ic:'link',       lb:'Payment Links' },
-      ]},
-      { label: 'Reports', items: [
+        { id:'recovery',  ic:'banknote',    lb:'Payments' },
+        { id:'paylinks',  ic:'link',        lb:'Payment Links' },
         { id:'reports',   ic:'bar-chart-3', lb:'Reports' },
         { id:'documents', ic:'printer',     lb:'Documents' },
       ]},
@@ -416,16 +411,15 @@ function buildSB(){
     // manager, staff, or any other role — permission-driven sidebar
     // Only include modules the user has explicit access to via module_permissions
     const _allModuleItems = [
-      { key:'projects',  id:'projects',   ic:'building-2',  lb:'Projects' },
-      { key:'units',     id:'units',      ic:'home',        lb:'All Units' },
-      { key:'clients',   id:'clients',    ic:'user-check',  lb:'Clients' },
-      { key:'recovery',  id:'recovery',   ic:'banknote',    lb:'Payments' },
-      { key:'recovery',  id:'addpayment', ic:'credit-card', lb:'Add Payment' },
-      { key:'contacts',  id:'contacts',   ic:'phone',       lb:'Call Logs' },
-      { key:'reports',   id:'reports',    ic:'bar-chart-3', lb:'Reports' },
-      { key:'documents', id:'documents',  ic:'printer',     lb:'Documents' },
-      { key:'agents',    id:'agents',     ic:'users',       lb:'Sales Agents' },
-      { key:'search',    id:'search',     ic:'search',      lb:'Quick Search' },
+      { key:'projects',  id:'projects',  ic:'building-2',  lb:'Projects' },
+      { key:'units',     id:'units',     ic:'home',        lb:'All Units' },
+      { key:'clients',   id:'clients',   ic:'user-check',  lb:'Clients' },
+      { key:'recovery',  id:'recovery',  ic:'banknote',    lb:'Payments' },
+      { key:'contacts',  id:'contacts',  ic:'phone',       lb:'Call Logs' },
+      { key:'reports',   id:'reports',   ic:'bar-chart-3', lb:'Reports' },
+      { key:'documents', id:'documents', ic:'printer',     lb:'Documents' },
+      { key:'agents',    id:'agents',    ic:'users',       lb:'Sales Agents' },
+      { key:'search',    id:'search',    ic:'search',      lb:'Quick Search' },
     ];
     const allowedItems = _allModuleItems.filter(m =>
       typeof hasPermission === 'function' ? hasPermission(m.id) : false
@@ -461,6 +455,10 @@ function buildSB(){
   });
 
   document.getElementById('sb-nav').innerHTML = html;
+
+  // Setup Wizard shortcut — visible only to admin/owner
+  const _wizBtn = document.getElementById('sb-wizard-btn');
+  if(_wizBtn) _wizBtn.style.display = isA ? 'flex' : 'none';
 
   // Expose nav groups for the aurora-topbar mega menu (same data, same source of truth)
   window._navGroups = navGroups;
@@ -535,7 +533,7 @@ function nav(pg,x){
     if(!_alwaysAllow.includes(pg)){
       // Role-based baseline allow-list (backward-compatible for existing users)
       const allow={
-        recovery:['dashboard','units','unitdetail','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','paylinks','paylink-detail'],
+        recovery:['dashboard','recovery-dashboard','units','unitdetail','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','paylinks','paylink-detail'],
         accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
       };
       // For manager/staff: rely entirely on hasPermission()
@@ -569,7 +567,7 @@ function nav(pg,x){
     }
   }
   document.querySelector('.sb')?.setAttribute('data-pg', pg);
-  const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions'};
+  const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
   const tbTitle=document.getElementById('tb-t');
   if(tbTitle)tbTitle.textContent=ts[pg]||pg;
   if(typeof atbSyncCurrent==='function')atbSyncCurrent(pg);
@@ -586,7 +584,18 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:rBlacklist,payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions};
+  const fns={dashboard:rDash,'recovery-dashboard':rRecDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:rBlacklist,payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,executive:rExecutive,noc:rNOC,fieldvisits:rFieldVisits};
+  const _PAGE_FLAG = {
+    noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
+    commscenter:'comms_center', executive:'executive_dashboard',
+    possession:'possession', legalcases:'legal', blacklist:'blacklist',
+    escalations:'escalations', pdc:'pdc',
+  };
+  const requiredFlag = _PAGE_FLAG[pg];
+  if (requiredFlag && typeof hasFeature === 'function' && !hasFeature(requiredFlag)) {
+    if (typeof _showFeatureGate === 'function') _showFeatureGate(pg);
+    return;
+  }
   const fn = fns[pg];
   if(fn) {
     const result = fn(x);
@@ -654,3 +663,17 @@ function startLeakGuard(){
   const mo=new MutationObserver(()=>{clearTimeout(_lgTimer);_lgTimer=setTimeout(run,2000);});
   mo.observe(root,{childList:true,subtree:true});
 }
+
+// ══ QUICK ACTION BUTTON (floating) ════════════════
+function qabToggle(){
+  var wrap=document.getElementById('qab-wrap');
+  if(wrap) wrap.classList.toggle('open');
+}
+function qabClose(){
+  var wrap=document.getElementById('qab-wrap');
+  if(wrap) wrap.classList.remove('open');
+}
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('qab-wrap');
+  if(wrap&&wrap.classList.contains('open')&&!wrap.contains(e.target)) qabClose();
+});

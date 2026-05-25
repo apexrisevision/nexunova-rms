@@ -70,7 +70,7 @@ async function tryRestoreSession(){
     buildSB();
     if(typeof initDemoBanner==='function')initDemoBanner();
     if(sess.onboardingComplete===false&&typeof OB!=='undefined'){OB.show(sess.cid);}
-    else{nav('dashboard');if(typeof TUT!=='undefined')TUT.maybeShow();}
+    else{nav(effectiveRole()==='recovery'?'recovery-dashboard':'dashboard');if(typeof TUT!=='undefined')TUT.maybeShow();}
   }catch(e){
     console.warn('[tryRestoreSession]',e);
     sessionStorage.removeItem('nxn_sess');

@@ -59,9 +59,10 @@ function toggleLxPwd() {
 
 async function doLogin(){
   if(Date.now() < _loginReadyAt) return;
-  // Abort if already logged in or login screen is not visible (e.g. autofill race with session restore)
-  if(S) return;
+  // Abort if already logged in AND app screen is visible
+  if(S && document.getElementById('s-app')?.classList.contains('on')) return;
   if(!document.getElementById('s-login')?.classList.contains('on')) return;
+  S = null; // Clear any stale in-progress session so fresh login can proceed
 
   const raw  = document.getElementById('li-u').value.trim();
   const pass = document.getElementById('li-p').value;
@@ -98,7 +99,7 @@ async function doLogin(){
   const _btnReset = () => {
     if(_btn){ _btn.disabled=false; _btn.classList.remove('lx-loading'); if(_sp) _sp.textContent='Sign In'; if(_sv) _sv.style.opacity=''; }
   };
-  if(_btn){ _btn.disabled=true; _btn.classList.add('lx-loading'); if(_sp) _sp.textContent='Signing inâ€¦'; if(_sv) _sv.style.opacity='0'; }
+  if(_btn){ _btn.disabled=true; _btn.classList.add('lx-loading'); if(_sp) _sp.textContent='Signing in...'; if(_sv) _sv.style.opacity='0'; }
 
   try {
     const { data: res, error: rpcErr } = await supabase.rpc('verify_login', {
@@ -108,7 +109,7 @@ async function doLogin(){
     });
 
     if(rpcErr){ console.error(rpcErr); _btnReset(); notify.error('Server error', { detail: 'Please try again in a moment.' }); return; }
-    if(!res)  { _btnReset(); notify.error('Server error', { detail: 'Empty response â€” please try again.' }); return; }
+    if(!res)  { _btnReset(); notify.error('Server error', { detail: 'Empty response - please try again.' }); return; }
 
     if(!res.success){
       const errMap = {
@@ -135,9 +136,11 @@ async function doLogin(){
             detail = `Too many failed attempts. Account locked for ${mins} more minute${mins !== 1 ? 's' : ''}.`;
           } catch(_) {}
         }
+        _logAuthEventAnon({ event_type:'login_locked', username, details:{ company_code:companyCode } });
         notify.error('Account locked', { detail });
         return;
       }
+      _logAuthEventAnon({ event_type:'login_failed', username, details:{ company_code:companyCode, reason:res.error } });
       notify.error('Sign in failed', { detail: errMap[res.error] || res.message || 'Authentication failed.' });
       return;
     }
@@ -145,14 +148,6 @@ async function doLogin(){
     const user    = res.user;
     const company = res.company;
 
-    // Admin and owner require OTP 2FA — do NOT create session yet
-    if (user.role === 'admin' || user.role === 'owner') {
-      _btnReset();
-      await _triggerAdminOTP(user, company);
-      return;
-    }
-
-    // Non-privileged roles: complete login immediately
     await _completeLogin(user, company);
 
   } catch(e){
@@ -289,20 +284,59 @@ async function _completeLogin(user, company) {
   if(company.onboarding_complete === false && typeof OB !== 'undefined'){
     OB.show(company.id);
   } else {
-    nav('dashboard');
+    nav(effectiveRole()==='recovery' ? 'recovery-dashboard' : 'dashboard');
     if(typeof TUT !== 'undefined') TUT.maybeShow();
   }
 
   if(typeof checkAutoBackup === 'function') checkAutoBackup();
   if(typeof initDemoBanner === 'function') initDemoBanner();
+  _checkPlatformAnnouncements();
   notify.success(`Welcome, ${user.name}`, { duration: 2500 });
   _startSessionCheck();
+  _startIdleTimer();
+  _logAuthEvent(company.id, { event_type:'login_success', user_id:user.id, username:user.username });
+  if (typeof loadCobranding    === 'function') loadCobranding();
+  if (typeof loadFeatureFlags  === 'function') loadFeatureFlags();
+  _loadSubscription();
 }
 
-function doLogout(){
+async function _loadSubscription() {
+  try {
+    const { data } = await supabase.rpc('get_subscription_with_plan', { p_company_id: S.cid });
+    window._subscription = data || null;
+    if (!data) return;
+    if (data.status !== 'trialing' || !data.trial_ends_at) return;
+    if (sessionStorage.getItem('rms_trial_dismissed')) return;
+    const daysLeft = Math.ceil((new Date(data.trial_ends_at) - Date.now()) / 86400000);
+    if (daysLeft > 7) return;
+    const expired  = daysLeft <= 0;
+    const banner   = document.getElementById('trial-banner');
+    const inner    = document.getElementById('trial-banner-inner');
+    const msg      = document.getElementById('trial-banner-msg');
+    if (!banner || !inner || !msg) return;
+    if (expired) {
+      inner.className = 'trial-banner-inner expired';
+      msg.innerHTML   = '<strong>Trial expired</strong> — Your free trial has ended. Upgrade to continue full access.';
+    } else if (daysLeft === 0) {
+      inner.className = 'trial-banner-inner expiring';
+      msg.innerHTML   = '<strong>Trial expires today!</strong> — Upgrade now to avoid losing access.';
+    } else {
+      inner.className = 'trial-banner-inner expiring';
+      msg.innerHTML   = `<strong>Trial expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}</strong> — Go to Admin → Plan to request an upgrade.`;
+    }
+    banner.style.display = '';
+  } catch(_) {}
+}
+
+function doLogout(reason){
+  if(S && S.cid) _logAuthEvent(S.cid, { event_type: reason || 'logout', user_id: S.userId, username: S.username });
   _stopSessionCheck();
+  _stopIdleTimer();
   S=null;_coid=null;_navStack=[];_navBack=false;
   sessionStorage.removeItem('nxn_sess');
+  window._featureFlags = null;
+  window._cobranding   = null;
+  window._subscription = null;
   window._unitsCache = [];
   window._unitsCacheLoaded = false;
   window._projectsCache = [];
@@ -350,3 +384,133 @@ async function _checkSessionValidity() {
   } catch(_) {}
 }
 
+async function _checkPlatformAnnouncements() {
+  try {
+    const { data } = await supabase.rpc('get_active_announcements');
+    const list = Array.isArray(data) ? data : [];
+    if (list.length === 0) return;
+    const seen = JSON.parse(sessionStorage.getItem('nxn_ann_seen') || '[]');
+    list.filter(a => !seen.includes(a.id)).forEach(a => {
+      const typeMap = { info:'info', warning:'warn', success:'ok', error:'err' };
+      const msg = a.title + (a.body ? ' — ' + a.body : '');
+      if (typeof toast === 'function') toast(msg, typeMap[a.type] || 'info', 8000);
+      seen.push(a.id);
+    });
+    sessionStorage.setItem('nxn_ann_seen', JSON.stringify(seen));
+  } catch(_) {}
+}
+
+// ══ MODULE 12 — SESSION INACTIVITY TIMEOUT ════════════════════════
+
+let _idleTimer     = null;
+let _idleWarnTimer = null;
+let _idleActive    = false;
+const _IDLE_WARN_SEC = 60; // warn 60 s before logout
+
+function _startIdleTimer() {
+  _stopIdleTimer();
+  const timeoutMin = _getIdleTimeoutMin();
+  if (!timeoutMin || timeoutMin <= 0) return;
+  _idleActive = true;
+  const activityEvents = ['mousemove','mousedown','keydown','touchstart','scroll','click'];
+  activityEvents.forEach(ev => window.addEventListener(ev, _resetIdleTimer, { passive:true }));
+  _scheduleIdleLogout(timeoutMin);
+}
+
+function _stopIdleTimer() {
+  clearTimeout(_idleTimer);
+  clearTimeout(_idleWarnTimer);
+  _idleTimer = _idleWarnTimer = null;
+  _idleActive = false;
+  const activityEvents = ['mousemove','mousedown','keydown','touchstart','scroll','click'];
+  activityEvents.forEach(ev => window.removeEventListener(ev, _resetIdleTimer));
+  const warn = document.getElementById('_idle-warn-bar');
+  if (warn) warn.remove();
+}
+
+function _resetIdleTimer() {
+  if (!_idleActive || !S) return;
+  clearTimeout(_idleTimer);
+  clearTimeout(_idleWarnTimer);
+  const warn = document.getElementById('_idle-warn-bar');
+  if (warn) warn.remove();
+  const timeoutMin = _getIdleTimeoutMin();
+  if (!timeoutMin || timeoutMin <= 0) return;
+  _scheduleIdleLogout(timeoutMin);
+}
+
+function _scheduleIdleLogout(timeoutMin) {
+  const totalMs  = timeoutMin * 60 * 1000;
+  const warnMs   = Math.max(totalMs - _IDLE_WARN_SEC * 1000, 1000);
+  _idleWarnTimer = setTimeout(_showIdleWarning, warnMs);
+  _idleTimer     = setTimeout(_onIdleExpire,    totalMs);
+}
+
+function _showIdleWarning() {
+  if (!S) return;
+  let bar = document.getElementById('_idle-warn-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = '_idle-warn-bar';
+    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1e293b;border-top:2px solid #f59e0b;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:#f1f5f9';
+    document.body.appendChild(bar);
+  }
+  let secs = _IDLE_WARN_SEC;
+  const update = () => {
+    if (!document.getElementById('_idle-warn-bar')) return;
+    bar.innerHTML = `
+      <span>⚠️ No activity detected — you'll be logged out in <b style="color:#f59e0b">${secs}s</b></span>
+      <button onclick="_resetIdleTimer()" style="background:#6366f1;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Stay logged in</button>`;
+    if (secs > 0) { secs--; setTimeout(update, 1000); }
+  };
+  update();
+}
+
+function _onIdleExpire() {
+  _stopIdleTimer();
+  if (!S) return;
+  if (typeof notify !== 'undefined' && notify.warning) {
+    notify.warning('Session timed out', { detail: 'You were logged out due to inactivity.', duration: 4000 });
+  }
+  setTimeout(() => doLogout('session_expired'), 800);
+}
+
+function _getIdleTimeoutMin() {
+  if (!S || !S.cid) return 120;
+  try {
+    const stored = localStorage.getItem('rms.sec.timeout.' + S.cid);
+    if (stored !== null) return parseInt(stored, 10);
+  } catch(_) {}
+  return 120;
+}
+
+function _setIdleTimeoutMin(min) {
+  if (!S || !S.cid) return;
+  try { localStorage.setItem('rms.sec.timeout.' + S.cid, String(parseInt(min, 10) || 0)); } catch(_) {}
+  if (min > 0) { _stopIdleTimer(); _startIdleTimer(); }
+  else { _stopIdleTimer(); }
+}
+
+// ══ MODULE 12 — AUTH EVENT LOGGING ════════════════════════════════
+
+async function _logAuthEvent(companyId, payload) {
+  if (!companyId) return;
+  try {
+    await supabase.rpc('log_auth_event', {
+      p_company_id: companyId,
+      p_data: {
+        ...payload,
+        user_agent: navigator.userAgent.slice(0, 200),
+      }
+    });
+  } catch(_) {}
+}
+
+function _logAuthEventAnon(payload) {
+  try {
+    supabase.rpc('log_auth_event', {
+      p_company_id: null,
+      p_data: { ...payload, user_agent: navigator.userAgent.slice(0, 200) }
+    }).catch(() => {});
+  } catch(_) {}
+}

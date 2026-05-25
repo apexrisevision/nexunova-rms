@@ -1,0 +1,109 @@
+/* ══════════════════════════════════════════════════════════════
+   RECOVERY DASHBOARD — supplements dashboard-premium.css (.db-*)
+   Blue-600 (#2563EB) design system. Only the bits not covered by .db-*.
+══════════════════════════════════════════════════════════════ */
+
+/* ── Row 1: 5-up KPI grid (db-kpis is 4-up) ── */
+.rd-kpis5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width:1200px){ .rd-kpis5 { grid-template-columns: repeat(3,1fr); } }
+@media (max-width:680px){  .rd-kpis5 { grid-template-columns: repeat(2,1fr); } }
+@media (max-width:440px){  .rd-kpis5 { grid-template-columns: 1fr; } }
+
+/* ── Top-overdue inline action buttons ── */
+.rd-actbtn {
+  width:28px; height:28px; border-radius:6px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--bg-surface); border:1px solid var(--border-color);
+  color:var(--text-muted); cursor:pointer; margin-left:3px;
+  transition:background 120ms, border-color 120ms, color 120ms; vertical-align:middle;
+}
+.rd-actbtn:first-child { margin-left:0; }
+.rd-actbtn:hover       { border-color:#2563EB; color:#2563EB; background:#EFF6FF; }
+.rd-actbtn.green:hover { border-color:#16A34A; color:#16A34A; background:#F0FDF4; }
+.rd-actbtn.blue:hover  { border-color:#2563EB; color:#2563EB; background:#EFF6FF; }
+[data-theme="dark"] .rd-actbtn { background:var(--bg-elevated); }
+
+/* ── Promise-to-Pay status pills ── */
+.rd-pp-pill {
+  display:inline-flex; align-items:center; height:20px; padding:0 9px;
+  border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap;
+}
+.rd-pp-pill.kept    { background:#DCFCE7; color:#15803D; }
+.rd-pp-pill.broken  { background:#FEE2E2; color:#B91C1C; }
+.rd-pp-pill.pending { background:#FEF3C7; color:#92400E; }
+[data-theme="dark"] .rd-pp-pill.kept    { background:rgba(22,163,74,.14);  color:#86efac; }
+[data-theme="dark"] .rd-pp-pill.broken  { background:rgba(220,38,38,.14);  color:#fca5a5; }
+[data-theme="dark"] .rd-pp-pill.pending { background:rgba(217,119,6,.14);   color:#fcd34d; }
+
+/* ── Row 4: Quick reports ── */
+.rd-qr-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:14px 18px;
+}
+@media (max-width:900px){ .rd-qr-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:520px){ .rd-qr-grid { grid-template-columns:1fr; } }
+.rd-qr-card {
+  display:flex; flex-direction:column; gap:8px;
+  border:1px solid var(--border-color); border-radius:10px; padding:14px;
+  background:var(--bg-elevated, #f8fafc);
+}
+.rd-qr-ic {
+  width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:#EFF6FF; color:#2563EB;
+}
+[data-theme="dark"] .rd-qr-ic { background:rgba(37,99,235,.14); color:#93c5fd; }
+.rd-qr-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+.rd-qr-acts { display:flex; gap:6px; margin-top:2px; }
+.rd-qr-run, .rd-qr-dl {
+  flex:1; height:30px; border-radius:6px; font-size:12px; font-weight:500;
+  cursor:pointer; font-family:inherit; transition:background 120ms, border-color 120ms, color 120ms;
+  display:inline-flex; align-items:center; justify-content:center; gap:4px;
+}
+.rd-qr-run { background:#2563EB; color:#fff; border:none; }
+.rd-qr-run:hover { background:#1D4ED8; }
+.rd-qr-dl { background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color); }
+.rd-qr-dl:hover { border-color:#2563EB; color:#2563EB; }
+
+/* ── Row 5: Recent activity feed ── */
+.rd-act-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; border-bottom:1px solid var(--border-color);
+}
+.rd-act-row:last-child { border-bottom:none; }
+.rd-act-ic {
+  width:28px; height:28px; border-radius:6px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.rd-act-ic.green { background:#DCFCE7; color:#16A34A; }
+.rd-act-ic.amber { background:#FEF3C7; color:#D97706; }
+.rd-act-ic.blue  { background:#DBEAFE; color:#2563EB; }
+[data-theme="dark"] .rd-act-ic.green { background:rgba(22,163,74,.14);  color:#86efac; }
+[data-theme="dark"] .rd-act-ic.amber { background:rgba(217,119,6,.14);   color:#fcd34d; }
+[data-theme="dark"] .rd-act-ic.blue  { background:rgba(37,99,235,.14);   color:#93c5fd; }
+.rd-act-body  { flex:1; min-width:0; }
+.rd-act-title { font-size:13px; font-weight:500; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rd-act-sub   { font-size:11px; color:var(--text-muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rd-act-when  { font-size:11px; color:var(--text-muted); flex-shrink:0; font-variant-numeric:tabular-nums; }
+
+/* ── Row 5: AI radar alert rows ── */
+.rd-radar-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; border-bottom:1px solid var(--border-color); cursor:pointer;
+  transition:background 120ms;
+}
+.rd-radar-row:last-child { border-bottom:none; }
+.rd-radar-row:hover { background:#F8FAFC; }
+[data-theme="dark"] .rd-radar-row:hover { background:rgba(255,255,255,.025); }
+.rd-radar-rank {
+  width:20px; height:20px; border-radius:50%; flex-shrink:0;
+  background:var(--bg-elevated); border:1px solid var(--border-color);
+  font-size:10px; font-weight:700; color:var(--text-muted);
+  display:flex; align-items:center; justify-content:center;
+}
+.rd-radar-body { flex:1; min-width:0; }
+.rd-radar-name { font-size:13px; font-weight:500; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rd-radar-meta { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.rd-radar-score {
+  width:34px; height:28px; border-radius:7px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; border:1px solid; font-variant-numeric:tabular-nums;
+}
