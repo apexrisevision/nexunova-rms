@@ -2,7 +2,7 @@
 // Report types config
 const RPT={
   // 💰 Recovery
-  recovery:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',lbl:'All Payments',      sub:'Full payment register',       sec:'💰 Recovery',   subs:[{id:'all',lbl:'All Payments'},{id:'daily',lbl:'Daily'},{id:'monthly',lbl:'Monthly'},{id:'bytype',lbl:'By Type'},{id:'bystaff',lbl:'By Staff'}]},
+  recovery:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',lbl:'Receiving Ledger', sub:'All payments received — by date, type or staff', sec:'💰 Recovery',   subs:[{id:'all',lbl:'All Payments'},{id:'daily',lbl:'Daily'},{id:'monthly',lbl:'Monthly'},{id:'bytype',lbl:'By Type'},{id:'bystaff',lbl:'By Staff'}]},
   outstanding:   {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',lbl:'Outstanding',       sub:'Overdue & upcoming dues',     sec:'💰 Recovery',   subs:[{id:'overdue',lbl:'Overdue'},{id:'upcoming',lbl:'Upcoming (30d)'},{id:'all',lbl:'All Dues'}]},
   statement:     {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',lbl:'Client Ledger',     sub:'Per-client running account',  sec:'💰 Recovery',   subs:[{id:'unit',lbl:'By Unit'},{id:'client',lbl:'By Client Name'}]},
   // 🏗️ Project
@@ -21,9 +21,13 @@ const RPT={
   // 👤 Client
   client:        {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',lbl:'Client Portfolio',  sub:'All clients & units',         sec:'👤 Client',     subs:[{id:'list',lbl:'Client List'},{id:'defaulters',lbl:'Defaulters'},{id:'ledger',lbl:'Client Ledger'}]},
   // 🏠 Possession
-  possession:    {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',lbl:'Possession Status', sub:'Handover tracking',           sec:'🏠 Possession', subs:[{id:'all',lbl:'All'},{id:'pending',lbl:'Pending'},{id:'completed',lbl:'Completed'}]},
+  possession:           {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',lbl:'Possession Status',    sub:'Handover tracking',                sec:'🏠 Possession', subs:[{id:'all',lbl:'All'},{id:'pending',lbl:'Pending'},{id:'completed',lbl:'Completed'}]},
+  post_possession_dues: {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',lbl:'Post-Possession Dues', sub:'Handed-over units with open dues', sec:'🏠 Possession', subs:[{id:'all',lbl:'All'}]},
+  // ⚖️ Compliance
+  legal_portfolio:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>',lbl:'Legal Cases Portfolio', sub:'Units & clients with active legal cases', sec:'⚖️ Compliance', subs:[{id:'all',lbl:'All Cases'},{id:'active',lbl:'Active Only'},{id:'resolved',lbl:'Resolved'}]},
+  transfers_register:   {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',lbl:'Transfers Register',  sub:'Unit ownership transfer log',           sec:'⚖️ Compliance', subs:[{id:'all',lbl:'All Transfers'}]},
   // 🧾 PDC
-  pdc:           {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',lbl:'PDC Status',        sub:'Cheque status report',        sec:'🧾 PDC',        subs:[{id:'all',lbl:'All'},{id:'pending',lbl:'Pending'},{id:'cleared',lbl:'Cleared'},{id:'bounced',lbl:'Bounced'}]},
+  pdc:           {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',lbl:'PDC Register',      sub:'Post-dated cheque register & status', sec:'🧾 PDC',        subs:[{id:'all',lbl:'All'},{id:'pending',lbl:'Pending'},{id:'cleared',lbl:'Cleared'},{id:'bounced',lbl:'Bounced'}]},
   pdc_upcoming:  {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',lbl:'Upcoming Cheques',  sub:'Due in next 30 days',         sec:'🧾 PDC',        subs:[{id:'7d',lbl:'Next 7 Days'},{id:'30d',lbl:'Next 30 Days'}]},
   // 🎯 CRM
   contacts:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.48 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.72 6.72l.83-.83a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',lbl:'Follow-up Log',     sub:'Call & contact history',      sec:'🎯 CRM',        subs:[{id:'all',lbl:'All Logs'},{id:'overdue',lbl:'Follow-up Overdue'},{id:'today',lbl:'Due Today'},{id:'upcoming',lbl:'Upcoming'},{id:'willpay',lbl:'Will Pay'}]},
@@ -34,21 +38,25 @@ const RPT={
   monthly_trend: {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',lbl:'Collection Trend',  sub:'Month-wise collection trend', sec:'📊 Executive',  subs:[{id:'all',lbl:'All Time'},{id:'year',lbl:'This Year'}]},
   tax_report:    {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',lbl:'Tax / WHT',         sub:'FBR WHT compliance',          sec:'📊 Executive',  subs:[{id:'all',lbl:'All'}]},
   aging:         {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',lbl:'Aging Analysis',    sub:'Overdue bucket report',       sec:'📊 Executive',  subs:[{id:'all',lbl:'All Overdue'},{id:'30',lbl:'30+ Days'},{id:'60',lbl:'60+ Days'},{id:'90',lbl:'90+ Days'},{id:'180',lbl:'180+ Days'}]},
+  // 💰 Recovery (extras)
+  promise_tracker:{ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',lbl:'Promise Tracker',  sub:'Payment promises — kept, broken & due', sec:'💰 Recovery', subs:[{id:'all',lbl:'All'},{id:'overdue',lbl:'Overdue'},{id:'today',lbl:'Due Today'},{id:'upcoming',lbl:'Upcoming'},{id:'kept',lbl:'Kept'},{id:'broken',lbl:'Broken'}]},
+  field_visits:  {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',lbl:'Field Visits',     sub:'Recovery officer site visits log', sec:'💰 Recovery', subs:[{id:'all',lbl:'All Visits'}]},
+  // 🧾 Financial
+  payables:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',lbl:'Payables',         sub:'Refunds & amounts payable to clients', sec:'🧾 Financial', subs:[{id:'all',lbl:'All'},{id:'pending',lbl:'Pending'},{id:'partial',lbl:'Partial'},{id:'paid',lbl:'Paid'}]},
+  // 🤖 AI & Analytics
+  ai_radar:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',lbl:'AI Radar Summary', sub:'Top AI-scored recovery prospects', sec:'🤖 AI', subs:[{id:'all',lbl:'Top Prospects'}]},
+  forecasting:   {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',lbl:'Forecasting Report', sub:'Predicted collection — next 30 / 60 / 90 days', sec:'🤖 AI', subs:[{id:'all',lbl:'Forecast'}]},
 };
 
-const _RPT_SEC_COL={'💰 Recovery':'#7FB069','🏗️ Project':'#7C9FD4','🧾 Sales':'#D4A574','👨‍💼 Agent':'#B07CB0','👤 Client':'#7CBCBC','🏠 Possession':'#D47C7C','🧾 PDC':'#7CB0D4','🎯 CRM':'#D4C87C','📊 Executive':'#8FB07C'};
-const _RPT_SEC_ORDER=['💰 Recovery','🏗️ Project','🧾 Sales','👨‍💼 Agent','👤 Client','🏠 Possession','🧾 PDC','🎯 CRM','📊 Executive'];
+const _RPT_SEC_COL={'💰 Recovery':'#7FB069','🏗️ Project':'#7C9FD4','🧾 Sales':'#D4A574','👨‍💼 Agent':'#B07CB0','👤 Client':'#7CBCBC','🏠 Possession':'#D47C7C','🧾 PDC':'#7CB0D4','🎯 CRM':'#D4C87C','📊 Executive':'#8FB07C','⚖️ Compliance':'#A78B9F','🧾 Financial':'#4F46E5','🤖 AI':'#7C3AED'};
+const _RPT_SEC_ORDER=['💰 Recovery','🏗️ Project','🧾 Sales','👨‍💼 Agent','👤 Client','🏠 Possession','🧾 PDC','🎯 CRM','📊 Executive','⚖️ Compliance'];
 
 // ══ REPORTS HUB — Department config ══════════════════════════════════════
 const _DEPTS=[
-  {id:'recovery',  title:'Recovery & Collections',  desc:'Outstanding dues, aging buckets, collection performance and agent activity',    col:'#DC2626', reports:['outstanding','aging','monthly_trend','agent_recovery','recovery','statement']},
-  {id:'sales',     title:'Sales & Revenue',          desc:'Complete transaction history, discount analysis and cancellations',             col:'#16A34A', reports:['sales_register','discount','cancelled']},
-  {id:'inventory', title:'Inventory & Projects',     desc:'Unit status, floor breakdowns, occupancy and possession tracking',              col:'#2563EB', reports:['project','unit','floor_type','possession']},
-  {id:'client',    title:'Client & Customer',         desc:'Portfolio overview, defaulters and per-client running accounts',               col:'#9333EA', reports:['client']},
-  {id:'agent',     title:'Agents & Commissions',      desc:'Commission earned vs paid, staff performance and payment analytics',           col:'#D97706', reports:['commission','commission_hist','staff']},
-  {id:'operations',title:'Operations & CRM',          desc:'Follow-up logs, contact history and daily recovery activity by staff',         col:'#0D9488', reports:['activity','contacts','followup']},
-  {id:'financial', title:'Financial & Accounting',    desc:'Post-dated cheques, upcoming maturities and WHT/tax compliance',              col:'#4F46E5', reports:['pdc','pdc_upcoming','tax_report']},
-  {id:'executive', title:'Executive & Analytics',     desc:'Strategic overview — portfolio KPIs and recovery progress for directors',      col:'#7C3AED', reports:['executive']},
+  {id:'recovery',  title:'Recovery & Collections',  desc:'Outstanding dues, aging buckets, collection performance, agent activity, promises and field visits', col:'#DC2626', reports:['outstanding','aging','monthly_trend','agent_recovery','promise_tracker','field_visits']},
+  {id:'financial', title:'Financial & Accounts',     desc:'Receiving ledger, per-client running accounts and payables',                    col:'#4F46E5', reports:['recovery','statement','payables']},
+  {id:'operational',title:'Operational',             desc:'Sales register, post-dated cheques and cancellations',                          col:'#16A34A', reports:['sales_register','pdc','cancelled']},
+  {id:'ai',        title:'AI & Analytics',           desc:'AI-scored recovery prospects and collection forecasting',                       col:'#7C3AED', reports:['ai_radar','forecasting']},
 ];
 
 const _RPT_TAGS={
@@ -64,7 +72,8 @@ const _RPT_TAGS={
   project:        'project summary financial overview p&l',
   unit:           'unit inventory status available sold booked',
   floor_type:     'floor type breakdown area sqft configuration',
-  possession:     'possession handover delivery checklist snagging',
+  possession:          'possession handover delivery checklist snagging',
+  post_possession_dues:'post possession dues outstanding overdue installment after handover',
   client:         'client customer portfolio defaulters list',
   commission:     'commission agent earned pending balance',
   commission_hist:'commission history payments log disbursement',
@@ -75,7 +84,9 @@ const _RPT_TAGS={
   pdc:            'pdc cheque post-dated bank clearing status',
   pdc_upcoming:   'pdc upcoming cheque due maturity schedule',
   tax_report:     'tax wht fbr withholding compliance',
-  executive:      'executive summary kpi overview director management',
+  executive:           'executive summary kpi overview director management',
+  legal_portfolio:     'legal cases court notice arbitration settlement claim outstanding compliance',
+  transfers_register:  'transfer ownership unit transfer voucher register compliance',
 };
 
 // ── Persistence helpers (per-user localStorage) ──
@@ -86,6 +97,21 @@ function _rptGetRecent(){try{return JSON.parse(localStorage.getItem(_rptUK()+'re
 function _rptAddRecent(k){try{let r=_rptGetRecent().filter(x=>x!==k);r.unshift(k);if(r.length>10)r=r.slice(0,10);localStorage.setItem(_rptUK()+'recent',JSON.stringify(r));}catch{}}
 function _rptGetViews(){try{return JSON.parse(localStorage.getItem(_rptUK()+'views')||'{}');}catch{return{};}}
 function _rptAddView(k){try{const v=_rptGetViews();v[k]=(v[k]||0)+1;localStorage.setItem(_rptUK()+'views',JSON.stringify(v));}catch{}}
+// Last-run timestamps + collapsed-section state (per user)
+function _rptGetRuns(){try{return JSON.parse(localStorage.getItem(_rptUK()+'runs')||'{}');}catch{return{};}}
+function _rptSetLastRun(k){try{const r=_rptGetRuns();r[k]=Date.now();localStorage.setItem(_rptUK()+'runs',JSON.stringify(r));}catch{}}
+function _rptLastRunLabel(k){
+  const ts=_rptGetRuns()[k];
+  if(!ts)return'Never run';
+  const diff=Date.now()-ts,day=86400000;
+  if(diff<60000)return'Just now';
+  if(diff<3600000)return Math.floor(diff/60000)+'m ago';
+  if(diff<day)return Math.floor(diff/3600000)+'h ago';
+  if(diff<7*day)return Math.floor(diff/day)+'d ago';
+  try{return new Date(ts).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'});}catch{return'—';}
+}
+function _rptGetCollapsed(){try{return JSON.parse(localStorage.getItem(_rptUK()+'collapsed')||'[]');}catch{return[];}}
+function _rptSetCollapsed(a){try{localStorage.setItem(_rptUK()+'collapsed',JSON.stringify(a));}catch{}}
 
 // ── Lucide icon helper ──
 const _RH_ICONS={
@@ -113,6 +139,7 @@ const _RH_ICONS={
   'search':'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   'check-circle':'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
   'star':'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  'chevron-down':'<polyline points="6 9 12 15 18 9"/>',
 };
 function _rhi(name,size){
   size=size||16;
@@ -125,11 +152,12 @@ const _RH_CARD_IC={
   outstanding:'alert-circle', aging:'clock', monthly_trend:'trending-up',
   agent_recovery:'activity', recovery:'bar-chart-2', statement:'file-text',
   sales_register:'tag', discount:'tag', cancelled:'x-circle',
-  project:'layers', unit:'package', floor_type:'layout', possession:'home',
+  project:'layers', unit:'package', floor_type:'layout', possession:'home', post_possession_dues:'alert-triangle',
   client:'user', commission:'briefcase', commission_hist:'file-text',
   staff:'users', activity:'activity', contacts:'phone', followup:'calendar',
   pdc:'credit-card', pdc_upcoming:'calendar', tax_report:'pie-chart',
   executive:'pie-chart',
+  legal_portfolio:'file-text', transfers_register:'repeat',
 };
 
 // ── SVG sparkline generator ──
@@ -193,6 +221,7 @@ function _rptCardMetric(key){
       case 'unit':return{v:units.length,l:'total units'};
       case 'floor_type':{const f=[...new Set(units.map(u=>u.floor||u.floorLabel).filter(Boolean))];return{v:f.length||'—',l:'floors tracked'};}
       case 'possession':return{v:sold.length,l:'sold units'};
+      case 'post_possession_dues':return{v:'—',l:'units with dues'};
       case 'client':{const cl=[...new Set(sold.map(u=>u.customerName).filter(Boolean))];return{v:cl.length,l:'clients'};}
       case 'commission':{const agSales=sold.filter(u=>u.agentId||u.agentName||u.agent_id);const pend=agSales.reduce((s,u)=>s+Number(u.commissionAmount||u.commission_amount||u.pendingCommission||0),0);return{v:fm(pend),l:'PKR pending'};}
       case 'commission_hist':{const agSales=sold.filter(u=>u.agentId||u.agentName||u.agent_id);return{v:agSales.length,l:'transactions'};}
@@ -204,6 +233,8 @@ function _rptCardMetric(key){
       case 'pdc_upcoming':return{v:'—',l:'upcoming cheques'};
       case 'tax_report':return{v:'—',l:'WHT compliance'};
       case 'executive':return{v:sold.length,l:'units tracked'};
+      case 'legal_portfolio':return{v:'—',l:'legal cases'};
+      case 'transfers_register':return{v:'—',l:'transfers'};
       default:return{v:'—',l:'open report'};
     }
   }catch(e){return{v:'—',l:'view report'};}
@@ -214,15 +245,16 @@ function _rptDoSearch(q){
   const body=document.getElementById('rh-body');if(!body)return;
   const term=(q||'').toLowerCase().trim();
   _rhClearEmpty();
-  if(!term){body.querySelectorAll('.rh-card,.rh-section').forEach(el=>el.style.display='');_rhUpdateNavCounts();return;}
+  if(!term){body.querySelectorAll('.rh-row,.rh-section').forEach(el=>el.style.display='');_rhApplyCollapsedState();_rhUpdateNavCounts();return;}
   body.querySelectorAll('.rh-section').forEach(sec=>{
     let any=false;
-    sec.querySelectorAll('.rh-card').forEach(card=>{
-      const match=(card.dataset.search||'').includes(term);
-      card.style.display=match?'':'none';
+    sec.querySelectorAll('.rh-row').forEach(row=>{
+      const match=(row.dataset.search||'').includes(term);
+      row.style.display=match?'':'none';
       if(match)any=true;
     });
     sec.style.display=any?'':'none';
+    if(any)sec.classList.remove('collapsed');   // auto-expand sections with matches
   });
   const anyVis=body.querySelector('.rh-section:not([style*="none"])');
   if(!anyVis) _rhShowEmpty(`No reports match "<b>${esc(q)}</b>"`, 'Try a different keyword or <button class="rh-no-results-clr" onclick="_rhClearSearch()">clear search</button>');
@@ -257,7 +289,7 @@ function _rptSetTab(tab,btn){
   const body=document.getElementById('rh-body');if(!body)return;
   const srch=document.getElementById('rh-srch');if(srch)srch.value='';
   _rhClearEmpty();
-  if(tab==='all'){body.querySelectorAll('.rh-card,.rh-section').forEach(el=>el.style.display='');_rhUpdateNavCounts();return;}
+  if(tab==='all'){body.querySelectorAll('.rh-row,.rh-section').forEach(el=>el.style.display='');_rhApplyCollapsedState();_rhUpdateNavCounts();return;}
   let list=[];
   if(tab==='favorites') list=_rptGetFavs();
   else if(tab==='recent') list=_rptGetRecent();
@@ -265,8 +297,9 @@ function _rptSetTab(tab,btn){
   let tot=0;
   body.querySelectorAll('.rh-section').forEach(sec=>{
     let any=false;
-    sec.querySelectorAll('.rh-card').forEach(card=>{const show=list.includes(card.dataset.key);card.style.display=show?'':'none';if(show){any=true;tot++;}});
+    sec.querySelectorAll('.rh-row').forEach(row=>{const show=list.includes(row.dataset.key);row.style.display=show?'':'none';if(show){any=true;tot++;}});
     sec.style.display=any?'':'none';
+    if(any)sec.classList.remove('collapsed');   // expand sections that have filter matches
   });
   if(!tot){
     const isFav=tab==='favorites',isMU=tab==='mostused';
@@ -311,12 +344,13 @@ async function _rptLoadKPIs(){
     const ms=today.slice(0,7)+'-01';
     const lm1=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().slice(0,10);
     const lm2=new Date(now.getFullYear(),now.getMonth(),0).toISOString().slice(0,10);
-    const [{data:mPays=[]},{data:lmPays=[]},{count:saleCnt=0},{data:instOS=[]}]=await Promise.all([
-      supabase.from('payments').select('amount').eq('company_id',S.cid).gte('payment_date',ms).lte('payment_date',today),
-      supabase.from('payments').select('amount').eq('company_id',S.cid).gte('payment_date',lm1).lte('payment_date',lm2),
-      supabase.from('sales').select('id',{count:'exact',head:true}).eq('company_id',S.cid).eq('status','active'),
-      supabase.from('installments').select('outstanding').eq('company_id',S.cid).in('status',['pending','partial','overdue']).limit(5000),
+    const [{data:mPays=[]},{data:lmPays=[]},{data:activeSales=[]},{data:instOS=[]}]=await Promise.all([
+      supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: { columns: 'amount', date_from: ms, date_to: today } }),
+      supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: { columns: 'amount', date_from: lm1, date_to: lm2 } }),
+      supabase.rpc('list_sales_filtered', { p_company_id: S.cid, p_filters: { status: 'active' } }),
+      supabase.rpc('list_installments_filtered', { p_company_id: S.cid, p_filters: { status_in: 'pending,partial,overdue' } }),
     ]);
+    const saleCnt = activeSales.length;
     const mColl=mPays.reduce((s,p)=>s+Number(p.amount||0),0);
     const lmColl=lmPays.reduce((s,p)=>s+Number(p.amount||0),0);
     const totalOS=instOS.reduce((s,r)=>s+Number(r.outstanding||0),0);
@@ -371,64 +405,79 @@ function _rhUpdateNavCounts(){
   const body=document.getElementById('rh-body');if(!body)return;
   _DEPTS.forEach(d=>{
     const sec=body.querySelector('.rh-section[data-dept="'+d.id+'"]');if(!sec)return;
-    const visible=sec.querySelectorAll('.rh-card:not([style*="none"])').length;
+    const visible=sec.querySelectorAll('.rh-row:not([style*="none"])').length;
     const navItem=document.querySelector('.rh-nav-item[data-dept="'+d.id+'"]');
     if(navItem){const cnt=navItem.querySelector('.rh-nav-cnt');if(cnt)cnt.textContent=visible;}
   });
 }
 
-// ── Report card render ──
-function _rptRenderCard(key,dept,favs,views){
+// ── Report list row render ──
+function _rptRenderCard(key,dept,favs){
   const r=RPT[key];if(!r)return'';
-  const isFav=favs.includes(key);
-  const vc=views[key]||0;
-  const metric=_rptCardMetric(key);
   const icName=_RH_CARD_IC[key]||'file-text';
   const colHex=dept.col;
-  const colAlpha=colHex+'1F'; // ~12% tint via hex — fallback to inline style
-  const sparkSvg=_rptSparkline(_rptSparkData(key),colHex,key);
   const searchStr=((r.lbl||'')+' '+(r.sub||'')+' '+(dept.title||'')+' '+(_RPT_TAGS[key]||'')).toLowerCase();
-  const isEmpty=metric.v==='—'||metric.v===0||metric.v==='0';
-  const metricHtml=isEmpty
-    ?`<div class="rh-card-val empty" style="color:${colHex}">—</div><div class="rh-card-invite">No data yet · Open to start</div>`
-    :`<div class="rh-card-val" style="color:${colHex}">${metric.v}</div><div class="rh-card-unit">${metric.l}</div>`;
-  const sparkHtml=sparkSvg
-    ?`<div class="rh-card-spark">${sparkSvg}</div>`
-    :`<div class="rh-card-spark-empty"></div>`;
-  const metaText=vc>0?`Viewed ${vc}×`:'Never opened · Tap to explore';
-  return `<div class="rh-card${isEmpty?' rh-empty':''}" style="--rh-col-30:${colHex}4D" onclick="openRptViewer('${key}')" data-key="${key}" data-search="${searchStr}">
-    <div class="rh-card-top">
-      <div class="rh-card-icon" style="background:${colHex}1F;color:${colHex}">${_rhi(icName,16)}</div>
-      <div class="rh-card-info">
-        <div class="rh-card-name">${esc(r.lbl)}</div>
-        <div class="rh-card-sub">${esc(r.sub)}</div>
-      </div>
-      <button class="rh-card-star${isFav?' on':''}" onclick="_rptToggleFav('${key}',this)" title="${isFav?'Remove from saved':'Save report'}">${_rhi('star',14)}</button>
+  return `<div class="rh-row" onclick="openRptViewer('${key}')" data-key="${key}" data-search="${searchStr}">
+    <div class="rh-row-ic" style="background:${colHex}1A;color:${colHex}">${_rhi(icName,16)}</div>
+    <div class="rh-row-body">
+      <div class="rh-row-name">${esc(r.lbl)}</div>
+      <div class="rh-row-desc">${esc(r.sub)}</div>
     </div>
-    <div class="rh-card-metric">${metricHtml}</div>
-    ${sparkHtml}
-    <div class="rh-card-footer">
-      <span class="rh-card-meta">${metaText}</span>
-      <span class="rh-card-open" style="color:${colHex}">Open →</span>
+    <div class="rh-row-lastrun" title="Last run">${_rhi('clock',12)} ${_rptLastRunLabel(key)}</div>
+    <div class="rh-row-acts">
+      <button class="rh-row-run" onclick="event.stopPropagation();openRptViewer('${key}')">Run &#9654;</button>
+      <button class="rh-row-dl" onclick="event.stopPropagation();_rhRunExcel('${key}')">Excel &#8595;</button>
     </div>
   </div>`;
 }
 
 // ── Section render ──
-function _rptRenderDept(d,favs,views){
-  const cards=d.reports.map(k=>_rptRenderCard(k,d,favs,views)).filter(Boolean).join('');
-  if(!cards)return'';
-  return `<div class="rh-section" id="rh-sec-${d.id}" data-dept="${d.id}">
+function _rptRenderDept(d,favs){
+  const rows=d.reports.map(k=>_rptRenderCard(k,d,favs)).filter(Boolean).join('');
+  if(!rows)return'';
+  const collapsed=_rptGetCollapsed().includes(d.id);
+  return `<div class="rh-section${collapsed?' collapsed':''}" id="rh-sec-${d.id}" data-dept="${d.id}">
     <a class="rh-section-anchor" id="rh-anchor-${d.id}"></a>
-    <div class="rh-sec-bar" style="background:${d.col}"></div>
-    <div class="rh-sec-hdr">
+    <div class="rh-sec-hdr" onclick="_rhToggleSection('${d.id}')" title="Click to expand / collapse">
+      <span class="rh-sec-chev">${_rhi('chevron-down',14)}</span>
       <div class="rh-sec-dot" style="background:${d.col}"></div>
       <span class="rh-sec-title">${esc(d.title)}</span>
-      <span class="rh-sec-cnt">${d.reports.length} reports</span>
-      ${d.reports.length>4?`<button class="rh-sec-all" onclick="openRptViewer('${d.reports[0]}')">View all →</button>`:''}
+      <span class="rh-sec-cnt">${d.reports.length}</span>
     </div>
-    <div class="rh-grid" id="rh-grid-${d.id}">${cards}</div>
+    <div class="rh-list" id="rh-list-${d.id}">${rows}</div>
   </div>`;
+}
+
+// Collapse / expand a category section (persisted per user)
+function _rhToggleSection(id){
+  const sec=document.getElementById('rh-sec-'+id);
+  if(!sec)return;
+  sec.classList.toggle('collapsed');
+  const set=_rptGetCollapsed().filter(x=>x!==id);
+  if(sec.classList.contains('collapsed'))set.push(id);
+  _rptSetCollapsed(set);
+}
+
+// Re-apply persisted collapsed state to all sections
+function _rhApplyCollapsedState(){
+  const set=_rptGetCollapsed();
+  document.querySelectorAll('.rh-section[data-dept]').forEach(sec=>{
+    sec.classList.toggle('collapsed', set.includes(sec.dataset.dept));
+  });
+}
+
+// Run + download Excel straight from a list row (opens viewer, exports once rendered)
+function _rhRunExcel(key){
+  _rptSetLastRun(key);
+  openRptViewer(key);
+  let tries=0;
+  const iv=setInterval(()=>{
+    tries++;
+    const ct=document.getElementById('r-ct');
+    const ready=ct&&!ct.querySelector('[style*="rops-spin"]')&&(ct.querySelector('table')||ct.querySelector('.empty')||ct.querySelector('.card'));
+    if(ready){clearInterval(iv);try{expRptExcel();}catch(e){}}
+    else if(tries>40)clearInterval(iv);
+  },150);
 }
 
 // ── Recently viewed strip ──
@@ -520,7 +569,6 @@ function rReports(){
   const favCnt=favs.length;
   const recentCnt=Math.min(_rptGetRecent().length,10);
   const muCnt=Math.min(Object.keys(views).length,10);
-  const skelCard=`<div class="rh-kpi-skel"><div class="rh-skel-line" style="height:11px;width:50%;margin-bottom:8px"></div><div class="rh-skel-line" style="height:20px;width:70%;margin-bottom:6px"></div><div class="rh-skel-line" style="height:11px;width:55%"></div></div>`;
   pg.innerHTML=`<div class="rh" id="rh-hub">
     <!-- Left Nav -->
     <nav class="rh-nav" id="rh-nav">${_rhNavHTML(favs,views)}</nav>
@@ -531,11 +579,10 @@ function rReports(){
         <div class="rh-hdr-row1">
           <span class="rh-title">Reports &amp; Analytics</span>
           <div class="rh-hdr-actions">
-            <div class="rh-view-toggle">
-              <button class="rh-view-btn active" id="rh-vg" onclick="_rhSetView('grid',this)" title="Grid view">${_rhi('layout',13)} Grid</button>
-              <button class="rh-view-btn" id="rh-vl" onclick="_rhSetView('list',this)" title="List view">${_rhi('bar-chart-2',13)} List</button>
-            </div>
-            <button class="rh-export-btn" onclick="window.print()">Export All</button>
+            <button class="rh-export-btn" onclick="openReportHub()" title="Open A4 print report hub in new tab" style="background:#1e2d47;color:#fff;border-color:#1e2d47">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print Hub
+            </button>
           </div>
         </div>
         <div class="rh-hdr-row2">
@@ -551,17 +598,12 @@ function rReports(){
           </div>
         </div>
       </div>
-      <!-- KPI Strip -->
-      <div class="rh-kpi-strip" id="rh-kpi-strip">${[0,1,2,3].map(()=>skelCard).join('')}</div>
-      <!-- Recently Viewed -->
-      ${_rhRecentStrip(views)}
       <!-- Report Sections -->
       <div class="rh-body" id="rh-body">
-        ${_DEPTS.map(d=>_rptRenderDept(d,favs,views)).join('')}
+        ${_DEPTS.map(d=>_rptRenderDept(d,favs)).join('')}
       </div>
     </div>
   </div>`;
-  _rptLoadKPIs();
   setTimeout(_rhInitScrollSpy, 100);
   _rhInitKeyboard();
 }
@@ -577,7 +619,7 @@ function _rhSetView(v,btn){
 let _rptGenId=0;
 
 function openRptViewer(key){
-  if(key){_rt=key;_rs=(RPT[key]?.subs?.[0]?.id)||'all';_rptAddRecent(key);_rptAddView(key);}
+  if(key){_rt=key;_rs=(RPT[key]?.subs?.[0]?.id)||'all';_rptAddRecent(key);_rptAddView(key);_rptSetLastRun(key);}
   _rptGenId++;
   const cur=RPT[_rt]||{};
   const col=_RPT_SEC_COL[cur.sec||'']||'var(--brand)';
@@ -669,10 +711,11 @@ async function runRpt(){
 
   if(_rt==='commission'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading commission data…</div>`;
-    const [{data:agentRows=[]},{data:pays=[]}]=await Promise.all([
-      supabase.from('agents').select('id,full_name,agent_code,phone,commission_percent,total_commission_earned,status').eq('company_id',S.cid).order('full_name'),
-      supabase.from('agent_commission_payments').select('agent_id,amount').eq('company_id',S.cid)
+    const [{data:agentRows=[]},{data:paysFull=[]}]=await Promise.all([
+      supabase.rpc('list_agents_for_reports', { p_company_id: S.cid }),
+      supabase.rpc('list_agent_commission_payments', { p_company_id: S.cid })
     ]);
+    const pays = (paysFull || []).map(p => ({ agent_id: p.agent_id, amount: p.amount }));
     const payMap={};pays.forEach(p=>{if(!payMap[p.agent_id])payMap[p.agent_id]=0;payMap[p.agent_id]+=Number(p.amount||0);});
     let agRows=agentRows.map(a=>({...a,commPaid:payMap[a.id]||0,commPending:Math.max(0,Number(a.total_commission_earned||0)-(payMap[a.id]||0))}));
     if(_rs==='pending')agRows=agRows.filter(r=>r.commPending>0);
@@ -707,11 +750,10 @@ async function runRpt(){
 
   if(_rt==='pdc'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading cheque data…</div>`;
-    let q=supabase.from('payments').select('id,sale_id,cheque_date,reference_no,bank_name,amount,deposit_confirmed,notes,client_id,payment_date').eq('company_id',S.cid).eq('payment_method','cheque');
-    if(df.fr)q=q.gte('cheque_date',df.fr);if(df.to)q=q.lte('cheque_date',df.to);
-    if(_rs==='pending')q=q.eq('deposit_confirmed',false);
-    else if(_rs==='cleared')q=q.eq('deposit_confirmed',true);
-    const {data:pdcRaw,error:pdcErr}=await q.order('cheque_date',{ascending:false}).limit(500);
+    const pdcFilters = { payment_method: 'cheque', cheque_from: df.fr || null, cheque_to: df.to || null, limit: 500 };
+    if (_rs === 'pending') pdcFilters.deposit_confirmed = 'false';
+    else if (_rs === 'cleared') pdcFilters.deposit_confirmed = 'true';
+    const {data:pdcRaw,error:pdcErr}=await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: pdcFilters });
     if(pdcErr){_set(`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="et">Could not load cheque data</div><div class="es">${esc(pdcErr.message)}</div></div>`);return;}
     const pdcs=(pdcRaw||[]).map(p=>{const cl=(window._clientsCache||[]).find(c=>c.id===p.client_id)||null;return {...p,clientName:cl?.fullName||'—',clientPhone:cl?.phone||'—'};});
     const tAmt=pdcs.reduce((s,p)=>s+Number(p.amount||0),0);
@@ -738,9 +780,10 @@ async function runRpt(){
 
   if(_rt==='cancelled'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading cancellation data…</div>`;
-    let q=supabase.from('sales').select('id,unit_id,sale_number,total_amount,sale_date,cancellation_date,cancellation_reason,cancelled_by').eq('company_id',S.cid).eq('status','cancelled');
-    if(df.fr)q=q.gte('cancellation_date',df.fr);if(df.to)q=q.lte('cancellation_date',df.to);
-    const {data:cansales}=await q.order('cancellation_date',{ascending:false});
+    const {data:cansales}=await supabase.rpc('list_sales_for_report', {
+      p_company_id: S.cid,
+      p_filters: { status: 'cancelled', cancel_from: df.fr || null, cancel_to: df.to || null }
+    });
     const cTotal=(cansales||[]).reduce((s,r)=>s+Number(r.total_amount||0),0);
     html=rptBanner([{v:(cansales||[]).length,l:'cancellations'},{v:fM(cTotal),l:'cancelled value',c:'var(--err)'}]);
     if((cansales||[]).length){
@@ -768,15 +811,14 @@ async function runRpt(){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading outstanding dues…</div>`;
     const todayOS=td();
     const in30dOS=new Date();in30dOS.setDate(in30dOS.getDate()+30);const in30OS=in30dOS.toISOString().slice(0,10);
-    let qOS=supabase.from('installments').select('id,sale_id,installment_number,installment_type,due_date,amount_due,amount_paid,status').eq('company_id',S.cid);
-    if(_rs==='overdue')qOS=qOS.lt('due_date',todayOS).in('status',['pending','partial','overdue']);
-    else if(_rs==='upcoming')qOS=qOS.gte('due_date',todayOS).lte('due_date',in30OS).in('status',['pending','partial']);
-    else qOS=qOS.in('status',['pending','partial','overdue']);
-    if(df.fr)qOS=qOS.gte('due_date',df.fr);if(df.to)qOS=qOS.lte('due_date',df.to);
-    const {data:osInsts=[]}=await qOS.order('due_date',{ascending:true}).limit(500);
+    const osFilters = { due_from: df.fr || null, due_to: df.to || null, limit: 500 };
+    if (_rs === 'overdue') { osFilters.due_lt = todayOS; osFilters.status_in = 'pending,partial,overdue'; }
+    else if (_rs === 'upcoming') { osFilters.due_gte = todayOS; osFilters.due_to = in30OS; osFilters.status_in = 'pending,partial'; }
+    else osFilters.status_in = 'pending,partial,overdue';
+    const {data:osInsts=[]} = await supabase.rpc('list_installments_for_report', { p_company_id: S.cid, p_filters: osFilters });
     const osIds=[...new Set(osInsts.map(i=>i.sale_id).filter(Boolean))];
     let osSmMap={};
-    if(osIds.length){const {data:osSd=[]}=await supabase.from('sales').select('id,unit_id').in('id',osIds);osSd.forEach(s=>{osSmMap[s.id]=s.unit_id;});}
+    if(osIds.length){const {data:osSd=[]}=await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: osIds });(osSd||[]).forEach(s=>{osSmMap[s.id]=s.unit_id;});}
     const osTotDue=osInsts.reduce((s,r)=>s+Number(r.amount_due||0),0);
     const osTotPaid=osInsts.reduce((s,r)=>s+Number(r.amount_paid||0),0);
     const osTotPend=osInsts.reduce((s,r)=>s+Math.max(0,Number(r.amount_due||0)-Number(r.amount_paid||0)),0);
@@ -805,9 +847,10 @@ async function runRpt(){
   // ── SALES REGISTER ──
   if(_rt==='sales_register'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading sales data…</div>`;
-    let qSR=supabase.from('sales').select('id,unit_id,sale_number,sale_date,total_amount,down_payment,discount,status,created_by').eq('company_id',S.cid);
-    if(df.fr)qSR=qSR.gte('sale_date',df.fr);if(df.to)qSR=qSR.lte('sale_date',df.to);
-    const {data:srSales}=await qSR.order('sale_date',{ascending:false}).limit(500);
+    const {data:srSales}=await supabase.rpc('list_sales_for_report', {
+      p_company_id: S.cid,
+      p_filters: { sale_from: df.fr || null, sale_to: df.to || null, limit: 500 }
+    });
     let srRows=(srSales||[]);
     if(_rs==='installment')srRows=srRows.filter(r=>{const u=gunit(r.unit_id);return u&&u.status!=='CashSale'&&u.status!=='Available'&&u.status!=='Dead';});
     else if(_rs==='cash')srRows=srRows.filter(r=>gunit(r.unit_id)?.status==='CashSale');
@@ -842,9 +885,10 @@ async function runRpt(){
   // ── DISCOUNT REPORT ──
   if(_rt==='discount'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading discount data…</div>`;
-    let qDR=supabase.from('sales').select('id,unit_id,sale_number,sale_date,total_amount,discount,created_by').eq('company_id',S.cid).gt('discount',0);
-    if(df.fr)qDR=qDR.gte('sale_date',df.fr);if(df.to)qDR=qDR.lte('sale_date',df.to);
-    const {data:drSales}=await qDR.order('discount',{ascending:false}).limit(500);
+    const {data:drSales}=await supabase.rpc('list_sales_for_report', {
+      p_company_id: S.cid,
+      p_filters: { sale_from: df.fr || null, sale_to: df.to || null, discount_gt: 0, limit: 500 }
+    });
     const drDisc=(drSales||[]).reduce((s,r)=>s+Number(r.discount||0),0);
     const drVal=(drSales||[]).reduce((s,r)=>s+Number(r.total_amount||0),0);
     html=rptBanner([{v:(drSales||[]).length,l:'sales with discount'},{v:fM(drVal),l:'total sale value'},{v:fM(drDisc),l:'total discounts',c:'var(--warn)'},{v:drVal?Math.round(drDisc/drVal*100)+'%':'0%',l:'avg discount rate',c:'var(--err)'}]);
@@ -873,9 +917,8 @@ async function runRpt(){
   // ── COMMISSION HISTORY ──
   if(_rt==='commission_hist'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading commission payments…</div>`;
-    let qCH=supabase.from('agent_commission_payments').select('*,agents(full_name,agent_code)').eq('company_id',S.cid);
-    if(df.fr)qCH=qCH.gte('payment_date',df.fr);if(df.to)qCH=qCH.lte('payment_date',df.to);
-    const {data:chHist=[]}=await qCH.order('payment_date',{ascending:false}).limit(500);
+    const {data:chHistAll=[]}=await supabase.rpc('list_agent_commissions_with_agent', { p_company_id: S.cid });
+    const chHist = chHistAll.filter(r => (!df.fr || r.payment_date >= df.fr) && (!df.to || r.payment_date <= df.to)).slice(0,500);
     const chTot=chHist.reduce((s,r)=>s+Number(r.amount||0),0);
     html=rptBanner([{v:chHist.length,l:'payments'},{v:fM(chTot),l:'total paid out',c:'var(--ok)'}]);
     if(chHist.length){
@@ -902,11 +945,13 @@ async function runRpt(){
   // ── POSSESSION STATUS ──
   if(_rt==='possession'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading possession data…</div>`;
-    let qPS=supabase.from('possessions').select('*').eq('company_id',S.cid);
-    if(_rs==='pending')qPS=qPS.eq('status','pending');
-    else if(_rs==='completed')qPS=qPS.eq('status','completed');
-    if(df.fr)qPS=qPS.gte('possession_date',df.fr);if(df.to)qPS=qPS.lte('possession_date',df.to);
-    const {data:psPoss=[]}=await qPS.order('created_at',{ascending:false}).limit(500);
+    const {data:psAll=[]}=await supabase.rpc('list_possessions_filtered', { p_company_id: S.cid });
+    let psPoss = psAll;
+    if (_rs === 'pending') psPoss = psPoss.filter(p => p.status === 'pending');
+    else if (_rs === 'completed') psPoss = psPoss.filter(p => p.status === 'completed');
+    if (df.fr) psPoss = psPoss.filter(p => !p.possession_date || p.possession_date >= df.fr);
+    if (df.to) psPoss = psPoss.filter(p => !p.possession_date || p.possession_date <= df.to);
+    psPoss = psPoss.slice(0, 500);
     const psComp=psPoss.filter(p=>p.status==='completed').length;
     const psPend=psPoss.filter(p=>p.status!=='completed').length;
     html=rptBanner([{v:psPoss.length,l:'possession records'},{v:psComp,l:'completed',c:'var(--ok)'},{v:psPend,l:'pending',c:'var(--warn)'}]);
@@ -932,12 +977,140 @@ async function runRpt(){
     _set(html);return;
   }
 
+  // ── POST-POSSESSION DUES ──
+  if(_rt==='post_possession_dues'){
+    ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading post-possession dues…</div>`;
+    const {data:ppd,error:ppdErr}=await supabase.rpc('get_post_possession_dues',{p_company_id:S.cid});
+    if(ppdErr){_set(`<div class="empty"><div class="et">Could not load post-possession dues</div><div class="es">${esc(ppdErr.message)}</div></div>`);return;}
+    const rows=ppd?.rows||[];
+    const tOuts=rows.reduce((s,r)=>s+Number(r.total_outstanding||0),0);
+    const tOverdue=rows.filter(r=>Number(r.overdue_count||0)>0).length;
+    html=rptBanner([
+      {v:rows.length,l:'units with dues'},
+      {v:fM(tOuts),l:'total outstanding',c:'var(--err)'},
+      {v:tOverdue,l:'with overdue inst.',c:'var(--err)'},
+    ]);
+    if(rows.length){
+      html+=`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Unit</th><th>Project</th><th>Client</th><th>Phone</th><th>Possession Date</th><th class="r">Outstanding</th><th class="r">Pending Inst.</th><th class="r">Overdue</th><th>Next Due</th><th>Oldest Overdue</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const hasOverdue=Number(r.overdue_count||0)>0;
+        return `<tr>
+        <td style="font-weight:700">${esc(r.unit_no||'—')}</td>
+        <td style="font-size:11px;color:var(--t2)">${esc(r.project_name||'—')}</td>
+        <td>${esc(r.client_name||'—')}</td>
+        <td style="font-size:11px">${esc(r.client_phone||'—')}</td>
+        <td style="font-size:11px;white-space:nowrap">${r.possession_date?fD(r.possession_date):'—'}</td>
+        <td class="r mono" style="font-weight:700;color:var(--err)">${fM(r.total_outstanding)}</td>
+        <td class="r" style="font-size:12px">${r.pending_count||0}</td>
+        <td class="r" style="font-size:12px;color:${hasOverdue?'var(--err)':'var(--ok)'};font-weight:${hasOverdue?700:400}">${r.overdue_count||0}</td>
+        <td style="font-size:11px;white-space:nowrap">${r.next_due_date?fD(r.next_due_date):'—'}</td>
+        <td style="font-size:11px;white-space:nowrap;color:${hasOverdue?'var(--err)':'var(--t3)'}">${r.oldest_overdue_date?fD(r.oldest_overdue_date):'—'}</td>
+      </tr>`;}).join('')}</tbody>
+      <tfoot><tr style="background:var(--hover);font-weight:700">
+        <td colspan="5">TOTAL (${rows.length} units)</td>
+        <td class="r mono" style="color:var(--err)">${fM(tOuts)}</td>
+        <td colspan="4"></td>
+      </tr></tfoot></table></div></div>`;
+    }else{
+      html+=`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div class="et">No post-possession dues found</div><div class="es">All completed possessions are fully paid up</div></div>`;
+    }
+    _set(html);return;
+  }
+
+  // ── LEGAL CASES PORTFOLIO ──
+  if(_rt==='legal_portfolio'){
+    ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading legal cases…</div>`;
+    const {data:lcAll,error:lcErr}=await supabase.rpc('list_legal_cases',{p_company_id:S.cid});
+    if(lcErr){_set(`<div class="empty"><div class="et">Could not load legal cases</div><div class="es">${esc(lcErr.message)}</div></div>`);return;}
+    const resolved=['settled','closed'];
+    let lcRows=Array.isArray(lcAll)?lcAll:[];
+    if(_rs==='active') lcRows=lcRows.filter(r=>!resolved.includes(r.stage||''));
+    if(_rs==='resolved') lcRows=lcRows.filter(r=>resolved.includes(r.stage||''));
+    const tClaim=lcRows.reduce((s,r)=>s+Number(r.claim_amount||0),0);
+    const tSettled=lcRows.reduce((s,r)=>s+Number(r.settled_amount||0),0);
+    const activeCount=lcRows.filter(r=>!resolved.includes(r.stage||'')).length;
+    const lcStageLabel=v=>({pre_legal:'Pre-Legal',notice_sent:'Notice Sent',filed:'Filed',hearing:'Hearing',judgment:'Judgment',appeal:'Appeal',settled:'Settled',closed:'Closed'}[v]||v||'—');
+    const lcTypeLabel=v=>({notice:'Notice',court:'Court',arbitration:'Arbitration',settlement:'Settlement'}[v]||v||'—');
+    html=rptBanner([
+      {v:lcRows.length,l:'total cases'},
+      {v:activeCount,l:'active',c:'var(--err)'},
+      {v:fM(tClaim),l:'total claim',c:'var(--brand)'},
+      {v:fM(tSettled),l:'total settled',c:'var(--ok)'},
+    ]);
+    if(lcRows.length){
+      const stageBadge=s=>{const isResolved=resolved.includes(s);const col=isResolved?'var(--ok)':'var(--err)';return `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:${col}18;color:${col}">${lcStageLabel(s)}</span>`;};
+      html+=`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Case #</th><th>Client</th><th>Unit</th><th>Type</th><th>Stage</th><th>Lawyer</th><th>Filed</th><th>Next Hearing</th><th class="r">Claim (PKR)</th><th class="r">Settled (PKR)</th><th>Outcome</th></tr></thead>
+      <tbody>${lcRows.map(r=>{
+        const linkedUnit=(window._unitsCache||[]).find(u=>u.id===r.unit_id);
+        return `<tr>
+        <td style="font-weight:700;white-space:nowrap">${esc(r.case_number||'—')}</td>
+        <td>${esc(r.clients?.client_name||'—')}</td>
+        <td style="font-size:11px;color:var(--t2)">${linkedUnit?esc(linkedUnit.unitNo||linkedUnit.unit_no||'—'):'<span style="color:var(--t3)">—</span>'}</td>
+        <td style="font-size:11px">${lcTypeLabel(r.case_type)}</td>
+        <td>${stageBadge(r.stage||'')}</td>
+        <td style="font-size:11px;color:var(--t2)">${esc(r.lawyer_name||'—')}</td>
+        <td style="font-size:11px;white-space:nowrap">${r.filed_date?fD(r.filed_date):'—'}</td>
+        <td style="font-size:11px;white-space:nowrap;color:${r.next_hearing_date&&r.next_hearing_date>=td()?'var(--brand)':'var(--t3)'}">${r.next_hearing_date?fD(r.next_hearing_date):'—'}</td>
+        <td class="r mono" style="font-size:12px">${r.claim_amount?fM(r.claim_amount):'—'}</td>
+        <td class="r mono" style="font-size:12px;color:var(--ok)">${r.settled_amount?fM(r.settled_amount):'—'}</td>
+        <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.outcome||'')}">${esc(r.outcome||'—')}</td>
+      </tr>`;}).join('')}</tbody>
+      <tfoot><tr style="background:var(--hover);font-weight:700">
+        <td colspan="8">TOTAL (${lcRows.length} cases)</td>
+        <td class="r mono">${fM(tClaim)}</td>
+        <td class="r mono" style="color:var(--ok)">${fM(tSettled)}</td>
+        <td></td>
+      </tr></tfoot></table></div></div>`;
+    }else{
+      html+=`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="et">No legal cases found</div><div class="es">No cases match the current filter</div></div>`;
+    }
+    _set(html);return;
+  }
+
+  // ── TRANSFERS REGISTER ──
+  if(_rt==='transfers_register'){
+    ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading transfers…</div>`;
+    const {data:trAll,error:trErr}=await supabase.rpc('list_unit_transfers_search',{p_company_id:S.cid,p_limit:500});
+    if(trErr){_set(`<div class="empty"><div class="et">Could not load transfers</div><div class="es">${esc(trErr.message)}</div></div>`);return;}
+    const trRows=Array.isArray(trAll)?trAll:[];
+    const tFee=trRows.reduce((s,r)=>s+Number(r.transfer_fee||0),0);
+    html=rptBanner([
+      {v:trRows.length,l:'total transfers'},
+      {v:fM(tFee),l:'total fees collected',c:'var(--ok)'},
+    ]);
+    if(trRows.length){
+      html+=`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Voucher No.</th><th>Transfer Date</th><th>Unit</th><th>Project</th><th class="r">Transfer Fee (PKR)</th></tr></thead>
+      <tbody>${trRows.map(r=>{
+        const u=(window._unitsCache||[]).find(x=>x.id===r.unit_id);
+        return `<tr>
+        <td style="font-weight:700;white-space:nowrap">${esc(r.transfer_voucher_no||'—')}</td>
+        <td style="white-space:nowrap">${r.transfer_date?fD(r.transfer_date):'—'}</td>
+        <td style="font-weight:600">${u?esc(u.unitNo||u.unit_no||'—'):'<span style="color:var(--t3)">—</span>'}</td>
+        <td style="font-size:11px;color:var(--t2)">${u?esc(u.projectName||u.project_name||'—'):'—'}</td>
+        <td class="r mono" style="font-weight:700">${r.transfer_fee?fM(r.transfer_fee):'—'}</td>
+      </tr>`;}).join('')}</tbody>
+      <tfoot><tr style="background:var(--hover);font-weight:700">
+        <td colspan="4">TOTAL (${trRows.length} transfers)</td>
+        <td class="r mono">${fM(tFee)}</td>
+      </tr></tfoot></table></div></div>`;
+    }else{
+      html+=`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div><div class="et">No transfers found</div><div class="es">No unit ownership transfers have been recorded yet</div></div>`;
+    }
+    _set(html);return;
+  }
+
   // ── UPCOMING PDC CHEQUES ──
   if(_rt==='pdc_upcoming'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading upcoming cheques…</div>`;
     const todayPU=td();
     const inXdPU=new Date();inXdPU.setDate(inXdPU.getDate()+(_rs==='7d'?7:30));const inXdPUStr=inXdPU.toISOString().slice(0,10);
-    const {data:puRaw,error:puErr}=await supabase.from('payments').select('id,sale_id,cheque_date,reference_no,bank_name,amount,deposit_confirmed,notes,client_id,payment_date').eq('company_id',S.cid).eq('payment_method','cheque').eq('deposit_confirmed',false).gte('cheque_date',todayPU).lte('cheque_date',inXdPUStr).order('cheque_date',{ascending:true}).limit(500);
+    const {data:puRaw,error:puErr}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid,
+      p_filters: { payment_method: 'cheque', deposit_confirmed: 'false', cheque_from: todayPU, cheque_to: inXdPUStr, limit: 500 }
+    });
     if(puErr){_set(`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="et">Could not load upcoming cheques</div><div class="es">${esc(puErr.message)}</div></div>`);return;}
     const puPdcs=(puRaw||[]).map(p=>{const cl=(window._clientsCache||[]).find(c=>c.id===p.client_id)||null;return {...p,clientName:cl?.fullName||'—',clientPhone:cl?.phone||'—'};});
     const puAmt=puPdcs.reduce((s,p)=>s+Number(p.amount||0),0);
@@ -966,15 +1139,16 @@ async function runRpt(){
   // ── TAX / WHT REPORT ──
   if(_rt==='tax_report'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading tax data…</div>`;
-    let qTR=supabase.from('payments').select('id,sale_id,payment_date,amount,tax_amount,tax_type,payment_method,created_by').eq('company_id',S.cid).gt('tax_amount',0);
-    if(df.fr)qTR=qTR.gte('payment_date',df.fr);if(df.to)qTR=qTR.lte('payment_date',df.to);
-    const {data:trPays=[],error:trErr}=await qTR.order('payment_date',{ascending:false}).limit(500);
+    const {data:trPays=[],error:trErr}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid,
+      p_filters: { tax_gt: 0, date_from: df.fr || null, date_to: df.to || null, limit: 500 }
+    });
     if(trErr){html=`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div><div class="et">Could not load tax data</div><div class="es">${esc(trErr.message)}</div></div>`;ct.innerHTML=html;return;}
     const trTax=trPays.reduce((s,p)=>s+Number(p.tax_amount||0),0);
     const trAmt=trPays.reduce((s,p)=>s+Number(p.amount||0),0);
     const trSids=[...new Set(trPays.map(p=>p.sale_id).filter(Boolean))];
     let trSmMap={};
-    if(trSids.length){const {data:trSd=[]}=await supabase.from('sales').select('id,unit_id').in('id',trSids);trSd.forEach(s=>{trSmMap[s.id]=s.unit_id;});}
+    if(trSids.length){const {data:trSd=[]}=await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: trSids });(trSd||[]).forEach(s=>{trSmMap[s.id]=s.unit_id;});}
     html=rptBanner([{v:trPays.length,l:'tax payments'},{v:fM(trAmt),l:'gross amount'},{v:fM(trTax),l:'total tax / WHT',c:'var(--warn)'}]);
     if(trPays.length){
       html+=`<div class="card"><div class="tw"><table class="t">
@@ -1001,13 +1175,14 @@ async function runRpt(){
   // ══ PAYMENTS / RECOVERY ════════════════════════════════════════════
   if(_rt==='recovery'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading payment records…</div>`;
-    let qRec=supabase.from('payments').select('id,sale_id,payment_date,amount,payment_method,reference_no,bank_name,notes,created_by').eq('company_id',S.cid);
-    if(df.fr)qRec=qRec.gte('payment_date',df.fr);if(df.to)qRec=qRec.lte('payment_date',df.to);
-    const {data:recPays=[],error:recErr}=await qRec.order('payment_date',{ascending:false}).limit(1000);
+    const {data:recPays=[],error:recErr}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid,
+      p_filters: { date_from: df.fr || null, date_to: df.to || null, limit: 1000 }
+    });
     if(recErr){_set(`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="et">Could not load payments</div><div class="es">${esc(recErr.message)}</div></div>`);return;}
     const recSids=[...new Set(recPays.map(p=>p.sale_id).filter(Boolean))];
     let recSmMap={};
-    if(recSids.length){const {data:recSd=[]}=await supabase.from('sales').select('id,unit_id').in('id',recSids);recSd.forEach(s=>{recSmMap[s.id]=s.unit_id;});}
+    if(recSids.length){const {data:recSd=[]}=await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: recSids });(recSd||[]).forEach(s=>{recSmMap[s.id]=s.unit_id;});}
     const recRows=recPays.map(r=>({...r,unitId:recSmMap[r.sale_id]||null}));
     if(_rs==='daily'){
       const gp={};recRows.forEach(r=>{const d=r.payment_date;if(!gp[d])gp[d]={n:0,t:0};gp[d].n++;gp[d].t+=Number(r.amount);});
@@ -1039,9 +1214,10 @@ async function runRpt(){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading staff data…</div>`;
     const users=(window._appUsersCache||[]);
     const cons=gcons();
-    let qSt=supabase.from('payments').select('sale_id,amount,payment_method,created_by').eq('company_id',S.cid);
-    if(df.fr)qSt=qSt.gte('payment_date',df.fr);if(df.to)qSt=qSt.lte('payment_date',df.to);
-    const {data:stPays=[]}=await qSt;
+    const {data:stPays=[]}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid,
+      p_filters: { date_from: df.fr || null, date_to: df.to || null, columns: 'sale_id,amount,payment_method,created_by,payment_date' }
+    });
     if(_rs==='payments'){
       html=`<div class="card"><div class="tw"><table class="t"><thead><tr><th>Staff Member</th><th>Role</th><th class="r">Payments</th><th class="r">Cash</th><th class="r">Bank/Cheque</th><th class="r">Total</th></tr></thead><tbody>${users.map(usr=>{const ur=stPays.filter(r=>r.created_by===usr.id);const tot=ur.reduce((s,r)=>s+Number(r.amount),0);const cash=ur.filter(r=>r.payment_method==='cash').reduce((s,r)=>s+Number(r.amount),0);const bank=ur.filter(r=>r.payment_method==='bank_transfer'||r.payment_method==='cheque').reduce((s,r)=>s+Number(r.amount),0);return ur.length?`<tr><td><b>${esc(usr.name)}</b></td><td style="font-size:11px">${usr.role}</td><td class="r">${ur.length}</td><td class="r mono">${cash?fM(cash):'—'}</td><td class="r mono">${bank?fM(bank):'—'}</td><td class="r mono c-g" style="font-weight:700">${fM(tot)}</td></tr>`:''}).join('')}</tbody></table></div></div>`;
     } else if(_rs==='calls'){
@@ -1055,12 +1231,13 @@ async function runRpt(){
   // ══ AGENT RECOVERY ═════════════════════════════════════════════════
   if(_rt==='agent_recovery'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading agent recovery data…</div>`;
-    let qAR=supabase.from('payments').select('sale_id,amount,payment_method,created_by').eq('company_id',S.cid);
-    if(df.fr)qAR=qAR.gte('payment_date',df.fr);if(df.to)qAR=qAR.lte('payment_date',df.to);
-    const {data:arPays=[]}=await qAR;
+    const {data:arPays=[]}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid,
+      p_filters: { date_from: df.fr || null, date_to: df.to || null }
+    });
     const arSids=[...new Set(arPays.map(p=>p.sale_id).filter(Boolean))];
     let arSmMap={};
-    if(arSids.length){const {data:arSd=[]}=await supabase.from('sales').select('id,unit_id').in('id',arSids);arSd.forEach(s=>{arSmMap[s.id]=s.unit_id;});}
+    if(arSids.length){const {data:arSd=[]}=await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: arSids });(arSd||[]).forEach(s=>{arSmMap[s.id]=s.unit_id;});}
     const arMap={};
     arPays.forEach(r=>{const u=r.sale_id?gunit(arSmMap[r.sale_id]):null;const ag=u?.soldBy||'Unassigned';if(!arMap[ag])arMap[ag]={count:0,total:0,cash:0,bank:0,units:new Set()};arMap[ag].count++;arMap[ag].total+=Number(r.amount||0);if(r.payment_method==='cash')arMap[ag].cash+=Number(r.amount||0);else if(r.payment_method==='bank_transfer'||r.payment_method==='cheque')arMap[ag].bank+=Number(r.amount||0);if(arSmMap[r.sale_id])arMap[ag].units.add(arSmMap[r.sale_id]);});
     const arRows=Object.entries(arMap).sort((a,b)=>b[1].total-a[1].total);
@@ -1077,10 +1254,9 @@ async function runRpt(){
   // ══ MONTHLY COLLECTION TREND ════════════════════════════════════════
   if(_rt==='monthly_trend'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading collection trend…</div>`;
-    let qMT=supabase.from('payments').select('payment_date,amount,payment_method').eq('company_id',S.cid);
-    if(_rs==='year'){const yr=new Date().getFullYear();qMT=qMT.gte('payment_date',yr+'-01-01').lte('payment_date',yr+'-12-31');}
-    if(df.fr)qMT=qMT.gte('payment_date',df.fr);if(df.to)qMT=qMT.lte('payment_date',df.to);
-    const {data:mtPays=[]}=await qMT.order('payment_date',{ascending:false}).limit(2000);
+    const mtFilters = { date_from: df.fr || null, date_to: df.to || null, limit: 2000 };
+    if (_rs === 'year') { const yr = new Date().getFullYear(); mtFilters.date_from = yr+'-01-01'; mtFilters.date_to = yr+'-12-31'; }
+    const {data:mtPays=[]}=await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: mtFilters });
     const mtMap={};mtPays.forEach(r=>{const m=r.payment_date.slice(0,7);if(!mtMap[m])mtMap[m]={count:0,total:0,cash:0,bank:0};mtMap[m].count++;mtMap[m].total+=Number(r.amount||0);if(r.payment_method==='cash')mtMap[m].cash+=Number(r.amount||0);else if(r.payment_method==='bank_transfer'||r.payment_method==='cheque')mtMap[m].bank+=Number(r.amount||0);});
     const mtMonths=Object.keys(mtMap).sort().reverse();
     const mtMaxT=Math.max(...mtMonths.map(m=>mtMap[m].total),1);
@@ -1109,7 +1285,9 @@ async function runRpt(){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading executive summary…</div>`;
     const exAllU=gunits();const exSoldU=exAllU.filter(u=>u.status!=='Available'&&u.status!=='Dead');const exAvailU=exAllU.filter(u=>u.status==='Available');
     const exToday=td();const exMonthStart=exToday.slice(0,7)+'-01';
-    const {data:exMonthPays=[]}=await supabase.from('payments').select('amount,payment_date').eq('company_id',S.cid).gte('payment_date',exMonthStart);
+    const {data:exMonthPays=[]}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid, p_filters: { date_from: exMonthStart, date_to: exToday }
+    });
     const exTotVal=exSoldU.reduce((s,u)=>s+Number(u.totalPrice||0),0);
     const exTotColl=exSoldU.reduce((s,u)=>s+actualPaid(u),0);
     const exTotPend=exSoldU.reduce((s,u)=>s+actualPending(u),0);
@@ -1191,10 +1369,10 @@ async function runRpt(){
   // ── PAYMENTS / RECOVERY ──
   } else if(_rt==='recovery'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading payment data…</div>`;
-    let qRP=supabase.from('payments').select('id,payment_date,amount,payment_method,reference_no,notes,created_by,sales!sale_id(unit_id)').eq('company_id',S.cid);
-    if(df.fr)qRP=qRP.gte('payment_date',df.fr);
-    if(df.to)qRP=qRP.lte('payment_date',df.to);
-    const {data:_rpRaw=[]}=await qRP.order('payment_date',{ascending:false}).limit(1000);
+    const {data:_rpRaw=[]}=await supabase.rpc('list_payments_with_sales_unit', {
+      p_company_id: S.cid,
+      p_filters: { date_from: df.fr || null, date_to: df.to || null }
+    });
     const recs=_rpRaw.map(r=>({id:r.id,date:r.payment_date||'',amt:Number(r.amount||0),ptype:r.payment_method||'',by:r.created_by||'',uid:r.sales?.unit_id||null,rcpt:r.reference_no||'',notes:r.notes||''}));
     if(_rs==='daily'){
       const gp={};recs.forEach(r=>{const d=r.date;if(!gp[d])gp[d]={n:0,t:0};gp[d].n++;gp[d].t+=Number(r.amt);});
@@ -1233,10 +1411,10 @@ async function runRpt(){
     const cons=gcons();
     let staffRecs=[];
     if(_rs!=='calls'){
-      let qST=supabase.from('payments').select('id,payment_date,amount,payment_method,created_by').eq('company_id',S.cid);
-      if(df.fr)qST=qST.gte('payment_date',df.fr);
-      if(df.to)qST=qST.lte('payment_date',df.to);
-      const {data:stPays=[]}=await qST.order('payment_date',{ascending:false}).limit(2000);
+      const {data:stPays=[]}=await supabase.rpc('list_payments_filtered', {
+        p_company_id: S.cid,
+        p_filters: { date_from: df.fr || null, date_to: df.to || null, limit: 2000 }
+      });
       staffRecs=stPays.map(r=>({id:r.id,date:r.payment_date||'',amt:Number(r.amount||0),ptype:r.payment_method||'',by:r.created_by||''}));
     }
     if(_rs==='payments'){
@@ -1525,10 +1703,9 @@ async function runRpt(){
   // ── AGENT RECOVERY ──
   } else if(_rt==='agent_recovery'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading agent recovery data…</div>`;
-    let qAR=supabase.from('payments').select('id,payment_date,amount,payment_method,sales!sale_id(unit_id)').eq('company_id',S.cid);
-    if(df.fr)qAR=qAR.gte('payment_date',df.fr);
-    if(df.to)qAR=qAR.lte('payment_date',df.to);
-    const {data:arRaw=[]}=await qAR.order('payment_date',{ascending:false}).limit(1000);
+    const {data:arRaw=[]}=await supabase.rpc('list_payments_with_sales_unit', {
+      p_company_id: S.cid, p_filters: { date_from: df.fr || null, date_to: df.to || null }
+    });
     const arRecs=arRaw.map(r=>({date:r.payment_date||'',amt:Number(r.amount||0),ptype:r.payment_method||'',uid:r.sales?.unit_id||null}));
     const arMap={};
     arRecs.forEach(r=>{const u=gunit(r.uid);const ag=u?.soldBy||'Unassigned';if(!arMap[ag])arMap[ag]={count:0,total:0,cash:0,bank:0,units:new Set()};arMap[ag].count++;arMap[ag].total+=Number(r.amt||0);if(r.ptype==='Cash')arMap[ag].cash+=Number(r.amt||0);else if(r.ptype==='Bank')arMap[ag].bank+=Number(r.amt||0);arMap[ag].units.add(r.uid);});
@@ -1550,11 +1727,9 @@ async function runRpt(){
   // ── MONTHLY COLLECTION TREND ──
   } else if(_rt==='monthly_trend'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading collection trend…</div>`;
-    let qMT=supabase.from('payments').select('id,payment_date,amount,payment_method').eq('company_id',S.cid);
-    if(_rs==='year'){const yr=new Date().getFullYear().toString();qMT=qMT.gte('payment_date',yr+'-01-01').lte('payment_date',yr+'-12-31');}
-    if(df.fr)qMT=qMT.gte('payment_date',df.fr);
-    if(df.to)qMT=qMT.lte('payment_date',df.to);
-    const {data:mtRaw=[]}=await qMT.order('payment_date',{ascending:false}).limit(2000);
+    const mt2Filters = { date_from: df.fr || null, date_to: df.to || null, limit: 2000 };
+    if (_rs === 'year') { const yr = new Date().getFullYear().toString(); mt2Filters.date_from = yr+'-01-01'; mt2Filters.date_to = yr+'-12-31'; }
+    const {data:mtRaw=[]}=await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: mt2Filters });
     const mtRecs=mtRaw.map(r=>({date:r.payment_date||'',amt:Number(r.amount||0),ptype:r.payment_method||''}));
     const mtMap={};mtRecs.forEach(r=>{const m=r.date.slice(0,7);if(!mtMap[m])mtMap[m]={count:0,total:0,cash:0,bank:0};mtMap[m].count++;mtMap[m].total+=Number(r.amt||0);if(r.ptype==='Cash')mtMap[m].cash+=Number(r.amt||0);else if(r.ptype==='Bank')mtMap[m].bank+=Number(r.amt||0);});
     const mtMonths=Object.keys(mtMap).sort().reverse();
@@ -1586,7 +1761,9 @@ async function runRpt(){
   } else if(_rt==='executive'){
     const exAllU=gunits();const exSoldU=exAllU.filter(u=>u.status!=='Available'&&u.status!=='Dead');const exAvailU=exAllU.filter(u=>u.status==='Available');
     const exToday=td();const exMonthStart=exToday.slice(0,7)+'-01';
-    const {data:exRaw=[]}=await supabase.from('payments').select('payment_date,amount').eq('company_id',S.cid).gte('payment_date',exMonthStart).lte('payment_date',exToday).limit(500);
+    const {data:exRaw=[]}=await supabase.rpc('list_payments_filtered', {
+      p_company_id: S.cid, p_filters: { date_from: exMonthStart, date_to: exToday, limit: 500 }
+    });
     const exMonthRecs=exRaw.map(r=>({date:r.payment_date||'',amt:Number(r.amount||0)}));
     const exTodayRecs=exMonthRecs.filter(r=>r.date===exToday);
     const exTotVal=exSoldU.reduce((s,u)=>s+Number(u.totalPrice||0),0);
