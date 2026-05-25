@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
@@ -18,40 +18,48 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <!-- Nexunova RMS — Modular CSS -->
-<link rel="stylesheet" href="css/design-system.css?v=20260517a">
+<link rel="stylesheet" href="css/design-system.css?v=20260526c">
 <link rel="stylesheet" href="css/login.css?v=20260515a">
-<link rel="stylesheet" href="css/app.css?v=20260517b">
-<link rel="stylesheet" href="css/components.css?v=20260511">
+<link rel="stylesheet" href="css/app.css?v=20260526c">
+<link rel="stylesheet" href="css/components.css?v=20260526c">
 <link rel="stylesheet" href="css/pages.css?v=20260511c">
 <link rel="stylesheet" href="css/schedule.css?v=20260511">
 <link rel="stylesheet" href="css/theme-system.css?v=20260516a">
-<link rel="stylesheet" href="css/theme.css?v=20260516a">
-<link rel="stylesheet" href="css/dashboard-premium.css?v=20260515g">
-<link rel="stylesheet" href="css/sidebar-premium.css?v=20260517a">
+<link rel="stylesheet" href="css/theme.css?v=20260526c">
+<link rel="stylesheet" href="css/dashboard-premium.css?v=20260526d">
+<link rel="stylesheet" href="css/sidebar-premium.css?v=20260526c">
 <link rel="stylesheet" href="css/enterprise-polish.css?v=20260512">
 <link rel="stylesheet" href="css/reports-hub.css?v=20260516b">
-<link rel="stylesheet" href="css/hierarchy.css?v=20260512">
+<link rel="stylesheet" href="css/hierarchy.css?v=20260526c">
 <link rel="stylesheet" href="css/signup.css?v=20260519b">
 <link rel="stylesheet" href="css/payment-wall.css?v=20260517h">
 <link rel="stylesheet" href="css/super-admin.css?v=20260511">
 <link rel="stylesheet" href="css/payment-links.css?v=20260514a">
-<link rel="stylesheet" href="css/projects.css?v=20260516">
-<link rel="stylesheet" href="css/followup.css?v=20260516a">
+<link rel="stylesheet" href="css/projects.css?v=20260526c">
+<link rel="stylesheet" href="css/followup.css?v=20260526c">
 <link rel="stylesheet" href="css/categories.css?v=20260516a">
 <link rel="stylesheet" href="css/inventory.css?v=20260516d">
 <link rel="stylesheet" href="css/inventory-drawer.css?v=20260516d">
 <link rel="stylesheet" href="css/inventory-aurora.css?v=20260516b">
-<link rel="stylesheet" href="css/unit-detail.css?v=20260516d">
+<link rel="stylesheet" href="css/unit-detail.css?v=20260526a">
 <link rel="stylesheet" href="css/recovery-ops.css?v=20260516a">
 <link rel="stylesheet" href="css/form-nav.css?v=20260516i">
 <link rel="stylesheet" href="css/footer-aurora.css?v=20260517i">
 <link rel="stylesheet" href="css/topbar-aurora.css?v=20260517a">
 <!-- ── SAAS POLISH — loaded LAST so it wins the cascade ── -->
-<link rel="stylesheet" href="css/saas-polish.css?v=20260517a">
+<link rel="stylesheet" href="css/saas-polish.css?v=20260526c">
 <link rel="stylesheet" href="css/tutorial.css?v=20260517a">
+<link rel="stylesheet" href="css/recovery-queue.css?v=20260526a">
+<!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
+<link rel="stylesheet" href="css/visual-overhaul.css?v=20260526c">
+<!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
+<link rel="stylesheet" href="css/mobile.css?v=20260526c">
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
+
+/* ── 0. PRICE PANEL — removed ── */
+#nx-price-bar { display: none !important; }
 
 /* ── 1. REPORT VIEWER: only the ACTIVE page gets flex layout ── */
 .pw.rpt-mode .pg     { flex: none !important; }
@@ -67,6 +75,17 @@
 .demo-banner-cta:hover { background:rgba(99,102,241,.5); color:#fff; }
 .demo-banner-close { background:none; border:none; color:rgba(255,255,255,.3); cursor:pointer; font-size:12px; padding:2px 6px; border-radius:4px; transition:color .15s; flex-shrink:0; }
 .demo-banner-close:hover { color:rgba(255,255,255,.7); }
+#trial-banner { width:100%; flex-shrink:0; }
+.trial-banner-inner { display:flex; align-items:center; gap:10px; padding:8px 18px; font-size:12.5px; color:rgba(255,255,255,.8); }
+.trial-banner-inner.expiring { background:linear-gradient(90deg,rgba(245,158,11,.18),rgba(234,88,12,.10)); border-bottom:1px solid rgba(245,158,11,.35); }
+.trial-banner-inner.expired  { background:linear-gradient(90deg,rgba(239,68,68,.22),rgba(220,38,38,.12)); border-bottom:1px solid rgba(239,68,68,.4); }
+.trial-banner-inner strong { color:#fcd34d; }
+.trial-banner-inner.expired strong { color:#fca5a5; }
+.trial-banner-inner span { flex:1; }
+.trial-banner-cta { padding:3px 12px; border-radius:6px; border:1px solid rgba(245,158,11,.55); color:#fcd34d; font-size:11px; font-weight:700; text-decoration:none; cursor:pointer; background:rgba(245,158,11,.25); white-space:nowrap; transition:all .15s; }
+.trial-banner-cta:hover { background:rgba(245,158,11,.45); color:#fff; }
+.trial-banner-inner.expired .trial-banner-cta { border-color:rgba(239,68,68,.5); color:#fca5a5; background:rgba(239,68,68,.2); }
+.trial-banner-inner.expired .trial-banner-cta:hover { background:rgba(239,68,68,.4); color:#fff; }
 
 /* ── 3. LOGIN/SIGNUP SCROLL FIX ──
    #s-login has overflow-y:auto, but .lx-left used justify-content:center which
@@ -98,21 +117,21 @@
 /* ── 5. FORGOT-PASSWORD LINK ──────────────────────────────────────────────── */
 .lx-forgot-link {
   font-size: 11.5px !important;
-  color: rgba(0,217,255,0.6) !important;
+  color: rgba(99,102,241,0.75) !important;
   text-decoration: none !important;
   font-weight: 500 !important;
   transition: color .18s !important;
-  -webkit-text-fill-color: rgba(0,217,255,0.6) !important;
+  -webkit-text-fill-color: rgba(99,102,241,0.75) !important;
 }
 .lx-forgot-link:hover {
-  color: rgba(0,217,255,1) !important;
-  -webkit-text-fill-color: rgba(0,217,255,1) !important;
+  color: #6366F1 !important;
+  -webkit-text-fill-color: #6366F1 !important;
 }
 
 /* ── HOVER FX SYSTEM — exact same as nexunova.com ── */
 .spn-spark{position:fixed;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:99999;animation:spnSparkFly 0.65s ease-out forwards}
 @keyframes spnSparkFly{0%{transform:translate(0,0) scale(1.3);opacity:1}100%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(0);opacity:0}}
-.spn-ripple{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.65) 0%,rgba(123,47,247,0.35) 40%,transparent 70%);pointer-events:none;z-index:99999;transform:scale(0);animation:spnRipplePop 0.65s cubic-bezier(0.22,1,0.36,1) forwards}
+.spn-ripple{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.55) 0%,rgba(139,92,246,0.30) 40%,transparent 70%);pointer-events:none;z-index:99999;transform:scale(0);animation:spnRipplePop 0.65s cubic-bezier(0.22,1,0.36,1) forwards}
 @keyframes spnRipplePop{to{transform:scale(1);opacity:0}}
 
 </style>
@@ -218,8 +237,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 @media(max-width:480px){.footer-grid{grid-template-columns:1fr}.footer-bottom{flex-direction:column;text-align:center}}
 </style>
 <style id="nx-price-panel-css">
-#priceBackdrop{position:fixed;inset:0;z-index:8998;background:rgba(2,5,14,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .38s ease}
-#priceBackdrop.is-open{opacity:1;pointer-events:all}
+/* price panel removed */
 #priceTab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:9001;width:34px;padding:28px 0;border:0;border-radius:12px 0 0 12px;background:rgba(7,10,22,.9);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:'Inter',sans-serif;transition:width .28s cubic-bezier(.4,0,.2,1),background .22s ease,box-shadow .22s ease,transform .42s cubic-bezier(.32,.72,0,1),opacity .3s ease;box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}
 #priceTab::before{content:'';position:absolute;top:0;bottom:0;left:0;width:2px;border-radius:12px 0 0 12px;background:linear-gradient(180deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}
 #priceTab:hover{width:38px;background:rgba(10,14,30,.97);box-shadow:-6px 0 48px rgba(0,212,255,.3),-3px 0 18px rgba(123,47,247,.2),inset 1px 0 0 rgba(255,255,255,.1)}
@@ -1051,84 +1069,35 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
      ONBOARDING WIZARD SCREEN
 ════════════════════════════════════════════ -->
 <div id="s-onboarding" class="scr ob-screen">
-  <div class="lx-orb lx-orb-1"></div>
-  <div class="lx-orb lx-orb-2"></div>
-  <div class="lx-grid-lines"></div>
-  <div class="ob-wrap">
+  <div class="ob-wizard">
 
-    <!-- Header -->
-    <div class="ob-header">
-      <div class="ob-brand-tag">NEXUNOVA — WORKSPACE SETUP</div>
-      <div class="ob-title" id="ob-title">Let's Set Up Your Workspace</div>
-      <div class="ob-sub" id="ob-sub">This takes about 2 minutes</div>
-    </div>
-
-    <!-- Step progress bar -->
-    <div class="ob-steps">
-      <div class="ob-step-item">
-        <div class="ob-dot ob-dot-active"></div>
-        <div class="ob-step-lbl">Project</div>
+    <!-- Sidebar: step list -->
+    <div class="ob-sidebar">
+      <div class="ob-sb-brand">
+        <div class="ob-sb-logo">N</div>
+        <div class="ob-sb-name">Nexunova RMS</div>
       </div>
-      <div class="ob-step-line"></div>
-      <div class="ob-step-item">
-        <div class="ob-dot"></div>
-        <div class="ob-step-lbl">Categories</div>
-      </div>
-      <div class="ob-step-line"></div>
-      <div class="ob-step-item">
-        <div class="ob-dot"></div>
-        <div class="ob-step-lbl">Done</div>
+      <div class="ob-sb-sub">Setup Wizard</div>
+      <div class="ob-step-list" id="ob-step-list"></div>
+      <div class="ob-sb-footer">
+        <button class="ob-skip-link" onclick="OB.skip()">Skip entire setup →</button>
       </div>
     </div>
 
-    <!-- Panel 1: First project -->
-    <div class="ob-panel">
-      <div class="ob-step-tag">Step 1 of 3 · Your First Project</div>
-      <div class="sg-field">
-        <label class="sg-label">Project / Building Name *</label>
-        <input id="ob-proj-name" class="sg-input" type="text" placeholder="e.g. Al-Noor Heights" onkeydown="if(event.key==='Enter')OB.saveProject()">
+    <!-- Main: progress + panel + nav -->
+    <div class="ob-main">
+      <div class="ob-progress-bar">
+        <div class="ob-progress-fill" id="ob-progress-fill" style="width:0%"></div>
       </div>
-      <div class="sg-field">
-        <label class="sg-label">Location <span style="opacity:.4">(optional)</span></label>
-        <input id="ob-proj-loc" class="sg-input" type="text" placeholder="e.g. Clifton, Karachi">
-      </div>
-      <div class="ob-actions">
-        <button class="sg-btn-back" onclick="OB.skip()">Skip Setup</button>
-        <button class="sg-btn-next" onclick="OB.saveProject()">
-          <div class="sg-btn-shimmer"></div>
-          <span>Next: Categories</span>
+      <div class="ob-step-counter" id="ob-step-counter">Step 1 of 6</div>
+      <div class="ob-panel-wrap" id="ob-panel-wrap"></div>
+      <div class="ob-nav">
+        <button class="ob-btn-back" id="ob-btn-back" onclick="OB.back()">← Back</button>
+        <button class="ob-btn-skip" id="ob-btn-skip" onclick="OB.skipStep()">Skip this step</button>
+        <button class="ob-btn-next" id="ob-btn-next" onclick="OB.next()">
+          <span id="ob-btn-next-label">Next →</span>
         </button>
       </div>
-    </div>
-
-    <!-- Panel 2: Unit categories -->
-    <div class="ob-panel" style="display:none">
-      <div class="ob-step-tag">Step 2 of 3 · Unit Categories</div>
-      <div class="sg-field">
-        <label class="sg-label">Category Names (one per line)</label>
-        <textarea id="ob-cats" class="sg-input" rows="5" placeholder="2 Bed Apartment&#10;3 Bed Apartment&#10;Shop&#10;Office" style="resize:vertical"></textarea>
-        <div class="sg-hint">Press Enter between each category name</div>
-      </div>
-      <div class="ob-actions">
-        <button class="sg-btn-back" onclick="OB.skip()">Skip</button>
-        <button class="sg-btn-next" onclick="OB.saveCategories()">
-          <div class="sg-btn-shimmer"></div>
-          <span>Finish Setup</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Panel 3: Done -->
-    <div class="ob-panel ob-panel-done" style="display:none">
-      <div class="ob-done-icon">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,0.9)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <div class="ob-done-title">Your workspace is ready!</div>
-      <p class="ob-done-sub">Start adding units, tracking payments, and managing your portfolio.</p>
-      <button class="sg-btn-next ob-done-btn" onclick="OB.finish()">
-        <div class="sg-btn-shimmer"></div>
-        <span>Go to Dashboard</span>
-      </button>
     </div>
 
   </div>
@@ -1185,6 +1154,14 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     <!-- Zone 4: Navigation -->
     <div class="sb-nav" id="sb-nav"></div>
 
+    <!-- Zone 4b: Setup Wizard shortcut -->
+    <div class="sb-wizard-btn" id="sb-wizard-btn" onclick="OB.show(S&&S.cid)" style="display:none">
+      <span class="sb-wizard-ic">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg>
+      </span>
+      <span class="sb-wizard-lb">Setup Wizard</span>
+    </div>
+
     <!-- Zone 5: User Profile -->
     <div class="sb-user-zone" id="sb-user-zone" onclick="_sbToggleUserMenu(event)">
       <div class="sb-av" id="sb-av">A</div>
@@ -1218,6 +1195,16 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
         <span><strong>Demo Mode</strong> — You're exploring a live demo with sample data. Destructive actions are disabled.</span>
         <a href="./signup.html" class="demo-banner-cta">Sign up free →</a>
         <button class="demo-banner-close" onclick="document.getElementById('demo-banner').style.display='none'" title="Dismiss">✕</button>
+      </div>
+    </div>
+
+    <!-- Trial expiry banner – shown by auth.js when trial ≤7 days or expired -->
+    <div id="trial-banner" style="display:none">
+      <div id="trial-banner-inner" class="trial-banner-inner expiring">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" flex-shrink="0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="trial-banner-msg"><strong>Trial expiring soon</strong></span>
+        <button class="trial-banner-cta" onclick="nav('admin');setTimeout(()=>{setAT&&setAT('plan')},300)">View Plan →</button>
+        <button class="demo-banner-close" onclick="document.getElementById('trial-banner').style.display='none';sessionStorage.setItem('rms_trial_dismissed','1')" title="Dismiss">✕</button>
       </div>
     </div>
 
@@ -1341,150 +1328,18 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div id="pg-escalations"       class="pg"></div>
       <div id="pg-legalcases"        class="pg"></div>
       <div id="pg-agenttransactions" class="pg"></div>
+      <div id="pg-campaigns"         class="pg"></div>
+      <div id="pg-forecasting"       class="pg"></div>
+      <div id="pg-commscenter"       class="pg"></div>
+      <div id="pg-executive"         class="pg"></div>
+      <div id="pg-noc"               class="pg"></div>
+      <div id="pg-fieldvisits"       class="pg"></div>
     </div>
 
   </div>
 </div>
 
-<!-- ✦ AURORA FOOTER — fixed, visible on all screens ───────────────────── -->
-<div class="aurora-foot" id="auroraFoot">
-
-  <div class="aurora-foot-skin"></div>
-  <div class="aurora-foot-grab"></div>
-
-  <div class="aurora-foot-strip">
-    <div class="aurora-foot-strip-l">
-      <div class="aurora-foot-mini" aria-hidden="true">
-        <img src="Logo/Nexunova logos/NexuNova_Icon_512px.png" alt="Nexunova">
-      </div>
-      <strong class="aurora-foot-brand-name">Nexunova</strong>
-      <span class="aurora-foot-version">v2.0</span>
-    </div>
-    <div class="aurora-foot-ticker" aria-hidden="true">
-      <div class="aurora-foot-ticker-track">
-        <span class="aft-item">✦ Real Estate Management — Reimagined</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item aft-hi">350+ Companies Trust Nexunova</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">12,000+ Units Under Management</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item aft-hi">99.9% Uptime Guaranteed</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">Smart · Fast · Elegant</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item aft-hi">Built with ♥ in Pakistan</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">24/7 Dedicated Enterprise Support</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">Pakistan's #1 Property Management Platform</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">✦ Real Estate Management — Reimagined</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item aft-hi">350+ Companies Trust Nexunova</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">12,000+ Units Under Management</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item aft-hi">99.9% Uptime Guaranteed</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">Smart · Fast · Elegant</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item aft-hi">Built with ♥ in Pakistan</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">24/7 Dedicated Enterprise Support</span>
-        <span class="aft-sep">·</span>
-        <span class="aft-item">Pakistan's #1 Property Management Platform</span>
-        <span class="aft-sep">·</span>
-      </div>
-    </div>
-    <div class="aurora-foot-strip-r">
-      <span class="aurora-foot-pulse"></span>
-      <span>hover to explore</span>
-      <svg class="aurora-foot-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-    </div>
-  </div>
-
-  <div class="aurora-foot-expand">
-    <div class="aurora-foot-cols">
-      <div class="aurora-foot-col aurora-foot-brand-col" data-stagger="1">
-        <div class="aurora-foot-logo-stage">
-          <div class="aurora-foot-logo-wrap">
-            <img id="footer-logo-img" class="aurora-foot-logo-img" src="Logo/Nexunova logos/NexuNova_Icon_512px.png" alt="Nexunova">
-          </div>
-          <div>
-            <div class="aurora-foot-name" aria-label="Nexunova">
-              <span>N</span><span>e</span><span>x</span><span>u</span><span>n</span><span>o</span><span>v</span><span>a</span>
-            </div>
-            <p class="aurora-foot-tag">Recovery Management System</p>
-            <span class="aurora-foot-ver-tag">v2.0 · Enterprise Edition</span>
-          </div>
-        </div>
-      </div>
-      <div class="aurora-foot-col aurora-foot-mission-col" data-stagger="2">
-        <div class="aurora-foot-label">Our Promise</div>
-        <p class="aurora-foot-mission">
-          Built for real-estate businesses that take recovery seriously.
-          Every payment, every promise, every unit — tracked with precision.
-        </p>
-        <div class="aurora-foot-stats">
-          <div class="aurora-foot-mini-stat"><div class="v">350+</div><div class="l">Companies</div></div>
-          <div class="aurora-foot-mini-stat"><div class="v">12K+</div><div class="l">Units</div></div>
-          <div class="aurora-foot-mini-stat"><div class="v">99.9%</div><div class="l">Uptime</div></div>
-          <div class="aurora-foot-mini-stat"><div class="v">24/7</div><div class="l">Support</div></div>
-        </div>
-      </div>
-      <div class="aurora-foot-col aurora-foot-contact-col" data-stagger="3">
-        <div class="aurora-foot-label">Get in Touch</div>
-        <a class="aurora-foot-cta" href="mailto:sales@nexunova.com">
-          <span class="aurora-foot-cta-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg></span>
-          <span class="aurora-foot-cta-bd"><span class="aurora-foot-cta-l">Email</span><span class="aurora-foot-cta-v">sales@nexunova.com</span></span>
-        </a>
-        <a class="aurora-foot-cta" href="https://wa.me/971556325362" target="_blank" rel="noopener">
-          <span class="aurora-foot-cta-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
-          <span class="aurora-foot-cta-bd"><span class="aurora-foot-cta-l">WhatsApp</span><span class="aurora-foot-cta-v">+971 55 632 5362</span></span>
-        </a>
-        <a class="aurora-foot-cta" href="#" onclick="return false">
-          <span class="aurora-foot-cta-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
-          <span class="aurora-foot-cta-bd"><span class="aurora-foot-cta-l">Website</span><span class="aurora-foot-cta-v">nexunova.com</span></span>
-        </a>
-      </div>
-    </div>
-    <!-- Office pills -->
-    <div class="aurora-offices">
-      <div class="aurora-office-pill" tabindex="0">
-        <span class="aurora-office-flag">&#127482;&#127480;</span>
-        <span class="aurora-office-city">New York</span>
-        <span class="aurora-office-meta">HQ</span>
-        <span class="aurora-office-addr">One World Trade Center, Suite 8500</span>
-      </div>
-      <div class="aurora-office-pill" tabindex="0">
-        <span class="aurora-office-flag">&#127462;&#127466;</span>
-        <span class="aurora-office-city">Dubai</span>
-        <span class="aurora-office-addr">DWTC &middot; Sheikh Zayed Road</span>
-      </div>
-      <div class="aurora-office-pill" tabindex="0">
-        <span class="aurora-office-flag">&#127477;&#127472;</span>
-        <span class="aurora-office-city">Karachi</span>
-        <span class="aurora-office-addr">Harbour Front, Clifton 75600</span>
-      </div>
-      <div class="aurora-office-pill" tabindex="0">
-        <span class="aurora-office-flag">&#127468;&#127463;</span>
-        <span class="aurora-office-city">London</span>
-        <span class="aurora-office-addr">30 St Mary Axe, EC3A 8EP</span>
-      </div>
-    </div>
-
-    <div class="aurora-foot-foot">
-      <span>© 2026 Nexunova</span>
-      <span class="aurora-foot-sep-dot"></span>
-      <a href="#" onclick="return false">Privacy</a>
-      <span class="aurora-foot-sep-dot"></span>
-      <a href="#" onclick="return false">Terms</a>
-      <span class="aurora-foot-sep-dot"></span>
-      <span>Crafted with <span class="aurora-foot-heart"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9-9c-1.5-3.5 0-7 4-7 2 0 3.5 1 5 3 1.5-2 3-3 5-3 4 0 5.5 3.5 4 7-2 4.5-9 9-9 9z"/></svg></span> in Pakistan</span>
-    </div>
-  </div>
-
-</div>
+<!-- Aurora footer ticker bar removed permanently -->
 
 <!-- ════════════════════════════════════════════
      SITE FOOTER (shown on login + signup only)
@@ -3536,6 +3391,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     <button class="mx" onclick="cm('m-possession')">✕</button>
   </div>
   <div class="mb">
+    <div id="pos-elig-banner" style="display:none;margin-bottom:12px;padding:9px 12px;border-radius:8px;font-size:12px;font-weight:600"></div>
     <input type="hidden" id="pos-id">
     <input type="hidden" id="pos-unit-id">
     <input type="hidden" id="pos-sale-id">
@@ -3623,7 +3479,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
   </div>
   <div class="mf">
     <button class="btn btn-gh" onclick="cm('m-possession')">Cancel</button>
-    <button class="btn btn-g" id="pos-save-btn" onclick="savePossession()">💾 Save Possession</button>
+    <button class="btn btn-gh btn-sm" onclick="printPossessionOfferLetter(document.getElementById('pos-unit-id').value)" title="Print formal offer letter for client">Offer Letter</button>
+    <button class="btn btn-g" id="pos-save-btn" onclick="savePossession()">Save Possession</button>
   </div>
 </div></div>
 
@@ -4148,29 +4005,28 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/helpers.js?v=20260522d"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260516i"></script>
+<script src="js/ui.js?v=20260526c"></script>
 <script src="js/topbar-aurora.js?v=20260516a"></script>
-<script src="js/footer-aurora.js?v=20260517a"></script>
 
 <!-- 5. Auth: login/logout -->
-<script src="js/auth.js?v=20260522d"></script>
+<script src="js/auth.js?v=20260526b"></script>
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js"></script>
 <script src="js/pages/signup.js?v=20260517a"></script>
-<script src="js/pages/onboarding.js"></script>
+<script src="js/pages/onboarding.js?v=20260525a"></script>
 
 <!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260516e"></script>
-<script src="js/pages/units.js?v=20260517b"></script>
-<script src="js/pages/clients.js?v=20260522a"></script>
+<script src="js/pages/dashboard.js?v=20260526c"></script>
+<script src="js/pages/units.js?v=20260526a"></script>
+<script src="js/pages/clients.js?v=20260525a"></script>
 <script src="js/pages/projects.js?v=20260522a"></script>
-<script src="js/pages/agents.js?v=20260517c"></script>
-<script src="js/pages/sales.js?v=20260517c"></script>
-<script src="js/pages/recovery.js?v=20260517a"></script>
-<script src="js/pages/payments.js?v=20260517c"></script>
+<script src="js/pages/agents.js?v=20260525b"></script>
+<script src="js/pages/sales.js?v=20260525b"></script>
+<script src="js/pages/recovery.js?v=20260526b"></script>
+<script src="js/pages/payments.js?v=20260526b"></script>
 <script src="js/pages/receipts.js?v=20260517a"></script>
-<script src="js/pages/pdc.js?v=20260517a"></script>
+<script src="js/pages/pdc.js?v=20260525a"></script>
 <script src="js/pages/cancelled.js?v=20260516a"></script>
 <script src="js/pages/transferred.js?v=20260516a"></script>
 <script src="js/pages/ownership-chain.js?v=20260516a"></script>
@@ -4181,35 +4037,42 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/ledger-unit.js?v=20260514e"></script>
 <script src="js/pages/ledger-agent.js?v=20260514e"></script>
 <script src="js/pages/ledger-project.js?v=20260514e"></script>
-<script src="js/pages/possession.js?v=20260511c"></script>
+<script src="js/pages/possession.js?v=20260526a"></script>
 <script src="js/pages/reminders.js?v=20260517a"></script>
 <script src="js/pages/contacts.js?v=20260517a"></script>
 <script src="js/pages/health-center.js?v=20260517a"></script>
-<script src="js/pages/radar.js?v=20260517a"></script>
-<script src="js/pages/promises.js?v=20260517a"></script>
-<script src="js/pages/audit.js?v=20260517a"></script>
+<script src="js/pages/radar.js?v=20260525a"></script>
+<script src="js/pages/promises.js?v=20260526b"></script>
+<script src="js/pages/audit.js?v=20260525a"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
-<script src="js/pages/reports.js?v=20260517a"></script>
+<script src="js/pages/reports.js?v=20260526b"></script>
 <script src="js/pages/print.js?v=20260517b"></script>
 <script src="js/pages/documents.js?v=20260517d"></script>
 <script src="js/pages/transfers.js?v=20260516i"></script>
 <script src="js/pages/cancellation.js?v=20260516i"></script>
 <script src="js/pages/backup.js?v=20260517b"></script>
-<script src="js/pages/admin.js?v=20260517c"></script>
+<script src="js/pages/admin.js?v=20260526b"></script>
 <script src="js/pages/categories.js?v=20260517a"></script>
 <script src="js/pages/users.js?v=20260522a"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>
-<script src="js/pages/super-admin.js?v=20260517a"></script>
+<script src="js/pages/super-admin.js?v=20260525a"></script>
 <script src="js/whatsapp-helper.js"></script>
 <script src="js/pages/payment-links.js?v=20260517a"></script>
 <script src="js/pages/payment-methods.js?v=20260517a"></script>
 <script src="js/pages/banks.js?v=20260522a"></script>
-<script src="js/pages/blacklist.js?v=20260522a"></script>
+<script src="js/pages/blacklist.js?v=20260525a"></script>
 <script src="js/pages/payables.js?v=20260522a"></script>
 <script src="js/pages/receivables.js?v=20260522a"></script>
-<script src="js/pages/escalations.js?v=20260522a"></script>
-<script src="js/pages/legalcases.js?v=20260522a"></script>
+<script src="js/pages/escalations.js?v=20260525a"></script>
+<script src="js/pages/legalcases.js?v=20260526a"></script>
 <script src="js/pages/agenttransactions.js?v=20260522a"></script>
+<script src="js/pages/campaigns.js?v=20260525b"></script>
+<script src="js/pages/forecasting.js?v=20260525a"></script>
+<script src="js/pages/comms-center.js?v=20260525b"></script>
+<script src="js/pages/executive.js?v=20260525a"></script>
+<script src="js/pages/noc.js?v=20260525a"></script>
+<script src="js/pages/fieldvisits.js?v=20260525b"></script>
+<script src="js/pages/company-branding.js?v=20260525b"></script>
 
 <!-- 6.6. Reusable Form Navigation Bar -->
 <script src="js/form-nav.js?v=20260516i"></script>
@@ -4226,7 +4089,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 7. Modal handlers -->
 <script src="js/modals.js?v=20260516e"></script>
 <!-- 7.1. Log a Call wizard (replaces openConModal/saveCon) -->
-<script src="js/modals-log-call.js?v=20260516e"></script>
+<script src="js/modals-log-call.js?v=20260526a"></script>
 
 <!-- 8. App init + toast + populateLoginStats -->
 <script src="js/init.js?v=20260517c"></script>
@@ -4433,9 +4296,39 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     </div>
   </div>
 </div>
+<!-- ✦ QUICK ACTION BUTTON — floating, bottom-right -->
+<div id="qab-wrap">
+  <div class="qab-menu">
+    <button class="qab-item" onclick="qabClose();nav('addpayment')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+      Add Payment
+    </button>
+    <button class="qab-item" onclick="qabClose();openConModal(null)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.33A2 2 0 0 1 3.54 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l.79-.99a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+      Log a Call
+    </button>
+    <button class="qab-item" onclick="qabClose();fvOpenLog()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      Log Field Visit
+    </button>
+    <button class="qab-item" onclick="qabClose();nav('promises')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-1"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></svg>
+      Record Promise
+    </button>
+    <button class="qab-item" onclick="qabClose();nav('reminders')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      Add Reminder
+    </button>
+  </div>
+  <button id="qab-btn" onclick="qabToggle()" title="Quick Actions" aria-label="Quick Actions">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+</div>
+
 <script>
 (function(){var b=document.getElementById('nx-price-bar'),t=document.getElementById('priceTab'),d=document.getElementById('priceDrawer'),c=document.getElementById('priceClose'),k=document.getElementById('priceBackdrop');if(!b||!t||!d)return;function o(){b.classList.add('is-open');d.classList.add('is-open');d.setAttribute('aria-hidden','false');t.setAttribute('aria-expanded','true');if(k)k.classList.add('is-open')}function cl(){b.classList.remove('is-open');d.classList.remove('is-open');d.setAttribute('aria-hidden','true');t.setAttribute('aria-expanded','false');if(k)k.classList.remove('is-open')}var isTouch=window.matchMedia('(hover: none)').matches,tm=null;if(!isTouch){t.addEventListener('mouseenter',function(){clearTimeout(tm);o()});t.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)});d.addEventListener('mouseenter',function(){clearTimeout(tm)});d.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)})}else{t.addEventListener('click',o)}if(c)c.addEventListener('click',cl);if(k)k.addEventListener('click',cl);document.addEventListener('keydown',function(e){if(e.key==='Escape'&&b.classList.contains('is-open'))cl()});var bl=d.querySelector('.sb-billing'),pl=document.getElementById('sbPills'),mb=document.getElementById('sbBillMonthly'),yb=document.getElementById('sbBillYearly');if(bl&&mb&&yb){function sb(m){bl.setAttribute('data-bill',m);mb.classList.toggle('is-active',m==='monthly');mb.setAttribute('aria-pressed',String(m==='monthly'));yb.classList.toggle('is-active',m==='yearly');yb.setAttribute('aria-pressed',String(m==='yearly'));if(pl)pl.setAttribute('data-billing',m);d.querySelectorAll('.sb-pill-price').forEach(function(s){s.classList.add('is-flipping');setTimeout(function(){s.textContent=s.getAttribute('data-'+m)||s.textContent;s.classList.remove('is-flipping')},110)})}mb.addEventListener('click',function(){sb('monthly')});yb.addEventListener('click',function(){sb('yearly')})}})();
 </script>
+
 </body>
 </html>
 

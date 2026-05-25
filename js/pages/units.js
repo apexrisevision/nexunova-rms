@@ -26,6 +26,7 @@ const _UI = {
   search:     `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
   plus:       `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   upload:     `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+  download:   `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
   printer:    `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
   layers:     `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
   check2:     `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
@@ -121,7 +122,7 @@ function rUnits() {
       <div class="inv-ph-actions">
         <button class="btn btn-gh btn-sm" onclick="printInventoryList()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.printer} Print</button>
         ${isA ? `<button class="btn btn-gh btn-sm" onclick="openBulkImportModal()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.upload} Bulk Import</button>` : ''}
-        ${isA ? `<button class="btn btn-g btn-sm" onclick="nav('addunit')" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Unit</button>` : ''}
+        ${isA ? `<button id="um-add-unit-btn" class="btn btn-g btn-sm" onclick="nav('addunit')" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Unit</button>` : ''}
       </div>
     </div>
   </div>
@@ -207,6 +208,23 @@ function rUnits() {
   _invRenderAFBar();
   _invAttachKb();
   rULF();
+  _checkUnitLimitUI();
+}
+
+async function _checkUnitLimitUI() {
+  const btn = document.getElementById('um-add-unit-btn');
+  if (!btn) return;
+  try {
+    const { data, error } = await supabase.rpc('get_units_plan_status', { p_company_id: S.cid });
+    if (error || !data) return;
+    const maxUnits     = data.max_allowed ?? 0;
+    const currentUnits = data.current_count ?? 0;
+    if (maxUnits > 0 && currentUnits >= maxUnits) {
+      btn.disabled    = true;
+      btn.title       = `Unit limit reached (${currentUnits}/${maxUnits}). Upgrade your plan to add more.`;
+      btn.textContent = `+ Add Unit (${currentUnits}/${maxUnits})`;
+    }
+  } catch(e) { /* UI hint only — not blocking */ }
 }
 
 function _invKpiClick(key) {
@@ -979,6 +997,27 @@ async function saveUnitForm() {
   if (hasErr) return;
 
   const existingId = (document.getElementById('uf-uid')?.value || '').trim();
+
+  if (!existingId) {
+    let planRes;
+    try {
+      planRes = await supabase.rpc('get_units_plan_status', { p_company_id: S.cid });
+    } catch(e) {
+      toast('Could not verify plan limits. Check your connection and try again.', 'err');
+      return;
+    }
+    if (planRes?.error || !planRes?.data) {
+      toast('Could not verify plan limits. Check your connection and try again.', 'err');
+      return;
+    }
+    const maxUnits     = planRes.data.max_allowed ?? 0;
+    const currentUnits = planRes.data.current_count ?? 0;
+    if (maxUnits > 0 && currentUnits >= maxUnits) {
+      toast(`Unit limit reached — your plan allows ${maxUnits} units. Upgrade your plan to add more.`, 'err');
+      return;
+    }
+  }
+
   const btn = document.getElementById('unit-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 
@@ -1047,7 +1086,11 @@ async function saveUnitForm() {
     }
 
     if (!result?.success) {
-      toast(result?.error || 'Save failed', 'err');
+      if (result?.error === 'plan_limit') {
+        toast(result.message || 'Unit limit reached. Upgrade your plan to add more units.', 'err');
+      } else {
+        toast(result?.error || 'Save failed', 'err');
+      }
       return;
     }
 
@@ -1100,8 +1143,7 @@ async function deleteUnitConfirm(unitId) {
 
   // Legacy fallback (kept for safety if cascade-delete.js fails to load)
   try {
-    const { count } = await supabase.from('sales').select('id', { count: 'exact', head: true })
-      .eq('unit_id', unitId).eq('company_id', S.cid);
+    const { data: count } = await supabase.rpc('get_unit_sales_count', { p_unit_id: unitId, p_company_id: S.cid });
     if (count > 0) {
       toast(`Cannot delete — unit "${u.unitNo}" has ${count} sale record${count > 1 ? 's' : ''} linked.`, 'err');
       return;
@@ -1278,7 +1320,7 @@ async function executeBulkImport() {
 //   • Delete lives inside More menu, never standalone
 // ──────────────────────────────────────────────────────────
 
-let _udTab        = localStorage.getItem('rms.ud.tab') || 'overview';
+let _udTab        = localStorage.getItem('rms.ud.tab') || 'schedule';
 let _udHistLoaded = null;   // unitId for which activity is loaded
 let _udPayLoaded  = null;
 let _udTxLoaded   = null;
@@ -1303,68 +1345,31 @@ function rUD(unitId) {
   if (_udPayLoaded  !== unitId) _udPayLoaded  = null;
   if (_udTxLoaded   !== unitId) _udTxLoaded   = null;
 
+  // Redesigned UD exposes 4 tabs — fall back if an old tab key was persisted
+  if (!['schedule','history','contacts','documents'].includes(_udTab)) _udTab = 'schedule';
+
   const drow = (l, v, opts) => {
     if (v == null || v === '') return '';
     const cls = opts?.cls || '';
     return `<div class="ud-row"><span class="ud-row-l">${l}</span><span class="ud-row-r ${cls}">${v}</span></div>`;
   };
 
-  // Meta line — no Lucide icons, just · separators
+  // Header meta — Project · Floor · Size (sqft), per the redesign spec
   const metaBits = [];
   if (prj)             metaBits.push(esc(prj.projectName || prj.name));
-  if (u.type)          metaBits.push(esc(u.type));
   if (u.floorLabel)    metaBits.push(esc(u.floorLabel));
   else if (u.floorNo != null) metaBits.push('Floor ' + u.floorNo);
   if (u.area)          metaBits.push(`${fN(u.area)} ${esc(u.areaUnit||'sqft')}`);
-  if (u.block)         metaBits.push('Block ' + esc(u.block));
   const metaLine = metaBits.join('<span class="ud-hdr-meta-sep">·</span>');
 
-  // KPI strip data
-  const perSqft = (u.basePrice > 0 && u.area > 0) ? Math.round(u.basePrice / u.area) : 0;
-  const ownerInfo = isSold && u.customerName
-    ? { val:'Sold', sub: esc(u.customerName) }
-    : { val:'Original', sub:'1 owner · no transfers' };
-  const statusSub = u.created_at
-    ? 'Listed ' + _udRelDate(u.created_at)
-    : '—';
-
-  const kpis = [
-    {
-      key:'price', color:'var(--primary)', icon:_UI.dollar, label:'BASE PRICE',
-      valHtml: u.basePrice > 0
-        ? `<div class="ud-kpi-price-wrap"><span class="ud-kpi-pkr">PKR</span><span class="ud-kpi-num">${fM(u.basePrice)}</span></div>`
-        : `<div class="inv-kpi-value sm" style="color:var(--text-muted)">Not set</div>`,
-      sub: perSqft > 0 ? `Per sqft: PKR ${fN(perSqft)}` : (u.basePrice > 0 ? 'Base price set' : 'Add a price to list')
-    },
-    {
-      key:'area', color:'var(--info)', icon:_UI.square, label:'AREA',
-      valHtml: u.area > 0
-        ? `<div class="ud-kpi-price-wrap"><span class="ud-kpi-num">${fN(u.area)}</span><span class="ud-kpi-unit">${esc(u.areaUnit||'sqft')}</span></div>`
-        : `<div class="inv-kpi-value sm" style="color:var(--text-muted)">—</div>`,
-      sub: [
-        u.parkingCount > 0 ? `${u.parkingCount} parking` : null,
-        u.facing ? `${esc(u.facing)} facing` : null
-      ].filter(Boolean).join(' · ') || 'No extras recorded'
-    },
-    {
-      key:'status', color: u.statusColor || 'var(--success)', icon:_UI.check2, label:'STATUS',
-      valHtml: `<div class="inv-kpi-value sm">${esc(u.status || '—')}</div>`,
-      sub: statusSub
-    },
-    {
-      key:'owner', color:'#7C3AED', icon:_UI.user, label:'OWNERSHIP',
-      valHtml: `<div class="inv-kpi-value sm">${esc(ownerInfo.val)}</div>`,
-      sub: ownerInfo.sub
-    }
-  ];
+  // Document count = files attached to this unit's contact logs
+  const docCount = cons.reduce((n, c) => n + ((c.attachments && c.attachments.length) || 0), 0);
 
   const tabDef = [
-    { key:'overview',  label:'Overview',  icon:_UI.layout,   badge:'' },
-    { key:'payments',  label:'Payments',  icon:_UI.dollar,   badge:'' },  // updated async
-    { key:'contacts',  label:'Contacts',  icon:_UI.phone,    badge: conCount ? String(conCount) : '' },
-    { key:'documents', label:'Documents', icon:_UI.fileText, badge:'' },
-    { key:'ownership', label:'Ownership', icon:_UI.layers,   badge:'' },
-    { key:'activity',  label:'Activity',  icon:_UI.activity, badge:'' }
+    { key:'schedule',  label:'Payment Schedule', icon:_UI.dollar,   badge:'' },                            // updated async
+    { key:'history',   label:'Payment History',  icon:_UI.printer,  badge:'' },                            // updated async
+    { key:'contacts',  label:'Contact Log',      icon:_UI.phone,    badge: conCount ? String(conCount) : '' },
+    { key:'documents', label:'Documents',        icon:_UI.fileText, badge: docCount ? String(docCount) : '' }
   ];
 
   document.getElementById('pg-unitdetail').innerHTML = `<div class="ud-page ani">
@@ -1389,7 +1394,6 @@ function rUD(unitId) {
   <!-- Sticky Header Card -->
   <div class="ud-header-card ud-sticky-hd">
     <div class="ud-hdr-left">
-      ${u.unitCode ? `<div class="ud-hdr-code">${esc(u.unitCode)}</div>` : ''}
       <div class="ud-hdr-no-row">
         <h1 class="ud-hdr-no">${esc(u.unitNo)}</h1>
         ${uStatusBadge(u.status, u.statusColor)}
@@ -1397,28 +1401,15 @@ function rUD(unitId) {
       <div class="ud-hdr-meta">${metaLine || '<span style="color:var(--text-faint)">No details yet</span>'}</div>
     </div>
     <div class="ud-hdr-right">
-      ${isA ? `<button class="btn btn-gh btn-sm" onclick="nav('addunit','${unitId}')" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:12px">${_UI.pencil} Edit</button>` : ''}
-      ${isA ? `<button class="btn btn-gh btn-sm" onclick="_udChangeStatusMenu('${unitId}',this)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:12px">${_UI.refresh} Change Status ${_UI.chevD}</button>` : ''}
-      ${isSold && isA ? `<button class="btn btn-gh btn-sm ud-act-transfer" onclick="nav('unittransfer','${unitId}')" title="Transfer ownership to a new buyer" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:12px">${_UI.refresh} Transfer</button>` : ''}
-      ${isSold && isA ? `<button class="btn btn-gh btn-sm ud-act-cancel" onclick="nav('unitcancel','${unitId}')" title="Cancel this sale and return unit to inventory" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:12px">${_UI.x} Cancel Sale</button>` : ''}
-      <button class="btn btn-gh btn-sm" onclick="printUD('${unitId}')" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:12px">${_UI.printer} Print</button>
+      ${isSold ? `<div class="ud-hdr-outstanding">
+        <div class="ud-hdr-out-lbl">Outstanding</div>
+        <div class="ud-hdr-out-val">PKR ${fM(rem)}</div>
+      </div>` : ''}
+      ${isSold ? `<button class="btn btn-p btn-sm ud-hdr-cta" onclick="nav('addpayment','${unitId}')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px">${_UI.plus} Add Payment</button>` : ''}
+      ${isSold ? `<button class="btn btn-gh btn-sm ud-hdr-cta" onclick="openConModal('${unitId}')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px">${_UI.phone} Log Call</button>` : ''}
+      ${isA ? `<button class="btn btn-gh btn-sm" onclick="nav('addunit','${unitId}')" title="Edit unit" style="width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;height:32px">${_UI.pencil}</button>` : ''}
       ${isA ? `<button class="btn btn-gh btn-sm ud-more-btn" onclick="_udMoreMenu('${unitId}',this)" title="More actions" style="width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;height:32px">${_UI.more}</button>` : ''}
     </div>
-  </div>
-
-  <!-- KPI Summary Strip -->
-  <div class="ud-kpi-grid">
-    ${kpis.map(k => `
-    <div class="inv-kpi-tile ud-kpi-tile" style="--kpi-color:${k.color || 'var(--primary)'};cursor:default">
-      <div class="inv-kpi-tile-top">
-        <div class="inv-kpi-icon">${k.icon}</div>
-        <span class="inv-kpi-label">${k.label}</span>
-      </div>
-      <div class="inv-kpi-bottom">
-        ${k.valHtml}
-        <div class="inv-kpi-sub">${k.sub}</div>
-      </div>
-    </div>`).join('')}
   </div>
 
   <!-- Tab Bar -->
@@ -1430,169 +1421,51 @@ function rUD(unitId) {
       </button>`).join('')}
   </div>
 
-  <!-- ─── OVERVIEW TAB ─── -->
-  <div class="ud-tab-pane${_udTab==='overview'?' on':''}" id="ud-pane-overview">
-    <div class="ud-overview-grid">
-
-      <!-- LEFT: Unit Details -->
-      <div>
-        <div class="ud-card">
-          <div class="ud-card-hd">
-            <div class="ud-card-title"><span class="ud-card-title-ic">${_UI.info}</span>Unit Details</div>
-            ${isA ? `<div class="ud-card-hd-right">
-              <button class="btn btn-gh btn-sm" onclick="nav('addunit','${unitId}')" title="Edit unit"
-                style="width:26px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center">${_UI.pencil}</button>
-            </div>` : ''}
-          </div>
-          <div class="ud-rows">
-            ${drow('Unit No',   esc(u.unitNo))}
-            ${drow('Unit Code', u.unitCode ? esc(u.unitCode) : '—', { cls:'mono' })}
-            ${drow('Project',   esc(prj?.projectName||prj?.name||'—'))}
-            ${drow('Type',      esc(u.type||'—'))}
-            ${drow('Status',    uStatusBadge(u.status, u.statusColor))}
-            ${drow('Floor',     u.floorLabel ? esc(u.floorLabel) : (u.floorNo!=null ? 'Floor '+u.floorNo : '—'))}
-            ${drow('Block',     u.block ? esc(u.block) : '—')}
-            ${drow('Area',      u.area > 0 ? `${fN(u.area)} ${esc(u.areaUnit||'sqft')}` : '—')}
-            ${u.bedrooms != null ? drow('Bedrooms',  u.bedrooms) : ''}
-            ${u.bathrooms != null ? drow('Bathrooms', u.bathrooms) : ''}
-            ${drow('Parking',   u.parkingCount > 0 ? `${u.parkingCount} space(s)` : '—')}
-            ${drow('Facing',    u.facing ? esc(u.facing) : '—')}
-            ${drow('Base Price',u.basePrice > 0 ? `<span class="ud-row-r-pkr">PKR </span>${fM(u.basePrice)}` : '—', { cls:'price' })}
-          </div>
-          ${u.notes ? `<div class="ud-notes">
-            <div class="ud-notes-lbl">Notes</div>
-            <div class="ud-notes-body">${esc(u.notes)}</div>
-          </div>` : ''}
-        </div>
-      </div>
-
-      <!-- RIGHT: Pricing / Contact / Ownership -->
-      <div>
-        <!-- Pricing -->
-        <div class="ud-card">
-          <div class="ud-card-hd">
-            <div class="ud-card-title"><span class="ud-card-title-ic">${_UI.dollar}</span>Pricing</div>
-          </div>
-          <div class="ud-rows">
-            ${drow('Base Price',   u.basePrice > 0 ? `${fM(u.basePrice)}` : '—', { cls:'price' })}
-            ${isSold && u.totalPrice > 0 ? drow('Total Quoted', fM(u.totalPrice), { cls:'price' }) : ''}
-            ${isSold && totalPaid > 0   ? drow('Collected',     `<span style="color:var(--success)">${fM(totalPaid)}</span>`, { cls:'price' }) : ''}
-            ${isSold && rem > 0         ? drow('Outstanding',   `<span style="color:var(--danger)">${fM(rem)}</span>`, { cls:'price' }) : ''}
-            ${drow('Per sqft', perSqft > 0 ? `PKR ${fN(perSqft)}` : '—')}
-          </div>
-        </div>
-
-        <!-- Contact History -->
-        <div class="ud-card">
-          <div class="ud-card-hd">
-            <div class="ud-card-title">Contact History
-              <span class="ud-card-meta">${conCount} logged</span>
-            </div>
-            ${isSold && isA ? `<button class="btn btn-gh btn-sm" onclick="openConModal('${unitId}')"
-              style="display:inline-flex;align-items:center;gap:4px;height:26px;font-size:12px">${_UI.plus} Log</button>` : ''}
-          </div>
-          ${conCount ? `<div class="ud-rows">
-            ${cons.slice(0,3).map(c => `
-              <div class="ud-con-row">
-                <div class="ud-con-ic">${_UI.phone}</div>
-                <div class="ud-con-body">
-                  <div class="ud-con-label">${esc(c.channel||'Contact')} · ${esc(c.response_received||'—')}</div>
-                  ${c.remarks ? `<div class="ud-con-notes">${esc(c.remarks)}</div>` : ''}
-                  <div class="ud-con-date">${fD(c.contact_date)}</div>
-                </div>
-              </div>`).join('')}
-            ${conCount > 3 ? `<div style="padding:10px 18px;text-align:center;border-top:1px solid var(--border)">
-              <button class="btn btn-gh btn-sm" onclick="udSwitchTab('contacts')"
-                style="font-size:12px;padding:4px 10px">View all ${conCount} ${_UI.arrowR}</button>
-            </div>` : ''}
-          </div>` : `<div class="ud-empty">
-            <div class="ud-empty-ic">${_UI.phoneOff}</div>
-            <div class="ud-empty-title">No contacts logged yet</div>
-            <div class="ud-empty-sub">Log a call, meeting, or email to track engagement with this unit.</div>
-            ${isSold && isA ? `<button class="btn btn-gh btn-sm" onclick="openConModal('${unitId}')"
-              style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;background:var(--bg-primary-soft);color:var(--primary);border-color:transparent;font-size:12px">${_UI.plus} Log Contact</button>` : ''}
-          </div>`}
-        </div>
-
-        <!-- Ownership History -->
-        <div class="ud-card" id="ud-ownership-card">
-          <div class="ud-card-hd">
-            <div class="ud-card-title">Ownership
-              <span class="ud-card-meta" id="ud-owner-count">${isSold ? '1 owner' : '—'}</span>
-            </div>
-          </div>
-          <div id="ud-ownership-body">
-            ${isSold && u.customerName ? `
-              <div class="ud-owner-row">
-                <div class="ud-owner-avatar">${esc((u.customerName||'?').trim().charAt(0).toUpperCase())}</div>
-                <div style="flex:1;min-width:0">
-                  <div class="ud-owner-name">${esc(u.customerName)}</div>
-                  <div class="ud-owner-sub">Current owner${u.soldDate ? ' · since '+fD(u.soldDate) : ''}</div>
-                </div>
-                <span class="ud-owner-badge-current">Current</span>
-              </div>
-              <div class="ud-no-transfer">
-                <div class="ud-no-transfer-title">No ownership transfers</div>
-                <div class="ud-no-transfer-sub">This unit has had a single owner since listing.</div>
-              </div>
-            ` : `<div class="ud-empty">
-              <div class="ud-empty-ic">${_UI.user}</div>
-              <div class="ud-empty-title">No owner yet</div>
-              <div class="ud-empty-sub">Once this unit is sold, the buyer's details will appear here.</div>
-            </div>`}
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ─── PAYMENTS TAB ─── -->
-  <div class="ud-tab-pane${_udTab==='payments'?' on':''}" id="ud-pane-payments">
-    <div class="ud-stub" id="ud-pay-card">
+    <!-- ─── PAYMENT SCHEDULE TAB ─── -->
+  <div class="ud-tab-pane${_udTab==='schedule'?' on':''}" id="ud-pane-schedule">
+    <div class="ud-stub">
       <div class="ud-stub-hd">
         <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.dollar}</span>Payment Schedule</div>
-        ${isSold && isA ? `<button class="btn btn-gh btn-sm" onclick="nav('addpayment','${unitId}')"
-          style="display:inline-flex;align-items:center;gap:5px;height:30px;font-size:12px;background:var(--bg-primary-soft);color:var(--primary);border-color:transparent">${_UI.plus} Add Payment</button>` : ''}
+        <div id="ud-sched-summary" class="ud-sched-summary"></div>
       </div>
-      <div id="ud-pay-body">
-        ${isSold ? `<div class="ud-empty"><div class="ud-empty-sub">Loading payment history…</div></div>`
-                  : `<div class="ud-empty">
-                       <div class="ud-empty-ic">${_UI.dollar}</div>
-                       <div class="ud-empty-title">Not sold yet</div>
-                       <div class="ud-empty-sub">Payment schedules become available once a sale is recorded for this unit.</div>
-                     </div>`}
+      <div id="ud-schedule-body">
+        ${isSold ? `<div class="ud-empty"><div class="ud-empty-sub">Loading schedule…</div></div>`
+                 : `<div class="ud-empty"><div class="ud-empty-ic">${_UI.dollar}</div><div class="ud-empty-title">Not sold yet</div><div class="ud-empty-sub">An installment schedule appears once a sale is recorded for this unit.</div></div>`}
       </div>
     </div>
   </div>
 
-  <!-- ─── CONTACTS TAB ─── -->
+  <!-- ─── PAYMENT HISTORY TAB ─── -->
+  <div class="ud-tab-pane${_udTab==='history'?' on':''}" id="ud-pane-history">
+    <div class="ud-stub">
+      <div class="ud-stub-hd">
+        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.printer}</span>Payment History</div>
+        ${isSold && isA ? `<button class="btn btn-p btn-sm" onclick="nav('addpayment','${unitId}')" style="display:inline-flex;align-items:center;gap:5px;height:30px;font-size:12px">${_UI.plus} Add Payment</button>` : ''}
+      </div>
+      <div id="ud-history-body">
+        ${isSold ? `<div class="ud-empty"><div class="ud-empty-sub">Loading payments…</div></div>`
+                 : `<div class="ud-empty"><div class="ud-empty-ic">${_UI.printer}</div><div class="ud-empty-title">Not sold yet</div><div class="ud-empty-sub">Receipts appear here once payments are received against this unit.</div></div>`}
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── CONTACT LOG TAB ─── -->
   <div class="ud-tab-pane${_udTab==='contacts'?' on':''}" id="ud-pane-contacts">
     <div class="ud-stub">
       <div class="ud-stub-hd">
-        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.phone}</span>Contact Timeline
-          <span class="ud-card-meta">${conCount} logged</span>
-        </div>
-        ${isSold && isA ? `<button class="btn btn-gh btn-sm" onclick="openConModal('${unitId}')"
-          style="display:inline-flex;align-items:center;gap:5px;height:30px;font-size:12px;background:var(--bg-primary-soft);color:var(--primary);border-color:transparent">${_UI.plus} Log Contact</button>` : ''}
+        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.phone}</span>Contact Log<span class="ud-card-meta">${conCount} logged</span></div>
+        ${isSold && isA ? `<button class="btn btn-gh btn-sm" onclick="openConModal('${unitId}')" style="display:inline-flex;align-items:center;gap:5px;height:30px;font-size:12px">${_UI.plus} Log Contact</button>` : ''}
       </div>
-      <div id="ud-contacts-body">
-        ${conCount ? `<div class="ud-rows">
-          ${cons.map(c => `
-            <div class="ud-con-row">
-              <div class="ud-con-ic">${_UI.phone}</div>
-              <div class="ud-con-body">
-                <div class="ud-con-label">${esc(c.channel||'Contact')} · ${esc(c.response_received||'—')}</div>
-                ${c.remarks ? `<div class="ud-con-notes">${esc(c.remarks)}</div>` : ''}
-                <div class="ud-con-date">${fD(c.contact_date)}${c.next_followup_date?' · Follow-up '+fD(c.next_followup_date):''}</div>
-              </div>
-            </div>`).join('')}
-        </div>` : `<div class="ud-empty">
-          <div class="ud-empty-ic">${_UI.phoneOff}</div>
-          <div class="ud-empty-title">No contacts logged yet</div>
-          <div class="ud-empty-sub">Log a call, meeting, or email to track engagement with this unit.</div>
-        </div>`}
-      </div>
+      ${conCount ? `<div class="tw" style="padding:0 0 4px"><table class="t" style="margin:0">
+        <thead><tr><th>Date</th><th>Officer</th><th>Type</th><th>Notes</th><th>Outcome</th></tr></thead>
+        <tbody>${cons.map(c => `<tr>
+          <td style="white-space:nowrap">${fD(c.contact_date)}</td>
+          <td style="white-space:nowrap">${esc(_udOfficerName(c.created_by || c.agent_id))}</td>
+          <td style="white-space:nowrap">${esc(c.channel||'—')}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${esc(c.remarks||'—')}</td>
+          <td style="white-space:nowrap">${esc(c.response_received||'—')}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>` : `<div class="ud-empty"><div class="ud-empty-ic">${_UI.phoneOff}</div><div class="ud-empty-title">No contacts logged yet</div><div class="ud-empty-sub">Log a call, visit, or message to track engagement with this client.</div></div>`}
     </div>
   </div>
 
@@ -1600,39 +1473,9 @@ function rUD(unitId) {
   <div class="ud-tab-pane${_udTab==='documents'?' on':''}" id="ud-pane-documents">
     <div class="ud-stub">
       <div class="ud-stub-hd">
-        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.fileText}</span>Documents</div>
+        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.fileText}</span>Documents<span class="ud-card-meta">${docCount} file${docCount!==1?'s':''}</span></div>
       </div>
-      <div class="ud-empty">
-        <div class="ud-empty-ic">${_UI.fileText}</div>
-        <div class="ud-empty-title">No documents yet</div>
-        <div class="ud-empty-sub">Upload booking forms, agreements, CNIC scans, and payment receipts here.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── ACTIVITY TAB ─── -->
-  <div class="ud-tab-pane${_udTab==='ownership'?' on':''}" id="ud-pane-ownership">
-    <div class="ud-stub">
-      <div class="ud-stub-hd">
-        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.layers}</span>Ownership Chain</div>
-        <div class="ud-card-hd-right" style="display:flex;gap:8px">
-          <button class="btn btn-gh btn-sm" onclick="rUnitChain('${unitId}')">Open Full Report</button>
-        </div>
-      </div>
-      <div id="ud-ownership-body" data-unit-id="${unitId}">
-        <div class="rops" style="padding:0"><div class="rops-tbl-empty">Open the tab to load the chain.</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="ud-tab-pane${_udTab==='activity'?' on':''}" id="ud-pane-activity">
-    <div class="ud-stub">
-      <div class="ud-stub-hd">
-        <div class="ud-stub-title"><span style="color:var(--text-muted);display:flex">${_UI.activity}</span>Activity Log</div>
-      </div>
-      <div id="ud-activity-body" data-unit-id="${unitId}">
-        <div class="ud-empty"><div class="ud-empty-sub">Loading activity…</div></div>
-      </div>
+      ${_udDocsHtml(cons)}
     </div>
   </div>
 
@@ -1664,11 +1507,11 @@ function rUD(unitId) {
     });
   }
 
-  // Async loaders — fire-and-forget; render into placeholders
-  if (isSold) setTimeout(() => _udLoadPayHistory(unitId, isA), 0);
-  setTimeout(() => _udLoadTxHistory(unitId), 0);
-  if (_udTab === 'activity') setTimeout(() => _udLoadHistory(unitId), 0);
-  if (_udTab === 'ownership') setTimeout(() => _udLoadOwnershipChain(unitId), 0);
+  // Async loaders — fire-and-forget; render into the schedule + history placeholders
+  if (isSold) {
+    setTimeout(() => _udLoadSchedule(unitId), 0);
+    setTimeout(() => _udLoadPayHistory(unitId, isA), 0);
+  }
 }
 
 // Lazy-load the ownership chain into the tab pane
@@ -1699,24 +1542,12 @@ function _udRelDate(d) {
 function udSwitchTab(tab) {
   _udTab = tab;
   try { localStorage.setItem('rms.ud.tab', tab); } catch {}
-  ['overview','payments','contacts','documents','ownership','activity'].forEach(k => {
+  ['schedule','history','contacts','documents'].forEach(k => {
     const btn  = document.getElementById('ud-tab-' + k);
     const pane = document.getElementById('ud-pane-' + k);
     if (btn)  btn.classList.toggle('on', k === tab);
     if (pane) pane.classList.toggle('on', k === tab);
   });
-  // Lazy-load activity timeline the first time the tab opens
-  if (tab === 'activity') {
-    const body = document.getElementById('ud-activity-body');
-    const uid  = body?.dataset?.unitId;
-    if (uid && _udHistLoaded !== uid) _udLoadHistory(uid);
-  }
-  // Lazy-load ownership chain
-  if (tab === 'ownership') {
-    const body = document.getElementById('ud-ownership-body');
-    const uid  = body?.dataset?.unitId;
-    if (uid) _udLoadOwnershipChain(uid);
-  }
 }
 
 // ── More dropdown ─────────────────────────────────────────
@@ -1730,17 +1561,19 @@ function _udMoreMenu(unitId, btn) {
   dd.style.top  = (rect.bottom + 4) + 'px';
   dd.style.right = (window.innerWidth - rect.right) + 'px';
   dd.style.left = 'auto';
-  // Transfer + Cancel Sale live as top-level header buttons now (for sold units),
-  // so the More menu only holds secondary / less-frequent actions.
+  // Header surfaces Add Payment + Log Call as primary actions; the More menu holds
+  // the unit-management / less-frequent actions (Edit, Print, Transfer, Cancel, Delete).
   let items = `
-    <button class="inv-dd-item" onclick="_invCloseDD();nav('unitchain','${unitId}')">${_UI.layers} Ownership Chain</button>
-    <button class="inv-dd-item" onclick="_invCloseDD();_udDuplicate('${unitId}')">${_UI.fileText} Duplicate</button>`;
+    <button class="inv-dd-item" onclick="_invCloseDD();nav('addunit','${unitId}')">${_UI.edit} Edit Unit</button>
+    <button class="inv-dd-item" onclick="_invCloseDD();printUD('${unitId}')">${_UI.printer} Print</button>
+    <button class="inv-dd-item" onclick="_invCloseDD();_udChangeStatusMenu('${unitId}',document.querySelector('.ud-more-btn'))">${_UI.refresh} Change Status</button>
+    <button class="inv-dd-item" onclick="_invCloseDD();nav('unitchain','${unitId}')">${_UI.layers} Ownership Chain</button>`;
   if (isSold) {
     items += `
     <div class="inv-dd-sep"></div>
-    <button class="inv-dd-item" onclick="_invCloseDD();nav('addpayment','${unitId}')">${_UI.dollar} Add Payment</button>
-    <button class="inv-dd-item" onclick="_invCloseDD();openConModal('${unitId}')">${_UI.phone} Log Contact</button>
-    <button class="inv-dd-item" onclick="_invCloseDD();openPossessionModal('${unitId}')">${_UI.check2} Mark Possession</button>`;
+    <button class="inv-dd-item" onclick="_invCloseDD();openPossessionModal('${unitId}')">${_UI.check2} Mark Possession</button>
+    <button class="inv-dd-item" onclick="_invCloseDD();nav('unittransfer','${unitId}')">${_UI.refresh} Transfer Ownership</button>
+    <button class="inv-dd-item" onclick="_invCloseDD();nav('unitcancel','${unitId}')">${_UI.x} Cancel Sale</button>`;
   }
   if (u && u.phone) {
     items += `
@@ -1813,9 +1646,9 @@ function _udKbHandler(e) {
   if (!pg || !pg.classList.contains('on')) { _udDetachKb(); return; }
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  // Number keys 1-5 → switch tabs
-  const tabs = ['overview','payments','contacts','documents','activity'];
-  if (e.key >= '1' && e.key <= '5') {
+  // Number keys 1-4 → switch tabs
+  const tabs = ['schedule','history','contacts','documents'];
+  if (e.key >= '1' && e.key <= '4') {
     e.preventDefault();
     udSwitchTab(tabs[parseInt(e.key,10) - 1]);
     return;
@@ -1872,37 +1705,101 @@ async function _udLoadTxHistory(unitId) {
        </div>` : '');
 }
 
-async function _udLoadPayHistory(unitId, isA) {
-  const body = document.getElementById('ud-pay-body');
+// Resolve a contact-log officer id → display name via the app-users cache
+function _udOfficerName(id) {
+  if (!id) return '—';
+  const u = (window._appUsersCache || []).find(x => x.id === id);
+  return u ? (u.fullName || u.name || u.username || '—') : '—';
+}
+
+// Build the Documents grid from files attached to this unit's contact logs
+function _udDocsHtml(cons) {
+  const docs = [];
+  (cons || []).forEach(c => (c.attachments || []).forEach(url => docs.push({ url, date: c.contact_date })));
+  if (!docs.length) {
+    return `<div class="ud-empty">
+      <div class="ud-empty-ic">${_UI.fileText}</div>
+      <div class="ud-empty-title">No documents yet</div>
+      <div class="ud-empty-sub">Files attached to contact logs — receipts, CNIC scans, agreements — appear here.</div>
+    </div>`;
+  }
+  return `<div class="ud-doc-grid">${docs.map(d => {
+    let name = '';
+    try { name = decodeURIComponent((d.url || '').split('/').pop().split('?')[0]); }
+    catch (_) { name = (d.url || '').split('/').pop() || 'File'; }
+    return `<div class="ud-doc-card">
+      <div class="ud-doc-ic">${_UI.fileText}</div>
+      <div class="ud-doc-name" title="${esc(name)}">${esc(name || 'File')}</div>
+      <div class="ud-doc-date">${d.date ? fD(d.date) : '—'}</div>
+      <a class="ud-doc-dl" href="${esc(d.url)}" target="_blank" rel="noopener" download>${_UI.download} Download</a>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// Payment Schedule tab — installments + Total/Paid/Remaining summary
+async function _udLoadSchedule(unitId) {
+  const body = document.getElementById('ud-schedule-body');
+  const sum  = document.getElementById('ud-sched-summary');
   if (!body) return;
   try {
-    const { data: sales, error: sErr } = await supabase
-      .from('sales')
-      .select('id')
-      .eq('unit_id', unitId)
-      .eq('company_id', S.cid)
-      .eq('status', 'active')
-      .limit(1);
-    if (sErr) throw sErr;
+    const { data: activeSale } = await supabase.rpc('get_active_sale_for_unit', { p_unit_id: unitId, p_company_id: S.cid });
+    const saleId = activeSale?.id;
+    if (!saleId) {
+      body.innerHTML = `<div class="ud-empty"><div class="ud-empty-ic">${_UI.dollar}</div><div class="ud-empty-title">No active sale</div><div class="ud-empty-sub">An installment schedule appears once a sale is recorded for this unit.</div></div>`;
+      return;
+    }
+    const { data: res } = await supabase.rpc('get_sale_detail', { p_sale_id: saleId, p_company_id: S.cid });
+    if (!res?.success) throw new Error(res?.error || 'Could not load schedule');
+    const inst  = Array.isArray(res.installments) ? res.installments : [];
+    const today = td();
 
-    const saleId = sales?.[0]?.id || null;
-    let payments = [];
-    if (saleId) {
-      const { data: pRows, error: pErr } = await supabase
-        .from('payments')
-        .select('id,payment_date,amount,payment_method,reference_no,notes')
-        .eq('sale_id', saleId)
-        .eq('company_id', S.cid)
-        .order('payment_date', { ascending: false })
-        .limit(200);
-      if (pErr) throw pErr;
-      payments = pRows || [];
+    const total = inst.reduce((s, i) => s + Number(i.amount_due  || 0), 0);
+    const paid  = inst.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+    const remn  = Math.max(0, total - paid);
+    if (sum) sum.innerHTML =
+      `<div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Total</span><span class="ud-pay-chip-val">PKR ${fM(total)}</span></div>` +
+      `<div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Paid</span><span class="ud-pay-chip-val" style="color:var(--success)">PKR ${fM(paid)}</span></div>` +
+      `<div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Remaining</span><span class="ud-pay-chip-val" style="color:var(--danger)">PKR ${fM(remn)}</span></div>`;
+
+    if (!inst.length) {
+      body.innerHTML = `<div class="ud-empty"><div class="ud-empty-ic">${_UI.dollar}</div><div class="ud-empty-title">No installments</div><div class="ud-empty-sub">This sale has no scheduled installments.</div></div>`;
+      return;
     }
 
+    const rows = inst.map(i => {
+      const isPaid = i.status === 'paid';
+      const isOver = !isPaid && i.due_date < today;
+      const stCls  = isPaid ? 'paid' : isOver ? 'overdue' : 'due';
+      const stLbl  = isPaid ? 'Paid' : isOver ? 'Overdue' : 'Due';
+      const payDt  = isPaid && i.paid_at ? fD(String(i.paid_at).slice(0, 10)) : '—';
+      return `<tr class="${isOver ? 'ud-sched-overdue' : ''}">
+        <td style="white-space:nowrap">${fD(i.due_date)}</td>
+        <td style="font-weight:600;font-variant-numeric:tabular-nums">PKR ${fM(i.amount_due)}</td>
+        <td><span class="ud-sched-pill ${stCls}">${stLbl}</span></td>
+        <td style="white-space:nowrap;color:var(--text-muted)">${payDt}</td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `<div class="tw" style="padding:0 0 4px"><table class="t" style="margin:0">
+      <thead><tr><th>Due Date</th><th>Amount</th><th>Status</th><th>Payment Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="ud-empty"><div class="ud-empty-ic">${_UI.dollar}</div><div class="ud-empty-title">Could not load schedule</div><div class="ud-empty-sub">${esc(e.message || 'Unknown error')}</div></div>`;
+  }
+}
+
+// Payment History tab — receipts via SECURITY DEFINER RPC (Date / Amount / Method / Receipt No / Print)
+async function _udLoadPayHistory(unitId, isA) {
+  const body = document.getElementById('ud-history-body');
+  if (!body) return;
+  try {
+    const { data, error } = await supabase.rpc('get_unit_sale_payments', { p_unit_id: unitId, p_company_id: S.cid });
+    if (error) throw error;
+    const payments = Array.isArray(data?.payments) ? data.payments : [];
     _udPayLoaded = unitId;
 
-    // Update badge
-    const badge = document.getElementById('ud-tb-payments');
+    const badge = document.getElementById('ud-tb-history');
     if (badge) {
       if (payments.length) { badge.textContent = String(payments.length); badge.style.display = ''; }
       else { badge.style.display = 'none'; }
@@ -1910,9 +1807,9 @@ async function _udLoadPayHistory(unitId, isA) {
 
     if (!payments.length) {
       body.innerHTML = `<div class="ud-empty">
-        <div class="ud-empty-ic">${_UI.dollar}</div>
+        <div class="ud-empty-ic">${_UI.printer}</div>
         <div class="ud-empty-title">No payments recorded</div>
-        <div class="ud-empty-sub">Once payments are received against this unit, they will be listed here in chronological order.</div>
+        <div class="ud-empty-sub">Once payments are received against this unit, the receipts are listed here.</div>
       </div>`;
       return;
     }
@@ -1920,29 +1817,31 @@ async function _udLoadPayHistory(unitId, isA) {
     const total = payments.reduce((s, r) => s + Number(r.amount || 0), 0);
     body.innerHTML = `
       <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-        <div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Total received</span><span class="ud-pay-chip-val">${fM(total)}</span></div>
-        <div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Payments</span><span class="ud-pay-chip-val">${payments.length}</span></div>
+        <div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Total received</span><span class="ud-pay-chip-val" style="color:var(--success)">PKR ${fM(total)}</span></div>
+        <div class="ud-pay-chip"><span class="ud-pay-chip-lbl">Receipts</span><span class="ud-pay-chip-val">${payments.length}</span></div>
       </div>
-      <div class="tw" style="padding:0 0 12px">
+      <div class="tw" style="padding:0 0 4px">
         <table class="t" style="margin:0">
-          <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Notes</th><th class="r">Amount</th>${isA?'<th></th>':''}</tr></thead>
+          <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Receipt No</th><th></th></tr></thead>
           <tbody>
-          ${payments.map(r => `<tr>
-            <td style="white-space:nowrap">${fD(r.payment_date)}</td>
-            <td>${esc(r.payment_method||'—')}</td>
-            <td style="font-family:monospace;font-size:11px;color:var(--text-muted)">${esc(r.reference_no||'—')}</td>
-            <td style="font-size:11px;color:var(--text-muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'—')}</td>
-            <td class="r" style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--success)">+${fM(r.amount)}</td>
-            ${isA ? `<td style="white-space:nowrap;text-align:right">
-              <button class="btn btn-gh btn-xs" onclick="printPaymentReceipt('${r.id}')" title="Print receipt">${_UI.printer}</button>
-            </td>` : ''}
-          </tr>`).join('')}
+          ${payments.map(r => {
+            const rno = r.voucher_code || r.payment_code || r.reference_no || '—';
+            return `<tr>
+              <td style="white-space:nowrap">${fD(r.payment_date)}</td>
+              <td style="font-weight:600;font-variant-numeric:tabular-nums;color:var(--success)">PKR ${fM(r.amount)}</td>
+              <td style="white-space:nowrap">${esc(r.payment_method||'—')}</td>
+              <td style="font-family:monospace;font-size:11px;color:var(--text-muted);white-space:nowrap">${esc(rno)}</td>
+              <td style="text-align:right;white-space:nowrap">
+                <button class="btn btn-gh btn-xs" onclick="printPaymentReceipt('${r.id}')" title="Print receipt" style="display:inline-flex;align-items:center;gap:4px">${_UI.printer} Print</button>
+              </td>
+            </tr>`;
+          }).join('')}
           </tbody>
         </table>
       </div>`;
   } catch(e) {
     body.innerHTML = `<div class="ud-empty">
-      <div class="ud-empty-ic">${_UI.dollar}</div>
+      <div class="ud-empty-ic">${_UI.printer}</div>
       <div class="ud-empty-title">Could not load payments</div>
       <div class="ud-empty-sub">${esc(e.message||'Unknown error')}</div>
     </div>`;
@@ -2021,12 +1920,8 @@ async function printUD(unitId) {
   // Load payments from Supabase
   let recs = [];
   try {
-    const { data: sRows } = await supabase.from('sales').select('id').eq('unit_id',unitId).eq('company_id',S.cid).eq('status','active').limit(1);
-    const sid = sRows?.[0]?.id;
-    if (sid) {
-      const { data: pRows } = await supabase.from('payments').select('id,payment_date,amount,payment_method,reference_no,notes').eq('sale_id',sid).eq('company_id',S.cid).order('payment_date',{ascending:false});
-      recs = pRows || [];
-    }
+    const { data } = await supabase.rpc('get_unit_sale_payments', { p_unit_id: unitId, p_company_id: S.cid });
+    recs = data?.payments || [];
   } catch(e) { /* print without payments if query fails */ }
   const totalPaid = actualPaid(u);
   const rem       = actualPending(u);
@@ -2389,10 +2284,8 @@ async function saveAddUnitForm() {
   // Plan limit check — only for new units, not edits
   if (!isEdit) {
     try {
-      const { data: sub } = await supabase.from('subscriptions')
-        .select('subscription_plans(max_units)')
-        .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      const maxUnits = sub?.subscription_plans?.max_units ?? 0;
+      const { data } = await supabase.rpc('get_units_plan_status', { p_company_id: S.cid });
+      const maxUnits = data?.max_allowed ?? 0;
       const usedUnits = typeof gunits === 'function' ? gunits().length : (window._unitsCache || []).length;
       if (maxUnits > 0 && usedUnits >= maxUnits) {
         setErr('e-au-no', `Unit limit reached — your plan allows ${maxUnits} units. Upgrade to add more.`);

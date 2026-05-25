@@ -19,7 +19,7 @@ const _CN_STEPS = [
 ];
 
 // ─── OPEN / INIT ──────────────────────────────────────────────────────────────
-function openConModal(unitId) {
+function openConModal(unitId, intent) {
   _cnStep = 1;
   _cnBusy = false;
   _cnState = {
@@ -40,8 +40,8 @@ function openConModal(unitId) {
     outcomeNotes:        '',
     // Step 5
     notes:               '',
-    // Step 6
-    promiseToPay:        false,
+    // Step 6 — pre-arm promise mode when opened via the "Add Promise" action
+    promiseToPay:        intent === 'promise',
     promiseAmount:       null,
     promiseDate:         null,
     nextFollowupDate:    null,
@@ -237,8 +237,7 @@ async function _cnLoadClient(unitId) {
 
     // If not in cache, fetch via sale
     if (!clientId && unit.saleId) {
-      const { data: sale } = await supabase
-        .from('sales').select('client_id').eq('id', unit.saleId).single();
+      const { data: sale } = await supabase.rpc('get_sale_for_lookup', { p_sale_id: unit.saleId, p_company_id: S.cid });
       clientId = sale?.client_id || null;
     }
 
@@ -246,8 +245,7 @@ async function _cnLoadClient(unitId) {
     _cnState.clientId = clientId;
 
     if (clientId) {
-      const { data: client } = await supabase
-        .from('clients').select('*').eq('id', clientId).single();
+      const { data: client } = await supabase.rpc('get_client_by_id', { p_id: clientId, p_company_id: S.cid });
       if (client) {
         _cnState.clientData = client;
         _cnRenderSnapshot(unit, client);
@@ -863,9 +861,12 @@ async function _cnSave(logAnother) {
     if (uploadedUrls.length) payload.attachments = uploadedUrls;
 
     // ── 5. Insert contact_log ─────────────────────────────────────────────
-    const { data: logData, error: logErr } = await supabase
-      .from('contact_logs').insert(payload).select().single();
+    const { data: logRes, error: logErr } = await supabase.rpc('create_contact_log', {
+      p_company_id: S.cid,
+      p_data: payload
+    });
     if (logErr) throw logErr;
+    const logData = logRes?.row || { id: logRes?.id, ...payload };
 
     // Update cache
     if (!window._contactLogsCache) window._contactLogsCache = [];
@@ -878,16 +879,18 @@ async function _cnSave(logAnother) {
     if (_cnState.promiseToPay && _cnState.promiseAmount > 0 && _cnState.promiseDate) {
       try {
         const unit = gunit(_cnState.unitId);
-        await supabase.from('payment_promises').insert({
-          company_id:      S.cid,
-          client_id:       _cnState.clientId || null,
-          sale_id:         _cnState.saleId   || unit?.saleId || null,
-          contact_log_id:  logData.id,
-          promised_amount: _cnState.promiseAmount,
-          promised_date:   _cnState.promiseDate,
-          status:          'pending',
-          notes:           `Promised during ${_cnState.channel} on ${_cnState.contactDate}`,
-          created_by:      S.userId,
+        await supabase.rpc('create_payment_promise', {
+          p_company_id: S.cid,
+          p_data: {
+            client_id:        _cnState.clientId || null,
+            sale_id:          _cnState.saleId   || unit?.saleId || null,
+            promised_amount:  _cnState.promiseAmount,
+            promise_date:     _cnState.promiseDate,
+            promise_made_on:  _cnState.contactDate || new Date().toISOString().slice(0,10),
+            logged_by:        S.userId || '',
+            status:           'pending',
+            notes:            `Promised during ${_cnState.channel} on ${_cnState.contactDate}`
+          }
         });
       } catch(e) { console.warn('[payment_promises insert]', e); }
     }
@@ -896,18 +899,19 @@ async function _cnSave(logAnother) {
     if (_cnState.nextFollowupDate) {
       try {
         const unit = gunit(_cnState.unitId);
-        await supabase.from('follow_up_reminders').insert({
-          company_id:     S.cid,
-          unit_id:        _cnState.unitId,
-          client_id:      _cnState.clientId || null,
-          sale_id:        _cnState.saleId   || unit?.saleId || null,
-          contact_log_id: logData.id,
-          due_date:       _cnState.nextFollowupDate,
-          channel:        _cnState.nextFollowupChannel || _cnState.channel,
-          assigned_to:    _cnState.agentId || S.userId,
-          notes:          `Follow-up from ${_cnState.channel} contact on ${_cnState.contactDate}`,
-          status:         'pending',
-          created_by:     S.userId,
+        await supabase.rpc('create_follow_up_reminder', {
+          p_company_id: S.cid,
+          p_data: {
+            unit_id:        _cnState.unitId,
+            client_id:      _cnState.clientId || null,
+            sale_id:        _cnState.saleId   || unit?.saleId || null,
+            contact_log_id: logData.id,
+            remind_at:      _cnState.nextFollowupDate + 'T09:00:00+00:00',
+            channels:       [_cnState.nextFollowupChannel || _cnState.channel],
+            message:        `Follow-up from ${_cnState.channel} contact on ${_cnState.contactDate}`,
+            status:         'pending',
+            created_by:     S.userId
+          }
         });
       } catch(e) { console.warn('[follow_up_reminders insert]', e); }
     }

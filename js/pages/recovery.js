@@ -1,203 +1,232 @@
-// ══ RECOVERY PAGE ═══════════════════════════════
-let _rf={fr:'',to:'',type:'All',staff:'All'};
+// ══ RECOVERY QUEUE ═══════════════════════════════════════════════════════════
+// Daily work queue — overdue units sorted by urgency
+// ═════════════════════════════════════════════════════════════════════════════
 
-function rRec(){
-  const users=(window._appUsersCache||[]);
-  const staffOpts=users.map(u=>'<option value="'+esc(u.id)+'"'+(_rf.staff===u.id?' selected':'')+'>'+esc(u.name||u.fullName)+'</option>').join('');
-  const mSel=(v)=>_rf.type===v?' selected':'';
-  document.getElementById('pg-recovery').innerHTML=
-    '<div class="ani module-financial">'+
-      '<div class="ph"><div class="ph-l"><h2>Payments Ledger</h2><p>All recorded payments — cash, bank, cheques & adjustments</p></div><div class="ph-r"><button class="btn btn-gr btn-sm" onclick="nav(\'addpayment\')">+ Add Payment</button></div></div>'+
-      '<div class="fbar">'+
-        '<div class="fg"><label class="fl" style="font-size:10px">From</label><input class="inp-light" style="padding:7px 11px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" type="date" id="rf-fr" value="'+esc(_rf.fr||'')+'" onchange="_rf.fr=this.value;rRecF()"></div>'+
-        '<div class="fg"><label class="fl" style="font-size:10px">To</label><input class="inp-light" style="padding:7px 11px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" type="date" id="rf-to" value="'+esc(_rf.to||'')+'" onchange="_rf.to=this.value;rRecF()"></div>'+
-        '<div class="fg"><label class="fl" style="font-size:10px">Method</label><select class="inp-light" style="padding:7px 11px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_rf.type=this.value;rRecF()">'+
-          '<option value="All"'+mSel('All')+'>All Methods</option>'+
-          '<option value="cash"'+mSel('cash')+'>Cash</option>'+
-          '<option value="bank_transfer"'+mSel('bank_transfer')+'>Bank Transfer</option>'+
-          '<option value="cheque"'+mSel('cheque')+'>Cheque / PDC</option>'+
-          '<option value="adjustment"'+mSel('adjustment')+'>Adjustment</option>'+
-          '<option value="online"'+mSel('online')+'>Online</option>'+
-          '<option value="other"'+mSel('other')+'>Other</option>'+
-        '</select></div>'+
-        '<div class="fg"><label class="fl" style="font-size:10px">Staff</label><select class="inp-light" style="padding:7px 11px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_rf.staff=this.value;rRecF()"><option value="All"'+(_rf.staff==='All'?' selected':'')+'>All Staff</option>'+staffOpts+'</select></div>'+
-        '<div style="display:flex;align-items:flex-end;gap:6px"><button class="btn btn-g btn-sm" onclick="rRecF()">Filter</button><button class="btn btn-gh btn-sm" onclick="_rf={fr:\'\',to:\'\',type:\'All\',staff:\'All\'};rRec()">Reset</button></div>'+
-      '</div>'+
-      '<div id="rec-sum" style="margin-bottom:14px"><div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">Loading…</div></div>'+
-      '<div id="rec-pdc-sum" style="margin-bottom:14px"></div>'+
-      '<div id="rec-tbl"></div>'+
+let _rq = { bucket: 'all', q: '', page: 1 };
+const _RQ_PP = 25;
+
+/* ─── Entry point ──────────────────────────────────────────────────────────── */
+function rRec() {
+  _rq.page = 1;
+  document.getElementById('pg-recovery').innerHTML =
+    '<div class="ani module-financial">' +
+      '<div class="ph">' +
+        '<div class="ph-l"><h2>Recovery Queue</h2><p>Daily work queue — overdue installments sorted by urgency</p></div>' +
+        '<div class="ph-r">' +
+          '<input class="rq-search" id="rq-q" type="search" placeholder="Search client or unit…"' +
+            ' value="' + esc(_rq.q) + '" oninput="_rq.q=this.value;_rq.page=1;_rqRender()">' +
+        '</div>' +
+      '</div>' +
+      '<div id="rq-tabs" class="rq-tabs"></div>' +
+      '<div id="rq-body"></div>' +
+      '<div id="rq-pager" class="rq-pager"></div>' +
     '</div>';
-  rRecF();
+  _rqRender();
 }
 
-async function rRecF(){
-  const sum    = document.getElementById('rec-sum');
-  const pdcSum = document.getElementById('rec-pdc-sum');
-  const tbl    = document.getElementById('rec-tbl');
-  if(!sum||!tbl)return;
-  sum.innerHTML='<div style="padding:12px 16px;color:var(--t3);font-size:12px">Loading…</div>';
-  if(pdcSum) pdcSum.innerHTML='';
-  tbl.innerHTML='';
+/* ─── Build sorted base data ───────────────────────────────────────────────── */
+function _rqBase() {
+  const all = gunits().filter(u =>
+    u.status !== 'Available' && u.status !== 'Dead' && actualPending(u) > 0
+  );
+  all.sort((a, b) => (daysSincePay(b) ?? 99999) - (daysSincePay(a) ?? 99999));
+  return all;
+}
 
-  // ── 1. Payments query ─────────────────────────────────────────────
-  let q=supabase.from('payments')
-    .select('id,sale_id,payment_date,amount,payment_method,reference_no,notes,created_by,payment_category')
-    .eq('company_id',S.cid)
-    .order('payment_date',{ascending:false})
-    .limit(500);
-  if(_rf.fr) q=q.gte('payment_date',_rf.fr);
-  if(_rf.to) q=q.lte('payment_date',_rf.to);
-  if(_rf.type&&_rf.type!=='All') q=q.eq('payment_method',_rf.type);
-  if(_rf.staff&&_rf.staff!=='All') q=q.eq('created_by',_rf.staff);
+/* ─── Filter one bucket ─────────────────────────────────────────────────────── */
+function _rqInBucket(u, bucket) {
+  const d = daysSincePay(u) ?? 99999;
+  if (bucket === 'all')   return true;
+  if (bucket === '1-30')  return d >= 1  && d <= 30;
+  if (bucket === '31-60') return d >= 31 && d <= 60;
+  if (bucket === '61-90') return d >= 61 && d <= 90;
+  if (bucket === '90+')   return d > 90;
+  return true;
+}
 
-  const {data:recs=[],error}=await q;
-  if(error){
-    sum.innerHTML='<div class="card"><div class="empty"><div class="ei"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="et">Could not load payments</div><div class="es">'+esc(error.message)+'</div></div></div>';
+/* ─── Change bucket ─────────────────────────────────────────────────────────── */
+function _rqSetBucket(b) {
+  _rq.bucket = b;
+  _rq.page = 1;
+  _rqRender();
+}
+
+/* ─── WhatsApp shortcut ─────────────────────────────────────────────────────── */
+function _rqWA(uid) {
+  const u = gunit(uid);
+  if (!u || !u.phone) { alert('No phone number on file for this client.'); return; }
+  const proj = gproject(u.projectId);
+  const msg =
+    'Assalam o Alaikum ' + (u.customerName || 'Sir/Madam') + ',\n\n' +
+    'Aap ki installment due hai:\n\n' +
+    'Unit: ' + u.unitNo + (proj ? ' — ' + (proj.name || proj.projectName || '') : '') + '\n' +
+    'Outstanding: PKR ' + fM(actualPending(u)) + '\n\n' +
+    'Brahay Karam jald payment ada karein.';
+  openWhatsApp(u.phone, msg);
+}
+
+/* ─── Main render ───────────────────────────────────────────────────────────── */
+function _rqRender() {
+  const tabs  = document.getElementById('rq-tabs');
+  const body  = document.getElementById('rq-body');
+  const pager = document.getElementById('rq-pager');
+  if (!tabs || !body || !pager) return;
+
+  const base = _rqBase();
+
+  // Apply search filter
+  const q = (_rq.q || '').toLowerCase().trim();
+  const searched = q
+    ? base.filter(u =>
+        (u.customerName || '').toLowerCase().includes(q) ||
+        (u.unitNo || '').toLowerCase().includes(q)
+      )
+    : base;
+
+  // Bucket counts on searched set
+  const cnt = {
+    'all':   searched.length,
+    '1-30':  searched.filter(u => _rqInBucket(u, '1-30')).length,
+    '31-60': searched.filter(u => _rqInBucket(u, '31-60')).length,
+    '61-90': searched.filter(u => _rqInBucket(u, '61-90')).length,
+    '90+':   searched.filter(u => _rqInBucket(u, '90+')).length,
+  };
+
+  // ── Tabs ────────────────────────────────────────────────────────────────
+  const BUCKETS = [
+    { id: 'all',   lbl: 'All' },
+    { id: '1-30',  lbl: '1–30 days' },
+    { id: '31-60', lbl: '31–60 days' },
+    { id: '61-90', lbl: '61–90 days' },
+    { id: '90+',   lbl: '90+ days' },
+  ];
+  tabs.innerHTML = BUCKETS.map(b => {
+    const n = cnt[b.id];
+    const bdgCls = b.id === '90+' ? ' red' : b.id === '61-90' ? ' amber' : '';
+    const bdg = '<span class="rq-tab-bdg' + bdgCls + '">' + n + '</span>';
+    return '<button class="rq-tab' + (_rq.bucket === b.id ? ' on' : '') +
+      '" onclick="_rqSetBucket(\'' + b.id + '\')">' + b.lbl + bdg + '</button>';
+  }).join('');
+
+  // ── Apply bucket ─────────────────────────────────────────────────────────
+  const filtered = searched.filter(u => _rqInBucket(u, _rq.bucket));
+  const total = filtered.length;
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  if (!total) {
+    body.innerHTML =
+      '<div class="rq-empty">' +
+        '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+          '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>' +
+        '</svg>' +
+        '<div class="rq-empty-title">No overdue units</div>' +
+        '<div class="rq-empty-sub">' + (q || _rq.bucket !== 'all' ? 'Try adjusting your filters' : 'All installments are current') + '</div>' +
+      '</div>';
+    pager.innerHTML = '';
     return;
   }
 
-  // ── 2. PDC cheques query (always, regardless of method filter) ────
-  let pdcQ=supabase.from('pdc_cheques')
-    .select('id,sale_id,cheque_no,bank_name,amount,cheque_date,received_date,status,bounce_reason')
-    .eq('company_id',S.cid)
-    .order('received_date',{ascending:false});
-  if(_rf.fr) pdcQ=pdcQ.gte('received_date',_rf.fr);
-  if(_rf.to) pdcQ=pdcQ.lte('received_date',_rf.to);
-  const {data:pdcRecs=[]}=await pdcQ;
+  // ── Paginate ──────────────────────────────────────────────────────────────
+  const totalPages = Math.ceil(total / _RQ_PP);
+  const p = Math.max(1, Math.min(_rq.page, totalPages));
+  _rq.page = p;
+  const start = (p - 1) * _RQ_PP;
+  const slice = filtered.slice(start, start + _RQ_PP);
 
-  // ── 3. Map sale_id → unit ─────────────────────────────────────────
-  const allSids=[...new Set([...recs.map(r=>r.sale_id),...pdcRecs.map(r=>r.sale_id)].filter(Boolean))];
-  let smMap={};
-  if(allSids.length){
-    const {data:sd=[]}=await supabase.from('sales').select('id,unit_id').in('id',allSids);
-    sd.forEach(s=>{smMap[s.id]=s.unit_id;});
-  }
+  // ── Build rows ────────────────────────────────────────────────────────────
+  const rows = slice.map(u => {
+    const d = daysSincePay(u);
+    const dNum = d ?? 99999;
+    const rowCls = dNum > 90 ? ' class="rq-row-critical"' : dNum > 60 ? ' class="rq-row-warn"' : '';
+    const amtCls = dNum > 90 ? ' rq-amt-critical' : '';
+    const dayCls = dNum > 90 ? ' red' : dNum > 60 ? ' amber' : dNum > 30 ? ' yellow' : '';
+    const dayLbl = d === null ? 'Never paid' : d + 'd';
 
-  // ── 4. Compute payment breakdown ──────────────────────────────────
-  const sumBy = (method) => recs.filter(r=>r.payment_method===method).reduce((s,r)=>s+Number(r.amount||0),0);
-  const cntBy = (method) => recs.filter(r=>r.payment_method===method).length;
+    const proj = gproject(u.projectId);
+    const projName = proj?.name || proj?.projectName || '—';
 
-  const totCash  = sumBy('cash');
-  const totBank  = sumBy('bank_transfer') + sumBy('bank');
-  const totChq   = sumBy('cheque');
-  const totAdj   = sumBy('adjustment');
-  const totOnl   = sumBy('online');
-  const totOth   = sumBy('other');
-  const totAll   = recs.reduce((s,r)=>s+Number(r.amount||0),0);
+    const logs = gcons(u.id).sort((a, b) => (b.contact_date || '').localeCompare(a.contact_date || ''));
+    const lastConFmt = logs[0]?.contact_date ? fD(logs[0].contact_date) : '—';
 
-  const cntCash  = cntBy('cash');
-  const cntBank  = cntBy('bank_transfer') + cntBy('bank');
-  const cntChq   = cntBy('cheque');
-  const cntAdj   = cntBy('adjustment');
-
-  // ── 5. PDC breakdown from pdc_cheques ────────────────────────────
-  const pdcPending   = pdcRecs.filter(c=>c.status==='pending');
-  const pdcDeposited = pdcRecs.filter(c=>c.status==='deposited');
-  const pdcCleared   = pdcRecs.filter(c=>c.status==='cleared');
-  const pdcBounced   = pdcRecs.filter(c=>c.status==='bounced');
-  const totPdcPend   = pdcPending.reduce((s,c)=>s+Number(c.amount||0),0);
-  const totPdcDep    = pdcDeposited.reduce((s,c)=>s+Number(c.amount||0),0);
-  const totPdcClr    = pdcCleared.reduce((s,c)=>s+Number(c.amount||0),0);
-  const totPdcBnc    = pdcBounced.reduce((s,c)=>s+Number(c.amount||0),0);
-  const totPdcAll    = pdcRecs.reduce((s,c)=>s+Number(c.amount||0),0);
-
-  // ── 6. Summary grid ───────────────────────────────────────────────
-  function summaryTile(icon, label, amount, count, color, highlight){
-    if(!amount && !highlight) return '';
-    return '<div style="flex:1;min-width:130px;padding:14px 16px;background:var(--surface);border:1px solid '+(highlight?color+'55':'var(--line)')+';border-left:4px solid '+color+';border-radius:10px">'+
-      '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:flex;align-items:center;gap:4px">'+icon+label+'</div>'+
-      '<div style="font-size:16px;font-weight:800;color:'+color+'">PKR '+fM(amount)+'</div>'+
-      (count?'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+count+' payment'+(count!==1?'s':'')+'</div>':'')+
-    '</div>';
-  }
-
-  sum.innerHTML=
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">'+
-      summaryTile('<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>','Cash',totCash,cntCash,'#10b981',false)+
-      summaryTile('<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>','Bank Transfer',totBank,cntBank,'#3b82f6',false)+
-      summaryTile('<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>','Cheque',totChq,cntChq,'#f59e0b',false)+
-      summaryTile('<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>','Adjustment',totAdj,cntAdj,'#8b5cf6',false)+
-      (totOnl?summaryTile('<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>','Online',totOnl,cntBy('online'),'#6366f1',false):'')+
-      (totOth?summaryTile('<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>','Other',totOth,cntBy('other'),'#94a3b8',false):'')+
-      '<div style="flex:1;min-width:130px;padding:14px 16px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.25);border-left:4px solid var(--brand);border-radius:10px">'+
-        '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:flex;align-items:center;gap:4px"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>Total Collected</div>'+
-        '<div style="font-size:18px;font-weight:800;color:var(--brand)">PKR '+fM(totAll)+'</div>'+
-        '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+recs.length+' payment'+(recs.length!==1?'s':'')+'</div>'+
-      '</div>'+
-    '</div>';
-
-  // ── 7. PDC status panel ───────────────────────────────────────────
-  if(pdcSum && pdcRecs.length > 0){
-    function pdcTile(icon,label,items,amount,color,note){
-      if(!items.length) return '';
-      return '<div style="flex:1;min-width:150px;padding:12px 14px;background:'+color+'0d;border:1px solid '+color+'33;border-left:3px solid '+color+';border-radius:10px">'+
-        '<div style="font-size:10px;font-weight:700;color:'+color+';text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:flex;align-items:center;gap:4px">'+icon+label+'</div>'+
-        '<div style="font-size:15px;font-weight:800;color:var(--text)">PKR '+fM(amount)+'</div>'+
-        '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+items.length+' cheque'+(items.length!==1?'s':'')+(note?' · '+note:'')+'</div>'+
-      '</div>';
-    }
-    pdcSum.innerHTML=
-      '<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden">'+
-        '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:rgba(245,158,11,.06)">'+
-          '<svg width="16" height="16" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'+
-          '<div style="flex:1">'+
-            '<div style="font-size:12px;font-weight:700;color:var(--text)">PDC Cheque Breakdown</div>'+
-            '<div style="font-size:11px;color:var(--t3)">'+pdcRecs.length+' cheque'+(pdcRecs.length!==1?'s':'')+' received — PKR '+fM(totPdcAll)+' total</div>'+
-          '</div>'+
-          (totPdcPend+totPdcDep>0?'<div style="font-size:11px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.12);padding:4px 10px;border-radius:20px">PKR '+fM(totPdcPend+totPdcDep)+' not cleared</div>':'')+
-        '</div>'+
-        '<div style="display:flex;gap:10px;flex-wrap:wrap;padding:12px 14px">'+
-          pdcTile('<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>','Pending Deposit',pdcPending,totPdcPend,'#f59e0b','in hand, not deposited')+
-          pdcTile('<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>','Deposited',pdcDeposited,totPdcDep,'#3b82f6','at bank, awaiting clear')+
-          pdcTile('✓','Cleared',pdcCleared,totPdcClr,'#22c55e','realized in bank')+
-          pdcTile('✗','Bounced',pdcBounced,totPdcBnc,'#ef4444','')+
-        '</div>'+
-      '</div>';
-  }
-
-  // ── 8. Detail table ───────────────────────────────────────────────
-  if(!recs.length){
-    tbl.innerHTML='<div class="card"><div class="empty"><div class="ei"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div class="et">No payments match filters</div></div></div>';
-    return;
-  }
-
-  // Build a lookup: sale_id → list of PDC cheques for that sale
-  const pdcBySale={};
-  pdcRecs.forEach(c=>{ if(c.sale_id){ if(!pdcBySale[c.sale_id]) pdcBySale[c.sale_id]=[]; pdcBySale[c.sale_id].push(c); }});
-
-  const rows=recs.map(r=>{
-    const uid=smMap[r.sale_id]||null;
-    const u=uid?gunit(uid):null;
-    let pdcBadge='';
-    if(r.payment_method==='cheque' && r.sale_id && pdcBySale[r.sale_id]){
-      const salePdcs=pdcBySale[r.sale_id];
-      const anyPend=salePdcs.some(c=>c.status==='pending'||c.status==='deposited');
-      const anyClr =salePdcs.some(c=>c.status==='cleared');
-      const anyBnc =salePdcs.some(c=>c.status==='bounced');
-      if(anyBnc)       pdcBadge='<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,.12);color:#ef4444;padding:1px 6px;border-radius:10px;border:1px solid rgba(239,68,68,.25)">PDC ✗Bounced</span>';
-      else if(anyClr)  pdcBadge='<span style="font-size:9px;font-weight:700;background:rgba(34,197,94,.12);color:#22c55e;padding:1px 6px;border-radius:10px;border:1px solid rgba(34,197,94,.25)">PDC ✓Cleared</span>';
-      else if(anyPend) pdcBadge='<span style="font-size:9px;font-weight:700;background:rgba(245,158,11,.12);color:#f59e0b;padding:1px 6px;border-radius:10px;border:1px solid rgba(245,158,11,.25)">PDC ⏳Pending</span>';
-    }
-    const navAttr=uid?'onclick="openUD(\''+esc(uid)+'\')"':'';
-    return '<tr class="cr">'+
-      '<td '+navAttr+'>'+fD(r.payment_date)+'</td>'+
-      '<td '+navAttr+' style="font-weight:700">'+esc(u?.unitNo||'—')+'</td>'+
-      '<td '+navAttr+'>'+esc(u?.customerName||'—')+'</td>'+
-      '<td><div style="display:flex;flex-direction:column;gap:3px">'+pbadge(r.payment_method)+(pdcBadge?pdcBadge:'')+'</div></td>'+
-      '<td style="font-size:11px;color:var(--t3)">'+esc(r.reference_no||'—')+'</td>'+
-      '<td style="font-size:11px;color:var(--t3);max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.notes||'—')+'</td>'+
-      '<td style="font-size:11px;color:var(--t3)">'+esc(gunm(r.created_by)||r.created_by||'—')+'</td>'+
-      '<td class="r mono" style="font-weight:700;color:var(--ok)">+'+fM(r.amount)+'</td>'+
+    const id = esc(u.id);
+    return '<tr' + rowCls + ' onclick="openUD(\'' + id + '\')">' +
+      '<td style="font-weight:600">' + esc(u.customerName || '—') + '</td>' +
+      '<td><span class="rq-unit-chip">' + esc(u.unitNo) + '</span></td>' +
+      '<td class="rq-muted">' + esc(projName) + '</td>' +
+      '<td class="rq-amt' + amtCls + '">PKR ' + fM(actualPending(u)) + '</td>' +
+      '<td><span class="rq-days' + dayCls + '">' + dayLbl + '</span></td>' +
+      '<td class="rq-muted">' + lastConFmt + '</td>' +
+      '<td class="rq-acts" onclick="event.stopPropagation()">' +
+        // Log Call
+        '<button class="rq-btn" title="Log Call" onclick="openConModal(\'' + id + '\')">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.33A2 2 0 0 1 3.54 1h3a2 2 0 0 1 2 1.72c.127.966.362 1.917.7 2.83a2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l.79-.99a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"/>' +
+          '</svg>' +
+        '</button>' +
+        // WhatsApp
+        '<button class="rq-btn green" title="WhatsApp" onclick="_rqWA(\'' + id + '\')">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>' +
+          '</svg>' +
+        '</button>' +
+        // Add Promise (opens the contact wizard with Promise-to-Pay pre-armed)
+        '<button class="rq-btn blue" title="Add Promise" onclick="openConModal(\'' + id + '\',\'promise\')">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<polyline points="20 6 9 17 4 12"/>' +
+          '</svg>' +
+        '</button>' +
+        // View Unit
+        '<button class="rq-btn ghost" title="View Unit" onclick="openUD(\'' + id + '\')">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>' +
+          '</svg>' +
+        '</button>' +
+      '</td>' +
     '</tr>';
   }).join('');
 
-  tbl.innerHTML=
-    '<div class="card"><div class="tw"><table class="t">'+
-      '<thead><tr><th>Date</th><th>Unit</th><th>Client</th><th>Method</th><th>Ref No</th><th>Notes</th><th>By</th><th class="r">Amount</th></tr></thead>'+
-      '<tbody>'+rows+'</tbody>'+
-      '<tfoot><tr style="border-top:2px solid var(--line)">'+
-        '<td colspan="7" style="font-size:11px;font-weight:700;color:var(--t2)">Total ('+recs.length+' payments)</td>'+
-        '<td class="r mono" style="font-weight:800;font-size:14px;color:var(--ok)">PKR '+fM(totAll)+'</td>'+
-      '</tr></tfoot>'+
-    '</table></div></div>';
+  body.innerHTML =
+    '<div class="rq-card">' +
+      '<table class="rq-tbl">' +
+        '<thead><tr>' +
+          '<th>Client Name</th>' +
+          '<th>Unit</th>' +
+          '<th>Project</th>' +
+          '<th>Overdue Amount</th>' +
+          '<th>Days Overdue</th>' +
+          '<th>Last Contact Date</th>' +
+          '<th>Actions</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const from = start + 1;
+  const to   = Math.min(start + _RQ_PP, total);
+
+  // Page number buttons: show up to 7, centered on current page
+  let pgBtns = '';
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) {
+      pgBtns += '<button class="rq-pg-btn' + (i === p ? ' on' : '') +
+        '" onclick="_rq.page=' + i + ';_rqRender()">' + i + '</button>';
+    }
+  } else {
+    const pages = new Set([1, totalPages, p, p-1, p+1].filter(x => x >= 1 && x <= totalPages));
+    const sorted = [...pages].sort((a,b) => a-b);
+    sorted.forEach((pg, idx) => {
+      if (idx > 0 && pg - sorted[idx-1] > 1) pgBtns += '<span style="padding:0 4px;color:var(--t3)">…</span>';
+      pgBtns += '<button class="rq-pg-btn' + (pg === p ? ' on' : '') +
+        '" onclick="_rq.page=' + pg + ';_rqRender()">' + pg + '</button>';
+    });
+  }
+
+  pager.innerHTML =
+    '<div class="rq-pager-info">Showing ' + from + '–' + to + ' of ' + total + ' records</div>' +
+    '<div class="rq-pager-btns">' +
+      '<button class="rq-pg-btn" ' + (p <= 1 ? 'disabled' : 'onclick="_rq.page=' + (p-1) + ';_rqRender()"') + '>← Prev</button>' +
+      pgBtns +
+      '<button class="rq-pg-btn" ' + (p >= totalPages ? 'disabled' : 'onclick="_rq.page=' + (p+1) + ';_rqRender()"') + '>Next →</button>' +
+    '</div>';
 }

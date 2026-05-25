@@ -310,4 +310,65 @@
   .ud-hdr-right { width:100%; flex-wrap:wrap; }
   .ud-tabs { width:100%; overflow-x:auto; flex-wrap:nowrap; }
   .ud-kpi-grid { grid-template-columns:1fr 1fr; }
+  .ud-hdr-outstanding { align-items:flex-start; }
 }
+
+/* ═══ Recovery-focused redesign additions ════════════════════════════ */
+
+/* Sticky-header outstanding amount — large, red, prominent */
+.ud-hdr-outstanding {
+  display:flex; flex-direction:column; align-items:flex-end;
+  margin-right:6px; line-height:1.1;
+}
+.ud-hdr-out-lbl {
+  font-size:10px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-muted);
+}
+.ud-hdr-out-val {
+  font-size:22px; font-weight:700; color:var(--danger);
+  font-variant-numeric:tabular-nums; letter-spacing:-.3px;
+}
+.ud-hdr-cta { height:32px; }
+
+/* Payment Schedule — summary chips live in the panel header */
+.ud-sched-summary { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+/* Status pills (Paid / Due / Overdue) */
+.ud-sched-pill {
+  display:inline-flex; align-items:center; height:20px; padding:0 9px;
+  border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap;
+}
+.ud-sched-pill.paid    { background:var(--bg-success-soft); color:var(--success); }
+.ud-sched-pill.due     { background:var(--bg-chip);         color:var(--text-soft); }
+.ud-sched-pill.overdue { background:var(--bg-danger-soft);  color:var(--danger); }
+
+/* Overdue installment rows highlighted red */
+.ud-sched-overdue td { background:var(--bg-danger-soft); }
+[data-theme="dark"] .ud-sched-overdue td { background:rgba(220,38,38,.08); }
+
+/* Documents grid */
+.ud-doc-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:12px; padding:16px 18px;
+}
+.ud-doc-card {
+  display:flex; flex-direction:column; gap:6px;
+  background:var(--bg-page); border:1px solid var(--border);
+  border-radius:10px; padding:14px;
+}
+.ud-doc-ic {
+  width:34px; height:34px; border-radius:8px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--bg-chip); color:var(--text-muted);
+}
+.ud-doc-name {
+  font-size:12px; font-weight:600; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ud-doc-date { font-size:11px; color:var(--text-muted); }
+.ud-doc-dl {
+  margin-top:4px; display:inline-flex; align-items:center; gap:5px;
+  font-size:12px; font-weight:500; color:var(--primary);
+  text-decoration:none; cursor:pointer;
+}
+.ud-doc-dl:hover { text-decoration:underline; }
