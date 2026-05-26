@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -128,6 +129,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
     <div class="toolbar-subtitle" id="toolbarSub"></div>
   </div>
   <div class="toolbar-actions">
+    <button class="btn-print" style="background:#16a34a;color:#fff" onclick="exportExcel()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 2 3 2-3"/><path d="M11 16v-5"/></svg>
+      Excel
+    </button>
     <button class="btn-print" onclick="window.print()">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print / PDF
@@ -261,10 +266,201 @@ const REPORT_META = {
       ];
     },
     kpiCols: 4
+  },
+
+  get_aging_report: {
+    title:'Aging Analysis', icon:'📊',
+    cols:[
+      {key:'bucket',label:'Overdue Bucket',cls:'bold'},
+      {key:'count',label:'Installments',cls:'right',fmt:'num'},
+      {key:'total_amount',label:'Outstanding (PKR)',cls:'right',fmt:'pkr'},
+      {key:'client_sample',label:'Sample Clients'},
+    ],
+    totals:[{key:'total_amount',label:'Total Outstanding'}],
+    kpis:(rows)=>{
+      const tot=rows.reduce((s,r)=>s+Number(r.total_amount||0),0);
+      const cnt=rows.reduce((s,r)=>s+Number(r.count||0),0);
+      const crit=rows.filter(r=>r.bucket==='91-180'||r.bucket==='180+').reduce((s,r)=>s+Number(r.total_amount||0),0);
+      const b90=rows.find(r=>r.bucket==='180+');
+      return [
+        {label:'Total Overdue',val:fmtPKR(tot),cls:'red',sub:cnt+' installments'},
+        {label:'90+ Days Critical',val:fmtPKR(crit),cls:'amber'},
+        {label:'180+ Days',val:fmtPKR(b90?b90.total_amount:0),cls:'red'},
+        {label:'Active Buckets',val:rows.filter(r=>Number(r.count)>0).length+' / 5',cls:''},
+      ];
+    }, kpiCols:4
+  },
+
+  get_commission_report: {
+    title:'Commission Report', icon:'👨‍💼',
+    cols:[
+      {key:'agent_name',label:'Agent',cls:'bold'},
+      {key:'total_sales_count',label:'Sales',cls:'right',fmt:'num'},
+      {key:'total_sale_value',label:'Sale Value (PKR)',cls:'right',fmt:'pkr'},
+      {key:'commission_rate',label:'Rate %',cls:'right',fmt:'pct'},
+      {key:'commission_earned',label:'Earned (PKR)',cls:'right',fmt:'pkr'},
+      {key:'commission_paid',label:'Paid (PKR)',cls:'right',fmt:'pkr'},
+      {key:'commission_pending',label:'Pending (PKR)',cls:'right',fmt:'pkr'},
+    ],
+    totals:[{key:'total_sale_value'},{key:'commission_earned'},{key:'commission_paid'},{key:'commission_pending'}],
+    kpis:(rows)=>{
+      const earned=rows.reduce((s,r)=>s+Number(r.commission_earned||0),0);
+      const paid=rows.reduce((s,r)=>s+Number(r.commission_paid||0),0);
+      const pend=rows.reduce((s,r)=>s+Number(r.commission_pending||0),0);
+      return [
+        {label:'Agents',val:rows.length,cls:'accent'},
+        {label:'Commission Earned',val:fmtPKR(earned),cls:''},
+        {label:'Paid',val:fmtPKR(paid),cls:'green'},
+        {label:'Pending',val:fmtPKR(pend),cls:'amber'},
+      ];
+    }, kpiCols:4
+  },
+
+  get_project_summary: {
+    title:'Project Summary', icon:'🏗️',
+    cols:[
+      {key:'project_name',label:'Project',cls:'bold'},
+      {key:'total_units',label:'Units',cls:'right',fmt:'num'},
+      {key:'sold_units',label:'Sold',cls:'right',fmt:'num'},
+      {key:'available_units',label:'Available',cls:'right',fmt:'num'},
+      {key:'reserved_units',label:'Reserved',cls:'right',fmt:'num'},
+      {key:'total_sale_value',label:'Sale Value',cls:'right',fmt:'pkr'},
+      {key:'total_collected',label:'Collected',cls:'right',fmt:'pkr'},
+      {key:'total_outstanding',label:'Outstanding',cls:'right',fmt:'pkr'},
+      {key:'collection_pct',label:'Collection %',cls:'right',fmt:'pct_bar'},
+    ],
+    totals:[{key:'total_sale_value'},{key:'total_collected'},{key:'total_outstanding'}],
+    kpis:(rows)=>{
+      const val=rows.reduce((s,r)=>s+Number(r.total_sale_value||0),0);
+      const col=rows.reduce((s,r)=>s+Number(r.total_collected||0),0);
+      const units=rows.reduce((s,r)=>s+Number(r.total_units||0),0);
+      const sold=rows.reduce((s,r)=>s+Number(r.sold_units||0),0);
+      return [
+        {label:'Projects',val:rows.length,cls:'accent',sub:units+' units'},
+        {label:'Total Sale Value',val:fmtPKR(val),cls:''},
+        {label:'Collected',val:fmtPKR(col),cls:'green',sub:val?Math.round(col/val*100)+'%':''},
+        {label:'Units Sold',val:sold,cls:'amber'},
+      ];
+    }, kpiCols:4
+  },
+
+  get_tax_wht_report: {
+    title:'Tax / WHT Report', icon:'🧾',
+    cols:[
+      {key:'sale_date',label:'Date',fmt:'date'},
+      {key:'sale_number',label:'Sale #',cls:'mono'},
+      {key:'buyer_name',label:'Buyer',cls:'bold'},
+      {key:'sale_value',label:'Sale Value',cls:'right',fmt:'pkr'},
+      {key:'wht_amount',label:'WHT',cls:'right',fmt:'pkr'},
+      {key:'cvt_amount',label:'CVT',cls:'right',fmt:'pkr'},
+      {key:'wht_rate_pct',label:'WHT %',cls:'right',fmt:'pct'},
+      {key:'filer_status',label:'Filer'},
+    ],
+    totals:[{key:'sale_value'},{key:'wht_amount'},{key:'cvt_amount'}],
+    kpis:(rows)=>{
+      const wht=rows.reduce((s,r)=>s+Number(r.wht_amount||0),0);
+      const cvt=rows.reduce((s,r)=>s+Number(r.cvt_amount||0),0);
+      const val=rows.reduce((s,r)=>s+Number(r.sale_value||0),0);
+      return [
+        {label:'Taxable Sales',val:rows.length,cls:'accent',sub:fmtPKR(val)},
+        {label:'Total WHT',val:fmtPKR(wht),cls:'amber'},
+        {label:'Total CVT',val:fmtPKR(cvt),cls:'amber'},
+        {label:'WHT + CVT',val:fmtPKR(wht+cvt),cls:'red'},
+      ];
+    }, kpiCols:4
+  },
+
+  get_post_possession_dues_report: {
+    title:'Post-Possession Dues', icon:'🏠',
+    cols:[
+      {key:'unit_number',label:'Unit',cls:'bold mono'},
+      {key:'project_name',label:'Project'},
+      {key:'buyer_name',label:'Buyer',cls:'bold'},
+      {key:'possession_date',label:'Possession',fmt:'date'},
+      {key:'total_outstanding',label:'Outstanding',cls:'right',fmt:'pkr'},
+      {key:'overdue_installments_count',label:'Overdue Inst.',cls:'right',fmt:'num'},
+      {key:'last_payment_date',label:'Last Payment',fmt:'date'},
+    ],
+    totals:[{key:'total_outstanding',label:'Total Outstanding'}],
+    kpis:(rows)=>{
+      const tot=rows.reduce((s,r)=>s+Number(r.total_outstanding||0),0);
+      const od=rows.filter(r=>Number(r.overdue_installments_count)>0).length;
+      return [
+        {label:'Units with Dues',val:rows.length,cls:'red',sub:'post-possession'},
+        {label:'Total Outstanding',val:fmtPKR(tot),cls:'red'},
+        {label:'With Overdue',val:od,cls:'amber'},
+        {label:'Avg / Unit',val:fmtPKR(rows.length?tot/rows.length:0),cls:''},
+      ];
+    }, kpiCols:4
+  },
+
+  get_legal_portfolio: {
+    title:'Legal Cases Portfolio', icon:'⚖️',
+    cols:[
+      {key:'case_number',label:'Case #',cls:'mono'},
+      {key:'case_type',label:'Type'},
+      {key:'client_name',label:'Client',cls:'bold'},
+      {key:'unit_number',label:'Unit'},
+      {key:'filed_date',label:'Filed',fmt:'date'},
+      {key:'outstanding_amount',label:'Outstanding',cls:'right',fmt:'pkr'},
+      {key:'status',label:'Stage'},
+      {key:'assigned_lawyer',label:'Lawyer'},
+      {key:'next_hearing_date',label:'Next Hearing',fmt:'date'},
+    ],
+    totals:[{key:'outstanding_amount',label:'Total Claim'}],
+    kpis:(rows)=>{
+      const tot=rows.reduce((s,r)=>s+Number(r.outstanding_amount||0),0);
+      return [
+        {label:'Active Cases',val:rows.length,cls:'accent'},
+        {label:'Total Outstanding',val:fmtPKR(tot),cls:'red'},
+        {label:'Clients',val:new Set(rows.map(r=>r.client_name)).size,cls:'amber'},
+        {label:'Upcoming Hearings',val:rows.filter(r=>r.next_hearing_date).length,cls:''},
+      ];
+    }, kpiCols:4
+  },
+
+  get_executive_kpis: {
+    title:'Executive Summary', icon:'📈',
+    cols:[],
+    kpis:(rows)=>{
+      const k=rows[0]||{};
+      return [
+        {label:'Sales (MTD)',val:k.total_sales_mtd||0,cls:'accent',sub:fmtPKR(k.total_sales_value_mtd||0)},
+        {label:'Collected (MTD)',val:fmtPKR(k.total_collected_mtd||0),cls:'green'},
+        {label:'Outstanding (All)',val:fmtPKR(k.total_outstanding_all||0),cls:'red'},
+        {label:'Overdue Installments',val:k.overdue_count||0,cls:'amber'},
+        {label:'New Bookings (MTD)',val:k.new_bookings_mtd||0,cls:''},
+        {label:'Cancellations (MTD)',val:k.cancellations_mtd||0,cls:'red'},
+        {label:'Collection Efficiency',val:(Number(k.collection_efficiency_pct||0)).toFixed(1)+'%',cls:'green',sub:'collected / billed (MTD)'},
+        {label:'Top Project',val:k.top_performing_project||'—',cls:'accent'},
+      ];
+    }, kpiCols:4
+  },
+
+  get_monthly_collection_trend: {
+    title:'Monthly Collection Trend', icon:'📉',
+    cols:[
+      {key:'month_label',label:'Month',cls:'bold'},
+      {key:'billed_amount',label:'Billed (PKR)',cls:'right',fmt:'pkr'},
+      {key:'collected_amount',label:'Collected (PKR)',cls:'right',fmt:'pkr'},
+      {key:'collection_rate_pct',label:'Collection Rate',cls:'right',fmt:'pct_bar'},
+    ],
+    totals:[{key:'billed_amount'},{key:'collected_amount'}],
+    kpis:(rows)=>{
+      const billed=rows.reduce((s,r)=>s+Number(r.billed_amount||0),0);
+      const col=rows.reduce((s,r)=>s+Number(r.collected_amount||0),0);
+      const best=[...rows].sort((a,b)=>Number(b.collected_amount||0)-Number(a.collected_amount||0))[0];
+      return [
+        {label:'Billed (12 mo)',val:fmtPKR(billed),cls:'accent'},
+        {label:'Collected (12 mo)',val:fmtPKR(col),cls:'green'},
+        {label:'Avg Collection Rate',val:billed?Math.round(col/billed*100)+'%':'0%',cls:''},
+        {label:'Best Month',val:best?best.month_label:'—',cls:'amber',sub:best?fmtPKR(best.collected_amount):''},
+      ];
+    }, kpiCols:4
   }
 };
 
-function fmtPKR(v){ if(!v && v!==0) return '—'; return 'PKR '+Number(v).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtPKR(v){ if(!v && v!==0) return '—'; return 'PKR '+Number(v).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtDate(v){ if(!v) return '—'; try{ const d=new Date(v); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch{return v;} }
 
 function formatCell(row, col){
@@ -291,6 +487,17 @@ function formatCell(row, col){
     const n = Number(v||0);
     const cls = n>90?'badge-red':n>30?'badge-amber':'badge-gray';
     return `<span class="badge ${cls}">${n} days</span>`;
+  }
+  if(col.fmt === 'num'){ return (v===null||v===undefined||v==='')?'—':Number(v).toLocaleString('en-IN'); }
+  if(col.fmt === 'pct'){ return (Number(v||0)).toFixed(1)+'%'; }
+  if(col.fmt === 'pct_bar'){
+    const n = Math.max(0,Math.min(100,Number(v||0)));
+    const c = n>=80?'#16a34a':n>=50?'#d97706':'#dc2626';
+    return `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+      <div style="flex:0 0 56px;height:6px;background:#eef0f3;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${n}%;background:${c};-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
+      </div>
+      <span style="font-size:9.5px;font-weight:700;color:${c}">${n.toFixed(1)}%</span></div>`;
   }
   if(v===null||v===undefined||v==='') return '—';
   return v;
@@ -333,6 +540,7 @@ async function loadReport(){
   if(error){ showError('Database error', error.message); return; }
 
   const data = rows || [];
+  window._rptExport = { data, meta, type };   // stash for Excel export
 
   // Update toolbar
   document.getElementById('toolbarTitle').textContent = meta.icon + ' ' + meta.title;
@@ -411,7 +619,7 @@ async function loadReport(){
         ${kpiHtml}
       </div>
 
-      <div class="tbl-wrap">
+      ${meta.cols.length ? `<div class="tbl-wrap">
         <table class="rpt-tbl">
           <thead>
             <tr>${meta.cols.map(col=>`<th class="${col.cls&&col.cls.includes('right')?'right':''}">${col.label}</th>`).join('')}</tr>
@@ -421,7 +629,7 @@ async function loadReport(){
             ${totalsHtml}
           </tbody>
         </table>
-      </div>
+      </div>` : ''}
 
       <div class="doc-footer">
         <div class="footer-note">
@@ -445,6 +653,43 @@ function showError(title, msg){
       <div class="state-title">${title}</div>
       <div class="state-sub">${msg||''}</div>
     </div>`;
+}
+
+// ── Excel export — builds an .xlsx from the active report's rows + cols ──
+function exportExcel(){
+  const ex = window._rptExport;
+  if(!ex){ alert('Report still loading — please wait a moment.'); return; }
+  if(!window.XLSX){ alert('Excel library not loaded. Check your connection and retry.'); return; }
+  const { data, meta } = ex;
+  let aoa;
+  if(!meta.cols.length){
+    // KPI-only report (e.g. Executive Summary) → export metric / value / detail
+    aoa = [['Metric','Value','Detail']].concat(
+      meta.kpis(data).map(k => [k.label, String(k.val).replace(/<[^>]+>/g,''), k.sub||''])
+    );
+  } else {
+    aoa = [ meta.cols.map(c => c.label) ];
+    data.forEach(r => {
+      aoa.push(meta.cols.map(c => {
+        const v = r[c.key];
+        if(c.fmt==='pkr'||c.fmt==='num'||c.fmt==='pct'||c.fmt==='pct_bar') return Number(v||0);
+        if(c.fmt==='date') return v ? fmtDate(v) : '';
+        return (v===null||v===undefined) ? '' : String(v);
+      }));
+    });
+    if(meta.totals && meta.totals.length){
+      aoa.push(meta.cols.map((c,i) => {
+        const t = meta.totals.find(tt => tt.key===c.key);
+        if(t) return data.reduce((s,r)=>s+Number(r[c.key]||0),0);
+        return i===0 ? 'TOTAL' : '';
+      }));
+    }
+  }
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, (meta.title||'Report').substring(0,28));
+  const fname = (meta.title||'report').replace(/[^a-z0-9]+/gi,'_').toLowerCase() + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, fname);
 }
 
 loadReport();

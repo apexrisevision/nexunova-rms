@@ -286,6 +286,84 @@ const REPORTS = [
     params:['project'],
     defaults:{status:'Sold'}
   },
+
+  // 💰 RECOVERY (extras)
+  {
+    id:'aging',             cat:'recovery',
+    icon:'📊', color:'#ea580c', bg:'#ffedd5',
+    name:'Aging Analysis',
+    desc:'Outstanding dues bucketed by days overdue (0–30 → 180+)',
+    type:'management',
+    rpc:'get_aging_report',
+    params:['project']
+  },
+  {
+    id:'post_possession',   cat:'recovery',
+    icon:'🏠', color:'#dc2626', bg:'#fee2e2',
+    name:'Post-Possession Dues',
+    desc:'Handed-over units that still have outstanding installments',
+    type:'management',
+    rpc:'get_post_possession_dues_report',
+    params:['project']
+  },
+
+  // 🏘️ INVENTORY (extras)
+  {
+    id:'project_summary',   cat:'inventory',
+    icon:'🏗️', color:'#2563eb', bg:'#dbeafe',
+    name:'Project Summary',
+    desc:'Per-project units, sale value, collection % and outstanding',
+    type:'management',
+    rpc:'get_project_summary',
+    params:['project']
+  },
+
+  // 📊 ANALYTICS
+  {
+    id:'executive',         cat:'analytics', badge:'new',
+    icon:'📈', color:'#4f46e5', bg:'#eef2ff',
+    name:'Executive Summary',
+    desc:'Month-to-date KPIs — sales, collection, bookings, efficiency',
+    type:'management',
+    rpc:'get_executive_kpis',
+    params:['project']
+  },
+  {
+    id:'monthly_trend',     cat:'analytics',
+    icon:'📉', color:'#0891b2', bg:'#cffafe',
+    name:'Collection Trend',
+    desc:'Billed vs collected, last 12 months with collection rate',
+    type:'management',
+    rpc:'get_monthly_collection_trend',
+    params:['project']
+  },
+  {
+    id:'commission',        cat:'analytics',
+    icon:'👨‍💼', color:'#7c3aed', bg:'#f5f3ff',
+    name:'Commission Report',
+    desc:'Agent-wise sales value, earned / paid / pending commission',
+    type:'management',
+    rpc:'get_commission_report',
+    params:['project']
+  },
+  {
+    id:'tax_wht',           cat:'analytics',
+    icon:'🧾', color:'#16a34a', bg:'#dcfce7',
+    name:'Tax / WHT Report',
+    desc:'Per-sale WHT & CVT with effective rate (FBR compliance)',
+    type:'management',
+    rpc:'get_tax_wht_report',
+    params:['project']
+  },
+  {
+    id:'legal_portfolio',   cat:'analytics',
+    icon:'⚖️', color:'#9333ea', bg:'#f3e8ff',
+    name:'Legal Cases Portfolio',
+    desc:'Active legal cases — stage, lawyer, outstanding, next hearing',
+    type:'management',
+    rpc:'get_legal_portfolio',
+    params:['project']
+  },
 ];
 
 const CATS = [
@@ -293,6 +371,7 @@ const CATS = [
   {id:'recovery',  label:'💰 Recovery',    color:'#dc2626', desc:'Outstanding dues, collection performance'},
   {id:'sales',     label:'🏷️ Sales',       color:'#16a34a', desc:'Sales register and analytics'},
   {id:'inventory', label:'🏘️ Inventory',   color:'#2563eb', desc:'Unit inventory and status reports'},
+  {id:'analytics', label:'📊 Analytics',    color:'#4f46e5', desc:'Executive KPIs, trends, commission, tax & legal'},
 ];
 
 // ── Init ─────────────────────────────────────────────────────────────
