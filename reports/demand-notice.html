@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Demand Notice — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:0;left:0;right:0;background:#1e2d47;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
+.toolbar-actions{display:flex;gap:8px}
+.btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
+.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-print:hover{background:#d4b55e}
+.btn-close:hover{background:rgba(255,255,255,.2)}
+
+/* ── A4 page ── */
+.page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
+
+/* ── Letterhead ── */
+.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh-left{display:flex;align-items:center;gap:14px}
+.lh-logo{height:50px;max-width:140px;object-fit:contain}
+.lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
+.lh-company{display:flex;flex-direction:column;gap:2px}
+.lh-name{font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.lh-sub{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;opacity:.7}
+.lh-right{text-align:right}
+.lh-doctype{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.lh-meta{font-size:9px;opacity:.65;line-height:1.8}
+.gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Body ── */
+.body{padding:24px 28px 28px}
+
+/* ── Notice header ── */
+.notice-header{text-align:center;margin-bottom:24px;padding-bottom:18px;border-bottom:2px solid #fee2e2}
+.notice-label{display:inline-block;background:#dc2626;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:4px 14px;border-radius:4px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.notice-heading{font-size:20px;font-weight:800;color:#111827;letter-spacing:-.4px;margin-bottom:4px}
+.notice-subheading{font-size:11px;color:#6b7280;font-weight:500}
+
+/* ── Ref + Date row ── */
+.ref-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ref-block{}
+.ref-label{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;font-weight:600}
+.ref-val{font-size:13px;font-weight:700;color:#991b1b;font-family:monospace}
+
+/* ── Recipient block ── */
+.to-block{margin-bottom:20px}
+.to-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:8px}
+.to-name{font-size:15px;font-weight:700;color:#111827;margin-bottom:2px}
+.to-detail{font-size:11px;color:#374151;line-height:1.8}
+
+/* ── Subject line ── */
+.subject-line{background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 6px 6px 0;padding:10px 14px;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.subject-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#dc2626;margin-bottom:3px}
+.subject-text{font-size:12px;font-weight:700;color:#111827}
+
+/* ── Overdue table ── */
+.tbl-wrap{overflow:hidden;border-radius:8px;border:1px solid #fecaca;margin-bottom:20px}
+.overdue-tbl{width:100%;border-collapse:collapse;font-size:10.5px}
+.overdue-tbl thead th{background:#dc2626;color:#fff;padding:9px 12px;text-align:left;font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.overdue-tbl thead th.right{text-align:right}
+.overdue-tbl tbody tr:nth-child(even){background:#fff5f5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.overdue-tbl td{padding:8px 12px;border-bottom:1px solid #fee2e2;color:#374151}
+.overdue-tbl td.right{text-align:right;font-variant-numeric:tabular-nums}
+.overdue-tbl .total-row td{background:#dc2626;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.overdue-tbl .total-row td.right{text-align:right}
+
+/* ── Summary box ── */
+.summary-box{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:22px}
+.sum-card{background:#f9fafb;border:1px solid #f0f1f3;border-radius:8px;padding:12px 14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sum-card.red{background:#fff1f2;border-color:#fca5a5}
+.sum-label{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:600}
+.sum-val{font-size:16px;font-weight:800;color:#111827}
+.sum-card.red .sum-val{color:#dc2626}
+
+/* ── Notice body text ── */
+.notice-body{font-size:11px;line-height:1.85;color:#374151;margin-bottom:18px}
+.notice-body p{margin-bottom:10px}
+.notice-body strong{font-weight:700;color:#111827}
+.notice-body .amount-em{font-size:13px;font-weight:800;color:#dc2626}
+
+/* ── Warning box ── */
+.warning-box{background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:14px 16px;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.warning-title{font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.warning-text{font-size:10.5px;color:#78350f;line-height:1.7}
+
+/* ── Reply details ── */
+.reply-box{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px 16px;margin-bottom:22px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.reply-title{font-size:9px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.reply-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.reply-item{}
+.reply-label{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;font-weight:600}
+.reply-val{font-size:11px;font-weight:600;color:#374151}
+
+/* ── Signature ── */
+.sig-row{display:flex;justify-content:space-between;align-items:flex-end;padding-top:20px;border-top:1px solid #f0f1f3;margin-top:10px}
+.sig-block{text-align:center}
+.sig-line{width:140px;border-top:1.5px solid #374151;margin:0 auto 6px;padding-top:4px}
+.sig-name{font-size:10px;font-weight:700;color:#111827}
+.sig-title{font-size:8.5px;color:#9ca3af;margin-top:1px}
+.doc-date{font-size:9px;color:#9ca3af;font-style:italic}
+
+/* ── Footer ── */
+.doc-footer{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #f0f1f3;margin-top:14px}
+.footer-note{font-size:8px;color:#9ca3af;line-height:1.6}
+.footer-brand{font-size:8px;color:#d1d5db;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+
+/* ── Loading ── */
+.state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;text-align:center;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:#dc2626;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-title{font-size:15px;font-weight:700;color:#374151}
+.state-sub{font-size:12px;color:#9ca3af}
+
+/* ── Print ── */
+@media print{
+  .toolbar{display:none!important}
+  .page-wrap{padding:0!important}
+  .page{box-shadow:none!important;border-radius:0!important}
+  @page{size:A4;margin:12mm 14mm}
+  body{background:#fff!important}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Demand Notice
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-print" onclick="window.print()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / PDF
+    </button>
+    <button class="btn-close" onclick="window.close()">Close</button>
+  </div>
+</div>
+
+<div class="page-wrap" id="pageWrap">
+  <div class="page">
+    <div class="state-box" id="loadingState">
+      <div class="spinner"></div>
+      <div class="state-title">Preparing Demand Notice…</div>
+      <div class="state-sub">Fetching overdue installments</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://bcqqjcwxlxbcnlxuflqw.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcXFqY3d4bHhiY25seHVmbHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3NDY4NTQsImV4cCI6MjA2MTMyMjg1NH0.9EHbABQGfHkWVGPyGfBJOyVVMY97pydUDQT1VGMBHwE';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+function fmtPKR(v){ return 'PKR '+Number(v||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtWords(n){
+  // Simple PKR in words (simplified for common amounts)
+  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function toWords(num){
+    if(num===0) return 'Zero';
+    if(num<20) return ones[num];
+    if(num<100) return tens[Math.floor(num/10)]+(num%10?' '+ones[num%10]:'');
+    if(num<1000) return ones[Math.floor(num/100)]+' Hundred'+(num%100?' '+toWords(num%100):'');
+    if(num<100000) return toWords(Math.floor(num/1000))+' Thousand'+(num%1000?' '+toWords(num%1000):'');
+    if(num<10000000) return toWords(Math.floor(num/100000))+' Lakh'+(num%100000?' '+toWords(num%100000):'');
+    return toWords(Math.floor(num/10000000))+' Crore'+(num%10000000?' '+toWords(num%10000000):'');
+  }
+  return toWords(Math.round(n))+' Pakistani Rupees Only';
+}
+function fmtDate(v){ if(!v) return '—'; try{ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}); }catch{return v;} }
+function today(){ return new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}); }
+function noticeNo(){ return 'DN-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000)+1000); }
+
+async function load(){
+  const p = new URLSearchParams(location.search);
+  const saleId = p.get('sale_id');
+  const cid    = p.get('cid');
+  if(!saleId||!cid){ showError('Missing sale_id or cid parameter.'); return; }
+
+  const [saleRes, brandRes] = await Promise.all([
+    sb.rpc('get_sale_detail', { p_sale_id: saleId }),
+    sb.rpc('get_company_branding', { p_company_id: cid })
+  ]);
+
+  if(saleRes.error){ showError('Failed to load sale: '+saleRes.error.message); return; }
+  const sale = saleRes.data;
+  if(!sale){ showError('Sale not found.'); return; }
+
+  const b = (brandRes.data && brandRes.data[0]) || {};
+  const color1 = b.doc_brand_color || '#1e2d47';
+  const color2 = b.accent_color || '#c9a84c';
+
+  // Build overdue installments from schedule
+  const schedule = Array.isArray(sale.schedule) ? sale.schedule : (sale.schedule_json ? JSON.parse(sale.schedule_json) : []);
+  const today_d = new Date(); today_d.setHours(0,0,0,0);
+  const overdue = schedule.filter(row => {
+    const d = new Date(row.due_date); d.setHours(0,0,0,0);
+    return d < today_d && (row.status==='pending'||row.status==='overdue'||!row.is_paid);
+  });
+  const totalDue = overdue.reduce((s,r)=>s+Number(r.amount||0),0);
+  const totalPaid = schedule.filter(r=>r.is_paid||r.status==='paid').reduce((s,r)=>s+Number(r.amount||0),0);
+  const totalAmt = Number(sale.total_price||0);
+  const latestDue = overdue.length ? overdue.sort((a,b)=>new Date(a.due_date)-new Date(b.due_date))[0].due_date : null;
+
+  const overdueRows = overdue.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;padding:24px;color:#9ca3af;font-style:italic;">No overdue installments found.</td></tr>`
+    : overdue.map((row,i)=>{
+        const daysLate = Math.max(0, Math.floor((today_d - new Date(row.due_date))/(1000*60*60*24)));
+        return `<tr>
+          <td>${row.installment_no||i+1}</td>
+          <td>${fmtDate(row.due_date)}</td>
+          <td>${row.installment_type||row.type||'Installment'}</td>
+          <td class="right">${fmtPKR(row.amount)}</td>
+          <td class="right" style="color:#dc2626;font-weight:600">${daysLate} days</td>
+        </tr>`;
+      }).join('');
+
+  const refNo = noticeNo();
+  const daysTotal = latestDue ? Math.max(0,Math.floor((today_d-new Date(latestDue))/(1000*60*60*24))) : 0;
+
+  document.getElementById('pageWrap').innerHTML = `
+  <div class="page">
+    <div class="lh" style="background:linear-gradient(135deg,${color1},${color1}cc);-webkit-print-color-adjust:exact;print-color-adjust:exact">
+      <div class="lh-left">
+        ${b.logo_url
+          ? `<img src="${b.logo_url}" alt="logo" class="lh-logo">`
+          : `<div class="lh-initials">${(b.company_name||'RE').substring(0,2).toUpperCase()}</div>`}
+        <div class="lh-company">
+          <div class="lh-name">${b.company_name||'Real Estate Company'}</div>
+          <div class="lh-sub">${b.company_tagline||'Real Estate Management'}</div>
+        </div>
+      </div>
+      <div class="lh-right">
+        <div class="lh-doctype">Demand Notice</div>
+        <div class="lh-meta">
+          ${b.company_address||''}<br>
+          ${b.company_phone||''} · ${b.company_email||''}
+        </div>
+      </div>
+    </div>
+    <div class="gold-bar" style="background:#dc2626;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
+
+    <div class="body">
+      <div class="notice-header">
+        <div class="notice-label">LEGAL NOTICE · OVERDUE PAYMENT</div>
+        <div class="notice-heading">DEMAND NOTICE FOR OUTSTANDING INSTALLMENTS</div>
+        <div class="notice-subheading">This is a formal demand for payment of overdue installments</div>
+      </div>
+
+      <div class="ref-row">
+        <div class="ref-block">
+          <div class="ref-label">Notice Reference</div>
+          <div class="ref-val">${refNo}</div>
+        </div>
+        <div class="ref-block">
+          <div class="ref-label">Notice Date</div>
+          <div class="ref-val" style="font-family:inherit;font-size:12px;color:#374151">${today()}</div>
+        </div>
+        <div class="ref-block">
+          <div class="ref-label">Overdue Since</div>
+          <div class="ref-val" style="font-family:inherit;font-size:12px">${latestDue ? fmtDate(latestDue) : '—'}</div>
+        </div>
+        <div class="ref-block">
+          <div class="ref-label">Days Overdue</div>
+          <div class="ref-val">${daysTotal}+ days</div>
+        </div>
+      </div>
+
+      <div class="to-block">
+        <div class="to-label">To:</div>
+        <div class="to-name">${sale.client_name||'—'}</div>
+        <div class="to-detail">
+          ${sale.client_cnic ? 'CNIC: '+sale.client_cnic+'  ·  ' : ''}
+          ${sale.client_phone||''}<br>
+          ${sale.client_address||''}
+        </div>
+      </div>
+
+      <div class="subject-line">
+        <div class="subject-label">Subject</div>
+        <div class="subject-text">Demand for Outstanding Installments — Unit ${sale.unit_number||'—'}, ${sale.project_name||'—'} | Booking Ref: ${sale.booking_no||saleId.slice(-8).toUpperCase()}</div>
+      </div>
+
+      <div class="notice-body">
+        <p>Dear <strong>${sale.client_name||'Sir/Madam'}</strong>,</p>
+        <p>We write with reference to the <strong>Sale Agreement</strong> executed between you and <strong>${b.company_name||'our company'}</strong> for the purchase of <strong>Unit No. ${sale.unit_number||'—'}</strong>, located in <strong>${sale.project_name||'—'}</strong>, for a total consideration of <strong>${fmtPKR(totalAmt)}</strong>.</p>
+        <p>As per our records, the following installments are <strong>overdue</strong> and remain unpaid as of today, <strong>${today()}</strong>. Despite our previous reminders, the outstanding amount of <span class="amount-em">${fmtPKR(totalDue)}</span> (${fmtWords(totalDue)}) has not been received by this office.</p>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="overdue-tbl">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Due Date</th>
+              <th>Description</th>
+              <th class="right">Amount (PKR)</th>
+              <th class="right">Days Overdue</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${overdueRows}
+            <tr class="total-row">
+              <td colspan="3"><strong>TOTAL OVERDUE AMOUNT</strong></td>
+              <td class="right"><strong>${fmtPKR(totalDue)}</strong></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="summary-box">
+        <div class="sum-card">
+          <div class="sum-label">Total Sale Value</div>
+          <div class="sum-val">${fmtPKR(totalAmt)}</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-label">Amount Received</div>
+          <div class="sum-val">${fmtPKR(totalPaid)}</div>
+        </div>
+        <div class="sum-card red">
+          <div class="sum-label">Outstanding Demand</div>
+          <div class="sum-val">${fmtPKR(totalDue)}</div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <div class="warning-title">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Important Notice — Action Required Within 7 Days
+        </div>
+        <div class="warning-text">
+          You are hereby required to clear the total outstanding amount of <strong>${fmtPKR(totalDue)}</strong> within <strong>7 (Seven) days</strong> from the date of this notice. Failure to comply may result in:
+          <br>• Cancellation of the booking without further notice
+          <br>• Forfeiture of amounts paid as per the agreement
+          <br>• Legal action for recovery of dues and damages
+        </div>
+      </div>
+
+      <div class="reply-box">
+        <div class="reply-title">Payment & Contact Details</div>
+        <div class="reply-grid">
+          <div class="reply-item">
+            <div class="reply-label">Company Name</div>
+            <div class="reply-val">${b.company_name||'—'}</div>
+          </div>
+          <div class="reply-item">
+            <div class="reply-label">Phone / WhatsApp</div>
+            <div class="reply-val">${b.company_phone||'—'}</div>
+          </div>
+          <div class="reply-item">
+            <div class="reply-label">Email</div>
+            <div class="reply-val">${b.company_email||'—'}</div>
+          </div>
+          <div class="reply-item">
+            <div class="reply-label">Office Address</div>
+            <div class="reply-val">${b.company_address||'—'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sig-row">
+        <div>
+          <div class="doc-date">Notice Date: ${today()}</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div class="sig-name">${b.signature_name||b.company_name||'Authorized Signatory'}</div>
+          <div class="sig-title">${b.signature_title||'Accounts Department'}</div>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <div class="footer-note">${b.footer_text||'This notice is generated from the official records of '+( b.company_name||'our company')+'.'}</div>
+        <div class="footer-brand">Nexunova RMS</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function showError(msg){
+  document.getElementById('pageWrap').innerHTML = `
+  <div class="page">
+    <div class="state-box">
+      <div class="state-title">Error Loading Notice</div>
+      <div class="state-sub">${msg}</div>
+    </div>
+  </div>`;
+}
+
+load();
+</script>
+</body>
+</html>

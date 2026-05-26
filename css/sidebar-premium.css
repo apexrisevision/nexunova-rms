@@ -5,7 +5,7 @@
    Scoped to .sb — zero impact on other pages.
 ════════════════════════════════════════════════ */
 
-:root { --sb-w: 240px; --sb-w-col: 64px; }
+:root { --sb-w: 220px; --sb-w-col: 64px; }
 
 /* ─── Container ─────────────────────────────── */
 .sb {
@@ -174,7 +174,7 @@
   width:           24px;
   height:          24px;
   border-radius:   50%;
-  background:      linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  background:      linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
   color:           white !important;
   -webkit-text-fill-color: white !important;
   font-size:       10px;
@@ -373,7 +373,7 @@
 }
 .nav-grp-body:hover::before   { opacity: 1; }
 .nav-group:has(.ni.on) .nav-grp-body::before {
-  background: #4F46E5;
+  background: #2563EB;
   opacity:    0.45;
 }
 
@@ -420,32 +420,23 @@
 }
 .ni:hover .ni-ic { color: var(--text) !important; }
 
-/* Active state */
+/* Active state — blue-600 left border + subtle tint */
 .ni.on {
-  background:  #4F46E5 !important;
-  color:       white !important;
-  -webkit-text-fill-color: white !important;
-  font-weight: 500 !important;
-  border:      none !important;
-  box-shadow:  none !important;
-  padding-left:12px !important;
+  background:    rgba(37,99,235,0.08) !important;
+  color:         #2563EB !important;
+  -webkit-text-fill-color: #2563EB !important;
+  font-weight:   500 !important;
+  border:        none !important;
+  border-left:   3px solid #2563EB !important;
+  border-radius: 0 6px 6px 0 !important;
+  box-shadow:    none !important;
+  padding-left:  9px !important;
 }
-.ni.on .ni-ic { color: white !important; }
+.ni.on .ni-ic     { color: #2563EB !important; }
+.ni.ni-sub.on     { padding-left: 19px !important; }
 
-/* Active indicator bar */
-.ni.on::before {
-  display:       block !important;
-  content:       '' !important;
-  position:      absolute !important;
-  left:          0 !important;
-  top:           20% !important;
-  bottom:        20% !important;
-  width:         3px !important;
-  background:    white !important;
-  border-radius: 0 2px 2px 0 !important;
-  opacity:       1 !important;
-  transform:     none !important;
-}
+/* Active indicator bar — replaced by border-left on .ni.on */
+.ni.on::before    { display: none !important; }
 
 /* Icon */
 .ni-ic {
@@ -494,10 +485,38 @@
   font-weight:600 !important;
 }
 .ni.on .ni-bdg {
-  background: rgba(255,255,255,0.2) !important;
-  color:      white !important;
-  -webkit-text-fill-color: white !important;
+  background: rgba(37,99,235,0.12) !important;
+  color:      #2563EB !important;
+  -webkit-text-fill-color: #2563EB !important;
 }
+
+/* ─── Zone 4b: Setup Wizard shortcut ────────── */
+.sb-wizard-btn {
+  height:        44px;
+  padding:       0 12px;
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  cursor:        pointer;
+  transition:    background 150ms ease;
+  flex-shrink:   0;
+  border-top:    1px solid var(--border-sidebar);
+  color:         var(--text-sidebar-muted);
+}
+.sb-wizard-btn:hover {
+  background: var(--bg-sidebar-slot);
+  color:      var(--text-sidebar);
+}
+.sb-wizard-ic { display:flex; align-items:center; flex-shrink:0; }
+.sb-wizard-lb {
+  font-size:   12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow:    hidden;
+  text-overflow: ellipsis;
+}
+.sb.collapsed .sb-wizard-btn { padding:0; justify-content:center; }
+.sb.collapsed .sb-wizard-lb  { display:none; }
 
 /* ─── Zone 5: User Profile (64px) ──────────── */
 .sb-user-zone {
@@ -522,7 +541,7 @@
   width:           32px !important;
   height:          32px !important;
   border-radius:   50% !important;
-  background:      linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
+  background:      linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
   color:           white !important;
   -webkit-text-fill-color: white !important;
   font-size:       12px !important;
@@ -577,13 +596,19 @@
   bottom:        68px;
   left:          8px;
   right:         8px;
-  background:    var(--bg-sidebar-slot);
-  border:        1px solid var(--border-sidebar);
-  border-radius: 8px;
-  box-shadow:    0 8px 24px rgba(0,0,0,0.45);
-  z-index:       200;
-  padding:       4px;
+  background:    #0F172A;                                 /* fully opaque (was var() that bled through behind) */
+  border:        1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  box-shadow:    0 14px 36px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.35);
+  z-index:       9999;                                    /* above all sidebar nav items */
+  padding:       5px;
   display:       none;
+  backdrop-filter: blur(12px);
+}
+[data-theme="light"] .sb-user-pop {
+  background: #FFFFFF;
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 14px 36px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10);
 }
 .sb-user-pop.open { display: block; }
 

@@ -32,6 +32,7 @@ function rPDC() {
           <select id="pdc-f-status" class="inp" onchange="_pdcOnFilter()">
             <option value="All">All Statuses</option>
             <option value="pending">Pending</option>
+            <option value="presented">Presented (deposited)</option>
             <option value="cleared">Cleared</option>
             <option value="bounced">Bounced</option>
           </select>
@@ -64,6 +65,9 @@ function rPDC() {
         </div>
       </div>
     </div>
+
+    <!-- Aging / analytics panel -->
+    <div id="pdc-aging" style="margin-bottom:16px"></div>
 
     <!-- Summary cards -->
     <div id="pdc-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-bottom:16px"></div>
@@ -154,6 +158,7 @@ async function _pdcLoad() {
   _pdcFilter.to      = to;
 
   _pdcApplyFilter();
+  _pdcLoadAnalytics();
 }
 
 function _pdcApplyFilter() {
@@ -226,9 +231,10 @@ function _pdcRenderSummary() {
 
 function _pdcStatusBadge(status) {
   const map = {
-    pending: ['rgba(245,158,11,.12)', '#d97706', 'Pending'],
-    cleared: ['rgba(34,197,94,.12)',  '#16a34a', 'Cleared'],
-    bounced: ['rgba(239,68,68,.12)',  '#dc2626', 'Bounced'],
+    pending:   ['rgba(245,158,11,.12)', '#d97706', 'Pending'],
+    presented: ['rgba(59,130,246,.12)', '#2563eb', 'Presented'],
+    cleared:   ['rgba(34,197,94,.12)',  '#16a34a', 'Cleared'],
+    bounced:   ['rgba(239,68,68,.12)',  '#dc2626', 'Bounced'],
   };
   const [bg, c, lbl] = map[(status||'').toLowerCase()] || ['rgba(100,116,139,.1)', 'var(--t3)', status || '—'];
   return `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:${bg};color:${c};white-space:nowrap">${lbl}</span>`;
@@ -263,23 +269,32 @@ function _pdcRenderTable() {
       </tr></thead>
       <tbody>
       ${rows.map(r => {
-        const st        = (r.status || '').toLowerCase();
-        const isPending = st === 'pending';
-        const isCleared = st === 'cleared';
-        const isBounced = st === 'bounced';
+        const st          = (r.status || '').toLowerCase();
+        const isPending   = st === 'pending';
+        const isPresented = st === 'presented';
+        const isCleared   = st === 'cleared';
+        const isBounced   = st === 'bounced';
+
+        const _btnCleared = `<button class="btn btn-g btn-xs" onclick="_pdcOpenCleared('${r.id}')" style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Cleared</button>`;
+        const _btnBounced = `<button class="btn btn-r btn-xs" onclick="_pdcOpenBounced('${r.id}')" style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Bounced</button>`;
 
         let actions = '';
         if (isA) {
           if (isPending) {
             actions = `<div style="display:flex;gap:5px">
-              <button class="btn btn-g btn-xs" onclick="_pdcOpenCleared('${r.id}')" style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Cleared</button>
-              <button class="btn btn-r btn-xs" onclick="_pdcOpenBounced('${r.id}')" style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Bounced</button>
+              <button class="btn btn-gh btn-xs" onclick="_pdcDeposit('${r.id}')" title="Mark deposited (presented to bank)">Deposit</button>
+              ${_btnCleared}${_btnBounced}
             </div>`;
+          } else if (isPresented) {
+            actions = `<div style="display:flex;gap:5px">${_btnCleared}${_btnBounced}</div>`;
           } else if (isCleared && r.clearance_date) {
             actions = `<span style="font-size:11px;color:var(--ok)">Cleared ${fD(r.clearance_date)}</span>`;
-          } else if (isBounced && r.bounce_reason) {
-            const short = r.bounce_reason.length > 22 ? r.bounce_reason.slice(0, 22) + '…' : r.bounce_reason;
-            actions = `<span style="font-size:11px;color:var(--err)" title="${esc(r.bounce_reason)}">${esc(short)}</span>`;
+          } else if (isBounced) {
+            const short = (r.bounce_reason||'').length > 18 ? r.bounce_reason.slice(0, 18) + '…' : (r.bounce_reason||'');
+            actions = `<div style="display:flex;gap:5px;align-items:center">
+              <button class="btn btn-gh btn-xs" onclick="_pdcRedeposit('${r.id}')" title="Schedule re-deposit">Re-deposit</button>
+              ${short?`<span style="font-size:11px;color:var(--err)" title="${esc(r.bounce_reason)}">${esc(short)}</span>`:''}
+            </div>`;
           }
         }
 
@@ -367,7 +382,11 @@ async function _pdcConfirmBounced() {
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error || 'Failed to mark bounced');
 
-    toast(`Cheque ${data.cheque_no || ''} marked bounced`, 'warn');
+    if (data.auto_escalated) {
+      toast(`Cheque ${data.cheque_no||''} bounced — client auto-escalated to manager`, 'warn');
+    } else {
+      toast(`Cheque ${data.cheque_no || ''} marked bounced`, 'warn');
+    }
     _pdcCloseModals();
     await _pdcLoad();
   } catch(e) {
@@ -381,4 +400,93 @@ function _pdcCloseModals() {
   document.getElementById('pdc-modal-cleared').style.display = 'none';
   document.getElementById('pdc-modal-bounced').style.display = 'none';
   _pdcActiveId = null;
+}
+
+// ── Aging / analytics (Module 3) ──────────────────────────────────────
+let _pdcAnalytics = null;
+
+async function _pdcLoadAnalytics() {
+  const el = document.getElementById('pdc-aging');
+  if (!el) return;
+  try {
+    const { data, error } = await supabase.rpc('get_pdc_analytics', { p_company_id: S.cid });
+    if (error) throw error;
+    if (!data?.success) return;
+    _pdcAnalytics = data;
+    _pdcRenderAging();
+  } catch(e) { console.warn('[pdc analytics]', e); }
+}
+
+function _pdcRenderAging() {
+  const el = document.getElementById('pdc-aging');
+  if (!el || !_pdcAnalytics) return;
+  const a  = _pdcAnalytics.aging || {};
+  const wk = a.due_this_week  || { count:0, amount:0 };
+  const mo = a.due_this_month || { count:0, amount:0 };
+  const od = a.overdue        || { count:0, amount:0 };
+  const banks = (_pdcAnalytics.by_bank || []).slice(0, 5);
+  const isA = S.role === 'admin' || S.role === 'owner';
+
+  const cell = (label, c, amt, cnt) => `<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:10px;background:var(--surface);border:1px solid var(--line);border-top:3px solid ${c}">
+    <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px">${label}</div>
+    <div style="font-size:18px;font-weight:800;color:${c};margin-top:3px">PKR ${fM(amt)}</div>
+    <div style="font-size:11px;color:var(--t3)">${cnt} cheque${cnt!==1?'s':''}</div>
+  </div>`;
+
+  el.innerHTML = `<div class="card"><div class="cb">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <h3 style="margin:0;font-size:14px">Deposit Aging</h3>
+      ${isA ? `<div style="display:flex;gap:6px;align-items:center">
+        <input id="pdc-bulk-date" type="date" class="inp" style="width:auto;padding:5px 8px" value="${td()}">
+        <button class="btn btn-gh btn-sm" onclick="_pdcBulkSchedule()">Schedule deposit for pending shown</button>
+      </div>` : ''}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${cell('Overdue to deposit', '#ef4444', od.amount, od.count)}
+      ${cell('Due this week',      '#f59e0b', wk.amount, wk.count)}
+      ${cell('Due this month',     '#3b82f6', mo.amount, mo.count)}
+    </div>
+    ${banks.length ? `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      ${banks.map(b => `<span style="font-size:11px;padding:4px 10px;border-radius:8px;background:var(--canvas);color:var(--t2)"><b>${esc(b.bank_name)}</b>: PKR ${fM(b.amount)} (${b.count})${b.bounced?` · <span style="color:var(--err)">${b.bounced} bounced</span>`:''}</span>`).join('')}
+    </div>` : ''}
+  </div></div>`;
+}
+
+async function _pdcDeposit(id) {
+  if (!confirm('Mark this cheque as deposited (presented to bank) today?')) return;
+  try {
+    const { data, error } = await supabase.rpc('mark_pdc_deposited', { p_cheque_id: id, p_company_id: S.cid, p_deposit_date: td() });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Failed');
+    toast('Cheque marked deposited', 'ok');
+    await _pdcLoad();
+  } catch(e) { toast(e.message || 'Error', 'err'); }
+}
+
+async function _pdcRedeposit(id) {
+  const def = new Date(Date.now() + 86400000*7).toISOString().slice(0,10);
+  const nd  = prompt('Re-deposit date (YYYY-MM-DD):', def);
+  if (!nd) return;
+  try {
+    const { data, error } = await supabase.rpc('redeposit_pdc', { p_cheque_id: id, p_company_id: S.cid, p_new_deposit_date: nd });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Failed');
+    toast('Cheque scheduled for re-deposit', 'ok');
+    await _pdcLoad();
+  } catch(e) { toast(e.message || 'Error', 'err'); }
+}
+
+async function _pdcBulkSchedule() {
+  const date = document.getElementById('pdc-bulk-date')?.value;
+  if (!date) { toast('Pick a deposit date', 'warn'); return; }
+  const ids = (_pdcFiltered || []).filter(r => (r.status||'').toLowerCase() === 'pending').map(r => r.id);
+  if (!ids.length) { toast('No pending cheques in the current view', 'warn'); return; }
+  if (!confirm('Schedule deposit on ' + date + ' for ' + ids.length + ' pending cheque(s)?')) return;
+  try {
+    const { data, error } = await supabase.rpc('schedule_pdc_deposit_bulk', { p_company_id: S.cid, p_cheque_ids: ids, p_deposit_date: date });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Failed');
+    toast((data.scheduled || 0) + ' cheque(s) scheduled for deposit', 'ok');
+    await _pdcLoad();
+  } catch(e) { toast(e.message || 'Error', 'err'); }
 }

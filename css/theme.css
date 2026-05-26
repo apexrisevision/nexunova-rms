@@ -6,8 +6,8 @@
 
 /* ── Brand tokens (theme-independent) ────────────────────── */
 :root {
-  --primary:        #4F46E5;
-  --primary-hover:  #4338CA;
+  --primary:        #2563EB;
+  --primary-hover:  #1D4ED8;
   --success:        #16A34A;
   --warning:        #D97706;
   --danger:         #DC2626;
@@ -24,14 +24,14 @@
   --bg-sidebar:        #FFFFFF;
   --bg-sidebar-hover:  #F1F5F9;
   --bg-sidebar-slot:   #F1F5F9;
-  --bg-sidebar-active: #EEF2FF;
+  --bg-sidebar-active: #EFF6FF;
   --bg-topbar:         #FFFFFF;
   --bg-modal:          #FFFFFF;
   --bg-modal-overlay:  rgba(15,23,42,0.45);
   --bg-input:          #FFFFFF;
   --bg-input-hover:    #F8FAFC;
   --bg-chip:           #F1F5F9;
-  --bg-chip-active:    #EEF2FF;
+  --bg-chip-active:    #EFF6FF;
   --bg-row-hover:      #F8FAFC;
   --bg-row-stripe:     #FAFBFC;
 
@@ -39,7 +39,7 @@
   --border:            #E2E8F0;
   --border-strong:     #CBD5E1;
   --border-sidebar:    #E2E8F0;
-  --border-focus:      #4F46E5;
+  --border-focus:      #2563EB;
 
   /* ── Text ── */
   --text:                  #0F172A;
@@ -49,8 +49,8 @@
   --text-on-primary:       #FFFFFF;
   --text-sidebar:          #334155;
   --text-sidebar-muted:    #94A3B8;
-  --text-sidebar-active:   #4F46E5;
-  --text-link:             #4F46E5;
+  --text-sidebar-active:   #2563EB;
+  --text-link:             #2563EB;
   --group-label:           #94A3B8;
 
   /* ── Shadows ── */
@@ -64,7 +64,7 @@
   --bg-success-soft: #F0FDF4;
   --bg-warning-soft: #FFFBEB;
   --bg-info-soft:    #EFF6FF;
-  --bg-primary-soft: #EEF2FF;
+  --bg-primary-soft: #EFF6FF;
 
   /* ── Aliases: dashboard-premium.css uses these names ── */
   --bg-surface:   #FFFFFF;
@@ -100,14 +100,14 @@
   --bg-sidebar:        #0F172A;
   --bg-sidebar-hover:  rgba(255,255,255,0.04);
   --bg-sidebar-slot:   #1E293B;
-  --bg-sidebar-active: rgba(79,70,229,0.18);
+  --bg-sidebar-active: rgba(37,99,235,0.18);
   --bg-topbar:         #111827;
   --bg-modal:          #1A2235;
   --bg-modal-overlay:  rgba(0,0,0,0.6);
   --bg-input:          #1A2235;
   --bg-input-hover:    #1E293B;
   --bg-chip:           #1E293B;
-  --bg-chip-active:    rgba(79,70,229,0.2);
+  --bg-chip-active:    rgba(37,99,235,0.2);
   --bg-row-hover:      rgba(255,255,255,0.03);
   --bg-row-stripe:     rgba(255,255,255,0.015);
 
@@ -115,7 +115,7 @@
   --border:            #1E293B;
   --border-strong:     #334155;
   --border-sidebar:    #1E293B;
-  --border-focus:      #6366F1;
+  --border-focus:      #3B82F6;
 
   /* ── Text ── */
   --text:                  #F1F5F9;
@@ -126,7 +126,7 @@
   --text-sidebar:          #CBD5E1;
   --text-sidebar-muted:    #64748B;
   --text-sidebar-active:   #FFFFFF;
-  --text-link:             #818CF8;
+  --text-link:             #93C5FD;
   --group-label:           #475569;
 
   /* ── Shadows ── */
@@ -140,7 +140,7 @@
   --bg-success-soft: rgba(22,163,74,0.12);
   --bg-warning-soft: rgba(217,119,6,0.12);
   --bg-info-soft:    rgba(37,99,235,0.12);
-  --bg-primary-soft: rgba(79,70,229,0.18);
+  --bg-primary-soft: rgba(37,99,235,0.18);
 
   /* ── Aliases: dashboard-premium.css uses these names ── */
   --bg-surface:   #111827;

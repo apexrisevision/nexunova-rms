@@ -144,12 +144,9 @@ function _lhubSearch(type, q) {
     if (_soldUnitIds === null) {
       _soldUnitIds = [];  // prevent concurrent fetches
       supabase
-        .from('sales')
-        .select('unit_id')
-        .eq('company_id', S?.cid)
-        .neq('status', 'cancelled')
+        .rpc('list_sold_unit_ids', { p_company_id: S?.cid })
         .then(({ data }) => {
-          _soldUnitIds = [...new Set((data || []).map(r => r.unit_id))];
+          _soldUnitIds = data || [];
           _lhubSearch('unit', document.getElementById('lhub-unit-q')?.value || '');
         });
       resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:#9CA3AF;font-family:'Inter',sans-serif;text-align:center">Loading…</div>`;

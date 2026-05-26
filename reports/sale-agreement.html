@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sale Agreement — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:0;left:0;right:0;background:#1e2d47;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
+.toolbar-actions{display:flex;gap:8px}
+.btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
+.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-print:hover{background:#d4b55e}
+.btn-close:hover{background:rgba(255,255,255,.2)}
+
+/* ── A4 page ── */
+.page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
+
+/* ── Letterhead ── */
+.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh-left{display:flex;align-items:center;gap:14px}
+.lh-logo{height:50px;max-width:140px;object-fit:contain;display:block}
+.lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
+.lh-name{font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.lh-sub{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;opacity:.7;margin-top:2px}
+.lh-right{text-align:right}
+.lh-doctype{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.lh-meta{font-size:9px;opacity:.65;line-height:1.8}
+.gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Body ── */
+.body{padding:20px 24px}
+
+/* ── Agreement title ── */
+.agr-title-row{text-align:center;margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid}
+.agr-main-title{font-size:17px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.agr-subtitle{font-size:10px;color:#6b7280;margin-bottom:6px}
+.agr-refs{display:flex;justify-content:center;gap:20px;font-size:10px;color:#374151}
+.agr-refs b{font-weight:700}
+
+/* ── Section header ── */
+.sec-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#fff;padding:6px 12px;margin:14px 0 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact;border-left:4px solid}
+.sec-hd-inner{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding-left:8px;margin:14px 0 7px;border-left:3px solid}
+
+/* ── Parties ── */
+.parties-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px}
+.party-box{border:1.5px solid #e5e7eb;border-radius:8px;padding:12px 14px}
+.party-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:6px}
+.party-name{font-size:13px;font-weight:800;color:#111827;margin-bottom:4px}
+.party-meta{font-size:10px;color:#6b7280;line-height:1.8}
+
+/* ── Property details grid ── */
+.prop-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;overflow:hidden;margin-bottom:4px}
+.prop-cell{padding:8px 12px;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
+.prop-cell:nth-child(3n){border-right:none}
+.prop-cell-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:600;margin-bottom:3px}
+.prop-cell-val{font-size:11px;font-weight:700;color:#111827}
+
+/* ── Financial summary ── */
+.fin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.fin-card{border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 12px;text-align:center}
+.fin-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:600;margin-bottom:4px}
+.fin-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.fin-words{font-size:9px;color:#6b7280;font-style:italic;text-align:center;padding:8px 0 4px}
+
+/* ── Installment table ── */
+.inst-table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px}
+.inst-table th{padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.inst-table th.r{text-align:right}
+.inst-table td{padding:5px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.inst-table td.r{text-align:right;font-variant-numeric:tabular-nums}
+.inst-table tr:nth-child(even) td{background:#fafafa}
+.inst-tfoot td{background:#f8fafc!important;font-weight:700;border-top:2px solid #e5e7eb;font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.badge-paid{display:inline-block;background:#dcfce7;color:#16a34a;font-size:8px;font-weight:700;padding:1px 7px;border-radius:4px;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.badge-due{display:inline-block;background:#fef9c3;color:#854d0e;font-size:8px;font-weight:700;padding:1px 7px;border-radius:4px;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.badge-overdue{display:inline-block;background:#fee2e2;color:#dc2626;font-size:8px;font-weight:700;padding:1px 7px;border-radius:4px;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.badge-dp{display:inline-block;background:#dbeafe;color:#1d4ed8;font-size:8px;font-weight:700;padding:1px 7px;border-radius:4px;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Terms ── */
+.terms-list{padding-left:16px;margin:0}
+.terms-list li{font-size:10px;color:#374151;line-height:1.8;padding-bottom:3px}
+
+/* ── Co-buyer / nominee ── */
+.side-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.side-box{border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;background:#f9fafb}
+.side-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;font-weight:600;margin-bottom:6px}
+
+/* ── Signatures ── */
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:18px;padding-top:14px;border-top:1px solid #e5e7eb;page-break-inside:avoid}
+.sig-box{padding-top:28px;border-top:1.5px solid #374151}
+.sig-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af}
+.sig-name{font-size:11px;font-weight:700;color:#111827;margin-top:4px;min-height:16px}
+.sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
+
+/* ── Footer ── */
+.doc-footer{margin-top:16px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+
+/* ── States ── */
+.loading-state{padding:60px;text-align:center;color:#6b7280;font-size:14px}
+.error-state{margin:24px;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:13px;text-align:center}
+
+/* ── Print ── */
+@media print{
+  @page{size:A4;margin:10mm 12mm}
+  body{background:#fff}
+  .toolbar{display:none!important}
+  .page-wrap{padding:0}
+  .page{width:100%;box-shadow:none;border-radius:0}
+  .lh,.gold-bar,.sec-hd,.inst-table th,.badge-paid,.badge-due,.badge-overdue,.badge-dp,.fin-card,.inst-tfoot td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .inst-table{page-break-inside:auto}
+  .inst-table tr{page-break-inside:avoid}
+  .sig-section{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="14 2 14 8 20 8"/></svg>
+    Sale Agreement — Nexunova RMS
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-print" onclick="window.print()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save PDF
+    </button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="page" id="page">
+    <div class="loading-state">Loading agreement…</div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const P      = new URLSearchParams(location.search);
+const saleId = P.get('sale_id');
+const cid    = P.get('cid');
+
+const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt  = n => Number(n||0).toLocaleString('en-PK');
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+
+function amtWords(n){
+  n=Math.round(Number(n)||0); if(!n) return 'Zero Rupees Only';
+  const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  const w=n=>{if(n<20)return a[n];if(n<100)return b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');return a[Math.floor(n/100)]+' Hundred'+(n%100?' and '+w(n%100):'');};
+  let s='';
+  if(n>=10000000){s+=w(Math.floor(n/10000000))+' Crore ';n%=10000000;}
+  if(n>=100000){s+=w(Math.floor(n/100000))+' Lakh ';n%=100000;}
+  if(n>=1000){s+=w(Math.floor(n/1000))+' Thousand ';n%=1000;}
+  if(n>0) s+=w(n);
+  return s.trim()+' Rupees Only';
+}
+
+async function loadReport(){
+  const page = document.getElementById('page');
+  if(!saleId || !cid){
+    page.innerHTML = '<div class="error-state">Missing parameters. Please open this report from the RMS application.</div>';
+    return;
+  }
+
+  try {
+    const [sRes, brRes] = await Promise.all([
+      sb.rpc('get_sale_detail',      { p_sale_id: saleId, p_company_id: cid }),
+      sb.rpc('get_company_branding', { p_company_id: cid })
+    ]);
+
+    if(sRes.error) throw sRes.error;
+    const sd = sRes.data;
+    if(!sd?.success) throw new Error(sd?.error || 'Sale not found.');
+
+    const br           = brRes.data || {};
+    const primary      = br.doc_brand_color || '#1E2D47';
+    const accent       = br.accent_color    || '#C9A84C';
+    const coName       = br.company_name    || 'Company';
+    const s            = sd.sale            || {};
+    const installments = sd.installments    || [];
+
+    const today        = new Date();
+    const todayLabel   = today.toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'});
+    const agroNo       = 'AGR-' + (s.sale_number || saleId.slice(-8).toUpperCase());
+    const netAmt       = Number(s.net_amount || s.total_amount || 0);
+    const totalPaid    = installments.reduce((sum,i) => sum + Number(i.amount_paid||0), 0);
+    const outstanding  = Math.max(0, netAmt - totalPaid);
+    const pct          = netAmt > 0 ? Math.min(100, Math.round(totalPaid / netAmt * 100)) : 0;
+
+    const logoHtml = br.logo_url
+      ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
+      : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
+
+    // Build installment rows
+    let instRows = '';
+    let totalAmtDue = 0, totalAmtPaid = 0, totalBal = 0;
+    installments.forEach((i, idx) => {
+      const amtDue  = Number(i.amount_due  || 0);
+      const amtPaid = Number(i.amount_paid || 0);
+      const bal     = Number(i.balance     || Math.max(0, amtDue - amtPaid));
+      totalAmtDue  += amtDue;
+      totalAmtPaid += amtPaid;
+      totalBal     += bal;
+
+      const dueDate  = i.due_date ? new Date(i.due_date) : null;
+      const isPaid   = amtPaid >= amtDue && amtDue > 0;
+      const isOver   = !isPaid && dueDate && dueDate < today;
+      const isDP     = i.installment_type === 'down_payment';
+      const instNum  = isDP ? 'DP' : String(i.installment_number || idx+1).padStart(2,'0');
+      const badge    = isPaid
+        ? '<span class="badge-paid">Paid</span>'
+        : isOver
+          ? '<span class="badge-overdue">Overdue</span>'
+          : '<span class="badge-due">Pending</span>';
+      const typeBadge = isDP ? '<span class="badge-dp">Down Pmnt</span>' : '';
+
+      instRows += `
+      <tr>
+        <td style="font-family:monospace;font-weight:700;color:#374151">${instNum}</td>
+        <td>${typeBadge}</td>
+        <td>${fmtD(i.due_date)}</td>
+        <td class="r" style="font-weight:600">${fmt(amtDue)}</td>
+        <td class="r" style="color:#16a34a;font-weight:${amtPaid>0?'700':'400'}">${amtPaid > 0 ? fmt(amtPaid) : '—'}</td>
+        <td class="r" style="color:${bal>0?(isOver?'#dc2626':'#d97706'):'#16a34a'};font-weight:${bal>0?'700':'400'}">${bal > 0 ? fmt(bal) : '—'}</td>
+        <td>${badge}</td>
+        ${i.notes ? `<td style="font-size:9px;color:#6b7280">${esc(i.notes)}</td>` : '<td></td>'}
+      </tr>`;
+    });
+
+    // Terms
+    const terms = [
+      'The property described herein is sold on the terms and conditions stated in this agreement, subject to the laws of Pakistan.',
+      'The buyer agrees to pay all remaining installments on the dates specified in the payment schedule. Late payments may attract a surcharge at the discretion of the seller.',
+      'Possession of the property shall be handed over to the buyer upon full payment of the total net sale price including all applicable dues and charges.',
+      'The seller reserves the right to cancel this booking in the event of payment default exceeding 90 days, after issuing a formal demand notice.',
+      'All costs related to transfer, documentation, NOC, registration fees, and applicable taxes shall be borne by the buyer unless otherwise agreed in writing.',
+      'Withholding Tax (WHT) and Capital Value Tax (CVT), if applicable, shall be paid by the buyer as per the applicable laws of Pakistan.',
+      'This agreement is governed by the laws of Pakistan and subject to the jurisdiction of courts in the city where the property is located.',
+      'Both parties confirm that the above-mentioned details are accurate and correct to the best of their knowledge and belief.',
+      'Any modification or amendment to this agreement must be made in writing and duly signed by both parties to be legally binding.'
+    ];
+
+    const html = `
+    <div class="lh" style="background:${primary}">
+      <div class="lh-left">
+        ${logoHtml}
+        <div>
+          <div class="lh-name">${esc(coName)}</div>
+          <div class="lh-sub">${esc(br.letterhead_subtitle||'Recovery Management System')}</div>
+        </div>
+      </div>
+      <div class="lh-right">
+        <div class="lh-doctype">Sale Agreement</div>
+        <div class="lh-meta">
+          ${todayLabel}<br>
+          ${br.address_full ? esc(br.address_full)+'<br>' : ''}
+          ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
+          ${br.ntn_number ? 'NTN: '+esc(br.ntn_number) : ''}
+        </div>
+      </div>
+    </div>
+    <div class="gold-bar" style="background:linear-gradient(90deg,${accent},#f0e09a,${accent})"></div>
+
+    <div class="body">
+
+      <div class="agr-title-row" style="border-color:${accent}">
+        <div class="agr-main-title" style="color:${primary}">Sale Agreement &amp; Booking Confirmation</div>
+        <div class="agr-subtitle">This agreement is entered into between the parties named below</div>
+        <div class="agr-refs">
+          <span><b>Agreement No:</b> ${esc(agroNo)}</span>
+          <span><b>Sale No:</b> ${esc(s.sale_number||'—')}</span>
+          <span><b>Date:</b> ${fmtD(s.sale_date)||todayLabel}</span>
+          <span><b>Status:</b> ${esc(s.status||'—')}</span>
+        </div>
+      </div>
+
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Parties to the Agreement</div>
+      <div class="parties-grid">
+        <div class="party-box">
+          <div class="party-label">Seller / Developer</div>
+          <div class="party-name">${esc(coName)}</div>
+          <div class="party-meta">
+            ${esc(br.letterhead_subtitle||'Real Estate Developer')}<br>
+            ${br.address_full ? esc(br.address_full)+'<br>' : ''}
+            ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
+            ${br.ntn_number ? 'NTN: '+esc(br.ntn_number) : ''}
+          </div>
+        </div>
+        <div class="party-box">
+          <div class="party-label">Buyer / Purchaser</div>
+          <div class="party-name">${esc(s.client_name||'—')}</div>
+          <div class="party-meta">
+            ${s.agent_name ? 'Referred by: '+esc(s.agent_name)+'<br>' : ''}
+            Sale Date: ${fmtD(s.sale_date)}
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Property Details</div>
+      <div style="border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:4px">
+        <div style="background:${primary};color:#fff;padding:6px 12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;-webkit-print-color-adjust:exact;print-color-adjust:exact">${esc(s.project_name||'Project')}</div>
+        <div class="prop-grid">
+          <div class="prop-cell"><div class="prop-cell-lbl">Unit No</div><div class="prop-cell-val">${esc(s.unit_no||'—')}</div></div>
+          <div class="prop-cell"><div class="prop-cell-lbl">Floor</div><div class="prop-cell-val">${esc(s.floor_label||'—')}</div></div>
+          <div class="prop-cell"><div class="prop-cell-lbl">Type</div><div class="prop-cell-val">${esc(s.unit_type||'—')}</div></div>
+          <div class="prop-cell"><div class="prop-cell-lbl">Area</div><div class="prop-cell-val">${s.area_sqft ? fmt(s.area_sqft)+' Sq. Ft' : '—'}</div></div>
+          <div class="prop-cell"><div class="prop-cell-lbl">Price / Sq. Ft</div><div class="prop-cell-val">${s.price_per_sqft ? 'PKR '+fmt(s.price_per_sqft) : '—'}</div></div>
+          <div class="prop-cell"><div class="prop-cell-lbl">Installments</div><div class="prop-cell-val">${s.installment_count ? s.installment_count+' Months' : '—'}</div></div>
+        </div>
+      </div>
+
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Financial Summary</div>
+      <div class="fin-grid">
+        <div class="fin-card">
+          <div class="fin-lbl">Total Amount</div>
+          <div class="fin-val" style="color:${primary}">PKR ${fmt(s.total_amount)}</div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-lbl">Discount</div>
+          <div class="fin-val" style="color:#d97706">PKR ${fmt(s.discount||0)}</div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-lbl">Net Sale Price</div>
+          <div class="fin-val" style="color:${primary}">PKR ${fmt(netAmt)}</div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-lbl">Down Payment</div>
+          <div class="fin-val" style="color:#16a34a">PKR ${fmt(s.down_payment||0)}</div>
+        </div>
+        ${s.wht_amount ? `<div class="fin-card"><div class="fin-lbl">WHT</div><div class="fin-val" style="color:#374151">PKR ${fmt(s.wht_amount)}</div></div>` : ''}
+        ${s.cvt_amount ? `<div class="fin-card"><div class="fin-lbl">CVT</div><div class="fin-val" style="color:#374151">PKR ${fmt(s.cvt_amount)}</div></div>` : ''}
+        <div class="fin-card">
+          <div class="fin-lbl">Total Paid</div>
+          <div class="fin-val" style="color:#16a34a">PKR ${fmt(totalPaid)}</div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-lbl">Outstanding</div>
+          <div class="fin-val" style="color:${outstanding>0?'#dc2626':'#16a34a'}">PKR ${fmt(outstanding)}</div>
+        </div>
+      </div>
+      <div class="fin-words">Net Sale Price in Words: <b>${amtWords(netAmt)}</b></div>
+
+      ${installments.length > 0 ? `
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Payment Schedule (${installments.length} installments)</div>
+      <table class="inst-table">
+        <thead>
+          <tr style="background:${primary};color:#fff">
+            <th style="width:36px">#</th>
+            <th style="width:80px">Type</th>
+            <th style="width:80px">Due Date</th>
+            <th class="r" style="width:85px">Amount Due</th>
+            <th class="r" style="width:80px">Paid</th>
+            <th class="r" style="width:80px">Balance</th>
+            <th style="width:65px">Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>${instRows}</tbody>
+        <tfoot>
+          <tr class="inst-tfoot">
+            <td colspan="3" style="font-size:9px;color:#6b7280;font-style:italic">Recovery: ${pct}% (${fmt(totalPaid)} of ${fmt(netAmt)})</td>
+            <td class="r">PKR ${fmt(totalAmtDue)}</td>
+            <td class="r" style="color:#16a34a">PKR ${fmt(totalAmtPaid)}</td>
+            <td class="r" style="color:${totalBal>0?'#dc2626':'#16a34a'}">PKR ${fmt(totalBal)}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>` : ''}
+
+      ${(s.co_buyer_name || s.nominee_name) ? `
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Co-Buyer &amp; Nominee Details</div>
+      <div class="side-grid">
+        ${s.co_buyer_name ? `
+        <div class="side-box">
+          <div class="side-lbl">Co-Buyer</div>
+          <div style="font-size:11px;font-weight:700;color:#111827;margin-bottom:4px">${esc(s.co_buyer_name)}</div>
+          ${s.co_buyer_cnic ? `<div style="font-size:10px;color:#6b7280">CNIC: ${esc(s.co_buyer_cnic)}</div>` : ''}
+          ${s.co_buyer_share_pct ? `<div style="font-size:10px;color:#6b7280">Share: ${s.co_buyer_share_pct}%</div>` : ''}
+        </div>` : '<div></div>'}
+        ${s.nominee_name ? `
+        <div class="side-box">
+          <div class="side-lbl">Nominee</div>
+          <div style="font-size:11px;font-weight:700;color:#111827;margin-bottom:4px">${esc(s.nominee_name)}</div>
+          ${s.nominee_cnic ? `<div style="font-size:10px;color:#6b7280">CNIC: ${esc(s.nominee_cnic)}</div>` : ''}
+          ${s.nominee_relation ? `<div style="font-size:10px;color:#6b7280">Relation: ${esc(s.nominee_relation)}</div>` : ''}
+        </div>` : '<div></div>'}
+      </div>` : ''}
+
+      <div class="sec-hd" style="background:${primary};border-color:${accent}">Terms &amp; Conditions</div>
+      <ol class="terms-list">
+        ${terms.map(t => `<li>${t}</li>`).join('')}
+      </ol>
+
+      <div style="margin-top:10px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:10px;color:#78350f;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+        <b>Declaration:</b> Both parties hereby confirm that they have read, understood, and agreed to all the terms and conditions mentioned in this agreement and that all the information provided is true and correct.
+      </div>
+
+      <div class="sig-section">
+        <div class="sig-box">
+          <div class="sig-lbl">Buyer Signature &amp; Date</div>
+          <div class="sig-name">${esc(s.client_name||'____________________________')}</div>
+          <div class="sig-role">Buyer / Purchaser</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl">Seller Signature, Stamp &amp; Date</div>
+          <div class="sig-name">${esc(br.signature_name||coName)}</div>
+          <div class="sig-role">${esc(br.signature_title||'Authorized Signatory')} — ${esc(coName)}</div>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <span>${esc(br.footer_text||'Computer-generated document. Nexunova RMS.')}</span>
+        <span>Printed: ${new Date().toLocaleString('en-PK')}</span>
+      </div>
+    </div>`;
+
+    page.innerHTML = html;
+    document.title = 'Agreement ' + agroNo + ' — ' + (s.client_name||'') + ' — ' + coName;
+
+  } catch(e){
+    document.getElementById('page').innerHTML = `<div class="error-state">Could not load agreement: ${esc(e.message)}</div>`;
+    console.error(e);
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>

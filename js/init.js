@@ -67,6 +67,7 @@ async function tryRestoreSession(){
     if(typeof stopLoginBG        ==='function')stopLoginBG();
     if(typeof updateCoLogo==='function')updateCoLogo();
     if(typeof startLeakGuard==='function')startLeakGuard();
+    if(typeof _loadRoleContext==='function'){ try{ await _loadRoleContext(sess.cid, sess.userId, sess.role); }catch(_){} }  // refresh hasFinanceUser + assignedProjectIds on reload
     buildSB();
     if(typeof initDemoBanner==='function')initDemoBanner();
     if(sess.onboardingComplete===false&&typeof OB!=='undefined'){OB.show(sess.cid);}

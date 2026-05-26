@@ -44,12 +44,7 @@ async function pmLoad() {
   if (!wrap) return;
   wrap.innerHTML = `<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">Loading…</div>`;
 
-  const { data, error } = await supabase
-    .from('company_payment_methods')
-    .select('*')
-    .eq('company_id', S.cid)
-    .order('display_order', { ascending: true })
-    .order('created_at', { ascending: true });
+  const { data, error } = await supabase.rpc('list_payment_methods', { p_company_id: S.cid });
 
   if (error) {
     wrap.innerHTML = `<div style="padding:40px;text-align:center;color:var(--err);font-size:13px">Error: ${esc(error.message)}</div>`;
@@ -200,7 +195,6 @@ async function pmSave() {
   const isDefault = document.getElementById('pm-default')?.checked ?? false;
 
   const payload = {
-    company_id:     S.cid,
     method_type:    type,
     account_title:  title,
     account_number: number,
@@ -211,23 +205,19 @@ async function pmSave() {
     display_order:  parseInt(document.getElementById('pm-order')?.value) || 0,
     is_active:      document.getElementById('pm-active')?.checked ?? true,
     is_default:     isDefault,
-    notes:          document.getElementById('pm-notes')?.value.trim()  || null,
-    updated_at:     new Date().toISOString(),
+    notes:          document.getElementById('pm-notes')?.value.trim()  || null
   };
 
   const btn = document.getElementById('pm-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
-    let error;
-    if (_pmEditId) {
-      ({ error } = await supabase.from('company_payment_methods').update(payload).eq('id', _pmEditId).eq('company_id', S.cid));
-    } else {
-      ({ error } = await supabase.from('company_payment_methods').insert(payload));
-    }
+    const { error } = await supabase.rpc('upsert_payment_method', {
+      p_company_id: S.cid, p_data: payload, p_id: _pmEditId || null
+    });
     if (error) { notify.error('Save failed', { detail: error.message }); return; }
 
-    if (isDefault) await _pmClearOtherDefaults(_pmEditId);
+    // is_default toggle is handled atomically by set_payment_method_default RPC if needed
 
     cm('m-pm-edit');
     notify.success(_pmEditId ? 'Method updated' : 'Method added');
@@ -241,21 +231,18 @@ async function pmSave() {
 }
 
 async function _pmClearOtherDefaults(keepId) {
-  const ids = _pmRows.filter(r => r.is_default && r.id !== keepId).map(r => r.id);
-  if (!ids.length) return;
-  await supabase.from('company_payment_methods').update({ is_default: false }).in('id', ids).eq('company_id', S.cid);
+  // Handled atomically by set_payment_method_default RPC
 }
 
 async function pmSetDefault(id) {
-  await _pmClearOtherDefaults(id);
-  const { error } = await supabase.from('company_payment_methods').update({ is_default: true }).eq('id', id).eq('company_id', S.cid);
+  const { error } = await supabase.rpc('set_payment_method_default', { p_id: id, p_company_id: S.cid });
   if (error) { notify.error('Could not set default', { detail: error.message }); return; }
   notify.success('Default method updated');
   await pmLoad();
 }
 
 async function pmToggleActive(id, checked) {
-  const { error } = await supabase.from('company_payment_methods').update({ is_active: checked, updated_at: new Date().toISOString() }).eq('id', id).eq('company_id', S.cid);
+  const { error } = await supabase.rpc('toggle_payment_method_active', { p_id: id, p_company_id: S.cid, p_active: checked });
   if (error) { notify.error('Could not update'); await pmLoad(); return; }
   const m = _pmRows.find(r => r.id === id);
   if (m) m.is_active = checked;
@@ -266,7 +253,7 @@ async function pmDelete(id) {
   const m = _pmRows.find(r => r.id === id);
   if (!m) return;
   if (!confirm(`Delete "${_pmLabel(m.method_type)} — ${m.account_title}"?\nThis cannot be undone.`)) return;
-  const { error } = await supabase.from('company_payment_methods').delete().eq('id', id).eq('company_id', S.cid);
+  const { error } = await supabase.rpc('delete_payment_method', { p_id: id, p_company_id: S.cid });
   if (error) { notify.error('Could not delete', { detail: error.message }); return; }
   notify.success('Method deleted');
   await pmLoad();

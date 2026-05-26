@@ -1,6 +1,6 @@
 /**
  * Database Store for Nexunova RMS
- * Handles all Supabase data operations
+ * Handles all Supabase data operations via SECURITY DEFINER RPCs.
  */
 
 // ═══════════════════════════════════════════════════════════
@@ -33,10 +33,8 @@ async function loadAppUsersCache(companyId) {
 }
 
 /**
- * Load all units for current company from Supabase into memory cache.
- * Joins sales, payments, clients, and agents so financial fields are populated.
- * @param {string} companyId
- * @returns {Promise<boolean>} success
+ * Load all units for current company via RPC into memory cache.
+ * Uses get_units_cache_bundle to fetch units+sales+payments+agents in one round-trip.
  */
 async function loadUnitsCache(companyId) {
   try {
@@ -46,29 +44,23 @@ async function loadUnitsCache(companyId) {
       return false;
     }
 
-    const [
-      { data: uData, error: uErr },
-      { data: sData },
-      { data: pData },
-      { data: aData }
-    ] = await Promise.all([
-      supabase.from('units').select('*').eq('company_id', companyId).order('unit_no', { ascending: true }),
-      supabase.from('sales').select('id,unit_id,client_id,agent_id,sale_number,sale_date,net_amount,total_amount,status').eq('company_id', companyId).neq('status', 'cancelled'),
-      supabase.from('payments').select('sale_id,amount,payment_date').eq('company_id', companyId).order('payment_date', { ascending: false }),
-      supabase.from('agents').select('id,full_name').eq('company_id', companyId)
-    ]);
-
-    if (uErr) {
-      console.error('[loadUnitsCache] error:', uErr);
+    const { data: bundle, error: bErr } = await supabase.rpc('get_units_cache_bundle', { p_company_id: companyId });
+    if (bErr) {
+      console.error('[loadUnitsCache] error:', bErr);
       window._unitsCache = [];
       return false;
     }
 
+    const uData = bundle?.units    || [];
+    const sData = bundle?.sales    || [];
+    const pData = bundle?.payments || [];
+    const aData = bundle?.agents   || [];
+
     const saleByUnit = {};
-    (sData || []).forEach(s => { saleByUnit[s.unit_id] = s; });
+    sData.forEach(s => { saleByUnit[s.unit_id] = s; });
 
     const paysBySale = {};
-    (pData || []).forEach(p => {
+    pData.forEach(p => {
       if (!paysBySale[p.sale_id]) paysBySale[p.sale_id] = { total: 0, lastDate: null };
       paysBySale[p.sale_id].total += Number(p.amount || 0);
       if (!paysBySale[p.sale_id].lastDate || p.payment_date > paysBySale[p.sale_id].lastDate) {
@@ -77,9 +69,9 @@ async function loadUnitsCache(companyId) {
     });
 
     const agentById = {};
-    (aData || []).forEach(a => { agentById[a.id] = a.full_name; });
+    aData.forEach(a => { agentById[a.id] = a.full_name; });
 
-    window._unitsCache = (uData || []).map(u => {
+    window._unitsCache = uData.map(u => {
       const typeObj   = (window._typesCache    || []).find(t => t.id === u.unit_type_id);
       const statusObj = (window._statusesCache || []).find(s => s.id === u.status_id);
       const sale      = saleByUnit[u.id] || null;
@@ -153,191 +145,77 @@ async function loadUnitsCache(companyId) {
 
 // ─── COMPANY MANAGEMENT ───
 
-/**
- * Get current company ID from localStorage
- * @returns {string|null} Company ID or null if not set
- */
 function getCurrentCompanyId() {
   return localStorage.getItem('nexunova_company_id');
 }
-
-/**
- * Set current company ID in localStorage
- * @param {string} companyId - The company ID to set
- */
 function setCurrentCompanyId(companyId) {
   localStorage.setItem('nexunova_company_id', companyId);
 }
 
 // ─── UNITS ───
 
-/**
- * Fetch all units for a company
- * @param {string} companyId - Company ID
- * @returns {Promise<Array>} Array of units
- */
 async function getUnits(companyId) {
   try {
-    const { data, error } = await supabase
-      .from('units')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('unit_no', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching units:', error);
-      return [];
-    }
+    const { data, error } = await supabase.rpc('get_units_all', { p_company_id: companyId });
+    if (error) { console.error('Error fetching units:', error); return []; }
     return data || [];
-  } catch (err) {
-    console.error('Exception in getUnits:', err);
-    return [];
-  }
+  } catch (err) { console.error('Exception in getUnits:', err); return []; }
 }
 
-/**
- * Fetch units by project ID
- * @param {string} projectId - Project ID
- * @returns {Promise<Array>} Array of units
- */
 async function getUnitsByProject(projectId) {
   try {
-    const { data, error } = await supabase
-      .from('units')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('unit_no', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching units by project:', error);
-      return [];
-    }
+    const { data, error } = await supabase.rpc('get_units_by_project', { p_project_id: projectId });
+    if (error) { console.error('Error fetching units by project:', error); return []; }
     return data || [];
-  } catch (err) {
-    console.error('Exception in getUnitsByProject:', err);
-    return [];
-  }
+  } catch (err) { console.error('Exception in getUnitsByProject:', err); return []; }
 }
 
-/**
- * Save or update a unit
- * @param {Object} data - Unit data (id optional for new units)
- * @returns {Promise<Object>} Saved unit data
- */
 async function saveUnit(data) {
   try {
     const { id, ...unitData } = data;
-
     if (id) {
-      // Update existing unit
-      const { data: result, error } = await supabase
-        .from('units')
-        .update(unitData)
-        .eq('id', id)
-        .select();
-
-      if (error) {
-        console.error('Error updating unit:', error);
-        return null;
-      }
-      return result?.[0] || null;
+      const cid = unitData.company_id;
+      const { data: result, error } = await supabase.rpc('update_unit', {
+        p_id: id, p_company_id: cid, p_data: unitData
+      });
+      if (error) { console.error('Error updating unit:', error); return null; }
+      return result?.unit || result || null;
     } else {
-      // Create new unit
-      const { data: result, error } = await supabase
-        .from('units')
-        .insert([unitData])
-        .select();
-
-      if (error) {
-        console.error('Error creating unit:', error);
-        return null;
-      }
-      return result?.[0] || null;
+      const { data: result, error } = await supabase.rpc('create_unit', { p_data: unitData });
+      if (error) { console.error('Error creating unit:', error); return null; }
+      return result?.unit || result || null;
     }
-  } catch (err) {
-    console.error('Exception in saveUnit:', err);
-    return null;
-  }
+  } catch (err) { console.error('Exception in saveUnit:', err); return null; }
 }
 
-/**
- * Delete a unit
- * @param {string} unitId - Unit ID
- * @returns {Promise<boolean>} Success status
- */
 async function deleteUnit(unitId) {
   try {
-    const { error } = await supabase
-      .from('units')
-      .delete()
-      .eq('id', unitId);
-
-    if (error) {
-      console.error('Error deleting unit:', error);
-      return false;
-    }
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_unit', { p_id: unitId, p_company_id: cid });
+    if (error) { console.error('Error deleting unit:', error); return false; }
     return true;
-  } catch (err) {
-    console.error('Exception in deleteUnit:', err);
-    return false;
-  }
+  } catch (err) { console.error('Exception in deleteUnit:', err); return false; }
 }
 
 // ─── CLIENTS ───
 
-/**
- * Fetch all clients for a company
- * @param {string} companyId - Company ID
- * @returns {Promise<Array>} Array of clients
- */
 async function getClients(companyId) {
   try {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching clients:', error);
-      return [];
-    }
+    const { data, error } = await supabase.rpc('get_clients_all', { p_company_id: companyId });
+    if (error) { console.error('Error fetching clients:', error); return []; }
     return data || [];
-  } catch (err) {
-    console.error('Exception in getClients:', err);
-    return [];
-  }
+  } catch (err) { console.error('Exception in getClients:', err); return []; }
 }
 
-/**
- * Fetch client by ID
- * @param {string} clientId - Client ID
- * @returns {Promise<Object|null>} Client data or null
- */
 async function getClient(clientId) {
   try {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', clientId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching client:', error);
-      return null;
-    }
+    const cid = getCurrentCompanyId();
+    const { data, error } = await supabase.rpc('get_client_by_id', { p_id: clientId, p_company_id: cid });
+    if (error) { console.error('Error fetching client:', error); return null; }
     return data;
-  } catch (err) {
-    console.error('Exception in getClient:', err);
-    return null;
-  }
+  } catch (err) { console.error('Exception in getClient:', err); return null; }
 }
 
-/**
- * Save or update a client
- * @param {Object} data - Client data (id optional for new clients)
- * @returns {Promise<Object>} Saved client data
- */
 async function saveClient(data) {
   const { id, ...clientData } = data;
   const cid = data.company_id;
@@ -359,16 +237,16 @@ async function saveClient(data) {
   }
   sdb(db);
 
-  // Try Supabase (best-effort, does not block)
+  // Try Supabase via RPC (best-effort)
   try {
     if(id) {
-      const { data: result, error } = await supabase
-        .from('clients').update(clientData).eq('id', id).select();
-      if(!error && result?.[0]) return result[0];
+      const { data: result, error } = await supabase.rpc('update_client', {
+        p_id: id, p_company_id: cid, p_data: clientData
+      });
+      if(!error && result) return result?.client || result;
     } else {
-      const { data: result, error } = await supabase
-        .from('clients').insert([clientData]).select();
-      if(!error && result?.[0]) return result[0];
+      const { data: result, error } = await supabase.rpc('create_client', { p_data: { ...clientData, company_id: cid } });
+      if(!error && result) return result?.client || result;
     }
   } catch(err) {
     console.warn('Supabase saveClient failed, using localStorage:', err);
@@ -377,80 +255,36 @@ async function saveClient(data) {
   return localRecord;
 }
 
-/**
- * Delete a client
- * @param {string} clientId - Client ID
- * @returns {Promise<boolean>} Success status
- */
 async function deleteClient(clientId) {
   try {
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', clientId);
-
-    if (error) {
-      console.error('Error deleting client:', error);
-      return false;
-    }
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_client', { p_id: clientId, p_company_id: cid });
+    if (error) { console.error('Error deleting client:', error); return false; }
     return true;
-  } catch (err) {
-    console.error('Exception in deleteClient:', err);
-    return false;
-  }
+  } catch (err) { console.error('Exception in deleteClient:', err); return false; }
 }
 
 // ─── COMPANIES ───
 
-/**
- * Fetch all companies
- * @returns {Promise<Array>} Array of companies
- */
 async function getCompanies() {
   try {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('*')
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching companies:', error);
-      return [];
-    }
+    const { data, error } = await supabase.rpc('list_companies');
+    if (error) { console.error('Error fetching companies:', error); return []; }
     return data || [];
-  } catch (err) {
-    console.error('Exception in getCompanies:', err);
-    return [];
-  }
+  } catch (err) { console.error('Exception in getCompanies:', err); return []; }
 }
 
-/**
- * Get current company data
- * @returns {Promise<Object|null>} Current company data or null
- */
 async function getCurrentCompany() {
   const companyId = getCurrentCompanyId();
   if (!companyId) return null;
-
   try {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', companyId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching current company:', error);
-      return null;
-    }
+    const { data, error } = await supabase.rpc('get_company', { p_company_id: companyId });
+    if (error) { console.error('Error fetching current company:', error); return null; }
     return data;
-  } catch (err) {
-    console.error('Exception in getCurrentCompany:', err);
-    return null;
-  }
+  } catch (err) { console.error('Exception in getCurrentCompany:', err); return null; }
 }
 
-// ─── CLIENTS ───
+// ─── CLIENTS CACHE ───
 
 window._clientsCache = [];
 window._clientsCacheLoaded = false;
@@ -458,8 +292,7 @@ window._clientsCacheLoaded = false;
 async function loadClientsCache(companyId) {
   try {
     if (!companyId) { window._clientsCache = []; window._clientsCacheLoaded = false; return false; }
-    const { data, error } = await supabase
-      .from('clients').select('*').eq('company_id', companyId).order('full_name', { ascending: true });
+    const { data, error } = await supabase.rpc('get_clients_all', { p_company_id: companyId });
     if (error) { console.error('[loadClientsCache]', error); window._clientsCache = []; return false; }
     window._clientsCache = (data || []).map(c => ({
       id:             c.id,
@@ -515,7 +348,7 @@ window._projectsCacheLoaded = false;
 async function loadProjectsCache(companyId) {
   try {
     if (!companyId) { window._projectsCache = []; window._projectsCacheLoaded = false; return false; }
-    const { data, error } = await supabase.from('projects').select('*').eq('company_id', companyId).order('project_name', { ascending: true });
+    const { data, error } = await supabase.rpc('list_projects', { p_company_id: companyId });
     if (error) { console.error('[loadProjectsCache]', error); window._projectsCache = []; return false; }
     window._projectsCache = (data || []).map(p => ({
       id: p.id, companyId: p.company_id,
@@ -545,21 +378,19 @@ async function loadProjectsCache(companyId) {
 async function saveProject(data) {
   try {
     const { id, ...prjData } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('projects').update(prjData).eq('id', id).select();
-      if (error) { console.error('[saveProject] UPDATE failed — code:', error.code, '| message:', error.message, '| hint:', error.hint, '| details:', error.details); return { _error: error }; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('projects').insert([prjData]).select();
-      if (error) { console.error('[saveProject] INSERT failed — code:', error.code, '| message:', error.message, '| hint:', error.hint, '| details:', error.details); return { _error: error }; }
-      return r?.[0] || null;
-    }
+    const cid = prjData.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_project', {
+      p_company_id: cid, p_data: prjData, p_id: id || null
+    });
+    if (error) { console.error('[saveProject] failed — code:', error.code, '| message:', error.message); return { _error: error }; }
+    return r && r.id ? { id: r.id, ...prjData } : r;
   } catch (err) { console.error('saveProject:', err); return null; }
 }
 
 async function deleteProjectDB(projectId) {
   try {
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_project', { p_id: projectId, p_company_id: cid });
     if (error) { console.error('deleteProjectDB:', error); return false; }
     return true;
   } catch (err) { console.error('deleteProjectDB:', err); return false; }
@@ -569,9 +400,7 @@ async function deleteProjectDB(projectId) {
 
 async function loadProjectMilestones(projectId, companyId) {
   try {
-    const { data, error } = await supabase.from('project_milestones')
-      .select('*').eq('project_id', projectId).eq('company_id', companyId)
-      .order('sort_order', { ascending: true });
+    const { data, error } = await supabase.rpc('list_project_milestones', { p_project_id: projectId, p_company_id: companyId });
     if (error) { console.error('[loadProjectMilestones]', error); return []; }
     return (data || []).map(m => ({
       id: m.id, projectId: m.project_id, companyId: m.company_id,
@@ -586,21 +415,19 @@ async function loadProjectMilestones(projectId, companyId) {
 async function saveMilestone(data) {
   try {
     const { id, ...payload } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('project_milestones').update(payload).eq('id', id).select();
-      if (error) { console.error('[saveMilestone]', error); return null; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('project_milestones').insert([payload]).select();
-      if (error) { console.error('[saveMilestone]', error); return null; }
-      return r?.[0] || null;
-    }
+    const cid = payload.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_project_milestone', {
+      p_company_id: cid, p_data: payload, p_id: id || null
+    });
+    if (error) { console.error('[saveMilestone]', error); return null; }
+    return r && r.id ? { id: r.id, ...payload } : r;
   } catch (err) { console.error('[saveMilestone]', err); return null; }
 }
 
 async function deleteMilestoneDB(id) {
   try {
-    const { error } = await supabase.from('project_milestones').delete().eq('id', id);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_project_milestone', { p_id: id, p_company_id: cid });
     if (error) { console.error('[deleteMilestoneDB]', error); return false; }
     return true;
   } catch (err) { console.error('[deleteMilestoneDB]', err); return false; }
@@ -610,9 +437,7 @@ async function deleteMilestoneDB(id) {
 
 async function loadProjectBankAccounts(projectId, companyId) {
   try {
-    const { data, error } = await supabase.from('project_bank_accounts')
-      .select('*').eq('project_id', projectId).eq('company_id', companyId)
-      .order('is_primary', { ascending: false });
+    const { data, error } = await supabase.rpc('list_project_bank_accounts', { p_project_id: projectId, p_company_id: companyId });
     if (error) { console.error('[loadProjectBankAccounts]', error); return []; }
     return (data || []).map(b => ({
       id: b.id, projectId: b.project_id, companyId: b.company_id,
@@ -626,21 +451,19 @@ async function loadProjectBankAccounts(projectId, companyId) {
 async function saveBankAccount(data) {
   try {
     const { id, ...payload } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('project_bank_accounts').update(payload).eq('id', id).select();
-      if (error) { console.error('[saveBankAccount]', error); return null; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('project_bank_accounts').insert([payload]).select();
-      if (error) { console.error('[saveBankAccount]', error); return null; }
-      return r?.[0] || null;
-    }
+    const cid = payload.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_project_bank_account', {
+      p_company_id: cid, p_data: payload, p_id: id || null
+    });
+    if (error) { console.error('[saveBankAccount]', error); return null; }
+    return r && r.id ? { id: r.id, ...payload } : r;
   } catch (err) { console.error('[saveBankAccount]', err); return null; }
 }
 
 async function deleteBankAccountDB(id) {
   try {
-    const { error } = await supabase.from('project_bank_accounts').delete().eq('id', id);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_project_bank_account', { p_id: id, p_company_id: cid });
     if (error) { console.error('[deleteBankAccountDB]', error); return false; }
     return true;
   } catch (err) { console.error('[deleteBankAccountDB]', err); return false; }
@@ -650,9 +473,7 @@ async function deleteBankAccountDB(id) {
 
 async function loadProjectExpenses(projectId, companyId) {
   try {
-    const { data, error } = await supabase.from('project_expenses')
-      .select('*').eq('project_id', projectId).eq('company_id', companyId)
-      .order('expense_date', { ascending: false });
+    const { data, error } = await supabase.rpc('list_project_expenses', { p_project_id: projectId, p_company_id: companyId });
     if (error) { console.error('[loadProjectExpenses]', error); return []; }
     return (data || []).map(e => ({
       id: e.id, projectId: e.project_id, companyId: e.company_id,
@@ -666,21 +487,19 @@ async function loadProjectExpenses(projectId, companyId) {
 async function saveExpense(data) {
   try {
     const { id, ...payload } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('project_expenses').update(payload).eq('id', id).select();
-      if (error) { console.error('[saveExpense]', error); return null; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('project_expenses').insert([payload]).select();
-      if (error) { console.error('[saveExpense]', error); return null; }
-      return r?.[0] || null;
-    }
+    const cid = payload.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_project_expense', {
+      p_company_id: cid, p_data: payload, p_id: id || null
+    });
+    if (error) { console.error('[saveExpense]', error); return null; }
+    return r && r.id ? { id: r.id, ...payload } : r;
   } catch (err) { console.error('[saveExpense]', err); return null; }
 }
 
 async function deleteExpenseDB(id) {
   try {
-    const { error } = await supabase.from('project_expenses').delete().eq('id', id);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_project_expense', { p_id: id, p_company_id: cid });
     if (error) { console.error('[deleteExpenseDB]', error); return false; }
     return true;
   } catch (err) { console.error('[deleteExpenseDB]', err); return false; }
@@ -694,11 +513,7 @@ window._floorsCacheLoaded = false;
 async function loadFloorsCache(companyId) {
   try {
     if (!companyId) { window._floorsCache = []; window._floorsCacheLoaded = false; return false; }
-    const { data, error } = await supabase
-      .from('floors')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('sort_order', { ascending: true });
+    const { data, error } = await supabase.rpc('list_floors', { p_company_id: companyId });
     if (error) { console.error('[loadFloorsCache]', error); window._floorsCache = []; return false; }
     window._floorsCache = (data || []).map(f => ({
       id: f.id, companyId: f.company_id,
@@ -713,21 +528,19 @@ async function loadFloorsCache(companyId) {
 async function saveFloor(data) {
   try {
     const { id, ...d } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('floors').update(d).eq('id', id).select();
-      if (error) { console.error('saveFloor:', error); return { _error: error }; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('floors').insert([d]).select();
-      if (error) { console.error('saveFloor:', error); return { _error: error }; }
-      return r?.[0] || null;
-    }
+    const cid = d.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_floor', {
+      p_company_id: cid, p_data: d, p_id: id || null
+    });
+    if (error) { console.error('saveFloor:', error); return { _error: error }; }
+    return r && r.id ? { id: r.id, ...d } : r;
   } catch (err) { console.error('saveFloor:', err); return { _error: err }; }
 }
 
 async function deleteFloor(id) {
   try {
-    const { error } = await supabase.from('floors').delete().eq('id', id);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_floor', { p_id: id, p_company_id: cid });
     if (error) { console.error('deleteFloor:', error); return false; }
     return true;
   } catch (err) { console.error('deleteFloor:', err); return false; }
@@ -741,11 +554,7 @@ window._typesCacheLoaded = false;
 async function loadTypesCache(companyId) {
   try {
     if (!companyId) { window._typesCache = []; window._typesCacheLoaded = false; return false; }
-    const { data, error } = await supabase
-      .from('category_unit_types')
-      .select('*')
-      .or(`company_id.eq.${companyId},company_id.is.null`)
-      .order('sort_order', { ascending: true });
+    const { data, error } = await supabase.rpc('list_unit_types', { p_company_id: companyId });
     if (error) { console.error('[loadTypesCache]', error); window._typesCache = []; return false; }
     window._typesCache = (data || []).map(t => ({
       id: t.id, companyId: t.company_id,
@@ -762,21 +571,19 @@ async function loadTypesCache(companyId) {
 async function saveUnitType(data) {
   try {
     const { id, ...d } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('category_unit_types').update(d).eq('id', id).select();
-      if (error) { console.error('saveUnitType:', error); return { _error: error }; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('category_unit_types').insert([d]).select();
-      if (error) { console.error('saveUnitType:', error); return { _error: error }; }
-      return r?.[0] || null;
-    }
+    const cid = d.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_unit_type', {
+      p_company_id: cid, p_data: d, p_id: id || null
+    });
+    if (error) { console.error('saveUnitType:', error); return { _error: error }; }
+    return r && r.id ? { id: r.id, ...d } : r;
   } catch (err) { console.error('saveUnitType:', err); return { _error: err }; }
 }
 
 async function deleteUnitType(id) {
   try {
-    const { error } = await supabase.from('category_unit_types').delete().eq('id', id);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_unit_type', { p_id: id, p_company_id: cid });
     if (error) { console.error('deleteUnitType:', error); return false; }
     return true;
   } catch (err) { console.error('deleteUnitType:', err); return false; }
@@ -790,11 +597,7 @@ window._statusesCacheLoaded = false;
 async function loadStatusesCache(companyId) {
   try {
     if (!companyId) { window._statusesCache = []; window._statusesCacheLoaded = false; return false; }
-    const { data, error } = await supabase
-      .from('category_unit_statuses')
-      .select('*')
-      .or(`company_id.eq.${companyId},company_id.is.null`)
-      .order('sort_order', { ascending: true });
+    const { data, error } = await supabase.rpc('list_unit_statuses', { p_company_id: companyId });
     if (error) { console.error('[loadStatusesCache]', error); window._statusesCache = []; return false; }
     window._statusesCache = (data || []).map(s => ({
       id: s.id, companyId: s.company_id,
@@ -813,21 +616,19 @@ async function loadStatusesCache(companyId) {
 async function saveUnitStatus(data) {
   try {
     const { id, ...d } = data;
-    if (id) {
-      const { data: r, error } = await supabase.from('category_unit_statuses').update(d).eq('id', id).select();
-      if (error) { console.error('saveUnitStatus:', error); return { _error: error }; }
-      return r?.[0] || null;
-    } else {
-      const { data: r, error } = await supabase.from('category_unit_statuses').insert([d]).select();
-      if (error) { console.error('saveUnitStatus:', error); return { _error: error }; }
-      return r?.[0] || null;
-    }
+    const cid = d.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_unit_status', {
+      p_company_id: cid, p_data: d, p_id: id || null
+    });
+    if (error) { console.error('saveUnitStatus:', error); return { _error: error }; }
+    return r && r.id ? { id: r.id, ...d } : r;
   } catch (err) { console.error('saveUnitStatus:', err); return { _error: err }; }
 }
 
 async function deleteUnitStatus(id) {
   try {
-    const { error } = await supabase.from('category_unit_statuses').delete().eq('id', id);
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_unit_status', { p_id: id, p_company_id: cid });
     if (error) { console.error('deleteUnitStatus:', error); return false; }
     return true;
   } catch (err) { console.error('deleteUnitStatus:', err); return false; }

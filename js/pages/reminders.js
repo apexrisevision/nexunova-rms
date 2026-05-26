@@ -32,53 +32,17 @@ async function _remLoad() {
   const in30     = new Date(); in30.setDate(in30.getDate() + 30);
   const in30Str  = in30.toISOString().split('T')[0];
 
-  // Overdue and upcoming installments (due within 30 days + all overdue)
-  const [instRes, pdcRes, logRes] = await Promise.all([
-    supabase
-      .from('installments')
-      .select('id, sale_id, installment_number, installment_type, due_date, amount_due, amount_paid, status')
-      .eq('company_id', S.cid)
-      .in('status', ['pending', 'partial', 'overdue'])
-      .or(`due_date.lte.${in30Str},status.eq.overdue`)
-      .order('due_date', { ascending: true }),
+  // Combined bundle via single RPC
+  const { data: bundle, error: bErr } = await supabase.rpc('get_reminders_page_data', { p_company_id: S.cid });
+  if (bErr) throw bErr;
 
-    supabase
-      .from('pdc_cheques')
-      .select('id, sale_id, cheque_no, bank_name, amount, cheque_date, status')
-      .eq('company_id', S.cid)
-      .eq('status', 'pending')
-      .lte('cheque_date', in30Str)
-      .order('cheque_date', { ascending: true }),
-
-    supabase
-      .from('reminder_logs')
-      .select('id, unit_id, sale_id, client_name, phone, reminder_type, amount_due, sent_at, sent_by, notes')
-      .eq('company_id', S.cid)
-      .order('sent_at', { ascending: false })
-      .limit(50),
-  ]);
-
-  if (instRes.error) throw instRes.error;
-  if (pdcRes.error)  throw pdcRes.error;
-
-  const installments = instRes.data || [];
-  const pdcRows      = pdcRes.data  || [];
-  const recentLogs   = logRes.data  || [];
-
-  // Gather unique sale_ids to fetch sale→unit mapping
-  const allSaleIds = [...new Set([
-    ...installments.map(i => i.sale_id),
-    ...pdcRows.map(p => p.sale_id),
-  ].filter(Boolean))];
+  const installments = bundle?.installments || [];
+  const pdcRows      = bundle?.pdcRows      || [];
+  const recentLogs   = bundle?.recentLogs   || [];
+  const salesArr     = bundle?.sales        || [];
 
   let salesMap = {};
-  if (allSaleIds.length > 0) {
-    const { data: salesData } = await supabase
-      .from('sales')
-      .select('id, unit_id, client_id, sale_number')
-      .in('id', allSaleIds);
-    (salesData || []).forEach(s => { salesMap[s.id] = s; });
-  }
+  salesArr.forEach(s => { salesMap[s.id] = s; });
 
   // Client name + phone: merge from _clientsCache + gdb localStorage
   const clientsCache = window._clientsCache || [];
@@ -338,19 +302,21 @@ function _remEmailBody(r) {
 
 async function _remLog(unitId, saleId, clientName, phone, amountDue, type) {
   try {
-    await supabase.from('reminder_logs').insert([{
-      company_id:    S.cid,
-      unit_id:       unitId || null,
-      sale_id:       saleId || null,
-      client_name:   clientName || null,
-      phone:         phone  || null,
-      reminder_type: type   || 'whatsapp',
-      amount_due:    amountDue || 0,
-      sent_by:       S.name || S.userId || 'system',
-    }]);
+    await supabase.rpc('create_reminder_log', {
+      p_company_id: S.cid,
+      p_data: {
+        unit_id:       unitId || null,
+        sale_id:       saleId || null,
+        client_name:   clientName || null,
+        phone:         phone  || null,
+        reminder_type: type   || 'whatsapp',
+        amount_due:    amountDue || 0,
+        sent_by:       S.name || S.userId || 'system',
+      }
+    });
     toast('Reminder logged', 'ok');
     // Refresh logs section without full reload
-    const { data } = await supabase.from('reminder_logs').select('id,unit_id,sale_id,client_name,phone,reminder_type,amount_due,sent_at,sent_by,notes').eq('company_id', S.cid).order('sent_at', { ascending: false }).limit(50);
+    const { data } = await supabase.rpc('list_reminder_logs', { p_company_id: S.cid, p_limit: 50 });
     if (_remData) _remData.recentLogs = data || [];
     _remRender();
   } catch (e) {

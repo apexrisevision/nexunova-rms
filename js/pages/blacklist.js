@@ -1,6 +1,15 @@
 // ── Blacklisted Clients ───────────────────────────────────────────────────────
 
 let _blData = null;
+const BL_TYPES = [
+  { v:'default', l:'Payment Default' },
+  { v:'fraud',   l:'Fraud' },
+  { v:'legal',   l:'Legal' },
+  { v:'breach',  l:'Breach of Contract' },
+  { v:'other',   l:'Other' },
+];
+function _blTypeLabel(v) { const t = BL_TYPES.find(x => x.v === v); return t ? t.l : (v || 'Other'); }
+function _blTypeColor(v) { return { fraud:'#dc2626', legal:'#8b5cf6', breach:'#d97706', 'default':'#2563eb' }[v] || 'var(--t3)'; }
 
 async function rBlacklist() {
   const el = document.getElementById('pg-blacklist');
@@ -20,6 +29,7 @@ async function rBlacklist() {
     <button class="btn btn-gh btn-xs bl-ftab"    onclick="_blSetFilter('all',this)">All</button>
     <button class="btn btn-gh btn-xs bl-ftab"    onclick="_blSetFilter('removed',this)">Removed</button>
   </div>
+  <div id="bl-kpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
   <div id="bl-body"><div class="card"><div class="cb"><div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div></div></div></div>
 
   <!-- Modal: Add to Blacklist -->
@@ -29,8 +39,10 @@ async function rBlacklist() {
       <div class="mo-bd">
         <div class="fg"><label class="fl">Client *</label>
           <select id="bl-client_id" class="fi"><option value="">— Select client —</option></select></div>
+        <div class="fg"><label class="fl">Reason Type *</label>
+          <select id="bl-reason_type" class="fi">${BL_TYPES.map(t => `<option value="${t.v}">${t.l}</option>`).join('')}</select></div>
         <div class="fg"><label class="fl">Reason *</label>
-          <textarea id="bl-reason" class="fi" rows="3" placeholder="Reason for blacklisting…"></textarea></div>
+          <textarea id="bl-reason" class="fi" rows="3" placeholder="Reason detail…"></textarea></div>
         <div class="fg"><label class="fl">Blacklist Date *</label>
           <input type="date" id="bl-blacklist_date" class="fi"></div>
         <div class="fg"><label class="fl">Approved By</label>
@@ -73,11 +85,7 @@ function _blSetFilter(f, el) {
 }
 
 async function _blLoad() {
-  const { data } = await supabase
-    .from('blacklisted_clients')
-    .select(`*, clients(client_name, client_code, phone)`)
-    .eq('company_id', S.cid)
-    .order('blacklist_date', { ascending: false });
+  const { data } = await supabase.rpc('list_blacklisted_clients', { p_company_id: S.cid });
   _blData = data || [];
   _blRender();
 }
@@ -86,6 +94,22 @@ function _blRender() {
   const el = document.getElementById('bl-body');
   if (!el) return;
   const isA = S.role === 'admin' || S.role === 'owner';
+
+  // Analytics KPI strip
+  const kpiEl = document.getElementById('bl-kpi');
+  if (kpiEl) {
+    const activeRows = _blData.filter(r => r.is_active !== false);
+    const byType = {};
+    activeRows.forEach(r => { const t = r.reason_type || 'other'; byType[t] = (byType[t]||0) + 1; });
+    const cards = [
+      { l:'Active', v:activeRows.length, c:'var(--err)' },
+      { l:'Removed', v:_blData.filter(r=>r.is_active===false).length, c:'var(--ok)' },
+    ].concat(BL_TYPES.filter(t => byType[t.v]).map(t => ({ l:t.l, v:byType[t.v], c:_blTypeColor(t.v) })));
+    kpiEl.innerHTML = cards.map(k => `<div class="card" style="padding:12px 14px">
+      <div style="font-size:18px;font-weight:800;color:${k.c}">${k.v}</div>
+      <div style="font-size:10px;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${k.l}</div>
+    </div>`).join('');
+  }
 
   let rows = _blData;
   if (_blFilter === 'active')  rows = rows.filter(r => r.is_active !== false);
@@ -103,6 +127,7 @@ function _blRender() {
         <div style="font-weight:700;font-size:13px">${esc(client?.client_name || '—')}</div>
         <div style="font-size:11px;color:var(--t3)">${esc(client?.client_code || '')} ${client?.phone ? '· ' + esc(client.phone) : ''}</div>
       </td>
+      <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(100,116,139,.1);color:${_blTypeColor(r.reason_type)}">${esc(_blTypeLabel(r.reason_type))}</span></td>
       <td style="font-size:12px;max-width:220px">${esc(r.reason)}</td>
       <td style="font-size:12px">${fD(r.blacklist_date)}</td>
       <td style="font-size:12px;color:var(--t3)">${esc(r.approved_by || '—')}</td>
@@ -114,17 +139,13 @@ function _blRender() {
   }).join('');
 
   el.innerHTML = `<div class="card"><div class="cb"><div class="tw"><table class="t">
-    <thead><tr><th>Client</th><th>Reason</th><th>Date</th><th>Approved By</th><th>Status</th>${isA ? '<th></th>' : ''}</tr></thead>
+    <thead><tr><th>Client</th><th>Type</th><th>Reason</th><th>Date</th><th>Approved By</th><th>Status</th>${isA ? '<th></th>' : ''}</tr></thead>
     <tbody>${trs}</tbody>
   </table></div></div></div>`;
 }
 
 async function _blPopulateClients() {
-  const { data } = await supabase
-    .from('clients')
-    .select('id, client_name, client_code')
-    .eq('company_id', S.cid)
-    .order('client_name');
+  const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
   const sel = document.getElementById('bl-client_id');
   if (!sel || !data) return;
   data.forEach(c => {
@@ -152,13 +173,16 @@ async function _blSave() {
   const btn = document.getElementById('bl-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('blacklisted_clients').insert({
-    company_id: S.cid,
-    client_id: clientId,
-    reason,
-    blacklist_date: date,
-    approved_by: document.getElementById('bl-approved_by').value.trim() || null,
-    is_active: true,
+  const { error } = await supabase.rpc('create_blacklist_entry', {
+    p_company_id: S.cid,
+    p_data: {
+      client_id: clientId,
+      reason,
+      reason_type: document.getElementById('bl-reason_type')?.value || 'other',
+      blacklist_date: date,
+      approved_by: document.getElementById('bl-approved_by').value.trim() || null,
+      is_active: true,
+    }
   });
 
   btn.disabled = false; btn.textContent = 'Blacklist';
@@ -183,12 +207,16 @@ async function _blRemoveConfirm() {
   const btn = document.getElementById('bl-remove-btn');
   btn.disabled = true;
 
-  const { error } = await supabase.from('blacklisted_clients').update({
-    is_active: false,
-    removal_reason: reason,
-    removed_date: td(),
-    removed_by: S.name || S.email || 'System',
-  }).eq('id', _blRemoveId);
+  const { error } = await supabase.rpc('update_blacklist_entry', {
+    p_id: _blRemoveId,
+    p_company_id: S.cid,
+    p_data: {
+      is_active: false,
+      removal_reason: reason,
+      removed_date: td(),
+      removed_by: S.name || S.email || 'System',
+    }
+  });
 
   btn.disabled = false;
   if (error) { errEl.textContent = error.message; return; }

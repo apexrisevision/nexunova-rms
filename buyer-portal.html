@@ -394,6 +394,56 @@ a { color: var(--gold); text-decoration: none; }
 @keyframes spnSparkFly{0%{transform:translate(0,0) scale(1.3);opacity:1}100%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(0);opacity:0}}
 .spn-ripple{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.65) 0%,rgba(123,47,247,0.35) 40%,transparent 70%);pointer-events:none;z-index:99999;transform:scale(0);animation:spnRipplePop 0.65s cubic-bezier(0.22,1,0.36,1) forwards}
 @keyframes spnRipplePop{to{transform:scale(1);opacity:0}}
+
+/* ── PORTAL TABS ─────────────────────────────────────────────────── */
+.portal-tabs { display:flex; gap:4px; padding:0 0 16px; border-bottom:1px solid var(--border); margin-bottom:20px; overflow-x:auto; scrollbar-width:none; flex-shrink:0; }
+.portal-tabs::-webkit-scrollbar { display:none; }
+.portal-tab { display:flex; align-items:center; gap:6px; padding:8px 16px; background:transparent; border:1px solid transparent; border-radius:var(--rs); color:var(--t2); font-size:12px; font-weight:600; font-family:var(--font); cursor:pointer; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+.portal-tab:hover { background:rgba(255,255,255,0.04); color:var(--text); border-color:var(--border); }
+.portal-tab.active { background:var(--gold-dim); border-color:var(--border2); color:var(--gold); }
+.portal-section { display:none; }
+.portal-section.active { display:block; }
+
+/* ── ACTION BUTTONS ──────────────────────────────────────────────── */
+.btn-action { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--rs); color:var(--t2); font-size:12px; font-weight:600; font-family:var(--font); cursor:pointer; transition:all 0.2s; }
+.btn-action:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); color:var(--text); }
+.btn-action.btn-gold  { color:var(--gold); border-color:var(--border2); background:var(--gold-dim); }
+.btn-action.btn-gold:hover  { background:rgba(245,200,66,0.2); }
+.btn-action.btn-green { color:var(--green); border-color:rgba(16,185,129,0.2); background:var(--green-bg); }
+.btn-action.btn-wa    { color:#25D366; border-color:rgba(37,211,102,0.2); background:rgba(37,211,102,0.06); }
+.btn-action.btn-wa:hover { background:rgba(37,211,102,0.14); border-color:rgba(37,211,102,0.4); color:#25D366; }
+
+/* ── POSSESSION BANNER ───────────────────────────────────────────── */
+.possession-banner { padding:14px 20px; margin-bottom:16px; border-radius:var(--rm); display:flex; align-items:center; gap:14px; }
+.possession-banner.completed { background:var(--green-bg); border:1px solid rgba(16,185,129,0.2); }
+.possession-banner.scheduled { background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); }
+.possession-banner.pending   { background:var(--amber-bg); border:1px solid rgba(245,158,11,0.2); }
+
+/* ── SUPPORT / COMPLAINT FORM ────────────────────────────────────── */
+.support-form { padding:20px; }
+.sf-field { margin-bottom:14px; }
+.sf-field label { display:block; font-size:11px; font-weight:600; color:var(--t2); text-transform:uppercase; letter-spacing:1px; margin-bottom:7px; }
+.sf-field input, .sf-field textarea { width:100%; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--rs); color:var(--text); font-size:13px; font-family:var(--font); outline:none; transition:border-color 0.2s,box-shadow 0.2s; resize:vertical; }
+.sf-field textarea { min-height:100px; }
+.sf-field input:focus, .sf-field textarea:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,200,66,0.12); }
+
+/* ── NOC CARD ────────────────────────────────────────────────────── */
+.noc-card { display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.03); transition:background 0.15s; }
+.noc-card:last-child { border-bottom:none; }
+.noc-card:hover { background:rgba(255,255,255,0.02); }
+.noc-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.noc-icon.bank     { background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); }
+.noc-icon.transfer { background:var(--green-bg); border:1px solid rgba(16,185,129,0.2); }
+.noc-icon.general  { background:var(--amber-bg); border:1px solid rgba(245,158,11,0.2); }
+.noc-num  { font-size:13px; font-weight:600; color:var(--text); font-family:var(--mono); margin-bottom:2px; }
+.noc-meta { font-size:11px; color:var(--t3); }
+
+/* ── COMPLAINT ITEM ──────────────────────────────────────────────── */
+.complaint-item { padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.03); }
+.complaint-item:last-child { border-bottom:none; }
+.complaint-subject { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+.complaint-body    { font-size:12px; color:var(--t2); margin-bottom:6px; line-height:1.5; }
+.complaint-response { background:var(--green-bg); border:1px solid rgba(16,185,129,0.15); border-radius:6px; padding:8px 12px; font-size:12px; color:var(--green); margin-top:8px; }
 </style>
 <style id="nx-price-panel-css">
 #priceBackdrop{position:fixed;inset:0;z-index:8998;background:rgba(2,5,14,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .38s ease}
@@ -594,7 +644,7 @@ a { color: var(--gold); text-decoration: none; }
 //  CONFIG
 // ══════════════════════════════════════════════════════════
 const SUPABASE_URL       = 'https://itqxljtfbrppntgyfush.supabase.co'
-const SUPABASE_ANON_KEY  = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8Vg'
+const SUPABASE_ANON_KEY  = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG'
 
 // ══════════════════════════════════════════════════════════
 //  SUPABASE CLIENT
@@ -605,8 +655,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ══════════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════════
-let currentCnic = '';
-let buyerData   = null;
+let currentCnic  = '';
+let buyerData    = null;
+let portalState  = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false };
 
 // ══════════════════════════════════════════════════════════
 //  UTILITIES
@@ -684,7 +735,8 @@ async function doLogin() {
     if(data && data.error) { showError('cnic-err', data.error); return; }
 
     buyerData = data;
-    buildDashboard(data);
+    portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false };
+    buildPortalLayout(data);
     showScreen('screen-dashboard');
     window.scrollTo(0,0);
 
@@ -735,6 +787,7 @@ async function doForgotPassword() {
 
 function doLogout() {
   buyerData=null; currentCnic='';
+  portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false };
   document.getElementById('cnic-input').value='';
   document.getElementById('pw-input').value='';
   clearError('cnic-err');
@@ -743,54 +796,56 @@ function doLogout() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  DASHBOARD BUILDER
+//  PORTAL LAYOUT (tabbed) — replaces single-page buildDashboard
 // ══════════════════════════════════════════════════════════
-function buildDashboard(d) {
+function buildPortalLayout(d) {
   var client=d.client, sale=d.sale, unit=d.unit, floor=d.floor,
       unit_type=d.unit_type, installments=d.installments, payments=d.payments;
-
   var today = new Date(); today.setHours(0,0,0,0);
-
-  // Computed totals
-  var totalPaid  = payments.reduce(function(s,p){ return s+parseFloat(p.amount||0); }, 0);
-  var netAmount  = parseFloat(sale.net_amount || sale.total_amount || 0);
-  var remaining  = Math.max(0, netAmount - totalPaid);
-  var paidPct    = netAmount>0 ? Math.min(100,(totalPaid/netAmount)*100) : 0;
-
+  var totalPaid    = payments.reduce(function(s,p){ return s+parseFloat(p.amount||0); }, 0);
+  var netAmount    = parseFloat(sale.net_amount || sale.total_amount || 0);
+  var remaining    = Math.max(0, netAmount - totalPaid);
+  var paidPct      = netAmount>0 ? Math.min(100,(totalPaid/netAmount)*100) : 0;
   var overdueList  = installments.filter(function(i){ return i.status!=='paid' && new Date(i.due_date)<today; });
   var nextInstall  = installments.find(function(i){ return i.status!=='paid' && new Date(i.due_date)>=today; });
   var paidInstalls = installments.filter(function(i){ return i.status==='paid'; }).length;
-
-  // Unit labels
   var unitNo    = unit ? esc(unit.unit_no) : '—';
   var floorName = floor ? esc(floor.name) : (unit&&unit.floor_label ? esc(unit.floor_label) : '—');
   var typeName  = unit_type ? esc(unit_type.type_name) : '—';
   var areaStr   = (unit&&unit.area) ? (unit.area+' '+(unit.area_unit||'Sqft')) : '—';
+  var totalDue  = installments.reduce(function(s,i){ return s+parseFloat(i.amount_due||0); }, 0);
+  d._c = { totalPaid:totalPaid, netAmount:netAmount, remaining:remaining, paidPct:paidPct, paidInstalls:paidInstalls, today:today };
 
   var html = '';
 
   // Welcome strip
   html += '<div class="welcome-strip">';
-  html +=   '<div>';
-  html +=     '<div class="welcome-name">Welcome, <span>'+esc(client.full_name)+'</span></div>';
-  html +=     '<div style="font-size:12px;color:var(--t2);margin-top:4px">Buyer Account &nbsp;·&nbsp; Read-Only View</div>';
-  html +=   '</div>';
+  html +=   '<div><div class="welcome-name">Welcome, <span>'+esc(client.full_name)+'</span></div>';
+  html +=   '<div style="font-size:12px;color:var(--t2);margin-top:4px">Buyer Portal &nbsp;·&nbsp; Unit '+unitNo+'</div></div>';
   html +=   '<div class="welcome-cnic">CNIC: '+esc(client.cnic)+'</div>';
   html += '</div>';
 
-  // Summary cards
+  // Tab nav
+  html += '<div class="portal-tabs">';
+  html +=   '<button class="portal-tab" data-tab="overview"  onclick="switchTab(\'overview\')">🏠 Overview</button>';
+  html +=   '<button class="portal-tab" data-tab="schedule"  onclick="switchTab(\'schedule\')">📋 Schedule</button>';
+  html +=   '<button class="portal-tab" data-tab="payments"  onclick="switchTab(\'payments\')">💳 Payments</button>';
+  html +=   '<button class="portal-tab" data-tab="documents" onclick="switchTab(\'documents\')">📄 Documents</button>';
+  html +=   '<button class="portal-tab" data-tab="support"   onclick="switchTab(\'support\')">💬 Support</button>';
+  html += '</div>';
+
+  // ─── TAB: OVERVIEW ────────────────────────────────────────────────
+  html += '<div class="portal-section" id="tab-overview">';
   html += '<div class="summary-grid">';
   html += card('💰','Total Price',fmtMoney(netAmount),'c-gold','v-gold');
   html += card('✅','Amount Paid',fmtMoney(totalPaid),'c-green','v-green');
-  html += card(remaining>0?'⚠️':'🎉','Remaining Balance',fmtMoney(remaining),remaining>0?'c-red':'c-green',remaining>0?'v-red':'v-text');
+  html += card(remaining>0?'⚠️':'🎉','Remaining',fmtMoney(remaining),remaining>0?'c-red':'c-green',remaining>0?'v-red':'v-text');
   html += '<div class="sum-card '+(overdueList.length>0?'c-red':'c-green')+'">';
   html +=   '<span class="sum-icon">'+(overdueList.length>0?'🔴':'🟢')+'</span>';
-  html +=   '<div class="sum-label">Overdue Installments</div>';
+  html +=   '<div class="sum-label">Overdue</div>';
   html +=   '<div class="sum-val '+(overdueList.length>0?'v-red':'v-text')+'" style="font-size:32px">'+overdueList.length+'</div>';
-  html += '</div>';
-  html += '</div>';
-
-  // Next installment alert
+  html += '</div></div>';
+  html += '<div id="possession-banner-area"></div>';
   if(nextInstall) {
     html += '<div class="next-install-alert">';
     html +=   '<div class="alert-icon">📅</div>';
@@ -799,133 +854,426 @@ function buildDashboard(d) {
     html +=   '<div class="alert-amount">'+fmtMoney(nextInstall.amount_due)+'</div>';
     html += '</div>';
   }
-
-  // Two-column: unit info + progress
   html += '<div class="db-cols">';
-
-  // Unit info card
-  html += '<div class="db-card">';
-  html +=   '<div class="db-card-header"><span>🏠</span><div class="db-card-title">Unit Information</div></div>';
-  html +=   '<div class="unit-grid">';
-  html +=     uField('Unit Number', '<span class="mono">'+unitNo+'</span>');
-  html +=     uField('Floor', floorName);
-  html +=     uField('Unit Type', typeName);
-  html +=     uField('Area', '<span class="mono">'+areaStr+'</span>');
-  html +=     uField('Sale Date', fmtDate(sale.sale_date));
-  html +=     uField('Status', badge(sale.status));
-  if(unit&&unit.bedrooms)  html += uField('Bedrooms',  '<span class="mono">'+unit.bedrooms+'</span>');
-  if(unit&&unit.bathrooms) html += uField('Bathrooms', '<span class="mono">'+unit.bathrooms+'</span>');
-  if(unit&&unit.block)     html += uField('Block', esc(unit.block));
-  if(sale.sale_number)     html += uField('Sale No.', '<span class="mono" style="font-size:12px">'+esc(sale.sale_number)+'</span>');
+  html += '<div class="db-card"><div class="db-card-header"><span>🏠</span><div class="db-card-title">Unit Information</div></div><div class="unit-grid">';
+  html += uField('Unit Number','<span class="mono">'+unitNo+'</span>');
+  html += uField('Floor',floorName);
+  html += uField('Unit Type',typeName);
+  html += uField('Area','<span class="mono">'+areaStr+'</span>');
+  html += uField('Sale Date',fmtDate(sale.sale_date));
+  html += uField('Status',badge(sale.status));
+  if(unit&&unit.bedrooms)  html += uField('Bedrooms','<span class="mono">'+unit.bedrooms+'</span>');
+  if(unit&&unit.bathrooms) html += uField('Bathrooms','<span class="mono">'+unit.bathrooms+'</span>');
+  if(unit&&unit.block)     html += uField('Block',esc(unit.block));
+  if(sale.sale_number)     html += uField('Sale No.','<span class="mono" style="font-size:12px">'+esc(sale.sale_number)+'</span>');
+  html += '</div></div>';
+  html += '<div class="db-card" style="display:flex;flex-direction:column"><div class="db-card-header"><span>📊</span><div class="db-card-title">Payment Progress</div></div>';
+  html += '<div class="progress-wrap" style="flex:1">';
+  html +=   '<div class="progress-label"><span>Recovery Progress</span><strong>'+paidPct.toFixed(1)+'%</strong></div>';
+  html +=   '<div class="progress-bar-track"><div class="progress-bar-fill" id="prog-bar"></div></div>';
+  html +=   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:18px">';
+  html +=     pItem('Total',fmtMoney(netAmount),'var(--gold)');
+  html +=     pItem('Paid',fmtMoney(totalPaid),'var(--green)');
+  html +=     pItem('Remaining',fmtMoney(remaining),remaining>0?'var(--red)':'var(--green)');
   html +=   '</div>';
-  html += '</div>';
-
-  // Progress card
-  html += '<div class="db-card" style="display:flex;flex-direction:column">';
-  html +=   '<div class="db-card-header"><span>📊</span><div class="db-card-title">Payment Progress</div></div>';
-  html +=   '<div class="progress-wrap" style="flex:1">';
-  html +=     '<div class="progress-label"><span>Recovery Progress</span><strong>'+paidPct.toFixed(1)+'%</strong></div>';
-  html +=     '<div class="progress-bar-track"><div class="progress-bar-fill" id="prog-bar"></div></div>';
-  html +=     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:18px">';
-  html +=       pItem('Total', fmtMoney(netAmount), 'var(--gold)');
-  html +=       pItem('Paid', fmtMoney(totalPaid), 'var(--green)');
-  html +=       pItem('Remaining', fmtMoney(remaining), remaining>0?'var(--red)':'var(--green)');
-  html +=     '</div>';
   if(sale.installment_count) {
     html += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-    html +=   pItem('Total Inst.', sale.installment_count, 'var(--text)');
-    html +=   pItem('Paid Inst.', paidInstalls, 'var(--green)');
+    html +=   pItem('Total Inst.',sale.installment_count,'var(--text)');
+    html +=   pItem('Paid Inst.',paidInstalls,'var(--green)');
     html += '</div>';
   }
-  html +=   '</div>';
-  html += '</div>';
+  html += '</div></div></div>'; // progress-wrap, db-card, db-cols
+  html += '</div>'; // tab-overview
 
-  html += '</div>'; // close db-cols
-
-  // Installment schedule table
+  // ─── TAB: SCHEDULE ─────────────────────────────────────────────────
+  html += '<div class="portal-section" id="tab-schedule">';
   html += '<div class="db-card">';
   html +=   '<div class="db-card-header"><span>📋</span><div class="db-card-title">Installment Schedule</div>';
-  html +=   '<span style="margin-left:auto;font-size:11px;color:var(--t3)">'+installments.length+' total</span></div>';
-  if(installments.length === 0) {
-    html += '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No installments found</div><div class="empty-sub">Installment schedule will appear here once created.</div></div>';
+  html +=   '<span style="margin-left:auto;font-size:11px;color:var(--t3)">'+installments.length+' installments</span>';
+  html +=   '<button class="btn-action btn-gold" style="margin-left:12px" onclick="printSchedule()">⎙ Print</button></div>';
+  if(installments.length===0) {
+    html += '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No installments found</div><div class="empty-sub">Your schedule will appear here once created.</div></div>';
   } else {
     html += '<div class="db-table-wrap"><table class="db-table"><thead><tr>';
     html +=   '<th>#</th><th>Type</th><th>Due Date</th><th style="text-align:right">Amount Due</th><th style="text-align:right">Paid</th><th>Status</th>';
     html += '</tr></thead><tbody>';
     installments.forEach(function(inst) {
-      var dueD = new Date(inst.due_date);
-      var cls, lbl;
-      if(inst.status==='paid')      { cls='badge-green'; lbl='Paid'; }
-      else if(dueD < today)         { cls='badge-red';   lbl='Overdue'; }
-      else                          { cls='badge-amber';  lbl='Pending'; }
-      html += '<tr>';
-      html +=   '<td class="mono">'+inst.installment_number+'</td>';
-      html +=   '<td>'+esc(inst.installment_type||'Regular')+'</td>';
-      html +=   '<td>'+fmtDate(inst.due_date)+'</td>';
-      html +=   '<td class="num">'+fmtMoney(inst.amount_due)+'</td>';
-      html +=   '<td class="num">'+(parseFloat(inst.amount_paid||0)>0 ? fmtMoney(inst.amount_paid) : '<span style="color:var(--t3)">—</span>')+'</td>';
-      html +=   '<td><span class="badge '+cls+'">'+lbl+'</span></td>';
-      html += '</tr>';
+      var dueD=new Date(inst.due_date), cls, lbl;
+      if(inst.status==='paid')  { cls='badge-green'; lbl='Paid'; }
+      else if(dueD<today)       { cls='badge-red';   lbl='Overdue'; }
+      else                      { cls='badge-amber';  lbl='Pending'; }
+      html += '<tr><td class="mono">'+inst.installment_number+'</td><td>'+esc(inst.installment_type||'Regular')+'</td><td>'+fmtDate(inst.due_date)+'</td>';
+      html += '<td class="num">'+fmtMoney(inst.amount_due)+'</td>';
+      html += '<td class="num">'+(parseFloat(inst.amount_paid||0)>0?fmtMoney(inst.amount_paid):'<span style="color:var(--t3)">—</span>')+'</td>';
+      html += '<td><span class="badge '+cls+'">'+lbl+'</span></td></tr>';
     });
     html += '</tbody></table></div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid var(--border)">';
+    html +=   sItem('Total Scheduled',fmtMoney(totalDue),'var(--gold)',true);
+    html +=   sItem('Total Paid',fmtMoney(totalPaid),'var(--green)',true);
+    html +=   sItem('Remaining',fmtMoney(remaining),remaining>0?'var(--red)':'var(--green)',false);
+    html += '</div>';
   }
-  html += '</div>';
+  html += '</div></div>'; // db-card, tab-schedule
 
-  // Payment history
+  // ─── TAB: PAYMENTS ─────────────────────────────────────────────────
+  html += '<div class="portal-section" id="tab-payments">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">';
+  html +=   '<div style="font-size:13px;color:var(--t2)">'+payments.length+' payment'+(payments.length!==1?'s':'')+' confirmed</div>';
+  html +=   '<button class="btn-action btn-gold" onclick="printAccountStatement()">⎙ Account Statement</button>';
+  html += '</div>';
   html += '<div class="db-card">';
-  html +=   '<div class="db-card-header"><span>💳</span><div class="db-card-title">Payment History</div>';
-  html +=   '<span style="margin-left:auto;font-size:11px;color:var(--t3)">'+payments.length+' confirmed</span></div>';
-  if(payments.length === 0) {
-    html += '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No confirmed payments yet</div><div class="empty-sub">Your payment receipts will appear here after confirmation.</div></div>';
+  if(payments.length===0) {
+    html += '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No confirmed payments yet</div><div class="empty-sub">Your receipts will appear here after confirmation.</div></div>';
   } else {
     html += '<ul class="payment-list">';
-    payments.forEach(function(p) {
-      var m = (p.payment_method||'').toLowerCase();
-      var icon = '💳';
-      if(m.includes('cash'))   icon='💵';
-      if(m.includes('bank')||m.includes('transfer')) icon='🏦';
-      if(m.includes('cheque')||m.includes('check'))  icon='📝';
+    payments.forEach(function(p,idx) {
+      var m=(p.payment_method||'').toLowerCase(), icon='💳';
+      if(m.includes('cash'))                                         icon='💵';
+      if(m.includes('bank')||m.includes('transfer'))                 icon='🏦';
+      if(m.includes('cheque')||m.includes('check'))                  icon='📝';
       if(m.includes('online')||m.includes('easypaisa')||m.includes('jazzcash')||m.includes('raast')) icon='📱';
-      var meta = fmtDate(p.payment_date)+' &nbsp;·&nbsp; '+esc(p.payment_method);
-      if(p.reference_no) meta += ' &nbsp;·&nbsp; Ref: '+esc(p.reference_no);
-      if(p.bank_name)    meta += ' &nbsp;·&nbsp; '+esc(p.bank_name);
+      var meta=fmtDate(p.payment_date)+' &nbsp;·&nbsp; '+esc(p.payment_method);
+      if(p.reference_no) meta+=' &nbsp;·&nbsp; Ref: '+esc(p.reference_no);
+      if(p.bank_name)    meta+=' &nbsp;·&nbsp; '+esc(p.bank_name);
       html += '<li class="pay-item">';
       html +=   '<div class="pay-icon">'+icon+'</div>';
       html +=   '<div class="pay-info"><div class="pay-desc">'+(p.payment_code?esc(p.payment_code):'Payment Receipt')+'</div><div class="pay-meta">'+meta+'</div></div>';
-      html +=   '<div class="pay-amount">+'+fmtMoney(p.amount)+'</div>';
-      html += '</li>';
+      html +=   '<div style="display:flex;align-items:center;gap:10px">';
+      html +=     '<div class="pay-amount">+'+fmtMoney(p.amount)+'</div>';
+      html +=     '<button class="btn-action" style="padding:5px 10px;font-size:11px" onclick="printPaymentReceipt('+idx+')">⎙ Receipt</button>';
+      html +=   '</div></li>';
     });
     html += '</ul>';
+    html += '<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
+    html +=   '<span style="font-size:12px;color:var(--t3)">Total Confirmed</span>';
+    html +=   '<span style="font-size:16px;font-family:var(--mono);font-weight:700;color:var(--green)">'+fmtMoney(totalPaid)+'</span>';
+    html += '</div>';
   }
+  html += '</div></div>'; // db-card, tab-payments
+
+  // ─── TAB: DOCUMENTS ────────────────────────────────────────────────
+  html += '<div class="portal-section" id="tab-documents">';
+  html += '<div class="db-card" style="margin-bottom:16px">';
+  html +=   '<div class="db-card-header"><span>📝</span><div class="db-card-title">Sale Agreement</div>';
+  html +=   '<button class="btn-action btn-gold" style="margin-left:auto" onclick="printSaleDetails()">⎙ Print Details</button></div>';
+  html +=   '<div class="unit-grid" style="padding:20px">';
+  if(sale.sale_number) html += uField('Sale No.','<span class="mono">'+esc(sale.sale_number)+'</span>');
+  html += uField('Sale Date',fmtDate(sale.sale_date));
+  html += uField('Unit','<span class="mono">'+unitNo+'</span>');
+  html += uField('Total Amount',fmtMoney(netAmount));
+  html += '</div></div>';
+  html += '<div class="db-card" style="margin-bottom:16px">';
+  html +=   '<div class="db-card-header"><span>📊</span><div class="db-card-title">Account Statement</div>';
+  html +=   '<button class="btn-action btn-gold" style="margin-left:auto" onclick="printAccountStatement()">⎙ Download PDF</button></div>';
+  html +=   '<div style="padding:14px 20px;font-size:13px;color:var(--t2)">Complete statement of your sale, installment schedule, and all payment records.</div>';
   html += '</div>';
+  html += '<div class="db-card" id="noc-docs-card">';
+  html +=   '<div class="db-card-header"><span>✅</span><div class="db-card-title">NOC Documents</div></div>';
+  html +=   '<div id="noc-docs-content"><div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">';
+  html +=     '<div class="spinner" style="margin:0 auto 10px;width:28px;height:28px;border-width:2px"></div>Loading…';
+  html +=   '</div></div>';
+  html += '</div></div>'; // db-card, tab-documents
+
+  // ─── TAB: SUPPORT ──────────────────────────────────────────────────
+  html += '<div class="portal-section" id="tab-support">';
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
+  html +=   '<a href="https://wa.me/923001234567" target="_blank" rel="noopener" class="btn-action btn-wa" style="text-decoration:none">💬 WhatsApp Support</a>';
+  html += '</div>';
+  html += '<div class="db-card" style="margin-bottom:16px">';
+  html +=   '<div class="db-card-header"><span>✉️</span><div class="db-card-title">Raise a Query or Complaint</div></div>';
+  html +=   '<div class="support-form">';
+  html +=     '<div id="complaint-err" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;font-size:13px;color:#fca5a5;margin-bottom:14px"></div>';
+  html +=     '<div id="complaint-ok"  style="display:none;background:var(--green-bg);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:14px">✅ Query submitted. We will respond within 48 hours.</div>';
+  html +=     '<div class="sf-field"><label>Subject</label><input type="text" id="complaint-subject" placeholder="e.g. Payment receipt not received"></div>';
+  html +=     '<div class="sf-field"><label>Message</label><textarea id="complaint-message" placeholder="Describe your query in detail…"></textarea></div>';
+  html +=     '<button class="btn-primary" style="width:auto;padding:11px 24px;margin-top:4px" onclick="submitComplaint()">Send Query</button>';
+  html +=   '</div>';
+  html += '</div>';
+  html += '<div class="db-card" id="complaints-card">';
+  html +=   '<div class="db-card-header"><span>📋</span><div class="db-card-title">My Queries &amp; Complaints</div></div>';
+  html +=   '<div id="complaints-content"><div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">';
+  html +=     '<div class="spinner" style="margin:0 auto 10px;width:28px;height:28px;border-width:2px"></div>Loading…';
+  html +=   '</div></div>';
+  html += '</div></div>'; // db-card, tab-support
 
   document.getElementById('db-body').innerHTML = html;
+  switchTab('overview');
 
-  // Animate progress bar after paint
   requestAnimationFrame(function() {
     setTimeout(function() {
       var bar = document.getElementById('prog-bar');
       if(bar) bar.style.width = paidPct.toFixed(1)+'%';
     }, 80);
   });
+
+  loadPortalPossession();
 }
 
-// Helper: summary card
+// ── Tab switcher ────────────────────────────────────────────────────
+function switchTab(tabId) {
+  portalState.tab = tabId;
+  document.querySelectorAll('.portal-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-tab')===tabId);
+  });
+  document.querySelectorAll('.portal-section').forEach(function(s) {
+    s.classList.remove('active');
+  });
+  var sec = document.getElementById('tab-'+tabId);
+  if(sec) sec.classList.add('active');
+  if(tabId==='documents' && !portalState.nocLoaded)  loadPortalNocs();
+  if(tabId==='support'   && !portalState.compLoaded) loadPortalComplaints();
+}
+
+// ── Lazy loaders ────────────────────────────────────────────────────
+async function loadPortalPossession() {
+  var d=buyerData;
+  if(!d||!d.client||!d.client.id||!d.unit||!d.unit.id) return;
+  try {
+    var res=await sb.rpc('get_buyer_possession_for_portal',{
+      p_client_id:d.client.id, p_unit_id:d.unit.id, p_company_id:d.client.company_id
+    });
+    if(res.error||!res.data) return;
+    var pos=res.data;
+    if(!pos||!pos.id) return;
+    var area=document.getElementById('possession-banner-area');
+    if(!area) return;
+    var sc=pos.status==='completed'?'completed':(pos.status==='scheduled'?'scheduled':'pending');
+    var ico=pos.status==='completed'?'🏠':(pos.status==='scheduled'?'📅':'⏳');
+    var lbl=pos.status==='completed'?'Possession Completed':(pos.status==='scheduled'?'Possession Scheduled':'Possession Pending');
+    var html='<div class="possession-banner '+sc+'">';
+    html+='<span style="font-size:24px">'+ico+'</span>';
+    html+='<div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:2px">'+lbl+'</div>';
+    if(pos.possession_date) html+='<div style="font-size:12px;opacity:0.8">Date: <strong>'+fmtDate(pos.possession_date)+'</strong></div>';
+    if(pos.remarks) html+='<div style="font-size:12px;opacity:0.7;margin-top:2px">'+esc(pos.remarks)+'</div>';
+    html+='</div></div>';
+    area.innerHTML=html;
+    portalState.posLoaded=true;
+  } catch(e) {}
+}
+
+async function loadPortalNocs() {
+  var d=buyerData, el=document.getElementById('noc-docs-content');
+  if(!el||!d||!d.client||!d.unit) return;
+  try {
+    var res=await sb.rpc('get_buyer_nocs_for_portal',{
+      p_client_id:d.client.id, p_unit_id:d.unit.id, p_company_id:d.client.company_id
+    });
+    portalState.nocLoaded=true;
+    if(res.error){ el.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Could not load NOC documents</div></div>'; return; }
+    var nocs=Array.isArray(res.data)?res.data:[];
+    if(nocs.length===0){ el.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">No approved NOCs yet</div><div class="empty-sub">Approved NOC documents will appear here.</div></div>'; return; }
+    var html='';
+    nocs.forEach(function(n){
+      var ic=n.noc_type==='bank'?'bank':(n.noc_type==='transfer'?'transfer':'general');
+      var em=n.noc_type==='bank'?'🏦':(n.noc_type==='transfer'?'🔄':'📄');
+      var tl=n.noc_type==='bank'?'Bank NOC':(n.noc_type==='transfer'?'Transfer NOC':'General NOC');
+      var v=n.valid_from&&n.valid_until?fmtDate(n.valid_from)+' — '+fmtDate(n.valid_until):(n.valid_from?'From '+fmtDate(n.valid_from):'');
+      html+='<div class="noc-card"><div class="noc-icon '+ic+'">'+em+'</div>';
+      html+='<div style="flex:1"><div class="noc-num">'+esc(n.noc_number||'—')+'</div>';
+      html+='<div class="noc-meta">'+tl+(v?' &nbsp;·&nbsp; Valid: '+v:'')+'</div></div>';
+      html+='<span class="badge badge-green">Approved</span></div>';
+    });
+    el.innerHTML=html;
+  } catch(e){ if(el) el.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Could not load NOC documents</div></div>'; }
+}
+
+async function loadPortalComplaints() {
+  var d=buyerData, el=document.getElementById('complaints-content');
+  if(!el||!d||!d.client) return;
+  try {
+    var res=await sb.rpc('get_buyer_complaints',{p_client_id:d.client.id, p_company_id:d.client.company_id});
+    portalState.compLoaded=true;
+    if(res.error){ el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Could not load queries</div></div>'; return; }
+    var items=Array.isArray(res.data)?res.data:[];
+    if(items.length===0){ el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">No queries yet</div><div class="empty-sub">Your submitted queries will appear here.</div></div>'; return; }
+    var sm={open:'badge-amber',in_progress:'badge-blue',resolved:'badge-green',closed:'badge-red'};
+    var html='';
+    items.forEach(function(c){
+      html+='<div class="complaint-item">';
+      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">';
+      html+='<div class="complaint-subject">'+esc(c.subject)+'</div>';
+      html+='<span class="badge '+(sm[c.status]||'badge-amber')+'">'+esc(c.status.replace('_',' '))+'</span></div>';
+      html+='<div class="complaint-body">'+esc(c.message)+'</div>';
+      html+='<div style="font-size:11px;color:var(--t3)">Submitted: '+fmtDate(c.created_at)+'</div>';
+      if(c.response) html+='<div class="complaint-response">💬 <strong>Response:</strong> '+esc(c.response)+(c.responded_at?' &nbsp;·&nbsp; '+fmtDate(c.responded_at):'')+'</div>';
+      html+='</div>';
+    });
+    el.innerHTML=html;
+  } catch(e){ if(el) el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Could not load queries</div></div>'; }
+}
+
+async function submitComplaint() {
+  var sub=(document.getElementById('complaint-subject')||{}).value||'';
+  var msg=(document.getElementById('complaint-message')||{}).value||'';
+  var errEl=document.getElementById('complaint-err');
+  var okEl=document.getElementById('complaint-ok');
+  if(errEl) errEl.style.display='none';
+  if(okEl)  okEl.style.display='none';
+  if(sub.trim().length<3)  { if(errEl){errEl.textContent='Please enter a subject (min 3 chars).';errEl.style.display='block';} return; }
+  if(msg.trim().length<10) { if(errEl){errEl.textContent='Please enter a message (min 10 chars).';errEl.style.display='block';} return; }
+  var d=buyerData;
+  if(!d||!d.client) return;
+  try {
+    setLoading(true);
+    var res=await sb.rpc('submit_buyer_complaint',{
+      p_client_id:d.client.id, p_company_id:d.client.company_id,
+      p_subject:sub.trim(), p_message:msg.trim()
+    });
+    if(res.error||(res.data&&res.data.error)) {
+      if(errEl){errEl.textContent=(res.data&&res.data.error)||'Failed to submit. Please try again.';errEl.style.display='block';} return;
+    }
+    if(okEl) okEl.style.display='block';
+    document.getElementById('complaint-subject').value='';
+    document.getElementById('complaint-message').value='';
+    portalState.compLoaded=false;
+    loadPortalComplaints();
+  } catch(e){ if(errEl){errEl.textContent=e.message||'Failed to submit.';errEl.style.display='block';} }
+  finally { setLoading(false); }
+}
+
+// ── Print functions ─────────────────────────────────────────────────
+function _printWin(html) {
+  var w=window.open('','_blank','width=750,height=950');
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(function(){ w.print(); }, 300);
+}
+
+function printPaymentReceipt(idx) {
+  var d=buyerData; if(!d) return;
+  var p=d.payments[idx]; if(!p) return;
+  var client=d.client, sale=d.sale, unit=d.unit;
+  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;padding:40px;color:#111}.hdr{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #f5c842}.hdr h1{font-size:22px;font-weight:800;color:#0a0f1e}.hdr p{font-size:12px;color:#555;margin-top:4px}.rno{background:#fff8e1;border:1px solid #f5c842;border-radius:8px;padding:10px 20px;text-align:center;margin-bottom:28px;font-size:15px;font-weight:700;letter-spacing:1px}table{width:100%;border-collapse:collapse;margin-bottom:20px}td{padding:8px 12px;border-bottom:1px solid #eee;font-size:13px}td:first-child{color:#555;width:40%}td:last-child{font-weight:600}.abox{background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:20px;text-align:center;margin:20px 0}.abox .lbl{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}.abox .val{font-size:28px;font-weight:800;color:#10b981}.ftr{margin-top:32px;padding-top:20px;border-top:1px solid #eee;font-size:11px;color:#888;text-align:center}';
+  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
+  h+='<div class="hdr"><h1>Nexunova RMS</h1><p>Official Payment Receipt</p></div>';
+  h+='<div class="rno">RECEIPT: '+esc(p.payment_code||'—')+'</div>';
+  h+='<table>';
+  h+='<tr><td>Client Name</td><td>'+esc(client.full_name)+'</td></tr>';
+  h+='<tr><td>CNIC</td><td>'+esc(client.cnic)+'</td></tr>';
+  if(unit) h+='<tr><td>Unit No.</td><td>'+esc(unit.unit_no)+'</td></tr>';
+  if(sale&&sale.sale_number) h+='<tr><td>Sale No.</td><td>'+esc(sale.sale_number)+'</td></tr>';
+  h+='<tr><td>Payment Date</td><td>'+fmtDate(p.payment_date)+'</td></tr>';
+  h+='<tr><td>Payment Method</td><td>'+esc(p.payment_method)+'</td></tr>';
+  if(p.reference_no) h+='<tr><td>Reference No.</td><td>'+esc(p.reference_no)+'</td></tr>';
+  if(p.bank_name)    h+='<tr><td>Bank</td><td>'+esc(p.bank_name)+'</td></tr>';
+  h+='</table>';
+  h+='<div class="abox"><div class="lbl">Amount Received</div><div class="val">'+fmtMoney(p.amount)+'</div></div>';
+  h+='<div class="ftr">Generated '+new Date().toLocaleDateString('en-PK')+' via Nexunova RMS Buyer Portal &nbsp;·&nbsp; nexunova.com</div>';
+  h+='</body></html>';
+  _printWin(h);
+}
+
+function printAccountStatement() {
+  var d=buyerData; if(!d) return;
+  var client=d.client, sale=d.sale, unit=d.unit, il=d.installments, py=d.payments, c=d._c||{};
+  var today=new Date(); today.setHours(0,0,0,0);
+  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:40px;color:#111}h1{font-size:20px;font-weight:800;color:#0a0f1e}h2{font-size:13px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #f5c842;padding-bottom:5px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px;padding-bottom:18px;border-bottom:2px solid #111}.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.kc{border:1px solid #ddd;border-radius:8px;padding:12px 16px}.kl{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}.kv{font-size:16px;font-weight:800}table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padding:6px 10px;background:#f9f9f9;border-bottom:2px solid #ddd;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:7px 10px;border-bottom:1px solid #f0f0f0}.ftr{margin-top:30px;padding-top:14px;border-top:1px solid #eee;font-size:10px;color:#999;text-align:center}';
+  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
+  h+='<div class="hdr"><div><h1>Account Statement</h1><p style="color:#555;font-size:12px;margin-top:4px">Nexunova RMS · Buyer Portal</p></div>';
+  h+='<div style="text-align:right;font-size:11px;color:#555"><div>Date: '+new Date().toLocaleDateString('en-PK')+'</div>';
+  if(sale&&sale.sale_number) h+='<div>Sale No: '+esc(sale.sale_number)+'</div>';
+  h+='</div></div>';
+  h+='<table style="margin-bottom:18px"><tr><td style="width:110px;color:#666">Client</td><td style="font-weight:600">'+esc(client.full_name)+'</td><td style="width:110px;color:#666">CNIC</td><td style="font-weight:600">'+esc(client.cnic)+'</td></tr>';
+  if(unit) h+='<tr><td style="color:#666">Unit</td><td style="font-weight:600">'+esc(unit.unit_no)+'</td><td style="color:#666">Sale Date</td><td style="font-weight:600">'+fmtDate(sale.sale_date)+'</td></tr>';
+  h+='</table>';
+  h+='<div class="kpi"><div class="kc"><div class="kl">Total Sale Value</div><div class="kv" style="color:#d97706">'+fmtMoney(c.netAmount||0)+'</div></div>';
+  h+='<div class="kc"><div class="kl">Total Paid</div><div class="kv" style="color:#059669">'+fmtMoney(c.totalPaid||0)+'</div></div>';
+  h+='<div class="kc"><div class="kl">Balance Due</div><div class="kv" style="color:'+(c.remaining>0?'#dc2626':'#059669')+'">'+fmtMoney(c.remaining||0)+'</div></div></div>';
+  h+='<h2>Installment Schedule</h2>';
+  h+='<table><thead><tr><th>#</th><th>Type</th><th>Due Date</th><th style="text-align:right">Amt Due</th><th style="text-align:right">Paid</th><th>Status</th></tr></thead><tbody>';
+  il.forEach(function(i){
+    var dd=new Date(i.due_date), lbl=i.status==='paid'?'Paid':(dd<today?'Overdue':'Pending');
+    var clr=i.status==='paid'?'#059669':(dd<today?'#dc2626':'#d97706');
+    h+='<tr><td>'+i.installment_number+'</td><td>'+esc(i.installment_type||'Regular')+'</td><td>'+fmtDate(i.due_date)+'</td>';
+    h+='<td style="text-align:right">'+fmtMoney(i.amount_due)+'</td><td style="text-align:right">'+(parseFloat(i.amount_paid||0)>0?fmtMoney(i.amount_paid):'—')+'</td>';
+    h+='<td style="color:'+clr+';font-weight:600">'+lbl+'</td></tr>';
+  });
+  h+='</tbody></table><h2>Payment History</h2>';
+  if(!py.length){ h+='<p style="color:#999;font-size:12px">No confirmed payments yet.</p>'; }
+  else {
+    h+='<table><thead><tr><th>Receipt No.</th><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+    py.forEach(function(p){
+      h+='<tr><td>'+esc(p.payment_code||'—')+'</td><td>'+fmtDate(p.payment_date)+'</td><td>'+esc(p.payment_method)+'</td><td>'+esc(p.reference_no||'—')+'</td>';
+      h+='<td style="text-align:right;font-weight:600;color:#059669">'+fmtMoney(p.amount)+'</td></tr>';
+    });
+    h+='<tr style="background:#f9f9f9"><td colspan="4" style="font-weight:700">Total Confirmed</td><td style="text-align:right;font-weight:700;color:#059669">'+fmtMoney(c.totalPaid||0)+'</td></tr>';
+    h+='</tbody></table>';
+  }
+  h+='<div class="ftr">Generated '+new Date().toLocaleDateString('en-PK')+' via Nexunova RMS Buyer Portal · nexunova.com<br>Computer generated — no signature required.</div>';
+  h+='</body></html>';
+  _printWin(h);
+}
+
+function printSchedule() {
+  var d=buyerData; if(!d) return;
+  var client=d.client, sale=d.sale, unit=d.unit, il=d.installments, c=d._c||{};
+  var today=new Date(); today.setHours(0,0,0,0);
+  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:40px;color:#111}h1{font-size:18px;font-weight:800;color:#0a0f1e;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:18px}th{text-align:left;padding:7px 10px;background:#f9f9f9;border-bottom:2px solid #ddd;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:8px 10px;border-bottom:1px solid #f0f0f0}.ftr{margin-top:22px;font-size:10px;color:#999;text-align:center}';
+  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
+  h+='<h1>Installment Schedule</h1>';
+  h+='<div style="font-size:12px;color:#555;margin-top:4px;margin-bottom:14px">'+esc(client.full_name)+' &nbsp;·&nbsp; Unit: '+(unit?esc(unit.unit_no):'—')+(sale&&sale.sale_number?' &nbsp;·&nbsp; Sale: '+esc(sale.sale_number):'')+'</div>';
+  h+='<table><thead><tr><th>#</th><th>Type</th><th>Due Date</th><th style="text-align:right">Amt Due</th><th style="text-align:right">Paid</th><th>Status</th></tr></thead><tbody>';
+  il.forEach(function(i){
+    var dd=new Date(i.due_date), lbl=i.status==='paid'?'Paid':(dd<today?'Overdue':'Pending');
+    var clr=i.status==='paid'?'#059669':(dd<today?'#dc2626':'#d97706');
+    h+='<tr><td>'+i.installment_number+'</td><td>'+esc(i.installment_type||'Regular')+'</td><td>'+fmtDate(i.due_date)+'</td>';
+    h+='<td style="text-align:right">'+fmtMoney(i.amount_due)+'</td><td style="text-align:right">'+(parseFloat(i.amount_paid||0)>0?fmtMoney(i.amount_paid):'—')+'</td>';
+    h+='<td style="color:'+clr+';font-weight:600">'+lbl+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
+  h+='<div style="border:1px solid #ddd;border-radius:6px;padding:11px;text-align:center"><div style="font-size:10px;color:#666;margin-bottom:3px">TOTAL DUE</div><div style="font-weight:700;color:#d97706">'+fmtMoney(c.netAmount||0)+'</div></div>';
+  h+='<div style="border:1px solid #ddd;border-radius:6px;padding:11px;text-align:center"><div style="font-size:10px;color:#666;margin-bottom:3px">TOTAL PAID</div><div style="font-weight:700;color:#059669">'+fmtMoney(c.totalPaid||0)+'</div></div>';
+  h+='<div style="border:1px solid #ddd;border-radius:6px;padding:11px;text-align:center"><div style="font-size:10px;color:#666;margin-bottom:3px">REMAINING</div><div style="font-weight:700;color:'+(c.remaining>0?'#dc2626':'#059669')+'">'+fmtMoney(c.remaining||0)+'</div></div>';
+  h+='</div>';
+  h+='<div class="ftr">Generated '+new Date().toLocaleDateString('en-PK')+' via Nexunova RMS Buyer Portal · nexunova.com</div>';
+  h+='</body></html>';
+  _printWin(h);
+}
+
+function printSaleDetails() {
+  var d=buyerData; if(!d) return;
+  var client=d.client, sale=d.sale, unit=d.unit, floor=d.floor, ut=d.unit_type, c=d._c||{};
+  var unitNo=unit?esc(unit.unit_no):'—', floorName=floor?esc(floor.name):(unit&&unit.floor_label?esc(unit.floor_label):'—'), typeName=ut?esc(ut.type_name):'—';
+  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:40px;color:#111}h1{font-size:18px;font-weight:800;color:#0a0f1e;margin-bottom:4px}h2{font-size:13px;font-weight:700;margin:20px 0 8px;border-bottom:1.5px solid #f5c842;padding-bottom:5px}table{width:100%;border-collapse:collapse}td{padding:7px 12px;border-bottom:1px solid #eee;font-size:12px}td:first-child{color:#666;width:40%}td:last-child{font-weight:600}.ftr{margin-top:30px;padding-top:14px;border-top:1px solid #eee;font-size:10px;color:#999;text-align:center}';
+  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
+  h+='<h1>Sale &amp; Unit Details</h1><p style="font-size:12px;color:#555;margin-top:4px;margin-bottom:18px">Nexunova RMS · Buyer Portal · '+new Date().toLocaleDateString('en-PK')+'</p>';
+  h+='<h2>Client</h2><table><tr><td>Full Name</td><td>'+esc(client.full_name)+'</td></tr><tr><td>CNIC</td><td>'+esc(client.cnic)+'</td></tr></table>';
+  h+='<h2>Unit Details</h2><table>';
+  h+='<tr><td>Unit No.</td><td>'+unitNo+'</td></tr>';
+  h+='<tr><td>Floor</td><td>'+floorName+'</td></tr>';
+  h+='<tr><td>Unit Type</td><td>'+typeName+'</td></tr>';
+  if(unit&&unit.area) h+='<tr><td>Area</td><td>'+unit.area+' '+(unit.area_unit||'Sqft')+'</td></tr>';
+  if(unit&&unit.block) h+='<tr><td>Block</td><td>'+esc(unit.block)+'</td></tr>';
+  h+='</table>';
+  h+='<h2>Sale Details</h2><table>';
+  if(sale.sale_number) h+='<tr><td>Sale No.</td><td>'+esc(sale.sale_number)+'</td></tr>';
+  h+='<tr><td>Sale Date</td><td>'+fmtDate(sale.sale_date)+'</td></tr>';
+  h+='<tr><td>Total Amount</td><td>'+fmtMoney(c.netAmount||0)+'</td></tr>';
+  h+='<tr><td>Amount Paid</td><td>'+fmtMoney(c.totalPaid||0)+'</td></tr>';
+  h+='<tr><td>Balance Due</td><td>'+fmtMoney(c.remaining||0)+'</td></tr>';
+  h+='<tr><td>Status</td><td>'+esc((sale.status||'active').charAt(0).toUpperCase()+(sale.status||'active').slice(1))+'</td></tr>';
+  h+='</table>';
+  h+='<div class="ftr">For reference only. Contact your sales office for official documentation.</div>';
+  h+='</body></html>';
+  _printWin(h);
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
 function card(icon, label, val, cardCls, valCls) {
   return '<div class="sum-card '+cardCls+'"><span class="sum-icon">'+icon+'</span><div class="sum-label">'+label+'</div><div class="sum-val '+valCls+'" style="font-size:16px">'+val+'</div></div>';
 }
-
-// Helper: unit field
 function uField(label, val) {
   return '<div class="unit-field"><label>'+label+'</label><div class="val">'+val+'</div></div>';
 }
-
-// Helper: progress item
 function pItem(label, val, color) {
   return '<div style="text-align:center"><div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">'+label+'</div><div style="font-size:13px;font-family:var(--mono);font-weight:600;color:'+color+'">'+val+'</div></div>';
 }
-
-// Helper: status badge
+function sItem(label, val, color, border) {
+  return '<div style="padding:14px 16px;text-align:center'+(border?';border-right:1px solid var(--border)':'')+'">'
+    +'<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+label+'</div>'
+    +'<div style="font-size:14px;font-family:var(--mono);font-weight:700;color:'+color+'">'+val+'</div></div>';
+}
 function badge(status) {
   var map = { active:'badge-green', booked:'badge-amber', completed:'badge-blue', cancelled:'badge-red' };
   var cls = map[status] || 'badge-amber';

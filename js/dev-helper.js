@@ -22,7 +22,7 @@ window.addEventListener('load', function () {
       uField.value = 'demo@DEMO';
       pField.value = 'Demo1234';
     } else {
-      uField.value = 'KBH';
+      uField.value = 'admin@ADMIN';
       pField.value = 'admin123';
     }
     doLogin();

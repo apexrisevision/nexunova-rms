@@ -8,7 +8,7 @@
   /* Brand palette (logo-aligned) */
   --nx-cyan:    #00d9ff;
   --nx-blue:    #3b82f6;
-  --nx-indigo:  #6366f1;
+  --nx-indigo:  #2563EB;
   --nx-purple:  #c084fc;
   --nx-violet:  #a855f7;
   --nx-mint:    #34d399;
@@ -16,8 +16,8 @@
   --nx-amber:   #fbbf24;
 
   /* Aurora gradient (used everywhere) */
-  --nx-grad:    linear-gradient(90deg, #00d9ff 0%, #6366f1 50%, #c084fc 100%);
-  --nx-grad-v:  linear-gradient(180deg, #00d9ff 0%, #6366f1 50%, #c084fc 100%);
+  --nx-grad:    linear-gradient(90deg, #00d9ff 0%, #2563EB 50%, #c084fc 100%);
+  --nx-grad-v:  linear-gradient(180deg, #00d9ff 0%, #2563EB 50%, #c084fc 100%);
 }
 
 /* ════════════════ 1. TYPOGRAPHY — premium hierarchy ════════════════ */
@@ -113,8 +113,8 @@ h1.page-title {
   color: #0f0f1a !important;
 }
 [data-theme="light"] .btn-gh:hover {
-  background: rgba(99,102,241,0.06) !important;
-  border-color: rgba(99,102,241,0.40) !important;
+  background: rgba(37,99,235,0.06) !important;
+  border-color: rgba(37,99,235,0.40) !important;
 }
 
 /* ════════════════ 3. INPUTS — cyan focus ring ════════════════ */
@@ -180,8 +180,8 @@ textarea:focus {
   box-shadow: 0 1px 3px rgba(15,15,26,0.05) !important;
 }
 [data-theme="light"] .card:hover {
-  border-color: rgba(99,102,241,0.25) !important;
-  box-shadow: 0 4px 12px rgba(99,102,241,0.08) !important;
+  border-color: rgba(37,99,235,0.25) !important;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.08) !important;
 }
 
 /* ════════════════ 5. TABLES — premium data view ════════════════ */
@@ -221,7 +221,7 @@ textarea:focus {
 .tbl th.num { text-align: right !important; }
 
 [data-theme="light"] .tbl thead tr { background: #fafafd !important; }
-[data-theme="light"] .tbl tbody tr:hover { background: rgba(99,102,241,0.04) !important; border-left-color: var(--nx-indigo) !important; }
+[data-theme="light"] .tbl tbody tr:hover { background: rgba(37,99,235,0.04) !important; border-left-color: var(--nx-indigo) !important; }
 
 /* ════════════════ 6. BADGES — refined pills ════════════════ */
 .badge {
@@ -333,6 +333,14 @@ textarea:focus {
   justify-content: center !important;
   color: var(--nx-cyan) !important;
 }
+[data-theme="light"] .empty .ei,
+[data-theme="light"] .t-empty .ei,
+[data-theme="light"] .ud-empty-ic,
+[data-theme="light"] .inv-empty-ic {
+  background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(168,85,247,0.05)) !important;
+  border-color: rgba(37,99,235,0.20) !important;
+  color: #2563EB !important;
+}
 
 /* ════════════════ 11. SCROLLBARS — refined ════════════════ */
 ::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
@@ -343,8 +351,8 @@ textarea:focus {
   transition: background 180ms ease;
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,217,255,0.30) !important; }
-[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.20) !important; }
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.35) !important; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.20) !important; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.35) !important; }
 
 /* ════════════════ 12. LINKS ════════════════ */
 .lnk,
@@ -373,6 +381,14 @@ a.lnk {
   color: var(--nx-cyan) !important;
   border-color: rgba(0,217,255,0.35) !important;
 }
+[data-theme="light"] .tab.on,
+[data-theme="light"] .tab.active,
+[data-theme="light"] .seg-btn.on,
+[data-theme="light"] .pill.on {
+  background: rgba(37,99,235,0.10) !important;
+  color: #2563EB !important;
+  border-color: rgba(37,99,235,0.35) !important;
+}
 
 /* ════════════════ 14. SIDEBAR ITEMS — cyan accent ════════════════ */
 .ni:hover {
@@ -386,12 +402,50 @@ a.lnk {
 }
 .nav-grp-hd:hover { color: var(--nx-cyan) !important; }
 
+/* ── Light mode sidebar overrides — cyan is invisible on white ── */
+[data-theme="light"] .ni:hover {
+  background: rgba(37,99,235,0.07) !important;
+  color: var(--text-sidebar, #334155) !important;
+  -webkit-text-fill-color: var(--text-sidebar, #334155) !important;
+}
+[data-theme="light"] .ni:hover .ni-ic {
+  color: var(--text-sidebar, #334155) !important;
+}
+[data-theme="light"] .ni.on,
+[data-theme="light"] .ni.active {
+  background: rgba(37,99,235,0.12) !important;
+  color: #2563EB !important;
+  -webkit-text-fill-color: #2563EB !important;
+  box-shadow: inset 2px 0 0 0 #2563EB !important;
+}
+[data-theme="light"] .ni.on .ni-ic,
+[data-theme="light"] .ni.active .ni-ic {
+  color: #2563EB !important;
+}
+[data-theme="light"] .ni.on .ni-lb,
+[data-theme="light"] .ni.active .ni-lb {
+  color: #2563EB !important;
+  -webkit-text-fill-color: #2563EB !important;
+}
+[data-theme="light"] .ni.on .ni-bdg,
+[data-theme="light"] .ni.active .ni-bdg {
+  background: rgba(37,99,235,0.12) !important;
+  color: #2563EB !important;
+  -webkit-text-fill-color: #2563EB !important;
+}
+[data-theme="light"] .nav-grp-hd:hover { color: #2563EB !important; }
+
 /* ════════════════ 15. FOCUS RING (keyboard navigation) ════════════════ */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible {
   outline: 2px solid var(--nx-cyan) !important;
   outline-offset: 2px !important;
+}
+[data-theme="light"] button:focus-visible,
+[data-theme="light"] a:focus-visible,
+[data-theme="light"] [role="button"]:focus-visible {
+  outline-color: #2563EB !important;
 }
 
 /* ════════════════ 16. TOOLTIP / NOTIFICATIONS ════════════════ */
@@ -426,6 +480,13 @@ hr {
   height: 1px !important;
   background: linear-gradient(90deg, transparent, var(--line), transparent) !important;
   margin: 18px 0 !important;
+}
+
+/* ── Light mode section header ── */
+[data-theme="light"] .sec-hd,
+[data-theme="light"] .inv-sec-hd {
+  color: #2563EB !important;
+  border-bottom-color: rgba(37,99,235,0.18) !important;
 }
 
 /* ════════════════ 19. STATUS DOTS / INDICATORS ════════════════ */
@@ -607,7 +668,7 @@ select {
   padding-right: 30px !important;
 }
 [data-theme="light"] select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(99,102,241,0.7)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(37,99,235,0.7)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
 }
 
 /* ── Modal enhancements ────────────────────────────────────────────────────── */
@@ -658,10 +719,10 @@ select {
   border-radius: 99px !important;
   background:    rgba(255,255,255,0.05) !important;
   border:        1px solid rgba(255,255,255,0.10) !important;
-  white-space:   nowrap !important;
   max-width:     160px !important;
   overflow:      hidden !important;
-  text-overflow: ellipsis !important;
+  min-width:     0 !important;
+  flex-shrink:   1 !important;
 }
 [data-theme="light"] #tb-c {
   background: rgba(0,0,0,0.04) !important;
@@ -740,12 +801,12 @@ select {
 
 /* ── Light theme overrides ─────────────────────────────────────────────────── */
 [data-theme="light"] .tbl tbody tr { border-bottom-color: rgba(0,0,0,0.05) !important; }
-[data-theme="light"] .tbl tbody tr:hover { background: rgba(99,102,241,0.04) !important; }
+[data-theme="light"] .tbl tbody tr:hover { background: rgba(37,99,235,0.04) !important; }
 [data-theme="light"] .card::before {
-  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.15), transparent) !important;
+  background: linear-gradient(90deg, transparent, rgba(37,99,235,0.15), transparent) !important;
 }
 [data-theme="light"] .mob::before, [data-theme="light"] .mob-inner::before {
-  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.30), transparent) !important;
+  background: linear-gradient(90deg, transparent, rgba(37,99,235,0.30), transparent) !important;
 }
 [data-theme="light"] .aurora-foot-brand-name {
   background: linear-gradient(90deg, #0ea5e9, #7c3aed) !important;

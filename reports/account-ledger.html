@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Account Ledger — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:0;left:0;right:0;background:#1e2d47;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
+.toolbar-actions{display:flex;gap:8px}
+.btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
+.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-print:hover{background:#d4b55e}
+.btn-close:hover{background:rgba(255,255,255,.2)}
+
+/* ── A4 page ── */
+.page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
+
+/* ── Letterhead ── */
+.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh-left{display:flex;align-items:center;gap:14px}
+.lh-logo{height:50px;max-width:140px;object-fit:contain;display:block}
+.lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
+.lh-name{font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.lh-sub{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;opacity:.7;margin-top:2px}
+.lh-right{text-align:right}
+.lh-doctype{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.lh-meta{font-size:9px;opacity:.65;line-height:1.8}
+.gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Body ── */
+.body{padding:20px 24px}
+
+/* ── Client header ── */
+.client-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid #e5e7eb}
+.client-name{font-size:18px;font-weight:800;color:#111827;line-height:1.2;margin-bottom:4px}
+.client-meta{font-size:10px;color:#6b7280;line-height:1.8}
+.client-meta b{color:#374151}
+.stmt-badge{background:#1e2d47;color:#fff;padding:6px 12px;border-radius:6px;font-size:10px;font-weight:600;text-align:right;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.stmt-badge-label{font-size:8px;opacity:.7;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+
+/* ── Summary KPIs ── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.kpi{border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 12px}
+.kpi-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;font-weight:600;margin-bottom:4px}
+.kpi-val{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* ── Opening balance row ── */
+.ob-row{background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ob-lbl{color:#0369a1;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.5px}
+.ob-val{font-weight:700;color:#0c4a6e;font-variant-numeric:tabular-nums}
+
+/* ── Ledger table ── */
+.ledger-table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:10px}
+.ledger-table thead tr{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ledger-table th{padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;white-space:nowrap;border-bottom:2px solid}
+.ledger-table th.r{text-align:right}
+.ledger-table td{padding:6px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.ledger-table td.r{text-align:right;font-variant-numeric:tabular-nums}
+.ledger-table tr:nth-child(even) td{background:#fafafa}
+.ledger-table tr:hover td{background:#f0f7ff}
+.row-dr td{border-left:3px solid #fee2e2}
+.row-cr td{border-left:3px solid #dcfce7}
+.badge-dr{display:inline-block;background:#fee2e2;color:#dc2626;font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.badge-cr{display:inline-block;background:#dcfce7;color:#16a34a;font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.voucher-chip{display:inline-block;background:#f3f4f6;color:#374151;font-size:9px;font-family:monospace;padding:1px 6px;border-radius:4px}
+.desc-sale{font-size:9px;color:#9ca3af;margin-top:1px}
+
+/* ── Closing balance ── */
+.cb-row{background:#f0fdf4;border:1.5px solid #86efac;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cb-lbl{color:#16a34a;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.5px}
+.cb-val{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+
+.tfoot-row td{background:#f8fafc!important;font-weight:700;border-top:2px solid #e5e7eb;font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Signatures ── */
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:18px;padding-top:14px;border-top:1px solid #e5e7eb}
+.sig-box{padding-top:28px;border-top:1.5px solid #374151}
+.sig-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af}
+.sig-name{font-size:11px;font-weight:700;color:#111827;margin-top:4px;min-height:16px}
+.sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
+
+/* ── Footer ── */
+.doc-footer{margin-top:16px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+
+/* ── States ── */
+.loading-state{padding:60px;text-align:center;color:#6b7280;font-size:14px}
+.error-state{margin:24px;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:13px;text-align:center}
+.empty-row td{text-align:center;padding:24px;color:#9ca3af;font-style:italic}
+
+/* ── Print ── */
+@media print{
+  @page{size:A4;margin:10mm 12mm}
+  body{background:#fff}
+  .toolbar{display:none!important}
+  .page-wrap{padding:0}
+  .page{width:100%;box-shadow:none;border-radius:0}
+  .lh,.gold-bar,.badge-dr,.badge-cr,.ledger-table thead tr,.ob-row,.cb-row,.kpi,.tfoot-row td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ledger-table{page-break-inside:auto}
+  .ledger-table tr{page-break-inside:avoid}
+  .voucher-chip{background:#f3f4f6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Account Ledger — Nexunova RMS
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-print" onclick="window.print()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save PDF
+    </button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="page" id="page">
+    <div class="loading-state">Loading ledger…</div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const P        = new URLSearchParams(location.search);
+const clientId = P.get('client_id');
+const cid      = P.get('cid');
+
+const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt  = n => Number(n||0).toLocaleString('en-PK');
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+const abs  = n => Math.abs(Number(n||0));
+
+async function loadReport(){
+  const page = document.getElementById('page');
+  if(!clientId || !cid){
+    page.innerHTML = '<div class="error-state">Missing parameters. Please open this report from the RMS application.</div>';
+    return;
+  }
+
+  try {
+    const [lRes, brRes] = await Promise.all([
+      sb.rpc('get_client_ledger',    { p_client_id: clientId, p_company_id: cid }),
+      sb.rpc('get_company_branding', { p_company_id: cid })
+    ]);
+
+    if(lRes.error) throw lRes.error;
+    const lData = lRes.data;
+    if(!lData?.success) throw new Error(lData?.error || 'Could not load ledger.');
+
+    const br          = brRes.data || {};
+    const primary     = br.doc_brand_color || '#1E2D47';
+    const accent      = br.accent_color    || '#C9A84C';
+    const coName      = br.company_name    || 'Company';
+    const clientInfo  = lData.client_info  || {};
+    const rows        = lData.rows         || [];
+    const openingBal  = Number(lData.opening_balance || 0);
+    const closingBal  = Number(lData.closing_balance || 0);
+
+    // Totals
+    const totalDR = rows.reduce((s,r) => s + Number(r.debit||0),  0);
+    const totalCR = rows.reduce((s,r) => s + Number(r.credit||0), 0);
+
+    // Running balance per row
+    let runBal = openingBal;
+    const rowsWithBal = rows.map(r => {
+      if(r.debit)  runBal += Number(r.debit);
+      if(r.credit) runBal -= Number(r.credit);
+      return { ...r, running_balance: runBal };
+    });
+
+    const isDebit  = closingBal > 0;
+    const balColor = isDebit ? '#dc2626' : '#16a34a';
+
+    const logoHtml = br.logo_url
+      ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
+      : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
+
+    // Build table rows HTML
+    let tableRows = '';
+    if(rowsWithBal.length === 0){
+      tableRows = `<tr class="empty-row"><td colspan="7">No transactions found for this period.</td></tr>`;
+    } else {
+      rowsWithBal.forEach(r => {
+        const isDR = r.row_type === 'DR';
+        const runBalColor = r.running_balance > 0 ? '#dc2626' : '#16a34a';
+        tableRows += `
+        <tr class="${isDR ? 'row-dr' : 'row-cr'}">
+          <td>${fmtD(r.entry_date)}</td>
+          <td><span class="voucher-chip">${esc(r.voucher_no||'—')}</span>${r.chq_no ? `<div style="font-size:8px;color:#9ca3af;margin-top:1px">Chq: ${esc(r.chq_no)}</div>` : ''}</td>
+          <td>
+            <span class="${isDR ? 'badge-dr' : 'badge-cr'}">${isDR ? 'DR' : 'CR'}</span>
+          </td>
+          <td>${esc(r.description||'—')}${r.sale_number ? `<div class="desc-sale">${esc(r.sale_number)}</div>` : ''}</td>
+          <td class="r" style="color:#dc2626;font-weight:${isDR?'700':'400'}">${isDR ? fmt(r.debit) : '—'}</td>
+          <td class="r" style="color:#16a34a;font-weight:${!isDR?'700':'400'}">${!isDR ? fmt(r.credit) : '—'}</td>
+          <td class="r" style="font-weight:700;color:${runBalColor}">${fmt(abs(r.running_balance))}${r.running_balance>0?' Dr':' Cr'}</td>
+        </tr>`;
+      });
+    }
+
+    const html = `
+    <div class="lh" style="background:${primary}">
+      <div class="lh-left">
+        ${logoHtml}
+        <div>
+          <div class="lh-name">${esc(coName)}</div>
+          <div class="lh-sub">${esc(br.letterhead_subtitle||'Recovery Management System')}</div>
+        </div>
+      </div>
+      <div class="lh-right">
+        <div class="lh-doctype">Account Ledger</div>
+        <div class="lh-meta">
+          ${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'})}<br>
+          ${br.address_full ? esc(br.address_full)+'<br>' : ''}
+          ${br.business_phone ? esc(br.business_phone) : ''}
+        </div>
+      </div>
+    </div>
+    <div class="gold-bar" style="background:linear-gradient(90deg,${accent},#f0e09a,${accent})"></div>
+
+    <div class="body">
+
+      <div class="client-header">
+        <div>
+          <div class="client-name">${esc(clientInfo.client_name||'Client')}</div>
+          <div class="client-meta">
+            ${clientInfo.client_code ? `<b>Code:</b> ${esc(clientInfo.client_code)} &nbsp;` : ''}
+            ${clientInfo.projects    ? `<b>Projects:</b> ${esc(clientInfo.projects)}` : ''}
+          </div>
+        </div>
+        <div class="stmt-badge" style="background:${primary}">
+          <div class="stmt-badge-label">Statement Period</div>
+          <div>All Transactions</div>
+        </div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-lbl">Total Transactions</div>
+          <div class="kpi-val" style="color:${primary}">${rows.length}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Total Debits (Due)</div>
+          <div class="kpi-val" style="color:#dc2626">PKR ${fmt(totalDR)}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Total Credits (Paid)</div>
+          <div class="kpi-val" style="color:#16a34a">PKR ${fmt(totalCR)}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Net Balance</div>
+          <div class="kpi-val" style="color:${balColor}">PKR ${fmt(abs(closingBal))}</div>
+        </div>
+      </div>
+
+      ${openingBal !== 0 ? `
+      <div class="ob-row">
+        <span class="ob-lbl">Opening Balance (Brought Forward)</span>
+        <span class="ob-val">PKR ${fmt(abs(openingBal))} ${openingBal>0?' Dr':' Cr'}</span>
+      </div>` : ''}
+
+      <table class="ledger-table">
+        <thead>
+          <tr style="background:${primary};color:#fff">
+            <th style="border-color:${accent};width:80px">Date</th>
+            <th style="border-color:${accent};width:90px">Voucher</th>
+            <th style="border-color:${accent};width:36px">Type</th>
+            <th style="border-color:${accent}">Description</th>
+            <th class="r" style="border-color:${accent};width:85px">Debit (PKR)</th>
+            <th class="r" style="border-color:${accent};width:85px">Credit (PKR)</th>
+            <th class="r" style="border-color:${accent};width:90px">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+        <tfoot>
+          <tr class="tfoot-row">
+            <td colspan="4" style="font-size:9px;color:#6b7280;font-style:italic">Closing Balance — ${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'})}</td>
+            <td class="r" style="color:#dc2626">PKR ${fmt(totalDR)}</td>
+            <td class="r" style="color:#16a34a">PKR ${fmt(totalCR)}</td>
+            <td class="r" style="color:${balColor}">PKR ${fmt(abs(closingBal))} ${isDebit?' Dr':' Cr'}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="cb-row" style="background:${closingBal<=0?'#f0fdf4':'#fef2f2'};border-color:${closingBal<=0?'#86efac':'#fca5a5'}">
+        <span class="cb-lbl" style="color:${balColor}">${closingBal <= 0 ? '✓ Fully Cleared — No Outstanding Balance' : 'Closing Balance (Outstanding)'}</span>
+        <span class="cb-val" style="color:${balColor}">PKR ${fmt(abs(closingBal))}${closingBal>0?' Dr':' Cr'}</span>
+      </div>
+
+      <div class="sig-section">
+        <div class="sig-box">
+          <div class="sig-lbl">Client Signature &amp; Date</div>
+          <div class="sig-name">${esc(clientInfo.client_name||'____________________________')}</div>
+          <div class="sig-role">Client / Buyer</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl">Authorized Signatory &amp; Stamp</div>
+          <div class="sig-name">${esc(br.signature_name||coName)}</div>
+          <div class="sig-role">${esc(br.signature_title||'Authorized Signatory')}</div>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <span>${esc(br.footer_text||'Computer-generated document. Nexunova RMS.')}</span>
+        <span>Generated: ${new Date().toLocaleString('en-PK')}</span>
+      </div>
+    </div>`;
+
+    page.innerHTML = html;
+    document.title = 'Ledger — ' + (clientInfo.client_name||'Client') + ' — ' + coName;
+
+  } catch(e){
+    document.getElementById('page').innerHTML = `<div class="error-state">Could not load ledger: ${esc(e.message)}</div>`;
+    console.error(e);
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>

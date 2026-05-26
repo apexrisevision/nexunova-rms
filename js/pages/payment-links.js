@@ -442,8 +442,7 @@ async function plOpenCreate(extraData, preClientId, preSaleId) {
 
   // Load payment methods
   try {
-    const { data } = await supabase.from('company_payment_methods')
-      .select('*').eq('company_id', S.cid).eq('is_active', true).order('display_order');
+    const { data } = await supabase.rpc('list_payment_methods_active', { p_company_id: S.cid });
     _plcMethods = data || [];
     _plcSelMethods = new Set((_plcMethods).map(m => m.id));
   } catch(e) { _plcMethods = []; }
@@ -545,9 +544,7 @@ async function _plcOnClientChange() {
   saleSel.innerHTML = '<option value="">Loading…</option>';
 
   try {
-    const { data } = await supabase
-      .from('sales').select('id, sale_number, unit_id, units(unit_no), projects(project_name)')
-      .eq('company_id', S.cid).eq('client_id', clientId).eq('status', 'active');
+    const { data } = await supabase.rpc('list_sales_by_client', { p_client_id: clientId, p_company_id: S.cid });
     _plcSales = data || [];
     saleSel.innerHTML = '<option value="">— Select Sale —</option>' +
       _plcSales.map(s => {
@@ -575,12 +572,7 @@ async function _plcOnSaleChange() {
   _plcSelInstalls.clear();
 
   try {
-    const { data } = await supabase
-      .from('installments')
-      .select('id, installment_number, installment_type, due_date, amount_due, amount_paid, status')
-      .eq('company_id', S.cid).eq('sale_id', saleId)
-      .in('status', ['pending', 'partial', 'overdue'])
-      .order('installment_number');
+    const { data } = await supabase.rpc('list_open_installments_for_sale', { p_sale_id: saleId, p_company_id: S.cid });
     _plcInstalls = data || [];
 
     if (!_plcInstalls.length) {

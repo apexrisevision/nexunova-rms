@@ -1,0 +1,493 @@
+You are a world-class SaaS architect, senior full-stack engineer, product strategist, and elite UI/UX designer.
+
+Your task is to enhance and complete the NEXUNOVA RMS — a Recovery Management System for real-estate companies.
+
+This is NOT a simple payment tracker.
+
+This is:
+* a globally sellable B2B SaaS product
+* a multi-tenant recovery operations platform
+* a premium subscription-based SaaS
+* a complete real-estate recovery operating system
+* an AI-ready recovery intelligence platform
+
+====================================================
+CRITICAL — WHAT RMS ALREADY HAS (DO NOT REBUILD)
+====================================================
+
+The following is ALREADY BUILT and WORKING.
+NEVER rebuild, restructure, or interfere with these.
+Only enhance, fix bugs, or add missing features.
+
+EXISTING PAGES (55 page divs in login.html):
+
+Dashboard, Inbox (Contacts)
+
+Setup:
+- Projects
+- Types & Floors (Categories)
+- Sales Agents
+
+Inventory:
+- All Units
+- Sales & Bookings
+- Cancelled Units
+- Transferred Units
+
+Finance:
+- Payments (Recovery)
+- Receipt Vouchers
+- PDC Register
+- Commissions
+- Outstanding (Reports)
+- Payables
+- Additional Receivables
+- Agent Transactions
+
+Compliance:
+- Escalations
+- Legal Cases
+- Blacklist Register
+
+Clients & Recovery:
+- Clients
+- Client Health (Health Center)
+- Promise Tracker
+- Recovery Radar
+- Reminders
+- Call Logs
+- Payment Links
+
+Reports:
+- Reports & Export
+- Ledgers (Client / Unit / Agent / Project)
+- Documents
+
+Admin:
+- Users & Roles
+- Settings
+- Banks Master
+- Backup
+- Audit Trail
+
+Detail/Sub Pages:
+- Project Detail, Unit Detail, Add/Edit Unit
+- Client Detail, Agent Detail
+- New Sale, Edit Sale, Sale Detail
+- Payment View, Unit Cancel, Unit Transfer
+- Ownership Chain, Paylink Detail
+- Payment Methods
+- Officer Ledger, Receiving Ledger
+- Change Password, Search
+
+EXISTING TECH STACK:
+- Vanilla JS (no build step, no framework)
+- Supabase (PostgreSQL + RLS + RPCs)
+- Chart.js
+- Electron desktop wrapper
+- Multi-tenant B2B SaaS
+- 4 subscription plans
+- 5 roles: admin / owner / recovery / accounts / manager
+- ~80+ RPCs (SECURITY DEFINER)
+- 21 migrations
+- 2 Edge Functions (send-otp, verify-otp)
+- 7 storage buckets
+- WhatsApp helper built
+
+EXISTING CORE MODULES:
+- auth.js, init.js, ui.js (role-based nav router)
+- store/db.js + data.js + supabase.js
+- modals.js, sale.modal.js, modals-log-call.js
+- schedule.engine.js (installment generation)
+- whatsapp-helper.js
+- cascade-delete.js
+
+====================================================
+CRITICAL — WHAT MUST NEVER BE TOUCHED
+====================================================
+
+* DO NOT add a financial accounting system (COA, double entry, vouchers)
+* DO NOT rebuild existing pages from scratch
+* DO NOT change the vanilla JS architecture to a framework
+* DO NOT modify the Supabase RPC security layer
+* DO NOT touch PATH_A_rls_with_jwt, PATH_B_emergency_lockdown security files
+* DO NOT merge or touch School ERP or CRM Supabase projects
+* DO NOT change the existing subscription plan structure without instruction
+
+====================================================
+WHAT NEEDS TO BE BUILT / ENHANCED
+====================================================
+
+====================================================
+MODULE 1 — RECOVERY INTELLIGENCE ENGINE (AI-READY)
+====================================================
+
+Recovery Radar Enhancement:
+* AI-scored client risk (0–100 default probability)
+* Factors: payment history, days overdue, promise broken count,
+  call response rate, legal history, installment pattern
+* Color coded: Green / Yellow / Orange / Red
+* Auto-prioritized call list for recovery officers
+* Risk trend (improving / stable / deteriorating)
+* Bulk action on high-risk clients
+
+Recovery Campaign Management:
+* create recovery campaigns (e.g. "Q1 2025 Drive")
+* assign clients to campaign
+* campaign target (amount to recover)
+* campaign progress tracking
+* officer-wise performance within campaign
+* campaign analytics (recovery rate, calls made, promises kept)
+
+Promise Tracker Enhancement:
+* promise kept / broken ratio per client
+* auto-escalate after N broken promises
+* promise reminder 24 hours before due date (WhatsApp + in-app)
+* promise analytics dashboard
+* officer-wise promise management
+
+Recovery Forecasting:
+* predicted collection for next 30 / 60 / 90 days
+* based on promises, installment schedules, historical patterns
+* project-wise forecast
+* officer-wise forecast
+* vs actual comparison
+
+====================================================
+MODULE 2 — LEGAL & COMPLIANCE MANAGEMENT
+====================================================
+
+Legal Cases Enhancement:
+* case types (notice / court / arbitration / settlement)
+* case stages (filed / hearing / judgment / appeal / closed)
+* hearing date calendar with reminders
+* lawyer assignment per case
+* legal document vault (notices, court orders, judgments)
+* legal cost tracking (no accounting — just cost log)
+* case outcome tracking (won / lost / settled / withdrawn)
+* client linking (multiple cases per client)
+* unit linking (multiple cases per unit)
+* legal analytics (active cases, win rate, avg resolution time)
+
+Demand Letter Automation:
+* auto-generate demand letters from templates
+* configurable letter templates per company
+* merge fields (client name, unit, amount, due date)
+* letter history per client
+* WhatsApp delivery of demand letters
+* legal notice generation (formal format)
+
+Blacklist Register Enhancement:
+* blacklist reasons (payment default / fraud / legal / breach)
+* blacklist date and reference case
+* auto-flag blacklisted clients on new sale attempt
+* blacklist removal workflow (with approval)
+* cross-tenant blacklist sharing (optional toggle per tenant)
+* blacklist analytics
+
+Escalation Management Enhancement:
+* escalation levels (officer → manager → owner → legal)
+* auto-escalation rules (overdue days, broken promises count)
+* escalation history per client
+* escalation resolution tracking
+* escalation analytics (volume, resolution time, by officer)
+
+====================================================
+MODULE 3 — PDC (POST-DATED CHEQUE) MANAGEMENT
+====================================================
+
+PDC Register Enhancement:
+* full cheque lifecycle (received → deposited → cleared / bounced)
+* bank-wise PDC tracking
+* deposit date scheduling (auto-reminder before deposit date)
+* bounced cheque workflow:
+  - mark bounced
+  - auto-create legal follow-up
+  - WhatsApp alert to client
+  - re-deposit scheduling
+* PDC aging report (due this week / month / overdue)
+* PDC vs cash vs online payment analysis
+* cheque register per project
+* bulk PDC deposit scheduling
+
+====================================================
+MODULE 4 — INSTALLMENT SCHEDULE MANAGEMENT
+====================================================
+
+Schedule Engine Enhancement:
+* schedule modification workflow (restructure installments)
+* installment deferral (push dates forward with approval)
+* schedule comparison (original vs modified)
+* partial payment allocation rules (configurable: oldest first / newest first / proportional)
+* overpayment handling (credit to next installment)
+* schedule PDF generation (client-ready)
+* schedule WhatsApp delivery
+* schedule analytics (on-track / delayed / severely overdue)
+
+====================================================
+MODULE 5 — CLIENT PORTAL ENHANCEMENT
+====================================================
+
+Buyer Portal (buyer-portal.html) Enhancement:
+* payment history timeline
+* installment schedule view (original + remaining)
+* document download (sale agreement, receipts, NOC)
+* payment receipt generation (PDF branded)
+* make online payment (payment link integration)
+* raise complaint / query
+* WhatsApp chat with recovery officer
+* account statement download (PDF)
+* unit progress photos (if project uploads them)
+* possession status
+
+====================================================
+MODULE 6 — AGENT & COMMISSION MANAGEMENT
+====================================================
+
+Agent Management Enhancement:
+* agent profile (personal, bank details, CNIC)
+* commission structure per project (configurable %)
+* commission milestones (e.g. 50% on booking, 50% on possession)
+* commission calculation automation (on payment recording)
+* commission approval workflow (officer → accounts → owner)
+* commission payment recording (not accounting — log only)
+* agent performance analytics (sales, collections, conversion)
+* agent leaderboard
+* agent-wise unit and client listing
+* agent commission statement (PDF)
+* agent portal (read-only view of their commissions + clients)
+
+====================================================
+MODULE 7 — AUTOMATED COMMUNICATIONS ENGINE
+====================================================
+
+WhatsApp Automation:
+* trigger-based auto messages:
+  - installment due in 3 days → reminder
+  - installment overdue → escalating reminders (day 1, 7, 15, 30)
+  - PDC deposit date approaching → alert
+  - payment received → thank you + receipt
+  - promise made → confirmation
+  - promise due tomorrow → reminder
+  - legal notice issued → formal notification
+  - demand letter generated → delivery
+* message template library (editable per tenant)
+* bulk broadcast to filtered client groups
+* WhatsApp delivery status tracking (sent/delivered/read)
+* broadcast history log
+* opt-out management
+* scheduled messages (send tomorrow 9am)
+
+SMS Automation:
+* SMS gateway integration (Twilio / local gateway)
+* same triggers as WhatsApp (fallback if WhatsApp fails)
+* SMS delivery tracking
+
+Email Automation:
+* payment receipts via email
+* monthly statements
+* legal notices via email
+* configurable email templates
+
+====================================================
+MODULE 8 — REPORTING & ANALYTICS ENHANCEMENT
+====================================================
+
+Executive Dashboard (Owner/Manager view):
+* total portfolio value
+* total collected to date
+* total outstanding
+* collection rate (%)
+* active legal cases
+* PDC due this month
+* recovery officer performance comparison
+* project-wise recovery heat map
+* monthly collection trend (12 months)
+* overdue aging buckets (30/60/90/90+ days)
+
+Recovery Analytics:
+* officer-wise: calls made, promises received, amount collected
+* project-wise: recovery rate, overdue amount
+* client-wise: health score trend
+* channel analysis (cash vs bank vs online vs PDC)
+* promise-to-payment conversion rate
+* time-to-collect analysis (avg days from overdue to collected)
+
+Portfolio Analysis:
+* total units sold per project
+* units with overdue payments
+* units with legal cases
+* units in possession
+* units in transfer
+* project completion vs collection correlation
+
+Custom Report Builder:
+* select fields / filters
+* date range
+* group by (project / agent / officer / month)
+* export to Excel / PDF
+* save report as template
+* schedule report delivery (weekly email)
+
+====================================================
+MODULE 9 — POSSESSION & NOC MANAGEMENT
+====================================================
+
+Possession Module:
+* possession eligibility check (% paid threshold configurable)
+* possession offer letter generation
+* possession date scheduling
+* possession handover checklist
+* possession recorded with date and witness
+* post-possession payment tracking (remaining instalments)
+* possession analytics (project-wise, month-wise)
+
+NOC Management:
+* NOC types (bank NOC, transfer NOC, general NOC)
+* NOC eligibility rules (configurable payment threshold)
+* NOC request workflow (client requests → officer reviews → approves)
+* NOC document generation (auto-filled template)
+* NOC history per unit / client
+* NOC validity period
+* NOC revocation workflow
+
+====================================================
+MODULE 10 — MOBILE RESPONSIVE & FIELD RECOVERY
+====================================================
+
+Mobile Optimization:
+* full mobile-responsive UI for all pages
+* touch-friendly controls
+* offline-capable call logging (sync when online)
+* mobile-optimized recovery dashboard for officers
+* swipe actions on client lists
+* quick action buttons (log call, record promise, send WhatsApp)
+
+Field Recovery Features:
+* GPS location logging on call (optional, with permission)
+* field visit log (date, location, outcome)
+* photo capture for field visits
+* field visit analytics per officer
+
+====================================================
+MODULE 11 — SUPER ADMIN & SAAS ENHANCEMENT
+====================================================
+
+Super Admin Enhancement:
+* tenant health dashboard (MRR, active tenants, churn)
+* per-tenant feature toggles
+* impersonation (login as any tenant)
+* platform announcements
+* support ticket system
+* tenant billing overview
+* usage analytics per tenant (API calls, storage, users)
+* system health monitoring
+
+Subscription & Plan Management:
+* plan tier enforcement (feature gating per plan)
+* plan upgrade/downgrade workflow
+* trial expiry management
+* payment failure handling
+* tenant onboarding completion tracking
+
+====================================================
+MODULE 12 — AUDIT & SECURITY ENHANCEMENT
+====================================================
+
+Audit Trail Enhancement:
+* financial action audit (every payment, receipt, commission)
+* bulk action audit (bulk status changes)
+* export audit logs (PDF/Excel)
+* audit log retention policy
+* critical action alerts (delete, bulk operations, settings change)
+* user session tracking (login time, IP, device)
+
+Security:
+* 2FA / OTP (already has OTP — enhance with TOTP option)
+* session timeout configuration
+* IP whitelist per tenant (Enterprise plan)
+* failed login attempt tracking
+* account lockout after N failures
+
+====================================================
+BLUEPRINT.md REFRESH REQUIREMENT
+====================================================
+
+The existing BLUEPRINT.md is 8 days stale — it documents
+44 pages and 43 modules but code now has 55 page divs
+and 51 modules.
+
+After any significant build session:
+* refresh BLUEPRINT.md to match current code state
+* document all new pages, modules, and RPCs added
+* keep it as living documentation
+
+====================================================
+TECH STACK — DO NOT CHANGE
+====================================================
+
+* Vanilla JS (no build step) — KEEP AS IS
+* Supabase (PostgreSQL + RLS + RPCs) — KEEP
+* Chart.js — KEEP
+* Electron desktop wrapper — KEEP
+* WhatsApp helper — ENHANCE
+* NO framework migration (no React, no Next.js for RMS)
+
+====================================================
+UI / UX DIRECTION
+====================================================
+
+The existing RMS has premium CSS layers (saas-polish,
+enterprise-polish, sidebar-premium, dashboard-premium,
+visual-overhaul).
+
+Maintain and enhance:
+* dark/light mode (already exists)
+* premium sidebar
+* aurora animations
+* consistent component patterns
+* mobile-first enhancements
+* loading states for all data fetches
+* empty states for all lists
+* error handling for all RPCs
+
+====================================================
+BUILD ORDER — PRIORITY
+====================================================
+
+P1 — High Impact, Do First:
+1. Recovery Intelligence Engine (Module 1) — AI scoring + campaigns
+2. Automated Communications Engine (Module 7) — WhatsApp automation
+3. PDC Management Enhancement (Module 3)
+4. Reporting & Analytics Enhancement (Module 8)
+
+P2 — Important, Do Next:
+5. Legal & Compliance Enhancement (Module 2)
+6. Installment Schedule Enhancement (Module 4)
+7. Possession & NOC Management (Module 9)
+8. Agent & Commission Enhancement (Module 6)
+
+P3 — Complete the Platform:
+9. Client Portal Enhancement (Module 5)
+10. Mobile Responsive & Field Recovery (Module 10)
+11. Super Admin Enhancement (Module 11)
+12. Audit & Security Enhancement (Module 12)
+
+====================================================
+OUTPUT REQUIREMENTS
+====================================================
+
+* Always read CLAUDE_RMS.md before starting any session
+* Never rebuild existing working features
+* Every new feature must use existing RPC pattern (SECURITY DEFINER)
+* Every new table needs RLS policies
+* New pages follow existing page div pattern in login.html
+* New JS files go in js/pages/ directory
+* Maintain existing CSS architecture — add new CSS files for new modules
+* Update BLUEPRINT.md after each session
+* Update CLAUDE_RMS.md task list after each session
+
+The final RMS should feel like:
+"The most complete, intelligent, and operationally powerful
+recovery management system for real-estate companies in Pakistan —
+with AI-ready insights, automated follow-ups, and enterprise-grade compliance."

@@ -1,0 +1,17 @@
+-- ================================================================
+-- NEXUNOVA RMS — MODULE 3 PDC MANAGEMENT ENHANCEMENTS
+-- 2026-05-25 — APPLIED via MCP + verified transactionally (deposit →
+-- bounce auto-escalates → redeposit → bulk schedule → analytics; 0 residue).
+-- See live DB pg_get_functiondef for canonical bodies. This file mirrors
+-- the applied migration (the full bodies are in the apply_migration call;
+-- kept here so the changes are version-controlled).
+--
+--   (a) mark_pdc_bounced  — + auto-escalation (legal flag) on bounce
+--   (b) mark_pdc_deposited — received -> presented
+--   (c) redeposit_pdc      — bounced -> presented w/ new deposit date
+--   (d) schedule_pdc_deposit_bulk — bulk deposit_date
+--   (e) get_pdc_analytics  — aging buckets, bank/project, method split
+-- pdc_cheques.status is free text (no CHECK); 'presented' is valid.
+-- Auto WhatsApp deposit/bounce alerts remain MANUAL (gateway deferred).
+-- ================================================================
+-- NOTE: canonical bodies applied via mcp apply_migration 'module3_pdc_enhancements'.

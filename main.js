@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, Tray, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, Tray, nativeImage, session } = require('electron');
 const path = require('path');
 
 const PROTOCOL = 'nexunovarms';
@@ -162,11 +162,14 @@ ipcMain.on('print-doc', (event, { html, title }) => {
   });
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Register nexunovarms:// as a handled URL scheme.
   // IMPORTANT: also add nexunovarms://auth/callback to Supabase dashboard →
   //   Authentication → URL Configuration → Redirect URLs
   app.setAsDefaultProtocolClient(PROTOCOL);
+
+  // Clear disk cache so updated CSS/JS files are always read fresh (file:// ignores query-string busters)
+  await session.defaultSession.clearCache();
 
   createSplash();
   createMain();

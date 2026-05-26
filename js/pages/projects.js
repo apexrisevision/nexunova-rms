@@ -134,10 +134,8 @@ async function rProjects() {
 
   if (!window._nxnMaxProjects) {
     try {
-      const { data: sub } = await supabase.from('subscriptions')
-        .select('subscription_plans(max_projects)')
-        .eq('company_id', cid).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      window._nxnMaxProjects = sub?.subscription_plans?.max_projects ?? 1;
+      const { data } = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: cid });
+      window._nxnMaxProjects = data?.max_projects ?? 1;
     } catch(e) { window._nxnMaxProjects = 1; }
   }
 
@@ -1064,17 +1062,23 @@ async function saveProjectForm() {
 
   // Plan limit check — only for new projects, not edits
   if (!existingId) {
+    let limRes;
     try {
-      const { data: sub } = await supabase.from('subscriptions')
-        .select('subscription_plans(max_projects)')
-        .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      const maxProjects    = sub?.subscription_plans?.max_projects ?? 0;
-      const currentProjects = gprojects().length;
-      if (maxProjects > 0 && currentProjects >= maxProjects) {
-        toast(`Project limit reached — your plan allows ${maxProjects} project${maxProjects > 1 ? 's' : ''}. Upgrade to add more.`, 'err');
-        return;
-      }
-    } catch(e) { /* non-blocking */ }
+      limRes = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: S.cid });
+    } catch(e) {
+      toast('Could not verify plan limits. Check your connection and try again.', 'err');
+      return;
+    }
+    if (limRes?.error) {
+      toast('Could not verify plan limits. Check your connection and try again.', 'err');
+      return;
+    }
+    const maxProjects     = limRes.data?.max_projects ?? 0;
+    const currentProjects = gprojects().length;
+    if (maxProjects > 0 && currentProjects >= maxProjects) {
+      toast(`Project limit reached — your plan allows ${maxProjects} project${maxProjects > 1 ? 's' : ''}. Upgrade to add more.`, 'err');
+      return;
+    }
   }
 
   const btn = document.getElementById('prj-save-btn');
@@ -1128,7 +1132,11 @@ async function saveProjectForm() {
     const result = await saveProject(prjData);
     if (!result || result._error) {
       const e = result?._error;
-      toast((e ? `${e.message} (${e.code})` : 'Unknown error — check console'), 'err');
+      if (e?.message?.startsWith('plan_limit:')) {
+        toast('Project limit reached — upgrade your plan to add more projects.', 'err');
+      } else {
+        toast((e ? `${e.message} (${e.code})` : 'Unknown error — check console'), 'err');
+      }
       return;
     }
 

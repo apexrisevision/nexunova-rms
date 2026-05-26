@@ -383,9 +383,9 @@ const PW = {
               <div style="font-size:11px;color:rgba(255,255,255,.22);margin-top:4px">JPG, PNG or PDF — max 5 MB</div>
             </div>
           </div>
-          <div id="pw-file-info" style="display:none;align-items:center;gap:10px;padding:10px 13px;background:rgba(0,217,255,.06);border:1px solid rgba(0,217,255,.2);border-radius:8px;margin-top:8px">
-            <svg width="14" height="14" fill="none" stroke="rgba(0,217,255,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span id="pw-file-name" style="font-size:12px;color:rgba(0,217,255,.85);font-family:'Space Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+          <div id="pw-file-info" style="display:none;align-items:center;gap:10px;padding:10px 13px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;margin-top:8px">
+            <svg width="14" height="14" fill="none" stroke="rgba(99,102,241,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="pw-file-name" style="font-size:12px;color:rgba(99,102,241,.9);font-family:'Space Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
             <button onclick="PW._clearFile()" style="background:none;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:16px;padding:0;line-height:1;flex-shrink:0" title="Remove file">✕</button>
           </div>
           <div id="pw-img-preview" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.08);max-height:200px">
@@ -535,7 +535,7 @@ const PW = {
         Contact us on WhatsApp to Renew
       </a>
       <div style="margin-top:12px;text-align:center;font-size:12px;color:rgba(255,255,255,.3)">
-        or email <a href="mailto:sales@nexunova.com" style="color:rgba(0,212,255,.6)">sales@nexunova.com</a>
+        or email <a href="mailto:sales@nexunova.com" style="color:rgba(99,102,241,.8)">sales@nexunova.com</a>
       </div>
       <button class="pw2-btn-ghost" onclick="PW._logout()" style="margin-top:16px">Sign out</button>
     `);

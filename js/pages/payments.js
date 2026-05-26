@@ -384,6 +384,10 @@ function _pymRenderSchedule(data) {
       ? `<span style="font-size:11px;color:var(--ok);font-weight:600">✓ Paid</span>`
       : `<button class="btn ${rowIsDue ? 'btn-g' : 'btn-gh'} btn-xs" onclick="_pymPickMethod(${i}, false)">Receive</button>`;
 
+    const _instId  = _pymRows[i] ? _pymRows[i].installmentId : null;
+    const deferBtn = (!isPaid && (S.role === 'admin' || S.role === 'owner') && _instId && !isDP)
+      ? `<button class="btn btn-gh btn-xs" style="margin-left:4px" onclick="_pymDefer('${_instId}')" title="Defer due date">Defer</button>` : '';
+
     return `<tr${rowStyle ? ` style="${rowStyle}"` : ''}>
       <td style="font-family:monospace;font-size:11px;font-weight:600;color:${isDP ? 'var(--brand)' : 'var(--t3)'}">${numDisp}</td>
       <td>
@@ -398,7 +402,7 @@ function _pymRenderSchedule(data) {
       <td class="r mono" style="font-size:12px;color:${paid > 0 ? 'var(--ok)' : 'var(--t3)'}">${paid > 0 ? fM(paid) : '—'}</td>
       <td class="r mono" style="font-size:12px;color:${out > 0 ? 'var(--err)' : 'var(--t3)'}">${out > 0 ? fM(out) : '—'}</td>
       <td>${_pymStatusBadge(r.status || 'pending')}</td>
-      <td>${actionBtn}</td>
+      <td style="white-space:nowrap">${actionBtn}${deferBtn}</td>
     </tr>`;
   }).join('');
 
@@ -441,7 +445,10 @@ function _pymRenderSchedule(data) {
             <div style="font-size:16px;font-weight:700;color:var(--text)">${esc(u?.customerName || '—')}</div>
             <div style="font-size:12px;color:var(--t3);margin-top:3px">Unit ${esc(u?.unitNo || '—')}${u?.floorLabel ? ' · ' + esc(u.floorLabel) : ''}${u?.bookingNo ? ' · ' + esc(u.bookingNo) : ''}</div>
           </div>
-          <button class="btn btn-gh btn-sm" onclick="_pymPrintSchedule()" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-gh btn-sm" onclick="_pymOpenCompare()" style="display:inline-flex;align-items:center;gap:5px" title="Compare original vs current schedule"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>Compare</button>
+            <button class="btn btn-gh btn-sm" onclick="_pymPrintSchedule()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+          </div>
           ${(S.role==='admin'||S.role==='owner')&&typeof openAuditHistory==='function'?`<button class="btn btn-gh btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="openAuditHistory('sales','${_pymCurrentSale?.sale?.sale_id||''}','Sale History')"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>History</button>`:''}
 
         </div>
@@ -1270,19 +1277,21 @@ async function _pymSaveCustomAlloc() {
     // Auto-create PDC entry when post-dated cheque is received
     if (isCheque && isPDC && _pymCurrentSale?.sale?.sale_id) {
       const pdcNotes = [chequeDrawer ? `Drawer: ${chequeDrawer}` : '', notes || ''].filter(Boolean).join(' | ') || null;
-      await supabase.from('pdc_cheques').insert([{
-        company_id:    S.cid,
-        sale_id:       _pymCurrentSale.sale.sale_id,
-        client_id:     _pymCurrentSale.sale.client_id || null,
-        cheque_no:     chequeNo,
-        bank_name:     chequeBank || null,
-        amount:        totalAlloc,
-        cheque_date:   chequeDate,
-        received_date: pdate,
-        status:        'pending',
-        notes:         pdcNotes,
-        created_by:    S.name || S.userId || 'system'
-      }]);
+      await supabase.rpc('create_pdc_cheque', {
+        p_company_id: S.cid,
+        p_data: {
+          sale_id:       _pymCurrentSale.sale.sale_id,
+          client_id:     _pymCurrentSale.sale.client_id || null,
+          cheque_no:     chequeNo,
+          bank_name:     chequeBank || null,
+          amount:        totalAlloc,
+          cheque_date:   chequeDate,
+          received_date: pdate,
+          status:        'pending',
+          notes:         pdcNotes,
+          created_by:    S.name || S.userId || 'system'
+        }
+      });
     }
 
     cm('m-custom-alloc');
@@ -1330,6 +1339,23 @@ async function _pymSaveCustomAlloc() {
 // ── Receive click (by index into _pymRows) ────────────────────────
 // cascade=true  → auto mode: clears all due items oldest-first (used by "Pay All Due" banner btn)
 // cascade=false → manual mode: receives against THIS installment only, max = its outstanding
+// Defer an installment's due date (Module 4). Admin/owner only (button-gated).
+async function _pymDefer(installmentId) {
+  const def = new Date(Date.now() + 86400000 * 15).toISOString().slice(0, 10);
+  const nd  = prompt('Defer this installment to which due date? (YYYY-MM-DD)', def);
+  if (!nd) return;
+  const reason = prompt('Reason for deferral (optional):', '') || null;
+  try {
+    const { data, error } = await supabase.rpc('defer_installment', {
+      p_installment_id: installmentId, p_company_id: S.cid, p_new_due_date: nd, p_reason: reason
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Failed');
+    toast('Installment deferred to ' + nd, 'ok');
+    if (_pymCurrentUnitId) _pymShowPaymentView(_pymCurrentUnitId);
+  } catch(e) { toast(e.message || 'Defer failed', 'err'); }
+}
+
 function _pymClickReceiveIdx(idx, cascade) {
   cascade = cascade === true;
   const row = _pymRows[idx];
@@ -1688,19 +1714,21 @@ async function _pymSavePayment() {
     // Auto-create PDC entry when post-dated cheque is received
     if (isCheque && isPDC && _pymCurrentSale?.sale?.sale_id) {
       const pdcNotes = [chequeDrawer ? `Drawer: ${chequeDrawer}` : '', notes || ''].filter(Boolean).join(' | ') || null;
-      await supabase.from('pdc_cheques').insert([{
-        company_id:    S.cid,
-        sale_id:       _pymCurrentSale.sale.sale_id,
-        client_id:     _pymCurrentSale.sale.client_id || null,
-        cheque_no:     chequeNo,
-        bank_name:     chequeBank || null,
-        amount:        amt,
-        cheque_date:   chqDate,
-        received_date: pdate,
-        status:        'pending',
-        notes:         pdcNotes,
-        created_by:    S.name || S.userId || 'system'
-      }]);
+      await supabase.rpc('create_pdc_cheque', {
+        p_company_id: S.cid,
+        p_data: {
+          sale_id:       _pymCurrentSale.sale.sale_id,
+          client_id:     _pymCurrentSale.sale.client_id || null,
+          cheque_no:     chequeNo,
+          bank_name:     chequeBank || null,
+          amount:        amt,
+          cheque_date:   chqDate,
+          received_date: pdate,
+          status:        'pending',
+          notes:         pdcNotes,
+          created_by:    S.name || S.userId || 'system'
+        }
+      });
     }
 
     cm('m-payment');
@@ -1808,13 +1836,15 @@ async function savePDCForm() {
 
     let result;
     if (id) {
-      const { data, error } = await supabase.from('pdc_cheques').update(payload).eq('id', id).select();
+      const { data, error } = await supabase.rpc('update_pdc_cheque', { p_id: id, p_company_id: S.cid, p_data: payload });
       if (error) throw error;
-      result = data?.[0];
+      if (!data?.success) throw new Error(data?.error || 'Update failed');
+      result = { id };
     } else {
-      const { data, error } = await supabase.from('pdc_cheques').insert([payload]).select();
+      const { data, error } = await supabase.rpc('create_pdc_cheque', { p_company_id: S.cid, p_data: payload });
       if (error) throw error;
-      result = data?.[0];
+      if (!data?.success) throw new Error(data?.error || 'Create failed');
+      result = { id: data.id };
     }
     if (!result) { toast('Could not save PDC record', 'err'); return; }
 
@@ -1827,15 +1857,15 @@ async function savePDCForm() {
 
 async function deletePDCConfirm(id) {
   if (!confirm('Delete this PDC record?')) return;
-  const { error } = await supabase.from('pdc_cheques').delete().eq('id', id);
-  if (error) { toast('Could not delete PDC', 'err'); return; }
+  const { data, error } = await supabase.rpc('delete_pdc_cheque', { p_id: id, p_company_id: S.cid });
+  if (error || !data?.success) { toast('Could not delete PDC', 'err'); return; }
   toast('PDC deleted', 'ok');
   if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
 }
 
 async function updatePDCStatus(id, status) {
-  const { error } = await supabase.from('pdc_cheques').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) { toast('Could not update PDC status', 'err'); return; }
+  const { data, error } = await supabase.rpc('update_pdc_cheque', { p_id: id, p_company_id: S.cid, p_data: { status } });
+  if (error || !data?.success) { toast('Could not update PDC status', 'err'); return; }
   toast('PDC status updated', 'ok');
   if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
 }
@@ -1872,18 +1902,19 @@ async function saveBounceForm() {
     const penaltyCollected = document.getElementById('pdc-penalty-collected')?.checked || false;
     const penaltyNotes     = document.getElementById('pdc-penalty-notes')?.value?.trim() || null;
 
-    const { error } = await supabase.from('pdc_cheques').update({
-      status:            'bounced',
-      bounce_reason:     reason,
-      bounce_date:       bdate,
-      penalty_amount:    penaltyAmt || null,
-      penalty_date:      penaltyDate,
-      penalty_collected: penaltyCollected,
-      penalty_notes:     penaltyNotes,
-      updated_at:        new Date().toISOString()
-    }).eq('id', id);
+    const { data, error } = await supabase.rpc('update_pdc_cheque', {
+      p_id: id, p_company_id: S.cid, p_data: {
+        status:            'bounced',
+        bounce_reason:     reason,
+        bounce_date:       bdate,
+        penalty_amount:    penaltyAmt || null,
+        penalty_date:      penaltyDate,
+        penalty_collected: penaltyCollected,
+        penalty_notes:     penaltyNotes,
+      }
+    });
 
-    if (error) throw error;
+    if (error || !data?.success) throw new Error(error?.message || data?.error || 'Bounce update failed');
     cm('m-pdc-bounce');
     toast('Cheque marked as bounced', 'ok');
     const unitId = document.getElementById('pym-unit')?.value;
@@ -2078,5 +2109,164 @@ async function _pymSaveEditTx() {
     notify.error('Edit Failed', { detail: e.message });
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+  }
+}
+
+// ── Schedule Comparison (original vs current) ─────────────────────────────────
+
+let _pymCompareModal = null;
+
+function _pymCloseCompare() {
+  const m = document.getElementById('pym-compare-modal');
+  if (m) m.style.display = 'none';
+}
+
+async function _pymOpenCompare() {
+  if (!_pymCurrentSale?.sale?.sale_id) { toast('Select a unit first', 'warn'); return; }
+
+  // Inject modal if not present
+  if (!document.getElementById('pym-compare-modal')) {
+    const div = document.createElement('div');
+    div.id = 'pym-compare-modal';
+    div.className = 'mo';
+    div.style.display = 'none';
+    div.onclick = function(e) { if (e.target === this) _pymCloseCompare(); };
+    div.innerHTML = `
+      <div class="mo-box" style="max-width:900px;width:96vw">
+        <div class="mo-hd"><span>Schedule Comparison</span><button class="mo-cl" onclick="_pymCloseCompare()">✕</button></div>
+        <div class="mo-bd" id="pym-compare-body" style="padding:0"></div>
+        <div class="mo-ft">
+          <span id="pym-compare-caption" style="font-size:11px;color:var(--t3)"></span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gh btn-sm" id="pym-snapshot-btn" onclick="_pymCaptureSnapshot()">Capture Baseline Now</button>
+            <button class="btn btn-g btn-sm" onclick="_pymCloseCompare()">Close</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+  }
+
+  const modal = document.getElementById('pym-compare-modal');
+  const body  = document.getElementById('pym-compare-body');
+  const cap   = document.getElementById('pym-compare-caption');
+  const snapBtn = document.getElementById('pym-snapshot-btn');
+
+  modal.style.display = 'flex';
+  body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3)">Loading…</div>';
+  cap.textContent = '';
+
+  const saleId = _pymCurrentSale.sale.sale_id;
+  const { data, error } = await supabase.rpc('get_schedule_comparison', {
+    p_company_id: S.cid,
+    p_sale_id:    saleId
+  });
+
+  if (error) {
+    body.innerHTML = `<div style="padding:24px;color:var(--err)">${error.message}</div>`;
+    return;
+  }
+
+  if (!data.has_snapshot) {
+    body.innerHTML = `
+      <div style="padding:40px 24px;text-align:center">
+        <div style="font-size:36px;margin-bottom:12px">📋</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">No baseline captured yet</div>
+        <div style="font-size:13px;color:var(--t3);max-width:380px;margin:0 auto;line-height:1.6">
+          Capture the current schedule as a baseline before making changes (deferrals, restructures).
+          After capturing, future changes will be visible here as a side-by-side diff.
+        </div>
+      </div>`;
+    cap.textContent = '';
+    if (snapBtn) snapBtn.style.display = '';
+    return;
+  }
+
+  if (snapBtn) snapBtn.style.display = 'none';
+  const takenAt = data.taken_at ? new Date(data.taken_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+  cap.textContent = `Baseline captured: ${takenAt}`;
+
+  const snap = Array.isArray(data.snapshot) ? data.snapshot : [];
+  const curr = Array.isArray(data.current)  ? data.current  : [];
+
+  // Build unified row list aligned by installment_number
+  const allNums = [...new Set([...snap.map(r => r.installment_number), ...curr.map(r => r.installment_number)])].sort((a,b) => (a||0)-(b||0));
+
+  const typeLabel = t => ({ down_payment:'Down Pmt', installment:'Installment', possession:'Possession', custom:'Custom' }[t] || t || '—');
+  const statusBadge = s => {
+    const map = { pending:'#f59e0b', paid:'#22c55e', partial:'#38bdf8', overdue:'#ef4444' };
+    const c = map[s] || '#94a3b8';
+    return `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:12px;background:${c}22;color:${c}">${s||'—'}</span>`;
+  };
+  const fD = d => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+
+  let changed = 0;
+  const rows = allNums.map(num => {
+    const s = snap.find(r => r.installment_number === num);
+    const c = curr.find(r => r.installment_number === num);
+    const dateChanged = s && c && s.due_date !== c.due_date;
+    const amtChanged  = s && c && Number(s.amount) !== Number(c.amount);
+    if (dateChanged || amtChanged || (!s && c) || (s && !c)) changed++;
+    const diffMark = (dateChanged || amtChanged) ? `<span title="Changed" style="color:#f59e0b;font-weight:700">△</span>` : '';
+    return `
+      <tr style="${(!s || !c) ? 'background:rgba(239,68,68,.04)' : (dateChanged||amtChanged)?'background:rgba(245,158,11,.05)':''}">
+        <td style="width:28px;text-align:center;font-size:11px;color:var(--t3)">${num||'—'}</td>
+        <td style="font-size:11px;color:var(--t2)">${typeLabel(s?.installment_type||c?.installment_type)}</td>
+        <!-- Original -->
+        <td class="r mono" style="font-size:12px;${amtChanged?'color:#f59e0b;font-weight:700':''}">${s ? 'PKR '+fM(s.amount) : '<span style="color:var(--t3)">—</span>'}</td>
+        <td style="font-size:12px;${dateChanged?'color:#f59e0b;font-weight:700':''}">${s ? fD(s.due_date) : '<span style="color:var(--t3)">—</span>'}</td>
+        <!-- Current -->
+        <td class="r mono" style="font-size:12px;${amtChanged?'color:#3b82f6;font-weight:700':''}">${c ? 'PKR '+fM(c.amount) : '<span style="color:var(--err)">Removed</span>'}</td>
+        <td style="font-size:12px;${dateChanged?'color:#3b82f6;font-weight:700':''}">${c ? fD(c.due_date) : '—'}</td>
+        <td>${c ? statusBadge(c.status) : ''}</td>
+        <td style="text-align:center">${diffMark}</td>
+      </tr>`;
+  }).join('');
+
+  const legend = changed > 0
+    ? `<div style="display:flex;gap:16px;align-items:center;font-size:11px;color:var(--t3)"><span style="color:#f59e0b;font-weight:700">△</span> ${changed} change${changed>1?'s':''} detected &nbsp;|&nbsp; <span style="color:#f59e0b">amber</span> = original &nbsp;·&nbsp; <span style="color:#3b82f6">blue</span> = current</div>`
+    : `<div style="font-size:11px;color:var(--ok)">✓ No changes from baseline</div>`;
+
+  body.innerHTML = `
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+      ${legend}
+      <div style="display:flex;gap:24px;font-size:11px">
+        <span style="font-weight:700;padding:2px 10px;border-radius:4px;background:rgba(245,158,11,.1);color:#f59e0b">Original</span>
+        <span style="font-weight:700;padding:2px 10px;border-radius:4px;background:rgba(59,130,246,.1);color:#3b82f6">Current</span>
+      </div>
+    </div>
+    <div class="tw">
+      <table class="t">
+        <thead>
+          <tr>
+            <th style="width:28px">#</th>
+            <th>Type</th>
+            <th class="r" style="color:#f59e0b">Orig. Amount</th>
+            <th style="color:#f59e0b">Orig. Due Date</th>
+            <th class="r" style="color:#3b82f6">Curr. Amount</th>
+            <th style="color:#3b82f6">Curr. Due Date</th>
+            <th>Status</th>
+            <th style="width:24px"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+async function _pymCaptureSnapshot() {
+  if (!_pymCurrentSale?.sale?.sale_id) return;
+  const btn = document.getElementById('pym-snapshot-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Capturing…'; }
+  try {
+    const { data, error } = await supabase.rpc('snapshot_installment_schedule', {
+      p_company_id: S.cid,
+      p_sale_id:    _pymCurrentSale.sale.sale_id
+    });
+    if (error) throw error;
+    toast(`Baseline captured (${data?.count || 0} installments)`, 'ok');
+    await _pymOpenCompare();
+  } catch(e) {
+    notify.error('Snapshot Failed', { detail: e.message });
+    if (btn) { btn.disabled = false; btn.textContent = 'Capture Baseline Now'; }
   }
 }

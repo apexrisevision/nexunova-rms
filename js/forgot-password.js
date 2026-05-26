@@ -66,20 +66,37 @@ async function fpSubmit() {
       return;
     }
 
+    const { data: emailExists } = await supabase
+      .rpc('check_email_exists', { p_email: email })
+      .catch(() => ({ data: null }));
+
+    if (emailExists === false) {
+      if (btn)     btn.disabled = false;
+      if (btnSpan) btnSpan.textContent = 'Send Reset Link';
+      notify.error('No account found with this email address.');
+      return;
+    }
+
     const isElectron = typeof window.electronWindow !== 'undefined';
     const redirectTo = isElectron
       ? 'nexunovarms://auth/callback?flow=reset'
       : window.location.origin + '/login.html?flow=reset';
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    // FIX 3: Log internally but NEVER surface to user — prevents email enumeration
-    if (error) console.warn('[fpSubmit] reset request (not shown to user):', error.message);
+    if (error) {
+      if (btn)     btn.disabled = false;
+      if (btnSpan) btnSpan.textContent = 'Send Reset Link';
+      notify.error('No account found with this email address.');
+      return;
+    }
 
   } catch (e) {
-    console.warn('[fpSubmit] unexpected error (not shown to user):', e.message);
+    if (btn)     btn.disabled = false;
+    if (btnSpan) btnSpan.textContent = 'Send Reset Link';
+    notify.error('No account found with this email address.');
+    return;
   }
 
-  // FIX 3: Always show same success message regardless of outcome
   _fpShowAlwaysSuccess(email);
 }
 

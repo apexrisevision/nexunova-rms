@@ -204,16 +204,8 @@ const SV = {
           }
         } catch(_) { /* RPC may not exist yet — fall through */ }
 
-        if (taken === null) {
-          // Fallback: query companies table directly
-          const { data: rows, error: qErr } = await supabase
-            .from('companies')
-            .select('id', { count: 'exact', head: true })
-            .eq('code', slug);
-          if (!qErr) taken = (rows === null ? false : false); // head:true returns null data on 0 rows
-          // count-based check
-          if (!qErr && typeof rows === 'number') taken = rows > 0;
-        }
+        // No fallback to direct table query — RPC is authoritative
+        // (was: .from('companies') head-count check, removed for security lockdown)
 
         if (taken === null) {
           // Could not determine — clear hint and allow progression

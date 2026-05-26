@@ -38,7 +38,7 @@
 [data-theme="light"] .btn-gh:hover {
   background: rgba(0,0,0,0.07); border-color: rgba(0,0,0,0.16); color: var(--text);
 }
-[data-theme="light"] .btn-g  { box-shadow: 0 2px 8px rgba(99,102,241,0.25); }
+[data-theme="light"] .btn-g  { box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
 [data-theme="light"] .btn-gr { box-shadow: 0 2px 8px rgba(16,185,129,0.22); }
 [data-theme="light"] .btn-d  { box-shadow: 0 2px 8px rgba(59,130,246,0.22); }
 

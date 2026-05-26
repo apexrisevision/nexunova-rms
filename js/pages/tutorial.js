@@ -62,17 +62,9 @@ const TUT = (function () {
   async function _fetchCounts() {
     if (!window.supabase || !window.S) return;
     try {
-      const [sRes, pRes] = await Promise.all([
-        supabase.from('sales')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', S.cid),
-        supabase.from('installments')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', S.cid)
-          .gt('amount_paid', 0)
-      ]);
-      _dbCounts.sales    = sRes.count || 0;
-      _dbCounts.payments = pRes.count || 0;
+      const { data } = await supabase.rpc('get_tutorial_counts', { p_company_id: S.cid });
+      _dbCounts.sales    = Number(data?.sales || 0);
+      _dbCounts.payments = Number(data?.payments || 0);
     } catch (e) {
       console.warn('[TUT] fetchCounts:', e);
     }

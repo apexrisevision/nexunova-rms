@@ -14,11 +14,9 @@ window._healthScoresCache = {}; // client_id → {score, category, total_exposur
 
 async function loadHealthScoresCache(companyId) {
   try {
-    const { data } = await supabase.from('client_health_scores')
-      .select('client_id,score,category,total_exposure,score_breakdown,last_calculated')
-      .eq('company_id', companyId);
+    const { data } = await supabase.rpc('get_clients_by_health_category', { p_company_id: companyId });
     window._healthScoresCache = {};
-    (data || []).forEach(r => { window._healthScoresCache[r.client_id] = r; });
+    (Array.isArray(data) ? data : []).forEach(r => { window._healthScoresCache[r.client_id] = r; });
   } catch(e) { console.warn('[loadHealthScoresCache]', e); }
 }
 
@@ -115,7 +113,7 @@ function rClients() {
     <h1 class="inv-title">All Clients</h1>
     <div class="inv-ph-actions">
       <button class="btn btn-gh btn-sm" onclick="printClientsList()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.printer} Print</button>
-      ${isA ? `<button class="btn btn-g btn-sm" onclick="openClientModal(null)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Client</button>` : ''}
+      ${isA ? `<button id="um-add-client-btn" class="btn btn-g btn-sm" onclick="openClientModal(null)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Client</button>` : ''}
     </div>
   </div>
 
@@ -171,6 +169,23 @@ function rClients() {
 
   _clRenderAFBar();
   rCLF();
+  _checkClientLimitUI();
+}
+
+async function _checkClientLimitUI() {
+  const btn = document.getElementById('um-add-client-btn');
+  if (!btn) return;
+  try {
+    const { data, error } = await supabase.rpc('get_clients_plan_status', { p_company_id: S.cid });
+    if (error || !data) return;
+    const maxClients     = data.max_allowed ?? 0;
+    const currentClients = data.current_count ?? 0;
+    if (maxClients > 0 && currentClients >= maxClients) {
+      btn.disabled    = true;
+      btn.title       = `Client limit reached (${currentClients}/${maxClients}). Upgrade your plan to add more.`;
+      btn.textContent = `+ Add Client (${currentClients}/${maxClients})`;
+    }
+  } catch(e) { /* UI hint only — not blocking */ }
 }
 
 function _clFCDropdown(type, btn) {
@@ -451,6 +466,7 @@ function rClientDetail() {
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
       <button class="bk" onclick="nav('clients')">← Back</button>
       <button class="btn btn-print btn-sm" onclick="printClientDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+      <button class="btn btn-sm" onclick="openLedgerReport('${clientId}')" style="background:#1e2d47;color:#fff;border:1px solid #1e2d47;display:inline-flex;align-items:center;gap:5px" title="A4 Account Ledger"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>A4 Ledger</button>
       ${isA ? `<button class="btn btn-gh btn-sm" onclick="openClientModal('${clientId}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
       ${isA && c.status !== 'inactive'    ? `<button class="btn btn-d btn-sm" onclick="setClientStatus('${clientId}','inactive')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Deactivate</button>`    : ''}
       ${isA && c.status !== 'blacklisted' ? `<button class="btn btn-r btn-sm" onclick="setClientStatus('${clientId}','blacklisted')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Blacklist</button>`   : ''}
@@ -900,6 +916,7 @@ async function _cdLoadHealth(clientId) {
             ${bLine('','Promises kept',     bd.kept_promises||0,    'var(--ok)')}
             ${bLine('','Promises broken',   bd.broken_promises||0,  'var(--err)')}
             ${bLine('','PDC bounces',       bd.pdc_bounces||0,      bd.pdc_bounces>0?'var(--err)':'var(--t3)')}
+            ${bLine('','Active legal cases', bd.legal_active_cases||0, bd.legal_active_cases>0?'var(--err)':'var(--t3)')}
             <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
               <span style="font-size:12px;color:var(--ok);font-weight:600">+ Points added</span>
               <span style="font-weight:700;color:var(--ok)">+${bd.points_added||0}</span>
@@ -930,6 +947,7 @@ async function _cdLoadHealth(clientId) {
               ['Missed call',       '-10', 'var(--err)'],
               ['Promise broken',    '-20', 'var(--err)'],
               ['PDC bounce',        '-25', 'var(--err)'],
+              ['Active legal case', '-20', 'var(--err)'],
             ].map(([l,v,c]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)">
               <span style="font-size:12px;color:var(--t2)">${l}</span>
               <span style="font-weight:700;color:${c}">${v}</span>
@@ -952,7 +970,74 @@ async function _cdLoadHealth(clientId) {
           </div>
         </div>
       </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="ch" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <h3>Score History</h3>
+        <span style="font-size:11px;color:var(--t3)">higher = healthier · lower = higher default risk</span>
+      </div>
+      <div class="cb">
+        <div id="cd-health-hist-wrap" style="height:220px;position:relative">
+          <canvas id="cd-health-hist-canvas"></canvas>
+        </div>
+      </div>
     </div>`;
+
+  _cdRenderHealthHistory(clientId);
+}
+
+// Per-client risk/health score history chart (Module 1.1).
+// Reads durable history captured by calculate_client_health_score.
+let _cdHealthChart = null;
+async function _cdRenderHealthHistory(clientId) {
+  const wrap = document.getElementById('cd-health-hist-wrap');
+  if (!wrap) return;
+
+  let series = [];
+  try {
+    const { data, error } = await supabase.rpc('get_client_health_history', {
+      p_client_id: clientId, p_company_id: S.cid, p_limit: 60
+    });
+    if (error) throw error;
+    series = Array.isArray(data) ? data : [];
+  } catch(e) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">Could not load history: ${esc(e.message||'error')}</div>`;
+    return;
+  }
+
+  if (series.length < 2) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">Not enough history yet — a point is captured each time the score is recalculated. Check back after the next recalculation.</div>`;
+    return;
+  }
+
+  if (typeof Chart === 'undefined') {
+    wrap.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--t2)">' +
+      series.map(p => `${fD(p.calculated_at)}: <b>${p.score}</b>`).join(' &nbsp;·&nbsp; ') + '</div>';
+    return;
+  }
+
+  const labels = series.map(p => fD(p.calculated_at));
+  const scores = series.map(p => Number(p.score));
+  const ctx = document.getElementById('cd-health-hist-canvas');
+  if (_cdHealthChart) { try { _cdHealthChart.destroy(); } catch(e) {} _cdHealthChart = null; }
+  _cdHealthChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Health score',
+        data: scores,
+        borderColor: '#6C63FF',
+        backgroundColor: 'rgba(108,99,255,.12)',
+        fill: true, tension: .3, pointRadius: 3, borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { min: 0, max: 100, ticks: { stepSize: 25 } } },
+      plugins: { legend: { display: false } }
+    }
+  });
 }
 
 async function _cdLoadLedger(clientId) {
@@ -1234,19 +1319,23 @@ async function saveClientForm() {
 
   // Plan limit check — only for new clients, not edits
   if (!existingId) {
+    let planRes;
     try {
-      const [subRes, clientRes] = await Promise.all([
-        supabase.from('subscriptions').select('subscription_plans(max_clients)')
-          .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('company_id', S.cid)
-      ]);
-      const maxClients    = subRes.data?.subscription_plans?.max_clients ?? 0;
-      const currentClients = clientRes.count || 0;
-      if (maxClients > 0 && currentClients >= maxClients) {
-        toast(`Client limit reached — your plan allows ${maxClients} clients. Upgrade to add more.`, 'err');
-        return;
-      }
-    } catch(e) { /* non-blocking */ }
+      planRes = await supabase.rpc('get_clients_plan_status', { p_company_id: S.cid });
+    } catch(e) {
+      toast('Could not verify plan limits. Check your connection and try again.', 'err');
+      return;
+    }
+    if (planRes?.error || !planRes?.data) {
+      toast('Could not verify plan limits. Check your connection and try again.', 'err');
+      return;
+    }
+    const maxClients     = planRes.data.max_allowed ?? 0;
+    const currentClients = planRes.data.current_count ?? 0;
+    if (maxClients > 0 && currentClients >= maxClients) {
+      toast(`Client limit reached — your plan allows ${maxClients} clients. Upgrade to add more.`, 'err');
+      return;
+    }
   }
 
   const btn = document.getElementById('cf-save-btn');
@@ -1302,7 +1391,9 @@ async function saveClientForm() {
     }
 
     if (!result?.success) {
-      if (result?.duplicate_field === 'cnic') {
+      if (result?.error === 'plan_limit') {
+        toast(result.message || 'Client limit reached. Upgrade your plan to add more clients.', 'err');
+      } else if (result?.duplicate_field === 'cnic') {
         setErr('e-cf-cnic', 'CNIC already registered to another client');
       } else {
         toast(result?.error || 'Save failed', 'err');

@@ -293,9 +293,22 @@ function _sbi(name, size){
 function buildSB(){
   const fus  = gfus();
   const role = effectiveRole();
-  const isA  = role==='admin'||role==='owner';
-  const isR  = role==='recovery';
-  const isAc = role==='accounts';
+  // Canonical roles (master context §2): owner, admin, recovery_officer, finance, manager.
+  // Legacy aliases preserved for backward compat: 'recovery' = recovery_officer, 'accounts' = finance.
+  const isA  = role==='admin' || role==='owner';
+  const isR  = role==='recovery' || role==='recovery_officer';
+  const isAc = role==='accounts' || role==='finance';
+  const isM  = role==='manager';
+  // Body role classes so CSS / pages can target the active role (e.g. `.role-readonly .btn-primary { display:none }`)
+  const _bc = document.body.classList;
+  ['role-admin','role-recovery','role-finance','role-manager','role-readonly'].forEach(c => _bc.remove(c));
+  if (isA)  _bc.add('role-admin');
+  if (isR)  _bc.add('role-recovery');
+  if (isAc) _bc.add('role-finance');
+  if (isM)  { _bc.add('role-manager'); _bc.add('role-readonly'); }   // Manager = full read-only across the app
+  // Finance "sleep" (master context §2): hide the Finance group everywhere if no active finance user exists.
+  // Loaded at login by auth.js _loadRoleContext().
+  const _hasFinanceUser = !!(typeof S !== 'undefined' && S && S.hasFinanceUser);
 
   // Overdue count (matches dashboard strip)
   const units     = typeof gunits==='function'?gunits():[];
@@ -407,6 +420,37 @@ function buildSB(){
         { id:'documents', ic:'printer',     lb:'Documents' },
       ]},
     ];
+  } else if(isM){
+    // Manager — broad read-only access (NO admin-only System group: Users/Settings/Audit/Backup)
+    navGroups = [
+      { label: 'Main', items: [
+        { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
+        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
+      ]},
+      { label: 'Operations', items: [
+        { id:'recovery-dashboard', ic:'target',  lb:'Recovery Dashboard' },
+        { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
+        { id:'projects',       ic:'building-2',  lb:'Projects' },
+        { id:'units',          ic:'home',        lb:'All Units', bdg:totalU||null },
+        { id:'sales',          ic:'file-text',   lb:'Sales & Bookings' },
+        { id:'cancelledunits', ic:'tag',         lb:'Cancelled Units' },
+        { id:'transferunits',  ic:'repeat',      lb:'Transferred Units' },
+        { id:'clients',        ic:'user-check',  lb:'Clients' },
+        { id:'agents',         ic:'users',       lb:'Sales Agents' },
+        { id:'promises',       ic:'handshake',   lb:'Promise Tracker' },
+        { id:'campaigns',      ic:'megaphone',   lb:'Campaigns' },
+        { id:'reminders',      ic:'bell',        lb:'Reminders' },
+        { id:'contacts',       ic:'phone',       lb:'Call Logs' },
+        { id:'fieldvisits',    ic:'map-pin',     lb:'Field Visits' },
+      ]},
+      { label: 'Finance', items: [
+        { id:'receipts',    ic:'receipt',          lb:'Receipt Vouchers' },
+        { id:'pdc',         ic:'calendar-clock',   lb:'PDC Register' },
+        { id:'commissions', ic:'trending-up',      lb:'Commissions' },
+        { id:'reports',     ic:'bar-chart-3',      lb:'Reports' },
+        { id:'ledgers',     ic:'book-open',        lb:'Ledgers' },
+      ]},
+    ];
   } else {
     // manager, staff, or any other role — permission-driven sidebar
     // Only include modules the user has explicit access to via module_permissions
@@ -430,6 +474,13 @@ function buildSB(){
     if(allowedItems.length){
       navGroups.push({ label:'My Modules', items: allowedItems });
     }
+  }
+
+  // Finance sleep — strip the Finance group if no active finance user exists in the company.
+  // Admin/owner ALWAYS keep Finance: in a small company with no dedicated finance hire, the
+  // admin records receipts/PDCs themselves, so hiding it would break core flows.
+  if (!_hasFinanceUser && !isA) {
+    navGroups = navGroups.filter(g => g.label !== 'Finance');
   }
 
   // ── Build HTML ──
@@ -456,9 +507,11 @@ function buildSB(){
 
   document.getElementById('sb-nav').innerHTML = html;
 
-  // Setup Wizard shortcut — visible only to admin/owner
+  // Setup Wizard shortcut — only visible to admin/owner AND only while onboarding is incomplete.
+  // Once onboarding_complete=true, hide it (re-run via Admin → Settings later if needed).
   const _wizBtn = document.getElementById('sb-wizard-btn');
-  if(_wizBtn) _wizBtn.style.display = isA ? 'flex' : 'none';
+  const _obDone = !!(typeof S !== 'undefined' && S && S.onboardingComplete);
+  if(_wizBtn) _wizBtn.style.display = (isA && !_obDone) ? 'flex' : 'none';
 
   // Expose nav groups for the aurora-topbar mega menu (same data, same source of truth)
   window._navGroups = navGroups;

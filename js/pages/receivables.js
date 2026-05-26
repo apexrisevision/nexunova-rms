@@ -80,11 +80,7 @@ function _recvSetFilter(f, el) {
 }
 
 async function _recvLoad() {
-  const { data } = await supabase
-    .from('additional_receivables')
-    .select(`*, clients(client_name, client_code), sales(sale_number, units(unit_number))`)
-    .eq('company_id', S.cid)
-    .order('created_at', { ascending: false });
+  const { data } = await supabase.rpc('list_additional_receivables', { p_company_id: S.cid });
   _recvData = data || [];
   _recvRender();
 }
@@ -155,17 +151,13 @@ function _recvRender() {
 }
 
 async function _recvPopulateSales() {
-  const { data } = await supabase
-    .from('sales')
-    .select('id, sale_number, client_id, clients(client_name), units(unit_number)')
-    .eq('company_id', S.cid)
-    .order('sale_number');
+  const { data } = await supabase.rpc('list_sales_lookup', { p_company_id: S.cid });
   const sel = document.getElementById('recv-sale_id');
   if (!sel || !data) return;
   data.forEach(s => {
     const o = document.createElement('option');
     o.value = s.id;
-    o.textContent = `${s.sale_number} — ${s.clients?.client_name || '?'} (${s.units?.unit_number || '?'})`;
+    o.textContent = `${s.sale_number} — ${s.clients?.client_name || '?'} (${s.units?.unit_number || s.units?.unit_no || '?'})`;
     sel.appendChild(o);
   });
 }
@@ -191,19 +183,21 @@ async function _recvSave() {
   const btn = document.getElementById('recv-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const sale = await supabase.from('sales').select('client_id, unit_id').eq('id', saleId).single();
-  const { error } = await supabase.from('additional_receivables').insert({
-    company_id: S.cid,
-    sale_id: saleId,
-    client_id: sale.data?.client_id || null,
-    unit_id: sale.data?.unit_id || null,
-    description: desc,
-    amount: Number(amount),
-    due_date: document.getElementById('recv-due_date').value || null,
-    notes: document.getElementById('recv-notes').value.trim() || null,
-    status: 'pending',
-    paid_amount: 0,
-    created_by: S.uid,
+  const sale = await supabase.rpc('get_sale_for_lookup', { p_sale_id: saleId, p_company_id: S.cid });
+  const { error } = await supabase.rpc('create_additional_receivable', {
+    p_company_id: S.cid,
+    p_data: {
+      sale_id: saleId,
+      client_id: sale.data?.client_id || null,
+      unit_id: sale.data?.unit_id || null,
+      description: desc,
+      amount: Number(amount),
+      due_date: document.getElementById('recv-due_date').value || null,
+      notes: document.getElementById('recv-notes').value.trim() || null,
+      status: 'pending',
+      paid_amount: 0,
+      created_by: S.uid,
+    }
   });
 
   btn.disabled = false; btn.textContent = 'Save';
@@ -236,11 +230,15 @@ async function _recvCollectConfirm() {
   const newPaid = Number(rec?.paid_amount || 0) + Number(amt);
   const newStatus = newPaid >= Number(rec?.amount || 0) ? 'paid' : 'partial';
 
-  const { error } = await supabase.from('additional_receivables').update({
-    paid_amount: newPaid,
-    paid_date: date,
-    status: newStatus,
-  }).eq('id', _recvCollectId);
+  const { error } = await supabase.rpc('update_additional_receivable', {
+    p_id: _recvCollectId,
+    p_company_id: S.cid,
+    p_data: {
+      paid_amount: newPaid,
+      paid_date: date,
+      status: newStatus,
+    }
+  });
 
   btn.disabled = false;
   if (error) { errEl.textContent = error.message; return; }
@@ -251,7 +249,7 @@ async function _recvCollectConfirm() {
 
 async function _recvDelete(id) {
   if (!confirm('Delete this receivable?')) return;
-  await supabase.from('additional_receivables').delete().eq('id', id);
+  await supabase.rpc('delete_additional_receivable', { p_id: id, p_company_id: S.cid });
   await _recvLoad();
   if (typeof toast === 'function') toast('Deleted', 'ok');
 }

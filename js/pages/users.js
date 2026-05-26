@@ -54,14 +54,10 @@ async function _checkUserLimitUI() {
   const btn = document.getElementById('um-add-btn');
   if (!btn) return;
   try {
-    const [subRes, usersRes] = await Promise.all([
-      supabase.from('subscriptions').select('subscription_plans(max_users)')
-        .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('app_users').select('id', { count: 'exact', head: true }).eq('company_id', S.cid).eq('status', 'active')
-    ]);
-    if (subRes?.error || usersRes?.error) return;
-    const maxUsers    = subRes.data?.subscription_plans?.max_users ?? 0;
-    const currentUsers = usersRes.count || 0;
+    const { data, error } = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: S.cid });
+    if (error) return;
+    const maxUsers     = data?.max_users || 0;
+    const currentUsers = data?.count_users || 0;
     if (maxUsers > 0 && currentUsers >= maxUsers) {
       btn.disabled = true;
       btn.title = `User limit reached (${currentUsers}/${maxUsers}). Upgrade your plan to add more.`;
@@ -304,25 +300,21 @@ async function saveUserModal() {
 
   // Plan limit check — only when creating a new user, not editing
   if (!isEdit) {
-    let subRes, usersRes;
+    let limRes;
     try {
-      [subRes, usersRes] = await Promise.all([
-        supabase.from('subscriptions').select('subscription_plans(max_users)')
-          .eq('company_id', S.cid).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('app_users').select('id', { count: 'exact', head: true }).eq('company_id', S.cid).eq('status', 'active')
-      ]);
+      limRes = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: S.cid });
     } catch(e) {
       errEl.textContent = 'Could not verify plan limits. Please check your connection and try again.';
       errEl.style.display = '';
       return;
     }
-    if (subRes?.error || usersRes?.error) {
+    if (limRes?.error) {
       errEl.textContent = 'Could not verify plan limits. Please check your connection and try again.';
       errEl.style.display = '';
       return;
     }
-    const maxUsers    = subRes.data?.subscription_plans?.max_users ?? 0;
-    const currentUsers = usersRes.count || 0;
+    const maxUsers     = limRes.data?.max_users || 0;
+    const currentUsers = limRes.data?.count_users || 0;
     if (maxUsers > 0 && currentUsers >= maxUsers) {
       errEl.textContent = `User limit reached — your plan allows ${maxUsers} users. Upgrade your plan to add more team members.`;
       errEl.style.display = '';
@@ -360,6 +352,14 @@ async function saveUserModal() {
 
     if (error) throw error;
     if (!res?.success) throw new Error(res?.message || 'Operation failed.');
+
+    if (isEdit) {
+      if (typeof loadAppUsersCache === 'function') loadAppUsersCache(S.cid).catch(() => {});
+      if (uid === S.userId) {
+        S.permissions = modulePerms;
+        sessionStorage.setItem('nxn_sess', JSON.stringify(S));
+      }
+    }
 
     cm('m-user');
     notify.success(isEdit ? 'User updated.' : `User created. Username: ${res.username}`, { duration: 4000 });

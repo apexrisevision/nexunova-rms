@@ -148,6 +148,21 @@ async function doLogin(){
     const user    = res.user;
     const company = res.company;
 
+    // Establish a real Supabase auth session so auth.uid() works app-wide (Phase-1 RPCs).
+    // verify_login has just re-synced auth.users, so this matches the password just typed.
+    if (user.email) {
+      const { error: _authErr } = await supabase.auth.signInWithPassword({ email: user.email, password: pass });
+      if (_authErr) console.warn('[auth] supabase session bridge failed:', _authErr.message);
+    }
+
+    // Force password change: first login (needs_password_reset) OR expired password.
+    const _pwExpired = user.password_expires_at && new Date(user.password_expires_at) < new Date();
+    if (user.needs_password_reset === true || _pwExpired) {
+      _btnReset();
+      _showForcePasswordChange(user, company, _pwExpired ? 'expired' : 'first_login');
+      return;
+    }
+
     await _completeLogin(user, company);
 
   } catch(e){
@@ -279,6 +294,7 @@ async function _completeLogin(user, company) {
 
   if(typeof updateCoLogo   === 'function') updateCoLogo();
   if(typeof startLeakGuard === 'function') startLeakGuard();
+  await _loadRoleContext(company.id, user.id, user.role);   // hasFinanceUser + assignedProjectIds for buildSB / data filters
   buildSB();
 
   if(company.onboarding_complete === false && typeof OB !== 'undefined'){
@@ -294,10 +310,50 @@ async function _completeLogin(user, company) {
   notify.success(`Welcome, ${user.name}`, { duration: 2500 });
   _startSessionCheck();
   _startIdleTimer();
+  _registerSession();   // record this device/session in user_sessions (create_session RPC)
   _logAuthEvent(company.id, { event_type:'login_success', user_id:user.id, username:user.username });
   if (typeof loadCobranding    === 'function') loadCobranding();
   if (typeof loadFeatureFlags  === 'function') loadFeatureFlags();
   _loadSubscription();
+}
+
+// ── Role context loader (called from _completeLogin before buildSB) ──────────
+// Populates S.hasFinanceUser (drives Finance-group "sleep" in the sidebar) and
+// S.assignedProjectIds (for non-admin client-side data filtering by site). Helper
+// hasProjectAccess(pid) below is a global filter for caches/lists.
+async function _loadRoleContext(companyId, userId, role) {
+  // (a) Is there an ACTIVE finance user in the company? (Finance role sleeps until true.)
+  try {
+    const { data: lu } = await supabase.rpc('list_app_users', { p_company_id: companyId });
+    const users = Array.isArray(lu) ? lu : (Array.isArray(lu?.rows) ? lu.rows : []);
+    S.hasFinanceUser = users.some(u => (u.role === 'finance' || u.role === 'accounts') && (u.status || 'active') === 'active');
+  } catch(_) { S.hasFinanceUser = false; }
+
+  // (b) For non-admin users, load assigned project IDs so pages can filter caches client-side.
+  // Admin / owner see everything (null = no filter).
+  const isAdminLike = role === 'admin' || role === 'owner';
+  if (isAdminLike) {
+    S.assignedProjectIds = null;
+    S.isProjectAdmin = true;
+  } else {
+    try {
+      const { data: gp } = await supabase.rpc('get_user_projects', { p_user_id: userId });
+      const rows = Array.isArray(gp?.rows) ? gp.rows : (Array.isArray(gp) ? gp : []);
+      S.assignedProjectIds = rows.map(r => r.project_id).filter(Boolean);
+      S.isProjectAdmin = !!gp?.is_admin;
+    } catch(_) { S.assignedProjectIds = []; S.isProjectAdmin = false; }
+  }
+  // Persist updated S
+  try { sessionStorage.setItem('nxn_sess', JSON.stringify(S)); } catch(_){}
+}
+
+// Global helper: does the caller currently have access to a given project_id?
+// Returns true for admin/owner (no scoping), or if the project is in S.assignedProjectIds.
+function hasProjectAccess(pid) {
+  if (!pid) return true;
+  if (!S) return false;
+  if (S.assignedProjectIds === null) return true;          // admin / owner
+  return Array.isArray(S.assignedProjectIds) && S.assignedProjectIds.includes(pid);
 }
 
 async function _loadSubscription() {
@@ -328,8 +384,100 @@ async function _loadSubscription() {
   } catch(_) {}
 }
 
+// ── Device / session tracking ────────────────────────────────────────
+async function _registerSession() {
+  try {
+    let tokenHash = null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const tok = session?.access_token;
+      if (tok && window.crypto?.subtle) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(tok));
+        tokenHash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+      }
+    } catch(_) {}
+    if (!tokenHash) tokenHash = (window.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+
+    const dev = _detectDevice();
+    const { data } = await supabase.rpc('create_session', { p_data: {
+      session_token_hash: tokenHash,
+      device_label: dev.label,
+      device_type:  dev.type,
+      user_agent:   (navigator.userAgent || '').slice(0, 500)
+    }});
+    if (data?.success && data.id && S) {
+      S.sessionRowId = data.id;
+      sessionStorage.setItem('nxn_sess', JSON.stringify(S));
+    }
+  } catch(_) {}
+}
+
+function _detectDevice() {
+  const ua = navigator.userAgent || '';
+  const type = /Mobi|Android|iPhone/i.test(ua) ? 'mobile' : /iPad|Tablet/i.test(ua) ? 'tablet' : 'desktop';
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome'
+    : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  const os = /Windows/.test(ua) ? 'Windows' : /Mac OS|Macintosh/.test(ua) ? 'macOS'
+    : /Android/.test(ua) ? 'Android' : /iPhone|iPad|iOS/.test(ua) ? 'iOS' : /Linux/.test(ua) ? 'Linux' : 'Unknown OS';
+  return { label: browser + ' on ' + os, type };
+}
+
+// ── Forced password change (first login or expired password) ─────────
+function _showForcePasswordChange(user, company, reason) {
+  const old = document.getElementById('_fpc-overlay');
+  if (old) old.remove();
+  const subtitle = reason === 'expired'
+    ? 'Your password has expired. Set a new password to continue.'
+    : 'For security, please set a new password before continuing.';
+  const ov = document.createElement('div');
+  ov.id = '_fpc-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML =
+    '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
+      '<h2 style="margin:0 0 6px;font-size:18px;color:#0f172a">Set a new password</h2>' +
+      '<p style="margin:0 0 18px;font-size:13px;color:#64748b">' + subtitle + '</p>' +
+      '<input id="_fpc-new" type="password" placeholder="New password" autocomplete="new-password" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box">' +
+      '<input id="_fpc-conf" type="password" placeholder="Confirm new password" autocomplete="new-password" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:6px;box-sizing:border-box">' +
+      '<div id="_fpc-msg" style="font-size:12px;color:#dc2626;min-height:16px;margin-bottom:10px"></div>' +
+      '<button id="_fpc-go" style="width:100%;padding:11px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Update password &amp; continue</button>' +
+    '</div>';
+  document.body.appendChild(ov);
+  const $new = ov.querySelector('#_fpc-new'), $conf = ov.querySelector('#_fpc-conf'),
+        $msg = ov.querySelector('#_fpc-msg'), $go = ov.querySelector('#_fpc-go');
+  $new.focus();
+
+  async function _fpcSubmit() {
+    const np = $new.value, cp = $conf.value;
+    $msg.textContent = '';
+    if (!np || np !== cp) { $msg.textContent = 'Passwords do not match.'; return; }
+    $go.disabled = true; $go.textContent = 'Updating…';
+    const { data, error } = await supabase.rpc('change_password', { p_new_password: np });
+    if (error || !data?.success) {
+      const map = {
+        password_reused:   'You cannot reuse one of your last 3 passwords.',
+        policy_violation:  data?.message || 'Password does not meet the policy.',
+        password_required: 'Please enter a password.',
+        no_session:        'Session error — please sign in again.'
+      };
+      $msg.textContent = map[data?.error] || data?.message || 'Could not update password.';
+      $go.disabled = false; $go.textContent = 'Update password & continue';
+      return;
+    }
+    // Password changed → session_version bumped + auth.users synced. Re-establish the session.
+    if (user.email) await supabase.auth.signInWithPassword({ email: user.email, password: np }).catch(()=>{});
+    user.session_version = data.session_version;
+    ov.remove();
+    if (typeof notify !== 'undefined') notify.success('Password updated');
+    await _completeLogin(user, company);
+  }
+  $go.addEventListener('click', _fpcSubmit);
+  $conf.addEventListener('keydown', e => { if (e.key === 'Enter') _fpcSubmit(); });
+}
+
 function doLogout(reason){
   if(S && S.cid) _logAuthEvent(S.cid, { event_type: reason || 'logout', user_id: S.userId, username: S.username });
+  if(S && S.sessionRowId){ try { supabase.rpc('revoke_session', { p_session_id: S.sessionRowId }).catch(()=>{}); } catch(_){} }
+  try { supabase.auth.signOut().catch(()=>{}); } catch(_){}
   _stopSessionCheck();
   _stopIdleTimer();
   S=null;_coid=null;_navStack=[];_navBack=false;
@@ -481,7 +629,7 @@ function _getIdleTimeoutMin() {
     const stored = localStorage.getItem('rms.sec.timeout.' + S.cid);
     if (stored !== null) return parseInt(stored, 10);
   } catch(_) {}
-  return 120;
+  return 30;
 }
 
 function _setIdleTimeoutMin(min) {

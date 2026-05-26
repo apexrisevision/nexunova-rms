@@ -43,13 +43,7 @@ async function rBanks() {
 }
 
 async function _banksLoad() {
-  const { data, error } = await supabase
-    .from('banks')
-    .select('*')
-    .eq('company_id', S.cid)
-    .order('sort_order', { ascending: true })
-    .order('bank_name', { ascending: true });
-
+  const { data, error } = await supabase.rpc('list_banks', { p_company_id: S.cid });
   _banksData = error ? [] : (data || []);
   _banksRender();
 }
@@ -114,7 +108,6 @@ async function _bankSave() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   const payload = {
-    company_id: S.cid,
     bank_name: name,
     account_title: title,
     account_number: acct,
@@ -124,12 +117,11 @@ async function _bankSave() {
     is_active: document.getElementById('bk-is_active').checked,
   };
 
-  let error;
-  if (_bankEditId) {
-    ({ error } = await supabase.from('banks').update(payload).eq('id', _bankEditId));
-  } else {
-    ({ error } = await supabase.from('banks').insert(payload));
-  }
+  const { error } = await supabase.rpc('upsert_bank', {
+    p_company_id: S.cid,
+    p_data: payload,
+    p_id: _bankEditId || null
+  });
 
   btn.disabled = false; btn.textContent = 'Save';
   if (error) { errEl.textContent = error.message; return; }
@@ -140,7 +132,7 @@ async function _bankSave() {
 
 async function _bankDelete(id) {
   if (!confirm('Delete this bank? Make sure no PDC records reference it.')) return;
-  const { error } = await supabase.from('banks').delete().eq('id', id);
+  const { error } = await supabase.rpc('delete_bank', { p_id: id, p_company_id: S.cid });
   if (error) { alert(error.message); return; }
   await _banksLoad();
   if (typeof toast === 'function') toast('Bank deleted', 'ok');

@@ -88,7 +88,7 @@ async function rAgents() {
   <div class="inv-ph-row">
     <h1 class="inv-title">Sales Agents</h1>
     <div class="inv-ph-actions">
-      ${canEdit ? `<button class="btn btn-g btn-sm" onclick="openAgentModal(null)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Agent</button>` : ''}
+      ${canEdit ? `<button id="um-add-agent-btn" class="btn btn-g btn-sm" onclick="openAgentModal(null)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Agent</button>` : ''}
     </div>
   </div>
 
@@ -124,6 +124,23 @@ async function rAgents() {
 </div>`;
 
   await _loadAgentList();
+  _checkAgentLimitUI();
+}
+
+async function _checkAgentLimitUI() {
+  const btn = document.getElementById('um-add-agent-btn');
+  if (!btn) return;
+  try {
+    const { data, error } = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: S.cid });
+    if (error) return;
+    const maxAgents     = data?.max_agents || 0;
+    const currentAgents = data?.count_agents || 0;
+    if (maxAgents > 0 && currentAgents >= maxAgents) {
+      btn.disabled    = true;
+      btn.title       = `Agent limit reached (${currentAgents}/${maxAgents}). Upgrade your plan to add more.`;
+      btn.textContent = `+ Add Agent (${currentAgents}/${maxAgents})`;
+    }
+  } catch(e) { /* UI hint only — not blocking */ }
 }
 
 function _agSortDropdown(btn) {
@@ -428,9 +445,9 @@ async function rAgentDetail() {
   try {
     const [rpcRes, extRes, commRes, subRes] = await Promise.all([
       supabase.rpc('get_agent_360', { p_id: _agId, p_company_id: S.cid }),
-      supabase.from('agents').select('territory,monthly_target,quarterly_target,contract_doc_url,parent_agent_id').eq('id', _agId).single(),
-      supabase.from('agent_commission_payments').select('*').eq('agent_id', _agId).eq('company_id', S.cid).order('payment_date', { ascending: false }),
-      supabase.from('agents').select('id,full_name,agent_code,status,total_sales_count,commission_percent').eq('parent_agent_id', _agId).eq('company_id', S.cid)
+      supabase.rpc('get_agent_extended', { p_id: _agId, p_company_id: S.cid }),
+      supabase.rpc('list_agent_commission_payments', { p_company_id: S.cid, p_agent_id: _agId }),
+      supabase.rpc('list_sub_agents', { p_parent_id: _agId, p_company_id: S.cid })
     ]);
 
     if (rpcRes.error) throw rpcRes.error;
@@ -443,7 +460,7 @@ async function rAgentDetail() {
     // Fetch parent agent name if linked
     let parentAgent = null;
     if (ext.parent_agent_id) {
-      const { data: pa } = await supabase.from('agents').select('full_name,agent_code').eq('id', ext.parent_agent_id).single();
+      const { data: pa } = await supabase.rpc('get_agent_name', { p_id: ext.parent_agent_id });
       parentAgent = pa;
     }
 
@@ -759,11 +776,7 @@ function _renderAgentDetail(a, sales, ext, commPays, subAgents, parentAgent) {
       storageKey:'rms.fnav.agent',
       loadList: async () => {
         try {
-          const { data } = await supabase.from('agents')
-            .select('id, created_at')
-            .eq('company_id', S.cid)
-            .order('created_at', { ascending: true })
-            .limit(2000);
+          const { data } = await supabase.rpc('list_agents_for_fnav', { p_company_id: S.cid });
           return data || [];
         } catch (e) { console.error('[fnav agent]', e); return []; }
       },
@@ -916,9 +929,7 @@ async function openAgentModal(agentId) {
   const parentSel = document.getElementById('af-parent-agent');
   if (parentSel) {
     try {
-      const { data: allAgents } = await supabase
-        .from('agents').select('id, full_name, status').eq('company_id', S.cid)
-        .order('full_name');
+      const { data: allAgents } = await supabase.rpc('list_agents_lookup', { p_company_id: S.cid });
       const candidates = (allAgents || []).filter(a => a.id !== agentId);
       parentSel.innerHTML = `<option value="">— None (Independent) —</option>` +
         candidates.map(a => {
@@ -952,9 +963,7 @@ async function openAgentModal(agentId) {
     }
     // Fetch extended fields
     try {
-      const { data: ext } = await supabase.from('agents')
-        .select('territory,monthly_target,quarterly_target,contract_doc_url,parent_agent_id')
-        .eq('id', agentId).single();
+      const { data: ext } = await supabase.rpc('get_agent_extended', { p_id: agentId, p_company_id: S.cid });
       if (ext) {
         sv('af-territory',        ext.territory);
         sv('af-monthly-target',   ext.monthly_target);
@@ -1094,6 +1103,23 @@ async function saveAgentForm() {
       if (error) throw error;
       result = data;
     } else {
+      let limRes;
+      try {
+        limRes = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: S.cid });
+      } catch(e) {
+        toast('Could not verify plan limits. Check your connection and try again.', 'err');
+        return;
+      }
+      if (limRes?.error) {
+        toast('Could not verify plan limits. Check your connection and try again.', 'err');
+        return;
+      }
+      const maxAgents     = limRes.data?.max_agents || 0;
+      const currentAgents = limRes.data?.count_agents || 0;
+      if (maxAgents > 0 && currentAgents >= maxAgents) {
+        toast(`Agent limit reached — your plan allows ${maxAgents} agents. Upgrade your plan to add more.`, 'err');
+        return;
+      }
       const { data, error } = await supabase.rpc('create_agent', {
         p_company_id:         S.cid,
         p_created_by:         S.userId,
@@ -1147,7 +1173,7 @@ async function saveAgentForm() {
       if (contractFile) {
         extPatch.contract_doc_url = await _uploadAgentFile(contractFile, finalId, 'contract');
       }
-      await supabase.from('agents').update(extPatch).eq('id', finalId);
+      await supabase.rpc('update_agent_extended', { p_id: finalId, p_company_id: S.cid, p_data: extPatch });
     }
 
     toast(isEdit ? 'Agent updated!' : `Agent added! Code: ${result.agent_code || ''}`, 'ok');
@@ -1230,27 +1256,61 @@ async function deleteAgentConfirm(id) {
   _loadAgentList();
 }
 
-// ── Pay Commission page ──────────────────────────────────────────────
+// ── Pay Commission page (tabbed: Payouts | Structures) ───────────────
+let _commTab = 'payouts';
+
 async function rCommissions() {
   const pg = document.getElementById('pg-commissions');
   if (!pg) return;
-  if (!S?.cid) { pg.innerHTML = `<div class="card"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="et">Not logged in</div></div></div>`; return; }
+  if (!S?.cid) { pg.innerHTML = `<div class="card"><div class="empty"><div class="ei">⚠</div><div class="et">Not logged in</div></div></div>`; return; }
 
-  pg.innerHTML = `<div class="ani"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><div class="et">Loading…</div></div></div>`;
+  const canAdmin = _canEditAgent();
 
+  pg.innerHTML = `<div class="ani">
+    <div class="ph">
+      <div class="ph-l"><h2>Commissions</h2><p>Agent payouts and per-project commission rate configuration.</p></div>
+      <div class="ph-r" id="comm-ph-actions"></div>
+    </div>
+    <div style="display:flex;border-bottom:2px solid var(--line);margin-bottom:16px">
+      <button id="comm-tab-payouts-btn"    onclick="_commSwitchTab('payouts')"    style="padding:8px 18px;background:none;border:none;border-bottom:2px solid var(--pri);color:var(--pri);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Payouts</button>
+      <button id="comm-tab-structures-btn" onclick="_commSwitchTab('structures')" style="padding:8px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Commission Structures</button>
+    </div>
+    <div id="comm-tab-payouts"></div>
+    <div id="comm-tab-structures" style="display:none"></div>
+  </div>`;
+
+  _commTab = 'payouts';
+  await _commLoadPayouts();
+}
+
+function _commSwitchTab(tab) {
+  _commTab = tab;
+  ['payouts','structures'].forEach(t => {
+    const el  = document.getElementById('comm-tab-' + t);
+    const btn = document.getElementById('comm-tab-' + t + '-btn');
+    if (el)  el.style.display  = t === tab ? '' : 'none';
+    if (btn) {
+      btn.style.borderBottom = t === tab ? '2px solid var(--pri)' : '2px solid transparent';
+      btn.style.color        = t === tab ? 'var(--pri)' : 'var(--t3)';
+    }
+  });
+  if (tab === 'payouts')    _commLoadPayouts();
+  if (tab === 'structures') _commLoadStructures();
+}
+
+// ── Payouts tab ───────────────────────────────────────────────────────
+async function _commLoadPayouts() {
+  const el = document.getElementById('comm-tab-payouts');
+  if (!el) return;
+  const ph = document.getElementById('comm-ph-actions');
+  if (ph) ph.innerHTML = '';
+  el.innerHTML = `<div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div>`;
   try {
-    const [agRes, payRes] = await Promise.all([
-      supabase.from('agents').select('id,full_name,agent_code,total_commission_earned,status')
-        .eq('company_id', S.cid).order('full_name'),
-      supabase.from('agent_commission_payments').select('agent_id,amount')
-        .eq('company_id', S.cid)
-    ]);
-    if (agRes.error) throw agRes.error;
+    const { data: overview, error: ovErr } = await supabase.rpc('get_commissions_overview', { p_company_id: S.cid });
+    if (ovErr) throw ovErr;
 
-    const agents = agRes.data || [];
-    const pays   = payRes.data || [];
-
-    // Sum paid per agent
+    const agents = overview?.agents   || [];
+    const pays   = overview?.payments || [];
     const paidMap = {};
     pays.forEach(p => { paidMap[p.agent_id] = (paidMap[p.agent_id] || 0) + Number(p.amount || 0); });
 
@@ -1260,18 +1320,12 @@ async function rCommissions() {
       const pending = Math.max(0, earned - paid);
       return { ...a, earned, paid, pending };
     });
-
     const totalEarned  = rows.reduce((s, r) => s + r.earned,  0);
     const totalPaid    = rows.reduce((s, r) => s + r.paid,    0);
     const totalPending = rows.reduce((s, r) => s + r.pending, 0);
     const canEdit      = _canEditAgent();
 
-    pg.innerHTML = `<div class="ani">
-      <div class="ph">
-        <div class="ph-l"><h2>Pay Commission</h2><p>Commission summary and disbursements</p></div>
-      </div>
-
-      <!-- Summary strip -->
+    el.innerHTML = `
       <div class="card mb14">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
           <div style="padding:14px 16px;text-align:center;border-right:1px solid var(--line)">
@@ -1288,32 +1342,296 @@ async function rCommissions() {
           </div>
         </div>
       </div>
-
-      <!-- Agent table -->
       <div class="card">
         <div class="ch"><h3>Agents</h3><p>${rows.length} agent${rows.length !== 1 ? 's' : ''}</p></div>
         ${rows.length === 0
           ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="et">No agents found</div></div>`
           : `<div class="tw"><table class="t"><thead><tr>
-              <th>Agent</th><th>Status</th><th class="r">Earned</th><th class="r">Paid</th><th class="r">Pending</th>${canEdit ? '<th></th>' : ''}
+              <th>Agent</th><th>Status</th><th class="r">Earned</th><th class="r">Paid</th><th class="r">Pending</th>${canEdit?'<th></th>':''}
              </tr></thead><tbody>
              ${rows.map(r => `<tr>
                <td>
                  <div style="font-weight:600">${esc(r.full_name)}</div>
-                 <div style="font-size:11px;font-family:monospace;color:var(--t3)">${esc(r.agent_code || '')}</div>
+                 <div style="font-size:11px;font-family:monospace;color:var(--t3)">${esc(r.agent_code||'')}</div>
                </td>
                <td>${_agStatusBadge(r.status)}</td>
                <td class="r" style="color:var(--ok);font-weight:600">${fMF(r.earned)}</td>
                <td class="r" style="color:var(--t2)">${fMF(r.paid)}</td>
-               <td class="r" style="font-weight:700;color:${r.pending > 0 ? 'var(--warn)' : 'var(--t3)'}">${fMF(r.pending)}</td>
-               ${canEdit ? `<td><button class="btn btn-g btn-xs" onclick="openCommPayModal('${r.id}','${esc(r.full_name)}',${r.pending})">Pay</button></td>` : ''}
+               <td class="r" style="font-weight:700;color:${r.pending>0?'var(--warn)':'var(--t3)'}">${fMF(r.pending)}</td>
+               ${canEdit?`<td style="white-space:nowrap">
+                 <button class="btn btn-g btn-xs" onclick="openCommPayModal('${r.id}','${esc(r.full_name)}',${r.pending})">Pay</button>
+                 <button class="btn btn-gh btn-xs" onclick="printAgentStatement('${r.id}')" title="Commission Statement">⎙</button>
+               </td>`:''}
              </tr>`).join('')}
              </tbody></table></div>`}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="et">Failed to load</div><div class="es">${esc(e.message)}</div></div></div>`;
+  }
+}
+
+// ── Commission Structures tab ─────────────────────────────────────────
+let _csData      = [];
+let _csEditId    = null;
+let _csProjects  = [];
+
+async function _commLoadStructures() {
+  const el = document.getElementById('comm-tab-structures');
+  if (!el) return;
+  const ph = document.getElementById('comm-ph-actions');
+  if (ph && _canEditAgent()) {
+    ph.innerHTML = `<button class="btn btn-g btn-sm" onclick="_csOpenForm(null)">+ Add Structure</button>`;
+  }
+  el.innerHTML = `<div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div>`;
+
+  try {
+    const [csRes, prRes] = await Promise.all([
+      supabase.rpc('list_commission_structures', { p_company_id: S.cid }),
+      supabase.from('projects').select('id,project_name').eq('company_id', S.cid).order('project_name'),
+    ]);
+    _csData     = Array.isArray(csRes.data) ? csRes.data : [];
+    _csProjects = Array.isArray(prRes.data) ? prRes.data : [];
+    _csRender(el);
+  } catch(e) {
+    el.innerHTML = `<div class="card"><div class="empty"><div class="et">Failed to load</div><div class="es">${esc(e.message)}</div></div></div>`;
+  }
+}
+
+function _csRender(container) {
+  const el      = container || document.getElementById('comm-tab-structures');
+  if (!el) return;
+  const canEdit = _canEditAgent();
+
+  const introHtml = `
+    <div class="card mb14" style="padding:14px 16px">
+      <div style="font-size:13px;color:var(--t2);line-height:1.6">
+        <strong>Commission Structures</strong> define the commission rate per project (and optionally per agent).<br>
+        <span style="font-size:12px;color:var(--t3)">
+          Lookup order: <strong>Agent + Project</strong> → <strong>Project Default</strong> → <strong>Company Default</strong> → <strong>Agent's global rate</strong>.
+          Milestone splits define how commission is distributed between booking and possession events.
+        </span>
       </div>
     </div>`;
-  } catch(e) {
-    pg.innerHTML = `<div class="ani"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="et">Failed to load</div><div class="es">${esc(e.message)}</div></div></div>`;
+
+  if (!_csData.length) {
+    el.innerHTML = introHtml + `<div class="card"><div class="empty">
+      <div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+      <div class="et">No commission structures configured</div>
+      <div class="es">Add a structure to define per-project or agent-specific commission rates.</div>
+      ${canEdit ? `<button class="btn btn-g btn-sm" style="margin-top:10px" onclick="_csOpenForm(null)">+ Add Structure</button>` : ''}
+    </div></div>`;
+    return;
   }
+
+  el.innerHTML = introHtml + `<div class="card" style="overflow:hidden">
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="border-bottom:1px solid var(--line)">
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Project</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Agent</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Rate</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Booking Split</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Possession Split</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Status</th>
+            ${canEdit ? `<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Actions</th>` : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${_csData.map(cs => {
+            const projLbl = cs.project_name || '<span style="color:var(--t3);font-style:italic">Company-wide default</span>';
+            const agntLbl = cs.agent_name
+              ? `${esc(cs.agent_name)} <span style="font-size:10px;color:var(--t3);font-family:monospace">${esc(cs.agent_code||'')}</span>`
+              : '<span style="color:var(--t3);font-style:italic">All agents</span>';
+            const bookPct = Number(cs.milestone_booking_pct || 50);
+            const possPct = Number(cs.milestone_possession_pct || 50);
+            return `<tr style="border-bottom:1px solid var(--hover);transition:background .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+              <td style="padding:10px 12px;font-weight:600;color:var(--t1)">${cs.project_name ? esc(cs.project_name) : projLbl}</td>
+              <td style="padding:10px 12px">${agntLbl}</td>
+              <td style="padding:10px 12px;text-align:center;font-weight:800;font-size:16px;color:var(--brand)">${Number(cs.rate_percent)}%</td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="font-size:12px;font-weight:700;color:#6366f1">${bookPct}%</span>
+                <span style="font-size:10px;color:var(--t3);display:block">on booking</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="font-size:12px;font-weight:700;color:#16a34a">${possPct}%</span>
+                <span style="font-size:10px;color:var(--t3);display:block">on possession</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center">
+                ${cs.is_active
+                  ? `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.2)">Active</span>`
+                  : `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(107,114,128,.1);color:#6b7280;border:1px solid rgba(107,114,128,.2)">Inactive</span>`}
+              </td>
+              ${canEdit ? `<td style="padding:10px 12px;text-align:right;white-space:nowrap">
+                <button class="btn btn-xs btn-gh" onclick="_csOpenForm('${cs.id}')">Edit</button>
+                <button class="btn btn-xs btn-gh" style="color:var(--err)" onclick="_csDelete('${cs.id}')">Del</button>
+              </td>` : ''}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Inline modal -->
+  <div class="mov" id="m-cs-form">
+    <div class="mox" style="max-width:480px">
+      <div class="moh">
+        <span class="mot" id="cs-form-title">Add Commission Structure</span>
+        <button class="moc" onclick="cm('m-cs-form')">✕</button>
+      </div>
+      <div class="mob" style="display:flex;flex-direction:column;gap:14px">
+        <input type="hidden" id="cs-id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="lbl">Project <span style="color:var(--t3);font-size:11px">(blank = company default)</span></label>
+            <select class="inp" id="cs-project-id">
+              <option value="">— Company-wide default —</option>
+              ${_csProjects.map(p => `<option value="${p.id}">${esc(p.project_name)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Agent <span style="color:var(--t3);font-size:11px">(blank = all agents)</span></label>
+            <select class="inp" id="cs-agent-id">
+              <option value="">— All agents —</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="lbl">Commission Rate (%) *</label>
+          <input class="inp" id="cs-rate" type="number" min="0" max="100" step="0.5" placeholder="e.g. 2.5">
+        </div>
+        <div>
+          <label class="lbl">Milestone Splits <span style="color:var(--t3);font-size:11px">(must total ≤ 100%)</span></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="lbl" style="font-size:11px;color:var(--t3)">On Booking (%)</label>
+              <input class="inp" id="cs-book-pct" type="number" min="0" max="100" step="5" value="50">
+            </div>
+            <div>
+              <label class="lbl" style="font-size:11px;color:var(--t3)">On Possession (%)</label>
+              <input class="inp" id="cs-poss-pct" type="number" min="0" max="100" step="5" value="50">
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="lbl">Status</label>
+          <select class="inp" id="cs-active">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Notes</label>
+          <textarea class="inp" id="cs-notes" rows="2" style="resize:vertical" placeholder="Optional notes…"></textarea>
+        </div>
+        <div id="cs-err" style="color:var(--err);font-size:12px;display:none"></div>
+      </div>
+      <div class="mof">
+        <button class="btn btn-gh" onclick="cm('m-cs-form')">Cancel</button>
+        <button class="btn btn-g" id="cs-save-btn" onclick="_csSave()">Save Structure</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function _csOpenForm(id) {
+  _csEditId = id || null;
+  const titleEl = document.getElementById('cs-form-title');
+  if (titleEl) titleEl.textContent = id ? 'Edit Commission Structure' : 'Add Commission Structure';
+
+  document.getElementById('cs-id').value       = id || '';
+  document.getElementById('cs-project-id').value = '';
+  document.getElementById('cs-rate').value     = '';
+  document.getElementById('cs-book-pct').value = '50';
+  document.getElementById('cs-poss-pct').value = '50';
+  document.getElementById('cs-active').value   = 'true';
+  document.getElementById('cs-notes').value    = '';
+  const errEl = document.getElementById('cs-err');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+  // Populate agent dropdown
+  const agSel = document.getElementById('cs-agent-id');
+  if (agSel && _agCache.length === 0) {
+    try {
+      const { data } = await supabase.rpc('list_agents_lookup', { p_company_id: S.cid });
+      agSel.innerHTML = `<option value="">— All agents —</option>` +
+        (data||[]).map(a => `<option value="${a.id}">${esc(a.agent_name||a.full_name)} (${a.agent_code||''})</option>`).join('');
+    } catch(e) {}
+  } else if (agSel) {
+    agSel.innerHTML = `<option value="">— All agents —</option>` +
+      _agCache.map(a => `<option value="${a.id}">${esc(a.full_name)} (${a.agent_code||''})</option>`).join('');
+  }
+
+  if (id) {
+    const cs = _csData.find(x => x.id === id);
+    if (cs) {
+      document.getElementById('cs-project-id').value = cs.project_id || '';
+      if (agSel) agSel.value = cs.agent_id || '';
+      document.getElementById('cs-rate').value     = cs.rate_percent;
+      document.getElementById('cs-book-pct').value = cs.milestone_booking_pct;
+      document.getElementById('cs-poss-pct').value = cs.milestone_possession_pct;
+      document.getElementById('cs-active').value   = cs.is_active ? 'true' : 'false';
+      document.getElementById('cs-notes').value    = cs.notes || '';
+    }
+  }
+
+  om('m-cs-form');
+}
+
+async function _csSave() {
+  const rate     = parseFloat(document.getElementById('cs-rate')?.value);
+  const bookPct  = parseFloat(document.getElementById('cs-book-pct')?.value || 50);
+  const possPct  = parseFloat(document.getElementById('cs-poss-pct')?.value || 50);
+  const errEl    = document.getElementById('cs-err');
+
+  if (isNaN(rate) || rate < 0 || rate > 100) {
+    errEl.textContent = 'Commission rate must be between 0 and 100%'; errEl.style.display = ''; return;
+  }
+  if (bookPct + possPct > 100.01) {
+    errEl.textContent = 'Booking + Possession splits cannot exceed 100%'; errEl.style.display = ''; return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('cs-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  try {
+    const { data, error } = await supabase.rpc('upsert_commission_structure', {
+      p_company_id: S.cid,
+      p_data: {
+        id:                      document.getElementById('cs-id')?.value || '',
+        project_id:              document.getElementById('cs-project-id')?.value || '',
+        agent_id:                document.getElementById('cs-agent-id')?.value   || '',
+        rate_percent:            rate,
+        milestone_booking_pct:   bookPct,
+        milestone_possession_pct: possPct,
+        is_active:               document.getElementById('cs-active')?.value === 'true',
+        notes:                   document.getElementById('cs-notes')?.value?.trim() || '',
+        created_by:              S.name || '',
+      }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Save failed');
+    toast(_csEditId ? 'Structure updated' : 'Structure added', 'ok');
+    cm('m-cs-form');
+    await _commLoadStructures();
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message; errEl.style.display = '';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Structure'; }
+  }
+}
+
+async function _csDelete(id) {
+  if (!confirm('Delete this commission structure?')) return;
+  try {
+    const { data, error } = await supabase.rpc('delete_commission_structure', { p_id: id, p_company_id: S.cid });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Delete failed');
+    toast('Structure deleted', 'ok');
+    await _commLoadStructures();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
 // ── Commission Payment Modal ─────────────────────────────────────────
@@ -1369,18 +1687,20 @@ async function saveCommPayForm() {
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
   try {
-    const { data: insertedRows, error } = await supabase.from('agent_commission_payments').insert({
-      agent_id:       agentId,
-      company_id:     S.cid,
-      amount:         amount,
-      payment_date:   date,
-      payment_method: paymentMethod,
-      reference_no:   refno || null,
-      notes:          notes || null,
-      created_by:     S.userId || null
-    }).select();
+    const { data: result, error } = await supabase.rpc('create_agent_commission_payment_full', {
+      p_company_id: S.cid,
+      p_data: {
+        agent_id:       agentId,
+        amount:         amount,
+        payment_date:   date,
+        payment_method: paymentMethod,
+        reference_no:   refno || null,
+        notes:          notes || null,
+        created_by:     S.userId || null
+      }
+    });
     if (error) throw error;
-    const inserted = insertedRows?.[0];
+    const inserted = result?.row || null;
 
     toast('Commission payment recorded', 'ok');
     cm('m-comm-pay');
@@ -1427,12 +1747,216 @@ async function saveCommPayForm() {
 
 async function deleteCommPay(id) {
   if (!confirm('Delete this commission payment record? This cannot be undone.')) return;
-  const { error } = await supabase.from('agent_commission_payments').delete().eq('id', id).eq('company_id', S.cid);
+  const { error } = await supabase.rpc('delete_agent_commission_payment', { p_id: id, p_company_id: S.cid });
   if (error) { toast('Error: ' + error.message, 'err'); return; }
   toast('Payment record deleted', 'ok');
   const activePg = document.querySelector('.pg.on')?.id;
   if (activePg === 'pg-commissions') await rCommissions();
   else await rAgentDetail();
+}
+
+// ── Agent Commission Statement ────────────────────────────────────────
+async function printAgentStatement(agentId) {
+  if (!agentId) { toast('No agent selected', 'warn'); return; }
+  try {
+    const [agRes, payRes] = await Promise.all([
+      supabase.rpc('get_agent_360',               { p_id: agentId, p_company_id: S.cid }),
+      supabase.rpc('list_agent_commission_payments',{ p_company_id: S.cid, p_agent_id: agentId })
+    ]);
+    if (agRes.error) throw agRes.error;
+
+    const a      = agRes.data?.agent  || {};
+    const sales  = agRes.data?.sales  || [];
+    const pays   = Array.isArray(payRes.data) ? payRes.data : [];
+
+    const commEarned  = Number(a.total_commission_earned || 0);
+    const commPaidTotal = pays.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const commPending   = Math.max(0, commEarned - commPaidTotal);
+
+    const fmtD = s => s ? new Date(s).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const fmtM = n => Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const coName   = S?.coName  || 'Company';
+    const today    = fmtD(new Date());
+    const stmtNo   = `CS-${new Date().getFullYear()}-${agentId.toUpperCase().slice(-6)}`;
+
+    // group sales by project
+    const byProject = {};
+    sales.forEach(s => {
+      const key = s.project_name || 'Unknown Project';
+      if (!byProject[key]) byProject[key] = [];
+      byProject[key].push(s);
+    });
+
+    const salesSections = Object.entries(byProject).map(([proj, rows]) => {
+      const projTotal = rows.reduce((s, r) => s + Number(r.commission_amount || 0), 0);
+      return `
+        <div class="sec-title">${esc(proj)}</div>
+        <table>
+          <thead><tr>
+            <th>Unit</th><th>Client</th><th>Sale Date</th>
+            <th class="r">Sale Amount</th><th class="r">Rate</th><th class="r">Commission</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r => `<tr>
+              <td style="font-family:monospace;font-weight:600">${esc(r.unit_no||r.unit_code||'—')}</td>
+              <td>${esc(r.client_name||'—')}</td>
+              <td>${fmtD(r.sale_date)}</td>
+              <td class="r">PKR ${fmtM(r.net_amount)}</td>
+              <td class="r">${Number(r.commission_rate||r.commission_percent||0)}%</td>
+              <td class="r" style="color:#16a34a;font-weight:700">PKR ${fmtM(r.commission_amount)}</td>
+            </tr>`).join('')}
+            <tr class="subtotal-row">
+              <td colspan="5" style="text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#555">Project Total</td>
+              <td class="r" style="font-weight:800;color:#16a34a">PKR ${fmtM(projTotal)}</td>
+            </tr>
+          </tbody>
+        </table>`;
+    }).join('') || `<div class="empty-note">No sales on record for this agent.</div>`;
+
+    const payRows = pays.length > 0
+      ? pays.map(p => `<tr>
+          <td style="font-family:monospace;font-size:10px">${fmtD(p.payment_date)}</td>
+          <td>${esc(p.payment_method_label||p.payment_method||'—')}</td>
+          <td style="font-family:monospace;font-size:10px;color:#888">${esc(p.reference_no||'—')}</td>
+          <td>${esc(p.notes||'')}</td>
+          <td class="r" style="color:#16a34a;font-weight:700">PKR ${fmtM(p.amount)}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="5" style="text-align:center;color:#aaa;padding:10px">No payments on record</td></tr>`;
+
+    const css = `
+      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;margin:0;padding:0;font-size:11px}
+      .page{max-width:750px;margin:0 auto;padding:28px 32px}
+      .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px solid #111;margin-bottom:20px}
+      .co-name{font-size:20px;font-weight:900;color:#111;letter-spacing:-.5px}
+      .co-sub{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+      .stmt-title{text-align:right}
+      .stmt-title h1{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0 0 3px;color:#111}
+      .stmt-no{font-family:monospace;font-size:12px;color:#666;font-weight:600}
+      .stmt-date{font-size:9px;color:#aaa;margin-top:2px}
+      .agent-banner{background:#f8f9fa;border-radius:8px;padding:14px 18px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+      .ab-item .ab-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:600;margin-bottom:3px}
+      .ab-item .ab-val{font-size:13px;font-weight:700;color:#111}
+      .summary-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:20px;overflow:hidden}
+      .ss-item{padding:14px 16px;text-align:center}
+      .ss-item+.ss-item{border-left:1px solid #e5e7eb}
+      .ss-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#888;font-weight:600;margin-bottom:4px}
+      .ss-val{font-size:18px;font-weight:800;font-family:monospace}
+      .sec-title{font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:700;color:#888;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #eee}
+      table{width:100%;border-collapse:collapse;margin-bottom:4px}
+      th{background:#f3f4f6;font-size:9px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;color:#555;padding:6px 8px;text-align:left;border-bottom:1px solid #e5e7eb}
+      td{padding:5px 8px;border-bottom:1px solid #f3f4f6;font-size:10px;color:#222}
+      .r{text-align:right}
+      tr.subtotal-row td{background:#f8f9fa;border-top:1px solid #e5e7eb;padding:6px 8px}
+      .empty-note{padding:12px;text-align:center;color:#aaa;font-size:10px;border:1px dashed #e5e7eb;border-radius:6px;margin:8px 0}
+      .sig-row{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:36px;padding-top:16px}
+      .sig-box{text-align:center}
+      .sig-line{border-top:1px solid #999;padding-top:6px;margin-top:52px}
+      .sig-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#333}
+      .sig-role{font-size:9px;color:#888;margin-top:1px}
+      .footer{font-size:9px;color:#bbb;text-align:center;margin-top:24px;padding-top:10px;border-top:1px solid #f0f0f0}
+      @media print{body{-webkit-print-color-adjust:exact}@page{margin:15mm}}
+    `;
+
+    const w = typeof _pw === 'function' ? _pw('Commission Statement — ' + (a.full_name||'Agent'), css, 'A4') : null;
+    if (!w) return;
+
+    w.document.write(`
+      <div class="page">
+        <div class="hdr">
+          <div>
+            <div class="co-name">${esc(coName)}</div>
+            <div class="co-sub">Nexunova Recovery Management System</div>
+          </div>
+          <div class="stmt-title">
+            <h1>Agent Commission Statement</h1>
+            <div class="stmt-no">${esc(stmtNo)}</div>
+            <div class="stmt-date">Generated: ${today}</div>
+          </div>
+        </div>
+
+        <div class="agent-banner">
+          <div class="ab-item">
+            <div class="ab-lbl">Agent Name</div>
+            <div class="ab-val">${esc(a.full_name||'—')}</div>
+          </div>
+          <div class="ab-item">
+            <div class="ab-lbl">Agent Code</div>
+            <div class="ab-val" style="font-family:monospace">${esc(a.agent_code||'—')}</div>
+          </div>
+          <div class="ab-item">
+            <div class="ab-lbl">Phone</div>
+            <div class="ab-val">${esc(a.phone||'—')}</div>
+          </div>
+          <div class="ab-item">
+            <div class="ab-lbl">CNIC</div>
+            <div class="ab-val" style="font-family:monospace">${esc(a.cnic||'—')}</div>
+          </div>
+          <div class="ab-item">
+            <div class="ab-lbl">Base Rate</div>
+            <div class="ab-val">${Number(a.commission_percent||0)}%</div>
+          </div>
+          <div class="ab-item">
+            <div class="ab-lbl">Statement Period</div>
+            <div class="ab-val">All Time</div>
+          </div>
+        </div>
+
+        <div class="summary-strip">
+          <div class="ss-item">
+            <div class="ss-lbl">Total Earned</div>
+            <div class="ss-val" style="color:#16a34a">PKR ${fmtM(commEarned)}</div>
+          </div>
+          <div class="ss-item">
+            <div class="ss-lbl">Total Paid</div>
+            <div class="ss-val" style="color:#111">PKR ${fmtM(commPaidTotal)}</div>
+          </div>
+          <div class="ss-item">
+            <div class="ss-lbl">Balance Due</div>
+            <div class="ss-val" style="color:${commPending>0?'#ef4444':'#16a34a'}">PKR ${fmtM(commPending)}</div>
+          </div>
+        </div>
+
+        <!-- Sales breakdown -->
+        <div class="sec-title" style="font-size:11px;font-weight:800;color:#111;letter-spacing:0;border-bottom:2px solid #111;padding-bottom:4px;margin-bottom:12px">Sales Breakdown</div>
+        ${salesSections}
+
+        <!-- Payment history -->
+        <div class="sec-title" style="font-size:11px;font-weight:800;color:#111;letter-spacing:0;border-bottom:2px solid #111;padding-bottom:4px;margin:20px 0 12px">Payment History (${pays.length} record${pays.length!==1?'s':''})</div>
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Method</th><th>Reference</th><th>Notes</th><th class="r">Amount</th>
+          </tr></thead>
+          <tbody>${payRows}</tbody>
+          ${pays.length>0?`<tfoot><tr>
+            <td colspan="4" style="text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;color:#555;padding:7px 8px;border-top:2px solid #e5e7eb">Total Paid</td>
+            <td class="r" style="font-weight:800;color:#16a34a;padding:7px 8px;border-top:2px solid #e5e7eb">PKR ${fmtM(commPaidTotal)}</td>
+          </tr></tfoot>`:''}
+        </table>
+
+        <div class="sig-row">
+          <div class="sig-box">
+            <div class="sig-line">
+              <div class="sig-name">${esc(a.full_name||'Agent')}</div>
+              <div class="sig-role">Agent — Acknowledgement</div>
+            </div>
+          </div>
+          <div class="sig-box">
+            <div class="sig-line">
+              <div class="sig-name">${esc(coName)}</div>
+              <div class="sig-role">Authorized Signatory &amp; Stamp</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          ${esc(stmtNo)} &nbsp;·&nbsp; ${esc(coName)} — Nexunova RMS &nbsp;·&nbsp; Printed ${today}
+        </div>
+      </div>
+    `);
+    if (typeof _pclose === 'function') _pclose(w);
+  } catch(e) {
+    toast('Failed to generate statement: ' + e.message, 'err');
+  }
 }
 
 // ── Print Agent Profile ──────────────────────────────────────────────

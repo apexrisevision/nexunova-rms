@@ -892,3 +892,606 @@
   margin: 0 auto;
 }
 
+/* ══ SETUP WIZARD v2 ══════════════════════════════════════════════ */
+.ob-wizard {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.ob-sidebar {
+  background: rgba(10, 10, 22, 0.97);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  padding: 32px 20px 24px;
+  overflow-y: auto;
+}
+.ob-sb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.ob-sb-logo {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 900; color: white;
+  flex-shrink: 0;
+}
+.ob-sb-name {
+  font-size: 14px; font-weight: 800; color: white;
+  letter-spacing: -.3px;
+}
+.ob-sb-sub {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+  color: rgba(255,255,255,0.28); margin-bottom: 28px; padding-left: 44px;
+}
+.ob-step-list { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ob-sl-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  cursor: default; transition: background .15s;
+}
+.ob-sl-item.ob-sl-active { background: rgba(99,102,241,0.12); }
+.ob-sl-icon {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4);
+  flex-shrink: 0; margin-top: 1px; transition: all .2s;
+}
+.ob-sl-active .ob-sl-icon {
+  background: rgba(99,102,241,0.25); border-color: rgba(99,102,241,0.5);
+  color: #818cf8;
+}
+.ob-sl-done .ob-sl-icon {
+  background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4);
+  color: #34d399;
+}
+.ob-sl-label {
+  font-size: 12px; font-weight: 700;
+  color: rgba(255,255,255,0.45); line-height: 1.3; transition: color .15s;
+}
+.ob-sl-active .ob-sl-label { color: rgba(255,255,255,0.9); }
+.ob-sl-done  .ob-sl-label { color: rgba(255,255,255,0.55); }
+.ob-sl-sub {
+  font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 1px;
+}
+.ob-sb-footer { margin-top: 24px; }
+.ob-skip-link {
+  background: none; border: none; color: rgba(255,255,255,0.25);
+  font-size: 11px; cursor: pointer; padding: 0; text-align: left;
+  transition: color .15s;
+}
+.ob-skip-link:hover { color: rgba(255,255,255,0.5); }
+
+/* ── Main ── */
+.ob-main {
+  display: flex; flex-direction: column;
+  background: rgba(14,14,28,0.6);
+  overflow: hidden;
+}
+.ob-progress-bar {
+  height: 3px; background: rgba(255,255,255,0.06); flex-shrink: 0;
+}
+.ob-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg,#6366f1,#8b5cf6);
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+.ob-step-counter {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+  color: rgba(255,255,255,0.3); padding: 16px 40px 0; font-weight: 600;
+}
+.ob-panel-wrap {
+  flex: 1; overflow-y: auto; padding: 24px 40px 0;
+}
+
+/* ── Panel typography ── */
+.ob-panel-hd { margin-bottom: 28px; }
+.ob-panel-title {
+  font-size: 22px; font-weight: 800; color: white;
+  letter-spacing: -.5px; margin-bottom: 6px;
+}
+.ob-panel-sub { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6; }
+
+/* ── Form fields ── */
+.ob-fields { display: flex; flex-direction: column; gap: 16px; }
+.ob-field { display: flex; flex-direction: column; gap: 6px; }
+.ob-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ob-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: rgba(255,255,255,0.5);
+}
+.ob-hint-inline {
+  font-weight: 400; text-transform: none; letter-spacing: 0;
+  color: rgba(255,255,255,0.25); font-size: 10px;
+}
+.ob-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px; padding: 10px 14px;
+  color: rgba(255,255,255,0.9); font-size: 13px;
+  font-family: inherit; outline: none; width: 100%; box-sizing: border-box;
+  transition: border-color .15s, background .15s;
+}
+.ob-input:focus {
+  border-color: rgba(99,102,241,0.5);
+  background: rgba(99,102,241,0.06);
+}
+.ob-input::placeholder { color: rgba(255,255,255,0.2); }
+.ob-select { appearance: none; cursor: pointer; }
+.ob-textarea { resize: vertical; min-height: 80px; }
+
+/* ── Unit type chip grid ── */
+.ob-type-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-top: 2px;
+}
+.ob-type-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  font-size: 12px; color: rgba(255,255,255,0.5);
+  transition: all .15s; user-select: none;
+}
+.ob-type-chip input[type="checkbox"] { display: none; }
+.ob-type-chip.ob-type-checked {
+  background: rgba(99,102,241,0.12);
+  border-color: rgba(99,102,241,0.4);
+  color: rgba(255,255,255,0.9);
+}
+.ob-type-chip::before {
+  content: ''; width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: transparent; transition: all .15s;
+}
+.ob-type-chip.ob-type-checked::before {
+  background: #6366f1; border-color: #6366f1;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  background-size: 10px; background-repeat: no-repeat; background-position: center;
+}
+
+/* ── Bottom nav ── */
+.ob-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 40px 28px; border-top: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+.ob-btn-back {
+  background: none; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px; padding: 10px 20px; color: rgba(255,255,255,0.5);
+  font-size: 13px; cursor: pointer; font-family: inherit;
+  transition: all .15s; visibility: hidden;
+}
+.ob-btn-back:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
+.ob-btn-skip {
+  background: none; border: none; color: rgba(255,255,255,0.25);
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  padding: 0; display: none;
+}
+.ob-btn-skip:hover { color: rgba(255,255,255,0.5); }
+.ob-btn-next {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  border: none; border-radius: 9px; padding: 11px 28px;
+  color: white; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: opacity .15s;
+  box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+}
+.ob-btn-next:hover { opacity: .88; }
+.ob-btn-next:disabled { opacity: .5; cursor: not-allowed; }
+.ob-btn-finish {
+  background: linear-gradient(135deg,#059669,#10b981);
+  box-shadow: 0 4px 18px rgba(16,185,129,0.35);
+}
+
+/* ── Done panel ── */
+.ob-done-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 20px 40px;
+  min-height: 360px;
+}
+.ob-done-anim {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(16,185,129,0.12); border: 1.5px solid rgba(16,185,129,0.3);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 20px;
+  animation: ob-pop .5s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes ob-pop {
+  from { transform: scale(.4); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+.ob-done-title {
+  font-size: 24px; font-weight: 800; color: white;
+  letter-spacing: -.5px; margin-bottom: 8px;
+}
+.ob-done-sub {
+  font-size: 13px; color: rgba(255,255,255,0.4);
+  margin-bottom: 24px; line-height: 1.6;
+}
+.ob-done-list {
+  text-align: left; display: flex; flex-direction: column;
+  gap: 8px; margin-bottom: 24px; width: 100%; max-width: 360px;
+}
+.ob-done-item {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: rgba(255,255,255,0.6);
+}
+.ob-done-check {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.ob-done-check-yes { background: rgba(16,185,129,0.15); color: #34d399; }
+.ob-done-check-no  { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.2); }
+.ob-done-tip {
+  font-size: 11px; color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.04); border-radius: 8px;
+  padding: 10px 16px; border: 1px solid rgba(255,255,255,0.06);
+  max-width: 380px; line-height: 1.5;
+}
+
+/* ── Team result ── */
+.ob-tm-result {
+  align-items: center; gap: 8px; padding: 10px 14px;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 8px;
+}
+.ob-tm-ok { font-size: 12px; color: #4ade80; }
+.ob-tm-note {
+  font-size: 11px; color: rgba(255,255,255,0.3); padding: 8px 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .ob-wizard { grid-template-columns: 1fr; }
+  .ob-sidebar { display: none; }
+  .ob-panel-wrap { padding: 20px 20px 0; }
+  .ob-nav { padding: 16px 20px 20px; }
+  .ob-step-counter { padding: 12px 20px 0; }
+  .ob-type-grid { grid-template-columns: repeat(2,1fr); }
+  .ob-field-row { grid-template-columns: 1fr; }
+}
+
+/* ══ SETUP WIZARD v3 — Blue-600 retint + 6-step components (2026-05-26) ══════
+   Overrides the indigo accents (#6366f1/#8b5cf6) to Blue-600 (#2563eb) and
+   adds component styles for color picker, mode toggle, repeatable site/user
+   cards, username pill, and review summary. See onboarding.js. */
+
+/* — Accent retint (Blue-600) — */
+.ob-screen .ob-sb-logo        { background: linear-gradient(135deg,#2563eb,#3b82f6) !important; }
+.ob-screen .ob-progress-fill  { background: linear-gradient(90deg,#2563eb,#3b82f6) !important; }
+.ob-screen .ob-input:focus    { border-color: rgba(37,99,235,0.55) !important; background: rgba(37,99,235,0.07) !important; }
+.ob-screen .ob-sl-item.ob-sl-active { background: rgba(37,99,235,0.14) !important; }
+.ob-screen .ob-sl-active .ob-sl-icon{ background: rgba(37,99,235,0.28) !important; border-color: rgba(37,99,235,0.55) !important; color:#60a5fa !important; }
+.ob-screen .ob-type-chip.ob-type-checked        { background: rgba(37,99,235,0.14) !important; border-color: rgba(37,99,235,0.45) !important; }
+.ob-screen .ob-type-chip.ob-type-checked::before{ background:#2563eb !important; border-color:#2563eb !important; }
+.ob-screen .ob-btn-next       { background: linear-gradient(135deg,#2563eb,#3b82f6) !important; box-shadow: 0 4px 18px rgba(37,99,235,0.35) !important; }
+.ob-screen .ob-btn-next.ob-btn-finish { background: linear-gradient(135deg,#059669,#10b981) !important; box-shadow: 0 4px 18px rgba(16,185,129,0.35) !important; }
+
+/* — Step counter polish — */
+.ob-step-counter strong, .ob-step-counter b { color: rgba(255,255,255,0.7); }
+
+/* — Logo upload — */
+.ob-file {
+  background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.18);
+  border-radius: 9px; padding: 10px 14px; color: rgba(255,255,255,0.7);
+  font-size: 12px; cursor: pointer; width: 100%;
+}
+.ob-file::-webkit-file-upload-button {
+  background: rgba(37,99,235,0.18); color: #93c5fd; border: 1px solid rgba(37,99,235,0.4);
+  border-radius: 6px; padding: 6px 12px; margin-right: 10px; cursor: pointer; font-size: 11px;
+}
+.ob-logo-prev { max-width: 120px; max-height: 60px; margin-top: 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.06); padding: 6px; }
+
+/* — Branding: colour swatch grid — */
+.ob-swatch-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 4px; max-width: 360px; }
+.ob-swatch {
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer;
+  border: 2px solid transparent; transition: transform .15s, box-shadow .15s; padding: 0;
+}
+.ob-swatch:hover { transform: scale(1.08); }
+.ob-swatch-on { border-color: rgba(255,255,255,0.85); box-shadow: 0 0 0 2px rgba(37,99,235,0.5); }
+.ob-color-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.ob-color-chip { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.15);
+  display: inline-block; vertical-align: middle; }
+
+/* — Branding: light/dark mode cards — */
+.ob-mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 360px; margin-top: 4px; }
+.ob-mode-card {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 600;
+  font-family: inherit; transition: all .15s;
+}
+.ob-mode-card:hover { border-color: rgba(255,255,255,0.22); color: white; }
+.ob-mode-card.ob-mode-on { border-color: rgba(37,99,235,0.55); background: rgba(37,99,235,0.10); color: white; }
+.ob-mode-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.18); }
+.ob-mode-dot.ob-mode-light { background: linear-gradient(135deg,#f8fafc,#e2e8f0); }
+.ob-mode-dot.ob-mode-dark  { background: linear-gradient(135deg,#0f172a,#1e293b); }
+
+/* — Repeatable cards (sites & users) — */
+.ob-rep-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
+.ob-rep-card, .ob-user-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.ob-rep-head { display: flex; align-items: center; justify-content: space-between; }
+.ob-rep-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  color: rgba(37,99,235,0.85); }
+.ob-rep-rm {
+  background: none; border: 1px solid rgba(239,68,68,0.3); color: #fca5a5;
+  border-radius: 7px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-family: inherit;
+  transition: all .15s;
+}
+.ob-rep-rm:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.55); color: #fecaca; }
+.ob-add-btn {
+  background: rgba(37,99,235,0.10); border: 1px dashed rgba(37,99,235,0.45);
+  border-radius: 10px; padding: 11px 18px; color: #93c5fd;
+  font-size: 13px; font-weight: 600; cursor: pointer; width: 100%;
+  font-family: inherit; transition: all .15s;
+}
+.ob-add-btn:hover:not(:disabled) { background: rgba(37,99,235,0.18); color: #bfdbfe; }
+.ob-add-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ob-empty { padding: 18px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.08); border-radius: 10px; }
+
+/* — Username preview pill — */
+.ob-username-pill {
+  display: inline-block; padding: 8px 14px; border-radius: 7px;
+  background: rgba(37,99,235,0.10); border: 1px solid rgba(37,99,235,0.3);
+  color: #bfdbfe; font-family: 'Space Mono', monospace; font-size: 12px;
+}
+
+/* — Review summary — */
+.ob-rev-sec {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 16px 20px; margin-bottom: 14px;
+}
+.ob-rev-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+.ob-rev-edit {
+  background: none; border: none; color: #60a5fa; font-size: 11px; cursor: pointer;
+  font-family: inherit; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+}
+.ob-rev-edit:hover { color: #93c5fd; }
+.ob-rev-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  padding: 5px 0; font-size: 13px; color: rgba(255,255,255,0.45);
+}
+.ob-rev-row b { color: rgba(255,255,255,0.92); font-weight: 600; }
+.ob-rev-empty { padding: 8px 0; font-size: 12px; color: rgba(255,255,255,0.3); font-style: italic; }
+
+/* — Per-step skip never allowed. Sidebar skip-link slot is JS-controlled and only
+   shown as a Cancel link when the wizard is re-entered AFTER onboarding completes. */
+.ob-screen .ob-btn-skip { display: none !important; }
+.ob-screen .ob-skip-link {
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+  color: #fca5a5 !important; border-radius: 9px;
+  padding: 9px 12px; font-size: 12px; font-weight: 600;
+  text-align: left; transition: all .15s; cursor: pointer; width: 100%;
+}
+.ob-screen .ob-skip-link:hover { background: rgba(239,68,68,0.14); color: #fecaca !important; }
+
+/* — Plan-limit notice (sites/users) — */
+.ob-limit-msg {
+  background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.35);
+  border-radius: 9px; padding: 10px 14px; margin-bottom: 12px;
+  color: #fcd34d; font-size: 12px; line-height: 1.4;
+}
+
+/* — Existing entities (read-only) above the wizard's add cards — */
+.ob-existing-block { margin-bottom: 18px; }
+.ob-existing-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+  color: rgba(255,255,255,0.42); margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center;
+}
+.ob-existing-title span {
+  background: rgba(37,99,235,0.18); color: #93c5fd; padding: 2px 8px;
+  border-radius: 10px; font-size: 10px; margin-left: 8px;
+}
+.ob-existing-list { display: flex; flex-direction: column; gap: 8px; }
+.ob-existing-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px; padding: 12px 16px; opacity: .82;
+}
+.ob-existing-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px; }
+.ob-existing-meta {
+  display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: rgba(255,255,255,0.42);
+}
+.ob-existing-code { font-family: 'Space Mono', monospace; color: rgba(255,255,255,0.5); }
+.ob-existing-badge {
+  background: rgba(99,102,241,0.18); color: #a5b4fc; padding: 1px 7px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+}
+.ob-existing-note {
+  font-size: 11px; color: rgba(255,255,255,0.32); margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.04); font-style: italic;
+}
+
+/* — Section divider inside repeatable cards (Builder / Timeline groupings) — */
+.ob-section-divider {
+  margin-top: 6px; padding: 9px 0 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  color: rgba(255,255,255,0.42); border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; gap: 8px;
+}
+.ob-section-divider .ob-hint-inline { color: rgba(255,255,255,0.25); }
+
+/* — Inline field validation error highlight — */
+.ob-input.ob-input-err {
+  border-color: rgba(239,68,68,0.65) !important;
+  background: rgba(239,68,68,0.06) !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.10) !important;
+}
+
+/* ══ SETUP WIZARD v4 — FINAL POLISH (2026-05-26) ══════════════════════════
+   Breathing room above the bottom nav, refined rhythm, hover affordances,
+   cleaner hierarchy across all 6 steps. Selectors scoped under .ob-screen
+   so they override the base ob-* defaults without bleeding elsewhere. */
+
+/* — CRITICAL: bottom breathing room so form doesn't touch the footer — */
+.ob-screen .ob-panel-wrap { padding: 26px 44px 44px !important; }
+.ob-screen .ob-step-counter { padding: 18px 44px 6px !important; font-size: 11px; }
+
+/* — Footer nav: subtle visual separation from the form above — */
+.ob-screen .ob-nav {
+  padding: 18px 44px 24px !important;
+  background: rgba(8,8,18,0.55);
+  box-shadow: 0 -8px 18px rgba(0,0,0,0.22);
+  backdrop-filter: blur(6px);
+}
+
+/* — Panel header: tighter, clearer hierarchy — */
+.ob-screen .ob-panel-hd { margin-bottom: 26px; }
+.ob-screen .ob-panel-title { font-size: 23px; letter-spacing: -.45px; margin-bottom: 8px; }
+.ob-screen .ob-panel-sub { font-size: 13px; line-height: 1.7; color: rgba(255,255,255,0.5); }
+.ob-screen .ob-panel-sub strong { color: rgba(255,255,255,0.85); font-weight: 700; }
+.ob-screen .ob-panel-sub code {
+  font-family: 'Space Mono', monospace; font-size: 11.5px;
+  background: rgba(37,99,235,0.14); padding: 2px 7px; border-radius: 5px;
+  color: #bfdbfe; border: 1px solid rgba(37,99,235,0.25);
+}
+
+/* — Field rhythm — */
+.ob-screen .ob-fields { gap: 18px; }
+.ob-screen .ob-field-row { gap: 16px; }
+.ob-screen .ob-field { gap: 7px; }
+.ob-screen .ob-label { font-size: 11px; letter-spacing: .6px; color: rgba(255,255,255,0.55); }
+
+/* — Inputs: slightly more padding for readability — */
+.ob-screen .ob-input {
+  padding: 11px 14px;
+  font-size: 13.5px;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.ob-screen .ob-input:hover:not(:focus):not(.ob-input-err) { border-color: rgba(255,255,255,0.18); }
+
+/* — Sidebar step list — */
+.ob-screen .ob-sl-item { padding: 11px 13px; }
+.ob-screen .ob-sl-item.ob-sl-active {
+  box-shadow: inset 3px 0 0 #2563eb;
+  background: rgba(37,99,235,0.14) !important;
+}
+
+/* — Repeatable cards (user cards): more breathing — */
+.ob-screen .ob-rep-card,
+.ob-screen .ob-user-card {
+  padding: 20px 22px; gap: 16px;
+  transition: border-color .15s, background .15s;
+}
+.ob-screen .ob-rep-card:hover,
+.ob-screen .ob-user-card:hover { border-color: rgba(255,255,255,0.14); }
+
+/* — Add button: a touch larger + hover lift — */
+.ob-screen .ob-add-btn {
+  padding: 13px 22px; border-radius: 11px;
+  transition: all .18s ease;
+}
+.ob-screen .ob-add-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(37,99,235,0.22);
+  color: #dbeafe;
+}
+
+/* — Existing entity cards: hover hint + slightly larger — */
+.ob-screen .ob-existing-block { margin-bottom: 22px; }
+.ob-screen .ob-existing-list { gap: 10px; }
+.ob-screen .ob-existing-card {
+  padding: 13px 18px;
+  transition: background .15s, opacity .15s, border-color .15s;
+}
+.ob-screen .ob-existing-card:hover {
+  background: rgba(255,255,255,0.045);
+  opacity: 1;
+  border-color: rgba(255,255,255,0.10);
+}
+
+/* — Section divider inside cards — */
+.ob-screen .ob-section-divider { margin-top: 10px; padding: 12px 0 8px; }
+
+/* — Branding: swatches + mode cards — */
+.ob-screen .ob-swatch-grid { gap: 10px; max-width: 380px; }
+.ob-screen .ob-swatch { width: 38px; height: 38px; border-radius: 10px; }
+.ob-screen .ob-swatch-on {
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.6), 0 4px 14px rgba(37,99,235,0.32);
+}
+.ob-screen .ob-mode-card { padding: 16px 18px; }
+.ob-screen .ob-color-row { margin-top: 14px; gap: 12px; }
+
+/* — Username preview pill — */
+.ob-screen .ob-username-pill { padding: 9px 16px; font-size: 12.5px; }
+
+/* — Review summary spacing — */
+.ob-screen .ob-rev-sec { padding: 18px 22px; margin-bottom: 16px; }
+.ob-screen .ob-rev-hd  { padding-bottom: 12px; margin-bottom: 12px; }
+.ob-screen .ob-rev-row { padding: 7px 0; font-size: 13.5px; }
+
+/* — Done tip / final tip — */
+.ob-screen .ob-done-tip { padding: 14px 18px; font-size: 12px; line-height: 1.65; max-width: 100%; }
+
+/* — Plan-limit notice spacing — */
+.ob-screen .ob-limit-msg { margin-top: 4px; margin-bottom: 14px; padding: 11px 16px; }
+
+/* — Logo upload area cleanup — */
+.ob-screen .ob-file { padding: 11px 14px; font-size: 12px; }
+.ob-screen .ob-logo-prev { max-width: 140px; max-height: 70px; }
+
+/* — Empty state — */
+.ob-screen .ob-empty { padding: 22px; font-size: 12.5px; }
+
+/* — Responsive: keep breathing on small screens — */
+@media (max-width: 700px) {
+  .ob-screen .ob-panel-wrap { padding: 18px 18px 28px !important; }
+  .ob-screen .ob-step-counter { padding: 12px 18px 4px !important; }
+  .ob-screen .ob-nav { padding: 14px 18px 18px !important; }
+  .ob-screen .ob-rep-card, .ob-screen .ob-user-card { padding: 16px; }
+}
+
+/* ══ WIZARD LAYOUT FIXES (2026-05-26) ══════════════════════════════════════
+   1) Pin sidebar footer ("Cancel & return to dashboard") so it never scrolls out
+   2) Hide global floating widgets (Crisp chat, FABs) while wizard is active */
+
+/* Pin Cancel link in sidebar footer — only step list scrolls */
+.ob-screen .ob-sidebar    { overflow: hidden !important; }
+.ob-screen .ob-step-list  { overflow-y: auto !important; min-height: 0 !important; flex: 1 1 auto !important; }
+.ob-screen .ob-sb-footer  {
+  flex-shrink: 0 !important; padding-top: 12px !important; margin-top: 10px !important;
+  border-top: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Hide Crisp chat + any floating FAB widgets while wizard is active (avoids overlap
+   with the wizard's Next button and form scroll area). Reactivated automatically when
+   onboarding.js hide() removes body.wizard-active. */
+body.wizard-active .crisp-client,
+body.wizard-active #crisp-chatbox,
+body.wizard-active [id^="crisp-"],
+body.wizard-active [class^="crisp-"],
+body.wizard-active .fab,
+body.wizard-active [class*="-fab"],
+body.wizard-active [class*="fab-"],
+body.wizard-active .help-launcher,
+body.wizard-active .chat-launcher,
+body.wizard-active .help-fab,
+body.wizard-active .chat-fab {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+

@@ -15,8 +15,8 @@
   function initCursorTrail() {
     var dot  = document.createElement('div');
     var ring = document.createElement('div');
-    dot.style.cssText  = 'position:fixed;width:6px;height:6px;background:#00d9ff;border-radius:50%;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);transition:background 0.3s;will-change:transform;';
-    ring.style.cssText = 'position:fixed;width:30px;height:30px;border:1.5px solid rgba(0,217,255,0.55);border-radius:50%;pointer-events:none;z-index:99998;transform:translate(-50%,-50%);transition:width 0.3s,height 0.3s,border-color 0.3s;will-change:transform;';
+    dot.style.cssText  = 'position:fixed;width:6px;height:6px;background:#6366F1;border-radius:50%;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);transition:background 0.3s;will-change:transform;';
+    ring.style.cssText = 'position:fixed;width:30px;height:30px;border:1.5px solid rgba(99,102,241,0.55);border-radius:50%;pointer-events:none;z-index:99998;transform:translate(-50%,-50%);transition:width 0.3s,height 0.3s,border-color 0.3s;will-change:transform;';
     document.body.appendChild(dot);
     document.body.appendChild(ring);
 
@@ -59,8 +59,8 @@
       });
       el.addEventListener('mouseleave', function() {
         ring.style.width = '30px'; ring.style.height = '30px';
-        ring.style.borderColor = 'rgba(0,217,255,0.55)';
-        dot.style.background = '#00d9ff';
+        ring.style.borderColor = 'rgba(99,102,241,0.55)';
+        dot.style.background = '#6366F1';
       });
     });
   }
@@ -158,7 +158,7 @@
     var originalText = el.textContent.trim();
     el.textContent = '';
     var cursor = document.createElement('span');
-    cursor.style.cssText = 'display:inline-block;width:2px;height:1em;background:#00d9ff;vertical-align:text-bottom;margin-left:2px;animation:lxBlink 1s step-end infinite;border-radius:1px;';
+    cursor.style.cssText = 'display:inline-block;width:2px;height:1em;background:#6366F1;vertical-align:text-bottom;margin-left:2px;animation:lxBlink 1s step-end infinite;border-radius:1px;';
     el.appendChild(cursor);
 
     // Start typing after entrance reveal
@@ -208,7 +208,7 @@
           r: Math.random() * 4 + 2,
           life: 1,
           decay: 0.04,
-          color: i % 2 === 0 ? 'rgba(0,217,255,' : 'rgba(168,85,247,'
+          color: i % 2 === 0 ? 'rgba(99,102,241,' : 'rgba(139,92,246,'
         });
       }
       (function drawBurst() {

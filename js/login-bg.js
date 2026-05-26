@@ -35,7 +35,7 @@
     var particles = new THREE.Points(geo, mat);
     scene.add(particles);
 
-    var linesMat  = new THREE.LineBasicMaterial({ color: 0x00d9ff, transparent: true, opacity: 0.06 });
+    var linesMat  = new THREE.LineBasicMaterial({ color: 0x6366F1, transparent: true, opacity: 0.06 });
     var nodeCount = 30, nodes = [];
     for (var n = 0; n < nodeCount; n++) {
       nodes.push(new THREE.Vector3(

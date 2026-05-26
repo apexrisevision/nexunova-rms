@@ -58,11 +58,7 @@ function _paySetFilter(f, el) {
 }
 
 async function _payLoad() {
-  const { data } = await supabase
-    .from('payables')
-    .select(`*, clients(client_name, client_code, phone)`)
-    .eq('company_id', S.cid)
-    .order('created_at', { ascending: false });
+  const { data } = await supabase.rpc('list_payables', { p_company_id: S.cid });
   _payablesData = data || [];
   _payRender();
 }
@@ -156,14 +152,18 @@ async function _payMarkPaid() {
   const newPaid = Number(rec?.paid_amount || 0) + Number(amtStr);
   const newStatus = newPaid >= Number(rec?.amount || 0) ? 'paid' : 'partial';
 
-  const { error } = await supabase.from('payables').update({
-    paid_amount: newPaid,
-    paid_date: date,
-    payment_method: document.getElementById('pay-payment_method').value || null,
-    reference: document.getElementById('pay-reference').value.trim() || null,
-    notes: document.getElementById('pay-notes').value.trim() || null,
-    status: newStatus,
-  }).eq('id', _payEditId);
+  const { error } = await supabase.rpc('update_payable', {
+    p_id: _payEditId,
+    p_company_id: S.cid,
+    p_data: {
+      paid_amount: newPaid,
+      paid_date: date,
+      payment_method: document.getElementById('pay-payment_method').value || null,
+      reference: document.getElementById('pay-reference').value.trim() || null,
+      notes: document.getElementById('pay-notes').value.trim() || null,
+      status: newStatus,
+    }
+  });
 
   btn.disabled = false;
   if (error) { errEl.textContent = error.message; return; }

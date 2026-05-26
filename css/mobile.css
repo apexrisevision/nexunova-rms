@@ -1,0 +1,257 @@
+/* ════════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — MOBILE RESPONSIVE OVERRIDES
+   Supplements app.css sidebar rules. Targets content patterns:
+   KPI grids, tables, forms, modals, charts, filter bars.
+   Load AFTER all other stylesheets.
+════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════
+   BREAKPOINT ≤ 768px — phones & small tablets
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Page header (ph) ────────────────────────────────────── */
+  .ph {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .ph-r {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ph-r .btn, .ph-r button {
+    flex: 1 1 auto;
+    min-width: 100px;
+    justify-content: center;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  /* ── Filter bar ──────────────────────────────────────────── */
+  .fbar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  .fbar input, .fbar select, .fbar .ss-wrap {
+    width: 100% !important;
+    min-width: unset !important;
+    flex: none !important;
+  }
+  .fbar .btn, .fbar button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ── KPI grids — all module variants ────────────────────── */
+  .inv-kpi-grid               { grid-template-columns: 1fr 1fr !important; }
+  .stat-row                   { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .prj-kpi-row                { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+
+  /* ── Tables — horizontal scroll ─────────────────────────── */
+  /* Wrap any .dt, .tbl, table within a page in overflow container */
+  .scr table, .pg table {
+    min-width: 560px;
+  }
+  .scr .tbl-wrap, .pg .tbl-wrap,
+  .scr [class*="tbl-wrap"], .pg [class*="tbl-wrap"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Field visits table */
+  .fv-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Modals — tighter on phones ─────────────────────────── */
+  .md {
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    max-height: 92vh !important;
+  }
+  .mov.on, .mov.open {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  /* ── Form grids → single column ─────────────────────────── */
+  .g2, .g3 {
+    grid-template-columns: 1fr !important;
+  }
+  .mb .g2, .mb .g3 { grid-template-columns: 1fr !important; }
+
+  /* ── Card grids ──────────────────────────────────────────── */
+  .card-grid-2, .card-grid-3, .card-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Charts — prevent overflow ───────────────────────────── */
+  canvas {
+    max-width: 100% !important;
+  }
+
+  /* ── Dashboard KPIs (dashboard-premium) ─────────────────── */
+  .dash-kpi-row        { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .dash-qa-row         { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+
+  /* ── Inventory KPI strip ────────────────────────────────── */
+  .inv-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── Ledger / Receivables / Payables KPI strips ─────────── */
+  .led-kpi-row, .pay-kpi-row, .rec-kpi-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* ── Project KPI cards ──────────────────────────────────── */
+  .prj-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+
+  /* ── Follow-up / recovery tables ───────────────────────── */
+  .fc-tbl-wrap, .pay-tbl-wrap, .rec-tbl-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Report hub ─────────────────────────────────────────── */
+  .rpt-grid { grid-template-columns: 1fr 1fr !important; }
+  .rpt-hero-actions { flex-direction: column; gap: 8px; }
+
+  /* ── Audit/timeline items ───────────────────────────────── */
+  .aud-row { flex-wrap: wrap; gap: 6px; }
+  .aud-meta { font-size: 10px; }
+
+  /* ── NOC cards ──────────────────────────────────────────── */
+  .noc-cards-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Campaign cards ─────────────────────────────────────── */
+  .camp-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Comms center ───────────────────────────────────────── */
+  .cc-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Promise tracker ────────────────────────────────────── */
+  .prom-kpi-strip { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── Possession checklist ───────────────────────────────── */
+  .poss-checklist-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Field visit page ───────────────────────────────────── */
+  .fv-kpi-strip { grid-template-columns: 1fr 1fr !important; }
+  .fv-analytics-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Executive dashboard ────────────────────────────────── */
+  .exec-grid-2, .exec-grid-3, .exec-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Touch-friendly tap targets ────────────────────────── */
+  .btn, button, [role="button"] {
+    min-height: 40px;
+  }
+  .ni { min-height: 44px; }
+
+  /* ── Topbar user area hide clutter ─────────────────────── */
+  .tb-chip.co { max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Health center ──────────────────────────────────────── */
+  .hc-grid { grid-template-columns: 1fr !important; }
+  .hc-kpi-row { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── Escalation kpi ─────────────────────────────────────── */
+  .esc-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── Legal cases ────────────────────────────────────────── */
+  .lc-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BREAKPOINT ≤ 480px — small phones
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* ── KPI grids → single column ──────────────────────────── */
+  .inv-kpi-grid                  { grid-template-columns: 1fr !important; }
+  .stat-row                      { grid-template-columns: 1fr 1fr !important; }
+  .dash-kpi-row                  { grid-template-columns: 1fr !important; }
+  .dash-qa-row                   { grid-template-columns: 1fr 1fr !important; }
+  .prj-kpi-grid                  { grid-template-columns: 1fr 1fr !important; }
+  .led-kpi-row, .pay-kpi-row, .rec-kpi-row { grid-template-columns: 1fr 1fr !important; }
+  .fv-kpi-strip                  { grid-template-columns: 1fr 1fr !important; }
+  .prom-kpi-strip                { grid-template-columns: 1fr 1fr !important; }
+  .hc-kpi-row                    { grid-template-columns: 1fr 1fr !important; }
+  .esc-kpi-grid, .lc-kpi-grid    { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── Page title ──────────────────────────────────────────── */
+  .ph-title, .inv-title { font-size: 18px !important; }
+
+  /* ── Buttons: hide icon-only labels on tiny screens ─────── */
+  .btn-xs-icon-only span { display: none; }
+
+  /* ── Report grid ─────────────────────────────────────────── */
+  .rpt-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Modals full-width at bottom ─────────────────────────── */
+  .md {
+    border-radius: 20px 20px 0 0 !important;
+    padding: 0 !important;
+  }
+  .mh { padding: 16px 18px 12px !important; }
+  .mb { padding: 16px 18px !important; }
+  .mf { padding: 12px 18px 20px !important; }
+
+  /* ── Table cells — tighter ───────────────────────────────── */
+  .scr th, .scr td, .pg th, .pg td {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* ── Filter bar labels hide on small phones ──────────────── */
+  .fbar-label { display: none; }
+
+  /* ── QAB positioning ─────────────────────────────────────── */
+  #qab-wrap { bottom: 72px; right: 12px; }
+  .qab-item { padding: 10px 14px 10px 10px; font-size: 12px; }
+
+  /* ── Topbar compact ──────────────────────────────────────── */
+  .tb-chip { display: none !important; }
+  .tb-r .tb-icon-btn:not(#tb-notif):not(.tb-theme-toggle) { display: none; }
+
+  /* ── Field visit form ────────────────────────────────────── */
+  .fv-location-row { flex-direction: column; gap: 8px; }
+  .fv-outcome-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOUCH ENHANCEMENTS — all mobile sizes
+══════════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+
+  /* Remove hover-only effects that feel broken on touch */
+  .ni:hover { background: transparent !important; }
+  .ni.on { background: var(--brand-bg, rgba(37,99,235,0.08)) !important; }
+
+  /* Larger scroll targets for table rows */
+  tr { cursor: default; }
+
+  /* Swipe-friendly modal overlay — tap outside to close */
+  .mov.on, .mov.open { cursor: pointer; }
+  .md { cursor: auto; }
+
+  /* Slightly larger form inputs for fat fingers */
+  input[type="text"], input[type="email"], input[type="number"],
+  input[type="date"], input[type="time"], select, textarea {
+    min-height: 42px;
+    font-size: 16px !important; /* prevents iOS auto-zoom */
+  }
+
+  /* Prevent text selection on tap of interactive elements */
+  .btn, button, .ni, .qab-item, .kpi, .stat-card {
+    -webkit-tap-highlight-color: rgba(37,99,235,0.15);
+    user-select: none;
+  }
+}

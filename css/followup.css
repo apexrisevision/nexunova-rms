@@ -238,7 +238,7 @@
   flex-shrink: 0;
 }
 /* Color tile variants */
-.fc-kpi-icon.indigo  { background: rgba(79,70,229,.10); color: #4F46E5; }
+.fc-kpi-icon.indigo  { background: rgba(37,99,235,.10); color: #2563EB; }
 .fc-kpi-icon.emerald { background: rgba(16,163,74,.10); color: #16A34A; }
 .fc-kpi-icon.blue    { background: rgba(37,99,235,.10); color: #2563EB; }
 .fc-kpi-icon.red     { background: rgba(220,38,38,.10); color: #DC2626; }
@@ -696,7 +696,7 @@
   color: var(--text-muted);
   line-height: 1.6;
 }
-.fc-pill.active .fc-pill-count { background: rgba(79,70,229,.15); color: var(--primary); }
+.fc-pill.active .fc-pill-count { background: rgba(37,99,235,.15); color: var(--primary); }
 
 /* Select dropdown */
 .fc-select {

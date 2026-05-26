@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Payment Receipt — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:0;left:0;right:0;background:#1e2d47;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
+.toolbar-actions{display:flex;gap:8px}
+.btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
+.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-print:hover{background:#d4b55e}
+.btn-close:hover{background:rgba(255,255,255,.2)}
+
+/* ── A4 page ── */
+.page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
+
+/* ── Letterhead ── */
+.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh-left{display:flex;align-items:center;gap:14px}
+.lh-logo{height:50px;max-width:140px;object-fit:contain;display:block}
+.lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
+.lh-company{display:flex;flex-direction:column;gap:2px}
+.lh-name{font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.lh-sub{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;opacity:.7}
+.lh-right{text-align:right}
+.lh-doctype{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.lh-meta{font-size:9px;opacity:.65;line-height:1.8}
+.gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Body ── */
+.body{padding:22px 24px 20px}
+
+/* ── Receipt meta row ── */
+.top-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.rcpt-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:3px}
+.rcpt-no{font-size:17px;font-weight:800;font-family:monospace;color:#111827;letter-spacing:.5px}
+.rcpt-date{font-size:12px;font-weight:600;color:#374151;text-align:right}
+
+/* ── Amount hero ── */
+.amt-hero{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1.5px solid #86efac;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.amt-hero-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#16a34a;margin-bottom:6px}
+.amt-hero-val{font-size:32px;font-weight:800;color:#15803d;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1}
+.amt-hero-curr{font-size:14px;font-weight:700;margin-right:3px;vertical-align:middle}
+.amt-hero-words{font-size:11px;color:#166534;font-style:italic;margin-top:7px}
+
+/* ── Two-col info grid ── */
+.info-cols{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:18px}
+.info-col-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-bottom:1.5px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.info-col-body{padding:4px 14px 10px}
+.info-divider{border-left:1.5px solid #e5e7eb}
+.info-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #f3f4f6}
+.info-row:last-child{border-bottom:none}
+.info-k{font-size:10px;color:#6b7280;font-weight:500;white-space:nowrap}
+.info-v{font-size:10px;color:#111827;font-weight:600;text-align:right;max-width:55%;word-break:break-word}
+
+/* ── Account summary ── */
+.acct-box{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:20px}
+.acct-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;margin-bottom:10px}
+.acct-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px}
+.acct-k{color:#6b7280;font-weight:500}
+.acct-v{font-weight:700}
+.prog-bg{height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:8px 0 3px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.prog-fill{height:100%;border-radius:99px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.prog-pct{font-size:9px;font-weight:700;text-align:right}
+
+/* ── Signatures ── */
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb}
+.sig-box{padding-top:28px;border-top:1.5px solid #374151}
+.sig-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af}
+.sig-name{font-size:11px;font-weight:700;color:#111827;margin-top:4px;min-height:16px}
+.sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
+
+/* ── Footer ── */
+.doc-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+
+/* ── States ── */
+.loading-state{padding:60px;text-align:center;color:#6b7280;font-size:14px}
+.error-state{margin:24px;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:13px;text-align:center}
+
+/* ── Print ── */
+@media print{
+  @page{size:A4;margin:12mm 14mm}
+  body{background:#fff}
+  .toolbar{display:none!important}
+  .page-wrap{padding:0}
+  .page{width:100%;box-shadow:none;border-radius:0}
+  .lh,.gold-bar,.amt-hero,.prog-bg,.prog-fill,.info-col-hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Payment Receipt — Nexunova RMS
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-print" onclick="window.print()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save PDF
+    </button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="page" id="page">
+    <div class="loading-state">Loading receipt…</div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const P = new URLSearchParams(location.search);
+const paymentId = P.get('id');
+const cid       = P.get('cid');
+
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = n  => Number(n||0).toLocaleString('en-PK');
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+
+function amtWords(n){
+  n=Math.round(Number(n)||0); if(!n) return 'Zero Rupees Only';
+  const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  const w=n=>{if(n<20)return a[n];if(n<100)return b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');return a[Math.floor(n/100)]+' Hundred'+(n%100?' and '+w(n%100):'');};
+  let s='';
+  if(n>=10000000){s+=w(Math.floor(n/10000000))+' Crore ';n%=10000000;}
+  if(n>=100000){s+=w(Math.floor(n/100000))+' Lakh ';n%=100000;}
+  if(n>=1000){s+=w(Math.floor(n/1000))+' Thousand ';n%=1000;}
+  if(n>0) s+=w(n);
+  return s.trim()+' Rupees Only';
+}
+
+async function loadReport(){
+  const page = document.getElementById('page');
+
+  if(!paymentId || !cid){
+    page.innerHTML = '<div class="error-state">Missing parameters. Please open this report from the RMS application.</div>';
+    return;
+  }
+
+  try {
+    const [pRes, brRes] = await Promise.all([
+      sb.rpc('get_payment_full',     { p_id: paymentId,  p_company_id: cid }),
+      sb.rpc('get_company_branding', { p_company_id: cid })
+    ]);
+
+    if(pRes.error) throw pRes.error;
+    const p  = pRes.data;
+    if(!p) throw new Error('Payment record not found.');
+
+    const br      = brRes.data || {};
+    const primary = br.doc_brand_color || '#1E2D47';
+    const accent  = br.accent_color    || '#C9A84C';
+    const coName  = br.company_name    || 'Company';
+
+    // Sale + installment data
+    let s = {}, installments = [];
+    if(p.sale_id){
+      const sRes = await sb.rpc('get_sale_detail', { p_sale_id: p.sale_id, p_company_id: cid });
+      if(!sRes.error && sRes.data?.success){
+        s            = sRes.data.sale        || {};
+        installments = sRes.data.installments|| [];
+      }
+    }
+
+    const totalPaid   = installments.reduce((sum,i) => sum + Number(i.amount_paid||0), 0);
+    const netAmt      = Number(s.net_amount || s.total_amount || 0);
+    const outstanding = Math.max(0, netAmt - totalPaid);
+    const pct         = netAmt > 0 ? Math.min(100, Math.round(totalPaid / netAmt * 100)) : 0;
+    const amt         = Number(p.amount || 0);
+    const rcptNo      = p.payment_code || p.voucher_code || ('RCP-' + paymentId.slice(-8).toUpperCase());
+    const progColor   = pct>=100?'#16a34a':pct>=60?'#22c55e':pct>=30?'#f59e0b':'#ef4444';
+
+    const methodMap   = {cash:'Cash',cheque:'Cheque',pdc:'Post-Dated Cheque',bank_transfer:'Bank Transfer',online:'Online / Mobile',other:'Other'};
+    const methodLabel = methodMap[p.payment_method] || p.payment_method || '—';
+
+    const logoHtml = br.logo_url
+      ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
+      : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
+
+    const html = `
+    <div class="lh" style="background:${primary}">
+      <div class="lh-left">
+        ${logoHtml}
+        <div class="lh-company">
+          <div class="lh-name">${esc(coName)}</div>
+          <div class="lh-sub">${esc(br.letterhead_subtitle||'Recovery Management System')}</div>
+        </div>
+      </div>
+      <div class="lh-right">
+        <div class="lh-doctype">Payment Receipt</div>
+        <div class="lh-meta">
+          ${fmtD(p.payment_date)}<br>
+          ${br.address_full ? esc(br.address_full)+'<br>' : ''}
+          ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
+          ${br.business_email ? esc(br.business_email) : ''}
+        </div>
+      </div>
+    </div>
+    <div class="gold-bar" style="background:linear-gradient(90deg,${accent},#f0e09a,${accent})"></div>
+
+    <div class="body">
+
+      <div class="top-meta">
+        <div>
+          <div class="rcpt-label">Receipt Number</div>
+          <div class="rcpt-no">${esc(rcptNo)}</div>
+        </div>
+        <div>
+          <div class="rcpt-label" style="text-align:right">Payment Date</div>
+          <div class="rcpt-date">${fmtD(p.payment_date)}</div>
+        </div>
+      </div>
+
+      <div class="amt-hero">
+        <div class="amt-hero-lbl">Amount Received</div>
+        <div class="amt-hero-val"><span class="amt-hero-curr">PKR</span>${fmt(amt)}</div>
+        <div class="amt-hero-words">${amtWords(amt)}</div>
+      </div>
+
+      <div class="info-cols">
+        <div>
+          <div class="info-col-hd" style="background:${primary};color:#fff">Client &amp; Property</div>
+          <div class="info-col-body">
+            <div class="info-row"><span class="info-k">Client Name</span><span class="info-v">${esc(s.client_name||'—')}</span></div>
+            <div class="info-row"><span class="info-k">Unit No</span><span class="info-v">${esc(s.unit_no||'—')}</span></div>
+            <div class="info-row"><span class="info-k">Project</span><span class="info-v">${esc(s.project_name||'—')}</span></div>
+            <div class="info-row"><span class="info-k">Floor / Type</span><span class="info-v">${esc([s.floor_label,s.unit_type].filter(Boolean).join(' · ')||'—')}</span></div>
+            <div class="info-row"><span class="info-k">Sale No</span><span class="info-v" style="font-family:monospace;font-size:9px">${esc(s.sale_number||'—')}</span></div>
+          </div>
+        </div>
+        <div class="info-divider">
+          <div class="info-col-hd" style="background:${primary};color:#fff">Payment Details</div>
+          <div class="info-col-body">
+            <div class="info-row"><span class="info-k">Method</span><span class="info-v">${esc(methodLabel)}</span></div>
+            ${p.bank_name    ? `<div class="info-row"><span class="info-k">Bank</span><span class="info-v">${esc(p.bank_name)}</span></div>` : ''}
+            ${p.reference_no ? `<div class="info-row"><span class="info-k">Reference No</span><span class="info-v" style="font-family:monospace;font-size:9px">${esc(p.reference_no)}</span></div>` : ''}
+            ${p.cheque_date  ? `<div class="info-row"><span class="info-k">Cheque Date</span><span class="info-v">${fmtD(p.cheque_date)}</span></div>` : ''}
+            <div class="info-row"><span class="info-k">Recorded By</span><span class="info-v">${esc(p.created_by||'System')}</span></div>
+            ${p.notes        ? `<div class="info-row"><span class="info-k">Notes</span><span class="info-v">${esc(p.notes)}</span></div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      ${netAmt > 0 ? `
+      <div class="acct-box">
+        <div class="acct-hd">Account Summary</div>
+        <div class="acct-row">
+          <span class="acct-k">Total Sale Price</span>
+          <span class="acct-v">PKR ${fmt(netAmt)}</span>
+        </div>
+        <div class="acct-row">
+          <span class="acct-k">Total Paid to Date</span>
+          <span class="acct-v" style="color:#16a34a">PKR ${fmt(totalPaid)}</span>
+        </div>
+        <div class="acct-row">
+          <span class="acct-k">Outstanding Balance</span>
+          <span class="acct-v" style="color:${outstanding>0?'#dc2626':'#16a34a'}">PKR ${fmt(outstanding)}</span>
+        </div>
+        <div class="prog-bg">
+          <div class="prog-fill" style="width:${pct}%;background:${progColor}"></div>
+        </div>
+        <div class="prog-pct" style="color:${progColor}">${pct}% Recovered</div>
+      </div>` : ''}
+
+      <div class="sig-section">
+        <div class="sig-box">
+          <div class="sig-lbl">Client Signature &amp; Date</div>
+          <div class="sig-name">${esc(s.client_name||'____________________________')}</div>
+          <div class="sig-role">Client / Buyer</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl">Authorized Signatory &amp; Stamp</div>
+          <div class="sig-name">${esc(br.signature_name||coName)}</div>
+          <div class="sig-role">${esc(br.signature_title||'Authorized Signatory')}</div>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <span>${esc(br.footer_text||'Computer-generated document. Nexunova RMS.')}</span>
+        <span>Printed: ${new Date().toLocaleString('en-PK')}</span>
+      </div>
+    </div>`;
+
+    page.innerHTML = html;
+    document.title = 'Receipt ' + rcptNo + ' — ' + coName;
+
+  } catch(e){
+    document.getElementById('page').innerHTML = `<div class="error-state">Could not load receipt: ${esc(e.message)}</div>`;
+    console.error(e);
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>

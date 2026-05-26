@@ -89,18 +89,13 @@ function _atFilterRender() {
 }
 
 async function _atLoad() {
-  const { data } = await supabase
-    .from('agent_transactions')
-    .select(`*, agents(agent_name, agent_code)`)
-    .eq('company_id', S.cid)
-    .order('created_at', { ascending: false })
-    .limit(500);
+  const { data } = await supabase.rpc('list_agent_transactions', { p_company_id: S.cid, p_filters: {} });
   _atData = data || [];
   _atFilterRender();
 }
 
 async function _atPopulateFilters() {
-  const { data } = await supabase.from('agents').select('id, agent_name, agent_code').eq('company_id', S.cid).order('agent_name');
+  const { data } = await supabase.rpc('list_agents_lookup', { p_company_id: S.cid });
   const filterSel = document.getElementById('at-agent-filter');
   const modalSel  = document.getElementById('at-agent_id');
   if (!data) return;
@@ -186,15 +181,17 @@ async function _atSave() {
   const btn = document.getElementById('at-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('agent_transactions').insert({
-    company_id: S.cid,
-    agent_id: agentId,
-    transaction_type: txType,
-    amount: Number(amount),
-    payment_method: document.getElementById('at-payment_method').value || null,
-    reference: document.getElementById('at-reference').value.trim() || null,
-    notes: document.getElementById('at-notes').value.trim() || null,
-    created_by: S.name || S.email || 'Admin',
+  const { error } = await supabase.rpc('create_agent_transaction', {
+    p_company_id: S.cid,
+    p_data: {
+      agent_id: agentId,
+      transaction_type: txType,
+      amount: Number(amount),
+      payment_method: document.getElementById('at-payment_method').value || null,
+      reference: document.getElementById('at-reference').value.trim() || null,
+      notes: document.getElementById('at-notes').value.trim() || null,
+      created_by: S.name || S.email || 'Admin',
+    }
   });
 
   btn.disabled = false; btn.textContent = 'Save';
@@ -206,7 +203,7 @@ async function _atSave() {
 
 async function _atDelete(id) {
   if (!confirm('Delete this transaction?')) return;
-  await supabase.from('agent_transactions').delete().eq('id', id);
+  await supabase.rpc('delete_agent_transaction', { p_id: id, p_company_id: S.cid });
   await _atLoad();
   if (typeof toast === 'function') toast('Deleted', 'ok');
 }

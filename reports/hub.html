@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Reports Center — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#1e2d47;--accent:#c9a84c;
+  --green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;--purple:#7c3aed;
+  --border:#e5e7eb;--bg:#f1f5f9;--card:#fff;--text:#111827;--muted:#6b7280;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+button,input,select{font-family:inherit}
+
+/* ── Top Nav ── */
+.nav{background:var(--primary);color:#fff;padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.nav-brand{display:flex;align-items:center;gap:12px}
+.nav-logo{height:36px;max-width:120px;object-fit:contain}
+.nav-logo-initials{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+.nav-title{font-size:15px;font-weight:700}
+.nav-sub{font-size:10px;opacity:.6;font-weight:400}
+.nav-right{display:flex;align-items:center;gap:16px;font-size:12px;opacity:.7}
+.gold-bar{height:3px;background:linear-gradient(90deg,var(--accent),#f0e09a,var(--accent))}
+
+/* ── Page header ── */
+.page-header{padding:28px 28px 0}
+.page-title{font-size:22px;font-weight:800;color:var(--primary);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted)}
+
+/* ── Search bar ── */
+.search-wrap{padding:18px 28px}
+.search-box{position:relative;max-width:420px}
+.search-box input{width:100%;padding:10px 16px 10px 40px;border:2px solid var(--border);border-radius:10px;font-size:13px;background:#fff;outline:none;transition:border .15s}
+.search-box input:focus{border-color:var(--primary)}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted)}
+
+/* ── Main content ── */
+.content{padding:0 28px 40px;display:flex;flex-direction:column;gap:28px}
+
+/* ── Section ── */
+.section-label{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.section-dot{width:10px;height:10px;border-radius:50%}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--primary)}
+.section-count{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── Report grid ── */
+.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+
+/* ── Report card ── */
+.rcard{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.rcard:hover{border-color:var(--primary);box-shadow:0 4px 20px rgba(30,45,71,.12);transform:translateY(-2px)}
+.rcard.active{border-color:var(--primary);box-shadow:0 0 0 3px rgba(30,45,71,.12)}
+.rcard-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0}
+.rcard-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
+.rcard-desc{font-size:11px;color:var(--muted);line-height:1.5}
+.rcard-badge{position:absolute;top:12px;right:12px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.5px}
+.rcard-action{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+
+/* ── Param panel ── */
+.param-panel{background:#f8fafc;border:1.5px solid var(--primary);border-top:none;border-radius:0 0 12px 12px;padding:14px 16px;margin-top:-12px}
+.param-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.param-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px}
+.param-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.param-input{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:#fff;outline:none;width:100%}
+.param-input:focus{border-color:var(--primary)}
+.param-select{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:#fff;width:100%;outline:none;cursor:pointer}
+.btn-generate{background:var(--primary);color:#fff;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:background .15s}
+.btn-generate:hover{background:#16253a}
+.btn-cancel{background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer}
+
+/* ── Search results dropdown ── */
+.search-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.search-result-item{padding:9px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border)}
+.search-result-item:last-child{border-bottom:none}
+.search-result-item:hover{background:#f0f7ff}
+.search-result-main{font-weight:600;color:var(--text)}
+.search-result-sub{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* ── Loading / empty ── */
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{font-size:12px;color:var(--muted);padding:8px 0;text-align:center}
+.no-results{font-size:11px;color:var(--muted);padding:10px 12px;text-align:center}
+
+/* ── Status badge ── */
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
+.badge-new{background:#dbeafe;color:#1d4ed8}
+.badge-doc{background:#f3e8ff;color:#7c3aed}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--primary);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s}
+.toast.show{transform:none;opacity:1}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div id="nav-logo"></div>
+    <div>
+      <div class="nav-title">Reports Center</div>
+      <div class="nav-sub" id="nav-co">Nexunova RMS</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <span id="nav-date"></span>
+    <span id="nav-user"></span>
+  </div>
+</nav>
+<div class="gold-bar"></div>
+
+<div class="page-header">
+  <div class="page-title">All Reports</div>
+  <div class="page-sub">Generate, print and export A4 reports — receipts, ledgers, agreements and analytics</div>
+</div>
+
+<div class="search-wrap">
+  <div class="search-box">
+    <div class="search-icon">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    </div>
+    <input type="text" id="global-search" placeholder="Search reports…" oninput="filterCards(this.value)">
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading-msg">Loading reports…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const P   = new URLSearchParams(location.search);
+const cid = P.get('cid');
+
+let _br       = {};
+let _projects = [];
+let _activeCard = null;
+
+const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmtD = d => { if(!d) return ''; try{ return new Date(d).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+
+function showToast(msg, type='info'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  t.style.background = type==='err'?'#dc2626':type==='ok'?'#16a34a':'#1e2d47';
+  setTimeout(()=>{ t.className='toast'; },3000);
+}
+
+// ── Report definitions ───────────────────────────────────────────────
+const REPORTS = [
+  // 📄 DOCUMENTS
+  {
+    id:'payment_receipt',   cat:'documents', badge:'doc',
+    icon:'💳', color:'#7c3aed', bg:'#f5f3ff',
+    name:'Payment Receipt',
+    desc:'Official A4 receipt for any recorded payment',
+    type:'search_payment',
+    placeholder:'Enter receipt no. or client name…'
+  },
+  {
+    id:'account_ledger',    cat:'documents', badge:'doc',
+    icon:'📒', color:'#1d4ed8', bg:'#dbeafe',
+    name:'Account Ledger',
+    desc:'Full DR/CR ledger with running balance per client',
+    type:'search_client'
+  },
+  {
+    id:'sale_agreement',    cat:'documents', badge:'doc',
+    icon:'📝', color:'#059669', bg:'#d1fae5',
+    name:'Sale Agreement',
+    desc:'Booking confirmation with installment schedule & terms',
+    type:'search_sale'
+  },
+  {
+    id:'demand_notice',     cat:'documents', badge:'doc',
+    icon:'⚠️', color:'#dc2626', bg:'#fee2e2',
+    name:'Demand Notice',
+    desc:'Formal demand letter for outstanding payments',
+    type:'search_sale'
+  },
+  {
+    id:'installment_sched', cat:'documents', badge:'doc',
+    icon:'📅', color:'#d97706', bg:'#fef9c3',
+    name:'Installment Schedule',
+    desc:'Complete payment schedule for a sale',
+    type:'search_sale'
+  },
+
+  // 💰 RECOVERY
+  {
+    id:'outstanding',       cat:'recovery', badge:'new',
+    icon:'🔴', color:'#dc2626', bg:'#fee2e2',
+    name:'Outstanding Dues',
+    desc:'All clients with pending balances',
+    type:'management',
+    rpc:'get_outstanding_report',
+    params:['project']
+  },
+  {
+    id:'collection',        cat:'recovery',
+    icon:'💰', color:'#16a34a', bg:'#dcfce7',
+    name:'Collection Report',
+    desc:'Payments received in a selected period',
+    type:'management',
+    rpc:'get_collection_report',
+    params:['date_range','project']
+  },
+  {
+    id:'client_ledger_rpt', cat:'recovery',
+    icon:'📊', color:'#0369a1', bg:'#e0f2fe',
+    name:'Client Ledger (Batch)',
+    desc:'Account ledger for a specific client',
+    type:'search_client'
+  },
+
+  // 🏗️ SALES
+  {
+    id:'sales_register',    cat:'sales',
+    icon:'🏷️', color:'#16a34a', bg:'#dcfce7',
+    name:'Sales Register',
+    desc:'Full register of all sales with financial summary',
+    type:'management',
+    rpc:'get_sales_register',
+    params:['date_range','project','status']
+  },
+  {
+    id:'sales_active',      cat:'sales',
+    icon:'✅', color:'#0891b2', bg:'#cffafe',
+    name:'Active Sales',
+    desc:'All currently active sales',
+    type:'management',
+    rpc:'get_sales_register',
+    params:['project'],
+    defaults:{status:'active'}
+  },
+  {
+    id:'sales_cancelled',   cat:'sales',
+    icon:'❌', color:'#dc2626', bg:'#fee2e2',
+    name:'Cancelled Sales',
+    desc:'Sales that were cancelled',
+    type:'management',
+    rpc:'get_sales_register',
+    params:['date_range'],
+    defaults:{status:'cancelled'}
+  },
+
+  // 🏘️ INVENTORY
+  {
+    id:'unit_inventory',    cat:'inventory',
+    icon:'🏘️', color:'#2563eb', bg:'#dbeafe',
+    name:'Unit Inventory',
+    desc:'All units — status, type, floor, sale & client info',
+    type:'management',
+    rpc:'get_unit_inventory',
+    params:['project','unit_status']
+  },
+  {
+    id:'available_units',   cat:'inventory',
+    icon:'🟢', color:'#16a34a', bg:'#dcfce7',
+    name:'Available Units',
+    desc:'Units ready for sale',
+    type:'management',
+    rpc:'get_unit_inventory',
+    params:['project'],
+    defaults:{status:'Available'}
+  },
+  {
+    id:'sold_units',        cat:'inventory',
+    icon:'🔵', color:'#1d4ed8', bg:'#dbeafe',
+    name:'Sold Units',
+    desc:'All sold/booked units',
+    type:'management',
+    rpc:'get_unit_inventory',
+    params:['project'],
+    defaults:{status:'Sold'}
+  },
+];
+
+const CATS = [
+  {id:'documents', label:'📄 Documents',   color:'#7c3aed', desc:'Official A4 documents — receipts, ledgers, agreements'},
+  {id:'recovery',  label:'💰 Recovery',    color:'#dc2626', desc:'Outstanding dues, collection performance'},
+  {id:'sales',     label:'🏷️ Sales',       color:'#16a34a', desc:'Sales register and analytics'},
+  {id:'inventory', label:'🏘️ Inventory',   color:'#2563eb', desc:'Unit inventory and status reports'},
+];
+
+// ── Init ─────────────────────────────────────────────────────────────
+async function init(){
+  document.getElementById('nav-date').textContent = new Date().toLocaleDateString('en-PK',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+  if(cid){
+    const [brRes, prRes] = await Promise.all([
+      sb.rpc('get_company_branding',      {p_company_id: cid}),
+      sb.rpc('list_projects_for_reports', {p_company_id: cid}).catch(()=>({data:[]}))
+    ]);
+    _br = brRes.data || {};
+    _projects = prRes.data || [];
+
+    const coName = _br.company_name || 'Company';
+    document.getElementById('nav-co').textContent = coName;
+    document.title = 'Reports — ' + coName;
+
+    const logoEl = document.getElementById('nav-logo');
+    if(_br.logo_url){
+      logoEl.innerHTML = `<img class="nav-logo" src="${esc(_br.logo_url)}" alt="${esc(coName)}">`;
+    } else {
+      logoEl.innerHTML = `<div class="nav-logo-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
+    }
+
+    // Apply brand color
+    if(_br.doc_brand_color){
+      document.documentElement.style.setProperty('--primary', _br.doc_brand_color);
+    }
+    if(_br.accent_color){
+      document.documentElement.style.setProperty('--accent', _br.accent_color);
+    }
+  } else {
+    document.getElementById('nav-logo').innerHTML = `<div class="nav-logo-initials">N</div>`;
+  }
+
+  renderCards();
+}
+
+// ── Render all cards ─────────────────────────────────────────────────
+function renderCards(filter=''){
+  const content = document.getElementById('content');
+  const fl = filter.toLowerCase();
+  let html = '';
+
+  CATS.forEach(cat => {
+    const cards = REPORTS.filter(r =>
+      r.cat === cat.id &&
+      (!fl || r.name.toLowerCase().includes(fl) || r.desc.toLowerCase().includes(fl))
+    );
+    if(!cards.length) return;
+
+    html += `
+    <div class="section" data-cat="${cat.id}">
+      <div class="section-label">
+        <div class="section-dot" style="background:${cat.color}"></div>
+        <span class="section-title">${cat.label}</span>
+        <span class="section-count">${cards.length} reports</span>
+      </div>
+      <div class="report-grid">`;
+
+    cards.forEach(r => {
+      const badge = r.badge ? `<span class="rcard-badge badge-${r.badge}">${r.badge}</span>` : '';
+      html += `
+      <div class="rcard" id="card-${r.id}" onclick="toggleCard('${r.id}')">
+        ${badge}
+        <div class="rcard-icon" style="background:${r.bg};color:${r.color}">
+          <span style="font-size:20px">${r.icon}</span>
+        </div>
+        <div class="rcard-name">${esc(r.name)}</div>
+        <div class="rcard-desc">${esc(r.desc)}</div>
+        <div class="rcard-action">
+          <span style="font-size:11px;font-weight:600;color:var(--primary);display:flex;align-items:center;gap:4px">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open Report
+          </span>
+        </div>
+        <div id="panel-${r.id}" style="display:none">
+          ${buildParamPanel(r)}
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  content.innerHTML = html || '<div class="loading-msg">No reports match your search.</div>';
+}
+
+function filterCards(val){
+  renderCards(val);
+}
+
+// ── Build parameter panel per report type ───────────────────────────
+function buildParamPanel(r){
+  if(r.type === 'search_client') return buildClientSearch(r);
+  if(r.type === 'search_sale')   return buildSaleSearch(r);
+  if(r.type === 'search_payment') return buildPaymentSearch(r);
+  if(r.type === 'management')    return buildMgmtPanel(r);
+  return '';
+}
+
+function buildClientSearch(r){
+  return `
+  <div class="param-panel">
+    <div class="param-row">
+      <div class="param-group" style="position:relative;flex:1">
+        <label class="param-label">Client Name</label>
+        <input class="param-input" id="cs-${r.id}" placeholder="Type client name…"
+               oninput="searchClients('${r.id}',this.value)" autocomplete="off">
+        <div class="search-results" id="sr-${r.id}" style="display:none"></div>
+      </div>
+      <button class="btn-generate" id="btn-${r.id}" disabled onclick="openDocReport('${r.id}')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Open
+      </button>
+    </div>
+  </div>`;
+}
+
+function buildSaleSearch(r){
+  return `
+  <div class="param-panel">
+    <div class="param-row">
+      <div class="param-group" style="position:relative;flex:1">
+        <label class="param-label">Sale Number or Client</label>
+        <input class="param-input" id="ss-${r.id}" placeholder="Type sale no. or client name…"
+               oninput="searchSales('${r.id}',this.value)" autocomplete="off">
+        <div class="search-results" id="sr-${r.id}" style="display:none"></div>
+      </div>
+      <button class="btn-generate" id="btn-${r.id}" disabled onclick="openDocReport('${r.id}')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Open
+      </button>
+    </div>
+  </div>`;
+}
+
+function buildPaymentSearch(r){
+  return `
+  <div class="param-panel">
+    <div class="param-row">
+      <div class="param-group" style="position:relative;flex:1">
+        <label class="param-label">Receipt No. or Client Name</label>
+        <input class="param-input" id="ps-${r.id}" placeholder="Type receipt no. or client…"
+               oninput="searchPayments('${r.id}',this.value)" autocomplete="off">
+        <div class="search-results" id="sr-${r.id}" style="display:none"></div>
+      </div>
+      <button class="btn-generate" id="btn-${r.id}" disabled onclick="openDocReport('${r.id}')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Open
+      </button>
+    </div>
+  </div>`;
+}
+
+function buildMgmtPanel(r){
+  const hasDate    = (r.params||[]).includes('date_range');
+  const hasProject = (r.params||[]).includes('project');
+  const hasStatus  = (r.params||[]).includes('status');
+  const hasUStatus = (r.params||[]).includes('unit_status');
+
+  const today   = new Date().toISOString().slice(0,10);
+  const firstDy = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10);
+
+  let projectOpts = '<option value="">All Projects</option>';
+  _projects.forEach(p => { projectOpts += `<option value="${esc(p.id)}">${esc(p.project_name)}</option>`; });
+
+  return `
+  <div class="param-panel">
+    <div class="param-row">
+      ${hasDate ? `
+      <div class="param-group">
+        <label class="param-label">From Date</label>
+        <input class="param-input" type="date" id="from-${r.id}" value="${firstDy}">
+      </div>
+      <div class="param-group">
+        <label class="param-label">To Date</label>
+        <input class="param-input" type="date" id="to-${r.id}" value="${today}">
+      </div>` : ''}
+      ${hasProject ? `
+      <div class="param-group">
+        <label class="param-label">Project</label>
+        <select class="param-select" id="proj-${r.id}">${projectOpts}</select>
+      </div>` : ''}
+      ${hasStatus ? `
+      <div class="param-group">
+        <label class="param-label">Status</label>
+        <select class="param-select" id="status-${r.id}">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>` : ''}
+      ${hasUStatus ? `
+      <div class="param-group">
+        <label class="param-label">Unit Status</label>
+        <select class="param-select" id="ustatus-${r.id}">
+          <option value="">All</option>
+          <option value="Available">Available</option>
+          <option value="Sold">Sold</option>
+          <option value="Booked">Booked</option>
+        </select>
+      </div>` : ''}
+      <button class="btn-generate" onclick="openMgmtReport('${r.id}')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Generate Report
+      </button>
+    </div>
+  </div>`;
+}
+
+// ── Card toggle ──────────────────────────────────────────────────────
+function toggleCard(id){
+  const panel = document.getElementById('panel-'+id);
+  const card  = document.getElementById('card-'+id);
+  if(!panel) return;
+  if(panel.style.display === 'none'){
+    // Close others
+    document.querySelectorAll('[id^="panel-"]').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.rcard').forEach(c => c.classList.remove('active'));
+    panel.style.display = 'block';
+    card.classList.add('active');
+    _activeCard = id;
+  } else {
+    panel.style.display = 'none';
+    card.classList.remove('active');
+    _activeCard = null;
+  }
+}
+
+// ── Selected entity storage ──────────────────────────────────────────
+const _sel = {};
+
+// ── Client search ────────────────────────────────────────────────────
+let _clientTimer = null;
+async function searchClients(cardId, q){
+  const sr = document.getElementById('sr-'+cardId);
+  if(!q || q.length < 2){ sr.style.display='none'; return; }
+  clearTimeout(_clientTimer);
+  _clientTimer = setTimeout(async () => {
+    sr.style.display='block';
+    sr.innerHTML = '<div class="loading-msg">Searching…</div>';
+    try {
+      const {data,error} = await sb.rpc('list_clients_for_search',{p_company_id:cid,p_search:q});
+      if(error) throw error;
+      const rows = data || [];
+      if(!rows.length){ sr.innerHTML='<div class="no-results">No clients found</div>'; return; }
+      sr.innerHTML = rows.slice(0,8).map(c=>`
+        <div class="search-result-item" onclick="selectClient('${cardId}','${c.id}','${esc(c.full_name).replace(/'/g,"\\'")}')">
+          <div class="search-result-main">${esc(c.full_name)}</div>
+          <div class="search-result-sub">${esc(c.client_code||'')} ${c.phone ? '· '+esc(c.phone) : ''}</div>
+        </div>`).join('');
+    } catch(e){ sr.innerHTML='<div class="no-results">Error: '+esc(e.message)+'</div>'; }
+  }, 300);
+}
+
+function selectClient(cardId, clientId, name){
+  _sel[cardId] = {client_id: clientId};
+  const input = document.getElementById('cs-'+cardId);
+  if(input) input.value = name;
+  document.getElementById('sr-'+cardId).style.display='none';
+  const btn = document.getElementById('btn-'+cardId);
+  if(btn) btn.disabled = false;
+}
+
+// ── Sale search ──────────────────────────────────────────────────────
+let _saleTimer = null;
+async function searchSales(cardId, q){
+  const sr = document.getElementById('sr-'+cardId);
+  if(!q || q.length < 2){ sr.style.display='none'; return; }
+  clearTimeout(_saleTimer);
+  _saleTimer = setTimeout(async () => {
+    sr.style.display='block';
+    sr.innerHTML='<div class="loading-msg">Searching…</div>';
+    try {
+      const {data,error} = await sb.rpc('list_sales_lookup',{p_company_id:cid,p_search:q});
+      if(error) throw error;
+      const rows = data || [];
+      if(!rows.length){ sr.innerHTML='<div class="no-results">No sales found</div>'; return; }
+      sr.innerHTML = rows.slice(0,8).map(s=>`
+        <div class="search-result-item" onclick="selectSale('${cardId}','${s.id}','${esc(s.sale_number||s.id).replace(/'/g,"\\'")}','${esc(s.client_name||'').replace(/'/g,"\\'")}')">
+          <div class="search-result-main">${esc(s.sale_number||s.id)}</div>
+          <div class="search-result-sub">${esc(s.client_name||'—')} ${s.unit_no?'· Unit: '+esc(s.unit_no):''}</div>
+        </div>`).join('');
+    } catch(e){ sr.innerHTML='<div class="no-results">Error: '+esc(e.message)+'</div>'; }
+  }, 300);
+}
+
+function selectSale(cardId, saleId, saleNo, clientName){
+  _sel[cardId] = {sale_id: saleId};
+  const input = document.getElementById('ss-'+cardId);
+  if(input) input.value = (saleNo ? saleNo+' — ' : '') + clientName;
+  document.getElementById('sr-'+cardId).style.display='none';
+  const btn = document.getElementById('btn-'+cardId);
+  if(btn) btn.disabled = false;
+}
+
+// ── Payment search ───────────────────────────────────────────────────
+let _pmtTimer = null;
+async function searchPayments(cardId, q){
+  const sr = document.getElementById('sr-'+cardId);
+  if(!q || q.length < 2){ sr.style.display='none'; return; }
+  clearTimeout(_pmtTimer);
+  _pmtTimer = setTimeout(async () => {
+    sr.style.display='block';
+    sr.innerHTML='<div class="loading-msg">Searching…</div>';
+    try {
+      const {data,error} = await sb.rpc('list_payments_for_search',{p_company_id:cid,p_search:q});
+      if(error) throw error;
+      const rows = data || [];
+      if(!rows.length){ sr.innerHTML='<div class="no-results">No payments found</div>'; return; }
+      sr.innerHTML = rows.slice(0,8).map(p=>`
+        <div class="search-result-item" onclick="selectPayment('${cardId}','${p.id}','${esc(p.payment_code||p.id).replace(/'/g,"\\'")}')">
+          <div class="search-result-main">${esc(p.payment_code||p.id)}</div>
+          <div class="search-result-sub">PKR ${Number(p.amount||0).toLocaleString('en-PK')} · ${p.payment_date||''}</div>
+        </div>`).join('');
+    } catch(e){ sr.innerHTML='<div class="no-results">Error: '+esc(e.message)+'</div>'; }
+  }, 300);
+}
+
+function selectPayment(cardId, pmtId, code){
+  _sel[cardId] = {payment_id: pmtId};
+  const input = document.getElementById('ps-'+cardId);
+  if(input) input.value = code;
+  document.getElementById('sr-'+cardId).style.display='none';
+  const btn = document.getElementById('btn-'+cardId);
+  if(btn) btn.disabled = false;
+}
+
+// ── Open document reports ────────────────────────────────────────────
+function openDocReport(id){
+  if(!cid){ showToast('No company session. Open via RMS app.','err'); return; }
+  const sel = _sel[id];
+  if(!sel){ showToast('Please select an item first.','err'); return; }
+
+  if(id === 'payment_receipt'){
+    window.open('payment-receipt.html?id='+sel.payment_id+'&cid='+cid, '_blank');
+  } else if(id === 'account_ledger' || id === 'client_ledger_rpt'){
+    window.open('account-ledger.html?client_id='+sel.client_id+'&cid='+cid, '_blank');
+  } else if(id === 'sale_agreement'){
+    window.open('sale-agreement.html?sale_id='+sel.sale_id+'&cid='+cid, '_blank');
+  } else if(id === 'demand_notice'){
+    window.open('demand-notice.html?sale_id='+sel.sale_id+'&cid='+cid, '_blank');
+  } else if(id === 'installment_sched'){
+    window.open('installment-schedule.html?sale_id='+sel.sale_id+'&cid='+cid, '_blank');
+  }
+}
+
+// ── Open management reports ──────────────────────────────────────────
+function openMgmtReport(id){
+  if(!cid){ showToast('No company session. Open via RMS app.','err'); return; }
+  const r = REPORTS.find(x => x.id === id);
+  if(!r) return;
+
+  const params = new URLSearchParams({type: r.rpc, cid});
+
+  const fromEl   = document.getElementById('from-'+id);
+  const toEl     = document.getElementById('to-'+id);
+  const projEl   = document.getElementById('proj-'+id);
+  const statusEl = document.getElementById('status-'+id);
+  const ustatEl  = document.getElementById('ustatus-'+id);
+
+  if(fromEl?.value)   params.set('from',    fromEl.value);
+  if(toEl?.value)     params.set('to',      toEl.value);
+  if(projEl?.value)   params.set('project', projEl.value);
+  if(statusEl?.value) params.set('status',  statusEl.value);
+  if(ustatEl?.value)  params.set('status',  ustatEl.value);
+
+  // Carry defaults
+  if(r.defaults?.status && !params.get('status')){
+    params.set('status', r.defaults.status);
+  }
+
+  params.set('report_name', r.name);
+  window.open('viewer.html?' + params.toString(), '_blank');
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if(!e.target.closest('[id^="sr-"]') && !e.target.closest('.param-input')){
+    document.querySelectorAll('[id^="sr-"]').forEach(el => el.style.display='none');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

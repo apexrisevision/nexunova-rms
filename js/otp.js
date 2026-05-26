@@ -37,7 +37,7 @@ function showOTPScreen({ subtitle, onVerify, onResend, onExpire, onMaxAttempts }
 .otp-ov-card {
   position: relative; z-index: 1;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(0,217,255,0.14);
+  border: 1px solid rgba(99,102,241,0.18);
   border-radius: 16px;
   padding: 32px 36px 28px;
   width: 100%; max-width: 400px;

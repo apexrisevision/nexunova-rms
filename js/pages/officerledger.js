@@ -66,12 +66,8 @@ function rOfficerLedger() {
 async function _officerLoadOfficers() {
   if (_officerOfficers.length) { _officerBuildDropdown(); return; }
   try {
-    const { data } = await supabase.from('app_users')
-      .select('id, full_name, role')
-      .eq('company_id', S.cid)
-      .eq('status', 'active')
-      .order('full_name');
-    _officerOfficers = data || [];
+    const { data } = await supabase.rpc('list_app_users_lookup', { p_company_id: S.cid });
+    _officerOfficers = (data || []).filter(o => o.status === 'active');
     _officerBuildDropdown();
   } catch (_) {}
 }

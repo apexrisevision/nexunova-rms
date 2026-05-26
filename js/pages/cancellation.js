@@ -84,10 +84,7 @@ function _cxNoCompanyHTML() {
 
 async function _cxLoadBanks() {
   try {
-    const { data } = await supabase.from('banks')
-      .select('id,bank_name,account_title,account_number')
-      .eq('company_id', S.cid).eq('is_active', true)
-      .order('sort_order', { ascending: true });
+    const { data } = await supabase.rpc('list_banks_active', { p_company_id: S.cid });
     _cxBanks = data || [];
   } catch { _cxBanks = []; }
 }
@@ -129,19 +126,14 @@ function _cxRender(elParam) {
       storageKey:'rms.fnav.cancellation',
       loadList: async () => {
         try {
-          const { data } = await supabase.from('unit_cancellations')
-            .select('id, unit_id, cancellation_date')
-            .eq('company_id', S.cid)
-            .order('cancellation_date', { ascending: true })
-            .limit(2000);
+          const { data } = await supabase.rpc('list_cancellations_for_fnav', { p_company_id: S.cid });
           return data || [];
         } catch (e) { return []; }
       },
       // Opening a past cancellation goes to the unit detail (cancellations are immutable)
       openEntry: async (cancId) => {
         try {
-          const { data } = await supabase.from('unit_cancellations')
-            .select('unit_id').eq('id', cancId).single();
+          const { data } = await supabase.rpc('get_cancellation_by_id', { p_id: cancId, p_company_id: S.cid });
           if (data?.unit_id) openUD(data.unit_id);
           else if (typeof toast === 'function') toast('Could not open cancellation', 'warn');
         } catch (e) {}
@@ -282,10 +274,7 @@ async function _cxOnUnit(unitId) {
   try {
     const [pymRes, saleRes] = await Promise.all([
       supabase.rpc('get_unit_payment_summary', { p_unit_id: unitId, p_company_id: S.cid }),
-      supabase.from('sales')
-        .select('id,client_id,agent_id,net_amount,sale_date,sale_number,commission_rate,is_resale,is_transfer')
-        .eq('unit_id', unitId).eq('company_id', S.cid).eq('is_active', true)
-        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      supabase.rpc('get_active_sale_for_unit', { p_unit_id: unitId, p_company_id: S.cid })
     ]);
 
     const pym = pymRes.data;
@@ -310,9 +299,7 @@ async function _cxOnUnit(unitId) {
     const outstanding = Math.max(0, netAmt - totalPaid);
 
     // Payment breakdown
-    const pmtRes = await supabase.from('payments')
-      .select('payment_method,amount,payment_category')
-      .eq('sale_id', sale.id).eq('company_id', S.cid).eq('status', 'received');
+    const pmtRes = await supabase.rpc('list_payments_for_sale', { p_sale_id: sale.id, p_company_id: S.cid });
     const pmts = pmtRes.data || [];
     const cashPaid = pmts.filter(p => p.payment_method === 'cash' && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
     const bankPaid = pmts.filter(p => p.payment_method === 'bank' && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
@@ -326,8 +313,8 @@ async function _cxOnUnit(unitId) {
     _cxData.adjPaid = adjPaid;
 
     const [clientRes, agentRes, unitObj] = await Promise.all([
-      supabase.from('clients').select('full_name,cnic,phone_primary').eq('id', sale.client_id).single(),
-      sale.agent_id ? supabase.from('agents').select('full_name,agent_code,commission_percent').eq('id', sale.agent_id).single() : Promise.resolve({ data: null }),
+      supabase.rpc('get_client_lite', { p_id: sale.client_id, p_company_id: S.cid }),
+      sale.agent_id ? supabase.rpc('get_agent_lite', { p_id: sale.agent_id, p_company_id: S.cid }) : Promise.resolve({ data: null }),
       Promise.resolve((window._unitsCache || []).find(u => u.id === unitId))
     ]);
 

@@ -21,26 +21,29 @@ function _numToWords(amount) {
   return w.replace(' Only', ' Rupees Only');
 }
 
-// ── Shared: base CSS (ink = #1E2D47, gold = #C9A84C) ──
+// ── Shared: base CSS — colors driven by window._cobranding when available ──
 function _pCSS(sz){
   sz=sz||'A4';
+  var br=window._cobranding||{};
+  var H=br.doc_brand_color||'#1E2D47'; // header / primary
+  var A=br.accent_color||'#C9A84C';    // accent / gold
   return 'body{font-family:Arial,sans-serif;font-size:11px;color:#111;margin:0;padding:0}'+
     '*{box-sizing:border-box}'+
-    '.lh{background:#1E2D47;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.lh{background:'+H+';color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     '.lh-l h1{margin:0;font-size:20px;font-weight:700;letter-spacing:.5px}'+
-    '.lh-l p{margin:3px 0 0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#C9A84C}'+
-    '.lh-r{text-align:right;font-size:9px;color:rgba(255,255,255,.65);line-height:1.6}'+
-    '.gold-bar{height:3px;background:linear-gradient(90deg,#C9A84C,#e8c87a,#C9A84C);-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.lh-l p{margin:3px 0 0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:'+A+'}'+
+    '.lh-r{text-align:right;font-size:9px;color:rgba(255,255,255,.65);line-height:1.7}'+
+    '.gold-bar{height:3px;background:linear-gradient(90deg,'+A+',#e8d89a,'+A+');-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     '.body{padding:18px 22px}'+
-    '.doc-title{font-size:15px;font-weight:700;color:#1E2D47;border-bottom:2px solid #C9A84C;padding-bottom:6px;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px}'+
-    '.sec-title{font-size:11px;font-weight:700;color:#1E2D47;border-left:3px solid #C9A84C;padding-left:7px;margin:14px 0 7px;text-transform:uppercase;letter-spacing:.5px}'+
+    '.doc-title{font-size:15px;font-weight:700;color:'+H+';border-bottom:2px solid '+A+';padding-bottom:6px;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px}'+
+    '.sec-title{font-size:11px;font-weight:700;color:'+H+';border-left:3px solid '+A+';padding-left:7px;margin:14px 0 7px;text-transform:uppercase;letter-spacing:.5px}'+
     '.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 16px;background:#f5f7fa;border:1px solid #dde;border-radius:4px;padding:12px 14px;margin-bottom:12px}'+
     '.info-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px}'+
     '.ig-item{display:flex;flex-direction:column;gap:1px}'+
     '.ig-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:700}'+
     '.ig-val{font-size:11px;font-weight:600;color:#111}'+
     'table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10px}'+
-    'th{background:#1E2D47;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.3px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'th{background:'+H+';color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.3px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     'td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:top}'+
     'tr:nth-child(even) td{background:#f9fafb}'+
     '.amt-box{text-align:center;background:#f0fdf4;border:2px solid #16a34a;border-radius:6px;padding:16px 14px;margin:12px 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
@@ -50,9 +53,9 @@ function _pCSS(sz){
     '.lbl{color:#666;font-size:10px;text-transform:uppercase;letter-spacing:.5px}'+
     '.val{font-weight:700;text-align:right}'+
     '.sig-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px}'+
-    '.sig-box{border-top:1.5px solid #1E2D47;padding-top:6px}'+
+    '.sig-box{border-top:1.5px solid '+H+';padding-top:6px}'+
     '.sig-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#555}'+
-    '.sig-name{font-size:11px;font-weight:700;color:#1E2D47;margin-top:2px}'+
+    '.sig-name{font-size:11px;font-weight:700;color:'+H+';margin-top:2px}'+
     '.footer-bar{border-top:1px solid #dde;margin-top:16px;padding-top:8px;text-align:center;font-size:9px;color:#999}'+
     '.badge{padding:2px 8px;border-radius:99px;font-size:9px;font-weight:700}'+
     '.badge-ok{background:#dcfce7;color:#16a34a}'+
@@ -66,20 +69,48 @@ function _pCSS(sz){
     '@media print{@page{size:'+sz+';margin:1cm}.no-print{display:none}}';
 }
 
-// ── Shared: letterhead HTML ──
+// ── Shared: A4 Crystal-Reports-style letterhead ──
+// Uses window._cobranding for company info, colors, and address.
 function _lh(docType){
-  var co=S?S.coName||'Nexunova':'Nexunova';
+  var br=window._cobranding||{};
+  var co=br.company_name||S?.coName||'Nexunova';
+  var sub=br.letterhead_subtitle||'Recovery Management System';
+  var H=br.doc_brand_color||'#1E2D47';
+  var A=br.accent_color||'#C9A84C';
   var logo=typeof getCoLogo==='function'?getCoLogo():null;
   var dt=new Date().toLocaleDateString('en-PK',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  // Right-side info block
+  var addr=br.address_full||[br.city,br.country].filter(Boolean).join(', ')||'';
+  var rightParts=[esc(docType),dt];
+  if(addr)rightParts.push(esc(addr));
+  if(br.business_phone)rightParts.push(esc(br.business_phone));
+  if(br.business_email)rightParts.push(esc(br.business_email));
+  if(br.ntn_number)rightParts.push('NTN: '+esc(br.ntn_number));
   var leftContent=logo
-    ?'<img src="'+logo+'" style="height:52px;max-width:150px;object-fit:contain;background:transparent;display:block;margin-bottom:4px" alt="'+esc(co)+'">'
-    +'<p style="margin:0;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#C9A84C">'+esc(co)+'</p>'
+    ?'<img src="'+logo+'" style="height:52px;max-width:160px;object-fit:contain;background:transparent;display:block;margin-bottom:4px" alt="'+esc(co)+'">'
+     +'<p style="margin:0;font-size:8px;text-transform:uppercase;letter-spacing:2px;color:'+A+'">'+esc(co)+'</p>'
     :'<h1 style="margin:0 0 2px;font-size:19px;font-weight:700">'+esc(co)+'</h1>'
-    +'<p style="margin:0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#C9A84C">Nexunova Recovery Management System</p>';
+     +'<p style="margin:0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:'+A+'">'+esc(sub)+'</p>';
   return '<div class="lh">'+
     '<div class="lh-l">'+leftContent+'</div>'+
-    '<div class="lh-r">'+esc(docType)+'<br>'+dt+'<br>Generated by: '+esc(S?S.name||'System':'System')+'</div>'+
+    '<div class="lh-r">'+rightParts.join('<br>')+'<br>'+esc(S?S.name||'System':'System')+'</div>'+
   '</div><div class="gold-bar"></div>';
+}
+
+// ── Shared: signature block (uses window._cobranding) ──
+function _sigBlock(extraCol){
+  var br=window._cobranding||{};
+  var sigName=br.signature_name||'';
+  var sigTitle=br.signature_title||'Authorized Signatory';
+  var footer=br.footer_text||'This is a computer-generated document.';
+  var cols=extraCol
+    ?'<div class="sig-box"><div class="sig-lbl">'+extraCol.label+'</div><div class="sig-name">'+esc(extraCol.value||'')+'</div></div>'
+    :'';
+  return '<div class="sig-row">'
+    +'<div class="sig-box"><div class="sig-lbl">Authorized Signatory</div><div class="sig-name" style="min-height:20px">'+esc(sigName)+'</div><div class="sig-lbl" style="margin-top:3px">'+esc(sigTitle)+'</div></div>'
+    +cols
+    +'</div>'
+    +'<div class="footer-bar">'+esc(footer)+'</div>';
 }
 
 // ── Shared: send HTML to print (Electron IPC or browser blob) ──
@@ -173,12 +204,7 @@ function printReceipt(recId){
     h+='<div style="text-align:right;margin-top:3px;font-size:9px;color:#555">'+pct+'% recovered</div></div>';
   }
 
-  h+='<div class="sig-row no-break">';
-  h+='<div class="sig-box"><div style="height:28px"></div><div class="sig-lbl">Client Signature</div><div class="sig-name">'+(u?esc(u.customerName):'___________')+'</div></div>';
-  h+='<div class="sig-box"><div style="height:28px"></div><div class="sig-lbl">Authorized Signatory</div><div class="sig-name">'+esc(S?S.coName||'Nexunova':'Nexunova')+'</div></div>';
-  h+='</div>';
-
-  h+='<div class="footer-bar">This is a computer-generated receipt. '+esc(S?S.coName||'Nexunova':'Nexunova')+' &mdash; Nexunova RMS &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="no-break">'+_sigBlock({ label:'Client Signature', value: u?u.customerName:'' })+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -188,14 +214,12 @@ function printReceipt(recId){
 // Supabase payment receipt (fallback when not in gdb)
 async function _printReceiptSupa(paymentId){
   try{
-    var res=await supabase.from('payments')
-      .select('id,payment_date,amount,payment_method,reference_no,notes,sale_id,payment_code')
-      .eq('id',paymentId).single();
+    var res=await supabase.rpc('get_payment_full', { p_id: paymentId, p_company_id: S.cid });
     if(res.error)throw res.error;
     var p=res.data;
     var u=null;
     if(p.sale_id){
-      var sr=await supabase.from('sales').select('unit_id,client_id,sale_number').eq('id',p.sale_id).single();
+      var sr=await supabase.rpc('get_sale_for_lookup', { p_sale_id: p.sale_id, p_company_id: S.cid });
       if(!sr.error&&sr.data){u=gunit(sr.data.unit_id)||null;}
     }
     var amt=Number(p.amount||0);
@@ -221,11 +245,7 @@ async function _printReceiptSupa(paymentId){
     h+='<div class="row"><span class="lbl">Payment Method</span><span class="val">'+esc(p.payment_method||'—')+'</span></div>';
     if(p.reference_no)h+='<div class="row"><span class="lbl">Reference No</span><span class="val">'+esc(p.reference_no)+'</span></div>';
     if(p.notes)h+='<div class="row"><span class="lbl">Notes</span><span class="val">'+esc(p.notes)+'</span></div>';
-    h+='<div class="sig-row no-break">';
-    h+='<div class="sig-box"><div style="height:28px"></div><div class="sig-lbl">Client Signature</div><div class="sig-name">'+(u?esc(u.customerName||'Client'):'___________')+'</div></div>';
-    h+='<div class="sig-box"><div style="height:28px"></div><div class="sig-lbl">Authorized Signatory</div><div class="sig-name">'+esc(S?S.coName||'Nexunova':'Nexunova')+'</div></div>';
-    h+='</div>';
-    h+='<div class="footer-bar">This is a computer-generated receipt. '+esc(S?S.coName||'Nexunova':'Nexunova')+' &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+    h+='<div class="no-break">'+_sigBlock({ label:'Client Signature', value: u?u.customerName||'':'______________' })+'</div>';
     h+='</div>';
     w.document.write(h);
     _pclose(w);
@@ -241,13 +261,8 @@ async function _ensureUnitPaymentsLoaded(unitId){
   if(!window._paymentsByUnit)window._paymentsByUnit={};
   if(window._paymentsByUnit[unitId]!==undefined)return;
   try{
-    const{data:sRows}=await supabase.from('sales').select('id').eq('unit_id',unitId).eq('company_id',S.cid);
-    const sids=(sRows||[]).map(s=>s.id);
-    if(!sids.length){window._paymentsByUnit[unitId]=[];return;}
-    const{data:pRows}=await supabase.from('payments')
-      .select('id,payment_date,amount,payment_method,reference_no,notes,payment_code,created_by')
-      .in('sale_id',sids).eq('company_id',S.cid)
-      .order('payment_date',{ascending:true});
+    const{data:pRows}=await supabase.rpc('get_payments_for_unit', { p_unit_id: unitId, p_company_id: S.cid });
+    if(!pRows||!pRows.length){window._paymentsByUnit[unitId]=[];return;}
     window._paymentsByUnit[unitId]=(pRows||[]).map(p=>({
       id:p.id,uid:unitId,
       amt:p.amount,date:p.payment_date,
@@ -281,7 +296,9 @@ async function printSaleAgreement(unitId){
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">';
   h+='<div style="border:1px solid #dde;border-radius:4px;padding:12px">';
   h+='<div class="sec-title" style="margin-top:0">Seller</div>';
-  h+='<div style="font-size:11px;line-height:1.7"><b>'+esc(S?S.coName||'Nexunova':'Nexunova')+'</b><br>Nexunova Real Estate &amp; Development<br>Registered Real Estate Developer</div>';
+  (function(){var br=window._cobranding||{},co=br.company_name||S?.coName||'Nexunova',sub=br.letterhead_subtitle||'Real Estate Developer',addr=br.address_full||[br.city,br.country].filter(Boolean).join(', ')||'';
+  h+='<div style="font-size:11px;line-height:1.7"><b>'+esc(co)+'</b>'+(sub?'<br>'+esc(sub):'')+(addr?'<br>'+esc(addr):'')+(br.business_phone?'<br>'+esc(br.business_phone):'')+('</div>');
+  }());
   h+='</div>';
   h+='<div style="border:1px solid #dde;border-radius:4px;padding:12px">';
   h+='<div class="sec-title" style="margin-top:0">Buyer</div>';
@@ -346,12 +363,7 @@ async function printSaleAgreement(unitId){
   terms.forEach(function(t){h+='<li>'+t+'</li>';});
   h+='</ol></div>';
 
-  h+='<div class="sig-row no-break">';
-  h+='<div class="sig-box"><div style="height:36px"></div><div class="sig-lbl">Buyer Signature &amp; Date</div><div class="sig-name">'+esc(u.customerName)+'</div><div style="font-size:9px;color:#888;margin-top:2px">'+(u.phone?esc(u.phone):'')+'</div></div>';
-  h+='<div class="sig-box"><div style="height:36px"></div><div class="sig-lbl">Authorized Signatory &amp; Stamp</div><div class="sig-name">'+esc(S?S.coName||'Nexunova':'Nexunova')+'</div><div style="font-size:9px;color:#888;margin-top:2px">Nexunova RMS</div></div>';
-  h+='</div>';
-
-  h+='<div class="footer-bar">This is a legally binding document. '+esc(S?S.coName||'Nexunova':'Nexunova')+' &mdash; Nexunova RMS &mdash; Printed: '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="no-break">'+_sigBlock({ label:'Buyer Signature &amp; Date', value: u.customerName+(u.phone?'<br><small>'+esc(u.phone)+'</small>':'') })+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -443,7 +455,7 @@ async function printClientStatement(clientName){
     h+='</tbody></table>';
   }
 
-  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc(S?S.coName||'Nexunova':'Nexunova')+' &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -491,7 +503,7 @@ async function printDemandLetter(unitId){
 
   h+='<div style="font-size:11px;line-height:1.85;color:#222;margin-bottom:14px">';
   h+='Dear <b>'+esc(u.customerName)+'</b>,<br><br>';
-  h+='We hope this letter finds you in good health. We are writing on behalf of <b>'+esc(S?S.coName||'Nexunova':'Nexunova')+'</b> regarding your outstanding payment obligations for the property detailed below.<br><br>';
+  h+='We hope this letter finds you in good health. We are writing on behalf of <b>'+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+'</b> regarding your outstanding payment obligations for the property detailed below.<br><br>';
   h+='Despite our previous reminders, we note that a significant balance remains unpaid on your property account. We kindly but firmly request that you arrange immediate settlement of the outstanding dues at your earliest convenience.';
   h+='</div>';
 
@@ -525,14 +537,7 @@ async function printDemandLetter(unitId){
   h+='We appreciate your prompt attention to this matter.';
   h+='</div>';
 
-  h+='<div class="sig-row no-break" style="margin-top:24px">';
-  h+='<div><div style="font-size:11px;font-weight:700;color:#1E2D47;margin-bottom:2px">Recovery Department</div>';
-  h+='<div style="font-size:10px;color:#555">'+esc(S?S.coName||'Nexunova':'Nexunova')+'</div>';
-  h+='<div style="font-size:10px;color:#888">Nexunova RMS</div></div>';
-  h+='<div class="sig-box"><div style="height:36px"></div><div class="sig-lbl">Authorized Signatory &amp; Stamp</div></div>';
-  h+='</div>';
-
-  h+='<div class="footer-bar">Confidential &mdash; '+esc(S?S.coName||'Nexunova':'Nexunova')+' &mdash; Nexunova RMS &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="no-break">'+_sigBlock()+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -638,7 +643,7 @@ async function printUnitReport(unitId){
     h+='<div style="background:#f5f7fa;border:1px solid #dde;border-radius:4px;padding:10px 14px;font-size:11px;color:#333;line-height:1.7">'+esc(u.remarks)+'</div>';
   }
 
-  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc(S?S.coName||'Nexunova':'Nexunova')+' &mdash; Nexunova RMS &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; Nexunova RMS &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -656,7 +661,7 @@ function printUD(unitId){
   var paid=actualPaid(u),pend=actualPending(u);
   var recovPct=u.totalPrice?Math.min(100,Math.round(paid/u.totalPrice*100)):0;
   var isSold=u.status!=='Available'&&u.status!=='Dead';
-  var coName=S?S.coName||'Nexunova':'Nexunova';
+  var coName=(window._cobranding||{}).company_name||S?.coName||'Nexunova';
   var printDate=new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'});
   var printTime=new Date().toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'});
 
@@ -839,15 +844,16 @@ function printUD(unitId){
   h+='<div class="sig-lbl">Client Signature &amp; Date</div>';
   h+='<div class="sig-name">'+(u.customerName?esc(u.customerName):'________________________')+'</div>';
   h+='<div class="sig-role">'+(u.phone?esc(u.phone):'')+'</div></div>';
+  var _br2=window._cobranding||{};
   h+='<div class="sig-col"><div style="height:32px"></div>';
-  h+='<div class="sig-lbl">Authorized Signatory &amp; Company Stamp</div>';
-  h+='<div class="sig-name">'+esc(coName)+'</div>';
-  h+='<div class="sig-role">Nexunova Recovery Management System</div></div>';
+  h+='<div class="sig-lbl">Authorized Signatory &amp; Stamp</div>';
+  h+='<div class="sig-name">'+esc(_br2.signature_name||coName)+'</div>';
+  h+='<div class="sig-role">'+esc(_br2.signature_title||'Authorized Signatory')+'</div></div>';
   h+='</div>';
 
   // ── Footer ──
   h+='<div class="pg-footer">';
-  h+='<span>'+esc(coName)+' &mdash; Nexunova RMS &mdash; Confidential Document</span>';
+  h+='<span>'+esc(coName)+' &mdash; '+esc(_br2.footer_text||'Confidential Document')+'</span>';
   h+='<span>Printed: '+printDate+' at '+printTime+'</span>';
   h+='</div>';
 
@@ -865,7 +871,7 @@ function printPaymentReceiptSupa(opts) {
   var amt    = Number(opts.amount        || 0);
   var paid   = Number(opts.newAmtPaid    || 0);
   var out    = Number(opts.newOutstanding|| 0);
-  var coName = S ? S.coName || 'Nexunova' : 'Nexunova';
+  var coName = (window._cobranding||{}).company_name || S?.coName || 'Nexunova';
   var methodLabel = {
     cash:'Cash', cheque:'Cheque', bank_transfer:'Bank Transfer',
     online:'Online / Mobile', other:'Other'
@@ -941,13 +947,7 @@ function printPaymentReceiptSupa(opts) {
     : '<span style="font-weight:700;color:#16a34a">&#10003; Fully Paid</span>';
   h += '</div>';
 
-  // Signatures (no height spacers)
-  h += '<div class="sig-row no-break">';
-  h += '<div class="sig-box"><div class="sig-lbl">Client Signature</div><div class="sig-name">' + esc(opts.clientName || '________________________') + '</div></div>';
-  h += '<div class="sig-box"><div class="sig-lbl">Authorized Signatory</div><div class="sig-name">' + esc(coName) + '</div></div>';
-  h += '</div>';
-
-  h += '<div class="footer-bar">Computer-generated receipt &mdash; ' + esc(coName) + ' &mdash; Nexunova RMS &mdash; ' + new Date().toLocaleString('en-PK') + '</div>';
+  h += '<div class="no-break">'+_sigBlock({ label:'Client Signature', value: opts.clientName||'________________________' })+'</div>';
   h += '</div>';
 
   w.document.write(h);
@@ -1084,7 +1084,7 @@ function printPaymentVoucher(opts) {
   });
   h += '</div>';
 
-  h += '<div class="footer-bar">INTERNAL USE ONLY &mdash; ' + esc(coName) + ' &mdash; Nexunova RMS &mdash; ' + new Date().toLocaleString('en-PK') + '</div>';
+  h += '<div class="footer-bar">INTERNAL USE ONLY &mdash; ' + esc(coName) + ' &mdash; ' + new Date().toLocaleString('en-PK') + '</div>';
   h += '</div>';
 
   w.document.write(h);
@@ -1098,7 +1098,7 @@ function printPaymentStatement(data) {
   var s    = data.sale;
   var dp   = data.down_payment || {};
   var rows = Array.isArray(data.installments) ? data.installments : [];
-  var coName = S ? S.coName || 'Nexunova' : 'Nexunova';
+  var coName = (window._cobranding||{}).company_name || S?.coName || 'Nexunova';
 
   var dpDue    = Number(dp.amount_due  || s.down_payment || 0);
   var dpPaid   = Number(dp.amount_paid || 0);
@@ -1199,14 +1199,54 @@ function printPaymentStatement(data) {
   h += '<td></td></tr>';
   h += '</tbody></table>';
 
-  // Signatures
-  h += '<div class="sig-row no-break">';
-  h += '<div class="sig-box"><div style="height:32px"></div><div class="sig-lbl">Client Signature &amp; Date</div><div class="sig-name">'+esc(s.client_name||'________________________')+'</div></div>';
-  h += '<div class="sig-box"><div style="height:32px"></div><div class="sig-lbl">Authorized Signatory &amp; Stamp</div><div class="sig-name">'+esc(coName)+'</div></div>';
-  h += '</div>';
-  h += '<div class="footer-bar">'+esc(coName)+' &mdash; Nexunova RMS &mdash; Payment Account Statement &mdash; Printed: '+new Date().toLocaleString('en-PK')+'</div>';
+  h += '<div class="no-break">'+_sigBlock({ label:'Client Signature &amp; Date', value: s.client_name||'________________________' })+'</div>';
   h += '</div>';
 
   w.document.write(h);
   _pclose(w);
+}
+
+// ══ STANDALONE REPORT PAGE OPENERS ═══════════════════════════════════
+// Opens beautiful A4 report pages (reports/ folder) from anywhere in the app.
+// Usage: openReceiptReport(paymentId) / openLedgerReport(clientId) / openAgreementReport(saleId)
+
+function openReceiptReport(paymentId) {
+  if (!S || !paymentId) { if(typeof toast==='function') toast('Missing data for receipt', 'warn'); return; }
+  window.open('reports/payment-receipt.html?id=' + encodeURIComponent(paymentId) + '&cid=' + encodeURIComponent(S.cid), '_blank');
+}
+
+function openLedgerReport(clientId) {
+  if (!S || !clientId) { if(typeof toast==='function') toast('Missing client ID for ledger', 'warn'); return; }
+  window.open('reports/account-ledger.html?client_id=' + encodeURIComponent(clientId) + '&cid=' + encodeURIComponent(S.cid), '_blank');
+}
+
+function openAgreementReport(saleId) {
+  if (!S || !saleId) { if(typeof toast==='function') toast('Missing sale ID for agreement', 'warn'); return; }
+  window.open('reports/sale-agreement.html?sale_id=' + encodeURIComponent(saleId) + '&cid=' + encodeURIComponent(S.cid), '_blank');
+}
+
+function openScheduleReport(saleId) {
+  if (!S || !saleId) { if(typeof toast==='function') toast('Missing sale ID for schedule', 'warn'); return; }
+  window.open('reports/installment-schedule.html?sale_id=' + encodeURIComponent(saleId) + '&cid=' + encodeURIComponent(S.cid), '_blank');
+}
+
+function openDemandNotice(saleId) {
+  if (!S || !saleId) { if(typeof toast==='function') toast('Missing sale ID for demand notice', 'warn'); return; }
+  window.open('reports/demand-notice.html?sale_id=' + encodeURIComponent(saleId) + '&cid=' + encodeURIComponent(S.cid), '_blank');
+}
+
+function openMgmtReport(type, opts) {
+  if (!S) return;
+  opts = opts || {};
+  let url = 'reports/viewer.html?type=' + encodeURIComponent(type) + '&cid=' + encodeURIComponent(S.cid);
+  if (opts.from)       url += '&from='       + encodeURIComponent(opts.from);
+  if (opts.to)         url += '&to='         + encodeURIComponent(opts.to);
+  if (opts.project_id) url += '&project_id=' + encodeURIComponent(opts.project_id);
+  if (opts.status)     url += '&status='     + encodeURIComponent(opts.status);
+  window.open(url, '_blank');
+}
+
+function openReportHub() {
+  if (!S) return;
+  window.open('reports/hub.html?cid=' + encodeURIComponent(S.cid), '_blank');
 }

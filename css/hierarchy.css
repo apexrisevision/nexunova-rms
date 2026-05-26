@@ -32,7 +32,7 @@
 .module-client    { --mc: #7C3AED; --mc-bg: rgba(124,58,237,0.10); }
 .module-agent     { --mc: #D97706; --mc-bg: rgba(217,119,6,0.10); }
 .module-operations{ --mc: #0D9488; --mc-bg: rgba(13,148,136,0.10); }
-.module-financial { --mc: #4F46E5; --mc-bg: rgba(79,70,229,0.10); }
+.module-financial { --mc: #2563EB; --mc-bg: rgba(37,99,235,0.10); }
 .module-executive { --mc: #6B7280; --mc-bg: rgba(107,114,128,0.10); }
 
 /* ══ ANIMATION ════════════════════════════════════════════ */
@@ -145,7 +145,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: var(--mc, var(--brand, #6366F1));
+  background: var(--mc, var(--brand, #2563EB));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
@@ -203,7 +203,7 @@
 .app-section {
   background: var(--surface, rgba(255,255,255,0.04));
   border: 1px solid var(--line, rgba(255,255,255,0.06));
-  border-left: 4px solid var(--mc, var(--brand, #6366F1));
+  border-left: 4px solid var(--mc, var(--brand, #2563EB));
   border-radius: 16px;
   padding: 22px 24px;
   margin-bottom: 16px;
@@ -219,7 +219,7 @@
 [data-theme="light"] .app-section {
   background: #ffffff;
   border-color: rgba(15,23,42,0.07);
-  border-left-color: var(--mc, #6366F1);
+  border-left-color: var(--mc, #2563EB);
   box-shadow: 0 1px 4px rgba(15,23,42,0.05);
 }
 
@@ -241,7 +241,7 @@
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: var(--mc-bg, rgba(99,102,241,0.10));
+  background: var(--mc-bg, rgba(37,99,235,0.10));
   color: var(--mc, var(--brand));
   display: flex;
   align-items: center;
@@ -313,7 +313,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: var(--mc, var(--brand, #6366F1));
+  background: var(--mc, var(--brand, #2563EB));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
@@ -357,7 +357,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--mc-bg, rgba(99,102,241,0.10));
+  background: var(--mc-bg, rgba(37,99,235,0.10));
   color: var(--mc, var(--brand));
   display: flex;
   align-items: center;

@@ -1,0 +1,15 @@
+-- ================================================================
+-- NEXUNOVA RMS — MODULE 8.1 EXECUTIVE DASHBOARD
+-- 2026-05-25 — APPLIED via MCP + verified (empty-tenant returns full
+-- structure: 8 KPIs, 4 aging buckets, 12-month trend, officers/projects).
+--
+-- get_executive_dashboard(p_company_id): one call returning portfolio
+-- KPIs (value/collected/outstanding/rate, active legal, PDC due 30d,
+-- active campaigns), overdue aging buckets (1-30/31-60/61-90/90+),
+-- 12-month billed-vs-collected trend, officer leaderboard (90d), and a
+-- project heat map. Read-only; SECURITY DEFINER, SET search_path=public.
+-- Detailed report types remain in reports.js / list_*_filtered RPCs.
+-- Canonical body applied via mcp apply_migration 'module8_executive_dashboard'.
+-- ================================================================
+-- (Body identical to the applied migration; see live DB pg_get_functiondef
+--  for the authoritative source.)

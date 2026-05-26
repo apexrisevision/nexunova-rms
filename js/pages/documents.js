@@ -241,8 +241,8 @@ async function _docGenWithId(id) {
     case 'schedule': {
       // Load full sale detail for this unit, then print schedule
       try {
-        const { data: sRows } = await supabase.from('sales').select('id').eq('unit_id',id).eq('company_id',S.cid).eq('status','active').limit(1);
-        const saleId = sRows?.[0]?.id;
+        const { data: activeSale } = await supabase.rpc('get_active_sale_for_unit', { p_unit_id: id, p_company_id: S.cid });
+        const saleId = activeSale?.id;
         if (!saleId) { toast('No active sale found for this unit','warn'); break; }
         const { data: res } = await supabase.rpc('get_sale_detail', { p_sale_id: saleId, p_company_id: S.cid });
         if (!res?.success) { toast('Could not load sale schedule','err'); break; }

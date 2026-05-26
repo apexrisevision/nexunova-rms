@@ -18,6 +18,18 @@ const _srEntities = [
   { id:'installment',  ic:'', lb:'Due Installments' },
 ];
 
+// ── Entity metadata: colors, icons, descriptions ──────────────────────────────
+const _srEntityMeta = {
+  unit:         { color:'#6366F1', bg:'rgba(99,102,241,0.10)', desc:'Inventory & availability',   svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>' },
+  client:       { color:'#3B82F6', bg:'rgba(59,130,246,0.10)',  desc:'Buyers & owners',           svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' },
+  agent:        { color:'#10B981', bg:'rgba(16,185,129,0.10)',  desc:'Sales team',                svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+  project:      { color:'#8B5CF6', bg:'rgba(139,92,246,0.10)', desc:'Real estate projects',      svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>' },
+  payment:      { color:'#16A34A', bg:'rgba(22,163,74,0.10)',   desc:'Received payments',         svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+  transfer:     { color:'#F59E0B', bg:'rgba(245,158,11,0.10)',  desc:'Ownership transfers',       svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m17 8 4 4-4 4"/><path d="M3 12h18"/><path d="m7 16-4-4 4-4"/></svg>' },
+  cancellation: { color:'#EF4444', bg:'rgba(239,68,68,0.10)',   desc:'Cancelled bookings',        svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>' },
+  installment:  { color:'#F97316', bg:'rgba(249,115,22,0.10)',  desc:'Pending dues',              svg:'<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>' },
+};
+
 // Empty array = no filter step, jump straight to list
 const _srFilterConf = {
   unit: [
@@ -58,57 +70,161 @@ const _srFilterConf = {
 
 // ── Page Render ───────────────────────────────────────────────────────────────
 function rSearch() {
-  document.getElementById('pg-search').innerHTML = `<div class="ani" id="sr-root">
-    <div class="ph">
-      <div class="ph-l"><h2>Quick Search</h2><p>Select an entity type to begin</p></div>
-    </div>
+  document.getElementById('pg-search').innerHTML = `
+  <style>
+  .sr2 { max-width:900px; }
+  /* Entity tiles */
+  .sr2-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
+  @media(max-width:680px){ .sr2-grid{ grid-template-columns:repeat(2,1fr); } }
+  .sr2-tile { display:flex; flex-direction:column; gap:10px; padding:14px 16px 16px; border-radius:12px;
+    border:1.5px solid var(--x-border,rgba(255,255,255,0.08)); background:var(--x-surface,var(--surface));
+    cursor:pointer; transition:border-color 130ms,background 130ms,transform 130ms,box-shadow 130ms; text-align:left; }
+  .sr2-tile:hover { border-color:var(--x-border-2,rgba(255,255,255,0.16)); transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(0,0,0,0.10); background:var(--x-surface-hover,var(--hover)); }
+  .sr2-tile.on { border-color:var(--sr2c,#6366F1) !important; background:var(--sr2bg,rgba(99,102,241,0.10)) !important; }
+  .sr2-tile-ic { width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    background:var(--sr2bg,rgba(99,102,241,0.10)); color:var(--sr2c,#6366F1); flex-shrink:0; }
+  .sr2-tile.on .sr2-tile-ic { background:var(--sr2c,#6366F1); color:#fff; }
+  .sr2-tile-lb { font-size:13px; font-weight:700; color:var(--x-text,var(--t1)); line-height:1.2; }
+  .sr2-tile-sub { font-size:11px; color:var(--x-text-3,var(--t3)); margin-top:2px; line-height:1.3; }
+  .sr2-tile.on .sr2-tile-lb { color:var(--sr2c,#6366F1); }
+  /* Filter chips */
+  .sr2-fbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:12px 0 2px;
+    border-top:1px solid var(--x-border,rgba(255,255,255,0.07)); margin-top:6px; }
+  .sr2-flbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--x-text-3,var(--t3)); white-space:nowrap; margin-right:2px; }
+  .sr2-chip { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:14px;
+    border:1px solid var(--x-border-2,rgba(255,255,255,0.12)); background:var(--x-surface,var(--surface));
+    color:var(--x-text-2,var(--t2)); font-size:12px; font-weight:600; cursor:pointer; transition:all 120ms; white-space:nowrap; }
+  .sr2-chip:hover { background:var(--x-surface-hover,var(--hover)); border-color:var(--x-border-3,rgba(255,255,255,0.22)); }
+  .sr2-chip.on { color:#fff !important; border-color:transparent !important; background:var(--sr2c,#6366F1) !important; }
+  .sr2-cdot { width:6px; height:6px; border-radius:50%; background:var(--sr2c,#6366F1); flex-shrink:0; }
+  .sr2-chip.on .sr2-cdot { background:rgba(255,255,255,0.65); }
+  /* List panel */
+  .sr2-panel { background:var(--x-surface,var(--surface)); border:1px solid var(--x-border,rgba(255,255,255,0.07));
+    border-radius:12px; overflow:hidden; margin-top:12px; }
+  .sr2-panel-hd { display:flex; align-items:center; gap:10px; padding:11px 16px;
+    border-bottom:1px solid var(--x-border,rgba(255,255,255,0.07)); background:var(--x-surface-2,var(--hover)); flex-wrap:wrap; }
+  .sr2-panel-tt { font-size:13px; font-weight:700; color:var(--x-text,var(--t1)); }
+  .sr2-panel-cnt { font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px;
+    background:var(--x-surface,var(--surface)); border:1px solid var(--x-border-2,rgba(255,255,255,0.12));
+    color:var(--x-text-3,var(--t3)); }
+  .sr2-qsrch { margin-left:auto; position:relative; }
+  .sr2-qsrch-ic { position:absolute; left:9px; top:50%; transform:translateY(-50%);
+    color:var(--x-text-3,var(--t3)); pointer-events:none; display:flex; }
+  .sr2-qsrch input { height:30px; padding:0 10px 0 30px; border-radius:7px;
+    border:1px solid var(--x-border-2,rgba(255,255,255,0.12)); background:var(--x-surface,var(--surface));
+    color:var(--x-text,var(--t1)); font-family:inherit; font-size:12px; outline:none; width:190px;
+    transition:border-color .12s,box-shadow .12s; }
+  .sr2-qsrch input:focus { border-color:#6366F1; box-shadow:0 0 0 2px rgba(99,102,241,0.15); }
+  .sr2-qsrch input::placeholder { color:var(--x-text-4,var(--t3)); opacity:.6; }
+  /* Result rows */
+  .sr2-list { max-height:520px; overflow-y:auto; }
+  .sr2-row { display:flex; align-items:center; gap:12px; padding:10px 16px;
+    border-bottom:1px solid var(--x-border,rgba(255,255,255,0.05)); cursor:pointer; transition:background 90ms; }
+  .sr2-row:last-child { border-bottom:none; }
+  .sr2-row:hover { background:var(--x-surface-hover,var(--hover)); }
+  .sr2-av { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; flex-shrink:0; letter-spacing:-.3px;
+    background:var(--sr2bg,rgba(99,102,241,0.10)); color:var(--sr2c,#6366F1); }
+  .sr2-av.cd { font-family:monospace; font-size:10px; border-radius:6px; letter-spacing:0; }
+  .sr2-row-body { flex:1; min-width:0; }
+  .sr2-row-tt { font-size:13px; font-weight:600; color:var(--x-text,var(--t1));
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sr2-row-sub { font-size:11px; color:var(--x-text-3,var(--t3)); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sr2-row-r { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+  .sr2-chev { color:var(--x-text-4,var(--t3)); opacity:.35; transition:opacity .1s; }
+  .sr2-row:hover .sr2-chev { opacity:1; }
+  /* KPI grid */
+  .sr2-kpi-g { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; }
+  .sr2-kpi { padding:10px 12px; background:var(--x-surface-2,var(--hover));
+    border:1px solid var(--x-border,rgba(255,255,255,0.07)); border-radius:8px; }
+  .sr2-kpi-l { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--x-text-3,var(--t3)); margin-bottom:3px; }
+  .sr2-kpi-v { font-size:15px; font-weight:700; color:var(--x-text,var(--t1)); line-height:1.2; }
+  .sr2-kpi-s { font-size:11px; color:var(--x-text-3,var(--t3)); margin-top:2px; }
+  /* Loading / empty states */
+  .sr2-state { padding:52px 24px; text-align:center; }
+  .sr2-state-tt { font-size:14px; font-weight:600; color:var(--x-text-2,var(--t2)); margin:0 0 4px; }
+  .sr2-state-sub { font-size:13px; color:var(--x-text-3,var(--t3)); margin:0; }
+  @keyframes sr2sp { to{transform:rotate(360deg);} }
+  .sr2-spin { width:22px; height:22px; border:2.5px solid rgba(99,102,241,0.15); border-top-color:#6366F1;
+    border-radius:50%; animation:sr2sp .65s linear infinite; margin:0 auto 14px; }
+  .sr2-state-ic { width:46px; height:46px; border-radius:12px; background:var(--x-surface-2,var(--hover));
+    display:flex; align-items:center; justify-content:center; margin:0 auto 12px; color:var(--x-text-3,var(--t3)); }
+  /* Light mode */
+  [data-theme="light"] .sr2-tile { background:#fff; border-color:#E5E7EB; }
+  [data-theme="light"] .sr2-tile:hover { background:#F9FAFB; border-color:#D1D5DB; }
+  [data-theme="light"] .sr2-panel { background:#fff; border-color:#E5E7EB; }
+  [data-theme="light"] .sr2-panel-hd { background:#F9FAFB; border-bottom-color:#E5E7EB; }
+  [data-theme="light"] .sr2-row:hover { background:#F8FAFC; }
+  [data-theme="light"] .sr2-row { border-bottom-color:#F3F4F6; }
+  [data-theme="light"] .sr2-qsrch input { background:#fff; border-color:#E5E7EB; color:#1F2937; }
+  [data-theme="light"] .sr2-chip { background:#fff; border-color:#E5E7EB; color:#374151; }
+  [data-theme="light"] .sr2-chip:hover { background:#F9FAFB; border-color:#D1D5DB; }
+  [data-theme="light"] .sr2-kpi { background:#F9FAFB; border-color:#E5E7EB; }
+  [data-theme="light"] .sr2-panel-cnt { background:#fff; border-color:#E5E7EB; }
+  [data-theme="light"] .sr2-fbar { border-top-color:#E5E7EB; }
+  </style>
+  <div class="ani sr2">
 
-    <!-- Step 1: Entity Tabs -->
-    <div class="card mb14">
-      <div class="cb" style="padding:12px 14px 10px">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Search in</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${_srEntities.map(e => `<button id="sr-ent-${e.id}" onclick="_srSetEntity('${e.id}')" class="sr-ent-btn"
-            style="padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-                   border:1.5px solid var(--line);background:var(--surface);color:var(--t2);
-                   transition:all .15s;display:flex;align-items:center;gap:5px">${e.ic} ${e.lb}</button>`).join('')}
-        </div>
+    <!-- Page header -->
+    <div class="ph" style="margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--x-border,rgba(255,255,255,0.07))">
+      <div class="ph-l">
+        <h2 style="font-size:22px;font-weight:800;color:var(--x-text,var(--t1));margin:0 0 4px;letter-spacing:-.3px">Quick Search</h2>
+        <p style="font-size:13px;color:var(--x-text-3,var(--t3));margin:0">
+          Find units, clients, agents, payments and more
+          <kbd style="display:inline-flex;align-items:center;height:18px;padding:0 6px;margin-left:5px;border-radius:4px;font-size:10px;font-weight:700;font-family:monospace;background:var(--x-surface-2,rgba(255,255,255,0.06));border:1px solid var(--x-border-2,rgba(255,255,255,0.12));color:var(--x-text-3,var(--t3));vertical-align:middle">⌘K</kbd>
+        </p>
       </div>
     </div>
 
-    <!-- Step 2: Filter Chips -->
-    <div id="sr-filter-bar" style="display:none" class="card mb14">
-      <div class="cb" style="padding:10px 14px">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Filter by</div>
-        <div id="sr-filter-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-      </div>
-    </div>
-
-    <!-- Step 3: Item List -->
-    <div id="sr-list-pane" style="display:none">
-      <div class="card">
-        <div class="ch" style="flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <h3 id="sr-list-title">Items</h3>
-            <span id="sr-list-count" style="font-size:12px;font-weight:400;color:var(--t3)"></span>
+    <!-- Entity tile grid -->
+    <div class="sr2-grid" id="sr2-ent-grid">
+      ${_srEntities.map(e => {
+        const m = _srEntityMeta[e.id] || { color:'#6366F1', bg:'rgba(99,102,241,0.10)', desc:'', svg:'' };
+        return `<button id="sr2-ent-${e.id}" onclick="_srSetEntity('${e.id}')"
+          class="sr2-tile" style="--sr2c:${m.color};--sr2bg:${m.bg}">
+          <div class="sr2-tile-ic">${m.svg}</div>
+          <div>
+            <div class="sr2-tile-lb">${e.lb}</div>
+            <div class="sr2-tile-sub">${m.desc}</div>
           </div>
-          <input id="sr-list-search" class="inp-light" type="text" autocomplete="off"
-            placeholder="Quick filter…"
-            style="padding:6px 12px;font-size:12px;min-width:180px;border-radius:var(--r)"
-            oninput="_srQuickFilter(this.value)">
-        </div>
-        <div id="sr-list" style="max-height:520px;overflow-y:auto"></div>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <!-- Filter chips -->
+    <div id="sr-filter-bar" style="display:none">
+      <div class="sr2-fbar">
+        <span class="sr2-flbl">Filter by</span>
+        <div id="sr-filter-chips" style="display:contents"></div>
       </div>
     </div>
 
-    <!-- Step 4: Detail -->
+    <!-- Results panel -->
+    <div id="sr-list-pane" style="display:none">
+      <div class="sr2-panel">
+        <div class="sr2-panel-hd">
+          <span class="sr2-panel-tt" id="sr-list-title">Results</span>
+          <span class="sr2-panel-cnt" id="sr-list-count">0</span>
+          <div class="sr2-qsrch">
+            <span class="sr2-qsrch-ic"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input id="sr-list-search" type="text" autocomplete="off" placeholder="Filter results…" oninput="_srQuickFilter(this.value)">
+          </div>
+        </div>
+        <div class="sr2-list" id="sr-list"></div>
+      </div>
+    </div>
+
+    <!-- Detail pane -->
     <div id="sr-detail-pane" style="display:none"></div>
   </div>`;
 
   document.removeEventListener('keydown', _srGlobalKey);
   document.addEventListener('keydown', _srGlobalKey);
 
-  // Restore state if returning
   if (_srEntity) {
     _srHighlightEntity(_srEntity);
     const filters = _srFilterConf[_srEntity] || [];
@@ -142,11 +258,8 @@ function _srSetEntity(id) {
 }
 
 function _srHighlightEntity(id) {
-  document.querySelectorAll('.sr-ent-btn').forEach(btn => {
-    const on = btn.id === 'sr-ent-' + id;
-    btn.style.background  = on ? 'var(--brand)' : 'var(--surface)';
-    btn.style.color       = on ? '#fff'          : 'var(--t2)';
-    btn.style.borderColor = on ? 'var(--brand)'  : 'var(--line)';
+  document.querySelectorAll('.sr2-tile').forEach(btn => {
+    btn.classList.toggle('on', btn.id === 'sr2-ent-' + id);
   });
 }
 
@@ -156,9 +269,10 @@ function _srShowFilterBar(filters) {
   const chips = document.getElementById('sr-filter-chips');
   if (!bar || !chips) return;
   chips.innerHTML = filters.map(f =>
-    `<button id="sr-fil-${f.id}" onclick="_srSetFilter('${f.id}')" class="sr-fil-btn"
-      style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
-             border:1.5px solid var(--line);background:var(--surface);color:var(--t2);transition:all .15s">${f.lb}</button>`
+    `<button id="sr-fil-${f.id}" onclick="_srSetFilter('${f.id}')" class="sr2-chip"
+      style="--sr2c:${f.clr||'var(--brand)'}">
+      <span class="sr2-cdot"></span>${esc(f.lb)}
+    </button>`
   ).join('');
   bar.style.display = '';
 }
@@ -171,13 +285,8 @@ function _srSetFilter(filterId) {
 }
 
 function _srHighlightFilter(filterId) {
-  const def = (_srFilterConf[_srEntity] || []).find(f => f.id === filterId);
-  const clr = def?.clr || 'var(--brand)';
-  document.querySelectorAll('.sr-fil-btn').forEach(btn => {
-    const on = btn.id === 'sr-fil-' + filterId;
-    btn.style.background  = on ? clr          : 'var(--surface)';
-    btn.style.color       = on ? '#fff'        : 'var(--t2)';
-    btn.style.borderColor = on ? clr           : 'var(--line)';
+  document.querySelectorAll('.sr2-chip').forEach(btn => {
+    btn.classList.toggle('on', btn.id === 'sr-fil-' + filterId);
   });
 }
 
@@ -188,7 +297,7 @@ async function _srLoadAndShowList(entity, filter) {
   const titleEl  = document.getElementById('sr-list-title');
   if (!listPane || !listEl) return;
   listPane.style.display = '';
-  listEl.innerHTML = `<div style="padding:40px 0;text-align:center;color:var(--t2)"><div style="font-size:30px;margin-bottom:10px">⏳</div><div style="font-size:13px">Loading…</div></div>`;
+  listEl.innerHTML = `<div class="sr2-state"><div class="sr2-spin"></div><p class="sr2-state-tt">Loading…</p></div>`;
   const searchInput = document.getElementById('sr-list-search');
   if (searchInput) searchInput.value = '';
 
@@ -227,33 +336,59 @@ function _srRenderList(items, q) {
         (it.extra || '').toLowerCase().includes(q))
     : items;
 
-  if (countEl) countEl.textContent = `(${vis.length}${q && vis.length < items.length ? ' of ' + items.length : ''})`;
+  if (countEl) countEl.textContent = vis.length + (q && vis.length < items.length ? ' of ' + items.length : '');
 
   if (!vis.length) {
-    listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">${q ? 'No matches for "' + esc(q) + '"' : 'No items found'}</div>`;
+    listEl.innerHTML = `<div class="sr2-state">
+      <div class="sr2-state-ic"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <p class="sr2-state-tt">${q ? 'No matches for "' + esc(q) + '"' : 'Nothing here'}</p>
+      <p class="sr2-state-sub">${q ? 'Try a different keyword' : 'No items match this filter'}</p>
+    </div>`;
     return;
   }
 
-  const mono = _srEntity === 'unit' || _srEntity === 'payment' || _srEntity === 'transfer' || _srEntity === 'cancellation';
+  const m   = _srEntityMeta[_srEntity] || { color:'#6366F1', bg:'rgba(99,102,241,0.10)' };
+  const isCode = ['unit','payment','transfer','cancellation','installment'].includes(_srEntity);
+
   listEl.innerHTML = vis.map(item => {
     const idx = items.indexOf(item);
-    return `<div onclick="_srPickItem(${idx})"
-      style="padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--line);
-             display:flex;align-items:center;gap:10px;transition:background .12s"
-      onmouseenter="this.style.background='var(--hover)'"
-      onmouseleave="this.style.background=''">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px;flex-wrap:wrap">
-          <span style="font-size:13px;font-weight:700;color:var(--t1);${mono?'font-family:monospace':''}">${esc(item.title)}</span>
-          ${item.badge ? `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;
-            background:${item.badgeColor}22;color:${item.badgeColor};white-space:nowrap">${esc(item.badge)}</span>` : ''}
-        </div>
-        ${item.sub   ? `<div style="font-size:11px;color:var(--t2);margin-top:1px">${esc(item.sub)}</div>`   : ''}
-        ${item.extra ? `<div style="font-size:11px;color:var(--t3);margin-top:1px">${esc(item.extra)}</div>` : ''}
+    const av  = _srAvatar(item);
+    return `<div onclick="_srPickItem(${idx})" class="sr2-row" style="--sr2c:${m.color};--sr2bg:${m.bg}">
+      <div class="sr2-av${isCode?' cd':''}">${esc(av)}</div>
+      <div class="sr2-row-body">
+        <div class="sr2-row-tt">${esc(item.title)}</div>
+        ${(item.sub||item.extra) ? `<div class="sr2-row-sub">${esc(item.sub||item.extra||'')}</div>` : ''}
       </div>
-      <span style="color:var(--t3);font-size:18px;flex-shrink:0">›</span>
+      <div class="sr2-row-r">
+        ${item.badge ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:${item.badgeColor}1a;color:${item.badgeColor};white-space:nowrap">${esc(item.badge)}</span>` : ''}
+        <svg class="sr2-chev" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
     </div>`;
   }).join('');
+}
+
+function _srAvatar(item) {
+  const t = item.title || '';
+  switch (_srEntity) {
+    case 'unit': {
+      const m = t.match(/^([A-Za-z]+)[\s\-]*(\d+)/);
+      return m ? (m[1].slice(0,1) + m[2].slice(0,2)).toUpperCase() : t.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase() || '?';
+    }
+    case 'client':
+    case 'agent': {
+      const parts = t.trim().split(/\s+/).filter(Boolean);
+      return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : (parts[0]||'?').slice(0,2).toUpperCase();
+    }
+    case 'project':      return t.slice(0,2).toUpperCase() || 'PR';
+    case 'payment':      return 'PKR';
+    case 'transfer':     return 'TXN';
+    case 'cancellation': return 'CXL';
+    case 'installment': {
+      const n = item._raw?.installment_number;
+      return n != null ? '#' + String(n).padStart(2,'0') : 'DUE';
+    }
+    default: return '?';
+  }
 }
 
 // ── Item Fetchers ─────────────────────────────────────────────────────────────
@@ -288,9 +423,7 @@ async function _srItemsUnit(filter) {
   };
 
   if (filter === 'transferred') {
-    const { data } = await supabase.from('unit_transfers')
-      .select('unit_id,transfer_voucher_no,transfer_date')
-      .eq('company_id', S.cid).order('transfer_date', { ascending: false });
+    const { data } = await supabase.rpc('list_unit_transfers_search', { p_company_id: S.cid, p_limit: 2000 });
     const seen = new Set();
     const tMap = {};
     (data || []).forEach(t => { if (!tMap[t.unit_id]) tMap[t.unit_id] = t; seen.add(t.unit_id); });
@@ -301,9 +434,7 @@ async function _srItemsUnit(filter) {
   }
 
   if (filter === 'cancelled') {
-    const { data } = await supabase.from('unit_cancellations')
-      .select('unit_id,cancellation_voucher_no,cancellation_date')
-      .eq('company_id', S.cid).order('cancellation_date', { ascending: false });
+    const { data } = await supabase.rpc('list_unit_cancellations_search', { p_company_id: S.cid, p_type: null, p_limit: 2000 });
     const cMap = {};
     (data || []).forEach(c => { if (!cMap[c.unit_id]) cMap[c.unit_id] = c; });
     return units.filter(u => cMap[u.id]).map(u => {
@@ -325,13 +456,7 @@ async function _srItemsUnit(filter) {
 }
 
 async function _srItemsClient(filter) {
-  let q = supabase.from('clients')
-    .select('id,full_name,cnic,phone_primary,is_blacklisted,is_defaulter,has_cancellation_history')
-    .eq('company_id', S.cid).order('full_name').limit(300);
-  if      (filter === 'blacklisted') q = q.eq('is_blacklisted', true);
-  else if (filter === 'defaulter')   q = q.eq('is_defaulter', true);
-  else if (filter === 'active')      q = q.eq('is_blacklisted', false).eq('is_defaulter', false);
-  const { data } = await q;
+  const { data } = await supabase.rpc('list_clients_for_search', { p_company_id: S.cid, p_filter: filter || null });
   return (data || []).map(c => ({
     id: c.id, _raw: c,
     title: c.full_name || '—',
@@ -343,9 +468,7 @@ async function _srItemsClient(filter) {
 }
 
 async function _srItemsAgent() {
-  const { data } = await supabase.from('agents')
-    .select('id,full_name,agent_code,phone,status,commission_percent')
-    .eq('company_id', S.cid).order('full_name');
+  const { data } = await supabase.rpc('list_agents_for_search', { p_company_id: S.cid });
   return (data || []).map(a => ({
     id: a.id, _raw: a,
     title: a.full_name || '—',
@@ -368,13 +491,7 @@ function _srItemsProject() {
 }
 
 async function _srItemsPayment(filter) {
-  let q = supabase.from('payments')
-    .select('id,payment_code,reference_no,amount,payment_date,payment_method,bank_name,notes,payment_category')
-    .eq('company_id', S.cid).order('payment_date', { ascending: false }).limit(150);
-  if      (filter === 'cash')       q = q.eq('payment_method', 'cash');
-  else if (filter === 'bank')       q = q.in('payment_method', ['bank_transfer','bank','cheque','online']);
-  else if (filter === 'adjustment') q = q.eq('payment_category', 'adjustment');
-  const { data } = await q;
+  const { data } = await supabase.rpc('list_payments_for_search', { p_company_id: S.cid, p_filter: filter || null });
   return (data || []).map(p => ({
     id: p.id, _raw: p,
     title: p.payment_code || p.reference_no || '—',
@@ -386,9 +503,7 @@ async function _srItemsPayment(filter) {
 }
 
 async function _srItemsTransfer() {
-  const { data } = await supabase.from('unit_transfers')
-    .select('id,transfer_voucher_no,transfer_date,transfer_fee,unit_id')
-    .eq('company_id', S.cid).order('transfer_date', { ascending: false }).limit(150);
+  const { data } = await supabase.rpc('list_unit_transfers_search', { p_company_id: S.cid, p_limit: 150 });
   const units = window._unitsCache || [];
   return (data || []).map(t => {
     const u = units.find(x => x.id === t.unit_id);
@@ -403,12 +518,8 @@ async function _srItemsTransfer() {
 }
 
 async function _srItemsCancellation(filter) {
-  let q = supabase.from('unit_cancellations')
-    .select('id,cancellation_voucher_no,cancellation_date,cancellation_type,refund_amount,unit_id')
-    .eq('company_id', S.cid).order('cancellation_date', { ascending: false }).limit(150);
-  if      (filter === 'client_initiated') q = q.eq('cancellation_type', 'client_initiated');
-  else if (filter === 'company_shortage') q = q.eq('cancellation_type', 'company_shortage');
-  const { data } = await q;
+  const cType = filter === 'client_initiated' ? 'client_initiated' : filter === 'company_shortage' ? 'company_shortage' : null;
+  const { data } = await supabase.rpc('list_unit_cancellations_search', { p_company_id: S.cid, p_type: cType, p_limit: 150 });
   const units = window._unitsCache || [];
   return (data || []).map(c => {
     const u = units.find(x => x.id === c.unit_id);
@@ -425,22 +536,11 @@ async function _srItemsCancellation(filter) {
 
 async function _srItemsInstallment(filter) {
   const today = td();
-  let q = supabase.from('installments')
-    .select('id,installment_number,due_date,amount_due,outstanding,status,notes,sale_id')
-    .eq('company_id', S.cid).neq('status', 'paid').limit(150);
-  if (filter === 'overdue') {
-    q = q.lt('due_date', today).order('due_date', { ascending: true });
-  } else if (filter === 'upcoming') {
-    const d = new Date(); d.setDate(d.getDate() + 30);
-    q = q.gte('due_date', today).lte('due_date', d.toISOString().split('T')[0]).order('due_date', { ascending: true });
-  } else {
-    q = q.order('due_date', { ascending: true });
-  }
-  const { data } = await q;
+  const { data } = await supabase.rpc('list_installments_for_search', { p_company_id: S.cid, p_filter: filter || null });
   const saleIds = [...new Set((data || []).map(i => i.sale_id).filter(Boolean))];
   let saleMap = {};
   if (saleIds.length) {
-    const { data: sales } = await supabase.from('sales').select('id,unit_id').in('id', saleIds).eq('company_id', S.cid);
+    const { data: sales } = await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: saleIds });
     (sales || []).forEach(s => { saleMap[s.id] = s.unit_id; });
   }
   const units = window._unitsCache || [];
@@ -466,7 +566,7 @@ async function _srPickItem(idx) {
   document.getElementById('sr-list-pane').style.display   = 'none';
   document.getElementById('sr-detail-pane').style.display  = '';
   const detEl = document.getElementById('sr-detail-pane');
-  detEl.innerHTML = `<div style="padding:60px 0;text-align:center;color:var(--t2)"><div style="font-size:36px;margin-bottom:12px">⏳</div><div style="font-size:14px">Loading…</div></div>`;
+  detEl.innerHTML = `<div class="sr2-state" style="padding:60px 24px"><div class="sr2-spin"></div><p class="sr2-state-tt">Loading…</p></div>`;
   try {
     if (_srEntity === 'unit') { await _srPickUnit(item.id); return; }
     let html = '';
@@ -499,7 +599,7 @@ function _srGlobalKey(e) {
 async function _srPickUnit(unitId) {
   const detEl = document.getElementById('sr-detail-pane');
   detEl.style.display = '';
-  detEl.innerHTML = `<div style="padding:60px 0;text-align:center;color:var(--t2)"><div style="font-size:36px;margin-bottom:12px">⏳</div><div style="font-size:14px">Loading unit details…</div></div>`;
+  detEl.innerHTML = `<div class="sr2-state" style="padding:60px 24px"><div class="sr2-spin"></div><p class="sr2-state-tt">Loading unit…</p></div>`;
   try {
     const d = await _srLoadData(unitId);
     _srDetail = d;
@@ -519,10 +619,10 @@ function _srRow(l, v) {
     ? `<div class="ir"><span class="ir-l">${l}</span><span class="ir-r">${v}</span></div>` : '';
 }
 function _srKpi(label, value, sub) {
-  return `<div style="background:var(--hover);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px">
-    <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">${label}</div>
-    <div style="font-size:13px;font-weight:700;color:var(--t1)">${value}</div>
-    ${sub ? `<div style="font-size:10px;color:var(--t3);margin-top:1px">${sub}</div>` : ''}
+  return `<div class="sr2-kpi">
+    <div class="sr2-kpi-l">${label}</div>
+    <div class="sr2-kpi-v">${value}</div>
+    ${sub ? `<div class="sr2-kpi-s">${sub}</div>` : ''}
   </div>`;
 }
 function _srStatusBadge(status, large) {
@@ -556,11 +656,9 @@ function _srMethBadge(m) {
 
 // ── Client Detail ─────────────────────────────────────────────────────────────
 async function _srDetailClient(item) {
-  const { data: c } = await supabase.from('clients').select('*').eq('id', item.id).single();
+  const { data: c } = await supabase.rpc('get_client_by_id', { p_id: item.id, p_company_id: S.cid });
   if (!c) throw new Error('Client not found');
-  const { data: sales } = await supabase.from('sales')
-    .select('id,unit_id,net_amount,sale_date,is_active,is_transfer')
-    .eq('client_id', c.id).eq('company_id', S.cid).order('sale_date', { ascending: false });
+  const { data: sales } = await supabase.rpc('list_sales_by_client_all', { p_client_id: c.id, p_company_id: S.cid });
   _srCurrentDet = { type: 'client', data: c };
   const units = window._unitsCache || [];
   const projs = window._projectsCache || [];
@@ -596,7 +694,7 @@ async function _srDetailClient(item) {
           <h2 style="font-size:20px;font-weight:800;margin:0">${esc(c.full_name||'—')}</h2>
           ${flags}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px">
+        <div class="sr2-kpi-g" style="margin-top:10px">
           ${_srKpi('Phone',    c.phone_primary||'—', '')}
           ${_srKpi('CNIC',     c.cnic||'—', '')}
           ${_srKpi('Type',     c.overseas_local==='overseas'?'Overseas':c.overseas_local==='local'?'Local':'—', '')}
@@ -639,10 +737,8 @@ async function _srDetailClient(item) {
 // ── Agent Detail ──────────────────────────────────────────────────────────────
 async function _srDetailAgent(item) {
   const [{ data: a }, { data: sales }] = await Promise.all([
-    supabase.from('agents').select('*').eq('id', item.id).single(),
-    supabase.from('sales')
-      .select('id,unit_id,net_amount,sale_date,is_active,agent_commission_amount,agent_commission_paid')
-      .eq('agent_id', item.id).eq('company_id', S.cid).order('sale_date', { ascending: false }),
+    supabase.rpc('get_agent_full', { p_id: item.id, p_company_id: S.cid }),
+    supabase.rpc('list_sales_by_agent', { p_agent_id: item.id, p_company_id: S.cid }),
   ]);
   if (!a) throw new Error('Agent not found');
   _srCurrentDet = { type: 'agent', data: a };
@@ -685,7 +781,7 @@ async function _srDetailAgent(item) {
             background:${a.status==='active'?'rgba(34,197,94,.12)':'var(--hover)'};
             color:${a.status==='active'?'#16a34a':'var(--t3)'}">${a.status||'—'}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+        <div class="sr2-kpi-g">
           ${_srKpi('Rate',          (a.commission_percent||0)+'%', '')}
           ${_srKpi('Total Sales',   String((sales||[]).length), 'all time')}
           ${_srKpi('Total Earned',  fM(totalE), '')}
@@ -737,7 +833,7 @@ async function _srDetailProject(item) {
     <div class="card mb14" style="background:linear-gradient(135deg,var(--surface) 0%,var(--hover) 100%)">
       <div class="cb" style="padding:14px">
         <h2 style="font-size:20px;font-weight:800;margin:0 0 10px">${esc(prj.projectName||prj.name||'—')}</h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+        <div class="sr2-kpi-g">
           ${_srKpi('Total Units',  String(units.length), '')}
           ${_srKpi('Available',    String(available.length), '')}
           ${_srKpi('Sold',         String(sold.length), pct+'%')}
@@ -774,18 +870,18 @@ async function _srDetailProject(item) {
 
 // ── Payment Detail ────────────────────────────────────────────────────────────
 async function _srDetailPayment(item) {
-  const { data: p } = await supabase.from('payments').select('*').eq('id', item.id).single();
+  const { data: p } = await supabase.rpc('get_payment_full', { p_id: item.id, p_company_id: S.cid });
   if (!p) throw new Error('Payment not found');
   _srCurrentDet = { type: 'payment', data: p };
   let saleInfo = null, unitInfo = null, clientInfo = null;
   if (p.sale_id) {
-    const { data: s } = await supabase.from('sales').select('id,unit_id,client_id,sale_number').eq('id', p.sale_id).single();
+    const { data: s } = await supabase.rpc('get_sale_for_lookup', { p_sale_id: p.sale_id, p_company_id: S.cid });
     if (s) {
       saleInfo   = s;
       unitInfo   = (window._unitsCache||[]).find(u => u.id === s.unit_id);
       clientInfo = (typeof gclient === 'function' ? gclient(s.client_id) : null) || null;
       if (!clientInfo && s.client_id) {
-        const { data: cl } = await supabase.from('clients').select('full_name,phone_primary,cnic').eq('id',s.client_id).single();
+        const { data: cl } = await supabase.rpc('get_client_lite', { p_id: s.client_id, p_company_id: S.cid });
         clientInfo = cl;
       }
     }
@@ -803,7 +899,7 @@ async function _srDetailPayment(item) {
           <h2 style="font-size:20px;font-weight:800;margin:0">Payment</h2>
           ${p.payment_code?`<span style="font-family:monospace;font-size:12px;color:var(--t3)">${esc(p.payment_code)}</span>`:''}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+        <div class="sr2-kpi-g">
           ${_srKpi('Amount', fMF(p.amount||0), '')}
           ${_srKpi('Date',   fD(p.payment_date), '')}
           ${_srKpi('Method', (p.payment_method||'—').replace(/_/g,' '), '')}
@@ -836,7 +932,7 @@ async function _srDetailPayment(item) {
 
 // ── Transfer Detail ───────────────────────────────────────────────────────────
 async function _srDetailTransfer(item) {
-  const { data: t } = await supabase.from('unit_transfers').select('*').eq('id', item.id).single();
+  const { data: t } = await supabase.rpc('get_unit_transfer_full', { p_id: item.id, p_company_id: S.cid });
   if (!t) throw new Error('Transfer not found');
   _srCurrentDet = { type: 'transfer', data: t };
   const unitInfo = (window._unitsCache||[]).find(u => u.id === t.unit_id);
@@ -844,7 +940,7 @@ async function _srDetailTransfer(item) {
     if (!id) return null;
     const c = typeof gclient === 'function' ? gclient(id) : null;
     if (c) return c;
-    const { data } = await supabase.from('clients').select('full_name,cnic,phone_primary').eq('id',id).single();
+    const { data } = await supabase.rpc('get_client_lite', { p_id: id, p_company_id: S.cid });
     return data;
   };
   const [oldC, newC] = await Promise.all([resolveC(t.old_client_id), resolveC(t.new_client_id)]);
@@ -861,7 +957,7 @@ async function _srDetailTransfer(item) {
           <h2 style="font-size:20px;font-weight:800;margin:0">Transfer</h2>
           <span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--brand)">${esc(t.transfer_voucher_no||'—')}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+        <div class="sr2-kpi-g">
           ${_srKpi('Unit',     unitInfo?unitInfo.unitNo:'—', '')}
           ${_srKpi('Date',     fD(t.transfer_date), '')}
           ${_srKpi('Fee',      fM(t.transfer_fee||0), '')}
@@ -899,13 +995,13 @@ async function _srDetailTransfer(item) {
 
 // ── Cancellation Detail ───────────────────────────────────────────────────────
 async function _srDetailCancellation(item) {
-  const { data: c } = await supabase.from('unit_cancellations').select('*').eq('id', item.id).single();
+  const { data: c } = await supabase.rpc('get_unit_cancellation_full', { p_id: item.id, p_company_id: S.cid });
   if (!c) throw new Error('Cancellation not found');
   _srCurrentDet = { type: 'cancellation', data: c };
   const unitInfo = (window._unitsCache||[]).find(u => u.id === c.unit_id);
   let clientInfo = typeof gclient === 'function' ? gclient(c.client_id) : null;
   if (!clientInfo && c.client_id) {
-    const { data: cl } = await supabase.from('clients').select('full_name,cnic,phone_primary').eq('id',c.client_id).single();
+    const { data: cl } = await supabase.rpc('get_client_lite', { p_id: c.client_id, p_company_id: S.cid });
     clientInfo = cl;
   }
   const cName  = clientInfo ? (clientInfo.fullName||clientInfo.full_name||null) : null;
@@ -923,7 +1019,7 @@ async function _srDetailCancellation(item) {
           <h2 style="font-size:20px;font-weight:800;margin:0">Cancellation</h2>
           <span style="font-family:monospace;font-size:13px;font-weight:700;color:#dc2626">${esc(c.cancellation_voucher_no||'—')}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+        <div class="sr2-kpi-g">
           ${_srKpi('Unit',       unitInfo?unitInfo.unitNo:'—', '')}
           ${_srKpi('Date',       fD(c.cancellation_date), '')}
           ${_srKpi('Total Paid', fM(c.total_amount_paid||0), '')}
@@ -993,10 +1089,7 @@ async function _srLoadData(unitId) {
   const prj = gproject(u.projectId);
   const [pymRaw, saleRow, ohRaw] = await Promise.all([
     supabase.rpc('get_unit_payment_summary', { p_unit_id: unitId, p_company_id: S.cid }).then(r => r.data),
-    supabase.from('sales')
-      .select('id,client_id,agent_id,total_amount,discount_amount,discount_percentage,payment_plan_type,wht_amount,cvt_amount,co_buyer_name,nominee_name,nominee_relation,is_transfer,transferred_from_sale_id,is_active')
-      .eq('unit_id', unitId).eq('company_id', S.cid)
-      .in('status', ['active']).limit(1).maybeSingle().then(r => r.data),
+    supabase.rpc('get_active_sale_for_unit_full', { p_unit_id: unitId, p_company_id: S.cid }).then(r => r.data),
     supabase.rpc('get_unit_ownership_history', { p_unit_id: unitId, p_company_id: S.cid }).then(r => r.data),
   ]);
   const pymData = pymRaw, ownerHist = ohRaw;
@@ -1004,20 +1097,13 @@ async function _srLoadData(unitId) {
   let payments = [], client = null, agent = null;
   if (saleId) {
     const [pmtsRaw, clientRaw, agentRaw] = await Promise.all([
-      supabase.from('payments')
-        .select('amount,payment_date,payment_method,reference_no,bank_name,notes,payment_category,adjustment_note,adjustment_type')
-        .eq('sale_id', saleId).eq('company_id', S.cid)
-        .order('payment_date', { ascending: true }).then(r => r.data || []),
+      supabase.rpc('list_payments_by_sale_full', { p_sale_id: saleId, p_company_id: S.cid }).then(r => r.data || []),
       saleRow?.client_id
         ? (gclient(saleRow.client_id) ? Promise.resolve(gclient(saleRow.client_id))
-          : supabase.from('clients')
-              .select('full_name,cnic,phone_primary,phone_secondary,email,address,city,father_name,next_of_kin_name,next_of_kin_relation,next_of_kin_phone,overseas_local,occupation,client_category')
-              .eq('id', saleRow.client_id).single().then(r => r.data))
+          : supabase.rpc('get_client_detail_for_search', { p_id: saleRow.client_id, p_company_id: S.cid }).then(r => r.data))
         : Promise.resolve(null),
       saleRow?.agent_id
-        ? supabase.from('agents')
-            .select('full_name,agent_code,phone,commission_percent,total_commission_earned,total_commission_paid,total_commission_pending')
-            .eq('id', saleRow.agent_id).single().then(r => r.data)
+        ? supabase.rpc('get_agent_detail_for_search', { p_id: saleRow.agent_id, p_company_id: S.cid }).then(r => r.data)
         : Promise.resolve(null),
     ]);
     payments = pmtsRaw; client = clientRaw; agent = agentRaw;
@@ -1098,7 +1184,7 @@ function _srRenderDetail(d) {
         <div style="font-size:12px;color:var(--t2);margin-bottom:14px">
           ${esc(prj?.projectName||prj?.name||'—')}${u.floorLabel?' · '+esc(u.floorLabel):''}${u.type?' · '+esc(u.type):''}${u.area?' · '+u.area+' '+(u.areaUnit||'sqft'):''}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+        <div class="sr2-kpi-g">
           ${_srKpi('Sale Price',  hasSale?fMF(netAmt):'—', '')}
           ${_srKpi('Total Paid', hasSale?fMF(totalPaid):'—', paidPct?paidPct+'%':'')}
           ${_srKpi('Outstanding',hasSale?fMF(outstanding):'—', outstanding>0?(100-paidPct)+'%':'')}
@@ -1150,7 +1236,7 @@ function _srRenderDetail(d) {
       <div style="display:flex;flex-direction:column;gap:13px">
         ${_srClientSection(d,hist,histCurrent,histPrevious,hasTransfer,clientType,card,row)}
         ${hasSale?card('','Payment Summary',_srStatusBadge(status),`
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+          <div class="sr2-kpi-g" style="margin-bottom:12px">
             ${_srKpi('Cash',fMF(cashPaid),'')} ${_srKpi('Bank',fMF(bankPaid),'')} ${_srKpi('Adjustment',fMF(adjPaid),'')}
           </div>
           ${row('Total Paid',  `<span style="color:var(--ok);font-weight:700">${fMF(totalPaid)} (${paidPct}%)</span>`)}

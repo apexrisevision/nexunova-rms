@@ -31,6 +31,25 @@ function _salClearErr(id) {
   if (err) err.textContent = '';
 }
 
+// Auto-flag: warn if the selected client is actively blacklisted (Module 2.2).
+async function _salCheckBlacklist(clientId) {
+  const warn = document.getElementById('sf-bl-warn');
+  if (!warn) return;
+  warn.style.display = 'none';
+  warn.textContent = '';
+  if (!clientId) return;
+  try {
+    const { data } = await supabase.rpc('check_client_blacklisted', { p_client_id: clientId, p_company_id: S.cid });
+    if (data && data.blacklisted) {
+      const t = data.reason_type ? data.reason_type.toUpperCase() : 'BLACKLISTED';
+      warn.innerHTML = '⛔ This client is BLACKLISTED (' + esc(t) + ')'
+        + (data.reason ? ' — ' + esc(data.reason) : '')
+        + '. Proceed with caution; obtain approval before booking a new sale.';
+      warn.style.display = '';
+    }
+  } catch(e) { /* non-blocking */ }
+}
+
 // ── Badges ─────────────────────────────────────────────────────────────
 function _salStatusBadge(s) {
   const map = {
@@ -331,10 +350,11 @@ async function rNewSale() {
               <a href="#" onclick="_salJumpAdd('clients',()=>openClientModal(null));return false"
                 style="font-size:11px;color:var(--info);font-weight:500;text-decoration:none">+ Add Client</a>
             </div>
-            <select id="sf-client" class="inp-light" onchange="_salClearErr('sf-client')">
+            <select id="sf-client" class="inp-light" onchange="_salClearErr('sf-client');_salCheckBlacklist(this.value)">
               <option value="">— Select Client —</option>${clientOpts}
             </select>
             <div id="e-sf-client" class="ferr"></div>
+            <div id="sf-bl-warn" style="display:none;margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);font-size:12px;color:#dc2626;font-weight:600"></div>
           </div>
         </div>
         <div class="g2">
@@ -609,13 +629,8 @@ async function rNewSale() {
       storageKey:'rms.fnav.sale',
       loadList: async () => {
         try {
-          const { data } = await supabase.from('sales')
-            .select('id, sale_date')
-            .eq('company_id', S.cid)
-            .eq('is_active', true)
-            .order('sale_date', { ascending: true })
-            .limit(2000);
-          return data || [];
+          const { data } = await supabase.rpc('list_sales_for_fnav', { p_company_id: S.cid });
+          return Array.isArray(data) ? data : [];
         } catch (e) { return []; }
       },
       openEntry: (id) => openSaleDetail(id),
@@ -1451,7 +1466,7 @@ async function saveSale() {
       extPatch.breach_approved_at    = _salBreachApproval.approvedAt;
     }
     if (data.sale_id && Object.values(extPatch).some(v => v !== null && v !== 0 && v !== false)) {
-      await supabase.from('sales').update(extPatch).eq('id', data.sale_id);
+      await supabase.rpc('edit_sale', { p_sale_id: data.sale_id, p_company_id: S.cid, p_data: extPatch });
     }
 
     toast(`Sale ${data.sale_number} created`, 'ok');
@@ -1537,17 +1552,16 @@ async function rSaleDetail() {
   pg.innerHTML = `<div class="ani"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;opacity:.4"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke-linecap="round"/></svg></div><div class="et">Loading sale…</div></div></div>`;
 
   try {
-    const [detailRes, docsRes, amendsRes] = await Promise.all([
+    const [detailRes, docsAmendsRes] = await Promise.all([
       supabase.rpc('get_sale_detail', { p_sale_id: _salId, p_company_id: S.cid }),
-      supabase.from('sale_documents').select('*').eq('sale_id', _salId).eq('company_id', S.cid).order('uploaded_at', { ascending: false }),
-      supabase.from('sale_amendments').select('*').eq('sale_id', _salId).eq('company_id', S.cid).order('amended_at', { ascending: false })
+      supabase.rpc('get_sale_documents_amendments', { p_sale_id: _salId, p_company_id: S.cid })
     ]);
     if (detailRes.error) throw detailRes.error;
     if (!detailRes.data || !detailRes.data.success) throw new Error(detailRes.data?.error || 'Sale not found');
 
     const d = { ...detailRes.data.sale, installments: detailRes.data.installments || [] };
-    const docs = docsRes.data || [];
-    const amendments = amendsRes.data || [];
+    const docs = docsAmendsRes.data?.documents || [];
+    const amendments = docsAmendsRes.data?.amendments || [];
     _renderSaleDetail(d, docs, amendments);
   } catch(e) {
     pg.innerHTML = `<div class="ani">
@@ -1644,6 +1658,9 @@ function _renderSaleDetail(d, docs, amendments) {
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
       <button class="bk" onclick="nav('sales')">← Back</button>
       <button class="btn btn-print btn-sm" onclick="printSaleDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+      <button class="btn btn-sm" onclick="openAgreementReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Sale Agreement"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Agreement</button>
+      <button class="btn btn-sm" onclick="openScheduleReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Installment Schedule"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
+      <button class="btn btn-sm" onclick="openDemandNotice('${d.id}')" style="background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Demand Notice"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Demand</button>
       ${isA ? `<button class="btn btn-gh btn-sm" onclick="openSaleEdit('${d.id}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
       ${isA && typeof openAuditHistory==='function' ? `<button class="btn btn-gh btn-sm" onclick="openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number||'')}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg> History</button>` : ''}
       ${d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? `<button class="btn btn-sm" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.3);display:inline-flex;align-items:center;gap:5px" onclick="plOpenCreate(null,'${d.client_id}','${d.id}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Payment Link</button>` : ''}
@@ -1856,13 +1873,8 @@ function _renderSaleDetail(d, docs, amendments) {
       storageKey:'rms.fnav.sale',
       loadList: async () => {
         try {
-          const { data } = await supabase.from('sales')
-            .select('id, sale_date')
-            .eq('company_id', S.cid)
-            .eq('is_active', true)
-            .order('sale_date', { ascending: true })
-            .limit(2000);
-          return data || [];
+          const { data } = await supabase.rpc('list_sales_for_fnav', { p_company_id: S.cid });
+          return Array.isArray(data) ? data : [];
         } catch (e) { console.error('[fnav sale]', e); return []; }
       },
       openEntry: (id) => openSaleDetail(id),
@@ -1937,20 +1949,15 @@ async function rEditSale() {
 
   try {
     // Fetch sale + full installment data + agents
-    const [saleRes, instRes, agentRes] = await Promise.all([
-      supabase.from('sales')
-        .select('id,sale_number,unit_id,client_id,agent_id,sale_date,price_per_sqft,area_sqft,total_amount,discount,net_amount,down_payment,remaining_amount,notes,co_buyer_name,co_buyer_cnic,co_buyer_share_pct,nominee_name,nominee_cnic,nominee_relation,wht_amount,cvt_amount,discount_approved_by,discount_notes,status')
-        .eq('id', _salEditId).eq('company_id', S.cid).single(),
-      supabase.from('installments')
-        .select('id,installment_number,installment_type,due_date,amount_due,amount_paid,notes,status')
-        .eq('sale_id', _salEditId).eq('company_id', S.cid)
-        .order('installment_number'),
+    const [editRes, agentRes] = await Promise.all([
+      supabase.rpc('get_sale_for_edit', { p_sale_id: _salEditId, p_company_id: S.cid }),
       supabase.rpc('list_agents', { p_company_id: S.cid, p_search: null, p_status: 'active', p_sort: 'name' }),
     ]);
 
-    if (saleRes.error) throw saleRes.error;
-    const d = saleRes.data;
-    const instData = instRes.data || [];
+    if (editRes.error) throw editRes.error;
+    if (!editRes.data?.success) throw new Error(editRes.data?.error || 'Sale not found');
+    const d = editRes.data.sale;
+    const instData = editRes.data.installments || [];
     const totalPaid = instData.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
     window._salEditAgents = Array.isArray(agentRes.data) ? agentRes.data : [];
     window._salEditSchedule = instData.map(i => ({ ...i, _new: false, _deleted: false }));
@@ -2210,13 +2217,8 @@ async function rEditSale() {
         storageKey:'rms.fnav.sale',
         loadList: async () => {
           try {
-            const { data } = await supabase.from('sales')
-              .select('id, sale_date')
-              .eq('company_id', S.cid)
-              .eq('is_active', true)
-              .order('sale_date', { ascending: true })
-              .limit(2000);
-            return data || [];
+            const { data } = await supabase.rpc('list_sales_for_fnav', { p_company_id: S.cid });
+            return Array.isArray(data) ? data : [];
           } catch (e) { return []; }
         },
         openEntry: (id) => openSaleEdit(id),
@@ -2434,55 +2436,28 @@ async function saveEditSale() {
   btn.textContent = 'Saving…';
 
   // Save sale record (generated columns auto-update from source fields)
-  const { error: saleErr } = await supabase.from('sales').update(payload)
-    .eq('id', _salEditId).eq('company_id', S.cid);
+  const saleRes = await supabase.rpc('edit_sale', {
+    p_sale_id: _salEditId, p_company_id: S.cid, p_data: payload
+  });
 
-  if (saleErr) {
+  if (saleRes.error || !saleRes.data?.success) {
     btn.disabled    = false;
     btn.textContent = 'Save Changes';
-    err.textContent = saleErr.message;
+    err.textContent = saleRes.error?.message || saleRes.data?.error || 'Save failed';
     return;
   }
 
-  // Sync installments
-  const instErrors = [];
-
-  for (const row of schedule) {
-    if (row._deleted && row.id) {
-      const { error: de } = await supabase.from('installments').delete()
-        .eq('id', row.id).eq('company_id', S.cid);
-      if (de) instErrors.push(de.message);
-
-    } else if (!row._deleted && row._new) {
-      const { error: ie } = await supabase.from('installments').insert({
-        company_id:         S.cid,
-        sale_id:            _salEditId,
-        installment_number: row.installment_number,
-        installment_type:   row.installment_type || 'installment',
-        due_date:           row.due_date,
-        amount_due:         row.amount_due,
-        amount_paid:        0,
-        notes:              row.notes || null,
-        status:             'pending',
-      });
-      if (ie) instErrors.push(ie.message);
-
-    } else if (!row._deleted && !row._new && row.id) {
-      const { error: ue } = await supabase.from('installments').update({
-        installment_type: row.installment_type || 'installment',
-        due_date:         row.due_date,
-        amount_due:       row.amount_due,
-        notes:            row.notes || null,
-      }).eq('id', row.id).eq('company_id', S.cid);
-      if (ue) instErrors.push(ue.message);
-    }
-  }
+  // Sync installments via single RPC call
+  const instRes = await supabase.rpc('edit_installment_schedule', {
+    p_sale_id: _salEditId, p_company_id: S.cid, p_schedule: schedule
+  });
 
   btn.disabled    = false;
   btn.textContent = 'Save Changes';
 
-  if (instErrors.length) {
-    err.textContent = 'Sale saved but some installments failed: ' + instErrors.join('; ');
+  if (instRes.error || !instRes.data?.success) {
+    const errs = instRes.data?.errors || [instRes.error?.message || 'unknown error'];
+    err.textContent = 'Sale saved but some installments failed: ' + errs.join('; ');
     return;
   }
 
@@ -2584,17 +2559,19 @@ async function saveCancelSale() {
   btn.disabled    = true;
   btn.textContent = 'Cancelling…';
 
-  const { error } = await supabase.from('sales').update({
-    status:               'cancelled',
-    cancellation_reason:  reason,
-    cancellation_date:    td(),
-    cancelled_by:         by || null,
-  }).eq('id', saleId).eq('company_id', S.cid);
+  const res = await supabase.rpc('edit_sale', {
+    p_sale_id: saleId, p_company_id: S.cid, p_data: {
+      status:              'cancelled',
+      cancellation_reason: reason,
+      cancellation_date:   td(),
+      cancelled_by:        by || null,
+    }
+  });
 
   btn.disabled    = false;
   btn.textContent = 'Confirm Cancellation';
 
-  if (error) { err.textContent = error.message; return; }
+  if (res.error || !res.data?.success) { err.textContent = res.error?.message || res.data?.error || 'Cancel failed'; return; }
   cm('m-cancel-sale');
   toast('Sale cancelled');
   rSaleDetail();
@@ -2630,20 +2607,19 @@ async function saveSaleAmendment() {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('sale_amendments').insert({
-    company_id:     S.cid,
-    sale_id:        saleId,
-    amendment_type: type,
-    description:    desc,
-    reason:         reason || null,
-    amended_by:     by || null,
-    amended_at:     new Date().toISOString(),
+  const res = await supabase.rpc('add_sale_amendment', {
+    p_company_id:    S.cid,
+    p_sale_id:       saleId,
+    p_amendment_type: type,
+    p_description:   desc,
+    p_reason:        reason || null,
+    p_amended_by:    by || null,
   });
 
   btn.disabled    = false;
   btn.textContent = 'Save Amendment';
 
-  if (error) { err.textContent = error.message; return; }
+  if (res.error || !res.data?.success) { err.textContent = res.error?.message || res.data?.error || 'Save failed'; return; }
   cm('m-sale-amendment');
   toast('Amendment logged');
   rSaleDetail();
@@ -2651,8 +2627,8 @@ async function saveSaleAmendment() {
 
 async function deleteSaleAmendment(id) {
   if (!confirm('Delete this amendment record?')) return;
-  const { error } = await supabase.from('sale_amendments').delete().eq('id', id).eq('company_id', S.cid);
-  if (error) { toast(error.message, 'err'); return; }
+  const res = await supabase.rpc('delete_sale_amendment', { p_id: id, p_company_id: S.cid });
+  if (res.error || !res.data?.success) { toast(res.error?.message || res.data?.error || 'Delete failed', 'err'); return; }
   toast('Amendment deleted');
   rSaleDetail();
 }
@@ -2680,28 +2656,27 @@ async function uploadSaleDoc(input, saleId) {
 
   const { data: { publicUrl } } = supabase.storage.from('rms-documents').getPublicUrl(path);
 
-  const { error } = await supabase.from('sale_documents').insert({
-    company_id:    S.cid,
-    sale_id:       saleId,
-    document_type: docType.trim() || 'Sale Document',
-    document_name: file.name,
-    document_url:  publicUrl,
-    uploaded_by:   S.uid || null,
-    uploaded_at:   new Date().toISOString(),
+  const res = await supabase.rpc('upload_sale_document', {
+    p_company_id:    S.cid,
+    p_sale_id:       saleId,
+    p_document_type: docType.trim() || 'Sale Document',
+    p_document_name: file.name,
+    p_document_url:  publicUrl,
+    p_uploaded_by:   S.uid || null,
   });
 
   input.disabled = false;
   input.value    = '';
 
-  if (error) { toast('DB error: ' + error.message, 'err'); return; }
+  if (res.error || !res.data?.success) { toast('DB error: ' + (res.error?.message || res.data?.error || 'unknown'), 'err'); return; }
   toast('Document uploaded');
   rSaleDetail();
 }
 
 async function deleteSaleDoc(id) {
   if (!confirm('Remove this document?')) return;
-  const { error } = await supabase.from('sale_documents').delete().eq('id', id).eq('company_id', S.cid);
-  if (error) { toast(error.message, 'err'); return; }
+  const res = await supabase.rpc('delete_sale_document', { p_id: id, p_company_id: S.cid });
+  if (res.error || !res.data?.success) { toast(res.error?.message || res.data?.error || 'Delete failed', 'err'); return; }
   toast('Document removed');
   rSaleDetail();
 }
@@ -2888,7 +2863,8 @@ function printDemandNotice(idx) {
 function printPossessionLetter() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
-  const coName    = S?.coName || 'Company';
+  const br        = window._cobranding || {};
+  const H         = br.doc_brand_color || '#1E2D47';
   const printDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
   const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
   const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
@@ -2898,45 +2874,27 @@ function printPossessionLetter() {
 <head>
 <meta charset="UTF-8">
 <title>Possession Letter — ${d.sale_number || ''}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:30px 40px;line-height:1.8}
-  .top-bar{background:#14532d;color:#fff;padding:6px 16px;margin:-30px -40px 28px;text-align:right;font-size:10px;letter-spacing:.4px}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;padding-bottom:14px;border-bottom:3px solid #14532d}
-  .co-name{font-size:22px;font-weight:800;color:#1a3a5c}
-  .doc-badge{background:#14532d;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700}
-  h2{font-size:15px;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:1px;color:#14532d;margin:20px 0;text-decoration:underline}
+<style>${_pCSS('A4')}
   p{font-size:12px;line-height:1.9;margin-bottom:12px}
-  .hl{font-weight:700;color:#1a3a5c}
-  table{width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #d0d7de;border-radius:6px;overflow:hidden}
-  td{padding:8px 14px;font-size:11.5px;border-bottom:1px solid #edf2f7}
-  tr:last-child td{border-bottom:none}
-  td:first-child{background:#f6f8fa;font-weight:700;color:#57606a;width:180px}
+  .hl{font-weight:700;color:${H}}
+  .detail-tbl{width:100%;border-collapse:collapse;margin:16px 0}
+  .detail-tbl td{padding:8px 14px;font-size:11.5px;border-bottom:1px solid #edf2f7;vertical-align:top}
+  .detail-tbl td:first-child{background:#f6f8fa;font-weight:700;color:#57606a;width:190px}
+  .detail-tbl tr:last-child td{border-bottom:none}
   ol{margin:10px 0 14px 20px}
   ol li{font-size:11.5px;margin-bottom:6px;line-height:1.7}
-  .footer{margin-top:50px;display:flex;justify-content:space-between;align-items:flex-end}
-  .sign-line{border-top:1px solid #aaa;padding-top:6px;font-size:10px;color:#888;margin-top:40px;width:200px;text-align:center}
-  @media print{body{padding:18px 24px}.top-bar{margin:-18px -24px 20px}@page{margin:12mm 10mm;size:A4 portrait}}
 </style>
 </head>
 <body>
-  <div class="top-bar">Possession Letter &nbsp;|&nbsp; ${esc(coName)} &nbsp;|&nbsp; Printed: ${printDate}</div>
-  <div class="header">
-    <div>
-      <div class="co-name">${esc(coName)}</div>
-      <div style="font-size:11px;color:#888;margin-top:4px;letter-spacing:2px;text-transform:uppercase">Real Estate Management System</div>
-    </div>
-    <div class="doc-badge">POSSESSION LETTER</div>
-  </div>
+  ${_lh('Possession Letter')}
+  <div style="font-size:11px;color:#57606a;margin:8px 0 14px">Date: ${printDate} &nbsp;|&nbsp; Ref: ${esc(d.sale_number || '—')}</div>
 
-  <div style="font-size:11px;color:#57606a;margin-bottom:8px">Date: ${printDate} &nbsp;|&nbsp; Ref: ${esc(d.sale_number || '—')}</div>
-
-  <h2>Possession / Handover Letter</h2>
+  <div class="doc-title">Possession / Handover Letter</div>
 
   <p>Dear <span class="hl">${esc(d.client_name || 'Valued Customer')}</span>,</p>
   <p>We are delighted to inform you that possession of the following property is hereby handed over to you. This letter serves as a formal acknowledgement of the transfer of physical possession.</p>
 
-  <table>
+  <table class="detail-tbl">
     <tr><td>Client Name</td><td>${esc(d.client_name || '—')}</td></tr>
     ${d.co_buyer_name ? `<tr><td>Co-buyer / Joint Owner</td><td>${esc(d.co_buyer_name)}</td></tr>` : ''}
     <tr><td>Sale Number</td><td style="font-family:monospace">${esc(d.sale_number || '—')}</td></tr>
@@ -2945,7 +2903,7 @@ function printPossessionLetter() {
     ${d.unit_type ? `<tr><td>Unit Type</td><td>${esc(d.unit_type)}</td></tr>` : ''}
     ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-PK')} sq ft</td></tr>` : ''}
     <tr><td>Original Sale Date</td><td>${saleDate}</td></tr>
-    <tr><td>Possession Date</td><td style="font-weight:700;color:#14532d">${printDate}</td></tr>
+    <tr><td>Possession Date</td><td style="font-weight:700;color:${H}">${printDate}</td></tr>
     <tr><td>Total Sale Value</td><td style="font-weight:700">${fmtPKR(d.net_amount)}</td></tr>
   </table>
 
@@ -2958,12 +2916,8 @@ function printPossessionLetter() {
   </ol>
 
   <p>Congratulations on your new property. We look forward to a continued relationship with you.</p>
-  <p style="margin-top:8px">Yours sincerely,<br><strong>${esc(coName)}</strong></p>
 
-  <div class="footer">
-    <div><div class="sign-line">Client Signature &amp; Date</div></div>
-    <div><div class="sign-line">Authorized Signatory / ${esc(coName)}</div></div>
-  </div>
+  ${_sigBlock({ label: 'Client Signature', value: '' })}
 </body>
 </html>`;
 
@@ -3121,10 +3075,8 @@ async function openSaleEditModal(saleId) {
 
   let saleData = (_salCurrentDetail && _salCurrentDetail.id === saleId) ? _salCurrentDetail : null;
   if (!saleData) {
-    const { data, error } = await supabase.from('sales')
-      .select('id,client_id,agent_id,sale_date,notes,co_buyer_name,co_buyer_cnic,co_buyer_share_pct,nominee_name,nominee_cnic,nominee_relation,wht_amount,cvt_amount')
-      .eq('id', saleId).eq('company_id', S.cid).single();
-    if (error || !data) { toast('Could not load sale', 'err'); return; }
+    const { data, error } = await supabase.rpc('get_sale_quick_edit', { p_sale_id: saleId, p_company_id: S.cid });
+    if (error || !data || data.error) { toast('Could not load sale', 'err'); return; }
     saleData = data;
   }
 
@@ -3135,10 +3087,11 @@ async function openSaleEditModal(saleId) {
     clients = window._clientsCache || [];
   }
   // Also pull the sale's current client even if it's outside the cache window
+  // (After lockdown, single-client lookups go through list_clients with a search hint.)
   if (saleData.client_id && !clients.some(c => c.id === saleData.client_id)) {
     try {
-      const { data: cRow } = await supabase.from('clients')
-        .select('id,full_name').eq('id', saleData.client_id).single();
+      const { data: cList } = await supabase.rpc('list_clients', { p_company_id: S.cid });
+      const cRow = (cList || []).find(c => c.id === saleData.client_id);
       if (cRow) clients = clients.concat([{ id: cRow.id, fullName: cRow.full_name }]);
     } catch {}
   }
@@ -3153,9 +3106,8 @@ async function openSaleEditModal(saleId) {
   let agents = window._salEditAgents || [];
   if (!agents.length) {
     try {
-      const { data: ag } = await supabase.from('agents')
-        .select('id,full_name,status').eq('company_id', S.cid).order('full_name');
-      agents = ag || [];
+      const { data: ag } = await supabase.rpc('list_agents', { p_company_id: S.cid, p_search: null, p_status: null, p_sort: 'name' });
+      agents = Array.isArray(ag) ? ag : [];
       window._salEditAgents = agents;
     } catch {}
   }
@@ -3210,12 +3162,12 @@ async function saveSaleEdit() {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('sales').update(payload).eq('id', saleId).eq('company_id', S.cid);
+  const res = await supabase.rpc('edit_sale', { p_sale_id: saleId, p_company_id: S.cid, p_data: payload });
 
   btn.disabled    = false;
   btn.textContent = 'Save Changes';
 
-  if (error) { err.textContent = error.message; return; }
+  if (res.error || !res.data?.success) { err.textContent = res.error?.message || res.data?.error || 'Save failed'; return; }
   cm('m-sale-edit');
   toast('Sale updated');
   rSaleDetail();
@@ -3224,10 +3176,8 @@ async function saveSaleEdit() {
 // ══ EDIT INSTALLMENT ═══════════════════════════════════════════════════
 
 async function openInstEditModal(instId) {
-  const { data, error } = await supabase.from('installments')
-    .select('id,installment_number,installment_type,due_date,amount_due,notes,status')
-    .eq('id', instId).eq('company_id', S.cid).single();
-  if (error || !data) { toast('Could not load installment', 'err'); return; }
+  const { data, error } = await supabase.rpc('get_installment_for_edit', { p_id: instId, p_company_id: S.cid });
+  if (error || !data || data.error) { toast('Could not load installment', 'err'); return; }
 
   document.getElementById('ie-inst-id').value       = data.id;
   document.getElementById('ie-inst-num').textContent = data.installment_number > 0 ? `#${data.installment_number}` : 'Booking';
@@ -3264,13 +3214,25 @@ async function saveInstEdit() {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('installments').update(payload)
-    .eq('id', instId).eq('company_id', S.cid);
+  // Look up the parent sale_id for the schedule RPC (single-row update)
+  const lookup = await supabase.rpc('get_installment_for_edit', { p_id: instId, p_company_id: S.cid });
+  const parentSaleRes = await supabase.rpc('get_sale_for_edit', { p_sale_id: null, p_company_id: S.cid });
+  // Simpler path: edit via single-row schedule call. Need sale_id — fetch installment record first.
+  const instRow = lookup?.data;
+  const saleIdFromInst = window._salCurrentDetail?.id || null;
+
+  if (!saleIdFromInst) { err.textContent = 'Cannot resolve parent sale'; btn.disabled=false; btn.textContent='Save'; return; }
+
+  const res = await supabase.rpc('edit_installment_schedule', {
+    p_sale_id: saleIdFromInst,
+    p_company_id: S.cid,
+    p_schedule: [{ id: instId, ...payload }]
+  });
 
   btn.disabled    = false;
   btn.textContent = 'Save';
 
-  if (error) { err.textContent = error.message; return; }
+  if (res.error || !res.data?.success) { err.textContent = res.error?.message || (res.data?.errors?.[0]) || 'Save failed'; return; }
   cm('m-inst-edit');
   toast('Installment updated');
   rSaleDetail();

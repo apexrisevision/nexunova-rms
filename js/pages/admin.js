@@ -4,7 +4,7 @@ function rAdmin(){
   if(_at==='users') _at='profile';
   document.getElementById('pg-admin').innerHTML=`<div class="ani module-executive">
     <div class="ph"><div class="ph-l"><h2>Admin Panel</h2></div></div>
-    <div class="atb"><div class="atb-i${_at==='users'?' on':''}" onclick="setAT('users')">Users</div><div class="atb-i${_at==='import'?' on':''}" onclick="setAT('import')">Import Excel</div><div class="atb-i${_at==='data'?' on':''}" onclick="setAT('data')">Backup</div><div class="atb-i${_at==='log'?' on':''}" onclick="setAT('log')">Activity Log</div><div class="atb-i${_at==='settings'?' on':''}" onclick="setAT('settings')">Settings</div><div class="atb-i${_at==='profile'?' on':''}" onclick="setAT('profile')">Company</div><div class="atb-i${_at==='plan'?' on':''}" onclick="setAT('plan')">Plan</div><div class="atb-i${_at==='audit'?' on':''}" onclick="setAT('audit')">Audit Trail</div></div>
+    <div class="atb"><div class="atb-i${_at==='users'?' on':''}" onclick="setAT('users')">Users</div><div class="atb-i${_at==='import'?' on':''}" onclick="setAT('import')">Import Excel</div><div class="atb-i${_at==='data'?' on':''}" onclick="setAT('data')">Backup</div><div class="atb-i${_at==='log'?' on':''}" onclick="setAT('log')">Activity Log</div><div class="atb-i${_at==='settings'?' on':''}" onclick="setAT('settings')">Settings</div><div class="atb-i${_at==='security'?' on':''}" onclick="setAT('security')">Security</div><div class="atb-i${_at==='profile'?' on':''}" onclick="setAT('profile')">Company</div><div class="atb-i${_at==='plan'?' on':''}" onclick="setAT('plan')">Plan</div><div class="atb-i${_at==='audit'?' on':''}" onclick="setAT('audit')">Audit Trail</div></div>
     <div id="a-ct"></div>
   </div>`;
   rAT();
@@ -51,7 +51,8 @@ function rAT(){
       }).join('')}
     </tbody></table></div></div>`;
   } else if(_at==='profile'){
-    _adminLoadProfile(ct);
+    if(typeof rBranding==='function') rBranding(ct);
+    else _adminLoadProfile(ct);
     return;
   } else if(_at==='plan'){
     _adminLoadPlan(ct);
@@ -62,16 +63,24 @@ function rAT(){
   } else if(_at==='settings'){
     _adminLoadSettings(ct);
     return;
+  } else if(_at==='security'){
+    _adminLoadSecurity(ct);
+    return;
   }
 }
 function clearLog(){
   if(!confirm('Clear all activity logs? This cannot be undone.'))return;
   const db=gdb();db.log=[];sdb(db);toast('Activity log cleared','ok');rAT();
 }
-function saveSettings(){
+async function saveSettings(){
   if (typeof demoGuard === 'function' && demoGuard('Save Settings')) return;
   const od=parseInt(document.getElementById('set-od')?.value)||30;
   localStorage.setItem('rms_od_'+S.cid, od);
+  const mtgt = parseAmt(document.getElementById('set-mtgt')?.value||'0');
+  const atgt = parseAmt(document.getElementById('set-atgt')?.value||'0');
+  try {
+    await supabase.rpc('save_company_targets', { p_company_id: S.cid, p_monthly: mtgt, p_annual: atgt });
+  } catch(e) { console.warn('save_company_targets:', e.message); }
   toast('Settings saved','ok');
 }
 function bkpData(){const db=gdb();const j=JSON.stringify({data:db,at:new Date().toISOString(),v:'v5'});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));a.download=`Nexunova_backup_${td()}.json`;a.click();toast('Backup downloaded','ok');}
@@ -174,9 +183,15 @@ function removeCoLogo(){
 
 // ── Settings ──────────────────────────────────────────────────────
 
-function _adminLoadSettings(ct) {
+async function _adminLoadSettings(ct) {
   const existLogo = localStorage.getItem('rms_logo_'+S.cid) || null;
   const od = parseInt(localStorage.getItem('rms_od_'+S.cid)) || 30;
+  let monthTgt = 0, annualTgt = 0;
+  try {
+    const { data: tgt } = await supabase.rpc('get_company_targets', { p_company_id: S.cid });
+    if (tgt) { monthTgt = Number(tgt.monthly_target||0); annualTgt = Number(tgt.annual_target||0); }
+  } catch(_) {}
+
   ct.innerHTML = `<div class="card"><div class="cb" style="max-width:460px">
     <h3 style="margin-bottom:16px;font-size:15px">System Settings</h3>
 
@@ -193,7 +208,7 @@ function _adminLoadSettings(ct) {
         ${existLogo?`<button class="btn btn-r btn-sm" onclick="removeCoLogo()">✕ Remove Logo</button>`:''}
         <input type="file" id="logo-inp" accept=".png" style="display:none" onchange="uploadCoLogo(this)">
       </div>
-      <p style="font-size:10px;color:var(--warn);margin:8px 0 0;line-height:1.5">PNG with transparent background recommended &mdash; Use <b>remove.bg</b> for free background removal &mdash; Max 2MB (auto-compressed)</p>
+      <p style="font-size:10px;color:var(--warn);margin:8px 0 0;line-height:1.5">PNG with transparent background recommended — Use <b>remove.bg</b> for free background removal — Max 2MB (auto-compressed)</p>
     </div>
 
     <div class="fr" style="margin-bottom:14px">
@@ -201,6 +216,28 @@ function _adminLoadSettings(ct) {
       <p style="font-size:11px;color:var(--t3);margin-bottom:6px">Units with no payment for this many days are marked overdue</p>
       <input id="set-od" class="inp-light" style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:13px;outline:none" type="number" min="1" max="365" value="${od}">
     </div>
+
+    <div style="margin-bottom:20px;padding:14px;background:var(--canvas);border:1px solid var(--line);border-radius:var(--rm)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">Recovery Targets</div>
+      <p style="font-size:11px;color:var(--t3);margin:0 0 10px;line-height:1.5">Show target vs actual progress on the dashboard. Leave 0 to disable.</p>
+      <div class="g2">
+        <div class="fr">
+          <label class="fl">Monthly Target (PKR)</label>
+          <input id="set-mtgt" class="inp-light inp-amt" value="${monthTgt||0}" style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:13px">
+        </div>
+        <div class="fr">
+          <label class="fl">Annual Target (PKR)</label>
+          <input id="set-atgt" class="inp-light inp-amt" value="${annualTgt||0}" style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:13px">
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;margin-bottom:20px;padding:16px;background:var(--canvas);border:1px solid var(--line);border-radius:var(--rm)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">Setup Wizard</div>
+      <p style="font-size:11px;color:var(--t3);margin:0 0 12px;line-height:1.55">Re-run the 6-step setup wizard anytime to add more sites or users, or to tweak company profile / branding / business rules.</p>
+      <button class="btn btn-gh btn-sm" onclick="if(typeof OB!=='undefined' &amp;&amp; S&amp;&amp;S.cid) OB.show(S.cid); else toast('Wizard not available','err');">⚙ Re-run Setup Wizard</button>
+    </div>
+
     <button class="btn btn-g" onclick="saveSettings()">Save Settings</button>
   </div></div>`;
 }
@@ -210,11 +247,7 @@ function _adminLoadSettings(ct) {
 async function _adminLoadProfile(ct) {
   ct.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:16px 0">⏳ Loading…</div>';
   try {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('company_name,company_type,business_email,business_phone,country,city,address')
-      .eq('id', S.cid)
-      .single();
+    const { data, error } = await supabase.rpc('get_company_profile', { p_company_id: S.cid });
     if (error) throw error;
     const typeOpts = ['real_estate','housing_society','property_management','real_estate_agency','developer','builder','construction','marketing','rental','mixed','other']
       .map(t => `<option value="${t}" ${data.company_type===t?'selected':''}>${t.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>`).join('');
@@ -242,16 +275,18 @@ async function saveCoProfile() {
   const btn = document.getElementById('cp-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
-    const { error } = await supabase.from('companies').update({
-      company_name:   name,
-      company_type:   document.getElementById('cp-type')?.value   || 'real_estate',
-      business_email: document.getElementById('cp-email')?.value?.trim()   || null,
-      business_phone: document.getElementById('cp-phone')?.value?.trim()   || null,
-      city:           document.getElementById('cp-city')?.value?.trim()    || null,
-      country:        document.getElementById('cp-country')?.value?.trim() || 'Pakistan',
-      address:        document.getElementById('cp-address')?.value?.trim() || null,
-      updated_at:     new Date().toISOString()
-    }).eq('id', S.cid);
+    const { error } = await supabase.rpc('update_company_profile', {
+      p_company_id: S.cid,
+      p_data: {
+        company_name:   name,
+        company_type:   document.getElementById('cp-type')?.value   || 'real_estate',
+        business_email: document.getElementById('cp-email')?.value?.trim()   || null,
+        business_phone: document.getElementById('cp-phone')?.value?.trim()   || null,
+        city:           document.getElementById('cp-city')?.value?.trim()    || null,
+        country:        document.getElementById('cp-country')?.value?.trim() || 'Pakistan',
+        address:        document.getElementById('cp-address')?.value?.trim() || null,
+      }
+    });
     if (error) throw error;
     S.coName = name;
     sessionStorage.setItem('nxn_sess', JSON.stringify(S));
@@ -269,15 +304,10 @@ async function saveCoProfile() {
 async function _adminLoadPlan(ct) {
   ct.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:16px 0">⏳ Loading plan…</div>';
   try {
-    const [subRes, unitRes, projRes, userRes] = await Promise.all([
-      supabase.from('subscriptions').select('status,billing_cycle,trial_ends_at,current_period_start,current_period_end,subscription_plans(plan_name,max_units,max_projects,max_users,price,currency)').eq('company_id', S.cid).order('created_at', {ascending:false}).limit(1).maybeSingle(),
-      supabase.from('units').select('id', {count:'exact',head:true}).eq('company_id', S.cid),
-      supabase.from('projects').select('id', {count:'exact',head:true}).eq('company_id', S.cid),
-      supabase.from('app_users').select('id', {count:'exact',head:true}).eq('company_id', S.cid),
-    ]);
-    const sub  = subRes.data || {};
+    const { data: usage } = await supabase.rpc('get_plan_usage_admin', { p_company_id: S.cid });
+    const sub  = usage || {};
     const plan = sub.subscription_plans || {};
-    const cnts = [unitRes.count||0, projRes.count||0, userRes.count||0];
+    const cnts = [Number(usage?.count_units||0), Number(usage?.count_projects||0), Number(usage?.count_users||0)];
     const maxes= [plan.max_units||0, plan.max_projects||0, plan.max_users||0];
     const lbls = ['Units','Projects','Users'];
     const scol = {trialing:'#f59e0b',active:'#22c55e',past_due:'#ef4444',cancelled:'#94a3b8',expired:'#94a3b8',pending_payment:'#f59e0b'}[sub.status] || '#94a3b8';
@@ -298,15 +328,75 @@ async function _adminLoadPlan(ct) {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px">${usageCards}</div>
       ${sub.current_period_end ? `<div style="font-size:12px;color:var(--t3)">Period ends: <strong>${fD(sub.current_period_end.split('T')[0])}</strong></div>` : ''}
-      ${sub.trial_ends_at     ? `<div style="font-size:12px;color:#f59e0b;margin-top:4px">Trial ends: <strong>${fD(sub.trial_ends_at.split('T')[0])}</strong></div>` : ''}
-      <div style="margin-top:16px;padding:12px;background:var(--canvas);border:1px solid var(--line);border-radius:6px;font-size:11px;color:var(--t3);line-height:1.7">
-        To upgrade your plan or adjust billing, contact
-        <a href="mailto:sales@nexunova.com" style="color:var(--brand)">sales@nexunova.com</a> or
-        <a href="https://wa.me/971556325362" target="_blank" style="color:#16a34a">WhatsApp</a>
+      ${(() => {
+        if (!sub.trial_ends_at) return '';
+        const dLeft = Math.ceil((new Date(sub.trial_ends_at) - Date.now()) / 86400000);
+        const col = dLeft <= 0 ? '#ef4444' : dLeft <= 3 ? '#ef4444' : '#f59e0b';
+        const msg = dLeft <= 0 ? 'Trial expired' : `Trial ends in <strong>${dLeft} day${dLeft===1?'':'s'}</strong> (${fD(sub.trial_ends_at.split('T')[0])})`;
+        return `<div style="font-size:12px;color:${col};margin-top:4px">${msg}</div>`;
+      })()}
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="_adminOpenUpgradeRequest()">⬆ Request Upgrade</button>
+        <a href="mailto:sales@nexunova.com" class="btn btn-gh btn-sm" style="text-decoration:none">Email Sales</a>
+      </div>
+      <div id="admin-upgrade-form" style="display:none;margin-top:14px;padding:14px;background:var(--canvas);border:1px solid var(--line);border-radius:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Upgrade Request</div>
+        <div class="fg"><label class="fl">Desired Plan</label>
+          <select id="au-plan" class="fi">
+            <option value="Starter">Starter</option>
+            <option value="Growth" selected>Growth</option>
+            <option value="Professional">Professional</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Message (optional)</label>
+          <textarea id="au-msg" class="fi" rows="2" placeholder="Any specific requirements or questions…"></textarea>
+        </div>
+        <div id="au-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+          <button class="btn btn-g btn-sm" onclick="document.getElementById('admin-upgrade-form').style.display='none'">Cancel</button>
+          <button class="btn btn-p btn-sm" id="au-submit-btn" onclick="_adminSubmitUpgrade()">Send Request</button>
+        </div>
       </div>
     </div></div>`;
   } catch (e) {
     ct.innerHTML = `<div style="color:var(--err);font-size:12px">Could not load plan: ${esc(e.message)}</div>`;
+  }
+}
+
+function _adminOpenUpgradeRequest() {
+  const form = document.getElementById('admin-upgrade-form');
+  if (form) form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
+async function _adminSubmitUpgrade() {
+  const plan = document.getElementById('au-plan')?.value || 'Growth';
+  const msg  = document.getElementById('au-msg')?.value  || '';
+  const btn  = document.getElementById('au-submit-btn');
+  const err  = document.getElementById('au-err');
+  if (err)  err.textContent = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const { data, error } = await supabase.rpc('create_sa_support_ticket', {
+      p_data: {
+        company_id:   S.cid,
+        company_name: S.company || '',
+        submitted_by: S.name || S.username || '',
+        subject:      `Upgrade Request — ${plan} Plan`,
+        body:         `Company: ${S.company || ''}\nUser: ${S.name||S.username||''}\nDesired Plan: ${plan}\n\n${msg}`.trim(),
+        category:     'billing',
+        priority:     'high'
+      }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Failed');
+    toast('Upgrade request sent — we will contact you shortly', 'ok');
+    const form = document.getElementById('admin-upgrade-form');
+    if (form) form.style.display = 'none';
+  } catch(e) {
+    if (err) err.textContent = e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Request'; }
   }
 }
 
@@ -315,15 +405,11 @@ async function _adminLoadPlan(ct) {
 async function _adminLoadAudit(ct) {
   ct.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:16px 0">⏳ Loading audit trail…</div>';
   try {
-    const [txRes, remRes, posRes] = await Promise.all([
-      supabase.from('unit_transfers').select('id,from_owner,to_owner,transfer_date,created_by,created_at,units(unit_no)').eq('company_id', S.cid).order('created_at', {ascending:false}).limit(30),
-      supabase.from('reminder_logs').select('id,client_name,reminder_type,amount_due,sent_by,sent_at').eq('company_id', S.cid).order('sent_at', {ascending:false}).limit(30),
-      supabase.from('possessions').select('id,client_name,status,possession_date,created_by,updated_at,units(unit_no)').eq('company_id', S.cid).order('updated_at', {ascending:false}).limit(20),
-    ]);
+    const { data: feed } = await supabase.rpc('get_admin_audit_feed', { p_company_id: S.cid, p_limit: 80 });
     const entries = [
-      ...(txRes.data||[]).map(r  => ({ts:r.created_at, icon:'', type:'Transfer',  desc:`Unit ${r.units?.unit_no||'—'} — ${r.from_owner} → ${r.to_owner}`, by:r.created_by})),
-      ...(remRes.data||[]).map(r => ({ts:r.sent_at,    icon:'', type:'Reminder',  desc:`${(r.reminder_type||'').toUpperCase()} to ${r.client_name||'—'} · PKR ${fM(r.amount_due||0)}`, by:r.sent_by})),
-      ...(posRes.data||[]).map(r => ({ts:r.updated_at, icon:'', type:'Possession',desc:`Unit ${r.units?.unit_no||'—'} — ${r.status} · ${r.client_name||'—'}`, by:r.created_by})),
+      ...((feed?.transfers)||[]).map(r  => ({ts:r.created_at, icon:'', type:'Transfer',  desc:`Unit ${r.units?.unit_no||'—'} — ${r.from_owner} → ${r.to_owner}`, by:r.created_by})),
+      ...((feed?.reminders)||[]).map(r => ({ts:r.sent_at,    icon:'', type:'Reminder',  desc:`${(r.reminder_type||'').toUpperCase()} to ${r.client_name||'—'} · PKR ${fM(r.amount_due||0)}`, by:r.sent_by})),
+      ...((feed?.possessions)||[]).map(r => ({ts:r.updated_at, icon:'', type:'Possession',desc:`Unit ${r.units?.unit_no||'—'} — ${r.status} · ${r.client_name||'—'}`, by:r.created_by})),
     ].sort((a,b) => (b.ts||'').localeCompare(a.ts||'')).slice(0, 80);
 
     const typeColor = {'Transfer':'#6C63FF','Reminder':'#f59e0b','Possession':'#22c55e'};
@@ -448,3 +534,203 @@ async function submitChangePassword() {
   }
 }
 
+// ══ MODULE 12 — SECURITY TAB ══════════════════════════════════════
+
+async function _adminLoadSecurity(ct) {
+  ct.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:16px 0">⏳ Loading security settings…</div>';
+
+  const [settRes, ipRes, evRes, lockedRes] = await Promise.all([
+    sb.rpc('get_security_settings',  { p_company_id: S.cid }),
+    sb.rpc('get_ip_whitelist',       { p_company_id: S.cid }),
+    sb.rpc('get_auth_events',        { p_company_id: S.cid, p_limit: 30 }),
+    sb.rpc('get_locked_users',       { p_company_id: S.cid }),
+  ]);
+
+  const cfg     = settRes.data  || {};
+  const ipList  = Array.isArray(ipRes.data)  ? ipRes.data  : [];
+  const events  = Array.isArray(evRes.data)  ? evRes.data  : [];
+  const locked  = Array.isArray(lockedRes.data) ? lockedRes.data : [];
+
+  const curTimeout = cfg.session_timeout_min ?? 120;
+
+  const timeoutOpts = [
+    { v:0,    l:'Never (disabled)' },
+    { v:15,   l:'15 minutes' },
+    { v:30,   l:'30 minutes' },
+    { v:60,   l:'1 hour' },
+    { v:120,  l:'2 hours (default)' },
+    { v:240,  l:'4 hours' },
+    { v:480,  l:'8 hours' },
+  ].map(o => `<option value="${o.v}" ${Number(curTimeout)===o.v?'selected':''}>${o.l}</option>`).join('');
+
+  const evColors = {
+    login_success: '#22c55e', login_failed: '#ef4444',
+    login_locked: '#f97316', logout: '#94a3b8',
+    session_expired: '#a78bfa', ip_blocked: '#dc2626',
+  };
+  const evRows = events.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--t3)">No auth events recorded yet</td></tr>'
+    : events.map(e => {
+        const col = evColors[e.event_type] || 'var(--t3)';
+        const dt  = e.created_at ? new Date(e.created_at).toLocaleString('en-PK', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+        return `<tr>
+          <td style="font-size:11px;color:var(--t3);white-space:nowrap">${dt}</td>
+          <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${col}18;color:${col};border:1px solid ${col}44">${e.event_type}</span></td>
+          <td style="font-size:12px">${esc(e.username||'—')}</td>
+          <td style="font-size:11px;color:var(--t3)">${esc(e.ip_address||'—')}</td>
+        </tr>`;
+      }).join('');
+
+  const ipRows = ipList.length === 0
+    ? '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--t3);font-size:12px">No IP ranges added</td></tr>'
+    : ipList.map(ip => `<tr>
+        <td style="font-size:12px;font-family:monospace;font-weight:600">${esc(ip.ip_range)}</td>
+        <td style="font-size:12px;color:var(--t3)">${esc(ip.label||'—')}</td>
+        <td><button class="btn btn-r btn-xs" onclick="secRemoveIP('${ip.id}')">Remove</button></td>
+      </tr>`).join('');
+
+  const lockedHtml = locked.length === 0
+    ? '<div style="font-size:12px;color:var(--t3);padding:8px 0">No users are currently locked out.</div>'
+    : locked.map(u => {
+        const unlockAt = u.locked_until ? new Date(u.locked_until).toLocaleString('en-PK',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
+          <div>
+            <div style="font-size:13px;font-weight:600">${esc(u.full_name)} <span style="font-size:11px;color:var(--t3)">(${esc(u.username)})</span></div>
+            <div style="font-size:11px;color:var(--err)">Locked until ${unlockAt} · ${u.failed_login_attempts} failed attempts</div>
+          </div>
+          <button class="btn btn-gh btn-xs" onclick="secUnlockUser('${u.id}')">Unlock</button>
+        </div>`;
+      }).join('');
+
+  ct.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:18px;padding-bottom:32px">
+
+      <!-- Session Timeout -->
+      <div class="card"><div class="cb">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">Session Timeout</div>
+        <p style="font-size:12px;color:var(--t3);margin:0 0 14px;line-height:1.6">Auto-logout users after a period of inactivity. Applies to all sessions on next login.</p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="sec-timeout" class="inp-light" style="min-width:200px">
+            ${timeoutOpts}
+          </select>
+          <button class="btn btn-g" onclick="secSaveTimeout()">Save Timeout</button>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--t3)">
+          Current browser session timeout: <b>${curTimeout === 0 ? 'Disabled' : curTimeout + ' minutes'}</b>
+        </div>
+      </div></div>
+
+      <!-- Failed Login / Lockout Status -->
+      <div class="card"><div class="cb">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">Account Lockout</div>
+        <p style="font-size:12px;color:var(--t3);margin:0 0 10px;line-height:1.6">Accounts are locked for 15 minutes after 5 consecutive failed login attempts.</p>
+        ${locked.length > 0 ? `<div style="font-size:11px;font-weight:700;color:var(--err);margin-bottom:8px">${locked.length} user${locked.length!==1?'s are':' is'} currently locked out:</div>` : ''}
+        <div id="sec-locked-wrap">${lockedHtml}</div>
+      </div></div>
+
+      <!-- IP Whitelist -->
+      <div class="card"><div class="cb">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:14px;font-weight:700">IP Whitelist</div>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(99,102,241,.15);color:#818cf8">Enterprise</span>
+        </div>
+        <p style="font-size:12px;color:var(--t3);margin:0 0 14px;line-height:1.6">Restrict logins to specific IP addresses or CIDR ranges. Only used for access monitoring — enforcement requires Supabase Edge Functions.</p>
+        <div class="tbl-wrap" style="margin-bottom:14px">
+          <table class="data-tbl" id="sec-ip-tbl">
+            <thead><tr><th>IP Range / Address</th><th>Label</th><th>Action</th></tr></thead>
+            <tbody id="sec-ip-tbody">${ipRows}</tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input class="inp-light" id="sec-ip-range" placeholder="e.g. 203.123.45.67 or 192.168.1.0/24" style="flex:1;min-width:200px">
+          <input class="inp-light" id="sec-ip-label" placeholder="Label (e.g. Office Karachi)" style="flex:1;min-width:160px">
+          <button class="btn btn-gh" onclick="secAddIP()">Add IP</button>
+        </div>
+      </div></div>
+
+      <!-- Recent Auth Events -->
+      <div class="card"><div class="cb">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:700">Recent Login Events</div>
+          <button class="btn btn-gh btn-xs" onclick="secExportAuthEvents()">Export CSV</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="data-tbl">
+            <thead><tr><th>Time</th><th>Event</th><th>Username</th><th>IP</th></tr></thead>
+            <tbody>${evRows}</tbody>
+          </table>
+        </div>
+      </div></div>
+
+    </div>`;
+
+  window._secAuthEvents = events;
+}
+
+async function secSaveTimeout() {
+  const min = parseInt(document.getElementById('sec-timeout')?.value || '120', 10);
+  const { data, error } = await sb.rpc('save_security_settings', {
+    p_company_id: S.cid,
+    p_data: { session_timeout_min: min }
+  });
+  if (error || data?.success === false) { toast('Failed to save', 'err'); return; }
+  if (typeof _setIdleTimeoutMin === 'function') _setIdleTimeoutMin(min);
+  toast('Session timeout saved', 'ok');
+}
+
+async function secAddIP() {
+  const range = (document.getElementById('sec-ip-range')?.value || '').trim();
+  const label = (document.getElementById('sec-ip-label')?.value || '').trim();
+  if (!range) { toast('IP range is required', 'warn'); return; }
+  const { data, error } = await sb.rpc('add_ip_whitelist_entry', {
+    p_company_id: S.cid,
+    p_ip_range:   range,
+    p_label:      label,
+    p_created_by: S.name || S.username
+  });
+  if (error || data?.success === false) { toast(data?.error || 'Failed to add IP', 'err'); return; }
+  toast('IP added', 'ok');
+  _adminLoadSecurity(document.getElementById('a-ct'));
+}
+
+async function secRemoveIP(id) {
+  if (!confirm('Remove this IP from the whitelist?')) return;
+  const { data, error } = await sb.rpc('remove_ip_whitelist_entry', {
+    p_company_id: S.cid,
+    p_id: id
+  });
+  if (error || data?.success === false) { toast('Failed to remove', 'err'); return; }
+  toast('IP removed', 'ok');
+  _adminLoadSecurity(document.getElementById('a-ct'));
+}
+
+async function secUnlockUser(userId) {
+  if (!confirm('Unlock this user account?')) return;
+  const { error } = await sb.rpc('update_app_user', {
+    p_user_id:    userId,
+    p_company_id: S.cid,
+    p_data: { locked_until: null, failed_login_attempts: 0 }
+  });
+  if (error) { toast('Failed to unlock: ' + error.message, 'err'); return; }
+  toast('User unlocked', 'ok');
+  _adminLoadSecurity(document.getElementById('a-ct'));
+}
+
+function secExportAuthEvents() {
+  const events = window._secAuthEvents || [];
+  if (!events.length) { toast('No events to export', 'warn'); return; }
+  const headers = ['Time','Event','Username','IP Address'];
+  const rows = events.map(e => [
+    e.created_at ? new Date(e.created_at).toISOString() : '',
+    e.event_type || '',
+    e.username   || '',
+    e.ip_address || '',
+  ]);
+  const csv  = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a    = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `auth_events_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}

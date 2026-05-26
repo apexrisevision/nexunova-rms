@@ -100,19 +100,9 @@ async function _rvLoadAndRender() {
   tbl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">⏳ Loading…</div>';
 
   try {
-    let q = supabase
-      .from('payments')
-      .select('id,payment_code,voucher_code,payment_date,amount,payment_method,payment_category,status,reference_no,bank_name,notes,sale_id,client_id,created_at')
-      .eq('company_id', S.cid)
-      .order('payment_date', { ascending: false })
-      .order('created_at',   { ascending: false })
-      .limit(1000);
-
-    if (_rvFilter.fr)             q = q.gte('payment_date', _rvFilter.fr);
-    if (_rvFilter.to)             q = q.lte('payment_date', _rvFilter.to);
-    if (_rvFilter.mode !== 'All') q = q.eq('payment_method', _rvFilter.mode);
-
-    const { data, error } = await q;
+    const filters = { date_from: _rvFilter.fr || null, date_to: _rvFilter.to || null, limit: 1000 };
+    if (_rvFilter.mode !== 'All') filters.payment_method = _rvFilter.mode;
+    const { data, error } = await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: filters });
     if (error) throw error;
     _rvList = data || [];
 
@@ -120,9 +110,8 @@ async function _rvLoadAndRender() {
     const sids = [...new Set(_rvList.map(r => r.sale_id).filter(Boolean))];
     _rvSaleMap = {};
     if (sids.length) {
-      const { data: sd = [] } = await supabase
-        .from('sales').select('id,unit_id').in('id', sids);
-      sd.forEach(s => { _rvSaleMap[s.id] = s.unit_id; });
+      const { data: sd = [] } = await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: sids });
+      (sd || []).forEach(s => { _rvSaleMap[s.id] = s.unit_id; });
     }
 
     _rvPage = 0;
@@ -266,7 +255,8 @@ function _rvShowDetail(paymentId) {
       ${!cancelled ? `<button class="btn btn-sm"
         style="border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.07);color:var(--err)"
         onclick="_rvCancelFromDetail('${r.id}','${esc(code)}',${r.amount})" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Cancel Voucher</button>` : ''}
-      <button class="btn btn-gh btn-sm" onclick="window.print()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+      <button class="btn btn-sm" onclick="openReceiptReport('${r.id}')" style="background:#1e2d47;color:#fff;border:1px solid #1e2d47;display:inline-flex;align-items:center;gap:5px" title="Open A4 Receipt in new tab"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>A4 Receipt</button>
+      <button class="btn btn-gh btn-sm" onclick="window.print()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
     </div>
 
     <div id="rv-print-area" class="card" style="max-width:640px;margin:0 auto;padding:0;overflow:hidden">

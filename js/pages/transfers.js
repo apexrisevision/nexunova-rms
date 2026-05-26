@@ -91,12 +91,12 @@ async function rUnitTransfer(preUnitId) {
 async function _txLoadRefs() {
   try {
     const [banks, agents, clients] = await Promise.all([
-      supabase.from('banks').select('id,bank_name,account_title').eq('company_id', S.cid).eq('is_active', true).order('sort_order'),
-      supabase.from('agents').select('id,full_name,agent_code,commission_percent,is_active').eq('company_id', S.cid).eq('is_active', true).order('full_name'),
-      supabase.from('clients').select('id,full_name,cnic,phone_primary').eq('company_id', S.cid).order('full_name').limit(2000)
+      supabase.rpc('list_banks_active', { p_company_id: S.cid }),
+      supabase.rpc('list_agents_lookup', { p_company_id: S.cid }),
+      supabase.rpc('list_clients_lookup', { p_company_id: S.cid })
     ]);
     _txBanks = banks.data || [];
-    _txAgents = agents.data || [];
+    _txAgents = (agents.data || []).filter(a => a.is_active);
     _txClients = clients.data || [];
   } catch {
     _txBanks = []; _txAgents = []; _txClients = [];
@@ -141,19 +141,13 @@ function _txRender(elParam) {
       storageKey:'rms.fnav.transfer',
       loadList: async () => {
         try {
-          const { data } = await supabase.from('sales')
-            .select('id, unit_id, sale_date')
-            .eq('company_id', S.cid)
-            .eq('is_transfer', true)
-            .order('sale_date', { ascending: true })
-            .limit(2000);
+          const { data } = await supabase.rpc('list_transfers_for_fnav', { p_company_id: S.cid });
           return data || [];
         } catch (e) { return []; }
       },
       openEntry: async (saleId) => {
         try {
-          const { data } = await supabase.from('sales')
-            .select('unit_id').eq('id', saleId).single();
+          const { data } = await supabase.rpc('get_sale_unit_id', { p_id: saleId, p_company_id: S.cid });
           if (data?.unit_id) openUD(data.unit_id);
           else if (typeof toast === 'function') toast('Could not open transfer', 'warn');
         } catch (e) {}
@@ -283,10 +277,7 @@ async function _txOnUnit(unitId) {
   try {
     const [pymRes, saleRes] = await Promise.all([
       supabase.rpc('get_unit_payment_summary', { p_unit_id: unitId, p_company_id: S.cid }),
-      supabase.from('sales')
-        .select('id,client_id,agent_id,net_amount,sale_date,sale_number,area_sqft,price_per_sqft,is_resale,is_transfer')
-        .eq('unit_id', unitId).eq('company_id', S.cid).eq('is_active', true)
-        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      supabase.rpc('get_active_sale_for_unit', { p_unit_id: unitId, p_company_id: S.cid })
     ]);
 
     const sale = saleRes.data;
@@ -310,9 +301,7 @@ async function _txOnUnit(unitId) {
     const netAmt = parseFloat(pym?.sale?.net_amount || sale.net_amount || 0);
     const outstanding = Math.max(0, netAmt - totalPaid);
 
-    const pmtRes = await supabase.from('payments')
-      .select('payment_method,amount,payment_category')
-      .eq('sale_id', sale.id).eq('company_id', S.cid).eq('status', 'received');
+    const pmtRes = await supabase.rpc('list_payments_for_sale', { p_sale_id: sale.id, p_company_id: S.cid });
     const pmts = pmtRes.data || [];
     const cashPaid = pmts.filter(p => p.payment_method === 'cash' && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
     const bankPaid = pmts.filter(p => p.payment_method === 'bank' && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
@@ -327,7 +316,7 @@ async function _txOnUnit(unitId) {
     _txData.areaSqft = parseFloat(sale.area_sqft || 0);
 
     const [clientRes, unitObj] = await Promise.all([
-      supabase.from('clients').select('full_name,cnic,phone_primary').eq('id', sale.client_id).single(),
+      supabase.rpc('get_client_lite', { p_id: sale.client_id, p_company_id: S.cid }),
       Promise.resolve((window._unitsCache || []).find(u => u.id === unitId))
     ]);
     _txData.oldClient = clientRes.data;
@@ -943,21 +932,20 @@ async function _txSubmit() {
   const d = _txData;
   try {
     let newClientId = d.newClientId;
-    // If new client, create the client record first
+    // If new client, create the client record first via RPC
     if (d.isNewClient) {
       const code = 'CLT-' + Date.now().toString().slice(-6);
-      const { data: nc, error: ncErr } = await supabase.from('clients')
-        .insert({
-          company_id: S.cid,
-          client_code: code,
-          full_name: d.newClientName,
-          cnic: d.newClientCnic,
-          phone_primary: d.newClientPhone,
-          notes: d.newClientNotes || null,
-          status: 'active'
-        }).select('id').single();
+      const { data: nc, error: ncErr } = await supabase.rpc('create_client', { p_data: {
+        company_id: S.cid,
+        client_code: code,
+        full_name: d.newClientName,
+        cnic: d.newClientCnic,
+        phone_primary: d.newClientPhone,
+        notes: d.newClientNotes || null,
+        status: 'active'
+      } });
       if (ncErr) throw new Error('Failed to create client: ' + ncErr.message);
-      newClientId = nc.id;
+      newClientId = nc?.client_id || nc?.id;
     }
 
     const newSalePayload = {

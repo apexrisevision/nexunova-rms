@@ -33,6 +33,7 @@ async function rAudit() {
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button class="btn btn-gh btn-sm" onclick="_audExportCSV()">Export CSV</button>
+        <button class="btn btn-gh btn-sm" onclick="_audExportExcel()">Export Excel</button>
         <button class="btn btn-gh btn-sm" onclick="_audLoad(true)">↺ Refresh</button>
       </div>
     </div>
@@ -158,17 +159,13 @@ function _audRenderStats() {
 // ── Load users list for filter dropdown ──────────────────────────
 async function _audLoadUsers() {
   try {
-    const { data, error } = await supabase
-      .from('app_users')
-      .select('id, full_name, role, auth_user_id')
-      .eq('company_id', S.cid)
-      .order('full_name');
+    const { data, error } = await supabase.rpc('list_app_users_lookup', { p_company_id: S.cid });
     if (error) throw error;
     _audUsers = data || [];
     const sel = document.getElementById('aud-f-user');
     if (sel) {
       sel.innerHTML = '<option value="">All Users</option>' +
-        _audUsers.map(u => `<option value="${esc(u.auth_user_id || u.id)}">${esc(u.full_name)} (${esc(u.role)})</option>`).join('');
+        _audUsers.map(u => `<option value="${esc(u.id)}">${esc(u.full_name)} (${esc(u.role)})</option>`).join('');
     }
   } catch (e) {
     console.warn('[audit users]', e.message);
@@ -636,6 +633,52 @@ function _audFmtTime(ts) {
       hour:'2-digit', minute:'2-digit', hour12:true
     });
   } catch { return ts; }
+}
+
+// ── Export Excel (HTML table → .xls, opens natively in Excel) ───────
+function _audExportExcel() {
+  if (!_audRows || _audRows.length === 0) {
+    showToast('No data to export', 'warn'); return;
+  }
+  const tableHtml = `
+    <table border="1" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px">
+      <thead>
+        <tr style="background:#1e40af;color:#fff">
+          <th style="padding:6px 10px">ID</th>
+          <th style="padding:6px 10px">Time</th>
+          <th style="padding:6px 10px">User</th>
+          <th style="padding:6px 10px">Role</th>
+          <th style="padding:6px 10px">Action</th>
+          <th style="padding:6px 10px">Table</th>
+          <th style="padding:6px 10px">Record ID</th>
+          <th style="padding:6px 10px">Changed Fields</th>
+          <th style="padding:6px 10px">Sensitive</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${_audRows.map((r, i) => `
+          <tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+            <td style="padding:4px 8px">${r.id}</td>
+            <td style="padding:4px 8px;white-space:nowrap">${r.changed_at ? new Date(r.changed_at).toLocaleString('en-PK') : ''}</td>
+            <td style="padding:4px 8px;font-weight:600">${r.changed_by_name || ''}</td>
+            <td style="padding:4px 8px">${r.changed_by_role || ''}</td>
+            <td style="padding:4px 8px;font-weight:700;color:${r.action==='DELETE'?'#dc2626':r.action==='INSERT'?'#16a34a':'#d97706'}">${r.action}</td>
+            <td style="padding:4px 8px;font-family:monospace;color:#1e40af">${r.table_name}</td>
+            <td style="padding:4px 8px;font-family:monospace;font-size:10px">${(r.record_id||'').substring(0,24)}</td>
+            <td style="padding:4px 8px;font-size:10px">${(r.changed_fields||[]).join(', ')}</td>
+            <td style="padding:4px 8px;text-align:center;color:${r.is_sensitive?'#dc2626':'#94a3b8'}">${r.is_sensitive?'YES':'—'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Audit Trail</title></head><body>${tableHtml}</body></html>`;
+  const blob = new Blob([html], { type:'application/vnd.ms-excel;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `audit_trail_${td()}.xls`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Dashboard widget: sensitive changes (last 24h) ────────────────

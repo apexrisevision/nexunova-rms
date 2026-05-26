@@ -21,6 +21,7 @@ async function rPromises() {
       </div>
       <div class="ph-r" style="display:flex;gap:7px;flex-wrap:wrap">
         <button class="btn btn-g btn-sm" onclick="prmLogNew()">Log Promise</button>
+        <button class="btn btn-gh btn-sm" onclick="prmOpenAnalytics()">Analytics</button>
         <button class="btn btn-gh btn-sm" onclick="_prmLoad()">Refresh</button>
       </div>
     </div>
@@ -29,7 +30,8 @@ async function rPromises() {
       ${[...Array(5)].map(() => `<div class="card" style="padding:14px;text-align:center;opacity:.4"><div style="font-size:18px">⏳</div><div style="font-size:10px;color:var(--t3);margin-top:4px">Loading…</div></div>`).join('')}
     </div>
 
-    <div id="prm-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+    <div id="prm-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div id="prm-alert"></div>
 
     <div id="prm-body">
       <div style="padding:48px;text-align:center;color:var(--t3);font-size:13px">Loading…</div>
@@ -52,6 +54,7 @@ async function _prmLoad() {
     _prmStats   = statsData || {};
     _prmRenderStats();
     _prmRenderTabs();
+    _prmRenderDueAlert();
     _prmRender();
   } catch(e) {
     const body = document.getElementById('prm-body');
@@ -86,13 +89,20 @@ function _prmRenderStats() {
 }
 
 // ── Tabs ───────────────────────────────────────────────────────
+function _prmTomorrow() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
 const _prmTabCfg = [
-  { key:'overdue',  label:'Overdue',  fn: p => p.status==='pending' && p.promise_date<_prmToday() },
-  { key:'today',    label:'Today',    fn: p => p.status==='pending' && p.promise_date===_prmToday() },
-  { key:'upcoming', label:'Upcoming', fn: p => p.status==='pending' && p.promise_date>_prmToday() },
-  { key:'kept',     label:'Kept',     fn: p => p.status==='kept'||p.status==='partial' },
-  { key:'broken',   label:'Broken',   fn: p => p.status==='broken' },
-  { key:'all',      label:'All',      fn: () => true },
+  { key:'overdue',  label:'Overdue',      fn: p => p.status==='pending' && p.promise_date<_prmToday() },
+  { key:'today',    label:'Today',        fn: p => p.status==='pending' && p.promise_date===_prmToday() },
+  { key:'tomorrow', label:'Due Tomorrow', fn: p => p.status==='pending' && p.promise_date===_prmTomorrow() },
+  { key:'upcoming', label:'Upcoming',     fn: p => p.status==='pending' && p.promise_date>_prmToday() },
+  { key:'kept',     label:'Kept',         fn: p => p.status==='kept'||p.status==='partial' },
+  { key:'broken',   label:'Broken',       fn: p => p.status==='broken' },
+  { key:'all',      label:'All',          fn: () => true },
 ];
 
 function _prmToday() { return new Date().toISOString().split('T')[0]; }
@@ -117,7 +127,36 @@ function _prmRenderTabs() {
 function prmSetTab(tab) {
   _prmTab = tab;
   _prmRenderTabs();
+  _prmRenderDueAlert();
   _prmRender();
+}
+
+function _prmRenderDueAlert() {
+  const el = document.getElementById('prm-alert');
+  if (!el) return;
+  const todayList    = _prmAllData.filter(p => p.status==='pending' && p.promise_date===_prmToday());
+  const tomorrowList = _prmAllData.filter(p => p.status==='pending' && p.promise_date===_prmTomorrow());
+  const todayCnt    = todayList.length;
+  const tomorrowCnt = tomorrowList.length;
+
+  if (todayCnt === 0 && tomorrowCnt === 0) { el.innerHTML = ''; return; }
+
+  const chips = [];
+  if (todayCnt > 0) {
+    const amt = todayList.reduce((s,p)=>s+Number(p.promised_amount||0),0);
+    chips.push(`<span onclick="prmSetTab('today')" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(99,102,241,.14);color:var(--brand);border:1px solid rgba(99,102,241,.3)">
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      ${todayCnt} promise${todayCnt>1?'s':''} due today — PKR ${fM(amt)}
+    </span>`);
+  }
+  if (tomorrowCnt > 0) {
+    const amt = tomorrowList.reduce((s,p)=>s+Number(p.promised_amount||0),0);
+    chips.push(`<span onclick="prmSetTab('tomorrow')" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.3)">
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      ${tomorrowCnt} promise${tomorrowCnt>1?'s':''} due tomorrow — PKR ${fM(amt)}
+    </span>`);
+  }
+  el.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${chips.join('')}</div>`;
 }
 
 // ── Table render ───────────────────────────────────────────────
@@ -202,7 +241,7 @@ function _prmRow(p) {
     <td class="hide-sm" style="font-size:11px;color:var(--t2)">${esc(prop)}</td>
     <td class="r" style="font-weight:700;font-size:13px">PKR ${fM(p.promised_amount||0)}</td>
     <td>
-      <div style="font-size:12px">${fD(p.promise_date)}</div>
+      <div style="font-size:12px">${fD(p.promise_date)}${(p.reminder_sent_count||0)>0?` <span style="font-size:9px;background:rgba(59,130,246,.12);color:#3b82f6;padding:1px 5px;border-radius:8px;font-weight:700" title="WhatsApp reminders sent">×${p.reminder_sent_count}</span>`:''}</div>
       <div style="font-size:10px">${daysLbl}</div>
     </td>
     <td class="hide-sm" style="font-size:11px;color:var(--t2)">${viaIco[p.promised_via]||''} ${p.promised_via||'—'}</td>
@@ -338,10 +377,10 @@ async function prmLogNew(prefill) {
   om('m-prm-log');
 
   if (!_prmClientsCache.length) {
-    const { data } = await supabase.from('clients')
-      .select('id,full_name,phone_primary,client_code')
-      .eq('company_id', S.cid).eq('status','active').order('full_name');
-    _prmClientsCache = data || [];
+    const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
+    _prmClientsCache = (data || []).map(c => ({
+      id: c.id, full_name: c.full_name, phone_primary: c.phone_primary, client_code: c.client_code
+    }));
   }
 
   const next7 = new Date(Date.now()+86400000*7).toISOString().split('T')[0];
@@ -389,7 +428,7 @@ async function prmLogNew(prefill) {
           value="${prefill.promisedBy||'Client himself'}" placeholder="Client himself / Wife…"></div>
       <div class="fg"><label class="lb">Logged By</label>
         <input id="prm-l-logged" class="inp" type="text"
-          value="${esc(S.name||'')}" placeholder="Officer name"></div>
+          value="${esc(S.username||S.name||'')}" placeholder="Officer username"></div>
     </div>
 
     <div class="fg"><label class="lb">Notes</label>
@@ -412,15 +451,12 @@ async function prmOnClientChange(clientId) {
     return;
   }
   saleSel.innerHTML = '<option value="">Loading…</option>';
-  const { data: sales } = await supabase.from('sales')
-    .select('id,sale_number,unit_id,units(unit_no,projects(project_name))')
-    .eq('client_id', clientId).eq('company_id', S.cid)
-    .in('status',['active','partial','pending']);
+  const { data: sales } = await supabase.rpc('list_sales_by_client', { p_client_id: clientId, p_company_id: S.cid });
 
   saleSel.innerHTML = '<option value="">— No specific sale —</option>' +
     (sales||[]).map(s => {
       const u = s.units?.unit_no||'';
-      const p = s.units?.projects?.project_name||'';
+      const p = s.projects?.project_name||'';
       return `<option value="${s.id}">${esc(p)}${u?' · '+esc(u):''} (${esc(s.sale_number||'')})</option>`;
     }).join('');
 
@@ -440,10 +476,7 @@ async function prmOnSaleChange(saleId) {
     return;
   }
   instSel.innerHTML = '<option value="">Loading…</option>';
-  const { data: insts } = await supabase.from('installments')
-    .select('id,installment_number,installment_type,due_date,amount_due,amount_paid,status')
-    .eq('sale_id', saleId).eq('company_id', S.cid)
-    .in('status',['pending','overdue','partial']).order('due_date');
+  const { data: insts } = await supabase.rpc('list_open_installments_for_sale', { p_sale_id: saleId, p_company_id: S.cid });
 
   const totalOut = (insts||[]).reduce((s,i)=>s+Math.max(0,(i.amount_due||0)-(i.amount_paid||0)),0);
   instSel.innerHTML = '<option value="">— No specific installment —</option>' +
@@ -605,7 +638,13 @@ async function prmSubmitBroken() {
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error||'Failed');
     cm('m-prm-broken');
-    if (typeof showToast==='function') showToast('Promise marked as broken','warn');
+    if (data.auto_escalated) {
+      if (typeof showToast==='function')
+        showToast('Promise broken — auto-escalated to manager ('+data.broken_count_90d+' broken in 90 days)','warn');
+    } else {
+      if (typeof showToast==='function')
+        showToast('Promise marked as broken'+(data.broken_count_90d>1?' ('+data.broken_count_90d+' broken in 90 days)':''),'warn');
+    }
     await _prmLoad();
   } catch(e) {
     notify.error(e.message||'Failed');
@@ -683,6 +722,11 @@ function prmSendWA(id) {
   }
 
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+
+  // Track that a 24h reminder was sent (bumps reminder_sent_count + last_reminder_sent_at).
+  supabase.rpc('record_promise_reminder', { p_promise_id: id, p_company_id: S.cid })
+    .then(() => { _prmLoad(); })
+    .catch(e => console.warn('[prmSendWA]', e));
 }
 
 // ── Dashboard Widget ───────────────────────────────────────────
@@ -783,5 +827,169 @@ async function _cdLoadPromises(clientId) {
       </div>`;
   } catch(e) {
     body.innerHTML = `<div class="card"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="et">Failed to load promises</div><div class="es">${esc(e.message||'Error')}</div></div></div>`;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULE 1.3 — PROMISE ANALYTICS  (Recovery Intelligence Engine)
+// Officer-wise stats + weekly trend + top broken clients.
+// Backend: get_promise_analytics(p_company_id, p_days).
+// ════════════════════════════════════════════════════════════════
+
+let _prmAnalyticsDays  = 90;
+let _prmAnalyticsChart = null;
+
+function prmOpenAnalytics() {
+  if (!document.getElementById('m-prm-analytics')) {
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="m-prm-analytics" class="mov">
+      <div class="md" style="max-width:960px;width:96%">
+        <div class="mh">
+          <div><h3>Promise Analytics</h3><p>Officer performance, weekly trend, top broken clients</p></div>
+          <button class="mx" onclick="cm('m-prm-analytics')">✕</button>
+        </div>
+        <div class="mb" id="m-prm-analytics-body" style="min-height:400px;max-height:75vh;overflow:auto">
+          <div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading analytics…</div>
+        </div>
+        <div class="mf" id="m-prm-analytics-foot"></div>
+      </div>
+    </div>`);
+  }
+  om('m-prm-analytics');
+  _prmRenderAnalyticsFoot();
+  _prmLoadAnalytics();
+}
+
+function prmSetAnalyticsDays(d) {
+  _prmAnalyticsDays = d;
+  _prmRenderAnalyticsFoot();
+  _prmLoadAnalytics();
+}
+
+function _prmRenderAnalyticsFoot() {
+  const foot = document.getElementById('m-prm-analytics-foot');
+  if (!foot) return;
+  foot.innerHTML = `<span style="font-size:11px;color:var(--t3);margin-right:auto">Window:</span>` +
+    [30,90,365].map(d => `<button class="btn btn-${_prmAnalyticsDays===d?'g':'gh'} btn-sm" onclick="prmSetAnalyticsDays(${d})">${d}d</button>`).join('');
+}
+
+async function _prmLoadAnalytics() {
+  const body = document.getElementById('m-prm-analytics-body');
+  if (!body) return;
+  body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading analytics…</div>';
+  try {
+    const [{ data, error }, { data: conv }] = await Promise.all([
+      supabase.rpc('get_promise_analytics', { p_company_id: S.cid, p_days: _prmAnalyticsDays }),
+      supabase.rpc('get_promise_conversion_rate', { p_company_id: S.cid, p_window_days: 7 })
+    ]);
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Failed');
+    _prmRenderAnalytics(data, conv || {});
+  } catch(e) {
+    body.innerHTML = `<div class="empty" style="padding:32px"><div class="es">${esc(e.message || 'Error')}</div></div>`;
+  }
+}
+
+function _prmRenderAnalytics(d, conv) {
+  const body = document.getElementById('m-prm-analytics-body');
+  if (!body) return;
+  const officers  = Array.isArray(d.officers)   ? d.officers   : [];
+  const weekly    = Array.isArray(d.weekly)     ? d.weekly     : [];
+  const topBroken = Array.isArray(d.top_broken) ? d.top_broken : [];
+  const convRate  = Number(conv?.rate  || 0);
+  const convKept  = Number(conv?.total_kept || 0);
+  const convPaid  = Number(conv?.converted  || 0);
+  const convDays  = Number(conv?.avg_days_to_pay || 0);
+
+  const convColor = convRate >= 70 ? 'var(--ok)' : convRate >= 40 ? '#f59e0b' : 'var(--err)';
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+      ${[
+        { l:'Conversion Rate',     v:convKept>0?convRate+'%':'—',            c:convColor,       t:'% of kept promises that resulted in a payment within 7 days' },
+        { l:'Promises → Payments', v:convKept>0?convPaid+' / '+convKept:'—', c:'var(--info)',   t:'Kept promises with a matching payment within the window' },
+        { l:'Avg Days to Pay',     v:convDays>0?convDays+'d':'—',            c:'var(--t2)',     t:'Average days from promise date to payment (last 180 days)' },
+        { l:'Total Kept (180d)',   v:convKept,                                c:'var(--ok)',     t:'' },
+      ].map(k => `<div class="card" style="padding:12px 14px" title="${k.t}">
+        <div style="font-size:18px;font-weight:800;color:${k.c}">${k.v}</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;text-transform:uppercase;letter-spacing:.4px">${k.l}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+      <div class="card">
+        <div class="ch"><h3>Officer Performance</h3></div>
+        <div class="cb" style="padding:0">${officers.length ? `
+          <div class="tw"><table class="t" style="width:100%">
+            <thead><tr>
+              <th>Officer</th><th class="r">Total</th><th class="r">Kept</th><th class="r">Broken</th><th class="r">Kept %</th><th class="r hide-sm">Recovered</th>
+            </tr></thead>
+            <tbody>${officers.map(o => `<tr>
+              <td>
+                <div style="font-weight:700;font-size:13px">${esc(o.officer_name || o.username || '—')}</div>
+                <div style="font-size:10px;color:var(--t3);font-family:monospace">@${esc(o.username || '')}</div>
+              </td>
+              <td class="r" style="font-size:12px;font-weight:700">${o.total || 0}</td>
+              <td class="r" style="font-size:12px;font-weight:700;color:var(--ok)">${o.kept_count || 0}</td>
+              <td class="r" style="font-size:12px;font-weight:700;color:var(--err)">${o.broken_count || 0}</td>
+              <td class="r" style="font-size:12px;font-weight:700;color:${(o.kept_rate || 0) >= 50 ? 'var(--ok)' : 'var(--err)'}">${o.kept_rate || 0}%</td>
+              <td class="r hide-sm" style="font-size:11px">PKR ${fM(o.amount_recovered || 0)}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>` : `<div class="empty" style="padding:24px"><div class="es">No officer activity in this window</div></div>`}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ch"><h3>Weekly Trend</h3></div>
+        <div class="cb">
+          <div id="prm-analytics-chart-wrap" style="height:240px;position:relative">
+            <canvas id="prm-analytics-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><h3>Top Broken Clients (${topBroken.length})</h3></div>
+      <div class="cb" style="padding:0">${topBroken.length ? `
+        <div class="tw"><table class="t" style="width:100%">
+          <thead><tr>
+            <th>Client</th><th class="hide-sm">Phone</th><th class="r">Total</th><th class="r">Broken</th><th class="r">Kept</th>
+          </tr></thead>
+          <tbody>${topBroken.map(t => `<tr style="cursor:pointer" onclick="openClientDetail('${t.client_id}')">
+            <td>
+              <div style="font-weight:700;font-size:13px">${esc(t.client_name || '—')}</div>
+              <div style="font-size:10px;color:var(--t3);font-family:monospace">${esc(t.client_code || '')}</div>
+            </td>
+            <td class="hide-sm" style="font-size:12px;color:var(--t2)">${esc(t.phone_primary || '—')}</td>
+            <td class="r" style="font-size:12px;font-weight:700">${t.total || 0}</td>
+            <td class="r" style="font-size:12px;font-weight:700;color:var(--err)">${t.broken_count || 0}</td>
+            <td class="r" style="font-size:12px;font-weight:700;color:var(--ok)">${t.kept_count || 0}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>` : `<div class="empty" style="padding:24px"><div class="es">No clients with broken promises in this window</div></div>`}
+      </div>
+    </div>
+  `;
+
+  if (weekly.length && typeof Chart !== 'undefined') {
+    const ctx = document.getElementById('prm-analytics-chart');
+    if (_prmAnalyticsChart) { try { _prmAnalyticsChart.destroy(); } catch(e) {} _prmAnalyticsChart = null; }
+    _prmAnalyticsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: weekly.map(w => fD(w.week_start)),
+        datasets: [
+          { label: 'Kept',   data: weekly.map(w => Number(w.kept   || 0)), backgroundColor: 'rgba(34,197,94,.85)', borderRadius: 4 },
+          { label: 'Broken', data: weekly.map(w => Number(w.broken || 0)), backgroundColor: 'rgba(239,68,68,.85)', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+      }
+    });
+  } else if (!weekly.length) {
+    const wrap = document.getElementById('prm-analytics-chart-wrap');
+    if (wrap) wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3);font-size:12px">No weekly data in this window yet</div>';
   }
 }

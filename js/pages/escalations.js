@@ -22,6 +22,7 @@ async function rEscalations() {
     <button class="btn btn-gh btn-xs esc-ftab"    onclick="_escFilter('resolved',this)">Resolved</button>
     <button class="btn btn-gh btn-xs esc-ftab"    onclick="_escFilter('all',this)">All</button>
   </div>
+  <div id="esc-kpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
   <div id="esc-body"><div class="card"><div class="cb"><div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div></div></div></div>
 
   <!-- Modal -->
@@ -83,13 +84,30 @@ function _escFilter(f, el) {
 }
 
 async function _escLoad() {
-  const { data } = await supabase
-    .from('escalations')
-    .select(`*, clients(client_name, client_code)`)
-    .eq('company_id', S.cid)
-    .order('created_at', { ascending: false });
+  const [{ data }, { data: an }] = await Promise.all([
+    supabase.rpc('list_escalations', { p_company_id: S.cid }),
+    supabase.rpc('get_escalation_analytics', { p_company_id: S.cid })
+  ]);
   _escData = data || [];
+  _escRenderKpi((an && an.success) ? an : null);
   _escRender();
+}
+
+function _escRenderKpi(an) {
+  const el = document.getElementById('esc-kpi');
+  if (!el) return;
+  if (!an) { el.innerHTML = ''; return; }
+  const cards = [
+    { l:'Open',            v:an.open||0,            c:'var(--err)' },
+    { l:'Resolved',        v:an.resolved||0,        c:'var(--ok)' },
+    { l:'Resolution Rate', v:(an.resolution_rate||0)+'%', c:'#8b5cf6' },
+    { l:'Avg Resolution',  v:(an.avg_resolution_days!=null?an.avg_resolution_days+'d':'—'), c:'var(--t2)' },
+    { l:'Total',           v:an.total||0,           c:'var(--info)' },
+  ];
+  el.innerHTML = cards.map(k => `<div class="card" style="padding:12px 14px">
+    <div style="font-size:18px;font-weight:800;color:${k.c}">${k.v}</div>
+    <div style="font-size:10px;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${k.l}</div>
+  </div>`).join('');
 }
 
 function _escRender() {
@@ -133,7 +151,7 @@ function _escRender() {
 }
 
 async function _escPopulateClients() {
-  const { data } = await supabase.from('clients').select('id, client_name, client_code').eq('company_id', S.cid).order('client_name');
+  const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
   const sel = document.getElementById('esc-client_id');
   if (!sel || !data) return;
   data.forEach(c => {
@@ -161,14 +179,16 @@ async function _escSave() {
   const btn = document.getElementById('esc-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const { error } = await supabase.from('escalations').insert({
-    company_id: S.cid,
-    client_id: clientId,
-    from_level: Number(fromLevel),
-    to_level: Number(toLevel),
-    reason,
-    status: 'open',
-    escalated_by: S.uid || null,
+  const { error } = await supabase.rpc('create_escalation', {
+    p_company_id: S.cid,
+    p_data: {
+      client_id: clientId,
+      from_level: Number(fromLevel),
+      to_level: Number(toLevel),
+      reason,
+      status: 'open',
+      escalated_by: S.uid || null,
+    }
   });
 
   btn.disabled = false; btn.textContent = 'Escalate';
@@ -193,11 +213,15 @@ async function _escResolveConfirm() {
   const btn = document.getElementById('esc-resolve-btn');
   btn.disabled = true;
 
-  const { error } = await supabase.from('escalations').update({
-    status: 'resolved',
-    resolution_note: note,
-    resolved_at: new Date().toISOString(),
-  }).eq('id', _escResolveId);
+  const { error } = await supabase.rpc('update_escalation', {
+    p_id: _escResolveId,
+    p_company_id: S.cid,
+    p_data: {
+      status: 'resolved',
+      resolution_note: note,
+      resolved_at: new Date().toISOString(),
+    }
+  });
 
   btn.disabled = false;
   if (error) { errEl.textContent = error.message; return; }

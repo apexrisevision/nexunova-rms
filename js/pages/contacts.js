@@ -62,13 +62,7 @@ function _fci(name, size=14, cls='') {
 // ─ Cache loader — public, called at login ─────────────────────────────────
 async function loadContactLogsCache(companyId) {
   try {
-    const { data, error } = await supabase
-      .from('contact_logs')
-      .select('*')
-      .eq('company_id', companyId || S.cid)
-      .order('contact_date', { ascending: false })
-      .order('created_at',   { ascending: false })
-      .limit(2000);
+    const { data, error } = await supabase.rpc('get_contact_logs_cache', { p_company_id: companyId || S.cid });
     if (!error) {
       _clCache = data || [];
       window._contactLogsCache = _clCache;
@@ -343,12 +337,12 @@ async function _fcQLSave(uid) {
 
   try {
     const row = {
-      company_id: S.cid, unit_id: uid, channel: ch,
+      unit_id: uid, channel: ch,
       contact_date: t, contact_time: now,
       response_received: 'NoResponse', remarks: rem,
       agent_id: S.userId, created_by: S.userId,
     };
-    const { error } = await supabase.from('contact_logs').insert(row);
+    const { error } = await supabase.rpc('create_contact_log', { p_company_id: S.cid, p_data: row });
     if (error) throw error;
     if (window.showToast) showToast('Contact logged','success');
     _fcCloseDrawer();
@@ -482,14 +476,7 @@ async function _fcQueue(el) {
 
   let brokenPromises = [];
   try {
-    const { data: pp } = await supabase
-      .from('payment_promises')
-      .select('id,client_id,sale_id,promised_amount,promised_date,status,notes')
-      .eq('company_id', S.cid)
-      .eq('status', 'pending')
-      .lte('promised_date', t)
-      .order('promised_date', { ascending: true })
-      .limit(100);
+    const { data: pp } = await supabase.rpc('list_broken_promises', { p_company_id: S.cid });
     brokenPromises = pp || [];
   } catch(e) { /* ignore */ }
 
@@ -1140,12 +1127,9 @@ async function _fcEscalation(el) {
 
   let escalations = [], legalCases = [];
   try {
-    const [eRes, lcRes] = await Promise.all([
-      supabase.from('escalations').select('*').eq('company_id', S.cid).order('created_at',{ascending:false}).limit(200),
-      supabase.from('legal_cases').select('*').eq('company_id', S.cid).order('created_at',{ascending:false}).limit(200),
-    ]);
-    escalations = eRes.data || [];
-    legalCases  = lcRes.data || [];
+    const { data } = await supabase.rpc('get_escalations_legal_combined', { p_company_id: S.cid });
+    escalations = data?.escalations || [];
+    legalCases  = data?.legal_cases || [];
   } catch(e) { console.warn('[_fcEscalation]', e); }
 
   const renderFlag = (flag, items) => {
