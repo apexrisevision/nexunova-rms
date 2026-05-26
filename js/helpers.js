@@ -65,13 +65,30 @@ function logA(type,msg){const db=gdb();db.log=db.log||[];db.log.unshift({id:uid(
 // and also type=number inputs: clears 0 on focus, restores on blur.
 
 function _amtFmt(raw) {
-  // Format a numeric string with commas: 100000 → "100,000"
+  // Format a numeric string with Pakistani grouping: 100000 → "1,00,000"
   const n = parseFloat(String(raw).replace(/,/g, ''));
   if (isNaN(n) || n === 0) return '';
-  return n.toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  return n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 }
 function parseAmt(v) {
   return parseFloat(String(v).replace(/,/g, '')) || 0;
+}
+
+// ── CNIC mask + validation (Pakistan: xxxxx-xxxxxxx-x, 5-7-1 = 13 digits) ──
+// Live mask: wire on a CNIC input's oninput → maskCNIC(this). Strips non-digits,
+// caps at 13, and re-inserts the two dashes as the user types.
+function maskCNIC(el) {
+  if (!el) return;
+  const d = String(el.value).replace(/\D/g, '').slice(0, 13);
+  let out = d;
+  if (d.length > 5)  out = d.slice(0, 5) + '-' + d.slice(5);
+  if (d.length > 12) out = d.slice(0, 5) + '-' + d.slice(5, 12) + '-' + d.slice(12);
+  el.value = out;
+}
+// Returns true for a complete, well-formed CNIC. (Empty is handled by the caller —
+// CNIC is optional on co-buyer/nominee, required for local clients.)
+function isValidCNIC(v) {
+  return /^\d{5}-\d{7}-\d$/.test(String(v || '').trim());
 }
 
 (function _initAmtInputs() {
@@ -98,7 +115,7 @@ function parseAmt(v) {
       if (el.value === '') el.value = '0';
     } else if (el.classList.contains('inp-amt')) {
       const raw = parseFloat(el.value.replace(/,/g, ''));
-      el.value = isNaN(raw) ? '0' : raw.toLocaleString('en-PK', { maximumFractionDigits: 0 });
+      el.value = isNaN(raw) ? '0' : raw.toLocaleString('en-IN', { maximumFractionDigits: 0 });
     }
   }, true);
 
@@ -108,7 +125,7 @@ function parseAmt(v) {
     if (el.tagName !== 'INPUT' || !el.classList.contains('inp-amt')) return;
     const pos   = el.selectionStart;
     const raw   = el.value.replace(/[^0-9]/g, '');
-    const fmted = raw ? parseInt(raw, 10).toLocaleString('en-PK') : '';
+    const fmted = raw ? parseInt(raw, 10).toLocaleString('en-IN') : '';
     const diff  = fmted.length - el.value.length;
     el.value = fmted;
     try { el.setSelectionRange(pos + diff, pos + diff); } catch(e) {}

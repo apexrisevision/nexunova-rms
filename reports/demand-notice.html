@@ -114,6 +114,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .footer-note{font-size:8px;color:#9ca3af;line-height:1.6}
 .footer-brand{font-size:8px;color:#d1d5db;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
 
+/* ── Fixed print footer (repeats on every printed page) ── */
+.print-footer{display:none}
+
 /* ── Loading ── */
 .state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;text-align:center;gap:14px}
 .spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:#dc2626;border-radius:50%;animation:spin .7s linear infinite}
@@ -126,8 +129,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
   .toolbar{display:none!important}
   .page-wrap{padding:0!important}
   .page{box-shadow:none!important;border-radius:0!important}
-  @page{size:A4;margin:12mm 14mm}
-  body{background:#fff!important}
+  @page{size:A4;margin:10mm 12mm;@bottom-right{content:"Page " counter(page) " of " counter(pages)}}
+  body{background:#fff!important;padding-bottom:22mm}
+  .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
 </head>
@@ -158,11 +162,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 </div>
 
 <script>
-const SUPA_URL = 'https://bcqqjcwxlxbcnlxuflqw.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcXFqY3d4bHhiY25seHVmbHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3NDY4NTQsImV4cCI6MjA2MTMyMjg1NH0.9EHbABQGfHkWVGPyGfBJOyVVMY97pydUDQT1VGMBHwE';
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-function fmtPKR(v){ return 'PKR '+Number(v||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtPKR(v){ return 'PKR '+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtWords(n){
   // Simple PKR in words (simplified for common amounts)
   const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
@@ -189,39 +193,44 @@ async function load(){
   if(!saleId||!cid){ showError('Missing sale_id or cid parameter.'); return; }
 
   const [saleRes, brandRes] = await Promise.all([
-    sb.rpc('get_sale_detail', { p_sale_id: saleId }),
+    sb.rpc('get_sale_detail', { p_sale_id: saleId, p_company_id: cid }),
     sb.rpc('get_company_branding', { p_company_id: cid })
   ]);
 
   if(saleRes.error){ showError('Failed to load sale: '+saleRes.error.message); return; }
-  const sale = saleRes.data;
-  if(!sale){ showError('Sale not found.'); return; }
+  // get_sale_detail returns { success, sale, installments[] }
+  const sd = saleRes.data;
+  if(!sd || !sd.success || !sd.sale){ showError(sd && sd.error ? 'Sale: '+sd.error : 'Sale not found.'); return; }
+  const sale = sd.sale;
 
-  const b = (brandRes.data && brandRes.data[0]) || {};
+  // get_company_branding returns a single JSON OBJECT (not an array) — read .data directly.
+  const b = brandRes.data || {};
   const color1 = b.doc_brand_color || '#1e2d47';
   const color2 = b.accent_color || '#c9a84c';
 
-  // Build overdue installments from schedule
-  const schedule = Array.isArray(sale.schedule) ? sale.schedule : (sale.schedule_json ? JSON.parse(sale.schedule_json) : []);
+  // Build overdue installments. Installment shape:
+  // { installment_number, due_date, amount_due, amount_paid, balance, installment_type, status, paid_at, notes }
+  const bal = r => Number(r.balance != null ? r.balance : (Number(r.amount_due||0) - Number(r.amount_paid||0)));
+  const schedule = (sd.installments || []).slice();
   const today_d = new Date(); today_d.setHours(0,0,0,0);
   const overdue = schedule.filter(row => {
     const d = new Date(row.due_date); d.setHours(0,0,0,0);
-    return d < today_d && (row.status==='pending'||row.status==='overdue'||!row.is_paid);
+    return d < today_d && row.status !== 'paid' && bal(row) > 0;
   });
-  const totalDue = overdue.reduce((s,r)=>s+Number(r.amount||0),0);
-  const totalPaid = schedule.filter(r=>r.is_paid||r.status==='paid').reduce((s,r)=>s+Number(r.amount||0),0);
-  const totalAmt = Number(sale.total_price||0);
-  const latestDue = overdue.length ? overdue.sort((a,b)=>new Date(a.due_date)-new Date(b.due_date))[0].due_date : null;
+  const totalDue  = overdue.reduce((s,r)=>s+bal(r),0);
+  const totalPaid = schedule.reduce((s,r)=>s+Number(r.amount_paid||0),0);
+  const totalAmt  = Number(sale.net_amount||0);
+  const latestDue = overdue.length ? overdue.slice().sort((a,b)=>new Date(a.due_date)-new Date(b.due_date))[0].due_date : null;
 
   const overdueRows = overdue.length === 0
     ? `<tr><td colspan="5" style="text-align:center;padding:24px;color:#9ca3af;font-style:italic;">No overdue installments found.</td></tr>`
     : overdue.map((row,i)=>{
         const daysLate = Math.max(0, Math.floor((today_d - new Date(row.due_date))/(1000*60*60*24)));
         return `<tr>
-          <td>${row.installment_no||i+1}</td>
+          <td>${row.installment_number||i+1}</td>
           <td>${fmtDate(row.due_date)}</td>
-          <td>${row.installment_type||row.type||'Installment'}</td>
-          <td class="right">${fmtPKR(row.amount)}</td>
+          <td>${row.notes || (row.installment_type==='down_payment'?'Down Payment':'Installment')}</td>
+          <td class="right">${fmtPKR(bal(row))}</td>
           <td class="right" style="color:#dc2626;font-weight:600">${daysLate} days</td>
         </tr>`;
       }).join('');
@@ -238,14 +247,15 @@ async function load(){
           : `<div class="lh-initials">${(b.company_name||'RE').substring(0,2).toUpperCase()}</div>`}
         <div class="lh-company">
           <div class="lh-name">${b.company_name||'Real Estate Company'}</div>
-          <div class="lh-sub">${b.company_tagline||'Real Estate Management'}</div>
+          <div class="lh-sub">${b.letterhead_subtitle||'Real Estate Management'}</div>
         </div>
       </div>
       <div class="lh-right">
         <div class="lh-doctype">Demand Notice</div>
+        <div style="font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px;margin-bottom:5px;opacity:.92">${sale.project_name || sale.unit_no || sale.sale_number || 'Project'}</div>
         <div class="lh-meta">
-          ${b.company_address||''}<br>
-          ${b.company_phone||''} · ${b.company_email||''}
+          ${b.address_full||''}<br>
+          ${b.business_phone||''} · ${b.business_email||''}
         </div>
       </div>
     </div>
@@ -281,20 +291,19 @@ async function load(){
         <div class="to-label">To:</div>
         <div class="to-name">${sale.client_name||'—'}</div>
         <div class="to-detail">
-          ${sale.client_cnic ? 'CNIC: '+sale.client_cnic+'  ·  ' : ''}
-          ${sale.client_phone||''}<br>
-          ${sale.client_address||''}
+          ${sale.co_buyer_name ? 'Co-buyer: '+sale.co_buyer_name+'<br>' : ''}
+          Unit ${sale.unit_no||'—'}, ${sale.project_name||'—'}
         </div>
       </div>
 
       <div class="subject-line">
         <div class="subject-label">Subject</div>
-        <div class="subject-text">Demand for Outstanding Installments — Unit ${sale.unit_number||'—'}, ${sale.project_name||'—'} | Booking Ref: ${sale.booking_no||saleId.slice(-8).toUpperCase()}</div>
+        <div class="subject-text">Demand for Outstanding Installments — Unit ${sale.unit_no||'—'}, ${sale.project_name||'—'} | Booking Ref: ${sale.sale_number||saleId.slice(-8).toUpperCase()}</div>
       </div>
 
       <div class="notice-body">
         <p>Dear <strong>${sale.client_name||'Sir/Madam'}</strong>,</p>
-        <p>We write with reference to the <strong>Sale Agreement</strong> executed between you and <strong>${b.company_name||'our company'}</strong> for the purchase of <strong>Unit No. ${sale.unit_number||'—'}</strong>, located in <strong>${sale.project_name||'—'}</strong>, for a total consideration of <strong>${fmtPKR(totalAmt)}</strong>.</p>
+        <p>We write with reference to the <strong>Sale Agreement</strong> executed between you and <strong>${b.company_name||'our company'}</strong> for the purchase of <strong>Unit No. ${sale.unit_no||'—'}</strong>, located in <strong>${sale.project_name||'—'}</strong>, for a total consideration of <strong>${fmtPKR(totalAmt)}</strong>.</p>
         <p>As per our records, the following installments are <strong>overdue</strong> and remain unpaid as of today, <strong>${today()}</strong>. Despite our previous reminders, the outstanding amount of <span class="amount-em">${fmtPKR(totalDue)}</span> (${fmtWords(totalDue)}) has not been received by this office.</p>
       </div>
 
@@ -357,15 +366,15 @@ async function load(){
           </div>
           <div class="reply-item">
             <div class="reply-label">Phone / WhatsApp</div>
-            <div class="reply-val">${b.company_phone||'—'}</div>
+            <div class="reply-val">${b.business_phone||'—'}</div>
           </div>
           <div class="reply-item">
             <div class="reply-label">Email</div>
-            <div class="reply-val">${b.company_email||'—'}</div>
+            <div class="reply-val">${b.business_email||'—'}</div>
           </div>
           <div class="reply-item">
             <div class="reply-label">Office Address</div>
-            <div class="reply-val">${b.company_address||'—'}</div>
+            <div class="reply-val">${b.address_full||'—'}</div>
           </div>
         </div>
       </div>
@@ -382,9 +391,12 @@ async function load(){
       </div>
 
       <div class="doc-footer">
-        <div class="footer-note">${b.footer_text||'This notice is generated from the official records of '+( b.company_name||'our company')+'.'}</div>
+        <div class="footer-note">${[b.address_full||b.address_full, b.business_phone||b.business_phone, (b.ntn_number) ? 'NTN: '+b.ntn_number : '', b.footer_text].filter(Boolean).join(' · ') || ('This notice is generated from the official records of '+(b.company_name||'our company')+'.')}</div>
         <div class="footer-brand">Nexunova RMS</div>
       </div>
+    </div>
+    <div class="print-footer">
+      ${[b.address_full||b.address_full, b.business_phone||b.business_phone, (b.ntn_number) ? 'NTN: '+b.ntn_number : '', b.footer_text].filter(Boolean).join(' · ') || (b.company_name||'Nexunova RMS')}
     </div>
   </div>`;
 }

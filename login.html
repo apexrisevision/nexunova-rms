@@ -2419,7 +2419,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
         <div class="g2">
           <div class="fr">
             <label class="fl">CNIC <span class="req-star">*</span> <span style="font-size:9px;color:var(--t3);font-weight:400">(Overseas: optional)</span></label>
-            <input id="cf-cnic" class="inp-light cf-inp" type="text" placeholder="42101-1234567-1" oninput="cfV(this)" onblur="checkCNICDuplicate()">
+            <input id="cf-cnic" class="inp-light cf-inp" type="text" inputmode="numeric" maxlength="15" placeholder="42101-1234567-1" oninput="maskCNIC(this);cfV(this)" onblur="checkCNICDuplicate()">
             <div class="cf-err" id="e-cf-cnic" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>
           </div>
           <div class="fr">
@@ -3630,99 +3630,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
   </div>
 </div></div>
 
-<!-- Edit Sale modal -->
-<div id="m-sale-edit" class="mov"><div class="md" style="max-width:560px">
-  <div class="mh"><div><h3>✏ Edit Sale</h3><p>Update client, agent, and supplementary details</p></div><button class="mx" onclick="cm('m-sale-edit')">✕</button></div>
-  <div class="mb">
-    <input type="hidden" id="se-sale-id">
-
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden">
-      <div style="padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <div style="font-size:12px;font-weight:700;color:var(--t1)">Sale Details</div>
-      </div>
-      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fr" style="grid-column:1/-1">
-          <label class="fl">Client <span class="req-star">*</span></label>
-          <select id="se-client" class="inp-light"></select>
-        </div>
-        <div class="fr">
-          <label class="fl">Agent</label>
-          <select id="se-agent" class="inp-light"></select>
-        </div>
-        <div class="fr">
-          <label class="fl">Sale Date <span class="req-star">*</span></label>
-          <input id="se-date" type="date" class="inp-light">
-        </div>
-        <div class="fr" style="grid-column:1/-1">
-          <label class="fl">Notes</label>
-          <textarea id="se-notes" class="inp-light" rows="2" style="resize:vertical"></textarea>
-        </div>
-      </div>
-    </div>
-
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden">
-      <div style="padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <div style="font-size:12px;font-weight:700;color:var(--t1)">Co-buyer</div>
-      </div>
-      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fr">
-          <label class="fl">Name</label>
-          <input id="se-co-buyer-name" class="inp-light" type="text" placeholder="Co-buyer full name">
-        </div>
-        <div class="fr">
-          <label class="fl">CNIC</label>
-          <input id="se-co-buyer-cnic" class="inp-light" type="text" placeholder="00000-0000000-0">
-        </div>
-        <div class="fr">
-          <label class="fl">Share %</label>
-          <input id="se-co-buyer-share" class="inp-light" type="number" min="0" max="100" placeholder="e.g. 50">
-        </div>
-      </div>
-    </div>
-
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden">
-      <div style="padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <div style="font-size:12px;font-weight:700;color:var(--t1)">Nominee</div>
-      </div>
-      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fr">
-          <label class="fl">Name</label>
-          <input id="se-nominee-name" class="inp-light" type="text" placeholder="Nominee full name">
-        </div>
-        <div class="fr">
-          <label class="fl">CNIC</label>
-          <input id="se-nominee-cnic" class="inp-light" type="text" placeholder="00000-0000000-0">
-        </div>
-        <div class="fr">
-          <label class="fl">Relation</label>
-          <input id="se-nominee-relation" class="inp-light" type="text" placeholder="e.g. Son, Wife">
-        </div>
-      </div>
-    </div>
-
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden">
-      <div style="padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <div style="font-size:12px;font-weight:700;color:var(--t1)">Tax</div>
-      </div>
-      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fr">
-          <label class="fl">WHT Amount</label>
-          <input id="se-wht" class="inp-light" type="number" min="0" placeholder="0">
-        </div>
-        <div class="fr">
-          <label class="fl">CVT Amount</label>
-          <input id="se-cvt" class="inp-light" type="number" min="0" placeholder="0">
-        </div>
-      </div>
-    </div>
-
-    <div id="se-err" class="ferr" style="margin-top:4px"></div>
-  </div>
-  <div class="mf">
-    <button class="btn btn-gh" onclick="cm('m-sale-edit')">Cancel</button>
-    <button class="btn btn-g" id="se-save-btn" onclick="saveSaleEdit()">💾 Save Changes</button>
-  </div>
-</div></div>
+<!-- Edit Sale modal REMOVED 2026-05-26 — superseded by full-page rEditSale (nav('editsale')). The modal-based openSaleEditModal/saveSaleEdit path was dead code. -->
 
 <!-- FLOOR ADD/EDIT -->
 <div id="m-fl-edit" class="mov" onclick="if(event.target===this)cm('m-fl-edit')"><div class="md" style="max-width:480px">
@@ -4001,10 +3909,10 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/data.js"></script>
 
 <!-- 3. Pure utilities: formatters, helpers -->
-<script src="js/utils.js?v=20260517b"></script>
+<script src="js/utils.js?v=20260526a"></script>
 
 <!-- 3. Data helpers: queries over DB -->
-<script src="js/helpers.js?v=20260522d"></script>
+<script src="js/helpers.js?v=20260526a"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
 <script src="js/ui.js?v=20260526f"></script>
@@ -4019,13 +3927,13 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/onboarding.js?v=20260526i"></script>
 
 <!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260526d"></script>
+<script src="js/pages/dashboard.js?v=20260526e"></script>
 <script src="js/pages/recovery-dashboard.js?v=20260526a"></script>
 <script src="js/pages/units.js?v=20260526a"></script>
 <script src="js/pages/clients.js?v=20260525a"></script>
 <script src="js/pages/projects.js?v=20260522a"></script>
 <script src="js/pages/agents.js?v=20260525b"></script>
-<script src="js/pages/sales.js?v=20260525b"></script>
+<script src="js/pages/sales.js?v=20260526c"></script>
 <script src="js/pages/recovery.js?v=20260526b"></script>
 <script src="js/pages/payments.js?v=20260526b"></script>
 <script src="js/pages/receipts.js?v=20260517a"></script>
@@ -4049,7 +3957,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/audit.js?v=20260525a"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
 <script src="js/pages/reports.js?v=20260526c"></script>
-<script src="js/pages/print.js?v=20260517b"></script>
+<script src="js/pages/print.js?v=20260526a"></script>
 <script src="js/pages/documents.js?v=20260517d"></script>
 <script src="js/pages/transfers.js?v=20260516i"></script>
 <script src="js/pages/cancellation.js?v=20260516i"></script>
@@ -4085,12 +3993,12 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 6.5. Schedule Engine + Sale Modal (must load before modals.js) -->
 <script src="js/schedule.engine.js"></script>
-<script src="js/sale.modal.js?v=20260517b"></script>
+<script src="js/sale.modal.js?v=20260526a"></script>
 
 <script src="js/pages/tutorial.js?v=20260517a"></script>
 
 <!-- 7. Modal handlers -->
-<script src="js/modals.js?v=20260516e"></script>
+<script src="js/modals.js?v=20260526a"></script>
 <!-- 7.1. Log a Call wizard (replaces openConModal/saveCon) -->
 <script src="js/modals-log-call.js?v=20260526a"></script>
 

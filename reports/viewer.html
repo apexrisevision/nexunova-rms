@@ -145,8 +145,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 </div>
 
 <script>
-const SUPA_URL = 'https://bcqqjcwxlxbcnlxuflqw.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcXFqY3d4bHhiY25seHVmbHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3NDY4NTQsImV4cCI6MjA2MTMyMjg1NH0.9EHbABQGfHkWVGPyGfBJOyVVMY97pydUDQT1VGMBHwE';
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 const REPORT_META = {
@@ -317,7 +317,8 @@ async function loadReport(){
 
   // Fetch branding
   const { data: brand } = await sb.rpc('get_company_branding', { p_company_id: cid });
-  const b = (brand && brand[0]) || {};
+  // get_company_branding returns a single JSON OBJECT (not an array) — read it directly.
+  const b = brand || {};
   const color1 = b.doc_brand_color || '#1e2d47';
   const color2 = b.accent_color || '#c9a84c';
 
@@ -381,14 +382,14 @@ async function loadReport(){
           : `<div class="lh-initials">${(b.company_name||'RMS').substring(0,2).toUpperCase()}</div>`}
         <div class="lh-company">
           <div class="lh-name">${b.company_name||'Real Estate Company'}</div>
-          <div class="lh-sub">${b.company_tagline||'Real Estate Management'}</div>
+          <div class="lh-sub">${b.letterhead_subtitle||'Real Estate Management'}</div>
         </div>
       </div>
       <div class="lh-right">
         <div class="lh-doctype">${meta.title}</div>
         <div class="lh-meta">
           Generated: ${fmtDate(new Date().toISOString().slice(0,10))}<br>
-          ${b.company_address||''}
+          ${b.address_full||''}
         </div>
       </div>
     </div>

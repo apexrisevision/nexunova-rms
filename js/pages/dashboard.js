@@ -334,7 +334,7 @@ async function _rDashAdmin() {
         <div class="db-kpi-ic red">${_ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">Total Outstanding</div>
-          <div class="db-kpi-val db-kpi-val-sm"><span class="db-pkr">PKR</span>${fMH(outstand)}</div>
+          <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(outstand)}"><span class="db-pkr">PKR</span>${fLakhCr(outstand)}</div>
           <div class="db-kpi-sub">${overdueUnits.length>0?overdueUnits.length+' units overdue':'All current'}</div>
         </div>
         ${overdueUnits.length>0?`<div class="db-trend dn" style="align-self:flex-start;margin-top:2px">${_ic('<polyline points="6 9 12 15 18 9"/>',9)} ${overdueUnits.length}</div>`:''}
@@ -347,7 +347,7 @@ async function _rDashAdmin() {
         <div class="db-kpi-ic green">${_ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">This Month Collection</div>
-          <div class="db-kpi-val db-kpi-val-sm"><span class="db-pkr">PKR</span>${fMH(monthR)}</div>
+          <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(monthR)}"><span class="db-pkr">PKR</span>${fLakhCr(monthR)}</div>
           <div class="db-kpi-sub">${recentRecs.length} payment${recentRecs.length!==1?'s':''} received</div>
         </div>
         ${_trendHtml ? `<div style="align-self:flex-start;margin-top:2px">${_trendHtml}</div>` : ''}
@@ -360,7 +360,7 @@ async function _rDashAdmin() {
         <div class="db-kpi-ic blue">${_ic('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">Total Portfolio Value</div>
-          <div class="db-kpi-val db-kpi-val-sm"><span class="db-pkr">PKR</span>${fMH(totalPortfolio)}</div>
+          <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(totalPortfolio)}"><span class="db-pkr">PKR</span>${fLakhCr(totalPortfolio)}</div>
           <div class="db-kpi-sub">${soldU} active sale${soldU!==1?'s':''} · ${availU} available</div>
         </div>
       </div>

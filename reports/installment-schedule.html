@@ -61,7 +61,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .progress-section{margin-bottom:16px}
 .progress-label-row{display:flex;justify-content:space-between;margin-bottom:5px}
 .prog-label{font-size:9px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px}
-.prog-pct{font-size:11px;font-weight:800;color:#1e2d47}
+.prog-pct{font-size:11px;font-weight:800;color:var(--brand,#1e2d47)}
 .progress-bar{height:8px;background:#f0f1f3;border-radius:99px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .progress-fill{height:100%;border-radius:99px;transition:width .4s;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
@@ -71,7 +71,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .kpi-label{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:600}
 .kpi-val{font-size:14px;font-weight:800;color:#111827;line-height:1}
 .kpi-sub{font-size:8.5px;color:#6b7280;margin-top:3px}
-.kpi.accent{background:linear-gradient(135deg,#1e2d47,#2a3f63);color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kpi.accent{background:var(--brand,#1e2d47);color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kpi.accent .kpi-label,.kpi.accent .kpi-sub{color:rgba(255,255,255,.6)}
 .kpi.accent .kpi-val{color:#fff}
 .kpi.green{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#86efac;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -84,7 +84,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 /* ── Schedule table ── */
 .tbl-wrap{overflow:hidden;border-radius:8px;border:1px solid #f0f1f3;margin-bottom:16px}
 .sched-tbl{width:100%;border-collapse:collapse;font-size:10px}
-.sched-tbl thead th{background:#1e2d47;color:#fff;padding:8px 10px;text-align:left;font-weight:600;font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sched-tbl thead th{background:var(--brand,#1e2d47);color:#fff;padding:8px 10px;text-align:left;font-weight:600;font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sched-tbl thead th.right{text-align:right}
 .sched-tbl tbody tr.paid{background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sched-tbl tbody tr.overdue{background:#fff1f2;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -93,7 +93,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .sched-tbl td{padding:7px 10px;border-bottom:1px solid #f0f1f3;color:#374151;vertical-align:middle}
 .sched-tbl td.right{text-align:right;font-variant-numeric:tabular-nums}
 .sched-tbl td.mono{font-family:monospace;font-size:9px}
-.sched-tbl .totals-row td{background:#1e2d47;color:#fff;font-weight:700;font-size:9.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sched-tbl .totals-row td{background:var(--brand,#1e2d47);color:#fff;font-weight:700;font-size:9.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sched-tbl .totals-row td.right{text-align:right}
 
 /* ── Badge ── */
@@ -123,6 +123,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .footer-note{font-size:8px;color:#9ca3af;line-height:1.6}
 .footer-brand{font-size:8px;color:#d1d5db;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
 
+/* ── Fixed print footer (repeats on every printed page) ── */
+.print-footer{display:none}
+
 /* ── Loading ── */
 .state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;text-align:center;gap:14px}
 .spinner{width:34px;height:34px;border:3px solid #e5e7eb;border-top-color:#1e2d47;border-radius:50%;animation:spin .7s linear infinite}
@@ -135,8 +138,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
   .toolbar{display:none!important}
   .page-wrap{padding:0!important}
   .page{box-shadow:none!important;border-radius:0!important}
-  @page{size:A4;margin:10mm 12mm}
-  body{background:#fff!important}
+  @page{size:A4;margin:10mm 12mm;@bottom-right{content:"Page " counter(page) " of " counter(pages)}}
+  body{background:#fff!important;padding-bottom:22mm}
+  .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
 </head>
@@ -167,11 +171,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 </div>
 
 <script>
-const SUPA_URL = 'https://bcqqjcwxlxbcnlxuflqw.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcXFqY3d4bHhiY25seHVmbHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3NDY4NTQsImV4cCI6MjA2MTMyMjg1NH0.9EHbABQGfHkWVGPyGfBJOyVVMY97pydUDQT1VGMBHwE';
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-function fmtPKR(v){ return 'PKR '+Number(v||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtPKR(v){ return 'PKR '+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtDate(v){ if(!v) return '—'; try{ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch{return v;} }
 
 function getRowStatus(row){
@@ -195,30 +199,33 @@ async function load(){
   if(!saleId||!cid){ showError('Missing sale_id or cid.'); return; }
 
   const [saleRes, brandRes] = await Promise.all([
-    sb.rpc('get_sale_detail', { p_sale_id: saleId }),
+    sb.rpc('get_sale_detail', { p_sale_id: saleId, p_company_id: cid }),
     sb.rpc('get_company_branding', { p_company_id: cid })
   ]);
 
   if(saleRes.error){ showError('Failed to load sale: '+saleRes.error.message); return; }
-  const sale = saleRes.data;
-  if(!sale){ showError('Sale record not found.'); return; }
+  // get_sale_detail returns { success, sale, installments[] }
+  const sd = saleRes.data;
+  if(!sd || !sd.success || !sd.sale){ showError(sd && sd.error ? 'Sale: '+sd.error : 'Sale record not found.'); return; }
+  const sale = sd.sale;
 
-  const b = (brandRes.data && brandRes.data[0]) || {};
+  // get_company_branding returns a single JSON OBJECT (not an array) — read .data directly.
+  const b = brandRes.data || {};
   const color1 = b.doc_brand_color || '#1e2d47';
   const color2 = b.accent_color || '#c9a84c';
 
-  const rawSched = Array.isArray(sale.schedule) ? sale.schedule
-    : (sale.schedule_json ? JSON.parse(sale.schedule_json) : []);
-  const schedule = rawSched.sort((a,b)=> new Date(a.due_date)-new Date(b.due_date));
+  // Installments: { installment_number, due_date, amount_due, amount_paid, balance, installment_type, status, paid_at, notes }
+  const schedule = (sd.installments || []).slice()
+    .sort((a,b)=> new Date(a.due_date)-new Date(b.due_date));
 
-  const totalAmt   = Number(sale.total_price||0);
+  const totalAmt   = Number(sale.net_amount||0);
   const downPay    = Number(sale.down_payment||0);
-  const totalPaid  = schedule.filter(r=>getRowStatus(r)==='paid').reduce((s,r)=>s+Number(r.amount||0),0);
-  const totalDue   = schedule.filter(r=>getRowStatus(r)==='overdue').reduce((s,r)=>s+Number(r.amount||0),0);
-  const totalPend  = schedule.filter(r=>getRowStatus(r)==='pending').reduce((s,r)=>s+Number(r.amount||0),0);
+  const totalPaid  = schedule.reduce((s,r)=>s+Number(r.amount_paid||0),0);
+  const totalDue   = schedule.filter(r=>getRowStatus(r)==='overdue').reduce((s,r)=>s+Number(r.amount_due||0),0);
+  const totalPend  = schedule.filter(r=>getRowStatus(r)==='pending').reduce((s,r)=>s+Number(r.amount_due||0),0);
   const paidCount  = schedule.filter(r=>getRowStatus(r)==='paid').length;
   const overdueCount = schedule.filter(r=>getRowStatus(r)==='overdue').length;
-  const paidPct = totalAmt ? Math.round(totalPaid/totalAmt*100) : 0;
+  const paidPct = totalAmt ? Math.min(100, Math.round(totalPaid/totalAmt*100)) : 0;
 
   // Progress color
   const progColor = paidPct >= 75 ? '#22c55e' : paidPct >= 40 ? '#f59e0b' : '#3b82f6';
@@ -226,23 +233,26 @@ async function load(){
   // Table rows
   const rows = schedule.map((row, i) => {
     const st = getRowStatus(row);
-    const paidDate = row.paid_date||row.payment_date||null;
-    const receiptNo = row.receipt_no||'';
+    const paidDate = row.paid_at || null;
+    const isDP = row.installment_type === 'down_payment';
+    const desc = row.notes || (isDP ? 'Booking / Down Payment' : 'Installment');
     return `<tr class="${st}">
-      <td>${row.installment_no||i+1}</td>
+      <td>${row.installment_number||i+1}</td>
       <td>${fmtDate(row.due_date)}</td>
-      <td>${row.installment_type||row.type||'Installment'}</td>
-      <td class="right">${fmtPKR(row.amount)}</td>
+      <td>${desc}</td>
+      <td class="right">${fmtPKR(row.amount_due)}</td>
       <td class="right">${paidDate ? fmtDate(paidDate) : '—'}</td>
-      <td class="mono">${receiptNo||'—'}</td>
+      <td class="right">${Number(row.amount_paid)>0 ? fmtPKR(row.amount_paid) : '—'}</td>
       <td>${statusBadge(st)}</td>
     </tr>`;
   }).join('');
 
-  const totalScheduled = schedule.reduce((s,r)=>s+Number(r.amount||0),0);
+  const totalScheduled = schedule.reduce((s,r)=>s+Number(r.amount_due||0),0);
+
+  const projectName = sale.project_name || sale.unit_no || sale.sale_number || 'Project';
 
   document.getElementById('pageWrap').innerHTML = `
-  <div class="page">
+  <div class="page" style="--brand:${color1};--accent:${color2}">
     <div class="lh" style="background:linear-gradient(135deg,${color1},${color2}aa);-webkit-print-color-adjust:exact;print-color-adjust:exact">
       <div class="lh-left">
         ${b.logo_url
@@ -250,14 +260,15 @@ async function load(){
           : `<div class="lh-initials">${(b.company_name||'RE').substring(0,2).toUpperCase()}</div>`}
         <div class="lh-company">
           <div class="lh-name">${b.company_name||'Real Estate Company'}</div>
-          <div class="lh-sub">${b.company_tagline||'Real Estate Management'}</div>
+          <div class="lh-sub">${b.letterhead_subtitle||'Real Estate Management'}</div>
         </div>
       </div>
       <div class="lh-right">
         <div class="lh-doctype">Installment Schedule</div>
+        <div style="font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px;margin-bottom:5px;opacity:.92">${projectName}</div>
         <div class="lh-meta">
           Printed: ${fmtDate(new Date().toISOString().slice(0,10))}<br>
-          ${b.company_address||''}
+          ${b.address_full||''}
         </div>
       </div>
     </div>
@@ -267,11 +278,11 @@ async function load(){
       <div class="title-row">
         <div>
           <div class="title-main">Payment Schedule</div>
-          <div class="title-sub">${sale.client_name||'—'} · ${sale.unit_number||'—'}, ${sale.project_name||'—'}</div>
+          <div class="title-sub">${sale.client_name||'—'} · ${sale.unit_no||'—'}, ${sale.project_name||'—'}</div>
         </div>
         <div class="booking-badge">
           <div class="booking-label">Booking Ref</div>
-          <div class="booking-val">${sale.booking_no||saleId.slice(-8).toUpperCase()}</div>
+          <div class="booking-val">${sale.sale_number||saleId.slice(-8).toUpperCase()}</div>
         </div>
       </div>
 
@@ -279,11 +290,11 @@ async function load(){
         <div class="info-card">
           <div class="info-card-title">Client & Property</div>
           <div class="info-row"><span class="info-key">Client Name</span><span class="info-val">${sale.client_name||'—'}</span></div>
-          <div class="info-row"><span class="info-key">Phone</span><span class="info-val">${sale.client_phone||'—'}</span></div>
-          <div class="info-row"><span class="info-key">Unit No.</span><span class="info-val">${sale.unit_number||'—'}</span></div>
+          <div class="info-row"><span class="info-key">Agent</span><span class="info-val">${sale.agent_name||'—'}</span></div>
+          <div class="info-row"><span class="info-key">Unit No.</span><span class="info-val">${sale.unit_no||'—'}</span></div>
           <div class="info-row"><span class="info-key">Project</span><span class="info-val">${sale.project_name||'—'}</span></div>
           <div class="info-row"><span class="info-key">Type</span><span class="info-val">${sale.unit_type||'—'}</span></div>
-          <div class="info-row"><span class="info-key">Booking Date</span><span class="info-val">${fmtDate(sale.booking_date)}</span></div>
+          <div class="info-row"><span class="info-key">Sale Date</span><span class="info-val">${fmtDate(sale.sale_date)}</span></div>
         </div>
         <div class="info-card">
           <div class="info-card-title">Financial Summary</div>
@@ -338,7 +349,7 @@ async function load(){
               <th>Description</th>
               <th class="right">Amount (PKR)</th>
               <th>Paid Date</th>
-              <th>Receipt #</th>
+              <th class="right">Paid (PKR)</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -370,9 +381,12 @@ async function load(){
       </div>
 
       <div class="doc-footer">
-        <div class="footer-note">${b.footer_text||'This schedule is computer-generated and subject to the terms of your sale agreement.'}</div>
+        <div class="footer-note">${[b.address_full, b.business_phone, (b.ntn_number) ? 'NTN: '+b.ntn_number : '', b.footer_text].filter(Boolean).join(' · ') || 'This schedule is computer-generated and subject to the terms of your sale agreement.'}</div>
         <div class="footer-brand">Nexunova RMS</div>
       </div>
+    </div>
+    <div class="print-footer">
+      ${[b.address_full, b.business_phone, (b.ntn_number) ? 'NTN: '+b.ntn_number : '', b.footer_text].filter(Boolean).join(' · ') || (b.company_name||'Nexunova RMS')}
     </div>
   </div>`;
 }

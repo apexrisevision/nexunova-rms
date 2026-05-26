@@ -29,23 +29,14 @@ document.addEventListener('keydown',e=>{
   if(btn){e.preventDefault();btn.click();}
 });
 
+// openSellModal — redirect shim (2026-05-26). The legacy localStorage sale
+// modal was retired; sales are created via the canonical full-page form
+// (js/pages/sales.js → rNewSale). This file loads AFTER sale.modal.js, so this
+// definition is the one that wins — keep it identical to the sale.modal.js shim.
 function openSellModal(unitId){
-  if(S.role!=='admin'&&S.role!=='owner'){toast('Admin only','warn');return;}
-  const u=gunit(unitId);
-  document.getElementById('sell-lbl').textContent=`Unit ${u?.unitNo||''}`;
-  const sel=document.getElementById('sl-by');
-  // Source: real app_users (Supabase), not legacy localStorage seed db.
-  // Falls back to a helpful placeholder if cache hasn't hydrated yet.
-  const realUsers=(window._appUsersCache||[]).filter(x=>x.is_active!==false);
-  if(!realUsers.length){
-    sel.innerHTML=`<option value="">No staff yet — add users in Admin → Users & Roles</option>`;
-  } else {
-    sel.innerHTML=`<option value="">Select staff...</option>`+
-      realUsers.map(x=>`<option value="${esc(x.full_name||x.name||x.username||'')}">${esc(x.full_name||x.name||x.username||'')}${x.role?' · '+esc(x.role):''}</option>`).join('');
-  }
-  if(u&&u.customerName){document.getElementById('sl-n').value=u.customerName||'';document.getElementById('sl-ph').value=u.phone||'';document.getElementById('sl-bk').value=u.bookingNo||'';document.getElementById('sl-by').value=u.soldBy||'';document.getElementById('sl-pr').value=u.totalPrice||'';document.getElementById('sl-pd').value=u.totalPaid||'';document.getElementById('sl-dt').value=u.soldDate||td();document.getElementById('sl-tp').value=u.status||'Installment';document.getElementById('sl-rem').value=u.remarks||'';}
-  else{['sl-n','sl-ph','sl-bk','sl-pr','sl-pd','sl-rem'].forEach(id=>document.getElementById(id).value='');document.getElementById('sl-dt').value=td();document.getElementById('sl-tp').value='Installment';}
-  _uid=unitId;om('m-sell');
+  if(S?.role!=='admin'&&S?.role!=='owner'){toast('Admin only','warn');return;}
+  if(unitId) window._salFormState={unitId};   // pre-select the unit in rNewSale
+  if(typeof nav==='function') nav('newsale');
 }
 function saveSell(){
   const name=document.getElementById('sl-n').value.trim();

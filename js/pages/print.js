@@ -66,26 +66,26 @@ function _pCSS(sz){
     '.terms ol{margin:6px 0;padding-left:18px;line-height:1.7;font-size:10px;color:#333}'+
     '.terms li{margin-bottom:2px}'+
     '.no-break{page-break-inside:avoid}'+
-    '@media print{@page{size:'+sz+';margin:1cm}.no-print{display:none}}';
+    // Branded footer bar: company address / NTN / phone line + footer text.
+    '.footer-bar .foot-co{font-weight:600;color:#555;margin-bottom:2px}'+
+    // Page numbers in the bottom margin (Paged-Media engines / PDF export); harmless in Chromium.
+    '@media print{@page{size:'+sz+';margin:12mm 12mm 16mm;@bottom-right{content:"Page " counter(page) " of " counter(pages);font-size:8px;color:#999}}.no-print{display:none}}';
 }
 
 // ── Shared: A4 Crystal-Reports-style letterhead ──
-// Uses window._cobranding for company info, colors, and address.
-function _lh(docType){
+// Header = logo + company name (+ subtitle) on the left; doc type + date +
+// (optional) project/site name + user on the right. Company address / NTN /
+// phone live in the FOOTER (see _footer), not here.
+// Uses window._cobranding for company info + colors.
+function _lh(docType, projectName){
   var br=window._cobranding||{};
   var co=br.company_name||S?.coName||'Nexunova';
   var sub=br.letterhead_subtitle||'Recovery Management System';
-  var H=br.doc_brand_color||'#1E2D47';
   var A=br.accent_color||'#C9A84C';
   var logo=typeof getCoLogo==='function'?getCoLogo():null;
-  var dt=new Date().toLocaleDateString('en-PK',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-  // Right-side info block
-  var addr=br.address_full||[br.city,br.country].filter(Boolean).join(', ')||'';
+  var dt=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
   var rightParts=[esc(docType),dt];
-  if(addr)rightParts.push(esc(addr));
-  if(br.business_phone)rightParts.push(esc(br.business_phone));
-  if(br.business_email)rightParts.push(esc(br.business_email));
-  if(br.ntn_number)rightParts.push('NTN: '+esc(br.ntn_number));
+  if(projectName)rightParts.push('Project: '+esc(projectName));
   var leftContent=logo
     ?'<img src="'+logo+'" style="height:52px;max-width:160px;object-fit:contain;background:transparent;display:block;margin-bottom:4px" alt="'+esc(co)+'">'
      +'<p style="margin:0;font-size:8px;text-transform:uppercase;letter-spacing:2px;color:'+A+'">'+esc(co)+'</p>'
@@ -97,12 +97,27 @@ function _lh(docType){
   '</div><div class="gold-bar"></div>';
 }
 
+// ── Shared: branded footer (company address + NTN + phone + footer text) ──
+// The on-page footer; per-page numbering is added via _pCSS @page @bottom-right.
+function _footer(){
+  var br=window._cobranding||{};
+  var bits=[];
+  var addr=br.address_full||[br.city,br.country].filter(Boolean).join(', ')||'';
+  if(addr)bits.push(esc(addr));
+  if(br.business_phone)bits.push('Tel: '+esc(br.business_phone));
+  if(br.business_email)bits.push(esc(br.business_email));
+  if(br.ntn_number)bits.push('NTN: '+esc(br.ntn_number));
+  var foot=br.footer_text||'This is a computer-generated document.';
+  return '<div class="footer-bar">'
+    +(bits.length?'<div class="foot-co">'+bits.join('&nbsp;&nbsp;·&nbsp;&nbsp;')+'</div>':'')
+    +'<div>'+esc(foot)+'</div></div>';
+}
+
 // ── Shared: signature block (uses window._cobranding) ──
 function _sigBlock(extraCol){
   var br=window._cobranding||{};
   var sigName=br.signature_name||'';
   var sigTitle=br.signature_title||'Authorized Signatory';
-  var footer=br.footer_text||'This is a computer-generated document.';
   var cols=extraCol
     ?'<div class="sig-box"><div class="sig-lbl">'+extraCol.label+'</div><div class="sig-name">'+esc(extraCol.value||'')+'</div></div>'
     :'';
@@ -110,7 +125,7 @@ function _sigBlock(extraCol){
     +'<div class="sig-box"><div class="sig-lbl">Authorized Signatory</div><div class="sig-name" style="min-height:20px">'+esc(sigName)+'</div><div class="sig-lbl" style="margin-top:3px">'+esc(sigTitle)+'</div></div>'
     +cols
     +'</div>'
-    +'<div class="footer-bar">'+esc(footer)+'</div>';
+    +_footer();
 }
 
 // ── Shared: send HTML to print (Electron IPC or browser blob) ──
@@ -166,6 +181,7 @@ function printReceipt(recId){
   var amt=Number(rec.amt||0);
   var pending=u?actualPending(u):0;
   var rcptNo=rec.rcpt||('R-'+rec.id.toUpperCase().slice(-6));
+  var H=(window._cobranding||{}).doc_brand_color||'#1E2D47';
   var w=_pw('Receipt '+rcptNo,_pCSS('A5'),'A5');
   if(!w)return;
 
@@ -174,11 +190,11 @@ function printReceipt(recId){
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
   h+='<div class="doc-title" style="border:none;margin:0;padding:0">Payment Receipt</div>';
   h+='<div style="text-align:right"><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px">Receipt No</div>';
-  h+='<div style="font-size:16px;font-weight:700;color:#1E2D47;font-family:monospace">'+esc(rcptNo)+'</div></div></div>';
+  h+='<div style="font-size:16px;font-weight:700;color:'+H+';font-family:monospace">'+esc(rcptNo)+'</div></div></div>';
 
   h+='<div class="amt-box">';
   h+='<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#166534;font-weight:700">Amount Received</div>';
-  h+='<div class="amt-box-v">PKR '+amt.toLocaleString('en-PK')+'</div>';
+  h+='<div class="amt-box-v">PKR '+amt.toLocaleString('en-IN')+'</div>';
   h+='<div class="amt-box-w">'+amtWords(amt)+'</div>';
   h+='</div>';
 
@@ -192,14 +208,14 @@ function printReceipt(recId){
   if(u){
     h+='<div class="row" style="margin-top:4px"><span class="lbl">Balance After Payment</span>';
     h+=pending>0
-      ?'<span class="val" style="color:#dc2626">PKR '+pending.toLocaleString('en-PK')+' pending</span>'
+      ?'<span class="val" style="color:#dc2626">PKR '+pending.toLocaleString('en-IN')+' pending</span>'
       :'<span class="val" style="color:#16a34a">&#10003; Fully Paid</span>';
     h+='</div>';
   }
   if(u&&u.totalPrice){
     var pct=Math.round(actualPaid(u)/u.totalPrice*100);
     h+='<div style="margin-top:10px;background:#f5f7fa;border-radius:4px;padding:8px 12px;font-size:10px">';
-    h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#555">Total Price</span><span style="font-weight:700">PKR '+Number(u.totalPrice).toLocaleString('en-PK')+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#555">Total Price</span><span style="font-weight:700">PKR '+Number(u.totalPrice).toLocaleString('en-IN')+'</span></div>';
     h+='<div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#16a34a;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div></div>';
     h+='<div style="text-align:right;margin-top:3px;font-size:9px;color:#555">'+pct+'% recovered</div></div>';
   }
@@ -224,6 +240,7 @@ async function _printReceiptSupa(paymentId){
     }
     var amt=Number(p.amount||0);
     var rcptNo=p.payment_code||p.reference_no||('R-'+paymentId.toUpperCase().slice(-6));
+    var H=(window._cobranding||{}).doc_brand_color||'#1E2D47';
     var w=_pw('Receipt '+rcptNo,_pCSS('A5'),'A5');
     if(!w)return;
     var h=_lh('PAYMENT RECEIPT');
@@ -231,10 +248,10 @@ async function _printReceiptSupa(paymentId){
     h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
     h+='<div class="doc-title" style="border:none;margin:0;padding:0">Payment Receipt</div>';
     h+='<div style="text-align:right"><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px">Receipt No</div>';
-    h+='<div style="font-size:16px;font-weight:700;color:#1E2D47;font-family:monospace">'+esc(rcptNo)+'</div></div></div>';
+    h+='<div style="font-size:16px;font-weight:700;color:'+H+';font-family:monospace">'+esc(rcptNo)+'</div></div></div>';
     h+='<div class="amt-box">';
     h+='<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#166534;font-weight:700">Amount Received</div>';
-    h+='<div class="amt-box-v">PKR '+amt.toLocaleString('en-PK')+'</div>';
+    h+='<div class="amt-box-v">PKR '+amt.toLocaleString('en-IN')+'</div>';
     h+='<div class="amt-box-w">'+amtWords(amt)+'</div></div>';
     h+='<div class="row"><span class="lbl">Date</span><span class="val">'+fD(p.payment_date)+'</span></div>';
     if(u){
@@ -282,7 +299,7 @@ async function printSaleAgreement(unitId){
   var db=gdb();
   var prj=u.projectId?(typeof gproject==='function'?gproject(u.projectId):null):null;
   var agNo='AGR-'+unitId.toUpperCase().slice(-6);
-  var today=new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
   var w=_pw('Sale Agreement '+agNo,_pCSS('A4'),'A4');
   if(!w)return;
 
@@ -321,9 +338,9 @@ async function printSaleAgreement(unitId){
   var paid=actualPaid(u),pend=actualPending(u),pct=u.totalPrice?Math.round(paid/u.totalPrice*100):0;
   h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">';
   var fins=[
-    {l:'Total Sale Price',v:'PKR '+Number(u.totalPrice).toLocaleString('en-PK'),c:'#1E2D47'},
-    {l:'Amount Paid',v:'PKR '+paid.toLocaleString('en-PK'),c:'#16a34a'},
-    {l:'Balance Pending',v:'PKR '+pend.toLocaleString('en-PK'),c:pend>0?'#dc2626':'#16a34a'},
+    {l:'Total Sale Price',v:'PKR '+Number(u.totalPrice).toLocaleString('en-IN'),c:'#1E2D47'},
+    {l:'Amount Paid',v:'PKR '+paid.toLocaleString('en-IN'),c:'#16a34a'},
+    {l:'Balance Pending',v:'PKR '+pend.toLocaleString('en-IN'),c:pend>0?'#dc2626':'#16a34a'},
     {l:'Recovery',v:pct+'%',c:pct>=100?'#16a34a':pct>=50?'#854d0e':'#dc2626'}
   ];
   fins.forEach(function(f){
@@ -339,7 +356,7 @@ async function printSaleAgreement(unitId){
     h+='<table class="no-break"><thead><tr><th>#</th><th>Date</th><th>Amount</th><th>Type</th><th>Receipt No</th><th>Notes</th></tr></thead><tbody>';
     recs.forEach(function(r,i){
       h+='<tr><td style="color:#888">'+(i+1)+'</td><td>'+fD(r.date)+'</td>';
-      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-PK')+'</td>';
+      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-IN')+'</td>';
       h+='<td>'+esc(r.ptype||'—')+'</td><td style="font-family:monospace;font-size:9px">'+(r.rcpt||'—')+'</td>';
       h+='<td style="color:#666">'+(r.notes?esc(r.notes):'—')+'</td></tr>';
     });
@@ -395,9 +412,9 @@ async function printClientStatement(clientName){
     {l:'Client Name',v:clientName,c:'#1E2D47'},
     {l:'Phone',v:units[0].phone||'—',c:'#1E2D47'},
     {l:'Total Units',v:units.length,c:'#1E2D47'},
-    {l:'Total Portfolio',v:'PKR '+totPrice.toLocaleString('en-PK'),c:'#1E2D47'},
-    {l:'Amount Paid',v:'PKR '+totPaid.toLocaleString('en-PK'),c:'#16a34a'},
-    {l:'Balance Pending',v:'PKR '+totPend.toLocaleString('en-PK'),c:totPend>0?'#dc2626':'#16a34a'}
+    {l:'Total Portfolio',v:'PKR '+totPrice.toLocaleString('en-IN'),c:'#1E2D47'},
+    {l:'Amount Paid',v:'PKR '+totPaid.toLocaleString('en-IN'),c:'#16a34a'},
+    {l:'Balance Pending',v:'PKR '+totPend.toLocaleString('en-IN'),c:totPend>0?'#dc2626':'#16a34a'}
   ];
   cards.forEach(function(c){
     h+='<div style="border:1px solid #dde;border-radius:4px;padding:10px">';
@@ -415,9 +432,9 @@ async function printClientStatement(clientName){
     h+='<td>'+esc(u.floorLabel||u.floor)+'</td>';
     h+='<td>'+esc(u.type)+'</td>';
     h+='<td>'+esc(u.status)+'</td>';
-    h+='<td>PKR '+Number(u.totalPrice).toLocaleString('en-PK')+'</td>';
-    h+='<td style="color:#16a34a;font-weight:700">PKR '+pd.toLocaleString('en-PK')+'</td>';
-    h+='<td style="color:'+(rm>0?'#dc2626':'#16a34a')+';font-weight:700">PKR '+rm.toLocaleString('en-PK')+'</td>';
+    h+='<td>PKR '+Number(u.totalPrice).toLocaleString('en-IN')+'</td>';
+    h+='<td style="color:#16a34a;font-weight:700">PKR '+pd.toLocaleString('en-IN')+'</td>';
+    h+='<td style="color:'+(rm>0?'#dc2626':'#16a34a')+';font-weight:700">PKR '+rm.toLocaleString('en-IN')+'</td>';
     h+='<td>'+p2+'%</td>';
     h+='<td style="font-size:10px">'+esc(u.soldBy||'—')+'</td></tr>';
   });
@@ -430,7 +447,7 @@ async function printClientStatement(clientName){
       var u=gunit(r.uid);
       h+='<tr><td>'+fD(r.date)+'</td>';
       h+='<td style="font-weight:700">'+esc(u?u.unitNo:'?')+'</td>';
-      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-PK')+'</td>';
+      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-IN')+'</td>';
       h+='<td>'+esc(r.ptype||'—')+'</td>';
       h+='<td style="font-family:monospace;font-size:9px">'+(r.rcpt||'—')+'</td>';
       h+='<td style="color:#666">'+(r.notes?esc(r.notes):'—')+'</td>';
@@ -455,7 +472,7 @@ async function printClientStatement(clientName){
     h+='</tbody></table>';
   }
 
-  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; '+new Date().toLocaleString('en-IN')+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -479,7 +496,7 @@ async function printDemandLetter(unitId){
   var dsp=daysSincePay(u);
   var recs=grecs(unitId).sort(function(a,b){return b.date.localeCompare(a.date);});
   var lastRec=recs[0]||null;
-  var today=new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
   var letterNo='DL-'+unitId.toUpperCase().slice(-6)+'-'+Date.now().toString(36).toUpperCase().slice(-4);
   var w=_pw('Demand Letter '+letterNo,_pCSS('A4'),'A4');
   if(!w)return;
@@ -511,9 +528,9 @@ async function printDemandLetter(unitId){
   h+='<div style="font-size:11px;font-weight:700;color:#c2410c;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">&#9888; Payment Account Summary</div>';
   var od=[
     {l:'Unit No',v:u.unitNo},{l:'Floor / Type',v:(u.floorLabel||u.floor)+' · '+u.type},
-    {l:'Booking No',v:u.bookingNo||'—'},{l:'Total Sale Price',v:'PKR '+Number(u.totalPrice||0).toLocaleString('en-PK')},
-    {l:'Amount Paid to Date',v:'PKR '+paid.toLocaleString('en-PK')},{l:'Outstanding Balance',v:'PKR '+pend.toLocaleString('en-PK')},
-    {l:'Last Payment',v:lastRec?'PKR '+Number(lastRec.amt).toLocaleString('en-PK')+' on '+fD(lastRec.date):'No payment recorded'},
+    {l:'Booking No',v:u.bookingNo||'—'},{l:'Total Sale Price',v:'PKR '+Number(u.totalPrice||0).toLocaleString('en-IN')},
+    {l:'Amount Paid to Date',v:'PKR '+paid.toLocaleString('en-IN')},{l:'Outstanding Balance',v:'PKR '+pend.toLocaleString('en-IN')},
+    {l:'Last Payment',v:lastRec?'PKR '+Number(lastRec.amt).toLocaleString('en-IN')+' on '+fD(lastRec.date):'No payment recorded'},
     {l:'Days Since Last Payment',v:dsp===null?'Never paid':dsp+' days'}
   ];
   h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px 24px;">';
@@ -526,7 +543,7 @@ async function printDemandLetter(unitId){
   h+='</div></div>';
 
   h+='<div style="font-size:11px;line-height:1.85;color:#222;margin:14px 0">';
-  h+='The outstanding amount of <b style="color:#dc2626">PKR '+pend.toLocaleString('en-PK')+' ('+amtWords(pend)+')</b> is hereby formally demanded.<br><br>';
+  h+='The outstanding amount of <b style="color:#dc2626">PKR '+pend.toLocaleString('en-IN')+' ('+amtWords(pend)+')</b> is hereby formally demanded.<br><br>';
   h+='You are requested to clear the above outstanding amount within <b>15 days</b> from the date of this notice. Failure to respond or make payment within the stipulated period may result in:<br>';
   h+='<ul style="margin:6px 0;padding-left:20px;line-height:1.8;color:#333">';
   h+='<li>Formal legal proceedings as per applicable laws of Pakistan</li>';
@@ -589,9 +606,9 @@ async function printUnitReport(unitId){
   h+='<div class="sec-title">Financial Summary</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">';
   var fsum=[
-    {l:'Total Price',v:'PKR '+Number(u.totalPrice||0).toLocaleString('en-PK'),c:'#1E2D47'},
-    {l:'Amount Paid',v:'PKR '+paid.toLocaleString('en-PK'),c:'#16a34a'},
-    {l:'Balance Due',v:'PKR '+pend.toLocaleString('en-PK'),c:pend>0?'#dc2626':'#16a34a'},
+    {l:'Total Price',v:'PKR '+Number(u.totalPrice||0).toLocaleString('en-IN'),c:'#1E2D47'},
+    {l:'Amount Paid',v:'PKR '+paid.toLocaleString('en-IN'),c:'#16a34a'},
+    {l:'Balance Due',v:'PKR '+pend.toLocaleString('en-IN'),c:pend>0?'#dc2626':'#16a34a'},
     {l:'Recovery %',v:pct+'%',c:pct>=100?'#16a34a':pct>=50?'#854d0e':'#dc2626'}
   ];
   fsum.forEach(function(f){
@@ -612,7 +629,7 @@ async function printUnitReport(unitId){
       runBal-=Number(r.amt||0);
       h+='<tr><td style="color:#888">'+(i+1)+'</td>';
       h+='<td>'+fD(r.date)+'</td>';
-      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-PK')+'</td>';
+      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-IN')+'</td>';
       h+='<td>'+esc(r.ptype||'—')+'</td>';
       h+='<td style="font-family:monospace;font-size:9px">'+(r.rcpt||'—')+'</td>';
       h+='<td style="color:#666">'+(r.notes?esc(r.notes):'—')+'</td>';
@@ -643,7 +660,7 @@ async function printUnitReport(unitId){
     h+='<div style="background:#f5f7fa;border:1px solid #dde;border-radius:4px;padding:10px 14px;font-size:11px;color:#333;line-height:1.7">'+esc(u.remarks)+'</div>';
   }
 
-  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; Nexunova RMS &mdash; '+new Date().toLocaleString('en-PK')+'</div>';
+  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; Nexunova RMS &mdash; '+new Date().toLocaleString('en-IN')+'</div>';
   h+='</div>';
 
   w.document.write(h);
@@ -662,8 +679,8 @@ function printUD(unitId){
   var recovPct=u.totalPrice?Math.min(100,Math.round(paid/u.totalPrice*100)):0;
   var isSold=u.status!=='Available'&&u.status!=='Dead';
   var coName=(window._cobranding||{}).company_name||S?.coName||'Nexunova';
-  var printDate=new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'});
-  var printTime=new Date().toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'});
+  var printDate=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  var printTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
 
   var css=
     'body{font-family:Arial,sans-serif;font-size:11px;color:#111;margin:0;padding:0}'+
@@ -776,9 +793,9 @@ function printUD(unitId){
     var progColor=recovPct>=100?'#16a34a':recovPct>=60?'#22c55e':recovPct>=30?'#f59e0b':'#ef4444';
     h+='<div class="sec"><div class="sh">Financial Summary</div>';
     h+='<div class="fin">';
-    h+='<div class="fc"><div class="fc-l">Total Sale Price</div><div class="fc-v" style="color:#1E2D47">PKR '+Number(u.totalPrice).toLocaleString('en-PK')+'</div></div>';
-    h+='<div class="fc"><div class="fc-l">Amount Paid</div><div class="fc-v" style="color:#16a34a">PKR '+paid.toLocaleString('en-PK')+'</div></div>';
-    h+='<div class="fc"><div class="fc-l">Balance Pending</div><div class="fc-v" style="color:'+(pend>0?'#dc2626':'#16a34a')+'">PKR '+pend.toLocaleString('en-PK')+'</div></div>';
+    h+='<div class="fc"><div class="fc-l">Total Sale Price</div><div class="fc-v" style="color:#1E2D47">PKR '+Number(u.totalPrice).toLocaleString('en-IN')+'</div></div>';
+    h+='<div class="fc"><div class="fc-l">Amount Paid</div><div class="fc-v" style="color:#16a34a">PKR '+paid.toLocaleString('en-IN')+'</div></div>';
+    h+='<div class="fc"><div class="fc-l">Balance Pending</div><div class="fc-v" style="color:'+(pend>0?'#dc2626':'#16a34a')+'">PKR '+pend.toLocaleString('en-IN')+'</div></div>';
     h+='</div>';
     h+='<div style="display:flex;justify-content:space-between;font-size:9px;color:#555;margin-bottom:2px"><span>Recovery Progress</span><span style="font-weight:700;color:'+progColor+'">'+recovPct+'%</span></div>';
     h+='<div class="prog-bg"><div class="prog-fill" style="width:'+recovPct+'%;background:'+progColor+'"></div></div>';
@@ -799,15 +816,15 @@ function printUD(unitId){
       h+='<td><span class="chip-p">'+esc(r.ptype||'—')+'</span></td>';
       h+='<td>'+(r.rcpt?'<span class="chip-r">'+esc(r.rcpt)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
       h+='<td style="color:#666;font-size:10px;max-width:130px">'+(r.notes?esc(r.notes):'—')+'</td>';
-      h+='<td class="r" style="font-weight:700;color:#15803d">'+Number(r.amt).toLocaleString('en-PK')+'</td>';
-      h+='<td class="r" style="color:'+(Math.max(0,runBal)>0?'#dc2626':'#16a34a')+'">'+Math.max(0,runBal).toLocaleString('en-PK')+'</td>';
+      h+='<td class="r" style="font-weight:700;color:#15803d">'+Number(r.amt).toLocaleString('en-IN')+'</td>';
+      h+='<td class="r" style="color:'+(Math.max(0,runBal)>0?'#dc2626':'#16a34a')+'">'+Math.max(0,runBal).toLocaleString('en-IN')+'</td>';
       h+='</tr>';
     });
     h+='</tbody>';
     h+='<tfoot><tr class="tfoot-r">';
     h+='<td colspan="5" style="font-size:9px;color:#555;font-style:italic">Total Paid: '+amtWords(paid)+'</td>';
-    h+='<td class="r" style="color:#16a34a">'+paid.toLocaleString('en-PK')+'</td>';
-    h+='<td class="r" style="color:'+(pend>0?'#dc2626':'#16a34a')+'">'+pend.toLocaleString('en-PK')+'</td>';
+    h+='<td class="r" style="color:#16a34a">'+paid.toLocaleString('en-IN')+'</td>';
+    h+='<td class="r" style="color:'+(pend>0?'#dc2626':'#16a34a')+'">'+pend.toLocaleString('en-IN')+'</td>';
     h+='</tr></tfoot></table></div>';
   }else if(isSold){
     h+='<div class="sec"><div class="sh">Payment History</div>';
@@ -872,6 +889,7 @@ function printPaymentReceiptSupa(opts) {
   var paid   = Number(opts.newAmtPaid    || 0);
   var out    = Number(opts.newOutstanding|| 0);
   var coName = (window._cobranding||{}).company_name || S?.coName || 'Nexunova';
+  var H = (window._cobranding||{}).doc_brand_color || '#1E2D47';
   var methodLabel = {
     cash:'Cash', cheque:'Cheque', bank_transfer:'Bank Transfer',
     online:'Online / Mobile', other:'Other'
@@ -884,7 +902,7 @@ function printPaymentReceiptSupa(opts) {
     '.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;}',
     '.cell{display:flex;flex-direction:column;padding:4px 0;border-bottom:1px solid #f0f0f0;}',
     '.cell .lbl{font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:#888;font-weight:600;}',
-    '.cell .val{font-size:10px;color:#1E2D47;font-weight:500;}',
+    '.cell .val{font-size:10px;color:#1f2937;font-weight:500;}',
     '.bal-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-radius:4px;font-size:10px;margin-top:6px;}',
     '.sig-row{margin-top:8px;}',
     '.sig-box{padding-top:4px;}',
@@ -893,14 +911,14 @@ function printPaymentReceiptSupa(opts) {
   var w = _pw('Receipt ' + (opts.paymentCode || ''), _pCSS('A5') + extraCSS, 'A5');
   if (!w) return;
 
-  var h = _lh('PAYMENT RECEIPT');
+  var h = _lh('PAYMENT RECEIPT', opts.projectName);
   h += '<div class="body">';
 
   // Header
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
   h += '<div class="doc-title" style="border:none;margin:0;padding:0;font-size:13px">Payment Receipt</div>';
   h += '<div style="text-align:right"><div style="font-size:8px;color:#888;text-transform:uppercase;letter-spacing:.5px">Receipt No</div>';
-  h += '<div style="font-size:13px;font-weight:700;color:#1E2D47;font-family:monospace">' + esc(opts.paymentCode || '—') + '</div></div>';
+  h += '<div style="font-size:13px;font-weight:700;color:' + H + ';font-family:monospace">' + esc(opts.paymentCode || '—') + '</div></div>';
   h += '</div>';
 
   // Receiving-against strip
@@ -910,7 +928,7 @@ function printPaymentReceiptSupa(opts) {
   // Amount box
   h += '<div class="amt-box">';
   h += '<div style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#166534;font-weight:700">Amount Received</div>';
-  h += '<div class="amt-box-v">PKR ' + amt.toLocaleString('en-PK') + '</div>';
+  h += '<div class="amt-box-v">PKR ' + amt.toLocaleString('en-IN') + '</div>';
   h += '<div class="amt-box-w">' + amtWords(amt) + '</div>';
   h += '</div>';
 
@@ -939,11 +957,11 @@ function printPaymentReceiptSupa(opts) {
   // Balance summary
   h += '<div class="bal-row" style="background:#f0fdf4">';
   h += '<span style="color:#555">Total Paid So Far</span>';
-  h += '<span style="font-weight:700;color:#16a34a">PKR ' + paid.toLocaleString('en-PK') + '</span></div>';
+  h += '<span style="font-weight:700;color:#16a34a">PKR ' + paid.toLocaleString('en-IN') + '</span></div>';
   h += '<div class="bal-row" style="background:#fef2f2;margin-top:3px">';
   h += '<span style="color:#555">Outstanding Balance</span>';
   h += out > 0
-    ? '<span style="font-weight:700;color:#dc2626">PKR ' + out.toLocaleString('en-PK') + '</span>'
+    ? '<span style="font-weight:700;color:#dc2626">PKR ' + out.toLocaleString('en-IN') + '</span>'
     : '<span style="font-weight:700;color:#16a34a">&#10003; Fully Paid</span>';
   h += '</div>';
 
@@ -970,7 +988,7 @@ function printPaymentVoucher(opts) {
   var out      = Number(opts.newOutstanding|| 0);
   var coName   = S ? S.coName || 'Nexunova' : 'Nexunova';
   var voucherNo= opts.paymentCode || ('PV-' + Date.now().toString(36).toUpperCase().slice(-6));
-  var today    = new Date().toLocaleDateString('en-PK', {day:'2-digit', month:'long', year:'numeric'});
+  var today    = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
   var methodLabel = {
     cash:'Cash', cheque:'Cheque / PDC', bank_transfer:'Bank Transfer',
     online:'Online / Mobile Banking', other:'Other'
@@ -1022,37 +1040,37 @@ function printPaymentVoucher(opts) {
   // Debit: Cash / Bank (whatever comes in)
   h += '<tr>';
   h += '<td><b>' + esc(methodLabel) + ' A/C</b><br><span style="font-size:9px;color:#888">Being payment received from ' + esc(opts.clientName||'Client') + '</span></td>';
-  h += '<td style="text-align:right;font-weight:700;color:#16a34a">' + baseAmt.toLocaleString('en-PK') + '</td>';
+  h += '<td style="text-align:right;font-weight:700;color:#16a34a">' + baseAmt.toLocaleString('en-IN') + '</td>';
   h += '<td style="text-align:right;color:#ccc">—</td></tr>';
   // Penalty row (if any)
   if (penalty > 0) {
     h += '<tr>';
     h += '<td><b>Late Payment Penalty A/C</b><br><span style="font-size:9px;color:#888">Surcharge / penalty applied</span></td>';
-    h += '<td style="text-align:right;font-weight:700;color:#16a34a">' + penalty.toLocaleString('en-PK') + '</td>';
+    h += '<td style="text-align:right;font-weight:700;color:#16a34a">' + penalty.toLocaleString('en-IN') + '</td>';
     h += '<td style="text-align:right;color:#ccc">—</td></tr>';
   }
   // Credit: Customer Receivable
   h += '<tr>';
   h += '<td><b>Customer Receivable A/C</b><br><span style="font-size:9px;color:#888">Unit: ' + esc(opts.unitNo||'—') + ' — ' + esc(opts.clientName||'—') + '</span></td>';
   h += '<td style="text-align:right;color:#ccc">—</td>';
-  h += '<td style="text-align:right;font-weight:700;color:#dc2626">' + grossAmt.toLocaleString('en-PK') + '</td></tr>';
+  h += '<td style="text-align:right;font-weight:700;color:#dc2626">' + grossAmt.toLocaleString('en-IN') + '</td></tr>';
   // Tax deduction row (if any)
   if (taxAmt > 0) {
     h += '<tr>';
     h += '<td><b>' + esc(taxType) + ' Payable A/C</b><br><span style="font-size:9px;color:#888">Tax deducted at source</span></td>';
-    h += '<td style="text-align:right;font-weight:700;color:#16a34a">' + taxAmt.toLocaleString('en-PK') + '</td>';
+    h += '<td style="text-align:right;font-weight:700;color:#16a34a">' + taxAmt.toLocaleString('en-IN') + '</td>';
     h += '<td style="text-align:right;color:#ccc">—</td></tr>';
   }
   // Total row
   h += '<tr style="background:#1E2D47;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact">';
   h += '<td style="color:#fff;font-weight:700">TOTAL</td>';
-  h += '<td style="text-align:right;color:#86efac;font-weight:700">' + grossAmt.toLocaleString('en-PK') + '</td>';
-  h += '<td style="text-align:right;color:#86efac;font-weight:700">' + grossAmt.toLocaleString('en-PK') + '</td></tr>';
+  h += '<td style="text-align:right;color:#86efac;font-weight:700">' + grossAmt.toLocaleString('en-IN') + '</td>';
+  h += '<td style="text-align:right;color:#86efac;font-weight:700">' + grossAmt.toLocaleString('en-IN') + '</td></tr>';
   h += '</tbody></table>';
 
   // Amount in words
   h += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px;color:#166534">';
-  h += '<b>Net Amount:</b> PKR ' + netAmt.toLocaleString('en-PK') + '<br>';
+  h += '<b>Net Amount:</b> PKR ' + netAmt.toLocaleString('en-IN') + '<br>';
   h += '<i>' + amtWords(netAmt) + '</i>';
   h += '</div>';
 
@@ -1060,10 +1078,10 @@ function printPaymentVoucher(opts) {
   h += '<div class="row"><span class="lbl">Method</span><span class="val">' + esc(methodLabel) + '</span></div>';
   if (opts.referenceNo) h += '<div class="row"><span class="lbl">Ref / Cheque No</span><span class="val" style="font-family:monospace">' + esc(opts.referenceNo) + '</span></div>';
   if (opts.bankName)    h += '<div class="row"><span class="lbl">Bank</span><span class="val">' + esc(opts.bankName) + '</span></div>';
-  h += '<div class="row"><span class="lbl">Total Paid (Cumulative)</span><span class="val" style="color:#16a34a">PKR ' + paid.toLocaleString('en-PK') + '</span></div>';
+  h += '<div class="row"><span class="lbl">Total Paid (Cumulative)</span><span class="val" style="color:#16a34a">PKR ' + paid.toLocaleString('en-IN') + '</span></div>';
   h += '<div class="row"><span class="lbl">Outstanding After</span>';
   h += out > 0
-    ? '<span class="val" style="color:#dc2626">PKR ' + out.toLocaleString('en-PK') + '</span>'
+    ? '<span class="val" style="color:#dc2626">PKR ' + out.toLocaleString('en-IN') + '</span>'
     : '<span class="val" style="color:#16a34a">&#10003; Fully Paid</span>';
   h += '</div>';
   if (opts.notes) {
@@ -1084,7 +1102,7 @@ function printPaymentVoucher(opts) {
   });
   h += '</div>';
 
-  h += '<div class="footer-bar">INTERNAL USE ONLY &mdash; ' + esc(coName) + ' &mdash; ' + new Date().toLocaleString('en-PK') + '</div>';
+  h += '<div class="footer-bar">INTERNAL USE ONLY &mdash; ' + esc(coName) + ' &mdash; ' + new Date().toLocaleString('en-IN') + '</div>';
   h += '</div>';
 
   w.document.write(h);
@@ -1113,7 +1131,7 @@ function printPaymentStatement(data) {
 
   var statusLabel = {pending:'Pending',partial:'Partial',paid:'Paid',overdue:'Overdue'};
   var statusColor = {pending:'#854d0e',partial:'#1e40af',paid:'#15803d',overdue:'#b91c1c'};
-  var today = new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'});
+  var today = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
 
   var w = _pw('Payment Statement ' + esc(s.sale_number||''), _pCSS('A4'), 'A4');
   if (!w) return;
@@ -1131,9 +1149,9 @@ function printPaymentStatement(data) {
   var infoItems = [
     {l:'Client',   v:s.client_name||'—'}, {l:'Sales Agent', v:s.agent_name||'None'},
     {l:'Unit No',  v:s.unit_no||'—'},     {l:'Floor',        v:s.floor_label||'—'},
-    {l:'Type',     v:s.unit_type||'—'},   {l:'Area',         v:s.area_sqft?Number(s.area_sqft).toLocaleString('en-PK')+' sqft':'—'},
-    {l:'Sale Date',v:fD(s.sale_date)},    {l:'Price / Sqft', v:'PKR '+Number(s.price_per_sqft||0).toLocaleString('en-PK')},
-    {l:'Net Amount',v:'PKR '+netAmt.toLocaleString('en-PK')}
+    {l:'Type',     v:s.unit_type||'—'},   {l:'Area',         v:s.area_sqft?Number(s.area_sqft).toLocaleString('en-IN')+' sqft':'—'},
+    {l:'Sale Date',v:fD(s.sale_date)},    {l:'Price / Sqft', v:'PKR '+Number(s.price_per_sqft||0).toLocaleString('en-IN')},
+    {l:'Net Amount',v:'PKR '+netAmt.toLocaleString('en-IN')}
   ];
   h += '<div class="info-grid">';
   infoItems.forEach(function(x){
@@ -1143,9 +1161,9 @@ function printPaymentStatement(data) {
 
   // Summary strip
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">';
-  h += '<div style="border:1px solid #dde;border-left:4px solid #1E2D47;border-radius:4px;padding:10px;text-align:center"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">Total Sale</div><div style="font-size:14px;font-weight:700;color:#1E2D47">PKR ' + netAmt.toLocaleString('en-PK') + '</div></div>';
-  h += '<div style="border:1px solid #dde;border-left:4px solid #16a34a;border-radius:4px;padding:10px;text-align:center"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">Total Paid</div><div style="font-size:14px;font-weight:700;color:#16a34a">PKR ' + totPaid.toLocaleString('en-PK') + '</div></div>';
-  h += '<div style="border:1px solid #dde;border-left:4px solid '+(totOut>0?'#dc2626':'#16a34a')+';border-radius:4px;padding:10px;text-align:center"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">Outstanding</div><div style="font-size:14px;font-weight:700;color:'+(totOut>0?'#dc2626':'#16a34a')+'">PKR ' + totOut.toLocaleString('en-PK') + '</div></div>';
+  h += '<div style="border:1px solid #dde;border-left:4px solid #1E2D47;border-radius:4px;padding:10px;text-align:center"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">Total Sale</div><div style="font-size:14px;font-weight:700;color:#1E2D47">PKR ' + netAmt.toLocaleString('en-IN') + '</div></div>';
+  h += '<div style="border:1px solid #dde;border-left:4px solid #16a34a;border-radius:4px;padding:10px;text-align:center"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">Total Paid</div><div style="font-size:14px;font-weight:700;color:#16a34a">PKR ' + totPaid.toLocaleString('en-IN') + '</div></div>';
+  h += '<div style="border:1px solid #dde;border-left:4px solid '+(totOut>0?'#dc2626':'#16a34a')+';border-radius:4px;padding:10px;text-align:center"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">Outstanding</div><div style="font-size:14px;font-weight:700;color:'+(totOut>0?'#dc2626':'#16a34a')+'">PKR ' + totOut.toLocaleString('en-IN') + '</div></div>';
   h += '</div>';
 
   // Recovery bar
@@ -1166,9 +1184,9 @@ function printPaymentStatement(data) {
   h += '<tr style="background:#fffbeb"><td style="font-weight:700;color:#C9A84C">DP</td>';
   h += '<td><span class="badge badge-warn">Down Pmt</span></td>';
   h += '<td>BOOKING / Down Payment</td><td>—</td>';
-  h += '<td class="r" style="font-weight:600">'+dpDue.toLocaleString('en-PK')+'</td>';
-  h += '<td class="r" style="color:#16a34a;font-weight:600">'+(dpPaid>0?dpPaid.toLocaleString('en-PK'):'—')+'</td>';
-  h += '<td class="r" style="color:'+(dpOut>0?'#dc2626':'#6b7280')+';font-weight:600">'+(dpOut>0?dpOut.toLocaleString('en-PK'):'—')+'</td>';
+  h += '<td class="r" style="font-weight:600">'+dpDue.toLocaleString('en-IN')+'</td>';
+  h += '<td class="r" style="color:#16a34a;font-weight:600">'+(dpPaid>0?dpPaid.toLocaleString('en-IN'):'—')+'</td>';
+  h += '<td class="r" style="color:'+(dpOut>0?'#dc2626':'#6b7280')+';font-weight:600">'+(dpOut>0?dpOut.toLocaleString('en-IN'):'—')+'</td>';
   h += '<td><span class="badge badge-'+(dpStat==='paid'?'ok':dpStat==='overdue'?'err':'warn')+'">'+(statusLabel[dpStat]||dpStat)+'</span></td></tr>';
 
   // Installment rows
@@ -1185,17 +1203,17 @@ function printPaymentStatement(data) {
     h += '<td><span class="badge badge-info" style="font-size:8px">Inst</span></td>';
     h += '<td style="font-size:10px;color:#555">'+esc(r.notes||_ordinal(r.installment_number)+' Installment')+'</td>';
     h += '<td style="font-size:10px">'+(r.due_date?fD(r.due_date):'—')+'</td>';
-    h += '<td class="r" style="font-weight:600">'+rDue.toLocaleString('en-PK')+'</td>';
-    h += '<td class="r" style="color:#16a34a;font-weight:600">'+(rPaid>0?rPaid.toLocaleString('en-PK'):'—')+'</td>';
-    h += '<td class="r" style="color:'+(rOut>0?'#dc2626':'#6b7280')+';font-weight:600">'+(rOut>0?rOut.toLocaleString('en-PK'):'—')+'</td>';
+    h += '<td class="r" style="font-weight:600">'+rDue.toLocaleString('en-IN')+'</td>';
+    h += '<td class="r" style="color:#16a34a;font-weight:600">'+(rPaid>0?rPaid.toLocaleString('en-IN'):'—')+'</td>';
+    h += '<td class="r" style="color:'+(rOut>0?'#dc2626':'#6b7280')+';font-weight:600">'+(rOut>0?rOut.toLocaleString('en-IN'):'—')+'</td>';
     h += '<td><span class="badge badge-'+(rStat==='paid'?'ok':rStat==='overdue'?'err':'warn')+'">'+(statusLabel[rStat]||rStat)+'</span></td></tr>';
   });
   // Totals row
   h += '<tr style="background:#1E2D47;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">';
   h += '<td colspan="4" style="color:#fff">TOTAL</td>';
-  h += '<td class="r" style="color:#fff">'+totalDueCol.toLocaleString('en-PK')+'</td>';
-  h += '<td class="r" style="color:#86efac">'+totalPaidCol.toLocaleString('en-PK')+'</td>';
-  h += '<td class="r" style="color:'+(totalOutCol>0?'#fca5a5':'#86efac')+'">'+totalOutCol.toLocaleString('en-PK')+'</td>';
+  h += '<td class="r" style="color:#fff">'+totalDueCol.toLocaleString('en-IN')+'</td>';
+  h += '<td class="r" style="color:#86efac">'+totalPaidCol.toLocaleString('en-IN')+'</td>';
+  h += '<td class="r" style="color:'+(totalOutCol>0?'#fca5a5':'#86efac')+'">'+totalOutCol.toLocaleString('en-IN')+'</td>';
   h += '<td></td></tr>';
   h += '</tbody></table>';
 

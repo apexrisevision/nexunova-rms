@@ -110,6 +110,7 @@ async function rSales() {
     <h1 class="inv-title">Sales <span id="sal-count" style="font-size:14px;font-weight:400;color:var(--text-soft);margin-left:4px"></span></h1>
     <div class="inv-ph-actions">
       <button class="btn btn-gh btn-sm" onclick="printSalesList()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>
+      <button class="btn btn-gh btn-sm" onclick="exportSalesExcel()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg> Export Excel</button>
       ${isA ? `<button class="btn btn-g btn-sm" onclick="nav('newsale')" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Sale</button>` : ''}
     </div>
   </div>
@@ -503,7 +504,8 @@ async function rNewSale() {
           </div>
           <div class="fr">
             <label class="fl">Co-buyer CNIC</label>
-            <input id="sf-cobuyer-cnic" class="inp-light" type="text" placeholder="42101-1234567-1" maxlength="15">
+            <input id="sf-cobuyer-cnic" class="inp-light" type="text" inputmode="numeric" placeholder="42101-1234567-1" maxlength="15" oninput="maskCNIC(this);_salClearErr('sf-cobuyer-cnic')">
+            <div id="e-sf-cobuyer-cnic" class="ferr"></div>
           </div>
         </div>
         <div class="fr" style="max-width:260px">
@@ -525,7 +527,8 @@ async function rNewSale() {
           </div>
           <div class="fr">
             <label class="fl">Nominee CNIC</label>
-            <input id="sf-nominee-cnic" class="inp-light" type="text" placeholder="42101-1234567-1" maxlength="15">
+            <input id="sf-nominee-cnic" class="inp-light" type="text" inputmode="numeric" placeholder="42101-1234567-1" maxlength="15" oninput="maskCNIC(this);_salClearErr('sf-nominee-cnic')">
+            <div id="e-sf-nominee-cnic" class="ferr"></div>
           </div>
         </div>
         <div class="fr" style="max-width:260px">
@@ -683,7 +686,7 @@ function _salCalc() {
   const net       = total - discount;
   const remaining = net - down;
 
-  const fmt = n => n > 0 ? 'PKR ' + n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n === 0 ? 'PKR 0' : '—';
+  const fmt = n => n > 0 ? 'PKR ' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : n === 0 ? 'PKR 0' : '—';
 
   const tEl = document.getElementById('sf-total');
   const nEl = document.getElementById('sf-net');
@@ -719,7 +722,7 @@ function _salCalcComm() {
   const amt    = document.getElementById('sf-comm-amt');
   if (amt) {
     amt.textContent = pct > 0 && net > 0
-      ? `Est. commission: PKR ${Math.round(net * pct / 100).toLocaleString('en-PK')}`
+      ? `Est. commission: PKR ${Math.round(net * pct / 100).toLocaleString('en-IN')}`
       : '';
   }
 }
@@ -1054,12 +1057,12 @@ function _salRenderGrid() {
       </td>
       <td style="width:130px">
         <input type="text" inputmode="numeric" class="inp-light inp-amt" style="width:100%;font-size:12px;padding:5px 8px;text-align:right"
-          value="${row.amount_due > 0 ? Number(row.amount_due).toLocaleString('en-PK',{maximumFractionDigits:0}) : ''}"
+          value="${row.amount_due > 0 ? Number(row.amount_due).toLocaleString('en-IN',{maximumFractionDigits:0}) : ''}"
           oninput="_salRowChange(${i},'amount_due',parseAmt(this.value));_salUpdateBalance();_salRenderCumulative()"
           onkeydown="_salGridEnter(event,${i},'amount')">
       </td>
       <td id="sal-cum-${i}" style="text-align:right;font-size:12px;font-weight:700;color:var(--info);padding-right:8px;width:115px">
-        ${running > 0 ? 'PKR ' + running.toLocaleString('en-PK', { maximumFractionDigits: 0 }) : '—'}
+        ${running > 0 ? 'PKR ' + running.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
       </td>
       <td style="width:32px;text-align:center">
         <button class="btn btn-r btn-xs" onclick="_salDelRow(${i})" title="Remove">×</button>
@@ -1091,7 +1094,7 @@ function _salRenderCumulative() {
     running += parseFloat(row.amount_due) || 0;
     const cell = document.getElementById(`sal-cum-${i}`);
     if (cell) cell.textContent = running > 0
-      ? 'PKR ' + running.toLocaleString('en-PK', { maximumFractionDigits: 0 })
+      ? 'PKR ' + running.toLocaleString('en-IN', { maximumFractionDigits: 0 })
       : '—';
   });
 }
@@ -1192,11 +1195,10 @@ function _salPrintScheduleFromDetail() {
 }
 
 function _salPrintSchedule(info, rows) {
-  const coName  = S?.coName || 'Company';
-  const fmtPKR  = n => 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmtPKR  = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
   const fmtDate = s => {
     if (!s) return '—';
-    return new Date(s + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+    return new Date(s + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const bkTotal = rows.filter(r => r.installment_type === 'down_payment' || r.installment_number === 0).length;
@@ -1210,150 +1212,60 @@ function _salPrintSchedule(info, rows) {
       : _ordinal(instNum) + ' Installment';
     const label   = r.notes || defaultLbl;
     const numDisp = isBooking ? (bkTotal === 1 ? 'Bk' : 'Bk' + bkNum) : instNum;
-    const rowCls  = isBooking ? 'bk-tr' : (instNum % 2 === 0 ? 'even-tr' : '');
-    return `<tr class="${rowCls}">
-      <td class="tc">${numDisp}</td>
-      <td class="tl${isBooking ? ' bk-lbl' : ''}">${label}</td>
-      <td class="tc">${fmtDate(r.due_date)}</td>
-      <td class="tr amt">${fmtPKR(r.amount_due)}</td>
-      <td class="tr cum">${fmtPKR(runTotal)}</td>
+    return `<tr${isBooking ? ' style="background:#fffbeb"' : ''}>
+      <td style="text-align:center">${numDisp}</td>
+      <td${isBooking ? ' style="font-weight:700;color:#92400e"' : ''}>${esc(label)}</td>
+      <td style="text-align:center">${fmtDate(r.due_date)}</td>
+      <td style="text-align:right;font-weight:600">${fmtPKR(r.amount_due)}</td>
+      <td style="text-align:right;font-weight:700">${fmtPKR(runTotal)}</td>
     </tr>`;
   }).join('');
 
   const installmentCount = rows.filter(r => r.installment_type !== 'down_payment' && r.installment_number !== 0).length;
-  const printDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Payment Schedule — ${info.saleNumber || ''}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:24px 30px}
+  const w = _pw('Payment Schedule — ' + (info.saleNumber || ''), _pCSS('A4'));
+  if (!w) return;
 
-  .top-bar{background:#1a3a5c;color:#fff;padding:6px 16px;margin:-24px -30px 20px;text-align:right;font-size:10px;letter-spacing:.4px}
+  let h = _lh('Installment Schedule', info.projectName);
+  h += '<div class="body">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">'
+     + '<div class="doc-title" style="border:none;margin:0;padding:0">Installment Payment Schedule</div>'
+     + '<div style="text-align:right"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">Sale No</div>'
+     + '<div style="font-size:14px;font-weight:700;font-family:monospace">' + esc(info.saleNumber || 'DRAFT') + '</div></div></div>';
 
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #1a3a5c}
-  .co-name{font-size:22px;font-weight:800;color:#1a3a5c;letter-spacing:.3px}
-  .doc-title{font-size:11px;color:#888;margin-top:4px;letter-spacing:2px;text-transform:uppercase}
-  .sale-badge{background:#1a3a5c;color:#fff;padding:6px 14px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:1px}
+  h += '<div class="info-grid info-grid-2">'
+     + '<div class="ig-item"><span class="ig-lbl">Client</span><span class="ig-val">' + esc(info.clientName || '—') + '</span></div>'
+     + '<div class="ig-item"><span class="ig-lbl">Unit</span><span class="ig-val">' + esc(info.unitNo || '—') + (info.projectName ? ' — ' + esc(info.projectName) : '') + '</span></div>'
+     + '<div class="ig-item"><span class="ig-lbl">Sale Date</span><span class="ig-val">' + fmtDate(info.saleDate) + '</span></div>'
+     + '<div class="ig-item"><span class="ig-lbl">Price / Sq Ft</span><span class="ig-val">' + fmtPKR(info.pricePerSqft) + '</span></div>'
+     + '<div class="ig-item"><span class="ig-lbl">Area</span><span class="ig-val">' + (info.areaSqft ? Number(info.areaSqft).toLocaleString('en-IN') + ' sq ft' : '—') + '</span></div>'
+     + '<div class="ig-item"><span class="ig-lbl">Net Amount</span><span class="ig-val">' + fmtPKR(info.netAmount) + '</span></div>'
+     + '</div>';
 
-  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #d0d7de;border-radius:6px;overflow:hidden;margin-bottom:18px}
-  .info-col{padding:12px 16px}
-  .info-col:first-child{background:#f6f8fa;border-right:1px solid #d0d7de}
-  .info-row{display:flex;gap:0;margin-bottom:5px;font-size:11.5px;align-items:baseline}
-  .info-row:last-child{margin-bottom:0}
-  .info-lbl{font-weight:700;color:#57606a;min-width:100px;flex-shrink:0}
-  .info-val{color:#1a1a2e}
+  h += '<div class="sec-title">Payment Schedule (' + installmentCount + ' installments)</div>';
+  h += '<table><thead><tr>'
+     + '<th style="width:44px;text-align:center">#</th><th>Installment</th>'
+     + '<th style="width:90px;text-align:center">Due Date</th>'
+     + '<th style="width:120px;text-align:right">Amount</th>'
+     + '<th style="width:120px;text-align:right">Cumulative</th>'
+     + '</tr></thead><tbody>' + rowsHtml + '</tbody>'
+     + '<tfoot><tr><td colspan="3" style="font-weight:700">TOTAL</td>'
+     + '<td style="text-align:right;font-weight:700">' + fmtPKR(info.netAmount) + '</td>'
+     + '<td style="text-align:right;font-weight:700">' + fmtPKR(runTotal) + '</td></tr></tfoot></table>';
 
-  .sec-title{font-size:11px;font-weight:700;color:#57606a;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+  h += '<div style="display:flex;justify-content:flex-end;margin-top:10px"><div style="min-width:300px">'
+     + '<div class="row"><span class="lbl">Total Amount</span><span class="val">' + fmtPKR(info.totalAmount) + '</span></div>'
+     + (Number(info.discount) > 0 ? '<div class="row"><span class="lbl">Discount</span><span class="val" style="color:#dc2626">− ' + fmtPKR(info.discount) + '</span></div>' : '')
+     + '<div class="row"><span class="lbl">Down Payment (Booking)</span><span class="val">' + fmtPKR(info.downPayment) + '</span></div>'
+     + '<div class="row"><span class="lbl">Balance After Booking</span><span class="val">' + fmtPKR(Number(info.netAmount) - Number(info.downPayment)) + '</span></div>'
+     + '<div class="row"><span class="lbl" style="font-weight:700">NET AMOUNT</span><span class="val">' + fmtPKR(info.netAmount) + '</span></div>'
+     + '</div></div>';
 
-  table{width:100%;border-collapse:collapse;border:1px solid #d0d7de;border-radius:6px;overflow:hidden}
-  thead tr{background:#1a3a5c}
-  th{padding:9px 10px;font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px}
-  td{padding:7px 10px;font-size:11.5px;border-bottom:1px solid #edf2f7}
-  tr:last-child td{border-bottom:none}
-  tr.bk-tr td{background:#fffbeb;border-bottom:2px solid #e8b84b}
-  tr.even-tr td{background:#f9fafb}
-  .bk-lbl{font-weight:700;color:#92400e}
-  .tc{text-align:center}
-  .tl{text-align:left}
-  .tr{text-align:right}
-  .amt{font-weight:600}
-  .cum{font-weight:700;color:#1a3a5c}
+  h += '<div class="no-break">' + _sigBlock({ label: 'Client Signature', value: info.clientName || '' }) + '</div>';
+  h += '</div>';
 
-  tfoot tr td{background:#1a3a5c;color:#fff;font-weight:700;font-size:12px;padding:9px 10px;border-bottom:none}
-
-  .summary{display:flex;justify-content:flex-end;margin-top:16px}
-  .sbox{border:1px solid #d0d7de;border-radius:6px;overflow:hidden;min-width:280px}
-  .sr{display:flex;justify-content:space-between;padding:7px 14px;font-size:11.5px;border-bottom:1px solid #edf2f7}
-  .sr:last-child{border-bottom:none;background:#1a3a5c;color:#fff;font-weight:700;font-size:12px}
-  .sr-lbl{color:inherit}
-  .sr-val{font-weight:600;color:inherit}
-
-  .footer{margin-top:30px;padding-top:14px;border-top:1px solid #d0d7de;display:flex;justify-content:space-between;align-items:flex-end}
-  .sign-block{text-align:center}
-  .sign-line{border-top:1px solid #aaa;width:180px;padding-top:6px;font-size:10px;color:#888;margin-top:30px}
-  .print-info{font-size:10px;color:#aaa;line-height:1.6}
-
-  @media print{body{padding:14px 18px}.top-bar{margin:-14px -18px 16px}@page{margin:12mm 10mm;size:A4 portrait}}
-</style>
-</head>
-<body>
-
-  <div class="top-bar">Payment Schedule &nbsp;|&nbsp; ${coName} &nbsp;|&nbsp; Printed: ${printDate}</div>
-
-  <div class="header">
-    <div>
-      <div class="co-name">${esc(coName)}</div>
-      <div class="doc-title">Installment Payment Schedule</div>
-    </div>
-    <div class="sale-badge">${info.saleNumber || 'DRAFT'}</div>
-  </div>
-
-  <div class="info-grid">
-    <div class="info-col">
-      <div class="info-row"><span class="info-lbl">Client:</span><span class="info-val">${esc(info.clientName || '—')}</span></div>
-      <div class="info-row"><span class="info-lbl">Unit:</span><span class="info-val">${esc(info.unitNo || '—')}${info.projectName ? ' &mdash; ' + esc(info.projectName) : ''}</span></div>
-      <div class="info-row"><span class="info-lbl">Sale Date:</span><span class="info-val">${fmtDate(info.saleDate)}</span></div>
-      <div class="info-row"><span class="info-lbl">Installments:</span><span class="info-val">${installmentCount}</span></div>
-    </div>
-    <div class="info-col">
-      <div class="info-row"><span class="info-lbl">Price / Sq Ft:</span><span class="info-val">${fmtPKR(info.pricePerSqft)}</span></div>
-      <div class="info-row"><span class="info-lbl">Area:</span><span class="info-val">${info.areaSqft ? Number(info.areaSqft).toLocaleString('en-PK') + ' sq ft' : '—'}</span></div>
-      ${Number(info.discount) > 0 ? `<div class="info-row"><span class="info-lbl">Discount:</span><span class="info-val" style="color:#dc2626">&minus; ${fmtPKR(info.discount)}</span></div>` : ''}
-      <div class="info-row"><span class="info-lbl">Net Amount:</span><span class="info-val" style="font-weight:800;font-size:13px;color:#1a3a5c">${fmtPKR(info.netAmount)}</span></div>
-    </div>
-  </div>
-
-  <div class="sec-title">Payment Schedule</div>
-
-  <table>
-    <thead>
-      <tr>
-        <th class="tc" style="width:50px">#</th>
-        <th class="tl">Installment</th>
-        <th class="tc" style="width:110px">Due Date</th>
-        <th class="tr" style="width:140px">Amount (PKR)</th>
-        <th class="tr" style="width:140px">Cumulative (PKR)</th>
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="3" class="tl">TOTAL</td>
-        <td class="tr">${fmtPKR(info.netAmount)}</td>
-        <td class="tr">${fmtPKR(runTotal)}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <div class="summary">
-    <div class="sbox">
-      <div class="sr"><span class="sr-lbl">Total Amount</span><span class="sr-val">${fmtPKR(info.totalAmount)}</span></div>
-      ${Number(info.discount) > 0 ? `<div class="sr"><span class="sr-lbl">Discount</span><span class="sr-val" style="color:#dc2626">&minus; ${fmtPKR(info.discount)}</span></div>` : ''}
-      <div class="sr"><span class="sr-lbl">Down Payment (Booking)</span><span class="sr-val">${fmtPKR(info.downPayment)}</span></div>
-      <div class="sr"><span class="sr-lbl">Balance After Booking</span><span class="sr-val">${fmtPKR(Number(info.netAmount) - Number(info.downPayment))}</span></div>
-      <div class="sr"><span>NET AMOUNT</span><span>${fmtPKR(info.netAmount)}</span></div>
-    </div>
-  </div>
-
-  <div class="footer">
-    <div class="print-info">
-      <div>${esc(coName)}</div>
-      <div>Generated: ${printDate}</div>
-    </div>
-    <div style="display:flex;gap:50px">
-      <div class="sign-block"><div class="sign-line">Client Signature</div></div>
-      <div class="sign-block"><div class="sign-line">Authorized Signature</div></div>
-    </div>
-  </div>
-
-</body>
-</html>`;
-
-  _printHTML(html);
+  w.document.write(h);
+  _pclose(w);
 }
 
 // ── Save sale ──────────────────────────────────────────────────────────
@@ -1381,13 +1293,19 @@ async function saveSale() {
     if (errEl) errEl.textContent = msg;
     valid = false;
   };
-  ['sf-unit','sf-client','sf-date','sf-price-sqft','sf-area'].forEach(id => _salClearErr(id));
+  ['sf-unit','sf-client','sf-date','sf-price-sqft','sf-area','sf-cobuyer-cnic','sf-nominee-cnic'].forEach(id => _salClearErr(id));
 
   if (!unitId)    setErr('sf-unit',       'Please select a unit');
   if (!clientId)  setErr('sf-client',     'Please select a client');
   if (!saleDate)  setErr('sf-date',       'Please enter the sale date');
   if (pSqft <= 0) setErr('sf-price-sqft', 'Enter price per sq ft');
   if (area  <= 0) setErr('sf-area',       'Select a unit with area set in Add Unit');
+
+  // CNIC format — optional fields, so validate only when something was entered
+  const _cbCnic = document.getElementById('sf-cobuyer-cnic')?.value?.trim();
+  const _nmCnic = document.getElementById('sf-nominee-cnic')?.value?.trim();
+  if (_cbCnic && !isValidCNIC(_cbCnic)) setErr('sf-cobuyer-cnic', 'Format: 42101-1234567-1');
+  if (_nmCnic && !isValidCNIC(_nmCnic)) setErr('sf-nominee-cnic', 'Format: 42101-1234567-1');
 
   if (!valid) {
     const firstErr = document.querySelector('.inp-err');
@@ -1465,16 +1383,37 @@ async function saveSale() {
       extPatch.breach_approval_ref   = _salBreachApproval.approvalRef;
       extPatch.breach_approved_at    = _salBreachApproval.approvedAt;
     }
-    if (data.sale_id && Object.values(extPatch).some(v => v !== null && v !== 0 && v !== false)) {
-      await supabase.rpc('edit_sale', { p_sale_id: data.sale_id, p_company_id: S.cid, p_data: extPatch });
+    // Two-phase write: the sale + schedule are committed atomically by the RPC
+    // above. The extended fields (co-buyer / nominee / WHT-CVT / discount &
+    // breach approval) are a SECOND update. We cannot client-side roll back the
+    // committed sale (no reversible delete RPC; the sale_number + unit-Sold flag
+    // are already set), so if the second write fails we DON'T silently report
+    // success — we tell the user the core sale exists but the extra details did
+    // not save, and point them to Edit Sale to re-enter them.
+    // (Proper fix = fold these fields into create_sale_with_schedule so it's one
+    //  transaction — tracked with the project_id/RPC hardening.)
+    let extError = '';
+    const hasExt = Object.values(extPatch).some(v => v !== null && v !== 0 && v !== false);
+    if (data.sale_id && hasExt) {
+      const extRes = await supabase.rpc('edit_sale', { p_sale_id: data.sale_id, p_company_id: S.cid, p_data: extPatch });
+      if (extRes.error || !extRes.data?.success) {
+        extError = extRes.error?.message || extRes.data?.error || 'unknown error';
+      }
     }
 
-    toast(`Sale ${data.sale_number} created`, 'ok');
     _salSchedule = [];
     _salBreachData = null;
     _salBreachApproval = null;
     await loadUnitsCache(cid);
     await _loadSalesList();
+
+    if (extError) {
+      toast(`Sale ${data.sale_number} created — but the extra details (co-buyer / tax / approval) failed to save (${extError}). Open the sale and use Edit to re-enter them.`, 'warn');
+      // Land on the new sale's detail page so the user can immediately fix it.
+      if (data.sale_id) { openSaleDetail(data.sale_id); return; }
+    } else {
+      toast(`Sale ${data.sale_number} created`, 'ok');
+    }
     nav('sales');
   } catch(e) {
     toast('Save failed: ' + e.message, 'err');
@@ -1499,7 +1438,7 @@ function printSalesList() {
     ${_lh('SALES LIST')}
     <h2 style="font-size:17px;font-weight:700;margin:0 0 4px">Sales</h2>
     <p style="font-size:11px;color:#555;margin:0 0 ${filters.length ? '6' : '14'}px">
-      ${sales.length} sale${sales.length !== 1 ? 's' : ''} &nbsp;·&nbsp; Printed: ${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'})}
+      ${sales.length} sale${sales.length !== 1 ? 's' : ''} &nbsp;·&nbsp; Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
     </p>
     ${filters.length ? `<p style="font-size:11px;color:#666;background:#f5f7fa;padding:5px 10px;border-radius:4px;margin-bottom:14px">
       Filters: ${filters.join(' &nbsp;|&nbsp; ')}
@@ -1523,21 +1462,56 @@ function printSalesList() {
           <td style="font-size:10px;color:#666">${s.project_name || '—'}</td>
           <td>${s.client_name || '—'}</td>
           <td style="font-size:10px;color:#666">${s.agent_name || '—'}</td>
-          <td style="white-space:nowrap">${s.sale_date ? new Date(s.sale_date).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
-          <td style="text-align:right;font-weight:700">PKR ${Number(s.net_amount||0).toLocaleString('en-PK')}</td>
-          <td style="text-align:right;color:${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0))>0?'#b45309':'#16a34a'};font-weight:600">PKR ${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0)).toLocaleString('en-PK')}</td>
+          <td style="white-space:nowrap">${s.sale_date ? new Date(s.sale_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
+          <td style="text-align:right;font-weight:700">PKR ${Number(s.net_amount||0).toLocaleString('en-IN')}</td>
+          <td style="text-align:right;color:${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0))>0?'#b45309':'#16a34a'};font-weight:600">PKR ${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0)).toLocaleString('en-IN')}</td>
           <td>${s.status || '—'}</td>
         </tr>`).join('')}
       </tbody>
       <tfoot><tr>
         <td colspan="6" style="font-weight:700;color:#1E2D47">Total: ${sales.length} sales</td>
-        <td style="text-align:right;font-weight:700">PKR ${Number(totalNet).toLocaleString('en-PK')}</td>
-        <td style="text-align:right;font-weight:700;color:#b45309">PKR ${Number(totalRem).toLocaleString('en-PK')}</td>
+        <td style="text-align:right;font-weight:700">PKR ${Number(totalNet).toLocaleString('en-IN')}</td>
+        <td style="text-align:right;font-weight:700;color:#b45309">PKR ${Number(totalRem).toLocaleString('en-IN')}</td>
         <td></td>
       </tr></tfoot>
     </table>
   `);
   _pclose(w);
+}
+
+// ══ EXPORT SALES → EXCEL (SheetJS) ═════════════════════════════════════
+// Exports the currently-loaded/filtered sales list. Amounts are raw numbers
+// (so Excel can sum/sort); column headers carry the PKR unit.
+function exportSalesExcel() {
+  if (typeof XLSX === 'undefined') { toast('Excel library not loaded', 'warn'); return; }
+  const sales = _salesCache || [];
+  if (!sales.length) { toast('No sales to export', 'warn'); return; }
+
+  const rows = sales.map(s => {
+    const net  = Number(s.net_amount || 0);
+    const total = Number(s.total_amount != null ? s.total_amount : net);
+    const paid = Number(s.total_collected || 0);
+    const rem  = Math.max(0, net - paid);
+    return {
+      'Sale ID':            s.sale_number || '',
+      'Client Name':        s.client_name || '',
+      'Unit':               s.unit_no || '',
+      'Project':            s.project_name || '',
+      'Sale Date':          s.sale_date || '',
+      'Total Amount (PKR)': total,
+      'Paid Amount (PKR)':  paid,
+      'Remaining (PKR)':    rem,
+      'Status':             s.status || ''
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:16},{wch:26},{wch:12},{wch:22},{wch:12},{wch:18},{wch:18},{wch:16},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sales');
+  const d = (typeof td === 'function' ? td() : new Date().toISOString().slice(0,10));
+  XLSX.writeFile(wb, 'Nexunova_Sales_' + d + '.xlsx');
+  if (typeof toast === 'function') toast(`Exported ${rows.length} sale${rows.length !== 1 ? 's' : ''} to Excel`, 'ok');
 }
 
 // ══ SALE DETAIL PAGE ══════════════════════════════════════════════════
@@ -2026,7 +2000,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Agent Commission % <span style="opacity:.45;font-size:10px">(optional — on net amount)</span></label>
               <input id="ef-comm-pct" class="inp-light" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.5" value="${d.commission_rate != null ? fmtV(d.commission_rate) : ''}">
-              <div id="ef-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px">${d.commission_rate ? 'Est. commission: PKR ' + Math.round(Number(d.net_amount||0)*Number(d.commission_rate)/100).toLocaleString('en-PK') : ''}</div>
+              <div id="ef-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px">${d.commission_rate ? 'Est. commission: PKR ' + Math.round(Number(d.net_amount||0)*Number(d.commission_rate)/100).toLocaleString('en-IN') : ''}</div>
             </div>
           </div>
         </div>
@@ -2040,7 +2014,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Price per Sq Ft (PKR) <span class="req-star">*</span></label>
               <input id="ef-price-sqft" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.price_per_sqft||0).toLocaleString('en-PK',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+                value="${Number(d.price_per_sqft||0).toLocaleString('en-IN',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
               <div id="e-ef-price-sqft" class="ferr"></div>
             </div>
             <div class="fr">
@@ -2058,7 +2032,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Discount (PKR)</label>
               <input id="ef-discount" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.discount||0).toLocaleString('en-PK',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+                value="${Number(d.discount||0).toLocaleString('en-IN',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
             </div>
           </div>
           <div class="g2">
@@ -2069,13 +2043,13 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Down Payment (PKR)</label>
               <input id="ef-down" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.down_payment||0).toLocaleString('en-PK',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+                value="${Number(d.down_payment||0).toLocaleString('en-IN',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
             </div>
           </div>
           <div class="g2">
             <div class="fr">
               <label class="fl">Already Collected</label>
-              <input class="inp-light" readonly style="opacity:.65;color:var(--ok)" value="PKR ${Number(totalPaid).toLocaleString('en-PK',{maximumFractionDigits:0})}">
+              <input class="inp-light" readonly style="opacity:.65;color:var(--ok)" value="PKR ${Number(totalPaid).toLocaleString('en-IN',{maximumFractionDigits:0})}">
               <div style="font-size:10px;color:var(--t3);margin-top:3px">Sum of all payments received — not editable here</div>
             </div>
             <div class="fr">
@@ -2132,7 +2106,8 @@ async function rEditSale() {
             </div>
             <div class="fr">
               <label class="fl">Co-buyer CNIC</label>
-              <input id="ef-cobuyer-cnic" class="inp-light" type="text" maxlength="15" value="${esc(d.co_buyer_cnic || '')}">
+              <input id="ef-cobuyer-cnic" class="inp-light" type="text" inputmode="numeric" placeholder="42101-1234567-1" maxlength="15" value="${esc(d.co_buyer_cnic || '')}" oninput="maskCNIC(this);_salClearErr('ef-cobuyer-cnic')">
+              <div id="e-ef-cobuyer-cnic" class="ferr"></div>
             </div>
           </div>
           <div class="fr" style="max-width:260px">
@@ -2153,7 +2128,8 @@ async function rEditSale() {
             </div>
             <div class="fr">
               <label class="fl">Nominee CNIC</label>
-              <input id="ef-nominee-cnic" class="inp-light" type="text" maxlength="15" value="${esc(d.nominee_cnic || '')}">
+              <input id="ef-nominee-cnic" class="inp-light" type="text" inputmode="numeric" placeholder="42101-1234567-1" maxlength="15" value="${esc(d.nominee_cnic || '')}" oninput="maskCNIC(this);_salClearErr('ef-nominee-cnic')">
+              <div id="e-ef-nominee-cnic" class="ferr"></div>
             </div>
           </div>
           <div class="fr" style="max-width:260px">
@@ -2170,11 +2146,11 @@ async function rEditSale() {
           <div class="g2">
             <div class="fr">
               <label class="fl">WHT Amount (PKR)</label>
-              <input id="ef-wht" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.wht_amount||0).toLocaleString('en-PK',{maximumFractionDigits:0})}">
+              <input id="ef-wht" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.wht_amount||0).toLocaleString('en-IN',{maximumFractionDigits:0})}">
             </div>
             <div class="fr">
               <label class="fl">CVT Amount (PKR)</label>
-              <input id="ef-cvt" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.cvt_amount||0).toLocaleString('en-PK',{maximumFractionDigits:0})}">
+              <input id="ef-cvt" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.cvt_amount||0).toLocaleString('en-IN',{maximumFractionDigits:0})}">
             </div>
           </div>
         </div>
@@ -2251,7 +2227,7 @@ function _salEditCalc() {
   const net       = Math.max(0, total - discount);
   const remaining = Math.max(0, net - paid);
 
-  const fmt = n => Number(n).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmt = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
   const tEl = document.getElementById('ef-total');
   const nEl = document.getElementById('ef-net');
@@ -2290,7 +2266,7 @@ function _salEditRenderGrid() {
         </select>
       </td>
       <td><input type="date" class="inp-light" style="padding:5px 8px;font-size:12px;width:100%" value="${r.due_date || ''}" onchange="_salEditField(${oi},'due_date',this.value)" onkeydown="_salEditGridEnter(event,${oi},'date')"></td>
-      <td><input type="text" inputmode="numeric" class="inp-light inp-amt" style="padding:5px 8px;font-size:12px;width:100%;text-align:right" value="${Number(r.amount_due||0) > 0 ? Number(r.amount_due).toLocaleString('en-PK',{maximumFractionDigits:0}) : 0}" oninput="_salEditField(${oi},'amount_due',parseAmt(this.value));_salEditUpdateBalance()" onkeydown="_salEditGridEnter(event,${oi},'amount')"></td>
+      <td><input type="text" inputmode="numeric" class="inp-light inp-amt" style="padding:5px 8px;font-size:12px;width:100%;text-align:right" value="${Number(r.amount_due||0) > 0 ? Number(r.amount_due).toLocaleString('en-IN',{maximumFractionDigits:0}) : 0}" oninput="_salEditField(${oi},'amount_due',parseAmt(this.value));_salEditUpdateBalance()" onkeydown="_salEditGridEnter(event,${oi},'amount')"></td>
       <td><input type="text" class="inp-light" style="padding:5px 8px;font-size:12px;width:100%" value="${esc(r.notes || '')}" onchange="_salEditField(${oi},'notes',this.value)" onkeydown="_salEditGridEnter(event,${oi},'label')"></td>
       <td style="text-align:center">
         ${isPaid
@@ -2310,7 +2286,7 @@ function _salEditUpdateBalance() {
   const instSum  = schedule.filter(r => !r._deleted).reduce((s, r) => s + (parseFloat(r.amount_due) || 0), 0);
   const net      = window._salEditNetAmount || 0;
   const diff     = instSum - net;
-  const fmtPKR   = n => 'PKR ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmtPKR   = n => 'PKR ' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
   if (net === 0) { bar.innerHTML = ''; return; }
 
@@ -2396,6 +2372,14 @@ async function saveEditSale() {
   if (!saleDate) { document.getElementById('e-ef-date').textContent   = 'Sale date is required.'; err.textContent = 'Please fix the errors above.'; return; }
   if (pSqft <= 0){ document.getElementById('e-ef-price-sqft').textContent = 'Price per sq ft is required.'; err.textContent = 'Please fix the errors above.'; return; }
 
+  // CNIC format — optional fields, validate only when entered
+  const _efCb = document.getElementById('ef-cobuyer-cnic').value.trim();
+  const _efNm = document.getElementById('ef-nominee-cnic').value.trim();
+  document.getElementById('e-ef-cobuyer-cnic').textContent = '';
+  document.getElementById('e-ef-nominee-cnic').textContent = '';
+  if (_efCb && !isValidCNIC(_efCb)) { document.getElementById('e-ef-cobuyer-cnic').textContent = 'Format: 42101-1234567-1'; err.textContent = 'Please fix the errors above.'; return; }
+  if (_efNm && !isValidCNIC(_efNm)) { document.getElementById('e-ef-nominee-cnic').textContent = 'Format: 42101-1234567-1'; err.textContent = 'Please fix the errors above.'; return; }
+
   // Generated columns (total_amount, net_amount, remaining_amount) are computed by DB —
   // only include the source fields: price_per_sqft, area_sqft, discount, down_payment
   const net      = Math.max(0, pSqft * area - discount);
@@ -2469,7 +2453,7 @@ async function saveEditSale() {
 
 function _salSchedErrorPopup(instSum, net, customMsg) {
   document.getElementById('_sal-err-overlay')?.remove();
-  const fmtPKR = n => 'PKR ' + Math.abs(Number(n)).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmtPKR = n => 'PKR ' + Math.abs(Number(n)).toLocaleString('en-IN', { maximumFractionDigits: 0 });
   const diff   = instSum - net;
   const detail = customMsg || (
     diff > 0
@@ -2686,77 +2670,40 @@ async function deleteSaleDoc(id) {
 function printAllotmentLetter() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
-  const coName    = S?.coName || 'Company';
-  const printDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const fmtPKR   = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const coName   = (window._cobranding || {}).company_name || S?.coName || 'Company';
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Allotment Letter — ${d.sale_number || ''}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:30px 40px;line-height:1.8}
-  .top-bar{background:#1a3a5c;color:#fff;padding:6px 16px;margin:-30px -40px 28px;text-align:right;font-size:10px;letter-spacing:.4px}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;padding-bottom:14px;border-bottom:3px solid #1a3a5c}
-  .co-name{font-size:22px;font-weight:800;color:#1a3a5c}
-  .doc-badge{background:#1a3a5c;color:#fff;padding:6px 14px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:1px}
-  h2{font-size:15px;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:1px;color:#1a3a5c;margin:20px 0;text-decoration:underline}
-  p{font-size:12px;line-height:1.9;margin-bottom:12px}
-  .hl{font-weight:700;color:#1a3a5c}
-  table{width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #d0d7de;border-radius:6px;overflow:hidden}
-  td{padding:8px 14px;font-size:11.5px;border-bottom:1px solid #edf2f7}
-  tr:last-child td{border-bottom:none}
-  td:first-child{background:#f6f8fa;font-weight:700;color:#57606a;width:180px}
-  .footer{margin-top:50px;display:flex;justify-content:space-between;align-items:flex-end}
-  .sign-line{border-top:1px solid #aaa;padding-top:6px;font-size:10px;color:#888;margin-top:40px;width:200px;text-align:center}
-  @media print{body{padding:18px 24px}.top-bar{margin:-18px -24px 20px}@page{margin:12mm 10mm;size:A4 portrait}}
-</style>
-</head>
-<body>
-  <div class="top-bar">Allotment Letter &nbsp;|&nbsp; ${esc(coName)} &nbsp;|&nbsp; Printed: ${printDate}</div>
-  <div class="header">
-    <div>
-      <div class="co-name">${esc(coName)}</div>
-      <div style="font-size:11px;color:#888;margin-top:4px;letter-spacing:2px;text-transform:uppercase">Real Estate Management System</div>
-    </div>
-    <div class="doc-badge">${esc(d.sale_number || 'DRAFT')}</div>
-  </div>
+  const w = _pw('Allotment Letter — ' + (d.sale_number || ''), _pCSS('A4'));
+  if (!w) return;
 
-  <div style="font-size:11px;color:#57606a;margin-bottom:8px">Ref: ${esc(d.sale_number || '—')} &nbsp;|&nbsp; Date: ${saleDate}</div>
+  const kv = (l, v) => '<tr><td style="background:#f5f7fa;font-weight:700;color:#555;width:180px">' + l + '</td><td>' + v + '</td></tr>';
 
-  <h2>Allotment Letter</h2>
+  let h = _lh('Allotment Letter', d.project_name);
+  h += '<div class="body">';
+  h += '<div style="font-size:10px;color:#888;margin-bottom:8px">Ref: ' + esc(d.sale_number || '—') + ' &nbsp;|&nbsp; Date: ' + saleDate + '</div>';
+  h += '<div class="doc-title">Allotment Letter</div>';
+  h += '<p style="margin-bottom:10px">Dear <b>' + esc(d.client_name || 'Valued Customer') + '</b>,</p>';
+  h += '<p style="margin-bottom:12px;line-height:1.7">We are pleased to inform you that the following property has been allotted to you in accordance with the terms and conditions of the sale agreement dated <b>' + saleDate + '</b>.</p>';
+  h += '<table>';
+  h += kv('Client Name', esc(d.client_name || '—'));
+  if (d.co_buyer_name) h += kv('Co-buyer / Joint Owner', esc(d.co_buyer_name));
+  h += kv('Sale Number', '<span style="font-family:monospace">' + esc(d.sale_number || '—') + '</span>');
+  h += kv('Project', esc(d.project_name || '—'));
+  h += kv('Unit No.', esc(d.unit_no || '—') + (d.floor_label ? ' — ' + esc(d.floor_label) : ''));
+  if (d.unit_type) h += kv('Unit Type', esc(d.unit_type));
+  if (d.area_sqft) h += kv('Area', Number(d.area_sqft).toLocaleString('en-IN') + ' sq ft');
+  h += kv('Sale Date', saleDate);
+  h += kv('Total Sale Value', '<b>' + fmtPKR(d.net_amount) + '</b>');
+  if (d.agent_name) h += kv('Sales Agent', esc(d.agent_name));
+  h += '</table>';
+  h += '<p style="margin:12px 0;line-height:1.7">This letter confirms your allotment. Please retain this document for your records. For any queries, please contact our office.</p>';
+  h += '<p style="margin-bottom:4px">Thank you for choosing <b>' + esc(coName) + '</b>.</p>';
+  h += '<div class="no-break">' + _sigBlock({ label: 'Client Acknowledgement', value: d.client_name || '' }) + '</div>';
+  h += '</div>';
 
-  <p>Dear <span class="hl">${esc(d.client_name || 'Valued Customer')}</span>,</p>
-  <p>We are pleased to inform you that the following property has been allotted to you in accordance with the terms and conditions of the sale agreement dated <span class="hl">${saleDate}</span>.</p>
-
-  <table>
-    <tr><td>Client Name</td><td>${esc(d.client_name || '—')}</td></tr>
-    ${d.co_buyer_name ? `<tr><td>Co-buyer / Joint Owner</td><td>${esc(d.co_buyer_name)}</td></tr>` : ''}
-    <tr><td>Sale Number</td><td style="font-family:monospace">${esc(d.sale_number || '—')}</td></tr>
-    <tr><td>Project</td><td>${esc(d.project_name || '—')}</td></tr>
-    <tr><td>Unit No.</td><td>${esc(d.unit_no || '—')}${d.floor_label ? ' — ' + esc(d.floor_label) : ''}</td></tr>
-    ${d.unit_type ? `<tr><td>Unit Type</td><td>${esc(d.unit_type)}</td></tr>` : ''}
-    ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-PK')} sq ft</td></tr>` : ''}
-    <tr><td>Sale Date</td><td>${saleDate}</td></tr>
-    <tr><td>Total Sale Value</td><td style="font-weight:700">${fmtPKR(d.net_amount)}</td></tr>
-    ${d.agent_name ? `<tr><td>Sales Agent</td><td>${esc(d.agent_name)}</td></tr>` : ''}
-  </table>
-
-  <p>This letter confirms your allotment. Please retain this document for your records. For any queries, contact our office.</p>
-  <p>Thank you for choosing <span class="hl">${esc(coName)}</span>.</p>
-  <p style="margin-top:8px">Yours sincerely,</p>
-
-  <div class="footer">
-    <div><div class="sign-line">Client Acknowledgement</div></div>
-    <div><div class="sign-line">Authorized Signatory / ${esc(coName)}</div></div>
-  </div>
-</body>
-</html>`;
-
-  _printHTML(html);
+  w.document.write(h);
+  _pclose(w);
 }
 
 // ══ PRINT: DEMAND NOTICE ═══════════════════════════════════════════════
@@ -2775,87 +2722,44 @@ function printDemandNotice(idx) {
   }
   if (!inst) { toast('No installment selected', 'warn'); return; }
 
-  const coName      = S?.coName || 'Company';
-  const printDate   = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-  const fmtPKR      = n => 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  const dueDate     = inst.due_date ? new Date(inst.due_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const fmtPKR      = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const dueDate     = inst.due_date ? new Date(inst.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
   const outstanding = Math.max(0, Number(inst.amount_due || 0) - Number(inst.amount_paid || 0));
   const isOverdue   = inst.due_date && inst.due_date < td();
   const instLabel   = Number(inst.installment_number) > 0
     ? _ordinal(inst.installment_number) + ' Installment'
     : (inst.notes || 'Installment');
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Demand Notice — ${d.sale_number || ''}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:30px 40px;line-height:1.8}
-  .top-bar{background:#7f1d1d;color:#fff;padding:6px 16px;margin:-30px -40px 28px;text-align:right;font-size:10px;letter-spacing:.4px}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;padding-bottom:14px;border-bottom:3px solid #7f1d1d}
-  .co-name{font-size:22px;font-weight:800;color:#1a3a5c}
-  .doc-badge{background:#7f1d1d;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700}
-  h2{font-size:15px;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:1px;color:#7f1d1d;margin:20px 0;text-decoration:underline}
-  p{font-size:12px;line-height:1.9;margin-bottom:12px}
-  .hl{font-weight:700;color:#1a3a5c}
-  table{width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #d0d7de;border-radius:6px;overflow:hidden}
-  td{padding:8px 14px;font-size:11.5px;border-bottom:1px solid #edf2f7}
-  tr:last-child td{border-bottom:none}
-  td:first-child{background:#f6f8fa;font-weight:700;color:#57606a;width:180px}
-  .amt-box{background:#fef2f2;border:2px solid #fca5a5;border-radius:8px;padding:16px;margin:18px 0;text-align:center}
-  .amt-lbl{font-size:11px;color:#7f1d1d;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
-  .amt-val{font-size:26px;font-weight:800;color:#7f1d1d}
-  .od-badge{display:inline-block;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-left:6px}
-  .footer{margin-top:50px;display:flex;justify-content:space-between;align-items:flex-end}
-  .sign-line{border-top:1px solid #aaa;padding-top:6px;font-size:10px;color:#888;margin-top:40px;width:200px;text-align:center}
-  @media print{body{padding:18px 24px}.top-bar{margin:-18px -24px 20px}@page{margin:12mm 10mm;size:A4 portrait}}
-</style>
-</head>
-<body>
-  <div class="top-bar">Demand Notice &nbsp;|&nbsp; ${esc(coName)} &nbsp;|&nbsp; Printed: ${printDate}</div>
-  <div class="header">
-    <div>
-      <div class="co-name">${esc(coName)}</div>
-      <div style="font-size:11px;color:#888;margin-top:4px;letter-spacing:2px;text-transform:uppercase">Real Estate Management System</div>
-    </div>
-    <div class="doc-badge">DEMAND NOTICE</div>
-  </div>
+  const w = _pw('Demand Notice — ' + (d.sale_number || ''), _pCSS('A4'));
+  if (!w) return;
 
-  <h2>Payment Demand Notice</h2>
+  const kv = (l, v) => '<tr><td style="background:#f5f7fa;font-weight:700;color:#555;width:180px">' + l + '</td><td>' + v + '</td></tr>';
 
-  <p>Dear <span class="hl">${esc(d.client_name || 'Valued Customer')}</span>,</p>
-  <p>This is a formal demand notice for your outstanding installment payment due for the property allotted to you. Please arrange payment at the earliest to avoid any default charges.</p>
+  let h = _lh('Demand Notice', d.project_name);
+  h += '<div class="body">';
+  h += '<div class="doc-title" style="color:#b91c1c;border-color:#b91c1c">Payment Demand Notice</div>';
+  h += '<p style="margin-bottom:10px">Dear <b>' + esc(d.client_name || 'Valued Customer') + '</b>,</p>';
+  h += '<p style="margin-bottom:12px;line-height:1.7">This is a formal demand notice for your outstanding installment payment due for the property allotted to you. Please arrange payment at the earliest to avoid any default charges.</p>';
+  h += '<table>';
+  h += kv('Sale Number', '<span style="font-family:monospace">' + esc(d.sale_number || '—') + '</span>');
+  h += kv('Client Name', esc(d.client_name || '—'));
+  h += kv('Project', esc(d.project_name || '—'));
+  h += kv('Unit No.', esc(d.unit_no || '—') + (d.floor_label ? ' — ' + esc(d.floor_label) : ''));
+  h += kv('Installment', esc(instLabel) + (isOverdue ? ' <span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700">OVERDUE</span>' : ''));
+  h += kv('Due Date', '<span style="font-weight:700;color:' + (isOverdue ? '#dc2626' : '#111') + '">' + dueDate + '</span>');
+  h += kv('Amount Due', '<b>' + fmtPKR(inst.amount_due) + '</b>');
+  if (Number(inst.amount_paid) > 0) h += kv('Amount Paid', '<span style="color:#16a34a">' + fmtPKR(inst.amount_paid) + '</span>');
+  h += '</table>';
+  h += '<div style="text-align:center;background:#fef2f2;border:2px solid #fca5a5;border-radius:8px;padding:16px;margin:14px 0;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+     + '<div style="font-size:10px;color:#7f1d1d;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Outstanding Amount</div>'
+     + '<div style="font-size:26px;font-weight:800;color:#b91c1c">' + fmtPKR(outstanding) + '</div></div>';
+  h += '<p style="line-height:1.7">Kindly deposit the outstanding amount via bank transfer or visit our office. Failure to pay within <b>7 days</b> of this notice may result in penalty charges as per your agreement.</p>';
+  h += '<p>For payment or queries, please contact us immediately.</p>';
+  h += '<div class="no-break">' + _sigBlock({ label: 'Client Acknowledgement', value: d.client_name || '' }) + '</div>';
+  h += '</div>';
 
-  <table>
-    <tr><td>Sale Number</td><td style="font-family:monospace">${esc(d.sale_number || '—')}</td></tr>
-    <tr><td>Client Name</td><td>${esc(d.client_name || '—')}</td></tr>
-    <tr><td>Project</td><td>${esc(d.project_name || '—')}</td></tr>
-    <tr><td>Unit No.</td><td>${esc(d.unit_no || '—')}${d.floor_label ? ' — ' + esc(d.floor_label) : ''}</td></tr>
-    <tr><td>Installment</td><td>${esc(instLabel)}${isOverdue ? '<span class="od-badge">OVERDUE</span>' : ''}</td></tr>
-    <tr><td>Due Date</td><td style="font-weight:700;color:${isOverdue ? '#dc2626' : '#1a1a2e'}">${dueDate}</td></tr>
-    <tr><td>Amount Due</td><td style="font-weight:700">${fmtPKR(inst.amount_due)}</td></tr>
-    ${Number(inst.amount_paid) > 0 ? `<tr><td>Amount Paid</td><td style="color:#16a34a">${fmtPKR(inst.amount_paid)}</td></tr>` : ''}
-  </table>
-
-  <div class="amt-box">
-    <div class="amt-lbl">Outstanding Amount</div>
-    <div class="amt-val">${fmtPKR(outstanding)}</div>
-  </div>
-
-  <p>Kindly deposit the outstanding amount via bank transfer or visit our office. Failure to pay within <strong>7 days</strong> of this notice may result in penalty charges as per your agreement.</p>
-  <p>For payment or queries, please contact us immediately.</p>
-  <p style="margin-top:8px">Regards,<br><strong>${esc(coName)}</strong></p>
-
-  <div class="footer">
-    <div><div class="sign-line">Client Acknowledgement</div></div>
-    <div><div class="sign-line">Authorized Signatory / ${esc(coName)}</div></div>
-  </div>
-</body>
-</html>`;
-
-  _printHTML(html);
+  w.document.write(h);
+  _pclose(w);
 }
 
 // ══ PRINT: POSSESSION LETTER ═══════════════════════════════════════════
@@ -2865,9 +2769,9 @@ function printPossessionLetter() {
   if (!d) { toast('No sale loaded', 'warn'); return; }
   const br        = window._cobranding || {};
   const H         = br.doc_brand_color || '#1E2D47';
-  const printDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const printDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -2886,7 +2790,7 @@ function printPossessionLetter() {
 </style>
 </head>
 <body>
-  ${_lh('Possession Letter')}
+  ${_lh('Possession Letter', d.project_name)}
   <div style="font-size:11px;color:#57606a;margin:8px 0 14px">Date: ${printDate} &nbsp;|&nbsp; Ref: ${esc(d.sale_number || '—')}</div>
 
   <div class="doc-title">Possession / Handover Letter</div>
@@ -2901,7 +2805,7 @@ function printPossessionLetter() {
     <tr><td>Project</td><td>${esc(d.project_name || '—')}</td></tr>
     <tr><td>Unit No.</td><td>${esc(d.unit_no || '—')}${d.floor_label ? ' — ' + esc(d.floor_label) : ''}</td></tr>
     ${d.unit_type ? `<tr><td>Unit Type</td><td>${esc(d.unit_type)}</td></tr>` : ''}
-    ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-PK')} sq ft</td></tr>` : ''}
+    ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-IN')} sq ft</td></tr>` : ''}
     <tr><td>Original Sale Date</td><td>${saleDate}</td></tr>
     <tr><td>Possession Date</td><td style="font-weight:700;color:${H}">${printDate}</td></tr>
     <tr><td>Total Sale Value</td><td style="font-weight:700">${fmtPKR(d.net_amount)}</td></tr>
@@ -2929,248 +2833,89 @@ function printPossessionLetter() {
 function printSaleDetail() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
-  const coName    = S?.coName || 'Company';
-  const printDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
   const installments = (d.installments || []);
   const totalPaid = installments.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
   const totalDue  = installments.reduce((s, i) => s + Number(i.amount_due  || 0), 0);
   const totalOut  = installments.reduce((s, i) => s + Number(i.outstanding || 0), 0);
 
+  const stColor = st => st === 'paid' ? '#15803d' : st === 'overdue' ? '#dc2626' : st === 'partial' ? '#d97706' : '#6b7280';
   const schedRows = installments.map((inst, idx) => {
-    const dueDate = inst.due_date ? new Date(inst.due_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const dueDate = inst.due_date ? new Date(inst.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     const statusLabel = inst.status === 'paid' ? 'Paid' : inst.status === 'overdue' ? 'Overdue' : inst.status === 'partial' ? 'Partial' : 'Pending';
-    const statusColor = inst.status === 'paid' ? '#15803d' : inst.status === 'overdue' ? '#dc2626' : inst.status === 'partial' ? '#d97706' : '#6b7280';
-    return `<tr>
-      <td style="text-align:center">${idx + 1}</td>
-      <td>${dueDate}</td>
-      <td>${esc(inst.installment_type || '—')}</td>
-      <td style="text-align:right">${fmtPKR(inst.amount_due)}</td>
-      <td style="text-align:right">${fmtPKR(inst.amount_paid)}</td>
-      <td style="text-align:right;font-weight:600;color:${Number(inst.outstanding)>0?'#dc2626':'#15803d'}">${fmtPKR(inst.outstanding)}</td>
-      <td style="text-align:center;color:${statusColor};font-weight:600">${statusLabel}</td>
-    </tr>`;
+    return '<tr>'
+      + '<td style="text-align:center">' + (idx + 1) + '</td>'
+      + '<td>' + dueDate + '</td>'
+      + '<td>' + esc(inst.installment_type || '—') + '</td>'
+      + '<td style="text-align:right">' + fmtPKR(inst.amount_due) + '</td>'
+      + '<td style="text-align:right">' + fmtPKR(inst.amount_paid) + '</td>'
+      + '<td style="text-align:right;font-weight:600;color:' + (Number(inst.outstanding) > 0 ? '#dc2626' : '#15803d') + '">' + fmtPKR(inst.outstanding) + '</td>'
+      + '<td style="text-align:center;color:' + stColor(inst.status) + ';font-weight:600">' + statusLabel + '</td>'
+      + '</tr>';
   }).join('');
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Sale Summary — ${d.sale_number || ''}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:30px 40px;line-height:1.7}
-  .top-bar{background:#1a3a5c;color:#fff;padding:6px 16px;margin:-30px -40px 28px;text-align:right;font-size:10px;letter-spacing:.4px}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;padding-bottom:14px;border-bottom:3px solid #1a3a5c}
-  .co-name{font-size:22px;font-weight:800;color:#1a3a5c}
-  .doc-badge{background:#1a3a5c;color:#fff;padding:6px 14px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:1px}
-  h3{font-size:12px;font-weight:700;color:#1a3a5c;text-transform:uppercase;letter-spacing:.6px;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid #e1e8ed}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #d0d7de;border-radius:6px;overflow:hidden;margin-bottom:14px}
-  .row{display:contents}
-  .row .lbl{background:#f6f8fa;padding:7px 12px;font-size:11px;font-weight:700;color:#57606a;border-bottom:1px solid #edf2f7}
-  .row .val{padding:7px 12px;font-size:11.5px;border-bottom:1px solid #edf2f7}
-  .row:last-child .lbl,.row:last-child .val{border-bottom:none}
-  .fin-row{display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #edf2f7}
-  .fin-box{border:1px solid #d0d7de;border-radius:6px;overflow:hidden;margin-bottom:14px}
-  table{width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid #d0d7de;border-radius:6px;overflow:hidden;font-size:11px}
-  thead th{background:#1a3a5c;color:#fff;padding:7px 10px;font-size:10.5px;font-weight:700;text-align:left}
-  tbody td{padding:6px 10px;border-bottom:1px solid #edf2f7}
-  tbody tr:last-child td{border-bottom:none}
-  tbody tr:nth-child(even) td{background:#f9fafb}
-  tfoot td{background:#f6f8fa;padding:7px 10px;font-weight:700;font-size:11.5px;border-top:2px solid #d0d7de}
-  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#dbeafe;color:#1e40af}
-  .badge.sold{background:#dcfce7;color:#15803d}
-  .badge.cancelled{background:#fee2e2;color:#dc2626}
-  .footer-note{margin-top:30px;font-size:10px;color:#888;text-align:center;border-top:1px solid #edf2f7;padding-top:14px}
-  @media print{body{padding:18px 24px}.top-bar{margin:-18px -24px 20px}@page{margin:12mm 10mm;size:A4 portrait}}
-</style>
-</head>
-<body>
-  <div class="top-bar">Sale Summary &nbsp;|&nbsp; ${esc(coName)} &nbsp;|&nbsp; Printed: ${printDate}</div>
-  <div class="header">
-    <div>
-      <div class="co-name">${esc(coName)}</div>
-      <div style="font-size:11px;color:#888;margin-top:4px;letter-spacing:2px;text-transform:uppercase">Real Estate Management System</div>
-    </div>
-    <div>
-      <div class="doc-badge">SALE SUMMARY</div>
-      <div style="font-family:monospace;font-size:11px;color:#1a3a5c;font-weight:700;text-align:right;margin-top:6px">${esc(d.sale_number || '—')}</div>
-    </div>
-  </div>
+  const w = _pw('Sale Summary — ' + (d.sale_number || ''), _pCSS('A4'));
+  if (!w) return;
 
-  <h3>Sale Information</h3>
-  <div class="grid">
-    <div class="row"><div class="lbl">Client</div><div class="val"><strong>${esc(d.client_name || '—')}</strong></div></div>
-    ${d.co_buyer_name ? `<div class="row"><div class="lbl">Co-buyer</div><div class="val">${esc(d.co_buyer_name)}${d.co_buyer_cnic ? ' — ' + esc(d.co_buyer_cnic) : ''}</div></div>` : ''}
-    <div class="row"><div class="lbl">Sale Date</div><div class="val">${saleDate}</div></div>
-    <div class="row"><div class="lbl">Status</div><div class="val"><span class="badge ${d.status === 'sold' ? 'sold' : d.status === 'cancelled' ? 'cancelled' : ''}">${esc(d.status || '—')}</span></div></div>
-    <div class="row"><div class="lbl">Project</div><div class="val">${esc(d.project_name || '—')}</div></div>
-    <div class="row"><div class="lbl">Unit No.</div><div class="val"><strong>${esc(d.unit_no || '—')}</strong></div></div>
-    ${d.unit_type ? `<div class="row"><div class="lbl">Unit Type</div><div class="val">${esc(d.unit_type)}</div></div>` : ''}
-    ${d.area_sqft ? `<div class="row"><div class="lbl">Area</div><div class="val">${Number(d.area_sqft).toLocaleString('en-PK')} sq ft</div></div>` : ''}
-    ${d.agent_name ? `<div class="row"><div class="lbl">Agent</div><div class="val">${esc(d.agent_name)}</div></div>` : ''}
-    ${d.nominee_name ? `<div class="row"><div class="lbl">Nominee</div><div class="val">${esc(d.nominee_name)} (${esc(d.nominee_relation || '—')})</div></div>` : ''}
-  </div>
+  const ig = (l, v) => '<div class="ig-item"><span class="ig-lbl">' + l + '</span><span class="ig-val">' + v + '</span></div>';
+  const fr = (l, v) => '<div class="row" style="padding:7px 14px"><span class="lbl">' + l + '</span><span class="val">' + v + '</span></div>';
 
-  <h3>Financial Summary</h3>
-  <div class="fin-box">
-    <div class="fin-row"><span>Total Price</span><span>${fmtPKR(d.total_amount)}</span></div>
-    ${Number(d.discount)>0 ? `<div class="fin-row"><span>Discount</span><span style="color:#dc2626">− ${fmtPKR(d.discount)}</span></div>` : ''}
-    <div class="fin-row"><span>Net Amount</span><span style="font-weight:700">${fmtPKR(d.net_amount)}</span></div>
-    <div class="fin-row"><span>Down Payment</span><span style="color:#15803d">${fmtPKR(d.down_payment)}</span></div>
-    <div class="fin-row"><span>Total Collected</span><span style="color:#15803d">${fmtPKR(totalPaid)}</span></div>
-    <div class="fin-row"><span>Outstanding Balance</span><span style="color:${totalOut>0?'#dc2626':'#15803d'};font-weight:700">${fmtPKR(totalOut)}</span></div>
-    ${Number(d.wht_amount)>0 ? `<div class="fin-row"><span>WHT</span><span>${fmtPKR(d.wht_amount)}</span></div>` : ''}
-    ${Number(d.cvt_amount)>0 ? `<div class="fin-row"><span>CVT</span><span>${fmtPKR(d.cvt_amount)}</span></div>` : ''}
-  </div>
+  let h = _lh('Sale Summary', d.project_name);
+  h += '<div class="body">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+     + '<div class="doc-title" style="border:none;margin:0;padding:0">Sale Summary</div>'
+     + '<div style="text-align:right"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">Sale No</div>'
+     + '<div style="font-size:14px;font-weight:700;font-family:monospace">' + esc(d.sale_number || '—') + '</div></div></div>';
 
-  ${installments.length > 0 ? `
-  <h3>Payment Schedule (${installments.length} installments)</h3>
-  <table>
-    <thead><tr>
-      <th style="text-align:center">#</th>
-      <th>Due Date</th>
-      <th>Type</th>
-      <th style="text-align:right">Amount Due</th>
-      <th style="text-align:right">Paid</th>
-      <th style="text-align:right">Outstanding</th>
-      <th style="text-align:center">Status</th>
-    </tr></thead>
-    <tbody>${schedRows}</tbody>
-    <tfoot><tr>
-      <td colspan="3">Total</td>
-      <td style="text-align:right">${fmtPKR(totalDue)}</td>
-      <td style="text-align:right">${fmtPKR(totalPaid)}</td>
-      <td style="text-align:right;color:${totalOut>0?'#dc2626':'#15803d'}">${fmtPKR(totalOut)}</td>
-      <td></td>
-    </tr></tfoot>
-  </table>` : ''}
+  h += '<div class="sec-title">Sale Information</div>';
+  h += '<div class="info-grid info-grid-2">';
+  h += ig('Client', '<b>' + esc(d.client_name || '—') + '</b>');
+  if (d.co_buyer_name) h += ig('Co-buyer', esc(d.co_buyer_name) + (d.co_buyer_cnic ? ' — ' + esc(d.co_buyer_cnic) : ''));
+  h += ig('Sale Date', saleDate);
+  h += ig('Status', esc(d.status || '—'));
+  h += ig('Project', esc(d.project_name || '—'));
+  h += ig('Unit No.', '<b>' + esc(d.unit_no || '—') + '</b>');
+  if (d.unit_type) h += ig('Unit Type', esc(d.unit_type));
+  if (d.area_sqft) h += ig('Area', Number(d.area_sqft).toLocaleString('en-IN') + ' sq ft');
+  if (d.agent_name) h += ig('Agent', esc(d.agent_name));
+  if (d.nominee_name) h += ig('Nominee', esc(d.nominee_name) + ' (' + esc(d.nominee_relation || '—') + ')');
+  h += '</div>';
 
-  ${d.notes ? `<h3>Notes</h3><p style="font-size:11.5px;color:#444;background:#f9fafb;border:1px solid #e1e8ed;border-radius:6px;padding:10px 14px">${esc(d.notes)}</p>` : ''}
+  h += '<div class="sec-title">Financial Summary</div>';
+  h += '<div style="border:1px solid #dde;border-radius:4px;overflow:hidden;margin-bottom:12px">';
+  h += fr('Total Price', fmtPKR(d.total_amount));
+  if (Number(d.discount) > 0) h += fr('Discount', '<span style="color:#dc2626">− ' + fmtPKR(d.discount) + '</span>');
+  h += fr('Net Amount', '<b>' + fmtPKR(d.net_amount) + '</b>');
+  h += fr('Down Payment', '<span style="color:#15803d">' + fmtPKR(d.down_payment) + '</span>');
+  h += fr('Total Collected', '<span style="color:#15803d">' + fmtPKR(totalPaid) + '</span>');
+  h += fr('Outstanding Balance', '<span style="color:' + (totalOut > 0 ? '#dc2626' : '#15803d') + ';font-weight:700">' + fmtPKR(totalOut) + '</span>');
+  if (Number(d.wht_amount) > 0) h += fr('WHT', fmtPKR(d.wht_amount));
+  if (Number(d.cvt_amount) > 0) h += fr('CVT', fmtPKR(d.cvt_amount));
+  h += '</div>';
 
-  <div class="footer-note">Generated by Nexunova RMS &nbsp;|&nbsp; ${esc(coName)} &nbsp;|&nbsp; ${printDate}</div>
-</body>
-</html>`;
-
-  _printHTML(html);
-}
-
-// ══ EDIT SALE ══════════════════════════════════════════════════════════
-
-async function openSaleEditModal(saleId) {
-  const se = document.getElementById('m-sale-edit');
-  if (!se) return;
-
-  document.getElementById('se-sale-id').value = saleId;
-  document.getElementById('se-err').textContent = '';
-
-  if (!window._salEditAgents) {
-    try {
-      const { data } = await supabase.rpc('list_agents', { p_company_id: S.cid, p_search: null, p_status: 'active', p_sort: 'name' });
-      window._salEditAgents = Array.isArray(data) ? data : [];
-    } catch(e) { window._salEditAgents = []; }
+  if (installments.length > 0) {
+    h += '<div class="sec-title">Payment Schedule (' + installments.length + ' installments)</div>';
+    h += '<table><thead><tr>'
+       + '<th style="text-align:center;width:32px">#</th><th>Due Date</th><th>Type</th>'
+       + '<th style="text-align:right">Amount Due</th><th style="text-align:right">Paid</th>'
+       + '<th style="text-align:right">Outstanding</th><th style="text-align:center">Status</th>'
+       + '</tr></thead><tbody>' + schedRows + '</tbody>'
+       + '<tfoot><tr><td colspan="3" style="font-weight:700">Total</td>'
+       + '<td style="text-align:right;font-weight:700">' + fmtPKR(totalDue) + '</td>'
+       + '<td style="text-align:right;font-weight:700">' + fmtPKR(totalPaid) + '</td>'
+       + '<td style="text-align:right;font-weight:700;color:' + (totalOut > 0 ? '#dc2626' : '#15803d') + '">' + fmtPKR(totalOut) + '</td>'
+       + '<td></td></tr></tfoot></table>';
   }
 
-  let saleData = (_salCurrentDetail && _salCurrentDetail.id === saleId) ? _salCurrentDetail : null;
-  if (!saleData) {
-    const { data, error } = await supabase.rpc('get_sale_quick_edit', { p_sale_id: saleId, p_company_id: S.cid });
-    if (error || !data || data.error) { toast('Could not load sale', 'err'); return; }
-    saleData = data;
-  }
+  if (d.notes) h += '<div class="sec-title">Notes</div><p style="font-size:11px;color:#444;background:#f9fafb;border:1px solid #e1e8ed;border-radius:6px;padding:10px 14px">' + esc(d.notes) + '</p>';
 
-  // Ensure clients cache is loaded — re-fetch if empty so the dropdown isn't blank
-  let clients = window._clientsCache || [];
-  if (!clients.length && typeof loadClientsCache === 'function') {
-    await loadClientsCache(S.cid);
-    clients = window._clientsCache || [];
-  }
-  // Also pull the sale's current client even if it's outside the cache window
-  // (After lockdown, single-client lookups go through list_clients with a search hint.)
-  if (saleData.client_id && !clients.some(c => c.id === saleData.client_id)) {
-    try {
-      const { data: cList } = await supabase.rpc('list_clients', { p_company_id: S.cid });
-      const cRow = (cList || []).find(c => c.id === saleData.client_id);
-      if (cRow) clients = clients.concat([{ id: cRow.id, fullName: cRow.full_name }]);
-    } catch {}
-  }
-  const clientOpts = clients.map(c =>
-    `<option value="${c.id}" ${c.id === saleData.client_id ? 'selected' : ''}>${esc(c.fullName || c.full_name || 'Unnamed')}</option>`
-  ).join('');
-  document.getElementById('se-client').innerHTML = clients.length
-    ? `<option value="">— Select Client —</option>${clientOpts}`
-    : `<option value="">No clients yet — add one first</option>`;
+  h += _footer();
+  h += '</div>';
 
-  // Agents: fetch on demand if cache is empty
-  let agents = window._salEditAgents || [];
-  if (!agents.length) {
-    try {
-      const { data: ag } = await supabase.rpc('list_agents', { p_company_id: S.cid, p_search: null, p_status: null, p_sort: 'name' });
-      agents = Array.isArray(ag) ? ag : [];
-      window._salEditAgents = agents;
-    } catch {}
-  }
-  const agentOpts = agents.map(a =>
-    `<option value="${a.id}" ${a.id === saleData.agent_id ? 'selected' : ''}>${esc(a.full_name || '?')}${a.status && a.status !== 'active' ? ' (inactive)' : ''}</option>`
-  ).join('');
-  document.getElementById('se-agent').innerHTML = `<option value="">— None —</option>${agentOpts}`;
-
-  document.getElementById('se-date').value              = saleData.sale_date || '';
-  document.getElementById('se-notes').value             = saleData.notes || '';
-  document.getElementById('se-co-buyer-name').value     = saleData.co_buyer_name || '';
-  document.getElementById('se-co-buyer-cnic').value     = saleData.co_buyer_cnic || '';
-  document.getElementById('se-co-buyer-share').value    = saleData.co_buyer_share_pct || '';
-  document.getElementById('se-nominee-name').value      = saleData.nominee_name || '';
-  document.getElementById('se-nominee-cnic').value      = saleData.nominee_cnic || '';
-  document.getElementById('se-nominee-relation').value  = saleData.nominee_relation || '';
-  document.getElementById('se-wht').value               = saleData.wht_amount || '';
-  document.getElementById('se-cvt').value               = saleData.cvt_amount || '';
-
-  om('m-sale-edit');
-}
-
-async function saveSaleEdit() {
-  const saleId   = document.getElementById('se-sale-id').value;
-  const clientId = document.getElementById('se-client').value;
-  const agentId  = document.getElementById('se-agent').value;
-  const saleDate = document.getElementById('se-date').value;
-  const notes    = document.getElementById('se-notes').value.trim();
-  const err      = document.getElementById('se-err');
-  const btn      = document.getElementById('se-save-btn');
-
-  err.textContent = '';
-
-  if (!clientId) { err.textContent = 'Client is required.'; return; }
-  if (!saleDate) { err.textContent = 'Sale date is required.'; return; }
-
-  const payload = {
-    client_id:           clientId,
-    agent_id:            agentId || null,
-    sale_date:           saleDate,
-    notes:               notes || null,
-    co_buyer_name:       document.getElementById('se-co-buyer-name').value.trim()    || null,
-    co_buyer_cnic:       document.getElementById('se-co-buyer-cnic').value.trim()    || null,
-    co_buyer_share_pct:  document.getElementById('se-co-buyer-share').value          || null,
-    nominee_name:        document.getElementById('se-nominee-name').value.trim()     || null,
-    nominee_cnic:        document.getElementById('se-nominee-cnic').value.trim()     || null,
-    nominee_relation:    document.getElementById('se-nominee-relation').value.trim() || null,
-    wht_amount:          Number(document.getElementById('se-wht').value)             || 0,
-    cvt_amount:          Number(document.getElementById('se-cvt').value)             || 0,
-  };
-
-  btn.disabled    = true;
-  btn.textContent = 'Saving…';
-
-  const res = await supabase.rpc('edit_sale', { p_sale_id: saleId, p_company_id: S.cid, p_data: payload });
-
-  btn.disabled    = false;
-  btn.textContent = 'Save Changes';
-
-  if (res.error || !res.data?.success) { err.textContent = res.error?.message || res.data?.error || 'Save failed'; return; }
-  cm('m-sale-edit');
-  toast('Sale updated');
-  rSaleDetail();
+  w.document.write(h);
+  _pclose(w);
 }
 
 // ══ EDIT INSTALLMENT ═══════════════════════════════════════════════════

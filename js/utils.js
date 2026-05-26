@@ -4,23 +4,36 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const ini=n=>(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const pct=(p,t)=>t?Math.min(100,Math.round(p/t*100)):0;
 
-// International number formatting — comma-separated, no L/Cr suffixes
+// Pakistani number formatting — lakh/crore digit grouping (1,00,000 / 1,00,00,000).
+// NOTE: use 'en-IN' for the grouping. 'en-PK' (and 'en-US') produce WESTERN
+// grouping (1,000,000) in Node/browser ICU — verified — so it is NOT correct here.
+const _PK_LOCALE = 'en-IN';
 function fM(n){
   if(!n&&n!==0)return '—';
-  return Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+  return Number(n).toLocaleString(_PK_LOCALE,{maximumFractionDigits:0});
 }
 function fMF(n){
   if(!n&&n!==0)return '—';
-  return 'PKR '+Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+  return 'PKR '+Number(n).toLocaleString(_PK_LOCALE,{maximumFractionDigits:0});
 }
 function fMH(n){
   if(!n&&n!==0)return '—';
-  return Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+  return Number(n).toLocaleString(_PK_LOCALE,{maximumFractionDigits:0});
 }
 // fN — plain number formatter (no currency, no em-dash for empty). Alias of fM for legacy callers.
 function fN(n){
   if(!n&&n!==0)return '';
-  return Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+  return Number(n).toLocaleString(_PK_LOCALE,{maximumFractionDigits:0});
+}
+// fLakhCr — compact lakh/crore for DASHBOARD KPI CARDS ONLY (do not use elsewhere;
+// it loses precision). ≥1 crore → "1.20 Cr", ≥1 lakh → "12.50 L", else grouped.
+// Returns the number + suffix with NO currency prefix (callers add their own PKR).
+function fLakhCr(n){
+  if(!n&&n!==0)return '—';
+  const v=Number(n), a=Math.abs(v);
+  if(a>=1e7) return (v/1e7).toLocaleString(_PK_LOCALE,{minimumFractionDigits:2,maximumFractionDigits:2})+' Cr';
+  if(a>=1e5) return (v/1e5).toLocaleString(_PK_LOCALE,{minimumFractionDigits:2,maximumFractionDigits:2})+' L';
+  return v.toLocaleString(_PK_LOCALE,{maximumFractionDigits:0});
 }
 function fD(d){if(!d)return '—';try{return new Date(d+'T00:00:00').toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}}
 
