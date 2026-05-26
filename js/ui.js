@@ -374,6 +374,7 @@ function buildSB(){
         { id:'admin',     ic:'settings',    lb:'Settings' },
         { id:'backup',    ic:'database',    lb:'Backup' },
         { id:'audit',     ic:'history',     lb:'Audit Trail' },
+        { id:'approvals', ic:'file-check',  lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
       ]},
     ];
   } else if(isR){
@@ -507,6 +508,12 @@ function buildSB(){
 
   document.getElementById('sb-nav').innerHTML = html;
 
+  // Pending-approvals badge (admin/owner only) — fetch once, then re-render shows the count.
+  if (isA && typeof refreshApprovalsBadge === 'function' && !window._approvalsBadgeLoaded) {
+    window._approvalsBadgeLoaded = true;
+    refreshApprovalsBadge();
+  }
+
   // Setup Wizard shortcut — only visible to admin/owner AND only while onboarding is incomplete.
   // Once onboarding_complete=true, hide it (re-run via Admin → Settings later if needed).
   const _wizBtn = document.getElementById('sb-wizard-btn');
@@ -620,7 +627,7 @@ function nav(pg,x){
     }
   }
   document.querySelector('.sb')?.setAttribute('data-pg', pg);
-  const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
+  const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
   const tbTitle=document.getElementById('tb-t');
   if(tbTitle)tbTitle.textContent=ts[pg]||pg;
   if(typeof atbSyncCurrent==='function')atbSyncCurrent(pg);
@@ -637,7 +644,7 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,'recovery-dashboard':rRecDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:rBlacklist,payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,executive:rExecutive,noc:rNOC,fieldvisits:rFieldVisits};
+  const fns={dashboard:rDash,'recovery-dashboard':rRecDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,approvals:rApprovals,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:rBlacklist,payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,executive:rExecutive,noc:rNOC,fieldvisits:rFieldVisits};
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',

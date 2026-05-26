@@ -19,7 +19,7 @@
 
 <!-- Nexunova RMS — Modular CSS -->
 <link rel="stylesheet" href="css/design-system.css?v=20260526c">
-<link rel="stylesheet" href="css/login.css?v=20260526b">
+<link rel="stylesheet" href="css/login.css?v=20260526c">
 <link rel="stylesheet" href="css/app.css?v=20260526e">
 <link rel="stylesheet" href="css/components.css?v=20260526c">
 <link rel="stylesheet" href="css/pages.css?v=20260511c">
@@ -427,34 +427,41 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <!-- Portfolio selector (hidden — auto-selects) -->
       <div class="co-sel" id="co-sel"></div>
 
-      <div class="lx-err" id="lerr">Invalid credentials — please check and try again</div>
+      <div class="lx-err" id="lerr" role="alert" aria-live="assertive">Invalid credentials — please check and try again</div>
 
+      <form id="lx-login-form" autocomplete="off" onsubmit="doLogin();return false;">
       <div class="lx-field">
-        <label class="lx-label">Username</label>
-        <input id="li-u" class="lx-input" placeholder="username@COMPANYCODE" autocomplete="off">
-        <div class="lx-hint">Staff &amp; Users: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">ali@samsung</code> &nbsp;·&nbsp; Admin/Owner: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">samsung</code></div>
+        <label class="lx-label" for="li-u">Username</label>
+        <input id="li-u" name="username" class="lx-input" placeholder="username@COMPANYCODE" autocomplete="off" aria-describedby="li-u-hint">
+        <div class="lx-hint" id="li-u-hint">Staff &amp; Users: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">ali@samsung</code> &nbsp;·&nbsp; Admin/Owner: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">samsung</code></div>
       </div>
       <div class="lx-field">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-          <label class="lx-label" style="margin-bottom:0">Password</label>
+          <label class="lx-label" style="margin-bottom:0" for="li-p">Password</label>
           <a onclick="showForgotPassword();return false;" href="#" class="lx-forgot-link">Forgot password?</a>
         </div>
         <div class="lx-input-wrap">
-          <input id="li-p" class="lx-input" type="password" placeholder="Enter your password"
-            onkeydown="if(event.key==='Enter')doLogin()">
-          <button type="button" class="lx-eye-btn" id="lx-eye" onclick="toggleLxPwd()">
+          <input id="li-p" name="password" class="lx-input" type="password" placeholder="Enter your password" autocomplete="current-password">
+          <button type="button" class="lx-eye-btn" id="lx-eye" onclick="toggleLxPwd()" aria-label="Show password">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
+        <div class="lx-caps" id="li-caps" role="status">⇪ Caps Lock is on</div>
       </div>
 
-      <button class="lx-btn" onclick="doLogin()" id="lx-signin-btn">
+      <button class="lx-btn" type="submit" id="lx-signin-btn">
         <div class="lx-btn-shimmer" id="lx-shimmer"></div>
         <span>Sign In</span>
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path d="M5 12h14M12 5l7 7-7 7"/>
         </svg>
       </button>
+      </form>
+
+      <div class="lx-signup-row">
+        Don't have an account?
+        <a onclick="showSignup();return false;" href="#" class="lx-signup-link">Sign up free</a>
+      </div>
 
       <div class="lx-footer">
         <div style="margin-bottom:10px;font-size:11.5px;color:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;gap:6px">
@@ -504,7 +511,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <div class="lx-form-title">Forgot Password?</div>
           <div class="lx-form-sub">Enter your email to receive a reset link</div>
         </div>
-        <div class="lx-err" id="fp-err"></div>
+        <div class="lx-err" id="fp-err" role="alert" aria-live="assertive"></div>
         <div class="lx-field">
           <label class="lx-label">Email Address</label>
           <input id="fp-email" class="lx-input" type="email" placeholder="you@yourbusiness.com"
@@ -523,8 +530,9 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,217,255,0.9)" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
         </div>
         <div class="lx-form-title" style="margin-bottom:10px">Check Your Email</div>
-        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:4px">We sent a reset link to</p>
-        <p id="fp-sent-email" style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.88);margin-bottom:20px;word-break:break-all"></p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:4px">If an account exists for</p>
+        <p id="fp-sent-email" style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.88);margin-bottom:8px;word-break:break-all"></p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:20px">we've sent a password reset link.</p>
         <p style="font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6">
           Didn't receive it? Check spam or
           <a onclick="fpSetState('form')" class="fp-link">try again</a>.
@@ -619,16 +627,17 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <div class="lx-form-title">Set New Password</div>
           <div class="lx-form-sub">Choose a strong password for your account</div>
         </div>
-        <div class="lx-err" id="rp-form-err"></div>
+        <div class="lx-err" id="rp-form-err" role="alert" aria-live="assertive"></div>
         <div class="lx-field">
           <label class="lx-label">New Password</label>
           <div class="lx-input-wrap">
             <input id="rp-pwd" class="lx-input" type="password" placeholder="Min. 8 characters"
               autocomplete="new-password" onkeydown="if(event.key==='Enter')rpSubmit()">
-            <button type="button" class="lx-eye-btn" onclick="rpToggleEye('rp-pwd')">
+            <button type="button" class="lx-eye-btn" onclick="rpToggleEye('rp-pwd')" aria-label="Show password">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
+          <div class="lx-caps" id="rp-caps" role="status">⇪ Caps Lock is on</div>
         </div>
         <div class="lx-field">
           <label class="lx-label">Confirm Password</label>
@@ -764,7 +773,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       </div>
 
       <!-- Error banner -->
-      <div class="sg-err" id="sg-err"></div>
+      <div class="sg-err" id="sg-err" role="alert" aria-live="assertive"></div>
 
       <!-- Form body (panels live here) -->
       <div id="sg-form-body">
@@ -906,6 +915,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
               <div class="sg-strength-label" id="sg-str-label"></div>
             </div>
             <div class="sg-hint" id="sh-pass"></div>
+            <div class="lx-caps" id="sg-caps" role="status">⇪ Caps Lock is on</div>
           </div>
           <div class="sg-field" style="position:relative">
             <label class="sg-label" for="sg-conf">Confirm Password *</label>
@@ -1294,6 +1304,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div id="pg-addpayment" class="pg"></div>
       <div id="pg-receipts"   class="pg"></div>
       <div id="pg-pdc"              class="pg"></div>
+      <div id="pg-approvals"       class="pg"></div>
       <div id="pg-cancelledunits"  class="pg"></div>
       <div id="pg-transferunits"   class="pg"></div>
       <div id="pg-officerledger"    class="pg"></div>
@@ -3900,7 +3911,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/otp.js?v=20260522a"></script>
 
 <!-- 1.2. Forgot / Reset password -->
-<script src="js/forgot-password.js?v=20260522c"></script>
+<script src="js/forgot-password.js?v=20260526a"></script>
 
 <!-- 1.2. Notify notification system -->
 <script src="js/notify.js"></script>
@@ -3915,17 +3926,17 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/utils.js?v=20260526a"></script>
 
 <!-- 3. Data helpers: queries over DB -->
-<script src="js/helpers.js?v=20260526a"></script>
+<script src="js/helpers.js?v=20260526b"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
 <script src="js/ui.js?v=20260526f"></script>
 <script src="js/topbar-aurora.js?v=20260516a"></script>
 
 <!-- 5. Auth: login/logout -->
-<script src="js/auth.js?v=20260526d"></script>
+<script src="js/auth.js?v=20260526e"></script>
 
 <!-- 5.5. Signup & onboarding -->
-<script src="js/pages/signup-validation.js"></script>
+<script src="js/pages/signup-validation.js?v=20260526a"></script>
 <script src="js/pages/signup.js?v=20260517a"></script>
 <script src="js/pages/onboarding.js?v=20260526i"></script>
 
@@ -3958,6 +3969,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/radar.js?v=20260525a"></script>
 <script src="js/pages/promises.js?v=20260526b"></script>
 <script src="js/pages/audit.js?v=20260525a"></script>
+<script src="js/pages/approvals.js?v=20260526a"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
 <script src="js/pages/reports.js?v=20260526c"></script>
 <script src="js/pages/print.js?v=20260526a"></script>

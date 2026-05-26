@@ -142,6 +142,14 @@ Authoritative DB facts (full detail in `DATABASE_AUDIT.md` and `PROPOSED_SCHEMA.
    - Financial (RESTRICT): `payments, installments, pdc_cheques, additional_receivables, payables`.
    - Operational (SET NULL): `payment_promises, contact_logs, follow_up_reminders, escalations, legal_cases, field_visits, reminder_logs, buyer_complaints, noc`.
 
+**Verified column names (confirmed Phase 3, 2026-05-26):**
+- `sales.net_amount` = canonical price field (NOT `total_price` — no such column exists)
+- `clients.dnd_status` = canonical DND boolean (NOT `is_dnd`)
+- `clients.is_blacklisted` = ✅ correct
+- `payments.refund_amount` = added in `phase3_approval_apply_engine` migration
+- `payments.status` enum now includes `'refunded'` (constraint extended)
+- `approval_requests` payload key for price revision = `'net_amount'` (not `'total_price'`)
+
 **Conventions (must match exactly for all new objects):** `uuid` PK via `gen_random_uuid()`; `company_id uuid NOT NULL → companies(id) ON DELETE CASCADE`; actor cols `uuid → app_users(id) ON DELETE SET NULL`; `created_at/updated_at timestamptz NOT NULL DEFAULT now()`; **RLS enabled + `deny_all_anon`** on every new table; `trg_<table>_upd BEFORE UPDATE` calling `set_updated_at()` on every mutable table.
 
 **Auth join rule:** always `app_users.auth_user_id = auth.uid()` (never `app_users.id = auth.uid()`).
@@ -244,7 +252,10 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Phase 2 — Recovery Queue module COMPLETE (2026-05-26)** — full audit + fixes (branch `phase2-recovery`, merged to `main` `021ebca`). `recovery.js` itself makes no DB calls (pure view over caches), so the audit covered its data path. **(1) Multi-site isolation enforced server-side:** `get_units_cache_bundle` + `get_contact_logs_cache` now filter by the caller's `user_project_assignments` for non-admins (admin/owner/super-admin + no-session bypass) — previously company-scoped only, so a recovery officer saw every site (breached §3). **NB: this is app-wide** — every non-admin role now sees only assigned projects everywhere (units/payments/sales/dashboards); a non-admin with no assignments sees nothing until assigned. Second client-side layer: `_rqBase()` filters via `hasProjectAccess()`. **(2)** Created the **`recovery-documents` storage bucket** (public read + authenticated insert, mirroring `rms-files`) — Log-a-Call attachments were silently failing because the bucket didn't exist. **(3)** `project_id` (+ `client_id`/`sale_id` on contact logs) now derived from the unit's active sale in `create_contact_log`/`create_payment_promise`/`create_follow_up_reminder`. Plus: `_rqWA` alert()→toast, manager read-only now hides `.rq-btn`/`.rd-actbtn` write actions. Migration `supabase/migrations/20260526_phase2_recovery_isolation_bucket_projectid.sql` (applied). See [[report_rpcs_anon_scoped]].
 
-**Immediate next action:** **Phase 2 is 100% complete (2026-05-26)** — Sales, Payments, Recovery Queue all audited & hardened. **Begin Phase 3 — Governance: Approval Workflow (single-approver, mandatory comments), Audit Trail, Restriction Levels (hard/soft/warning).**
+- ✅ **Phase 3 Component 1 COMPLETE (2026-05-26)** — audit trigger coverage + backdate detection (migration `phase3_audit_trigger_coverage`): `_trg_audit` extended to `contact_logs` / `follow_up_reminders` / `approval_requests` (now **15 audited tables**); `audit_trigger_function` flags `payment_date`/`sale_date < CURRENT_DATE-1` as `is_sensitive` + `reason='backdated_entry'` (null-safe). `audit.js` confirmed RPC-only (no `.from()` violations).
+- ✅ **Phase 3 Component 2 COMPLETE (2026-05-26)** — `approve_request` apply-engine (migration `phase3_approval_apply_engine`): **7 request types** (`discount`/`price_revision`/`refund`/`dnd`/`blacklist`/`cancellation`/`transfer`) dispatched **in-transaction BEFORE the status flip** (rollback on failure, `company_id` re-verified per entity, unsupported type raises), then one `audit_logs` `approval_applied` row. + `js/pages/approvals.js` Admin queue (Pending/History tabs, mandatory comments on maker **and** checker, decision modal surfaces the maker justification, sidebar pending badge via `refreshApprovalsBadge`). Schema adaptations recorded in §7 (price→`net_amount`, dnd→`dnd_status`, `refund_amount` added + status enum extended). Price-revision payload key aligned to `'net_amount'` via follow-up migration `phase3_price_revision_payload_key`. Files not yet committed.
+
+**Immediate next action:** **Phase 3 Components 1 & 2 complete (2026-05-26).** **Next: Component 3 — Restriction Levels** — restriction-rules config table + soft-block routing into `create_approval_request` (discount-over-threshold / cancellation / refund / transfer) + hard-block delete-with-financials guard + warning-level backdate logging (audit side already done in Component 1).
 
 ---
 
