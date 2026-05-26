@@ -389,7 +389,7 @@ async function loadReport(){
         <div class="lh-doctype">${meta.title}</div>
         <div class="lh-meta">
           Generated: ${fmtDate(new Date().toISOString().slice(0,10))}<br>
-          ${b.address_full||''}
+          ${b.address_full||b.address||''}
         </div>
       </div>
     </div>
