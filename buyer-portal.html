@@ -657,7 +657,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ══════════════════════════════════════════════════════════
 let currentCnic  = '';
 let buyerData    = null;
-let portalState  = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false };
+let portalState  = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
 
 // ══════════════════════════════════════════════════════════
 //  UTILITIES
@@ -672,7 +672,8 @@ function clearError(elId) { var el=document.getElementById(elId); if(el){ el.tex
 
 function fmtMoney(n) {
   if(n===null||n===undefined||n==='') return '—';
-  return 'PKR ' + Number(n).toLocaleString('en-PK', {maximumFractionDigits:0});
+  // 'en-IN' grouping = PK lakh/crore convention (1,00,000 / 1,00,00,000) — master context §10.
+  return 'PKR ' + Number(n).toLocaleString('en-IN', {maximumFractionDigits:0});
 }
 function fmtDate(d) {
   if(!d) return '—';
@@ -735,7 +736,7 @@ async function doLogin() {
     if(data && data.error) { showError('cnic-err', data.error); return; }
 
     buyerData = data;
-    portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false };
+    portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
     buildPortalLayout(data);
     showScreen('screen-dashboard');
     window.scrollTo(0,0);
@@ -787,7 +788,7 @@ async function doForgotPassword() {
 
 function doLogout() {
   buyerData=null; currentCnic='';
-  portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false };
+  portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
   document.getElementById('cnic-input').value='';
   document.getElementById('pw-input').value='';
   clearError('cnic-err');
@@ -1021,8 +1022,107 @@ function switchTab(tabId) {
   });
   var sec = document.getElementById('tab-'+tabId);
   if(sec) sec.classList.add('active');
-  if(tabId==='documents' && !portalState.nocLoaded)  loadPortalNocs();
-  if(tabId==='support'   && !portalState.compLoaded) loadPortalComplaints();
+  if(tabId==='documents' && !portalState.nocLoaded)      loadPortalNocs();
+  if(tabId==='support'   && !portalState.compLoaded)     loadPortalComplaints();
+  if(tabId==='schedule'  && !portalState.scheduleLoaded) loadPortalSchedule();
+  if(tabId==='payments'  && !portalState.receiptsLoaded) loadPortalReceipts();
+}
+
+// ── Lazy loaders for Schedule & Receipts (RPC-driven, Phase 4 Component 1) ───
+async function loadPortalSchedule() {
+  var d=buyerData;
+  if(!d||!d.client||!d.client.id||!d.unit||!d.unit.id) return;
+  var sec=document.getElementById('tab-schedule'); if(!sec) return;
+  try {
+    var res=await sb.rpc('get_buyer_payment_schedule',{
+      p_company_id:d.client.company_id, p_client_id:d.client.id, p_unit_id:d.unit.id
+    });
+    if(res.error) throw res.error;
+    var rows=Array.isArray(res.data)?res.data:[];
+    portalState.scheduleLoaded=true;
+    var html='<div class="db-card">'
+      +'<div class="db-card-header"><span>📋</span><div class="db-card-title">Installment Schedule</div>'
+      +'<button class="btn-action btn-gold" style="margin-left:auto" onclick="printSchedule()">⎙ Print Schedule</button></div>';
+    if(!rows.length){
+      html+='<div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">No installments on file yet.</div></div>';
+    } else {
+      var thStyle='text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px';
+      var thR=thStyle.replace('text-align:left','text-align:right');
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+        +'<thead><tr>'
+        +'<th style="'+thStyle+'">#</th>'
+        +'<th style="'+thStyle+'">Due Date</th>'
+        +'<th style="'+thR+'">Amount Due</th>'
+        +'<th style="'+thR+'">Paid</th>'
+        +'<th style="'+thR+'">Balance</th>'
+        +'<th style="'+thStyle+'">Status</th>'
+        +'</tr></thead><tbody>';
+      rows.forEach(function(i){
+        var od=i.is_overdue===true;
+        var bal=parseFloat(i.balance||0);
+        var paid=parseFloat(i.amount_paid||0);
+        var statusLabel=i.status==='paid'?'Paid':(od?'Overdue':(bal>0?'Pending':'Cleared'));
+        var statusColor=i.status==='paid'?'#059669':(od?'#dc2626':'#d97706');
+        var rowBg=od?'background:rgba(239,68,68,0.06)':'';
+        var tdL='padding:10px 12px;border-bottom:1px solid var(--border)';
+        var tdR=tdL+';text-align:right;font-family:var(--mono);font-size:13px';
+        html+='<tr style="'+rowBg+'">'
+          +'<td style="'+tdL+';font-family:var(--mono);font-size:12px">'+esc(String(i.installment_number||''))+'</td>'
+          +'<td style="'+tdL+';font-size:13px;color:'+(od?'#dc2626':'var(--text)')+'">'+fmtDate(i.due_date)+'</td>'
+          +'<td style="'+tdR+'">'+fmtMoney(i.amount_due)+'</td>'
+          +'<td style="'+tdR+';color:'+(paid>0?'#059669':'var(--t3)')+'">'+(paid>0?fmtMoney(paid):'—')+'</td>'
+          +'<td style="'+tdR+';font-weight:'+(bal>0?'700':'400')+';color:'+(bal>0?(od?'#dc2626':'#d97706'):'var(--t3)')+'">'+(bal>0?fmtMoney(bal):'—')+'</td>'
+          +'<td style="'+tdL+';font-size:12px;font-weight:600;color:'+statusColor+'">'+statusLabel+'</td>'
+          +'</tr>';
+      });
+      html+='</tbody></table></div></div>';
+    }
+    sec.innerHTML=html;
+  } catch(e){ console.warn('[loadPortalSchedule]', e); }
+}
+
+async function loadPortalReceipts() {
+  var d=buyerData;
+  if(!d||!d.client||!d.client.id||!d.unit||!d.unit.id) return;
+  var sec=document.getElementById('tab-payments'); if(!sec) return;
+  try {
+    var res=await sb.rpc('get_buyer_receipts',{
+      p_company_id:d.client.company_id, p_client_id:d.client.id, p_unit_id:d.unit.id
+    });
+    if(res.error) throw res.error;
+    var rows=Array.isArray(res.data)?res.data:[];
+    portalState.receiptsLoaded=true;
+    var total=rows.reduce(function(s,r){ return s+parseFloat(r.amount||0); },0);
+    var html='<div class="db-card">'
+      +'<div class="db-card-header"><span>💳</span><div class="db-card-title">Payment Receipts</div></div>';
+    if(!rows.length){
+      html+='<div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">No confirmed receipts on file yet.</div></div>';
+    } else {
+      html+='<ul style="list-style:none;margin:0;padding:0">';
+      rows.forEach(function(r){
+        var m=(r.payment_mode||'').toLowerCase(),icon='💰';
+        if(m.includes('cash')) icon='💵';
+        else if(m.includes('cheque')||m.includes('pdc')) icon='📋';
+        else if(m.includes('bank')||m.includes('transfer')) icon='🏦';
+        else if(m.includes('online')||m.includes('easypaisa')||m.includes('jazzcash')||m.includes('raast')) icon='📱';
+        var meta=fmtDate(r.payment_date)+' &nbsp;·&nbsp; '+esc(r.payment_mode||'—');
+        if(r.cheque_number) meta+=' &nbsp;·&nbsp; Cheque #'+esc(r.cheque_number);
+        if(r.bank_name)     meta+=' &nbsp;·&nbsp; '+esc(r.bank_name);
+        if(r.status)        meta+=' &nbsp;·&nbsp; '+esc(r.status);
+        html+='<li class="pay-item">'
+          +'<div class="pay-icon">'+icon+'</div>'
+          +'<div class="pay-info"><div class="pay-desc">'+esc(r.receipt_number||'Payment Receipt')+'</div><div class="pay-meta">'+meta+'</div></div>'
+          +'<div class="pay-amount">+'+fmtMoney(r.amount)+'</div>'
+          +'</li>';
+      });
+      html+='</ul>'
+        +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+        +'<span style="font-size:12px;color:var(--t3)">Total Confirmed</span>'
+        +'<span style="font-size:16px;font-family:var(--mono);font-weight:700;color:var(--green)">'+fmtMoney(total)+'</span>'
+        +'</div></div>';
+    }
+    sec.innerHTML=html;
+  } catch(e){ console.warn('[loadPortalReceipts]', e); }
 }
 
 // ── Lazy loaders ────────────────────────────────────────────────────
