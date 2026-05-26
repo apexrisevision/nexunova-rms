@@ -628,6 +628,22 @@ async function _adminLoadSecurity(ct) {
         <div id="sec-locked-wrap">${lockedHtml}</div>
       </div></div>
 
+      <!-- Admin Two-Factor Authentication -->
+      <div class="card"><div class="cb">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:14px;font-weight:700">Two-Factor Authentication (Admins)</div>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(34,197,94,.15);color:#22c55e">Recommended</span>
+        </div>
+        <p style="font-size:12px;color:var(--t3);margin:0 0 14px;line-height:1.6">
+          When enabled, <b>Admin and Owner</b> accounts must enter a one-time code sent to their email at every sign-in.
+          Requires the email service to be configured; if it is ever unreachable, sign-in proceeds without the code so you can never be locked out.
+        </p>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600">
+          <input type="checkbox" id="sec-2fa" ${cfg.require_2fa_admin ? 'checked' : ''} onchange="secSave2FA(this.checked)">
+          Require email 2FA for Admin / Owner logins
+        </label>
+      </div></div>
+
       <!-- IP Whitelist -->
       <div class="card"><div class="cb">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
@@ -676,6 +692,22 @@ async function secSaveTimeout() {
   if (error || data?.success === false) { toast('Failed to save', 'err'); return; }
   if (typeof _setIdleTimeoutMin === 'function') _setIdleTimeoutMin(min);
   toast('Session timeout saved', 'ok');
+}
+
+async function secSave2FA(enabled) {
+  // save_security_settings is merge-safe, so sending only this field preserves
+  // the session timeout, lockout, and IP-whitelist settings.
+  const { data, error } = await sb.rpc('save_security_settings', {
+    p_company_id: S.cid,
+    p_data: { require_2fa_admin: !!enabled }
+  });
+  if (error || data?.success === false) {
+    toast('Failed to save', 'err');
+    const cb = document.getElementById('sec-2fa');
+    if (cb) cb.checked = !enabled;   // revert the toggle on failure
+    return;
+  }
+  toast(enabled ? 'Admin 2FA enabled' : 'Admin 2FA disabled', 'ok');
 }
 
 async function secAddIP() {

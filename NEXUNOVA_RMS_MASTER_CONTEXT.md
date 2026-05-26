@@ -150,6 +150,18 @@ Authoritative DB facts (full detail in `DATABASE_AUDIT.md` and `PROPOSED_SCHEMA.
 - `payments.status` enum now includes `'refunded'` (constraint extended)
 - `approval_requests` payload key for price revision = `'net_amount'` (not `'total_price'`)
 
+**Phase 3 engineering notes (2026-05-26):**
+- `execute_unit_cancellation` and `execute_unit_transfer_v2` renamed to `_core` variants; gating wrappers added at the same signatures. `_core` functions **REVOKED from anon/authenticated** (gate can't be sidestepped). `approve_request` calls the `_core` functions directly — the gate is **not** re-entered on approval (no recursion).
+- `approval_requests` has **NO `maker_comment` column** — the maker comment lives in `approval_request_comments` (the initial `'comment'` row). Always route soft-blocks through `create_approval_request` (which enforces a non-empty comment) rather than a raw INSERT.
+- `p_maker_comment` was **NOT added** to the cancellation/transfer RPC signatures (avoids a risky DROP+CREATE on 42-/24-param production functions) — the maker comment is sourced from the existing `p_detailed_reason` (cancellation) / `p_notes` (transfer) fields.
+- **Discount soft-block** is wired via the dedicated **`request_discount_change(p_sale_id, p_new_discount, p_maker_comment)`** RPC, NOT `record_payment` (record_payment has no discount/base_price params; gating it would block ordinary payments).
+- **No standalone refund RPC exists** — refunds flow through `execute_unit_cancellation` (now gated) and the `approve_request` `refund` branch.
+- `clients.dnd_status` = canonical DND field (NOT `is_dnd`).
+- `sales.net_amount` = canonical price field (NOT `total_price`).
+- `payments.refund_amount` column added in `phase3_approval_apply_engine`; `payments.status` enum extended with `'refunded'`.
+- `company_restriction_rules` table: **8 default rules seeded per company** (discount/cancellation/transfer/refund/price_revision/dnd/blacklist=soft, backdate=warning). Helper `_rms_restriction_level(company, action)` defaults to `'soft'` when no row.
+- **Hard blocks override admin** (master context §5): even admin cannot bypass a hard rule. Admin bypasses only soft/warning (applies directly, since admin is the single approver).
+
 **Conventions (must match exactly for all new objects):** `uuid` PK via `gen_random_uuid()`; `company_id uuid NOT NULL → companies(id) ON DELETE CASCADE`; actor cols `uuid → app_users(id) ON DELETE SET NULL`; `created_at/updated_at timestamptz NOT NULL DEFAULT now()`; **RLS enabled + `deny_all_anon`** on every new table; `trg_<table>_upd BEFORE UPDATE` calling `set_updated_at()` on every mutable table.
 
 **Auth join rule:** always `app_users.auth_user_id = auth.uid()` (never `app_users.id = auth.uid()`).
@@ -255,7 +267,10 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ✅ **Phase 3 Component 1 COMPLETE (2026-05-26)** — audit trigger coverage + backdate detection (migration `phase3_audit_trigger_coverage`): `_trg_audit` extended to `contact_logs` / `follow_up_reminders` / `approval_requests` (now **15 audited tables**); `audit_trigger_function` flags `payment_date`/`sale_date < CURRENT_DATE-1` as `is_sensitive` + `reason='backdated_entry'` (null-safe). `audit.js` confirmed RPC-only (no `.from()` violations).
 - ✅ **Phase 3 Component 2 COMPLETE (2026-05-26)** — `approve_request` apply-engine (migration `phase3_approval_apply_engine`): **7 request types** (`discount`/`price_revision`/`refund`/`dnd`/`blacklist`/`cancellation`/`transfer`) dispatched **in-transaction BEFORE the status flip** (rollback on failure, `company_id` re-verified per entity, unsupported type raises), then one `audit_logs` `approval_applied` row. + `js/pages/approvals.js` Admin queue (Pending/History tabs, mandatory comments on maker **and** checker, decision modal surfaces the maker justification, sidebar pending badge via `refreshApprovalsBadge`). Schema adaptations recorded in §7 (price→`net_amount`, dnd→`dnd_status`, `refund_amount` added + status enum extended). Price-revision payload key aligned to `'net_amount'` via follow-up migration `phase3_price_revision_payload_key`. Files not yet committed.
 
-**Immediate next action:** **Phase 3 Components 1 & 2 complete (2026-05-26).** **Next: Component 3 — Restriction Levels** — restriction-rules config table + soft-block routing into `create_approval_request` (discount-over-threshold / cancellation / refund / transfer) + hard-block delete-with-financials guard + warning-level backdate logging (audit side already done in Component 1).
+- ✅ **Phase 3 Component 3 COMPLETE (2026-05-26)** — Restriction Levels. Migrations: `phase3_restriction_rules` (new `company_restriction_rules` table, 8 default rules seeded per company, `_rms_restriction_level` helper), `phase3_softblock_wiring` (rename `execute_unit_cancellation`/`execute_unit_transfer_v2` → `_core` variants with same-signature gating wrappers, `approve_request` repointed at `_core` to avoid gate recursion, `_core` REVOKED from anon/authenticated, client-delete hard block for active financials), and `phase3_discount_softblock` (new `request_discount_change` RPC — the dedicated maker entry point for discount edits, since `record_payment` has no discount params). All four restriction levels working: **hard** (delete-with-financials, negative/over-outstanding payment), **soft** (cancellation/transfer/discount route via `create_approval_request`), **warning** (backdate detection via the audit trigger from Component 1 + a `restriction_warning` audit row in the gates).
+- ✅ **Phase 3 COMPLETE (2026-05-26)** — Approval Workflow + Audit Trail + Restriction Levels all live. Governance pipeline end-to-end: maker submits restricted action → gated RPC creates `approval_request` via `create_approval_request` (mandatory comment) → admin sees it in `approvals.js` queue → approves with mandatory comment → apply-engine in `approve_request` dispatches by `request_type` and mutates the target entity in the same transaction → `audit_logs` row `action='approval_applied'`.
+
+**Immediate next action:** **Phase 3 is 100% complete (2026-05-26).** **Begin Phase 4 — Intelligence & Documents: Reports (Crystal-style A4, PDF+Excel), AI Recovery Radar, Document generation, Client portal.**
 
 ---
 
@@ -272,8 +287,8 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ~~**Payments**~~ ✅ **COMPLETE (2026-05-26)** — audited & hardened: 3 RLS-blocked `.from()` reads swapped to RPCs, PDC status standardized to `presented` + routed through dedicated RPCs, `edit_payment_meta` bank_id fix, + 2 new per-sale list RPCs.
 - ~~**Recovery Queue** redesign~~ ✅ **COMPLETE (2026-05-26)** — audited & fixed: multi-site isolation enforced server-side in `get_units_cache_bundle`/`get_contact_logs_cache` (+ client-side `hasProjectAccess` layer), `recovery-documents` storage bucket created, `project_id` tagging in the 3 recovery create RPCs, manager read-only coverage, toast fix.
 
-### Phase 3 — Governance ◀ **CURRENT / NEXT**
-- Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).
+### ~~Phase 3 — Governance~~ ✅ **COMPLETE (2026-05-26)**
+- ~~Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).~~ All three components landed (audit-trigger coverage + backdate; approve-engine + admin queue UI; restriction rules + soft-block gates + hard-block client delete + discount RPC).
 
 ### Phase 4 — Intelligence & documents
 - Reports (Crystal-style A4, PDF+Excel), AI Recovery Radar, Document generation, Client portal.

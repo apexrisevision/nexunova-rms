@@ -114,15 +114,30 @@ const SV = {
     let ok = true;
 
     const pass = this.val('sg-pass');
-    const strength = this.passwordStrength(pass);
-    if (!pass || pass.length < 8) {
-      this.setHint('pass', 'Password must be at least 8 characters', 'err');
-      this.setValid('sg-pass', false);
-      ok = false;
-    } else if (strength < 2) {
-      this.setHint('pass', 'Password is too weak', 'err');
-      this.setValid('sg-pass', false);
-      ok = false;
+    // Use the app-wide canonical policy (upper+lower+number+special+blocklist)
+    // so a signup password can never be weaker than what every other flow
+    // (force-change, reset, admin-created users) enforces.
+    if (typeof validatePasswordStrength === 'function') {
+      const chk = validatePasswordStrength(pass);
+      if (!chk.valid) {
+        this.setHint('pass', chk.message, 'err');
+        this.setValid('sg-pass', false);
+        ok = false;
+      } else {
+        this.setHint('pass', '', '');
+        this.setValid('sg-pass', true);
+      }
+    } else {
+      const strength = this.passwordStrength(pass);
+      if (!pass || pass.length < 8) {
+        this.setHint('pass', 'Password must be at least 8 characters', 'err');
+        this.setValid('sg-pass', false);
+        ok = false;
+      } else if (strength < 2) {
+        this.setHint('pass', 'Password is too weak', 'err');
+        this.setValid('sg-pass', false);
+        ok = false;
+      }
     }
 
     const conf = this.val('sg-conf');

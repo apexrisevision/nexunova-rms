@@ -2,11 +2,16 @@
 
 // ── Forgot Password ──────────────────────────────────────────────────
 
+let _fpShownAt = 0;   // bot time-trap baseline
+
 function showForgotPassword() {
   document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
   document.getElementById('s-forgot').classList.add('on');
+  _fpShownAt = Date.now();
   const emailEl = document.getElementById('fp-email');
   if (emailEl) emailEl.value = '';
+  const hpEl = document.getElementById('fp-hp');
+  if (hpEl) hpEl.value = '';
   fpSetState('form');
   fpHideErr();
   const btn     = document.getElementById('fp-btn');
@@ -48,52 +53,49 @@ async function fpSubmit() {
     fpShowErr('Please enter a valid email address.'); return;
   }
 
+  // Bot trap — honeypot filled or submitted implausibly fast. Show the same
+  // neutral success so an automated client can't distinguish it from a real
+  // request (consistent with the anti-enumeration behaviour below).
+  if (typeof nxBotCheck === 'function' && nxBotCheck('fp-hp', _fpShownAt, 1500)) {
+    _fpShowAlwaysSuccess(email);
+    return;
+  }
+
   const btn     = document.getElementById('fp-btn');
   const btnSpan = btn ? btn.querySelector('span') : null;
   if (btn)     btn.disabled = true;
   if (btnSpan) btnSpan.textContent = 'Sending…';
   fpHideErr();
 
+  // ── Anti-enumeration (OWASP ASVS V2.5 / NIST 800-63B) ──────────────
+  // NEVER reveal whether an account exists. On every outcome — account
+  // present, absent, rate-limited, or a swallowed transport hiccup — we
+  // show the SAME neutral "if an account exists, a link was sent" screen.
   try {
-    // FIX 2: Rate limit check — max 3 per email per hour
+    // Rate limit (max 3 per email per hour). If exceeded, still show success.
     const { data: rateCheck } = await supabase
       .rpc('check_reset_rate_limit', { p_email: email })
       .catch(() => ({ data: null }));
 
     if (rateCheck && rateCheck.allowed === false) {
-      // FIX 3: Never reveal rate-limit state — show same success to prevent enumeration
       _fpShowAlwaysSuccess(email);
       return;
     }
 
-    const { data: emailExists } = await supabase
-      .rpc('check_email_exists', { p_email: email })
-      .catch(() => ({ data: null }));
-
-    if (emailExists === false) {
-      if (btn)     btn.disabled = false;
-      if (btnSpan) btnSpan.textContent = 'Send Reset Link';
-      notify.error('No account found with this email address.');
-      return;
-    }
-
+    // Fire the reset email. Supabase returns 200 even for unknown emails;
+    // any error is intentionally swallowed so existence cannot be inferred.
     const isElectron = typeof window.electronWindow !== 'undefined';
     const redirectTo = isElectron
       ? 'nexunovarms://auth/callback?flow=reset'
       : window.location.origin + '/login.html?flow=reset';
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) {
-      if (btn)     btn.disabled = false;
-      if (btnSpan) btnSpan.textContent = 'Send Reset Link';
-      notify.error('No account found with this email address.');
-      return;
-    }
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo }).catch(() => {});
 
   } catch (e) {
+    // Genuine client-side failure — surface a neutral, existence-agnostic error.
     if (btn)     btn.disabled = false;
     if (btnSpan) btnSpan.textContent = 'Send Reset Link';
-    notify.error('No account found with this email address.');
+    notify.error('Something went wrong. Please try again in a moment.');
     return;
   }
 

@@ -52,6 +52,7 @@ function toggleLxPwd() {
   if (!inp || !btn) return;
   const show = inp.type === 'password';
   inp.type = show ? 'text' : 'password';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
   btn.innerHTML = show
     ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>'
     : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -163,6 +164,17 @@ async function doLogin(){
       return;
     }
 
+    // Admin/Owner 2FA — gate on the company's require_2fa_admin setting.
+    // Off by default; when the admin opts in, an email OTP is required before
+    // the session is created. _triggerAdminOTP fails open if the OTP service
+    // is unreachable, so a misconfigured mailer can never lock an admin out.
+    const _isAdminLike = (user.role === 'admin' || user.role === 'owner');
+    if (_isAdminLike && company.require_2fa_admin === true && user.email) {
+      _btnReset();
+      await _triggerAdminOTP(user, company);
+      return;
+    }
+
     await _completeLogin(user, company);
 
   } catch(e){
@@ -188,12 +200,19 @@ async function _triggerAdminOTP(user, company) {
       body: { email, type: 'admin_login' }
     });
   } catch(_) {
-    notify.error('Verification failed', { detail: 'Could not send verification code. Please try again.' });
+    // OTP service unreachable (edge function not deployed / network) — fail
+    // OPEN so the admin is never locked out of their own ERP. The password
+    // has already been verified at this point.
+    console.warn('[auth] admin OTP send unreachable — proceeding without 2FA');
+    await _completeLogin(user, company);
     return;
   }
 
   if (sendRes?.data?.error) {
-    notify.error('Verification failed', { detail: sendRes.data.error });
+    // OTP service returned an error (e.g. RESEND_API_KEY not configured) —
+    // fail open for the same reason.
+    console.warn('[auth] admin OTP send error — proceeding without 2FA:', sendRes.data.error);
+    await _completeLogin(user, company);
     return;
   }
 

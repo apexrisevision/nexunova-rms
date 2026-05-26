@@ -104,9 +104,12 @@ function showSignup() {
   } catch(e){}
   window._sgState = {
     step: 1, totalSteps: 5, billing: 'monthly',
-    selectedPlan: initialPlan, companyCode: '', data: {}
+    selectedPlan: initialPlan, companyCode: '', data: {},
+    shownAt: Date.now()   // bot time-trap baseline
   };
   SV.emailAvailable = null;
+  const _hp = document.getElementById('sg-hp');
+  if (_hp) _hp.value = '';
 
   // Reset result screen if previously shown
   const resultDiv = document.getElementById('sg-result-screen');
@@ -377,6 +380,12 @@ async function sgSubmit() {
   const btn = document.getElementById('sg-next');
   const err = document.getElementById('sg-err');
 
+  // Bot trap — honeypot filled or form submitted implausibly fast.
+  if (typeof nxBotCheck === 'function' && nxBotCheck('sg-hp', st.shownAt, 3000)) {
+    if (err) { err.textContent = 'Something went wrong. Please try again.'; err.style.display = 'block'; }
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.classList.add('loading'); }
 
   try {
@@ -402,6 +411,16 @@ async function sgSubmit() {
 
     st.companyCode = res.company_code;
     st.signupResult = res;
+
+    // Send the email-confirmation link. The new owner's auth identity was just
+    // auto-bridged in an UNCONFIRMED state, so resend(type:'signup') delivers the
+    // activation email. Login stays gated on email_verified until they click it.
+    try {
+      const redirectTo = (typeof window.electronWindow !== 'undefined')
+        ? 'nexunovarms://auth/callback?flow=confirm'
+        : window.location.origin + '/login.html?flow=confirm';
+      await supabase.auth.resend({ type: 'signup', email: d.email, options: { emailRedirectTo: redirectTo } });
+    } catch(_) { /* best-effort — the result screen offers a manual Resend link */ }
 
     sgShowResult(res);
 
@@ -433,25 +452,30 @@ function sgShowResult(res) {
 
   const isTrial   = res.status === 'trialing';
   const isPending = res.status === 'pending_payment';
+  const email     = (window._sgState.data && window._sgState.data.email) || '';
 
   if (isTrial) {
     resultDiv.innerHTML = `
       <div class="sg-success">
-        <div class="sg-success-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div class="sg-success-title">Account Created!</div>
-        <p class="sg-success-msg">Your 7-day free trial is active. Sign in using:</p>
+        <div class="sg-success-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg></div>
+        <div class="sg-success-title">Confirm your email</div>
+        <p class="sg-success-msg">Your 7-day trial account is ready. We've sent an activation link to:</p>
         <div class="sg-code-box">
           <div>
-            <div class="sg-code-label">Your Username</div>
-            <div class="sg-code-value">${res.username}</div>
+            <div class="sg-code-label">Email</div>
+            <div class="sg-code-value">${email || '—'}</div>
           </div>
         </div>
+        <p class="sg-success-msg" style="font-size:12px;margin-bottom:6px">
+          Click the link in that email to activate your account, then sign in with your username
+          <strong style="color:rgba(255,255,255,0.7)">${res.username}</strong>.
+        </p>
         <p class="sg-success-msg" style="font-size:11px;margin-bottom:16px">
-          Admin username = your company name (simplified). Staff usernames follow <strong style="color:rgba(255,255,255,0.55)">role@${res.username}</strong>.
+          Didn't get it? Check spam, or <a href="#" onclick="fpResendConfirm('${email}');return false;" style="color:#38bdf8;text-decoration:underline">resend the email</a>.
         </p>
         <button class="sg-btn-next" style="max-width:280px;margin:0 auto" onclick="sgGoToLogin()">
           <div class="sg-btn-shimmer"></div>
-          <span>Sign In Now</span>
+          <span>Go to Sign In</span>
         </button>
       </div>
     `;
@@ -461,10 +485,12 @@ function sgShowResult(res) {
         <div class="sg-pending-icon">⏳</div>
         <div class="sg-success-title">Account Registered!</div>
         <p class="sg-success-msg">
-          Your account is pending payment confirmation. Once your payment is received and verified,
-          your account will be activated.<br><br>
-          Contact us at <strong style="color:rgba(255,255,255,0.6)">sales@nexunova.com</strong>
-          or reference your username below.
+          <strong style="color:rgba(255,255,255,0.7)">Step 1 — confirm your email:</strong>
+          we've sent an activation link to <strong style="color:rgba(255,255,255,0.7)">${email}</strong>
+          (<a href="#" onclick="fpResendConfirm('${email}');return false;" style="color:#38bdf8;text-decoration:underline">resend</a>).<br><br>
+          <strong style="color:rgba(255,255,255,0.7)">Step 2 — payment:</strong>
+          once your payment is received and verified, your account will be activated.
+          Contact <strong style="color:rgba(255,255,255,0.6)">sales@nexunova.com</strong> with your username below.
         </p>
         <div class="sg-code-box">
           <div>

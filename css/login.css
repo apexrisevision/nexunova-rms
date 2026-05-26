@@ -420,6 +420,45 @@
 .lx-footer a { color: rgba(0,217,255,0.7); text-decoration: none; }
 .lx-footer a:hover { color: #00d9ff; }
 
+/* ── Sign-up prompt under the Sign In button ── */
+.lx-signup-row {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.4);
+}
+.lx-signup-link {
+  color: rgba(0,217,255,0.85);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.lx-signup-link:hover { color: #00d9ff; text-decoration: underline; }
+
+/* ── Caps Lock warning (login + reset + signup password fields) ── */
+.lx-caps {
+  display: none;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #FBBF24;
+  letter-spacing: 0.2px;
+}
+.lx-caps.on { display: block; }
+
+/* ── Honeypot field (bot trap — hidden from real users) ── */
+.nx-hp {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* ── Grid line decoration ── */
 .lx-grid-lines {
   position: absolute;

@@ -224,3 +224,37 @@ function validatePasswordStrength(pwd) {
     return { valid: false, message: 'This password is too common. Please choose a stronger one.' };
   return { valid: true, message: '' };
 }
+
+// ── Caps Lock warning (shared across auth password fields) ───────────
+// Toggles the `.on` class on a `.lx-caps` element whenever the Caps Lock
+// key state is detected on an associated password input.
+function wireCapsLockWarning(inputId, warnId) {
+  const inp  = document.getElementById(inputId);
+  const warn = document.getElementById(warnId);
+  if (!inp || !warn || inp._capsWired) return;
+  inp._capsWired = true;
+  const upd = (e) => {
+    let on = false;
+    try { on = !!(e.getModifierState && e.getModifierState('CapsLock')); } catch (_) {}
+    warn.classList.toggle('on', on);
+  };
+  inp.addEventListener('keydown', upd);
+  inp.addEventListener('keyup',   upd);
+  inp.addEventListener('blur', () => warn.classList.remove('on'));
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  [['li-p', 'li-caps'], ['rp-pwd', 'rp-caps'], ['sg-pass', 'sg-caps']]
+    .forEach(([i, w]) => wireCapsLockWarning(i, w));
+});
+
+// ── Lightweight bot detection (honeypot + time-trap) ─────────────────
+// Self-contained, no external CAPTCHA service. Returns true if the
+// submission looks automated: a hidden honeypot field was filled, or the
+// form was submitted implausibly fast. Real users never trip either.
+function nxBotCheck(honeypotId, formShownAt, minMs) {
+  const hp = document.getElementById(honeypotId);
+  if (hp && hp.value && hp.value.trim() !== '') return true;             // honeypot filled
+  if (formShownAt && minMs && (Date.now() - formShownAt) < minMs) return true; // too fast
+  return false;
+}

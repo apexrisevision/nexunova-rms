@@ -517,6 +517,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <input id="fp-email" class="lx-input" type="email" placeholder="you@yourbusiness.com"
             onkeydown="if(event.key==='Enter')fpSubmit()">
         </div>
+        <!-- Honeypot (bot trap) — must stay empty; hidden from real users -->
+        <input type="text" id="fp-hp" name="website" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="lx-btn" id="fp-btn" onclick="fpSubmit()">
           <div class="lx-btn-shimmer"></div>
           <span>Send Reset Link</span>
@@ -778,6 +780,9 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <!-- Form body (panels live here) -->
       <div id="sg-form-body">
 
+        <!-- Honeypot (bot trap) — must stay empty; hidden from real users -->
+        <input type="text" id="sg-hp" name="company_website" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+
         <!-- ── STEP 1: Personal info ── -->
         <div class="sg-step-panel sg-active" id="sg-panel-1">
           <div class="sg-field">
@@ -953,14 +958,15 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
             and must not use the platform for unlawful purposes. Nexunova may suspend accounts that
             violate these terms. Subscription fees are non-refundable after activation. Trial accounts
             expire after 7 days and data may be deleted 30 days after expiry if not upgraded.
-            For the full terms of service, contact sales@nexunova.com.
+            Read the full <a href="./terms.html" target="_blank" rel="noopener" style="color:rgba(0,217,255,0.8)">Terms of Service</a>
+            and <a href="./privacy.html" target="_blank" rel="noopener" style="color:rgba(0,217,255,0.8)">Privacy Policy</a>.
           </div>
 
           <div class="sg-check-row">
             <input type="checkbox" id="sg-agree" class="sg-checkbox">
             <label class="sg-check-lbl" for="sg-agree">
-              I have read and agree to the <a href="mailto:sales@nexunova.com">Terms of Service</a>
-              and <a href="mailto:sales@nexunova.com">Privacy Policy</a>
+              I have read and agree to the <a href="./terms.html" target="_blank" rel="noopener">Terms of Service</a>
+              and <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
             </label>
           </div>
           <div class="sg-hint" id="sh-agree"></div>
@@ -3937,7 +3943,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js?v=20260526a"></script>
-<script src="js/pages/signup.js?v=20260517a"></script>
+<script src="js/pages/signup.js?v=20260526a"></script>
 <script src="js/pages/onboarding.js?v=20260526i"></script>
 
 <!-- 6. Page renderers -->
@@ -3977,7 +3983,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/transfers.js?v=20260516i"></script>
 <script src="js/pages/cancellation.js?v=20260516i"></script>
 <script src="js/pages/backup.js?v=20260517b"></script>
-<script src="js/pages/admin.js?v=20260526c"></script>
+<script src="js/pages/admin.js?v=20260526d"></script>
 <script src="js/pages/categories.js?v=20260517a"></script>
 <script src="js/pages/users.js?v=20260522a"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>
