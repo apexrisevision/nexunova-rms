@@ -238,7 +238,9 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ✅ **Test recovery officer created & verified (2026-05-26)** — login `recovery@ADMIN` / `Test1234`, role `recovery`, assigned to **FMH** (view). Used to validate site isolation.
 - ⚠️ **`create_app_user` gotchas (found 2026-05-26, save for reuse):** (1) it stores the username as **`<role>@<COMPANYCODE>`** (e.g. `recovery@ADMIN`) while the owner is a bare `admin` — and the login form splits on the last `@`, so a stored `role@code` username is **unfindable**; the test user needed `username` reset to bare `recovery` so the form's `recovery@ADMIN` input resolves. (2) it leaves **`email_verified=false`**, which `verify_login` rejects with `email_not_verified`; must be set true. (3) `app_users.email` is **NOT NULL** — pass a real email. All three required a direct DB `UPDATE` (no RPC exposes them). These are latent bugs for *every* admin-created user, not just the test one.
 
-**Immediate next action:** ✅ **Phase 1 is 100% complete.** Begin **Phase 2 — Core Modules: Sales, Payments, Recovery Queue redesign.**
+- ✅ **Phase 2 — Sales module COMPLETE (2026-05-26)** — sale form + installment schedule, PK lakh/crore localization, Crystal-style report branding pulled from `company_branding`, Excel export, and print-template fixes across `reports/*.html`. **Fixed the missing management-report backend:** created `get_collection_report`, `get_sales_register`, `get_outstanding_report`, `get_unit_inventory` (migration `phase2_management_report_rpcs` / `supabase/migrations/20260526_phase2_report_rpcs.sql`) — these were called by `reports/viewer.html`, `reports/hub.html` and `js/pages/dashboard.js` but **never existed** in the DB, so the whole management-reports feature was silently failing. All SECURITY DEFINER + company-scoped (the report viewer uses the **anon key with no session**, so report RPCs must NOT do a `_rms_caller`/session check), return shapes mapped to the real schema (`booking_date←sale_date`, `unit_number←unit_no`, `total_paid←SUM(payments)`, `status←category_unit_statuses.status_name`, …). Branch `phase2-sales-reporting` merged to `main` (`af2f07e`) + pushed.
+
+**Immediate next action:** Phase 2 **Sales module ✅ complete (2026-05-26)**. **Next: audit the Payments module** (then the Recovery Queue redesign).
 
 ---
 
@@ -251,7 +253,8 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ~~Role-based access (Admin / Recovery Officer / Finance-sleep / Manager) + `user_project_assignments` enforcement.~~ ✅ **done.**
 
 ### Phase 2 — Core modules ◀ **CURRENT**
-- **Sales** (with installment schedule), **Payments**, **Recovery Queue** redesign.
+- ~~**Sales** (with installment schedule)~~ ✅ **COMPLETE (2026-05-26)** — sale form + schedule, PK lakh/crore localization, Crystal-style report branding, Excel export, print templates, + the 4 management-report RPCs.
+- **Payments** ◀ **NEXT TO AUDIT** · then **Recovery Queue** redesign.
 
 ### Phase 3 — Governance
 - Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).
