@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>No Objection Certificate — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
+body.lang-ur [data-ur],
+body.lang-ur .ur-text{font-family:'Noto Nastaliq Urdu',serif;line-height:1.9}
+
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:0;left:0;right:0;background:#1e2d47;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.toolbar-title{font-size:13px;font-weight:600;opacity:.85;display:flex;align-items:center;gap:8px}
+.toolbar-actions{display:flex;gap:8px}
+.btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
+.btn-close,.btn-lang{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-print:hover{background:#d4b55e}
+.btn-close:hover,.btn-lang:hover{background:rgba(255,255,255,.2)}
+
+/* ── A4 page ── */
+.page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
+
+/* ── Letterhead ── */
+.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh-left{display:flex;align-items:center;gap:14px}
+.lh-logo{height:50px;max-width:140px;object-fit:contain;display:block}
+.lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
+.lh-company{display:flex;flex-direction:column;gap:2px}
+.lh-name{font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.lh-sub{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;opacity:.7}
+.lh-right{text-align:right}
+.lh-doctype{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.lh-meta{font-size:9px;opacity:.65;line-height:1.8}
+.gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Body ── */
+.body{padding:24px 28px 20px}
+
+/* ── Doc header strip (NOC No + dates) ── */
+.doc-strip{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;padding-bottom:14px;border-bottom:1.5px solid #e5e7eb}
+.ds-block{}
+.ds-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:3px}
+.ds-val{font-size:15px;font-weight:800;font-family:monospace;color:#111827;letter-spacing:.3px}
+.ds-val.right{text-align:right}
+.ds-date{font-size:11px;font-weight:600;color:#374151;text-align:right}
+
+/* ── Title ── */
+.cert-title{text-align:center;margin:6px 0 18px}
+.cert-badge{display:inline-block;padding:4px 14px;background:#fef3c7;color:#92400e;border-radius:20px;font-weight:800;font-size:10px;letter-spacing:1.2px;text-transform:uppercase}
+.cert-h1{font-size:22px;font-weight:800;letter-spacing:.5px;margin-top:8px;color:#111827}
+
+/* ── Narrative ── */
+.narrative{font-size:13px;line-height:1.85;color:#1f2937;text-align:justify;margin:18px 0;padding:14px 0}
+.narrative strong{color:#111827;font-weight:700}
+
+/* ── Two-col detail grid ── */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:18px}
+.detail-col{padding:0}
+.detail-col-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-bottom:1.5px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.detail-col-body{padding:4px 14px 10px}
+.detail-divider{border-left:1.5px solid #e5e7eb}
+.detail-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px dashed #f3f4f6}
+.detail-row:last-child{border-bottom:none}
+.detail-k{font-size:10px;color:#6b7280;font-weight:600}
+.detail-v{font-size:11px;color:#111827;font-weight:600;text-align:right;max-width:55%;word-break:break-word}
+
+/* ── Validity strip ── */
+.valid-strip{background:#ecfdf5;border:1.5px solid #bbf7d0;border-radius:8px;padding:11px 16px;margin:12px 0 18px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#166534;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.valid-strip.expired{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.valid-strip strong{font-weight:700}
+
+/* ── Remarks ── */
+.remarks{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:18px}
+.remarks-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;margin-bottom:5px}
+.remarks-tx{font-size:11px;color:#374151;line-height:1.6;white-space:pre-wrap}
+
+/* ── Signatures ── */
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb}
+.sig-box{padding-top:42px;border-top:1.5px solid #374151;text-align:left}
+.sig-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;margin-bottom:4px}
+.sig-name{font-size:12px;font-weight:700;color:#111827;min-height:16px}
+.sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
+
+/* ── Footer ── */
+.doc-footer{margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+.sys-gen{font-size:9px;color:#9ca3af;text-align:center;margin-top:6px;font-style:italic}
+
+/* ── Print footer (repeats) ── */
+.print-footer{display:none}
+
+/* ── States ── */
+.loading-state{padding:60px;text-align:center;color:#6b7280;font-size:14px}
+.error-state{margin:24px;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:13px;text-align:center}
+
+/* ── Print ── */
+@media print{
+  @page{size:A4;margin:10mm 12mm;@bottom-right{content:"Page " counter(page) " of " counter(pages)}}
+  body{background:#fff;padding-bottom:22mm}
+  .toolbar{display:none!important}
+  .page-wrap{padding:0}
+  .page{width:100%;box-shadow:none;border-radius:0}
+  .lh,.gold-bar,.detail-col-hd,.valid-strip,.cert-badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>
+    No Objection Certificate — Nexunova RMS
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-lang" onclick="toggleLang()" id="lang-btn">اردو</button>
+    <button class="btn-print" onclick="window.print()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save PDF
+    </button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="page" id="page">
+    <div class="loading-state">Loading certificate…</div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const P     = new URLSearchParams(location.search);
+const nocId = P.get('noc_id') || P.get('id');
+const cid   = P.get('company_id') || P.get('cid');
+
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = n => Number(n||0).toLocaleString('en-IN'); // PK lakh/crore
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+
+// Urdu label/title swap (toggle via ?lang=ur or the toolbar button)
+function applyLang(lang){
+  if(lang==='ur'){
+    document.querySelectorAll('[data-ur]').forEach(el => {
+      if(!el.dataset.en) el.dataset.en = el.textContent;
+      el.textContent = el.dataset.ur;
+    });
+    document.documentElement.setAttribute('lang','ur');
+    document.body.classList.add('lang-ur');
+  } else {
+    document.querySelectorAll('[data-en]').forEach(el => { el.textContent = el.dataset.en; });
+    document.documentElement.setAttribute('lang','en');
+    document.body.classList.remove('lang-ur');
+  }
+  const btn = document.getElementById('lang-btn');
+  if(btn) btn.textContent = lang==='ur' ? 'English' : 'اردو';
+  document.documentElement.dataset.lang = lang;
+}
+function toggleLang(){
+  const cur = document.documentElement.dataset.lang === 'ur' ? 'en' : 'ur';
+  applyLang(cur);
+}
+
+const NOC_TYPE_LABEL = {
+  general:    'General NOC',
+  transfer:   'Transfer NOC',
+  mortgage:   'Mortgage NOC',
+  possession: 'Possession NOC',
+  utility:    'Utility NOC',
+  other:      'NOC'
+};
+
+async function loadReport(){
+  const page = document.getElementById('page');
+  if(!nocId || !cid){
+    page.innerHTML = '<div class="error-state">Missing parameters (noc_id and company_id are required).</div>';
+    return;
+  }
+
+  try {
+    const [nRes, brRes] = await Promise.all([
+      sb.rpc('get_noc_by_id',        { p_id: nocId, p_company_id: cid }),
+      sb.rpc('get_company_branding', { p_company_id: cid })
+    ]);
+    if(nRes.error) throw nRes.error;
+    const n = nRes.data;
+    if(!n) throw new Error('NOC record not found.');
+
+    // CNIC lives on clients, not noc — fetch it if we have a client_id.
+    let buyerCnic = '';
+    if(n.client_id){
+      try {
+        const cRes = await sb.rpc('get_client_by_id', { p_id: n.client_id, p_company_id: cid });
+        if(!cRes.error && cRes.data) buyerCnic = cRes.data.cnic || cRes.data.phone_primary && '' || '';
+        // also pick up phone if missing
+        if(!n.client_phone && cRes.data) n.client_phone = cRes.data.phone_primary || '';
+      } catch(_){}
+    }
+
+    const br      = brRes.data || {};
+    const primary = br.doc_brand_color || '#1E2D47';
+    const accent  = br.accent_color    || '#C9A84C';
+    const coName  = br.company_name    || 'Company';
+
+    const buyerName  = n.client_name || '—';
+    const unitNo     = n.unit_no     || '—';
+    const projectNm  = n.project_name|| '—';
+    const nocNumber  = n.noc_number  || ('NOC-' + nocId.slice(-8).toUpperCase());
+    const issueDate  = n.approved_at ? n.approved_at.slice(0,10)
+                     : (n.reviewed_at ? n.reviewed_at.slice(0,10)
+                     : (n.requested_at ? n.requested_at.slice(0,10) : null));
+    const typeLabel  = NOC_TYPE_LABEL[n.noc_type] || (n.noc_type ? n.noc_type.charAt(0).toUpperCase()+n.noc_type.slice(1) : 'NOC');
+    const purpose    = n.purpose || '—';
+    const validFrom  = n.valid_from || issueDate;
+    const validUntil = n.valid_until;
+    const isExpired  = validUntil ? (new Date(validUntil) < new Date(new Date().toDateString())) : false;
+    const status     = (n.status||'').toLowerCase();
+
+    const logoHtml = br.logo_url
+      ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
+      : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
+
+    const html = `
+    <div class="lh" style="background:${primary}">
+      <div class="lh-left">
+        ${logoHtml}
+        <div class="lh-company">
+          <div class="lh-name">${esc(coName)}</div>
+          <div class="lh-sub">${esc(br.letterhead_subtitle||'Recovery Management System')}</div>
+        </div>
+      </div>
+      <div class="lh-right">
+        <div class="lh-doctype" data-en="No Objection Certificate" data-ur="عدم اعتراض سرٹیفکیٹ">No Objection Certificate</div>
+        <div style="font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px;margin-bottom:5px;opacity:.92">${esc(projectNm)}</div>
+        <div class="lh-meta">
+          ${br.address_full ? esc(br.address_full)+'<br>' : ''}
+          ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
+          ${br.business_email ? esc(br.business_email) : ''}
+        </div>
+      </div>
+    </div>
+    <div class="gold-bar" style="background:linear-gradient(90deg,${accent},#f0e09a,${accent})"></div>
+
+    <div class="body">
+      <div class="doc-strip">
+        <div class="ds-block">
+          <div class="ds-lbl" data-en="NOC Number" data-ur="این او سی نمبر">NOC Number</div>
+          <div class="ds-val">${esc(nocNumber)}</div>
+        </div>
+        <div class="ds-block">
+          <div class="ds-lbl" data-en="Issue Date" data-ur="جاری ہونے کی تاریخ" style="text-align:right">Issue Date</div>
+          <div class="ds-date">${fmtD(issueDate)}</div>
+        </div>
+      </div>
+
+      <div class="cert-title">
+        <span class="cert-badge" data-en="${esc(typeLabel)}" data-ur="سرٹیفکیٹ">${esc(typeLabel)}</span>
+        <div class="cert-h1" data-en="No Objection Certificate" data-ur="عدم اعتراض سرٹیفکیٹ">No Objection Certificate</div>
+      </div>
+
+      <div class="narrative">
+        This is to certify that <strong>${esc(buyerName)}</strong>${buyerCnic ? ', holder of CNIC <strong>'+esc(buyerCnic)+'</strong>,' : ''} is the registered owner of Unit <strong>${esc(unitNo)}</strong>, <strong>${esc(projectNm)}</strong>.
+        ${esc(coName)} has <strong>no objection</strong> to the issuance of this certificate for the purpose stated below.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-col">
+          <div class="detail-col-hd" style="background:${primary};color:#fff" data-en="Certificate Details" data-ur="سرٹیفکیٹ کی تفصیلات">Certificate Details</div>
+          <div class="detail-col-body">
+            <div class="detail-row"><span class="detail-k" data-en="NOC Type" data-ur="قسم">NOC Type</span><span class="detail-v">${esc(typeLabel)}</span></div>
+            <div class="detail-row"><span class="detail-k" data-en="Purpose" data-ur="مقصد">Purpose</span><span class="detail-v">${esc(purpose)}</span></div>
+            <div class="detail-row"><span class="detail-k" data-en="Status" data-ur="حیثیت">Status</span><span class="detail-v" style="color:${status==='approved'?'#16a34a':status==='rejected'?'#dc2626':status==='revoked'?'#dc2626':'#d97706'};text-transform:uppercase">${esc(status||'—')}</span></div>
+            ${n.payment_threshold != null ? `<div class="detail-row"><span class="detail-k" data-en="Payment Threshold" data-ur="ادائیگی کی حد">Payment Threshold</span><span class="detail-v">${esc(String(n.payment_threshold))}%</span></div>` : ''}
+          </div>
+        </div>
+        <div class="detail-col detail-divider">
+          <div class="detail-col-hd" style="background:${primary};color:#fff" data-en="Issued To" data-ur="جاری بنام">Issued To</div>
+          <div class="detail-col-body">
+            <div class="detail-row"><span class="detail-k" data-en="Buyer Name" data-ur="خریدار کا نام">Buyer Name</span><span class="detail-v">${esc(buyerName)}</span></div>
+            ${buyerCnic ? `<div class="detail-row"><span class="detail-k" data-en="CNIC" data-ur="شناختی کارڈ">CNIC</span><span class="detail-v" style="font-family:monospace">${esc(buyerCnic)}</span></div>` : ''}
+            ${n.client_phone ? `<div class="detail-row"><span class="detail-k" data-en="Phone" data-ur="فون">Phone</span><span class="detail-v" style="font-family:monospace">${esc(n.client_phone)}</span></div>` : ''}
+            <div class="detail-row"><span class="detail-k" data-en="Unit" data-ur="یونٹ">Unit</span><span class="detail-v">${esc(unitNo)}</span></div>
+            <div class="detail-row"><span class="detail-k" data-en="Project" data-ur="پروجیکٹ">Project</span><span class="detail-v">${esc(projectNm)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="valid-strip ${isExpired?'expired':''}">
+        <span data-en="Valid From" data-ur="جاری ہونے کی تاریخ">Valid From</span>
+        <strong>${fmtD(validFrom)}</strong>
+        <span data-en="Valid Until" data-ur="آخری تاریخ">Valid Until</span>
+        <strong>${validUntil ? fmtD(validUntil) : '—'}${isExpired ? ' (EXPIRED)' : ''}</strong>
+      </div>
+
+      ${n.notes ? `
+      <div class="remarks">
+        <div class="remarks-lbl" data-en="Remarks" data-ur="ریمارکس">Remarks</div>
+        <div class="remarks-tx">${esc(n.notes)}</div>
+      </div>` : ''}
+
+      <div class="sig-section">
+        <div class="sig-box">
+          <div class="sig-lbl" data-en="Prepared By" data-ur="تیار کنندہ">Prepared By</div>
+          <div class="sig-name">${esc(n.requested_by||'—')}</div>
+          <div class="sig-role" data-en="Recovery / Operations" data-ur="ریکوری / آپریشنز">Recovery / Operations</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl" data-en="Approved By" data-ur="منظور کنندہ">Approved By</div>
+          <div class="sig-name">${esc(n.approved_by||br.signature_name||'—')}</div>
+          <div class="sig-role">${esc(br.signature_title||'Authorized Signatory')}</div>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <span>${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || esc(coName)}</span>
+        <span>${esc(nocNumber)} · Printed ${new Date().toLocaleString('en-IN')}</span>
+      </div>
+      <div class="sys-gen" data-en="This document is system-generated." data-ur="یہ دستاویز سسٹم سے تیار کردہ ہے۔">This document is system-generated.</div>
+    </div>
+
+    <div class="print-footer">
+      ${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || esc(coName)}
+    </div>`;
+
+    page.innerHTML = html;
+    document.title = 'NOC ' + nocNumber + ' — ' + coName;
+
+    // Apply initial language from URL
+    applyLang(P.get('lang') === 'ur' ? 'ur' : 'en');
+
+  } catch(e){
+    document.getElementById('page').innerHTML = `<div class="error-state">Could not load NOC: ${esc(e.message)}</div>`;
+    console.error(e);
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>

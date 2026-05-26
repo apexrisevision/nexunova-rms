@@ -674,91 +674,12 @@ async function _nocDelete(id) {
 
 // ── Print NOC Document ────────────────────────────────────────────
 
-async function _nocPrint(id) {
-  try {
-    const { data: n } = await supabase.rpc('get_noc_by_id', { p_id: id, p_company_id: S.cid });
-    if (!n) { toast('NOC not found', 'err'); return; }
-
-    const typeMeta = NOC_TYPE_META[n.noc_type] || { label: n.noc_type, icon: '📄' };
-    const validLine = n.valid_from
-      ? `Valid from <strong>${fD(n.valid_from)}</strong>${n.valid_until ? ` to <strong>${fD(n.valid_until)}</strong>` : ' (no expiry)'}`
-      : 'Validity period not specified';
-
-    const html = `<!DOCTYPE html><html><head><title>NOC — ${n.noc_number}</title>
-    <style>
-      *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:Arial,sans-serif;color:#111;padding:50px;font-size:13px;max-width:760px;margin:0 auto}
-      .header{text-align:center;margin-bottom:30px;border-bottom:3px solid #6C63FF;padding-bottom:20px}
-      h1{font-size:20px;font-weight:800;letter-spacing:1px;margin-bottom:4px}
-      h2{font-size:13px;font-weight:600;color:#6C63FF;letter-spacing:2px}
-      .noc-title{font-size:18px;font-weight:800;text-align:center;margin:24px 0 8px;letter-spacing:1px;text-transform:uppercase}
-      .noc-sub{text-align:center;font-size:12px;color:#6b7280;margin-bottom:24px}
-      .noc-badge{display:inline-block;padding:4px 14px;background:#e7e5ff;color:#6C63FF;border-radius:20px;font-weight:800;font-size:11px;letter-spacing:1px;margin:0 auto 20px;display:block;width:fit-content;margin:0 auto 20px}
-      .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
-      .meta-item{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px}
-      .meta-item label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:3px}
-      .body-text{line-height:1.8;color:#374151;margin:20px 0;font-size:13px}
-      .valid-box{background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin:16px 0;color:#16a34a;font-size:13px}
-      .sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:50px}
-      .sig-box{border-top:2px solid #374151;padding-top:10px;text-align:center;font-size:11px;color:#374151}
-      .footer{text-align:center;margin-top:30px;font-size:10px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:14px}
-      @media print{body{padding:30px}}
-    </style></head><body>
-    <div class="header">
-      <h1>${esc(S.companyName || 'Company Name')}</h1>
-      <h2>NO-OBJECTION CERTIFICATE</h2>
-    </div>
-
-    <p class="noc-badge">REF: ${esc(n.noc_number)}</p>
-
-    <p class="noc-title">${typeMeta.icon} ${typeMeta.label}</p>
-    <p class="noc-sub">This certificate is issued as a formal No-Objection Certificate by the company.</p>
-
-    <div class="meta">
-      <div class="meta-item"><label>Client / Buyer</label><strong>${esc(n.client_name||'—')}</strong></div>
-      <div class="meta-item"><label>Contact</label><strong>${esc(n.client_phone||'—')}</strong></div>
-      <div class="meta-item"><label>Unit No.</label><strong>${esc(n.unit_no||'—')}</strong></div>
-      <div class="meta-item"><label>Project</label><strong>${esc(n.project_name||'—')}</strong></div>
-      <div class="meta-item"><label>NOC Type</label><strong>${typeMeta.label}</strong></div>
-      <div class="meta-item"><label>Issue Date</label><strong>${n.approved_at ? fD(n.approved_at) : fD(new Date().toISOString())}</strong></div>
-    </div>
-
-    <p class="body-text">
-      To Whom It May Concern,<br><br>
-      This is to certify that <strong>${esc(n.client_name||'the above-named buyer')}</strong> is the registered
-      owner/buyer of Unit <strong>${esc(n.unit_no||'—')}</strong> in <strong>${esc(n.project_name||'our project')}</strong>.
-      ${n.purpose ? `This NOC is issued for the purpose of: <em>${esc(n.purpose)}</em>.` : ''}
-      <br><br>
-      <strong>${esc(S.companyName||'The company')}</strong> has no objection to the above-mentioned client
-      exercising their rights with respect to the said unit for the purpose stated herein,
-      subject to all applicable terms and conditions of the sale agreement.
-    </p>
-
-    <div class="valid-box">✓ ${validLine}</div>
-
-    ${n.notes ? `<p style="font-size:12px;color:#6b7280;margin:12px 0"><strong>Notes:</strong> ${esc(n.notes)}</p>` : ''}
-
-    <div class="sig">
-      <div class="sig-box">
-        <p style="margin-bottom:40px"></p>
-        <strong>${esc(n.approved_by||'Authorised Signatory')}</strong><br>Authorised Signatory
-      </div>
-      <div class="sig-box">
-        <p style="margin-bottom:40px"></p>
-        <strong>Company Stamp</strong><br>Official Seal
-      </div>
-      <div class="sig-box">
-        <p style="margin-bottom:40px"></p>
-        <strong>${esc(n.client_name||'Client')}</strong><br>Client Acknowledgement
-      </div>
-    </div>
-
-    <div class="footer">
-      NOC Ref: ${esc(n.noc_number)} · Issued by Nexunova RMS · ${new Date().toLocaleDateString()}<br>
-      This document is computer-generated and is valid without physical signature unless stated otherwise.
-    </div>
-    </body></html>`;
-
-    _printHTML(html, `NOC-${n.noc_number}`);
-  } catch(e) { toast('Could not load NOC for printing', 'err'); }
+// Open the Crystal-style A4 NOC certificate (reports/noc-certificate.html) in a new tab.
+// The template fetches get_noc_by_id + get_client_by_id (for CNIC) + get_company_branding itself.
+function _nocPrint(id) {
+  if (!id || !S || !S.cid) { toast('Missing NOC or company id', 'err'); return; }
+  window.open(
+    'reports/noc-certificate.html?noc_id=' + encodeURIComponent(id) + '&company_id=' + encodeURIComponent(S.cid),
+    '_blank'
+  );
 }

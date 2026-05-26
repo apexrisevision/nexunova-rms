@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Unit Transfer Letter — Nexunova RMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
+body.lang-ur [data-ur],
+body.lang-ur .ur-text{font-family:'Noto Nastaliq Urdu',serif;line-height:1.9}
+
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:0;left:0;right:0;background:#1e2d47;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.toolbar-title{font-size:13px;font-weight:600;opacity:.85;display:flex;align-items:center;gap:8px}
+.toolbar-actions{display:flex;gap:8px}
+.btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
+.btn-close,.btn-lang{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-print:hover{background:#d4b55e}
+.btn-close:hover,.btn-lang:hover{background:rgba(255,255,255,.2)}
+
+/* ── A4 page ── */
+.page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;box-shadow:0 4px 40px rgba(0,0,0,.14);border-radius:4px;overflow:hidden}
+
+/* ── Letterhead ── */
+.lh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lh-left{display:flex;align-items:center;gap:14px}
+.lh-logo{height:50px;max-width:140px;object-fit:contain;display:block}
+.lh-initials{width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
+.lh-company{display:flex;flex-direction:column;gap:2px}
+.lh-name{font-size:18px;font-weight:700;letter-spacing:.3px;line-height:1.2}
+.lh-sub{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;opacity:.7}
+.lh-right{text-align:right}
+.lh-doctype{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.lh-meta{font-size:9px;opacity:.65;line-height:1.8}
+.gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Body ── */
+.body{padding:24px 28px 20px}
+
+/* ── Doc header strip ── */
+.doc-strip{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;padding-bottom:14px;border-bottom:1.5px solid #e5e7eb}
+.ds-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:3px}
+.ds-val{font-size:15px;font-weight:800;font-family:monospace;color:#111827;letter-spacing:.3px}
+.ds-date{font-size:11px;font-weight:600;color:#374151;text-align:right}
+
+/* ── Title ── */
+.cert-title{text-align:center;margin:6px 0 18px}
+.cert-badge{display:inline-block;padding:4px 14px;background:#dbeafe;color:#1d4ed8;border-radius:20px;font-weight:800;font-size:10px;letter-spacing:1.2px;text-transform:uppercase}
+.cert-h1{font-size:22px;font-weight:800;letter-spacing:.5px;margin-top:8px;color:#111827}
+
+/* ── Narrative ── */
+.narrative{font-size:13px;line-height:1.85;color:#1f2937;text-align:justify;margin:18px 0;padding:14px 0}
+.narrative strong{color:#111827;font-weight:700}
+
+/* ── Parties grid ── */
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:18px}
+.party-col-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-bottom:1.5px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.party-col-body{padding:4px 14px 10px}
+.party-divider{border-left:1.5px solid #e5e7eb}
+.detail-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px dashed #f3f4f6}
+.detail-row:last-child{border-bottom:none}
+.detail-k{font-size:10px;color:#6b7280;font-weight:600}
+.detail-v{font-size:11px;color:#111827;font-weight:600;text-align:right;max-width:55%;word-break:break-word}
+
+/* ── Financials table ── */
+.fin-table{width:100%;border-collapse:collapse;font-size:11px;border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:18px}
+.fin-table th{text-align:left;padding:8px 12px;background:#f9fafb;border-bottom:1.5px solid #e5e7eb;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.fin-table th.right,.fin-table td.right{text-align:right}
+.fin-table td{padding:7px 12px;border-bottom:1px solid #f3f4f6;color:#111827;font-weight:600;font-variant-numeric:tabular-nums}
+.fin-table tr:last-child td{border-bottom:none}
+.fin-table tr.total td{background:#fef3c7;font-weight:800;color:#92400e;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+/* ── Remarks ── */
+.remarks{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:18px}
+.remarks-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;margin-bottom:5px}
+.remarks-tx{font-size:11px;color:#374151;line-height:1.6;white-space:pre-wrap}
+
+/* ── Signatures (3-col) ── */
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb}
+.sig-box{padding-top:42px;border-top:1.5px solid #374151;text-align:left}
+.sig-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;margin-bottom:4px}
+.sig-name{font-size:12px;font-weight:700;color:#111827;min-height:16px}
+.sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
+
+/* ── Footer ── */
+.doc-footer{margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+.sys-gen{font-size:9px;color:#9ca3af;text-align:center;margin-top:6px;font-style:italic}
+.print-footer{display:none}
+
+/* ── States ── */
+.loading-state{padding:60px;text-align:center;color:#6b7280;font-size:14px}
+.error-state{margin:24px;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:13px;text-align:center}
+
+/* ── Print ── */
+@media print{
+  @page{size:A4;margin:10mm 12mm;@bottom-right{content:"Page " counter(page) " of " counter(pages)}}
+  body{background:#fff;padding-bottom:22mm}
+  .toolbar{display:none!important}
+  .page-wrap{padding:0}
+  .page{width:100%;box-shadow:none;border-radius:0}
+  .lh,.gold-bar,.party-col-hd,.fin-table th,.cert-badge,.fin-table tr.total td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+    Unit Transfer Letter — Nexunova RMS
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-lang" onclick="toggleLang()" id="lang-btn">اردو</button>
+    <button class="btn-print" onclick="window.print()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save PDF
+    </button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="page" id="page">
+    <div class="loading-state">Loading transfer letter…</div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPA_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const P          = new URLSearchParams(location.search);
+const transferId = P.get('transfer_id') || P.get('id');
+const cid        = P.get('company_id')  || P.get('cid');
+
+const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt  = n => Number(n||0).toLocaleString('en-IN'); // PK lakh/crore
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+
+// Urdu label/title swap (toggle via ?lang=ur or the toolbar button)
+function applyLang(lang){
+  if(lang==='ur'){
+    document.querySelectorAll('[data-ur]').forEach(el => {
+      if(!el.dataset.en) el.dataset.en = el.textContent;
+      el.textContent = el.dataset.ur;
+    });
+    document.documentElement.setAttribute('lang','ur');
+    document.body.classList.add('lang-ur');
+  } else {
+    document.querySelectorAll('[data-en]').forEach(el => { el.textContent = el.dataset.en; });
+    document.documentElement.setAttribute('lang','en');
+    document.body.classList.remove('lang-ur');
+  }
+  const btn = document.getElementById('lang-btn');
+  if(btn) btn.textContent = lang==='ur' ? 'English' : 'اردو';
+  document.documentElement.dataset.lang = lang;
+}
+function toggleLang(){
+  const cur = document.documentElement.dataset.lang === 'ur' ? 'en' : 'ur';
+  applyLang(cur);
+}
+
+async function loadReport(){
+  const page = document.getElementById('page');
+  if(!transferId || !cid){
+    page.innerHTML = '<div class="error-state">Missing parameters (transfer_id and company_id are required).</div>';
+    return;
+  }
+
+  try {
+    // Step 1: transfer + branding in parallel
+    const [tRes, brRes] = await Promise.all([
+      sb.rpc('get_unit_transfer_full', { p_id: transferId, p_company_id: cid }),
+      sb.rpc('get_company_branding',   { p_company_id: cid })
+    ]);
+    if(tRes.error) throw tRes.error;
+    const t = tRes.data;
+    if(!t) throw new Error('Transfer record not found.');
+
+    // Step 2: parallel-fetch clients + unit + old/new sale numbers
+    const lookups = await Promise.all([
+      t.old_client_id ? sb.rpc('get_client_by_id',    { p_id: t.old_client_id, p_company_id: cid })            : Promise.resolve({data:null}),
+      t.new_client_id ? sb.rpc('get_client_by_id',    { p_id: t.new_client_id, p_company_id: cid })            : Promise.resolve({data:null}),
+      t.unit_id       ? sb.rpc('get_unit_with_details',{ p_id: t.unit_id })                                     : Promise.resolve({data:null}),
+      t.old_sale_id   ? sb.rpc('get_sale_for_lookup', { p_sale_id: t.old_sale_id, p_company_id: cid })          : Promise.resolve({data:null}),
+      t.new_sale_id   ? sb.rpc('get_sale_for_lookup', { p_sale_id: t.new_sale_id, p_company_id: cid })          : Promise.resolve({data:null}),
+    ]);
+    const oldClient = (lookups[0] && lookups[0].data) || {};
+    const newClient = (lookups[1] && lookups[1].data) || {};
+    const unit      = (lookups[2] && lookups[2].data) || {};
+    const oldSale   = (lookups[3] && lookups[3].data) || {};
+    const newSale   = (lookups[4] && lookups[4].data) || {};
+
+    const br      = brRes.data || {};
+    const primary = br.doc_brand_color || '#1E2D47';
+    const accent  = br.accent_color    || '#C9A84C';
+    const coName  = br.company_name    || 'Company';
+
+    const voucherNo  = t.transfer_voucher_no || ('TRF-' + transferId.slice(-8).toUpperCase());
+    const unitNo     = unit.unit_no || unit.unitNo || '—';
+    const projectNm  = unit.project_name || unit.projectName || '—';
+    const oldName    = oldClient.full_name || '—';
+    const oldCnic    = oldClient.cnic || '';
+    const newName    = newClient.full_name || '—';
+    const newCnic    = newClient.cnic || '';
+    const oldSaleNo  = oldSale.sale_number || (t.old_sale_id ? t.old_sale_id.slice(-8).toUpperCase() : '—');
+    const newSaleNo  = newSale.sale_number || (t.new_sale_id ? t.new_sale_id.slice(-8).toUpperCase() : '—');
+    const totalCharges = Number(t.total_transfer_charges
+      || ((+t.transfer_fee||0) + (+t.documentation_charges||0) + (+t.other_charges||0))
+      || 0);
+    const chargesPaidBy = t.charges_paid_by === 'old' ? 'Old Buyer' : t.charges_paid_by === 'new' ? 'New Buyer' : t.charges_paid_by === 'split' ? 'Split' : (t.charges_paid_by || '—');
+
+    const logoHtml = br.logo_url
+      ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
+      : `<div class="lh-initials">${esc(coName.charAt(0).toUpperCase())}</div>`;
+
+    const html = `
+    <div class="lh" style="background:${primary}">
+      <div class="lh-left">
+        ${logoHtml}
+        <div class="lh-company">
+          <div class="lh-name">${esc(coName)}</div>
+          <div class="lh-sub">${esc(br.letterhead_subtitle||'Recovery Management System')}</div>
+        </div>
+      </div>
+      <div class="lh-right">
+        <div class="lh-doctype" data-en="Unit Transfer Letter" data-ur="یونٹ منتقلی خط">Unit Transfer Letter</div>
+        <div style="font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px;margin-bottom:5px;opacity:.92">${esc(projectNm)}</div>
+        <div class="lh-meta">
+          ${br.address_full ? esc(br.address_full)+'<br>' : ''}
+          ${br.business_phone ? esc(br.business_phone)+'<br>' : ''}
+          ${br.business_email ? esc(br.business_email) : ''}
+        </div>
+      </div>
+    </div>
+    <div class="gold-bar" style="background:linear-gradient(90deg,${accent},#f0e09a,${accent})"></div>
+
+    <div class="body">
+      <div class="doc-strip">
+        <div>
+          <div class="ds-lbl" data-en="Transfer Reference" data-ur="منتقلی نمبر">Transfer Reference</div>
+          <div class="ds-val">${esc(voucherNo)}</div>
+        </div>
+        <div>
+          <div class="ds-lbl" data-en="Transfer Date" data-ur="منتقلی کی تاریخ" style="text-align:right">Transfer Date</div>
+          <div class="ds-date">${fmtD(t.transfer_date)}</div>
+        </div>
+      </div>
+
+      <div class="cert-title">
+        <span class="cert-badge" data-en="Ownership Transfer" data-ur="ملکیت کی منتقلی">Ownership Transfer</span>
+        <div class="cert-h1" data-en="Unit Transfer Letter" data-ur="یونٹ منتقلی خط">Unit Transfer Letter</div>
+      </div>
+
+      <div class="narrative">
+        This confirms the transfer of Unit <strong>${esc(unitNo)}</strong>, <strong>${esc(projectNm)}</strong>, from
+        <strong>${esc(oldName)}</strong>${oldCnic ? ' (CNIC: <strong>'+esc(oldCnic)+'</strong>)' : ''} to
+        <strong>${esc(newName)}</strong>${newCnic ? ' (CNIC: <strong>'+esc(newCnic)+'</strong>)' : ''},
+        effective <strong>${fmtD(t.transfer_date)}</strong>. All applicable transfer charges have been settled and the records of <strong>${esc(coName)}</strong> have been updated accordingly.
+      </div>
+
+      <div class="parties">
+        <div>
+          <div class="party-col-hd" style="background:${primary};color:#fff" data-en="Outgoing Owner" data-ur="سابقہ مالک">Outgoing Owner</div>
+          <div class="party-col-body">
+            <div class="detail-row"><span class="detail-k" data-en="Name" data-ur="نام">Name</span><span class="detail-v">${esc(oldName)}</span></div>
+            ${oldCnic ? `<div class="detail-row"><span class="detail-k" data-en="CNIC" data-ur="شناختی کارڈ">CNIC</span><span class="detail-v" style="font-family:monospace">${esc(oldCnic)}</span></div>` : ''}
+            <div class="detail-row"><span class="detail-k" data-en="Old Sale Ref" data-ur="پرانی فروخت نمبر">Old Sale Ref</span><span class="detail-v" style="font-family:monospace;font-size:10px">${esc(oldSaleNo)}</span></div>
+            ${t.old_sale_price ? `<div class="detail-row"><span class="detail-k" data-en="Old Sale Price" data-ur="پرانی قیمت">Old Sale Price</span><span class="detail-v">PKR ${fmt(t.old_sale_price)}</span></div>` : ''}
+            ${t.old_total_paid ? `<div class="detail-row"><span class="detail-k" data-en="Paid by Old Buyer" data-ur="ادا کردہ">Paid by Old Buyer</span><span class="detail-v">PKR ${fmt(t.old_total_paid)}</span></div>` : ''}
+          </div>
+        </div>
+        <div class="party-divider">
+          <div class="party-col-hd" style="background:${primary};color:#fff" data-en="Incoming Owner" data-ur="نیا مالک">Incoming Owner</div>
+          <div class="party-col-body">
+            <div class="detail-row"><span class="detail-k" data-en="Name" data-ur="نام">Name</span><span class="detail-v">${esc(newName)}</span></div>
+            ${newCnic ? `<div class="detail-row"><span class="detail-k" data-en="CNIC" data-ur="شناختی کارڈ">CNIC</span><span class="detail-v" style="font-family:monospace">${esc(newCnic)}</span></div>` : ''}
+            <div class="detail-row"><span class="detail-k" data-en="New Sale Ref" data-ur="نئی فروخت نمبر">New Sale Ref</span><span class="detail-v" style="font-family:monospace;font-size:10px">${esc(newSaleNo)}</span></div>
+            ${t.new_sale_price ? `<div class="detail-row"><span class="detail-k" data-en="New Sale Price" data-ur="نئی قیمت">New Sale Price</span><span class="detail-v">PKR ${fmt(t.new_sale_price)}</span></div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      ${totalCharges > 0 ? `
+      <table class="fin-table">
+        <thead><tr>
+          <th data-en="Transfer Charges" data-ur="منتقلی کے اخراجات">Transfer Charges</th>
+          <th class="right" data-en="Amount (PKR)" data-ur="رقم">Amount (PKR)</th>
+        </tr></thead>
+        <tbody>
+          ${(+t.transfer_fee||0) ?         `<tr><td data-en="Transfer Fee" data-ur="منتقلی فیس">Transfer Fee</td><td class="right">${fmt(t.transfer_fee)}</td></tr>` : ''}
+          ${(+t.documentation_charges||0) ? `<tr><td data-en="Documentation Charges" data-ur="دستاویزی اخراجات">Documentation Charges</td><td class="right">${fmt(t.documentation_charges)}</td></tr>` : ''}
+          ${(+t.other_charges||0) ?         `<tr><td>${esc(t.other_charges_desc||'Other Charges')}</td><td class="right">${fmt(t.other_charges)}</td></tr>` : ''}
+          <tr class="total"><td data-en="Total Charges" data-ur="کل اخراجات">Total Charges</td><td class="right">PKR ${fmt(totalCharges)}</td></tr>
+          <tr><td data-en="Paid By" data-ur="ادا کنندہ">Paid By</td><td class="right">${esc(chargesPaidBy)}</td></tr>
+          ${t.charges_payment_method ? `<tr><td data-en="Payment Method" data-ur="طریقہ ادائیگی">Payment Method</td><td class="right">${esc(t.charges_payment_method)}</td></tr>` : ''}
+          ${t.charges_reference     ? `<tr><td data-en="Reference" data-ur="حوالہ">Reference</td><td class="right" style="font-family:monospace;font-size:10px">${esc(t.charges_reference)}</td></tr>` : ''}
+        </tbody>
+      </table>` : ''}
+
+      ${t.notes ? `
+      <div class="remarks">
+        <div class="remarks-lbl" data-en="Remarks / Special Conditions" data-ur="ریمارکس / خصوصی شرائط">Remarks / Special Conditions</div>
+        <div class="remarks-tx">${esc(t.notes)}</div>
+      </div>` : ''}
+
+      <div class="sig-section">
+        <div class="sig-box">
+          <div class="sig-lbl" data-en="Outgoing Owner Signature" data-ur="سابقہ مالک کے دستخط">Outgoing Owner Signature</div>
+          <div class="sig-name">${esc(oldName)}</div>
+          <div class="sig-role" data-en="Transferor" data-ur="منتقل کنندہ">Transferor</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl" data-en="Incoming Owner Signature" data-ur="نئے مالک کے دستخط">Incoming Owner Signature</div>
+          <div class="sig-name">${esc(newName)}</div>
+          <div class="sig-role" data-en="Transferee" data-ur="منتقلی پانے والا">Transferee</div>
+        </div>
+      </div>
+      <div class="sig-section" style="margin-top:18px;border-top:none;padding-top:0">
+        <div class="sig-box">
+          <div class="sig-lbl" data-en="Prepared By" data-ur="تیار کنندہ">Prepared By</div>
+          <div class="sig-name">${esc(t.created_by||'—')}</div>
+          <div class="sig-role" data-en="Sales / Operations" data-ur="سیلز / آپریشنز">Sales / Operations</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl" data-en="Approved By" data-ur="منظور کنندہ">Approved By</div>
+          <div class="sig-name">${esc(br.signature_name||'—')}</div>
+          <div class="sig-role">${esc(br.signature_title||'Authorized Signatory')}</div>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <span>${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || esc(coName)}</span>
+        <span>${esc(voucherNo)} · Printed ${new Date().toLocaleString('en-IN')}</span>
+      </div>
+      <div class="sys-gen" data-en="This document is system-generated." data-ur="یہ دستاویز سسٹم سے تیار کردہ ہے۔">This document is system-generated.</div>
+    </div>
+
+    <div class="print-footer">
+      ${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || esc(coName)}
+    </div>`;
+
+    page.innerHTML = html;
+    document.title = 'Transfer ' + voucherNo + ' — ' + coName;
+
+    applyLang(P.get('lang') === 'ur' ? 'ur' : 'en');
+
+  } catch(e){
+    document.getElementById('page').innerHTML = `<div class="error-state">Could not load transfer letter: ${esc(e.message)}</div>`;
+    console.error(e);
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>

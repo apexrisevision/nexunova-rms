@@ -225,7 +225,8 @@ function _tlOpenDrawer(idx) {
         <div class="rops-ledger-row"><span class="l">Method</span><span class="r">${esc(r.charges_payment_method || '—')}</span></div>
       </div>
       ${r.notes ? `<div style="margin-top:14px; padding:12px 14px; background:var(--surface2); border-radius:6px; font-size:12.5px; color:var(--t2); line-height:1.5"><strong style="color:var(--text)">Notes: </strong>${esc(r.notes)}</div>` : ''}
-      <div style="margin-top:16px; display:flex; gap:10px">
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
+        <button class="rops-btn rops-btn-primary" onclick="printTransferLetter('${esc(r.id)}')">Print Transfer Letter</button>
         <button class="rops-btn rops-btn-ghost" onclick="rUnitChain('${esc(r.unit_id)}')">Ownership Chain</button>
       </div>
     </div>`;

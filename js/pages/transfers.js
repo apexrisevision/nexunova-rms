@@ -1021,12 +1021,22 @@ function _txRenderSuccess(data) {
         <div class="rops-success-vch">${esc(data.voucher_no || '')}</div>
         <div class="rops-success-actions">
           <button class="rops-btn rops-btn-primary" onclick="printTransferVoucher('${esc(data.transfer_id)}','${esc(data.voucher_no)}')">Print Voucher</button>
+          <button class="rops-btn rops-btn-ghost" onclick="printTransferLetter('${esc(data.transfer_id)}')">Print Letter</button>
           <button class="rops-btn rops-btn-ghost" onclick="nav('transferunits')">View Ledger</button>
           <button class="rops-btn rops-btn-ghost" onclick="rUnitChain('${esc(_txData.unitId)}')">Ownership Chain</button>
           <button class="rops-btn rops-btn-ghost" onclick="nav('units')">Back to Inventory</button>
         </div>
       </div>
     </div>`;
+}
+
+/* ── Print transfer LETTER (Phase 4 — Crystal-style A4 certificate) ─────── */
+function printTransferLetter(transferId) {
+  if (!transferId || !S || !S.cid) { if (typeof toast === 'function') toast('Missing transfer or company id', 'err'); return; }
+  window.open(
+    'reports/transfer-letter.html?transfer_id=' + encodeURIComponent(transferId) + '&company_id=' + encodeURIComponent(S.cid),
+    '_blank'
+  );
 }
 
 /* ── Print voucher ─────────────────────────────────────────────────────── */
