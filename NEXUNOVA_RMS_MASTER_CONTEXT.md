@@ -242,7 +242,9 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Phase 2 — Payments module COMPLETE (2026-05-26)** — full audit + fixes (branch `phase2-payments`, merged to `main` `5c31791`). **3 direct `.from()` reads that the `deny_all_anon` RLS lockdown silently blocked** (returning 0 rows for the authenticated app) swapped to RPCs: `_pymLoadBanks→list_banks_active`, `_pymLoadAndRenderTx→list_payments_for_sale_full` (new), `_pymRenderPDC→list_pdc_for_sale` (new). **PDC status vocabulary standardized to `presented`** (was `deposited` in the inline payment view) and inline Deposited/Clear/Bounce buttons **routed through the dedicated `mark_pdc_deposited`/`mark_pdc_cleared`/`mark_pdc_bounced` RPCs** (proper deposit/clearance dates + client auto-escalation) instead of generic `update_pdc_cheque`; bounce penalty details persisted as a follow-up. **`edit_payment_meta` now passes `p_bank_id`** (edit modal gained a bank-account dropdown). New migration `supabase/migrations/20260526_phase2_payments_per_sale_list_rpcs.sql` (applied): `list_pdc_for_sale` + `list_payments_for_sale_full`, SECURITY DEFINER, company/sale-scoped. **Reusable gotcha:** the existing `list_payments_for_sale` is a thin 6-column RPC that filters `status='received'` — not usable for full panels (no `id`/`status`/codes); use `list_payments_for_sale_full`. Note: PDC Register (`pdc.js`) and Receipts (`receipts.js`) were already RPC-clean — no changes. See [[report_rpcs_anon_scoped]].
 
-**Immediate next action:** Phase 2 **Payments module ✅ complete (2026-05-26)**. **Next: audit the Recovery Queue redesign** (same approach: front-end calls vs. real RPCs/schema).
+- ✅ **Phase 2 — Recovery Queue module COMPLETE (2026-05-26)** — full audit + fixes (branch `phase2-recovery`, merged to `main` `021ebca`). `recovery.js` itself makes no DB calls (pure view over caches), so the audit covered its data path. **(1) Multi-site isolation enforced server-side:** `get_units_cache_bundle` + `get_contact_logs_cache` now filter by the caller's `user_project_assignments` for non-admins (admin/owner/super-admin + no-session bypass) — previously company-scoped only, so a recovery officer saw every site (breached §3). **NB: this is app-wide** — every non-admin role now sees only assigned projects everywhere (units/payments/sales/dashboards); a non-admin with no assignments sees nothing until assigned. Second client-side layer: `_rqBase()` filters via `hasProjectAccess()`. **(2)** Created the **`recovery-documents` storage bucket** (public read + authenticated insert, mirroring `rms-files`) — Log-a-Call attachments were silently failing because the bucket didn't exist. **(3)** `project_id` (+ `client_id`/`sale_id` on contact logs) now derived from the unit's active sale in `create_contact_log`/`create_payment_promise`/`create_follow_up_reminder`. Plus: `_rqWA` alert()→toast, manager read-only now hides `.rq-btn`/`.rd-actbtn` write actions. Migration `supabase/migrations/20260526_phase2_recovery_isolation_bucket_projectid.sql` (applied). See [[report_rpcs_anon_scoped]].
+
+**Immediate next action:** **Phase 2 is 100% complete (2026-05-26)** — Sales, Payments, Recovery Queue all audited & hardened. **Begin Phase 3 — Governance: Approval Workflow (single-approver, mandatory comments), Audit Trail, Restriction Levels (hard/soft/warning).**
 
 ---
 
@@ -254,12 +256,12 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ~~Setup wizard (6 steps, no-skip, draft-save).~~ ✅ **done.**
 - ~~Role-based access (Admin / Recovery Officer / Finance-sleep / Manager) + `user_project_assignments` enforcement.~~ ✅ **done.**
 
-### Phase 2 — Core modules ◀ **CURRENT**
+### Phase 2 — Core modules ✅ **100% COMPLETE (2026-05-26)**
 - ~~**Sales** (with installment schedule)~~ ✅ **COMPLETE (2026-05-26)** — sale form + schedule, PK lakh/crore localization, Crystal-style report branding, Excel export, print templates, + the 4 management-report RPCs.
 - ~~**Payments**~~ ✅ **COMPLETE (2026-05-26)** — audited & hardened: 3 RLS-blocked `.from()` reads swapped to RPCs, PDC status standardized to `presented` + routed through dedicated RPCs, `edit_payment_meta` bank_id fix, + 2 new per-sale list RPCs.
-- **Recovery Queue** redesign ◀ **NEXT TO AUDIT**.
+- ~~**Recovery Queue** redesign~~ ✅ **COMPLETE (2026-05-26)** — audited & fixed: multi-site isolation enforced server-side in `get_units_cache_bundle`/`get_contact_logs_cache` (+ client-side `hasProjectAccess` layer), `recovery-documents` storage bucket created, `project_id` tagging in the 3 recovery create RPCs, manager read-only coverage, toast fix.
 
-### Phase 3 — Governance
+### Phase 3 — Governance ◀ **CURRENT / NEXT**
 - Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).
 
 ### Phase 4 — Intelligence & documents
