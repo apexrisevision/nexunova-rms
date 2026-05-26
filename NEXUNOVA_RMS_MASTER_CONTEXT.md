@@ -162,6 +162,15 @@ Authoritative DB facts (full detail in `DATABASE_AUDIT.md` and `PROPOSED_SCHEMA.
 - `company_restriction_rules` table: **8 default rules seeded per company** (discount/cancellation/transfer/refund/price_revision/dnd/blacklist=soft, backdate=warning). Helper `_rms_restriction_level(company, action)` defaults to `'soft'` when no row.
 - **Hard blocks override admin** (master context §5): even admin cannot bypass a hard rule. Admin bypasses only soft/warning (applies directly, since admin is the single approver).
 
+**Phase 4 engineering notes (2026-05-27):**
+- `companies.status` = canonical active flag (NOT `is_active` — no such column). Active = `status='active'` (paired with `suspended_at`).
+- `generate_recovery_radar` scoring weights (v1.0): Pattern ≤30, Salary ≤20, Promise ≤30, Contact ≤10, Overdue ≤10, PDC penalty −5/bounce capped −15, Agent bonus +5. Final = `clamp(0..100, pattern+salary+promise+contact+overdue+agent − pdc_penalty)`. Stored in `recovery_radar_logs` via `ON CONFLICT (company_id, generated_date)` upsert (`algorithm_version='v1.0'`).
+- **pg_cron v1.6.4 enabled.** Two nightly jobs (UTC; DB runs UTC; each command prepends `SET search_path = public` because both RPCs are SECURITY DEFINER without a pinned search_path):
+  - `nightly-health-scores`: 20:30 UTC (01:30 PKT) → `recalculate_all_health_scores` per active company (runs FIRST).
+  - `nightly-radar-refresh`: 21:00 UTC (02:00 PKT) → `generate_recovery_radar` (top 50) per active company.
+- **Risk trend history** is localStorage-based (per-browser, not server-side) — deferred to Phase 5.
+- Report RPC name is **`get_post_possession_dues_report`** (NOT `get_post_possession_dues` — that 1-arg version powers `possession.js` off the `possessions` table; the 2-arg report RPC was renamed to avoid the overload collision).
+
 **Conventions (must match exactly for all new objects):** `uuid` PK via `gen_random_uuid()`; `company_id uuid NOT NULL → companies(id) ON DELETE CASCADE`; actor cols `uuid → app_users(id) ON DELETE SET NULL`; `created_at/updated_at timestamptz NOT NULL DEFAULT now()`; **RLS enabled + `deny_all_anon`** on every new table; `trg_<table>_upd BEFORE UPDATE` calling `set_updated_at()` on every mutable table.
 
 **Auth join rule:** always `app_users.auth_user_id = auth.uid()` (never `app_users.id = auth.uid()`).
@@ -270,7 +279,10 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ✅ **Phase 3 Component 3 COMPLETE (2026-05-26)** — Restriction Levels. Migrations: `phase3_restriction_rules` (new `company_restriction_rules` table, 8 default rules seeded per company, `_rms_restriction_level` helper), `phase3_softblock_wiring` (rename `execute_unit_cancellation`/`execute_unit_transfer_v2` → `_core` variants with same-signature gating wrappers, `approve_request` repointed at `_core` to avoid gate recursion, `_core` REVOKED from anon/authenticated, client-delete hard block for active financials), and `phase3_discount_softblock` (new `request_discount_change` RPC — the dedicated maker entry point for discount edits, since `record_payment` has no discount params). All four restriction levels working: **hard** (delete-with-financials, negative/over-outstanding payment), **soft** (cancellation/transfer/discount route via `create_approval_request`), **warning** (backdate detection via the audit trigger from Component 1 + a `restriction_warning` audit row in the gates).
 - ✅ **Phase 3 COMPLETE (2026-05-26)** — Approval Workflow + Audit Trail + Restriction Levels all live. Governance pipeline end-to-end: maker submits restricted action → gated RPC creates `approval_request` via `create_approval_request` (mandatory comment) → admin sees it in `approvals.js` queue → approves with mandatory comment → apply-engine in `approve_request` dispatches by `request_type` and mutates the target entity in the same transaction → `audit_logs` row `action='approval_applied'`.
 
-**Immediate next action:** **Phase 3 is 100% complete (2026-05-26).** **Begin Phase 4 — Intelligence & Documents: Reports (Crystal-style A4, PDF+Excel), AI Recovery Radar, Document generation, Client portal.**
+- ✅ **Phase 4 Component 2 COMPLETE (2026-05-27)** — Recovery Radar verified (no phantom RPCs: `generate_recovery_radar` / `get_clients_by_health_category` / `get_radar_accuracy_stats` / `create_escalation` all exist; "why scored" drill-down + Accuracy + History + Default Risk tabs all real). pg_cron nightly refresh live (migration `phase4_radar_cron` / `supabase/migrations/20260527_phase4_radar_cron.sql`). Exact scoring weights documented in §7.
+- ✅ **Phase 4 COMPLETE (2026-05-27)** — Buyer Portal RPCs (Component 1), Document templates: NOC + transfer letter, Urdu toggle (Component 3), Reports backlog: 8 RPCs + Excel export + KPI cards (Component 4), AI Recovery Radar verified + nightly cron (Component 2).
+
+**Immediate next action:** **Phase 4 is 100% complete (2026-05-27).** **Begin Phase 5 — UI polish: Tremor + shadcn/ui, Blue-600, dark/light, Linear/Vercel-level finish.**
 
 ---
 
@@ -290,8 +302,8 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 ### ~~Phase 3 — Governance~~ ✅ **COMPLETE (2026-05-26)**
 - ~~Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).~~ All three components landed (audit-trigger coverage + backdate; approve-engine + admin queue UI; restriction rules + soft-block gates + hard-block client delete + discount RPC).
 
-### Phase 4 — Intelligence & documents
-- Reports (Crystal-style A4, PDF+Excel), AI Recovery Radar, Document generation, Client portal.
+### ~~Phase 4 — Intelligence & documents~~ ✅ **COMPLETE (2026-05-27)**
+- ~~Reports (Crystal-style A4, PDF+Excel), AI Recovery Radar, Document generation, Client portal.~~ Buyer Portal RPCs + tabs (Comp 1); AI Recovery Radar verified + pg_cron nightly refresh (Comp 2); NOC + transfer-letter templates with Urdu toggle (Comp 3); 8 report backlog RPCs + Excel export + KPI cards (Comp 4).
 
 ### Phase 5 — UI polish
 - Tremor + shadcn/ui, Blue-600, dark/light, Linear/Vercel-level finish.
