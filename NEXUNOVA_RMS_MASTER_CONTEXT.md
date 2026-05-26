@@ -240,7 +240,9 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Phase 2 — Sales module COMPLETE (2026-05-26)** — sale form + installment schedule, PK lakh/crore localization, Crystal-style report branding pulled from `company_branding`, Excel export, and print-template fixes across `reports/*.html`. **Fixed the missing management-report backend:** created `get_collection_report`, `get_sales_register`, `get_outstanding_report`, `get_unit_inventory` (migration `phase2_management_report_rpcs` / `supabase/migrations/20260526_phase2_report_rpcs.sql`) — these were called by `reports/viewer.html`, `reports/hub.html` and `js/pages/dashboard.js` but **never existed** in the DB, so the whole management-reports feature was silently failing. All SECURITY DEFINER + company-scoped (the report viewer uses the **anon key with no session**, so report RPCs must NOT do a `_rms_caller`/session check), return shapes mapped to the real schema (`booking_date←sale_date`, `unit_number←unit_no`, `total_paid←SUM(payments)`, `status←category_unit_statuses.status_name`, …). Branch `phase2-sales-reporting` merged to `main` (`af2f07e`) + pushed.
 
-**Immediate next action:** Phase 2 **Sales module ✅ complete (2026-05-26)**. **Next: audit the Payments module** (then the Recovery Queue redesign).
+- ✅ **Phase 2 — Payments module COMPLETE (2026-05-26)** — full audit + fixes (branch `phase2-payments`, merged to `main` `5c31791`). **3 direct `.from()` reads that the `deny_all_anon` RLS lockdown silently blocked** (returning 0 rows for the authenticated app) swapped to RPCs: `_pymLoadBanks→list_banks_active`, `_pymLoadAndRenderTx→list_payments_for_sale_full` (new), `_pymRenderPDC→list_pdc_for_sale` (new). **PDC status vocabulary standardized to `presented`** (was `deposited` in the inline payment view) and inline Deposited/Clear/Bounce buttons **routed through the dedicated `mark_pdc_deposited`/`mark_pdc_cleared`/`mark_pdc_bounced` RPCs** (proper deposit/clearance dates + client auto-escalation) instead of generic `update_pdc_cheque`; bounce penalty details persisted as a follow-up. **`edit_payment_meta` now passes `p_bank_id`** (edit modal gained a bank-account dropdown). New migration `supabase/migrations/20260526_phase2_payments_per_sale_list_rpcs.sql` (applied): `list_pdc_for_sale` + `list_payments_for_sale_full`, SECURITY DEFINER, company/sale-scoped. **Reusable gotcha:** the existing `list_payments_for_sale` is a thin 6-column RPC that filters `status='received'` — not usable for full panels (no `id`/`status`/codes); use `list_payments_for_sale_full`. Note: PDC Register (`pdc.js`) and Receipts (`receipts.js`) were already RPC-clean — no changes. See [[report_rpcs_anon_scoped]].
+
+**Immediate next action:** Phase 2 **Payments module ✅ complete (2026-05-26)**. **Next: audit the Recovery Queue redesign** (same approach: front-end calls vs. real RPCs/schema).
 
 ---
 
@@ -254,7 +256,8 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 ### Phase 2 — Core modules ◀ **CURRENT**
 - ~~**Sales** (with installment schedule)~~ ✅ **COMPLETE (2026-05-26)** — sale form + schedule, PK lakh/crore localization, Crystal-style report branding, Excel export, print templates, + the 4 management-report RPCs.
-- **Payments** ◀ **NEXT TO AUDIT** · then **Recovery Queue** redesign.
+- ~~**Payments**~~ ✅ **COMPLETE (2026-05-26)** — audited & hardened: 3 RLS-blocked `.from()` reads swapped to RPCs, PDC status standardized to `presented` + routed through dedicated RPCs, `edit_payment_meta` bank_id fix, + 2 new per-sale list RPCs.
+- **Recovery Queue** redesign ◀ **NEXT TO AUDIT**.
 
 ### Phase 3 — Governance
 - Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).
