@@ -27,7 +27,10 @@ function rRec() {
 /* ─── Build sorted base data ───────────────────────────────────────────────── */
 function _rqBase() {
   const all = gunits().filter(u =>
-    u.status !== 'Available' && u.status !== 'Dead' && actualPending(u) > 0
+    u.status !== 'Available' && u.status !== 'Dead' && actualPending(u) > 0 &&
+    // Second-layer multi-site isolation (server already scopes the cache by
+    // user_project_assignments; this guards against any stale/admin-loaded cache).
+    (typeof hasProjectAccess !== 'function' || hasProjectAccess(u.projectId))
   );
   all.sort((a, b) => (daysSincePay(b) ?? 99999) - (daysSincePay(a) ?? 99999));
   return all;
@@ -54,7 +57,7 @@ function _rqSetBucket(b) {
 /* ─── WhatsApp shortcut ─────────────────────────────────────────────────────── */
 function _rqWA(uid) {
   const u = gunit(uid);
-  if (!u || !u.phone) { alert('No phone number on file for this client.'); return; }
+  if (!u || !u.phone) { toast('No phone number on file for this client.', 'warn'); return; }
   const proj = gproject(u.projectId);
   const msg =
     'Assalam o Alaikum ' + (u.customerName || 'Sir/Madam') + ',\n\n' +

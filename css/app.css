@@ -234,6 +234,14 @@ body.role-readonly button[onclick*="Edit"],
 body.role-readonly button[onclick*="Remove"]:not([onclick*="cm("]) {
   display: none !important;
 }
+/* Recovery Queue / Dashboard action buttons: hide contact/write actions for
+   read-only managers (Log Call & Add Promise already match the open*Modal rule
+   above; this also covers the WhatsApp dunning button). The View-unit button
+   (.ghost) stays visible — managers can still open a unit. */
+body.role-readonly .rq-btn:not(.ghost),
+body.role-readonly .rd-actbtn:not(.ghost) {
+  display: none !important;
+}
 /* Read-only badge in topbar for manager so the role is visible */
 body.role-readonly::before {
   content: "READ-ONLY MODE";
