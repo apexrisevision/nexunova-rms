@@ -582,18 +582,17 @@ async function _pymRenderPDC(saleId) {
   el.innerHTML = `<div class="card mt14"><div class="cb"><div class="empty"><div class="ei"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;opacity:.4"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke-linecap="round"/></svg></div><div class="et">Loading PDC cheques…</div></div></div></div>`;
 
   try {
-    const { data: cheques, error } = await supabase
-      .from('pdc_cheques')
-      .select('*')
-      .eq('sale_id', saleId)
-      .eq('company_id', S.cid)
-      .order('cheque_date', { ascending: true });
+    // RPC (not .from('pdc_cheques')) — pdc_cheques carries deny_all_anon RLS, direct reads return nothing.
+    const { data: cheques, error } = await supabase.rpc('list_pdc_for_sale', {
+      p_sale_id:    saleId,
+      p_company_id: S.cid
+    });
     if (error) throw error;
 
     const statusBadge = s => {
       const map = {
         pending:   ['#f59e0b', 'Pending'],
-        deposited: ['#3b82f6', 'Deposited'],
+        presented: ['#3b82f6', 'Presented'],
         cleared:   ['#22c55e', '✓ Cleared'],
         bounced:   ['#ef4444', '✗ Bounced'],
         cancelled: ['#94a3b8', 'Cancelled'],
@@ -605,7 +604,7 @@ async function _pymRenderPDC(saleId) {
     const todayStr = td();
     const allList  = cheques || [];
     const pending  = allList.filter(c => c.status === 'pending');
-    const deposited = allList.filter(c => c.status === 'deposited');
+    const presented = allList.filter(c => c.status === 'presented');
     const cleared  = allList.filter(c => c.status === 'cleared');
     const bounced  = allList.filter(c => c.status === 'bounced');
     const dueToday = pending.filter(c => c.cheque_date === todayStr);
@@ -636,13 +635,13 @@ async function _pymRenderPDC(saleId) {
             </div>
             <button class="btn btn-xs btn-gh" style="border-color:#f97316;color:#f97316;flex-shrink:0" onclick="document.getElementById('pym-pdc-section').scrollIntoView({behavior:'smooth'})">View ↓</button>
           </div>`;
-      } else if (pending.length > 0 || deposited.length > 0) {
-        const totPend = [...pending,...deposited].reduce((s,c)=>s+Number(c.amount||0),0);
+      } else if (pending.length > 0 || presented.length > 0) {
+        const totPend = [...pending,...presented].reduce((s,c)=>s+Number(c.amount||0),0);
         alertEl.innerHTML = `
           <div style="display:flex;align-items:center;gap:12px;background:rgba(245,158,11,.07);border:1.5px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 16px;margin-bottom:14px">
             <div style="color:#f59e0b;flex-shrink:0"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h4"/><path d="M14 8h4"/><path d="M6 12h12"/><path d="M6 16h4"/></svg></div>
             <div style="flex:1;font-size:12px;color:var(--t2)">
-              <b style="color:#f59e0b">${pending.length+deposited.length} PDC cheque${pending.length+deposited.length>1?'s':''}</b> totalling <b>PKR ${fM(totPend)}</b> received but <b style="color:#f59e0b">not yet cleared</b>
+              <b style="color:#f59e0b">${pending.length+presented.length} PDC cheque${pending.length+presented.length>1?'s':''}</b> totalling <b>PKR ${fM(totPend)}</b> received but <b style="color:#f59e0b">not yet cleared</b>
             </div>
             <button class="btn btn-xs btn-gh" onclick="document.getElementById('pym-pdc-section').scrollIntoView({behavior:'smooth'})">PDC ↓</button>
           </div>`;
@@ -664,10 +663,10 @@ async function _pymRenderPDC(saleId) {
         const actions = `
           <div style="display:flex;gap:5px;flex-wrap:wrap">
             ${c.status === 'pending'
-              ? `<button class="btn btn-gh btn-xs" onclick="updatePDCStatus('${c.id}','deposited')">Deposited</button>
+              ? `<button class="btn btn-gh btn-xs" onclick="updatePDCStatus('${c.id}','presented')">Deposited</button>
                  <button class="btn btn-xs" style="background:var(--ok);color:#fff;border:none" onclick="updatePDCStatus('${c.id}','cleared')" title="Mark Cleared">Clear</button>`
               : ''}
-            ${c.status === 'deposited'
+            ${c.status === 'presented'
               ? `<button class="btn btn-xs" style="background:var(--ok);color:#fff;border:none" onclick="updatePDCStatus('${c.id}','cleared')">Clear</button>
                  <button class="btn btn-gh btn-xs" style="color:var(--err);border-color:var(--err)" onclick="openBounceModal('${c.id}','${esc(c.cheque_no||'')}',${c.amount||0})">Bounce</button>`
               : ''}
@@ -698,12 +697,12 @@ async function _pymRenderPDC(saleId) {
     const totCleared  = cleared.reduce((s, c) => s + Number(c.amount || 0), 0);
 
     // Status pill summary
-    const statusPills = ['pending','deposited','cleared','bounced','cancelled'].map(st => {
+    const statusPills = ['pending','presented','cleared','bounced','cancelled'].map(st => {
       const cnt = allList.filter(c => c.status === st).length;
       if (!cnt) return '';
-      const colors = {pending:'#f59e0b',deposited:'#3b82f6',cleared:'#22c55e',bounced:'#ef4444',cancelled:'#94a3b8'};
+      const colors = {pending:'#f59e0b',presented:'#3b82f6',cleared:'#22c55e',bounced:'#ef4444',cancelled:'#94a3b8'};
       const col = colors[st] || '#94a3b8';
-      const lbl = {pending:'Pending',deposited:'Deposited',cleared:'Cleared',bounced:'Bounced',cancelled:'Cancelled'}[st] || st;
+      const lbl = {pending:'Pending',presented:'Presented',cleared:'Cleared',bounced:'Bounced',cancelled:'Cancelled'}[st] || st;
       return `<div style="display:flex;align-items:center;gap:5px;background:${col}14;border:1px solid ${col}33;border-radius:6px;padding:5px 11px">
         <span style="font-size:14px;font-weight:700;color:${col}">${cnt}</span>
         <span style="font-size:10px;color:${col};font-weight:600">${lbl}</span>
@@ -1436,14 +1435,10 @@ function _pymOnChequeDateChange(val) {
 async function _pymLoadBanks() {
   if (_pymBanks !== null) return _pymBanks;
   try {
-    const { data, error } = await supabase
-      .from('banks')
-      .select('id,bank_name,account_title,account_number,iban,branch')
-      .eq('company_id', S.cid)
-      .eq('is_active', true)
-      .order('bank_name');
+    // RPC (not .from('banks')) — banks carries deny_all_anon RLS, direct reads return nothing.
+    const { data, error } = await supabase.rpc('list_banks_active', { p_company_id: S.cid });
     if (error) throw error;
-    _pymBanks = data || [];
+    _pymBanks = Array.isArray(data) ? data : [];
   } catch (e) {
     _pymBanks = [];
     console.warn('[_pymLoadBanks]', e.message);
@@ -1864,10 +1859,24 @@ async function deletePDCConfirm(id) {
 }
 
 async function updatePDCStatus(id, status) {
-  const { data, error } = await supabase.rpc('update_pdc_cheque', { p_id: id, p_company_id: S.cid, p_data: { status } });
-  if (error || !data?.success) { toast('Could not update PDC status', 'err'); return; }
-  toast('PDC status updated', 'ok');
-  if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
+  // Route status transitions through the dedicated RPCs (proper side-effects:
+  // deposit_date / clearance_date / auto-escalation) instead of a blind update.
+  try {
+    let res;
+    if (status === 'presented' || status === 'deposited') {
+      res = await supabase.rpc('mark_pdc_deposited', { p_cheque_id: id, p_company_id: S.cid, p_deposit_date: td() });
+    } else if (status === 'cleared') {
+      res = await supabase.rpc('mark_pdc_cleared', { p_cheque_id: id, p_company_id: S.cid, p_cleared_date: td() });
+    } else {
+      res = await supabase.rpc('update_pdc_cheque', { p_id: id, p_company_id: S.cid, p_data: { status } });
+    }
+    const { data, error } = res;
+    if (error || !data?.success) { toast(data?.error || 'Could not update PDC status', 'err'); return; }
+    toast('PDC status updated', 'ok');
+    if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
+  } catch (e) {
+    toast(e.message || 'Could not update PDC status', 'err');
+  }
 }
 
 // ── PDC Bounce modal ──────────────────────────────────────────────
@@ -1902,23 +1911,31 @@ async function saveBounceForm() {
     const penaltyCollected = document.getElementById('pdc-penalty-collected')?.checked || false;
     const penaltyNotes     = document.getElementById('pdc-penalty-notes')?.value?.trim() || null;
 
-    const { data, error } = await supabase.rpc('update_pdc_cheque', {
-      p_id: id, p_company_id: S.cid, p_data: {
-        status:            'bounced',
-        bounce_reason:     reason,
-        bounce_date:       bdate,
-        penalty_amount:    penaltyAmt || null,
-        penalty_date:      penaltyDate,
-        penalty_collected: penaltyCollected,
-        penalty_notes:     penaltyNotes,
-      }
+    // Route through mark_pdc_bounced (status transition + client auto-escalation).
+    const { data, error } = await supabase.rpc('mark_pdc_bounced', {
+      p_cheque_id:     id,
+      p_company_id:    S.cid,
+      p_bounce_date:   bdate,
+      p_bounce_reason: reason
     });
-
     if (error || !data?.success) throw new Error(error?.message || data?.error || 'Bounce update failed');
+
+    // mark_pdc_bounced doesn't capture penalty details — persist them separately if entered.
+    if (penaltyAmt || penaltyDate || penaltyCollected || penaltyNotes) {
+      const { error: pErr } = await supabase.rpc('update_pdc_cheque', {
+        p_id: id, p_company_id: S.cid, p_data: {
+          penalty_amount:    penaltyAmt || null,
+          penalty_date:      penaltyDate,
+          penalty_collected: penaltyCollected,
+          penalty_notes:     penaltyNotes,
+        }
+      });
+      if (pErr) throw pErr;
+    }
+
     cm('m-pdc-bounce');
-    toast('Cheque marked as bounced', 'ok');
-    const unitId = document.getElementById('pym-unit')?.value;
-    if (unitId) await _pymOnUnitChange(unitId);
+    toast(data.auto_escalated ? 'Cheque bounced — client auto-escalated to manager' : 'Cheque marked as bounced', data.auto_escalated ? 'warn' : 'ok');
+    if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
   } catch (e) {
     toast('Error: ' + e.message, 'err');
   } finally {
@@ -1934,15 +1951,14 @@ async function _pymLoadAndRenderTx(saleId) {
   if (!sec) return;
   sec.innerHTML = '';
   try {
-    const { data, error } = await supabase
-      .from('payments')
-      .select('id,payment_code,voucher_code,payment_date,amount,payment_method,payment_category,reference_no,bank_name,notes,installment_id,status,created_at')
-      .eq('sale_id', saleId)
-      .eq('company_id', S.cid)
-      .order('payment_date', { ascending: false })
-      .order('created_at',   { ascending: false });
+    // RPC (not .from('payments')) — payments carries deny_all_anon RLS, direct reads return nothing.
+    // list_payments_for_sale_full returns the full row (incl. id/status/codes) so edit/cancel + cancelled rows work.
+    const { data, error } = await supabase.rpc('list_payments_for_sale_full', {
+      p_sale_id:    saleId,
+      p_company_id: S.cid
+    });
     if (error) throw error;
-    _pymTxList     = data || [];
+    _pymTxList     = Array.isArray(data) ? data : [];
     _pymTxFiltered = [..._pymTxList];
     _pymRenderTxSection();
   } catch(e) {
@@ -2068,7 +2084,7 @@ async function _pymDeleteTx(paymentId, paymentCode, amount) {
   });
 }
 
-function _pymOpenEditTx(txId) {
+async function _pymOpenEditTx(txId) {
   const tx = _pymTxList.find(t => t.id === txId);
   if (!tx) return;
   const s = id => document.getElementById(id);
@@ -2077,9 +2093,28 @@ function _pymOpenEditTx(txId) {
   if (s('ep-date'))   s('ep-date').value       = tx.payment_date   || td();
   if (s('ep-method')) s('ep-method').value     = tx.payment_method || 'cash';
   if (s('ep-refno'))  s('ep-refno').value      = tx.reference_no   || '';
-  if (s('ep-bank'))   s('ep-bank').value       = tx.bank_name      || '';
   if (s('ep-notes'))  s('ep-notes').value      = tx.notes          || '';
+
+  // Bank account dropdown — lets the edit pass a real p_bank_id to edit_payment_meta.
+  const banks   = await _pymLoadBanks();
+  const bankSel  = s('ep-bank-id');
+  if (bankSel) {
+    bankSel.innerHTML = `<option value="">— None / Cash —</option>` +
+      banks.map(b => `<option value="${esc(b.id)}">${esc(b.bank_name)} — ${esc(b.account_title)}</option>`).join('');
+    const match = tx.bank_id ? banks.find(b => b.id === tx.bank_id)
+                             : (tx.bank_name ? banks.find(b => b.bank_name === tx.bank_name) : null);
+    bankSel.value = match ? match.id : '';
+  }
+  // Keep the legacy free-text bank name when no saved account matches.
+  if (s('ep-bank')) s('ep-bank').value = tx.bank_name || '';
   om('m-edit-pym');
+}
+
+// Sync the hidden bank-name field to the selected bank account.
+function _pymEpBankSelect(bankId) {
+  const bank   = (_pymBanks || []).find(b => b.id === bankId);
+  const nameEl = document.getElementById('ep-bank');
+  if (nameEl) nameEl.value = bank ? (bank.bank_name || '') : '';
 }
 
 async function _pymSaveEditTx() {
@@ -2093,11 +2128,12 @@ async function _pymSaveEditTx() {
     const { data, error } = await supabase.rpc('edit_payment_meta', {
       p_payment_id:     pid,
       p_company_id:     S.cid,
-      p_payment_date:   s('ep-date')?.value   || null,
-      p_payment_method: s('ep-method')?.value || null,
-      p_reference_no:   s('ep-refno')?.value  || null,
-      p_bank_name:      s('ep-bank')?.value   || null,
-      p_notes:          s('ep-notes')?.value  || null,
+      p_payment_date:   s('ep-date')?.value    || null,
+      p_payment_method: s('ep-method')?.value  || null,
+      p_reference_no:   s('ep-refno')?.value   || null,
+      p_bank_name:      s('ep-bank')?.value    || null,
+      p_bank_id:        s('ep-bank-id')?.value || null,
+      p_notes:          s('ep-notes')?.value   || null,
       p_updated_by:     S.userId
     });
     if (error) throw error;
