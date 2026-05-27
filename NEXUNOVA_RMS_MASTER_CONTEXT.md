@@ -177,6 +177,14 @@ Authoritative DB facts (full detail in `DATABASE_AUDIT.md` and `PROPOSED_SCHEMA.
 
 **Phase-1 schema (drafted, NOT applied):** 10 new tables (`user_project_assignments`, `approval_requests` + `approval_request_comments`, `company_setup_progress`, `company_password_policies` + `password_history`, `user_sessions`, `recovery_officer_targets`, `holidays`, `cancellation_policy_tiers`), +2 columns on `app_users` (`password_changed_at`, `password_expires_at`), +14 `project_id` columns (backfilled). IP whitelist already exists (`company_ip_whitelists`) — no new table.
 
+> **🚫 ABSOLUTE CONSTRAINT — LOGIN PAGE:**
+> - `login.html` → **NEVER touch. No changes, ever.**
+> - `login.css` → **NEVER touch. No changes, ever.**
+> - `ob-*` CSS classes → **NEVER touch** (these are login/onboarding styles).
+> - `buyer-portal.html` → **separate product, touch only when explicitly asked.**
+>
+> **This overrides any prompt that says "fix all pages" or "global change".**
+
 ---
 
 ## 8. UI decisions
