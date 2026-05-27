@@ -1456,124 +1456,11 @@ textarea.fi {
    All rules below use maximum specificity or !important to beat everything.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* ╔══ 1. SIDEBAR — ALWAYS DARK NAVY ═══════════════════════════════════════════╗
-   Forces #0F172A regardless of light/dark theme, matching Linear/Notion
+/* ╔══ 1. SIDEBAR — REMOVED 2026-05-27 ═════════════════════════════════════════╗
+   The former "ALWAYS DARK NAVY" override (which forced dark navy regardless of
+   theme) has been deleted to allow a true light-mode sidebar. New rules live in
+   §48 PREMIUM TRANSFORMATION at the end of this file.
    ╚════════════════════════════════════════════════════════════════════════════╝ */
-.sb,
-[data-theme="light"] .sb,
-[data-theme="dark"]  .sb {
-  background:     #0F172A !important;
-  border-right:   1px solid #1E293B !important;
-  /* Scope CSS variable tokens to sidebar so inner elements auto-inherit */
-  --bg-sidebar:         #0F172A;
-  --bg-sidebar-hover:   rgba(255,255,255,0.06);
-  --bg-sidebar-slot:    rgba(255,255,255,0.05);
-  --bg-sidebar-active:  rgba(37,99,235,0.20);
-  --border-sidebar:     rgba(255,255,255,0.09);
-  --text-sidebar:       rgba(255,255,255,0.80);
-  --text-sidebar-muted: rgba(255,255,255,0.38);
-  --text-sidebar-active:#FFFFFF;
-  --group-label:        rgba(255,255,255,0.28);
-}
-
-/* Nav items — white text on dark */
-.sb .ni,
-[data-theme="light"] .sb .ni {
-  color:                   rgba(255,255,255,0.72) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.72) !important;
-}
-.sb .ni-ic,
-[data-theme="light"] .sb .ni-ic {
-  color: rgba(255,255,255,0.40) !important;
-}
-.sb .ni:hover,
-[data-theme="light"] .sb .ni:hover {
-  background:              rgba(255,255,255,0.07) !important;
-  color:                   rgba(255,255,255,0.92) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.92) !important;
-}
-.sb .ni:hover .ni-ic,
-[data-theme="light"] .sb .ni:hover .ni-ic {
-  color: rgba(255,255,255,0.80) !important;
-}
-
-/* Brand name — always white on dark sidebar */
-[data-theme="light"] .sb-hd-name {
-  color:                   rgba(255,255,255,0.95) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.95) !important;
-  background:              none !important;
-  background-clip:         unset !important;
-}
-[data-theme="light"] .sb-hd-name > span {
-  -webkit-text-fill-color: inherit !important;
-}
-[data-theme="light"] .sb-hd-sub {
-  color:                   rgba(255,255,255,0.32) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.32) !important;
-}
-
-/* Workspace switcher */
-[data-theme="light"] .sb .sb-ws-name {
-  color:                   rgba(255,255,255,0.78) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.78) !important;
-}
-[data-theme="light"] .sb .sb-ws-plan {
-  color:                   rgba(255,255,255,0.38) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.38) !important;
-}
-[data-theme="light"] .sb .sb-ws-icon { color: rgba(255,255,255,0.38) !important; }
-[data-theme="light"] .sb .sb-ws:hover { background: rgba(255,255,255,0.06) !important; }
-
-/* User zone */
-[data-theme="light"] .sb .sb-uname {
-  color:                   rgba(255,255,255,0.80) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.80) !important;
-}
-[data-theme="light"] .sb .sb-urole {
-  color:                   rgba(255,255,255,0.38) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.38) !important;
-}
-[data-theme="light"] .sb .sb-user-more { color: rgba(255,255,255,0.38) !important; }
-[data-theme="light"] .sb .sb-user-zone:hover { background: rgba(255,255,255,0.06) !important; }
-
-/* Group headers */
-[data-theme="light"] .sb .nav-grp-lbl {
-  color:                   rgba(255,255,255,0.30) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.30) !important;
-}
-[data-theme="light"] .sb .nav-grp-chev { color: rgba(255,255,255,0.30) !important; }
-[data-theme="light"] .sb .nav-grp-hd:hover { background: rgba(255,255,255,0.05) !important; }
-[data-theme="light"] .sb .nav-grp-cnt {
-  background:              rgba(255,255,255,0.07) !important;
-  color:                   rgba(255,255,255,0.38) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.38) !important;
-}
-[data-theme="light"] .sb .nav-grp-body::before { background: rgba(255,255,255,0.10) !important; }
-
-/* Search box */
-[data-theme="light"] .sb .sb-search-box {
-  background:   rgba(255,255,255,0.06) !important;
-  border-color: rgba(255,255,255,0.10) !important;
-}
-[data-theme="light"] .sb .sb-search-ic,
-[data-theme="light"] .sb .sb-search-ph {
-  color:                   rgba(255,255,255,0.32) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.32) !important;
-}
-
-/* Collapse button */
-[data-theme="light"] .sb .sb-col-btn { color: rgba(255,255,255,0.36) !important; }
-[data-theme="light"] .sb .sb-col-btn:hover {
-  background: rgba(255,255,255,0.08) !important;
-  color:      rgba(255,255,255,0.82) !important;
-}
-
-/* Badges */
-[data-theme="light"] .sb .ni-bdg {
-  background:              rgba(255,255,255,0.08) !important;
-  color:                   rgba(255,255,255,0.48) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.48) !important;
-}
 
 /* ╔══ 2. PAGE HEADERS — WHITE CARD BAR ════════════════════════════════════════╗
    Solid white card, 12px radius, subtle shadow — visible on every page
@@ -1767,4 +1654,291 @@ button.btn-g, button.btn-d,
 }
 @media (max-width: 540px) {
   .db-kpis { grid-template-columns: 1fr !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   §48 PREMIUM TRANSFORMATION (2026-05-27) — Phase 5 polish pass.
+   Appended last; wins all prior conflicts. Pairs with the dark-navy override
+   removal at the top of §1 above. Sections:
+     · Sidebar light-mode (replacement for the deleted dark-navy block)
+     · Typography hierarchy
+     · KPI card redesign
+     · Card / panel design
+     · Table design
+     · Topbar clean
+     · Button system
+     · Breadcrumb
+     · Light-mode page bg
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── SIDEBAR LIGHT MODE ───────────────────────────────────────────────────── */
+/* Selector audit 2026-05-27: the spec's .sb-nav-lbl / .sb-nav-a / .sb-nav-ic
+   classes do NOT exist in this codebase. _mkNi() in js/ui.js renders nav items
+   as <div class="ni"><span class="ni-ic"><span class="ni-lb"><span class="ni-bdg">.
+   Active state is .ni.on (NOT .ni.active — nel.classList.add('on') at ui.js:652).
+   Group labels are .nav-grp-lbl. CSS values below are unchanged from the spec. */
+[data-theme="light"] .sb,
+[data-theme="light"] .sb-nav,
+[data-theme="light"] .sb-col-btn,
+[data-theme="light"] .sb-ws,
+[data-theme="light"] .sb-user-zone {
+  background: #F8FAFC !important;
+  border-right: 1px solid #E2E8F0 !important;
+}
+[data-theme="light"] .nav-grp-lbl {
+  color: #64748B !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+[data-theme="light"] .ni {
+  color: #374151 !important;
+}
+[data-theme="light"] .ni:hover {
+  background: #EFF6FF !important;
+  color: #2563EB !important;
+}
+[data-theme="light"] .ni.on {
+  background: #EFF6FF !important;
+  color: #2563EB !important;
+  font-weight: 600 !important;
+}
+[data-theme="light"] .ni-ic,
+[data-theme="light"] .ni-lb {
+  color: inherit !important;
+}
+
+/* ── TYPOGRAPHY HIERARCHY ─────────────────────────────────────────────────── */
+.ph h1, .page-title {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.02em !important;
+}
+.ph h2, .section-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+.ph p, .page-subtitle, .ph-sub {
+  font-size: 13px !important;
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
+}
+.tbl th {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-muted) !important;
+}
+.tbl td {
+  font-size: 13px !important;
+  color: var(--text-primary) !important;
+  padding: 12px 16px !important;
+}
+
+/* ── KPI CARD REDESIGN ────────────────────────────────────────────────────── */
+.db-kpi {
+  border-radius: 12px !important;
+  padding: 20px !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--bg-surface, #FFFFFF) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04) !important;
+  transition: box-shadow 0.2s ease !important;
+}
+.db-kpi:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+.db-kpi-hd {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-muted) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.db-kpi-val {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.2 !important;
+  margin: 8px 0 4px !important;
+}
+
+/* ── CARD / PANEL DESIGN ──────────────────────────────────────────────────── */
+.card, .panel, .db-card, [class*="-card"], [class*="-panel"] {
+  border-radius: 12px !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--bg-surface, #FFFFFF) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+
+/* ── TABLE DESIGN ─────────────────────────────────────────────────────────── */
+.tbl { border-collapse: separate !important; border-spacing: 0 !important; }
+.tbl thead tr { background: transparent !important; }
+.tbl tbody tr {
+  border-bottom: 1px solid var(--border-color) !important;
+  transition: background 0.15s !important;
+}
+.tbl tbody tr:hover { background: #F8FAFC !important; }
+.tbl tbody tr:nth-child(even) { background: transparent !important; }
+
+/* ── TOPBAR CLEAN ─────────────────────────────────────────────────────────── */
+.aurora-topbar, .aurora-topbar-bar {
+  height: 56px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  background: var(--bg-surface, #FFFFFF) !important;
+  box-shadow: none !important;
+}
+.atb-current, .atb-current-name {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+.atb-current-lbl {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--text-muted) !important;
+}
+
+/* ── BUTTON SYSTEM ────────────────────────────────────────────────────────── */
+.btn-g, .btn-d, button[class*="btn-primary"],
+.btn.primary, [class*="add-btn"], .action-btn-primary {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  border: none !important;
+  transition: background 0.2s !important;
+}
+.btn-g:hover, .btn-d:hover {
+  background: #1D4ED8 !important;
+}
+.btn-gh {
+  background: transparent !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  transition: all 0.2s !important;
+}
+.btn-gh:hover {
+  border-color: #2563EB !important;
+  color: #2563EB !important;
+}
+
+/* ── BREADCRUMB ───────────────────────────────────────────────────────────── */
+.breadcrumb, .bc, [class*="breadcrumb"] {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+}
+.breadcrumb a, .bc a { color: var(--text-muted) !important; }
+.breadcrumb .current, .bc .active {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* ── LIGHT MODE PAGE BG ───────────────────────────────────────────────────── */
+[data-theme="light"] body,
+[data-theme="light"] .app-content,
+[data-theme="light"] .main-content,
+[data-theme="light"] .pg {
+  background: #F1F5F9 !important;
+}
+[data-theme="light"] .card,
+[data-theme="light"] .panel,
+[data-theme="light"] .db-card,
+[data-theme="light"] .db-kpi {
+  background: #FFFFFF !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   §48 DARK MODE PARALLELS (added 2026-05-27) — mirrors the [data-theme="light"]
+   rules above so both themes look intentional. Typography, buttons, breadcrumb,
+   and card border-radius/shadow are NOT mirrored here — they are already
+   theme-agnostic in §48 (use var(--text-primary)/--bg-surface/--border-color
+   which auto-swap per theme.css). Dark-side values per Rashid's spec.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── SIDEBAR DARK MODE ────────────────────────────────────────────────────── */
+[data-theme="dark"] .sb,
+[data-theme="dark"] .sb-nav,
+[data-theme="dark"] .sb-col-btn,
+[data-theme="dark"] .sb-ws,
+[data-theme="dark"] .sb-user-zone {
+  background: #0F172A !important;
+  border-right: 1px solid #1E293B !important;
+}
+[data-theme="dark"] .nav-grp-lbl {
+  color: #475569 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+[data-theme="dark"] .ni {
+  color: #94A3B8 !important;
+}
+[data-theme="dark"] .ni:hover {
+  background: #1E293B !important;
+  color: #E2E8F0 !important;
+}
+[data-theme="dark"] .ni.on {
+  background: rgba(37,99,235,0.15) !important;
+  color: #60A5FA !important;
+  font-weight: 600 !important;
+}
+[data-theme="dark"] .ni-ic,
+[data-theme="dark"] .ni-lb {
+  color: inherit !important;
+}
+
+/* ── KPI CARDS DARK ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .db-kpi {
+  background: #1E293B !important;
+  border-color: #334155 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+}
+[data-theme="dark"] .db-kpi-hd {
+  color: #64748B !important;
+}
+[data-theme="dark"] .db-kpi-val {
+  color: #F1F5F9 !important;
+}
+
+/* ── CARDS / PANELS DARK ─────────────────────────────────────────────────── */
+[data-theme="dark"] .card,
+[data-theme="dark"] .panel,
+[data-theme="dark"] .db-card,
+[data-theme="dark"] [class*="-card"],
+[data-theme="dark"] [class*="-panel"] {
+  background: #1E293B !important;
+  border-color: #334155 !important;
+}
+
+/* ── TOPBAR DARK ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] .aurora-topbar,
+[data-theme="dark"] .aurora-topbar-bar {
+  background: #0F172A !important;
+  border-bottom: 1px solid #1E293B !important;
+}
+
+/* ── PAGE BG DARK ────────────────────────────────────────────────────────── */
+[data-theme="dark"] body,
+[data-theme="dark"] .app-content,
+[data-theme="dark"] .main-content,
+[data-theme="dark"] .pg {
+  background: #0B1120 !important;
+}
+
+/* ── TABLE DARK ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] .tbl tbody tr:hover {
+  background: #1E293B !important;
 }
