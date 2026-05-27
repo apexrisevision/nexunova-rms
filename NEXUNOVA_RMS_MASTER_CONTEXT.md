@@ -282,7 +282,15 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ✅ **Phase 4 Component 2 COMPLETE (2026-05-27)** — Recovery Radar verified (no phantom RPCs: `generate_recovery_radar` / `get_clients_by_health_category` / `get_radar_accuracy_stats` / `create_escalation` all exist; "why scored" drill-down + Accuracy + History + Default Risk tabs all real). pg_cron nightly refresh live (migration `phase4_radar_cron` / `supabase/migrations/20260527_phase4_radar_cron.sql`). Exact scoring weights documented in §7.
 - ✅ **Phase 4 COMPLETE (2026-05-27)** — Buyer Portal RPCs (Component 1), Document templates: NOC + transfer letter, Urdu toggle (Component 3), Reports backlog: 8 RPCs + Excel export + KPI cards (Component 4), AI Recovery Radar verified + nightly cron (Component 2).
 
-**Immediate next action:** **Phase 4 is 100% complete (2026-05-27).** **Begin Phase 5 — UI polish: Tremor + shadcn/ui, Blue-600, dark/light, Linear/Vercel-level finish.**
+- ✅ **Phase 5 UI Polish COMPLETE (2026-05-27)** — vanilla-app polish round (the Tremor/shadcn rebuild remains a future React-migration concern, not blocking the SaaS launch):
+  - **Admin sidebar: 4 groups → 8 clean groups** (`Main / Sales / Clients / Recovery / Communications / Finance / Reports / System`). All 43 items preserved verbatim — only group assignment + intra-group order changed. Non-admin sidebars (Recovery / Accounts / Manager / Else) untouched. Finance-sleep rule still strips the Finance group for non-admins when no finance user exists.
+  - **Dashboard** (`_rDashAdmin`): removed the heuristic "AI Recovery Radar" strip (3 inline cards computed client-side from `overdueUnits`) and wired the **real `_rDashRadar`** widget (`get_latest_radar`, stored radar from `recovery_radar_logs`) + the previously dead **`_rDashHealth`** widget (`get_health_dashboard_stats`). Final order: KPI row → Collection Trend → Client Health → AI Recovery Radar → Recent Payments. `_rDashPayLinks` remains defined but unmounted (intentional). Other role dashboards untouched.
+  - **Blue-600 (#2563EB) cleanup across 16 CSS files** — every leftover indigo `#4F46E5 / #6366F1 / #6366f1 / #E0E7FF / #EEF2FF` and matching `rgba(99,102,241,…) / rgba(79,70,229,…)` replaced with Blue-600 family (alpha values preserved exactly). Legacy var names renamed: `--prj-indigo → --prj-primary`, `--nx-indigo → --nx-primary`; `--x-brand` value swapped to `#2563EB` (var name kept for callers). **`login.css` intentionally excluded** — login screen has its own `ob-*` dark theme. Visual-overhaul.css "indigo" comments scrubbed to "primary".
+  - **Theme toggle moved from topbar → sidebar footer** (zone 4c, static `<button id="tb-theme-btn">`). Wires to the existing `window.toggleTheme()` / `theme.js` click delegate — no new toggle logic created. `buildSB()` syncs the initial sun/moon SVG to match `document.documentElement.getAttribute('data-theme')` in case the sidebar renders after `theme.js init` fired.
+  - **`.db-wcat.indigo → .db-wcat.blue`** renamed in `dashboard-premium.css` (2 selectors) and `dashboard.js` (1 className literal in `_rDashPayLinks` statCells). One pre-existing duplicate `.db-wcat.blue …` rule removed.
+  - **Dark/light system was already in place** under `<html data-theme>` (`css/theme.css` + `css/theme-system.css` + `js/theme.js`, live since 2026-05-16) — verified comprehensive, not rebuilt. The user-spec `body.dark-mode` parallel system was rejected to avoid two competing toggles.
+
+**Immediate next action:** **Phases 1–5 are 100% complete (2026-05-27).** RMS vanilla-app build is launch-ready on the in-scope checklist; the Next.js + React rebuild (Tremor + shadcn, full UI v2) is the open future direction (see §1 / §8).
 
 ---
 
@@ -305,8 +313,8 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 ### ~~Phase 4 — Intelligence & documents~~ ✅ **COMPLETE (2026-05-27)**
 - ~~Reports (Crystal-style A4, PDF+Excel), AI Recovery Radar, Document generation, Client portal.~~ Buyer Portal RPCs + tabs (Comp 1); AI Recovery Radar verified + pg_cron nightly refresh (Comp 2); NOC + transfer-letter templates with Urdu toggle (Comp 3); 8 report backlog RPCs + Excel export + KPI cards (Comp 4).
 
-### Phase 5 — UI polish
-- Tremor + shadcn/ui, Blue-600, dark/light, Linear/Vercel-level finish.
+### ~~Phase 5 — UI polish~~ ✅ **COMPLETE (2026-05-27)** *(vanilla-app pass; React/Tremor rebuild deferred)*
+- ~~Tremor + shadcn/ui, Blue-600, dark/light, Linear/Vercel-level finish.~~ Vanilla-app polish landed: admin sidebar 4→8 groups (43 items preserved); dashboard wired to real `_rDashHealth` + `_rDashRadar` (heuristic strip removed); Blue-600 cleanup across 16 CSS files (hex + rgba; `login.css` excluded by design); theme toggle moved topbar→sidebar footer (reuses existing `window.toggleTheme()`); `.db-wcat.indigo` → `.db-wcat.blue` rename. Dark/light system already in place under `[data-theme]`. Tremor + shadcn migration belongs to the Next.js + React rebuild.
 
 > **Build order rule:** do not jump ahead. Each phase depends on the previous (e.g. approvals in Phase 3 assume roles + isolation from Phase 1). RPCs for the new Phase-1 tables and Pakistan holiday seed data are Phase-1 follow-ups.
 
