@@ -430,7 +430,7 @@
 .db-wcat.amber  .db-wcat-lbl, .db-wcat.amber  .db-wcat-dot { color:#d97706; background:#d97706; }
 .db-wcat.red    .db-wcat-lbl, .db-wcat.red    .db-wcat-dot { color:#dc2626; background:#dc2626; }
 .db-wcat.orange .db-wcat-lbl, .db-wcat.orange .db-wcat-dot { color:#ea580c; background:#ea580c; }
-.db-wcat.indigo .db-wcat-lbl, .db-wcat.indigo .db-wcat-dot { color:#6366f1; background:#6366f1; }
+.db-wcat.indigo .db-wcat-lbl, .db-wcat.indigo .db-wcat-dot { color:#2563EB; background:#2563EB; }
 .db-wcat-lbl { background:transparent !important; }
 
 /* ── Payments table ───────────────────────────────────────── */

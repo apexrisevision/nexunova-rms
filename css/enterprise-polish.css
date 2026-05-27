@@ -12,7 +12,7 @@
 :root,
 :root[data-theme="dark"] {
   /* Brand */
-  --x-brand:        #6366F1;
+  --x-brand:        #2563EB;
   --x-brand-hover:  #818CF8;
   --x-brand-soft:   rgba(99, 102, 241, 0.12);
   --x-brand-ring:   rgba(99, 102, 241, 0.28);
@@ -1616,7 +1616,7 @@ html, body {
 :root[data-theme="light"] .mov select:focus,
 :root[data-theme="light"] .mov textarea:focus,
 :root[data-theme="light"] .mov .inp-light:focus {
-  border-color: #6366F1 !important;
+  border-color: #2563EB !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.20) !important;
 }
 :root[data-theme="light"] .mov input::placeholder,

@@ -8,7 +8,7 @@
   /* Brand palette (logo-aligned) */
   --nx-cyan:    #00d9ff;
   --nx-blue:    #3b82f6;
-  --nx-indigo:  #2563EB;
+  --nx-primary:  #2563EB;
   --nx-purple:  #c084fc;
   --nx-violet:  #a855f7;
   --nx-mint:    #34d399;
@@ -221,7 +221,7 @@ textarea:focus {
 .tbl th.num { text-align: right !important; }
 
 [data-theme="light"] .tbl thead tr { background: #fafafd !important; }
-[data-theme="light"] .tbl tbody tr:hover { background: rgba(37,99,235,0.04) !important; border-left-color: var(--nx-indigo) !important; }
+[data-theme="light"] .tbl tbody tr:hover { background: rgba(37,99,235,0.04) !important; border-left-color: var(--nx-primary) !important; }
 
 /* ════════════════ 6. BADGES — refined pills ════════════════ */
 .badge {
@@ -362,7 +362,7 @@ a.lnk {
   transition: color 160ms ease !important;
 }
 .lnk:hover { color: #00c0e0 !important; text-decoration: underline; }
-[data-theme="light"] .lnk { color: var(--nx-indigo) !important; }
+[data-theme="light"] .lnk { color: var(--nx-primary) !important; }
 [data-theme="light"] .lnk:hover { color: #4f52d6 !important; }
 
 /* ════════════════ 13. TABS / SEGMENTED CONTROLS ════════════════ */

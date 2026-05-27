@@ -394,7 +394,7 @@
 }
 [data-theme="light"] .inv-dw-act-ic {
   background: linear-gradient(135deg, rgba(99,102,241,0.14), rgba(168,85,247,0.10)) !important;
-  color: #6366f1 !important;
+  color: #2563EB !important;
   border-color: rgba(99,102,241,0.22);
 }
 [data-theme="light"] .inv-dw-act-txt { color: rgba(15,15,26,0.85) !important; }

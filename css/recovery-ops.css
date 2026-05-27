@@ -21,7 +21,7 @@
   --rops-bg-page: var(--canvas, #0A0B0F);
   --rops-bg-row: rgba(255,255,255,0.02);
   --rops-bg-row-hover: rgba(255,255,255,0.04);
-  --rops-accent: var(--brand, #6366f1);
+  --rops-accent: var(--brand, #2563EB);
   --rops-accent-bg: rgba(99,102,241,0.10);
   --rops-success: var(--ok, #10b981);
   --rops-success-bg: rgba(16,185,129,0.10);

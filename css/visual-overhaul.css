@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    NEXUNOVA RMS — VISUAL HIERARCHY OVERHAUL v1.0
    Loaded LAST — wins all cascade conflicts.
-   Enforces: unified indigo palette, typography scale, card design, button
+   Enforces: unified primary palette, typography scale, card design, button
    hierarchy, sidebar clean state, table design, status badges, empty states.
 
    Do NOT edit individual page CSS to change design — edit this file only.
@@ -152,11 +152,11 @@ h3.section-title, .sec-heading {
   border-color: rgba(37,99,235,0.25) !important;
 }
 
-/* ══ 3. COLOR SYSTEM — replace ALL cyan with indigo ══════════════════════════
+/* ══ 3. COLOR SYSTEM — replace ALL cyan with primary ══════════════════════════
    Remove: #00d9ff / --nx-cyan / rgba(0,217,255,...) from every element.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Override the root cyan vars to indigo so any code that slips through uses indigo */
+/* Override the root cyan vars to primary so any code that slips through uses primary */
 :root {
   --nx-cyan:        #2563EB !important;
   --nxn-cyan:       #2563EB !important;
@@ -170,7 +170,7 @@ h3.section-title, .sec-heading {
 /* ══ 4. BUTTON HIERARCHY — 4 tiers, consistent ═══════════════════════════════
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* T1 — Primary: solid indigo (NOT aurora gradient) */
+/* T1 — Primary: solid primary (NOT aurora gradient) */
 .btn-g, .btn-d,
 .prj-btn-primary,
 .prj-row-act-btn.primary {
@@ -281,7 +281,7 @@ h3.section-title, .sec-heading {
   -webkit-text-fill-color: var(--v-primary) !important;
 }
 
-/* ══ 5. INPUT FOCUS RINGS — indigo (NOT cyan) ════════════════════════════════ */
+/* ══ 5. INPUT FOCUS RINGS — primary (NOT cyan) ════════════════════════════════ */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
 select:focus,
 textarea:focus,
@@ -292,7 +292,7 @@ textarea:focus,
   outline:      none !important;
 }
 
-/* Select arrow — indigo stroke */
+/* Select arrow — primary stroke */
 select,
 .inp-light,
 .fbar select,
@@ -534,7 +534,7 @@ table.t tbody tr:hover,
 }
 .ni::before { display: none !important; }   /* remove shimmer sweep */
 
-/* Override per-group colored nav items from app.css — all unified to indigo */
+/* Override per-group colored nav items from app.css — all unified to primary */
 .nav-group[data-gid="setup"]      .ni.on,
 .nav-group[data-gid="operations"] .ni.on,
 .nav-group[data-gid="followup"]   .ni.on,
@@ -604,7 +604,7 @@ table.t tbody tr:hover,
   -webkit-text-fill-color: #2563EB !important;
 }
 
-/* Group guide-line turns indigo on active */
+/* Group guide-line turns primary on active */
 .nav-grp-body:has(.ni.on)::before {
   background: rgba(37,99,235,0.50) !important;
   opacity:    0.60 !important;
@@ -685,7 +685,7 @@ table.t tbody tr:hover,
   padding:       0 12px !important;
 }
 
-/* Theme toggle — indigo (not cyan) */
+/* Theme toggle — primary (not cyan) */
 .tb-theme-toggle {
   border-color: rgba(37,99,235,0.25) !important;
   background:   rgba(37,99,235,0.08) !important;
@@ -699,7 +699,7 @@ table.t tbody tr:hover,
   box-shadow:   0 0 10px rgba(37,99,235,0.20) !important;
 }
 
-/* Topbar search hover — indigo */
+/* Topbar search hover — primary */
 .tb-search:hover {
   border-color: var(--v-primary) !important;
 }
@@ -784,7 +784,7 @@ table.t tbody tr:hover,
   -webkit-text-fill-color: var(--v-primary) !important;
 }
 
-/* ══ 12. SCROLLBARS — indigo (not cyan) ══════════════════════════════════════ */
+/* ══ 12. SCROLLBARS — primary (not cyan) ══════════════════════════════════════ */
 ::-webkit-scrollbar-thumb {
   background: rgba(37, 99, 235, 0.20) !important;
 }
@@ -808,7 +808,7 @@ table.t tbody tr:hover,
   border-bottom-color:     rgba(0,0,0,0.08) !important;
 }
 
-/* ══ 14. TABS / SEGMENTED CONTROLS — indigo active ═══════════════════════════ */
+/* ══ 14. TABS / SEGMENTED CONTROLS — primary active ═══════════════════════════ */
 .tab.on, .tab.active,
 .seg-btn.on, .pill.on,
 .inv-tab.active, .inv-tab.on,
@@ -826,7 +826,7 @@ table.t tbody tr:hover,
   border-color:            rgba(37,99,235,0.30) !important;
 }
 
-/* ══ 15. LINKS — indigo ══════════════════════════════════════════════════════ */
+/* ══ 15. LINKS — primary ══════════════════════════════════════════════════════ */
 .lnk, a.lnk, .more-link,
 .prj-view-link {
   color:                   var(--v-primary) !important;
@@ -857,20 +857,20 @@ button:focus-visible, a:focus-visible,
   background: none !important;
   display:    none !important;
 }
-/* Modal title — indigo focus ring */
+/* Modal title — primary focus ring */
 .mov input:focus, .mov select:focus, .mov textarea:focus {
   border-color: var(--v-primary) !important;
   box-shadow:   0 0 0 3px var(--v-primary-ring) !important;
 }
 
-/* ══ 19. TOAST — subtle indigo border ════════════════════════════════════════ */
+/* ══ 19. TOAST — subtle primary border ════════════════════════════════════════ */
 .toast, .notify-item, .n-item {
   border-color: rgba(37,99,235,0.20) !important;
   box-shadow:   0 8px 24px rgba(0,0,0,0.20) !important;
   backdrop-filter: none !important;
 }
 
-/* ══ 20. GLOW PILL — indigo ══════════════════════════════════════════════════ */
+/* ══ 20. GLOW PILL — primary ══════════════════════════════════════════════════ */
 .glow-pill {
   background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(168,85,247,0.09)) !important;
   border:     1px solid rgba(37,99,235,0.28) !important;
@@ -878,7 +878,7 @@ button:focus-visible, a:focus-visible,
   -webkit-text-fill-color: var(--v-primary) !important;
 }
 
-/* ══ 21. DEMO BANNER — indigo palette ════════════════════════════════════════ */
+/* ══ 21. DEMO BANNER — primary palette ════════════════════════════════════════ */
 .demo-banner-inner {
   background:         linear-gradient(90deg, rgba(37,99,235,.18), rgba(139,92,246,.12)) !important;
   border-bottom-color: rgba(37,99,235,.3) !important;
@@ -893,7 +893,7 @@ button:focus-visible, a:focus-visible,
   color:      #FFFFFF !important;
 }
 
-/* ══ 22. FOOTER BRAND NAME — indigo gradient ═════════════════════════════════ */
+/* ══ 22. FOOTER BRAND NAME — primary gradient ═════════════════════════════════ */
 .aurora-foot-brand-name,
 .erp-footer-brand strong {
   background:              linear-gradient(90deg, #2563EB, #7C3AED) !important;
@@ -921,7 +921,7 @@ button:focus-visible, a:focus-visible,
   display: none !important;
 }
 
-/* ══ 25. SKELETON SHIMMER — indigo tint ══════════════════════════════════════ */
+/* ══ 25. SKELETON SHIMMER — primary tint ══════════════════════════════════════ */
 [data-theme="light"] .skeleton {
   background: linear-gradient(90deg,
     rgba(37,99,235,0.04) 0%,
@@ -1184,7 +1184,7 @@ textarea.fi {
   text-shadow:             none !important;
 }
 
-/* ══ 31. AURORA TOPBAR TRIGGER — indigo ═════════════════════════════════════
+/* ══ 31. AURORA TOPBAR TRIGGER — primary ═════════════════════════════════════
    The aurora notification bar trigger button
    ─────────────────────────────────────────────────────────────────────────── */
 .aurora-topbar-trigger {
@@ -1248,7 +1248,7 @@ textarea.fi {
 .ph .btn, .ph .btn-g, .ph .btn-gh { flex-shrink: 0 !important; }
 .ph-r { flex-shrink: 0 !important; gap: 8px !important; }
 
-/* ══ 36. SIDEBAR BADGE — indigo (not red dot for normal items) ══════════════ */
+/* ══ 36. SIDEBAR BADGE — primary (not red dot for normal items) ══════════════ */
 .ni-bdg {
   background: var(--v-danger) !important;
   box-shadow:  0 0 6px rgba(239,68,68,0.35) !important;
@@ -1398,7 +1398,7 @@ textarea.fi {
   flex-wrap:   wrap !important;
 }
 
-/* ══ 44. SEARCH BAR — indigo focus consistent across all pages ═══════════════ */
+/* ══ 44. SEARCH BAR — primary focus consistent across all pages ═══════════════ */
 .sinp:focus, .sbar input:focus,
 .tb-search:focus, [class*="search"] input:focus {
   border-color: var(--v-primary) !important;

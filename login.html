@@ -28,33 +28,33 @@
 <link rel="stylesheet" href="css/schedule.css?v=20260511">
 <link rel="stylesheet" href="css/theme-system.css?v=20260516a">
 <link rel="stylesheet" href="css/theme.css?v=20260526c">
-<link rel="stylesheet" href="css/dashboard-premium.css?v=20260526d">
+<link rel="stylesheet" href="css/dashboard-premium.css?v=20260527a">
 <link rel="stylesheet" href="css/recovery-dashboard.css?v=20260526a">
 <link rel="stylesheet" href="css/sidebar-premium.css?v=20260526d">
-<link rel="stylesheet" href="css/enterprise-polish.css?v=20260512">
-<link rel="stylesheet" href="css/reports-hub.css?v=20260526a">
+<link rel="stylesheet" href="css/enterprise-polish.css?v=20260527a">
+<link rel="stylesheet" href="css/reports-hub.css?v=20260527a">
 <link rel="stylesheet" href="css/hierarchy.css?v=20260526c">
 <link rel="stylesheet" href="css/signup.css?v=20260519b">
 <link rel="stylesheet" href="css/payment-wall.css?v=20260517h">
 <link rel="stylesheet" href="css/super-admin.css?v=20260511">
-<link rel="stylesheet" href="css/payment-links.css?v=20260514a">
-<link rel="stylesheet" href="css/projects.css?v=20260526c">
+<link rel="stylesheet" href="css/payment-links.css?v=20260527a">
+<link rel="stylesheet" href="css/projects.css?v=20260527a">
 <link rel="stylesheet" href="css/followup.css?v=20260526c">
 <link rel="stylesheet" href="css/categories.css?v=20260516a">
 <link rel="stylesheet" href="css/inventory.css?v=20260516d">
-<link rel="stylesheet" href="css/inventory-drawer.css?v=20260516d">
+<link rel="stylesheet" href="css/inventory-drawer.css?v=20260527a">
 <link rel="stylesheet" href="css/inventory-aurora.css?v=20260516b">
 <link rel="stylesheet" href="css/unit-detail.css?v=20260526a">
-<link rel="stylesheet" href="css/recovery-ops.css?v=20260516a">
+<link rel="stylesheet" href="css/recovery-ops.css?v=20260527a">
 <link rel="stylesheet" href="css/form-nav.css?v=20260516i">
 <link rel="stylesheet" href="css/footer-aurora.css?v=20260517i">
-<link rel="stylesheet" href="css/topbar-aurora.css?v=20260517a">
+<link rel="stylesheet" href="css/topbar-aurora.css?v=20260527a">
 <!-- ── SAAS POLISH — loaded LAST so it wins the cascade ── -->
-<link rel="stylesheet" href="css/saas-polish.css?v=20260526c">
+<link rel="stylesheet" href="css/saas-polish.css?v=20260527a">
 <link rel="stylesheet" href="css/tutorial.css?v=20260517a">
 <link rel="stylesheet" href="css/recovery-queue.css?v=20260526a">
 <!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
-<link rel="stylesheet" href="css/visual-overhaul.css?v=20260526c">
+<link rel="stylesheet" href="css/visual-overhaul.css?v=20260527a">
 <!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260526c">
 
@@ -1185,6 +1185,18 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <span class="sb-wizard-lb">Setup Wizard</span>
     </div>
 
+    <!-- Zone 4c: Theme toggle (Phase 5, 2026-05-27 — moved from topbar #tb-theme-btn).
+         Wires to existing window.toggleTheme() via theme.js's #tb-theme-btn click delegate;
+         the SVG (#tb-theme-icon) is updated by theme.js applyTheme(). buildSB syncs the
+         initial icon to match data-theme in case the sidebar renders after theme.js init. -->
+    <button id="tb-theme-btn" class="sb-theme-btn" title="Toggle theme (light/dark)"
+            style="margin:0 12px 8px;padding:8px 12px;display:flex;align-items:center;gap:10px;background:transparent;border:1px solid var(--border,#1E293B);border-radius:8px;color:var(--text-sidebar,#94A3B8);cursor:pointer;font-size:13px;font-weight:500;transition:background 150ms ease,color 150ms ease;"
+            onmouseover="this.style.background='var(--bg-sidebar-hover,rgba(255,255,255,0.04))';this.style.color='var(--text-sidebar-active,#FFFFFF)'"
+            onmouseout="this.style.background='transparent';this.style.color='var(--text-sidebar,#94A3B8)'">
+      <svg id="tb-theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <span style="flex:1;text-align:left">Theme</span>
+    </button>
+
     <!-- Zone 5: User Profile -->
     <div class="sb-user-zone" id="sb-user-zone" onclick="_sbToggleUserMenu(event)">
       <div class="sb-av" id="sb-av">A</div>
@@ -1259,9 +1271,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
             Search Units
           </div>
-          <button id="tb-theme-btn" class="tb-icon-btn tb-theme-toggle" title="Toggle theme (light/dark)">
-            <svg id="tb-theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-          </button>
+          <!-- Theme toggle moved to sidebar footer (Phase 5, 2026-05-27). See #tb-theme-btn in the sidebar zone 4c. -->
           <button class="tb-help-btn" onclick="TUT.open()" title="Getting Started Guide">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             Get Started
@@ -3941,7 +3951,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/helpers.js?v=20260526b"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260527a"></script>
+<script src="js/ui.js?v=20260527b"></script>
 <script src="js/topbar-aurora.js?v=20260516a"></script>
 
 <!-- 5. Auth: login/logout -->

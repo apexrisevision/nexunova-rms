@@ -532,6 +532,21 @@ function buildSB(){
   const _obDone = !!(typeof S !== 'undefined' && S && S.onboardingComplete);
   if(_wizBtn) _wizBtn.style.display = (isA && !_obDone) ? 'flex' : 'none';
 
+  // Theme toggle (Phase 5, 2026-05-27) — the button moved from topbar to the sidebar footer
+  // (static HTML in login.html, zone 4c). theme.js owns the click delegate on #tb-theme-btn
+  // and the canonical toggleTheme(). We only sync the initial icon here to match the current
+  // data-theme, because buildSB can run after theme.js init has already fired its first
+  // applyTheme(). Icon convention (from theme.js):
+  //   Light → moon  (click to go dark)
+  //   Dark  → sun   (click to go light)
+  const _themeIcon = document.getElementById('tb-theme-icon');
+  if (_themeIcon) {
+    const _curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    _themeIcon.innerHTML = (_curTheme === 'light')
+      ? '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'
+      : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
+  }
+
   // Expose nav groups for the aurora-topbar mega menu (same data, same source of truth)
   window._navGroups = navGroups;
   if (typeof buildTopbarMega === 'function') buildTopbarMega();
