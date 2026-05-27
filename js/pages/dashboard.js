@@ -291,24 +291,8 @@ async function _rDashAdmin() {
     ? `<div class="db-trend ${_trendPct>=0?'up':'dn'}">${_ic(_trendPct>=0?'<polyline points="18 15 12 9 6 15"/>':'<polyline points="6 9 12 15 18 9"/>',10)} ${_trendPct>=0?'+':''}${_trendPct}% vs last mo</div>`
     : '';
 
-  // ── Radar alerts (computed from overdueUnits) ─────────────
-  const _radarCards = [];
-  const _seen = new Set();
-  const _addRadar = (color, label, u) => {
-    if (!u || _seen.has(u.id)) return;
-    _seen.add(u.id);
-    const days = daysSincePay(u) || 0;
-    _radarCards.push({ color, label,
-      unit: u.unitNo||'—', client: (u.customerName||'').substring(0,22),
-      days, amount: actualPending(u), id: u.id });
-  };
-  if (overdueUnits.length) {
-    const byCritical = [...overdueUnits].sort((a,b)=>(daysSincePay(b)||0)-(daysSincePay(a)||0));
-    _addRadar('#DC2626', 'Critical Overdue',   byCritical[0]);
-    _addRadar('#D97706', 'Highest Outstanding', overdueUnits[0]);
-    const neverPaid = overdueUnits.find(u => !Number(u.totalPaid||0));
-    _addRadar('#2563EB', 'No Payment Yet', neverPaid || overdueUnits[overdueUnits.length-1]);
-  }
+  // (Heuristic radar strip removed 2026-05-27 — replaced by the real _rDashRadar widget
+  //  which reads recovery_radar_logs via get_latest_radar. See radar.js:450.)
 
   // ── Today's follow-ups ────────────────────────────────────
   const fuToday = [...fus.today, ...fus.overdue].slice(0, 5);
@@ -381,7 +365,7 @@ async function _rDashAdmin() {
 
   </div>
 
-  <!-- ROW 2: Collection Trend (full width — Today's Follow-ups moved to Recovery Dashboard) -->
+  <!-- ROW 2: Collection Trend (full width) -->
   <div>
 
     <!-- 30-day bar chart -->
@@ -400,7 +384,13 @@ async function _rDashAdmin() {
 
   </div>
 
-  <!-- ROW 3: Recent Payments (full width — Top Overdue Units moved to Recovery Dashboard) -->
+  <!-- ROW 3: Client Health widget (populated by _rDashHealth via get_health_dashboard_stats) -->
+  <div id="d-health-widget"></div>
+
+  <!-- ROW 4: AI Recovery Radar widget (populated by _rDashRadar via get_latest_radar; radar.js:450) -->
+  <div id="d-radar-widget"></div>
+
+  <!-- ROW 5: Recent Payments (full width — Top Overdue Units moved to Recovery Dashboard) -->
   <div>
 
     <!-- Recent Payments -->
@@ -435,27 +425,16 @@ async function _rDashAdmin() {
 
   </div>
 
-  <!-- RADAR STRIP: top 3 alerts -->
-  ${_radarCards.length ? `
-  <div class="db-radar-inline-strip">
-    <div class="db-radar-strip-label">${_icSearch(12)} AI Recovery Radar</div>
-    <div class="db-radar-strip-cards">
-      ${_radarCards.slice(0,3).map(r=>`
-        <div class="db-radar-inline-card" style="border-left-color:${r.color}" onclick="openUD('${r.id}')">
-          <div class="db-ric-top">
-            <span class="db-ric-label" style="color:${r.color}">${r.label}</span>
-            <span class="db-ric-amt">PKR ${fM(r.amount)}</span>
-          </div>
-          <div class="db-ric-name">${esc(r.client)}</div>
-          <div class="db-ric-meta">${esc(r.unit)} · ${r.days>0?r.days+' days overdue':'Never paid'}</div>
-        </div>`).join('')}
-    </div>
-  </div>` : ''}
-
   </div>`; // end .db.ani
 
-  // ── Init bar chart after DOM ready ──────────────────────
+  // ── Init bar chart + populate widget placeholders after DOM ready ──
   requestAnimationFrame(() => _dbInitBar30(barData));
+  // Client Health widget (defined this file) and AI Recovery Radar widget
+  // (defined in radar.js, which is always loaded after dashboard.js per login.html).
+  // Both target divs (#d-health-widget / #d-radar-widget) are rendered above; each
+  // widget returns silently if its target node is absent, so the guards are belt-and-braces.
+  if (typeof _rDashHealth === 'function') _rDashHealth();
+  if (typeof _rDashRadar  === 'function') _rDashRadar();
 }
 
 /* ─── 30-day bar chart initialiser ─────────────────────────── */

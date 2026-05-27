@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="assets/nexunova-icon.png">
+<link rel="apple-touch-icon" href="assets/nexunova-icon.png">
 <script>
 (function(){var t=localStorage.getItem('rms.theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();
 </script>
@@ -517,8 +519,9 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <input id="fp-email" class="lx-input" type="email" placeholder="you@yourbusiness.com"
             onkeydown="if(event.key==='Enter')fpSubmit()">
         </div>
-        <!-- Honeypot (bot trap) — must stay empty; hidden from real users -->
-        <input type="text" id="fp-hp" name="website" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <!-- Honeypot (bot trap) — must stay empty; hidden from real users.
+             Name is non-semantic to avoid browser autofill false-positives. -->
+        <input type="text" id="fp-hp" name="nx_trap_forgot" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="lx-btn" id="fp-btn" onclick="fpSubmit()">
           <div class="lx-btn-shimmer"></div>
           <span>Send Reset Link</span>
@@ -780,8 +783,11 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <!-- Form body (panels live here) -->
       <div id="sg-form-body">
 
-        <!-- Honeypot (bot trap) — must stay empty; hidden from real users -->
-        <input type="text" id="sg-hp" name="company_website" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <!-- Honeypot (bot trap) — must stay empty; hidden from real users.
+             Name is deliberately non-semantic so browser autofill doesn't
+             populate it (autofill on "website"/"company" triggered the
+             "Something went wrong" false-positive in early testing). -->
+        <input type="text" id="sg-hp" name="nx_trap_signup" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
 
         <!-- ── STEP 1: Personal info ── -->
         <div class="sg-step-panel sg-active" id="sg-panel-1">
@@ -3917,7 +3923,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/otp.js?v=20260522a"></script>
 
 <!-- 1.2. Forgot / Reset password -->
-<script src="js/forgot-password.js?v=20260526a"></script>
+<script src="js/forgot-password.js?v=20260527d"></script>
 
 <!-- 1.2. Notify notification system -->
 <script src="js/notify.js"></script>
@@ -3935,7 +3941,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/helpers.js?v=20260526b"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260526f"></script>
+<script src="js/ui.js?v=20260527a"></script>
 <script src="js/topbar-aurora.js?v=20260516a"></script>
 
 <!-- 5. Auth: login/logout -->
@@ -3943,11 +3949,11 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js?v=20260526a"></script>
-<script src="js/pages/signup.js?v=20260526a"></script>
+<script src="js/pages/signup.js?v=20260527a"></script>
 <script src="js/pages/onboarding.js?v=20260526i"></script>
 
 <!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260526e"></script>
+<script src="js/pages/dashboard.js?v=20260527a"></script>
 <script src="js/pages/recovery-dashboard.js?v=20260526a"></script>
 <script src="js/pages/units.js?v=20260526a"></script>
 <script src="js/pages/clients.js?v=20260525a"></script>
@@ -3983,7 +3989,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/transfers.js?v=20260516i"></script>
 <script src="js/pages/cancellation.js?v=20260516i"></script>
 <script src="js/pages/backup.js?v=20260517b"></script>
-<script src="js/pages/admin.js?v=20260526d"></script>
+<script src="js/pages/admin.js?v=20260527a"></script>
 <script src="js/pages/categories.js?v=20260517a"></script>
 <script src="js/pages/users.js?v=20260522a"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>
@@ -4003,7 +4009,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/comms-center.js?v=20260525b"></script>
 <script src="js/pages/executive.js?v=20260525a"></script>
 <script src="js/pages/noc.js?v=20260525a"></script>
-<script src="js/pages/fieldvisits.js?v=20260525b"></script>
+<script src="js/pages/fieldvisits.js?v=20260527a"></script>
 <script src="js/pages/company-branding.js?v=20260525b"></script>
 
 <!-- 6.6. Reusable Form Navigation Bar -->
