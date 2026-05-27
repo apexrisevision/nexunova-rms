@@ -626,7 +626,7 @@ async function _rDashPayLinks() {
     { cls:'amber',                       label:'Awaiting', val: sent     },
     { cls: pending>0?'orange':'amber',   label:'Pending',  val: pending  },
     { cls:'green',                       label:'Verified', val: verified  },
-    { cls:'indigo',                      label:'Success',  val: rate+'%' },
+    { cls:'blue',                        label:'Success',  val: rate+'%' },
   ].map(c => `<div class="db-wcat ${c.cls}" onclick="nav('paylinks')">
     <div class="db-wcat-hd"><div class="db-wcat-dot"></div><span class="db-wcat-lbl">${c.label}</span></div>
     <div class="db-wcat-n">${c.val}</div>

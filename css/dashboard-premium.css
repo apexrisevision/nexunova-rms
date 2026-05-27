@@ -424,13 +424,12 @@
 .db-wcat.amber  { background:rgba(245,158,11,.06);  border-color:rgba(245,158,11,.18); }
 .db-wcat.red    { background:rgba(239,68,68,.06);   border-color:rgba(239,68,68,.18);  }
 .db-wcat.orange { background:rgba(249,115,22,.06);  border-color:rgba(249,115,22,.18); }
-.db-wcat.indigo { background:rgba(37,99,235,.06);  border-color:rgba(37,99,235,.18); }
+.db-wcat.blue { background:rgba(37,99,235,.06);  border-color:rgba(37,99,235,.18); }
 .db-wcat.green  .db-wcat-lbl, .db-wcat.green  .db-wcat-dot { color:#16a34a; background:#16a34a; }
 .db-wcat.blue   .db-wcat-lbl, .db-wcat.blue   .db-wcat-dot { color:#2563eb; background:#2563eb; }
 .db-wcat.amber  .db-wcat-lbl, .db-wcat.amber  .db-wcat-dot { color:#d97706; background:#d97706; }
 .db-wcat.red    .db-wcat-lbl, .db-wcat.red    .db-wcat-dot { color:#dc2626; background:#dc2626; }
 .db-wcat.orange .db-wcat-lbl, .db-wcat.orange .db-wcat-dot { color:#ea580c; background:#ea580c; }
-.db-wcat.indigo .db-wcat-lbl, .db-wcat.indigo .db-wcat-dot { color:#2563EB; background:#2563EB; }
 .db-wcat-lbl { background:transparent !important; }
 
 /* ── Payments table ───────────────────────────────────────── */
