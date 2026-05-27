@@ -111,9 +111,9 @@
 .cat-ico-btn.acc {
   background:var(--col-icon-bg,var(--bg-primary-soft));
   color:var(--col-acc,var(--primary));
-  border:1px solid var(--col-acc-bd,rgba(79,70,229,.2));
+  border:1px solid var(--col-acc-bd,rgba(37,99,235,.2));
 }
-.cat-ico-btn.acc:hover { background:var(--col-acc-bg2,rgba(79,70,229,.18)); }
+.cat-ico-btn.acc:hover { background:var(--col-acc-bg2,rgba(37,99,235,.18)); }
 
 /* ─── Sub-header (filter pills + search) ─────────────────────────── */
 .cat-sub-hd {
