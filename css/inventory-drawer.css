@@ -361,12 +361,12 @@
 /* ── Light theme ────────────────────────────────────────────────────── */
 [data-theme="light"] .inv-drawer-panel {
   background:
-    radial-gradient(ellipse 520px 320px at 100% 0%,   rgba(99,102,241,0.10),  transparent 60%),
+    radial-gradient(ellipse 520px 320px at 100% 0%,   rgba(37,99,235,0.10),  transparent 60%),
     radial-gradient(ellipse 520px 320px at 100% 100%, rgba(168,85,247,0.08), transparent 60%),
     linear-gradient(180deg, rgba(245,247,255,0.94) 0%, rgba(238,242,252,0.96) 100%) !important;
-  border-left-color: rgba(99,102,241,0.25) !important;
+  border-left-color: rgba(37,99,235,0.25) !important;
   color: #0f0f1a;
-  box-shadow: -20px 0 60px rgba(15,15,26,0.16), inset 1px 0 0 0 rgba(99,102,241,0.15) !important;
+  box-shadow: -20px 0 60px rgba(15,15,26,0.16), inset 1px 0 0 0 rgba(37,99,235,0.15) !important;
 }
 [data-theme="light"] .inv-drawer-panel::before {
   background-image: radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px);
@@ -389,13 +389,13 @@
   border-color: rgba(0,0,0,0.06);
 }
 [data-theme="light"] .inv-dw-fact:hover {
-  background: rgba(99,102,241,0.05);
-  border-color: rgba(99,102,241,0.30);
+  background: rgba(37,99,235,0.05);
+  border-color: rgba(37,99,235,0.30);
 }
 [data-theme="light"] .inv-dw-act-ic {
-  background: linear-gradient(135deg, rgba(99,102,241,0.14), rgba(168,85,247,0.10)) !important;
+  background: linear-gradient(135deg, rgba(37,99,235,0.14), rgba(168,85,247,0.10)) !important;
   color: #2563EB !important;
-  border-color: rgba(99,102,241,0.22);
+  border-color: rgba(37,99,235,0.22);
 }
 [data-theme="light"] .inv-dw-act-txt { color: rgba(15,15,26,0.85) !important; }
 [data-theme="light"] .inv-dw-tl-txt { color: rgba(15,15,26,0.80) !important; }
@@ -405,8 +405,8 @@
   color: #0f0f1a !important;
 }
 [data-theme="light"] .inv-drawer-panel .btn-gh:hover {
-  background: linear-gradient(90deg, rgba(99,102,241,0.10), rgba(168,85,247,0.06)) !important;
-  border-color: rgba(99,102,241,0.40) !important;
+  background: linear-gradient(90deg, rgba(37,99,235,0.10), rgba(168,85,247,0.06)) !important;
+  border-color: rgba(37,99,235,0.40) !important;
 }
 
 /* ── #pg-units animation override ───────────────────────────────────── */

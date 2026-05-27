@@ -107,7 +107,7 @@
 .pl-btn.green  { background: rgba(16,185,129,.12); color: #059669; }
 .pl-btn.orange { background: rgba(249,115,22,.12); color: #ea580c; }
 .pl-btn.red    { background: rgba(239,68,68,.12);  color: #dc2626; }
-.pl-btn.blue   { background: rgba(99,102,241,.12); color: #2563EB; }
+.pl-btn.blue   { background: rgba(37,99,235,.12); color: #2563EB; }
 .pl-btn.gray   { background: var(--hover); color: var(--t3); }
 
 /* ── Modals ──────────────────────────────────────────────────────── */

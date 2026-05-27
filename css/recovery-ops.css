@@ -22,7 +22,7 @@
   --rops-bg-row: rgba(255,255,255,0.02);
   --rops-bg-row-hover: rgba(255,255,255,0.04);
   --rops-accent: var(--brand, #2563EB);
-  --rops-accent-bg: rgba(99,102,241,0.10);
+  --rops-accent-bg: rgba(37,99,235,0.10);
   --rops-success: var(--ok, #10b981);
   --rops-success-bg: rgba(16,185,129,0.10);
   --rops-warn: var(--warn, #f59e0b);
@@ -195,7 +195,7 @@
 }
 .rops-inp:hover,
 .rops-sel:hover,
-.rops-ta:hover { border-color: rgba(99,102,241,0.25); }
+.rops-ta:hover { border-color: rgba(37,99,235,0.25); }
 .rops-inp:focus,
 .rops-sel:focus,
 .rops-ta:focus {
@@ -240,7 +240,7 @@
   cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease;
 }
-.rops-opt:hover { border-color: rgba(99,102,241,0.35); }
+.rops-opt:hover { border-color: rgba(37,99,235,0.35); }
 .rops-opt.is-on {
   border-color: var(--rops-accent);
   background: var(--rops-accent-bg);
@@ -654,7 +654,7 @@
   gap: 6px;
   transition: border-color 140ms ease;
 }
-.rops-kpi:hover { border-color: rgba(99,102,241,0.25); }
+.rops-kpi:hover { border-color: rgba(37,99,235,0.25); }
 .rops-kpi-lbl {
   font-size: 11px;
   font-weight: 600;

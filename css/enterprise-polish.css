@@ -14,8 +14,8 @@
   /* Brand */
   --x-brand:        #2563EB;
   --x-brand-hover:  #818CF8;
-  --x-brand-soft:   rgba(99, 102, 241, 0.12);
-  --x-brand-ring:   rgba(99, 102, 241, 0.28);
+  --x-brand-soft:   rgba(37, 99, 235, 0.12);
+  --x-brand-ring:   rgba(37, 99, 235, 0.28);
 
   /* Accent */
   --x-accent:       #10B981;
@@ -773,7 +773,7 @@ p, span, div, label, td, th, button, input, select, textarea {
   justify-content: center !important;
   font-size: 11px !important;
   transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(255,255,255,0.1) inset !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4), 0 0 0 1px rgba(255,255,255,0.1) inset !important;
   color: white !important;
   transform: translateX(0) !important;
 }
@@ -1617,7 +1617,7 @@ html, body {
 :root[data-theme="light"] .mov textarea:focus,
 :root[data-theme="light"] .mov .inp-light:focus {
   border-color: #2563EB !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.20) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.20) !important;
 }
 :root[data-theme="light"] .mov input::placeholder,
 :root[data-theme="light"] .mov textarea::placeholder {
