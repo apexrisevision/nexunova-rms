@@ -184,7 +184,6 @@ function fmtWords(n){
 }
 function fmtDate(v){ if(!v) return '—'; try{ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}); }catch{return v;} }
 function today(){ return new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}); }
-function noticeNo(){ return 'DN-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000)+1000); }
 
 async function load(){
   const p = new URLSearchParams(location.search);
@@ -235,7 +234,30 @@ async function load(){
         </tr>`;
       }).join('');
 
-  const refNo = noticeNo();
+  // Load persistent notice_no from DB — create on first open, reuse on reprints
+  let refNo = 'DN-' + new Date().getFullYear() + '-0001';
+  let noticeDate = today();
+  try {
+    const { data: existingNotice } = await sb.rpc('get_demand_notice',
+      { p_sale_id: saleId, p_company_id: cid });
+    if (existingNotice && typeof existingNotice === 'object' && existingNotice.notice_no) {
+      refNo      = existingNotice.notice_no;
+      noticeDate = fmtDate(existingNotice.notice_date) || today();
+    } else {
+      const { data: newNotice } = await sb.rpc('create_demand_notice', {
+        p_sale_id:        saleId,
+        p_company_id:     cid,
+        p_channel:        'print',
+        p_overdue_amount: totalDue > 0 ? totalDue : null,
+        p_due_date:       latestDue || null
+      });
+      if (newNotice && newNotice.success) {
+        refNo      = newNotice.notice_no;
+        noticeDate = fmtDate(newNotice.notice_date) || today();
+      }
+    }
+  } catch(_) { /* network error — use fallback refNo */ }
+
   const daysTotal = latestDue ? Math.max(0,Math.floor((today_d-new Date(latestDue))/(1000*60*60*24))) : 0;
 
   document.getElementById('pageWrap').innerHTML = `
@@ -275,7 +297,7 @@ async function load(){
         </div>
         <div class="ref-block">
           <div class="ref-label">Notice Date</div>
-          <div class="ref-val" style="font-family:inherit;font-size:12px;color:#374151">${today()}</div>
+          <div class="ref-val" style="font-family:inherit;font-size:12px;color:#374151">${noticeDate}</div>
         </div>
         <div class="ref-block">
           <div class="ref-label">Overdue Since</div>

@@ -283,6 +283,7 @@ function _rrClientCard(c, idx, radarId) {
         <button class="btn btn-gh btn-sm" onclick="rrMarkRefused('${radarId}','${c.client_id}')">Refused</button>
         <button class="btn btn-gh btn-sm" onclick="openClientDetail('${c.client_id}')">Profile</button>
         ${c.unit_no ? `<button class="btn btn-d btn-sm" onclick="rrReceivePayment('${c.client_id}','${c.sale_id||''}','${c.unit_no||''}')">Receive Payment</button>` : ''}
+        ${c.sale_id && (na==='legal_notice'||na==='escalate') ? `<button class="btn btn-sm" style="background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.3)" onclick="window.open('reports/demand-notice.html?sale_id=${encodeURIComponent(c.sale_id)}&cid='+encodeURIComponent(S.cid),'_blank')">Demand Notice</button>` : ''}
         ${c.sale_id && typeof plOpenCreate==='function' ? `<button class="btn btn-sm" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.3)" onclick="plOpenCreate(null,'${c.client_id}','${c.sale_id}')">Payment Link</button>` : ''}
       </div>
 

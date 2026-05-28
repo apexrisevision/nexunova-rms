@@ -554,11 +554,15 @@ a { color: var(--gold); text-decoration: none; }
         </div>
       </div>
       <div class="auth-title">Sign In to Your Account</div>
-      <div class="auth-sub">Enter your CNIC and password to access your property dashboard.</div>
+      <div class="auth-sub">Enter your company code, email and password to access your property dashboard.</div>
       <div class="auth-err" id="cnic-err"></div>
       <div class="field">
-        <label>CNIC Number</label>
-        <input type="text" id="cnic-input" placeholder="XXXXX-XXXXXXX-X" maxlength="15" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('pw-input').focus()">
+        <label>Company Code</label>
+        <input type="text" id="co-input" placeholder="e.g. ADMIN" maxlength="20" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')document.getElementById('email-input').focus()">
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('pw-input').focus()">
       </div>
       <div class="field">
         <label>Password</label>
@@ -574,7 +578,7 @@ a { color: var(--gold); text-decoration: none; }
         Sign In
       </button>
       <div style="text-align:center;margin-top:16px">
-        <button onclick="showForgotScreen()" style="background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;font-family:var(--font)">Forgot Password?</button>
+        <span style="font-size:12px;color:var(--t3)">Forgot password? Contact your company admin.</span>
       </div>
       <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--t3)">
         Need help? <a href="mailto:support@nexunova.com">support@nexunova.com</a>
@@ -684,25 +688,10 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ══════════════════════════════════════════════════════════
-//  CNIC AUTO-FORMAT  (XXXXX-XXXXXXX-X)
-// ══════════════════════════════════════════════════════════
+// Company code input: auto-uppercase
 (function() {
-  function applyFmt(inp) {
-    inp.addEventListener('input', function() {
-      var raw = this.value.replace(/\D/g,'').slice(0,13);
-      var fmt = raw;
-      if(raw.length > 12)      fmt = raw.slice(0,5)+'-'+raw.slice(5,12)+'-'+raw.slice(12);
-      else if(raw.length > 5)  fmt = raw.slice(0,5)+'-'+raw.slice(5);
-      this.value = fmt;
-    });
-    inp.addEventListener('keydown', function(e) {
-      if(['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Enter'].indexOf(e.key) >= 0) return;
-      if(!/\d/.test(e.key)) e.preventDefault();
-    });
-  }
-  applyFmt(document.getElementById('cnic-input'));
-  applyFmt(document.getElementById('forgot-cnic-input'));
+  var ci = document.getElementById('co-input');
+  if(ci) ci.addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
 })();
 
 // ══════════════════════════════════════════════════════════
@@ -718,22 +707,37 @@ function togglePw() {
 // ══════════════════════════════════════════════════════════
 async function doLogin() {
   clearError('cnic-err');
-  var cnic = document.getElementById('cnic-input').value.trim();
-  var pw   = document.getElementById('pw-input').value;
-  var clean = cnic.replace(/\D/g,'');
+  var co    = (document.getElementById('co-input').value || '').trim().toUpperCase();
+  var email = (document.getElementById('email-input').value || '').trim().toLowerCase();
+  var pw    = document.getElementById('pw-input').value;
 
-  if(clean.length !== 13) { showError('cnic-err','Please enter a valid 13-digit CNIC number.'); return; }
-  if(!pw) { showError('cnic-err','Please enter your password.'); return; }
+  if(!co)    { showError('cnic-err','Please enter your company code.'); return; }
+  if(!email || !email.includes('@')) { showError('cnic-err','Please enter a valid email address.'); return; }
+  if(!pw)    { showError('cnic-err','Please enter your password.'); return; }
 
   var btn = document.getElementById('login-btn');
   btn.disabled = true;
   setLoading(true);
 
   try {
-    var res = await sb.functions.invoke('buyer-login', { body: { cnic: cnic, password: pw } });
-    if(res.error) throw new Error(res.error.message || 'Network error');
-    var data = res.data;
-    if(data && data.error) { showError('cnic-err', data.error); return; }
+    // Step 1: authenticate → get session token
+    var lr = await sb.rpc('portal_login', {
+      p_company_code: co,
+      p_email:        email,
+      p_password:     pw
+    });
+    if(lr.error) throw new Error(lr.error.message || 'Login failed');
+    var ld = lr.data;
+    if(!ld || !ld.success) { showError('cnic-err', ld && ld.error ? ld.error : 'Login failed'); return; }
+
+    // Step 2: load full client data using session token
+    var dr = await sb.rpc('get_portal_client_data', { p_session_token: ld.session_token });
+    if(dr.error) throw new Error(dr.error.message || 'Failed to load data');
+    var data = dr.data;
+    if(!data || !data.success) { showError('cnic-err', data && data.error ? data.error : 'Session error'); return; }
+
+    // Persist session for tab navigation
+    sessionStorage.setItem('rms.portal.token', ld.session_token);
 
     buyerData = data;
     portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
@@ -742,7 +746,7 @@ async function doLogin() {
     window.scrollTo(0,0);
 
   } catch(e) {
-    showError('cnic-err', e.message || 'Login failed. Please check your CNIC and password.');
+    showError('cnic-err', e.message || 'Login failed. Please check your details.');
   } finally {
     setLoading(false);
     btn.disabled = false;
@@ -787,10 +791,12 @@ async function doForgotPassword() {
 }
 
 function doLogout() {
-  buyerData=null; currentCnic='';
+  buyerData = null; currentCnic = '';
+  sessionStorage.removeItem('rms.portal.token');
   portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
-  document.getElementById('cnic-input').value='';
-  document.getElementById('pw-input').value='';
+  var co = document.getElementById('co-input'); if(co) co.value='';
+  var em = document.getElementById('email-input'); if(em) em.value='';
+  var pw = document.getElementById('pw-input'); if(pw) pw.value='';
   clearError('cnic-err');
   document.getElementById('db-body').innerHTML='';
   showScreen('screen-cnic');

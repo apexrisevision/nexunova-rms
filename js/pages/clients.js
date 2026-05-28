@@ -636,6 +636,8 @@ function rClientDetail() {
         style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Promises</button>
       <button id="cd-tab-paylinks-btn" onclick="cdSwitchTab('paylinks')"
         style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Payment Links</button>
+      <button id="cd-tab-documents-btn" onclick="cdSwitchTab('documents')"
+        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Documents</button>
       ${(S.role==='admin'||S.role==='owner')?`<button id="cd-tab-history-btn" onclick="cdSwitchTab('history')"
         style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History</button>`:''}
     </div>
@@ -775,6 +777,9 @@ function rClientDetail() {
     <div id="cd-tab-paylinks" style="display:none">
       <div id="cd-paylinks-body"><div class="empty" style="padding:28px"><div class="es">Loading…</div></div></div>
     </div>
+    <div id="cd-tab-documents" style="display:none">
+      <div id="cd-documents-body"><div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">Loading…</div></div>
+    </div>
     ${(S.role==='admin'||S.role==='owner')?`<div id="cd-tab-history" style="display:none">
       <div id="cd-history-body"><div class="empty" style="padding:28px"><div class="es">Loading…</div></div></div>
     </div>`:''}
@@ -804,7 +809,7 @@ function rClientDetail() {
 
 // ── Client detail tabs ─────────────────────────────────────
 function cdSwitchTab(tab) {
-  ['overview','ledger','health','promises','paylinks','history'].forEach(t => {
+  ['overview','ledger','health','promises','paylinks','documents','history'].forEach(t => {
     const div = document.getElementById('cd-tab-'+t);
     const btn = document.getElementById('cd-tab-'+t+'-btn');
     if (div) div.style.display = t === tab ? '' : 'none';
@@ -814,11 +819,12 @@ function cdSwitchTab(tab) {
       btn.style.fontWeight        = t === tab ? '700' : '600';
     }
   });
-  if (tab === 'ledger')   _cdLoadLedger(_cid);
-  if (tab === 'health')   _cdLoadHealth(_cid);
-  if (tab === 'promises') _cdLoadPromises(_cid);
-  if (tab === 'paylinks') _cdLoadPayLinks(_cid);
-  if (tab === 'history')  _cdLoadAuditHistory(_cid);
+  if (tab === 'ledger')    _cdLoadLedger(_cid);
+  if (tab === 'health')    _cdLoadHealth(_cid);
+  if (tab === 'promises')  _cdLoadPromises(_cid);
+  if (tab === 'paylinks')  _cdLoadPayLinks(_cid);
+  if (tab === 'documents') _cdLoadDocuments(_cid);
+  if (tab === 'history')   _cdLoadAuditHistory(_cid);
 }
 
 async function _cdLoadPayLinks(clientId) {
@@ -948,6 +954,139 @@ async function _cdLoadAuditHistory(clientId) {
     body.innerHTML = `<div style="padding:0 4px">${items}</div>`;
   } catch(e) {
     body.innerHTML = `<div style="padding:16px;color:var(--err);font-size:12px">${esc(e.message)}</div>`;
+  }
+}
+
+// ─── Documents tab ────────────────────────────────────────────
+async function _cdLoadDocuments(clientId) {
+  const body = document.getElementById('cd-documents-body');
+  if (!body) return;
+  if (body.dataset.loaded === clientId) return;
+  body.innerHTML = '<div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">⏳ Loading documents…</div>';
+
+  try {
+    const [docsRes, portalRes] = await Promise.all([
+      supabase.rpc('get_client_documents', { p_client_id: clientId, p_company_id: S.cid }),
+      supabase.rpc('get_portal_access_status', { p_client_id: clientId, p_company_id: S.cid })
+    ]);
+
+    if (docsRes.error) throw docsRes.error;
+    const d = docsRes.data || {};
+    const portal = portalRes.data || { has_access: false };
+
+    const isA = S.role === 'admin' || S.role === 'owner';
+
+    // ── Portal Access card ──
+    const portalCard = isA ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="ch" style="display:flex;align-items:center;justify-content:space-between">
+        <h3><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Buyer Portal Access</h3>
+        ${portal.has_access
+          ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.3)">${portal.is_active ? 'Portal Active' : 'Deactivated'}</span>`
+          : `<span style="font-size:11px;color:var(--t3)">No access</span>`}
+      </div>
+      <div class="cb">
+        ${portal.has_access ? `
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">
+            <b>Email:</b> ${esc(portal.email || '—')}
+            ${portal.last_login_at ? ` &nbsp;·&nbsp; <b>Last login:</b> ${fD(portal.last_login_at.slice(0,10))}` : ' &nbsp;·&nbsp; Never logged in'}
+          </div>
+          <button class="btn btn-gh btn-sm" onclick="cdInvitePortal('${clientId}')">Re-send Invite</button>
+        ` : `
+          <div style="font-size:12px;color:var(--t3);margin-bottom:10px">Client has no portal access. Invite them to view their installment schedule and payment history online.</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="email" id="cd-portal-email-${clientId}" class="inp" placeholder="Client email address" style="flex:1;min-width:200px;font-size:13px;padding:8px 12px">
+            <button class="btn btn-g btn-sm" onclick="cdInvitePortal('${clientId}')">Invite to Portal</button>
+          </div>
+        `}
+      </div>
+    </div>` : '';
+
+    // ── Document type badge ──
+    const docBadge = t => {
+      const cfg = {
+        agreement:     ['#2563eb','rgba(37,99,235,.1)','Agreement'],
+        demand_notice: ['#dc2626','rgba(220,38,38,.1)','Demand Notice'],
+        noc:           ['#16a34a','rgba(22,163,74,.1)','NOC'],
+        receipt:       ['#d97706','rgba(217,119,6,.1)','Receipt'],
+      };
+      const [c,bg,lbl] = cfg[t] || ['var(--t3)','transparent',t];
+      return `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${bg};color:${c};border:1px solid ${c}44;white-space:nowrap">${lbl}</span>`;
+    };
+
+    // ── Open button per doc type ──
+    const openBtn = doc => {
+      if (doc.doc_type === 'agreement' && doc.sale_id)
+        return `<button class="btn btn-gh btn-xs" onclick="window.open('reports/sale-agreement.html?sale_id=${encodeURIComponent(doc.sale_id)}&cid=${encodeURIComponent(S.cid)}','_blank')">Open</button>`;
+      if (doc.doc_type === 'demand_notice' && doc.sale_id)
+        return `<button class="btn btn-gh btn-xs" onclick="window.open('reports/demand-notice.html?sale_id=${encodeURIComponent(doc.sale_id)}&cid=${encodeURIComponent(S.cid)}','_blank')">Open</button>`;
+      if (doc.doc_type === 'noc' && doc.noc_id)
+        return `<button class="btn btn-gh btn-xs" onclick="window.open('reports/noc-certificate.html?noc_id=${encodeURIComponent(doc.noc_id)}&company_id=${encodeURIComponent(S.cid)}','_blank')">Open</button>`;
+      if (doc.doc_type === 'receipt' && doc.payment_id)
+        return `<button class="btn btn-gh btn-xs" onclick="window.open('reports/payment-receipt.html?payment_id=${encodeURIComponent(doc.payment_id)}&cid=${encodeURIComponent(S.cid)}','_blank')">Open</button>`;
+      return '';
+    };
+
+    // ── Combine all docs into one sorted list ──
+    const allDocs = [
+      ...(d.sales    || []),
+      ...(d.notices  || []),
+      ...(d.nocs     || []),
+      ...(d.receipts || [])
+    ].sort((a, b) => {
+      const da = a.date ? new Date(a.date) : new Date(0);
+      const db = b.date ? new Date(b.date) : new Date(0);
+      return db - da;
+    });
+
+    const tableHtml = !allDocs.length
+      ? `<div style="padding:32px;text-align:center;color:var(--t3)"><div style="font-size:28px;margin-bottom:8px"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div style="font-size:13px;font-weight:600;color:var(--t2)">No documents yet</div><div style="font-size:12px;color:var(--t3);margin-top:4px">Documents appear here when agreements are made, notices are issued, or NOCs are granted.</div></div>`
+      : `<div class="tw"><table class="t" style="width:100%">
+          <thead><tr><th>Type</th><th>Reference</th><th>Date</th><th>Details</th><th style="width:1%"></th></tr></thead>
+          <tbody>
+            ${allDocs.map(doc => `<tr>
+              <td style="padding:10px 12px">${docBadge(doc.doc_type)}</td>
+              <td style="font-size:12px;font-family:monospace;font-weight:600">${esc(doc.ref || '—')}</td>
+              <td style="font-size:12px;color:var(--t3)">${doc.date ? fD(doc.date) : '—'}</td>
+              <td style="font-size:11px;color:var(--t3)">
+                ${doc.unit_no ? 'Unit: '+esc(doc.unit_no) : ''}
+                ${doc.project ? ' · '+esc(doc.project) : ''}
+                ${doc.amount ? ' · PKR '+fM(doc.amount) : ''}
+                ${doc.channel ? ' · '+esc(doc.channel) : ''}
+              </td>
+              <td style="padding:4px 8px">${openBtn(doc)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+
+    body.innerHTML = portalCard + `<div class="card"><div class="ch"><h3>Generated Documents</h3></div>${tableHtml}</div>`;
+    body.dataset.loaded = clientId;
+
+  } catch(e) {
+    body.innerHTML = `<div class="card"><div style="padding:16px;color:var(--err);font-size:12px">${esc(e.message || 'Failed to load documents')}</div></div>`;
+  }
+}
+
+async function cdInvitePortal(clientId) {
+  const emailInput = document.getElementById('cd-portal-email-' + clientId);
+  const email = emailInput ? emailInput.value.trim() : '';
+  if (!email || !email.includes('@')) { toast('Enter a valid email address', 'warn'); return; }
+
+  try {
+    const { data, error } = await supabase.rpc('admin_invite_portal_client', {
+      p_client_id:  clientId,
+      p_email:      email,
+      p_company_id: S.cid
+    });
+    if (error) throw error;
+    if (!data.success) throw new Error(data.error || 'Failed');
+    toast(`Portal invite sent to ${esc(data.email)} — Temp password: ${data.temp_password}`, 'ok');
+    // Reload documents tab to show updated portal status
+    const body = document.getElementById('cd-documents-body');
+    if (body) body.dataset.loaded = '';
+    _cdLoadDocuments(clientId);
+  } catch(e) {
+    toast('Invite failed: ' + (e.message || 'Unknown error'), 'err');
   }
 }
 
