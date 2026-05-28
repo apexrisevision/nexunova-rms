@@ -400,7 +400,7 @@ async function fvSyncOfflineQueue() {
   const remaining = [];
   for (const item of q) {
     const { _queued_at, ...payload } = item;
-    const { error } = await supabase.from('contact_logs').insert({ ...payload, company_id: co });
+    const { error } = await supabase.rpc('create_contact_log', { p_company_id: co, p_data: payload });
     if (error) remaining.push(item);
   }
   localStorage.setItem(_FV_QUEUE_KEY, JSON.stringify(remaining));

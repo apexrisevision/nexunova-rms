@@ -476,7 +476,13 @@ async function _fcQueue(el) {
 
   let brokenPromises = [];
   try {
-    const { data: pp } = await supabase.rpc('list_broken_promises', { p_company_id: S.cid });
+    // Pass assigned project IDs for site isolation; null = admin/owner (sees all)
+    const projIds = (S.assignedProjectIds && S.assignedProjectIds.length)
+      ? S.assignedProjectIds : null;
+    const { data: pp } = await supabase.rpc('list_broken_promises', {
+      p_company_id:  S.cid,
+      p_project_ids: projIds
+    });
     brokenPromises = pp || [];
   } catch(e) { /* ignore */ }
 
@@ -579,7 +585,7 @@ async function _fcQueue(el) {
           return `<tr class="cr">
             <td style="font-weight:700" ${u?`onclick="openUD('${u.id}')"`:''}>${esc(u?.unitNo||'—')}</td>
             <td>${esc(u?.customerName||'—')}</td>
-            <td style="color:#f59e0b;font-weight:700">${fD(p.promised_date)}</td>
+            <td style="color:#f59e0b;font-weight:700">${fD(p.promise_date)}</td>
             <td style="font-weight:700">${fM(Number(p.promised_amount||0))}</td>
             <td style="font-size:11px;color:var(--t3)">${esc(p.notes||'—')}</td>
             <td>${u?`<button class="btn btn-d btn-xs" onclick="openConModal('${u.id}')">Log</button>`:'—'}</td>
@@ -1196,19 +1202,18 @@ async function _fcEscalation(el) {
       ${!escalations.length
         ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="14" height="17" x="5" y="3.5" rx="1"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg></div><div class="et">No escalation records</div></div>`
         : `<div class="tw"><table class="t" style="font-size:12px">
-          <thead><tr><th>Date</th><th>Unit</th><th>Type</th><th>Description</th><th>Status</th><th>Assigned To</th><th>Priority</th></tr></thead>
+          <thead><tr><th>Date</th><th>Level</th><th>Reason</th><th>Status</th><th>Escalated To</th></tr></thead>
           <tbody>${escalations.map(e => {
-            const u  = gunit(e.unit_id);
+            // escalations table: reason, status, escalated_to (UUID), from_level, to_level, created_at
+            // No unit_id, escalation_type, description, priority or assigned_to columns exist
             const sc = {open:'#ef4444',pending:'#f59e0b',resolved:'#10b981',closed:'var(--t3)'}[e.status]||'var(--t3)';
-            const pc = {critical:'#ef4444',high:'#f97316',medium:'#f59e0b',low:'var(--t3)'}[e.priority]||'var(--t3)';
-            return `<tr class="cr" onclick="openUD('${e.unit_id||''}')">
-              <td style="font-size:11px;white-space:nowrap">${fD((e.escalation_date||e.created_at||'').slice(0,10))}</td>
-              <td style="font-weight:700">${esc(u?.unitNo||'—')}</td>
-              <td style="font-size:11px">${esc(e.escalation_type||'—')}</td>
-              <td style="font-size:11px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.description||e.notes||'—')}</td>
+            const lvl = e.from_level && e.to_level ? `L${e.from_level}→L${e.to_level}` : '—';
+            return `<tr class="cr">
+              <td style="font-size:11px;white-space:nowrap">${fD((e.created_at||'').slice(0,10))}</td>
+              <td style="font-size:11px;font-weight:700">${esc(lvl)}</td>
+              <td style="font-size:11px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.reason||'—')}</td>
               <td><span style="font-size:10px;font-weight:700;color:${sc}">${esc(e.status||'open')}</span></td>
-              <td style="font-size:11px;color:var(--t3)">${esc(gunm(e.assigned_to)||e.assigned_to||'—')}</td>
-              <td style="color:${pc};font-size:11px;font-weight:700">${esc(e.priority||'—')}</td>
+              <td style="font-size:11px;color:var(--t3)">${esc(gunm(e.escalated_to)||'—')}</td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>`}
@@ -1222,22 +1227,29 @@ async function _fcEscalation(el) {
       ${!legalCases.length
         ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><line x1="12" y1="3" x2="12" y2="21"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></div><div class="et">No legal cases on record</div></div>`
         : `<div class="tw"><table class="t" style="font-size:12px">
-          <thead><tr><th>Filed</th><th>Unit</th><th>Client</th><th>Case No.</th><th>Court</th><th>Status</th><th>Next Hearing</th><th>Lawyer</th><th>Claim Amt</th></tr></thead>
+          <thead><tr><th>Filed</th><th>Unit</th><th>Client</th><th>Case No.</th><th>Stage</th><th>Next Hearing</th><th>Lawyer</th><th>Claim Amt</th></tr></thead>
           <tbody>${legalCases.map(lc => {
+            // legal_cases columns: filed_date (not filing_date), stage (not status),
+            //   lawyer_name (no court_name/forum column)
             const u   = gunit(lc.unit_id);
             const now = td();
             const nxt = lc.next_hearing_date;
             const nc  = nxt && nxt < now ? '#ef4444' : nxt === now ? '#f59e0b' : 'var(--t2)';
-            const sc  = {active:'#ef4444',pending:'#f59e0b',settled:'#10b981',dismissed:'var(--t3)',closed:'var(--t3)'}[lc.status]||'var(--t3)';
+            const stageCols = {
+              pre_legal:    'var(--t3)',  notice_sent: '#f59e0b',
+              filed:        '#f97316',   hearing:     '#ef4444',
+              judgment:     '#ef4444',   appeal:      '#f97316',
+              settled:      '#10b981',   closed:      'var(--t3)'
+            };
+            const sc = stageCols[lc.stage] || 'var(--t3)';
             return `<tr class="cr" onclick="openUD('${lc.unit_id||''}')">
-              <td style="font-size:11px;white-space:nowrap">${fD((lc.filing_date||lc.created_at||'').slice(0,10))}</td>
+              <td style="font-size:11px;white-space:nowrap">${fD((lc.filed_date||lc.created_at||'').slice(0,10))}</td>
               <td style="font-weight:700">${esc(u?.unitNo||'—')}</td>
-              <td style="max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u?.customerName||lc.client_name||'—')}</td>
+              <td style="max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u?.customerName||'—')}</td>
               <td style="font-size:11px">${esc(lc.case_number||'—')}</td>
-              <td style="font-size:11px;color:var(--t3)">${esc(lc.court_name||lc.forum||'—')}</td>
-              <td><span style="font-size:10px;font-weight:700;color:${sc}">${esc(lc.status||'active')}</span></td>
+              <td><span style="font-size:10px;font-weight:700;color:${sc}">${esc(lc.stage||'—')}</span></td>
               <td style="color:${nc};font-weight:${nxt&&nxt<=now?700:400};font-size:11px">${nxt?fD(nxt):'—'}</td>
-              <td style="font-size:11px;color:var(--t3)">${esc(lc.lawyer_name||lc.lawyer||'—')}</td>
+              <td style="font-size:11px;color:var(--t3)">${esc(lc.lawyer_name||'—')}</td>
               <td style="font-weight:700">${lc.claim_amount?fM(Number(lc.claim_amount)):'—'}</td>
             </tr>`;
           }).join('')}</tbody>
