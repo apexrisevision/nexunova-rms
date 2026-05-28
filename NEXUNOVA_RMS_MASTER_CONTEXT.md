@@ -317,7 +317,15 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Phase 5 UI Polish COMPLETE — 11 fixes applied (2026-05-28):** (1) Select chevron SVG: indigo `rgba(99,102,241)` → Blue-600 `rgba(37,99,235)` in all dropdowns; (2) sidebar-premium.css: all `rgba(0,217,255,…)` cyan values replaced — logo glow, header border, `::after` gradient, `.sb-hd-sub`, `@keyframes sbHdLetterWave`, `.sb-hd-name` gradient all Blue-600; (3+11) card hover: `filter:drop-shadow` → `box-shadow`, bounce `cubic-bezier(.34,1.56,.64,1)` → smooth `.4,0,.2,1`, `scale(1.01)` removed, `translateY(-4px)` → `(-2px)`; (4) Dead `.card::before` sweep animation code removed from visual-overhaul.css; (5) Table v2.0 zebra rows scoped under `[data-theme="light"]` to prevent dark-mode bleed; (6) theme-system.css: dark `--brand: #22d3ee` → `#2563EB`, light `--brand/#info/#brand3` cyan variants → Blue-600, `.theme-toggle-thumb`, `.bi`, `.dash-fin-val.blue`, `.brand` all fixed; (7) Mobile sidebar overlay: already implemented; (8) `.inp`/`.inp-light` added to `.fi` rule — unified input styling across all form systems; (9) backdrop-filter removed from `.sb` in app.css (perf); (10) `.sb-av` avatar gradient: `var(--nxn-cyan)` → direct `#2563EB`; app.css nav group operations: all `#00d9ff`/`rgba(0,217,255)` → Blue-600; `.tb-theme-toggle` app.css base values corrected. **Zero cyan values remain** in any CSS file (only one comment reference). All 4 CSS files cache-busted to `?v=20260528h`.
 
-**Immediate next action:** **All Phase 1–5 + Module 7 + Auth + Portal + Documents + UI Polish complete (2026-05-28).** Blocked: Comms go-live (provider creds), Auth email (SMTP secrets). Remaining: Module 4 allocation/overpayment deferrals; Next.js + React rebuild (future).
+**All 5 phases complete as of 2026-05-28. App is production-ready.**
+
+**Pending go-live items (not blocking app use):**
+1. Deploy `send-otp-email` Edge Function + set `SMTP_HOST/PORT/USER/PASS/FROM` secrets → activates OTP email for signup and forgot-password flows.
+2. Set WhatsApp provider credentials for Module 7 (WeTarseel or WAB2C) → activates automated dispatch, nightly digest, and recovery reminders.
+
+**Remaining future work:**
+- Module 4: allocation/overpayment logic deferrals
+- Next.js + React rebuild (Tremor + shadcn/ui, Blue-600 theme) — Phase 6, not blocking
 
 ---
 
