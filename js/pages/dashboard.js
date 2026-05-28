@@ -314,19 +314,6 @@ async function _rDashAdmin() {
   const _dateLbl = _now.toLocaleDateString('en-PK', { weekday:'long', month:'long', day:'numeric' });
   const _name   = (S?.displayName || S?.username || S?.company?.name || 'team').toString().split(' ')[0];
 
-  // ── Per-card color config (inline — bypasses all CSS caching) ─
-  const _dk = document.documentElement.getAttribute('data-theme') === 'dark';
-  const _C = {
-    red:   { bg: _dk ? 'rgba(220,38,38,.08)'  : 'rgba(220,38,38,.05)',  bl: '#DC2626', sr: '220,38,38'  },
-    green: { bg: _dk ? 'rgba(22,163,74,.08)'   : 'rgba(22,163,74,.05)',  bl: '#16A34A', sr: '22,163,74'  },
-    blue:  { bg: _dk ? 'rgba(37,99,235,.08)'   : 'rgba(37,99,235,.05)',  bl: '#2563EB', sr: '37,99,235'  },
-    amber: { bg: _dk ? 'rgba(217,119,6,.08)'   : 'rgba(217,119,6,.05)',  bl: '#D97706', sr: '217,119,6'  },
-  };
-  const _kBase = `border-radius:10px;padding:12px 16px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column;justify-content:center;overflow:hidden;max-height:90px;transition:box-shadow 150ms,transform 150ms;cursor:pointer`;
-  const _kStyle = c => `background:${c.bg};border:1px solid var(--border-color);border-left:4px solid ${c.bl};${_kBase}`;
-  const _kEnter = c => `this.style.boxShadow='0 0 0 2px rgba(${c.sr},.28),0 8px 24px rgba(${c.sr},.18)';this.style.transform='translateY(-2px)'`;
-  const _kLeave = `this.style.boxShadow='0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.06)';this.style.transform=''`;
-
   document.getElementById('pg-dashboard').innerHTML = `<div class="db ani rb-page" style="gap:14px">
 
   <!-- ── PAGE HEADER ──────────────────────────────────────────── -->
@@ -346,59 +333,55 @@ async function _rDashAdmin() {
 
   <div class="db-sec-lbl">Live KPIs</div>
 
-  <!-- ROW 1: 4 KPI cards — backgrounds + hover set fully inline, no CSS dependency -->
+  <!-- ROW 1: 4 KPI cards -->
   <div class="db-kpis">
 
-    <!-- 1. Total Outstanding -->
-    <div style="${_kStyle(_C.red)}" onclick="nav('reports')"
-      onmouseenter="${_kEnter(_C.red)}" onmouseleave="${_kLeave}">
+    <!-- 1. Total Outstanding — red -->
+    <div class="db-kpi db-kpi-accent-red" onclick="nav('reports')" style="cursor:pointer;background:rgba(220,38,38,.05)">
       <div class="db-kpi-row">
         <div class="db-kpi-ic red">${_ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">Total Outstanding</div>
           <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(outstand)}"><span class="db-pkr">PKR</span>${fLakhCr(outstand)}</div>
-          <div class="db-kpi-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${overdueUnits.length>0?overdueUnits.length+' units overdue':'All current'}</div>
+          <div class="db-kpi-sub">${overdueUnits.length>0?overdueUnits.length+' units overdue':'All current'}</div>
         </div>
         ${overdueUnits.length>0?`<div class="db-trend dn" style="align-self:flex-start">${_ic('<polyline points="6 9 12 15 18 9"/>',9)} ${overdueUnits.length}</div>`:''}
       </div>
     </div>
 
-    <!-- 2. This Month Collection -->
-    <div style="${_kStyle(_C.green)}" onclick="nav('recovery')"
-      onmouseenter="${_kEnter(_C.green)}" onmouseleave="${_kLeave}">
+    <!-- 2. This Month Collection — green -->
+    <div class="db-kpi db-kpi-accent-green" onclick="nav('recovery')" style="cursor:pointer;background:rgba(22,163,74,.05)">
       <div class="db-kpi-row">
         <div class="db-kpi-ic green">${_ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">This Month</div>
           <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(monthR)}"><span class="db-pkr">PKR</span>${fLakhCr(monthR)}</div>
-          <div class="db-kpi-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${recentRecs.length} payment${recentRecs.length!==1?'s':''} received</div>
+          <div class="db-kpi-sub">${recentRecs.length} payment${recentRecs.length!==1?'s':''} received</div>
         </div>
         ${_trendHtml?`<div style="align-self:flex-start">${_trendHtml}</div>`:''}
       </div>
     </div>
 
-    <!-- 3. Portfolio Value -->
-    <div style="${_kStyle(_C.blue)}" onclick="nav('projects')"
-      onmouseenter="${_kEnter(_C.blue)}" onmouseleave="${_kLeave}">
+    <!-- 3. Portfolio Value — blue -->
+    <div class="db-kpi db-kpi-accent-blue" onclick="nav('projects')" style="cursor:pointer;background:rgba(37,99,235,.05)">
       <div class="db-kpi-row">
         <div class="db-kpi-ic blue">${_ic('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">Portfolio Value</div>
           <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(totalPortfolio)}"><span class="db-pkr">PKR</span>${fLakhCr(totalPortfolio)}</div>
-          <div class="db-kpi-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${soldU} sold · ${availU} available</div>
+          <div class="db-kpi-sub">${soldU} sold · ${availU} available</div>
         </div>
       </div>
     </div>
 
-    <!-- 4. Recovery Rate -->
-    <div style="${_kStyle(_C.amber)}" onclick="nav('reports')"
-      onmouseenter="${_kEnter(_C.amber)}" onmouseleave="${_kLeave}">
+    <!-- 4. Recovery Rate — amber -->
+    <div class="db-kpi db-kpi-accent-amber" onclick="nav('reports')" style="cursor:pointer;background:rgba(217,119,6,.05)">
       <div class="db-kpi-row">
         <div class="db-kpi-ic amber">${_ic('<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">Recovery Rate</div>
           <div class="db-kpi-val db-kpi-val-sm">${recovPct}<span style="font-size:13px;font-weight:400;color:var(--text-muted);margin-left:1px">%</span></div>
-          <div class="db-kpi-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">PKR ${fMH(totalR)} of ${fMH(totalPortfolio)}</div>
+          <div class="db-kpi-sub">PKR ${fMH(totalR)} of ${fMH(totalPortfolio)}</div>
         </div>
         ${recovPct>0?`<div class="db-trend ${recovPct>=75?'up':'dn'}" style="align-self:flex-start">${recovPct>=75?'On track':recovPct<40?'Critical':'Monitor'}</div>`:''}
       </div>
@@ -464,8 +447,28 @@ async function _rDashAdmin() {
 
   </div>`; // end .db.ani
 
-  // ── Init bar chart + populate widget placeholders after DOM ready ──
-  requestAnimationFrame(() => _dbInitBar30(barData));
+  // ── Init bar chart + KPI hover + widget placeholders after DOM ready ──
+  requestAnimationFrame(() => {
+    _dbInitBar30(barData);
+    // Colored hover glow — setProperty('important') overrides ALL CSS
+    const _kh = [
+      { el: document.querySelector('.db-kpi-accent-red'),   sr: '220,38,38'  },
+      { el: document.querySelector('.db-kpi-accent-green'), sr: '22,163,74'  },
+      { el: document.querySelector('.db-kpi-accent-blue'),  sr: '37,99,235'  },
+      { el: document.querySelector('.db-kpi-accent-amber'), sr: '217,119,6'  },
+    ];
+    _kh.forEach(({ el, sr }) => {
+      if (!el) return;
+      el.addEventListener('mouseenter', () => {
+        el.style.setProperty('box-shadow', `0 0 0 2px rgba(${sr},.35), 0 8px 24px rgba(${sr},.20)`, 'important');
+        el.style.setProperty('transform',  'translateY(-2px)', 'important');
+      });
+      el.addEventListener('mouseleave', () => {
+        el.style.removeProperty('box-shadow');
+        el.style.removeProperty('transform');
+      });
+    });
+  });
   // Client Health widget (defined this file) and AI Recovery Radar widget
   // (defined in radar.js, which is always loaded after dashboard.js per login.html).
   // Both target divs (#d-health-widget / #d-radar-widget) are rendered above; each

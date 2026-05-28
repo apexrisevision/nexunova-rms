@@ -1124,15 +1124,11 @@
 /* ── KPI grid: tighter gap ───────────────────────────────── */
 .db .db-kpis { gap: 10px; }
 
-/* ── Tinted card backgrounds per accent ─────────────────── */
-.db-kpi.db-kpi-accent-red   { background: #FEE2E2 !important; }
-.db-kpi.db-kpi-accent-green { background: #DCFCE7 !important; }
-.db-kpi.db-kpi-accent-blue  { background: #DBEAFE !important; }
-.db-kpi.db-kpi-accent-amber { background: #FEF3C7 !important; }
-[data-theme="dark"] .db-kpi.db-kpi-accent-red   { background: rgba(220,38,38,.13) !important; }
-[data-theme="dark"] .db-kpi.db-kpi-accent-green { background: rgba(22,163,74,.13)  !important; }
-[data-theme="dark"] .db-kpi.db-kpi-accent-blue  { background: rgba(37,99,235,.13)  !important; }
-[data-theme="dark"] .db-kpi.db-kpi-accent-amber { background: rgba(217,119,6,.13)  !important; }
+/* ── Tinted card backgrounds — inline style on element overrides these ── */
+[data-theme="dark"] .db-kpi.db-kpi-accent-red   { background: rgba(220,38,38,.08); }
+[data-theme="dark"] .db-kpi.db-kpi-accent-green { background: rgba(22,163,74,.08);  }
+[data-theme="dark"] .db-kpi.db-kpi-accent-blue  { background: rgba(37,99,235,.08);  }
+[data-theme="dark"] .db-kpi.db-kpi-accent-amber { background: rgba(217,119,6,.08);  }
 
 /* ── Value: slightly bigger, tighter letter-spacing ─────── */
 .db .db-kpi-val-sm {

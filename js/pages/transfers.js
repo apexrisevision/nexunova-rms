@@ -998,6 +998,14 @@ async function _txSubmit() {
     if (error) throw new Error(error.message);
     if (!data?.success) throw new Error(data?.error || 'Unknown server error');
 
+    // Soft-block: transfer is pending admin approval, not yet executed
+    if (data.status === 'pending_approval') {
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirm Transfer'; }
+      _txRenderApprovalPending(data.request_id);
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      return;
+    }
+
     _txResult = data;
     if (typeof loadAllData === 'function') loadAllData();
     else if (typeof _refreshCaches === 'function') _refreshCaches();
@@ -1024,6 +1032,23 @@ function _txRenderSuccess(data) {
           <button class="rops-btn rops-btn-ghost" onclick="printTransferLetter('${esc(data.transfer_id)}')">Print Letter</button>
           <button class="rops-btn rops-btn-ghost" onclick="nav('transferunits')">View Ledger</button>
           <button class="rops-btn rops-btn-ghost" onclick="rUnitChain('${esc(_txData.unitId)}')">Ownership Chain</button>
+          <button class="rops-btn rops-btn-ghost" onclick="nav('units')">Back to Inventory</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _txRenderApprovalPending(requestId) {
+  const el = document.getElementById('pg-unittransfer');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="rops">
+      <div class="rops-success-screen">
+        <div class="rops-success-mark" style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3)"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h2 class="rops-success-title">Approval Requested</h2>
+        <div class="rops-success-sub">This transfer requires admin approval. Your request has been submitted and is pending review.</div>
+        ${requestId ? `<div class="rops-success-vch" style="font-size:11px">Request ID: ${esc(requestId)}</div>` : ''}
+        <div class="rops-success-actions">
           <button class="rops-btn rops-btn-ghost" onclick="nav('units')">Back to Inventory</button>
         </div>
       </div>

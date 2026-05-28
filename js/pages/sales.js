@@ -1935,7 +1935,10 @@ async function rEditSale() {
     const totalPaid = instData.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
     window._salEditAgents = Array.isArray(agentRes.data) ? agentRes.data : [];
     window._salEditSchedule = instData.map(i => ({ ...i, _new: false, _deleted: false }));
-    window._salEditNetAmount = Number(d.net_amount || 0);
+    window._salEditNetAmount    = Number(d.net_amount    || 0);
+    window._salEditOrigDiscount = Number(d.discount      || 0);
+    window._salEditOrigPriceSqft= Number(d.price_per_sqft|| 0);
+    window._salEditOrigArea     = Number(d.area_sqft     || 0);
 
     const clientOpts = (window._clientsCache || []).map(c =>
       `<option value="${c.id}" ${c.id === d.client_id ? 'selected' : ''}>${esc(c.fullName || 'Unnamed')}</option>`
@@ -2394,6 +2397,109 @@ async function saveEditSale() {
   const confirmed = await _salSaveConfirmPopup();
   if (!confirmed) return;
 
+  // ── Approval gates: detect discount / price-revision changes ──────────
+  const origDiscount  = window._salEditOrigDiscount  || 0;
+  const origPriceSqft = window._salEditOrigPriceSqft || 0;
+  const origArea      = window._salEditOrigArea      || 0;
+  const origNet       = window._salEditNetAmount     || 0;
+  const newNet        = Math.max(0, pSqft * area - discount);
+
+  const discountChanged   = Math.abs(discount - origDiscount)   >= 1;
+  const priceAreaChanged  = (Math.abs(pSqft - origPriceSqft)    >= 0.01 ||
+                             Math.abs(area  - origArea)          >= 0.01) && !discountChanged;
+
+  if (discountChanged || priceAreaChanged) {
+    const gateType = discountChanged ? 'discount' : 'price_revision';
+    const gateTitle = discountChanged
+      ? `Discount change requires approval`
+      : `Price revision requires approval`;
+    const gateDetail = discountChanged
+      ? `Discount: PKR ${fM(origDiscount)} → PKR ${fM(discount)}`
+      : `Net amount: PKR ${fM(origNet)} → PKR ${fM(newNet)}`;
+
+    const comment = await _salMakerCommentPrompt(gateTitle, gateDetail);
+    if (comment === null) return; // user cancelled
+
+    btn.disabled = true; btn.textContent = 'Submitting…';
+
+    let pendingApproval = false;
+
+    if (discountChanged) {
+      const { data: dr, error: de } = await supabase.rpc('request_discount_change', {
+        p_sale_id:       _salEditId,
+        p_new_discount:  discount,
+        p_maker_comment: comment
+      });
+      if (de || !dr?.success) {
+        btn.disabled = false; btn.textContent = 'Save Changes';
+        err.textContent = de?.message || dr?.error || 'Approval request failed'; return;
+      }
+      if (dr.status === 'pending_approval') pendingApproval = true;
+    } else {
+      // Price revision — create approval request directly
+      const { data: pr, error: pe } = await supabase.rpc('create_approval_request', {
+        p_data: {
+          request_type: 'price_revision',
+          entity_table: 'sales',
+          entity_id:    _salEditId,
+          title:        'Price revision',
+          amount:       newNet,
+          comment:      comment,
+          payload:      { net_amount: newNet, price_per_sqft: pSqft, area_sqft: area }
+        }
+      });
+      if (pe || !pr?.success) {
+        btn.disabled = false; btn.textContent = 'Save Changes';
+        err.textContent = pe?.message || pr?.error || 'Approval request failed'; return;
+      }
+      pendingApproval = true; // price revision is always pending (no admin-bypass path)
+    }
+
+    // Build non-gated payload — exclude the fields routed to approval
+    const efCommPct2 = parseFloat(document.getElementById('ef-comm-pct')?.value);
+    const safePayload = {
+      client_id:            clientId,
+      agent_id:             document.getElementById('ef-agent').value || null,
+      sale_date:            saleDate,
+      // discount excluded (handled by request_discount_change above)
+      down_payment:         down,
+      commission_rate:      isNaN(efCommPct2) ? null : efCommPct2,
+      notes:                document.getElementById('ef-notes').value.trim()              || null,
+      co_buyer_name:        document.getElementById('ef-cobuyer-name').value.trim()       || null,
+      co_buyer_cnic:        document.getElementById('ef-cobuyer-cnic').value.trim()       || null,
+      co_buyer_share_pct:   parseFloat(document.getElementById('ef-cobuyer-share').value) || null,
+      nominee_name:         document.getElementById('ef-nominee-name').value.trim()       || null,
+      nominee_cnic:         document.getElementById('ef-nominee-cnic').value.trim()       || null,
+      nominee_relation:     document.getElementById('ef-nominee-relation').value.trim()   || null,
+      wht_amount:           parseAmt(document.getElementById('ef-wht').value),
+      cvt_amount:           parseAmt(document.getElementById('ef-cvt').value),
+      discount_approved_by: document.getElementById('ef-disc-approved-by').value.trim()  || null,
+      discount_notes:       document.getElementById('ef-disc-notes').value.trim()         || null,
+    };
+    if (!priceAreaChanged) {
+      // Safe to include price fields if only discount was gated
+      safePayload.price_per_sqft = pSqft;
+    }
+    // price_per_sqft excluded if priceAreaChanged (pending revision approval)
+
+    const safeRes = await supabase.rpc('edit_sale', {
+      p_sale_id: _salEditId, p_company_id: S.cid, p_data: safePayload
+    });
+    if (safeRes.error || !safeRes.data?.success) {
+      btn.disabled = false; btn.textContent = 'Save Changes';
+      err.textContent = safeRes.error?.message || safeRes.data?.error || 'Save failed'; return;
+    }
+
+    btn.disabled = false; btn.textContent = 'Save Changes';
+    if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+    toast(pendingApproval
+      ? 'Approval request submitted — other fields saved'
+      : 'Sale updated (change applied — within policy)', 'ok');
+    nav('salesdetail');
+    return;
+  }
+
+  // ── Normal save (no approval gates triggered) ─────────────────────────
   const efCommPct = parseFloat(document.getElementById('ef-comm-pct')?.value);
   const payload = {
     client_id:            clientId,
@@ -2419,7 +2525,6 @@ async function saveEditSale() {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  // Save sale record (generated columns auto-update from source fields)
   const saleRes = await supabase.rpc('edit_sale', {
     p_sale_id: _salEditId, p_company_id: S.cid, p_data: payload
   });
@@ -2447,6 +2552,45 @@ async function saveEditSale() {
 
   toast('Sale updated');
   nav('salesdetail');
+}
+
+// ── Maker-comment prompt for approval-gated actions ───────────────────
+// Returns the comment string (min 10 chars) or null if cancelled.
+function _salMakerCommentPrompt(title, detail) {
+  return new Promise(resolve => {
+    document.getElementById('_sal-comment-overlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = '_sal-comment-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.55);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `
+      <div style="background:var(--surface,#0f172a);border:1px solid rgba(99,102,241,.3);border-radius:14px;padding:28px 24px 20px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="font-size:16px;font-weight:700;color:var(--text,#f8fafc);margin-bottom:6px">${esc(title)}</div>
+        <div style="font-size:12px;color:var(--t3,rgba(255,255,255,.45));margin-bottom:16px">${esc(detail)}</div>
+        <div style="font-size:11px;font-weight:600;color:var(--t2,rgba(255,255,255,.6));margin-bottom:6px">Reason / Justification <span style="color:var(--err,#f43f5e)">*</span></div>
+        <textarea id="_sal-cm-txt" rows="3" autocomplete="off"
+          placeholder="Explain why this change is needed (min 10 characters)…"
+          style="width:100%;padding:9px 11px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text,#f1f5f9);font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical;outline:none"
+          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,.12)'"></textarea>
+        <div id="_sal-cm-err" style="font-size:11px;color:var(--err,#f43f5e);min-height:16px;margin-top:4px"></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button id="_sal-cm-cancel" style="flex:1;padding:9px;background:transparent;border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:var(--t2,rgba(255,255,255,.6));font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+          <button id="_sal-cm-ok" style="flex:2;padding:9px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Submit for Approval</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const txt = ov.querySelector('#_sal-cm-txt');
+    const errEl = ov.querySelector('#_sal-cm-err');
+    setTimeout(() => txt?.focus(), 50);
+
+    ov.querySelector('#_sal-cm-cancel').addEventListener('click', () => { ov.remove(); resolve(null); });
+    ov.querySelector('#_sal-cm-ok').addEventListener('click', () => {
+      const v = (txt?.value || '').trim();
+      if (v.length < 10) { errEl.textContent = 'Please enter at least 10 characters.'; txt?.focus(); return; }
+      ov.remove();
+      resolve(v);
+    });
+    txt?.addEventListener('keydown', e => { if (e.key === 'Enter' && e.ctrlKey) ov.querySelector('#_sal-cm-ok').click(); });
+  });
 }
 
 // ══ SCHEDULE / SAVE POPUPS ═════════════════════════════════════════════

@@ -1246,8 +1246,36 @@ async function _cdLoadLedger(clientId) {
 
 // ── Status quick-change ────────────────────────────────────
 async function setClientStatus(clientId, newStatus) {
-  const c    = gclient(clientId);
+  const c     = gclient(clientId);
   const label = { inactive:'deactivate', blacklisted:'blacklist', active:'reactivate' }[newStatus] || newStatus;
+
+  // Blacklist is a restricted action — must go through maker-checker approval
+  if (newStatus === 'blacklisted') {
+    const comment = await _clBlacklistCommentPrompt(c?.fullName || 'this client');
+    if (comment === null) return;
+
+    try {
+      const { data, error } = await supabase.rpc('create_approval_request', {
+        p_data: {
+          request_type: 'blacklist',
+          entity_table: 'clients',
+          entity_id:    clientId,
+          title:        `Blacklist: ${c?.fullName || 'client'}`,
+          comment:      comment,
+          payload:      { status: 'blacklisted', client_id: clientId }
+        }
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Approval request failed');
+      toast('Blacklist request submitted for admin approval', 'ok');
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+    } catch (err) {
+      toast('Could not submit request: ' + err.message, 'err');
+    }
+    return;
+  }
+
+  // Deactivate / Reactivate: no approval needed — apply directly
   if (!confirm(`${label.charAt(0).toUpperCase()+label.slice(1)} client "${c?.fullName}"?`)) return;
 
   try {
@@ -1265,6 +1293,43 @@ async function setClientStatus(clientId, newStatus) {
     console.error('[setClientStatus]', err);
     toast('Could not update status: ' + err.message, 'err');
   }
+}
+
+// Maker comment modal for blacklist approval requests
+function _clBlacklistCommentPrompt(clientName) {
+  return new Promise(resolve => {
+    document.getElementById('_cl-bl-overlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = '_cl-bl-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.55);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `
+      <div style="background:var(--surface,#0f172a);border:1px solid rgba(220,38,38,.35);border-radius:14px;padding:28px 24px 20px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="font-size:16px;font-weight:700;color:#fca5a5;margin-bottom:6px">Blacklist Client — Approval Required</div>
+        <div style="font-size:12px;color:var(--t3,rgba(255,255,255,.45));margin-bottom:16px">Blacklisting <strong style="color:var(--text,#f8fafc)">${esc(clientName)}</strong> requires admin approval.</div>
+        <div style="font-size:11px;font-weight:600;color:var(--t2,rgba(255,255,255,.6));margin-bottom:6px">Reason for blacklisting <span style="color:var(--err,#f43f5e)">*</span></div>
+        <textarea id="_cl-bl-txt" rows="3" autocomplete="off"
+          placeholder="Explain why this client should be blacklisted (min 10 characters)…"
+          style="width:100%;padding:9px 11px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text,#f1f5f9);font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical;outline:none"
+          onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='rgba(255,255,255,.12)'"></textarea>
+        <div id="_cl-bl-err" style="font-size:11px;color:var(--err,#f43f5e);min-height:16px;margin-top:4px"></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button id="_cl-bl-cancel" style="flex:1;padding:9px;background:transparent;border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:var(--t2,rgba(255,255,255,.6));font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+          <button id="_cl-bl-ok" style="flex:2;padding:9px;background:#dc2626;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Submit for Approval</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const txt   = ov.querySelector('#_cl-bl-txt');
+    const errEl = ov.querySelector('#_cl-bl-err');
+    setTimeout(() => txt?.focus(), 50);
+
+    ov.querySelector('#_cl-bl-cancel').addEventListener('click', () => { ov.remove(); resolve(null); });
+    ov.querySelector('#_cl-bl-ok').addEventListener('click', () => {
+      const v = (txt?.value || '').trim();
+      if (v.length < 10) { errEl.textContent = 'Please enter at least 10 characters.'; txt?.focus(); return; }
+      ov.remove();
+      resolve(v);
+    });
+  });
 }
 
 // ══ ADD / EDIT CLIENT MODAL ════════════════════════════════
