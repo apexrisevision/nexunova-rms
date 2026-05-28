@@ -61,6 +61,14 @@ async function rAudit() {
               <option value="sale_amendments">sale_amendments</option>
               <option value="unit_cancellations">unit_cancellations</option>
               <option value="unit_transfers">unit_transfers</option>
+              <option value="app_users">app_users</option>
+              <option value="approval_requests">approval_requests</option>
+              <option value="approval_request_comments">approval_request_comments</option>
+              <option value="blacklisted_clients">blacklisted_clients</option>
+              <option value="contact_logs">contact_logs</option>
+              <option value="escalations">escalations</option>
+              <option value="follow_up_reminders">follow_up_reminders</option>
+              <option value="legal_cases">legal_cases</option>
             </select>
           </div>
           <div>
@@ -70,6 +78,8 @@ async function rAudit() {
               <option value="INSERT">INSERT</option>
               <option value="UPDATE">UPDATE</option>
               <option value="DELETE">DELETE</option>
+              <option value="restriction_warning">restriction_warning</option>
+              <option value="approval_applied">approval_applied</option>
             </select>
           </div>
           <div>
