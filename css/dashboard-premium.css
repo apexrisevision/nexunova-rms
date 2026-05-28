@@ -22,10 +22,30 @@
   background:    var(--bg-surface);
   border:        1px solid var(--border-color);
   border-radius: 10px;
-  box-shadow:    0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
   overflow:      hidden;
+  position:      relative;
+  filter:        drop-shadow(0 4px 2px rgba(0,0,0,.24)) drop-shadow(0 10px 18px rgba(0,0,0,.16));
+  transition:    filter .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1), border-color .2s ease;
 }
-[data-theme="dark"] .db-card { box-shadow: 0 1px 3px rgba(0,0,0,.22); }
+.db-card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  height: 3px; width: 0%;
+  background: var(--card-accent, linear-gradient(90deg,#2563EB,#6366F1));
+  border-radius: 10px 10px 0 0;
+  transition: width .32s cubic-bezier(.4,0,.2,1);
+  z-index: 2; pointer-events: none;
+}
+.db-card:hover {
+  filter:    drop-shadow(0 8px 4px rgba(0,0,0,.30)) drop-shadow(0 20px 30px rgba(0,0,0,.22));
+  transform: translateY(-4px) scale(1.008);
+}
+.db-card:hover::before { width: 100%; }
+[data-theme="light"] .db-card {
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,.07)) drop-shadow(0 8px 14px rgba(0,0,0,.09));
+}
+[data-theme="light"] .db-card:hover {
+  filter: drop-shadow(0 6px 3px rgba(0,0,0,.10)) drop-shadow(0 16px 24px rgba(37,99,235,.13));
+}
 
 .db-card-ch {
   display:         flex;
@@ -836,6 +856,8 @@
   text-overflow: ellipsis;
 }
 
+/* (duplicate removed — final block at end of file is authoritative) */
+
 /* Amber icon variant (was missing) */
 .db-kpi-ic.amber { background:#FEF3C7; color:#D97706; }
 [data-theme="dark"] .db-kpi-ic.amber { background:rgba(217,119,6,.12); color:#fcd34d; }
@@ -983,3 +1005,166 @@
   .db-fu-row2 { flex-wrap:wrap; }
   .db-fu2-amt { order:3; width:100%; text-align:right; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   COMMAND-CENTER COHESION (2026-05-27)
+   Ties the dashboard surface to the elevated Aurora command navigator:
+   lit card edges, leading section dash, live KPI depth. Scoped to .db,
+   additive + reversible. Blue-600 system preserved (no recolour).
+══════════════════════════════════════════════════════════════ */
+
+/* Section labels echo the mega-menu group headers (leading accent dash) */
+.db .db-sec {
+  display:     inline-flex;
+  align-items: center;
+  gap:         8px;
+}
+.db .db-sec::before {
+  content:       '';
+  width:         14px;
+  height:        2px;
+  border-radius: 2px;
+  background:    linear-gradient(90deg, #2563EB, transparent);
+  flex-shrink:   0;
+}
+
+/* Cards gain a faint lit top edge on hover — the command-center signature */
+.db .db-card { position: relative; transition: box-shadow 160ms ease, border-color 160ms ease; }
+.db .db-card::before {
+  content:        '';
+  position:       absolute;
+  top: 0; left: 0; right: 0;
+  height:         1px;
+  background:     linear-gradient(90deg, transparent, rgba(37,99,235,.55) 40%, rgba(96,165,250,.45) 60%, transparent);
+  opacity:        0;
+  transition:     opacity 220ms ease;
+  pointer-events: none;
+  z-index:        1;
+}
+.db .db-card:hover {
+  border-color: rgba(37,99,235,.22);
+  box-shadow:   0 6px 20px rgba(15,23,42,.08);
+}
+[data-theme="dark"] .db .db-card:hover {
+  border-color: rgba(37,99,235,.30);
+  box-shadow:   0 6px 20px rgba(0,0,0,.40);
+}
+.db .db-card:hover::before { opacity: 1; }
+
+/* (duplicate removed — final block at end of file is authoritative) */
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM TEMPLATE POLISH (2026-05-27)
+   Compact page header · tight section labels · card tints
+══════════════════════════════════════════════════════════════ */
+
+/* ── Compact single-row page header ──────────────────────── */
+.db-hdr {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             16px;
+  padding-bottom:  12px;
+  border-bottom:   1px solid var(--border-color);
+  flex-wrap:       wrap;
+}
+.db-hdr-l {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+}
+.db-hdr-greet {
+  font-size:      15px;
+  font-weight:    600;
+  letter-spacing: -.01em;
+  color:          var(--text-primary);
+  line-height:    1.3;
+}
+.db-hdr-date {
+  font-size:  11px;
+  color:      var(--text-muted);
+  font-weight:400;
+}
+.db-hdr-r {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  flex-wrap:   wrap;
+}
+.db-hdr-chip {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           4px;
+  padding:       3px 10px;
+  border-radius: 99px;
+  font-size:     11px;
+  font-weight:   500;
+  border:        1px solid;
+  white-space:   nowrap;
+  line-height:   1.6;
+}
+.db-hdr-chip.ok  { background:#F0FDF4; border-color:#BBF7D0; color:#15803D; }
+.db-hdr-chip.err { background:#FEF2F2; border-color:#FECACA; color:#B91C1C; }
+.db-hdr-chip.neu { background:var(--bg-elevated); border-color:var(--border-color); color:var(--text-muted); }
+[data-theme="dark"] .db-hdr-chip.ok  { background:rgba(22,163,74,.10);  border-color:rgba(22,163,74,.25);  color:#86efac; }
+[data-theme="dark"] .db-hdr-chip.err { background:rgba(220,38,38,.10);  border-color:rgba(220,38,38,.25);  color:#fca5a5; }
+[data-theme="dark"] .db-hdr-chip.neu { background:rgba(255,255,255,.04); border-color:var(--border-color);  color:var(--text-muted); }
+
+/* ── Tight section label (replaces rb-section-eyebrow) ────── */
+.db-sec-lbl {
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color:          var(--text-muted);
+  margin:         0;
+  padding:        2px 0;
+}
+
+/* ── KPI grid: tighter gap ───────────────────────────────── */
+.db .db-kpis { gap: 10px; }
+
+/* ── Tinted card backgrounds per accent ─────────────────── */
+.db-kpi.db-kpi-accent-red   { background: #FEE2E2 !important; }
+.db-kpi.db-kpi-accent-green { background: #DCFCE7 !important; }
+.db-kpi.db-kpi-accent-blue  { background: #DBEAFE !important; }
+.db-kpi.db-kpi-accent-amber { background: #FEF3C7 !important; }
+[data-theme="dark"] .db-kpi.db-kpi-accent-red   { background: rgba(220,38,38,.13) !important; }
+[data-theme="dark"] .db-kpi.db-kpi-accent-green { background: rgba(22,163,74,.13)  !important; }
+[data-theme="dark"] .db-kpi.db-kpi-accent-blue  { background: rgba(37,99,235,.13)  !important; }
+[data-theme="dark"] .db-kpi.db-kpi-accent-amber { background: rgba(217,119,6,.13)  !important; }
+
+/* ── Value: slightly bigger, tighter letter-spacing ─────── */
+.db .db-kpi-val-sm {
+  font-size:      20px;
+  font-weight:    700;
+  letter-spacing: -.03em;
+}
+
+/* ── KPI card hover — lift + accent border + deeper shadow ── */
+.db-kpi.db-kpi-accent-red,
+.db-kpi.db-kpi-accent-green,
+.db-kpi.db-kpi-accent-blue,
+.db-kpi.db-kpi-accent-amber {
+  transition: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
+}
+.db-kpi.db-kpi-accent-red:hover   { transform:translateY(-2px); box-shadow:0 0 0 2px rgba(220,38,38,.30),  0 8px 24px rgba(220,38,38,.22); border-color:rgba(220,38,38,.50); }
+.db-kpi.db-kpi-accent-green:hover { transform:translateY(-2px); box-shadow:0 0 0 2px rgba(22,163,74,.30),  0 8px 24px rgba(22,163,74,.22);  border-color:rgba(22,163,74,.50);  }
+.db-kpi.db-kpi-accent-blue:hover  { transform:translateY(-2px); box-shadow:0 0 0 2px rgba(37,99,235,.30),  0 8px 24px rgba(37,99,235,.22);  border-color:rgba(37,99,235,.50);  }
+.db-kpi.db-kpi-accent-amber:hover { transform:translateY(-2px); box-shadow:0 0 0 2px rgba(217,119,6,.30),  0 8px 24px rgba(217,119,6,.22);  border-color:rgba(217,119,6,.50);  }
+[data-theme="dark"] .db-kpi.db-kpi-accent-red:hover   { box-shadow:0 0 0 2px rgba(220,38,38,.50),  0 8px 28px rgba(220,38,38,.38); }
+[data-theme="dark"] .db-kpi.db-kpi-accent-green:hover { box-shadow:0 0 0 2px rgba(22,163,74,.50),  0 8px 28px rgba(22,163,74,.38);  }
+[data-theme="dark"] .db-kpi.db-kpi-accent-blue:hover  { box-shadow:0 0 0 2px rgba(37,99,235,.50),  0 8px 28px rgba(37,99,235,.38);  }
+[data-theme="dark"] .db-kpi.db-kpi-accent-amber:hover { box-shadow:0 0 0 2px rgba(217,119,6,.50),  0 8px 28px rgba(217,119,6,.38);  }
+
+/* ── Card polish: crisper border + better shadow ────────── */
+.db .db-card {
+  border-color: var(--border-color);
+  box-shadow:   0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+}
+[data-theme="dark"] .db .db-card { box-shadow: 0 1px 4px rgba(0,0,0,.28); }
+
+/* Card headers */
+.db .db-card-ch    { padding: 14px 18px 12px; }
+.db .db-card-title { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; }
+.db .db-card-sub   { font-size: 11.5px; margin-top: 2px; }

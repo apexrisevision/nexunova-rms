@@ -1,7 +1,17 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   AURORA TOPBAR — LIGHT version. Hover-reveal mega menu.
-   Removed: conic lightsaber border, sonar ring, sheen, backdrop-filter on mega.
-   Kept: breathing halo, mini-logo glow, chevron bounce, clip-path drop.
+   AURORA TOPBAR — Enterprise Command Navigator (v2, 2026-05-27)
+   ────────────────────────────────────────────────────────────────────────────
+   PRESERVED (the unique interaction identity — do not alter the concept):
+     • hover-reveal mega panel with 240ms close hysteresis (topbar-aurora.js)
+     • trigger pill: breathing halo, mini-logo glow, chevron bob
+     • mega drop: transform + opacity + clip-path ellipse (same timings)
+     • multi-column operational grouping, active-page highlight, Esc/click-nav
+   ELEVATED (this pass):
+     • panel depth + layered aurora glow + top hairline
+     • operational zoning (per-group accent within the cyan→violet aurora spectrum)
+     • zoned icon tiles, refined hover (icon lift + trailing chevron), denser rhythm
+     • content-driven height + internal scroll (fixes 8-group clipping)
+   IDENTITY: cyan #00d9ff → violet #a855f7 aurora — kept as the signature look.
    ════════════════════════════════════════════════════════════════════════════ */
 
 .aurora-topbar {
@@ -10,9 +20,14 @@
   z-index: 60;
   flex-shrink: 0;
   font-family: 'Inter', sans-serif;
+
+  /* Aurora spectrum tokens (cyan → violet) — single source for the topbar */
+  --atb-cyan:   #00d9ff;
+  --atb-violet: #a855f7;
+  --atb-ink:    rgba(255,255,255,0.98);
 }
 
-/* COMPACT bar */
+/* ── COMPACT bar ──────────────────────────────────────────────── */
 .aurora-topbar-bar {
   position: relative;
   height: 52px;
@@ -30,7 +45,7 @@
 .atb-l { display: flex; align-items: center; gap: 14px; }
 .atb-r { display: flex; align-items: center; gap: 8px; }
 
-/* TRIGGER pill — breathing halo (simple box-shadow, GPU-cheap) */
+/* ── TRIGGER pill — breathing halo (GPU-cheap box-shadow) ─────── */
 .aurora-topbar-trigger {
   display: inline-flex;
   align-items: center;
@@ -120,16 +135,20 @@
   50%      { transform: translateY(2px); }
 }
 
-/* MEGA — solid bg (no backdrop-filter), single radial accent */
+/* ════════════════════════════════════════════════════════════════
+   MEGA PANEL — content-driven height, layered aurora depth
+   (open/close transform + opacity + clip-path timings UNCHANGED)
+   ════════════════════════════════════════════════════════════════ */
 .aurora-topbar-mega {
   position: absolute;
   top: 51px; left: 0; right: 0;
-  height: 280px;
+  max-height: calc(100vh - 110px);
   pointer-events: none;
   z-index: 2;
   background:
-    radial-gradient(ellipse 700px 200px at 50% 0%, rgba(0,217,255,0.12), transparent 60%),
-    linear-gradient(180deg, #0c0e16 0%, #121626 100%);
+    radial-gradient(ellipse 760px 220px at 50% -8%, rgba(0,217,255,0.16), transparent 62%),
+    radial-gradient(ellipse 520px 200px at 82% 0%, rgba(168,85,247,0.10), transparent 60%),
+    linear-gradient(180deg, #0c0e16 0%, #0f1320 55%, #121626 100%);
   border-bottom: 1px solid rgba(0,217,255,0.25);
   clip-path: ellipse(140% 100% at 50% 0%);
   -webkit-clip-path: ellipse(140% 100% at 50% 0%);
@@ -139,7 +158,16 @@
     transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 220ms ease,
     clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.30);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.42);
+}
+/* Top hairline highlight — gives the panel a crisp lit edge */
+.aurora-topbar-mega::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,217,255,0.55) 35%, rgba(168,85,247,0.45) 65%, transparent);
+  opacity: 0.9;
 }
 .aurora-topbar.is-open .aurora-topbar-mega {
   transform: translateY(0);
@@ -149,73 +177,169 @@
   -webkit-clip-path: ellipse(98% 105% at 50% 0%);
 }
 
+/* ── Grid — multi-column operational zones, content-driven ────── */
 .atb-mega-grid {
   position: relative;
-  padding: 22px 36px 24px;
+  padding: 24px 36px 26px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 24px;
-  height: 100%;
-  overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 10px 28px;
+  max-height: calc(100vh - 124px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Slim aurora scrollbar */
+.atb-mega-grid::-webkit-scrollbar { width: 8px; }
+.atb-mega-grid::-webkit-scrollbar-thumb { background: rgba(0,217,255,0.20); border-radius: 99px; }
+.atb-mega-grid::-webkit-scrollbar-thumb:hover { background: rgba(0,217,255,0.35); }
+
+/* ── Operational group (zone) ─────────────────────────────────── */
+.atb-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255,255,255,0.05);
+  /* per-zone accent, defaulted to cyan; overridden by .zone-* below */
+  --z: var(--atb-cyan);
 }
 
-.atb-grp { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .atb-grp-lbl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 9.5px; font-weight: 700;
   letter-spacing: 0.14em; text-transform: uppercase;
-  color: rgba(0,217,255,0.75);
-  padding: 0 10px 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  margin-bottom: 6px;
-  display: flex; align-items: center; gap: 8px;
+  color: var(--z);
+  padding: 0 10px 9px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 .atb-grp-lbl::before {
   content: '';
-  width: 12px; height: 1.5px;
-  background: linear-gradient(90deg, #00d9ff, transparent);
+  width: 14px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--z), transparent);
+  flex-shrink: 0;
 }
-.atb-grp.is-quick .atb-grp-lbl { color: rgba(168,85,247,0.75); }
-.atb-grp.is-quick .atb-grp-lbl::before { background: linear-gradient(90deg, #c084fc, transparent); }
+.atb-grp-lbl-tx {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.atb-grp-cnt {
+  font-size: 9px; font-weight: 700;
+  color: var(--z);
+  background: color-mix(in srgb, var(--z) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--z) 28%, transparent);
+  border-radius: 99px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.atb-grp-items { display: flex; flex-direction: column; gap: 1px; }
 
+/* ── Item row ─────────────────────────────────────────────────── */
 .atb-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 10px;
-  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 9px;
+  border-radius: 8px;
   cursor: pointer;
-  color: rgba(255,255,255,0.78);
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+  color: rgba(255,255,255,0.80);
   text-decoration: none;
   font-size: 12.5px; font-weight: 500;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
+.atb-item-ic {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.atb-item-ic svg { width: 15px; height: 15px; color: rgba(255,255,255,0.58); transition: color 150ms ease; }
+.atb-item-lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* trailing nav chevron — fades in on hover/active (premium affordance) */
+.atb-item-go {
+  flex-shrink: 0;
+  color: var(--z);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
 .atb-item:hover {
-  background: rgba(0,217,255,0.10);
-  color: rgba(255,255,255,1);
-  transform: translateX(3px);
+  background: color-mix(in srgb, var(--z) 12%, transparent);
+  color: #fff;
+  transform: translateX(2px);
 }
+.atb-item:hover .atb-item-ic {
+  background: color-mix(in srgb, var(--z) 18%, transparent);
+  border-color: color-mix(in srgb, var(--z) 40%, transparent);
+  transform: scale(1.05);
+}
+.atb-item:hover .atb-item-ic svg { color: var(--z); }
+.atb-item:hover .atb-item-go { opacity: 0.85; transform: translateX(0); }
+
 .atb-item.is-current {
-  background: rgba(0,217,255,0.14);
-  color: #00d9ff;
-  box-shadow: inset 2px 0 0 0 #00d9ff;
+  background: color-mix(in srgb, var(--z) 15%, transparent);
+  color: var(--z);
+  box-shadow: inset 2px 0 0 0 var(--z);
 }
-.atb-item.is-current::after {
-  content: '';
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #00d9ff;
-  margin-left: auto;
+.atb-item.is-current .atb-item-ic {
+  background: color-mix(in srgb, var(--z) 20%, transparent);
+  border-color: color-mix(in srgb, var(--z) 45%, transparent);
 }
-.atb-item svg { flex-shrink: 0; color: rgba(255,255,255,0.55); width: 15px; height: 15px; transition: color 160ms ease; }
-.atb-item:hover svg, .atb-item.is-current svg { color: #00d9ff; }
-.atb-item .atb-bdg {
-  margin-left: auto;
+.atb-item.is-current .atb-item-ic svg { color: var(--z); }
+.atb-item.is-current .atb-item-go { opacity: 0.9; transform: translateX(0); }
+
+/* Badge (alert counts) */
+.atb-bdg {
+  flex-shrink: 0;
   font-size: 10px; font-weight: 700;
   padding: 1px 7px;
   border-radius: 99px;
-  background: rgba(244,63,94,0.20);
-  color: #f87171;
+  background: rgba(0,217,255,0.16);
+  color: #67e8f9;
+  font-variant-numeric: tabular-nums;
+}
+.atb-bdg.alert { background: rgba(244,63,94,0.20); color: #f87171; }
+
+/* ── Quick-access group (no label) ────────────────────────────── */
+.atb-grp.is-quick { --z: var(--atb-violet); }
+.atb-grp.is-quick .atb-grp-lbl { color: var(--atb-violet); }
+
+/* ════════════════════════════════════════════════════════════════
+   OPERATIONAL ZONING — accents stay inside the cyan→violet aurora
+   spectrum so the signature identity is preserved (no green/gold/red).
+   ════════════════════════════════════════════════════════════════ */
+.atb-grp.zone-cyan   { --z: #00d9ff; }   /* Home / Main / Quick      */
+.atb-grp.zone-teal   { --z: #2dd4bf; }   /* Sales & Bookings         */
+.atb-grp.zone-sky    { --z: #38bdf8; }   /* Payments                 */
+.atb-grp.zone-indigo { --z: #818cf8; }   /* Reports & Docs           */
+.atb-grp.zone-violet { --z: #a855f7; }   /* Clients                  */
+.atb-grp.zone-purple { --z: #c084fc; }   /* Finance & Compliance     */
+.atb-grp.zone-slate  { --z: #94a3b8; }   /* System                   */
+
+/* Recovery — the operational heart. Signature cyan→violet gradient label. */
+.atb-grp.zone-aurora { --z: #00d9ff; }
+.atb-grp.zone-aurora .atb-grp-lbl {
+  background: linear-gradient(90deg, #00d9ff, #c084fc);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.atb-grp.zone-aurora .atb-grp-lbl::before {
+  background: linear-gradient(90deg, #00d9ff, #c084fc);
+  -webkit-text-fill-color: initial;
 }
 
-/* Light theme */
+/* ════════════════════════════════════════════════════════════════
+   LIGHT THEME
+   ════════════════════════════════════════════════════════════════ */
 [data-theme="light"] .aurora-topbar-bar {
   background: linear-gradient(180deg, #fafbff, #f0f3fc);
   border-bottom-color: rgba(0,140,170,0.25);
@@ -227,32 +351,58 @@
 [data-theme="light"] .atb-current-lbl { background: linear-gradient(90deg, #2563EB, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 [data-theme="light"] .atb-current-name { color: #0f0f1a; }
 [data-theme="light"] .atb-chev { color: #2563EB; }
+
 [data-theme="light"] .aurora-topbar-mega {
   background:
-    radial-gradient(ellipse 700px 200px at 50% 0%, rgba(37,99,235,0.10), transparent 60%),
-    linear-gradient(180deg, #fafbff 0%, #f0f3fc 100%);
-  border-bottom-color: rgba(37,99,235,0.30);
+    radial-gradient(ellipse 760px 220px at 50% -8%, rgba(37,99,235,0.12), transparent 62%),
+    radial-gradient(ellipse 520px 200px at 82% 0%, rgba(168,85,247,0.08), transparent 60%),
+    linear-gradient(180deg, #fbfcff 0%, #f3f6fd 55%, #eef2fb 100%);
+  border-bottom-color: rgba(37,99,235,0.28);
+  box-shadow: 0 24px 60px rgba(15,23,42,0.16);
 }
-[data-theme="light"] .atb-grp-lbl { color: rgba(0,140,170,0.85); border-bottom-color: rgba(0,0,0,0.06); }
-[data-theme="light"] .atb-item { color: rgba(15,15,26,0.75); }
-[data-theme="light"] .atb-item:hover { background: rgba(37,99,235,0.10); color: #0f0f1a; }
-[data-theme="light"] .atb-item.is-current { background: rgba(37,99,235,0.14); color: #2563EB; box-shadow: inset 2px 0 0 0 #2563EB; }
-[data-theme="light"] .atb-item.is-current::after { background: #2563EB; }
-[data-theme="light"] .atb-item svg { color: rgba(15,15,26,0.55); }
-[data-theme="light"] .atb-item:hover svg, [data-theme="light"] .atb-item.is-current svg { color: #2563EB; }
+[data-theme="light"] .aurora-topbar-mega::before {
+  background: linear-gradient(90deg, transparent, rgba(37,99,235,0.45) 35%, rgba(168,85,247,0.40) 65%, transparent);
+}
+[data-theme="light"] .atb-grp { border-left-color: rgba(15,23,42,0.06); }
+[data-theme="light"] .atb-grp-lbl { border-bottom-color: rgba(15,23,42,0.08); }
+[data-theme="light"] .atb-item { color: rgba(15,23,42,0.78); }
+[data-theme="light"] .atb-item-ic { background: rgba(15,23,42,0.03); border-color: rgba(15,23,42,0.07); }
+[data-theme="light"] .atb-item-ic svg { color: rgba(15,23,42,0.50); }
+[data-theme="light"] .atb-item:hover { color: #0f0f1a; }
+[data-theme="light"] .atb-bdg { background: rgba(37,99,235,0.12); color: #2563EB; }
+[data-theme="light"] .atb-bdg.alert { background: rgba(220,38,38,0.12); color: #dc2626; }
 
-/* Responsive */
+/* Light: keep zone hues legible (slightly deeper) */
+[data-theme="light"] .atb-grp.zone-cyan   { --z: #0891b2; }
+[data-theme="light"] .atb-grp.zone-teal   { --z: #0d9488; }
+[data-theme="light"] .atb-grp.zone-sky    { --z: #0284c7; }
+[data-theme="light"] .atb-grp.zone-indigo { --z: #4f46e5; }
+[data-theme="light"] .atb-grp.zone-violet { --z: #7c3aed; }
+[data-theme="light"] .atb-grp.zone-purple { --z: #9333ea; }
+[data-theme="light"] .atb-grp.zone-slate  { --z: #64748b; }
+[data-theme="light"] .atb-grp.zone-aurora { --z: #0891b2; }
+[data-theme="light"] .atb-grp.zone-aurora .atb-grp-lbl { background: linear-gradient(90deg, #0891b2, #9333ea); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
-  .atb-mega-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 18px; padding: 20px 22px 22px; }
-  .aurora-topbar-mega { height: 320px; }
+  .atb-mega-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; padding: 20px 22px 22px; }
 }
 @media (max-width: 720px) {
   .atb-current-lbl { display: none; }
   .aurora-topbar-bar { padding: 0 14px; }
-  .aurora-topbar-mega { height: auto; min-height: 360px; }
-  .atb-mega-grid { grid-template-columns: 1fr 1fr; }
+  .atb-mega-grid { grid-template-columns: 1fr 1fr; max-height: calc(100vh - 110px); }
+  .atb-grp { padding-left: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .aurora-topbar, .aurora-topbar * { transition-duration: 100ms !important; animation: none !important; }
+}
+
+/* Fallback for browsers without color-mix() — keep items legible */
+@supports not (color: color-mix(in srgb, red 50%, white)) {
+  .atb-item:hover { background: rgba(0,217,255,0.12); }
+  .atb-item.is-current { background: rgba(0,217,255,0.15); box-shadow: inset 2px 0 0 0 #00d9ff; }
+  .atb-grp-cnt { background: rgba(0,217,255,0.14); border-color: rgba(0,217,255,0.28); }
 }

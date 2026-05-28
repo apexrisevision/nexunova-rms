@@ -90,7 +90,7 @@ function rUnits() {
   const cid = S?.cid;
   if (!cid) {
     document.getElementById('pg-units').innerHTML =
-      `<div class="inv-empty" style="padding:60px"><div class="inv-empty-ic">${_UI.bldg}</div><h4>No company selected</h4></div>`;
+      `<div class="dx-empty" style="padding:80px 20px"><div class="dx-empty-ic">${_UI.bldg}</div><div class="dx-empty-t">No company selected</div></div>`;
     return;
   }
   const isA = S.role === 'admin' || S.role === 'owner';
@@ -100,113 +100,112 @@ function rUnits() {
   const sold      = units.filter(u => !u.isAvailable && u.status !== 'Dead' && u.status !== 'Blocked').length;
   const dead      = units.filter(u =>  u.status === 'Dead' || u.status === 'Blocked').length;
   const projects  = gprojects();
+  const sellPct   = total > 0 ? Math.round(sold/total*100) : 0;
 
-  const kpiTiles = [
-    { key:'All',       icon:_UI.layers,  color:'var(--primary)',  val:total,     sub:'across '+projects.length+' project'+(projects.length!==1?'s':'') },
-    { key:'Available', icon:_UI.check2,  color:'var(--success)',  val:available, sub:'ready for sale' },
-    { key:'Sold',      icon:_UI.badge,   color:'#7C3AED',         val:sold,      sub: total>0 ? Math.round(sold/total*100)+'% sell-through' : 'no sales yet' },
-    { key:'Dead',      icon:_UI.ban,     color:'var(--danger)',   val:dead,      sub: dead ? dead+' blocked/dead' : 'no blocked units' },
-  ];
+  // Secondary stat tile (stacked beside the featured card)
+  const _sec = (key, title, sub, val, accent) => {
+    const on = (_uf||'All') === key;
+    return `<div class="rb-stat-sec${on?' on':''}" style="--rb-accent:${accent}" onclick="_invKpiClick('${key}')">
+      <span class="v">${val}</span>
+      <div class="l"><span class="l-t">${esc(title)}</span><span class="l-s">${esc(sub)}</span></div>
+      <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>`;
+  };
+
+  const sortLbl = _invSortField==='basePrice'?'Price':_invSortField==='unitCode'?'Code':'Unit No';
+  const _pAv = total ? (available/total)*100 : 0;
+  const _pSo = total ? (sold/total)*100      : 0;
+  const _pDe = total ? (dead/total)*100      : 0;
 
   document.getElementById('pg-units').innerHTML = `
-<div class="inv-page ani">
-  <!-- Page Header -->
-  <div class="inv-ph">
-    <div class="inv-breadcrumb">
-      <span class="lnk" onclick="nav('dashboard')">Home</span>
-      <span style="opacity:.4">${_UI.chevR}</span>
-      <span style="color:var(--text-soft)">Inventory</span>
+<div class="ani rb-page">
+
+  <!-- ── HERO ─────────────────────────────────────────────────────── -->
+  <div class="rb-crumb">
+    <span class="lnk" onclick="nav('dashboard')">Home</span>
+    <span class="sep">·</span>
+    <span class="cur">Inventory</span>
+  </div>
+  <div class="rb-hero">
+    <div class="rb-hero-text">
+      <h1 class="rb-title">All Units</h1>
+      <p class="rb-lede">
+        ${total ? `<b>${total} unit${total!==1?'s':''}</b> across ${projects.length} project${projects.length!==1?'s':''} · <span class="pos">${available} available</span> · <span class="info">${sold} sold</span>${total>0?` · <b>${sellPct}% sell-through</b>`:''}.` : 'Your inventory is empty. Add the first unit to begin tracking sales, recovery, and operational state.'}
+      </p>
     </div>
-    <div class="inv-ph-row">
-      <h1 class="inv-title">All Units</h1>
-      <div class="inv-ph-actions">
-        <button class="btn btn-gh btn-sm" onclick="printInventoryList()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.printer} Print</button>
-        ${isA ? `<button class="btn btn-gh btn-sm" onclick="openBulkImportModal()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.upload} Bulk Import</button>` : ''}
-        ${isA ? `<button id="um-add-unit-btn" class="btn btn-g btn-sm" onclick="nav('addunit')" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Unit</button>` : ''}
-      </div>
+    <div class="rb-hero-actions">
+      <button class="dx-tool" onclick="printInventoryList()">${_UI.printer}<span>Print</span></button>
+      ${isA ? `<button class="dx-tool" onclick="openBulkImportModal()">${_UI.upload}<span>Bulk Import</span></button>` : ''}
+      ${isA ? `<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''}
     </div>
   </div>
 
-  <!-- KPI Filter Tiles -->
-  <div class="inv-kpi-grid">
-    ${kpiTiles.map(t => `
-    <div class="inv-kpi-tile${_uf===t.key?' active':''}" style="--kpi-color:${t.color}"
-         onclick="_invKpiClick('${t.key}')">
-      <div class="inv-kpi-tile-top">
-        <div class="inv-kpi-icon">${t.icon}</div>
-        <span class="inv-kpi-label">${t.key === 'All' ? 'ALL UNITS' : t.key === 'Dead' ? 'BLOCKED/DEAD' : t.key.toUpperCase()}</span>
+  <!-- ── KPI COMPOSITION (featured inventory + secondary stack) ───── -->
+  <div class="rb-kpi-grid">
+    <div class="rb-stat-feature" onclick="_invKpiClick('All')" style="cursor:pointer">
+      <div class="rb-feat-label">Inventory Portfolio</div>
+      <div class="rb-feat-value"><span>${total}</span><small>units · ${total>0?sellPct+'% sell-through':'no sales yet'}</small></div>
+      ${total ? `
+      <div class="rb-feat-bar">
+        <span style="background:#16A34A;width:${_pAv}%" title="Available"></span>
+        <span style="background:#7C3AED;width:${_pSo}%" title="Sold"></span>
+        <span style="background:#DC2626;width:${_pDe}%" title="Blocked"></span>
       </div>
-      <div class="inv-kpi-bottom">
-        <div class="inv-kpi-value">${t.val}</div>
-        <div class="inv-kpi-sub">${t.sub}</div>
-      </div>
-      <button class="inv-kpi-clear" onclick="event.stopPropagation();_invKpiClick('All')" title="Clear filter">${_UI.xsm}</button>
-    </div>`).join('')}
-  </div>
-
-  <!-- Filter Toolbar -->
-  <div class="inv-toolbar">
-    <div class="inv-search-wrap">
-      <span class="inv-search-icon">${_UI.search}</span>
-      <input class="inv-search-inp" id="u-s" placeholder="Search unit code, project, type..."
-             value="${esc(_us)}" oninput="setUS(this.value)" autocomplete="off">
-      <span class="inv-search-cmd">⌘K</span>
+      <div class="rb-feat-legend">
+        <span class="li" onclick="event.stopPropagation();_invKpiClick('Available')"><span class="dot" style="background:#16A34A"></span>Available <b>${available}</b></span>
+        <span class="li" onclick="event.stopPropagation();_invKpiClick('Sold')"><span class="dot" style="background:#7C3AED"></span>Sold <b>${sold}</b></span>
+        <span class="li" onclick="event.stopPropagation();_invKpiClick('Dead')"><span class="dot" style="background:#DC2626"></span>Blocked <b>${dead}</b></span>
+      </div>` : `<div style="font-size:13px;color:var(--text-muted)">No units yet.</div>`}
     </div>
-    <button class="inv-fc${_uPrjFilter?' active':''}" id="inv-fc-prj" onclick="_invFCDropdown('prj',this)">
-      ${_UI.bldg}
-      <span class="inv-fc-label">Project</span>
-      ${_uPrjFilter ? `<span class="inv-fc-val">${esc((gprojects().find(p=>p.id===_uPrjFilter)||{}).projectName||'?')}</span>` : `<span class="inv-fc-cv">All</span>`}
-      ${_UI.chevD}
-    </button>
-    <button class="inv-fc${_uTypeFilter?' active':''}" id="inv-fc-type" onclick="_invFCDropdown('type',this)">
-      ${_UI.tag}
-      <span class="inv-fc-label">Type</span>
-      ${_uTypeFilter ? `<span class="inv-fc-val">${esc(((window._typesCache||[]).find(t=>t.id===_uTypeFilter)||{}).name||'?')}</span>` : `<span class="inv-fc-cv">All</span>`}
-      ${_UI.chevD}
-    </button>
-    <button class="inv-fc${_uStatusFilter?' active':''}" id="inv-fc-status" onclick="_invFCDropdown('status',this)">
-      ${_UI.circle}
-      <span class="inv-fc-label">Status</span>
-      ${_uStatusFilter ? `<span class="inv-fc-val">${esc(((window._statusesCache||[]).find(s=>s.id===_uStatusFilter)||{}).name||'?')}</span>` : `<span class="inv-fc-cv">All</span>`}
-      ${_UI.chevD}
-    </button>
-    <button class="inv-fc${_uFloorFilter?' active':''}" id="inv-fc-floor" onclick="_invFCDropdown('floor',this)">
-      ${_UI.layers}
-      <span class="inv-fc-label">Floor</span>
-      ${_uFloorFilter ? `<span class="inv-fc-val">${esc(((window._floorsCache||[]).find(f=>f.id===_uFloorFilter)||{}).name||'?')}</span>` : `<span class="inv-fc-cv">All</span>`}
-      ${_UI.chevD}
-    </button>
-    <button class="inv-sort-btn" onclick="_invSortMenu(this)">
-      ${_UI.sort} Sort: ${_invSortField==='basePrice'?'Price':_invSortField==='unitNo'?'Unit No':'Newest'} ${_UI.chevD}
-    </button>
-    <div class="inv-view-toggle">
-      <button class="inv-view-btn${_invView==='list'?' on':''}" onclick="_invToggleView('list')" title="List view">${_UI.list}</button>
-      <button class="inv-view-btn${_invView==='grid'?' on':''}" onclick="_invToggleView('grid')" title="Grid view">${_UI.grid}</button>
-      <button class="inv-view-btn${_invView==='board'?' on':''}" onclick="_invToggleView('board')" title="Board view">${_UI.board}</button>
+    <div class="rb-sec-stack">
+      ${_sec('Available', 'Available', 'ready for sale',                                                  available, '#16A34A')}
+      ${_sec('Sold',      'Sold',      total>0?sellPct+'% sell-through':'no sales yet',                  sold,      '#7C3AED')}
+      ${_sec('Dead',      'Blocked',   dead?'blocked / dead inventory':'none flagged',                   dead,      '#DC2626')}
     </div>
   </div>
 
-  <!-- Active Filters Bar -->
-  <div class="inv-af-bar" id="inv-af-bar"></div>
+  <!-- ── OPERATIONAL TABLE ────────────────────────────────────────── -->
+  <div class="rb-section">
+  <div class="rb-section-eyebrow">Operational table</div>
+  <div class="dx">
+    <div class="dx-toolbar">
+      <div class="dx-toolbar-l">
+        <div class="dx-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="u-s" type="search" placeholder="Search unit code, project, type…" value="${esc(_us)}" oninput="setUS(this.value)" autocomplete="off">
+        </div>
+        <button class="dx-tool${_uPrjFilter?' primary':''}"    id="inv-fc-prj"    onclick="_invFilterMenu('prj',this)">${_UI.bldg}<span>${_uPrjFilter?esc((gprojects().find(p=>p.id===_uPrjFilter)||{}).projectName||'?'):'Project'}</span>${_UI.chevD}</button>
+        <button class="dx-tool${_uTypeFilter?' primary':''}"   id="inv-fc-type"   onclick="_invFilterMenu('type',this)">${_UI.tag}<span>${_uTypeFilter?esc(((window._typesCache||[]).find(t=>t.id===_uTypeFilter)||{}).name||'?'):'Type'}</span>${_UI.chevD}</button>
+        <button class="dx-tool${_uStatusFilter?' primary':''}" id="inv-fc-status" onclick="_invFilterMenu('status',this)">${_UI.circle}<span>${_uStatusFilter?esc(((window._statusesCache||[]).find(s=>s.id===_uStatusFilter)||{}).name||'?'):'Status'}</span>${_UI.chevD}</button>
+        <button class="dx-tool${_uFloorFilter?' primary':''}"  id="inv-fc-floor"  onclick="_invFilterMenu('floor',this)">${_UI.layers}<span>${_uFloorFilter?esc(((window._floorsCache||[]).find(f=>f.id===_uFloorFilter)||{}).name||'?'):'Floor'}</span>${_UI.chevD}</button>
+        <button class="dx-tool" onclick="_invSortMenu(this)">${_UI.sort}<span>Sort: ${sortLbl}</span>${_UI.chevD}</button>
+      </div>
+      <div class="dx-toolbar-r">
+        <div style="display:inline-flex;background:var(--bg-elevated);border:1px solid var(--border-color);border-radius:9px;padding:2px;gap:2px">
+          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_invView==='list'?'var(--bg-surface)':'transparent'}" onclick="_invToggleView('list')" title="List view">${_UI.list}</button>
+          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_invView==='grid'?'var(--bg-surface)':'transparent'}" onclick="_invToggleView('grid')" title="Grid view">${_UI.grid}</button>
+          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_invView==='board'?'var(--bg-surface)':'transparent'}" onclick="_invToggleView('board')" title="Board view">${_UI.board}</button>
+        </div>
+        <button class="dx-tool icon" title="Row density" onclick="var w=document.getElementById('ul-wrap');if(w)DX.density(w,this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="dx-tool icon" title="Columns" onclick="var t=document.getElementById('ul-table');if(t)DX.columns(t,this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="dx-chips" id="inv-af-bar" style="display:none"></div>
+    <div id="ul-ct"></div>
+    <div class="dx-pager" id="ul-pager"></div>
+  </div>
+  </div>
 
-  <!-- Content -->
-  <div id="ul-ct"></div>
-  <div class="inv-pager" id="ul-pager"></div>
-</div>
-
-<!-- Insights Drawer -->
-<div class="inv-drawer-bd" id="inv-drawer-bd" onclick="_invCloseDrawer()"></div>
-<div class="inv-drawer-panel" id="inv-drawer-panel">
-  <div class="inv-drawer-hd" id="inv-drawer-hd"></div>
-  <div class="inv-drawer-body" id="inv-drawer-body"></div>
-  <div class="inv-drawer-footer" id="inv-drawer-footer"></div>
-</div>
-
-<!-- Bulk Action Bar -->
-<div class="inv-bulk-bar" id="_uBulkBar"></div>`;
+  <!-- Bulk Action Bar (mounted into a sticky position by _renderBulkBar) -->
+  <div id="_uBulkBar" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;z-index:900;transition:opacity 200ms ease,transform 200ms ease"></div>
+</div>`;
 
   _invRenderAFBar();
-  _invAttachKb();
+  if (typeof _invAttachKb === 'function') _invAttachKb();
   rULF();
   _checkUnitLimitUI();
 }
@@ -229,21 +228,16 @@ async function _checkUnitLimitUI() {
 
 function _invKpiClick(key) {
   _uf = key; _uPage = 1;
-  // Refresh KPI tiles
-  document.querySelectorAll('.inv-kpi-tile').forEach((t, i) => {
-    const keys = ['All','Available','Sold','Dead'];
-    t.classList.toggle('active', keys[i] === key);
-  });
-  rULF();
-  _invRenderAFBar();
+  rUnits(); // re-render to sync KPI active state, toolbar, and content
 }
 
-function setUF(s)            { _uf = s;           _uPage = 1; _invKpiClick(s); }
+function setUF(s)            { _uf = s;           _uPage = 1; rUnits(); }
 function setUS(q)            { _us = q; _uPage = 1; clearTimeout(_invSearchTimer); _invSearchTimer = setTimeout(() => { rULF(); _invRenderAFBar(); }, 220); }
-function setUPrjFilter(v)    { _uPrjFilter = v;    _uPage = 1; rULF(); _invRenderAFBar(); _invRefreshToolbar(); }
-function setUTypeFilter(v)   { _uTypeFilter = v;   _uPage = 1; rULF(); _invRenderAFBar(); _invRefreshToolbar(); }
-function setUStatusFilter(v) { _uStatusFilter = v; _uPage = 1; rULF(); _invRenderAFBar(); _invRefreshToolbar(); }
-function setUFloorFilter(v)  { _uFloorFilter = v;  _uPage = 1; rULF(); _invRenderAFBar(); _invRefreshToolbar(); }
+// Project/Type/Status/Floor changes alter toolbar button labels too → full re-render via rUnits()
+function setUPrjFilter(v)    { _uPrjFilter = v;    _uPage = 1; rUnits(); }
+function setUTypeFilter(v)   { _uTypeFilter = v;   _uPage = 1; rUnits(); }
+function setUStatusFilter(v) { _uStatusFilter = v; _uPage = 1; rUnits(); }
+function setUFloorFilter(v)  { _uFloorFilter = v;  _uPage = 1; rUnits(); }
 
 function rULF() {
   let units = gunits();
@@ -291,8 +285,16 @@ function rULF() {
   const pg = document.getElementById('ul-pager');
   if (!ct) return;
 
+  const isA = S.role === 'admin' || S.role === 'owner';
+  const anyFilter = _us || (_uf && _uf !== 'All') || _uPrjFilter || _uTypeFilter || _uStatusFilter || _uFloorFilter;
+
   if (!units.length) {
-    ct.innerHTML = `<div class="inv-table-wrap"><div class="inv-empty"><div class="inv-empty-ic">${_UI.bldg}</div><h4>No units found</h4><p>Try adjusting your filters or search query</p></div></div>`;
+    ct.innerHTML = `<div class="dx-wrap" id="ul-wrap">` + DX.empty({
+      icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 22V12h6v10"/><path d="M3 9l9-7 9 7"/>',
+      title:'No units found',
+      sub: anyFilter ? 'Try adjusting your filters or search.' : 'Add your first unit to populate inventory.',
+      cta: (isA && !anyFilter) ? `<button class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''
+    }) + `</div>`;
     if (pg) pg.innerHTML = '';
     _renderBulkBar();
     return;
@@ -301,75 +303,79 @@ function rULF() {
   // Pagination
   const totalPages = Math.ceil(units.length / _U_PER_PAGE);
   if (_uPage > totalPages) _uPage = totalPages;
+  if (_uPage < 1) _uPage = 1;
   const sliced = units.slice((_uPage - 1) * _U_PER_PAGE, _uPage * _U_PER_PAGE);
-  const isA = S.role === 'admin' || S.role === 'owner';
-  const anySelected = _uSelected.size > 0;
 
   if (_invView === 'board') {
-    ct.innerHTML = _invBoardHTML(units);
+    ct.innerHTML = `<div id="ul-wrap">${_invBoardHTML(units)}</div>`;
+    requestAnimationFrame(function() {
+      ct.querySelectorAll('.inv-board-card').forEach(function(c) { if (typeof _sleekCard === 'function') _sleekCard(c); });
+    });
     _renderBulkBar();
     if (pg) pg.innerHTML = '';
     return;
   }
 
   if (_invView === 'grid') {
-    ct.innerHTML = _invGridHTML(sliced, isA);
+    ct.innerHTML = `<div id="ul-wrap">${_invGridHTML(sliced, isA)}</div>`;
+    requestAnimationFrame(function() {
+      ct.querySelectorAll('.inv-grid-card').forEach(function(c) { if (typeof _sleekCard === 'function') _sleekCard(c, c.dataset.col); });
+    });
   } else {
-    // List view — data table
-    const thSort = (field, label) => {
+    // ── DX list view ─────────────────────────────────────────
+    const th = (field, label, cls) => {
       const isSorted = _invSortField === field;
-      const icon = isSorted ? (_invSortDir === 'asc' ? _UI.chevU : _UI.chevD) : _UI.chevD;
-      return `<th class="inv-th sortable${isSorted?' sorted':''}" onclick="_invSort('${field}')">
-        <span class="inv-th-inner">${label}<span class="inv-sort-ic">${icon}</span></span>
-      </th>`;
+      return `<th class="${cls||''} dx-sortable${isSorted?' dx-sorted'+(_invSortDir==='desc'?' desc':''):''}" onclick="_invSort('${field}')"><span class="dx-th-in">${label}<svg class="dx-sort-ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg></span></th>`;
     };
-
-    ct.innerHTML = `<div class="inv-table-wrap${anySelected?' inv-chk-visible':''}">
-      <table class="inv-table">
-        <thead class="inv-thead">
-          <tr>
-            ${isA ? `<th class="inv-th inv-th-chk"><input type="checkbox" id="uc-all" onchange="toggleUnitSelectAll(this.checked)" style="cursor:pointer;accent-color:var(--primary);width:14px;height:14px"></th>` : ''}
-            <th class="inv-th" style="width:120px">Code</th>
-            ${thSort('unitNo', 'Unit No')}
-            <th class="inv-th inv-th-hide" style="width:170px">Project</th>
-            <th class="inv-th inv-td-hide" style="width:120px">Type</th>
-            <th class="inv-th inv-td-hide" style="width:90px">Floor</th>
-            <th class="inv-th r inv-td-hide" style="width:90px">Area</th>
-            ${thSort('basePrice', 'Base Price')}
-            <th class="inv-th" style="width:120px">Status</th>
-            ${isA ? `<th class="inv-th" style="width:50px"></th>` : ''}
-          </tr>
-        </thead>
-        <tbody>
-          ${sliced.map((u, idx) => {
-            const prj  = gproject(u.projectId);
-            const prjDot = prj?.colorHex ? `<span class="inv-prj-dot" style="background:${prj.colorHex}"></span>` : '';
-            const floor = u.floorLabel || (u.floorNo != null ? 'F'+u.floorNo : '—');
-            const area  = u.area ? fN(u.area)+' '+(u.areaUnit||'sqft') : '—';
-            const price = u.basePrice > 0 ? fM(u.basePrice) : '—';
-            return `<tr class="inv-tr${_uSelected.has(u.id)?' sel':''}"
-                       id="utr-${u.id}" data-uid="${u.id}" data-idx="${idx}"
-                       onclick="_invRowClick('${u.id}',event)">
-              ${isA ? `<td class="inv-td inv-td-chk" onclick="event.stopPropagation()">
-                <input class="inv-row-chk" type="checkbox" id="uc-${u.id}" ${_uSelected.has(u.id)?'checked':''}
-                       onchange="toggleUnitSelect('${u.id}')">
-              </td>` : ''}
-              <td class="inv-td inv-td-code">${esc(u.unitCode||'—')}</td>
-              <td class="inv-td inv-td-no">${esc(u.unitNo)}</td>
-              <td class="inv-td inv-td-prj inv-th-hide"><span class="inv-td-prj-inner">${prjDot}${esc(prj?.projectName||prj?.name||'—')}</span></td>
-              <td class="inv-td inv-td-hide" style="color:var(--text-soft)">${esc(u.type||'—')}</td>
-              <td class="inv-td inv-td-hide" style="color:var(--text-soft)">${esc(floor)}</td>
-              <td class="inv-td inv-td-r inv-td-hide">${area}</td>
-              <td class="inv-td inv-td-price">${price}</td>
-              <td class="inv-td">${uStatusBadge(u.status, u.statusColor)}</td>
-              ${isA ? `<td class="inv-td" style="text-align:center" onclick="event.stopPropagation()">
-                <button class="inv-row-keb" onclick="_invRowKebab('${u.id}',this)">${_UI.more}</button>
-              </td>` : ''}
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`;
+    ct.innerHTML = `<div class="dx-wrap" id="ul-wrap"><div class="dx-scroll"><table class="dx-table" id="ul-table">
+      <thead><tr>
+        ${isA ? `<th style="width:38px"><input class="dx-check" type="checkbox" id="uc-all" onchange="toggleUnitSelectAll(this.checked)"></th>` : ''}
+        ${th('unitCode','Code')}
+        ${th('unitNo','Unit')}
+        <th class="dx-hide-sm">Project</th>
+        <th class="dx-hide-sm">Floor · Area</th>
+        ${th('basePrice','Price','num')}
+        <th class="num dx-hide-sm">Recovery</th>
+        <th>Status</th>
+        ${isA ? '<th class="num" style="width:60px"></th>' : ''}
+      </tr></thead>
+      <tbody>${sliced.map((u, idx) => {
+        const prj    = gproject(u.projectId);
+        const prjDot = prj?.colorHex ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${prj.colorHex};flex-shrink:0;margin-right:7px;vertical-align:middle"></span>` : '';
+        const floor  = u.floorLabel || (u.floorNo != null ? 'F'+u.floorNo : '—');
+        const area   = u.area ? fN(u.area)+' '+(u.areaUnit||'sqft') : '';
+        const isDead = u.status === 'Dead' || u.status === 'Blocked';
+        const isSold = !u.isAvailable && !isDead;
+        const paid   = (typeof actualPaid==='function')?actualPaid(u):Number(u.totalPaid||0);
+        const rem    = (typeof actualPending==='function')?actualPending(u):Math.max(0,Number(u.totalPrice||0)-paid);
+        const recPct = (Number(u.totalPrice||0) > 0) ? Math.min(100, Math.round(paid/Number(u.totalPrice||0)*100)) : 0;
+        const sev    = isDead ? 'sev-critical'
+                     : (isSold && rem > 0) ? 'sev-warn'
+                     : (isSold && rem === 0 && Number(u.totalPrice||0) > 0) ? 'sev-ok'
+                     : '';
+        const recoveryCell = isSold && Number(u.totalPrice||0) > 0
+          ? `<span class="dx-risk"><span class="dx-risk-bar"><span class="dx-risk-fill ${recPct>=70?'lo':recPct>=40?'md':'hi'}" style="width:${Math.max(4,recPct)}%"></span></span><span class="dx-risk-n">${recPct}%</span></span>`
+          : '<span style="color:var(--text-muted)">—</span>';
+        const sd = (u.unitNo+' '+(u.unitCode||'')+' '+(prj?.projectName||'')+' '+(u.type||'')+' '+(u.block||'')).toLowerCase();
+        return `<tr class="clickable ${sev}${_uSelected.has(u.id)?' dx-selected':''}" id="utr-${u.id}" data-uid="${u.id}" data-idx="${idx}" data-search="${esc(sd)}" onclick="_invRowClick('${u.id}',event)">
+          ${isA ? `<td onclick="event.stopPropagation()"><input class="dx-check" type="checkbox" id="uc-${u.id}" ${_uSelected.has(u.id)?'checked':''} onchange="toggleUnitSelect('${u.id}')"></td>` : ''}
+          <td data-v="${esc((u.unitCode||'').toLowerCase())}"><span class="dx-code">${esc(u.unitCode||'—')}</span></td>
+          <td data-v="${esc((u.unitNo||'').toLowerCase())}">
+            <span class="dx-cell-main"><span class="dx-cell-t">${esc(u.unitNo)}</span><span class="dx-cell-s">${esc(u.type||'—')}${u.block?' · '+esc(u.block):''}</span></span>
+          </td>
+          <td class="dx-hide-sm muted" style="white-space:nowrap">${prjDot}${esc(prj?.projectName||prj?.name||'—')}</td>
+          <td class="dx-hide-sm muted" style="white-space:nowrap">${esc(floor)}${area?' · '+area:''}</td>
+          <td class="num" data-v="${Number(u.basePrice||0)}">${u.basePrice > 0 ? `<span class="dx-money"><span class="cur">PKR</span>${fM(u.basePrice)}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+          <td class="num dx-hide-sm" data-v="${recPct}">${recoveryCell}</td>
+          <td>${uStatusBadge(u.status, u.statusColor)}</td>
+          ${isA ? `<td class="num"><span class="dx-acts" onclick="event.stopPropagation()">
+            <button class="dx-act" title="Quick view" onclick="_invOpenDrawer('${u.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="dx-act" title="More" onclick="_invRowKebab('${u.id}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+          </span></td>` : ''}
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div></div>`;
+    DX.density(document.getElementById('ul-wrap'));
   }
 
   // Sync select-all state
@@ -381,21 +387,24 @@ function rULF() {
   }
   _renderBulkBar();
 
-  // Pager
+  // Smart pager
   if (pg) {
-    if (totalPages <= 1) { pg.innerHTML = ''; return; }
-    let html = '';
-    if (_uPage > 1) html += `<button class="inv-pg-btn" onclick="_uPage--;rULF()">← Prev</button>`;
-    const maxPgs = 7;
-    for (let i = 1; i <= totalPages; i++) {
-      if (totalPages > maxPgs && i > 2 && i < totalPages - 1 && Math.abs(i - _uPage) > 1) {
-        if (i === 3 || i === totalPages - 2) html += `<span style="color:var(--text-faint);padding:0 4px">…</span>`;
-        continue;
-      }
-      html += `<button class="inv-pg-btn${i===_uPage?' on':''}" onclick="_uPage=${i};rULF()">${i}</button>`;
+    if (totalPages <= 1) { pg.innerHTML = ''; }
+    else {
+      const from = (_uPage-1)*_U_PER_PAGE + 1;
+      const to   = Math.min(_uPage*_U_PER_PAGE, units.length);
+      const win = [];
+      for (let i=1;i<=totalPages;i++){ if(i===1||i===totalPages||Math.abs(i-_uPage)<=2) win.push(i); else if(win[win.length-1]!=='…') win.push('…'); }
+      const nums = win.map(i => i==='…'
+        ? `<span style="padding:0 4px;color:var(--text-muted)">…</span>`
+        : `<button class="dx-pager-btn${i===_uPage?' on':''}" onclick="_uPage=${i};rULF()">${i}</button>`).join('');
+      pg.innerHTML = `<div class="dx-pager-info">Showing <b>${from}–${to}</b> of <b>${units.length}</b> units</div>`
+        + `<div class="dx-pager-ctrls">`
+        + `<button class="dx-pager-btn" ${_uPage<=1?'disabled':''} onclick="if(_uPage>1){_uPage--;rULF()}">‹ Prev</button>`
+        + nums
+        + `<button class="dx-pager-btn" ${_uPage>=totalPages?'disabled':''} onclick="if(_uPage<${totalPages}){_uPage++;rULF()}">Next ›</button>`
+        + `</div>`;
     }
-    if (_uPage < totalPages) html += `<button class="inv-pg-btn" onclick="_uPage++;rULF()">Next →</button>`;
-    pg.innerHTML = html;
   }
 }
 
@@ -431,17 +440,24 @@ function clearUnitSelection() {
 function _renderBulkBar() {
   const bar = document.getElementById('_uBulkBar');
   if (!bar) return;
-  if (_uSelected.size === 0) { bar.classList.remove('show'); return; }
-  bar.innerHTML = `
-    <span class="inv-bulk-cnt">${_uSelected.size} selected</span>
-    <div class="inv-bulk-div"></div>
-    <button class="inv-bb" onclick="_invBulkStatusMenu(this)">${_UI.refresh} Change Status</button>
-    <button class="inv-bb" onclick="_invBulkExport()">${_UI.filter} Export</button>
-    <div class="inv-bulk-div"></div>
-    <button class="inv-bb del" onclick="_invBulkDelete()">${_UI.trash} Delete</button>
-    <div class="inv-bulk-div"></div>
-    <button class="inv-bb clr" onclick="clearUnitSelection()" title="Clear selection">${_UI.x}</button>`;
-  bar.classList.add('show');
+  if (_uSelected.size === 0) {
+    bar.style.opacity = '0';
+    bar.style.pointerEvents = 'none';
+    bar.style.transform = 'translateX(-50%) translateY(20px)';
+    return;
+  }
+  bar.innerHTML = `<div class="dx-bulk">
+    <span class="dx-bulk-n"><b>${_uSelected.size}</b> selected</span>
+    <div class="dx-bulk-acts">
+      <button class="dx-bulk-btn" onclick="_invBulkStatusMenu(this)">${_UI.refresh}<span>Change Status</span></button>
+      <button class="dx-bulk-btn" onclick="_invBulkExport()">${_UI.filter}<span>Export</span></button>
+      <button class="dx-bulk-btn" onclick="_invBulkDelete()" style="background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.18)">${_UI.trash}<span>Delete</span></button>
+      <button class="dx-bulk-btn" onclick="clearUnitSelection()" title="Clear selection" style="padding:0 9px">${_UI.x}</button>
+    </div>
+  </div>`;
+  bar.style.opacity = '1';
+  bar.style.pointerEvents = 'auto';
+  bar.style.transform = 'translateX(-50%) translateY(0)';
 }
 
 // ── New helper functions ────────────────────────────────────
@@ -525,67 +541,52 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape' && _invDD) _invCloseDD();
 });
 
-function _invFCDropdown(type, btn) {
-  _invCloseDD();
-  const rect = btn.getBoundingClientRect();
-  const dd = document.createElement('div');
-  dd.className = 'inv-dd'; dd.id = 'inv-dd-open';
-  dd.style.top  = (rect.bottom + 4) + 'px';
-  dd.style.left = rect.left + 'px';
-  let items = '';
+function _invFilterMenu(type, btn) {
+  let items = [];
   if (type === 'prj') {
     const prjs = gprojects();
-    items = `<div class="inv-dd-chk" onclick="_invCloseDD();setUPrjFilter('')"><input type="checkbox" ${!_uPrjFilter?'checked':''} readonly> All Projects</div>` +
-      prjs.map(p => `<div class="inv-dd-chk" onclick="_invCloseDD();setUPrjFilter('${p.id}')"><input type="checkbox" ${_uPrjFilter===p.id?'checked':''} readonly> ${esc(p.projectName||p.name)}</div>`).join('');
+    items = [
+      { label:'All Projects', toggle:true, checked:!_uPrjFilter, onClick:()=>setUPrjFilter('') },
+      ...prjs.map(p => ({ label:(p.projectName||p.name||'?'), toggle:true, checked:_uPrjFilter===p.id, onClick:()=>setUPrjFilter(p.id) }))
+    ];
+    DX.menu(btn, items, { label:'Project', align:'left' });
   } else if (type === 'type') {
     const types = (window._typesCache||[]).filter(t=>t.isActive);
-    items = `<div class="inv-dd-chk" onclick="_invCloseDD();setUTypeFilter('')"><input type="checkbox" ${!_uTypeFilter?'checked':''} readonly> All Types</div>` +
-      types.map(t => `<div class="inv-dd-chk" onclick="_invCloseDD();setUTypeFilter('${t.id}')"><input type="checkbox" ${_uTypeFilter===t.id?'checked':''} readonly> ${esc(t.name)}</div>`).join('');
+    items = [
+      { label:'All Types', toggle:true, checked:!_uTypeFilter, onClick:()=>setUTypeFilter('') },
+      ...types.map(t => ({ label:t.name||'?', toggle:true, checked:_uTypeFilter===t.id, onClick:()=>setUTypeFilter(t.id) }))
+    ];
+    DX.menu(btn, items, { label:'Type', align:'left' });
   } else if (type === 'status') {
     const sts = (window._statusesCache||[]).filter(s=>s.isActive);
-    items = `<div class="inv-dd-chk" onclick="_invCloseDD();setUStatusFilter('')"><input type="checkbox" ${!_uStatusFilter?'checked':''} readonly> All Statuses</div>` +
-      sts.map(s => `<div class="inv-dd-chk" onclick="_invCloseDD();setUStatusFilter('${s.id}')"><input type="checkbox" ${_uStatusFilter===s.id?'checked':''} readonly> ${esc(s.name)}</div>`).join('');
+    items = [
+      { label:'All Statuses', toggle:true, checked:!_uStatusFilter, onClick:()=>setUStatusFilter('') },
+      ...sts.map(s => ({ label:s.name||'?', toggle:true, checked:_uStatusFilter===s.id, onClick:()=>setUStatusFilter(s.id) }))
+    ];
+    DX.menu(btn, items, { label:'Status', align:'left' });
   } else if (type === 'floor') {
     const fls = (window._floorsCache||[]).filter(f=>f.isActive);
-    items = `<div class="inv-dd-chk" onclick="_invCloseDD();setUFloorFilter('')"><input type="checkbox" ${!_uFloorFilter?'checked':''} readonly> All Floors</div>` +
-      fls.map(f => `<div class="inv-dd-chk" onclick="_invCloseDD();setUFloorFilter('${f.id}')"><input type="checkbox" ${_uFloorFilter===f.id?'checked':''} readonly> ${esc(f.name)}</div>`).join('');
+    items = [
+      { label:'All Floors', toggle:true, checked:!_uFloorFilter, onClick:()=>setUFloorFilter('') },
+      ...fls.map(f => ({ label:f.name||'?', toggle:true, checked:_uFloorFilter===f.id, onClick:()=>setUFloorFilter(f.id) }))
+    ];
+    DX.menu(btn, items, { label:'Floor', align:'left' });
   }
-  dd.innerHTML = `<div class="inv-dd-hd">${type.toUpperCase()}</div>${items}`;
-  document.body.appendChild(dd);
-  _invDD = dd;
-  _invArmOutsideClose(btn);
 }
 
 function _invSortMenu(btn) {
-  _invCloseDD();
-  const rect = btn.getBoundingClientRect();
-  const dd = document.createElement('div');
-  dd.className = 'inv-dd'; dd.id = 'inv-dd-open';
-  dd.style.top  = (rect.bottom + 4) + 'px';
-  dd.style.right = (window.innerWidth - rect.right) + 'px';
-  dd.style.left = 'auto';
   const opts = [['unitNo','Unit No'],['basePrice','Price'],['unitCode','Code']];
-  dd.innerHTML = opts.map(([f,l]) =>
-    `<button class="inv-dd-item" onclick="_invCloseDD();_invSort('${f}')">${_invSortField===f?'✓ ':''} ${l}</button>`
-  ).join('');
-  document.body.appendChild(dd);
-  _invDD = dd;
-  _invArmOutsideClose(btn);
+  DX.menu(btn, opts.map(([f,l]) => ({
+    label: l, toggle:true, checked: _invSortField === f, onClick: () => _invSort(f)
+  })), { label:'Sort by', align:'left' });
 }
 
 function _invBulkStatusMenu(btn) {
-  _invCloseDD();
-  const rect = btn.getBoundingClientRect();
-  const dd = document.createElement('div');
-  dd.className = 'inv-dd'; dd.id = 'inv-dd-open';
-  dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-  dd.style.left   = rect.left + 'px';
   const sts = (window._statusesCache||[]).filter(s=>s.isActive);
-  dd.innerHTML = `<div class="inv-dd-hd">CHANGE STATUS TO</div>` +
-    sts.map(s => `<button class="inv-dd-item" onclick="_invCloseDD();bulkChangeStatus('${s.id}')">${uStatusBadge(s.name,s.colorHex)} ${esc(s.name)}</button>`).join('');
-  document.body.appendChild(dd);
-  _invDD = dd;
-  _invArmOutsideClose(btn);
+  if (!sts.length) return;
+  DX.menu(btn, sts.map(s => ({
+    label: s.name || '?', onClick: () => bulkChangeStatus(s.id)
+  })), { label:'Change status to', align:'left' });
 }
 
 function _invBulkExport() {
@@ -616,49 +617,26 @@ function _invRenderAFBar() {
   const bar = document.getElementById('inv-af-bar');
   if (!bar) return;
   const tags = [];
-  if (_us) tags.push({ label: `Search: ${_us}`, clear: `setUS('')` });
-  // KPI tab is a "view" not a status — distinct from the actual status dropdown.
-  if (_uf && _uf !== 'All') tags.push({ label: `View: ${_uf === 'Dead' ? 'Blocked/Dead' : _uf}`, clear: `_invKpiClick('All')` });
-  if (_uPrjFilter) {
-    const prj = gprojects().find(p=>p.id===_uPrjFilter);
-    tags.push({ label: `Project: ${prj?.projectName||prj?.name||'?'}`, clear: `setUPrjFilter('')` });
-  }
-  if (_uTypeFilter) {
-    const t = (window._typesCache||[]).find(t=>t.id===_uTypeFilter);
-    tags.push({ label: `Type: ${t?.name||'?'}`, clear: `setUTypeFilter('')` });
-  }
-  if (_uStatusFilter) {
-    const s = (window._statusesCache||[]).find(s=>s.id===_uStatusFilter);
-    tags.push({ label: `Status: ${s?.name||'?'}`, clear: `setUStatusFilter('')` });
-  }
-  if (_uFloorFilter) {
-    const f = (window._floorsCache||[]).find(f=>f.id===_uFloorFilter);
-    tags.push({ label: `Floor: ${f?.name||'?'}`, clear: `setUFloorFilter('')` });
-  }
-  if (!tags.length) { bar.innerHTML = ''; return; }
-  bar.innerHTML = `<span class="inv-af-lbl">Filtered by:</span>` +
-    tags.map(t => `<span class="inv-af-tag" onclick="${t.clear}">${esc(t.label)} ${_UI.xsm}</span>`).join('') +
-    `<button class="inv-af-clear-all" onclick="_invClearAllFilters()">Clear all</button>`;
+  if (_us) tags.push(['Search', _us, `setUS('')`]);
+  if (_uf && _uf !== 'All') tags.push(['View', _uf === 'Dead' ? 'Blocked/Dead' : _uf, `_invKpiClick('All')`]);
+  if (_uPrjFilter)    { const prj = gprojects().find(p=>p.id===_uPrjFilter);                 tags.push(['Project', prj?.projectName||prj?.name||'?', `setUPrjFilter('')`]); }
+  if (_uTypeFilter)   { const t   = (window._typesCache||[]).find(t=>t.id===_uTypeFilter);   tags.push(['Type', t?.name||'?', `setUTypeFilter('')`]); }
+  if (_uStatusFilter) { const s   = (window._statusesCache||[]).find(s=>s.id===_uStatusFilter); tags.push(['Status', s?.name||'?', `setUStatusFilter('')`]); }
+  if (_uFloorFilter)  { const f   = (window._floorsCache||[]).find(f=>f.id===_uFloorFilter); tags.push(['Floor', f?.name||'?', `setUFloorFilter('')`]); }
+  if (!tags.length) { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = tags.map(([k,v,fn]) =>
+    `<span class="dx-chip"><b>${esc(k)}</b> ${esc(v)} <button class="dx-chip-x" onclick="${fn}" title="Remove">${_UI.xsm}</button></span>`
+  ).join('') + (tags.length > 1 ? `<button class="dx-chip-clear" onclick="_invClearAllFilters()">Clear all</button>` : '');
 }
 
 function _invClearAllFilters() {
   _us = ''; _uf = 'All'; _uPrjFilter = ''; _uTypeFilter = ''; _uStatusFilter = ''; _uFloorFilter = '';
-  const si = document.getElementById('u-s'); if (si) si.value = '';
-  document.querySelectorAll('.inv-kpi-tile').forEach((t,i) => t.classList.toggle('active', i===0));
-  _uPage = 1; rULF(); _invRenderAFBar(); _invRefreshToolbar();
+  _uPage = 1; rUnits(); // full re-render syncs search input, KPIs, toolbar
 }
 
-function _invRefreshToolbar() {
-  // Minimal refresh of filter chip labels without full rUnits()
-  const prjBtn  = document.getElementById('inv-fc-prj');
-  const typeBtn = document.getElementById('inv-fc-type');
-  const stBtn   = document.getElementById('inv-fc-status');
-  const flBtn   = document.getElementById('inv-fc-floor');
-  if (prjBtn)  prjBtn.classList.toggle('active', !!_uPrjFilter);
-  if (typeBtn) typeBtn.classList.toggle('active', !!_uTypeFilter);
-  if (stBtn)   stBtn.classList.toggle('active',  !!_uStatusFilter);
-  if (flBtn)   flBtn.classList.toggle('active',  !!_uFloorFilter);
-}
+// No-op: kept for backward compatibility (toolbar now re-renders via rUnits()).
+function _invRefreshToolbar() {}
 
 // Board view HTML generator
 function _invBoardHTML(units) {
@@ -675,7 +653,13 @@ function _invBoardHTML(units) {
       <div class="inv-board-body">
         ${colUnits.length ? colUnits.map(u => {
           const prj = gproject(u.projectId);
-          return `<div class="inv-board-card" onclick="_invOpenDrawer('${u.id}')">
+          const prjCol = prj?.colorHex || '#2563EB';
+          return `<div class="inv-board-card" data-col="${prjCol}"
+            style="filter:drop-shadow(0 4px 2px rgba(0,0,0,.30)) drop-shadow(0 10px 18px rgba(0,0,0,.20));transition:filter .22s ease,transform .22s cubic-bezier(.34,1.56,.64,1),border-color .2s ease;"
+            onclick="_invOpenDrawer('${u.id}')"
+            onmouseenter="_cardEnter(this)"
+            onmouseleave="_cardLeave(this)">
+            <div data-sl="1" style="position:absolute;top:0;left:0;height:3px;width:0%;pointer-events:none;z-index:9;background:linear-gradient(90deg,${prjCol},${prjCol}88);border-radius:3px 3px 0 0;transition:width .32s cubic-bezier(.4,0,.2,1)"></div>
             <div class="inv-bc-no">${esc(u.unitNo)}</div>
             <div class="inv-bc-prj">${esc(prj?.projectName||prj?.name||'')}</div>
             <div class="inv-bc-meta">${esc(u.type||'')}${u.floorLabel?' · '+esc(u.floorLabel):''}</div>
@@ -693,9 +677,13 @@ function _invGridHTML(units, isA) {
   return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
     ${units.map(u => {
       const prj = gproject(u.projectId);
-      return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:box-shadow .1s"
-                   onmouseenter="this.style.boxShadow='var(--shadow)'" onmouseleave="this.style.boxShadow=''"
-                   onclick="_invOpenDrawer('${u.id}')">
+      const prjCol = prj?.colorHex || '#2563EB';
+      return `<div class="inv-grid-card" data-col="${prjCol}"
+                   style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;filter:drop-shadow(0 4px 2px rgba(0,0,0,.30)) drop-shadow(0 10px 18px rgba(0,0,0,.20));transition:filter .22s ease,transform .22s cubic-bezier(.34,1.56,.64,1),border-color .2s ease;"
+                   onclick="_invOpenDrawer('${u.id}')"
+                   onmouseenter="_cardEnter(this)"
+                   onmouseleave="_cardLeave(this)">
+        <div data-sl="1" style="position:absolute;top:0;left:0;height:3px;width:0%;pointer-events:none;z-index:9;background:linear-gradient(90deg,${prjCol},${prjCol}88);border-radius:3px 3px 0 0;transition:width .32s cubic-bezier(.4,0,.2,1)"></div>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
           <div style="font-size:15px;font-weight:700;color:var(--text)">${esc(u.unitNo)}</div>
           ${uStatusBadge(u.status, u.statusColor)}
@@ -714,66 +702,62 @@ function _invOpenDrawer(uid) {
   const u = gunit(uid);
   if (!u) return;
   _invDrawerUid = uid;
-  const prj = gproject(u.projectId);
+  const prj    = gproject(u.projectId);
+  const isA    = S.role === 'admin' || S.role === 'owner';
+  const isDead = u.status === 'Dead' || u.status === 'Blocked';
+  const isSold = !u.isAvailable && !isDead;
+  const paid   = (typeof actualPaid==='function') ? actualPaid(u) : Number(u.totalPaid||0);
+  const rem    = (typeof actualPending==='function') ? actualPending(u) : Math.max(0, Number(u.totalPrice||0) - paid);
+  const recPct = Number(u.totalPrice||0) > 0 ? Math.min(100, Math.round(paid/Number(u.totalPrice||0)*100)) : 0;
 
-  const hd = document.getElementById('inv-drawer-hd');
-  const body = document.getElementById('inv-drawer-body');
-  const ft = document.getElementById('inv-drawer-footer');
-  if (!hd) return;
-
-  hd.innerHTML = `
-    <div>
-      <div class="inv-drawer-unit-no">${esc(u.unitNo)}</div>
-      <div style="margin-top:3px">${uStatusBadge(u.status, u.statusColor)}</div>
+  const hero = `<div style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;flex-wrap:wrap">
+      ${uStatusBadge(u.status, u.statusColor)}
+      ${prj ? `<span class="dx-status info"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${prj.colorHex||'#2563EB'};margin-right:5px"></span>${esc(prj.projectName||prj.name)}</span>` : ''}
+      ${isSold ? `<span class="dx-status ${rem>0?'warn':'ok'}">${rem>0?'Sold · Active':'Sold · Paid'}</span>` : ''}
     </div>
-    <div class="inv-drawer-hd-right">
-      <button class="btn btn-gh btn-sm" onclick="_invCloseDrawer();openUD('${uid}')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px">${_UI.extLink} Open full</button>
-      <button class="btn btn-gh btn-sm" onclick="_invCloseDrawer()" style="width:28px;padding:0;display:inline-flex;align-items:center;justify-content:center">${_UI.x}</button>
-    </div>`;
+    ${u.basePrice > 0 ? `<div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:11px;font-weight:600;color:var(--text-muted)">PKR</span><span style="font-size:28px;font-weight:800;letter-spacing:-.02em;color:var(--text-primary);font-variant-numeric:tabular-nums">${fM(u.basePrice)}</span></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Base price · ${u.area ? fN(u.area)+' '+(u.areaUnit||'sqft') : 'area not set'}</div>` : `<div style="font-size:12.5px;color:var(--text-muted)">No base price set</div>`}
+  </div>`;
+
+  const recoveryBlock = isSold && Number(u.totalPrice||0) > 0 ? `<div class="dx-dstats">
+    <div class="dx-dstat"><div class="dx-dstat-l">Paid</div><div class="dx-dstat-v" style="color:#16a34a">${fM(paid)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Outstanding</div><div class="dx-dstat-v" style="color:${rem>0?'#dc2626':'#16a34a'}">${rem>0?fM(rem):'Nil'}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Recovery</div><div class="dx-dstat-v">${recPct}%</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Buyer</div><div class="dx-dstat-v" style="font-size:13px;padding-top:4px">${esc(u.customerName||'—')}</div></div>
+  </div>` : '';
 
   const facts = [
-    ['Project', prj?.projectName||prj?.name||'—'],
-    ['Type', u.type||'—'],
-    ['Floor', u.floorLabel||(u.floorNo!=null?'F'+u.floorNo:'—')],
-    ['Block', u.block||'—'],
-    ['Facing', u.facing||'—'],
+    ['Type',    u.type||'—'],
+    ['Floor',   u.floorLabel || (u.floorNo!=null?'F'+u.floorNo:'—')],
+    ['Block',   u.block || '—'],
+    ['Facing',  u.facing || '—'],
     ['Parking', u.parkingCount > 0 ? u.parkingCount+' space(s)' : '—'],
+    ['Code',    u.unitCode || '—']
   ];
-
-  body.innerHTML = `
-    <div class="inv-dw-hero">
-      ${u.basePrice > 0 ? `<div class="inv-dw-price">
-        <span class="inv-dw-pkr">PKR</span>
-        <span class="inv-dw-amount">${fM(u.basePrice)}</span>
-      </div>
-      <div class="inv-dw-sub">Base Price · ${u.area ? fN(u.area)+' '+(u.areaUnit||'sqft') : 'Area not set'}</div>` : `<div class="inv-dw-sub" style="color:var(--text-muted)">No base price set</div>`}
-    </div>
-    <div class="inv-dw-facts">
-      ${facts.map(([l,v]) => `<div class="inv-dw-fact"><span class="inv-dw-fact-lbl">${l}</span><span class="inv-dw-fact-val">${esc(v)}</span></div>`).join('')}
-    </div>
-    <div class="inv-dw-section">
-      <div class="inv-dw-sec-hd">Recent Activity</div>
-      <div class="inv-dw-act-item">
-        <div class="inv-dw-act-ic">${_UI.bldg}</div>
-        <div><div class="inv-dw-act-txt">Unit added to inventory</div><div class="inv-dw-act-time">—</div></div>
-      </div>
+  const factsBlock = `<div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:6px 0 11px">Unit details</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border-color);border-radius:11px;overflow:hidden">
+      ${facts.map((f,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 13px;border-bottom:${i<facts.length-2?'1px solid var(--border-color)':'none'};${i%2===0?'border-right:1px solid var(--border-color)':''}"><span style="font-size:11px;color:var(--text-muted)">${f[0]}</span><span style="font-size:12.5px;font-weight:500;color:var(--text-primary);text-align:right">${esc(f[1])}</span></div>`).join('')}
     </div>`;
 
-  ft.innerHTML = `
-    <button class="btn btn-gh btn-sm" onclick="_invCloseDrawer();nav('addunit','${uid}')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px">${_UI.edit} Edit</button>
-    <button class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px;font-size:12px">${_UI.refresh} Change Status</button>
-    <button class="btn btn-g btn-sm" onclick="_invCloseDrawer();openUD('${uid}')" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;margin-left:auto">Open Full ${_UI.arrowR}</button>`;
+  const footer = `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>`
+    + (isA?`<button class="btn btn-gh btn-sm" onclick="document.querySelector('.dx-drawer-x').click();nav('addunit','${uid}')">${_UI.edit} Edit</button>`:'')
+    + `<button class="btn btn-p btn-sm" onclick="document.querySelector('.dx-drawer-x').click();openUD('${uid}')">Open full ${_UI.arrowR||''}</button>`;
 
-  document.getElementById('inv-drawer-bd').classList.add('show');
-  document.getElementById('inv-drawer-panel').classList.add('open');
+  DX.drawer({
+    eyebrow: u.unitCode || 'UNIT',
+    title: u.unitNo || 'Unit',
+    subtitle: (prj?.projectName||prj?.name||'—'),
+    body: hero + recoveryBlock + factsBlock,
+    footer
+  });
 }
 
+// Kept for backward compatibility (e.g., older inline calls). DX.drawer handles
+// its own close via the overlay / x-button / Esc, so this is now a no-op.
 function _invCloseDrawer() {
   _invDrawerUid = null;
-  const bd = document.getElementById('inv-drawer-bd');
-  const pn = document.getElementById('inv-drawer-panel');
-  if (bd) bd.classList.remove('show');
-  if (pn) pn.classList.remove('open');
+  document.querySelector('.dx-drawer-x')?.click();
 }
 
 // ── Keyboard shortcuts ─────────────────────────────────────

@@ -80,6 +80,32 @@ Configuring email unblocks all of these at once:
 
 Tip: one Resend account can power both — use it as the Supabase custom SMTP **and** as the edge-function `RESEND_API_KEY`.
 
-**Ops follow-ups (not code):** (1) enable Supabase Auth email confirmations + SMTP; (2) deploy `send-auth-otp`/`verify-auth-otp` + set `RESEND_API_KEY`; (3) counsel review of `terms.html`/`privacy.html`.
+**Ops status (live check 2026-05-26):**
+| Item | Status |
+|---|---|
+| `RESEND_API_KEY` Supabase secret | ✅ already set |
+| `send-auth-otp` / `verify-auth-otp` edge functions | ✅ already deployed (v3 / v2, active since 2026-05-22) |
+| `verify_jwt = false` per-function `config.toml` | ✅ added this session |
+| `auth.site_url` + redirect URLs allowlist | ✅ pushed via `supabase config push` (this session) — `supabase/config.toml` checked in |
+| Custom SMTP (Resend → Supabase Auth) | ⏳ optional for testing; **required for production scale** (default Supabase mailer = ~3/hr cap) |
+| Counsel review of `terms.html`/`privacy.html` | ⏳ ongoing |
 
 *Audit + all fixes complete, including G1–G3. — 2026-05-26*
+
+---
+
+## 5. Post-test regressions found + fixed (2026-05-27)
+
+User testing surfaced three bugs; all fixed in the same round.
+
+| ID | Bug | Root cause | Fix |
+|---|---|---|---|
+| **B1** | Signup failed with "Something went wrong" **before submission** | Honeypot fields were named `company_website` / `website` — browser autofill silently filled them → `nxBotCheck` flagged every signup as a bot | Renamed honeypot fields to non-semantic names (`nx_trap_signup`, `nx_trap_forgot`) that no browser autofill targets |
+| **B2** | Reset-password dead-end when OTP email failed | `_handleResetCode` showed an `error` state and stopped if `send-auth-otp` errored — user could click the reset link but never reach the "Set New Password" form | Made OTP fail-open: on send failure log a warning and `rpSetState('form')` so the user proceeds (the PKCE link already authenticated them). Matches the admin-2FA fail-open pattern |
+| **B3a** | Sidebar **Settings** opened **Audit Trail** | `rAdmin()` only reset `_at` when its previous value was `'users'`. If the last sub-tab was `'audit'` (which `nav()`s away), the Settings sidebar item would redirect away again | Extended the reset to cover `'users'`, `'audit'`, and unset; default tab on entry is now `'settings'` (matches the sidebar label) |
+| **B3b** | Inside Settings, the **Security** tab stayed at "Loading…" forever | `admin.js` used `sb.rpc(...)` everywhere — but `sb` is only defined in standalone HTML files (`buyer-portal`, `signup.html`, report viewers), never in the main app. Every `sb.rpc` threw silently → Promise.all rejected → `ct.innerHTML` never replaced | Replaced all `sb.` with `supabase.` in `admin.js` (Security/IP/2FA/timeout saves all work now). Also fixed `get_auth_events` call to pass all 4 required args |
+| **B3b-bonus** | `fieldvisits.js` had the same latent `sb.` bug | Same root cause | Same fix applied to `fieldvisits.js` (rpc + storage + from calls all switched to `supabase.`) |
+
+Cache busters bumped: `admin.js?v=20260527a`, `forgot-password.js?v=20260527a`, `fieldvisits.js?v=20260527a`. JS syntax ✓ on all.
+
+*Round 2 complete. — 2026-05-27*

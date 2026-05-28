@@ -103,37 +103,52 @@ h3.section-title, .sec-heading {
 }
 
 /* ══ 2. CARD DESIGN — uniform across all modules ═════════════════════════════
-   white bg · #E5E7EB border · 12px radius · 20px 24px padding · light shadow
+   Sleek 3D card system: filter drop-shadow (not box-shadow) for depth that
+   survives overflow:hidden clipping. Sweep line via ::before on hover.
    ─────────────────────────────────────────────────────────────────────────── */
 .card, .kpi, .stat-card, .dkpi, .dash-kpi,
 .dash-qa-btn, .panel, .prj-kpi-card {
   background:              var(--x-surface) !important;
   border:                  1px solid var(--x-border) !important;
   border-radius:           var(--v-card-radius) !important;
-  box-shadow:              var(--v-card-shadow) !important;
+  box-shadow:              none !important;
   backdrop-filter:         none !important;
   -webkit-backdrop-filter: none !important;
-  transition:              box-shadow var(--x-t), transform var(--x-t),
+  position:                relative !important;
+  filter:                  drop-shadow(0 4px 2px rgba(0,0,0,.28)) drop-shadow(0 10px 18px rgba(0,0,0,.18)) !important;
+  transition:              filter .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1),
                            border-color var(--x-t) !important;
 }
 .card:hover, .kpi:hover, .stat-card:hover,
 .dkpi:hover, .dash-kpi:hover, .dash-qa-btn:hover, .prj-kpi-card:hover {
-  box-shadow:    var(--v-card-shadow-h) !important;
-  transform:     translateY(-1px) !important;
-  border-color:  var(--x-border-2) !important;
+  filter:       drop-shadow(0 8px 4px rgba(0,0,0,.34)) drop-shadow(0 20px 30px rgba(0,0,0,.26)) !important;
+  transform:    translateY(-4px) scale(1.01) !important;
+  border-color: var(--x-border-2) !important;
 }
 
-/* KILL all colored top-border / gradient pseudo-elements on cards */
-.card::before, .kpi::before, .stat-card::before,
+/* Sweep line — allow ::before to render (remove old kill rule) */
+.card::before {
+  content:          '' !important;
+  display:          block !important;
+  position:         absolute !important;
+  top:              0 !important; left: 0 !important;
+  height:           3px !important; width: 0% !important;
+  background:       var(--card-accent, linear-gradient(90deg,#2563EB,#6366F1)) !important;
+  border-radius:    var(--v-card-radius) var(--v-card-radius) 0 0 !important;
+  transition:       width .32s cubic-bezier(.4,0,.2,1) !important;
+  z-index:          2 !important; pointer-events: none !important;
+}
+.card:hover::before { width: 100% !important; }
+.card::after  { background: none !important; }
+
+/* kpi/stat/dash pseudo — allow their own ::before if any */
+.kpi::before, .stat-card::before,
 .dash-kpi::before, .dash-qa-btn::before {
   background: none !important;
   display:    none !important;
 }
-.card::after {
-  background: none !important;
-}
 
-/* Light mode — solid white, no glass */
+/* Light mode */
 [data-theme="light"] .card,
 [data-theme="light"] .panel,
 [data-theme="light"] .dash-kpi,
@@ -143,13 +158,13 @@ h3.section-title, .sec-heading {
   backdrop-filter:         none !important;
   -webkit-backdrop-filter: none !important;
   border-color:            #E5E7EB !important;
-  box-shadow:              0 1px 4px rgba(0,0,0,0.06) !important;
+  filter:                  drop-shadow(0 3px 2px rgba(0,0,0,.07)) drop-shadow(0 8px 14px rgba(0,0,0,.09)) !important;
 }
 [data-theme="light"] .card:hover,
 [data-theme="light"] .dash-kpi:hover,
 [data-theme="light"] .dash-qa-btn:hover {
-  box-shadow:   0 4px 12px rgba(0,0,0,0.10) !important;
-  border-color: rgba(37,99,235,0.25) !important;
+  filter:       drop-shadow(0 6px 3px rgba(0,0,0,.10)) drop-shadow(0 16px 24px rgba(37,99,235,.14)) !important;
+  border-color: rgba(37,99,235,0.30) !important;
 }
 
 /* ══ 3. COLOR SYSTEM — replace ALL cyan with primary ══════════════════════════
@@ -1657,9 +1672,17 @@ button.btn-g, button.btn-d,
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   §48 PREMIUM TRANSFORMATION (2026-05-27) — Phase 5 polish pass.
-   Appended last; wins all prior conflicts. Pairs with the dark-navy override
-   removal at the top of §1 above. Sections:
+   §48 PREMIUM TRANSFORMATION (2026-05-27; scoped to #s-app 2026-05-27 emergency)
+   Phase 5 polish pass. Appended last; wins all prior conflicts. Pairs with the
+   dark-navy override removal at the top of §1 above.
+
+   🚫 ALL RULES BELOW ARE SCOPED TO `#s-app` so they cannot leak into the login
+      screen (`#s-login`), the setup wizard, or buyer-portal.html. Body-bg rules
+      use `#s-app` directly (instead of `body`) so login keeps its own background.
+      Re-introducing un-scoped selectors here will break the login page — when
+      adding new rules in §48 always prefix `#s-app `.
+
+   Sections:
      · Sidebar light-mode (replacement for the deleted dark-navy block)
      · Typography hierarchy
      · KPI card redesign
@@ -1677,70 +1700,70 @@ button.btn-g, button.btn-d,
    as <div class="ni"><span class="ni-ic"><span class="ni-lb"><span class="ni-bdg">.
    Active state is .ni.on (NOT .ni.active — nel.classList.add('on') at ui.js:652).
    Group labels are .nav-grp-lbl. CSS values below are unchanged from the spec. */
-[data-theme="light"] .sb,
-[data-theme="light"] .sb-nav,
-[data-theme="light"] .sb-col-btn,
-[data-theme="light"] .sb-ws,
-[data-theme="light"] .sb-user-zone {
+[data-theme="light"] #s-app .sb,
+[data-theme="light"] #s-app .sb-nav,
+[data-theme="light"] #s-app .sb-col-btn,
+[data-theme="light"] #s-app .sb-ws,
+[data-theme="light"] #s-app .sb-user-zone {
   background: #F8FAFC !important;
   border-right: 1px solid #E2E8F0 !important;
 }
-[data-theme="light"] .nav-grp-lbl {
+[data-theme="light"] #s-app .nav-grp-lbl {
   color: #64748B !important;
   font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
 }
-[data-theme="light"] .ni {
+[data-theme="light"] #s-app .ni {
   color: #374151 !important;
 }
-[data-theme="light"] .ni:hover {
+[data-theme="light"] #s-app .ni:hover {
   background: #EFF6FF !important;
   color: #2563EB !important;
 }
-[data-theme="light"] .ni.on {
+[data-theme="light"] #s-app .ni.on {
   background: #EFF6FF !important;
   color: #2563EB !important;
   font-weight: 600 !important;
 }
-[data-theme="light"] .ni-ic,
-[data-theme="light"] .ni-lb {
+[data-theme="light"] #s-app .ni-ic,
+[data-theme="light"] #s-app .ni-lb {
   color: inherit !important;
 }
 
 /* ── TYPOGRAPHY HIERARCHY ─────────────────────────────────────────────────── */
-.ph h1, .page-title {
+#s-app .ph h1, #s-app .page-title {
   font-size: 22px !important;
   font-weight: 700 !important;
   color: var(--text-primary) !important;
   letter-spacing: -0.02em !important;
 }
-.ph h2, .section-title {
+#s-app .ph h2, #s-app .section-title {
   font-size: 16px !important;
   font-weight: 600 !important;
   color: var(--text-primary) !important;
 }
-.ph p, .page-subtitle, .ph-sub {
+#s-app .ph p, #s-app .page-subtitle, #s-app .ph-sub {
   font-size: 13px !important;
   color: var(--text-muted) !important;
   font-weight: 400 !important;
 }
-.tbl th {
+#s-app .tbl th {
   font-size: 11px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.06em !important;
   color: var(--text-muted) !important;
 }
-.tbl td {
+#s-app .tbl td {
   font-size: 13px !important;
   color: var(--text-primary) !important;
   padding: 12px 16px !important;
 }
 
 /* ── KPI CARD REDESIGN ────────────────────────────────────────────────────── */
-.db-kpi {
+#s-app .db-kpi {
   border-radius: 12px !important;
   padding: 20px !important;
   border: 1px solid var(--border-color) !important;
@@ -1748,10 +1771,10 @@ button.btn-g, button.btn-d,
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04) !important;
   transition: box-shadow 0.2s ease !important;
 }
-.db-kpi:hover {
+#s-app .db-kpi:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
 }
-.db-kpi-hd {
+#s-app .db-kpi-hd {
   font-size: 11px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -1761,7 +1784,7 @@ button.btn-g, button.btn-d,
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
-.db-kpi-val {
+#s-app .db-kpi-val {
   font-size: 26px !important;
   font-weight: 700 !important;
   letter-spacing: -0.02em !important;
@@ -1770,7 +1793,7 @@ button.btn-g, button.btn-d,
 }
 
 /* ── CARD / PANEL DESIGN ──────────────────────────────────────────────────── */
-.card, .panel, .db-card, [class*="-card"], [class*="-panel"] {
+#s-app .card, #s-app .panel, #s-app .db-card, #s-app [class*="-card"], #s-app [class*="-panel"] {
   border-radius: 12px !important;
   border: 1px solid var(--border-color) !important;
   background: var(--bg-surface, #FFFFFF) !important;
@@ -1778,27 +1801,27 @@ button.btn-g, button.btn-d,
 }
 
 /* ── TABLE DESIGN ─────────────────────────────────────────────────────────── */
-.tbl { border-collapse: separate !important; border-spacing: 0 !important; }
-.tbl thead tr { background: transparent !important; }
-.tbl tbody tr {
+#s-app .tbl { border-collapse: separate !important; border-spacing: 0 !important; }
+#s-app .tbl thead tr { background: transparent !important; }
+#s-app .tbl tbody tr {
   border-bottom: 1px solid var(--border-color) !important;
   transition: background 0.15s !important;
 }
-.tbl tbody tr:hover { background: #F8FAFC !important; }
-.tbl tbody tr:nth-child(even) { background: transparent !important; }
+#s-app .tbl tbody tr:hover { background: #F8FAFC !important; }
+#s-app .tbl tbody tr:nth-child(even) { background: transparent !important; }
 
 /* ── TOPBAR CLEAN ─────────────────────────────────────────────────────────── */
-.aurora-topbar, .aurora-topbar-bar {
+#s-app .aurora-topbar, #s-app .aurora-topbar-bar {
   height: 56px !important;
   border-bottom: 1px solid var(--border-color) !important;
   background: var(--bg-surface, #FFFFFF) !important;
   box-shadow: none !important;
 }
-.atb-current, .atb-current-name {
+#s-app .atb-current, #s-app .atb-current-name {
   font-size: 14px !important;
   font-weight: 600 !important;
 }
-.atb-current-lbl {
+#s-app .atb-current-lbl {
   font-size: 10px !important;
   font-weight: 500 !important;
   text-transform: uppercase !important;
@@ -1807,8 +1830,8 @@ button.btn-g, button.btn-d,
 }
 
 /* ── BUTTON SYSTEM ────────────────────────────────────────────────────────── */
-.btn-g, .btn-d, button[class*="btn-primary"],
-.btn.primary, [class*="add-btn"], .action-btn-primary {
+#s-app .btn-g, #s-app .btn-d, #s-app button[class*="btn-primary"],
+#s-app .btn.primary, #s-app [class*="add-btn"], #s-app .action-btn-primary {
   background: #2563EB !important;
   color: #FFFFFF !important;
   border-radius: 8px !important;
@@ -1818,10 +1841,10 @@ button.btn-g, button.btn-d,
   border: none !important;
   transition: background 0.2s !important;
 }
-.btn-g:hover, .btn-d:hover {
+#s-app .btn-g:hover, #s-app .btn-d:hover {
   background: #1D4ED8 !important;
 }
-.btn-gh {
+#s-app .btn-gh {
   background: transparent !important;
   border: 1px solid var(--border-color) !important;
   border-radius: 8px !important;
@@ -1829,116 +1852,346 @@ button.btn-g, button.btn-d,
   padding: 8px 16px !important;
   transition: all 0.2s !important;
 }
-.btn-gh:hover {
+#s-app .btn-gh:hover {
   border-color: #2563EB !important;
   color: #2563EB !important;
 }
 
 /* ── BREADCRUMB ───────────────────────────────────────────────────────────── */
-.breadcrumb, .bc, [class*="breadcrumb"] {
+#s-app .breadcrumb, #s-app .bc, #s-app [class*="breadcrumb"] {
   font-size: 12px !important;
   color: var(--text-muted) !important;
 }
-.breadcrumb a, .bc a { color: var(--text-muted) !important; }
-.breadcrumb .current, .bc .active {
+#s-app .breadcrumb a, #s-app .bc a { color: var(--text-muted) !important; }
+#s-app .breadcrumb .current, #s-app .bc .active {
   color: var(--text-primary) !important;
   font-weight: 500 !important;
 }
 
 /* ── LIGHT MODE PAGE BG ───────────────────────────────────────────────────── */
-[data-theme="light"] body,
-[data-theme="light"] .app-content,
-[data-theme="light"] .main-content,
-[data-theme="light"] .pg {
+/* body → #s-app: applies the page-bg to the app shell, leaving login untouched. */
+[data-theme="light"] #s-app,
+[data-theme="light"] #s-app .app-content,
+[data-theme="light"] #s-app .main-content,
+[data-theme="light"] #s-app .pg {
   background: #F1F5F9 !important;
 }
-[data-theme="light"] .card,
-[data-theme="light"] .panel,
-[data-theme="light"] .db-card,
-[data-theme="light"] .db-kpi {
+[data-theme="light"] #s-app .card,
+[data-theme="light"] #s-app .panel,
+[data-theme="light"] #s-app .db-card,
+[data-theme="light"] #s-app .db-kpi {
   background: #FFFFFF !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   §48 DARK MODE PARALLELS (added 2026-05-27) — mirrors the [data-theme="light"]
-   rules above so both themes look intentional. Typography, buttons, breadcrumb,
-   and card border-radius/shadow are NOT mirrored here — they are already
-   theme-agnostic in §48 (use var(--text-primary)/--bg-surface/--border-color
-   which auto-swap per theme.css). Dark-side values per Rashid's spec.
+   §48 DARK MODE PARALLELS (added 2026-05-27; scoped to #s-app 2026-05-27)
+   Mirrors the [data-theme="light"] rules above so both themes look intentional.
+   Typography, buttons, breadcrumb, and card border-radius/shadow are NOT
+   mirrored here — they are already theme-agnostic in §48 (use var(--text-primary)
+   / --bg-surface / --border-color which auto-swap per theme.css).
+
+   🚫 ALL RULES BELOW ARE SCOPED TO `#s-app` so they cannot leak into the login
+      screen, the setup wizard, or buyer-portal.html. Body-bg rules use `#s-app`
+      directly (instead of `body`) so login keeps its own background.
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* ── SIDEBAR DARK MODE ────────────────────────────────────────────────────── */
-[data-theme="dark"] .sb,
-[data-theme="dark"] .sb-nav,
-[data-theme="dark"] .sb-col-btn,
-[data-theme="dark"] .sb-ws,
-[data-theme="dark"] .sb-user-zone {
+[data-theme="dark"] #s-app .sb,
+[data-theme="dark"] #s-app .sb-nav,
+[data-theme="dark"] #s-app .sb-col-btn,
+[data-theme="dark"] #s-app .sb-ws,
+[data-theme="dark"] #s-app .sb-user-zone {
   background: #0F172A !important;
   border-right: 1px solid #1E293B !important;
 }
-[data-theme="dark"] .nav-grp-lbl {
+[data-theme="dark"] #s-app .nav-grp-lbl {
   color: #475569 !important;
   font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
 }
-[data-theme="dark"] .ni {
+[data-theme="dark"] #s-app .ni {
   color: #94A3B8 !important;
 }
-[data-theme="dark"] .ni:hover {
+[data-theme="dark"] #s-app .ni:hover {
   background: #1E293B !important;
   color: #E2E8F0 !important;
 }
-[data-theme="dark"] .ni.on {
+[data-theme="dark"] #s-app .ni.on {
   background: rgba(37,99,235,0.15) !important;
   color: #60A5FA !important;
   font-weight: 600 !important;
 }
-[data-theme="dark"] .ni-ic,
-[data-theme="dark"] .ni-lb {
+[data-theme="dark"] #s-app .ni-ic,
+[data-theme="dark"] #s-app .ni-lb {
   color: inherit !important;
 }
 
 /* ── KPI CARDS DARK ──────────────────────────────────────────────────────── */
-[data-theme="dark"] .db-kpi {
+[data-theme="dark"] #s-app .db-kpi {
   background: #1E293B !important;
   border-color: #334155 !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
 }
-[data-theme="dark"] .db-kpi-hd {
+[data-theme="dark"] #s-app .db-kpi-hd {
   color: #64748B !important;
 }
-[data-theme="dark"] .db-kpi-val {
+[data-theme="dark"] #s-app .db-kpi-val {
   color: #F1F5F9 !important;
 }
 
 /* ── CARDS / PANELS DARK ─────────────────────────────────────────────────── */
-[data-theme="dark"] .card,
-[data-theme="dark"] .panel,
-[data-theme="dark"] .db-card,
-[data-theme="dark"] [class*="-card"],
-[data-theme="dark"] [class*="-panel"] {
+[data-theme="dark"] #s-app .card,
+[data-theme="dark"] #s-app .panel,
+[data-theme="dark"] #s-app .db-card,
+[data-theme="dark"] #s-app [class*="-card"],
+[data-theme="dark"] #s-app [class*="-panel"] {
   background: #1E293B !important;
   border-color: #334155 !important;
 }
 
 /* ── TOPBAR DARK ─────────────────────────────────────────────────────────── */
-[data-theme="dark"] .aurora-topbar,
-[data-theme="dark"] .aurora-topbar-bar {
+[data-theme="dark"] #s-app .aurora-topbar,
+[data-theme="dark"] #s-app .aurora-topbar-bar {
   background: #0F172A !important;
   border-bottom: 1px solid #1E293B !important;
 }
 
 /* ── PAGE BG DARK ────────────────────────────────────────────────────────── */
-[data-theme="dark"] body,
-[data-theme="dark"] .app-content,
-[data-theme="dark"] .main-content,
-[data-theme="dark"] .pg {
+/* body → #s-app: applies the page-bg to the app shell, leaving login untouched. */
+[data-theme="dark"] #s-app,
+[data-theme="dark"] #s-app .app-content,
+[data-theme="dark"] #s-app .main-content,
+[data-theme="dark"] #s-app .pg {
   background: #0B1120 !important;
 }
 
 /* ── TABLE DARK ──────────────────────────────────────────────────────────── */
-[data-theme="dark"] .tbl tbody tr:hover {
+[data-theme="dark"] #s-app .tbl tbody tr:hover {
   background: #1E293B !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   REBIRTH — Display typography + asymmetric KPI composition (2026-05-27)
+   ──────────────────────────────────────────────────────────────────────────
+   Visual primitives for the premium-product visual rebirth: display titles,
+   eyebrow rhythm, lede paragraphs, featured + secondary stat composition.
+   Theme-aware. Used by Clients / Units / PDC / Dashboard hero blocks.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.rb-page         { padding-top: 6px; }
+
+.rb-crumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+.rb-crumb .lnk   { color: var(--text-muted); cursor: pointer; transition: color 140ms; }
+.rb-crumb .lnk:hover { color: var(--text-primary); }
+.rb-crumb .sep   { opacity: .35; }
+.rb-crumb .cur   { color: var(--text-primary); }
+
+.rb-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.rb-hero-text    { min-width: 0; max-width: 660px; }
+.rb-title {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 800;
+  letter-spacing: -.025em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  margin: 0;
+}
+.rb-lede {
+  font-size: 15.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 560px;
+  margin: 18px 0 0;
+  font-weight: 400;
+}
+.rb-lede b { color: var(--text-primary); font-weight: 600; }
+.rb-lede .pos { color: #16A34A; font-weight: 600; }
+.rb-lede .neg { color: #DC2626; font-weight: 600; }
+.rb-lede .info { color: #7C3AED; font-weight: 600; }
+.rb-hero-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+
+/* Section markers between major page zones */
+.rb-section          { margin-top: 40px; }
+.rb-section-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rb-section-eyebrow::after {
+  content:'';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+  margin-left: 4px;
+}
+
+/* Asymmetric KPI grid: featured + secondary stack */
+.rb-kpi-grid {
+  display: grid;
+  grid-template-columns: 1.45fr 1fr;
+  gap: 14px;
+  margin-top: 28px;
+}
+@media (max-width: 980px) { .rb-kpi-grid { grid-template-columns: 1fr; } }
+
+.rb-stat-feature {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  padding: 30px 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15,23,42,.05);
+}
+[data-theme="dark"] .rb-stat-feature { box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.rb-stat-feature::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 320px; height: 320px;
+  background: radial-gradient(circle at 100% 0, rgba(37,99,235,.10), transparent 62%);
+  pointer-events: none;
+}
+[data-theme="dark"] .rb-stat-feature::before { background: radial-gradient(circle at 100% 0, rgba(37,99,235,.18), transparent 62%); }
+
+.rb-feat-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  position: relative;
+}
+.rb-feat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 12px 0 18px;
+  position: relative;
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.rb-feat-value .cur {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+.rb-feat-value small {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.rb-feat-bar {
+  height: 6px;
+  border-radius: 99px;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 14px;
+  background: var(--bg-elevated);
+  position: relative;
+}
+.rb-feat-bar > span { height: 100%; }
+.rb-feat-legend {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  position: relative;
+}
+.rb-feat-legend .li { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; transition: color 130ms; }
+.rb-feat-legend .li:hover { color: var(--text-primary); }
+.rb-feat-legend .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.rb-feat-legend b { color: var(--text-primary); font-weight: 600; }
+
+/* Secondary stat tiles — stacked next to the featured card */
+.rb-sec-stack { display: flex; flex-direction: column; gap: 10px; }
+.rb-stat-sec {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--rb-accent, #2563EB);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
+  position: relative;
+}
+.rb-stat-sec:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
+}
+[data-theme="dark"] .rb-stat-sec:hover { box-shadow: 0 10px 24px rgba(0,0,0,.4); }
+.rb-stat-sec.on {
+  border-color: var(--rb-accent, #2563EB);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--rb-accent, #2563EB) 22%, transparent);
+}
+.rb-stat-sec .v {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  min-width: 62px;
+}
+.rb-stat-sec .l { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.rb-stat-sec .l-t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -.01em;
+}
+.rb-stat-sec .l-s {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.rb-stat-sec .arr {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 160ms ease, color 160ms ease;
+  opacity: .6;
+}
+.rb-stat-sec:hover .arr,
+.rb-stat-sec.on .arr {
+  color: var(--rb-accent, #2563EB);
+  transform: translateX(3px);
+  opacity: 1;
+}
+
+/* Fallback for browsers without color-mix() */
+@supports not (color: color-mix(in srgb, red 50%, white)) {
+  .rb-stat-sec.on { box-shadow: 0 8px 22px rgba(37,99,235,.22); }
 }

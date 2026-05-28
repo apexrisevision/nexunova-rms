@@ -69,8 +69,8 @@ async function fvLoad() {
   if (!co) return;
 
   const [analyticsRes, visitsRes] = await Promise.all([
-    sb.rpc('get_field_visit_analytics', { p_company_id: co }),
-    sb.rpc('get_field_visits', { p_company_id: co }),
+    supabase.rpc('get_field_visit_analytics', { p_company_id: co }),
+    supabase.rpc('get_field_visits', { p_company_id: co }),
   ]);
 
   if (analyticsRes.data && analyticsRes.data.success !== false) {
@@ -352,9 +352,9 @@ async function fvSubmit() {
     const file = photoInput.files[0];
     const ext  = file.name.split('.').pop();
     const path = `field-visits/${co}/${Date.now()}.${ext}`;
-    const { error: upErr } = await sb.storage.from('rms-files').upload(path, file, { upsert: true });
+    const { error: upErr } = await supabase.storage.from('rms-files').upload(path, file, { upsert: true });
     if (!upErr) {
-      const { data: pub } = sb.storage.from('rms-files').getPublicUrl(path);
+      const { data: pub } = supabase.storage.from('rms-files').getPublicUrl(path);
       data.photo_url = pub?.publicUrl || null;
     }
   }
@@ -362,7 +362,7 @@ async function fvSubmit() {
   const saveBtn = document.querySelector('#fv-modal .btn-g');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
-  const { data: res, error } = await sb.rpc('log_field_visit', {
+  const { data: res, error } = await supabase.rpc('log_field_visit', {
     p_company_id: co,
     p_data: data,
   });
@@ -400,7 +400,7 @@ async function fvSyncOfflineQueue() {
   const remaining = [];
   for (const item of q) {
     const { _queued_at, ...payload } = item;
-    const { error } = await sb.from('contact_logs').insert({ ...payload, company_id: co });
+    const { error } = await supabase.from('contact_logs').insert({ ...payload, company_id: co });
     if (error) remaining.push(item);
   }
   localStorage.setItem(_FV_QUEUE_KEY, JSON.stringify(remaining));

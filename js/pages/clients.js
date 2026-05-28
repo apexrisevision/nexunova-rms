@@ -89,82 +89,103 @@ function rClients() {
   const inactive    = all.filter(c => c.status === 'inactive').length;
   const blacklisted = all.filter(c => c.status === 'blacklisted').length;
 
-  const _catLabel = _cCategoryFilter || '';
+  const _catLabel  = _cCategoryFilter || '';
   const _hlthLabel = _cHealthFilter || '';
 
-  const kpiTiles = [
-    { key:'',            color:'var(--primary)', val:total,       sub:'all clients',      label:'All Clients' },
-    { key:'active',      color:'var(--success)', val:active,      sub:'currently active', label:'Active'      },
-    { key:'inactive',    color:'#64748B',        val:inactive,    sub:'not active',       label:'Inactive'    },
-    { key:'blacklisted', color:'var(--danger)',  val:blacklisted, sub:'flagged clients',  label:'Blacklisted' },
-  ];
+  // ── Secondary stat tile (stacked beside the featured card) ──
+  const _sec = (key, title, sub, val, accent) => {
+    const on = _cStatusFilter === key;
+    return `<div class="rb-stat-sec${on?' on':''}" style="--rb-accent:${accent}" onclick="setCStatusFilter('${key}')">
+      <span class="v">${val}</span>
+      <div class="l"><span class="l-t">${esc(title)}</span><span class="l-s">${esc(sub)}</span></div>
+      <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </div>`;
+  };
 
-  document.getElementById('pg-clients').innerHTML = `<div class="inv-page ani module-client">
+  // Proportions for the featured-stat breakdown bar
+  const _pA = total ? (active/total)*100      : 0;
+  const _pI = total ? (inactive/total)*100    : 0;
+  const _pB = total ? (blacklisted/total)*100 : 0;
+  const engPct = total ? Math.round(active/total*100) : 0;
 
-  <!-- Breadcrumb -->
-  <div class="inv-breadcrumb">
+  document.getElementById('pg-clients').innerHTML = `<div class="ani module-client rb-page">
+
+  <!-- ── HERO (display title + lede + actions) ────────────────────── -->
+  <div class="rb-crumb">
     <span class="lnk" onclick="nav('dashboard')">Home</span>
-    <span style="opacity:.4">${_UI.chevR}</span>
-    <span style="color:var(--text-soft)">Clients</span>
+    <span class="sep">·</span>
+    <span class="cur">Clients</span>
   </div>
-
-  <!-- Page Header -->
-  <div class="inv-ph-row">
-    <h1 class="inv-title">All Clients</h1>
-    <div class="inv-ph-actions">
-      <button class="btn btn-gh btn-sm" onclick="printClientsList()" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.printer} Print</button>
-      ${isA ? `<button id="um-add-client-btn" class="btn btn-g btn-sm" onclick="openClientModal(null)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Client</button>` : ''}
+  <div class="rb-hero">
+    <div class="rb-hero-text">
+      <h1 class="rb-title">All Clients</h1>
+      <p class="rb-lede">
+        ${total ? `Manage relationships, health, and recovery exposure across <b>${total} client${total!==1?'s':''}</b>${active?` — including <span class="pos">${active} active</span>`:''}${blacklisted?` and <span class="neg">${blacklisted} flagged</span>`:''}.` : 'Your client directory is empty. Add the first client to begin tracking relationships and recovery exposure.'}
+      </p>
+    </div>
+    <div class="rb-hero-actions">
+      <button class="dx-tool" onclick="printClientsList()">${_UI.printer}<span>Print</span></button>
+      ${isA ? `<button id="um-add-client-btn" class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''}
     </div>
   </div>
 
-  <!-- KPI Filter Tiles -->
-  <div class="inv-kpi-grid">
-    ${kpiTiles.map(t => `
-    <div class="inv-kpi-tile${_cStatusFilter===t.key?' active':''}" style="--kpi-color:${t.color}"
-         onclick="setCStatusFilter('${t.key}')">
-      <div class="inv-kpi-tile-top">
-        <div class="inv-kpi-icon">${_UI.user}</div>
-        <span class="inv-kpi-label">${t.label.toUpperCase()}</span>
+  <!-- ── KPI COMPOSITION (featured + secondary stack) ─────────────── -->
+  <div class="rb-kpi-grid">
+    <!-- Featured: client portfolio with proportional breakdown -->
+    <div class="rb-stat-feature" onclick="setCStatusFilter('')" style="cursor:pointer">
+      <div class="rb-feat-label">Client Portfolio</div>
+      <div class="rb-feat-value"><span>${total}</span><small>total · ${engPct}% active engagement</small></div>
+      ${total ? `
+      <div class="rb-feat-bar">
+        <span style="background:#16A34A;width:${_pA}%" title="Active"></span>
+        <span style="background:#64748B;width:${_pI}%" title="Inactive"></span>
+        <span style="background:#DC2626;width:${_pB}%" title="Blacklisted"></span>
       </div>
-      <div class="inv-kpi-bottom">
-        <div class="inv-kpi-value">${t.val}</div>
-        <div class="inv-kpi-sub">${t.sub}</div>
+      <div class="rb-feat-legend">
+        <span class="li" onclick="event.stopPropagation();setCStatusFilter('active')"><span class="dot" style="background:#16A34A"></span>Active <b>${active}</b></span>
+        <span class="li" onclick="event.stopPropagation();setCStatusFilter('inactive')"><span class="dot" style="background:#64748B"></span>Inactive <b>${inactive}</b></span>
+        <span class="li" onclick="event.stopPropagation();setCStatusFilter('blacklisted')"><span class="dot" style="background:#DC2626"></span>Blacklisted <b>${blacklisted}</b></span>
+      </div>` : `<div style="font-size:13px;color:var(--text-muted)">No clients yet.</div>`}
+    </div>
+    <!-- Secondary: clickable status filters, stacked -->
+    <div class="rb-sec-stack">
+      ${_sec('active',      'Active',      'currently engaged',    active,      '#16A34A')}
+      ${_sec('inactive',    'Inactive',    'no recent activity',   inactive,    '#64748B')}
+      ${_sec('blacklisted', 'Blacklisted', 'flagged for review',   blacklisted, '#DC2626')}
+    </div>
+  </div>
+
+  <!-- ── DIRECTORY (data experience) ──────────────────────────────── -->
+  <div class="rb-section">
+  <div class="rb-section-eyebrow">Directory</div>
+  <div class="dx">
+    <div class="dx-toolbar">
+      <div class="dx-toolbar-l">
+        <div class="dx-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="c-s" type="search" placeholder="Name, CNIC, phone, email, code…" value="${esc(_cs)}" oninput="setCS(this.value)" autocomplete="off">
+        </div>
+        <button class="dx-tool${_catLabel?' primary':''}" onclick="_clFilterMenu('cat',this)">${_UI.tag}<span>${_catLabel?esc(_catLabel):'Category'}</span>${_UI.chevD}</button>
+        <button class="dx-tool${_hlthLabel?' primary':''}" onclick="_clFilterMenu('health',this)">${_UI.activity}<span>${_hlthLabel?esc(_hlthLabel):'Health'}</span>${_UI.chevD}</button>
       </div>
-      ${_cStatusFilter===t.key&&t.key?`<button class="inv-kpi-clear" onclick="event.stopPropagation();setCStatusFilter('')" title="Clear filter">${_UI.xsm}</button>`:''}
-    </div>`).join('')}
-  </div>
-
-  <!-- Filter Toolbar -->
-  <div class="inv-toolbar">
-    <div class="inv-search-wrap">
-      <span class="inv-search-icon">${_UI.search}</span>
-      <input class="inv-search-inp" id="c-s" placeholder="Name, CNIC, phone, email, code..."
-             value="${esc(_cs)}" oninput="setCS(this.value)" autocomplete="off">
-      <span class="inv-search-cmd">⌘K</span>
+      <div class="dx-toolbar-r">
+        <div style="display:inline-flex;background:var(--bg-elevated);border:1px solid var(--border-color);border-radius:9px;padding:2px;gap:2px">
+          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_cView==='cards'?'var(--bg-surface)':'transparent'}" onclick="setCView('cards')" title="Card view">${_UI.grid}</button>
+          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_cView==='table'?'var(--bg-surface)':'transparent'}" onclick="setCView('table')" title="Table view">${_UI.list}</button>
+        </div>
+        <button class="dx-tool icon" title="Row density" onclick="var w=document.getElementById('cl-wrap');if(w)DX.density(w,this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="dx-tool icon" title="Columns" onclick="var t=document.getElementById('cl-table');if(t)DX.columns(t,this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+        </button>
+      </div>
     </div>
-    <button class="inv-fc${_catLabel?' active':''}" id="cl-fc-cat" onclick="_clFCDropdown('cat',this)">
-      ${_UI.tag}
-      <span class="inv-fc-label">Category</span>
-      ${_catLabel ? `<span class="inv-fc-val">${esc(_catLabel)}</span>` : `<span class="inv-fc-cv">All</span>`}
-      ${_UI.chevD}
-    </button>
-    <button class="inv-fc${_hlthLabel?' active':''}" id="cl-fc-hlth" onclick="_clFCDropdown('health',this)">
-      ${_UI.activity}
-      <span class="inv-fc-label">Health</span>
-      ${_hlthLabel ? `<span class="inv-fc-val">${esc(_hlthLabel)}</span>` : `<span class="inv-fc-cv">All</span>`}
-      ${_UI.chevD}
-    </button>
-    <div class="inv-view-toggle">
-      <button class="inv-view-btn${_cView==='cards'?' on':''}" onclick="setCView('cards')" title="Card view">${_UI.grid}</button>
-      <button class="inv-view-btn${_cView==='table'?' on':''}" onclick="setCView('table')" title="Table view">${_UI.list}</button>
-    </div>
+    <div class="dx-chips" id="cl-af-bar" style="display:none"></div>
+    <div id="cl-ct"></div>
+    <div class="dx-pager" id="cl-pager"></div>
   </div>
-
-  <!-- Active Filters Bar -->
-  <div class="inv-af-bar" id="cl-af-bar"></div>
-
-  <div id="cl-ct"></div>
-  <div class="inv-pager" id="cl-pager"></div>
+  </div>
 </div>`;
 
   _clRenderAFBar();
@@ -188,64 +209,56 @@ async function _checkClientLimitUI() {
   } catch(e) { /* UI hint only — not blocking */ }
 }
 
-function _clFCDropdown(type, btn) {
-  _invCloseDD();
-  const rect = btn.getBoundingClientRect();
-  const dd = document.createElement('div');
-  dd.className = 'inv-dd'; dd.id = 'inv-dd-open';
-  dd.style.top  = (rect.bottom + 4) + 'px';
-  dd.style.left = rect.left + 'px';
-  let items = '';
+function _clFilterMenu(type, btn) {
   if (type === 'cat') {
     const cats = ['Individual','Investor','Corporate','NRI','VIP'];
-    const icons = { Individual:'', Investor:'', Corporate:'', NRI:'', VIP:'' };
-    items = `<div class="inv-dd-chk" onclick="_invCloseDD();setCCategoryFilter('')"><input type="checkbox" ${!_cCategoryFilter?'checked':''} readonly> All Categories</div>` +
-      cats.map(c => `<div class="inv-dd-chk" onclick="_invCloseDD();setCCategoryFilter('${c}')"><input type="checkbox" ${_cCategoryFilter===c?'checked':''} readonly> ${icons[c]||''} ${c}</div>`).join('');
-  } else if (type === 'health') {
+    DX.menu(btn, [
+      { label:'All Categories', toggle:true, checked:!_cCategoryFilter, onClick:()=>setCCategoryFilter('') },
+      ...cats.map(c => ({ label:c, toggle:true, checked:_cCategoryFilter===c, onClick:()=>setCCategoryFilter(c) }))
+    ], { label:'Category', align:'left' });
+  } else {
     const hs = [['PLATINUM','Platinum'],['GOOD','Good'],['AT RISK','At Risk'],['CRITICAL','Critical']];
-    items = `<div class="inv-dd-chk" onclick="_invCloseDD();setCHealthFilter('')"><input type="checkbox" ${!_cHealthFilter?'checked':''} readonly> All Health</div>` +
-      hs.map(([v,l]) => `<div class="inv-dd-chk" onclick="_invCloseDD();setCHealthFilter('${v}')"><input type="checkbox" ${_cHealthFilter===v?'checked':''} readonly> ${l}</div>`).join('');
+    DX.menu(btn, [
+      { label:'All Health', toggle:true, checked:!_cHealthFilter, onClick:()=>setCHealthFilter('') },
+      ...hs.map(([v,l]) => ({ label:l, toggle:true, checked:_cHealthFilter===v, onClick:()=>setCHealthFilter(v) }))
+    ], { label:'Client Health', align:'left' });
   }
-  dd.innerHTML = `<div class="inv-dd-hd">${type === 'cat' ? 'CATEGORY' : 'CLIENT HEALTH'}</div>${items}`;
-  document.body.appendChild(dd);
-  _invDD = dd;
-  _invArmOutsideClose(btn);
 }
 
 function _clRenderAFBar() {
   const bar = document.getElementById('cl-af-bar');
   if (!bar) return;
   const chips = [];
-  if (_cStatusFilter)   chips.push([`Status: ${_cStatusFilter}`,   () => setCStatusFilter('')]);
-  if (_cCategoryFilter) chips.push([`Category: ${_cCategoryFilter}`, () => setCCategoryFilter('')]);
-  if (_cHealthFilter)   chips.push([`Health: ${_cHealthFilter}`,   () => setCHealthFilter('')]);
+  if (_cStatusFilter)   chips.push(['Status', _cStatusFilter,    () => setCStatusFilter('')]);
+  if (_cCategoryFilter) chips.push(['Category', _cCategoryFilter, () => setCCategoryFilter('')]);
+  if (_cHealthFilter)   chips.push(['Health', _cHealthFilter,    () => setCHealthFilter('')]);
   bar.innerHTML = chips.length
-    ? chips.map(([lbl, fn], i) =>
-        `<span class="inv-af-chip" onclick="_clAFRemove(${i})">${esc(lbl)} ${_UI.xsm}</span>`
-      ).join('') + (chips.length>1?`<button class="inv-af-clear" onclick="_clAFClearAll()">Clear all</button>`:'')
+    ? chips.map(([k, v], i) =>
+        `<span class="dx-chip"><b>${esc(k)}</b> ${esc(v)} <button class="dx-chip-x" onclick="_clAFRemove(${i})" title="Remove">${_UI.xsm}</button></span>`
+      ).join('') + (chips.length>1?`<button class="dx-chip-clear" onclick="_clAFClearAll()">Clear all</button>`:'')
     : '';
-  bar._chips = chips;
+  bar.style.display = chips.length ? 'flex' : 'none';
+  bar._chips = chips.map(c => c[2]);
 }
-function _clAFRemove(i) { const fn = document.getElementById('cl-af-bar')?._chips?.[i]?.[1]; if(fn) fn(); }
+function _clAFRemove(i) { const fn = document.getElementById('cl-af-bar')?._chips?.[i]; if(fn) fn(); }
 function _clAFClearAll() { _cStatusFilter=''; _cCategoryFilter=''; _cHealthFilter=''; _cPage=1; rClients(); }
 
 function setCS(q)               { _cs = q;              _cPage = 1; rCLF(); }
 function setCStatusFilter(v)    { _cStatusFilter = v;   _cPage = 1; rClients(); }
 function setCCategoryFilter(v)  { _cCategoryFilter = v; _cPage = 1; _clRenderAFBar(); rCLF(); }
 function setCHealthFilter(v)    { _cHealthFilter = v;   _cPage = 1; _clRenderAFBar(); rCLF(); }
-function setCView(v) {
-  _cView = v;
-  localStorage.setItem('nxn_cl_view', v);
-  document.querySelectorAll('.inv-view-btn').forEach(b => b.classList.remove('on'));
-  const active = document.querySelector(`.inv-view-btn[onclick*="${v}"]`);
-  if (active) active.classList.add('on');
+function setCView(v)            { _cView = v; localStorage.setItem('nxn_cl_view', v); rClients(); }
+
+// Client-side sort (full filtered set, then paginate)
+let _cSort = { col: '', dir: 1 };
+function setCSort(col) {
+  if (_cSort.col === col) _cSort.dir *= -1; else { _cSort.col = col; _cSort.dir = 1; }
   rCLF();
 }
 
 function rCLF() {
   const ct = document.getElementById('cl-ct');
   const pg = document.getElementById('cl-pager');
-  const countEl = document.getElementById('cl-count');
   if (!ct) return;
 
   const isA = S.role === 'admin' || S.role === 'owner';
@@ -267,104 +280,204 @@ function rCLF() {
     );
   }
 
-  if (countEl) countEl.textContent = clients.length + (clients.length === 1 ? ' client' : ' clients');
+  // Sort (full filtered set, then paginate)
+  if (_cSort.col) {
+    const hv = (c) => window._healthScoresCache?.[c.id]?.score ?? -1;
+    const keyFn = {
+      name:     c => (c.fullName||'').toLowerCase(),
+      city:     c => (c.city||'').toLowerCase(),
+      category: c => (c.clientCategory||'').toLowerCase(),
+      status:   c => (c.status||'').toLowerCase(),
+      health:   c => hv(c)
+    }[_cSort.col];
+    if (keyFn) clients.sort((a,b) => { const x=keyFn(a), y=keyFn(b); return (x<y?-1:x>y?1:0) * _cSort.dir; });
+  }
+
+  const anyFilter = _cs || _cStatusFilter || _cCategoryFilter || _cHealthFilter;
 
   if (!clients.length) {
-    ct.innerHTML = `<div class="inv-empty"><span class="inv-empty-ic">${_UI.user}</span><p class="inv-empty-tx">No clients found</p><p class="inv-empty-sub">Try adjusting filters or add a new client</p></div>`;
+    ct.innerHTML = `<div class="dx-wrap" id="cl-wrap">` + DX.empty({
+      icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>',
+      title:'No clients found',
+      sub: anyFilter ? 'Try adjusting your search or filters.' : 'Add your first client to get started.',
+      cta: (isA && !anyFilter) ? `<button class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''
+    }) + `</div>`;
     if (pg) pg.innerHTML = '';
     return;
   }
 
-  // Pagination
   const totalPages = Math.ceil(clients.length / _C_PER_PAGE);
   if (_cPage > totalPages) _cPage = totalPages;
+  if (_cPage < 1) _cPage = 1;
   const sliced = clients.slice((_cPage - 1) * _C_PER_PAGE, _cPage * _C_PER_PAGE);
 
-  const _clrPal = ['#6366f1','#8b5cf6','#ec4899','#06b6d4','#10b981','#f59e0b','#f97316','#3b82f6'];
-  const _hlthClrMap = { PLATINUM:'#22c55e', GOOD:'#3b82f6', 'AT RISK':'#f59e0b', CRITICAL:'#ef4444' };
+  const _clrPal     = ['#6366f1','#8b5cf6','#ec4899','#06b6d4','#10b981','#f59e0b','#f97316','#3b82f6'];
+  const _hlthClrMap = { PLATINUM:'#16a34a', GOOD:'#2563eb', 'AT RISK':'#d97706', CRITICAL:'#dc2626' };
+  const _mono = (c) => (c.fullName||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
+  const _clrOf = (c) => _clrPal[c.fullName.split('').reduce((a,ch)=>a+ch.charCodeAt(0),0) % _clrPal.length];
+  const _statusKind = (s) => s==='active'?'ok':s==='blacklisted'?'danger':'neutral';
+  const _statusLbl  = (s) => s==='active'?'Active':s==='blacklisted'?'Blacklisted':s==='inactive'?'Inactive':(s||'—');
 
   if (_cView === 'cards') {
-    ct.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">` +
+    ct.innerHTML = `<div id="cl-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px">` +
       sliced.map(c => {
-        const clrIdx = c.fullName.split('').reduce((a,ch)=>a+ch.charCodeAt(0),0) % _clrPal.length;
-        const clr = _clrPal[clrIdx];
-        const initials = (c.fullName||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
-        const flag = CF_FLAGS[c.country] || '';
+        const clr = _clrOf(c), initials = _mono(c), flag = CF_FLAGS[c.country] || '';
         const hlth = window._healthScoresCache?.[c.id];
-        const hlthClr = hlth ? (_hlthClrMap[hlth.category] || 'var(--t3)') : null;
-        return `<div onclick="openClientDetail('${c.id}')" style="background:var(--surface);border-radius:14px;border:1px solid var(--line);padding:18px;cursor:pointer;display:flex;flex-direction:column;gap:10px;transition:box-shadow 180ms,transform 180ms;box-shadow:0 2px 8px rgba(0,0,0,.07)"
-          onmouseover="this.style.boxShadow='0 0 0 1.5px ${clr},0 6px 20px ${clr}22';this.style.transform='translateY(-2px)'"
-          onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,.07)';this.style.transform=''">
+        const hlthClr = hlth ? (_hlthClrMap[hlth.category] || 'var(--text-muted)') : null;
+        return `<div onclick="openClientPeek('${c.id}')" style="background:var(--bg-surface);border-radius:15px;border:1px solid var(--border-color);padding:18px;cursor:pointer;display:flex;flex-direction:column;gap:11px;transition:box-shadow 180ms,transform 180ms;box-shadow:0 1px 3px rgba(15,23,42,.06)"
+          onmouseover="this.style.boxShadow='0 0 0 1.5px ${clr},0 10px 26px ${clr}22';this.style.transform='translateY(-3px)'"
+          onmouseout="this.style.boxShadow='0 1px 3px rgba(15,23,42,.06)';this.style.transform=''">
           <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,${clr},${clr}bb);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;letter-spacing:-.5px">${initials}</div>
+            <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,${clr},${clr}bb);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;letter-spacing:-.5px">${initials}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:14px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag?flag+' ':''}${esc(c.fullName||'Unnamed')}</div>
-              <div style="font-size:10px;font-family:monospace;color:var(--t3);margin-top:1px">${esc(c.clientCode||'—')}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag?flag+' ':''}${esc(c.fullName||'Unnamed')}</div>
+              <div style="font-size:10px;font-family:var(--mono);color:var(--text-muted);margin-top:2px">${esc(c.clientCode||'—')}</div>
             </div>
-            ${isA?`<button onclick="event.stopPropagation();openClientModal('${c.id}')" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--line);color:var(--t3);border-radius:7px;font-size:11px;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`:''}
+            ${isA?`<button class="dx-act" onclick="event.stopPropagation();openClientModal('${c.id}')" title="Edit"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`:''}
           </div>
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-            ${c.clientCategory?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:${clr}18;color:${clr};border:1px solid ${clr}33">${cCategoryIcon(c.clientCategory)} ${esc(c.clientCategory)}</span>`:''}
-            ${cStatusBadge(c.status)}
-            ${hlth&&hlthClr?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${hlthClr}18;color:${hlthClr};border:1px solid ${hlthClr}33">${hlth.score}</span>`:''}
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${c.clientCategory?`<span class="dx-status info">${esc(c.clientCategory)}</span>`:''}
+            ${DX.statusChip(_statusLbl(c.status), _statusKind(c.status))}
+            ${hlth&&hlthClr?`<span class="dx-status" style="color:${hlthClr};background:${hlthClr}1a">${hlth.score}</span>`:''}
           </div>
-          <div style="display:flex;flex-direction:column;gap:5px;padding-top:8px;border-top:1px solid var(--line)">
-            ${c.phonePrimary?`<div style="display:flex;align-items:center;gap:7px;font-size:12px"><svg width="11" height="11" fill="none" stroke="var(--t3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg><a href="tel:${esc(c.phonePrimary)}" onclick="event.stopPropagation()" style="color:var(--info);text-decoration:none">${esc(c.phonePrimary)}</a></div>`:''}
-            ${c.email?`<div style="display:flex;align-items:center;gap:7px;font-size:12px;min-width:0"><svg width="11" height="11" fill="none" stroke="var(--t3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()" style="color:var(--info);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.email)}</a></div>`:''}
-            ${c.city||c.country?`<div style="font-size:11px;color:var(--t3)">${flag} ${[c.city,c.country].filter(Boolean).join(', ')}</div>`:''}
+          <div style="display:flex;flex-direction:column;gap:6px;padding-top:11px;border-top:1px solid var(--border-color)">
+            ${c.phonePrimary?`<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-muted)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>${esc(c.phonePrimary)}</div>`:''}
+            ${c.city||c.country?`<div style="font-size:12px;color:var(--text-muted)">${flag} ${[c.city,c.country].filter(Boolean).join(', ')}</div>`:''}
           </div>
-          ${c.cnic?`<div style="font-size:10px;font-family:monospace;color:var(--t3);padding-top:6px;border-top:1px solid var(--line)">CNIC: ${esc(c.cnic)}</div>`:''}
         </div>`;
       }).join('') + `</div>`;
   } else {
-    ct.innerHTML = `<div class="tw">
-    <table class="t" style="width:100%">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Name</th>
-          <th class="hide-sm">CNIC</th>
-          <th class="hide-sm">Phone</th>
-          <th class="hide-sm">City</th>
-          <th class="hide-sm">Category</th>
-          <th>Status</th>
-          <th class="hide-sm">Health</th>
-          ${isA ? '<th style="width:50px"></th>' : ''}
-        </tr>
-      </thead>
-      <tbody>
-        ${sliced.map(c => {
-          const flag = CF_FLAGS[c.country] || '';
-          return `<tr style="cursor:pointer" onclick="openClientDetail('${c.id}')">
-            <td style="font-family:monospace;font-size:11px;color:var(--t3)">${esc(c.clientCode||'—')}</td>
-            <td style="font-weight:700">${flag ? flag+' ' : ''}${esc(c.fullName||'Unnamed')}</td>
-            <td class="hide-sm" style="font-family:monospace;font-size:12px;color:var(--t2)">${esc(c.cnic||'—')}</td>
-            <td class="hide-sm" style="font-size:12px">${c.phonePrimary ? `<a href="tel:${esc(c.phonePrimary)}" onclick="event.stopPropagation()" style="color:var(--info);text-decoration:none">${esc(c.phonePrimary)}</a>` : '—'}</td>
-            <td class="hide-sm" style="font-size:12px;color:var(--t3)">${esc(c.city||'—')}</td>
-            <td class="hide-sm" style="font-size:12px">${c.clientCategory ? cCategoryIcon(c.clientCategory)+' '+esc(c.clientCategory) : '—'}</td>
-            <td>${cStatusBadge(c.status)}</td>
-            <td class="hide-sm">${healthBadge(c.id)}</td>
-            ${isA ? `<td onclick="event.stopPropagation()">
-              <button class="btn btn-gh btn-xs" onclick="openClientModal('${c.id}')">✏</button>
-            </td>` : ''}
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-  </div>`;
+    const th = (col, label, cls) => {
+      const on = _cSort.col === col;
+      return `<th class="${cls||''} dx-sortable${on?' dx-sorted'+(_cSort.dir<0?' desc':''):''}" onclick="setCSort('${col}')"><span class="dx-th-in">${label}<svg class="dx-sort-ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg></span></th>`;
+    };
+    ct.innerHTML = `<div class="dx-wrap" id="cl-wrap"><div class="dx-scroll"><table class="dx-table" id="cl-table">
+      <thead><tr>
+        ${th('name','Client')}
+        <th class="dx-hide-sm">Contact</th>
+        ${th('city','Location','dx-hide-sm')}
+        ${th('category','Category','dx-hide-sm')}
+        ${th('status','Status')}
+        ${th('health','Health','num')}
+        ${isA?'<th class="num"></th>':'<th></th>'}
+      </tr></thead>
+      <tbody>${sliced.map(c => {
+        const flag = CF_FLAGS[c.country] || '', clr = _clrOf(c), initials = _mono(c);
+        const h = window._healthScoresCache?.[c.id];
+        const hcat = h?.category;
+        const sev = hcat==='CRITICAL'?'sev-critical':hcat==='AT RISK'?'sev-warn':hcat==='PLATINUM'?'sev-ok':'';
+        const healthCell = h
+          ? `<span class="dx-risk"><span class="dx-risk-bar"><span class="dx-risk-fill ${h.score>=70?'lo':h.score>=40?'md':'hi'}" style="width:${Math.max(6,Math.min(100,h.score))}%"></span></span><span class="dx-risk-n">${h.score}</span></span>`
+          : '<span class="muted">—</span>';
+        const sd = (c.fullName+' '+(c.clientCode||'')+' '+(c.cnic||'')+' '+(c.phonePrimary||'')+' '+(c.city||'')).toLowerCase();
+        return `<tr class="clickable ${sev}" data-search="${esc(sd)}" onclick="openClientPeek('${c.id}')">
+          <td data-v="${esc((c.fullName||'').toLowerCase())}">
+            <span class="dx-cell"><span class="dx-mono" style="background:${clr}1a;color:${clr}">${esc(initials)}</span>
+              <span class="dx-cell-main"><span class="dx-cell-t">${flag?flag+' ':''}${esc(c.fullName||'Unnamed')}</span><span class="dx-cell-s">${esc(c.clientCode||'—')}</span></span></span>
+          </td>
+          <td class="dx-hide-sm muted">${c.phonePrimary?`<a href="tel:${esc(c.phonePrimary)}" onclick="event.stopPropagation()" style="color:var(--text-primary);text-decoration:none">${esc(c.phonePrimary)}</a>`:'—'}</td>
+          <td class="dx-hide-sm muted" data-v="${esc((c.city||'').toLowerCase())}">${flag?flag+' ':''}${esc(c.city||'—')}</td>
+          <td class="dx-hide-sm" data-v="${esc((c.clientCategory||'').toLowerCase())}">${c.clientCategory?`<span class="dx-status info">${esc(c.clientCategory)}</span>`:'<span class="muted">—</span>'}</td>
+          <td data-v="${esc(c.status||'')}">${DX.statusChip(_statusLbl(c.status), _statusKind(c.status))}</td>
+          <td class="num" data-v="${h?h.score:-1}">${healthCell}</td>
+          ${isA?`<td class="num"><span class="dx-acts" onclick="event.stopPropagation()">
+            <button class="dx-act" title="Quick view" onclick="openClientPeek('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="dx-act" title="Edit" onclick="openClientModal('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          </span></td>`:'<td></td>'}
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div></div>`;
+    DX.density(document.getElementById('cl-wrap'));
   }
 
-  // Pager
+  // Smart pager
   if (pg) {
-    if (totalPages <= 1) { pg.innerHTML = ''; return; }
-    let html = '';
-    if (_cPage > 1) html += `<button class="inv-pg-btn" onclick="_cPage--;rCLF()">← Prev</button>`;
-    for (let i = 1; i <= totalPages; i++) {
-      html += `<button class="inv-pg-btn${i===_cPage?' on':''}" onclick="_cPage=${i};rCLF()">${i}</button>`;
+    if (totalPages <= 1) { pg.innerHTML = ''; }
+    else {
+      const from = (_cPage-1)*_C_PER_PAGE + 1;
+      const to   = Math.min(_cPage*_C_PER_PAGE, clients.length);
+      const win = [];
+      for (let i=1;i<=totalPages;i++){ if(i===1||i===totalPages||Math.abs(i-_cPage)<=2) win.push(i); else if(win[win.length-1]!=='…') win.push('…'); }
+      const nums = win.map(i => i==='…'
+        ? `<span style="padding:0 4px;color:var(--text-muted)">…</span>`
+        : `<button class="dx-pager-btn${i===_cPage?' on':''}" onclick="_cPage=${i};rCLF()">${i}</button>`).join('');
+      pg.innerHTML = `<div class="dx-pager-info">Showing <b>${from}–${to}</b> of <b>${clients.length}</b> clients</div>`
+        + `<div class="dx-pager-ctrls">`
+        + `<button class="dx-pager-btn" ${_cPage<=1?'disabled':''} onclick="if(_cPage>1){_cPage--;rCLF()}">‹ Prev</button>`
+        + nums
+        + `<button class="dx-pager-btn" ${_cPage>=totalPages?'disabled':''} onclick="if(_cPage<${totalPages}){_cPage++;rCLF()}">Next ›</button>`
+        + `</div>`;
     }
-    if (_cPage < totalPages) html += `<button class="inv-pg-btn" onclick="_cPage++;rCLF()">Next →</button>`;
-    pg.innerHTML = html;
   }
+}
+
+/* ══ CLIENT QUICK-VIEW DRAWER (Linear/Stripe-style peek) ════════════════
+   Reads only (no business-logic change). Full profile remains the
+   clientdetail page, reachable via "Open full profile →". */
+function openClientPeek(id) {
+  const c = gclient(id);
+  if (!c) return;
+  const isA  = S.role==='admin'||S.role==='owner';
+  const flag = CF_FLAGS[c.country] || '';
+  const h    = window._healthScoresCache?.[id];
+  const allUnits = (typeof gunits==='function') ? gunits() : [];
+  const myUnits  = allUnits.filter(u => u.clientId===id || (c.fullName && u.customerName && u.customerName.toLowerCase()===c.fullName.toLowerCase()));
+  const totalPortfolio = myUnits.reduce((s,u)=>s+Number(u.totalPrice||0),0);
+  const totalPaid      = myUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
+  const outstanding    = Math.max(0, totalPortfolio-totalPaid);
+  const recovPct       = totalPortfolio>0?Math.min(100,Math.round(totalPaid/totalPortfolio*100)):0;
+  const initials = (c.fullName||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
+  const hClr = { PLATINUM:'#16a34a', GOOD:'#2563eb', 'AT RISK':'#d97706', CRITICAL:'#dc2626' }[h?.category] || '#64748b';
+  const statusKind = c.status==='active'?'ok':c.status==='blacklisted'?'danger':'neutral';
+  const statusLbl  = c.status==='active'?'Active':c.status==='blacklisted'?'Blacklisted':c.status==='inactive'?'Inactive':(c.status||'—');
+
+  const hero = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+    ${c.clientPhotoUrl?`<img src="${esc(c.clientPhotoUrl)}" style="width:56px;height:56px;border-radius:15px;object-fit:cover" onerror="this.style.display='none'">`:`<div style="width:56px;height:56px;border-radius:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800">${esc(initials)}</div>`}
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${DX.statusChip(statusLbl, statusKind)}
+        ${c.clientCategory?`<span class="dx-status info">${esc(c.clientCategory)}</span>`:''}
+        ${h?`<span class="dx-status" style="color:${hClr};background:${hClr}1a">${esc(h.category)} · ${h.score}</span>`:''}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);font-family:var(--mono);margin-top:7px">${esc(c.cnic||'No CNIC on file')}</div>
+    </div>
+  </div>`;
+
+  const stats = totalPortfolio>0?`<div class="dx-dstats">
+    <div class="dx-dstat"><div class="dx-dstat-l">Units</div><div class="dx-dstat-v">${myUnits.length}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Portfolio</div><div class="dx-dstat-v">${fM(totalPortfolio)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Outstanding</div><div class="dx-dstat-v" style="color:${outstanding>0?'#dc2626':'#16a34a'}">${outstanding>0?fM(outstanding):'Nil'}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Recovery</div><div class="dx-dstat-v">${recovPct}%</div></div>
+  </div>`:'';
+
+  const contact = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+    ${c.phonePrimary?`<a class="dx-tool" style="text-decoration:none" href="tel:${esc(c.phonePrimary)}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg><span>Call</span></a>`:''}
+    ${(c.whatsapp||c.phonePrimary)?`<a class="dx-tool" style="text-decoration:none" target="_blank" href="https://wa.me/${(c.whatsapp||c.phonePrimary).replace(/[^0-9]/g,'')}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>WhatsApp</span></a>`:''}
+    ${c.email?`<a class="dx-tool" style="text-decoration:none" href="mailto:${esc(c.email)}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>Email</span></a>`:''}
+  </div>`;
+
+  const unitsBlock = `<div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:11px">Units${myUnits.length?` · ${myUnits.length}`:''}</div>`
+    + (myUnits.length ? myUnits.slice(0,10).map(u => {
+        const rem = (typeof actualPending==='function')?actualPending(u):(Number(u.totalPrice||0)-Number(u.totalPaid||0));
+        const prj = (typeof gproject==='function')?gproject(u.projectId):null;
+        return `<div onclick="document.querySelector('.dx-drawer-x').click();openUD('${u.id}')" style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--border-color);border-radius:11px;margin-bottom:8px;cursor:pointer;transition:border-color 140ms" onmouseover="this.style.borderColor='rgba(37,99,235,.3)'" onmouseout="this.style.borderColor='var(--border-color)'">
+          <span class="dx-code">${esc(u.unitNo||'—')}</span>
+          <div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(prj?.projectName||prj?.name||u.type||'—')}</div><div style="font-size:11px;color:var(--text-muted)">${esc(u.floorLabel||u.type||'')}</div></div>
+          <div style="font-size:12.5px;font-weight:700;color:${rem>0?'#dc2626':'#16a34a'};white-space:nowrap">${rem>0?'PKR '+fM(rem):'Paid'}</div>
+        </div>`;
+      }).join('') : `<div style="font-size:12.5px;color:var(--text-muted);padding:6px 0">No units linked yet.</div>`);
+
+  const footer = `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>`
+    + (isA?`<button class="btn btn-gh btn-sm" onclick="document.querySelector('.dx-drawer-x').click();openClientModal('${id}')">Edit</button>`:'')
+    + `<button class="btn btn-p btn-sm" onclick="document.querySelector('.dx-drawer-x').click();openClientDetail('${id}')">Open full profile →</button>`;
+
+  DX.drawer({
+    eyebrow: c.clientCode || 'CLIENT',
+    title: (flag?flag+' ':'') + (c.fullName||'Unnamed'),
+    subtitle: [c.city,c.country].filter(Boolean).join(', ') || '—',
+    body: hero + stats + contact + unitsBlock,
+    footer
+  });
 }
 
 // ══ PRINT CLIENTS LIST ════════════════════════════════════

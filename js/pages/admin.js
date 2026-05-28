@@ -1,15 +1,46 @@
 ﻿// ══ ADMIN PAGE ════════════════════════════════
 function rAdmin(){
   if(S.role!=='admin' && S.role!=='owner'){nav('dashboard');return;}
-  if(_at==='users') _at='profile';
+  if(!_at || _at==='users' || _at==='audit') _at='settings';
+
+  const _cards=[
+    {t:'users',    ic:'users',       lb:'Users',         sub:'Team accounts & roles',    col:'#2563EB'},
+    {t:'import',   ic:'file-text',   lb:'Import Excel',  sub:'Bulk data import',         col:'#10B981'},
+    {t:'data',     ic:'database',    lb:'Backup',        sub:'Export & restore data',    col:'#0EA5E9'},
+    {t:'log',      ic:'history',     lb:'Activity Log',  sub:'Track user actions',       col:'#F59E0B'},
+    {t:'settings', ic:'settings',    lb:'Settings',      sub:'System configuration',     col:'#6366F1'},
+    {t:'security', ic:'shield',      lb:'Security',      sub:'Auth & access control',    col:'#EF4444'},
+    {t:'profile',  ic:'building-2',  lb:'Company',       sub:'Profile & branding',       col:'#8B5CF6'},
+    {t:'plan',     ic:'layers',      lb:'Plan & Usage',  sub:'Subscription & limits',    col:'#A855F7'},
+    {t:'audit',    ic:'list-checks', lb:'Audit Trail',   sub:'Full event history',       col:'#14B8A6'},
+  ];
+
+  const h=new Date().getHours();
+  const greet=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+  const planBadge=S.planCode?`<span class="adm-plan-badge">${esc(S.planCode)}</span>`:'';
+  const roleLbl=S.role==='owner'?'Owner':'Admin';
+
   document.getElementById('pg-admin').innerHTML=`<div class="ani module-executive">
-    <div class="ph"><div class="ph-l"><h2>Admin Panel</h2></div></div>
-    <div class="atb"><div class="atb-i${_at==='users'?' on':''}" onclick="setAT('users')">Users</div><div class="atb-i${_at==='import'?' on':''}" onclick="setAT('import')">Import Excel</div><div class="atb-i${_at==='data'?' on':''}" onclick="setAT('data')">Backup</div><div class="atb-i${_at==='log'?' on':''}" onclick="setAT('log')">Activity Log</div><div class="atb-i${_at==='settings'?' on':''}" onclick="setAT('settings')">Settings</div><div class="atb-i${_at==='security'?' on':''}" onclick="setAT('security')">Security</div><div class="atb-i${_at==='profile'?' on':''}" onclick="setAT('profile')">Company</div><div class="atb-i${_at==='plan'?' on':''}" onclick="setAT('plan')">Plan</div><div class="atb-i${_at==='audit'?' on':''}" onclick="setAT('audit')">Audit Trail</div></div>
+    <div class="adm-hero">
+      <div class="adm-hero-ic">${_sbi('settings',22)}</div>
+      <div class="adm-hero-txt">
+        <div class="adm-hero-sup">${greet}, ${esc(S.name||S.username||'Admin')}</div>
+        <h2 class="adm-hero-ttl">Admin Panel</h2>
+        <div class="adm-hero-meta">
+          ${S.coName?`<span class="adm-hero-co">${esc(S.coName)}</span>`:''}
+          <span class="adm-role-pill">${roleLbl}</span>
+          ${planBadge}
+        </div>
+      </div>
+    </div>
+    <div class="adm-nav-grid">
+      ${_cards.map(c=>`<div class="adm-nav-card${_at===c.t?' on':''}" onclick="setAT('${c.t}')" style="--adm-accent:${c.col}"><div class="adm-nav-card-ic">${_sbi(c.ic,18)}</div><div class="adm-nav-card-body"><span class="adm-nav-card-lbl">${c.lb}</span><span class="adm-nav-card-sub">${c.sub}</span></div></div>`).join('')}
+    </div>
     <div id="a-ct"></div>
   </div>`;
   rAT();
 }
-function setAT(t){_at=t;document.querySelectorAll('.atb-i').forEach(a=>a.classList.remove('on'));document.querySelector(`.atb-i[onclick="setAT('${t}')"]`)?.classList.add('on');rAT();}
+function setAT(t){_at=t;document.querySelectorAll('.adm-nav-card').forEach(a=>a.classList.remove('on'));document.querySelector(`.adm-nav-card[onclick="setAT('${t}')"]`)?.classList.add('on');rAT();}
 function rAT(){
   const ct=document.getElementById('a-ct');if(!ct)return;
   const db=gdb();
@@ -540,10 +571,10 @@ async function _adminLoadSecurity(ct) {
   ct.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:16px 0">⏳ Loading security settings…</div>';
 
   const [settRes, ipRes, evRes, lockedRes] = await Promise.all([
-    sb.rpc('get_security_settings',  { p_company_id: S.cid }),
-    sb.rpc('get_ip_whitelist',       { p_company_id: S.cid }),
-    sb.rpc('get_auth_events',        { p_company_id: S.cid, p_limit: 30 }),
-    sb.rpc('get_locked_users',       { p_company_id: S.cid }),
+    supabase.rpc('get_security_settings',  { p_company_id: S.cid }),
+    supabase.rpc('get_ip_whitelist',       { p_company_id: S.cid }),
+    supabase.rpc('get_auth_events',        { p_company_id: S.cid, p_limit: 30, p_offset: 0, p_event_type: null }),
+    supabase.rpc('get_locked_users',       { p_company_id: S.cid }),
   ]);
 
   const cfg     = settRes.data  || {};
@@ -685,7 +716,7 @@ async function _adminLoadSecurity(ct) {
 
 async function secSaveTimeout() {
   const min = parseInt(document.getElementById('sec-timeout')?.value || '120', 10);
-  const { data, error } = await sb.rpc('save_security_settings', {
+  const { data, error } = await supabase.rpc('save_security_settings', {
     p_company_id: S.cid,
     p_data: { session_timeout_min: min }
   });
@@ -697,7 +728,7 @@ async function secSaveTimeout() {
 async function secSave2FA(enabled) {
   // save_security_settings is merge-safe, so sending only this field preserves
   // the session timeout, lockout, and IP-whitelist settings.
-  const { data, error } = await sb.rpc('save_security_settings', {
+  const { data, error } = await supabase.rpc('save_security_settings', {
     p_company_id: S.cid,
     p_data: { require_2fa_admin: !!enabled }
   });
@@ -714,7 +745,7 @@ async function secAddIP() {
   const range = (document.getElementById('sec-ip-range')?.value || '').trim();
   const label = (document.getElementById('sec-ip-label')?.value || '').trim();
   if (!range) { toast('IP range is required', 'warn'); return; }
-  const { data, error } = await sb.rpc('add_ip_whitelist_entry', {
+  const { data, error } = await supabase.rpc('add_ip_whitelist_entry', {
     p_company_id: S.cid,
     p_ip_range:   range,
     p_label:      label,
@@ -727,7 +758,7 @@ async function secAddIP() {
 
 async function secRemoveIP(id) {
   if (!confirm('Remove this IP from the whitelist?')) return;
-  const { data, error } = await sb.rpc('remove_ip_whitelist_entry', {
+  const { data, error } = await supabase.rpc('remove_ip_whitelist_entry', {
     p_company_id: S.cid,
     p_id: id
   });
@@ -738,7 +769,7 @@ async function secRemoveIP(id) {
 
 async function secUnlockUser(userId) {
   if (!confirm('Unlock this user account?')) return;
-  const { error } = await sb.rpc('update_app_user', {
+  const { error } = await supabase.rpc('update_app_user', {
     p_user_id:    userId,
     p_company_id: S.cid,
     p_data: { locked_until: null, failed_login_attempts: 0 }

@@ -258,3 +258,257 @@ function nxBotCheck(honeypotId, formShownAt, minMs) {
   if (formShownAt && minMs && (Date.now() - formShownAt) < minMs) return true; // too fast
   return false;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DX — Enterprise Data Experience (reusable operational table layer)
+   Progressive enhancement: opt-in per page, zero effect until called.
+   Pairs with the .dx-* CSS in components.css. Dependency-free.
+   API:
+     DX.enhance(tableEl, opts)   → sticky/sort/search/keyboard, returns {refresh}
+     DX.menu(anchorEl, items)    → popover menu, returns {close}
+     DX.columns(tableEl, anchor) → column-visibility menu (persisted)
+     DX.density(wrapEl, anchor)  → comfortable/compact toggle (persisted)
+     DX.drawer(opts)             → slide-over panel, returns {close,setBody,setTab,el}
+     DX.timeline(items)          → activity-timeline HTML
+     DX.statusChip / agingChip / money / skeleton / empty → render helpers
+   ════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.DX) return;
+  const esc = (s) => (window.esc ? window.esc(s) : String(s == null ? '' : s)
+    .replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])));
+  const ic = (path, sz) => '<svg width="' + (sz||15) + '" height="' + (sz||15) + '" viewBox="0 0 24 24" '
+    + 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg>';
+
+  const DX = {};
+
+  /* ── enhance: sort + instant search + keyboard nav ──────────────────── */
+  DX.enhance = function (table, opts) {
+    if (!table) return { refresh() {} };
+    opts = opts || {};
+    const tbody = table.tBodies[0];
+    if (!tbody) return { refresh() {} };
+    const ths = Array.from(table.tHead ? table.tHead.rows[0].cells : []);
+
+    function rows() { return Array.from(tbody.rows); }
+    function visibleRows() { return rows().filter(r => r.dataset.dxHidden !== '1'); }
+
+    /* sort — opt-in per header via data-sort="text|num|date" */
+    if (opts.sortable !== false) {
+      ths.forEach((th, idx) => {
+        const type = th.dataset.sort;
+        if (!type) return;
+        th.classList.add('dx-sortable');
+        if (!th.querySelector('.dx-sort-ic')) {
+          const inner = th.innerHTML;
+          th.innerHTML = '<span class="dx-th-in">' + inner
+            + ic('<path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/>', 12).replace('<svg', '<svg class="dx-sort-ic"') + '</span>';
+        }
+        th.addEventListener('click', () => {
+          const desc = th.classList.contains('dx-sorted') && !th.classList.contains('desc');
+          ths.forEach(t => t.classList.remove('dx-sorted', 'desc'));
+          th.classList.add('dx-sorted'); if (desc) th.classList.add('desc');
+          const val = (r) => {
+            const cell = r.cells[idx]; if (!cell) return '';
+            const raw = cell.dataset.v != null ? cell.dataset.v : cell.textContent.trim();
+            if (type === 'num') return parseFloat(String(raw).replace(/[^0-9.\-]/g, '')) || 0;
+            if (type === 'date') { const t = Date.parse(raw); return isNaN(t) ? 0 : t; }
+            return String(raw).toLowerCase();
+          };
+          rows().sort((a, b) => {
+            const x = val(a), y = val(b);
+            return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1);
+          }).forEach(r => tbody.appendChild(r));
+        });
+      });
+    }
+
+    /* instant search */
+    function applySearch(q) {
+      q = (q || '').trim().toLowerCase();
+      let shown = 0;
+      rows().forEach(r => {
+        const hay = (r.dataset.search || r.textContent).toLowerCase();
+        const hit = !q || hay.indexOf(q) !== -1;
+        r.dataset.dxHidden = hit ? '0' : '1';
+        r.style.display = hit ? '' : 'none';
+        if (hit) shown++;
+      });
+      if (opts.onFilter) opts.onFilter(shown);
+      if (opts.emptyEl) opts.emptyEl.style.display = shown ? 'none' : '';
+    }
+    if (opts.search) {
+      let t;
+      opts.search.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => applySearch(opts.search.value), 90); });
+    }
+
+    /* keyboard nav */
+    if (opts.keyboard !== false) {
+      table.tabIndex = table.tabIndex || 0;
+      table.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
+        const vis = visibleRows();
+        if (!vis.length) return;
+        let i = vis.findIndex(r => r.classList.contains('dx-focus'));
+        if (e.key === 'Enter') { if (i >= 0) { e.preventDefault(); vis[i].click(); } return; }
+        e.preventDefault();
+        vis.forEach(r => r.classList.remove('dx-focus'));
+        i = e.key === 'ArrowDown' ? Math.min(vis.length - 1, i + 1) : Math.max(0, i - 1);
+        vis[i].classList.add('dx-focus');
+        vis[i].scrollIntoView({ block: 'nearest' });
+      });
+    }
+    return { refresh: applySearch };
+  };
+
+  /* ── menu: popover ──────────────────────────────────────────────────── */
+  DX.menu = function (anchor, items, mopts) {
+    mopts = mopts || {};
+    closeAllMenus();
+    const m = document.createElement('div');
+    m.className = 'dx-menu'; m.dataset.dxMenu = '1';
+    if (mopts.label) m.insertAdjacentHTML('beforeend', '<div class="dx-menu-lbl">' + esc(mopts.label) + '</div>');
+    (items || []).forEach(it => {
+      if (it.sep) { m.insertAdjacentHTML('beforeend', '<div class="dx-menu-sep"></div>'); return; }
+      const b = document.createElement('button');
+      b.className = 'dx-menu-item' + (it.danger ? ' danger' : '') + (it.checked ? ' on' : '');
+      b.innerHTML = (it.icon ? ic(it.icon) : '') + '<span>' + esc(it.label) + '</span>'
+        + (it.toggle ? ic('<polyline points="20 6 9 17 4 12"/>').replace('<svg', '<svg class="dx-menu-check"') : '');
+      b.addEventListener('click', (e) => { e.stopPropagation(); if (it.onClick) it.onClick(b); if (!it.keepOpen) close(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    const r = anchor.getBoundingClientRect();
+    m.style.top = (r.bottom + 6) + 'px';
+    const left = mopts.align === 'left' ? r.left : (r.right - m.offsetWidth);
+    m.style.left = Math.max(8, left) + 'px';
+    function close() { m.remove(); document.removeEventListener('click', out, true); document.removeEventListener('keydown', key); }
+    function out(e) { if (!m.contains(e.target) && e.target !== anchor) close(); }
+    function key(e) { if (e.key === 'Escape') close(); }
+    setTimeout(() => { document.addEventListener('click', out, true); document.addEventListener('keydown', key); }, 0);
+    return { close };
+  };
+  function closeAllMenus() { document.querySelectorAll('[data-dx-menu]').forEach(n => n.remove()); }
+
+  /* ── column visibility (persisted by table id) ──────────────────────── */
+  DX.columns = function (table, anchor) {
+    const ths = Array.from(table.tHead.rows[0].cells);
+    const key = 'dx.cols.' + (table.id || 'tbl');
+    let hidden = {};
+    try { hidden = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) {}
+    function apply() {
+      ths.forEach((th, i) => {
+        const off = !!hidden[i];
+        th.style.display = off ? 'none' : '';
+        Array.from(table.tBodies[0].rows).forEach(r => { if (r.cells[i]) r.cells[i].style.display = off ? 'none' : ''; });
+      });
+    }
+    apply();
+    DX.menu(anchor, ths.map((th, i) => ({
+      label: (th.textContent || ('Col ' + (i + 1))).trim() || ('Col ' + (i + 1)),
+      toggle: true, checked: !hidden[i], keepOpen: true,
+      onClick: (b) => { hidden[i] = hidden[i] ? false : true; if (!hidden[i]) delete hidden[i];
+        localStorage.setItem(key, JSON.stringify(hidden)); b.classList.toggle('on', !hidden[i]); apply(); }
+    })), { label: 'Columns', align: 'left' });
+  };
+
+  /* ── density toggle (persisted) ─────────────────────────────────────── */
+  DX.density = function (wrap, anchor) {
+    const key = 'dx.density.' + (wrap.id || 'tbl');
+    function set(c) { wrap.classList.toggle('dx-compact', c); localStorage.setItem(key, c ? '1' : '0'); }
+    if (anchor) {
+      DX.menu(anchor, [
+        { label: 'Comfortable', toggle: true, checked: !wrap.classList.contains('dx-compact'), onClick: () => set(false) },
+        { label: 'Compact', toggle: true, checked: wrap.classList.contains('dx-compact'), onClick: () => set(true) }
+      ], { label: 'Density', align: 'left' });
+    }
+    try { if (localStorage.getItem(key) === '1') wrap.classList.add('dx-compact'); } catch (_) {}
+  };
+
+  /* ── drawer: slide-over ─────────────────────────────────────────────── */
+  DX.drawer = function (o) {
+    o = o || {};
+    closeAllMenus();
+    const ov = document.createElement('div'); ov.className = 'dx-drawer-ov';
+    const dr = document.createElement('div'); dr.className = 'dx-drawer' + (o.wide ? ' wide' : '');
+    const tabsHtml = (o.tabs && o.tabs.length)
+      ? '<div class="dx-drawer-tabs">' + o.tabs.map((t, i) =>
+          '<button class="dx-drawer-tab' + (i === 0 ? ' on' : '') + '" data-tab="' + esc(t.id) + '">' + esc(t.label) + '</button>').join('') + '</div>'
+      : '';
+    dr.innerHTML =
+      '<div class="dx-drawer-hd">'
+      +   '<div style="min-width:0">'
+      +     (o.eyebrow ? '<div class="dx-drawer-eyebrow">' + esc(o.eyebrow) + '</div>' : '')
+      +     '<div class="dx-drawer-title">' + esc(o.title || '') + '</div>'
+      +     (o.subtitle ? '<div class="dx-drawer-sub">' + (o.subtitleHtml ? o.subtitle : esc(o.subtitle)) + '</div>' : '')
+      +   '</div>'
+      +   '<button class="dx-drawer-x" aria-label="Close">' + ic('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>') + '</button>'
+      + '</div>'
+      + tabsHtml
+      + '<div class="dx-drawer-bd"></div>'
+      + (o.footer ? '<div class="dx-drawer-ft">' + o.footer + '</div>' : '');
+    document.body.appendChild(ov); document.body.appendChild(dr);
+    const bd = dr.querySelector('.dx-drawer-bd');
+    function setBody(html) { if (typeof html === 'function') { bd.innerHTML = ''; html(bd); } else { bd.innerHTML = html || ''; } }
+    if (o.body != null) setBody(o.body);
+    requestAnimationFrame(() => { ov.classList.add('on'); dr.classList.add('on'); });
+    function close() {
+      ov.classList.remove('on'); dr.classList.remove('on');
+      document.removeEventListener('keydown', key);
+      setTimeout(() => { ov.remove(); dr.remove(); if (o.onClose) o.onClose(); }, 300);
+    }
+    function key(e) { if (e.key === 'Escape') close(); }
+    ov.addEventListener('click', close);
+    dr.querySelector('.dx-drawer-x').addEventListener('click', close);
+    document.addEventListener('keydown', key);
+    function setTab(id) {
+      dr.querySelectorAll('.dx-drawer-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === id));
+      if (o.onTab) o.onTab(id, bd);
+    }
+    dr.querySelectorAll('.dx-drawer-tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
+    if (o.tabs && o.tabs.length && o.onTab) o.onTab(o.tabs[0].id, bd);
+    return { close, setBody, setTab, el: dr, body: bd };
+  };
+
+  /* ── render helpers ─────────────────────────────────────────────────── */
+  DX.timeline = function (items) {
+    return '<div class="dx-timeline">' + (items || []).map(it =>
+      '<div class="dx-tl-item ' + (it.type || '') + '"><span class="dx-tl-dot"></span>'
+      + '<div class="dx-tl-hd"><span class="dx-tl-t">' + esc(it.title || '') + '</span>'
+      + (it.time ? '<span class="dx-tl-time">' + esc(it.time) + '</span>' : '') + '</div>'
+      + (it.body ? '<div class="dx-tl-body">' + esc(it.body) + '</div>' : '') + '</div>'
+    ).join('') + '</div>';
+  };
+  DX.statusChip = function (label, kind) { return '<span class="dx-status ' + (kind || 'neutral') + '">' + esc(label) + '</span>'; };
+  DX.agingChip = function (days) {
+    const d = Number(days) || 0;
+    const cls = d >= 90 ? 'a90' : d >= 60 ? 'a60' : d >= 30 ? 'a30' : 'a0';
+    return '<span class="dx-aging ' + cls + '">' + (d > 0 ? d + 'd' : 'Current') + '</span>';
+  };
+  DX.money = function (amount, o) {
+    o = o || {}; const n = Number(amount) || 0;
+    const cls = o.sign ? (n >= 0 ? ' pos' : ' neg') : '';
+    const fmt = window.fM ? window.fM(Math.abs(n)) : Math.abs(n).toLocaleString('en-IN');
+    return '<span class="dx-money' + cls + '"><span class="cur">' + (o.cur || 'PKR') + '</span>' + fmt + '</span>';
+  };
+  DX.skeleton = function (rows, cols) {
+    rows = rows || 8; cols = cols || 5;
+    let h = '';
+    for (let r = 0; r < rows; r++) {
+      h += '<div class="dx-skel-row">';
+      for (let c = 0; c < cols; c++) h += '<div class="dx-skel-bar" style="width:' + (c === 0 ? 38 : 50 + (c * 7) % 40) + '%;flex:' + (c === 0 ? 2 : 1) + '"></div>';
+      h += '</div>';
+    }
+    return h;
+  };
+  DX.empty = function (o) {
+    o = o || {};
+    return '<div class="dx-empty"><div class="dx-empty-ic">'
+      + ic(o.icon || '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', 22) + '</div>'
+      + '<div class="dx-empty-t">' + esc(o.title || 'Nothing here yet') + '</div>'
+      + (o.sub ? '<div class="dx-empty-s">' + esc(o.sub) + '</div>' : '')
+      + (o.cta ? '<div class="dx-empty-cta">' + o.cta + '</div>' : '') + '</div>';
+  };
+
+  window.DX = DX;
+})();

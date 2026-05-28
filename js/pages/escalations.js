@@ -1,8 +1,13 @@
 // ── Escalation Register ───────────────────────────────────────────────────────
+// DX reference implementation (2026-05-27): list/toolbar/drawer rebuilt on the
+// reusable Enterprise Data Experience layer (components.css .dx-* + helpers.js DX.*).
+// All RPC contracts (list_escalations / get_escalation_analytics / create_escalation
+// / update_escalation / list_clients_lookup) and both modals are preserved verbatim.
 
 let _escData = null;
 
 const ESC_LEVELS = { 1:'L1 – Officer', 2:'L2 – Manager', 3:'L3 – Director', 4:'L4 – CEO/Legal' };
+const ESC_LVL_SHORT = { 1:'L1', 2:'L2', 3:'L3', 4:'L4' };
 
 async function rEscalations() {
   const el = document.getElementById('pg-escalations');
@@ -17,13 +22,29 @@ async function rEscalations() {
       ${isA ? `<button class="btn btn-p btn-sm" onclick="_escOpenModal()">+ New Escalation</button>` : ''}
     </div>
   </div>
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <button class="btn btn-gh btn-xs esc-ftab on" onclick="_escFilter('open',this)">Open</button>
-    <button class="btn btn-gh btn-xs esc-ftab"    onclick="_escFilter('resolved',this)">Resolved</button>
-    <button class="btn btn-gh btn-xs esc-ftab"    onclick="_escFilter('all',this)">All</button>
-  </div>
+
   <div id="esc-kpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
-  <div id="esc-body"><div class="card"><div class="cb"><div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div></div></div></div>
+
+  <div class="dx">
+    <div class="dx-toolbar">
+      <div class="dx-toolbar-l">
+        <div class="dx-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="esc-q" type="search" placeholder="Search client, code or reason…" autocomplete="off">
+        </div>
+        <div class="dx-presets" id="esc-presets"></div>
+      </div>
+      <div class="dx-toolbar-r">
+        <button class="dx-tool icon" id="esc-density" title="Row density" onclick="DX.density(document.getElementById('esc-wrap'), this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="dx-tool icon" id="esc-cols" title="Columns" onclick="DX.columns(document.getElementById('esc-table'), this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="esc-body"></div>
+  </div>
 
   <!-- Modal -->
   <div id="esc-modal" class="mo" style="display:none" onclick="if(event.target===this)_escCloseModal()">
@@ -71,15 +92,17 @@ async function rEscalations() {
     </div>
   </div>`;
 
+  // Loading skeleton
+  document.getElementById('esc-body').innerHTML =
+    `<div class="dx-wrap" id="esc-wrap">${DX.skeleton(8, 6)}</div>`;
+
   await _escLoad();
   _escPopulateClients();
 }
 
 let _escCurFilter = 'open';
-function _escFilter(f, el) {
+function _escFilter(f) {
   _escCurFilter = f;
-  document.querySelectorAll('.esc-ftab').forEach(b => b.classList.remove('on'));
-  if (el) el.classList.add('on');
   _escRender();
 }
 
@@ -110,44 +133,169 @@ function _escRenderKpi(an) {
   </div>`).join('');
 }
 
-function _escRender() {
-  const el = document.getElementById('esc-body');
-  if (!el) return;
-  const isA = S.role === 'admin' || S.role === 'owner';
+/* Days a case has been open (or to resolution) */
+function _escAge(r) {
+  const start = r.created_at ? new Date(r.created_at) : null;
+  if (!start) return 0;
+  const end = (r.status === 'resolved' && r.resolved_at) ? new Date(r.resolved_at) : new Date();
+  return Math.max(0, Math.round((end - start) / 86400000));
+}
 
-  let rows = _escData;
+/* Operational severity for the row left-accent */
+function _escSev(r) {
+  if (r.status === 'resolved') return 'sev-ok';
+  if (Number(r.to_level) >= 4) return 'sev-critical';
+  if (Number(r.to_level) === 3) return 'sev-warn';
+  return 'sev-info';
+}
+
+function _escRender() {
+  const body = document.getElementById('esc-body');
+  if (!body) return;
+  const isA = S.role === 'admin' || S.role === 'owner';
+  const all = _escData || [];
+
+  // Preset pills with live counts
+  const counts = {
+    open:     all.filter(r => r.status === 'open').length,
+    resolved: all.filter(r => r.status === 'resolved').length,
+    all:      all.length
+  };
+  const presets = [
+    { id:'open',     lb:'Open',     alert:true },
+    { id:'resolved', lb:'Resolved' },
+    { id:'all',      lb:'All' }
+  ];
+  const presetEl = document.getElementById('esc-presets');
+  if (presetEl) {
+    presetEl.innerHTML = presets.map(p =>
+      `<button class="dx-preset${_escCurFilter === p.id ? ' on' : ''}${p.alert && counts[p.id] ? ' alert' : ''}" onclick="_escFilter('${p.id}')">`
+      + esc(p.lb)
+      + `<span class="dx-preset-cnt">${counts[p.id]}</span></button>`
+    ).join('');
+  }
+
+  let rows = all;
   if (_escCurFilter === 'open')     rows = rows.filter(r => r.status === 'open');
   if (_escCurFilter === 'resolved') rows = rows.filter(r => r.status === 'resolved');
 
   if (!rows.length) {
-    el.innerHTML = `<div class="card"><div class="cb"><div class="empty"><div class="ei">🚨</div><div class="et">No escalations in this filter</div></div></div></div>`;
+    body.innerHTML = `<div class="dx-wrap" id="esc-wrap">` + DX.empty({
+      icon: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+      title: _escCurFilter === 'open' ? 'No open escalations' : 'No escalations in this filter',
+      sub: _escCurFilter === 'open' ? 'Cases escalated to management will appear here.' : 'Try a different filter or create a new escalation.'
+    }) + `</div>`;
     return;
   }
 
   const trs = rows.map(r => {
-    const statusBadge = r.status === 'resolved'
-      ? `<span class="badge ok">Resolved</span>`
-      : `<span class="badge err">Open</span>`;
-    return `<tr>
-      <td>
-        <div style="font-weight:700;font-size:13px">${esc(r.clients?.client_name || '—')}</div>
-        <div style="font-size:11px;color:var(--t3)">${esc(r.clients?.client_code || '')}</div>
+    const name  = r.clients?.client_name || '—';
+    const code  = r.clients?.client_code || '';
+    const mono   = (name.trim()[0] || '?').toUpperCase();
+    const age   = _escAge(r);
+    const isOpen = r.status === 'open';
+    const status = isOpen ? DX.statusChip('Open', 'danger') : DX.statusChip('Resolved', 'ok');
+    const path  = `<span class="dx-status neutral">${esc(ESC_LVL_SHORT[r.from_level] || r.from_level)}</span>`
+                + `<span style="color:var(--text-muted)">→</span>`
+                + `<span class="dx-status ${Number(r.to_level) >= 4 ? 'danger' : 'info'}">${esc(ESC_LVL_SHORT[r.to_level] || r.to_level)}</span>`;
+    const aging = isOpen ? DX.agingChip(age) : `<span class="dx-aging a0">${age}d</span>`;
+    const acts  = `<span class="dx-acts" onclick="event.stopPropagation()">
+        <button class="dx-act" title="View details" onclick="_escDrawer('${r.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        ${isA && isOpen ? `<button class="dx-act" title="Resolve" onclick="_escOpenResolve('${r.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>` : ''}
+      </span>`;
+    return `<tr class="clickable ${_escSev(r)}" data-search="${esc((name + ' ' + code + ' ' + (r.reason || '')).toLowerCase())}" onclick="_escDrawer('${r.id}')">
+      <td data-v="${esc(name.toLowerCase())}">
+        <span class="dx-cell"><span class="dx-mono">${esc(mono)}</span>
+          <span class="dx-cell-main"><span class="dx-cell-t">${esc(name)}</span><span class="dx-cell-s">${esc(code)}</span></span>
+        </span>
       </td>
-      <td style="font-size:12px;color:var(--t3)">${esc(ESC_LEVELS[r.from_level] || r.from_level)}</td>
-      <td style="font-size:12px;font-weight:700">${esc(ESC_LEVELS[r.to_level] || r.to_level)}</td>
-      <td style="font-size:12px;max-width:200px">${esc(r.reason)}</td>
-      <td>${statusBadge}</td>
-      <td style="font-size:11px;color:var(--t3)">${r.created_at ? fD(r.created_at.split('T')[0]) : '—'}</td>
-      ${isA ? `<td style="text-align:right">
-        ${r.status === 'open' ? `<button class="btn btn-p btn-xs" onclick="_escOpenResolve('${r.id}')">Resolve</button>` : ''}
-      </td>` : '<td></td>'}
+      <td data-v="${esc(String(r.to_level))}"><span class="dx-cell" style="gap:6px">${path}</span></td>
+      <td class="wrap muted dx-hide-sm" style="max-width:280px;white-space:normal" data-v="${esc((r.reason || '').toLowerCase())}">${esc(r.reason || '—')}</td>
+      <td data-v="${isOpen ? '0' : '1'}">${status}</td>
+      <td class="num" data-v="${age}">${aging}</td>
+      <td class="muted dx-hide-sm" data-v="${esc(r.created_at || '')}">${r.created_at ? fD(r.created_at.split('T')[0]) : '—'}</td>
+      <td class="num">${acts}</td>
     </tr>`;
   }).join('');
 
-  el.innerHTML = `<div class="card"><div class="cb"><div class="tw"><table class="t">
-    <thead><tr><th>Client</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Date</th>${isA ? '<th></th>' : ''}</tr></thead>
+  body.innerHTML = `<div class="dx-wrap" id="esc-wrap"><div class="dx-scroll"><table class="dx-table" id="esc-table">
+    <thead><tr>
+      <th data-sort="text">Client</th>
+      <th data-sort="num">Escalation</th>
+      <th class="dx-hide-sm">Reason</th>
+      <th data-sort="text">Status</th>
+      <th class="num" data-sort="num">Age</th>
+      <th class="dx-hide-sm num" data-sort="date">Raised</th>
+      <th class="num"></th>
+    </tr></thead>
     <tbody>${trs}</tbody>
-  </table></div></div></div>`;
+  </table></div></div>`;
+
+  // Restore persisted density/columns, then wire enhancement
+  DX.density(document.getElementById('esc-wrap'));
+  DX.enhance(document.getElementById('esc-table'), {
+    search: document.getElementById('esc-q')
+  });
+}
+
+/* ── Detail drawer (view + escalation timeline) ──────────────────────────── */
+function _escDrawer(id) {
+  const r = (_escData || []).find(x => String(x.id) === String(id));
+  if (!r) return;
+  const isA = S.role === 'admin' || S.role === 'owner';
+  const isOpen = r.status === 'open';
+  const name = r.clients?.client_name || '—';
+  const age  = _escAge(r);
+
+  const stats = `<div class="dx-dstats">
+    <div class="dx-dstat"><div class="dx-dstat-l">From</div><div class="dx-dstat-v">${esc(ESC_LVL_SHORT[r.from_level] || r.from_level)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">To</div><div class="dx-dstat-v">${esc(ESC_LVL_SHORT[r.to_level] || r.to_level)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Status</div><div class="dx-dstat-v" style="font-size:13px;padding-top:4px">${isOpen ? DX.statusChip('Open', 'danger') : DX.statusChip('Resolved', 'ok')}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Age</div><div class="dx-dstat-v">${age}d</div></div>
+  </div>`;
+
+  const reasonBlock = `<div style="margin-bottom:18px">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Reason for escalation</div>
+    <div style="font-size:13px;color:var(--text-primary);line-height:1.55">${esc(r.reason || '—')}</div>
+  </div>`;
+
+  const tl = [{
+    type: 'danger',
+    title: `Escalated ${ESC_LVL_SHORT[r.from_level] || r.from_level} → ${ESC_LVL_SHORT[r.to_level] || r.to_level}`,
+    time: r.created_at ? fD(r.created_at.split('T')[0]) : '',
+    body: r.reason || ''
+  }];
+  if (r.status === 'resolved') {
+    tl.push({
+      type: 'ok',
+      title: 'Resolved',
+      time: r.resolved_at ? fD(r.resolved_at.split('T')[0]) : '',
+      body: r.resolution_note || 'Marked resolved.'
+    });
+  }
+
+  const timelineBlock = `<div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px">Activity</div>`
+    + DX.timeline(tl);
+
+  const footer = isA && isOpen
+    ? `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>
+       <button class="btn btn-p btn-sm" id="esc-drawer-resolve">Mark Resolved</button>`
+    : `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>`;
+
+  const d = DX.drawer({
+    eyebrow: `Escalation · ${ESC_LVL_SHORT[r.from_level] || ''} → ${ESC_LVL_SHORT[r.to_level] || ''}`,
+    title: name,
+    subtitle: r.clients?.client_code || '',
+    body: stats + reasonBlock + timelineBlock,
+    footer
+  });
+
+  const rb = document.getElementById('esc-drawer-resolve');
+  if (rb) rb.addEventListener('click', () => { d.close(); _escOpenResolve(r.id); });
 }
 
 async function _escPopulateClients() {

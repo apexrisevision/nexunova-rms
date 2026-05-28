@@ -14,8 +14,8 @@ function rCancelLedger() {
     _clFilter.fr = from; _clFilter.to = to;
   }
 
-  const projects = window._projectsCache || [];
-  const projOpts = projects.map(p => `<option value="${esc(p.id)}">${esc(p.projectName || p.name || '')}</option>`).join('');
+  const projects = (typeof gprojects === 'function') ? gprojects() : (window._projectsCache || []);
+  const projOpts = projects.map(p => `<option value="${esc(p.id)}"${_clFilter.project===p.id?' selected':''}>${esc(p.projectName || p.name || '')}</option>`).join('');
 
   pg.innerHTML = `
     <div class="rops">
@@ -23,42 +23,29 @@ function rCancelLedger() {
         <div class="rops-hd-l">
           <div class="rops-hd-mark is-danger">${_clIco('x')}</div>
           <div>
-            <h1 class="rops-hd-title">Cancelled Units Ledger</h1>
-            <div class="rops-hd-sub">Full cancellation register with forfeiture and refund breakdown</div>
+            <h1 class="rops-hd-title" style="font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em">Cancelled Units Ledger</h1>
+            <div class="rops-hd-sub" style="font-size:12px;margin-top:2px">Forfeiture &amp; refund breakdown</div>
           </div>
         </div>
         <div class="rops-hd-r">
-          <button class="rops-btn rops-btn-primary rops-btn-sm" onclick="nav('unitcancel')">+ New Cancellation</button>
+          <button class="dx-tool primary" onclick="nav('unitcancel')">+ New Cancellation</button>
         </div>
       </div>
 
-      <div class="rops-ldg-filters">
-        <div class="rops-fr">
-          <label class="rops-fl">Project</label>
-          <select class="rops-sel" id="cl-f-project" onchange="_clApplyFilter()">
+      <div class="dx-toolbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div class="dx-toolbar-l" style="flex-wrap:wrap;gap:8px">
+          <select class="rops-sel" id="cl-f-project" onchange="_clApplyFilter()" style="min-width:150px">
             <option value="">All Projects</option>${projOpts}
           </select>
-        </div>
-        <div class="rops-fr">
-          <label class="rops-fl">Refund Status</label>
-          <select class="rops-sel" id="cl-f-refund" onchange="_clApplyFilter()">
-            <option value="All">All Statuses</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partial</option>
-            <option value="pending">Pending</option>
+          <select class="rops-sel" id="cl-f-refund" onchange="_clApplyFilter()" style="min-width:140px">
+            <option value="All"${_clFilter.refund_status==='All'?' selected':''}>All Statuses</option>
+            <option value="paid"${_clFilter.refund_status==='paid'?' selected':''}>Paid</option>
+            <option value="partial"${_clFilter.refund_status==='partial'?' selected':''}>Partial</option>
+            <option value="pending"${_clFilter.refund_status==='pending'?' selected':''}>Pending</option>
           </select>
-        </div>
-        <div class="rops-fr">
-          <label class="rops-fl">Date From</label>
-          <input type="date" class="rops-inp" id="cl-f-fr" value="${esc(_clFilter.fr)}" onchange="_clApplyFilter()">
-        </div>
-        <div class="rops-fr">
-          <label class="rops-fl">Date To</label>
-          <input type="date" class="rops-inp" id="cl-f-to" value="${esc(_clFilter.to)}" onchange="_clApplyFilter()">
-        </div>
-        <div class="rops-fr">
-          <label class="rops-fl">&nbsp;</label>
-          <button class="rops-btn rops-btn-ghost" onclick="_clClearFilter()">Clear Filters</button>
+          <input type="date" class="rops-sel" id="cl-f-fr" value="${esc(_clFilter.fr)}" onchange="_clApplyFilter()" style="min-width:130px">
+          <input type="date" class="rops-sel" id="cl-f-to" value="${esc(_clFilter.to)}" onchange="_clApplyFilter()" style="min-width:130px">
+          <button class="dx-tool" onclick="_clClearFilter()">Clear</button>
         </div>
       </div>
 
@@ -128,10 +115,10 @@ function _clRenderKPIs() {
   const totalPending = Math.max(0, totalRefundDue - totalRefundPaid);
 
   el.innerHTML = `
-    <div class="rops-kpi"><div class="rops-kpi-lbl">Cancelled Units</div><div class="rops-kpi-val">${totalCount}</div></div>
-    <div class="rops-kpi is-danger"><div class="rops-kpi-lbl">Total Forfeited</div><div class="rops-kpi-val">PKR ${_clFM(totalForfeited)}</div></div>
-    <div class="rops-kpi is-success"><div class="rops-kpi-lbl">Refund Paid</div><div class="rops-kpi-val">PKR ${_clFM(totalRefundPaid)}</div></div>
-    <div class="rops-kpi is-warn"><div class="rops-kpi-lbl">Refund Pending</div><div class="rops-kpi-val">PKR ${_clFM(totalPending)}</div></div>`;
+    <div class="rops-kpi"><div class="rops-kpi-lbl">Cancelled</div><div class="rops-kpi-val" style="font-size:28px">${totalCount}</div></div>
+    <div class="rops-kpi is-danger"><div class="rops-kpi-lbl">Forfeited</div><div class="rops-kpi-val" style="font-size:18px">PKR ${_clFM(totalForfeited)}</div></div>
+    <div class="rops-kpi is-success"><div class="rops-kpi-lbl">Refund Paid</div><div class="rops-kpi-val" style="font-size:18px">PKR ${_clFM(totalRefundPaid)}</div></div>
+    <div class="rops-kpi is-warn"><div class="rops-kpi-lbl">Pending Refund</div><div class="rops-kpi-val" style="font-size:18px">PKR ${_clFM(totalPending)}</div></div>`;
 }
 
 function _clRenderTable() {

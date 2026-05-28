@@ -224,28 +224,26 @@ nexunova-rms/
 
 ### Module 7 — Automated Communications Engine
 
-#### 7.1 WhatsApp Automation — **FOUNDATION DONE 2026-05-25; dispatch layer deferred (needs gateway)**
-- [~] Trigger-based auto messages — template **categories** exist per trigger (installment_due, overdue, payment_received, promise_reminder, pdc_reminder, legal_notice); **actual auto-firing deferred** (needs gateway + Edge Function + cron).
-- [x] Message template library (editable per tenant) — `message_templates` table + CRUD RPCs + `seed_default_templates` (6 starter WhatsApp templates) + Comms Center UI with merge-field helper.
-- [ ] Bulk broadcast to filtered client groups — deferred (manual single-send works today; bulk API dispatch needs gateway).
-- [ ] WhatsApp delivery status tracking — deferred (the `message_log.status` column already supports queued/sent/delivered/read/failed; needs gateway webhooks to populate beyond 'manual').
-- [x] Broadcast/message history log — `message_log` table + `get_message_log` RPC + Comms Center "Message Log" tab.
-- [x] Opt-out management — `clients.comms_opt_out` column + `set_client_comms_optout` RPC.
-- [ ] Scheduled messages — deferred (needs cron Edge Function).
-- [x] New page: **`js/pages/comms-center.js`** (`pg-commscenter`, nav "Comms Center" under Clients & Recovery, message-square icon). NOTE: built as comms-center.js, not whatsapp-center.js (covers WhatsApp+SMS+email).
+#### 7.1 WhatsApp Automation — **DISPATCH PIPELINE BUILT 2026-05-28** (provider creds = the only go-live blocker)
+- [x] Trigger-based auto messages — `enqueue_due_comms()` daily scan queues installment-due (−3d), overdue (day 1/7/15/30), promise-due-tomorrow, PDC-deposit (−2d); `enqueue_payment_thankyou()` = real-time receipt confirm. Each routes through `enqueue_message()` (opt-out/DND + dedup enforced).
+- [x] Message template library (editable per tenant) — `message_templates` table + CRUD RPCs + `seed_default_templates` (6 starter WhatsApp templates) + Comms Center UI with merge-field helper. **+ Meta fields** (`meta_template_name`, `meta_language`, `variable_map`) for approved-template API sends.
+- [x] Bulk broadcast to filtered client groups — `broadcast_message()` RPC (audiences: selected / all / overdue, per-client merge, double-send guard) + Comms Center **Broadcast tab** (template/custom + audience picker + searchable client multi-select + optional schedule).
+- [x] WhatsApp delivery status tracking — `whatsapp-webhook` Edge Function → `update_message_delivery()` advances sent→delivered→read (+timestamps) by `provider_message_id`. Live status surfaced in the Message Log.
+- [x] Broadcast/message history log — `message_log` table (now unified queue+log) + `get_message_log` RPC + Comms Center "Message Log" tab.
+- [x] Opt-out management — `clients.comms_opt_out` column + `set_client_comms_optout` RPC; enforced inside `enqueue_message` (DND too).
+- [x] Scheduled messages — `message_log.scheduled_at`; dispatcher only claims rows where `scheduled_at IS NULL OR <= now()`.
+- [x] New page: **`js/pages/comms-center.js`** (`pg-commscenter`, nav "Comms Center" under Clients & Recovery, message-square icon).
 
-> **Module 7 status: FOUNDATION COMPLETE, DISPATCH DEFERRED.** Migration `supabase/migrations/20260525_module7_comms_foundation.sql` (2 tables + opt-out column + 7 RPCs) applied + verified (seed/idempotent/CRUD/log/opt-out roundtrip, 0 residue). The remaining items (auto-triggers, scheduled cron sends, bulk dispatch, delivery webhooks) ALL require a messaging **gateway decision** — see Blockers. The data layer is gateway-agnostic and ready.
+> **Module 7 status: DISPATCH PIPELINE COMPLETE (queue/scheduler/triggers/bulk/opt-out/template-engine/adapter), provider-agnostic. SEND is INERT until creds.** Migrations `20260528_module7_dispatch_*.sql` (schema, enqueue, triggers, cron, broadcast, backbone, rpc_fields) applied + **verified end-to-end on live DB** (template→enqueue→claim→sent→delivered→read, 0 residue). Edge Functions written: `supabase/functions/send-message` (modular: Meta reference + WeTarseel stub + dry-run default) + `whatsapp-webhook`. **Go-live = deploy the 2 functions + set provider secrets + schedule the dispatch cron** — see `supabase/functions/README_dispatch.md`. ⚠️ The claimed "WeTarseel/WAB2C creds already in the codebase" do **NOT exist** anywhere (code/DB/config) — provider creds must be obtained. nightly `comms-queue-build` cron live (04:00 UTC / 09:00 PKT). `comms-center.js?v=20260528a`.
 
-#### 7.2 SMS Automation
-- [ ] SMS gateway integration (Twilio / local)
-- [ ] Same triggers as WhatsApp (fallback)
-- [ ] SMS delivery tracking
+#### 7.2 SMS Automation — **architecture ready, adapter pending**
+- [~] SMS gateway integration (Twilio / local) — the queue is channel-aware (`message_log.channel='sms'`); add a `case "sms"` adapter in `send-message/index.ts`. No queue rewrite needed.
+- [~] Same triggers as WhatsApp (fallback) — triggers already enqueue by category; switch channel per template/policy.
+- [~] SMS delivery tracking — same `update_message_delivery` path once the SMS provider posts callbacks.
 
-#### 7.3 Email Automation
-- [ ] Payment receipt emails
-- [ ] Monthly statement emails
-- [ ] Legal notice delivery via email
-- [ ] Configurable templates per tenant
+#### 7.3 Email Automation — **architecture ready, provider undecided**
+- [~] Payment receipt / monthly statement / legal notice emails — `channel='email'` supported by enqueue (resolves `clients.email`, `subject` on templates). Needs an email provider (Resend/SendGrid/SMTP) adapter case + decision (user deferred the email-provider question).
+- [x] Configurable templates per tenant — `message_templates.channel='email'` + subject field already in the editor.
 
 ---
 
@@ -490,11 +488,18 @@ Module 2 (Legal & Compliance) ✅ · Module 4 (Installment Schedule — core) �
 > Format: `[DATE] — Blocker — What is needed`
 
 - [2026-05-25] ~~Supabase MCP server not connected~~ — **RESOLVED**: MCP reconnected (RMS project ref `itqxljtfbrppntgyfush`); Modules 1.1–1.4 + Module 7 foundation applied + verified.
-- [2026-05-25] **OPEN — Messaging gateway decision needed** for Module 7 dispatch layer (auto-triggers, scheduled cron sends, bulk broadcast, delivery-status webhooks). The RMS currently only opens `wa.me` links (manual, click-to-send). True automated/bulk sending requires the user to choose + provision a gateway: **WhatsApp Cloud API** (Meta), **Twilio** (WhatsApp/SMS), or a **local PK SMS gateway**. Each needs API credentials + a Supabase Edge Function + a cron schedule. The data layer (templates/log/opt-out) is built and gateway-agnostic; only the send-adapter + scheduler remain. **Do not build dispatch until the gateway is chosen** (outward-facing — sends real client messages).
+- [2026-05-25] ~~**OPEN — Messaging gateway decision needed** for Module 7 dispatch~~ — **RESOLVED 2026-05-28 (architecture):** provider = **WhatsApp Cloud API (Meta)** primary, modular for WeTarseel/SMS later. The full dispatch pipeline (queue, scheduler, triggers, bulk, opt-out, template engine, claim/result/webhook backbone) is **built + verified** and provider-agnostic. Edge Functions written (dry-run by default).
+- [2026-05-28] **OPEN — provider credentials + Edge Function deployment** is the only thing left for Module 7 to SEND. The claimed "WeTarseel/WAB2C creds already in the RMS codebase" were **searched for and do NOT exist** (no match in code, DB, or config; existing `whatsapp-helper.js` is `wa.me` links only). User must obtain either Meta (`phone_number_id` + permanent token + WABA + `WHATSAPP_VERIFY_TOKEN`) **or** WeTarseel (API URL + key + approved template names), then: deploy `send-message` + `whatsapp-webhook`, set secrets, `COMMS_PROVIDER=meta`, schedule the `comms-dispatch` cron (pg_net). Full checklist in `supabase/functions/README_dispatch.md`. Outward-facing — leave `dryrun` until rehearsed.
 
 ---
 
 ## Current Session Notes
+
+**2026-05-28 — Module 7 dispatch pipeline + 2 latent-bug fixes**
+- **Comms dispatch built (provider-agnostic, dry-run) + verified end-to-end on live DB.** 7 migrations `20260528_module7_dispatch_*` (schema → enqueue → triggers → cron → broadcast → backbone → rpc_fields): `message_log` now unified queue+log; `enqueue_message` (opt-out/DND + dedup), `enqueue_due_comms` scan + `comms-queue-build` cron (09:00 PKT), `broadcast_message`, `claim_pending_messages`/`update_message_result`/`update_message_delivery` (service_role). Edge Functions `send-message` (Meta ref + WeTarseel stub + dryrun) + `whatsapp-webhook`. Frontend: `comms-center.js?v=20260528a` (Broadcast tab + Meta template fields + live status). Go-live = creds + deploy (`supabase/functions/README_dispatch.md`). ⚠️ Claimed WeTarseel/WAB2C creds **don't exist** in codebase/DB.
+- **Latent bug #1 fixed:** `create_sale_with_schedule` now sets `project_id` on sales + installments (migration `fix_create_sale_project_id`) — verified.
+- **Latent bug #2 fixed:** `create_app_user` → bare username + `email_verified=true` + email-required (migration `fix_create_app_user`) — verified. Existing rows remediated (`manager`, `recovery2`).
+- Provider/SMS/email adapter cases + email-provider decision still open. DB role check allows `owner/admin/manager/recovery/accounts/staff` (not `finance`).
 
 **2026-05-26 — Phase 2: Reporting standard (branding + lakh/crore + Excel)**
 - **Locale sweep → en-IN:** every `toLocaleString('en-US'/'en-PK')` in `print.js` (67) + `sales.js` (42) replaced with `en-IN` (lakh/crore). reports/*.html pages too (via agent).

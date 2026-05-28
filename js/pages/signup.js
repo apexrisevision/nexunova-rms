@@ -108,6 +108,8 @@ function showSignup() {
     shownAt: Date.now()   // bot time-trap baseline
   };
   SV.emailAvailable = null;
+  SV.emailVerified  = false;
+  svHideVerifyBtn();
   const _hp = document.getElementById('sg-hp');
   if (_hp) _hp.value = '';
 
@@ -418,7 +420,7 @@ async function sgSubmit() {
     try {
       const redirectTo = (typeof window.electronWindow !== 'undefined')
         ? 'nexunovarms://auth/callback?flow=confirm'
-        : window.location.origin + '/login.html?flow=confirm';
+        : window.location.origin + window.location.pathname + '?flow=confirm';
       await supabase.auth.resend({ type: 'signup', email: d.email, options: { emailRedirectTo: redirectTo } });
     } catch(_) { /* best-effort — the result screen offers a manual Resend link */ }
 
@@ -531,4 +533,78 @@ function sgTogglePass(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ── Email OTP verification (signup Step 1) ────────────────────────────
+function svShowVerifyBtn() {
+  const btn = document.getElementById('sg-email-verify-btn');
+  const badge = document.getElementById('sg-email-verified');
+  if (btn)   btn.style.display   = '';
+  if (badge) badge.style.display = 'none';
+}
+
+function svHideVerifyBtn() {
+  const btn = document.getElementById('sg-email-verify-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+async function svSendEmailOtp() {
+  const email = (document.getElementById('sg-email')?.value || '').trim().toLowerCase();
+  const btn   = document.getElementById('sg-email-verify-btn');
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    SV.setHint('email', 'Enter a valid email first', 'err');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  SV.setHint('email', 'Sending OTP…', 'warn');
+
+  try {
+    const { data: res } = await supabase.rpc('send_signup_otp', { p_email: email, p_ip: null });
+
+    if (res?.error === 'rate_limited') {
+      SV.setHint('email', 'Too many requests — please wait a minute.', 'err');
+      if (btn) { btn.disabled = false; btn.textContent = 'Verify Email →'; }
+      return;
+    }
+
+    if (!res?.sent) {
+      SV.setHint('email', 'Could not send code. Please try again.', 'err');
+      if (btn) { btn.disabled = false; btn.textContent = 'Verify Email →'; }
+      return;
+    }
+
+    SV.setHint('email', 'Code sent — check your inbox', 'ok');
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify Email →'; }
+
+    showOTPScreen({
+      subtitle: `Enter the 6-digit code sent to ${email}`,
+      onVerify: async (otp) => {
+        const { data: vRes } = await supabase.rpc('verify_signup_otp', { p_email: email, p_otp: otp });
+        if (vRes?.verified) {
+          SV.emailVerified = true;
+          svHideVerifyBtn();
+          const badge = document.getElementById('sg-email-verified');
+          if (badge) badge.style.display = '';
+          SV.setHint('email', '', '');
+          SV.setValid('sg-email', true);
+          return { success: true };
+        }
+        if (vRes?.error === 'max_attempts') return { max_attempts: true, error: vRes.message };
+        if (vRes?.error === 'expired')      return { expired: true,      error: vRes.message };
+        return { error: vRes?.message || 'Incorrect code.', attempts_left: vRes?.attempts_left };
+      },
+      onResend: async () => {
+        const { data: r } = await supabase.rpc('send_signup_otp', { p_email: email, p_ip: null });
+        if (r?.sent) return {};
+        if (r?.error === 'rate_limited') return { error: 'Too many requests. Please wait.', cooldown: 60 };
+        return { error: 'Could not resend. Please try again.' };
+      }
+    });
+
+  } catch(e) {
+    SV.setHint('email', 'Error: ' + (e.message || 'please try again'), 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify Email →'; }
+  }
 }

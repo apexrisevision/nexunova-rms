@@ -23,12 +23,12 @@
 <link rel="stylesheet" href="css/design-system.css?v=20260526c">
 <link rel="stylesheet" href="css/login.css?v=20260526c">
 <link rel="stylesheet" href="css/app.css?v=20260526e">
-<link rel="stylesheet" href="css/components.css?v=20260526c">
+<link rel="stylesheet" href="css/components.css?v=20260528c">
 <link rel="stylesheet" href="css/pages.css?v=20260511c">
 <link rel="stylesheet" href="css/schedule.css?v=20260511">
 <link rel="stylesheet" href="css/theme-system.css?v=20260516a">
 <link rel="stylesheet" href="css/theme.css?v=20260526c">
-<link rel="stylesheet" href="css/dashboard-premium.css?v=20260527a">
+<link rel="stylesheet" href="css/dashboard-premium.css?v=20260528e">
 <link rel="stylesheet" href="css/recovery-dashboard.css?v=20260526a">
 <link rel="stylesheet" href="css/sidebar-premium.css?v=20260526d">
 <link rel="stylesheet" href="css/enterprise-polish.css?v=20260527a">
@@ -41,7 +41,7 @@
 <link rel="stylesheet" href="css/projects.css?v=20260527a">
 <link rel="stylesheet" href="css/followup.css?v=20260526c">
 <link rel="stylesheet" href="css/categories.css?v=20260516a">
-<link rel="stylesheet" href="css/inventory.css?v=20260516d">
+<link rel="stylesheet" href="css/inventory.css?v=20260528d">
 <link rel="stylesheet" href="css/inventory-drawer.css?v=20260527a">
 <link rel="stylesheet" href="css/inventory-aurora.css?v=20260516b">
 <link rel="stylesheet" href="css/unit-detail.css?v=20260526a">
@@ -54,7 +54,7 @@
 <link rel="stylesheet" href="css/tutorial.css?v=20260517a">
 <link rel="stylesheet" href="css/recovery-queue.css?v=20260526a">
 <!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
-<link rel="stylesheet" href="css/visual-overhaul.css?v=20260527c">
+<link rel="stylesheet" href="css/visual-overhaul.css?v=20260528d">
 <!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260526c">
 
@@ -511,37 +511,49 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div id="fp-form">
         <div class="lx-form-header">
           <div class="lx-form-title">Forgot Password?</div>
-          <div class="lx-form-sub">Enter your email to receive a reset link</div>
+          <div class="lx-form-sub">Enter your Company Code and email to continue</div>
         </div>
         <div class="lx-err" id="fp-err" role="alert" aria-live="assertive"></div>
         <div class="lx-field">
+          <label class="lx-label">Company Code</label>
+          <input id="fp-code" class="lx-input" type="text" placeholder="e.g. ALNOORBLDRS"
+            autocomplete="off" style="text-transform:uppercase"
+            oninput="this.value=this.value.toUpperCase()"
+            onkeydown="if(event.key==='Enter')document.getElementById('fp-email').focus()">
+        </div>
+        <div class="lx-field">
           <label class="lx-label">Email Address</label>
           <input id="fp-email" class="lx-input" type="email" placeholder="you@yourbusiness.com"
+            autocomplete="email"
             onkeydown="if(event.key==='Enter')fpSubmit()">
         </div>
-        <!-- Honeypot (bot trap) — must stay empty; hidden from real users.
-             Name is non-semantic to avoid browser autofill false-positives. -->
         <input type="text" id="fp-hp" name="nx_trap_forgot" class="nx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="lx-btn" id="fp-btn" onclick="fpSubmit()">
           <div class="lx-btn-shimmer"></div>
-          <span>Send Reset Link</span>
+          <span>Continue</span>
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
 
-      <!-- Success state -->
+      <!-- Admin: password updated successfully -->
       <div id="fp-success" style="display:none;text-align:center;padding:12px 0;">
         <div class="fp-icon-ring">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,217,255,0.9)" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,0.9)" stroke-width="1.8"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <div class="lx-form-title" style="margin-bottom:10px">Check Your Email</div>
-        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:4px">If an account exists for</p>
-        <p id="fp-sent-email" style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.88);margin-bottom:8px;word-break:break-all"></p>
-        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:20px">we've sent a password reset link.</p>
-        <p style="font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6">
-          Didn't receive it? Check spam or
-          <a onclick="fpSetState('form')" class="fp-link">try again</a>.
-        </p>
+        <div class="lx-form-title" style="margin-bottom:10px">Password Updated</div>
+        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:20px">Your password has been reset. Please sign in with your new password.</p>
+        <a onclick="hideForgotPassword()" class="fp-link">Sign In →</a>
+      </div>
+
+      <!-- Sub-user: request sent to admin -->
+      <div id="fp-notified" style="display:none;text-align:center;padding:12px 0;">
+        <div class="fp-icon-ring">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,217,255,0.9)" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
+        </div>
+        <div class="lx-form-title" style="margin-bottom:10px">Request Sent</div>
+        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:4px">Aapki request Admin ko bhej di gayi hai.</p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.4);line-height:1.65;margin-bottom:20px">Your administrator will reset your password and send a temporary one to your email.</p>
+        <a onclick="fpSetState('form')" class="fp-link">Try a different account</a>
       </div>
 
       <div class="fp-back-row">
@@ -802,9 +814,15 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
             <label class="sg-label" for="sg-email">Work Email *</label>
             <input id="sg-email" class="sg-input" type="email" placeholder="you@yourbusiness.com"
               autocomplete="email"
-              oninput="SV.setHint('email','','');SV.emailAvailable=null"
+              oninput="SV.setHint('email','','');SV.emailAvailable=null;SV.emailVerified=false;svHideVerifyBtn()"
               onblur="SV.triggerEmailCheck(this.value.trim())">
             <div class="sg-hint" id="sh-email"></div>
+            <button id="sg-email-verify-btn" type="button" class="sg-input"
+              style="display:none;margin-top:6px;width:100%;background:rgba(79,70,229,.12);border:1.5px solid rgba(79,70,229,.4);color:#a5b4fc;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;padding:9px"
+              onclick="svSendEmailOtp()">Verify Email →</button>
+            <div id="sg-email-verified" style="display:none;margin-top:6px;font-size:12px;font-weight:600;color:#34d399">
+              ✓ Email verified
+            </div>
           </div>
           <div class="sg-field">
             <label class="sg-label" for="sg-phone">Phone Number *</label>
@@ -3933,7 +3951,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/otp.js?v=20260522a"></script>
 
 <!-- 1.2. Forgot / Reset password -->
-<script src="js/forgot-password.js?v=20260527d"></script>
+<script src="js/forgot-password.js?v=20260528b"></script>
 
 <!-- 1.2. Notify notification system -->
 <script src="js/notify.js"></script>
@@ -3951,30 +3969,30 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/helpers.js?v=20260526b"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260527c"></script>
+<script src="js/ui.js?v=20260528h"></script>
 <script src="js/topbar-aurora.js?v=20260516a"></script>
 
 <!-- 5. Auth: login/logout -->
 <script src="js/auth.js?v=20260526e"></script>
 
 <!-- 5.5. Signup & onboarding -->
-<script src="js/pages/signup-validation.js?v=20260526a"></script>
-<script src="js/pages/signup.js?v=20260527a"></script>
+<script src="js/pages/signup-validation.js?v=20260528b"></script>
+<script src="js/pages/signup.js?v=20260528b"></script>
 <script src="js/pages/onboarding.js?v=20260526i"></script>
 
 <!-- 6. Page renderers -->
 <script src="js/pages/dashboard.js?v=20260527a"></script>
 <script src="js/pages/recovery-dashboard.js?v=20260526a"></script>
-<script src="js/pages/units.js?v=20260526a"></script>
+<script src="js/pages/units.js?v=20260528h"></script>
 <script src="js/pages/clients.js?v=20260525a"></script>
-<script src="js/pages/projects.js?v=20260522a"></script>
+<script src="js/pages/projects.js?v=20260528f"></script>
 <script src="js/pages/agents.js?v=20260525b"></script>
 <script src="js/pages/sales.js?v=20260526c"></script>
 <script src="js/pages/recovery.js?v=20260526c"></script>
 <script src="js/pages/payments.js?v=20260526c"></script>
 <script src="js/pages/receipts.js?v=20260517a"></script>
 <script src="js/pages/pdc.js?v=20260525a"></script>
-<script src="js/pages/cancelled.js?v=20260516a"></script>
+<script src="js/pages/cancelled.js?v=20260528e"></script>
 <script src="js/pages/transferred.js?v=20260516a"></script>
 <script src="js/pages/ownership-chain.js?v=20260516a"></script>
 <script src="js/pages/officerledger.js?v=20260517a"></script>
@@ -3999,9 +4017,9 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/transfers.js?v=20260516i"></script>
 <script src="js/pages/cancellation.js?v=20260516i"></script>
 <script src="js/pages/backup.js?v=20260517b"></script>
-<script src="js/pages/admin.js?v=20260527a"></script>
+<script src="js/pages/admin.js?v=20260528a"></script>
 <script src="js/pages/categories.js?v=20260517a"></script>
-<script src="js/pages/users.js?v=20260522a"></script>
+<script src="js/pages/users.js?v=20260528b"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>
 <script src="js/pages/super-admin.js?v=20260525a"></script>
 <script src="js/whatsapp-helper.js"></script>
@@ -4016,7 +4034,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/agenttransactions.js?v=20260522a"></script>
 <script src="js/pages/campaigns.js?v=20260525b"></script>
 <script src="js/pages/forecasting.js?v=20260525a"></script>
-<script src="js/pages/comms-center.js?v=20260525b"></script>
+<script src="js/pages/comms-center.js?v=20260528a"></script>
 <script src="js/pages/executive.js?v=20260525a"></script>
 <script src="js/pages/noc.js?v=20260525a"></script>
 <script src="js/pages/fieldvisits.js?v=20260527a"></script>

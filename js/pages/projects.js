@@ -10,6 +10,23 @@ let _prjView      = localStorage.getItem('nxn_prj_view') || 'grid';
 let _insightsOpen = false;
 let _prjKbListener = null;
 
+// ── Per-project palette — cycles through distinct brand colors ──────
+const _PRJ_PALETTE = [
+  '#2563EB', // Blue
+  '#7C3AED', // Violet
+  '#059669', // Emerald
+  '#D97706', // Amber
+  '#DC2626', // Red
+  '#0891B2', // Cyan
+  '#EA580C', // Orange
+  '#4F46E5', // Indigo
+  '#0D9488', // Teal
+  '#9333EA', // Purple
+  '#65A30D', // Lime
+  '#BE185D', // Pink
+];
+function _prjColor(idx) { return _PRJ_PALETTE[idx % _PRJ_PALETTE.length]; }
+
 // ── Status color map ────────────────────────────────────────
 const _prjSmMap = {
   active:    { color:'#10b981', bg:'rgba(16,185,129,0.10)',  label:'Active'    },
@@ -99,27 +116,31 @@ function _renderKPIs(allUnits, allProjs) {
   const totalCollected = allUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
   const soldUnits      = allUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
   const soldPct        = allUnits.length>0?Math.round(soldUnits/allUnits.length*100):0;
-  const recovPct       = totalPortfolio>0?Math.round(totalCollected/totalPortfolio*100):0;
-  const active         = allProjs.filter(p=>p.status==='active').length;
-  const planning       = allProjs.filter(p=>p.status==='planning').length;
-  const sub0           = [active&&`Active ${active}`,planning&&`Planning ${planning}`].filter(Boolean).join(' · ')||'—';
-  const kpis = [
-    { ico:_prjIco.building, color:'#6366f1', label:'Projects',        val:allProjs.length, pkr:null, sub:sub0,                                                   sp:'flat' },
-    { ico:_prjIco.home,     color:'#6b7280', label:'Total Units',     val:allUnits.length, pkr:null, sub:`Across ${allProjs.length} project${allProjs.length!==1?'s':''}`, sp:'flat' },
-    { ico:_prjIco.check,    color:'#10b981', label:'Units Sold',      val:soldUnits,       pkr:null, sub:`${soldPct}% sold rate`,                                 sp:'up'   },
-    { ico:_prjIco.trending, color:'#f59e0b', label:'Portfolio Value', val:null, pkr:_kM(totalPortfolio), sub:'Total contract value',                             sp:'up'   },
-    { ico:_prjIco.wallet,   color:'#8b5cf6', label:'Collected',       val:null, pkr:_kM(totalCollected), sub:`${recovPct}% recovery rate`,                       sp:'flat' },
+  const recovPct       = totalPortfolio>0?Math.min(100,Math.round(totalCollected/totalPortfolio*100)):0;
+  const stats = [
+    { ico:_prjIco.home,     color:'#6b7280', lbl:'Total Units',     val:allUnits.length,           sub:`${allProjs.length} project${allProjs.length!==1?'s':''}` },
+    { ico:_prjIco.check,    color:'#10b981', lbl:'Units Sold',      val:soldUnits,                 sub:`${soldPct}% sold rate` },
+    { ico:_prjIco.trending, color:'#f59e0b', lbl:'Portfolio Value', val:`<span class="zp-kc">PKR</span>${_kM(totalPortfolio)}`, sub:'Total contract value' },
+    { ico:_prjIco.wallet,   color:'#8b5cf6', lbl:'Collected',       val:`<span class="zp-kc">PKR</span>${_kM(totalCollected)}`, sub:`${recovPct}% recovery` },
   ];
-  kpiEl.innerHTML = kpis.map(k=>`<div class="prj-kpi-card">
-    <div class="prj-kpi-top">
-      <div class="prj-kpi-icon" style="background:${k.color}18;color:${k.color}">${k.ico}</div>
-      <span class="prj-kpi-trend" style="color:var(--t3);background:var(--surface2)">—</span>
-    </div>
-    <div class="prj-kpi-label">${k.label}</div>
-    <div class="prj-kpi-value">${k.pkr!=null?`<span class="currency">PKR</span>${k.pkr}`:k.val}</div>
-    <div class="prj-kpi-sub">${k.sub}</div>
-    ${_prjSparkline(k.color,k.sp)}
+  kpiEl.innerHTML = stats.map(s=>`<div class="zp-kpi" style="border-left-color:${s.color}">
+    <div class="zp-ki" style="background:${s.color}20;color:${s.color}">${s.ico}</div>
+    <div class="zp-kv">${s.val}</div>
+    <div class="zp-kl">${s.lbl}</div>
+    <div class="zp-ks">${s.sub}</div>
   </div>`).join('');
+  kpiEl.querySelectorAll('.zp-kpi').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      el.style.transform = 'perspective(600px) translateY(-3px) rotateX(1deg)';
+      el.style.boxShadow = '0 10px 28px rgba(15,23,42,.13)';
+      el.classList.add('_hov');
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.transform = '';
+      el.style.boxShadow = '';
+      el.classList.remove('_hov');
+    });
+  });
 }
 
 // ── List page ────────────────────────────────────────────────
@@ -145,6 +166,59 @@ async function rProjects() {
   const maxP    = window._nxnMaxProjects;
   const _pc = (S.planCode || '').toLowerCase();
   const planLbl = _pc.includes('ultimate') ? 'Ultimate' : _pc.includes('pro') ? 'Pro' : _pc.includes('basic') ? 'Basic' : _pc === 'free_trial' ? 'Free Trial' : 'Basic';
+
+  // Inject CSS fresh on every page open — bypasses Electron file:// disk cache completely
+  (() => {
+    let s = document.getElementById('_zp_css');
+    if (!s) { s = document.createElement('style'); s.id = '_zp_css'; document.head.appendChild(s); }
+    s.textContent = `
+      .prj-kpi-strip{grid-template-columns:repeat(4,1fr)!important}
+      .zp-kpi{background:var(--surface);border:1px solid var(--line);border-left:3px solid;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden;transition:transform 220ms cubic-bezier(.2,.8,.3,1),box-shadow 220ms ease;cursor:default}
+      .zp-kpi::before{content:'';position:absolute;top:0;left:-80%;bottom:0;width:55%;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.09) 50%,transparent 70%);transition:left .45s ease;pointer-events:none}
+      .zp-kpi._hov::before{left:130%}
+      .zp-ki{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+      .zp-kv{font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--t1);display:flex;align-items:baseline;gap:2px}
+      .zp-kc{font-size:9px;font-weight:500;color:var(--t3)}
+      .zp-kl{font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin-top:4px}
+      .zp-ks{font-size:10.5px;color:var(--t3);margin-top:1px}
+      .zp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+      @media(max-width:1100px){.zp-grid{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:700px){.zp-grid{grid-template-columns:1fr}}
+      .zp-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;display:flex;position:relative;transition:transform 220ms cubic-bezier(.2,.8,.3,1),box-shadow 220ms ease,border-color 220ms ease}
+      .zp-card::before{content:'';position:absolute;top:0;left:-80%;bottom:0;width:55%;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.12) 50%,transparent 70%);transition:left .45s ease;pointer-events:none;z-index:1}
+      .zp-card._hov::before{left:130%}
+      .zp-accent{width:4px;flex-shrink:0}
+      .zp-inner{flex:1;display:flex;flex-direction:column;padding:10px 13px;gap:6px;min-width:0}
+      .zp-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+      .zp-code{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(0,0,0,.07);color:var(--t3);letter-spacing:.04em;white-space:nowrap}
+      [data-theme=dark] .zp-code{background:rgba(255,255,255,.09)}
+      .zp-name{font-size:13.5px;font-weight:700;color:var(--t1);letter-spacing:-.02em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+      .zp-loc{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--t3)}
+      .zp-stats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface2);border-radius:6px;overflow:hidden}
+      .zp-stat{display:flex;flex-direction:column;align-items:center;padding:5px 4px;gap:1px}
+      .zp-stat:not(:last-child){border-right:1px solid var(--line)}
+      .zp-sn{font-size:15px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
+      .zp-sl{font-size:8px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+      .zp-prog{display:flex;flex-direction:column;gap:3px}
+      .zp-prog-hd{display:flex;justify-content:space-between;align-items:center}
+      .zp-prog-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t3)}
+      .zp-prog-pct{font-size:10px;font-weight:700}
+      .zp-pb{height:3px;background:rgba(15,23,42,.06);border-radius:99px;overflow:hidden}
+      [data-theme=dark] .zp-pb{background:rgba(255,255,255,.08)}
+      .zp-pf{height:100%;border-radius:99px;transition:width 600ms cubic-bezier(.4,0,.2,1)}
+      .zp-fin{display:flex;align-items:center;justify-content:space-between;gap:4px}
+      .zp-fv{font-size:12px;font-weight:700;color:var(--t1);display:flex;align-items:baseline;gap:2px}
+      .zp-fc{font-size:9px;font-weight:500;color:var(--t3)}
+      .zp-fr{font-size:10px;font-weight:600}
+      .zp-foot{display:flex;align-items:center;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(15,23,42,.06);margin-top:1px}
+      [data-theme=dark] .zp-foot{border-top-color:rgba(255,255,255,.06)}
+      .zp-fl{font-size:10px;color:var(--t3);display:flex;align-items:center;gap:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+      .zp-fb{font-size:10px;font-weight:600;color:#2563EB;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;white-space:nowrap;flex-shrink:0;transition:background 120ms ease}
+      .zp-fb:hover{background:rgba(37,99,235,.09)}
+      [data-theme=dark] .zp-fb{color:#818CF8}
+      [data-theme=dark] .zp-fb:hover{background:rgba(99,102,241,.14)}
+    `;
+  })();
 
   document.getElementById('_prjDrawerOverlay')?.remove();
   document.getElementById('_prjDrawer')?.remove();
@@ -314,7 +388,14 @@ function rPRJF() {
     return;
   }
 
-  ct.innerHTML = `<div class="${_prjView==='list'?'prj-list':'prj-grid'}">${prjs.map(p=>_prjView==='list'?_prjListRow(p,allUnits):_prjGridCard(p,allUnits)).join('')}</div>`;
+  ct.innerHTML = `<div class="${_prjView==='list'?'prj-list':'zp-grid'}">${prjs.map((p,idx)=>_prjView==='list'?_prjListRow(p,allUnits,idx):_prjGridCard(p,allUnits,idx)).join('')}</div>`;
+  if (_prjView === 'grid') {
+    requestAnimationFrame(() => {
+      document.querySelectorAll('#prj-ct .zp-card').forEach(card => {
+        _sleekCard(card, card.dataset.col || '#2563EB');
+      });
+    });
+  }
 }
 
 function _prjPV(p, allUnits) {
@@ -361,46 +442,50 @@ function _prjListRow(p, allUnits) {
 
 // ── Grid card ────────────────────────────────────────────────
 
-function _prjGridCard(p, allUnits) {
-  const pUnits    = allUnits.filter(u=>u.projectId===p.id);
-  const sold      = pUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
-  const available = pUnits.filter(u=>u.status==='Available').length;
-  const portfolio = pUnits.reduce((s,u)=>s+Number(u.totalPrice||0),0);
-  const collected = pUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
-  const recovPct  = portfolio>0?Math.min(100,Math.round(collected/portfolio*100)):0;
-  const constrPct = Math.min(100,Number(p.constructionProgress||0));
-  const sm        = _prjSmMap[p.status]||_prjSmMap.active;
-  const loc1      = p.location||'';
-  const loc2      = [p.city,p.startDate?'Est. '+fD(p.startDate):null].filter(Boolean).join(' · ');
-  const dueDate   = p.expectedCompletion?fD(p.expectedCompletion):null;
-  const sqft      = p.totalArea>0?Number(p.totalArea).toLocaleString()+' '+(p.areaUnit||'sqft'):null;
-  const builder   = (!dueDate&&!sqft&&p.builderName)?p.builderName:null;
-  return `<div class="prj-card" onclick="openProjectDetail('${p.id}')" onmouseover="this.style.borderColor='${sm.color}55'" onmouseout="this.style.borderColor=''">
-    <div class="prj-card-hero" style="background:linear-gradient(135deg,${sm.color}18,${sm.color}0a)">
-      <div class="prj-card-hero-top"><span class="prj-id-badge">${esc(p.projectCode||'—')}</span>${_prjPill(p.status)}</div>
-      <div class="prj-card-hero-name">${esc(p.projectName||p.name)}</div>
-    </div>
-    <div class="prj-card-body">
-      ${loc1||loc2?`<div class="prj-card-location">${_prjIco.mappin}<div>${loc1?`<div class="prj-card-location-text">${esc(loc1)}</div>`:''}${loc2?`<div class="prj-card-location-sub">${esc(loc2)}</div>`:''}</div></div>`:''}
-      <div class="prj-card-divider"></div>
-      <div class="prj-card-metrics">
-        <div class="prj-card-metric"><div class="prj-card-metric-val">${pUnits.length}</div><div class="prj-card-metric-lbl">Units</div></div>
-        <div class="prj-card-metric"><div class="prj-card-metric-val">${sold}</div><div class="prj-card-metric-lbl">Sold</div></div>
-        <div class="prj-card-metric"><div class="prj-card-metric-val">${available}</div><div class="prj-card-metric-lbl">Avail</div></div>
+function _prjGridCard(p, allUnits, idx) {
+  const pUnits     = allUnits.filter(u=>u.projectId===p.id);
+  const sold       = pUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
+  const available  = pUnits.filter(u=>u.status==='Available').length;
+  const portfolio  = pUnits.reduce((s,u)=>s+Number(u.totalPrice||0),0);
+  const collected  = pUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
+  const recovPct   = portfolio>0?Math.min(100,Math.round(collected/portfolio*100)):0;
+  const constrPct  = Math.min(100,Number(p.constructionProgress||0));
+  const sm         = _prjSmMap[p.status]||_prjSmMap.active;
+  const locLine    = p.location||p.city||'';
+  const dueDate    = p.expectedCompletion?fD(p.expectedCompletion):null;
+  const sqft       = p.totalArea>0?Number(p.totalArea).toLocaleString()+' '+(p.areaUnit||'sqft'):null;
+  const builder    = (!dueDate&&!sqft&&p.builderName)?p.builderName:null;
+  const recovColor = recovPct>=70?'var(--ok)':recovPct>=40?'var(--warn)':'var(--t3)';
+  const pCol       = _prjColor(idx||0);
+  return `<div class="zp-card" onclick="openProjectDetail('${p.id}')" data-col="${pCol}" style="background:linear-gradient(140deg,${pCol}1A 0%,var(--surface) 48%)">
+    <div class="zp-accent" style="background:${pCol}"></div>
+    <div class="zp-inner">
+      <div class="zp-top">
+        ${_prjPill(p.status)}
+        ${p.projectCode?`<span class="zp-code">${esc(p.projectCode)}</span>`:''}
       </div>
-      <div>
-        <div class="prj-section-label">Construction</div>
-        <div style="display:flex;align-items:center;gap:8px"><div class="prj-progress-bar" style="flex:1"><div class="prj-progress-fill" style="width:${constrPct}%;background:${sm.color}"></div></div><span class="prj-progress-pct" style="color:${sm.color}">${constrPct}%</span></div>
+      <div class="zp-name">${esc(p.projectName||p.name)}</div>
+      ${locLine?`<div class="zp-loc">${_prjIco.mappin}<span>${esc(locLine)}</span></div>`:''}
+      <div class="zp-stats">
+        <div class="zp-stat"><span class="zp-sn">${pUnits.length}</span><span class="zp-sl">Units</span></div>
+        <div class="zp-stat"><span class="zp-sn" style="color:${sm.color}">${sold}</span><span class="zp-sl">Sold</span></div>
+        <div class="zp-stat"><span class="zp-sn">${available}</span><span class="zp-sl">Avail</span></div>
       </div>
-      ${portfolio>0?`<div><div class="prj-section-label">Portfolio Value</div><div class="prj-card-value-row"><span class="prj-card-value-big"><span style="font-size:12px;color:var(--t3);position:relative;top:-2px;margin-right:2px">PKR</span>${_kM(portfolio)}</span><span class="prj-card-value-sub" style="color:${recovPct>=70?'var(--ok)':recovPct>=40?'var(--warn)':'var(--t3)'};margin-left:8px">${recovPct}% recovered</span></div></div>`:''}
-    </div>
-    <div class="prj-card-footer">
-      <div class="prj-card-footer-meta">
-        ${dueDate?`${_prjIco.calendar}&nbsp;Due ${dueDate}`:''}
-        ${sqft?`${dueDate?'&nbsp;·&nbsp;':''}${sqft}`:''}
-        ${builder?`<span style="color:var(--t3)">by ${esc(builder)}</span>`:''}
+      <div class="zp-prog">
+        <div class="zp-prog-hd">
+          <span class="zp-prog-lbl">Construction</span>
+          <span class="zp-prog-pct" style="color:${sm.color}">${constrPct}%</span>
+        </div>
+        <div class="zp-pb"><div class="zp-pf" style="width:${constrPct}%;background:${sm.color}"></div></div>
       </div>
-      <button class="prj-view-link" onclick="event.stopPropagation();openProjectDetail('${p.id}')">View →</button>
+      ${portfolio>0?`<div class="zp-fin">
+        <span class="zp-fv"><span class="zp-fc">PKR</span>${_kM(portfolio)}</span>
+        <span class="zp-fr" style="color:${recovColor}">${recovPct}% recov.</span>
+      </div>`:''}
+      <div class="zp-foot">
+        <span class="zp-fl">${dueDate?`${_prjIco.calendar}&nbsp;${dueDate}`:sqft?sqft:builder?`by ${esc(builder)}`:''}</span>
+        <button class="zp-fb" onclick="event.stopPropagation();openProjectDetail('${p.id}')">View →</button>
+      </div>
     </div>
   </div>`;
 }

@@ -8,6 +8,7 @@ const SV = {
 
   // Track async check results
   emailAvailable: null,
+  emailVerified:  false,   // true after OTP verified
   usernameAvailable: null,
 
   // ── Field helpers ──────────────────────────────────────────────────
@@ -57,6 +58,10 @@ const SV = {
       ok = false;
     } else if (this.emailAvailable === null) {
       this.setHint('email', 'Checking availability…', 'warn');
+      ok = false;
+    } else if (!this.emailVerified) {
+      this.setHint('email', 'Please verify your email with the OTP', 'err');
+      this.setValid('sg-email', false);
       ok = false;
     }
 
@@ -249,23 +254,29 @@ const SV = {
   triggerEmailCheck(email) {
     clearTimeout(this._emailTimer);
     this.emailAvailable = null;
+    this.emailVerified  = false;
+    svHideVerifyBtn();
     const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRx.test(email)) return;
     this.setHint('email', 'Checking…', 'warn');
     this._emailTimer = setTimeout(async () => {
       try {
-        const { data } = await supabase.rpc('check_email_available', { p_email: email });
-        this.emailAvailable = data?.available ?? null;
-        if (this.emailAvailable === true) {
-          this.setHint('email', 'Email available', 'ok');
-          this.setValid('sg-email', true);
-        } else {
+        const { data } = await supabase.rpc('check_company_email', { p_email: email });
+        if (data?.exists) {
+          this.emailAvailable = false;
           this.setHint('email', 'This email is already registered', 'err');
           this.setValid('sg-email', false);
+          svHideVerifyBtn();
+        } else {
+          this.emailAvailable = true;
+          this.setHint('email', 'Email available — please verify', 'warn');
+          this.setValid('sg-email', null);
+          svShowVerifyBtn();
         }
       } catch(e) {
         this.emailAvailable = null;
         this.setHint('email', '', '');
+        svHideVerifyBtn();
       }
     }, 500);
   },

@@ -324,16 +324,20 @@ function buildSB(){
   let navGroups = [];
 
   if(isA){
-    // Admin / Owner — 8 groups (Phase 5 sidebar regrouping, 2026-05-27).
-    // All 43 item properties (id/icon/badge) preserved verbatim from the old 4-group layout;
-    // only group assignment and intra-group order changed. Finance-sleep rule below still applies
-    // (Group 6 named exactly 'Finance' — but admin/owner bypass the strip, so it never disappears).
+    // Admin / Owner — 8 groups (Phase 5 IA restructure v2, 2026-05-27).
+    // All 43 item properties (id/icon/badge) preserved verbatim — only group assignment and
+    // intra-group order changed. The old 'Communications' group is dissolved (paylinks → Payments,
+    // commscenter → Reports & Docs). The old 'Finance' group is split into 'Payments' (cash in/out
+    // operations) and 'Finance & Compliance' (commissions, agent txns, escalations, legal, banks).
+    // Finance-sleep filter below still keys on `label === 'Finance'` (works for non-admin roles
+    // whose nav still uses that label); admin/owner bypass via the `&& !isA` clause, so the new
+    // Payments + Finance & Compliance groups are always visible for admins.
     navGroups = [
-      { label: 'Main', items: [
+      { label: 'Home', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
         { id:'contacts',  ic:'inbox',       lb:'Inbox',   bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Sales', items: [
+      { label: 'Sales & Bookings', items: [
         { id:'projects',       ic:'building-2', lb:'Projects' },
         { id:'categories',     ic:'layers',     lb:'Types & Floors' },
         { id:'units',          ic:'home',       lb:'All Units', bdg:totalU||null },
@@ -359,27 +363,27 @@ function buildSB(){
         { id:'forecasting',        ic:'trending-up',    lb:'Forecasting' },
         { id:'fieldvisits',        ic:'map-pin',        lb:'Field Visits' },
       ]},
-      { label: 'Communications', items: [
-        { id:'paylinks',    ic:'link',           lb:'Payment Links' },
+      { label: 'Payments', items: [
+        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers' },
+        { id:'pdc',         ic:'calendar-clock',    lb:'PDC Register' },
+        { id:'reports',     ic:'alert-circle',      lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
+        { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
+        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
+        { id:'paylinks',    ic:'link',              lb:'Payment Links' },
+      ]},
+      { label: 'Finance & Compliance', items: [
+        { id:'commissions',       ic:'trending-up',    lb:'Commissions' },
+        { id:'agenttransactions', ic:'trending-up',    lb:'Agent Transactions' },
+        { id:'escalations',       ic:'alert-triangle', lb:'Escalations' },
+        { id:'legalcases',        ic:'scale',          lb:'Legal Cases' },
+        { id:'banks',             ic:'banknote',       lb:'Banks Master' },
+      ]},
+      { label: 'Reports & Docs', items: [
+        { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
+        { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
+        { id:'ledgers',     ic:'book-open',      lb:'Ledgers' },
+        { id:'documents',   ic:'printer',        lb:'Documents' },
         { id:'commscenter', ic:'message-square', lb:'Comms Center' },
-      ]},
-      { label: 'Finance', items: [
-        { id:'receipts',          ic:'receipt',          lb:'Receipt Vouchers' },
-        { id:'pdc',               ic:'calendar-clock',   lb:'PDC Register' },
-        { id:'commissions',       ic:'trending-up',      lb:'Commissions' },
-        { id:'reports',           ic:'alert-circle',     lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
-        { id:'payables',          ic:'arrow-down-circle',lb:'Payables' },
-        { id:'receivables',       ic:'arrow-up-circle',  lb:'Additional Receivables' },
-        { id:'agenttransactions', ic:'trending-up',      lb:'Agent Transactions' },
-        { id:'escalations',       ic:'alert-triangle',   lb:'Escalations' },
-        { id:'legalcases',        ic:'scale',            lb:'Legal Cases' },
-        { id:'banks',             ic:'banknote',         lb:'Banks Master' },
-      ]},
-      { label: 'Reports', items: [
-        { id:'executive', ic:'bar-chart-3', lb:'Executive Dashboard' },
-        { id:'reports',   ic:'bar-chart-3', lb:'Reports & Export' },
-        { id:'ledgers',   ic:'book-open',   lb:'Ledgers' },
-        { id:'documents', ic:'printer',     lb:'Documents' },
       ]},
       { label: 'System', items: [
         { id:'users',     ic:'shield',      lb:'Users & Roles' },
@@ -721,6 +725,119 @@ document.addEventListener('keydown',function(e){
 function openUD(id){_uid=id;nav('unitdetail');}
 
 // rDocs is now defined in js/pages/documents.js
+
+// ══ GLOBAL SLEEK CARD UTILITY ══════════════════════════════════════════
+// Rules:
+//   - ALL cards → persistent 3D drop-shadow (always on)
+//   - Clickable cards only → hover lift + sweep line
+//   - Non-clickable cards → shadow only, no hover animation
+//
+// "Clickable" = has onclick attribute OR computed cursor:pointer
+//
+var _CARD_SEL = [
+  '.card','.db-card','.sa-card','.stat-card','.doc-card',
+  '.adm-nav-card','.rops-buyer-card','.rh-kpi-card','.cat-pos-card',
+  '.ud-card','.ud-header-card','.ud-doc-card','.pl-stat-card',
+  '.ob-existing-card','.ob-user-card','.ob-mode-card',
+  '.zp-card','.rq-card','.rops-chain-card','.rd-qr-card',
+  '.pmx-card','.pm-card','.inv-board-card','.sa-partner-card',
+  '.inv-grid-card','.db-kpi','.db-wcat','.db-hcell','.rops-kpi'
+].join(',');
+
+// Shared filter values — used by both _sleekCard and inline _cardEnter/_cardLeave handlers
+var _cFR = 'drop-shadow(0 4px 2px rgba(0,0,0,.30)) drop-shadow(0 10px 18px rgba(0,0,0,.20))';
+var _cFH = 'drop-shadow(0 8px 4px rgba(0,0,0,.36)) drop-shadow(0 20px 30px rgba(0,0,0,.28))';
+
+// Called directly from onmouseenter/onmouseleave on cards that can't rely on the MutationObserver
+function _cardEnter(el) {
+  el.style.setProperty('filter', _cFH, 'important');
+  el.style.setProperty('transform', 'translateY(-4px) scale(1.01)', 'important');
+  var col = el.dataset.col || '#2563EB';
+  el.style.setProperty('border-color', col + '66', 'important');
+  var l = el.querySelector('[data-sl]');
+  if (l) l.style.width = '100%';
+}
+function _cardLeave(el) {
+  el.style.setProperty('filter', _cFR, 'important');
+  el.style.setProperty('transform', 'translateY(0)', 'important');
+  el.style.removeProperty('border-color');
+  var l = el.querySelector('[data-sl]');
+  if (l) l.style.width = '0%';
+}
+
+function _sleekCard(el, accentColor) {
+  if (!el || el._sk) return;
+  // Cards with inline _cardEnter handlers are self-sufficient — skip to avoid double listeners
+  if (el.getAttribute('onmouseenter') === '_cardEnter(this)') { el._sk = true; return; }
+  el._sk = true;
+
+  if (window.getComputedStyle(el).position === 'static') el.style.setProperty('position', 'relative', 'important');
+
+  var hex = /^#[0-9a-fA-F]{6}/.test(accentColor || '') ? accentColor : '#2563EB';
+
+  // Inline !important beats CSS !important — restores 3D filter shadow despite visual-overhaul.css overrides
+  el.style.setProperty('filter', _cFR, 'important');
+  el.style.setProperty('transform', 'translateY(0)', 'important');
+  el.style.setProperty('transition',
+    'filter .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1), border-color .2s ease', 'important');
+
+  var isClickable = !!el.getAttribute('onclick') || window.getComputedStyle(el).cursor === 'pointer';
+
+  if (!isClickable) {
+    el.addEventListener('mouseenter', function() {
+      el.style.setProperty('filter', _cFH, 'important');
+      el.style.setProperty('transform', 'translateY(-2px)', 'important');
+    });
+    el.addEventListener('mouseleave', function() {
+      el.style.setProperty('filter', _cFR, 'important');
+      el.style.setProperty('transform', 'translateY(0)', 'important');
+    });
+    return;
+  }
+
+  // Sweep line — left to right on hover
+  var line = document.createElement('div');
+  line.setAttribute('data-sleek-line', '1');
+  line.style.cssText = 'position:absolute;top:0;left:0;height:3px;width:0%;pointer-events:none;z-index:9;'
+    + 'background:linear-gradient(90deg,' + hex + ',' + hex + '88);border-radius:3px 3px 0 0;'
+    + 'transition:width .32s cubic-bezier(.4,0,.2,1);';
+  el.insertBefore(line, el.firstChild);
+
+  el.addEventListener('mouseenter', function() {
+    el.style.setProperty('filter', _cFH, 'important');
+    el.style.setProperty('transform', 'translateY(-4px) scale(1.01)', 'important');
+    el.style.setProperty('border-color', hex + '66', 'important');
+    line.style.width = '100%';
+  });
+  el.addEventListener('mouseleave', function() {
+    el.style.setProperty('filter', _cFR, 'important');
+    el.style.setProperty('transform', 'translateY(0)', 'important');
+    el.style.removeProperty('border-color');
+    line.style.width = '0%';
+  });
+}
+
+function _applyPageSleek(root) {
+  var scope = root || document.querySelector('.pg.on') || document;
+  scope.querySelectorAll(_CARD_SEL).forEach(function(c) { _sleekCard(c); });
+}
+
+// Auto-observer — every card class, anywhere in the app, auto-processed
+;(function() {
+  function _onNode(node) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches && node.matches(_CARD_SEL)) { _sleekCard(node); return; }
+    if (node.querySelectorAll) {
+      node.querySelectorAll(_CARD_SEL).forEach(function(c) { _sleekCard(c); });
+    }
+  }
+  var _obs = new MutationObserver(function(muts) {
+    muts.forEach(function(m) { m.addedNodes.forEach(_onNode); });
+  });
+  function _startObs() { _obs.observe(document.body, { childList: true, subtree: true }); }
+  if (document.body) _startObs();
+  else document.addEventListener('DOMContentLoaded', _startObs);
+}());
 
 function cleanLeakedCodeText(){
   // Only scan the active page container — not the whole .pw tree.

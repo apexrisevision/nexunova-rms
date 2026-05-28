@@ -215,7 +215,7 @@ async function rDash() {
 async function _rDashAdmin() {
   // ── Skeleton ─────────────────────────────────────────────
   document.getElementById('pg-dashboard').innerHTML = `<div class="db-skel">
-    <div class="db-sk-kpis">${[0,1,2,3].map(()=>`<div class="db-sb" style="height:88px;border-radius:10px"></div>`).join('')}</div>
+    <div class="db-sk-kpis">${[0,1,2,3].map(()=>`<div class="db-sb" style="height:92px;border-radius:10px"></div>`).join('')}</div>
     <div class="db-sk-r1">
       <div class="db-sb db-sk-col" style="height:220px"></div>
       <div class="db-sb db-sk-col" style="height:220px"></div>
@@ -307,9 +307,33 @@ async function _rDashAdmin() {
   // ═══════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════
-  document.getElementById('pg-dashboard').innerHTML = `<div class="db ani">
+  // ── Hero context: greeting + operational pulse ──
+  const _now    = new Date();
+  const _hr     = _now.getHours();
+  const _greet  = _hr < 12 ? 'Good morning' : _hr < 17 ? 'Good afternoon' : 'Good evening';
+  const _dateLbl = _now.toLocaleDateString('en-PK', { weekday:'long', month:'long', day:'numeric' });
+  const _name   = (S?.displayName || S?.username || S?.company?.name || 'team').toString().split(' ')[0];
 
-  <!-- ROW 1: 4 KPI cards — max 90px, accent left border -->
+  document.getElementById('pg-dashboard').innerHTML = `<div class="db ani rb-page" style="gap:14px">
+
+  <!-- ── PAGE HEADER ──────────────────────────────────────────── -->
+  <div class="db-hdr">
+    <div class="db-hdr-l">
+      <span class="db-hdr-greet">${esc(_greet)}, ${esc(_name)}.</span>
+      <span class="db-hdr-date">${esc(_dateLbl)}</span>
+    </div>
+    <div class="db-hdr-r">
+      ${overdueUnits.length>0
+        ? `<span class="db-hdr-chip err">${_ic('<polyline points="6 9 12 15 18 9"/>',10)} ${overdueUnits.length} overdue</span>`
+        : `<span class="db-hdr-chip ok">${_icCheck(10)} All current</span>`}
+      ${monthR>0?`<span class="db-hdr-chip neu"><span style="font-size:9px;font-weight:500;color:var(--text-muted);margin-right:2px">PKR</span>${fLakhCr(monthR)} this month</span>`:''}
+      ${recovPct>0?`<span class="db-hdr-chip neu">${recovPct}% recovered</span>`:''}
+    </div>
+  </div>
+
+  <div class="db-sec-lbl">Live KPIs</div>
+
+  <!-- ROW 1: 4 KPI cards -->
   <div class="db-kpis">
 
     <!-- 1. Total Outstanding — red -->
@@ -321,7 +345,7 @@ async function _rDashAdmin() {
           <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(outstand)}"><span class="db-pkr">PKR</span>${fLakhCr(outstand)}</div>
           <div class="db-kpi-sub">${overdueUnits.length>0?overdueUnits.length+' units overdue':'All current'}</div>
         </div>
-        ${overdueUnits.length>0?`<div class="db-trend dn" style="align-self:flex-start;margin-top:2px">${_ic('<polyline points="6 9 12 15 18 9"/>',9)} ${overdueUnits.length}</div>`:''}
+        ${overdueUnits.length>0?`<div class="db-trend dn" style="align-self:flex-start">${_ic('<polyline points="6 9 12 15 18 9"/>',9)} ${overdueUnits.length}</div>`:''}
       </div>
     </div>
 
@@ -330,22 +354,22 @@ async function _rDashAdmin() {
       <div class="db-kpi-row">
         <div class="db-kpi-ic green">${_ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',14)}</div>
         <div class="db-kpi-body">
-          <div class="db-kpi-lbl">This Month Collection</div>
+          <div class="db-kpi-lbl">This Month</div>
           <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(monthR)}"><span class="db-pkr">PKR</span>${fLakhCr(monthR)}</div>
           <div class="db-kpi-sub">${recentRecs.length} payment${recentRecs.length!==1?'s':''} received</div>
         </div>
-        ${_trendHtml ? `<div style="align-self:flex-start;margin-top:2px">${_trendHtml}</div>` : ''}
+        ${_trendHtml?`<div style="align-self:flex-start">${_trendHtml}</div>`:''}
       </div>
     </div>
 
-    <!-- 3. Total Portfolio Value — blue -->
+    <!-- 3. Portfolio Value — blue -->
     <div class="db-kpi db-kpi-accent-blue" onclick="nav('projects')" style="cursor:pointer">
       <div class="db-kpi-row">
         <div class="db-kpi-ic blue">${_ic('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',14)}</div>
         <div class="db-kpi-body">
-          <div class="db-kpi-lbl">Total Portfolio Value</div>
+          <div class="db-kpi-lbl">Portfolio Value</div>
           <div class="db-kpi-val db-kpi-val-sm" title="PKR ${fMH(totalPortfolio)}"><span class="db-pkr">PKR</span>${fLakhCr(totalPortfolio)}</div>
-          <div class="db-kpi-sub">${soldU} active sale${soldU!==1?'s':''} · ${availU} available</div>
+          <div class="db-kpi-sub">${soldU} sold · ${availU} available</div>
         </div>
       </div>
     </div>
@@ -356,49 +380,47 @@ async function _rDashAdmin() {
         <div class="db-kpi-ic amber">${_ic('<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',14)}</div>
         <div class="db-kpi-body">
           <div class="db-kpi-lbl">Recovery Rate</div>
-          <div class="db-kpi-val db-kpi-val-sm">${recovPct}<span style="font-size:14px;font-weight:500;color:var(--text-muted);margin-left:2px">%</span></div>
-          <div class="db-kpi-sub">PKR ${fMH(totalR)} of ${fMH(totalPortfolio)} collected</div>
+          <div class="db-kpi-val db-kpi-val-sm">${recovPct}<span style="font-size:13px;font-weight:400;color:var(--text-muted);margin-left:1px">%</span></div>
+          <div class="db-kpi-sub">PKR ${fMH(totalR)} of ${fMH(totalPortfolio)}</div>
         </div>
-        <div class="db-trend ${recovPct>=75?'up':recovPct>0?'dn':''}" style="align-self:flex-start;margin-top:2px">${recovPct>=75?'On track':recovPct>0&&recovPct<40?'Critical':recovPct>0?'Monitor':''}</div>
+        ${recovPct>0?`<div class="db-trend ${recovPct>=75?'up':'dn'}" style="align-self:flex-start">${recovPct>=75?'On track':recovPct<40?'Critical':'Monitor'}</div>`:''}
       </div>
     </div>
 
   </div>
 
-  <!-- ROW 2: Collection Trend (full width) -->
-  <div>
+  <div class="db-sec-lbl">Collection Trend</div>
 
-    <!-- 30-day bar chart -->
-    <div class="db-card">
-      <div class="db-card-ch">
-        <div class="db-card-hl">
-          <p class="db-card-title">${_icBar()} Collection Trend</p>
-          <p class="db-card-sub">Last 30 days — daily payments received</p>
-        </div>
-        <button class="db-btn" onclick="nav('recovery')">${_icBar(12)} View All</button>
+  <!-- ROW 2: Collection Trend -->
+  <div class="db-card">
+    <div class="db-card-ch">
+      <div class="db-card-hl">
+        <p class="db-card-title">${_icBar()} Collection Trend</p>
+        <p class="db-card-sub">Daily cash received · last 30 days</p>
       </div>
-      <div class="db-chart-wrap" style="height:180px;padding-top:10px">
-        <canvas id="db-chart-bar30"></canvas>
-      </div>
+      <button class="db-btn" onclick="nav('recovery')">${_icBar(12)} Recovery →</button>
     </div>
-
+    <div class="db-chart-wrap" style="height:160px;padding-top:8px">
+      <canvas id="db-chart-bar30"></canvas>
+    </div>
   </div>
 
-  <!-- ROW 3: Client Health widget (populated by _rDashHealth via get_health_dashboard_stats) -->
+  <div class="db-sec-lbl">Client Health</div>
+  <!-- ROW 3: Client Health widget -->
   <div id="d-health-widget"></div>
 
-  <!-- ROW 4: AI Recovery Radar widget (populated by _rDashRadar via get_latest_radar; radar.js:450) -->
+  <div class="db-sec-lbl">AI Recovery Radar</div>
+  <!-- ROW 4: AI Recovery Radar widget -->
   <div id="d-radar-widget"></div>
 
-  <!-- ROW 5: Recent Payments (full width — Top Overdue Units moved to Recovery Dashboard) -->
-  <div>
+  <div class="db-sec-lbl">Recent Payments</div>
 
-    <!-- Recent Payments -->
-    <div class="db-card">
+  <!-- ROW 5: Recent Payments -->
+  <div class="db-card">
       <div class="db-card-ch">
         <div class="db-card-hl">
           <p class="db-card-title">${_icCard()} Recent Payments</p>
-          <p class="db-card-sub">Last 5 payments logged</p>
+          <p class="db-card-sub">Most recent transactions across all units</p>
         </div>
         <button class="db-btn" onclick="nav('receipts')">All →</button>
       </div>
@@ -422,8 +444,6 @@ async function _rDashAdmin() {
           </table></div>`
       }
     </div>
-
-  </div>
 
   </div>`; // end .db.ani
 
