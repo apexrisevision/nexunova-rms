@@ -103,49 +103,37 @@ h3.section-title, .sec-heading {
 }
 
 /* ══ 2. CARD DESIGN — uniform across all modules ═════════════════════════════
-   Sleek 3D card system: filter drop-shadow (not box-shadow) for depth that
-   survives overflow:hidden clipping. Sweep line via ::before on hover.
+   Standard box-shadow depth. No filter:drop-shadow (expensive, breaks overflow).
+   No bounce easing — clean 2px lift on hover, border highlight.
    ─────────────────────────────────────────────────────────────────────────── */
 .card, .kpi, .stat-card, .dkpi, .dash-kpi,
 .dash-qa-btn, .panel, .prj-kpi-card {
   background:              var(--x-surface) !important;
   border:                  1px solid var(--x-border) !important;
   border-radius:           var(--v-card-radius) !important;
-  box-shadow:              none !important;
+  box-shadow:              0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06) !important;
+  filter:                  none !important;
   backdrop-filter:         none !important;
   -webkit-backdrop-filter: none !important;
   position:                relative !important;
-  filter:                  drop-shadow(0 4px 2px rgba(0,0,0,.28)) drop-shadow(0 10px 18px rgba(0,0,0,.18)) !important;
-  transition:              filter .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1),
-                           border-color var(--x-t) !important;
+  transition:              box-shadow .18s ease, transform .18s cubic-bezier(.4,0,.2,1),
+                           border-color .18s ease !important;
 }
 .card:hover, .kpi:hover, .stat-card:hover,
 .dkpi:hover, .dash-kpi:hover, .dash-qa-btn:hover, .prj-kpi-card:hover {
-  filter:       drop-shadow(0 8px 4px rgba(0,0,0,.34)) drop-shadow(0 20px 30px rgba(0,0,0,.26)) !important;
-  transform:    translateY(-4px) scale(1.01) !important;
-  border-color: var(--x-border-2) !important;
+  box-shadow:   0 4px 12px rgba(0,0,0,.12), 0 2px 4px rgba(0,0,0,.08) !important;
+  filter:       none !important;
+  transform:    translateY(-2px) !important;
+  border-color: rgba(37,99,235,0.20) !important;
 }
 
-/* Sweep line — allow ::before to render (remove old kill rule) */
-.card::before {
-  content:          '' !important;
-  display:          block !important;
-  position:         absolute !important;
-  top:              0 !important; left: 0 !important;
-  height:           3px !important; width: 0% !important;
-  background:       var(--card-accent, linear-gradient(90deg,#2563EB,#6366F1)) !important;
-  border-radius:    var(--v-card-radius) var(--v-card-radius) 0 0 !important;
-  transition:       width .32s cubic-bezier(.4,0,.2,1) !important;
-  z-index:          2 !important; pointer-events: none !important;
-}
-.card:hover::before { width: 100% !important; }
-.card::after  { background: none !important; }
-
-/* kpi/stat/dash pseudo — allow their own ::before if any */
+/* card ::before / ::after — disabled (no sweep animation) */
+.card::before, .card::after,
 .kpi::before, .stat-card::before,
 .dash-kpi::before, .dash-qa-btn::before {
-  background: none !important;
   display:    none !important;
+  background: none !important;
+  content:    none !important;
 }
 
 /* Light mode */
@@ -158,12 +146,14 @@ h3.section-title, .sec-heading {
   backdrop-filter:         none !important;
   -webkit-backdrop-filter: none !important;
   border-color:            #E5E7EB !important;
-  filter:                  drop-shadow(0 3px 2px rgba(0,0,0,.07)) drop-shadow(0 8px 14px rgba(0,0,0,.09)) !important;
+  box-shadow:              0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04) !important;
+  filter:                  none !important;
 }
 [data-theme="light"] .card:hover,
 [data-theme="light"] .dash-kpi:hover,
 [data-theme="light"] .dash-qa-btn:hover {
-  filter:       drop-shadow(0 6px 3px rgba(0,0,0,.10)) drop-shadow(0 16px 24px rgba(37,99,235,.14)) !important;
+  box-shadow:   0 4px 12px rgba(15,23,42,.10), 0 0 0 1px rgba(37,99,235,.12) !important;
+  filter:       none !important;
   border-color: rgba(37,99,235,0.30) !important;
 }
 
@@ -313,7 +303,7 @@ select,
 .fbar select,
 .mov select,
 select.inp-light {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(99%2C102%2C241%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(37%2C99%2C235%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat:   no-repeat !important;
   background-position: right 10px center !important;
 }
@@ -1118,7 +1108,7 @@ button:focus-visible, a:focus-visible,
    payables, agenttransactions, banks, users pages. No CSS existed for this.
    ─────────────────────────────────────────────────────────────────────────── */
 
-.fi {
+.fi, .inp, .inp-light {
   width:            100%;
   padding:          8px 11px;
   background-color: var(--x-input-bg, #0F1320);
@@ -1133,11 +1123,11 @@ button:focus-visible, a:focus-visible,
   box-sizing:       border-box;
   display:          block;
 }
-.fi:focus {
+.fi:focus, .inp:focus, .inp-light:focus {
   border-color: var(--v-primary, #2563EB);
   box-shadow:   0 0 0 3px var(--v-primary-ring, rgba(37,99,235,0.25));
 }
-.fi::placeholder {
+.fi::placeholder, .inp::placeholder, .inp-light::placeholder {
   color:                   var(--x-text-4, rgba(255,255,255,0.22));
   -webkit-text-fill-color: var(--x-text-4, rgba(255,255,255,0.22));
   opacity: 1;
@@ -1145,7 +1135,7 @@ button:focus-visible, a:focus-visible,
 select.fi {
   -webkit-appearance: none;
   appearance:         none;
-  background-image:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(99%2C102%2C241%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(37%2C99%2C235%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat:   no-repeat;
   background-position: right 10px center;
   padding-right:       30px;
@@ -1160,16 +1150,20 @@ textarea.fi {
   min-height: 60px;
 }
 
-/* Light-mode .fi */
-[data-theme="light"] .fi {
-  background-color:        #FFFFFF;
-  border-color:            #E5E7EB;
-  color:                   #374151;
-  -webkit-text-fill-color: #374151;
+/* Light-mode .fi / .inp / .inp-light */
+[data-theme="light"] .fi,
+[data-theme="light"] .inp,
+[data-theme="light"] .inp-light {
+  background-color:        #FFFFFF !important;
+  border-color:            #E5E7EB !important;
+  color:                   #374151 !important;
+  -webkit-text-fill-color: #374151 !important;
 }
-[data-theme="light"] .fi::placeholder {
-  color:                   #9CA3AF;
-  -webkit-text-fill-color: #9CA3AF;
+[data-theme="light"] .fi::placeholder,
+[data-theme="light"] .inp::placeholder,
+[data-theme="light"] .inp-light::placeholder {
+  color:                   #9CA3AF !important;
+  -webkit-text-fill-color: #9CA3AF !important;
 }
 [data-theme="light"] select.fi {
   background-color: #FFFFFF;
@@ -1529,21 +1523,21 @@ table.t thead th,
   border-bottom-color: rgba(255,255,255,0.10) !important;
 }
 
-/* Zebra rows */
-table.t tbody tr:nth-child(odd),
-.tbl    tbody tr:nth-child(odd),
-.tw     tbody tr:nth-child(odd),
-.pay-tbl tbody tr:nth-child(odd) { background: #FFFFFF !important; }
+/* Zebra rows — light mode only (dark overrides follow below) */
+[data-theme="light"] table.t tbody tr:nth-child(odd),
+[data-theme="light"] .tbl    tbody tr:nth-child(odd),
+[data-theme="light"] .tw     tbody tr:nth-child(odd),
+[data-theme="light"] .pay-tbl tbody tr:nth-child(odd) { background: #FFFFFF !important; }
 
-table.t tbody tr:nth-child(even),
-.tbl    tbody tr:nth-child(even),
-.tw     tbody tr:nth-child(even),
-.pay-tbl tbody tr:nth-child(even) { background: #F8FAFC !important; }
+[data-theme="light"] table.t tbody tr:nth-child(even),
+[data-theme="light"] .tbl    tbody tr:nth-child(even),
+[data-theme="light"] .tw     tbody tr:nth-child(even),
+[data-theme="light"] .pay-tbl tbody tr:nth-child(even) { background: #F8FAFC !important; }
 
-table.t tbody tr:hover,
-.tbl    tbody tr:hover,
-.tw     tbody tr:hover,
-.pay-tbl tbody tr:hover { background: #EFF6FF !important; }
+[data-theme="light"] table.t tbody tr:hover,
+[data-theme="light"] .tbl    tbody tr:hover,
+[data-theme="light"] .tw     tbody tr:hover,
+[data-theme="light"] .pay-tbl tbody tr:hover { background: #EFF6FF !important; }
 
 [data-theme="dark"] table.t tbody tr:nth-child(odd),
 [data-theme="dark"] .tbl    tbody tr:nth-child(odd),
@@ -2195,3 +2189,57 @@ button.btn-g, button.btn-d,
 @supports not (color: color-mix(in srgb, red 50%, white)) {
   .rb-stat-sec.on { box-shadow: 0 8px 22px rgba(37,99,235,.22); }
 }
+
+/* ── KPI sweep: override browser-extension data-sleek-line injection ────────
+   Extension injects <div data-sleek-line> with hardcoded blue gradient.
+   !important beats the extension's inline style (no !important on their end). */
+#_kpi0 [data-sleek-line] { background: linear-gradient(90deg,#DC2626,#EF4444) !important; }
+#_kpi1 [data-sleek-line] { background: linear-gradient(90deg,#16A34A,#22C55E) !important; }
+#_kpi2 [data-sleek-line] { background: linear-gradient(90deg,#2563EB,#6366F1) !important; }
+#_kpi3 [data-sleek-line] { background: linear-gradient(90deg,#D97706,#F59E0B) !important; }
+
+/* ── KPI card sweep lines (ID selectors beat the ::before kill rule above) ─── */
+#_kpi0, #_kpi1, #_kpi2, #_kpi3 {
+  position: relative !important;
+  overflow: hidden !important;
+}
+#_kpi0::before, #_kpi1::before, #_kpi2::before, #_kpi3::before {
+  display:          block !important;
+  content:          '' !important;
+  position:         absolute !important;
+  top:              0 !important;
+  left:             0 !important;
+  height:           3px !important;
+  width:            0% !important;
+  border-radius:    10px 10px 0 0 !important;
+  transition:       width .35s cubic-bezier(.4,0,.2,1) !important;
+  z-index:          5 !important;
+  pointer-events:   none !important;
+  background:       transparent !important;
+}
+#_kpi0::before { background: linear-gradient(90deg,#DC2626,#EF4444) !important; }
+#_kpi1::before { background: linear-gradient(90deg,#16A34A,#22C55E) !important; }
+#_kpi2::before { background: linear-gradient(90deg,#2563EB,#6366F1) !important; }
+#_kpi3::before { background: linear-gradient(90deg,#D97706,#F59E0B) !important; }
+#_kpi0:hover::before, #_kpi1:hover::before,
+#_kpi2:hover::before, #_kpi3:hover::before { width: 100% !important; }
+
+/* ── Projects page: KPI strip (zp-kpi) — nth-child color match ──────────── */
+#prj-kpi .zp-kpi:nth-child(1) [data-sleek-line] { background: linear-gradient(90deg,#6b7280,#9CA3AF) !important; }
+#prj-kpi .zp-kpi:nth-child(2) [data-sleek-line] { background: linear-gradient(90deg,#10b981,#34D399) !important; }
+#prj-kpi .zp-kpi:nth-child(3) [data-sleek-line] { background: linear-gradient(90deg,#f59e0b,#FCD34D) !important; }
+#prj-kpi .zp-kpi:nth-child(4) [data-sleek-line] { background: linear-gradient(90deg,#8b5cf6,#A78BFA) !important; }
+
+/* ── Projects page: project grid cards (zp-card) — data-col match ───────── */
+.zp-card[data-col="#2563EB"] [data-sleek-line] { background: linear-gradient(90deg,#2563EB,#60A5FA) !important; }
+.zp-card[data-col="#7C3AED"] [data-sleek-line] { background: linear-gradient(90deg,#7C3AED,#A78BFA) !important; }
+.zp-card[data-col="#059669"] [data-sleek-line] { background: linear-gradient(90deg,#059669,#34D399) !important; }
+.zp-card[data-col="#D97706"] [data-sleek-line] { background: linear-gradient(90deg,#D97706,#FCD34D) !important; }
+.zp-card[data-col="#DC2626"] [data-sleek-line] { background: linear-gradient(90deg,#DC2626,#FCA5A5) !important; }
+.zp-card[data-col="#0891B2"] [data-sleek-line] { background: linear-gradient(90deg,#0891B2,#67E8F9) !important; }
+.zp-card[data-col="#EA580C"] [data-sleek-line] { background: linear-gradient(90deg,#EA580C,#FDBA74) !important; }
+.zp-card[data-col="#4F46E5"] [data-sleek-line] { background: linear-gradient(90deg,#4F46E5,#818CF8) !important; }
+.zp-card[data-col="#0D9488"] [data-sleek-line] { background: linear-gradient(90deg,#0D9488,#5EEAD4) !important; }
+.zp-card[data-col="#9333EA"] [data-sleek-line] { background: linear-gradient(90deg,#9333EA,#D8B4FE) !important; }
+.zp-card[data-col="#65A30D"] [data-sleek-line] { background: linear-gradient(90deg,#65A30D,#BEF264) !important; }
+.zp-card[data-col="#BE185D"] [data-sleek-line] { background: linear-gradient(90deg,#BE185D,#FBCFE8) !important; }
