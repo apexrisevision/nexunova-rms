@@ -2,29 +2,20 @@
 // NEXUNOVA RMS — SEND OTP EMAIL (Edge Function)
 // ----------------------------------------------------------------------------
 // Receives a delivery request from an auth RPC (via pg_net) and sends a
-// transactional email using the project's configured SMTP server.
+// transactional email via Resend (https://resend.com).
 //
-// Provider: Supabase project SMTP (credentials set as function secrets)
-//   supabase secrets set SMTP_HOST=smtp.example.com SMTP_PORT=587 \
-//     SMTP_USER=user@example.com SMTP_PASS=secret \
-//     SMTP_FROM="Nexunova RMS <noreply@nexunova.com>"
-//
-// TODO: swap email transport to Resend when RESEND_API_KEY is available.
-//   Pattern: see supabase/functions/send-auth-otp/index.ts for Resend usage.
-//   Replace the sendViaSmtp() call below with sendViaResend() and set:
-//     supabase secrets set RESEND_API_KEY=re_...
+// Provider: Resend
+//   supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxx
 //
 // Supported purposes (maps to email subject + HTML template):
-//   signup              — email verification OTP for new company signup
-//   admin_forgot        — admin/owner password reset OTP
+//   signup               — email verification OTP for new company signup
+//   admin_forgot         — admin/owner password reset OTP
 //   subuser_reset_notify — notify admin that a sub-user requested a reset
-//   temp_password       — send temp password to sub-user after admin reset
+//   temp_password        — send temp password to sub-user after admin reset
 //
 // DEPLOY:  supabase functions deploy send-otp-email --no-verify-jwt
 // INVOKE:  via pg_net from auth RPCs (not called directly by the browser)
 // ============================================================================
-
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,46 +23,38 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const SMTP_HOST = Deno.env.get("SMTP_HOST") ?? "";
-const SMTP_PORT = Number(Deno.env.get("SMTP_PORT") ?? "587");
-const SMTP_USER = Deno.env.get("SMTP_USER") ?? "";
-const SMTP_PASS = Deno.env.get("SMTP_PASS") ?? "";
-const SMTP_FROM = Deno.env.get("SMTP_FROM") ?? "Nexunova RMS <noreply@nexunova.com>";
+const RESEND_FROM = Deno.env.get("RESEND_FROM") ?? "Nexunova RMS <noreply@nexunova.com>";
 
-// ── Internal email sender (provider-agnostic interface) ─────────────────────
+// ── Internal email sender ────────────────────────────────────────────────────
 async function sendEmail(
   to: string,
   subject: string,
   htmlBody: string
 ): Promise<{ ok: boolean; error?: string }> {
-  // TODO: replace this block with Resend when RESEND_API_KEY is configured:
-  //   const key = Deno.env.get("RESEND_API_KEY");
-  //   const res = await fetch("https://api.resend.com/emails", {
-  //     method: "POST",
-  //     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-  //     body: JSON.stringify({ from: SMTP_FROM, to, subject, html: htmlBody }),
-  //   });
-  //   return res.ok ? { ok: true } : { ok: false, error: await res.text() };
-
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    // SMTP not yet configured — log OTP so it is visible in function logs
-    // during development/testing. Remove this log before production go-live.
-    console.warn(
-      `[send-otp-email] SMTP not configured. Email NOT sent to ${to}. Subject: ${subject}`
-    );
-    console.warn(`[send-otp-email] HTML preview (first 300 chars): ${htmlBody.slice(0, 300)}`);
-    return { ok: false, error: "smtp_not_configured" };
+  const key = Deno.env.get("RESEND_API_KEY");
+  if (!key) {
+    console.error("[send-otp-email] RESEND_API_KEY not configured");
+    return { ok: false, error: "resend_not_configured" };
   }
 
   try {
-    const client = new SmtpClient();
-    await client.connectTLS({ hostname: SMTP_HOST, port: SMTP_PORT,
-      username: SMTP_USER, password: SMTP_PASS });
-    await client.send({ from: SMTP_FROM, to, subject, content: htmlBody, html: htmlBody });
-    await client.close();
+    const res = await fetch("https://api.resend.com/emails", {
+      method:  "POST",
+      headers: {
+        "Authorization": `Bearer ${key}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify({ from: RESEND_FROM, to, subject, html: htmlBody }),
+    });
+    const body = await res.json().catch(() => ({}));
+    console.log("[send-otp-email] Resend status:", res.status, JSON.stringify(body));
+    if (!res.ok) {
+      console.error("[send-otp-email] Resend error:", JSON.stringify(body));
+      return { ok: false, error: `resend_${res.status}` };
+    }
     return { ok: true };
   } catch (e) {
-    console.error("[send-otp-email] SMTP error:", (e as Error).message);
+    console.error("[send-otp-email] fetch error:", (e as Error).message);
     return { ok: false, error: (e as Error).message };
   }
 }
