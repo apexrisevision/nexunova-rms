@@ -15,6 +15,30 @@ const _icLink    =(s=14)=>_ic('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7
 const _icHeart   =(s=14)=>_ic('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',s);
 const _icCircI   =()=>_ic('<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>');
 
+/* ─── KPI hover injected at render time (called from _rDashAdmin) ── */
+function _injectKpiHoverStyle() {
+  var old = document.getElementById('_db-kpi-hover');
+  if (old) old.remove();
+  var s = document.createElement('style');
+  s.id = '_db-kpi-hover';
+  s.textContent =
+    /* base: kill generic .db-kpi hover, add sweep base + transition per card */
+    '.db-kpi:hover{box-shadow:none !important;transform:none !important;}' +
+    '#_kpi0,#_kpi1,#_kpi2,#_kpi3{background-repeat:no-repeat !important;background-position:left top !important;background-size:0% 3px !important;transition:background-size .35s cubic-bezier(.4,0,.2,1),box-shadow 180ms ease,transform 180ms ease,border-color 180ms ease !important;}' +
+    /* per-card sweep gradient */
+    '#_kpi0{background-image:linear-gradient(90deg,#DC2626,#EF4444) !important;}' +
+    '#_kpi1{background-image:linear-gradient(90deg,#16A34A,#22C55E) !important;}' +
+    '#_kpi2{background-image:linear-gradient(90deg,#2563EB,#6366F1) !important;}' +
+    '#_kpi3{background-image:linear-gradient(90deg,#D97706,#F59E0B) !important;}' +
+    /* hover: expand sweep + color glow */
+    '#_kpi0:hover,#_kpi1:hover,#_kpi2:hover,#_kpi3:hover{background-size:100% 3px !important;}' +
+    '#_kpi0:hover{box-shadow:0 0 0 2px rgba(220,38,38,.50),0 8px 28px rgba(220,38,38,.24) !important;transform:translateY(-2px) !important;}' +
+    '#_kpi1:hover{box-shadow:0 0 0 2px rgba(22,163,74,.50),0 8px 28px rgba(22,163,74,.24) !important;transform:translateY(-2px) !important;}' +
+    '#_kpi2:hover{box-shadow:0 0 0 2px rgba(37,99,235,.50),0 8px 28px rgba(37,99,235,.24) !important;transform:translateY(-2px) !important;}' +
+    '#_kpi3:hover{box-shadow:0 0 0 2px rgba(217,119,6,.50),0 8px 28px rgba(217,119,6,.24) !important;transform:translateY(-2px) !important;}';
+  document.head.appendChild(s);
+}
+
 /* ─── Chart registry (destroy before re-init) ───────────────── */
 if (!window._dbCI)           window._dbCI = {};
 if (!window._dbLastChartData) window._dbLastChartData = null;
@@ -336,8 +360,7 @@ async function _rDashAdmin() {
   <!-- ROW 1: 4 KPI cards -->
   <div class="db-kpis">
 
-    <!-- 1. Total Outstanding — red -->
-    <div class="db-kpi db-kpi-accent-red" onclick="nav('reports')" style="cursor:pointer;background:rgba(220,38,38,.05)">
+    <div id="_kpi0" class="db-kpi db-kpi-accent-red" onclick="nav('reports')" style="cursor:pointer;background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.18);border-left:4px solid #DC2626">
       <div class="db-kpi-row">
         <div class="db-kpi-ic red">${_ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',14)}</div>
         <div class="db-kpi-body">
@@ -349,8 +372,7 @@ async function _rDashAdmin() {
       </div>
     </div>
 
-    <!-- 2. This Month Collection — green -->
-    <div class="db-kpi db-kpi-accent-green" onclick="nav('recovery')" style="cursor:pointer;background:rgba(22,163,74,.05)">
+    <div id="_kpi1" class="db-kpi db-kpi-accent-green" onclick="nav('recovery')" style="cursor:pointer;background:rgba(22,163,74,.05);border:1px solid rgba(22,163,74,.18);border-left:4px solid #16A34A">
       <div class="db-kpi-row">
         <div class="db-kpi-ic green">${_ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',14)}</div>
         <div class="db-kpi-body">
@@ -362,8 +384,7 @@ async function _rDashAdmin() {
       </div>
     </div>
 
-    <!-- 3. Portfolio Value — blue -->
-    <div class="db-kpi db-kpi-accent-blue" onclick="nav('projects')" style="cursor:pointer;background:rgba(37,99,235,.05)">
+    <div id="_kpi2" class="db-kpi db-kpi-accent-blue" onclick="nav('projects')" style="cursor:pointer;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.18);border-left:4px solid #2563EB">
       <div class="db-kpi-row">
         <div class="db-kpi-ic blue">${_ic('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',14)}</div>
         <div class="db-kpi-body">
@@ -374,8 +395,7 @@ async function _rDashAdmin() {
       </div>
     </div>
 
-    <!-- 4. Recovery Rate — amber -->
-    <div class="db-kpi db-kpi-accent-amber" onclick="nav('reports')" style="cursor:pointer;background:rgba(217,119,6,.05)">
+    <div id="_kpi3" class="db-kpi db-kpi-accent-amber" onclick="nav('reports')" style="cursor:pointer;background:rgba(217,119,6,.05);border:1px solid rgba(217,119,6,.18);border-left:4px solid #D97706">
       <div class="db-kpi-row">
         <div class="db-kpi-ic amber">${_ic('<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',14)}</div>
         <div class="db-kpi-body">
@@ -447,28 +467,9 @@ async function _rDashAdmin() {
 
   </div>`; // end .db.ani
 
-  // ── Init bar chart + KPI hover + widget placeholders after DOM ready ──
-  requestAnimationFrame(() => {
-    _dbInitBar30(barData);
-    // Colored hover glow — setProperty('important') overrides ALL CSS
-    const _kh = [
-      { el: document.querySelector('.db-kpi-accent-red'),   sr: '220,38,38'  },
-      { el: document.querySelector('.db-kpi-accent-green'), sr: '22,163,74'  },
-      { el: document.querySelector('.db-kpi-accent-blue'),  sr: '37,99,235'  },
-      { el: document.querySelector('.db-kpi-accent-amber'), sr: '217,119,6'  },
-    ];
-    _kh.forEach(({ el, sr }) => {
-      if (!el) return;
-      el.addEventListener('mouseenter', () => {
-        el.style.setProperty('box-shadow', `0 0 0 2px rgba(${sr},.35), 0 8px 24px rgba(${sr},.20)`, 'important');
-        el.style.setProperty('transform',  'translateY(-2px)', 'important');
-      });
-      el.addEventListener('mouseleave', () => {
-        el.style.removeProperty('box-shadow');
-        el.style.removeProperty('transform');
-      });
-    });
-  });
+  // ── Inject hover style + init charts + widgets ───────────────
+  _injectKpiHoverStyle();
+  requestAnimationFrame(() => { _dbInitBar30(barData); });
   // Client Health widget (defined this file) and AI Recovery Radar widget
   // (defined in radar.js, which is always loaded after dashboard.js per login.html).
   // Both target divs (#d-health-widget / #d-radar-widget) are rendered above; each

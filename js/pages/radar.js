@@ -194,6 +194,28 @@ function _rrClientCard(c, idx, radarId) {
     </div>`;
   }).join('');
 
+  // Next Best Action banner
+  const _naThemes = {
+    coordinate_legal:  { bg:'rgba(239,68,68,.12)',  border:'rgba(239,68,68,.3)',  color:'#ef4444', icon:'&#9878;' },
+    hold_pdc:          { bg:'rgba(245,158,11,.12)', border:'rgba(245,158,11,.3)', color:'#f59e0b', icon:'!!'      },
+    escalate:          { bg:'rgba(245,158,11,.12)', border:'rgba(245,158,11,.3)', color:'#f59e0b', icon:'&#8593;' },
+    legal_notice:      { bg:'rgba(239,68,68,.12)',  border:'rgba(239,68,68,.3)',  color:'#ef4444', icon:'!'       },
+    field_visit:       { bg:'rgba(59,130,246,.12)', border:'rgba(59,130,246,.3)', color:'#3b82f6', icon:'&#9658;' },
+    follow_up_promise: { bg:'rgba(34,197,94,.12)',  border:'rgba(34,197,94,.3)',  color:'#22c55e', icon:'&#10003;'},
+    call:              { bg:'rgba(59,130,246,.12)', border:'rgba(59,130,246,.3)', color:'#3b82f6', icon:'&#9742;' },
+    send_reminder:     { bg:'rgba(107,114,128,.10)',border:'rgba(107,114,128,.2)',color:'var(--t3)',icon:'&#8594;' },
+  };
+  const na       = c.next_action         || 'send_reminder';
+  const naMsg    = c.next_action_message || 'Send payment reminder via WhatsApp';
+  const naTheme  = _naThemes[na] || _naThemes['send_reminder'];
+  const naBanner = `<div style="margin-bottom:12px;padding:9px 12px;background:${naTheme.bg};border:1px solid ${naTheme.border};border-radius:8px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:15px;font-weight:900;color:${naTheme.color};flex-shrink:0">${naTheme.icon}</span>
+    <div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:${naTheme.color}">NEXT BEST ACTION</div>
+      <div style="font-size:12px;font-weight:600;color:var(--t1)">${esc(naMsg)}</div>
+    </div>
+  </div>`;
+
   const phone = c.phone || '';
   const waMsgRaw = `Assalam o Alaikum ${c.client_name},\n\nAap ki installment overdue hai:\nProperty: ${c.unit_no||'—'} - ${c.project_name||'—'}\nAmount Due: PKR ${fM(c.overdue_amount||0)}\n\nAaj payment ka wada hai. Bara meherbani ho gi agar aaj payment kar dein.\n\nShukriya.`;
   const waPhone = phone.replace(/[^0-9]/g,'').replace(/^0/,'92');
@@ -233,6 +255,8 @@ function _rrClientCard(c, idx, radarId) {
         <div style="font-size:11px;color:var(--t3)">Outstanding<br><span style="font-size:13px;font-weight:700;color:var(--t1)">PKR ${fM(c.total_outstanding||0)}</span></div>
         ${c.oldest_overdue_days ? `<div style="font-size:11px;color:var(--t3)">Oldest Overdue<br><span style="font-size:13px;font-weight:700;color:#f59e0b">${c.oldest_overdue_days} days</span></div>` : ''}
       </div>
+
+      ${naBanner}
 
       <!-- 2-col: reasons + breakdown -->
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
@@ -340,7 +364,7 @@ async function rrGenerate() {
     const { data, error } = await supabase.rpc('generate_recovery_radar', {
       p_company_id:   S.cid,
       p_target_date:  td(),
-      p_top_n:        5,
+      p_top_n:        10,
       p_generated_by: S.username || 'officer'
     });
     if (error) throw error;
@@ -569,7 +593,13 @@ async function _rrLoadRisk(force) {
     if (error) throw error;
 
     const rows = Array.isArray(data) ? data : [];
-    const snap = _riskLoadSnap();
+
+    // Server-side trends: previous health scores from client_health_history (>12h ago)
+    let snap = {};
+    try {
+      const { data: trendData } = await supabase.rpc('get_health_score_trends', { p_company_id: S.cid });
+      if (trendData && typeof trendData === 'object') snap = trendData;
+    } catch(_) {}
 
     _riskData = rows.map(c => {
       const health = Number(c.score);
@@ -594,11 +624,6 @@ async function _rrLoadRisk(force) {
     _riskData.sort((a, b) => b.risk - a.risk || b.exposure - a.exposure);
     _riskSel.clear();
     _rrRenderRisk();
-
-    // Persist current health scores so the next visit can show movement.
-    const newSnap = {};
-    _riskData.forEach(c => { if (isFinite(c.health)) newSnap[c.client_id] = c.health; });
-    _riskSaveSnap(newSnap);
 
     body.dataset.loaded = '1';
   } catch(e) {
