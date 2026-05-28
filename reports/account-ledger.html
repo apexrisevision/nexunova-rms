@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -16,9 +17,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
 .toolbar-actions{display:flex;gap:8px}
 .btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
-.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-close,.btn-excel{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px}
 .btn-print:hover{background:#d4b55e}
-.btn-close:hover{background:rgba(255,255,255,.2)}
+.btn-close:hover,.btn-excel:hover{background:rgba(255,255,255,.2)}
 
 /* ── A4 page ── */
 .page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
@@ -118,6 +119,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
     Account Ledger — Nexunova RMS
   </div>
   <div class="toolbar-actions">
+    <button class="btn-excel" onclick="exportExcel()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 2 3 2-3"/><path d="M11 16v-5"/></svg>
+      Export Excel
+    </button>
     <button class="btn-print" onclick="window.print()">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print / Save PDF
@@ -142,9 +147,10 @@ const clientId = P.get('client_id');
 const cid      = P.get('cid');
 
 const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const fmt  = n => Number(n||0).toLocaleString('en-PK');
-const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
+const fmt  = n => Number(n||0).toLocaleString('en-IN');
+const fmtD = d => { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){return d;} };
 const abs  = n => Math.abs(Number(n||0));
+let _exportData = null;
 
 async function loadReport(){
   const page = document.getElementById('page');
@@ -183,6 +189,8 @@ async function loadReport(){
       if(r.credit) runBal -= Number(r.credit);
       return { ...r, running_balance: runBal };
     });
+
+    _exportData = { rows: rowsWithBal, clientInfo, coName, openingBal, closingBal };
 
     const isDebit  = closingBal > 0;
     const balColor = isDebit ? '#dc2626' : '#16a34a';
@@ -226,7 +234,7 @@ async function loadReport(){
       <div class="lh-right">
         <div class="lh-doctype">Account Ledger</div>
         <div class="lh-meta">
-          ${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'})}<br>
+          ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}<br>
           ${br.address_full ? esc(br.address_full)+'<br>' : ''}
           ${br.business_phone ? esc(br.business_phone) : ''}
         </div>
@@ -292,7 +300,7 @@ async function loadReport(){
         </tbody>
         <tfoot>
           <tr class="tfoot-row">
-            <td colspan="4" style="font-size:9px;color:#6b7280;font-style:italic">Closing Balance — ${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'long',year:'numeric'})}</td>
+            <td colspan="4" style="font-size:9px;color:#6b7280;font-style:italic">Closing Balance — ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})}</td>
             <td class="r" style="color:#dc2626">PKR ${fmt(totalDR)}</td>
             <td class="r" style="color:#16a34a">PKR ${fmt(totalCR)}</td>
             <td class="r" style="color:${balColor}">PKR ${fmt(abs(closingBal))} ${isDebit?' Dr':' Cr'}</td>
@@ -320,7 +328,7 @@ async function loadReport(){
 
       <div class="doc-footer">
         <span>${esc(br.footer_text||'Computer-generated document. Nexunova RMS.')}</span>
-        <span>Generated: ${new Date().toLocaleString('en-PK')}</span>
+        <span>Generated: ${new Date().toLocaleString('en-IN')}</span>
       </div>
     </div>`;
 
@@ -334,6 +342,36 @@ async function loadReport(){
 }
 
 loadReport();
+
+function exportExcel(){
+  if(!_exportData){ alert('Report still loading. Please wait.'); return; }
+  if(!window.XLSX){ alert('Excel library not loaded.'); return; }
+  const { rows, clientInfo, coName, openingBal, closingBal } = _exportData;
+  const fmtN = n => Number(n||0);
+  const fmtDx = v => { if(!v) return ''; try{ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch{return v;} };
+
+  const header = ['Date','Type','Description / Reference','Debit (PKR)','Credit (PKR)','Balance (PKR)'];
+  const aoa = [
+    ['Account Ledger — ' + coName],
+    ['Client: ' + (clientInfo.full_name||'')],
+    [''],
+    header,
+    ['', '', 'Opening Balance', '', '', fmtN(openingBal)],
+    ...rows.map(r => [
+      fmtDx(r.date||r.transaction_date||r.created_at),
+      r.type||r.entry_type||'',
+      r.description||r.remarks||r.voucher_no||'',
+      fmtN(r.debit),
+      fmtN(r.credit),
+      fmtN(r.running_balance)
+    ]),
+    ['', '', 'Closing Balance', '', '', fmtN(closingBal)],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Account Ledger');
+  XLSX.writeFile(wb, 'account_ledger_' + (clientInfo.full_name||'client').replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
 </script>
 </body>
 </html>

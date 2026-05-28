@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -16,9 +17,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
 .toolbar-actions{display:flex;gap:8px}
 .btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
-.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-close,.btn-excel{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s;display:flex;align-items:center;gap:6px}
 .btn-print:hover{background:#d4b55e}
-.btn-close:hover{background:rgba(255,255,255,.2)}
+.btn-close:hover,.btn-excel:hover{background:rgba(255,255,255,.2)}
 
 /* ── A4 page ── */
 .page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
@@ -152,6 +153,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
     Installment Schedule
   </div>
   <div class="toolbar-actions">
+    <button class="btn-excel" onclick="exportExcel()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 2 3 2-3"/><path d="M11 16v-5"/></svg>
+      Export Excel
+    </button>
     <button class="btn-print" onclick="window.print()">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print / PDF
@@ -177,6 +182,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 function fmtPKR(v){ return 'PKR '+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtDate(v){ if(!v) return '—'; try{ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch{return v;} }
+let _exportData = null;
 
 function getRowStatus(row){
   if(row.is_paid || row.status==='paid') return 'paid';
@@ -217,6 +223,8 @@ async function load(){
   // Installments: { installment_number, due_date, amount_due, amount_paid, balance, installment_type, status, paid_at, notes }
   const schedule = (sd.installments || []).slice()
     .sort((a,b)=> new Date(a.due_date)-new Date(b.due_date));
+
+  _exportData = { schedule, sale, coName: b.company_name || 'Company' };
 
   const totalAmt   = Number(sale.net_amount||0);
   const downPay    = Number(sale.down_payment||0);
@@ -402,6 +410,37 @@ function showError(msg){
 }
 
 load();
+
+function exportExcel(){
+  if(!_exportData){ alert('Report still loading. Please wait.'); return; }
+  if(!window.XLSX){ alert('Excel library not loaded.'); return; }
+  const { schedule, sale, coName } = _exportData;
+  const fmtN = n => Number(n||0);
+  const fmtDx = v => { if(!v) return ''; try{ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch{return v;} };
+
+  const header = ['#','Type','Due Date','Amount Due (PKR)','Amount Paid (PKR)','Balance (PKR)','Status','Paid Date'];
+  const aoa = [
+    ['Installment Schedule — ' + coName],
+    ['Sale: ' + (sale.sale_number||'') + '   Unit: ' + (sale.unit_no||'') + '   Client: ' + (sale.client_name||'')],
+    ['Net Amount: PKR ' + fmtN(sale.net_amount).toLocaleString('en-IN')],
+    [''],
+    header,
+    ...schedule.map(r => [
+      r.installment_number||'',
+      r.installment_type||'installment',
+      fmtDx(r.due_date),
+      fmtN(r.amount_due),
+      fmtN(r.amount_paid),
+      fmtN(Math.max(0, (r.amount_due||0)-(r.amount_paid||0))),
+      r.status||'pending',
+      fmtDx(r.paid_at)
+    ]),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Schedule');
+  XLSX.writeFile(wb, 'installment_schedule_' + (sale.sale_number||'sale').replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
 </script>
 </body>
 </html>

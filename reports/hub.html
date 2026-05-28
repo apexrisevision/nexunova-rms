@@ -381,7 +381,7 @@ async function init(){
   if(cid){
     const [brRes, prRes] = await Promise.all([
       sb.rpc('get_company_branding',      {p_company_id: cid}),
-      sb.rpc('list_projects_for_reports', {p_company_id: cid}).catch(()=>({data:[]}))
+      sb.rpc('list_projects', {p_company_id: cid}).catch(()=>({data:[]}))
     ]);
     _br = brRes.data || {};
     _projects = prRes.data || [];
@@ -688,7 +688,7 @@ async function searchPayments(cardId, q){
       sr.innerHTML = rows.slice(0,8).map(p=>`
         <div class="search-result-item" onclick="selectPayment('${cardId}','${p.id}','${esc(p.payment_code||p.id).replace(/'/g,"\\'")}')">
           <div class="search-result-main">${esc(p.payment_code||p.id)}</div>
-          <div class="search-result-sub">PKR ${Number(p.amount||0).toLocaleString('en-PK')} · ${p.payment_date||''}</div>
+          <div class="search-result-sub">PKR ${Number(p.amount||0).toLocaleString('en-IN')} · ${p.payment_date||''}</div>
         </div>`).join('');
     } catch(e){ sr.innerHTML='<div class="no-results">Error: '+esc(e.message)+'</div>'; }
   }, 300);
@@ -738,7 +738,7 @@ function openMgmtReport(id){
 
   if(fromEl?.value)   params.set('from',    fromEl.value);
   if(toEl?.value)     params.set('to',      toEl.value);
-  if(projEl?.value)   params.set('project', projEl.value);
+  if(projEl?.value)   params.set('project_id', projEl.value);
   if(statusEl?.value) params.set('status',  statusEl.value);
   if(ustatEl?.value)  params.set('status',  ustatEl.value);
 

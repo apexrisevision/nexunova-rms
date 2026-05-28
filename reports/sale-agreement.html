@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Sale Agreement — Nexunova RMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -16,9 +16,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
 .toolbar-title{font-size:13px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:8px}
 .toolbar-actions{display:flex;gap:8px}
 .btn-print{background:#c9a84c;color:#1e2d47;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;letter-spacing:.3px;transition:background .15s}
-.btn-close{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-close,.btn-lang{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
 .btn-print:hover{background:#d4b55e}
-.btn-close:hover{background:rgba(255,255,255,.2)}
+.btn-close:hover,.btn-lang:hover{background:rgba(255,255,255,.2)}
+/* ── Urdu / RTL mode ── */
+body.lang-ur [data-ur],body.lang-ur .ur-text{font-family:'Noto Nastaliq Urdu',serif;line-height:1.9;direction:rtl}
+body.lang-ur .page{direction:rtl;text-align:right}
+body.lang-ur .lh,.body.lang-ur .agr-refs,.body.lang-ur .parties-grid{direction:rtl}
 
 /* ── A4 page ── */
 .page-wrap{padding:74px 20px 40px;display:flex;justify-content:center}
@@ -133,6 +137,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#edf0f4;color:#111827;-
     Sale Agreement — Nexunova RMS
   </div>
   <div class="toolbar-actions">
+    <button class="btn-lang" onclick="toggleLang()" id="lang-btn">اردو</button>
     <button class="btn-print" onclick="window.print()">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print / Save PDF
@@ -448,6 +453,31 @@ async function loadReport(){
 }
 
 loadReport();
+
+// ── Urdu / RTL language toggle ─────────────────────────────────────
+function applyLang(lang){
+  if(lang==='ur'){
+    document.querySelectorAll('[data-ur]').forEach(el=>{
+      if(!el.dataset.en) el.dataset.en=el.textContent;
+      el.textContent=el.dataset.ur;
+    });
+    document.documentElement.setAttribute('lang','ur');
+    document.body.classList.add('lang-ur');
+  } else {
+    document.querySelectorAll('[data-en]').forEach(el=>{ el.textContent=el.dataset.en; });
+    document.documentElement.setAttribute('lang','en');
+    document.body.classList.remove('lang-ur');
+  }
+  const btn=document.getElementById('lang-btn');
+  if(btn) btn.textContent=lang==='ur'?'English':'اردو';
+  document.documentElement.dataset.lang=lang;
+}
+function toggleLang(){
+  const cur=document.documentElement.dataset.lang==='ur'?'en':'ur';
+  applyLang(cur);
+}
+// Auto-apply if ?lang=ur in URL
+if(new URLSearchParams(location.search).get('lang')==='ur') applyLang('ur');
 </script>
 </body>
 </html>
