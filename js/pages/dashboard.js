@@ -447,18 +447,9 @@ async function loadCommandCenter() {
   const _hm = m => { m=Math.max(0,Math.round(Number(m)||0)); const h=Math.floor(m/60), mm=m%60; return h ? (mm?`${h}h ${mm}m`:`${h}h`) : `${mm}m`; };
   const _roleShort = { owner:'Owner', admin:'Admin', recovery:'Recovery', recovery_officer:'Recovery', finance:'Finance', accounts:'Finance', manager:'Manager', staff:'Staff' };
   const teamHtml = team.length ? team.map(u => {
+    const login = u.login_today ? new Date(u.login_today).toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'}) : '—';
     const rl = _roleShort[(u.role||'').toLowerCase()] || (u.role||'—');
     const init = ((u.name||'?').trim()[0]||'?').toUpperCase();
-    // Consent gate: 'self' (admin/owner) and 'granted' are visible; 'pending'/'declined' are masked.
-    const masked = u.consent === 'pending' || u.consent === 'declined';
-    if (masked) {
-      const lbl = u.consent === 'declined' ? 'Private · sharing declined' : 'Awaiting consent';
-      return `<div class="cc-twrap"><div class="cc-trow cc-trow-masked">
-        <span class="cc-tmember"><span class="cc-tav">${esc(init)}</span><span class="cc-tname"><b>${esc(u.name)}</b><small>${esc(rl)}</small></span></span>
-        <span class="cc-tpriv">${_ic('<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',12)} ${lbl}</span>
-      </div></div>`;
-    }
-    const login = u.login_today ? new Date(u.login_today).toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'}) : '—';
     const can = (u.contacts_today||0) > 0 && u.id;
     const ct  = `${u.contacts_today}${u.call_minutes?` · ${u.call_minutes}m`:''}${can?` ${_ic('<path d="m6 9 6 6 6-6"/>',12)}`:''}`;
     return `<div class="cc-twrap">

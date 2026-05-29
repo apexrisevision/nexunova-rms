@@ -69,8 +69,6 @@ async function tryRestoreSession(){
     if(typeof startLeakGuard==='function')startLeakGuard();
     if(typeof _loadRoleContext==='function'){ try{ await _loadRoleContext(sess.cid, sess.userId, sess.role); }catch(_){} }  // refresh hasFinanceUser + assignedProjectIds on reload
     buildSB();
-    if(typeof _injectConsentMenuItem==='function'){ _injectConsentMenuItem({role: sess.role}); }  // "Data sharing" menu item for non-admins
-    if(typeof _checkAdminConsent==='function'){ try{ await _checkAdminConsent(); }catch(_){} }     // re-prompt if consent still pending
     if(typeof initDemoBanner==='function')initDemoBanner();
     if(sess.onboardingComplete===false&&typeof OB!=='undefined'){OB.show(sess.cid);}
     else{nav(effectiveRole()==='recovery'?'recovery-dashboard':'dashboard');if(typeof TUT!=='undefined')TUT.maybeShow();}
