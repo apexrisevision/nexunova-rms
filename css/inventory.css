@@ -3,7 +3,21 @@
 /* ─── Page Shell ──────────────────────────────────────────────────── */
 .inv-page { display:flex; flex-direction:column; gap:0; min-height:100%; }
 
-/* ─── Page Header ─────────────────────────────────────────────────── */
+/* ─── New page header ─────────────────────────────────────────────── */
+.u-ph {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0 16px;
+}
+.u-ph-left { display: flex; flex-direction: column; gap: 0; }
+.u-breadcrumb {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-muted);
+}
+
+/* ─── Page Header (legacy) ────────────────────────────────────────── */
 .inv-ph { padding:20px 0 16px; }
 .inv-breadcrumb {
   display:flex; align-items:center; gap:5px;

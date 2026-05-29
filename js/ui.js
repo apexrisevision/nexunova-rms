@@ -819,16 +819,16 @@ function _sleekCard(el, accentColor) {
 
 function _applyPageSleek(root) {
   var scope = root || document.querySelector('.pg.on') || document;
-  scope.querySelectorAll(_CARD_SEL).forEach(function(c) { _sleekCard(c); });
+  scope.querySelectorAll(_CARD_SEL).forEach(function(c) { _sleekCard(c, c.dataset.col); });
 }
 
 // Auto-observer — every card class, anywhere in the app, auto-processed
 ;(function() {
   function _onNode(node) {
     if (!node || node.nodeType !== 1) return;
-    if (node.matches && node.matches(_CARD_SEL)) { _sleekCard(node); return; }
+    if (node.matches && node.matches(_CARD_SEL)) { _sleekCard(node, node.dataset.col); return; }
     if (node.querySelectorAll) {
-      node.querySelectorAll(_CARD_SEL).forEach(function(c) { _sleekCard(c); });
+      node.querySelectorAll(_CARD_SEL).forEach(function(c) { _sleekCard(c, c.dataset.col); });
     }
   }
   var _obs = new MutationObserver(function(muts) {

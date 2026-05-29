@@ -423,7 +423,7 @@
 .pw-field label span.req { color: rgba(0,217,255,0.7); }
 .pw-input, .pw-select, .pw-textarea {
   width: 100%;
-  background: rgba(255,255,255,0.04);
+  background-color: rgba(255,255,255,0.04);
   border: 1.5px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   padding: 11px 14px;
@@ -1026,7 +1026,7 @@
 }
 .pw2-input:focus { outline: none; border-color: rgba(0,217,255,0.4); }
 .pw2-input::placeholder { color: rgba(255,255,255,.2); }
-.pw2-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.pw2-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px; padding-right: 32px; }
 .pw2-select option { background: #0d1117; color: white; }
 
 .pw2-file-zone {
@@ -1655,7 +1655,7 @@
 }
 .pw2-input,
 .pw2-input.pw2-select {
-  background: rgba(255,255,255,0.05) !important;
+  background-color: rgba(255,255,255,0.05) !important;
   border-color: rgba(255,255,255,0.14) !important;
   color: #fff !important;
   font-size: 13.5px !important;

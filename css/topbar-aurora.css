@@ -47,6 +47,7 @@
 
 /* ── TRIGGER pill — breathing halo (GPU-cheap box-shadow) ─────── */
 .aurora-topbar-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 11px;
@@ -63,6 +64,53 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(0,217,255,0.0), 0 2px 8px rgba(0,217,255,0.10); }
   50%      { box-shadow: 0 0 0 5px rgba(0,217,255,0.10), 0 4px 14px rgba(0,217,255,0.25); }
 }
+/* Attention "ping" — an expanding ring radiates periodically to invite hover */
+.aurora-topbar-trigger::after {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 99px;
+  border: 1.5px solid rgba(0,217,255,0.5);
+  opacity: 0;
+  pointer-events: none;
+  animation: atbPing 3.6s cubic-bezier(0.22,1,0.36,1) infinite;
+}
+@keyframes atbPing {
+  0%   { opacity: 0;    transform: scale(1); }
+  10%  { opacity: 0.55; }
+  45%  { opacity: 0;    transform: scale(1.22); }
+  100% { opacity: 0;    transform: scale(1.22); }
+}
+/* "Hover me" pill hint that slides in below the trigger when idle */
+.atb-hint {
+  position: absolute;
+  top: calc(100% + 7px); left: 8px;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
+  color: #aef2ff;
+  background: rgba(0,217,255,0.10);
+  border: 1px solid rgba(0,217,255,0.30);
+  border-radius: 99px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  animation: atbHintFloat 3.6s ease-in-out infinite;
+}
+.atb-hint::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #00d9ff;
+  box-shadow: 0 0 8px rgba(0,217,255,0.9);
+}
+@keyframes atbHintFloat {
+  0%, 100% { opacity: 0; transform: translateY(-3px); }
+  35%, 70% { opacity: 0.92; transform: translateY(0); }
+}
+/* Calm everything down once the user engages */
+.aurora-topbar-trigger:hover::after,
+.aurora-topbar.is-open .aurora-topbar-trigger::after { animation: none; opacity: 0; }
+.aurora-topbar-trigger:hover .atb-hint,
+.aurora-topbar.is-open .atb-hint { opacity: 0 !important; animation: none; }
 .aurora-topbar-trigger:hover {
   background: linear-gradient(90deg, rgba(0,217,255,0.20), rgba(168,85,247,0.14));
   border-color: rgba(0,217,255,0.55);
@@ -142,23 +190,29 @@
 .aurora-topbar-mega {
   position: absolute;
   top: 51px; left: 0; right: 0;
-  max-height: calc(100vh - 110px);
+  width: min(1060px, calc(100% - 24px));
+  margin: 0 auto;
+  max-height: min(440px, calc(100vh - 120px));
   pointer-events: none;
   z-index: 2;
   background:
-    radial-gradient(ellipse 760px 220px at 50% -8%, rgba(0,217,255,0.16), transparent 62%),
-    radial-gradient(ellipse 520px 200px at 82% 0%, rgba(168,85,247,0.10), transparent 60%),
-    linear-gradient(180deg, #0c0e16 0%, #0f1320 55%, #121626 100%);
-  border-bottom: 1px solid rgba(0,217,255,0.25);
-  clip-path: ellipse(140% 100% at 50% 0%);
-  -webkit-clip-path: ellipse(140% 100% at 50% 0%);
-  transform: translateY(-100%);
+    radial-gradient(ellipse 620px 150px at 50% -16%, rgba(0,217,255,0.15), transparent 60%),
+    radial-gradient(ellipse 440px 140px at 86% -8%, rgba(168,85,247,0.10), transparent 60%),
+    linear-gradient(180deg, #0d0f18 0%, #0f1320 55%, #121626 100%);
+  border: 1px solid rgba(0,217,255,0.20);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+  /* Rectangular curtain wipe — reveals top→bottom, never clips corner items */
+  clip-path: inset(0 0 100% 0 round 0 0 16px 16px);
+  -webkit-clip-path: inset(0 0 100% 0 round 0 0 16px 16px);
+  transform: translateY(-6px);
   opacity: 0;
   transition:
-    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms ease,
-    clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 24px 60px rgba(0,0,0,0.42);
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease,
+    clip-path 340ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 18px 44px rgba(0,0,0,0.46), 0 0 0 1px rgba(0,217,255,0.05);
 }
 /* Top hairline highlight — gives the panel a crisp lit edge */
 .aurora-topbar-mega::before {
@@ -168,173 +222,240 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(0,217,255,0.55) 35%, rgba(168,85,247,0.45) 65%, transparent);
   opacity: 0.9;
+  z-index: 1;
 }
 .aurora-topbar.is-open .aurora-topbar-mega {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
-  clip-path: ellipse(98% 105% at 50% 0%);
-  -webkit-clip-path: ellipse(98% 105% at 50% 0%);
+  clip-path: inset(0 0 0 0 round 0 0 16px 16px);
+  -webkit-clip-path: inset(0 0 0 0 round 0 0 16px 16px);
 }
 
-/* ── Grid — multi-column operational zones, content-driven ────── */
+/* ════════════════════════════════════════════════════════════════
+   COMMAND DECK — horizontal category tabs + app-launcher tiles.
+   Top tabs (not a vertical rail) → deliberately unlike the sidebar.
+   ════════════════════════════════════════════════════════════════ */
 .atb-mega-grid {
   position: relative;
-  padding: 24px 36px 26px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
-  gap: 10px 28px;
-  max-height: calc(100vh - 124px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  max-height: min(404px, calc(100vh - 132px));
+  overflow: hidden;
+}
+
+/* ── CATEGORY TABS (horizontal chip row, wraps — never scrolls) ── */
+.atb-tabs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+
+.atb-tab {
+  --z: var(--atb-cyan);
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  color: rgba(255,255,255,0.60);
+  white-space: nowrap;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  /* idle auto-blink (zone-coloured glow) — runs without hover; waves across the row */
+  animation: atbTabPulse 2.6s ease-in-out infinite;
+}
+@keyframes atbTabPulse {
+  0%, 100% {
+    border-color: rgba(255,255,255,0.07);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--z) 55%, transparent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--z) 34%, transparent);
+  }
+}
+/* Stagger the pulse so it ripples left→right across the tabs */
+.atb-tab:nth-child(1) { animation-delay: 0ms; }
+.atb-tab:nth-child(2) { animation-delay: 180ms; }
+.atb-tab:nth-child(3) { animation-delay: 360ms; }
+.atb-tab:nth-child(4) { animation-delay: 540ms; }
+.atb-tab:nth-child(5) { animation-delay: 720ms; }
+.atb-tab:nth-child(6) { animation-delay: 900ms; }
+.atb-tab:nth-child(7) { animation-delay: 1080ms; }
+.atb-tab:nth-child(8) { animation-delay: 1260ms; }
+.atb-tab:nth-child(n+9) { animation-delay: 1440ms; }
+/* Stop the blink once a tab is engaged (hover or active = solid state) */
+.atb-tab:hover, .atb-tab.is-active { animation: none; }
+.atb-tab-ic { display: grid; place-items: center; flex-shrink: 0; }
+.atb-tab-ic svg { width: 15px; height: 15px; color: currentColor; }
+.atb-tab-lb { font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; }
+.atb-tab-cnt {
+  font-size: 9px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: inherit; opacity: 0.7;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px; padding: 0 6px; min-width: 16px; text-align: center;
+}
+.atb-tab:hover {
+  color: #fff;
+  background: transparent;
+  border-color: color-mix(in srgb, var(--z) 45%, rgba(255,255,255,0.2));
+}
+.atb-tab.is-active {
+  color: var(--z);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--z) 60%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--z) 30%, transparent),
+              0 0 16px color-mix(in srgb, var(--z) 28%, transparent);
+}
+.atb-tab.is-active .atb-tab-cnt { background: color-mix(in srgb, var(--z) 24%, transparent); opacity: 1; }
+
+/* ── STAGE: decks of item tiles (only the active one shows) ────── */
+.atb-stage {
+  position: relative;
+  flex: 1; min-width: 0;
+  padding: 14px 18px 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-/* Slim aurora scrollbar */
-.atb-mega-grid::-webkit-scrollbar { width: 8px; }
-.atb-mega-grid::-webkit-scrollbar-thumb { background: rgba(0,217,255,0.20); border-radius: 99px; }
-.atb-mega-grid::-webkit-scrollbar-thumb:hover { background: rgba(0,217,255,0.35); }
+.atb-stage::-webkit-scrollbar { width: 8px; }
+.atb-stage::-webkit-scrollbar-thumb { background: rgba(0,217,255,0.20); border-radius: 99px; }
 
-/* ── Operational group (zone) ─────────────────────────────────── */
-.atb-grp {
+.atb-deck { display: none; }
+.atb-deck.is-active {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding-left: 12px;
-  border-left: 1px solid rgba(255,255,255,0.05);
-  /* per-zone accent, defaulted to cyan; overridden by .zone-* below */
-  --z: var(--atb-cyan);
-}
-
-.atb-grp-lbl {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 9.5px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--z);
-  padding: 0 10px 9px;
-  margin-bottom: 7px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-.atb-grp-lbl::before {
-  content: '';
-  width: 14px; height: 2px; border-radius: 2px;
-  background: linear-gradient(90deg, var(--z), transparent);
-  flex-shrink: 0;
-}
-.atb-grp-lbl-tx {
-  flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.atb-grp-cnt {
-  font-size: 9px; font-weight: 700;
-  color: var(--z);
-  background: color-mix(in srgb, var(--z) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--z) 28%, transparent);
-  border-radius: 99px;
-  padding: 1px 7px;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-.atb-grp-items { display: flex; flex-direction: column; gap: 1px; }
-
-/* ── Item row ─────────────────────────────────────────────────── */
-.atb-item {
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-content: flex-start;
   gap: 10px;
-  padding: 6px 9px;
-  border-radius: 8px;
-  cursor: pointer;
-  color: rgba(255,255,255,0.80);
+}
+/* Staggered tile entrance — tiles cascade in to catch the eye on open */
+.atb-deck.is-active .atb-tile { animation: atbTileIn 360ms cubic-bezier(0.22,1,0.36,1) both; }
+.atb-deck.is-active .atb-tile:nth-child(1)  { animation-delay: 20ms; }
+.atb-deck.is-active .atb-tile:nth-child(2)  { animation-delay: 45ms; }
+.atb-deck.is-active .atb-tile:nth-child(3)  { animation-delay: 70ms; }
+.atb-deck.is-active .atb-tile:nth-child(4)  { animation-delay: 95ms; }
+.atb-deck.is-active .atb-tile:nth-child(5)  { animation-delay: 120ms; }
+.atb-deck.is-active .atb-tile:nth-child(6)  { animation-delay: 145ms; }
+.atb-deck.is-active .atb-tile:nth-child(7)  { animation-delay: 170ms; }
+.atb-deck.is-active .atb-tile:nth-child(8)  { animation-delay: 195ms; }
+.atb-deck.is-active .atb-tile:nth-child(9)  { animation-delay: 220ms; }
+.atb-deck.is-active .atb-tile:nth-child(10) { animation-delay: 245ms; }
+.atb-deck.is-active .atb-tile:nth-child(n+11) { animation-delay: 268ms; }
+@keyframes atbTileIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── ITEM TILE (app-launcher) ─────────────────────────────────── */
+.atb-tile {
+  /* --z inherits from the deck's .zone-* so each category is colour-true */
+  position: relative;
+  overflow: hidden;                 /* clips the water-drop ripple to the tile */
+  width: 110px; flex: 0 0 110px;    /* fixed width → tiles pack left, no empty grid void */
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 12px 7px 10px;
+  border-radius: 13px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.025);
   text-decoration: none;
-  font-size: 12.5px; font-weight: 500;
-  transition: background 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
-}
-.atb-item-ic {
-  width: 26px; height: 26px;
-  border-radius: 7px;
-  display: grid; place-items: center;
-  flex-shrink: 0;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
-}
-.atb-item-ic svg { width: 15px; height: 15px; color: rgba(255,255,255,0.58); transition: color 150ms ease; }
-.atb-item-lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* trailing nav chevron — fades in on hover/active (premium affordance) */
-.atb-item-go {
-  flex-shrink: 0;
-  color: var(--z);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: opacity 150ms ease, transform 150ms ease;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 180ms cubic-bezier(0.22,1,0.36,1), border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
-.atb-item:hover {
-  background: color-mix(in srgb, var(--z) 12%, transparent);
-  color: #fff;
-  transform: translateX(2px);
+/* ── Water-drop ripple — radiates from the cursor on hover ─────── */
+.atb-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--z) 60%, transparent) 0%,
+    color-mix(in srgb, var(--z) 30%, transparent) 40%,
+    transparent 72%);
+  transform: scale(0);
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: 0;
+  animation: atbRipple 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-.atb-item:hover .atb-item-ic {
-  background: color-mix(in srgb, var(--z) 18%, transparent);
-  border-color: color-mix(in srgb, var(--z) 40%, transparent);
-  transform: scale(1.05);
+@keyframes atbRipple {
+  to { transform: scale(1); opacity: 0; }
 }
-.atb-item:hover .atb-item-ic svg { color: var(--z); }
-.atb-item:hover .atb-item-go { opacity: 0.85; transform: translateX(0); }
-
-.atb-item.is-current {
-  background: color-mix(in srgb, var(--z) 15%, transparent);
-  color: var(--z);
-  box-shadow: inset 2px 0 0 0 var(--z);
+/* keep icon + label above the ripple */
+.atb-tile-ic, .atb-tile-lb { position: relative; z-index: 1; }
+.atb-tile-ic {
+  position: relative;
+  width: 38px; height: 38px; border-radius: 11px;
+  display: grid; place-items: center; flex-shrink: 0;
+  background: color-mix(in srgb, var(--z) 12%, rgba(255,255,255,0.03));
+  border: 1px solid color-mix(in srgb, var(--z) 22%, transparent);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
-.atb-item.is-current .atb-item-ic {
-  background: color-mix(in srgb, var(--z) 20%, transparent);
+.atb-tile-ic svg { width: 18px; height: 18px; color: var(--z); transition: transform 180ms ease; }
+.atb-tile-lb {
+  font-size: 11px; font-weight: 600; line-height: 1.2;
+  color: rgba(255,255,255,0.82);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 180ms ease;
+}
+.atb-tile:hover {
+  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--z) 45%, transparent);
+  background: color-mix(in srgb, var(--z) 8%, rgba(255,255,255,0.02));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--z) 22%, transparent), 0 2px 6px rgba(0,0,0,0.30);
 }
-.atb-item.is-current .atb-item-ic svg { color: var(--z); }
-.atb-item.is-current .atb-item-go { opacity: 0.9; transform: translateX(0); }
+.atb-tile:hover .atb-tile-ic {
+  background: color-mix(in srgb, var(--z) 24%, transparent);
+  border-color: color-mix(in srgb, var(--z) 55%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--z) 35%, transparent);
+}
+.atb-tile:hover .atb-tile-ic svg { transform: scale(1.1); }
+.atb-tile:hover .atb-tile-lb { color: #fff; }
 
-/* Badge (alert counts) */
-.atb-bdg {
-  flex-shrink: 0;
-  font-size: 10px; font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 99px;
-  background: rgba(0,217,255,0.16);
+.atb-tile.is-current {
+  border-color: color-mix(in srgb, var(--z) 55%, transparent);
+  background: color-mix(in srgb, var(--z) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--z) 30%, transparent);
+}
+.atb-tile.is-current .atb-tile-ic { background: color-mix(in srgb, var(--z) 26%, transparent); border-color: color-mix(in srgb, var(--z) 60%, transparent); }
+.atb-tile.is-current .atb-tile-lb { color: var(--z); }
+
+/* Tile badge (alert counts) — corner pill on the icon */
+.atb-tile-bdg {
+  position: absolute; top: -5px; right: -7px;
+  font-size: 9px; font-weight: 800; line-height: 1;
+  padding: 2px 5px; border-radius: 99px;
+  background: #0c0e16;
   color: #67e8f9;
+  border: 1px solid rgba(0,217,255,0.5);
   font-variant-numeric: tabular-nums;
 }
-.atb-bdg.alert { background: rgba(244,63,94,0.20); color: #f87171; }
-
-/* ── Quick-access group (no label) ────────────────────────────── */
-.atb-grp.is-quick { --z: var(--atb-violet); }
-.atb-grp.is-quick .atb-grp-lbl { color: var(--atb-violet); }
+.atb-tile-bdg.alert { color: #fda4af; border-color: rgba(244,63,94,0.6); }
 
 /* ════════════════════════════════════════════════════════════════
    OPERATIONAL ZONING — accents stay inside the cyan→violet aurora
    spectrum so the signature identity is preserved (no green/gold/red).
+   Element-agnostic so --z resolves on both the rail row + the pane.
    ════════════════════════════════════════════════════════════════ */
-.atb-grp.zone-cyan   { --z: #00d9ff; }   /* Home / Main / Quick      */
-.atb-grp.zone-teal   { --z: #2dd4bf; }   /* Sales & Bookings         */
-.atb-grp.zone-sky    { --z: #38bdf8; }   /* Payments                 */
-.atb-grp.zone-indigo { --z: #818cf8; }   /* Reports & Docs           */
-.atb-grp.zone-violet { --z: #a855f7; }   /* Clients                  */
-.atb-grp.zone-purple { --z: #c084fc; }   /* Finance & Compliance     */
-.atb-grp.zone-slate  { --z: #94a3b8; }   /* System                   */
+.aurora-topbar .zone-cyan   { --z: #00d9ff; }   /* Home / Main / Quick      */
+.aurora-topbar .zone-teal   { --z: #2dd4bf; }   /* Sales & Bookings         */
+.aurora-topbar .zone-sky    { --z: #38bdf8; }   /* Payments                 */
+.aurora-topbar .zone-indigo { --z: #818cf8; }   /* Reports & Docs           */
+.aurora-topbar .zone-violet { --z: #a855f7; }   /* Clients / Quick          */
+.aurora-topbar .zone-purple { --z: #c084fc; }   /* Finance & Compliance     */
+.aurora-topbar .zone-slate  { --z: #94a3b8; }   /* System                   */
+.aurora-topbar .zone-aurora { --z: #00d9ff; }   /* Recovery (operational heart) */
 
-/* Recovery — the operational heart. Signature cyan→violet gradient label. */
-.atb-grp.zone-aurora { --z: #00d9ff; }
-.atb-grp.zone-aurora .atb-grp-lbl {
+/* Recovery — signature cyan→violet gradient on the active tab label. */
+.atb-tab.zone-aurora.is-active .atb-tab-lb {
   background: linear-gradient(90deg, #00d9ff, #c084fc);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-.atb-grp.zone-aurora .atb-grp-lbl::before {
-  background: linear-gradient(90deg, #00d9ff, #c084fc);
-  -webkit-text-fill-color: initial;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -352,57 +473,67 @@
 [data-theme="light"] .atb-current-name { color: #0f0f1a; }
 [data-theme="light"] .atb-chev { color: #2563EB; }
 
+/* Light theme → LIGHT panel (matches the active theme). Dark text, deeper hues. */
 [data-theme="light"] .aurora-topbar-mega {
   background:
-    radial-gradient(ellipse 760px 220px at 50% -8%, rgba(37,99,235,0.12), transparent 62%),
-    radial-gradient(ellipse 520px 200px at 82% 0%, rgba(168,85,247,0.08), transparent 60%),
-    linear-gradient(180deg, #fbfcff 0%, #f3f6fd 55%, #eef2fb 100%);
+    radial-gradient(ellipse 620px 150px at 50% -16%, rgba(37,99,235,0.10), transparent 60%),
+    radial-gradient(ellipse 440px 140px at 86% -8%, rgba(168,85,247,0.07), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #f5f8fd 55%, #eef2fb 100%);
+  border-color: rgba(37,99,235,0.18);
   border-bottom-color: rgba(37,99,235,0.28);
-  box-shadow: 0 24px 60px rgba(15,23,42,0.16);
+  box-shadow: 0 18px 48px rgba(15,23,42,0.16), 0 0 0 1px rgba(37,99,235,0.05);
 }
 [data-theme="light"] .aurora-topbar-mega::before {
   background: linear-gradient(90deg, transparent, rgba(37,99,235,0.45) 35%, rgba(168,85,247,0.40) 65%, transparent);
 }
-[data-theme="light"] .atb-grp { border-left-color: rgba(15,23,42,0.06); }
-[data-theme="light"] .atb-grp-lbl { border-bottom-color: rgba(15,23,42,0.08); }
-[data-theme="light"] .atb-item { color: rgba(15,23,42,0.78); }
-[data-theme="light"] .atb-item-ic { background: rgba(15,23,42,0.03); border-color: rgba(15,23,42,0.07); }
-[data-theme="light"] .atb-item-ic svg { color: rgba(15,23,42,0.50); }
-[data-theme="light"] .atb-item:hover { color: #0f0f1a; }
-[data-theme="light"] .atb-bdg { background: rgba(37,99,235,0.12); color: #2563EB; }
-[data-theme="light"] .atb-bdg.alert { background: rgba(220,38,38,0.12); color: #dc2626; }
+[data-theme="light"] .atb-tabs { border-bottom-color: rgba(15,23,42,0.08); }
+[data-theme="light"] .atb-tab { color: rgba(15,23,42,0.62); background: transparent; }
+[data-theme="light"] .atb-tab:hover { color: #0f0f1a; background: transparent; border-color: color-mix(in srgb, var(--z) 45%, rgba(15,23,42,0.18)); }
+[data-theme="light"] .atb-tab-cnt { background: rgba(15,23,42,0.07); color: rgba(15,23,42,0.6); }
+[data-theme="light"] .atb-tile { border-color: rgba(15,23,42,0.10); background: rgba(15,23,42,0.02); }
+[data-theme="light"] .atb-tile-lb { color: rgba(15,23,42,0.82); }
+[data-theme="light"] .atb-tile:hover .atb-tile-lb { color: #0f0f1a; }
+[data-theme="light"] .atb-tile-bdg { background: #ffffff; color: #0891b2; border-color: rgba(8,145,178,0.5); }
+[data-theme="light"] .atb-tile-bdg.alert { color: #dc2626; border-color: rgba(220,38,38,0.5); }
 
-/* Light: keep zone hues legible (slightly deeper) */
-[data-theme="light"] .atb-grp.zone-cyan   { --z: #0891b2; }
-[data-theme="light"] .atb-grp.zone-teal   { --z: #0d9488; }
-[data-theme="light"] .atb-grp.zone-sky    { --z: #0284c7; }
-[data-theme="light"] .atb-grp.zone-indigo { --z: #4f46e5; }
-[data-theme="light"] .atb-grp.zone-violet { --z: #7c3aed; }
-[data-theme="light"] .atb-grp.zone-purple { --z: #9333ea; }
-[data-theme="light"] .atb-grp.zone-slate  { --z: #64748b; }
-[data-theme="light"] .atb-grp.zone-aurora { --z: #0891b2; }
-[data-theme="light"] .atb-grp.zone-aurora .atb-grp-lbl { background: linear-gradient(90deg, #0891b2, #9333ea); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+/* Light bg → deeper zone hues so colours stay legible */
+[data-theme="light"] .aurora-topbar .zone-cyan   { --z: #0891b2; }
+[data-theme="light"] .aurora-topbar .zone-teal   { --z: #0d9488; }
+[data-theme="light"] .aurora-topbar .zone-sky    { --z: #0284c7; }
+[data-theme="light"] .aurora-topbar .zone-indigo { --z: #4f46e5; }
+[data-theme="light"] .aurora-topbar .zone-violet { --z: #7c3aed; }
+[data-theme="light"] .aurora-topbar .zone-purple { --z: #9333ea; }
+[data-theme="light"] .aurora-topbar .zone-slate  { --z: #64748b; }
+[data-theme="light"] .aurora-topbar .zone-aurora { --z: #0891b2; }
+[data-theme="light"] .atb-tab.zone-aurora.is-active .atb-tab-lb { background: linear-gradient(90deg, #0891b2, #9333ea); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 /* ════════════════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════════════════ */
-@media (max-width: 1100px) {
-  .atb-mega-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; padding: 20px 22px 22px; }
-}
 @media (max-width: 720px) {
   .atb-current-lbl { display: none; }
   .aurora-topbar-bar { padding: 0 14px; }
-  .atb-mega-grid { grid-template-columns: 1fr 1fr; max-height: calc(100vh - 110px); }
-  .atb-grp { padding-left: 8px; }
+  .aurora-topbar-mega { width: calc(100% - 16px); max-height: min(72vh, calc(100vh - 100px)); }
+  .atb-mega-grid { max-height: min(72vh, calc(100vh - 112px)); }
+  .atb-tabs { padding: 12px 14px 10px; }
+  .atb-stage { padding: 14px; }
+  .atb-deck.is-active { gap: 8px; }
+  .atb-tile { width: 92px; flex-basis: 92px; padding: 13px 8px 11px; }
+  .atb-tile-ic { width: 40px; height: 40px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora-topbar, .aurora-topbar * { transition-duration: 100ms !important; animation: none !important; }
+  .aurora-topbar, .aurora-topbar *,
+  .aurora-topbar *::before, .aurora-topbar *::after {
+    transition-duration: 100ms !important; animation: none !important;
+  }
+  .atb-hint { opacity: 0 !important; }
 }
 
-/* Fallback for browsers without color-mix() — keep items legible */
+/* Fallback for browsers without color-mix() — keep tiles/tabs legible */
 @supports not (color: color-mix(in srgb, red 50%, white)) {
-  .atb-item:hover { background: rgba(0,217,255,0.12); }
-  .atb-item.is-current { background: rgba(0,217,255,0.15); box-shadow: inset 2px 0 0 0 #00d9ff; }
-  .atb-grp-cnt { background: rgba(0,217,255,0.14); border-color: rgba(0,217,255,0.28); }
+  .atb-tab:hover, .atb-tab.is-active { background: transparent; border-color: rgba(0,217,255,0.5); color: #67e8f9; }
+  .atb-tile:hover { background: rgba(0,217,255,0.08); border-color: rgba(0,217,255,0.40); }
+  .atb-tile.is-current { background: rgba(0,217,255,0.14); border-color: rgba(0,217,255,0.5); }
+  .atb-tile-ic { background: rgba(0,217,255,0.12); border-color: rgba(0,217,255,0.22); }
 }

@@ -317,11 +317,13 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Phase 5 UI Polish COMPLETE — 11 fixes applied (2026-05-28):** (1) Select chevron SVG: indigo `rgba(99,102,241)` → Blue-600 `rgba(37,99,235)` in all dropdowns; (2) sidebar-premium.css: all `rgba(0,217,255,…)` cyan values replaced — logo glow, header border, `::after` gradient, `.sb-hd-sub`, `@keyframes sbHdLetterWave`, `.sb-hd-name` gradient all Blue-600; (3+11) card hover: `filter:drop-shadow` → `box-shadow`, bounce `cubic-bezier(.34,1.56,.64,1)` → smooth `.4,0,.2,1`, `scale(1.01)` removed, `translateY(-4px)` → `(-2px)`; (4) Dead `.card::before` sweep animation code removed from visual-overhaul.css; (5) Table v2.0 zebra rows scoped under `[data-theme="light"]` to prevent dark-mode bleed; (6) theme-system.css: dark `--brand: #22d3ee` → `#2563EB`, light `--brand/#info/#brand3` cyan variants → Blue-600, `.theme-toggle-thumb`, `.bi`, `.dash-fin-val.blue`, `.brand` all fixed; (7) Mobile sidebar overlay: already implemented; (8) `.inp`/`.inp-light` added to `.fi` rule — unified input styling across all form systems; (9) backdrop-filter removed from `.sb` in app.css (perf); (10) `.sb-av` avatar gradient: `var(--nxn-cyan)` → direct `#2563EB`; app.css nav group operations: all `#00d9ff`/`rgba(0,217,255)` → Blue-600; `.tb-theme-toggle` app.css base values corrected. **Zero cyan values remain** in any CSS file (only one comment reference). All 4 CSS files cache-busted to `?v=20260528h`.
 
+- ✅ **WhatsApp FULLY LIVE (2026-05-29)** — Production number **+92 320 1983809** registered; permanent `META_ACCESS_TOKEN` + production `META_PHONE_NUMBER_ID` set in Supabase secrets; `COMMS_PROVIDER=meta`; `send-message` redeployed (`--no-verify-jwt`). **`pg_net` installed** and **`comms-dispatch` drain cron added (jobid 7, `*/2 * * * *`)** → drains the queue by POSTing the `send-message` Edge Function every 2 min (auth via public publishable key, not the service key). **Verified end-to-end** — HTTP 200, body `{"success":true,"provider":"meta","claimed":0,"sent":0,"failed":0}`. 6 templates in review (Meta approval pending). Migration: `supabase/migrations/20260529_module7_dispatch_drain_cron.sql`.
+
 **All 5 phases complete as of 2026-05-28. App is production-ready.**
 
 **Pending go-live items (not blocking app use):**
 1. Deploy `send-otp-email` Edge Function + set `SMTP_HOST/PORT/USER/PASS/FROM` secrets → activates OTP email for signup and forgot-password flows.
-2. Set WhatsApp provider credentials for Module 7 (WeTarseel or WAB2C) → activates automated dispatch, nightly digest, and recovery reminders.
+2. ~~Set WhatsApp provider credentials for Module 7 (WeTarseel or WAB2C)~~ ✅ **DONE 2026-05-29** — went live on **Meta WhatsApp Cloud API** (direct, not WeTarseel/WAB2C); dispatch + drain cron active. See progress entry above.
 
 **Remaining future work:**
 - Module 4: allocation/overpayment logic deferrals

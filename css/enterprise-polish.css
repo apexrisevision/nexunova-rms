@@ -896,7 +896,7 @@ p, span, div, label, td, th, button, input, select, textarea {
 .inp-light {
   width: 100% !important;
   padding: 9px 12px !important;
-  background: var(--x-input-bg) !important;
+  background-color: var(--x-input-bg) !important;
   border: 1px solid var(--x-border-2) !important;
   border-radius: var(--x-r-md) !important;
   font-size: 13px !important;
@@ -913,7 +913,7 @@ p, span, div, label, td, th, button, input, select, textarea {
 .inp-light:focus {
   border-color: var(--x-brand) !important;
   box-shadow: 0 0 0 3px var(--x-brand-ring) !important;
-  background: var(--x-input-bg) !important;
+  background-color: var(--x-input-bg) !important;
 }
 
 .mov .inp-light::placeholder,
@@ -1088,7 +1088,7 @@ table.t tbody tr.cr { cursor: pointer; }
   letter-spacing: 0.05em !important;
 }
 .fbar input, .fbar select {
-  background: var(--x-input-bg) !important;
+  background-color: var(--x-input-bg) !important;
   border: 1px solid var(--x-border) !important;
   color: var(--x-text) !important;
   padding: 7px 11px !important;
@@ -1406,7 +1406,7 @@ html, body {
 :root[data-theme="dark"] .mov textarea,
 :root[data-theme="dark"] .mov .inp-light,
 :root[data-theme="dark"] .inp-light {
-  background: #0F1320 !important;
+  background-color: #0F1320 !important;
   color: #F4F5F8 !important;
   -webkit-text-fill-color: #F4F5F8 !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
@@ -1425,7 +1425,7 @@ html, body {
 :root[data-theme="light"] .mov select,
 :root[data-theme="light"] .mov textarea,
 :root[data-theme="light"] .mov .inp-light {
-  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
   color: #0F172A !important;
   -webkit-text-fill-color: #0F172A !important;
   border: 1px solid rgba(15, 23, 42, 0.14) !important;
@@ -1554,7 +1554,7 @@ html, body {
 :root[data-theme="dark"] .mov select,
 :root[data-theme="dark"] .mov textarea,
 :root[data-theme="dark"] .mov .inp-light {
-  background: #0F1320 !important;
+  background-color: #0F1320 !important;
   color: #F4F5F8 !important;
   -webkit-text-fill-color: #F4F5F8 !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
@@ -1607,7 +1607,7 @@ html, body {
 :root[data-theme="light"] .mov select,
 :root[data-theme="light"] .mov textarea,
 :root[data-theme="light"] .mov .inp-light {
-  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
   color: #0F172A !important;
   -webkit-text-fill-color: #0F172A !important;
   border: 1px solid rgba(15, 23, 42, 0.20) !important;
@@ -1812,6 +1812,7 @@ select.inp-light,
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(0%2C217%2C255%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 8px center !important;
+  background-size: 12px 12px !important;
 }
 .fbar select,
 .mov select {
@@ -1821,4 +1822,5 @@ select.inp-light,
 [data-theme="light"] .fbar select,
 [data-theme="light"] .mov select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(99%2C102%2C241%2C0.7)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-size: 12px 12px !important;
 }

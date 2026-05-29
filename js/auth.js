@@ -330,6 +330,7 @@ async function _completeLogin(user, company) {
   _startSessionCheck();
   _startIdleTimer();
   _registerSession();   // record this device/session in user_sessions (create_session RPC)
+  _startSessionHeartbeat();   // keep last_seen_at fresh → powers "time on system"
   _logAuthEvent(company.id, { event_type:'login_success', user_id:user.id, username:user.username });
   if (typeof loadCobranding    === 'function') loadCobranding();
   if (typeof loadFeatureFlags  === 'function') loadFeatureFlags();
@@ -431,6 +432,34 @@ async function _registerSession() {
   } catch(_) {}
 }
 
+// ── Session heartbeat ────────────────────────────────────────────────
+// Refreshes user_sessions.last_seen_at every 90s while the tab is visible by
+// re-running _registerSession() (create_session upserts on the token hash). This
+// is what makes "time on system" accrue in the admin Command Center / Team Activity.
+let _ccHbTimer = null;
+function _startSessionHeartbeat() {
+  if (_ccHbTimer) clearInterval(_ccHbTimer);
+  _ccHbTimer = setInterval(() => {
+    if (document.visibilityState !== 'hidden' && S && S.userId) { try { _registerSession(); } catch(_) {} }
+  }, 90000);
+}
+function _stopSessionHeartbeat() { if (_ccHbTimer) { clearInterval(_ccHbTimer); _ccHbTimer = null; } }
+
+// Bootstrap for RESTORED sessions (page reload without a fresh credential login):
+// once a Supabase session is present, register it + start the heartbeat.
+(function () {
+  function _ccHbBoot() {
+    try {
+      if (typeof supabase === 'undefined' || !supabase.auth) return;
+      supabase.auth.getSession().then(({ data }) => {
+        if (data && data.session) { try { _registerSession(); } catch(_) {} _startSessionHeartbeat(); }
+      }).catch(() => {});
+    } catch(_) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(_ccHbBoot, 1800));
+  else setTimeout(_ccHbBoot, 1800);
+})();
+
 function _detectDevice() {
   const ua = navigator.userAgent || '';
   const type = /Mobi|Android|iPhone/i.test(ua) ? 'mobile' : /iPad|Tablet/i.test(ua) ? 'tablet' : 'desktop';
@@ -499,6 +528,7 @@ function doLogout(reason){
   try { supabase.auth.signOut().catch(()=>{}); } catch(_){}
   _stopSessionCheck();
   _stopIdleTimer();
+  _stopSessionHeartbeat();
   S=null;_coid=null;_navStack=[];_navBack=false;
   sessionStorage.removeItem('nxn_sess');
   window._featureFlags = null;

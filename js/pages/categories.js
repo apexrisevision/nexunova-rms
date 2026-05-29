@@ -1,5 +1,8 @@
 // ══ CATEGORIES — Premium Redesign v2 ══════════════════════════════════
 
+// Called from other pages (e.g. Add Unit) to land on a specific column + open add modal
+function setCatTab(tab) { window._catPendingTab = tab; }
+
 // ─── State ────────────────────────────────────────────────────────────
 let _catSearch  = { floors: '', types: '', statuses: '' };
 let _catFilter  = { floors: 'all', types: 'all', statuses: 'all' };
@@ -198,6 +201,21 @@ function rCategories() {
 
   document.addEventListener('click', _catDocClick, true);
   rFloorsList(); rTypesList(); rStatusesList();
+
+  // If arriving from another page via setCatTab(), scroll + open add modal
+  if (window._catPendingTab) {
+    const tab = window._catPendingTab;
+    window._catPendingTab = null;
+    requestAnimationFrame(() => {
+      const col = document.getElementById('cat-col-' + tab);
+      if (col) col.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        if (tab === 'floors')   { if (typeof openFloorModal  === 'function') openFloorModal(); }
+        else if (tab === 'types')    { if (typeof openTypeModal   === 'function') openTypeModal(); }
+        else if (tab === 'statuses') { if (typeof openStatusModal === 'function') openStatusModal(); }
+      }, 300);
+    });
+  }
 }
 
 // ─── Column Renderers ─────────────────────────────────────────────────
@@ -409,90 +427,84 @@ function _pill(col, val, label, cnt) {
 }
 
 function _catFlRow(f, i) {
-  const usage = _catUsage('floors', f.id);
-  const sel   = _catBulkSel.floors.has(f.id);
-  const ord   = String(f.sortOrder || 0).padStart(2, '0');
+  const usage  = _catUsage('floors', f.id);
+  const sel    = _catBulkSel.floors.has(f.id);
+  const active = f.isActive !== false;
+  const ord    = String(f.sortOrder || 0).padStart(2, '0');
   return `
-<div class="cat-row ${f.isActive===false?'inactive':''} ${sel?'sel':''}"
-     id="cat-row-fl-${f.id}" style="animation-delay:${i*22}ms"
+<div class="cx-card ${active?'':'cx-inactive'} ${sel?'cx-sel':''}"
+     id="cat-row-fl-${f.id}" style="animation-delay:${i*30}ms"
      draggable="true"
      ondragstart="_catDS('floors','${f.id}',event)"
      ondragover="_catDO('floors','${f.id}',event)"
      ondrop="_catDP('floors','${f.id}',event)"
      ondragleave="this.classList.remove('drag-over')">
-  <div class="cat-drag">${_I.grip}</div>
-  <div class="cat-chk"><input type="checkbox" ${sel?'checked':''} onchange="_catChk('floors','${f.id}',this.checked)"></div>
-  <span class="cat-ord">#${ord}</span>
-  <div class="cat-nb">
-    <span class="cat-nb-name">${esc(f.name)}</span>
-    <span class="cat-nb-meta">Order ${f.sortOrder || 0}${usage > 0 ? ` · ${usage} unit${usage !== 1 ? 's' : ''}` : ' · Not used'}</span>
+  <div class="cx-drag cat-drag">${_I.grip}</div>
+  <div class="cat-chk cx-chk-wrap"><input type="checkbox" ${sel?'checked':''} onchange="_catChk('floors','${f.id}',this.checked)"></div>
+  <div class="cx-floor-num">${ord}</div>
+  <div class="cx-body">
+    <span class="cx-name">${esc(f.name)}</span>
+    <span class="cx-meta">${usage > 0 ? `${usage} unit${usage!==1?'s':''}` : 'Not used yet'}</span>
   </div>
-  <span class="cat-use ${usage===0?'unused':''}" title="${usage>0?'Used in '+usage+' units':'Not used in any units'}">${usage>0?usage+' units':'Unused'}</span>
-  <label class="cat-tog">
-    <input type="checkbox" ${f.isActive!==false?'checked':''} onchange="toggleFloorActive('${f.id}',this.checked)">
-    <span class="cat-tog-sl"></span>
-  </label>
-  <button class="cat-keb" onclick="_catKebab('floors','${f.id}',this)" title="More">${_I.more}</button>
+  <button class="cx-pill ${active?'cx-pill-on':'cx-pill-off'}"
+          onclick="event.stopPropagation();toggleFloorActive('${f.id}',${!active})">${active?'Active':'Inactive'}</button>
+  <button class="cat-keb cx-keb" onclick="_catKebab('floors','${f.id}',this)">${_I.more}</button>
 </div>`;
 }
 
 function _catTpRow(t, i) {
-  const usage = _catUsage('types', t.id);
-  const sel   = _catBulkSel.types.has(t.id);
-  const ord   = String(t.sortOrder || 0).padStart(2, '0');
+  const usage  = _catUsage('types', t.id);
+  const sel    = _catBulkSel.types.has(t.id);
+  const active = t.isActive !== false;
+  const abbr   = t.name.split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
   return `
-<div class="cat-row ${t.isActive===false?'inactive':''} ${sel?'sel':''}"
-     id="cat-row-tp-${t.id}" style="animation-delay:${i*22}ms"
+<div class="cx-card ${active?'':'cx-inactive'} ${sel?'cx-sel':''}"
+     id="cat-row-tp-${t.id}" style="animation-delay:${i*30}ms"
      draggable="true"
      ondragstart="_catDS('types','${t.id}',event)"
      ondragover="_catDO('types','${t.id}',event)"
      ondrop="_catDP('types','${t.id}',event)"
      ondragleave="this.classList.remove('drag-over')">
-  <div class="cat-drag">${_I.grip}</div>
-  <div class="cat-chk"><input type="checkbox" ${sel?'checked':''} onchange="_catChk('types','${t.id}',this.checked)"></div>
-  <span class="cat-ord">#${ord}</span>
-  <div class="cat-nb">
-    <span class="cat-nb-name">${esc(t.name)}</span>
-    <span class="cat-nb-meta">Order ${t.sortOrder || 0}${usage > 0 ? ` · ${usage} unit${usage !== 1 ? 's' : ''}` : ' · Not used'}</span>
+  <div class="cx-drag cat-drag">${_I.grip}</div>
+  <div class="cat-chk cx-chk-wrap"><input type="checkbox" ${sel?'checked':''} onchange="_catChk('types','${t.id}',this.checked)"></div>
+  <div class="cx-type-avatar">${abbr}</div>
+  <div class="cx-body">
+    <span class="cx-name">${esc(t.name)}</span>
+    <span class="cx-meta">${usage > 0 ? `${usage} unit${usage!==1?'s':''}` : 'Not used yet'}</span>
   </div>
-  <span class="cat-use ${usage===0?'unused':''}" title="${usage>0?'Used in '+usage+' units':'Not used in any units'}">${usage>0?usage+' units':'Unused'}</span>
-  <label class="cat-tog">
-    <input type="checkbox" ${t.isActive!==false?'checked':''} onchange="toggleTypeActive('${t.id}',this.checked)">
-    <span class="cat-tog-sl"></span>
-  </label>
-  <button class="cat-keb" onclick="_catKebab('types','${t.id}',this)" title="More">${_I.more}</button>
+  <button class="cx-pill ${active?'cx-pill-on':'cx-pill-off'}"
+          onclick="event.stopPropagation();toggleTypeActive('${t.id}',${!active})">${active?'Active':'Inactive'}</button>
+  <button class="cat-keb cx-keb" onclick="_catKebab('types','${t.id}',this)">${_I.more}</button>
 </div>`;
 }
 
 function _catStRow(s, i) {
-  const usage = _catUsage('statuses', s.id);
-  const sel   = _catBulkSel.statuses.has(s.id);
-  const code  = s.statusCode || s.status_code || s.name.slice(0, 4).toUpperCase();
-  const color = s.color || '#64748B';
+  const usage  = _catUsage('statuses', s.id);
+  const sel    = _catBulkSel.statuses.has(s.id);
+  const active = s.isActive !== false;
+  const color  = s.color || '#64748B';
+  const code   = s.statusCode || s.status_code || s.name.slice(0,4).toUpperCase();
   return `
-<div class="cat-row ${s.isActive===false?'inactive':''} ${sel?'sel':''}"
-     id="cat-row-st-${s.id}" style="animation-delay:${i*22}ms"
+<div class="cx-card ${active?'':'cx-inactive'} ${sel?'cx-sel':''}"
+     id="cat-row-st-${s.id}" style="animation-delay:${i*30}ms;--cx-col:${color}"
      draggable="true"
      ondragstart="_catDS('statuses','${s.id}',event)"
      ondragover="_catDO('statuses','${s.id}',event)"
      ondrop="_catDP('statuses','${s.id}',event)"
      ondragleave="this.classList.remove('drag-over')">
-  <div class="cat-drag">${_I.grip}</div>
-  <div class="cat-chk"><input type="checkbox" ${sel?'checked':''} onchange="_catChk('statuses','${s.id}',this.checked)"></div>
-  <span class="cat-dot" style="background:${color};box-shadow:0 0 0 3px ${color}28"></span>
-  <div class="cat-nb">
-    <span class="cat-nb-name">
+  <div class="cx-drag cat-drag">${_I.grip}</div>
+  <div class="cat-chk cx-chk-wrap"><input type="checkbox" ${sel?'checked':''} onchange="_catChk('statuses','${s.id}',this.checked)"></div>
+  <span class="cx-color-swatch" style="background:${color};box-shadow:0 0 0 3px ${color}30"></span>
+  <div class="cx-body">
+    <span class="cx-name">
       ${esc(s.name)}
-      <span class="cat-lbl-pill" style="background:${color}18;color:${color}">${esc(code)}</span>
+      <span class="cx-code-tag" style="background:${color}18;color:${color};border-color:${color}30">${esc(code)}</span>
     </span>
-    <span class="cat-nb-meta">${s.isAvailable?'Bookable':'Locked'}${usage > 0 ? ` · ${usage} unit${usage !== 1 ? 's' : ''}` : ' · Not used'}</span>
+    <span class="cx-meta">${s.isAvailable?'Bookable':'Locked'}${usage > 0 ? ` · ${usage} unit${usage!==1?'s':''}` : ' · Not used'}</span>
   </div>
-  <span class="cat-use ${usage===0?'unused':''}" title="${usage>0?'Used in '+usage+' units':'Not used'}">${usage>0?usage+' units':'Unused'}</span>
-  <label class="cat-tog">
-    <input type="checkbox" ${s.isActive!==false?'checked':''} onchange="toggleStatusActive('${s.id}',this.checked)">
-    <span class="cat-tog-sl"></span>
-  </label>
-  <button class="cat-keb" onclick="_catKebab('statuses','${s.id}',this)" title="More">${_I.more}</button>
+  <button class="cx-pill ${active?'cx-pill-on':'cx-pill-off'}"
+          onclick="event.stopPropagation();toggleStatusActive('${s.id}',${!active})">${active?'Active':'Inactive'}</button>
+  <button class="cat-keb cx-keb" onclick="_catKebab('statuses','${s.id}',this)">${_I.more}</button>
 </div>`;
 }
 

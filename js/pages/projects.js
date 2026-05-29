@@ -13,17 +13,17 @@ let _prjKbListener = null;
 // ── Per-project palette — cycles through distinct brand colors ──────
 const _PRJ_PALETTE = [
   '#2563EB', // Blue
-  '#7C3AED', // Violet
+  '#DC2626', // Red
   '#059669', // Emerald
   '#D97706', // Amber
-  '#DC2626', // Red
+  '#7C3AED', // Violet
   '#0891B2', // Cyan
+  '#BE185D', // Pink
+  '#65A30D', // Lime
   '#EA580C', // Orange
-  '#4F46E5', // Indigo
   '#0D9488', // Teal
   '#9333EA', // Purple
-  '#65A30D', // Lime
-  '#BE185D', // Pink
+  '#4F46E5', // Indigo
 ];
 function _prjColor(idx) { return _PRJ_PALETTE[idx % _PRJ_PALETTE.length]; }
 
@@ -117,30 +117,23 @@ function _renderKPIs(allUnits, allProjs) {
   const soldUnits      = allUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
   const soldPct        = allUnits.length>0?Math.round(soldUnits/allUnits.length*100):0;
   const recovPct       = totalPortfolio>0?Math.min(100,Math.round(totalCollected/totalPortfolio*100)):0;
-  const stats = [
-    { ico:_prjIco.home,     color:'#6b7280', lbl:'Total Units',     val:allUnits.length,           sub:`${allProjs.length} project${allProjs.length!==1?'s':''}` },
-    { ico:_prjIco.check,    color:'#10b981', lbl:'Units Sold',      val:soldUnits,                 sub:`${soldPct}% sold rate` },
-    { ico:_prjIco.trending, color:'#f59e0b', lbl:'Portfolio Value', val:`<span class="zp-kc">PKR</span>${_kM(totalPortfolio)}`, sub:'Total contract value' },
-    { ico:_prjIco.wallet,   color:'#8b5cf6', lbl:'Collected',       val:`<span class="zp-kc">PKR</span>${_kM(totalCollected)}`, sub:`${recovPct}% recovery` },
+  const kpis = [
+    { id:'_prj-kpi0', col:'#6b7280', rgb:'107,114,128', ico:_prjIco.home,     lbl:'Total Units',     val:String(allUnits.length),                                sub:`${allProjs.length} project${allProjs.length!==1?'s':''}` },
+    { id:'_prj-kpi1', col:'#10b981', rgb:'16,185,129',  ico:_prjIco.check,    lbl:'Units Sold',      val:String(soldUnits),                                      sub:`${soldPct}% sold rate` },
+    { id:'_prj-kpi2', col:'#f59e0b', rgb:'245,158,11',  ico:_prjIco.trending, lbl:'Portfolio Value', val:`<span class="db-pkr">PKR</span>${_kM(totalPortfolio)}`, sub:'Total contract value' },
+    { id:'_prj-kpi3', col:'#8b5cf6', rgb:'139,92,246',  ico:_prjIco.wallet,   lbl:'Collected',       val:`<span class="db-pkr">PKR</span>${_kM(totalCollected)}`, sub:`${recovPct}% recovery` },
   ];
-  kpiEl.innerHTML = stats.map(s=>`<div class="zp-kpi" style="border-left-color:${s.color}">
-    <div class="zp-ki" style="background:${s.color}20;color:${s.color}">${s.ico}</div>
-    <div class="zp-kv">${s.val}</div>
-    <div class="zp-kl">${s.lbl}</div>
-    <div class="zp-ks">${s.sub}</div>
-  </div>`).join('');
-  kpiEl.querySelectorAll('.zp-kpi').forEach(el => {
-    el.addEventListener('mouseenter', () => {
-      el.style.transform = 'perspective(600px) translateY(-3px) rotateX(1deg)';
-      el.style.boxShadow = '0 10px 28px rgba(15,23,42,.13)';
-      el.classList.add('_hov');
-    });
-    el.addEventListener('mouseleave', () => {
-      el.style.transform = '';
-      el.style.boxShadow = '';
-      el.classList.remove('_hov');
-    });
-  });
+  kpiEl.innerHTML = kpis.map(k=>`
+    <div id="${k.id}" class="db-kpi" data-col="${k.col}" style="background:rgba(${k.rgb},.05);border:1px solid rgba(${k.rgb},.18);border-left:4px solid ${k.col}">
+      <div class="db-kpi-row">
+        <div class="db-kpi-ic" style="background:rgba(${k.rgb},.12);color:${k.col}">${k.ico}</div>
+        <div class="db-kpi-body">
+          <div class="db-kpi-lbl">${k.lbl}</div>
+          <div class="db-kpi-val db-kpi-val-sm">${k.val}</div>
+          <div class="db-kpi-sub">${k.sub}</div>
+        </div>
+      </div>
+    </div>`).join('');
 }
 
 // ── List page ────────────────────────────────────────────────
@@ -173,47 +166,37 @@ async function rProjects() {
     if (!s) { s = document.createElement('style'); s.id = '_zp_css'; document.head.appendChild(s); }
     s.textContent = `
       .prj-kpi-strip{grid-template-columns:repeat(4,1fr)!important}
-      .zp-kpi{background:var(--surface);border:1px solid var(--line);border-left:3px solid;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden;transition:transform 220ms cubic-bezier(.2,.8,.3,1),box-shadow 220ms ease;cursor:default}
-      .zp-kpi::before{content:'';position:absolute;top:0;left:-80%;bottom:0;width:55%;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.09) 50%,transparent 70%);transition:left .45s ease;pointer-events:none}
-      .zp-kpi._hov::before{left:130%}
-      .zp-ki{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin-bottom:6px}
-      .zp-kv{font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--t1);display:flex;align-items:baseline;gap:2px}
-      .zp-kc{font-size:9px;font-weight:500;color:var(--t3)}
-      .zp-kl{font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin-top:4px}
-      .zp-ks{font-size:10.5px;color:var(--t3);margin-top:1px}
-      .zp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+      .zp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
       @media(max-width:1100px){.zp-grid{grid-template-columns:repeat(2,1fr)}}
       @media(max-width:700px){.zp-grid{grid-template-columns:1fr}}
-      .zp-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;display:flex;position:relative;transition:transform 220ms cubic-bezier(.2,.8,.3,1),box-shadow 220ms ease,border-color 220ms ease}
-      .zp-card::before{content:'';position:absolute;top:0;left:-80%;bottom:0;width:55%;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.12) 50%,transparent 70%);transition:left .45s ease;pointer-events:none;z-index:1}
-      .zp-card._hov::before{left:130%}
-      .zp-accent{width:4px;flex-shrink:0}
-      .zp-inner{flex:1;display:flex;flex-direction:column;padding:10px 13px;gap:6px;min-width:0}
+      .zp-card{display:flex!important;cursor:pointer!important}
+      .zp-accent{width:4px;flex-shrink:0;border-radius:0}
+      .zp-inner{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px;min-width:0}
       .zp-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
       .zp-code{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(0,0,0,.07);color:var(--t3);letter-spacing:.04em;white-space:nowrap}
       [data-theme=dark] .zp-code{background:rgba(255,255,255,.09)}
-      .zp-name{font-size:13.5px;font-weight:700;color:var(--t1);letter-spacing:-.02em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-      .zp-loc{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--t3)}
-      .zp-stats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface2);border-radius:6px;overflow:hidden}
-      .zp-stat{display:flex;flex-direction:column;align-items:center;padding:5px 4px;gap:1px}
-      .zp-stat:not(:last-child){border-right:1px solid var(--line)}
+      .zp-name{font-size:14px;font-weight:700;color:var(--t1);letter-spacing:-.02em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+      .zp-loc{display:flex;align-items:center;gap:3px;font-size:10.5px;color:var(--t3)}
+      .zp-stats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg-page,var(--surface2));border-radius:8px;overflow:hidden;border:1px solid var(--border-color,var(--line))}
+      .zp-stat{display:flex;flex-direction:column;align-items:center;padding:6px 4px;gap:1px}
+      .zp-stat:not(:last-child){border-right:1px solid var(--border-color,var(--line))}
       .zp-sn{font-size:15px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
       .zp-sl{font-size:8px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
-      .zp-prog{display:flex;flex-direction:column;gap:3px}
+      .zp-prog{display:flex;flex-direction:column;gap:4px}
       .zp-prog-hd{display:flex;justify-content:space-between;align-items:center}
       .zp-prog-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t3)}
       .zp-prog-pct{font-size:10px;font-weight:700}
-      .zp-pb{height:3px;background:rgba(15,23,42,.06);border-radius:99px;overflow:hidden}
+      .zp-pb{height:4px;background:rgba(15,23,42,.06);border-radius:99px;overflow:hidden}
       [data-theme=dark] .zp-pb{background:rgba(255,255,255,.08)}
       .zp-pf{height:100%;border-radius:99px;transition:width 600ms cubic-bezier(.4,0,.2,1)}
       .zp-fin{display:flex;align-items:center;justify-content:space-between;gap:4px}
       .zp-fv{font-size:12px;font-weight:700;color:var(--t1);display:flex;align-items:baseline;gap:2px}
       .zp-fc{font-size:9px;font-weight:500;color:var(--t3)}
       .zp-fr{font-size:10px;font-weight:600}
-      .zp-foot{display:flex;align-items:center;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(15,23,42,.06);margin-top:1px}
+      .zp-foot{display:flex;align-items:center;justify-content:space-between;padding-top:7px;border-top:1px solid var(--border-color,rgba(15,23,42,.06));margin-top:2px}
       [data-theme=dark] .zp-foot{border-top-color:rgba(255,255,255,.06)}
       .zp-fl{font-size:10px;color:var(--t3);display:flex;align-items:center;gap:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-      .zp-fb{font-size:10px;font-weight:600;color:#2563EB;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;white-space:nowrap;flex-shrink:0;transition:background 120ms ease}
+      .zp-fb{font-size:10.5px;font-weight:600;color:var(--text-accent,#2563EB);background:none;border:none;cursor:pointer;padding:2px 8px;border-radius:5px;white-space:nowrap;flex-shrink:0;transition:background 120ms ease}
       .zp-fb:hover{background:rgba(37,99,235,.09)}
       [data-theme=dark] .zp-fb{color:#818CF8}
       [data-theme=dark] .zp-fb:hover{background:rgba(99,102,241,.14)}
@@ -391,8 +374,16 @@ function rPRJF() {
   ct.innerHTML = `<div class="${_prjView==='list'?'prj-list':'zp-grid'}">${prjs.map((p,idx)=>_prjView==='list'?_prjListRow(p,allUnits,idx):_prjGridCard(p,allUnits,idx)).join('')}</div>`;
   if (_prjView === 'grid') {
     requestAnimationFrame(() => {
-      document.querySelectorAll('#prj-ct .zp-card').forEach(card => {
-        _sleekCard(card, card.dataset.col || '#2563EB');
+      requestAnimationFrame(() => {
+        document.querySelectorAll('#prj-ct .zp-card').forEach(card => {
+          var col = card.dataset.col || '#2563EB';
+          var line = card.querySelector('[data-sleek-line]');
+          if (line) {
+            line.style.setProperty('background', 'linear-gradient(90deg,' + col + ',' + col + '88)', 'important');
+          } else {
+            _sleekCard(card, col);
+          }
+        });
       });
     });
   }
@@ -457,7 +448,7 @@ function _prjGridCard(p, allUnits, idx) {
   const builder    = (!dueDate&&!sqft&&p.builderName)?p.builderName:null;
   const recovColor = recovPct>=70?'var(--ok)':recovPct>=40?'var(--warn)':'var(--t3)';
   const pCol       = _prjColor(idx||0);
-  return `<div class="zp-card" onclick="openProjectDetail('${p.id}')" data-col="${pCol}" style="background:linear-gradient(140deg,${pCol}1A 0%,var(--surface) 48%)">
+  return `<div class="db-card zp-card" onclick="openProjectDetail('${p.id}')" data-col="${pCol}">
     <div class="zp-accent" style="background:${pCol}"></div>
     <div class="zp-inner">
       <div class="zp-top">

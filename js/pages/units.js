@@ -120,47 +120,78 @@ function rUnits() {
   document.getElementById('pg-units').innerHTML = `
 <div class="ani rb-page">
 
-  <!-- ── HERO ─────────────────────────────────────────────────────── -->
-  <div class="rb-crumb">
-    <span class="lnk" onclick="nav('dashboard')">Home</span>
-    <span class="sep">·</span>
-    <span class="cur">Inventory</span>
-  </div>
-  <div class="rb-hero">
-    <div class="rb-hero-text">
-      <h1 class="rb-title">All Units</h1>
-      <p class="rb-lede">
-        ${total ? `<b>${total} unit${total!==1?'s':''}</b> across ${projects.length} project${projects.length!==1?'s':''} · <span class="pos">${available} available</span> · <span class="info">${sold} sold</span>${total>0?` · <b>${sellPct}% sell-through</b>`:''}.` : 'Your inventory is empty. Add the first unit to begin tracking sales, recovery, and operational state.'}
-      </p>
+  <!-- ── HEADER ───────────────────────────────────────────────────── -->
+  <div class="u-ph">
+    <div class="u-ph-left">
+      <div class="u-breadcrumb">
+        <span onclick="nav('dashboard')" style="cursor:pointer;color:var(--text-muted)">Home</span>
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        <span>Inventory</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <h1 style="font-size:20px;font-weight:700;color:var(--text-primary);margin:0;letter-spacing:-.3px">All Units</h1>
+        <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:rgba(37,99,235,.08);color:#2563EB;border:1px solid rgba(37,99,235,.15)">${total}</span>
+      </div>
     </div>
-    <div class="rb-hero-actions">
+    <div style="display:flex;align-items:center;gap:8px">
       <button class="dx-tool" onclick="printInventoryList()">${_UI.printer}<span>Print</span></button>
-      ${isA ? `<button class="dx-tool" onclick="openBulkImportModal()">${_UI.upload}<span>Bulk Import</span></button>` : ''}
-      ${isA ? `<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''}
+      ${isA?`<button class="dx-tool" onclick="openBulkImportModal()">${_UI.upload}<span>Import</span></button>`:''}
+      ${isA?`<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>`:''}
     </div>
   </div>
 
-  <!-- ── KPI COMPOSITION (featured inventory + secondary stack) ───── -->
-  <div class="rb-kpi-grid">
-    <div class="rb-stat-feature" onclick="_invKpiClick('All')" style="cursor:pointer">
-      <div class="rb-feat-label">Inventory Portfolio</div>
-      <div class="rb-feat-value"><span>${total}</span><small>units · ${total>0?sellPct+'% sell-through':'no sales yet'}</small></div>
-      ${total ? `
-      <div class="rb-feat-bar">
-        <span style="background:#16A34A;width:${_pAv}%" title="Available"></span>
-        <span style="background:#7C3AED;width:${_pSo}%" title="Sold"></span>
-        <span style="background:#DC2626;width:${_pDe}%" title="Blocked"></span>
+  <!-- ── KPI STRIP — db-kpi cards matching dashboard style ────────── -->
+  <div class="db-kpis" style="margin-bottom:20px">
+    <div id="_u-kpi0" class="db-kpi" data-col="#2563EB" onclick="_invKpiClick('All')"
+         style="cursor:pointer;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.18);border-left:4px solid #2563EB">
+      <div class="db-kpi-row">
+        <div class="db-kpi-ic blue">${_UI.bldg}</div>
+        <div class="db-kpi-body">
+          <div class="db-kpi-lbl">Total Units</div>
+          <div class="db-kpi-val db-kpi-val-sm">${total}</div>
+          <div class="db-kpi-sub">${projects.length} project${projects.length!==1?'s':''} · ${sellPct}% sold</div>
+        </div>
+        ${total?`<div class="u-mini-bar" style="align-self:center;flex-shrink:0">
+          <div style="height:4px;width:60px;border-radius:99px;overflow:hidden;background:var(--bg-elevated);display:flex">
+            <span style="background:#16A34A;width:${_pAv}%;height:100%"></span>
+            <span style="background:#7C3AED;width:${_pSo}%;height:100%"></span>
+            <span style="background:#DC2626;width:${_pDe}%;height:100%"></span>
+          </div>
+        </div>`:''}
       </div>
-      <div class="rb-feat-legend">
-        <span class="li" onclick="event.stopPropagation();_invKpiClick('Available')"><span class="dot" style="background:#16A34A"></span>Available <b>${available}</b></span>
-        <span class="li" onclick="event.stopPropagation();_invKpiClick('Sold')"><span class="dot" style="background:#7C3AED"></span>Sold <b>${sold}</b></span>
-        <span class="li" onclick="event.stopPropagation();_invKpiClick('Dead')"><span class="dot" style="background:#DC2626"></span>Blocked <b>${dead}</b></span>
-      </div>` : `<div style="font-size:13px;color:var(--text-muted)">No units yet.</div>`}
     </div>
-    <div class="rb-sec-stack">
-      ${_sec('Available', 'Available', 'ready for sale',                                                  available, '#16A34A')}
-      ${_sec('Sold',      'Sold',      total>0?sellPct+'% sell-through':'no sales yet',                  sold,      '#7C3AED')}
-      ${_sec('Dead',      'Blocked',   dead?'blocked / dead inventory':'none flagged',                   dead,      '#DC2626')}
+    <div id="_u-kpi1" class="db-kpi" data-col="#16A34A" onclick="_invKpiClick('Available')"
+         style="cursor:pointer;background:rgba(22,163,74,.05);border:1px solid rgba(22,163,74,.18);border-left:4px solid #16A34A">
+      <div class="db-kpi-row">
+        <div class="db-kpi-ic green">${_UI.badge}</div>
+        <div class="db-kpi-body">
+          <div class="db-kpi-lbl">Available</div>
+          <div class="db-kpi-val db-kpi-val-sm">${available}</div>
+          <div class="db-kpi-sub">Ready for sale</div>
+        </div>
+      </div>
+    </div>
+    <div id="_u-kpi2" class="db-kpi" data-col="#7C3AED" onclick="_invKpiClick('Sold')"
+         style="cursor:pointer;background:rgba(124,58,237,.05);border:1px solid rgba(124,58,237,.18);border-left:4px solid #7C3AED">
+      <div class="db-kpi-row">
+        <div class="db-kpi-ic" style="background:rgba(124,58,237,.12);color:#7C3AED">${_UI.check2}</div>
+        <div class="db-kpi-body">
+          <div class="db-kpi-lbl">Sold</div>
+          <div class="db-kpi-val db-kpi-val-sm">${sold}</div>
+          <div class="db-kpi-sub">${total>0?sellPct+'% sell-through':'No sales yet'}</div>
+        </div>
+      </div>
+    </div>
+    <div id="_u-kpi3" class="db-kpi" data-col="#DC2626" onclick="_invKpiClick('Dead')"
+         style="cursor:pointer;background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.18);border-left:4px solid #DC2626">
+      <div class="db-kpi-row">
+        <div class="db-kpi-ic red">${_UI.ban}</div>
+        <div class="db-kpi-body">
+          <div class="db-kpi-lbl">Blocked</div>
+          <div class="db-kpi-val db-kpi-val-sm">${dead}</div>
+          <div class="db-kpi-sub">${dead?'Blocked / dead inventory':'None flagged'}</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -309,7 +340,13 @@ function rULF() {
   if (_invView === 'board') {
     ct.innerHTML = `<div id="ul-wrap">${_invBoardHTML(units)}</div>`;
     requestAnimationFrame(function() {
-      ct.querySelectorAll('.inv-board-card').forEach(function(c) { if (typeof _sleekCard === 'function') _sleekCard(c); });
+      requestAnimationFrame(function() {
+        ct.querySelectorAll('.inv-board-card,.inv-grid-card').forEach(function(c) {
+          var col = c.dataset.col;
+          var ln = c.querySelector('[data-sleek-line]');
+          if (ln && col) ln.style.setProperty('background', 'linear-gradient(90deg,'+col+','+col+'88)', 'important');
+        });
+      });
     });
     _renderBulkBar();
     if (pg) pg.innerHTML = '';
@@ -319,7 +356,13 @@ function rULF() {
   if (_invView === 'grid') {
     ct.innerHTML = `<div id="ul-wrap">${_invGridHTML(sliced, isA)}</div>`;
     requestAnimationFrame(function() {
-      ct.querySelectorAll('.inv-grid-card').forEach(function(c) { if (typeof _sleekCard === 'function') _sleekCard(c, c.dataset.col); });
+      requestAnimationFrame(function() {
+        ct.querySelectorAll('.inv-grid-card').forEach(function(c) {
+          var col = c.dataset.col;
+          var ln = c.querySelector('[data-sleek-line]');
+          if (ln && col) ln.style.setProperty('background', 'linear-gradient(90deg,'+col+','+col+'88)', 'important');
+        });
+      });
     });
   } else {
     // ── DX list view ─────────────────────────────────────────
@@ -678,19 +721,22 @@ function _invGridHTML(units, isA) {
     ${units.map(u => {
       const prj = gproject(u.projectId);
       const prjCol = prj?.colorHex || '#2563EB';
-      return `<div class="inv-grid-card" data-col="${prjCol}"
-                   style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;filter:drop-shadow(0 4px 2px rgba(0,0,0,.30)) drop-shadow(0 10px 18px rgba(0,0,0,.20));transition:filter .22s ease,transform .22s cubic-bezier(.34,1.56,.64,1),border-color .2s ease;"
+      return `<div class="db-card inv-grid-card" data-col="${prjCol}"
+                   style="cursor:pointer;border-left:3px solid ${prjCol};padding:14px 14px 12px;"
                    onclick="_invOpenDrawer('${u.id}')"
                    onmouseenter="_cardEnter(this)"
                    onmouseleave="_cardLeave(this)">
         <div data-sl="1" style="position:absolute;top:0;left:0;height:3px;width:0%;pointer-events:none;z-index:9;background:linear-gradient(90deg,${prjCol},${prjCol}88);border-radius:3px 3px 0 0;transition:width .32s cubic-bezier(.4,0,.2,1)"></div>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-          <div style="font-size:15px;font-weight:700;color:var(--text)">${esc(u.unitNo)}</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);letter-spacing:-.02em">${esc(u.unitNo)}</div>
           ${uStatusBadge(u.status, u.statusColor)}
         </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${esc(prj?.projectName||prj?.name||'')}</div>
-        <div style="font-size:11px;color:var(--text-faint)">${esc(u.type||'')}${u.area?' · '+fN(u.area)+' '+(u.areaUnit||'sqft'):''}</div>
-        ${u.basePrice > 0 ? `<div style="font-size:14px;font-weight:600;color:var(--text);margin-top:10px;font-variant-numeric:tabular-nums">${fM(u.basePrice)}</div>` : ''}
+        <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:5px">
+          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${prjCol};flex-shrink:0"></span>
+          ${esc(prj?.projectName||prj?.name||'')}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">${esc(u.type||'')}${u.area?' · '+fN(u.area)+' '+(u.areaUnit||'sqft'):''}</div>
+        ${u.basePrice > 0 ? `<div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.02em">${fM(u.basePrice)}</div>` : ''}
       </div>`;
     }).join('')}
   </div>`;

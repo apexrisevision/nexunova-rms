@@ -24,56 +24,115 @@
   };
   function zoneOf(label) { return ZONE[String(label || '').toLowerCase()] || 'cyan'; }
 
-  /* ── Build the mega grid from nav groups ─────────────────────── */
+  /* ── Build the mega menu from nav groups ─────────────────────────
+     Command deck: a horizontal row of category tabs; hovering a tab
+     reveals ONLY that category's items as an app-launcher tile grid.
+     One category at a time → no long scrollbar, focused + premium. */
   function buildMega() {
     const grid = document.getElementById('atbMegaGrid');
     if (!grid) return;
     const groups = window._navGroups || [];
 
-    let html = '';
-    groups.forEach(g => {
+    let tabs  = '<div class="atb-tabs">';
+    let stage = '<div class="atb-stage">';
+
+    groups.forEach((g, i) => {
       const isQuick = !g.label;
       const label   = g.label || 'Quick Access';
       const zone    = isQuick ? 'violet' : zoneOf(g.label);
-      html += '<div class="atb-grp zone-' + zone + (isQuick ? ' is-quick' : '') + '">';
-      html += '<div class="atb-grp-lbl">'
-            +   '<span class="atb-grp-lbl-tx">' + esc(label) + '</span>'
-            +   '<span class="atb-grp-cnt">' + g.items.length + '</span>'
-            + '</div>';
-      html += '<div class="atb-grp-items">';
-      g.items.forEach(it => { html += renderItem(it); });
-      html += '</div>';
-      html += '</div>';
+      const gIc     = (typeof _sbi === 'function') ? _sbi((g.items[0] || {}).ic, 15) : '';
+
+      tabs += '<button class="atb-tab zone-' + zone + '" type="button" data-cat="' + i + '" '
+            + 'onmouseenter="atbSetCat(' + i + ')" onfocus="atbSetCat(' + i + ')" '
+            + 'onclick="atbSetCat(' + i + ')">'
+            +   '<span class="atb-tab-ic">' + gIc + '</span>'
+            +   '<span class="atb-tab-lb">' + esc(label) + '</span>'
+            +   '<span class="atb-tab-cnt">' + g.items.length + '</span>'
+            + '</button>';
+
+      stage += '<div class="atb-deck zone-' + zone + '" data-pane="' + i + '">';
+      g.items.forEach(it => { stage += renderItem(it); });
+      stage += '</div>';
     });
-    grid.innerHTML = html;
+
+    tabs  += '</div>';
+    stage += '</div>';
+    grid.innerHTML = tabs + stage;
+
     highlightCurrent();
+    atbDefaultCat();
+    attachTileRipples();
   }
 
-  const CHEV = '<svg class="atb-item-go" width="13" height="13" viewBox="0 0 24 24" '
-             + 'fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" '
-             + 'stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+  /* Water-drop ripple: spawn an expanding circle from the cursor on hover. */
+  function attachTileRipples() {
+    document.querySelectorAll('.atb-tile').forEach(tile => {
+      tile.addEventListener('pointerenter', e => {
+        const r = tile.getBoundingClientRect();
+        const size = Math.max(r.width, r.height) * 1.7;
+        const sp = document.createElement('span');
+        sp.className = 'atb-ripple';
+        sp.style.width = sp.style.height = size + 'px';
+        sp.style.left = (e.clientX - r.left - size / 2) + 'px';
+        sp.style.top  = (e.clientY - r.top  - size / 2) + 'px';
+        tile.appendChild(sp);
+        setTimeout(() => sp.remove(), 640);
+      });
+    });
+  }
+
+  /* Activate a category (tab hover swaps the visible tile deck).
+     Re-triggers the staggered tile entrance EVERY time so the cascade
+     plays on each open and each tab switch (not just the first time). */
+  window.atbSetCat = function(i) {
+    document.querySelectorAll('.atb-tab').forEach(el =>
+      el.classList.toggle('is-active', +el.dataset.cat === i));
+    document.querySelectorAll('.atb-deck').forEach(el => {
+      const on = +el.dataset.pane === i;
+      el.classList.toggle('is-active', on);
+      if (on) {
+        el.querySelectorAll('.atb-tile').forEach(t => {
+          t.style.animation = 'none';
+          void t.offsetWidth;          // force reflow → restart CSS animation
+          t.style.animation = '';
+        });
+      }
+    });
+  };
+
+  /* Pick the category that contains the current page (else the first). */
+  function atbDefaultCat() {
+    const groups = window._navGroups || [];
+    if (!groups.length) return;
+    const pg = document.querySelector('.pg.on')?.id?.replace('pg-', '') || '';
+    let idx = 0;
+    if (pg) {
+      for (let i = 0; i < groups.length; i++) {
+        if ((groups[i].items || []).some(it => it.id === pg)) { idx = i; break; }
+      }
+    }
+    atbSetCat(idx);
+  }
 
   function renderItem(it) {
-    const icon = (typeof _sbi === 'function') ? _sbi(it.ic, 15) : '';
+    const icon = (typeof _sbi === 'function') ? _sbi(it.ic, 18) : '';
     const bdg  = it.bdg
-      ? '<span class="atb-bdg' + (it.bdgType === 'alert' ? ' alert' : '') + '">'
+      ? '<span class="atb-tile-bdg' + (it.bdgType === 'alert' ? ' alert' : '') + '">'
         + esc(String(it.bdg)) + '</span>'
       : '';
-    return '<a class="atb-item" data-pg="' + esc(it.id) + '" '
+    return '<a class="atb-tile" data-pg="' + esc(it.id) + '" '
          + 'onclick="atbNav(\'' + esc(it.id) + '\')">'
-         + '<span class="atb-item-ic">' + icon + '</span>'
-         + '<span class="atb-item-lb">' + esc(it.lb) + '</span>'
-         + bdg
-         + CHEV
+         + '<span class="atb-tile-ic">' + icon + bdg + '</span>'
+         + '<span class="atb-tile-lb">' + esc(it.lb) + '</span>'
          + '</a>';
   }
 
-  /* ── Highlight the active page in the mega grid ──────────────── */
+  /* ── Highlight the active page in the tile decks ─────────────── */
   function highlightCurrent(pg) {
     if (!pg) {
       pg = document.querySelector('.pg.on')?.id?.replace('pg-', '') || '';
     }
-    document.querySelectorAll('.atb-item').forEach(el => {
+    document.querySelectorAll('.atb-tile').forEach(el => {
       el.classList.toggle('is-current', el.dataset.pg === pg);
     });
   }
@@ -88,7 +147,15 @@
     const trigger = document.getElementById('atbTrigger');
     const mega    = document.getElementById('atbMega');
 
-    const open  = () => { clearTimeout(_closeTimer); tb.classList.add('is-open'); };
+    // Inject the idle "hover me" hint as a child of the trigger (once).
+    if (trigger && !trigger.querySelector('.atb-hint')) {
+      const hint = document.createElement('span');
+      hint.className = 'atb-hint';
+      hint.textContent = 'Hover for menu';
+      trigger.appendChild(hint);
+    }
+
+    const open  = () => { clearTimeout(_closeTimer); tb.classList.add('is-open'); atbDefaultCat(); };
     const close = () => { _closeTimer = setTimeout(() => tb.classList.remove('is-open'), 240); };
 
     if (trigger) {

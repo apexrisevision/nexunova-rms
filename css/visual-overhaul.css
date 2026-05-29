@@ -306,6 +306,7 @@ select.inp-light {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(37%2C99%2C235%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat:   no-repeat !important;
   background-position: right 10px center !important;
+  background-size:     12px 12px !important;
 }
 
 /* Filter dropdowns — ensure background always present (ALL pages) */
@@ -1138,6 +1139,7 @@ select.fi {
   background-image:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(37%2C99%2C235%2C0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat:   no-repeat;
   background-position: right 10px center;
+  background-size:     12px 12px;
   padding-right:       30px;
   cursor:              pointer;
 }
@@ -2243,3 +2245,23 @@ button.btn-g, button.btn-d,
 .zp-card[data-col="#9333EA"] [data-sleek-line] { background: linear-gradient(90deg,#9333EA,#D8B4FE) !important; }
 .zp-card[data-col="#65A30D"] [data-sleek-line] { background: linear-gradient(90deg,#65A30D,#BEF264) !important; }
 .zp-card[data-col="#BE185D"] [data-sleek-line] { background: linear-gradient(90deg,#BE185D,#FBCFE8) !important; }
+
+/* ── All Units page: KPI cards sweep ─────────────────────────────────────── */
+#_u-kpi0 [data-sleek-line] { background: linear-gradient(90deg,#2563EB,#60A5FA) !important; }
+#_u-kpi1 [data-sleek-line] { background: linear-gradient(90deg,#16A34A,#34D399) !important; }
+#_u-kpi2 [data-sleek-line] { background: linear-gradient(90deg,#7C3AED,#A78BFA) !important; }
+#_u-kpi3 [data-sleek-line] { background: linear-gradient(90deg,#DC2626,#FCA5A5) !important; }
+
+/* ── All Units page: grid + board cards — same palette match ────────────── */
+.inv-grid-card[data-col="#2563EB"] [data-sleek-line],.inv-board-card[data-col="#2563EB"] [data-sleek-line] { background: linear-gradient(90deg,#2563EB,#60A5FA) !important; }
+.inv-grid-card[data-col="#7C3AED"] [data-sleek-line],.inv-board-card[data-col="#7C3AED"] [data-sleek-line] { background: linear-gradient(90deg,#7C3AED,#A78BFA) !important; }
+.inv-grid-card[data-col="#059669"] [data-sleek-line],.inv-board-card[data-col="#059669"] [data-sleek-line] { background: linear-gradient(90deg,#059669,#34D399) !important; }
+.inv-grid-card[data-col="#D97706"] [data-sleek-line],.inv-board-card[data-col="#D97706"] [data-sleek-line] { background: linear-gradient(90deg,#D97706,#FCD34D) !important; }
+.inv-grid-card[data-col="#DC2626"] [data-sleek-line],.inv-board-card[data-col="#DC2626"] [data-sleek-line] { background: linear-gradient(90deg,#DC2626,#FCA5A5) !important; }
+.inv-grid-card[data-col="#0891B2"] [data-sleek-line],.inv-board-card[data-col="#0891B2"] [data-sleek-line] { background: linear-gradient(90deg,#0891B2,#67E8F9) !important; }
+.inv-grid-card[data-col="#EA580C"] [data-sleek-line],.inv-board-card[data-col="#EA580C"] [data-sleek-line] { background: linear-gradient(90deg,#EA580C,#FDBA74) !important; }
+.inv-grid-card[data-col="#4F46E5"] [data-sleek-line],.inv-board-card[data-col="#4F46E5"] [data-sleek-line] { background: linear-gradient(90deg,#4F46E5,#818CF8) !important; }
+.inv-grid-card[data-col="#0D9488"] [data-sleek-line],.inv-board-card[data-col="#0D9488"] [data-sleek-line] { background: linear-gradient(90deg,#0D9488,#5EEAD4) !important; }
+.inv-grid-card[data-col="#9333EA"] [data-sleek-line],.inv-board-card[data-col="#9333EA"] [data-sleek-line] { background: linear-gradient(90deg,#9333EA,#D8B4FE) !important; }
+.inv-grid-card[data-col="#65A30D"] [data-sleek-line],.inv-board-card[data-col="#65A30D"] [data-sleek-line] { background: linear-gradient(90deg,#65A30D,#BEF264) !important; }
+.inv-grid-card[data-col="#BE185D"] [data-sleek-line],.inv-board-card[data-col="#BE185D"] [data-sleek-line] { background: linear-gradient(90deg,#BE185D,#FBCFE8) !important; }
