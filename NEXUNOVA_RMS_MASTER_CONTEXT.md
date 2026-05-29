@@ -2,7 +2,7 @@
 
 > **Single source of truth.** Every future chat/agent session must read this file first before doing any work on Nexunova RMS. If a decision here conflicts with older notes, **this file wins**. Update this file whenever a decision changes.
 >
-> **Last updated:** 2026-05-26
+> **Last updated:** 2026-05-29
 > **Companion files:** `DATABASE_AUDIT.md` (live DB inventory), `PROPOSED_SCHEMA.md` (Phase-1 schema design), `supabase/migrations/20260526_phase1_new_tables.sql` (**APPLIED 2026-05-26**).
 
 ## Table of contents
@@ -220,6 +220,34 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - **Urdu reports:** reports must support Urdu (RTL text / Urdu labels) for client-facing documents.
 - **PKR formatting:** display amounts in **lakh / crore** convention (e.g. `1,00,000` / `1,00,00,000`), not Western thousands grouping, with `PKR`/`Rs` prefix.
 - **Holiday calendar:** `holidays` table (Pakistan national + religious + company). Fixed-date holidays recurring; lunar (Eid/Ashura) seeded per year. Used for due-date / working-day calculations in recovery.
+
+---
+
+## 10b. WhatsApp / messaging config (durable)
+
+> Recorded 2026-05-29. The real WABA ID was previously only stored in a Supabase
+> secret (since removed), so it is pinned here permanently. Future template work,
+> Graph API calls, and per-company embedded signup must use these values.
+
+| Thing | Value |
+|---|---|
+| **Real WABA ID** | `2055726832037039` — all 6 approved templates live here |
+| **Wrong/sample WABA** | `2352316085301741` — holds only Meta's `hello_world`; do NOT use |
+| Live token secret | `META_ACCESS_TOKEN` (permanent) — used by `send-message` |
+| Live phone_number_id | `META_PHONE_NUMBER_ID` = `1060331813839986` |
+| Webhook secret kept | `WHATSAPP_VERIFY_TOKEN` |
+| Removed stale secrets (2026-05) | `WHATSAPP_ACCESS_TOKEN` (expired), `WHATSAPP_PHONE_NUMBER_ID` (`1183717448150105`, old test), `WHATSAPP_BUSINESS_ACCOUNT_ID` |
+
+**6 approved templates — variable_map verified correct against the live Meta body (count + order); no upsert needed:**
+
+| Meta template name | {{n}} | Variable order |
+|---|---|---|
+| `installment_due_reminder` | 6 | client_name · amount · unit · project · due_date · company_name |
+| `overdue_reminders` | 7 | client_name · amount · unit · project · days_overdue · due_date · company_name |
+| `payment_received_thanks` | 7 | client_name · amount · unit · project · payment_date · receipt_no · company_name |
+| `promise_reminder` | 4 | client_name · amount · promise_date · company_name |
+| `pdc_deposit_reminder` | 5 | client_name · cheque_no · amount · deposit_date · company_name |
+| `legal_notice_warning` | 4 | client_name · amount · due_date · company_name |
 
 ---
 
