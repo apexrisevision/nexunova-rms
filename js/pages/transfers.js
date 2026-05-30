@@ -937,6 +937,7 @@ async function _txSubmit() {
       const code = 'CLT-' + Date.now().toString().slice(-6);
       const { data: nc, error: ncErr } = await supabase.rpc('create_client', { p_data: {
         company_id: S.cid,
+        project_id: d.projectId,
         client_code: code,
         full_name: d.newClientName,
         cnic: d.newClientCnic,

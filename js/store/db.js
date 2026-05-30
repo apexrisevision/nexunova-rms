@@ -297,6 +297,7 @@ async function loadClientsCache(companyId) {
     window._clientsCache = (data || []).map(c => ({
       id:             c.id,
       companyId:      c.company_id,
+      projectId:      c.project_id      || null,
       clientCode:     c.client_code     || '',
       fullName:       c.full_name       || '',
       name:           c.full_name       || '',
@@ -557,7 +558,7 @@ async function loadTypesCache(companyId) {
     const { data, error } = await supabase.rpc('list_unit_types', { p_company_id: companyId });
     if (error) { console.error('[loadTypesCache]', error); window._typesCache = []; return false; }
     window._typesCache = (data || []).map(t => ({
-      id: t.id, companyId: t.company_id,
+      id: t.id, companyId: t.company_id, projectId: t.project_id || null,
       typeCode: t.type_code || '', typeName: t.type_name || '',
       name: t.type_name || '',
       sortOrder: Number(t.sort_order || 0), isActive: t.is_active !== false
@@ -600,7 +601,7 @@ async function loadStatusesCache(companyId) {
     const { data, error } = await supabase.rpc('list_unit_statuses', { p_company_id: companyId });
     if (error) { console.error('[loadStatusesCache]', error); window._statusesCache = []; return false; }
     window._statusesCache = (data || []).map(s => ({
-      id: s.id, companyId: s.company_id,
+      id: s.id, companyId: s.company_id, projectId: s.project_id || null,
       statusCode: s.status_code || '', statusName: s.status_name || '',
       name: s.status_name || '',
       color: s.color_hex || '#6b7280',

@@ -985,6 +985,8 @@ async function openAgentModal(agentId) {
     sv('af-join-date', new Date().toISOString().slice(0,10));
   }
 
+  _afEnsureProjectPicker();
+  _afPopulateProjects('', isEdit);
   om('m-agent');
 
   setTimeout(() => {
@@ -1010,6 +1012,35 @@ async function openAgentModal(agentId) {
 }
 
 function closeAgentModal() { cm('m-agent'); }
+
+// ── Project picker (injected into the static #m-agent modal; login.html is frozen) ──
+function _afEnsureProjectPicker() {
+  if (document.getElementById('af-project')) return;
+  const mb = document.querySelector('#m-agent .mb');
+  if (!mb) return;
+  const fr = document.createElement('div');
+  fr.className = 'fr'; fr.id = 'af-project-row'; fr.style.marginBottom = '14px';
+  fr.innerHTML = '<label class="fl">Project <span class="req-star">*</span></label>'
+    + '<select id="af-project" class="inp-light"></select>'
+    + '<div class="cf-err" id="e-af-project" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>';
+  const anchor = document.getElementById('af-agent-id');
+  if (anchor && anchor.parentNode === mb) mb.insertBefore(fr, anchor.nextSibling);
+  else mb.insertBefore(fr, mb.firstChild);
+}
+
+// Fill the picker with the caller's accessible projects. Disabled on edit (project is immutable).
+function _afPopulateProjects(selectedId, isEdit) {
+  const sel = document.getElementById('af-project');
+  if (!sel) return;
+  const all = (typeof gprojects === 'function' ? gprojects() : (window._projectsCache || []))
+    .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
+  sel.innerHTML = ['<option value="">— Select project —</option>']
+    .concat(all.map(p => `<option value="${esc(p.id)}">${esc(p.projectName || p.name || 'Project')}</option>`))
+    .join('');
+  if (selectedId) sel.value = selectedId;
+  else if (!isEdit && all.length === 1) sel.value = all[0].id;
+  sel.disabled = !!isEdit;
+}
 
 // ── File upload helper ───────────────────────────────────────────────
 async function _uploadAgentFile(file, agentId, field) {
@@ -1056,6 +1087,11 @@ async function saveAgentForm() {
   } else {
     setErr('e-af-cnic', '');
   }
+
+  // Project is required on create (immutable on edit, where the picker is disabled)
+  const _afIsCreate = !(document.getElementById('af-agent-id')?.value?.trim());
+  const projId = (document.getElementById('af-project')?.value || '').trim();
+  if (_afIsCreate) setErr('e-af-project', !projId ? 'Project is required' : '', 'af-project');
 
   if (hasErr) return;
 
@@ -1122,6 +1158,7 @@ async function saveAgentForm() {
       }
       const { data, error } = await supabase.rpc('create_agent', {
         p_company_id:         S.cid,
+        p_project_id:         projId,
         p_created_by:         S.userId,
         p_full_name:          name,
         p_phone:              phone,

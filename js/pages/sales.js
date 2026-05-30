@@ -653,14 +653,38 @@ async function rNewSale() {
 function _salOnUnitChange() {
   const sel = document.getElementById('sf-unit');
   const opt = sel?.options[sel.selectedIndex];
-  if (!opt || !opt.value) return;
+  if (!opt || !opt.value) { _salRefreshPickers(''); return; }
   const area = parseFloat(opt.getAttribute('data-area') || '0');
   const areaEl = document.getElementById('sf-area');
   if (areaEl) areaEl.value = area || '';
   if (area > 0) _salClearErr('sf-area');
   _salCalc();
+  // Cross-project guard (UX): refilter client & agent pickers to the unit's project.
+  // The real guard is server-side in create_sale_with_schedule.
+  const unit = (window._unitsCache || []).find(u => u.id === sel.value);
+  _salRefreshPickers(unit?.projectId || '');
   // If price was already entered, auto-clear the schedule so it stays in sync
   if (_salSchedule.length > 0) _salClearScheduleIfExists();
+}
+
+// Refilter the client & agent dropdowns to the unit's project. Passing '' shows none.
+function _salRefreshPickers(projectId) {
+  const clientSel = document.getElementById('sf-client');
+  if (clientSel) {
+    const cur = clientSel.value;
+    const clients = (window._clientsCache || []).filter(c => !projectId || c.projectId === projectId);
+    clientSel.innerHTML = '<option value="">— Select Client —</option>' +
+      clients.map(c => `<option value="${c.id}"${c.id === cur ? ' selected' : ''}>${esc(c.fullName || 'Unnamed')}</option>`).join('');
+    if (cur && !clients.some(c => c.id === cur)) clientSel.value = '';
+  }
+  const agentSel = document.getElementById('sf-agent');
+  if (agentSel) {
+    const cur = agentSel.value;
+    const agents = (typeof _salAgents !== 'undefined' ? _salAgents : []).filter(a => !projectId || a.project_id === projectId);
+    agentSel.innerHTML = '<option value="">— None —</option>' +
+      agents.map(a => `<option value="${a.id}"${a.id === cur ? ' selected' : ''}>${esc(a.full_name || '?')}</option>`).join('');
+    if (cur && !agents.some(a => a.id === cur)) agentSel.value = '';
+  }
 }
 
 // When down payment changes, sync booking row(s) if schedule is generated

@@ -12,6 +12,35 @@ let _catDrag    = { col: null, id: null };
 let _catAudit   = (() => { try { return JSON.parse(localStorage.getItem('_nxnCatAudit') || '[]'); } catch { return []; } })();
 let _catDD      = null;   // open dropdown element
 
+// ─── Project scoping (Types & Statuses are per-project; Floors stay company-level) ──
+let _catProject = null;
+function _catProjectList() {
+  return (typeof gprojects === 'function' ? gprojects() : (window._projectsCache || []))
+    .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
+}
+// Scoped accessors — read the raw window caches directly (NOT the global gtypes()/
+// gstatuses() helpers), so they always reflect the selected project _catProject.
+function _catTypes()    { return (window._typesCache    || []).filter(t => t.projectId === _catProject); }
+function _catStatuses() { return (window._statusesCache || []).filter(s => s.projectId === _catProject); }
+function _catRequireProject() {
+  if (_catProject) return true;
+  if (typeof notify !== 'undefined') notify.warning('Select a project first');
+  return false;
+}
+function _catProjectOptions() {
+  return _catProjectList()
+    .map(p => `<option value="${esc(p.id)}" ${p.id === _catProject ? 'selected' : ''}>${esc(p.projectName || p.name || 'Project')}</option>`)
+    .join('');
+}
+function _catSetProject(pid) {
+  _catProject = pid || null;
+  _catBulkSel.types.clear(); _catBulkSel.statuses.clear();
+  _catBulkOn.types = false;  _catBulkOn.statuses = false;
+  rTypesList(); rStatusesList();
+  const strip = document.getElementById('cat-strip-txt');
+  if (strip) strip.innerHTML = _catSummaryText();
+}
+
 // ─── Auto sort order (preserve existing) ──────────────────────────────
 function _autoSortOrder(name) {
   const n = (name || '').toLowerCase().trim();
@@ -61,7 +90,7 @@ function _catUsage(type, id) {
 }
 
 function _catSummaryText() {
-  const fl = gfloors(), tp = gtypes(), st = gstatuses();
+  const fl = gfloors(), tp = _catTypes(), st = _catStatuses();
   const all = [...fl, ...tp, ...st];
   const active  = all.filter(i => i.isActive !== false).length;
   const unusedF = fl.filter(f => _catUsage('floors', f.id) === 0).length;
@@ -143,6 +172,11 @@ function rCategories() {
   const el = document.getElementById('pg-categories');
   if (!el) return;
 
+  // Default the project context to the first accessible project (keep current if still valid)
+  if (!_catProject || !_catProjectList().some(p => p.id === _catProject)) {
+    _catProject = _catProjectList()[0]?.id || null;
+  }
+
   el.innerHTML = `
 <div class="cat-page ani">
   <div class="cat-ph">
@@ -156,6 +190,7 @@ function rCategories() {
         <h1 class="cat-page-title">Categories</h1>
       </div>
       <div class="cat-ph-actions">
+        <select id="cat-project" class="inp-light" title="Project — Types &amp; Statuses are managed per project" style="font-size:11px;max-width:200px;height:30px;align-self:center" onchange="_catSetProject(this.value)">${_catProjectOptions()}</select>
         <button class="btn btn-gh btn-sm" onclick="_catImport()" style="font-size:11px;display:flex;align-items:center;gap:5px">${_I.ul} Import</button>
         <div style="position:relative">
           <button class="btn btn-gh btn-sm" id="cat-exp-btn" onclick="_catExpMenu(this)" style="font-size:11px;display:flex;align-items:center;gap:5px">${_I.dl} Export ${_I.cv}</button>
@@ -290,7 +325,7 @@ function rTypesList() {
   const body = document.getElementById('cat-types');
   if (!body) return;
   const q    = (_catSearch.types || '').toLowerCase();
-  const all  = gtypes().slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const all  = _catTypes().slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const fil  = _catFilter.types;
   let items  = all.filter(t => {
     if (q && !t.name.toLowerCase().includes(q)) return false;
@@ -357,7 +392,7 @@ function rStatusesList() {
   const body = document.getElementById('cat-statuses');
   if (!body) return;
   const q    = (_catSearch.statuses || '').toLowerCase();
-  const all  = gstatuses().slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const all  = _catStatuses().slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const fil  = _catFilter.statuses;
   let items  = all.filter(s => {
     if (q && !s.name.toLowerCase().includes(q)) return false;
@@ -560,8 +595,9 @@ async function _catQASave(col) {
   const input   = document.getElementById(`cat-${prefix}-qa-val`);
   const name    = input ? input.value.trim() : '';
   if (!name) { _catQACancel(col); return; }
+  if (col !== 'floors' && !_catRequireProject()) { _catQACancel(col); return; }
 
-  const items   = col === 'floors' ? gfloors() : col === 'types' ? gtypes() : gstatuses();
+  const items   = col === 'floors' ? gfloors() : col === 'types' ? _catTypes() : _catStatuses();
   const sortOrder = _catNextSort(items);
 
   try {
@@ -574,14 +610,14 @@ async function _catQASave(col) {
       rFloorsList();
     } else if (col === 'types') {
       const typeCode = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'TYPE';
-      result = await _saveWithFallback(saveUnitType, { company_id: S.cid, type_name: name, type_code: typeCode, sort_order: sortOrder, is_active: true });
+      result = await _saveWithFallback(saveUnitType, { company_id: S.cid, project_id: _catProject, type_name: name, type_code: typeCode, sort_order: sortOrder, is_active: true });
       if (!result || result._error) { notify.error('Could not add type'); return; }
       await loadTypesCache(S.cid);
       _catLog(`Added unit type "${name}"`);
       rTypesList();
     } else {
       const statusCode = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'STATUS';
-      result = await _saveWithFallback(saveUnitStatus, { company_id: S.cid, status_name: name, status_code: statusCode, color_hex: '#64748B', is_available: false, sort_order: sortOrder, is_active: true });
+      result = await _saveWithFallback(saveUnitStatus, { company_id: S.cid, project_id: _catProject, status_name: name, status_code: statusCode, color_hex: '#64748B', is_available: false, sort_order: sortOrder, is_active: true });
       if (!result || result._error) { notify.error('Could not add status'); return; }
       await loadStatusesCache(S.cid);
       _catLog(`Added status "${name}"`);
@@ -764,7 +800,7 @@ async function _catDP(col, toId, e) {
   const fromId = _catDrag.id;
   _catDrag = { col: null, id: null };
 
-  const items = (col === 'floors' ? gfloors() : col === 'types' ? gtypes() : gstatuses())
+  const items = (col === 'floors' ? gfloors() : col === 'types' ? _catTypes() : _catStatuses())
     .slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const fromIdx = items.findIndex(i => i.id === fromId);
   const toIdx   = items.findIndex(i => i.id === toId);
@@ -786,7 +822,7 @@ async function _catDP(col, toId, e) {
 
 // ─── Move to Top / Bottom ──────────────────────────────────────────────
 async function _catMoveTop(type, id) {
-  const items = (type === 'floors' ? gfloors() : type === 'types' ? gtypes() : gstatuses())
+  const items = (type === 'floors' ? gfloors() : type === 'types' ? _catTypes() : _catStatuses())
     .slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const idx = items.findIndex(i => i.id === id);
   if (idx <= 0) return;
@@ -799,7 +835,7 @@ async function _catMoveTop(type, id) {
 }
 
 async function _catMoveBot(type, id) {
-  const items = (type === 'floors' ? gfloors() : type === 'types' ? gtypes() : gstatuses())
+  const items = (type === 'floors' ? gfloors() : type === 'types' ? _catTypes() : _catStatuses())
     .slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const idx = items.findIndex(i => i.id === id);
   if (idx < 0 || idx === items.length - 1) return;
@@ -812,7 +848,7 @@ async function _catMoveBot(type, id) {
 }
 
 async function _catSortAlpha(col) {
-  const items = (col === 'floors' ? gfloors() : col === 'types' ? gtypes() : gstatuses())
+  const items = (col === 'floors' ? gfloors() : col === 'types' ? _catTypes() : _catStatuses())
     .slice().sort((a, b) => a.name.localeCompare(b.name));
   const fn = col === 'floors' ? saveFloor : col === 'types' ? saveUnitType : saveUnitStatus;
   await Promise.all(items.map((item, i) => _saveWithFallback(fn, { id: item.id, sort_order: i + 1 })));
@@ -825,7 +861,8 @@ async function _catSortAlpha(col) {
 async function _catDuplicate(type, id) {
   const item = type === 'floors' ? gfloor(id) : type === 'types' ? gtype(id) : gstatus(id);
   if (!item) return;
-  const items = type === 'floors' ? gfloors() : type === 'types' ? gtypes() : gstatuses();
+  if (type !== 'floors' && !_catRequireProject()) return;
+  const items = type === 'floors' ? gfloors() : type === 'types' ? _catTypes() : _catStatuses();
   const sortOrder = _catNextSort(items);
   try {
     let result;
@@ -834,11 +871,11 @@ async function _catDuplicate(type, id) {
       await loadFloorsCache(S.cid); rFloorsList();
     } else if (type === 'types') {
       const tc = (item.name + ' copy').toUpperCase().replace(/[^A-Z0-9]+/g,'_').slice(0,30);
-      result = await _saveWithFallback(saveUnitType, { company_id: S.cid, type_name: item.name + ' (copy)', type_code: tc, sort_order: sortOrder, is_active: item.isActive !== false });
+      result = await _saveWithFallback(saveUnitType, { company_id: S.cid, project_id: _catProject, type_name: item.name + ' (copy)', type_code: tc, sort_order: sortOrder, is_active: item.isActive !== false });
       await loadTypesCache(S.cid); rTypesList();
     } else {
       const sc = (item.name + ' copy').toUpperCase().replace(/[^A-Z0-9]+/g,'_').slice(0,30);
-      result = await _saveWithFallback(saveUnitStatus, { company_id: S.cid, status_name: item.name + ' (copy)', status_code: sc, color_hex: item.color, is_available: item.isAvailable, sort_order: sortOrder, is_active: item.isActive !== false });
+      result = await _saveWithFallback(saveUnitStatus, { company_id: S.cid, project_id: _catProject, status_name: item.name + ' (copy)', status_code: sc, color_hex: item.color, is_available: item.isAvailable, sort_order: sortOrder, is_active: item.isActive !== false });
       await loadStatusesCache(S.cid); rStatusesList();
     }
     if (result && !result._error) { notify.success('Duplicated'); _catLog(`Duplicated ${type.slice(0,-1)} "${item.name}"`); }
@@ -1002,7 +1039,7 @@ function openTypeModal(id) {
   document.getElementById('tp-mtl').textContent = t ? 'Edit Unit Type' : 'Add Unit Type';
   document.getElementById('tp-id').value    = t?.id || '';
   document.getElementById('tp-name').value  = t?.name || '';
-  document.getElementById('tp-sort').value  = t ? (t.sortOrder || 1) : _catNextSort(gtypes());
+  document.getElementById('tp-sort').value  = t ? (t.sortOrder || 1) : _catNextSort(_catTypes());
   document.getElementById('tp-active').checked = t ? t.isActive !== false : true;
   document.getElementById('tp-add-btn').style.display = t ? 'none' : '';
   document.querySelectorAll('#tp-cat-chips .btn').forEach(b => {
@@ -1010,7 +1047,7 @@ function openTypeModal(id) {
     if (b.dataset.cat === 'residential') b.classList.add('btn-g');
   });
   document.getElementById('tp-cat').value = 'residential';
-  _catPosPicker('tp-pos-picker', gtypes(), t?.id || null, 'tp-sort');
+  _catPosPicker('tp-pos-picker', _catTypes(), t?.id || null, 'tp-sort');
   _tpPrev();
   om('m-tp-edit');
   setTimeout(() => document.getElementById('tp-name')?.focus(), 120);
@@ -1033,10 +1070,11 @@ function _tpCatChip(btn) {
 async function saveTypeForm(addAnother) {
   const name = document.getElementById('tp-name').value.trim();
   if (!name) { notify.warning('Type name is required'); return; }
+  if (!_catRequireProject()) return;
   const id      = document.getElementById('tp-id').value.trim() || null;
-  const dupType = gtypes().find(t => t.name.toLowerCase() === name.toLowerCase() && t.id !== id);
+  const dupType = _catTypes().find(t => t.name.toLowerCase() === name.toLowerCase() && t.id !== id);
   if (dupType) { notify.warning(`Type "${name}" already exists`); return; }
-  const sortOrder = parseInt(document.getElementById('tp-sort').value) || _catNextSort(gtypes());
+  const sortOrder = parseInt(document.getElementById('tp-sort').value) || _catNextSort(_catTypes());
   const isActive  = document.getElementById('tp-active').checked;
 
   const btn = document.getElementById('tp-save-btn');
@@ -1045,6 +1083,7 @@ async function saveTypeForm(addAnother) {
     const typeCode = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'TYPE';
     const payload  = { company_id: S.cid, type_name: name, type_code: typeCode, sort_order: sortOrder, is_active: isActive };
     if (id) payload.id = id;
+    else payload.project_id = _catProject;
     const result = await _saveWithFallback(saveUnitType, payload);
     if (!result || result._error) {
       const e = result?._error;
@@ -1069,7 +1108,7 @@ function openStatusModal(id) {
   document.getElementById('st-mtl').textContent = s ? 'Edit Status' : 'Add Unit Status';
   document.getElementById('st-id').value     = s?.id || '';
   document.getElementById('st-name').value   = s?.name || '';
-  document.getElementById('st-sort').value   = s ? (s.sortOrder || 1) : _catNextSort(gstatuses());
+  document.getElementById('st-sort').value   = s ? (s.sortOrder || 1) : _catNextSort(_catStatuses());
   document.getElementById('st-active').checked = s ? s.isActive !== false : true;
   document.getElementById('st-avail').checked  = s ? s.isAvailable === true : false;
   document.getElementById('st-add-btn').style.display = s ? 'none' : '';
@@ -1084,7 +1123,7 @@ function openStatusModal(id) {
   document.getElementById('st-avail-type').value = availType;
   // Render swatches
   _stSwatches(color);
-  _catPosPicker('st-pos-picker', gstatuses(), s?.id || null, 'st-sort');
+  _catPosPicker('st-pos-picker', _catStatuses(), s?.id || null, 'st-sort');
   _stPrev();
   om('m-st-edit');
   setTimeout(() => document.getElementById('st-name')?.focus(), 120);
@@ -1154,10 +1193,11 @@ function _stPrev() {
 async function saveStatusForm(addAnother) {
   const name = document.getElementById('st-name').value.trim();
   if (!name) { notify.warning('Status name is required'); return; }
+  if (!_catRequireProject()) return;
   const id          = document.getElementById('st-id').value.trim() || null;
   const color       = document.getElementById('st-color').value || '#64748B';
   const isAvailable = document.getElementById('st-avail').checked;
-  const sortOrder   = parseInt(document.getElementById('st-sort').value) || _catNextSort(gstatuses());
+  const sortOrder   = parseInt(document.getElementById('st-sort').value) || _catNextSort(_catStatuses());
   const isActive    = document.getElementById('st-active').checked;
   const shortLabel  = document.getElementById('st-code-lbl')?.value.trim() || '';
   const statusCode  = (shortLabel
@@ -1170,6 +1210,7 @@ async function saveStatusForm(addAnother) {
   try {
     const payload = { company_id: S.cid, status_name: name, status_code: statusCode, color_hex: color, is_available: isAvailable, sort_order: sortOrder, is_active: isActive };
     if (id) payload.id = id;
+    else payload.project_id = _catProject;
     const result = await _saveWithFallback(saveUnitStatus, payload);
     if (!result || result._error) {
       const e = result?._error;
@@ -1251,8 +1292,8 @@ function _catDelModal(cfg) {
   } else {
     // Case B — in use
     const others = cfg.type === 'floors' ? gfloors().filter(i => i.id !== cfg.id) :
-                   cfg.type === 'types'  ? gtypes().filter(i => i.id !== cfg.id) :
-                                           gstatuses().filter(i => i.id !== cfg.id);
+                   cfg.type === 'types'  ? _catTypes().filter(i => i.id !== cfg.id) :
+                                           _catStatuses().filter(i => i.id !== cfg.id);
     const opts = others.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join('');
     body = `
       <div class="cat-del-msg"><strong>"${esc(cfg.name)}"</strong> is used in <strong>${cfg.usage} unit${cfg.usage !== 1 ? 's' : ''}</strong>.<br>Reassign those units before deleting, or choose a replacement below.</div>
@@ -1357,6 +1398,7 @@ function _catApplyTpl(key) {
   if (!t) return;
   const flCount = t.floors.length, tpCount = t.types.length;
   if (!confirm(`Apply "${key}" template? This will add ${flCount} floors and ${tpCount} unit types. Existing items will not be affected.`)) return;
+  if (!_catRequireProject()) return;
 
   (async () => {
     let added = 0;
@@ -1370,9 +1412,9 @@ function _catApplyTpl(key) {
     await loadFloorsCache(S.cid);
     for (let i = 0; i < t.types.length; i++) {
       const name = t.types[i];
-      if (gtypes().some(tp => tp.name.toLowerCase() === name.toLowerCase())) continue;
+      if (_catTypes().some(tp => tp.name.toLowerCase() === name.toLowerCase())) continue;
       const tc = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30);
-      await _saveWithFallback(saveUnitType, { company_id: S.cid, type_name: name, type_code: tc, sort_order: i + 1, is_active: true });
+      await _saveWithFallback(saveUnitType, { company_id: S.cid, project_id: _catProject, type_name: name, type_code: tc, sort_order: i + 1, is_active: true });
       added++;
     }
     await loadTypesCache(S.cid);
@@ -1400,7 +1442,7 @@ function _catExpMenu(btn) {
 }
 
 function _catExportCol(col) {
-  const items = col === 'floors' ? gfloors() : col === 'types' ? gtypes() : gstatuses();
+  const items = col === 'floors' ? gfloors() : col === 'types' ? _catTypes() : _catStatuses();
   _catDownload(`categories-${col}.json`, JSON.stringify(items, null, 2), 'application/json');
   notify.success(`${col} exported`);
 }
@@ -1408,15 +1450,15 @@ function _catExportCol(col) {
 function _catExport(fmt) {
   const data = {
     exportedAt: new Date().toISOString(),
-    floors: gfloors(), types: gtypes(), statuses: gstatuses(),
+    floors: gfloors(), types: _catTypes(), statuses: _catStatuses(),
   };
   if (fmt === 'json') {
     _catDownload('categories.json', JSON.stringify(data, null, 2), 'application/json');
   } else {
     const rows = [['type','id','name','sortOrder','isActive','color','isAvailable']];
     gfloors().forEach(f => rows.push(['floor', f.id, f.name, f.sortOrder, f.isActive, '', '']));
-    gtypes().forEach(t => rows.push(['type', t.id, t.name, t.sortOrder, t.isActive, '', '']));
-    gstatuses().forEach(s => rows.push(['status', s.id, s.name, s.sortOrder, s.isActive, s.color, s.isAvailable]));
+    _catTypes().forEach(t => rows.push(['type', t.id, t.name, t.sortOrder, t.isActive, '', '']));
+    _catStatuses().forEach(s => rows.push(['status', s.id, s.name, s.sortOrder, s.isActive, s.color, s.isAvailable]));
     _catDownload('categories.csv', rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'), 'text/csv');
   }
   notify.success('Exported');
@@ -1444,6 +1486,7 @@ function _catImport() {
       const tp = Array.isArray(data.types) ? data.types.length : 0;
       const st = Array.isArray(data.statuses) ? data.statuses.length : 0;
       if (!confirm(`Import ${fl} floors, ${tp} types, ${st} statuses? Existing items with the same name will be skipped.`)) return;
+      if ((tp || st) && !_catRequireProject()) return;
       let added = 0;
       if (data.floors) {
         for (const f of data.floors) {
@@ -1455,18 +1498,18 @@ function _catImport() {
       }
       if (data.types) {
         for (const t of data.types) {
-          if (gtypes().some(i => i.name.toLowerCase() === (t.name||'').toLowerCase())) continue;
+          if (_catTypes().some(i => i.name.toLowerCase() === (t.name||'').toLowerCase())) continue;
           const tc = (t.name||'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').slice(0,30)||'TYPE';
-          await _saveWithFallback(saveUnitType, { company_id: S.cid, type_name: t.name, type_code: tc, sort_order: t.sortOrder||t.sort_order||1, is_active: t.isActive!==false });
+          await _saveWithFallback(saveUnitType, { company_id: S.cid, project_id: _catProject, type_name: t.name, type_code: tc, sort_order: t.sortOrder||t.sort_order||1, is_active: t.isActive!==false });
           added++;
         }
         await loadTypesCache(S.cid);
       }
       if (data.statuses) {
         for (const s of data.statuses) {
-          if (gstatuses().some(i => i.name.toLowerCase() === (s.name||'').toLowerCase())) continue;
+          if (_catStatuses().some(i => i.name.toLowerCase() === (s.name||'').toLowerCase())) continue;
           const sc = (s.name||'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').slice(0,30)||'STATUS';
-          await _saveWithFallback(saveUnitStatus, { company_id: S.cid, status_name: s.name, status_code: sc, color_hex: s.color||'#64748B', is_available: s.isAvailable||false, sort_order: s.sortOrder||s.sort_order||1, is_active: s.isActive!==false });
+          await _saveWithFallback(saveUnitStatus, { company_id: S.cid, project_id: _catProject, status_name: s.name, status_code: sc, color_hex: s.color||'#64748B', is_available: s.isAvailable||false, sort_order: s.sortOrder||s.sort_order||1, is_active: s.isActive!==false });
           added++;
         }
         await loadStatusesCache(S.cid);

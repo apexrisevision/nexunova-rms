@@ -1556,10 +1556,41 @@ function openClientModal(clientId) {
     if (lsEl)   lsEl.value   = '';
   }
 
+  _cfEnsureProjectPicker();
+  _cfPopulateProjects(isEdit ? (gclient(clientId)?.projectId || '') : '', isEdit);
   om('m-client');
 }
 
 function closeClientModal() { cm('m-client'); }
+
+// ── Project picker (injected into the static #m-client modal; login.html is frozen) ──
+function _cfEnsureProjectPicker() {
+  if (document.getElementById('cf-project')) return;
+  const mb = document.querySelector('#m-client .mb');
+  if (!mb) return;
+  const fr = document.createElement('div');
+  fr.className = 'fr'; fr.id = 'cf-project-row'; fr.style.marginBottom = '14px';
+  fr.innerHTML = '<label class="fl">Project <span class="req-star">*</span></label>'
+    + '<select id="cf-project" class="inp-light"></select>'
+    + '<div class="cf-err" id="e-cf-project" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>';
+  const anchor = document.getElementById('cf-dup-warn');
+  if (anchor && anchor.parentNode === mb) mb.insertBefore(fr, anchor.nextSibling);
+  else mb.insertBefore(fr, mb.firstChild);
+}
+
+// Fill the picker with the caller's accessible projects. Disabled on edit (project is immutable).
+function _cfPopulateProjects(selectedId, isEdit) {
+  const sel = document.getElementById('cf-project');
+  if (!sel) return;
+  const all = (typeof gprojects === 'function' ? gprojects() : (window._projectsCache || []))
+    .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
+  sel.innerHTML = ['<option value="">— Select project —</option>']
+    .concat(all.map(p => `<option value="${esc(p.id)}">${esc(p.projectName || p.name || 'Project')}</option>`))
+    .join('');
+  if (selectedId) sel.value = selectedId;
+  else if (!isEdit && all.length === 1) sel.value = all[0].id;
+  sel.disabled = !!isEdit;
+}
 
 // ── Duplicate check on CNIC blur ──────────────────────────
 async function checkCNICDuplicate() {
@@ -1629,6 +1660,11 @@ async function saveClientForm() {
   if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
     setErr('e-cf-email', 'Invalid email format'); hasErr = true;
   } else setErr('e-cf-email', '');
+
+  // Project is required on create (immutable on edit, where the picker is disabled)
+  const _cfIsCreate = !((document.getElementById('cf-client-id')?.value || '').trim());
+  const projId = (document.getElementById('cf-project')?.value || '').trim();
+  if (_cfIsCreate) setErr('e-cf-project', !projId ? 'Project is required' : '', 'cf-project');
 
   if (hasErr) return;
 
@@ -1702,6 +1738,7 @@ async function saveClientForm() {
       result = data;
     } else {
       payload.created_by = S.userId || null;
+      payload.project_id = projId;
       const { data, error } = await supabase.rpc('create_client', { p_data: payload });
       if (error) throw error;
       result = data;

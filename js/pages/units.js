@@ -895,6 +895,8 @@ function openUnitModal(unitId) {
   if (projSel) {
     projSel.innerHTML = `<option value="">— Select Project —</option>` +
       gprojects().map(p => `<option value="${p.id}">${esc(p.projectName||p.name)}</option>`).join('');
+    // Cross-project: refilter type & status dropdowns whenever the project changes
+    projSel.onchange = _ufRebuildCatsByProject;
   }
 
   // In edit mode we need the original unit so we can include its current
@@ -926,30 +928,11 @@ function openUnitModal(unitId) {
         `<option value="${f.id}">${esc(f.name)}${f._inactive ? ' (inactive)' : ''}</option>`);
   }
 
-  // Populate type dropdown
+  // Type & Status dropdowns are populated by _ufRebuildCatsByProject() further down
+  // (after the project is set in the edit branch / left empty on create). This enforces
+  // "a unit's type and status must belong to the unit's own project".
   const typeSel = document.getElementById('uf-type');
-  if (typeSel) {
-    const types = (window._typesCache || []);
-    typeSel.innerHTML = `<option value="">— Select Type —</option>` +
-      buildOpts(types, editUnit?.unitTypeId, t =>
-        `<option value="${t.id}">${esc(t.name)}${t._inactive ? ' (inactive)' : ''}</option>`);
-  }
-
-  // Populate status dropdown
-  const stSel = document.getElementById('uf-status');
-  if (stSel) {
-    const statuses = (window._statusesCache || []);
-    const activeStatuses = statuses.filter(s => s.isActive);
-    const defaultAvail = activeStatuses.find(s => s.isAvailable) || activeStatuses[0];
-    let list = activeStatuses;
-    if (editUnit?.statusId && !list.some(s => s.id === editUnit.statusId)) {
-      const orphan = statuses.find(s => s.id === editUnit.statusId);
-      if (orphan) list = list.concat([{ ...orphan, _inactive: true }]);
-    }
-    stSel.innerHTML = list.map(s =>
-      `<option value="${s.id}"${(!editUnit && s.id === defaultAvail?.id) ? ' selected' : ''}>${esc(s.name)}${s._inactive ? ' (inactive)' : ''}</option>`
-    ).join('');
-  }
+  const stSel   = document.getElementById('uf-status');
 
   if (isEdit) {
     const u = gunit(unitId);
@@ -982,6 +965,7 @@ function openUnitModal(unitId) {
       const facingEl = document.getElementById('uf-facing');
       if (facingEl) facingEl.value = u.facing || '';
       if (projSel && u.projectId) projSel.value = u.projectId;
+      _ufRebuildCatsByProject();   // build type/status options for u.projectId before setting their values
       if (typeSel && u.unitTypeId) typeSel.value = u.unitTypeId;
       if (stSel  && u.statusId)  stSel.value  = u.statusId;
 
@@ -1002,10 +986,41 @@ function openUnitModal(unitId) {
     if (areaUnitEl) areaUnitEl.value = 'sqft';
   }
 
+  _ufRebuildCatsByProject();   // initial build (no-op when no project picked yet)
   om('m-unit');
 }
 
 function closeUnitModal() { cm('m-unit'); }
+
+// ── Cross-project filter: types & statuses must belong to the unit's own project ──
+function _ufRebuildCatsByProject() {
+  const projId = document.getElementById('uf-project')?.value || '';
+  const types    = projId ? (window._typesCache    || []).filter(t => t.projectId === projId) : [];
+  const statuses = projId ? (window._statusesCache || []).filter(s => s.projectId === projId) : [];
+
+  const typeSel = document.getElementById('uf-type');
+  if (typeSel) {
+    const cur = typeSel.value;
+    typeSel.innerHTML = '<option value="">— Select Type —</option>' +
+      types.map(t => `<option value="${t.id}"${t.id === cur ? ' selected' : ''}>${esc(t.name)}${t.isActive === false ? ' (inactive)' : ''}</option>`).join('');
+    if (cur && !types.some(t => t.id === cur)) typeSel.value = '';
+  }
+  const stSel = document.getElementById('uf-status');
+  if (stSel) {
+    const cur = stSel.value;
+    const activeStatuses = statuses.filter(s => s.isActive !== false);
+    // Keep the currently selected status visible even if it's inactive (orphan), as long as it belongs to this project
+    let list = activeStatuses;
+    if (cur && !list.some(s => s.id === cur)) {
+      const orphan = statuses.find(s => s.id === cur);
+      if (orphan) list = list.concat([{ ...orphan, _inactive: true }]);
+    }
+    stSel.innerHTML = list.map(s =>
+      `<option value="${s.id}"${s.id === cur ? ' selected' : ''}>${esc(s.name)}${s._inactive ? ' (inactive)' : ''}</option>`
+    ).join('');
+    if (cur && !list.some(s => s.id === cur)) stSel.value = '';
+  }
+}
 
 async function saveUnitForm() {
   if (typeof demoGuard === 'function' && demoGuard('Save Unit')) return;
