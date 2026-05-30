@@ -1188,7 +1188,7 @@ async function loadPortalComplaints() {
   var d=buyerData, el=document.getElementById('complaints-content');
   if(!el||!d||!d.client) return;
   try {
-    var res=await sb.rpc('get_buyer_complaints',{p_client_id:d.client.id, p_company_id:d.client.company_id});
+    var res=await sb.rpc('get_buyer_complaints',{p_session_token: sessionStorage.getItem('rms.portal.token')});
     portalState.compLoaded=true;
     if(res.error){ el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Could not load queries</div></div>'; return; }
     var items=Array.isArray(res.data)?res.data:[];
@@ -1223,7 +1223,7 @@ async function submitComplaint() {
   try {
     setLoading(true);
     var res=await sb.rpc('submit_buyer_complaint',{
-      p_client_id:d.client.id, p_company_id:d.client.company_id,
+      p_session_token: sessionStorage.getItem('rms.portal.token'),
       p_subject:sub.trim(), p_message:msg.trim()
     });
     if(res.error||(res.data&&res.data.error)) {
