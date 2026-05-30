@@ -7,12 +7,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  // Inherit the user's theme preference from the main app (window.open does not
+  // carry parent's [data-theme]). Same key the main app writes via js/theme.js.
+  try { document.documentElement.dataset.theme = localStorage.getItem('rms.theme') || 'dark'; } catch(_) {}
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
+[data-theme="light"]{
   --primary:#1e2d47;--accent:#c9a84c;
   --green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;--purple:#7c3aed;
   --border:#e5e7eb;--bg:#f1f5f9;--card:#fff;--text:#111827;--muted:#6b7280;
+}
+[data-theme="dark"]{
+  --primary:#1e2d47;--accent:#c9a84c;
+  --green:#86efac;--red:#fca5a5;--amber:#fcd34d;--blue:#93c5fd;--purple:#c4b5fd;
+  --border:#1f2937;--bg:#0b1120;--card:#111827;--text:#f1f5f9;--muted:#9ca3af;
 }
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
 a{text-decoration:none;color:inherit}
@@ -36,7 +46,7 @@ button,input,select{font-family:inherit}
 /* ── Search bar ── */
 .search-wrap{padding:18px 28px}
 .search-box{position:relative;max-width:420px}
-.search-box input{width:100%;padding:10px 16px 10px 40px;border:2px solid var(--border);border-radius:10px;font-size:13px;background:#fff;outline:none;transition:border .15s}
+.search-box input{width:100%;padding:10px 16px 10px 40px;border:2px solid var(--border);border-radius:10px;font-size:13px;background:var(--card);color:var(--text);outline:none;transition:border .15s}
 .search-box input:focus{border-color:var(--primary)}
 .search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted)}
 
@@ -53,7 +63,7 @@ button,input,select{font-family:inherit}
 .report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 
 /* ── Report card ── */
-.rcard{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.rcard{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
 .rcard:hover{border-color:var(--primary);box-shadow:0 4px 20px rgba(30,45,71,.12);transform:translateY(-2px)}
 .rcard.active{border-color:var(--primary);box-shadow:0 0 0 3px rgba(30,45,71,.12)}
 .rcard-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0}
@@ -63,22 +73,22 @@ button,input,select{font-family:inherit}
 .rcard-action{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
 
 /* ── Param panel ── */
-.param-panel{background:#f8fafc;border:1.5px solid var(--primary);border-top:none;border-radius:0 0 12px 12px;padding:14px 16px;margin-top:-12px}
+.param-panel{background:var(--bg);border:1.5px solid var(--primary);border-top:none;border-radius:0 0 12px 12px;padding:14px 16px;margin-top:-12px}
 .param-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
 .param-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px}
 .param-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
-.param-input{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:#fff;outline:none;width:100%}
+.param-input{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);outline:none;width:100%}
 .param-input:focus{border-color:var(--primary)}
-.param-select{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:#fff;width:100%;outline:none;cursor:pointer}
+.param-select{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);width:100%;outline:none;cursor:pointer}
 .btn-generate{background:var(--primary);color:#fff;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:background .15s}
 .btn-generate:hover{background:#16253a}
 .btn-cancel{background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer}
 
 /* ── Search results dropdown ── */
-.search-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.search-results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1.5px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.1)}
 .search-result-item{padding:9px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border)}
 .search-result-item:last-child{border-bottom:none}
-.search-result-item:hover{background:#f0f7ff}
+.search-result-item:hover{background:rgba(37,99,235,0.08)}
 .search-result-main{font-weight:600;color:var(--text)}
 .search-result-sub{font-size:10px;color:var(--muted);margin-top:1px}
 

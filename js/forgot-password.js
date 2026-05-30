@@ -147,29 +147,29 @@ function _fpShowNewPasswordForm() {
   ].join(';');
 
   ov.innerHTML = `
-    <div style="background:#0f172a;border:1px solid rgba(99,102,241,.3);border-radius:16px;
+    <div style="background:var(--bg-modal);border:1px solid var(--border);border-radius:16px;
                 padding:32px 28px 24px;width:100%;max-width:400px;
                 box-shadow:0 24px 80px rgba(0,0,0,.65)">
-      <h2 style="margin:0 0 8px;font-size:17px;font-weight:600;color:#f8fafc">Set New Password</h2>
-      <p style="margin:0 0 20px;font-size:13px;color:rgba(255,255,255,.5);line-height:1.55">
+      <h2 style="margin:0 0 8px;font-size:17px;font-weight:600;color:var(--text)">Set New Password</h2>
+      <p style="margin:0 0 20px;font-size:13px;color:var(--text-muted);line-height:1.55">
         Your identity is verified. Choose a strong new password.
       </p>
       <div style="margin-bottom:10px">
         <input id="_fp-pwd1" type="password" autocomplete="new-password"
           placeholder="New password (min 8 characters)"
-          style="width:100%;padding:10px 12px;background:rgba(255,255,255,.05);
-                 border:1.5px solid rgba(255,255,255,.12);border-radius:8px;
-                 color:#f1f5f9;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit"
-          onfocus="this.style.borderColor='#4F46E5'" onblur="this.style.borderColor='rgba(255,255,255,.12)'"
+          style="width:100%;padding:10px 12px;background:var(--bg-input);
+                 border:1.5px solid var(--border);border-radius:8px;
+                 color:var(--text);font-size:14px;box-sizing:border-box;outline:none;font-family:inherit"
+          onfocus="this.style.borderColor='#4F46E5'" onblur="this.style.borderColor='var(--border)'"
           onkeydown="if(event.key==='Enter')document.getElementById('_fp-pwd2').focus()">
       </div>
       <div style="margin-bottom:8px">
         <input id="_fp-pwd2" type="password" autocomplete="new-password"
           placeholder="Confirm new password"
-          style="width:100%;padding:10px 12px;background:rgba(255,255,255,.05);
-                 border:1.5px solid rgba(255,255,255,.12);border-radius:8px;
-                 color:#f1f5f9;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit"
-          onfocus="this.style.borderColor='#4F46E5'" onblur="this.style.borderColor='rgba(255,255,255,.12)'"
+          style="width:100%;padding:10px 12px;background:var(--bg-input);
+                 border:1.5px solid var(--border);border-radius:8px;
+                 color:var(--text);font-size:14px;box-sizing:border-box;outline:none;font-family:inherit"
+          onfocus="this.style.borderColor='#4F46E5'" onblur="this.style.borderColor='var(--border)'"
           onkeydown="if(event.key==='Enter')_fpSubmitNewPassword()">
       </div>
       <div id="_fp-pwd-err" style="font-size:12px;color:#f43f5e;min-height:16px;margin-bottom:12px;line-height:1.4"></div>
@@ -182,7 +182,7 @@ function _fpShowNewPasswordForm() {
       </button>
       <div style="text-align:center;margin-top:14px">
         <a onclick="document.getElementById('_fp-newpwd-overlay').remove();fpSetState('form')"
-          style="font-size:12px;color:rgba(255,255,255,.35);cursor:pointer;text-decoration:underline">
+          style="font-size:12px;color:var(--text-muted);cursor:pointer;text-decoration:underline">
           ← Start over
         </a>
       </div>

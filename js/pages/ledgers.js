@@ -60,23 +60,23 @@ function _lhubCard(c, i) {
   const searchArea = c.search ? `
     <div id="lhub-${c.type}-area" style="display:none;margin-top:4px" onclick="event.stopPropagation()">
       <div style="position:relative;margin-bottom:6px">
-        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none;display:flex"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;display:flex"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
         <input id="lhub-${c.type}-q"
           placeholder="${_lhubPlaceholder(c.type)}"
           oninput="_lhubSearch('${c.type}',this.value)"
           autocomplete="off"
-          style="width:100%;padding:9px 12px 9px 36px;background:#f9fafb;border:1px solid rgba(0,0,0,0.12);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#111827;outline:none;transition:border-color 0.2s ease"
+          style="width:100%;padding:9px 12px 9px 36px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);outline:none;transition:border-color 0.2s ease"
           onfocus="this.style.borderColor='#2563eb'"
-          onblur="this.style.borderColor='rgba(0,0,0,0.12)'">
+          onblur="this.style.borderColor='var(--border)'">
       </div>
       <div id="lhub-${c.type}-results"
         style="display:none;max-height:200px;overflow-y:auto;border-radius:8px;
-               border:1px solid rgba(0,0,0,0.08);background:#ffffff;overflow:hidden"></div>
+               border:1px solid var(--border);background:var(--bg-card);overflow:hidden"></div>
     </div>` : '';
 
   const footer = c.search
     ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-         <span style="font-size:11px;color:#9CA3AF;font-family:'Inter',sans-serif">Click to search</span>
+         <span style="font-size:11px;color:var(--text-muted);font-family:'Inter',sans-serif">Click to search</span>
          <span id="lhub-${c.type}-arrow" style="font-size:12px;color:#2563eb;font-weight:600;font-family:'Inter',sans-serif">Open →</span>
        </div>`
     : `<div style="display:flex;justify-content:flex-end;margin-top:12px">
@@ -149,7 +149,7 @@ function _lhubSearch(type, q) {
           _soldUnitIds = data || [];
           _lhubSearch('unit', document.getElementById('lhub-unit-q')?.value || '');
         });
-      resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:#9CA3AF;font-family:'Inter',sans-serif;text-align:center">Loading…</div>`;
+      resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted);font-family:'Inter',sans-serif;text-align:center">Loading…</div>`;
       resEl.style.display = '';
       return;
     }
@@ -181,15 +181,15 @@ function _lhubSearch(type, q) {
   }
 
   if (!items.length) {
-    resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:#9CA3AF;font-family:'Inter',sans-serif;text-align:center">No results found</div>`;
+    resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted);font-family:'Inter',sans-serif;text-align:center">No results found</div>`;
   } else {
     resEl.innerHTML = items.map(it => `
       <div onclick="_lhubOpen('${type}','${it.id}')"
-        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.06);font-family:'Inter',sans-serif;transition:background 0.15s ease"
-        onmouseenter="this.style.background='#eff6ff'"
+        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-family:'Inter',sans-serif;transition:background 0.15s ease"
+        onmouseenter="this.style.background='rgba(37,99,235,0.08)'"
         onmouseleave="this.style.background=''">
-        <div style="font-size:13px;font-weight:600;color:#111827;line-height:1.3">${esc(it.label)}</div>
-        ${it.sub ? `<div style="font-size:11px;color:#6B7280;margin-top:1px">${esc(it.sub)}</div>` : ''}
+        <div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.3">${esc(it.label)}</div>
+        ${it.sub ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${esc(it.sub)}</div>` : ''}
       </div>`
     ).join('');
   }

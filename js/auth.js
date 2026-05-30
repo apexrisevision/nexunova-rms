@@ -495,11 +495,11 @@ function _showForcePasswordChange(user, company, reason) {
   ov.id = '_fpc-overlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML =
-    '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
-      '<h2 style="margin:0 0 6px;font-size:18px;color:#0f172a">Set a new password</h2>' +
-      '<p style="margin:0 0 18px;font-size:13px;color:#64748b">' + subtitle + '</p>' +
-      '<input id="_fpc-new" type="password" placeholder="New password" autocomplete="new-password" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box">' +
-      '<input id="_fpc-conf" type="password" placeholder="Confirm new password" autocomplete="new-password" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;margin-bottom:6px;box-sizing:border-box">' +
+    '<div style="background:var(--bg-modal);border-radius:14px;max-width:420px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
+      '<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">Set a new password</h2>' +
+      '<p style="margin:0 0 18px;font-size:13px;color:var(--text-muted)">' + subtitle + '</p>' +
+      '<input id="_fpc-new" type="password" placeholder="New password" autocomplete="new-password" style="width:100%;padding:11px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box;color:var(--text)">' +
+      '<input id="_fpc-conf" type="password" placeholder="Confirm new password" autocomplete="new-password" style="width:100%;padding:11px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:6px;box-sizing:border-box;color:var(--text)">' +
       '<div id="_fpc-msg" style="font-size:12px;color:#dc2626;min-height:16px;margin-bottom:10px"></div>' +
       '<button id="_fpc-go" style="width:100%;padding:11px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Update password &amp; continue</button>' +
     '</div>';
