@@ -63,18 +63,74 @@ Notes:
 
 **Principle (Roman-Urdu, verbatim from client):** *"A wala B ka data na dekhe"* — a user assigned to Project A must **not** see Project B's data.
 
-**Mechanism:**
-- `user_project_assignments` (user_id × project_id, with `access_level` view/edit/manage) is the source of truth for who can touch which project/site.
-- Every relevant table carries `project_id` (14 columns added in the Phase-1 migration; `sales/units/unit_cancellations/unit_transfers/commission_structures` already had it).
-- RPCs filter every list/query by the caller's assigned `project_id`s. **`is_super_admin` and the company owner bypass** the project filter (see all projects).
-- `clients` and `agents` are intentionally **company-level** (they span projects) — not project-scoped.
+> **⚠️ Rewritten 2026-05-30 after the project-scoping initiative (Batches 1–6).** Earlier text describing clients/agents as "company-level" and isolation as "client-side via `hasProjectAccess`" is **NO LONGER TRUE** — both have been replaced by the model below. Server-side enforcement is now authoritative; client-side `hasProjectAccess` survives only as UX polish.
 
-**Isolation enforcement points:**
-1. `project_id` column on the row.
-2. `user_project_assignments` membership check inside each SECURITY DEFINER RPC.
-3. Company-level isolation already enforced by `company_id` on every table.
+### 3.1 Data model — every entity is project-scoped
 
-**Delete-rule policy for `project_id`:** RESTRICT on financial tables (preserve money history), SET NULL on operational tables (see §7 / `PROPOSED_SCHEMA.md`).
+- **5 primary entities** carry `project_id` **NOT NULL** (flipped in Batch 2 Step 9 commit `57334ff`): `clients`, `agents`, `category_unit_types`, `category_unit_statuses`, `category_payment_types`. Same CNIC/code in two projects = **two separate records** (uniques re-scoped to `(company_id, project_id, …)`; code generators `generate_client_code`/`generate_agent_code` are 2-arg, per-project sequences). `sales` and `units` always had `project_id`; the cross-project guard in `create_sale_with_schedule` (Track C Step 8) rejects mismatched sale/client/agent projects with `cross_project_client` / `cross_project_agent` error codes.
+- **12 dependent tables** carry `project_id` **nullable** (writers populate it on insert; the NOT NULL flip is **deliberately deferred** — see §3.6).
+- **`project_id` is IMMUTABLE on a record** — move = new record. Enforced in every `update_*` RPC.
+- **Per-project categories**: `seed_default_categories(company_id, project_id)` runs from `upsert_project` INSERT to create the canonical 10 unit types + 10 statuses for the new project.
+- **Plan limits stay company-level** (decided early — caps bite sooner, accepted).
+- **Delete-rule policy for `project_id` FKs:** RESTRICT on financial tables, SET NULL on operational tables (see §7).
+
+### 3.2 Isolation enforcement — server-side, in every read RPC
+
+`user_project_assignments` (`user_id × project_id`, `access_level` view/edit/manage, `is_active`) is the source of truth for who can touch which project. **~90 read RPCs** (Batches 3+4+5+6) apply this gate inside the function body via two helpers + a small prelude:
+
+```sql
+-- helpers (created in 20260529_admin_consent — kept verbatim after consent reversal)
+public._rms_caller()   → app_users row for auth.uid() (NULL if no session)
+public._rms_is_admin(me app_users) → boolean (owner / admin / super-admin)
+
+-- pattern used in every gated RPC:
+v_me   public.app_users := public._rms_caller();
+v_all  boolean := (v_me.id IS NULL) OR public._rms_is_admin(v_me);
+v_pids uuid[] := (SELECT array_agg(project_id) FROM user_project_assignments
+                  WHERE user_id = v_me.id AND company_id = p_company_id AND is_active);
+-- gate (row-level or early-reject depending on RPC shape):
+WHERE … AND (v_all OR <entity>.project_id = ANY(v_pids))
+```
+
+Gate variants by RPC shape (full per-batch breakdown in `memory/project_scoping_initiative.md`):
+
+| Variant | When to use | Example |
+|---|---|---|
+| **Direct column** | RPC's primary entity has `project_id` (sales / units / clients / agents) | `list_clients`, `list_units`, `list_sales` |
+| **Parent-EXISTS gate** | Dependent row, parent project_id is more authoritative than its own (or it has no column) | `get_payment_full` → parent sale; `get_health_dashboard_stats` → parent client |
+| **Early visibility gate** | Detail-by-id RPCs that need an empty/`not_found` envelope on block | `get_unit_with_details`, `get_unit_ledger` |
+| **Early-reject on `p_project_id`** | Caller passes a project_id param | `get_project_ledger`, `get_units_by_project` — return empty envelope if `p_project_id ∉ v_pids` |
+| **Silent-empty filter** | List with optional `p_project_id` filter | `get_pdc_register`, `get_cancelled_units_ledger` — `[]` when filter is for a project the caller can't see |
+
+### 3.3 Permissive default — anon stays caller-blind
+
+When `v_me.id IS NULL` (no session), `v_all = true` — the RPC returns the full company-scoped result. **This is intentional and load-bearing**: the buyer portal, the report viewer, and several backend cron paths all call RPCs with no logged-in app session. Removing the permissive default re-introduces the consent system that was deliberately torn out in `20260529_remove_admin_consent.sql`.
+
+### 3.4 Admin/owner bypass
+
+`_rms_is_admin(me)` returns true for `role IN ('owner', 'admin', 'super_admin')`, also forcing `v_all = true`. Admins always see everything in their company.
+
+### 3.5 🚨 Protected set — RPCs that MUST stay caller-blind / anon-friendly
+
+These RPCs **must never** have a `_rms_caller` / `v_pids` / `cfg` gate added. Every one carries an `INTENTIONALLY CALLER-BLIND — DO NOT ADD A v_pids / cfg / _rms_caller GATE` warning in `pg_proc.obj_description` (Group 6F migration `20260530_project_scoping_b6f_audit_and_document.sql`):
+
+**Protected-10 report-viewer RPCs** (caller-blind, surfaced via `reports/hub.html` + `reports/viewer.html`):
+`get_collection_report`, `get_sales_register`, `get_outstanding_report`, `get_unit_inventory`, `get_aging_report`, `get_project_summary`, `get_tax_wht_report`, `get_post_possession_dues_report`, `get_legal_portfolio`, **`get_executive_kpis`** (added during 6E triage — the original list named only 9, this was the missing 10th; naming convention is not a reliable signal so future agents must check the pg_proc comment OR `memory/report_rpcs_anon_scoped.md`).
+
+**Buyer-portal RPCs** (anon / `portal_sessions` token-keyed):
+`get_portal_client_data`, `get_buyer_sale_summary`, `get_buyer_payment_schedule`.
+
+Per-project report isolation is a **separate deliberate future task**, never a side effect of any batch. The Batch-6B mistake (`get_sales_register` silently gated, then reverted in `0ddb6a3`) is the precedent — pg_proc comments are now the structural fix.
+
+### 3.6 Deferred items (housekeeping after the initiative)
+
+- **Dependents NOT NULL flip** — 12 dependent tables (incl. `payments`, `installments`, `pdc_cheques`, `payment_links`, `payment_promises`, etc.) still have nullable `project_id`. Defer until empirical confidence is high that every insert path populates it; flipping is a one-way door.
+- **Per-project report isolation** — the protected-10 will eventually get caller-aware filtering, but as a deliberate carved-out chapter, not bundled with any other work.
+- **`list_payments_filtered.v_columns` SQL-injection** — pre-existing latent vulnerability in the `EXECUTE format(...)` allowlist; flagged in the Batch 6C commit body, not fixed (unrelated to isolation).
+
+### 3.7 Client-side filtering — UX polish only, no longer a security layer
+
+`S.assignedProjectIds` (loaded via `get_user_projects` in `auth.js`) and the `hasProjectAccess(pid)` helper survive in the codebase, but they are **UX-only** now — the authoritative gate is server-side. Nav-item visibility and the recovery-officer sidebar carve-out (`js/ui.js` lines 627-628) still use them; do not remove without replacing the UX they provide.
 
 ---
 
@@ -333,6 +389,23 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Recovery Queue Audit & Fixes COMPLETE (2026-05-28)** — 11 bugs fixed across `fieldvisits.js`, `contacts.js`. Critical: `fieldvisits.js:403` direct `.from()` write → `create_contact_log` RPC. Isolation: `list_broken_promises` now takes `p_project_ids uuid[]` (migration `20260528_recovery_fixes.sql` applied). Data bugs: 9 phantom column references fixed (`promise_date`, escalations real columns, legal_cases `stage`/`filed_date`). Recovery module is now RLS-clean and multi-site isolated.
 
+- ✅ **🎯 PROJECT-SCOPING INITIATIVE COMPLETE (2026-05-30)** — multi-batch retrofit that replaced the old "company-level clients/agents + client-side `hasProjectAccess` filtering" model with **per-project entities + server-side gates in ~90 read RPCs**. See `memory/project_scoping_initiative.md` for the per-batch breakdown. §3 of this doc rewritten to reflect the new reality.
+  - **Batch 1** schema (nullable `project_id` + FK + index on 17 tables; 8 uniques re-scoped to `(company_id, project_id, …)`) — commit `2f40310`.
+  - **Batch 2** writers + frontend + categories per-project seed + NOT NULL flip on 5 primaries (`clients`, `agents`, `category_unit_types`/`statuses`/`payment_types`) — commits `e523d9b`, `b4f48c1`, `31ca6a1`, `57334ff`. Cross-project guard in `create_sale_with_schedule` rejects mismatched sale/client/agent projects.
+  - **Batch 3** (clients, ~20 RPCs): `c2299e2`, `d5cec2e`, `22940ec`, `ca2f3e7`, `86f08d6`.
+  - **Batch 4** (agents, ~18 RPCs): `8004484`, `7a6dac4`, `ffb103e`, `44857e7`, `5736645`.
+  - **Batch 5** (categories, 2 RPCs): `cd21406`.
+  - **Batch 6** (units/sales/dependents/ledgers/dashboards, 49 RPCs):
+    - 6A units list/detail — `d0f749c`.
+    - 6B sales list/detail — `7959099` + **hotfix `0ddb6a3` reverting `get_sales_register`** which was silently gated despite being one of the 9 caller-blind report RPCs (precedent: naming is not a reliable signal).
+    - 6C unit/sale-keyed dependents — `69c62d9`.
+    - 6D ledgers — `7fedbdb`.
+    - 6E non-admin dashboards (6 isolated, 11 left permissive per per-RPC triage, 2 dead-code) — `e1cb816` + pre-flight cleanup `122e78f` (pre-existing `get_dashboard_kpis.total_price → net_amount`).
+    - 6F audit-and-document COMMENT pass on the **10 protected report RPCs + 3 buyer-portal RPCs** — `7af6661`. Comments live in `pg_proc.obj_description`, so the next agent gets the warning at the catalog level.
+  - **Protected set now 10 (was 9)** — `get_executive_kpis` added during 6E triage (surfaced via `reports/hub.html` + `reports/viewer.html`; same caller-blind class as the original 9).
+  - **3 pre-existing column-name bugs fixed as standalone tiny cleanup commits** (separate from isolation work): `173c4f2` (`get_agent_performance.total_price → net_amount`), `e79f7df` (`get_portal_client_data` four floors/units column refs), `122e78f` (`get_dashboard_kpis.total_price → net_amount`).
+  - **Deferred housekeeping** (out of initiative scope): dependents NOT NULL flip on the 12 nullable tables; per-project report isolation (the 10 protected stay caller-blind until a separate carved-out chapter); `list_payments_filtered.v_columns` SQL-injection flag.
+
 - ✅ **Phase 3 Approval Workflow gaps closed (2026-05-28)** — migration `20260528_phase3_approval_fixes.sql`: new `cancel_approval_request(p_request_id uuid)` RPC (requester-only, pending-only, logs cancellation comment). Note: `get_approval_history` was re-audited and is CORRECT — handles `request_id` with early-return path returning `{request,comments}`. Frontend fixes: (a) `cancellation.js` + `transfers.js` — soft-block `pending_approval` response now shows "Approval Requested" screen instead of false "Confirmed/Complete"; (b) `sales.js saveEditSale` — discount change routes through `request_discount_change` (with mandatory maker-comment modal, min 10 chars); price revision (price_per_sqft / area_sqft change) routes through `create_approval_request({type:'price_revision'})`; non-gated fields saved immediately; (c) `clients.js setClientStatus` — blacklist now routes through `create_approval_request({type:'blacklist'})` with mandatory maker-comment modal instead of direct `update_client`; deactivate/reactivate unaffected. DND: no setter exists in frontend — nothing to gate. All 7 approval RPCs confirmed in DB.
 
 - ✅ **Phase 3 Audit Trail — trigger coverage complete (2026-05-28)** — migration `20260528_phase3_audit_triggers.sql`: added `_trg_audit AFTER INSERT OR UPDATE OR DELETE` trigger to 5 previously-missing tables: `app_users` (HIGH — user creation/role/pw changes), `blacklisted_clients` (HIGH — blacklist immutable trail), `approval_request_comments` (HIGH — maker/checker comments tamper-evident), `escalations` (MEDIUM), `legal_cases` (MEDIUM). All 20 RMS tables now have full `_trg_audit` coverage. `audit.js` filter dropdowns updated: action filter now includes `restriction_warning` + `approval_applied`; table filter now includes all 20 audited tables. `audit.js?v=20260528d`.
@@ -395,7 +468,7 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 | Login RPC | `verify_login(company_code, username, password)` |
 | New-table rules | uuid PK / `gen_random_uuid()` / `deny_all_anon` RLS / `set_updated_at` trigger / `company_id → companies CASCADE` |
 | Approver | Admin only (single-approver, both parties comment) |
-| Isolation | `user_project_assignments` + `project_id`; super-admin/owner bypass |
+| Isolation | **Server-side** in ~90 read RPCs via `_rms_caller` / `_rms_is_admin` / `v_pids` from `user_project_assignments`. Anon (no session) + admin/owner = `v_all=true` (sees everything); authenticated non-admin = restricted. **10 protected report RPCs + 3 buyer-portal RPCs** stay caller-blind by design (carry COMMENT-ON warnings in `pg_proc`). See §3.
 | Finance role | dormant until Admin activates |
 | Primary colour (future) | Blue-600 `#2563EB`, Tremor + shadcn/ui |
 | Currency | PKR, lakh/crore formatting |
