@@ -624,7 +624,7 @@ function nav(pg,x){
     if(!_alwaysAllow.includes(pg)){
       // Role-based baseline allow-list (backward-compatible for existing users)
       const allow={
-        recovery:['dashboard','recovery-dashboard','units','unitdetail','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','paylinks','paylink-detail'],
+        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','newsale','paylinks','paylink-detail'],
         accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
       };
       // For manager/staff: rely entirely on hasPermission()

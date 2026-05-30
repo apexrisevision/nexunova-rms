@@ -94,6 +94,7 @@ function rUnits() {
     return;
   }
   const isA = S.role === 'admin' || S.role === 'owner';
+  const isR = S.role === 'recovery' || S.role === 'recovery_officer';
   const units = gunits();
   const total     = units.length;
   const available = units.filter(u =>  u.isAvailable).length;
@@ -136,7 +137,7 @@ function rUnits() {
     <div style="display:flex;align-items:center;gap:8px">
       <button class="dx-tool" onclick="printInventoryList()">${_UI.printer}<span>Print</span></button>
       ${isA?`<button class="dx-tool" onclick="openBulkImportModal()">${_UI.upload}<span>Import</span></button>`:''}
-      ${isA?`<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>`:''}
+      ${(isA||isR)?`<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>`:''}
     </div>
   </div>
 
@@ -317,6 +318,7 @@ function rULF() {
   if (!ct) return;
 
   const isA = S.role === 'admin' || S.role === 'owner';
+  const isR = S.role === 'recovery' || S.role === 'recovery_officer';
   const anyFilter = _us || (_uf && _uf !== 'All') || _uPrjFilter || _uTypeFilter || _uStatusFilter || _uFloorFilter;
 
   if (!units.length) {
@@ -324,7 +326,7 @@ function rULF() {
       icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 22V12h6v10"/><path d="M3 9l9-7 9 7"/>',
       title:'No units found',
       sub: anyFilter ? 'Try adjusting your filters or search.' : 'Add your first unit to populate inventory.',
-      cta: (isA && !anyFilter) ? `<button class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''
+      cta: ((isA || isR) && !anyFilter) ? `<button class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''
     }) + `</div>`;
     if (pg) pg.innerHTML = '';
     _renderBulkBar();
