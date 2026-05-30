@@ -1,21 +1,6 @@
 # Nexunova RMS — Project Intelligence File
 
-> **CLAUDE — FOLLOW THESE STEPS EVERY SESSION, NO EXCEPTIONS.**
->
-> **STEP 1 — Read the master prompt first:**
-> Open and read `RMS_MasterPrompt_FINAL.txt` completely.
-> It has every module, every requirement, every rule.
->
-> **STEP 2 — Read this file fully:**
-> Know what is done `[x]`, in progress `[~]`, blocked `[!]`, not started `[ ]`.
-> NEVER rebuild existing working features.
->
-> **STEP 3 — Confirm your plan:**
-> State which module and tasks you will work on. Then begin.
->
-> **STEP 4 — Update this file as you go:**
-> Task done → mark `[x]`. Session end → update "Current Session Notes".
-> Also refresh BLUEPRINT.md after significant changes.
+> **Single source of truth is `NEXUNOVA_RMS_MASTER_CONTEXT.md`. Read it first. Ignore the archived wishlist files (`RMS_MasterPrompt_FINAL_ARCHIVED_*` and `INTERNATIONAL_STANDARDS_GAP_ARCHIVED_*`).**
 
 ---
 

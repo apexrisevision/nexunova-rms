@@ -1,3 +1,44 @@
+# 🚨 CURRENT STATE & LAUNCH PLAN — READ FIRST
+
+> **This is the only section any new session should treat as actionable.** Everything else in this file is reference. Do not start work until you've read this block.
+
+**Client launches Monday, June 1, 2026.** Hard deadline.
+
+## What is DONE (do not reopen, do not "harden")
+
+- **Project-scoping initiative — Batches 1-6**: server-side READ isolation across ~90 RPCs + 10 protected report RPCs + 3 buyer-portal RPCs documented in `pg_proc.obj_description`. Per-batch breakdown lives in `memory/project_scoping_initiative.md`.
+- **Write-isolation pass — W1-W5**: server-side WRITE guards on all 12 create RPCs. `upsert_project` + `upsert_floor` admin-only; `create_client` / `create_agent` / `create_unit` / `upsert_unit` / `upsert_unit_type` / `upsert_unit_status` / `record_payment` / `create_pdc_cheque` / `create_sale_with_schedule` admin-OR-assigned-officer. Committed `f9d75c2` → `ae4e63e` → `ec56e73` → `82e33c1` → `0db9050`.
+- Master context §3 rewritten to reflect the new model (commit `9d62359`).
+
+The isolation work is **complete**. A non-admin user without UPA for a project cannot read or write its data via any RPC. Anon stays permissive **only** on the documented protected-10 report set + 3 buyer-portal RPCs.
+
+## What remains BEFORE launch (the only work to do)
+
+1. **Un-hide officer add-buttons** so an assigned officer can use the operational creates in their own project (Add Client / Unit / Sale / Record Payment). Server guards are in place; UI just needs to stop hiding behind `isA`-only conditions for the operational entities.
+2. **End-to-end browser test** as the recovery officer: log in, click through Add Client / Unit / Sale / Record Payment in their assigned project, confirm everything works AND that they cannot reach the other project's data.
+3. **Light UI polish** on client-facing screens only (no rewrites; ship-quality, not perfect).
+
+## What is DEFERRED past launch (do NOT touch)
+
+- Electron security hardening (`stash@{0}: electron-security-hardening-wip` — preserved, do not pop)
+- `js/auth.js` post-login cache lazy-load optimization (`stash@{1}: auth-post-login-cache-lazy-load-wip` — preserved, do not pop)
+- Dependents NOT NULL flip on the 12 nullable dependent tables
+- Per-project report isolation (the 10 protected report RPCs stay caller-blind by design)
+- `list_payments_filtered.v_columns` latent SQL-injection flag
+- `_rms_caller` is_active check (cross-cutting; separate pass)
+- `INTERNATIONAL_STANDARDS_GAP_ARCHIVED_*` items — archived, post-launch wishlist
+- `RMS_MasterPrompt_FINAL_ARCHIVED_*` "globally-sellable SaaS" aspirational scope — archived
+
+## Hard rules for any new session
+
+- **Do NOT run forensic audits.** Isolation reads and writes have been audited and tested. Re-auditing burns time and reopens settled work.
+- **Do NOT reopen committed work** to "harden" or "improve" unless the user explicitly asks for that specific change. The bar is **"works + safe,"** not "perfect."
+- **Do NOT follow** `RMS_MasterPrompt_FINAL_ARCHIVED_*.txt` or `INTERNATIONAL_STANDARDS_GAP_ARCHIVED_*.md` — both are renamed aspirational pre-launch wishlists, not current instructions.
+- **Do NOT touch** anything in the "deferred past launch" list above.
+- **This file** is the single source of truth. If older notes conflict with it, this file wins. If it conflicts with the user, the user wins.
+
+---
+
 # NEXUNOVA RMS — MASTER CONTEXT
 
 > **Single source of truth.** Every future chat/agent session must read this file first before doing any work on Nexunova RMS. If a decision here conflicts with older notes, **this file wins**. Update this file whenever a decision changes.

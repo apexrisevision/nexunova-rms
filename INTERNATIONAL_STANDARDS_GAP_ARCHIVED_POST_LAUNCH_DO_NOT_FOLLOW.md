@@ -1,3 +1,5 @@
+> **ARCHIVED — aspirational post-launch wishlist, NOT current instructions. Authority is NEXUNOVA_RMS_MASTER_CONTEXT.md.**
+
 # Nexunova RMS — International Standards Gap Analysis
 
 > **Purpose:** Measure the current Nexunova RMS implementation against world-class ERP / Recovery-Management-System standards and enumerate everything missing or incomplete. **Analysis only — nothing is being changed.**

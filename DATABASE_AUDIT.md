@@ -1,3 +1,5 @@
+> **2026-05-26 snapshot, may be stale.** Authority for current state is `NEXUNOVA_RMS_MASTER_CONTEXT.md` (§3 + Current State block).
+
 # Nexunova RMS — Database Audit (read-only)
 
 **Date:** 2026-05-26
