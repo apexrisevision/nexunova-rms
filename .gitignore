@@ -5,6 +5,9 @@ node_modules/
 # ── Electron build outputs ───────────────────────────────
 dist/
 
+# ── Supabase CLI local cache (auto-managed, not for repo) ─
+supabase/.temp/
+
 # ── Vestigial / dev-only ─────────────────────────────────
 demo-react/
 
