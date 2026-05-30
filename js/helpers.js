@@ -184,7 +184,7 @@ function hasPermission(perm){
   }
 
   const defaults = {
-    recovery:['dashboard','units','clients','recovery','contacts'],
+    recovery:['dashboard','units','clients','recovery','contacts','reports'],
     accounts:['dashboard','recovery','reports','clients','agents']
   };
   return(defaults[role]||[]).includes(moduleKey);
