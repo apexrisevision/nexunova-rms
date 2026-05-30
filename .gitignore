@@ -39,3 +39,6 @@ STEP_*_REPORT.md
 
 # ── Local helpers ────────────────────────────────────────
 test-splash.js
+
+# Database snapshots — contain real tenant data (PII, password hashes, OTP tokens). Never commit.
+backups/
