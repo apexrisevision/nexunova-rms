@@ -16,6 +16,7 @@ function rTransferLedger() {
 
   const projects = window._projectsCache || [];
   const projOpts = projects.map(p => `<option value="${esc(p.id)}">${esc(p.projectName || p.name || '')}</option>`).join('');
+  const isA = S?.role === 'admin' || S?.role === 'owner';
 
   pg.innerHTML = `
     <div class="rops">
@@ -28,7 +29,7 @@ function rTransferLedger() {
           </div>
         </div>
         <div class="rops-hd-r">
-          <button class="rops-btn rops-btn-primary rops-btn-sm" onclick="nav('unittransfer')">+ New Transfer</button>
+          ${isA ? `<button class="rops-btn rops-btn-primary rops-btn-sm" onclick="nav('unittransfer')">+ New Transfer</button>` : ''}
         </div>
       </div>
 

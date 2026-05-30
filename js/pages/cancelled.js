@@ -16,6 +16,7 @@ function rCancelLedger() {
 
   const projects = (typeof gprojects === 'function') ? gprojects() : (window._projectsCache || []);
   const projOpts = projects.map(p => `<option value="${esc(p.id)}"${_clFilter.project===p.id?' selected':''}>${esc(p.projectName || p.name || '')}</option>`).join('');
+  const isA = S?.role === 'admin' || S?.role === 'owner';
 
   pg.innerHTML = `
     <div class="rops">
@@ -28,7 +29,7 @@ function rCancelLedger() {
           </div>
         </div>
         <div class="rops-hd-r">
-          <button class="dx-tool primary" onclick="nav('unitcancel')">+ New Cancellation</button>
+          ${isA ? `<button class="dx-tool primary" onclick="nav('unitcancel')">+ New Cancellation</button>` : ''}
         </div>
       </div>
 

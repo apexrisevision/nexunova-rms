@@ -225,6 +225,8 @@ function _renderSalesTable(sales) {
   if (_salPage > totalPages) _salPage = totalPages;
   const sliced = sales.slice((_salPage - 1) * _SAL_PER_PAGE, _salPage * _SAL_PER_PAGE);
   const isAdmin = ['admin','owner'].includes(S?.role);
+  const isR     = ['recovery','recovery_officer'].includes(S?.role);
+  const canEditSale = isAdmin || isR;
 
   ct.innerHTML = `<div class="tw">
     <table class="t" style="width:100%">
@@ -237,7 +239,7 @@ function _renderSalesTable(sales) {
         <th>Net Amount</th>
         <th>Remaining</th>
         <th>Status</th>
-        ${isAdmin ? '<th></th>' : ''}
+        ${canEditSale ? '<th></th>' : ''}
       </tr></thead>
       <tbody>
         ${sliced.map(s => `<tr style="cursor:pointer" onclick="openSaleDetail('${s.id}')">
@@ -249,7 +251,7 @@ function _renderSalesTable(sales) {
           <td style="font-weight:700">${fMF(s.net_amount)}</td>
           <td style="color:${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0))>0?'var(--warn)':'var(--ok)'};font-weight:600">${fMF(Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0)))}</td>
           <td>${_salStatusBadge(s.status)}</td>
-          ${isAdmin ? `<td onclick="event.stopPropagation()"><button class="btn btn-gh btn-xs" onclick="openSaleEdit('${s.id}')" title="Edit"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>` : ''}
+          ${canEditSale ? `<td onclick="event.stopPropagation()"><button class="btn btn-gh btn-xs" onclick="openSaleEdit('${s.id}')" title="Edit"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>` : ''}
         </tr>`).join('')}
       </tbody>
     </table>
@@ -1577,6 +1579,7 @@ function _renderSaleDetail(d, docs, amendments) {
   _salCurrentDetail = d;
   const pg  = document.getElementById('pg-salesdetail');
   const isA = S.role === 'admin' || S.role === 'owner';
+  const isR = S.role === 'recovery' || S.role === 'recovery_officer';
   const inst = Array.isArray(d.installments) ? d.installments : [];
 
   const totalPaid = rawInst.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
@@ -1660,7 +1663,7 @@ function _renderSaleDetail(d, docs, amendments) {
       <button class="btn btn-sm" onclick="openAgreementReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Sale Agreement"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Agreement</button>
       <button class="btn btn-sm" onclick="openScheduleReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Installment Schedule"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
       <button class="btn btn-sm" onclick="openDemandNotice('${d.id}')" style="background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Demand Notice"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Demand</button>
-      ${isA ? `<button class="btn btn-gh btn-sm" onclick="openSaleEdit('${d.id}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
+      ${(isA || isR) ? `<button class="btn btn-gh btn-sm" onclick="openSaleEdit('${d.id}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
       ${isA && typeof openAuditHistory==='function' ? `<button class="btn btn-gh btn-sm" onclick="openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number||'')}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg> History</button>` : ''}
       ${d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? `<button class="btn btn-sm" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.3);display:inline-flex;align-items:center;gap:5px" onclick="plOpenCreate(null,'${d.client_id}','${d.id}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Payment Link</button>` : ''}
     </div>

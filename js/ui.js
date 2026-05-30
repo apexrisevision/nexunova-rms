@@ -403,6 +403,7 @@ function buildSB(){
         { id:'recovery-dashboard', ic:'target',  lb:'Recovery Dashboard' },
         { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
         { id:'units',          ic:'home',        lb:'All Units' },
+        { id:'sales',          ic:'file-text',   lb:'Sales & Bookings' },
         { id:'cancelledunits', ic:'tag',         lb:'Cancelled Units' },
         { id:'transferunits',  ic:'repeat',      lb:'Transferred Units' },
         { id:'clients',        ic:'user-check',  lb:'Clients' },
@@ -624,7 +625,7 @@ function nav(pg,x){
     if(!_alwaysAllow.includes(pg)){
       // Role-based baseline allow-list (backward-compatible for existing users)
       const allow={
-        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','newsale','paylinks','paylink-detail'],
+        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','newsale','editsale','paylinks','paylink-detail'],
         accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
       };
       // For manager/staff: rely entirely on hasPermission()

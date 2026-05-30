@@ -149,7 +149,7 @@ function hasPermission(perm){
     agents:'agents',
     search:'search',
     projects:'projects', projectdetail:'projects',
-    sales:'projects', salesdetail:'projects',
+    sales:'sales', salesdetail:'sales', newsale:'sales', editsale:'sales',
     cancelledunits:'units', transferunits:'units',
     ledgers:'reports', 'ledger-client':'reports', 'ledger-unit':'reports',
     'ledger-agent':'reports', 'ledger-project':'reports',
@@ -184,7 +184,7 @@ function hasPermission(perm){
   }
 
   const defaults = {
-    recovery:['dashboard','units','clients','recovery','contacts','reports'],
+    recovery:['dashboard','units','clients','recovery','contacts','reports','sales'],
     accounts:['dashboard','recovery','reports','clients','agents']
   };
   return(defaults[role]||[]).includes(moduleKey);

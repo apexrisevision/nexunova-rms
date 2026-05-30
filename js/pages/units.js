@@ -752,6 +752,7 @@ function _invOpenDrawer(uid) {
   _invDrawerUid = uid;
   const prj    = gproject(u.projectId);
   const isA    = S.role === 'admin' || S.role === 'owner';
+  const isR    = S.role === 'recovery' || S.role === 'recovery_officer';
   const isDead = u.status === 'Dead' || u.status === 'Blocked';
   const isSold = !u.isAvailable && !isDead;
   const paid   = (typeof actualPaid==='function') ? actualPaid(u) : Number(u.totalPaid||0);
@@ -789,7 +790,7 @@ function _invOpenDrawer(uid) {
     </div>`;
 
   const footer = `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>`
-    + (isA?`<button class="btn btn-gh btn-sm" onclick="document.querySelector('.dx-drawer-x').click();nav('addunit','${uid}')">${_UI.edit} Edit</button>`:'')
+    + ((isA||isR)?`<button class="btn btn-gh btn-sm" onclick="document.querySelector('.dx-drawer-x').click();nav('addunit','${uid}')">${_UI.edit} Edit</button>`:'')
     + `<button class="btn btn-p btn-sm" onclick="document.querySelector('.dx-drawer-x').click();openUD('${uid}')">Open full ${_UI.arrowR||''}</button>`;
 
   DX.drawer({
@@ -1384,6 +1385,7 @@ function rUD(unitId) {
   const p2        = pct(totalPaid, u.totalPrice);
   const isSold    = uIsSold(u);
   const isA       = S.role === 'admin' || S.role === 'owner';
+  const isR       = S.role === 'recovery' || S.role === 'recovery_officer';
   const prj       = gproject(u.projectId);
   const conCount  = cons.length;
 
@@ -1454,8 +1456,8 @@ function rUD(unitId) {
       </div>` : ''}
       ${isSold ? `<button class="btn btn-p btn-sm ud-hdr-cta" onclick="nav('addpayment','${unitId}')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px">${_UI.plus} Add Payment</button>` : ''}
       ${isSold ? `<button class="btn btn-gh btn-sm ud-hdr-cta" onclick="openConModal('${unitId}')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px">${_UI.phone} Log Call</button>` : ''}
-      ${isA ? `<button class="btn btn-gh btn-sm" onclick="nav('addunit','${unitId}')" title="Edit unit" style="width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;height:32px">${_UI.pencil}</button>` : ''}
-      ${isA ? `<button class="btn btn-gh btn-sm ud-more-btn" onclick="_udMoreMenu('${unitId}',this)" title="More actions" style="width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;height:32px">${_UI.more}</button>` : ''}
+      ${(isA || isR) ? `<button class="btn btn-gh btn-sm" onclick="nav('addunit','${unitId}')" title="Edit unit" style="width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;height:32px">${_UI.pencil}</button>` : ''}
+      ${(isA || isR) ? `<button class="btn btn-gh btn-sm ud-more-btn" onclick="_udMoreMenu('${unitId}',this)" title="More actions" style="width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;height:32px">${_UI.more}</button>` : ''}
     </div>
   </div>
 
@@ -1546,7 +1548,7 @@ function rUD(unitId) {
         }));
       },
       openEntry: (id) => openUD(id),
-      onEdit:    (id) => (S.role === 'admin' || S.role === 'owner') && nav('addunit', id),
+      onEdit:    (id) => (['admin','owner','recovery','recovery_officer'].includes(S.role)) && nav('addunit', id),
       onDelete:  async (id) => {
         // deleteUnitConfirm already opens its own dialog; if it returns ok, navigate back.
         if (typeof deleteUnitConfirm === 'function') deleteUnitConfirm(id);
@@ -1602,6 +1604,7 @@ function _udMoreMenu(unitId, btn) {
   _invCloseDD();
   const u = gunit(unitId);
   const isSold = u ? uIsSold(u) : false;
+  const isA = S?.role === 'admin' || S?.role === 'owner';
   const rect = btn.getBoundingClientRect();
   const dd = document.createElement('div');
   dd.className = 'inv-dd'; dd.id = 'inv-dd-open';
@@ -1618,9 +1621,12 @@ function _udMoreMenu(unitId, btn) {
   if (isSold) {
     items += `
     <div class="inv-dd-sep"></div>
-    <button class="inv-dd-item" onclick="_invCloseDD();openPossessionModal('${unitId}')">${_UI.check2} Mark Possession</button>
+    <button class="inv-dd-item" onclick="_invCloseDD();openPossessionModal('${unitId}')">${_UI.check2} Mark Possession</button>`;
+    if (isA) {
+      items += `
     <button class="inv-dd-item" onclick="_invCloseDD();nav('unittransfer','${unitId}')">${_UI.refresh} Transfer Ownership</button>
     <button class="inv-dd-item" onclick="_invCloseDD();nav('unitcancel','${unitId}')">${_UI.x} Cancel Sale</button>`;
+    }
   }
   if (u && u.phone) {
     items += `
@@ -1703,7 +1709,7 @@ function _udKbHandler(e) {
   if (e.key === 'e') {
     e.preventDefault();
     const uid = _uid;
-    if (uid && (S.role==='admin'||S.role==='owner')) nav('addunit', uid);
+    if (uid && ['admin','owner','recovery','recovery_officer'].includes(S.role)) nav('addunit', uid);
   }
   if (e.key === 's') {
     e.preventDefault();
@@ -2035,7 +2041,8 @@ function rAddUnit(editUnitId) {
   const pg = document.getElementById('pg-addunit');
   if (!pg) return;
   const isA = S?.role === 'admin' || S?.role === 'owner';
-  if (!isA) { nav('dashboard'); return; }
+  const isR = S?.role === 'recovery' || S?.role === 'recovery_officer';
+  if (!isA && !isR) { nav('dashboard'); return; }
   if (!S?.cid) { pg.innerHTML = `<div class="card"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="et">No company selected</div></div></div>`; return; }
 
   const editUnit  = editUnitId ? gunit(editUnitId) : null;
