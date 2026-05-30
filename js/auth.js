@@ -150,10 +150,24 @@ async function doLogin(){
     const company = res.company;
 
     // Establish a real Supabase auth session so auth.uid() works app-wide (Phase-1 RPCs).
-    // verify_login has just re-synced auth.users, so this matches the password just typed.
-    if (user.email) {
-      const { error: _authErr } = await supabase.auth.signInWithPassword({ email: user.email, password: pass });
-      if (_authErr) console.warn('[auth] supabase session bridge failed:', _authErr.message);
+    // verify_login has just re-synced auth.users (bcrypt cost 10), so this should match.
+    // HARD-BLOCK: never allow a half-authenticated state — without a JWT, every RPC
+    // call goes out as anon and (post-anon-revoke) returns 401. Better to fail loud
+    // at the door than render a broken app where Client Ledger / Units / Sales all
+    // 401 silently.
+    if (!user.email) {
+      _btnReset();
+      notify.error('Sign in failed', { detail: `This account has no email on file. Contact ${SUPPORT_EMAIL} to set one.` });
+      _logAuthEventAnon({ event_type:'session_bridge_failed', username, details:{ reason:'no_email' } });
+      return;
+    }
+    const { error: _authErr } = await supabase.auth.signInWithPassword({ email: user.email, password: pass });
+    if (_authErr) {
+      console.error('[auth] session bridge failed:', _authErr.message);
+      _btnReset();
+      notify.error('Sign in failed', { detail: `Your session could not be established. Please try again in a moment — if it persists, contact ${SUPPORT_EMAIL}.` });
+      _logAuthEventAnon({ event_type:'session_bridge_failed', username, details:{ reason: _authErr.message } });
+      return;
     }
 
     // Force password change: first login (needs_password_reset) OR expired password.
