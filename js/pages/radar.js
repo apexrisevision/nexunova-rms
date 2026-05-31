@@ -336,14 +336,14 @@ function rrMarkPaid(radarId, clientId, amount, dateStr) {
     p_payment_amount: amount, p_payment_date: dateStr
   }).catch(e => console.warn('[rrMarkPaid]', e));
 
-  toast.success('Payment recorded in Radar', { detail: 'PKR ' + fM(amount) + ' marked as received' });
+  toast('Payment recorded · PKR ' + fM(amount) + ' marked as received', 'ok');
 }
 
 function rrReceivePayment(clientId, saleId, unitNo) {
   // Navigate to payments module pre-loaded for this client
   // After payment completes, officer can manually mark paid on radar
   nav('recovery');
-  setTimeout(() => toast.info('Navigate to the client to record payment', {detail: 'Return to Radar to mark as paid'}), 300);
+  setTimeout(() => toast('Navigate to the client to record payment · Return to Radar to mark as paid', 'info'), 300);
 }
 
 // Re-render a single card in place
@@ -372,10 +372,10 @@ async function rrGenerate() {
     _radarData   = data;
     _radarStates = {};
     _rrRender();
-    toast.success('Radar generated!', { detail: `${data.clients_analyzed} clients analyzed · PKR ${fM(data.total_potential_recovery)} potential` });
+    toast(`Radar generated · ${data.clients_analyzed} clients analyzed · PKR ${fM(data.total_potential_recovery)} potential`, 'ok');
   } catch(e) {
     console.error('[rrGenerate]', e);
-    toast.error('Radar generation failed', { detail: e.message || 'Unknown error' });
+    toast('Radar generation failed: ' + (e?.message || 'Unknown error'), 'err');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = 'Regenerate'; }
   }
@@ -801,9 +801,9 @@ async function rrRiskRefresh() {
     const { error } = await supabase.rpc('recalculate_all_health_scores', { p_company_id: S.cid });
     if (error) throw error;
     await _rrLoadRisk(true);
-    toast.success('Risk scores refreshed');
+    toast('Risk scores refreshed', 'ok');
   } catch(e) {
-    toast.error('Refresh failed', { detail: e.message || 'Unknown error' });
+    toast('Refresh failed: ' + (e?.message || 'Unknown error'), 'err');
     if (btn) { btn.disabled = false; btn.innerHTML = 'Refresh Scores'; }
   }
 }
@@ -833,8 +833,8 @@ async function rrRiskEscalateOne(id) {
   if (!c) return;
   if (!confirm('Escalate ' + (c.client_name || 'this client') + ' (officer → manager) for high default risk?')) return;
   const r = await _riskCreateEscalation(c);
-  if (r.ok) toast.success('Escalation created', { detail: c.client_name || '' });
-  else      toast.error('Escalation failed', { detail: r.err || '' });
+  if (r.ok) toast('Escalation created · ' + (c.client_name || ''), 'ok');
+  else      toast('Escalation failed: ' + (r.err || ''), 'err');
 }
 
 async function rrRiskBulkEscalate() {
@@ -848,21 +848,21 @@ async function rrRiskBulkEscalate() {
     const r = await _riskCreateEscalation(c);
     if (r.ok) ok++; else fail++;
   }
-  if (ok) toast.success(ok + ' escalation(s) created' + (fail ? ', ' + fail + ' failed' : ''));
-  else    toast.error('Could not create escalations', { detail: fail + ' failed' });
+  if (ok) toast(ok + ' escalation(s) created' + (fail ? ', ' + fail + ' failed' : ''), 'ok');
+  else    toast('Could not create escalations · ' + fail + ' failed', 'err');
   _riskSel.clear();
   _rrRenderRisk();
 }
 
 function rrRiskBulkWhatsApp() {
   const sel = _riskData.filter(c => _riskSel.has(c.client_id) && c.phone);
-  if (!sel.length) { toast.info('No phone numbers in selection'); return; }
+  if (!sel.length) { toast('No phone numbers in selection', 'info'); return; }
   const cap = Math.min(sel.length, 8);
   for (let i = 0; i < cap; i++) {
     const wp = sel[i].phone.replace(/[^0-9]/g, '').replace(/^0/, '92');
     window.open('https://wa.me/' + wp, '_blank');
   }
-  if (sel.length > cap) toast.info('Opened first ' + cap + ' chats', { detail: (sel.length - cap) + ' more — your browser limits bulk tabs' });
+  if (sel.length > cap) toast('Opened first ' + cap + ' chats · ' + (sel.length - cap) + ' more (browser bulk-tab limit)', 'info');
 }
 
 function rrRiskExport() {

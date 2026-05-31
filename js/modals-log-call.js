@@ -338,7 +338,7 @@ function _cnShowDND(client) {
 
 function _cnDNDOverride() {
   if (!document.getElementById('cn-dnd-override')?.checked) {
-    toast.warning('Check the acknowledgement box first');
+    toast('Check the acknowledgement box first', 'warn');
     return;
   }
   document.getElementById('cn-dnd-view').style.display    = 'none';
@@ -721,7 +721,7 @@ function _cnHandleDrop(e) {
 function _cnHandleFileSelect(fileList) {
   const maxSize = 10 * 1024 * 1024; // 10 MB
   Array.from(fileList).forEach(f => {
-    if (f.size > maxSize) { toast.error(`${f.name} exceeds 10 MB limit`); return; }
+    if (f.size > maxSize) { toast(`${f.name} exceeds 10 MB limit`, 'err'); return; }
     _cnState.pendingFiles.push(f);
   });
   _cnRenderFields(); // re-render step 8 to show file list
@@ -917,7 +917,7 @@ async function _cnSave(logAnother) {
     }
 
     // ── 8. Done ───────────────────────────────────────────────────────────
-    toast.success('Contact logged', { detail: `${_cnState.channel} · ${_cnState.contactDate}` });
+    toast(`Contact logged · ${_cnState.channel} · ${_cnState.contactDate}`, 'ok');
 
     if (logAnother) {
       openConModal(null);
@@ -939,7 +939,7 @@ async function _cnSave(logAnother) {
 
   } catch(e) {
     console.error('[_cnSave]', e);
-    toast.error('Save failed', { detail: esc(e.message) });
+    toast('Save failed: ' + (e?.message || e), 'err');
   } finally {
     _cnBusy = false;
     _cnRenderFooter();
@@ -948,18 +948,18 @@ async function _cnSave(logAnother) {
 
 // Full final validation (all required fields before save)
 function _cnValidateFull() {
-  if (!_cnState.unitId)    { toast.error('No unit selected');           return false; }
-  if (!_cnState.contactDate){ toast.error('Contact date is required');  return false; }
-  if (!_cnState.channel)   { toast.error('Select a contact channel');   return false; }
-  if (!_cnState.outcome)   { toast.error('Select a contact outcome');   return false; }
+  if (!_cnState.unitId)    { toast('No unit selected', 'err');           return false; }
+  if (!_cnState.contactDate){ toast('Contact date is required', 'err');  return false; }
+  if (!_cnState.channel)   { toast('Select a contact channel', 'err');   return false; }
+  if (!_cnState.outcome)   { toast('Select a contact outcome', 'err');   return false; }
   if (_cnState.outcome === 'reached' && !_cnState.responseType) {
-    toast.error('Select client response type'); return false;
+    toast('Select client response type', 'err'); return false;
   }
   const n = (_cnState.notes || '').trim();
-  if (n.length < 20) { toast.error(`Notes must be at least 20 characters (${n.length} entered)`); return false; }
+  if (n.length < 20) { toast(`Notes must be at least 20 characters (${n.length} entered)`, 'err'); return false; }
   if (_cnState.promiseToPay) {
-    if (!(_cnState.promiseAmount > 0)) { toast.error('Enter promise amount'); return false; }
-    if (!_cnState.promiseDate)         { toast.error('Enter promise payment date'); return false; }
+    if (!(_cnState.promiseAmount > 0)) { toast('Enter promise amount', 'err'); return false; }
+    if (!_cnState.promiseDate)         { toast('Enter promise payment date', 'err'); return false; }
   }
   return true;
 }
