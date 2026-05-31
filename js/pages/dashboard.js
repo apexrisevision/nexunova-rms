@@ -1128,6 +1128,40 @@ async function _rDashRecovery(targetId = 'pg-dashboard') {
     if (plStats) plSent = (plStats.total_sent || 0) + (plStats.verified || 0) + (plStats.pending_verification || 0);
   } catch(e) {}
 
+  // My monthly target (read-only self-view). collected = this_month_collection from
+  // get_dashboard_kpis (self-scoped to my assigned projects server-side). Target via
+  // get_officer_target, which auto-scopes to the caller's own app_users.id for non-admins.
+  let collectedThisMonth = 0;
+  try {
+    const { data: k } = await supabase.rpc('get_dashboard_kpis', { p_company_id: S.cid });
+    if (k && k.success) collectedThisMonth = Number(k.this_month_collection) || 0;
+  } catch(e) {}
+
+  let myTarget = 0, myTargetNotes = '';
+  try {
+    const now = new Date(); const year = now.getFullYear(); const month = now.getMonth() + 1;
+    const { data: tg } = await supabase.rpc('get_officer_target', { p_data: { p_user_id: S.userId, year, month } });
+    if (tg && tg.success && tg.target) {
+      myTarget = Number(tg.target.target_amount) || 0;
+      myTargetNotes = tg.target.notes || '';
+    }
+  } catch(e) {}
+  const myTargetPct = myTarget > 0 ? Math.round(collectedThisMonth / myTarget * 100) : 0;   // guard /0
+  const targetIcon = _ic('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>', 15);
+  const myTargetCard = myTarget > 0
+    ? `<div class="db-kpi">
+      <div class="db-kpi-hd"><div class="db-kpi-ic green">${targetIcon}</div></div>
+      <div class="db-kpi-val"><span class="db-pkr">PKR</span>${fM(myTarget)}</div>
+      <div class="db-kpi-lbl">My Monthly Target</div>
+      <div class="db-kpi-sub">PKR ${fM(collectedThisMonth)} collected · ${myTargetPct}% achieved${myTargetNotes ? ' · ' + esc(myTargetNotes) : ''}</div>
+    </div>`
+    : `<div class="db-kpi">
+      <div class="db-kpi-hd"><div class="db-kpi-ic green">${targetIcon}</div></div>
+      <div class="db-kpi-val"><span class="db-pkr">PKR</span>${fM(collectedThisMonth)}</div>
+      <div class="db-kpi-lbl">My Monthly Target</div>
+      <div class="db-kpi-sub">No monthly target set · collected this month</div>
+    </div>`;
+
   const longDate  = new Date().toLocaleDateString('en-US', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const firstName = (S?.name || '').split(' ')[0] || 'there';
   const pendingCalls = fus.overdue.length + fus.today.length;
@@ -1180,6 +1214,8 @@ async function _rDashRecovery(targetId = 'pg-dashboard') {
       <div class="db-kpi-lbl">Payment Links Sent</div>
       <div class="db-kpi-sub">Last 30 days</div>
     </div>
+
+    ${myTargetCard}
 
   </div>
 
