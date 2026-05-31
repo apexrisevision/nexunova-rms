@@ -63,7 +63,7 @@ function getOverdueDays(){
 function demoGuard(action) {
   if (!S?.isDemo) return false;
   if (typeof notify !== 'undefined') {
-    notify.warn('Demo Mode', { detail: (action ? `"${action}" is` : 'This action is') + ' disabled in the demo. <a href="./signup.html" style="color:#a78bfa">Sign up free</a> to use the full system.' });
+    notify.warning('Demo Mode', { detail: (action ? `"${action}" is` : 'This action is') + ' disabled in the demo. <a href="./signup.html" style="color:#a78bfa">Sign up free</a> to use the full system.' });
   }
   return true;
 }
