@@ -324,12 +324,13 @@ function buildSB(){
   let navGroups = [];
 
   if(isA){
-    // Admin / Owner — 5-group simplification (2026-05-31).
-    // 2 open at top (Home, Recovery — daily operations) + 3 collapsed
-    // by default (Clients & Units, Payments, Setup & More).
-    // All 43 page-ids preserved verbatim from the prior 9-group version;
-    // only group assignment + order changed. 'reports' id appears twice
-    // by design (Outstanding in Payments / Reports & Export in Setup).
+    // Admin / Owner — 7-group enterprise hierarchy (2026-05-31, final restructure).
+    // HOME + RECOVERY open by default (daily operations).
+    // CLIENTS & UNITS, PAYMENTS, REPORTS & ANALYTICS, LEGAL & COMPLIANCE,
+    // ADMINISTRATION collapsed by default.
+    // All page-ids preserved verbatim. 'contacts' appears twice (Inbox in HOME /
+    // Call Logs in RECOVERY) and 'reports' appears twice (Outstanding in PAYMENTS /
+    // Reports & Export in REPORTS & ANALYTICS) — both intentional duplicate routes.
     // defaultCollapsed honored on first load via renderer line 511-512;
     // user toggles persist in localStorage['rms.sidebar.groups'] and
     // override defaultCollapsed thereafter.
@@ -338,57 +339,62 @@ function buildSB(){
       { label: 'Home', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
         { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
+        { id:'team',      ic:'users',       lb:'Team' },
       ]},
       { label: 'Recovery', items: [
-        { id:'recovery-dashboard', ic:'target',      lb:'Recovery Dashboard' },
         { id:'recovery',           ic:'list-checks', lb:'Recovery Queue' },
         { id:'promises',           ic:'handshake',   lb:'Promise Tracker' },
         { id:'reminders',          ic:'bell',        lb:'Reminders' },
         { id:'contacts',           ic:'phone',       lb:'Call Logs' },
+        { id:'campaigns',          ic:'megaphone',   lb:'Campaigns' },
+        { id:'recovery-dashboard', ic:'target',      lb:'Recovery Dashboard' },
       ]},
 
       // ── COLLAPSED by default ─────────────────────────────────────
       { label: 'Clients & Units', defaultCollapsed: true, items: [
         { id:'clients',        ic:'user-check', lb:'Clients' },
+        { id:'healthcenter',   ic:'heart',      lb:'Client Health' },
         { id:'units',          ic:'home',       lb:'All Units', bdg:totalU||null },
         { id:'sales',          ic:'file-text',  lb:'Sales & Bookings' },
         { id:'agents',         ic:'users',      lb:'Sales Agents' },
-        { id:'healthcenter',   ic:'heart',      lb:'Client Health' },
         { id:'noc',            ic:'file-check', lb:'NOC Management' },
         { id:'blacklist',      ic:'shield-off', lb:'Blacklist Register' },
         { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units' },
         { id:'transferunits',  ic:'repeat',     lb:'Transferred Units' },
       ]},
       { label: 'Payments', defaultCollapsed: true, items: [
-        { id:'receipts',          ic:'receipt',           lb:'Receipt Vouchers' },
-        { id:'pdc',               ic:'calendar-clock',    lb:'PDC Register' },
-        { id:'reports',           ic:'alert-circle',      lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
-        { id:'ledgers',           ic:'book-open',         lb:'Ledgers' },
-        { id:'paylinks',          ic:'link',              lb:'Payment Links' },
-        { id:'commissions',       ic:'trending-up',       lb:'Commissions' },
-        { id:'agenttransactions', ic:'trending-up',       lb:'Agent Transactions' },
-        { id:'payables',          ic:'arrow-down-circle', lb:'Payables' },
-        { id:'receivables',       ic:'arrow-up-circle',   lb:'Additional Receivables' },
+        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers' },
+        { id:'pdc',         ic:'calendar-clock',    lb:'PDC Register' },
+        { id:'reports',     ic:'alert-circle',      lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
+        { id:'paylinks',    ic:'link',              lb:'Payment Links' },
+        { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
+        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
+        { id:'commissions', ic:'trending-up',       lb:'Commissions' },
+        { id:'ledgers',     ic:'book-open',         lb:'Ledgers' },
       ]},
-      { label: 'Setup & More', defaultCollapsed: true, items: [
-        { id:'projects',    ic:'building-2',     lb:'Projects' },
-        { id:'categories',  ic:'layers',         lb:'Types & Floors' },
-        { id:'banks',       ic:'banknote',       lb:'Banks Master' },
-        { id:'users',       ic:'shield',         lb:'Users & Roles' },
-        { id:'admin',       ic:'settings',       lb:'Settings' },
-        { id:'backup',      ic:'database',       lb:'Backup' },
-        { id:'audit',       ic:'history',        lb:'Audit Trail' },
+      { label: 'Reports & Analytics', defaultCollapsed: true, items: [
         { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
         { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
+        { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
+        { id:'radar',       ic:'radar',          lb:'Recovery Radar' },
         { id:'documents',   ic:'printer',        lb:'Documents' },
         { id:'commscenter', ic:'message-square', lb:'Comms Center' },
-        { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
-        { id:'campaigns',   ic:'megaphone',      lb:'Campaigns' },
-        { id:'radar',       ic:'radar',          lb:'Recovery Radar' },
-        { id:'escalations', ic:'alert-triangle', lb:'Escalations' },
-        { id:'legalcases',  ic:'scale',          lb:'Legal Cases' },
-        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
-        { id:'approvals',   ic:'file-check',     lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
+      ]},
+      { label: 'Legal & Compliance', defaultCollapsed: true, items: [
+        { id:'escalations',       ic:'alert-triangle', lb:'Escalations' },
+        { id:'legalcases',        ic:'scale',          lb:'Legal Cases' },
+        { id:'fieldvisits',       ic:'map-pin',        lb:'Field Visits' },
+        { id:'approvals',         ic:'file-check',     lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
+        { id:'agenttransactions', ic:'trending-up',    lb:'Agent Transactions' },
+      ]},
+      { label: 'Administration', defaultCollapsed: true, items: [
+        { id:'projects',   ic:'building-2', lb:'Projects' },
+        { id:'categories', ic:'layers',     lb:'Types & Floors' },
+        { id:'banks',      ic:'banknote',   lb:'Banks Master' },
+        { id:'users',      ic:'shield',     lb:'Users & Roles' },
+        { id:'admin',      ic:'settings',   lb:'Settings' },
+        { id:'backup',     ic:'database',   lb:'Backup' },
+        { id:'audit',      ic:'history',    lb:'Audit Trail' },
       ]},
     ];
   } else if(isR){
@@ -657,7 +663,7 @@ function nav(pg,x){
     }
   }
   document.querySelector('.sb')?.setAttribute('data-pg', pg);
-  const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
+  const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',team:'Team Performance',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
   const tbTitle=document.getElementById('tb-t');
   if(tbTitle)tbTitle.textContent=ts[pg]||pg;
   if(typeof atbSyncCurrent==='function')atbSyncCurrent(pg);
@@ -674,7 +680,7 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,'recovery-dashboard':rRecDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,approvals:rApprovals,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:rBlacklist,payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,executive:rExecutive,noc:rNOC,fieldvisits:rFieldVisits};
+  const fns={dashboard:rDash,'recovery-dashboard':rRecDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:rHealthCenter,radar:rRadar,promises:rPromises,audit:rAudit,approvals:rApprovals,team:rTeam,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:rBlacklist,payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,executive:rExecutive,noc:rNOC,fieldvisits:rFieldVisits};
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',
