@@ -50,6 +50,12 @@ const _FC_ICONS = {
   'x':                '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   'phone':            '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.77 13.5 19.79 19.79 0 0 1 1.72 4.91a2 2 0 0 1 1.77-2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 17.92z"/>',
   'external-link':    '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>',
+  'clock':            '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  'handshake':        '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-1"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>',
+  'flag':             '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
+  'inbox':            '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  'trending-up':      '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  'arrow-right':      '<line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/>',
 };
 function _fci(name, size=14) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${_FC_ICONS[name]||''}</svg>`;
@@ -203,7 +209,8 @@ function _renderTabHtml() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 1 — DASHBOARD
+// TAB 1 — DASHBOARD (v3.1 — uses followup.css design system, single accent,
+// no multi-colour stat cards, fixed Due-Today text overlap)
 // ═══════════════════════════════════════════════════════════════════════════
 function _tabDashboardHtml() {
   const t   = td();
@@ -213,8 +220,6 @@ function _tabDashboardHtml() {
 
   const fuOverdue = all.filter(c => c.next_followup_date && c.next_followup_date < t);
   const fuToday   = all.filter(c => c.next_followup_date === t);
-  const ms        = (() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10); })();
-  const thisMonth = all.filter(c => c.contact_date && c.contact_date >= ms);
   const promises  = all.filter(c => c.promise_to_pay);
   const promiseAmt= promises.reduce((s,c) => s + Number(c.promise_amount||0), 0);
 
@@ -223,91 +228,161 @@ function _tabDashboardHtml() {
     const f = _unitEscalation(logs).flag;
     if (f) flags[f].push(uid);
   });
+  const totalFlags = flags.Red.length + flags.Orange.length + flags.Yellow.length;
 
-  const soldUnits     = gunits().filter(u => u.status !== 'Available' && u.status !== 'Dead' && actualPending(u) > 0);
-  const neverContacted= soldUnits.filter(u => !byUnit[u.id]);
+  const soldUnits      = gunits().filter(u => u.status !== 'Available' && u.status !== 'Dead' && actualPending(u) > 0);
+  const neverContacted = soldUnits.filter(u => !byUnit[u.id]);
 
-  return `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:16px">
-      ${_dStat('Total Logs',     all.length,            'var(--brand)')}
-      ${_dStat('This Month',     thisMonth.length,      '#6366f1')}
-      ${_dStat('Due Today',      fuToday.length,        '#f59e0b')}
-      ${_dStat('Overdue',        fuOverdue.length,      '#ef4444')}
-      ${_dStat('Promises',       promises.length,       '#10b981')}
-      ${_dStat('Promise Value',  fM(promiseAmt),        '#059669')}
-      ${_dStat('Red-Flagged',    flags.Red.length,      '#ef4444')}
-      ${_dStat('Never Contacted',neverContacted.length, '#f97316')}
-    </div>
+  // ── 4 hero KPIs (single accent + critical red only) ──
+  const kpiHtml = `<div class="fc-kpi-grid">
+    ${_fcKpi('clock',           'blue',    'Due Today',       String(fuToday.length),   fuToday.length ? `${fuToday.length} scheduled` : 'All caught up')}
+    ${_fcKpi('alert-triangle',  fuOverdue.length ? 'red' : 'slate', 'Overdue', String(fuOverdue.length), fuOverdue.length ? 'Past deadline' : 'No backlog')}
+    ${_fcKpi('handshake',       'emerald', 'Active Promises', String(promises.length),  promises.length ? `PKR ${fM(promiseAmt)}` : 'None pending')}
+    ${_fcKpi('flag',            totalFlags ? 'red' : 'slate', 'Escalation Flags', String(totalFlags), totalFlags ? `${flags.Red.length} red · ${flags.Orange.length} orange · ${flags.Yellow.length} yellow` : 'All units in good standing')}
+  </div>`;
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div class="card">
-        <div class="ch" style="${fuToday.length?'background:rgba(245,158,11,.025)':''}">
-          <div><h3 style="color:${fuToday.length?'#f59e0b':'var(--ok)'}">Due Today <span class="sec-badge${!fuToday.length?' ok':''}" style="margin-left:6px">${fuToday.length}</span></h3><p>Follow-ups scheduled</p></div>
-          <button class="btn btn-d btn-xs" onclick="_fcSetTab('queue')">Queue →</button>
+  // ── Action lanes: Due Today / Overdue / Never Contacted ──
+  const dueTodayLane = _fcLane({
+    title: 'Due Today',
+    count: fuToday.length,
+    onViewAll: fuToday.length ? `_fcSetTab('queue')` : null,
+    emptyTitle: 'No follow-ups due today',
+    emptySuccess: true,
+    items: fuToday.slice(0, 5).map(c => {
+      const u = gunit(c.unit_id);
+      const ch = c.next_followup_channel || c.channel || 'Call';
+      const pending = u ? actualPending(u) : 0;
+      return _fcLaneRowHtml({
+        uid: c.unit_id,
+        name: u?.customerName || c.client_name || '—',
+        unitNo: u?.unitNo,
+        meta: pending ? `${ch} · PKR ${fM(pending)}` : ch,
+      });
+    }).join(''),
+    overflow: fuToday.length > 5 ? `+${fuToday.length - 5} more in Work Queue` : null,
+  });
+
+  const overdueSorted = [...fuOverdue].sort((a,b) => (a.next_followup_date||'').localeCompare(b.next_followup_date||''));
+  const overdueLane = _fcLane({
+    title: 'Overdue',
+    count: fuOverdue.length,
+    countTone: fuOverdue.length ? 'red' : null,
+    onViewAll: fuOverdue.length ? `_fcSetTab('queue')` : null,
+    emptyTitle: 'No overdue follow-ups',
+    emptySuccess: true,
+    items: overdueSorted.slice(0, 5).map(c => {
+      const u = gunit(c.unit_id);
+      const d = Math.floor((new Date(t) - new Date(c.next_followup_date)) / 86400000);
+      return _fcLaneRowHtml({
+        uid: c.unit_id,
+        name: u?.customerName || c.client_name || '—',
+        unitNo: u?.unitNo,
+        meta: `${d}d late · ${c.next_followup_channel || c.channel || 'Call'}`,
+        metaTone: 'red',
+      });
+    }).join(''),
+    overflow: fuOverdue.length > 5 ? `+${fuOverdue.length - 5} more in Work Queue` : null,
+  });
+
+  const neverLane = _fcLane({
+    title: 'Never Contacted',
+    count: neverContacted.length,
+    onViewAll: neverContacted.length ? `_fcSetTab('queue')` : null,
+    emptyTitle: 'Every sold unit has been contacted',
+    emptySuccess: true,
+    items: neverContacted.slice(0, 5).map(u => _fcLaneRowHtml({
+      uid: u.id,
+      name: u.customerName || '—',
+      unitNo: u.unitNo,
+      meta: `PKR ${fM(actualPending(u))} pending`,
+    })).join(''),
+    overflow: neverContacted.length > 5 ? `+${neverContacted.length - 5} more sold units` : null,
+  });
+
+  const lanesHtml = `<div class="fc-lanes">
+    ${dueTodayLane}
+    ${overdueLane}
+    ${neverLane}
+  </div>`;
+
+  // ── Escalation summary (compact section, only shown if any flag exists) ──
+  const escSummaryHtml = totalFlags ? `
+    <div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">Escalation Summary</div>
+          <div class="fc-section-sub">Units flagged by no-response or broken-promise heuristics</div>
         </div>
-        ${!fuToday.length
-          ? `<div class="empty"><div class="ei">${_emptyDot('green')}</div><div class="et">None due today</div></div>`
-          : fuToday.slice(0,5).map(c => {
-              const u = gunit(c.unit_id);
-              return `<div class="od-row" onclick="openUD('${c.unit_id||''}')">
-                <div class="od-info">
-                  <div class="od-name">${esc(u?.unitNo||'?')} <span class="od-sep">·</span> <span class="od-cust">${esc((u?.customerName||c.client_name||'?').substring(0,16))}</span></div>
-                  <div class="od-days" style="color:#f59e0b">${_chIcon(c.next_followup_channel||c.channel)} ${esc(c.next_followup_channel||c.channel||'Call')}</div>
-                </div>
-                <button class="btn btn-d btn-xs" onclick="event.stopPropagation();openConModal('${c.unit_id||''}')">Log</button>
-              </div>`;
-            }).join('')}
-        ${fuToday.length > 5 ? `<div class="more-link" onclick="_fcSetTab('queue')">+${fuToday.length-5} more → Work Queue</div>` : ''}
-      </div>
-
-      <div class="card">
-        <div class="ch" style="${fuOverdue.length?'background:rgba(239,68,68,.025)':''}">
-          <div><h3 style="color:${fuOverdue.length?'#ef4444':'var(--ok)'}">Overdue <span class="sec-badge${!fuOverdue.length?' ok':''}" style="margin-left:6px">${fuOverdue.length}</span></h3><p>Missed deadlines</p></div>
-          <button class="btn btn-gh btn-xs" onclick="_fcSetTab('queue')">View All →</button>
+        <div class="fc-section-right">
+          <button class="fc-btn ghost" onclick="_fcSetTab('escalation')">View register ${_fci('arrow-right', 12)}</button>
         </div>
-        ${!fuOverdue.length
-          ? `<div class="empty"><div class="ei">${_emptyDot('green')}</div><div class="et">No overdue follow-ups</div></div>`
-          : [...fuOverdue].sort((a,b) => (a.next_followup_date||'').localeCompare(b.next_followup_date||'')).slice(0,5).map(c => {
-              const u = gunit(c.unit_id);
-              const d = Math.floor((new Date(t)-new Date(c.next_followup_date))/86400000);
-              return `<div class="od-row" onclick="openUD('${c.unit_id||''}')">
-                <div class="od-info">
-                  <div class="od-name">${esc(u?.unitNo||'?')} <span class="od-sep">·</span> <span class="od-cust">${esc((u?.customerName||c.client_name||'?').substring(0,14))}</span></div>
-                  <div class="od-days" style="color:#ef4444">${d}d late</div>
-                </div>
-                <button class="btn btn-d btn-xs" onclick="event.stopPropagation();openConModal('${c.unit_id||''}')">Log</button>
-              </div>`;
-            }).join('')}
-        ${fuOverdue.length > 5 ? `<div class="more-link" onclick="_fcSetTab('queue')">+${fuOverdue.length-5} more → Work Queue</div>` : ''}
       </div>
+      <div style="display:flex;gap:24px;padding:14px 16px;flex-wrap:wrap">
+        ${flags.Red.length    ? _fcEscChip('Red',    flags.Red.length,    '5+ no-response')          : ''}
+        ${flags.Orange.length ? _fcEscChip('Orange', flags.Orange.length, '2+ broken promises')      : ''}
+        ${flags.Yellow.length ? _fcEscChip('Yellow', flags.Yellow.length, '3+ no-response')          : ''}
+      </div>
+    </div>` : '';
+
+  return kpiHtml + lanesHtml + escSummaryHtml;
+}
+
+// ── Reusable building blocks for the SaaS-grade dashboard ────────────────
+function _fcKpi(iconName, tone, label, value, sub) {
+  return `<div class="fc-kpi">
+    <div class="fc-kpi-icon ${tone}">${_fci(iconName, 16)}</div>
+    <div class="fc-kpi-body">
+      <div class="fc-kpi-label">${label}</div>
+      <div class="fc-kpi-value">${value}</div>
+      <div class="fc-kpi-sub">${sub}</div>
     </div>
+  </div>`;
+}
 
-    ${(flags.Red.length || flags.Orange.length || flags.Yellow.length) ? `
-    <div class="card" style="margin-bottom:14px">
-      <div class="ch"><h3>Escalation Flags</h3><p>Units requiring special attention</p><button class="btn btn-gh btn-xs" onclick="_fcSetTab('escalation')">View All →</button></div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px">
-        ${flags.Red.length    ? `<div style="text-align:center;padding:12px 20px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:var(--r)"><div style="font-size:22px;font-weight:800;color:#ef4444">${flags.Red.length}</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Red (5+ NR)</div></div>` : ''}
-        ${flags.Orange.length ? `<div style="text-align:center;padding:12px 20px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);border-radius:var(--r)"><div style="font-size:22px;font-weight:800;color:#f97316">${flags.Orange.length}</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Orange (Broken Promise)</div></div>` : ''}
-        ${flags.Yellow.length ? `<div style="text-align:center;padding:12px 20px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:var(--r)"><div style="font-size:22px;font-weight:800;color:#f59e0b">${flags.Yellow.length}</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Yellow (3+ NR)</div></div>` : ''}
+function _fcLane({ title, count, countTone, onViewAll, emptyTitle, emptySuccess, items, overflow }) {
+  const countStyle = countTone === 'red' ? 'background:rgba(220,38,38,.10);color:#DC2626' : '';
+  return `<div class="fc-lane">
+    <div class="fc-lane-header">
+      <div class="fc-lane-title-wrap">
+        <span class="fc-lane-title">${title}</span>
+        <span class="fc-lane-count"${countStyle?` style="${countStyle}"`:''}>${count}</span>
       </div>
-    </div>` : ''}
+      ${onViewAll ? `<button class="fc-lane-link" onclick="${onViewAll}">View all</button>` : ''}
+    </div>
+    <div class="fc-lane-body">
+      ${!items
+        ? `<div class="fc-lane-empty"><div class="fc-lane-empty-icon${emptySuccess?' success':''}">${_fci(emptySuccess?'check':'inbox', 14)}</div><div class="fc-lane-empty-title">${emptyTitle}</div></div>`
+        : items}
+    </div>
+    ${overflow ? `<div class="fc-lane-footer" onclick="_fcSetTab('queue')">${overflow}</div>` : ''}
+  </div>`;
+}
 
-    ${neverContacted.length ? `
-    <div class="card">
-      <div class="ch"><h3 style="color:#f97316">Never Contacted <span class="sec-badge" style="margin-left:6px">${neverContacted.length}</span></h3><p>Sold units with balance — no contact on record</p></div>
-      <div class="tw"><table class="t">
-        <thead><tr><th>Unit</th><th>Client</th><th>Project</th><th>Pending</th><th>Action</th></tr></thead>
-        <tbody>${neverContacted.slice(0,10).map(u => `<tr class="cr">
-          <td style="font-weight:700" onclick="openUD('${u.id}')">${esc(u.unitNo)}</td>
-          <td>${esc(u.customerName||'—')}</td>
-          <td style="font-size:11px;color:var(--t3)">${esc(gproject(u.projectId)?.name||'—')}</td>
-          <td style="font-weight:700;color:#f97316">${fM(actualPending(u))}</td>
-          <td><button class="btn btn-d btn-xs" onclick="openConModal('${u.id}')">First Contact</button></td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-      ${neverContacted.length > 10 ? `<div class="more-link" style="padding:8px 16px">+${neverContacted.length-10} more → <span onclick="_fcSetTab('queue')" style="cursor:pointer;color:var(--brand)">Work Queue</span></div>` : ''}
-    </div>` : ''}
-  `;
+function _fcLaneRowHtml({ uid, name, unitNo, meta, metaTone }) {
+  const metaStyle = metaTone === 'red' ? 'color:#DC2626' : '';
+  return `<div class="fc-lane-row" onclick="openUD('${esc(uid||'')}')">
+    <div class="fc-lane-info">
+      <div class="fc-lane-name">${esc(name)}</div>
+      <div class="fc-lane-meta"${metaStyle?` style="${metaStyle}"`:''}>${unitNo?`<span class="fc-unit">${esc(unitNo)}</span> · `:''}${esc(meta)}</div>
+    </div>
+    <button class="fc-lane-action" onclick="event.stopPropagation();openConModal('${esc(uid||'')}')">Log</button>
+  </div>`;
+}
+
+function _fcEscChip(flag, count, reason) {
+  const tones = {
+    Red:    { color:'#DC2626', bg:'rgba(220,38,38,.08)', border:'rgba(220,38,38,.18)' },
+    Orange: { color:'#EA580C', bg:'rgba(234,88,12,.08)', border:'rgba(234,88,12,.18)' },
+    Yellow: { color:'#D97706', bg:'rgba(217,119,6,.08)', border:'rgba(217,119,6,.18)' },
+  };
+  const t = tones[flag] || tones.Yellow;
+  return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:${t.bg};border:1px solid ${t.border};border-radius:8px">
+    <div style="width:8px;height:8px;border-radius:50%;background:${t.color};flex-shrink:0"></div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums">${count} <span style="font-weight:500;color:${t.color}">${flag}</span></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${reason}</div>
+    </div>
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
