@@ -153,12 +153,11 @@ function _fcBuild(pg) {
   pg.innerHTML = `<div class="module-recovery" style="opacity:1">
     <header class="fc-header">
       <div class="fc-header-left">
-        <div class="fc-breadcrumb">Home ${_fci('chevron-right',11)} Follow-up</div>
         <div class="fc-title-row">
           <span class="fc-title-icon">${_fci('phone-call',16)}</span>
           <span class="fc-title">Follow-up &amp; Recovery</span>
+          <span class="fc-sub" style="margin-left:10px;padding-left:10px;border-left:1px solid var(--border);line-height:1.4">Communication tracking and recovery analytics</span>
         </div>
-        <div class="fc-sub">Communication tracking and recovery analytics</div>
       </div>
       <div class="fc-header-right">
         <button class="fc-icon-btn" onclick="rCons()" title="Refresh">
