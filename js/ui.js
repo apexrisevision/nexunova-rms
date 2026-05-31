@@ -324,10 +324,12 @@ function buildSB(){
   let navGroups = [];
 
   if(isA){
-    // Admin / Owner — daily-vs-setup restructure (2026-05-31).
-    // 9 groups: 4 open at top (daily operations), 5 collapsed by default
-    // (records, legal, reports, finance extras, setup). All 43 page-ids
-    // preserved verbatim; only group assignment + order changed.
+    // Admin / Owner — 5-group simplification (2026-05-31).
+    // 2 open at top (Home, Recovery — daily operations) + 3 collapsed
+    // by default (Clients & Units, Payments, Setup & More).
+    // All 43 page-ids preserved verbatim from the prior 9-group version;
+    // only group assignment + order changed. 'reports' id appears twice
+    // by design (Outstanding in Payments / Reports & Export in Setup).
     // defaultCollapsed honored on first load via renderer line 511-512;
     // user toggles persist in localStorage['rms.sidebar.groups'] and
     // override defaultCollapsed thereafter.
@@ -335,7 +337,7 @@ function buildSB(){
       // ── OPEN — daily operations ──────────────────────────────────
       { label: 'Home', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
-        { id:'contacts',  ic:'inbox',       lb:'Inbox',   bdg:alrt, bdgType:alrt?'alert':null },
+        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
       { label: 'Recovery', items: [
         { id:'recovery-dashboard', ic:'target',      lb:'Recovery Dashboard' },
@@ -344,57 +346,49 @@ function buildSB(){
         { id:'reminders',          ic:'bell',        lb:'Reminders' },
         { id:'contacts',           ic:'phone',       lb:'Call Logs' },
       ]},
-      { label: 'Clients & Units', items: [
-        { id:'clients', ic:'user-check', lb:'Clients' },
-        { id:'units',   ic:'home',       lb:'All Units', bdg:totalU||null },
-        { id:'sales',   ic:'file-text',  lb:'Sales & Bookings' },
-        { id:'agents',  ic:'users',      lb:'Sales Agents' },
-      ]},
-      { label: 'Payments', items: [
-        { id:'receipts', ic:'receipt',        lb:'Receipt Vouchers' },
-        { id:'pdc',      ic:'calendar-clock', lb:'PDC Register' },
-        { id:'reports',  ic:'alert-circle',   lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
-        { id:'ledgers',  ic:'book-open',      lb:'Ledgers' },
-        { id:'paylinks', ic:'link',           lb:'Payment Links' },
-      ]},
 
-      // ── COLLAPSED by default — setup / less frequent ─────────────
-      { label: 'Records', defaultCollapsed: true, items: [
+      // ── COLLAPSED by default ─────────────────────────────────────
+      { label: 'Clients & Units', defaultCollapsed: true, items: [
+        { id:'clients',        ic:'user-check', lb:'Clients' },
+        { id:'units',          ic:'home',       lb:'All Units', bdg:totalU||null },
+        { id:'sales',          ic:'file-text',  lb:'Sales & Bookings' },
+        { id:'agents',         ic:'users',      lb:'Sales Agents' },
         { id:'healthcenter',   ic:'heart',      lb:'Client Health' },
         { id:'noc',            ic:'file-check', lb:'NOC Management' },
         { id:'blacklist',      ic:'shield-off', lb:'Blacklist Register' },
         { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units' },
         { id:'transferunits',  ic:'repeat',     lb:'Transferred Units' },
       ]},
-      { label: 'Legal & Escalations', defaultCollapsed: true, items: [
-        { id:'escalations', ic:'alert-triangle', lb:'Escalations' },
-        { id:'legalcases',  ic:'scale',          lb:'Legal Cases' },
-        { id:'approvals',   ic:'file-check',     lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
+      { label: 'Payments', defaultCollapsed: true, items: [
+        { id:'receipts',          ic:'receipt',           lb:'Receipt Vouchers' },
+        { id:'pdc',               ic:'calendar-clock',    lb:'PDC Register' },
+        { id:'reports',           ic:'alert-circle',      lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
+        { id:'ledgers',           ic:'book-open',         lb:'Ledgers' },
+        { id:'paylinks',          ic:'link',              lb:'Payment Links' },
+        { id:'commissions',       ic:'trending-up',       lb:'Commissions' },
+        { id:'agenttransactions', ic:'trending-up',       lb:'Agent Transactions' },
+        { id:'payables',          ic:'arrow-down-circle', lb:'Payables' },
+        { id:'receivables',       ic:'arrow-up-circle',   lb:'Additional Receivables' },
       ]},
-      { label: 'Reports & Comms', defaultCollapsed: true, items: [
-        { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
+      { label: 'Setup & More', defaultCollapsed: true, items: [
+        { id:'projects',    ic:'building-2',     lb:'Projects' },
+        { id:'categories',  ic:'layers',         lb:'Types & Floors' },
+        { id:'banks',       ic:'banknote',       lb:'Banks Master' },
+        { id:'users',       ic:'shield',         lb:'Users & Roles' },
+        { id:'admin',       ic:'settings',       lb:'Settings' },
+        { id:'backup',      ic:'database',       lb:'Backup' },
+        { id:'audit',       ic:'history',        lb:'Audit Trail' },
         { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
+        { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
         { id:'documents',   ic:'printer',        lb:'Documents' },
         { id:'commscenter', ic:'message-square', lb:'Comms Center' },
         { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
         { id:'campaigns',   ic:'megaphone',      lb:'Campaigns' },
         { id:'radar',       ic:'radar',          lb:'Recovery Radar' },
-      ]},
-      { label: 'Finance Extras', defaultCollapsed: true, items: [
-        { id:'commissions',       ic:'trending-up',       lb:'Commissions' },
-        { id:'agenttransactions', ic:'trending-up',       lb:'Agent Transactions' },
-        { id:'payables',          ic:'arrow-down-circle', lb:'Payables' },
-        { id:'receivables',       ic:'arrow-up-circle',   lb:'Additional Receivables' },
-        { id:'fieldvisits',       ic:'map-pin',           lb:'Field Visits' },
-      ]},
-      { label: 'Setup', defaultCollapsed: true, items: [
-        { id:'projects',   ic:'building-2', lb:'Projects' },
-        { id:'categories', ic:'layers',     lb:'Types & Floors' },
-        { id:'banks',      ic:'banknote',   lb:'Banks Master' },
-        { id:'users',      ic:'shield',     lb:'Users & Roles' },
-        { id:'admin',      ic:'settings',   lb:'Settings' },
-        { id:'backup',     ic:'database',   lb:'Backup' },
-        { id:'audit',      ic:'history',    lb:'Audit Trail' },
+        { id:'escalations', ic:'alert-triangle', lb:'Escalations' },
+        { id:'legalcases',  ic:'scale',          lb:'Legal Cases' },
+        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
+        { id:'approvals',   ic:'file-check',     lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
       ]},
     ];
   } else if(isR){
