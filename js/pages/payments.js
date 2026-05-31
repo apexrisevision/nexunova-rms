@@ -2061,25 +2061,54 @@ function _pymRenderTxSection() {
   </div>`;
 }
 
+// Shared void-reason modal (self-contained; no static markup). A payment void is an
+// approval-gated action server-side — non-admins get a pending_approval response.
+function _voidReasonPrompt(title, onOk) {
+  const old = document.getElementById('m-void-reason-dyn'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'm-void-reason-dyn'; el.className = 'mov';
+  el.innerHTML = `<div class="md" style="max-width:440px">
+    <div class="mh"><div><h3>Void Payment</h3><p>${esc(title || '')}</p></div>
+      <button class="mx" onclick="document.getElementById('m-void-reason-dyn').remove()">✕</button></div>
+    <div class="mb">
+      <label class="fl">Reason / justification <span class="req-star">*</span></label>
+      <textarea id="void-reason-val" class="inp-light" rows="3" style="width:100%" placeholder="Why is this payment being voided?"></textarea>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px">A void may require Admin approval before it takes effect.</div>
+    </div>
+    <div class="mf" style="justify-content:flex-end;gap:8px">
+      <button class="btn btn-gh" onclick="document.getElementById('m-void-reason-dyn').remove()">Cancel</button>
+      <button class="btn btn-d" id="void-reason-ok">Submit</button>
+    </div></div>`;
+  document.body.appendChild(el);
+  el.querySelector('#void-reason-ok').onclick = () => {
+    const r = (document.getElementById('void-reason-val').value || '').trim();
+    if (r.length < 5) { notify.warning('Please enter a reason (min 5 characters)'); return; }
+    el.remove(); onOk(r);
+  };
+  setTimeout(() => document.getElementById('void-reason-val')?.focus(), 100);
+}
+
 async function _pymDeleteTx(paymentId, paymentCode, amount) {
   if (typeof demoGuard === 'function' && demoGuard('Cancel Payment')) return;
-  notify.warning(`Cancel ${paymentCode}?`, {
-    detail: `PKR ${fM(amount)} will be reversed from the installment. The record will be marked cancelled and kept for audit. This cannot be undone.`,
-    okText: 'Yes, Cancel It',
-    onOk: async () => {
-      try {
-        const { data, error } = await supabase.rpc('cancel_payment', {
-          p_payment_id:   paymentId,
-          p_company_id:   S.cid,
-          p_cancelled_by: S.userId
-        });
-        if (error) throw error;
-        if (!data?.success) throw new Error(data?.error || 'Cancel failed');
-        toast(`${paymentCode} cancelled — PKR ${fM(amount)} reversed`, 'ok');
-        if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
-      } catch(e) {
-        notify.error('Cancel Failed', { detail: e.message });
+  _voidReasonPrompt(`${paymentCode} — PKR ${fM(amount)} will be reversed`, async (reason) => {
+    try {
+      const { data, error } = await supabase.rpc('cancel_payment', {
+        p_payment_id:   paymentId,
+        p_company_id:   S.cid,
+        p_cancelled_by: S.userId,
+        p_reason:       reason
+      });
+      if (error) throw error;
+      if (data?.status === 'pending_approval') {
+        toast('Void request submitted for Admin approval', 'ok');
+        if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+        return;
       }
+      if (!data?.success) throw new Error(data?.error || 'Cancel failed');
+      toast(`${paymentCode} cancelled — PKR ${fM(amount)} reversed`, 'ok');
+      if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
+    } catch(e) {
+      notify.error('Cancel Failed', { detail: e.message });
     }
   });
 }
