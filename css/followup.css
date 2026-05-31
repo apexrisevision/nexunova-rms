@@ -131,14 +131,20 @@
    TAB NAVIGATION — underline style, no solid fill
 ══════════════════════════════════════════════════════════════════ */
 
+/* Tabs as discrete pill-buttons (per Rashid: "INHE SHAPE DO TAAKAY PATA
+   CHALE K YE BUTTONS HAIN"). Previous design was underline-style — read
+   as plain text labels, not as clickable buttons. New design: each tab
+   is a distinct rounded rectangle with a visible border, hover state,
+   and clear "filled" active state. Container still sticks to the top
+   on scroll with a subtle bottom divider. */
 .fc-tabs {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   background: var(--bg-page);
   border-bottom: 1px solid var(--border);
-  padding: 0 28px;
-  margin: 0 -28px 0;
-  gap: 0;
+  padding: 12px 28px;
+  margin: 0 -28px 16px;
+  gap: 6px;
   position: sticky;
   top: 64px;
   z-index: 19;
@@ -148,14 +154,15 @@
 .fc-tabs::-webkit-scrollbar { display: none; }
 
 @media (max-width: 1024px) {
-  .fc-tabs { padding: 0 20px; margin: 0 -20px 0; }
+  .fc-tabs { padding: 10px 20px; margin: 0 -20px 12px; }
 }
 
 .fc-tab {
-  height: 40px;
+  height: 34px;
   padding: 0 14px;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
@@ -163,18 +170,23 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 120ms, background 120ms, border-color 120ms;
+  transition: color 120ms, background 120ms, border-color 120ms, box-shadow 120ms;
   white-space: nowrap;
   flex-shrink: 0;
 }
 .fc-tab svg { transition: color 120ms; }
-.fc-tab:hover { color: var(--text); background: var(--bg-row-hover); }
+
+.fc-tab:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--bg-card-hover);
+}
 
 .fc-tab.active {
   color: var(--primary);
-  border-bottom-color: var(--primary);
+  background: var(--bg-primary-soft);
+  border-color: var(--primary);
+  box-shadow: 0 1px 2px rgba(37,99,235,.06);
 }
 .fc-tab.active svg { color: var(--primary); }
 
