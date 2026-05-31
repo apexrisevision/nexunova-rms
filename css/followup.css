@@ -487,10 +487,15 @@
 }
 .fc-section-header-left { flex: 1; min-width: 0; }
 
+/* Section title — same no-bold-prominence rule as .fc-lane-title
+   ([[feedback-no-bold-prominence]]). Size + tracking + full text color
+   carry prominence, weight stays at 500. */
 .fc-section-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.15px;
   color: var(--text);
+  line-height: 1.2;
 }
 
 .fc-section-sub {
@@ -1393,7 +1398,7 @@
 
 .fc-empty-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-soft);
 }
 

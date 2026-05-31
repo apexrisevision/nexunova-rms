@@ -56,6 +56,13 @@ const _FC_ICONS = {
   'inbox':            '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
   'trending-up':      '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
   'arrow-right':      '<line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  'search':           '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'printer':          '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>',
+  'mail':             '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  'message-circle':   '<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/>',
+  'message-square':   '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  'home':             '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  'users':            '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
 };
 function _fci(name, size=14) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${_FC_ICONS[name]||''}</svg>`;
@@ -385,7 +392,7 @@ function _fcEscChip(flag, count, reason) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 2 — WORK QUEUE (sync, uses pre-loaded _clBrokenPromises)
+// TAB 2 — WORK QUEUE (v3.1 SaaS — uses .fc-queue-card / .fc-qi / .fc-pills)
 // ═══════════════════════════════════════════════════════════════════════════
 function _tabQueueHtml() {
   const t   = td();
@@ -394,165 +401,204 @@ function _tabQueueHtml() {
   const byUnit = {};
   all.forEach(c => { if (c.unit_id) (byUnit[c.unit_id] = byUnit[c.unit_id] || []).push(c); });
 
-  const p1 = [], p2 = [], p3 = [], p4 = [];
   const soldUnits = gunits().filter(u => u.status !== 'Available' && u.status !== 'Dead' && actualPending(u) > 0);
 
+  // Build a single ranked list, tagged with type so filter pills can slice
+  // it without re-computation.
+  const items = [];
   soldUnits.forEach(u => {
     const logs = byUnit[u.id] || [];
-    if (!logs.length) { p4.push({ u, type:'new', reason:'Never contacted' }); return; }
-
+    if (!logs.length) {
+      items.push({ u, logs, type:'never', label:'Never contacted', sortKey: actualPending(u), refLog:null });
+      return;
+    }
     const flag     = _unitEscalation(logs).flag;
     const fuLogs   = logs.filter(c => c.next_followup_date);
     const overdueL = fuLogs.find(c => c.next_followup_date < t);
     const todayL   = fuLogs.find(c => c.next_followup_date === t);
-
     if (flag === 'Red' && overdueL) {
       const d = Math.floor((new Date(t)-new Date(overdueL.next_followup_date))/86400000);
-      p1.push({ u, logs, flag, overdueL, type:'critical', reason:`Red flag + ${d}d overdue` });
+      items.push({ u, logs, type:'critical', label:`Red flag · ${d}d overdue`, sortKey: -d, refLog: overdueL });
     } else if (overdueL) {
       const d = Math.floor((new Date(t)-new Date(overdueL.next_followup_date))/86400000);
-      p2.push({ u, logs, overdueL, type:'overdue', reason:`${d}d overdue` });
+      items.push({ u, logs, type:'overdue', label:`${d}d overdue`, sortKey: -d, refLog: overdueL });
     } else if (todayL) {
-      p3.push({ u, logs, todayL, type:'today', reason:'Due today' });
+      items.push({ u, logs, type:'today', label:'Due today', sortKey: actualPending(u), refLog: todayL });
     }
   });
 
-  p2.sort((a,b) => (a.overdueL.next_followup_date||'').localeCompare(b.overdueL.next_followup_date||''));
-  p3.sort((a,b) => actualPending(b.u) - actualPending(a.u));
-  p4.sort((a,b) => actualPending(b.u) - actualPending(a.u));
+  // Critical > Overdue > Today > Never. Within bucket, sortKey desc.
+  const typeOrder = { critical:0, overdue:1, today:2, never:3 };
+  items.sort((a,b) => (typeOrder[a.type]-typeOrder[b.type]) || (b.sortKey - a.sortKey));
 
-  const total = p1.length + p2.length + p3.length + p4.length;
+  const counts = {
+    all:      items.length,
+    critical: items.filter(i => i.type === 'critical').length,
+    overdue:  items.filter(i => i.type === 'overdue').length,
+    today:    items.filter(i => i.type === 'today').length,
+    never:    items.filter(i => i.type === 'never').length,
+  };
 
-  const renderQRow = (item, idx) => {
-    const { u, type, reason, overdueL, todayL, logs } = item;
-    const lastLog = logs ? [...logs].sort((a,b) => (b.contact_date||'').localeCompare(a.contact_date||''))[0] : null;
-    const col = { critical:'#ef4444', overdue:'#f97316', today:'#f59e0b', new:'#6366f1' }[type] || 'var(--t2)';
-    const refLog = overdueL || todayL;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);${type==='critical'?'background:rgba(239,68,68,.03)':''}">
-      <div style="width:26px;height:26px;border-radius:50%;background:${col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">${idx+1}</div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-weight:700;font-size:13px">${esc(u.unitNo||'')}</span>
-          <span style="color:var(--t3)">·</span>
-          <span style="font-size:12px">${esc((u.customerName||'?').substring(0,20))}</span>
-          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,.08);color:${col}">${reason}</span>
+  const filter   = _clQueueFilter || 'all';
+  const filtered = filter === 'all' ? items : items.filter(i => i.type === filter);
+
+  const renderQI = (it, idx) => {
+    const { u, type, label, logs, refLog } = it;
+    const lastLog = logs.length ? [...logs].sort((a,b) => (b.contact_date||'').localeCompare(a.contact_date||''))[0] : null;
+    const rankCls = type === 'critical' ? 'top' : 'normal';
+    const channelStr = refLog?.next_followup_channel || refLog?.channel || (lastLog?.channel) || 'Call';
+    const lastStr = lastLog ? `Last: ${fD(lastLog.contact_date)} · ${esc(lastLog.channel||'Call')}` : 'No contact on record';
+    return `<div class="fc-qi" onclick="openUD('${esc(u.id||'')}')">
+      <div class="fc-qi-rank ${rankCls}">${idx+1}</div>
+      <div class="fc-qi-body">
+        <div class="fc-qi-row1">
+          <span class="fc-unit">${esc(u.unitNo||'?')}</span>
+          <span class="fc-qi-name">${esc((u.customerName||'?').substring(0,28))}</span>
+          <span class="fc-status ${type}">${esc(label)}</span>
         </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:3px">
-          <span style="font-size:11px;color:var(--t3)">PKR ${fM(actualPending(u))}</span>
-          ${lastLog ? `<span style="font-size:11px;color:var(--t3)">Last: ${fD(lastLog.contact_date)} · ${_chIcon(lastLog.channel)}</span>` : ''}
-          ${refLog  ? `<span style="font-size:11px;color:${col}">${_chIcon(refLog.next_followup_channel||'Call')} ${esc(refLog.next_followup_channel||'Call')}</span>` : ''}
+        <div class="fc-qi-meta">
+          <span class="fc-amount" style="display:inline">PKR ${fM(actualPending(u))}</span>
+          &nbsp;·&nbsp; ${esc(lastStr)}
+          ${refLog ? ` &nbsp;·&nbsp; Next: ${esc(channelStr)}` : ''}
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-gh btn-xs" onclick="openUD('${u.id}')">View</button>
-        <button class="btn btn-d btn-xs" onclick="openConModal('${u.id}')">Log</button>
+      <div class="fc-qi-actions">
+        <button class="fc-btn ghost" onclick="event.stopPropagation();openUD('${esc(u.id||'')}')">View</button>
+        <button class="fc-btn primary" onclick="event.stopPropagation();openConModal('${esc(u.id||'')}')">Log</button>
       </div>
     </div>`;
   };
 
-  const sections = [
-    { items:p1, title:'Critical — Red-Flagged + Overdue', col:'#ef4444', offset:0 },
-    { items:p2, title:'High — Overdue Follow-ups',        col:'#f97316', offset:p1.length },
-    { items:p3, title:'Today\'s Follow-ups',              col:'#f59e0b', offset:p1.length+p2.length },
-    { items:p4, title:'Never Contacted',                  col:'#6366f1', offset:p1.length+p2.length+p3.length },
-  ].filter(s => s.items.length);
-
-  return `
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <div>
-        <div style="font-size:13px;font-weight:700">${total} action item${total!==1?'s':''} in your queue</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">${new Date().toLocaleDateString('en-PK',{weekday:'long',day:'numeric',month:'long'})}</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        ${_clBrokenPromises.length ? `<div style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:var(--rm);background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2)">${_clBrokenPromises.length} promise${_clBrokenPromises.length>1?'s':''} due</div>` : ''}
-        <button class="btn btn-gh btn-sm" onclick="rCons()">↺ Refresh</button>
-      </div>
+  const headerHtml = `<div class="fc-queue-header">
+    <div>
+      <div class="fc-queue-title">${items.length} action item${items.length!==1?'s':''}${filter!=='all'?` · filter: ${filter}`:''}</div>
+      <div class="fc-queue-meta">${new Date().toLocaleDateString('en-PK',{weekday:'long',day:'numeric',month:'long'})}</div>
     </div>
+    <div class="fc-queue-controls">
+      ${_clBrokenPromises.length ? `<span class="fc-status broken">${_clBrokenPromises.length} promise${_clBrokenPromises.length>1?'s':''} due</span>` : ''}
+      <button class="fc-icon-btn-sm" onclick="rCons()" title="Refresh">${_fci('refresh-cw',14)}</button>
+    </div>
+  </div>`;
 
-    ${!total && !_clBrokenPromises.length
-      ? `<div class="card"><div class="empty"><div class="ei">${_emptyDot('green')}</div><div class="et">Queue is clear!</div><div class="es">No pending follow-ups. Check back tomorrow.</div></div></div>`
-      : ''}
+  const pillsHtml = `<div class="fc-pills">
+    ${_qPill('all',      'All',       counts.all)}
+    ${counts.critical ? _qPill('critical', 'Critical', counts.critical, 'critical') : ''}
+    ${counts.overdue  ? _qPill('overdue',  'Overdue',  counts.overdue,  'overdue')  : ''}
+    ${counts.today    ? _qPill('today',    'Today',    counts.today,    'today')    : ''}
+    ${counts.never    ? _qPill('never',    'Never contacted', counts.never, 'never') : ''}
+  </div>`;
 
-    ${sections.map(({ items, title, col, offset }) => `
-      <div class="card" style="margin-bottom:12px;border-left:3px solid ${col}">
-        <div style="padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:12px;font-weight:700;color:${col}">${title}</div>
-          <div style="font-size:11px;color:var(--t3)">${items.length} unit${items.length>1?'s':''}</div>
+  const queueHtml = filtered.length
+    ? `<div class="fc-queue-card">${filtered.map(renderQI).join('')}</div>`
+    : `<div class="fc-queue-card"><div class="fc-empty">
+        <div class="fc-empty-icon success">${_fci('check',20)}</div>
+        <div class="fc-empty-title">Queue is clear</div>
+        <div class="fc-empty-sub">${filter==='all'?'No pending follow-ups. Check back tomorrow.':'No items match this filter.'}</div>
+      </div></div>`;
+
+  const brokenHtml = _clBrokenPromises.length ? `
+    <div class="fc-section" style="margin-top:16px">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">Overdue Payment Promises</div>
+          <div class="fc-section-sub">Promises past their due date that haven't been kept</div>
         </div>
-        ${items.map((item, i) => renderQRow(item, offset + i)).join('')}
       </div>
-    `).join('')}
+      <div class="fc-tbl-wrap">
+        <table class="fc-table">
+          <thead><tr>
+            <th>Unit</th><th>Client</th><th>Due</th><th class="r">Amount</th><th>Notes</th><th class="r">Action</th>
+          </tr></thead>
+          <tbody>${_clBrokenPromises.map(p => {
+            const u = p.sale_id ? (window._unitsCache||[]).find(uu => uu.saleId === p.sale_id) : null;
+            return `<tr ${u?`onclick="openUD('${u.id}')"`:''}${u?' style="cursor:pointer"':''}>
+              <td><span class="fc-unit">${esc(u?.unitNo||'—')}</span></td>
+              <td>${esc(u?.customerName||'—')}</td>
+              <td class="muted">${fD(p.promise_date)}</td>
+              <td class="r"><span class="fc-amount"><sup class="fc-pkr">PKR</sup>${fM(Number(p.promised_amount||0))}</span></td>
+              <td class="muted">${esc(p.notes||'—')}</td>
+              <td class="r">${u?`<button class="fc-btn primary" onclick="event.stopPropagation();openConModal('${u.id}')">Log</button>`:'—'}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>` : '';
 
-    ${_clBrokenPromises.length ? `
-    <div class="card" style="border-left:3px solid #f59e0b">
-      <div style="padding:10px 16px;border-bottom:1px solid var(--line)">
-        <div style="font-size:12px;font-weight:700;color:#f59e0b">Overdue Payment Promises</div>
-      </div>
-      <div class="tw"><table class="t">
-        <thead><tr><th>Unit</th><th>Client</th><th>Due</th><th>Amount</th><th>Notes</th><th>Action</th></tr></thead>
-        <tbody>${_clBrokenPromises.map(p => {
-          const u = p.sale_id ? (window._unitsCache||[]).find(u => u.saleId === p.sale_id) : null;
-          return `<tr class="cr">
-            <td style="font-weight:700" ${u?`onclick="openUD('${u.id}')"`:''}>${esc(u?.unitNo||'—')}</td>
-            <td>${esc(u?.customerName||'—')}</td>
-            <td style="color:#f59e0b;font-weight:700">${fD(p.promise_date)}</td>
-            <td style="font-weight:700">${fM(Number(p.promised_amount||0))}</td>
-            <td style="font-size:11px;color:var(--t3)">${esc(p.notes||'—')}</td>
-            <td>${u?`<button class="btn btn-d btn-xs" onclick="openConModal('${u.id}')">Log</button>`:'—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>
-    </div>` : ''}
-  `;
+  return headerHtml + pillsHtml + queueHtml + brokenHtml;
+}
+
+function _qPill(filterId, label, count, statusCls) {
+  const active = (_clQueueFilter || 'all') === filterId;
+  return `<button class="fc-pill${active?' active':''}" onclick="_clQueueFilter='${filterId}';_fcBuild()">
+    ${esc(label)}
+    <span class="fc-pill-count">${count}</span>
+  </button>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 3 — CONTACT LOG (sync; _rCLTable does filter updates against sub-divs)
+// TAB 3 — CONTACT LOG (v3.1 SaaS — .fc-filter-bar + .fc-table + .fc-badge)
 // ═══════════════════════════════════════════════════════════════════════════
 function _tabLogHtml() {
   const users = window._appUsersCache || [];
+  const chOpts  = ['All','Call','WhatsApp','Meeting','Email','SMS','Visit'];
+  const resOpts = [['All','All Responses'],['NoResponse','No Response'],['Interested','Interested'],['WillPay','Will Pay'],['NotInterested','Not Interested'],['Dispute','Dispute'],['CallBack','Call Back']];
+  const fuOpts  = [['All','All Follow-ups'],['overdue','Overdue'],['today','Due Today'],['upcoming','Upcoming'],['none','None Set']];
+  const flagOpts= [['All','All Flags'],['Red','Red'],['Orange','Orange'],['Yellow','Yellow'],['none','No Flag']];
+
   return `
-    <div class="fbar" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
-      <div class="fg"><label class="fl" style="font-size:10px">From</label>
-        <input class="inp-light" type="date" value="${_clf.fr||''}" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.fr=this.value;_rCLTable()">
+    <div class="fc-filter-bar">
+      <div class="fc-fg">
+        <label class="fc-flabel">From</label>
+        <input class="fc-fi" type="date" value="${_clf.fr||''}" onchange="_clf.fr=this.value;_rCLTable()">
       </div>
-      <div class="fg"><label class="fl" style="font-size:10px">To</label>
-        <input class="inp-light" type="date" value="${_clf.to||''}" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.to=this.value;_rCLTable()">
+      <div class="fc-fg">
+        <label class="fc-flabel">To</label>
+        <input class="fc-fi" type="date" value="${_clf.to||''}" onchange="_clf.to=this.value;_rCLTable()">
       </div>
-      <div class="fg"><label class="fl" style="font-size:10px">Channel</label>
-        <select class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.ch=this.value;_rCLTable()">
-          ${['All','Call','WhatsApp','Meeting','Email','SMS','Visit'].map(v => `<option value="${v}"${_clf.ch===v?' selected':''}>${v}${v==='All'?' Channels':''}</option>`).join('')}
+      <div class="fc-fg">
+        <label class="fc-flabel">Channel</label>
+        <select class="fc-select" style="width:auto" onchange="_clf.ch=this.value;_rCLTable()">
+          ${chOpts.map(v => `<option value="${v}"${_clf.ch===v?' selected':''}>${v}${v==='All'?' Channels':''}</option>`).join('')}
         </select>
       </div>
-      <div class="fg"><label class="fl" style="font-size:10px">Response</label>
-        <select class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.res=this.value;_rCLTable()">
-          ${[['All','All Responses'],['NoResponse','No Response'],['Interested','Interested'],['WillPay','Will Pay'],['NotInterested','Not Interested'],['Dispute','Dispute'],['CallBack','Call Back']].map(([v,lbl]) => `<option value="${v}"${_clf.res===v?' selected':''}>${lbl}</option>`).join('')}
+      <div class="fc-fg">
+        <label class="fc-flabel">Response</label>
+        <select class="fc-select" style="width:auto" onchange="_clf.res=this.value;_rCLTable()">
+          ${resOpts.map(([v,lbl]) => `<option value="${v}"${_clf.res===v?' selected':''}>${lbl}</option>`).join('')}
         </select>
       </div>
-      <div class="fg"><label class="fl" style="font-size:10px">Follow-up</label>
-        <select class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.fu=this.value;_rCLTable()">
-          ${[['All','All'],['overdue','Overdue'],['today','Due Today'],['upcoming','Upcoming'],['none','None Set']].map(([v,lbl]) => `<option value="${v}"${_clf.fu===v?' selected':''}>${lbl}</option>`).join('')}
+      <div class="fc-fg">
+        <label class="fc-flabel">Follow-up</label>
+        <select class="fc-select" style="width:auto" onchange="_clf.fu=this.value;_rCLTable()">
+          ${fuOpts.map(([v,lbl]) => `<option value="${v}"${_clf.fu===v?' selected':''}>${lbl}</option>`).join('')}
         </select>
       </div>
-      <div class="fg"><label class="fl" style="font-size:10px">Agent</label>
-        <select class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.ag=this.value;_rCLTable()">
+      <div class="fc-fg">
+        <label class="fc-flabel">Agent</label>
+        <select class="fc-select" style="width:auto" onchange="_clf.ag=this.value;_rCLTable()">
           <option value="All"${_clf.ag==='All'?' selected':''}>All Agents</option>
           ${users.map(u => `<option value="${u.id}"${_clf.ag===u.id?' selected':''}>${esc(u.name||u.fullName||u.id)}</option>`).join('')}
         </select>
       </div>
-      <div class="fg"><label class="fl" style="font-size:10px">Flag</label>
-        <select class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px" onchange="_clf.flag=this.value;_rCLTable()">
-          ${[['All','All'],['Red','Red'],['Orange','Orange'],['Yellow','Yellow'],['none','No Flag']].map(([v,lbl]) => `<option value="${v}"${_clf.flag===v?' selected':''}>${lbl}</option>`).join('')}
+      <div class="fc-fg">
+        <label class="fc-flabel">Flag</label>
+        <select class="fc-select" style="width:auto" onchange="_clf.flag=this.value;_rCLTable()">
+          ${flagOpts.map(([v,lbl]) => `<option value="${v}"${_clf.flag===v?' selected':''}>${lbl}</option>`).join('')}
         </select>
       </div>
-      <div class="fg" style="flex:1;min-width:160px"><label class="fl" style="font-size:10px">Search</label>
-        <input class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px;width:100%;box-sizing:border-box" placeholder="Unit / client / remarks…" value="${esc(_clf.q||'')}" oninput="_clf.q=this.value;clearTimeout(window._clfTimer);window._clfTimer=setTimeout(_rCLTable,220)">
+      <div class="fc-search-wrap">
+        <label class="fc-flabel">Search</label>
+        <div style="position:relative">
+          <span class="fc-search-icon" style="top:calc(50% + 2px)">${_fci('search', 14)}</span>
+          <input class="fc-search-input" placeholder="Unit / client / remarks…" value="${esc(_clf.q||'')}" oninput="_clf.q=this.value;clearTimeout(window._clfTimer);window._clfTimer=setTimeout(_rCLTable,220)">
+        </div>
       </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-gh btn-sm" onclick="_clf={ch:'All',res:'All',fu:'All',ag:'All',flag:'All',q:'',fr:'',to:''};_fcBuild()">Reset</button>
+      <div class="fc-fg" style="justify-content:flex-end">
+        <label class="fc-flabel">&nbsp;</label>
+        <button class="fc-btn ghost" onclick="_clf={ch:'All',res:'All',fu:'All',ag:'All',flag:'All',q:'',fr:'',to:''};_fcBuild()">Reset</button>
       </div>
     </div>
-    <div id="cl-sum" style="margin-bottom:10px"></div>
+    <div id="cl-sum"></div>
     <div id="cl-tbl"></div>
   `;
 }
@@ -589,41 +635,56 @@ function _rCLTable() {
   const promiseCt = all.filter(c => c.promise_to_pay).length;
 
   const sum = document.getElementById('cl-sum');
-  if (sum) sum.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;padding:9px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);font-size:12px">
-    <span style="font-weight:700">${rows.length} shown</span>
-    ${overdueCt  ? `<span style="color:var(--t3)">·</span><span style="color:#ef4444;font-weight:700">${overdueCt} overdue</span>` : ''}
-    ${todayCt    ? `<span style="color:var(--t3)">·</span><span style="color:#f59e0b;font-weight:700">${todayCt} today</span>` : ''}
-    ${promiseCt  ? `<span style="color:var(--t3)">·</span><span style="color:#10b981;font-weight:700">${promiseCt} promise${promiseCt>1?'s':''}</span>` : ''}
+  if (sum) sum.innerHTML = `<div class="fc-sum-strip">
+    <span class="fc-sum-val">${rows.length} shown</span>
+    ${overdueCt ? `<span class="fc-sum-sep">·</span><span style="color:var(--danger);font-weight:500">${overdueCt} overdue</span>` : ''}
+    ${todayCt   ? `<span class="fc-sum-sep">·</span><span style="color:var(--primary);font-weight:500">${todayCt} today</span>` : ''}
+    ${promiseCt ? `<span class="fc-sum-sep">·</span><span style="color:var(--success);font-weight:500">${promiseCt} promise${promiseCt>1?'s':''}</span>` : ''}
   </div>`;
 
   const tbl = document.getElementById('cl-tbl');
   if (!tbl) return;
   if (!rows.length) {
-    tbl.innerHTML = `<div class="card"><div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No contact logs match filters</div></div></div>`;
+    tbl.innerHTML = `<div class="fc-section"><div class="fc-empty">
+      <div class="fc-empty-icon">${_fci('inbox', 20)}</div>
+      <div class="fc-empty-title">No contact logs match filters</div>
+      <div class="fc-empty-sub">Try widening the date range or clearing some filters.</div>
+    </div></div>`;
     return;
   }
 
-  tbl.innerHTML = `<div class="card"><div class="tw"><table class="t">
-    <thead><tr><th>Date</th><th>Unit</th><th>Client</th><th>Channel</th><th>Response</th><th>Remarks</th><th>Promise</th><th>Next Follow-up</th><th>Agent</th><th>Flag</th></tr></thead>
-    <tbody>${rows.map(c => {
-      const u     = gunit(c.unit_id);
-      const fuOv  = c.next_followup_date && c.next_followup_date < t;
-      const fuTod = c.next_followup_date === t;
-      const fcol  = {Red:'#ef4444',Orange:'#f97316',Yellow:'#f59e0b'}[c.escalation_flag] || '';
-      return `<tr class="cr" onclick="openUD('${c.unit_id||''}')">
-        <td style="font-size:11px;white-space:nowrap">${fD(c.contact_date)}${c.contact_time?`<br><span style="color:var(--t3)">${c.contact_time.slice(0,5)}</span>`:''}</td>
-        <td style="font-weight:700">${esc(u?.unitNo||'?')}</td>
-        <td style="max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.client_name||u?.customerName||'—')}</td>
-        <td style="white-space:nowrap">${_chIcon(c.channel)} ${esc(c.channel||'—')}</td>
-        <td>${_resBadge(c.response_received)}</td>
-        <td style="font-size:11px;color:var(--t3);max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(c.remarks||'')}">${esc(c.remarks||'—')}</td>
-        <td style="font-size:11px">${c.promise_to_pay?`<span style="color:#10b981;font-weight:700">&#10003;</span>${c.promise_amount?' '+fM(c.promise_amount):''}${c.promise_date?`<br><span style="color:var(--t3);font-size:10px">${fD(c.promise_date)}</span>`:''}` : '—'}</td>
-        <td style="color:${fuOv?'#ef4444':fuTod?'#f59e0b':'var(--t3)'};font-weight:${fuOv||fuTod?700:400};font-size:11px">${c.next_followup_date?fD(c.next_followup_date)+(fuOv?' !':(fuTod?' •':'')):'—'}</td>
-        <td style="font-size:11px;color:var(--t3)">${esc(gunm(c.agent_id||c.created_by)||'—')}</td>
-        <td style="color:${fcol};font-weight:700;font-size:12px">${c.escalation_flag||''}</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div></div>`;
+  // Channel + response → fc-badge classes
+  const chCls  = ch => 'fc-badge ' + ({Call:'call',WhatsApp:'whatsapp',Visit:'visit',Email:'email',SMS:'sms',Meeting:'meeting'}[ch] || '');
+  const resCls = r  => 'fc-badge ' + ({NoResponse:'noresponse',Interested:'interested',WillPay:'willpay',NotInterested:'notinterested',Dispute:'dispute',CallBack:'callback'}[r] || 'unreachable');
+  const resLbl = r  => ({NoResponse:'No Response',Interested:'Interested',WillPay:'Will Pay',NotInterested:'Not Interested',Dispute:'Dispute',CallBack:'Call Back'}[r] || (r || '—'));
+
+  tbl.innerHTML = `<div class="fc-section"><div class="fc-tbl-wrap">
+    <table class="fc-table">
+      <thead><tr>
+        <th>Date</th><th>Unit</th><th>Client</th><th>Channel</th><th>Response</th>
+        <th>Remarks</th><th>Promise</th><th>Next Follow-up</th><th>Agent</th><th class="c">Flag</th>
+      </tr></thead>
+      <tbody>${rows.map(c => {
+        const u     = gunit(c.unit_id);
+        const fuOv  = c.next_followup_date && c.next_followup_date < t;
+        const fuTod = c.next_followup_date === t;
+        return `<tr onclick="openUD('${c.unit_id||''}')" style="cursor:pointer">
+          <td class="muted" style="white-space:nowrap">${fD(c.contact_date)}${c.contact_time?` · ${c.contact_time.slice(0,5)}`:''}</td>
+          <td><span class="fc-unit">${esc(u?.unitNo||'?')}</span></td>
+          <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.client_name||u?.customerName||'—')}</td>
+          <td><span class="${chCls(c.channel)}">${esc(c.channel||'—')}</span></td>
+          <td><span class="${resCls(c.response_received)}">${esc(resLbl(c.response_received))}</span></td>
+          <td class="muted" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(c.remarks||'')}">${esc(c.remarks||'—')}</td>
+          <td>${c.promise_to_pay
+            ? `<span class="fc-badge promised">${c.promise_amount?fM(c.promise_amount):'Promised'}${c.promise_date?` · ${fD(c.promise_date)}`:''}</span>`
+            : '<span class="muted">—</span>'}</td>
+          <td style="white-space:nowrap;${fuOv?'color:var(--danger)':fuTod?'color:var(--primary)':'color:var(--text-muted)'}">${c.next_followup_date?fD(c.next_followup_date):'—'}</td>
+          <td class="muted" style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">${esc(gunm(c.agent_id||c.created_by)||'—')}</td>
+          <td class="c">${c.escalation_flag?`<span class="fc-flag-dot ${c.escalation_flag.toLowerCase()}"></span>`:''}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div></div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -651,11 +712,10 @@ function _tabReportsHtml() {
     }
   })();
   return `
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <div class="fc-sub-tabs">
       ${_rptTabs.map(tab => {
         const on = _clRptTab === tab.id;
-        return `<button onclick="_setRptTab('${tab.id}')"
-          style="padding:6px 14px;border:1.5px solid ${on?'var(--brand)':'var(--line)'};background:${on?'var(--brand)':'transparent'};color:${on?'#fff':'var(--t2)'};border-radius:var(--rm);font-size:12px;font-weight:600;cursor:pointer">${tab.label}</button>`;
+        return `<button class="fc-sub-tab${on?' active':''}" onclick="_setRptTab('${tab.id}')">${tab.label}</button>`;
       }).join('')}
     </div>
     <div id="cl-rpt-body">${body}</div>
@@ -673,56 +733,73 @@ function _rptDailyHtml() {
   const selDate = (window._rptDailyDate || today);
   const dayLogs = (_clCache||[]).filter(c => c.contact_date === selDate);
 
+  const chCls  = ch => 'fc-badge ' + ({Call:'call',WhatsApp:'whatsapp',Visit:'visit',Email:'email',SMS:'sms',Meeting:'meeting'}[ch] || '');
+  const resCls = r  => 'fc-badge ' + ({NoResponse:'noresponse',Interested:'interested',WillPay:'willpay',NotInterested:'notinterested',Dispute:'dispute',CallBack:'callback'}[r] || 'unreachable');
+  const resLbl = r  => ({NoResponse:'No Response',Interested:'Interested',WillPay:'Will Pay',NotInterested:'Not Interested',Dispute:'Dispute',CallBack:'Call Back'}[r] || (r || '—'));
+
   const inner = (() => {
     if (!dayLogs.length) {
-      return `<div class="card"><div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No activity on ${fD(selDate)}</div></div></div>`;
+      return `<div class="fc-section"><div class="fc-empty">
+        <div class="fc-empty-icon">${_fci('inbox', 20)}</div>
+        <div class="fc-empty-title">No activity on ${fD(selDate)}</div>
+        <div class="fc-empty-sub">Pick another date to view its activity report.</div>
+      </div></div>`;
     }
     const byAgent = {};
     dayLogs.forEach(c => { const ag = c.agent_id || c.created_by || 'unknown'; (byAgent[ag] = byAgent[ag] || []).push(c); });
-    return `<div class="card">
-      <div style="text-align:center;padding:16px 20px 12px;border-bottom:2px solid var(--line)">
-        <div style="font-size:15px;font-weight:800">Recovery Agent Daily Activity Report</div>
-        <div style="font-size:12px;color:var(--t3);margin-top:4px">${fD(selDate)} &nbsp;|&nbsp; ${dayLogs.length} contacts &nbsp;|&nbsp; ${Object.keys(byAgent).length} agents</div>
+    return `<div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">Recovery Agent Daily Activity Report</div>
+          <div class="fc-section-sub">${fD(selDate)} · ${dayLogs.length} contacts · ${Object.keys(byAgent).length} agents</div>
+        </div>
       </div>
       ${Object.entries(byAgent).map(([agId, logs]) => {
         const agName   = gunm(agId);
         const promises = logs.filter(c => c.promise_to_pay);
-        return `<div style="padding:14px 16px 4px;border-bottom:1px solid var(--line)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:var(--hover);border-radius:var(--r)">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0">${ini(agName)}</div>
+        return `<div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div class="fc-snap-avatar" style="width:32px;height:32px;font-size:13px">${ini(agName)}</div>
             <div>
-              <div style="font-weight:700;font-size:13px">${esc(agName)}</div>
-              <div style="font-size:11px;color:var(--t3)">${logs.length} contacts · ${promises.length} promise${promises.length!==1?'s':''}</div>
+              <div style="font-size:14px;font-weight:500;color:var(--text)">${esc(agName)}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${logs.length} contacts · ${promises.length} promise${promises.length!==1?'s':''}</div>
             </div>
           </div>
-          <div class="tw"><table class="t" style="font-size:11px">
-            <thead><tr><th>Time</th><th>Unit</th><th>Client</th><th>Channel</th><th>Response</th><th>Remarks</th><th>Promise</th><th>Follow-up</th></tr></thead>
-            <tbody>${logs.sort((a,b) => (a.contact_time||'').localeCompare(b.contact_time||'')).map(c => {
-              const u = gunit(c.unit_id);
-              return `<tr>
-                <td>${c.contact_time?c.contact_time.slice(0,5):'—'}</td>
-                <td style="font-weight:700">${esc(u?.unitNo||'?')}</td>
-                <td>${esc(c.client_name||u?.customerName||'—')}</td>
-                <td>${_chIcon(c.channel)} ${esc(c.channel||'—')}</td>
-                <td>${_resBadge(c.response_received)}</td>
-                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.remarks||'—')}</td>
-                <td>${c.promise_to_pay?`&#10003;${c.promise_amount?' '+fM(c.promise_amount):''}`:''}</td>
-                <td>${c.next_followup_date?fD(c.next_followup_date):'—'}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table></div>
+          <div class="fc-tbl-wrap">
+            <table class="fc-table">
+              <thead><tr>
+                <th>Time</th><th>Unit</th><th>Client</th><th>Channel</th><th>Response</th>
+                <th>Remarks</th><th>Promise</th><th>Follow-up</th>
+              </tr></thead>
+              <tbody>${logs.sort((a,b) => (a.contact_time||'').localeCompare(b.contact_time||'')).map(c => {
+                const u = gunit(c.unit_id);
+                return `<tr>
+                  <td class="muted">${c.contact_time?c.contact_time.slice(0,5):'—'}</td>
+                  <td><span class="fc-unit">${esc(u?.unitNo||'?')}</span></td>
+                  <td>${esc(c.client_name||u?.customerName||'—')}</td>
+                  <td><span class="${chCls(c.channel)}">${esc(c.channel||'—')}</span></td>
+                  <td><span class="${resCls(c.response_received)}">${esc(resLbl(c.response_received))}</span></td>
+                  <td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.remarks||'—')}</td>
+                  <td>${c.promise_to_pay?`<span class="fc-badge promised">${c.promise_amount?fM(c.promise_amount):'Yes'}</span>`:'<span class="muted">—</span>'}</td>
+                  <td class="muted">${c.next_followup_date?fD(c.next_followup_date):'—'}</td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>
         </div>`;
       }).join('')}
     </div>`;
   })();
 
   return `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      <div class="fg"><label class="fl" style="font-size:10px">Activity Date</label>
-        <input class="inp-light" type="date" value="${selDate}" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px"
-          onchange="window._rptDailyDate=this.value;_fcBuild()">
+    <div class="fc-rpt-controls">
+      <div class="fc-fg">
+        <label class="fc-flabel">Activity Date</label>
+        <input class="fc-fi" type="date" value="${selDate}" onchange="window._rptDailyDate=this.value;_fcBuild()">
       </div>
-      <div style="margin-top:16px"><button class="btn btn-print btn-sm" onclick="window.print()">Print</button></div>
+      <div class="fc-rpt-controls-right">
+        <button class="fc-btn ghost" onclick="window.print()">${_fci('printer',12)} Print</button>
+      </div>
     </div>
     ${inner}
   `;
@@ -754,33 +831,47 @@ function _rptPromiseHtml() {
   const totAmt    = rows.reduce((s,r) => s + Number(r.latest.promise_amount||0), 0);
   const brokenAmt = rows.filter(r => r.status==='Broken').reduce((s,r) => s + Number(r.latest.promise_amount||0), 0);
 
+  const statusBadge = s => {
+    const cls = s === 'Broken' ? 'noresponse' : s === 'Due' ? 'dispute' : s === 'Pending' ? 'callback' : 'unreachable';
+    return `<span class="fc-badge ${cls}">${s}</span>`;
+  };
+
   return `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
-      ${_dStat('Total Promises', rows.length,                                     'var(--brand)')}
-      ${_dStat('Pending',        rows.filter(r=>r.status==='Pending').length,     '#f59e0b')}
-      ${_dStat('Due',            rows.filter(r=>r.status==='Due').length,         '#f97316')}
-      ${_dStat('Broken',         rows.filter(r=>r.status==='Broken').length,      '#ef4444')}
-      ${_dStat('Total Amt',      fM(totAmt),                                      '#10b981')}
-      ${_dStat('Broken Amt',     fM(brokenAmt),                                   '#ef4444')}
+    <div class="fc-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      ${_fcKpi('handshake',      'blue',    'Total Promises', String(rows.length),                                           'Promise commitments')}
+      ${_fcKpi('clock',          'slate',   'Pending',        String(rows.filter(r=>r.status==='Pending').length),           'Not yet due')}
+      ${_fcKpi('alert-triangle', rows.filter(r=>r.status==='Due').length ? 'red' : 'slate', 'Due', String(rows.filter(r=>r.status==='Due').length), 'Past promise date')}
+      ${_fcKpi('alert-triangle', rows.filter(r=>r.status==='Broken').length ? 'red' : 'slate', 'Broken', String(rows.filter(r=>r.status==='Broken').length), 'Promise + no follow-through')}
+      ${_fcKpi('trending-up',    'emerald', 'Total Amt',      `<sup class="fc-pkr">PKR</sup>${fM(totAmt)}`,                  'Across all promises')}
+      ${_fcKpi('alert-triangle', brokenAmt ? 'red' : 'slate', 'Broken Amt', `<sup class="fc-pkr">PKR</sup>${fM(brokenAmt)}`, 'At risk of write-off')}
     </div>
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)">
-        <h3 style="font-size:13px;font-weight:700;margin:0">Promise Tracking</h3>
-        <button class="btn btn-print btn-sm" onclick="window.print()">Print</button>
+    <div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">Promise Tracking</div>
+          <div class="fc-section-sub">All commitments by promise date and status</div>
+        </div>
+        <div class="fc-section-right">
+          <button class="fc-btn ghost" onclick="window.print()">${_fci('printer',12)} Print</button>
+        </div>
       </div>
-      ${!rows.length ? `<div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No promises recorded</div></div>` :
-        `<div class="tw"><table class="t">
-          <thead><tr><th>Unit</th><th>Client</th><th>Promise Date</th><th>Amount</th><th>Agent</th><th>#</th><th>Status</th><th>Last Contact</th><th>Action</th></tr></thead>
-          <tbody>${rows.map(r => `<tr class="cr">
-            <td style="font-weight:700" onclick="openUD('${r.uid}')">${esc(r.u?.unitNo||'?')}</td>
+      ${!rows.length
+        ? `<div class="fc-empty"><div class="fc-empty-icon">${_fci('handshake',20)}</div><div class="fc-empty-title">No promises recorded</div><div class="fc-empty-sub">Promises appear here when logged during a contact.</div></div>`
+        : `<div class="fc-tbl-wrap"><table class="fc-table">
+          <thead><tr>
+            <th>Unit</th><th>Client</th><th>Promise Date</th><th class="r">Amount</th>
+            <th>Agent</th><th class="c">#</th><th>Status</th><th>Last Contact</th><th class="r">Action</th>
+          </tr></thead>
+          <tbody>${rows.map(r => `<tr style="cursor:pointer" onclick="openUD('${r.uid}')">
+            <td><span class="fc-unit">${esc(r.u?.unitNo||'?')}</span></td>
             <td>${esc(r.u?.customerName||r.latest.client_name||'—')}</td>
-            <td>${r.latest.promise_date?fD(r.latest.promise_date):'—'}</td>
-            <td style="font-weight:700">${r.latest.promise_amount?fM(r.latest.promise_amount):'—'}</td>
-            <td style="font-size:11px;color:var(--t3)">${esc(gunm(r.latest.agent_id||r.latest.created_by)||'—')}</td>
-            <td style="text-align:center">${r.promises.length}</td>
-            <td><span style="font-size:11px;font-weight:700;color:${r.scol}">${r.status}</span></td>
-            <td style="font-size:11px;color:var(--t3)">${fD(r.latest.contact_date)}</td>
-            <td><button class="btn btn-d btn-xs" onclick="openConModal('${r.uid}')">Follow Up</button></td>
+            <td class="muted">${r.latest.promise_date?fD(r.latest.promise_date):'—'}</td>
+            <td class="r"><span class="fc-amount"><sup class="fc-pkr">PKR</sup>${r.latest.promise_amount?fM(r.latest.promise_amount):'—'}</span></td>
+            <td class="muted">${esc(gunm(r.latest.agent_id||r.latest.created_by)||'—')}</td>
+            <td class="c">${r.promises.length}</td>
+            <td>${statusBadge(r.status)}</td>
+            <td class="muted">${fD(r.latest.contact_date)}</td>
+            <td class="r"><button class="fc-btn primary" onclick="event.stopPropagation();openConModal('${r.uid}')">Follow Up</button></td>
           </tr>`).join('')}</tbody>
         </table></div>`}
     </div>`;
@@ -794,7 +885,11 @@ function _rptPerfHtml() {
   const recent = all.filter(c => c.contact_date && c.contact_date >= from30);
 
   if (!recent.length) {
-    return `<div class="card"><div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No activity in last 30 days</div></div></div>`;
+    return `<div class="fc-section"><div class="fc-empty">
+      <div class="fc-empty-icon">${_fci('trending-up',20)}</div>
+      <div class="fc-empty-title">No activity in last 30 days</div>
+      <div class="fc-empty-sub">Once agents log contacts, performance metrics will appear here.</div>
+    </div></div>`;
   }
 
   const stats = {};
@@ -813,25 +908,34 @@ function _rptPerfHtml() {
   const sorted = Object.entries(stats).sort((a,b) => b[1].total - a[1].total);
 
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--t2)">Last 30 days — ${sorted.length} agent${sorted.length!==1?'s':''}</div>
-      <button class="btn btn-print btn-sm" onclick="window.print()">Print</button>
-    </div>
-    <div class="card">
-      <div class="tw"><table class="t">
-        <thead><tr><th>Agent</th><th>Total</th><th>No Response</th><th>Interested</th><th>Will Pay</th><th>Promises</th><th>Promise Amt</th><th>Response Rate</th><th>FU Set</th></tr></thead>
+    <div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">Agent Performance</div>
+          <div class="fc-section-sub">Last 30 days · ${sorted.length} agent${sorted.length!==1?'s':''}</div>
+        </div>
+        <div class="fc-section-right">
+          <button class="fc-btn ghost" onclick="window.print()">${_fci('printer',12)} Print</button>
+        </div>
+      </div>
+      <div class="fc-tbl-wrap"><table class="fc-table">
+        <thead><tr>
+          <th>Agent</th><th class="c">Total</th><th class="c">No Response</th><th class="c">Interested</th>
+          <th class="c">Will Pay</th><th class="c">Promises</th><th class="r">Promise Amt</th>
+          <th class="c">Response Rate</th><th class="c">FU Set</th>
+        </tr></thead>
         <tbody>${sorted.map(([agId, s]) => {
           const rr = s.total ? Math.round((s.total - s.nr) / s.total * 100) : 0;
           return `<tr>
-            <td style="font-weight:700">${esc(gunm(agId))}</td>
-            <td style="text-align:center;font-weight:700">${s.total}</td>
-            <td style="text-align:center;color:#ef4444">${s.nr}</td>
-            <td style="text-align:center;color:#10b981">${s.interested}</td>
-            <td style="text-align:center;color:#10b981">${s.willPay}</td>
-            <td style="text-align:center;font-weight:700">${s.promises}</td>
-            <td>${s.promiseAmt?fM(s.promiseAmt):'—'}</td>
-            <td style="text-align:center"><span style="font-weight:700;color:${rr>=50?'#10b981':'#ef4444'}">${rr}%</span></td>
-            <td style="text-align:center">${s.fuSet}</td>
+            <td>${esc(gunm(agId))}</td>
+            <td class="c">${s.total}</td>
+            <td class="c" style="color:${s.nr?'var(--danger)':'var(--text-muted)'}">${s.nr}</td>
+            <td class="c" style="color:${s.interested?'var(--success)':'var(--text-muted)'}">${s.interested}</td>
+            <td class="c" style="color:${s.willPay?'var(--success)':'var(--text-muted)'}">${s.willPay}</td>
+            <td class="c">${s.promises}</td>
+            <td class="r"><span class="fc-amount">${s.promiseAmt?'<sup class="fc-pkr">PKR</sup>'+fM(s.promiseAmt):'—'}</span></td>
+            <td class="c" style="color:${rr>=50?'var(--success)':'var(--danger)'};font-weight:500">${rr}%</td>
+            <td class="c muted">${s.fuSet}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -855,29 +959,37 @@ function _rptChannelHtml() {
   const sorted = Object.entries(chs).sort((a,b) => b[1].total - a[1].total);
   const total  = all.length;
 
+  const chCls = ch => 'fc-badge ' + ({Call:'call',WhatsApp:'whatsapp',Visit:'visit',Email:'email',SMS:'sms',Meeting:'meeting'}[ch] || '');
+
   return `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
-      ${sorted.map(([ch, s]) => _dStat(`${_chIcon(ch)} ${ch}`, s.total, 'var(--brand)')).join('')}
-    </div>
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)">
-        <h3 style="font-size:13px;font-weight:700;margin:0">Channel Analysis</h3>
-        <button class="btn btn-print btn-sm" onclick="window.print()">Print</button>
+    <div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">Channel Analysis</div>
+          <div class="fc-section-sub">Volume and response quality by communication channel</div>
+        </div>
+        <div class="fc-section-right">
+          <button class="fc-btn ghost" onclick="window.print()">${_fci('printer',12)} Print</button>
+        </div>
       </div>
-      ${!sorted.length ? `<div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No data yet</div></div>` :
-        `<div class="tw"><table class="t">
-          <thead><tr><th>Channel</th><th>Total</th><th>%</th><th>No Response</th><th>Interested</th><th>Will Pay</th><th>Promises</th><th>Response Rate</th></tr></thead>
+      ${!sorted.length
+        ? `<div class="fc-empty"><div class="fc-empty-icon">${_fci('bar-chart-3',20)}</div><div class="fc-empty-title">No channel data yet</div><div class="fc-empty-sub">Log some contacts to see channel-level metrics.</div></div>`
+        : `<div class="fc-tbl-wrap"><table class="fc-table">
+          <thead><tr>
+            <th>Channel</th><th class="c">Total</th><th class="c">% of all</th><th class="c">No Response</th>
+            <th class="c">Interested</th><th class="c">Will Pay</th><th class="c">Promises</th><th class="c">Response Rate</th>
+          </tr></thead>
           <tbody>${sorted.map(([ch, s]) => {
             const rr = s.total ? Math.round((s.total - s.nr) / s.total * 100) : 0;
             return `<tr>
-              <td style="font-weight:700">${_chIcon(ch)} ${esc(ch)}</td>
-              <td style="text-align:center;font-weight:700">${s.total}</td>
-              <td style="text-align:center">${total?Math.round(s.total/total*100):0}%</td>
-              <td style="text-align:center;color:#ef4444">${s.nr}</td>
-              <td style="text-align:center;color:#10b981">${s.interested}</td>
-              <td style="text-align:center;color:#10b981">${s.willPay}</td>
-              <td style="text-align:center;font-weight:700">${s.promises}</td>
-              <td style="text-align:center"><span style="font-weight:700;color:${rr>=50?'#10b981':'#ef4444'}">${rr}%</span></td>
+              <td><span class="${chCls(ch)}">${esc(ch)}</span></td>
+              <td class="c">${s.total}</td>
+              <td class="c muted">${total?Math.round(s.total/total*100):0}%</td>
+              <td class="c" style="color:${s.nr?'var(--danger)':'var(--text-muted)'}">${s.nr}</td>
+              <td class="c" style="color:${s.interested?'var(--success)':'var(--text-muted)'}">${s.interested}</td>
+              <td class="c" style="color:${s.willPay?'var(--success)':'var(--text-muted)'}">${s.willPay}</td>
+              <td class="c">${s.promises}</td>
+              <td class="c" style="color:${rr>=50?'var(--success)':'var(--danger)'};font-weight:500">${rr}%</td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>`}
@@ -900,31 +1012,40 @@ function _rptDifficultHtml() {
     .filter(r => r.nr >= 5)
     .sort((a,b) => b.nr - a.nr);
 
-  return `<div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)">
-      <h3 style="font-size:13px;font-weight:700;margin:0">Difficult / Non-Responsive <span style="font-size:11px;font-weight:400;color:var(--t3)">${rows.length} with 5+ no-responses</span></h3>
-      <button class="btn btn-print btn-sm" onclick="window.print()">Print</button>
+  const resCls = r  => 'fc-badge ' + ({NoResponse:'noresponse',Interested:'interested',WillPay:'willpay',NotInterested:'notinterested',Dispute:'dispute',CallBack:'callback'}[r] || 'unreachable');
+  const resLbl = r  => ({NoResponse:'No Response',Interested:'Interested',WillPay:'Will Pay',NotInterested:'Not Interested',Dispute:'Dispute',CallBack:'Call Back'}[r] || (r || '—'));
+
+  return `<div class="fc-section">
+    <div class="fc-section-header">
+      <div class="fc-section-header-left">
+        <div class="fc-section-title">Difficult / Non-Responsive Clients</div>
+        <div class="fc-section-sub">${rows.length} unit${rows.length!==1?'s':''} with 5+ no-responses on record</div>
+      </div>
+      <div class="fc-section-right">
+        <button class="fc-btn ghost" onclick="window.print()">${_fci('printer',12)} Print</button>
+      </div>
     </div>
-    ${!rows.length ? `<div class="empty"><div class="ei">${_emptyDot('green')}</div><div class="et">No difficult clients</div></div>` :
-      `<div class="tw"><table class="t">
-        <thead><tr><th>Unit</th><th>Client</th><th>Total</th><th>No Response</th><th>Last Contact</th><th>Last Response</th><th>Flag</th><th>Pending</th><th>Actions</th></tr></thead>
-        <tbody>${rows.map(r => {
-          const fcol = {Red:'#ef4444',Orange:'#f97316',Yellow:'#f59e0b'}[r.esc_s.flag] || 'var(--t3)';
-          return `<tr class="cr">
-            <td style="font-weight:700" onclick="openUD('${r.uid}')">${esc(r.u?.unitNo||'?')}</td>
-            <td>${esc(r.u?.customerName||r.last?.client_name||'—')}</td>
-            <td style="text-align:center;font-weight:700">${r.logs.length}</td>
-            <td style="text-align:center;color:#ef4444;font-weight:700">${r.nr}</td>
-            <td>${fD(r.last?.contact_date)}</td>
-            <td>${_resBadge(r.last?.response_received)}</td>
-            <td style="color:${fcol};font-weight:700">${r.esc_s.flag||'—'}</td>
-            <td style="font-weight:700">${fM(actualPending(r.u||{}))}</td>
-            <td style="display:flex;gap:4px">
-              <button class="btn btn-d btn-xs" onclick="openConModal('${r.uid}')">Log</button>
-              <button class="btn btn-gh btn-xs" onclick="_clSelectedUnit='${r.uid}';_clRptTab='perclient';_fcBuild()">History</button>
-            </td>
-          </tr>`;
-        }).join('')}</tbody>
+    ${!rows.length
+      ? `<div class="fc-empty"><div class="fc-empty-icon success">${_fci('check',20)}</div><div class="fc-empty-title">No difficult clients</div><div class="fc-empty-sub">No unit has accumulated 5+ no-responses.</div></div>`
+      : `<div class="fc-tbl-wrap"><table class="fc-table">
+        <thead><tr>
+          <th>Unit</th><th>Client</th><th class="c">Total</th><th class="c">No Response</th>
+          <th>Last Contact</th><th>Last Response</th><th class="c">Flag</th><th class="r">Pending</th><th class="r">Actions</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td><span class="fc-unit" onclick="openUD('${r.uid}')" style="cursor:pointer">${esc(r.u?.unitNo||'?')}</span></td>
+          <td>${esc(r.u?.customerName||r.last?.client_name||'—')}</td>
+          <td class="c">${r.logs.length}</td>
+          <td class="c" style="color:var(--danger)">${r.nr}</td>
+          <td class="muted">${fD(r.last?.contact_date)}</td>
+          <td><span class="${resCls(r.last?.response_received)}">${esc(resLbl(r.last?.response_received))}</span></td>
+          <td class="c">${r.esc_s.flag?`<span class="fc-flag-dot ${r.esc_s.flag.toLowerCase()}"></span>`:'<span class="muted">—</span>'}</td>
+          <td class="r"><span class="fc-amount"><sup class="fc-pkr">PKR</sup>${fM(actualPending(r.u||{}))}</span></td>
+          <td class="r" style="white-space:nowrap">
+            <button class="fc-btn primary" onclick="openConModal('${r.uid}')">Log</button>
+            <button class="fc-btn ghost" onclick="_clSelectedUnit='${r.uid}';_clRptTab='perclient';_fcBuild()" style="margin-left:4px">History</button>
+          </td>
+        </tr>`).join('')}</tbody>
       </table></div>`}
   </div>`;
 }
@@ -933,71 +1054,79 @@ function _rptDifficultHtml() {
 function _rptPerClientHtml() {
   const units = gunits().filter(u => u.status !== 'Available' && u.status !== 'Dead');
 
+  const chCls  = ch => 'fc-badge ' + ({Call:'call',WhatsApp:'whatsapp',Visit:'visit',Email:'email',SMS:'sms',Meeting:'meeting'}[ch] || '');
+  const resCls = r  => 'fc-badge ' + ({NoResponse:'noresponse',Interested:'interested',WillPay:'willpay',NotInterested:'notinterested',Dispute:'dispute',CallBack:'callback'}[r] || 'unreachable');
+  const resLbl = r  => ({NoResponse:'No Response',Interested:'Interested',WillPay:'Will Pay',NotInterested:'Not Interested',Dispute:'Dispute',CallBack:'Call Back'}[r] || (r || '—'));
+
   const detail = (() => {
     if (!_clSelectedUnit) return '';
     const u    = gunit(_clSelectedUnit);
     const logs = (_clCache||[]).filter(c => c.unit_id === _clSelectedUnit)
                                 .sort((a,b) => (b.contact_date||'').localeCompare(a.contact_date||''));
     if (!logs.length) {
-      return `<div class="card"><div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No contact history for this unit</div></div></div>`;
+      return `<div class="fc-section"><div class="fc-empty">
+        <div class="fc-empty-icon">${_fci('inbox',20)}</div>
+        <div class="fc-empty-title">No contact history for this unit</div>
+      </div></div>`;
     }
     const noResp   = logs.filter(c => c.response_received === 'NoResponse').length;
     const promises = logs.filter(c => c.promise_to_pay);
     const esc_s    = _unitEscalation(logs);
-    const flagCol  = {Red:'#ef4444',Orange:'#f97316',Yellow:'#f59e0b'}[esc_s.flag] || '';
 
-    return `<div class="card">
-      <div style="padding:16px 20px;border-bottom:2px solid var(--line)">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <div>
-            <div style="font-size:15px;font-weight:800">${esc(u?.unitNo||'?')} — Contact History</div>
-            <div style="font-size:12px;color:var(--t3);margin-top:3px">Client: ${esc(u?.customerName||logs[0]?.client_name||'—')} · Project: ${esc(gproject(u?.projectId)?.name||'—')}</div>
-          </div>
-          ${esc_s.flag?`<div style="padding:5px 14px;border-radius:20px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);font-size:12px;font-weight:700;color:${flagCol}">${esc_s.flag} — ${esc(esc_s.reason)}</div>`:''}
+    return `<div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title">${esc(u?.unitNo||'?')} — Contact History</div>
+          <div class="fc-section-sub">Client: ${esc(u?.customerName||logs[0]?.client_name||'—')} · Project: ${esc(gproject(u?.projectId)?.name||'—')}</div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
-          ${_dStat('Total Contacts', logs.length,                'var(--brand)')}
-          ${_dStat('No Response',    noResp,                     '#ef4444')}
-          ${_dStat('Promises',       promises.length,            '#10b981')}
-          ${_dStat('Pending',        fM(actualPending(u||{})),   '#f97316')}
-          ${_dStat('Last Contact',   fD(logs[0]?.contact_date),  'var(--t2)')}
-        </div>
+        ${esc_s.flag?`<div class="fc-section-right"><span class="fc-status ${esc_s.flag==='Red'?'critical':esc_s.flag==='Orange'?'overdue':'today'}">
+          <span class="fc-flag-dot ${esc_s.flag.toLowerCase()}" style="margin-right:6px"></span>${esc_s.flag} · ${esc(esc_s.reason)}
+        </span></div>`:''}
       </div>
-      <div class="tw"><table class="t" style="font-size:11px">
-        <thead><tr><th>Date</th><th>Time</th><th>Channel</th><th>Dir</th><th>Response</th><th>Remarks</th><th>Promise</th><th>Next FU</th><th>Agent</th><th>Status</th></tr></thead>
+      <div class="fc-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));padding:14px 16px;margin:0;border-bottom:1px solid var(--border)">
+        ${_fcKpi('inbox',          'blue',    'Total Contacts', String(logs.length),                                  'On record')}
+        ${_fcKpi('alert-triangle', noResp ? 'red' : 'slate', 'No Response', String(noResp),                          'Unanswered attempts')}
+        ${_fcKpi('handshake',      'emerald', 'Promises',       String(promises.length),                              'Commitments')}
+        ${_fcKpi('alert-triangle', actualPending(u||{}) ? 'red' : 'slate', 'Pending', `<sup class="fc-pkr">PKR</sup>${fM(actualPending(u||{}))}`, 'Current balance')}
+        ${_fcKpi('clock',          'slate',   'Last Contact',   fD(logs[0]?.contact_date),                            'Most recent activity')}
+      </div>
+      <div class="fc-tbl-wrap"><table class="fc-table">
+        <thead><tr>
+          <th>Date</th><th>Time</th><th>Channel</th><th>Dir</th><th>Response</th>
+          <th>Remarks</th><th>Promise</th><th>Next FU</th><th>Agent</th>
+        </tr></thead>
         <tbody>${logs.map(c => `<tr>
-          <td style="white-space:nowrap;font-weight:600">${fD(c.contact_date)}</td>
-          <td>${c.contact_time?c.contact_time.slice(0,5):'—'}</td>
-          <td>${_chIcon(c.channel)} ${esc(c.channel||'—')}</td>
-          <td style="font-size:10px;color:var(--t3)">${c.direction==='Inbound'?'↙ In':'↗ Out'}</td>
-          <td>${_resBadge(c.response_received)}</td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.remarks||'')}">${esc(c.remarks||'—')}</td>
-          <td>${c.promise_to_pay?`&#10003;${c.promise_amount?' '+fM(c.promise_amount):''}${c.promise_date?`<br>${fD(c.promise_date)}`:''}`:''}</td>
-          <td>${c.next_followup_date?`${fD(c.next_followup_date)}${c.next_followup_channel?`<br>${_chIcon(c.next_followup_channel)} ${esc(c.next_followup_channel)}`:''}`:'—'}</td>
-          <td style="white-space:nowrap">${esc(gunm(c.agent_id||c.created_by||''))}</td>
-          <td>${_stBadge(c.status_tag)}</td>
+          <td class="muted">${fD(c.contact_date)}</td>
+          <td class="muted">${c.contact_time?c.contact_time.slice(0,5):'—'}</td>
+          <td><span class="${chCls(c.channel)}">${esc(c.channel||'—')}</span></td>
+          <td class="muted">${c.direction==='Inbound'?'↙ In':'↗ Out'}</td>
+          <td><span class="${resCls(c.response_received)}">${esc(resLbl(c.response_received))}</span></td>
+          <td class="muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.remarks||'')}">${esc(c.remarks||'—')}</td>
+          <td>${c.promise_to_pay?`<span class="fc-badge promised">${c.promise_amount?fM(c.promise_amount):'Yes'}${c.promise_date?` · ${fD(c.promise_date)}`:''}</span>`:'<span class="muted">—</span>'}</td>
+          <td class="muted">${c.next_followup_date?fD(c.next_followup_date):'—'}</td>
+          <td class="muted">${esc(gunm(c.agent_id||c.created_by||''))}</td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>`;
   })();
 
   return `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      <div class="fg"><label class="fl" style="font-size:10px">Select Unit / Client</label>
-        <select class="inp-light" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:var(--rm);font-size:12px;min-width:260px"
-          onchange="_clSelectedUnit=this.value;_fcBuild()">
+    <div class="fc-rpt-controls">
+      <div class="fc-fg" style="flex:1;max-width:360px">
+        <label class="fc-flabel">Select Unit / Client</label>
+        <select class="fc-select" style="width:100%" onchange="_clSelectedUnit=this.value;_fcBuild()">
           <option value="">-- Select a unit --</option>
           ${units.map(u => `<option value="${u.id}" ${_clSelectedUnit===u.id?'selected':''}>${esc(u.unitNo)}${u.customerName?' — '+esc(u.customerName):''}</option>`).join('')}
         </select>
       </div>
-      ${_clSelectedUnit?`<div style="margin-top:16px"><button class="btn btn-print btn-sm" onclick="window.print()">Print</button></div>`:''}
+      ${_clSelectedUnit?`<div class="fc-rpt-controls-right"><button class="fc-btn ghost" onclick="window.print()">${_fci('printer',12)} Print</button></div>`:''}
     </div>
     ${detail}
   `;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 5 — ESCALATION & LEGAL (sync; uses pre-loaded _clEscalations/_clLegalCases)
+// TAB 5 — ESCALATION & LEGAL (v3.1 SaaS — .fc-esc-kpi-grid + .fc-section + .fc-table)
 // ═══════════════════════════════════════════════════════════════════════════
 function _tabEscalationHtml() {
   const all    = _clCache || [];
@@ -1010,35 +1139,49 @@ function _tabEscalationHtml() {
     if (esc_s.flag) flags[esc_s.flag].push({ uid, u:gunit(uid), logs, esc_s });
   });
 
+  const resCls = r  => 'fc-badge ' + ({NoResponse:'noresponse',Interested:'interested',WillPay:'willpay',NotInterested:'notinterested',Dispute:'dispute',CallBack:'callback'}[r] || 'unreachable');
+  const resLbl = r  => ({NoResponse:'No Response',Interested:'Interested',WillPay:'Will Pay',NotInterested:'Not Interested',Dispute:'Dispute',CallBack:'Call Back'}[r] || (r || '—'));
+
   const renderFlag = (flag, items) => {
     if (!items.length) return '';
-    const colors = { Red:'#ef4444', Orange:'#f97316', Yellow:'#f59e0b' };
     const titles = {
-      Red:    'Red — 5+ Consecutive No Responses (Escalate to Manager)',
+      Red:    'Red — 5+ Consecutive No Responses',
       Orange: 'Orange — 2+ Broken Promises',
       Yellow: 'Yellow — 3+ Consecutive No Responses',
     };
-    const col = colors[flag];
-    return `<div class="card" style="margin-bottom:12px;border-left:3px solid ${col}">
-      <div style="padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
-        <h3 style="font-size:13px;font-weight:700;margin:0;color:${col}">${titles[flag]}</h3>
-        <div style="font-size:11px;color:var(--t3)">${items.length} unit${items.length>1?'s':''}</div>
+    const subs = {
+      Red:    'Escalate to manager — recovery process is stuck',
+      Orange: 'Client has broken a promise — verify intent',
+      Yellow: 'Watch — pattern of non-response forming',
+    };
+    return `<div class="fc-section">
+      <div class="fc-section-header">
+        <div class="fc-section-header-left">
+          <div class="fc-section-title"><span class="fc-flag-dot ${flag.toLowerCase()}" style="margin-right:8px;vertical-align:middle"></span>${titles[flag]}</div>
+          <div class="fc-section-sub">${subs[flag]}</div>
+        </div>
+        <div class="fc-section-right">
+          <span class="fc-lane-count">${items.length} unit${items.length>1?'s':''}</span>
+        </div>
       </div>
-      <div class="tw"><table class="t">
-        <thead><tr><th>Unit</th><th>Client</th><th>Reason</th><th>Contacts</th><th>Last Contact</th><th>Last Response</th><th>Pending</th><th>Actions</th></tr></thead>
+      <div class="fc-tbl-wrap"><table class="fc-table">
+        <thead><tr>
+          <th>Unit</th><th>Client</th><th>Reason</th><th class="c">Contacts</th>
+          <th>Last Contact</th><th>Last Response</th><th class="r">Pending</th><th class="r">Actions</th>
+        </tr></thead>
         <tbody>${items.map(({ uid, u, logs, esc_s }) => {
           const last = [...logs].sort((a,b) => (b.contact_date||'').localeCompare(a.contact_date||''))[0];
-          return `<tr class="cr">
-            <td style="font-weight:700" onclick="openUD('${uid}')">${esc(u?.unitNo||'?')}</td>
+          return `<tr>
+            <td><span class="fc-unit" onclick="openUD('${uid}')" style="cursor:pointer">${esc(u?.unitNo||'?')}</span></td>
             <td>${esc(u?.customerName||last?.client_name||'—')}</td>
-            <td style="font-size:11px;color:${col};font-weight:600">${esc(esc_s.reason)}</td>
-            <td style="text-align:center">${logs.length}</td>
-            <td>${fD(last?.contact_date)}</td>
-            <td>${_resBadge(last?.response_received)}</td>
-            <td style="font-weight:700">${fM(actualPending(u||{}))}</td>
-            <td style="display:flex;gap:4px">
-              <button class="btn btn-d btn-xs" onclick="openConModal('${uid}')">Log</button>
-              <button class="btn btn-gh btn-xs" onclick="openUD('${uid}')">View</button>
+            <td class="muted">${esc(esc_s.reason)}</td>
+            <td class="c">${logs.length}</td>
+            <td class="muted">${fD(last?.contact_date)}</td>
+            <td><span class="${resCls(last?.response_received)}">${esc(resLbl(last?.response_received))}</span></td>
+            <td class="r"><span class="fc-amount"><sup class="fc-pkr">PKR</sup>${fM(actualPending(u||{}))}</span></td>
+            <td class="r" style="white-space:nowrap">
+              <button class="fc-btn primary" onclick="openConModal('${uid}')">Log</button>
+              <button class="fc-btn ghost" onclick="openUD('${uid}')" style="margin-left:4px">View</button>
             </td>
           </tr>`;
         }).join('')}</tbody>
@@ -1046,82 +1189,96 @@ function _tabEscalationHtml() {
     </div>`;
   };
 
-  const openEsc = _clEscalations.filter(e => e.status !== 'closed' && e.status !== 'resolved').length;
-  const openLeg = _clLegalCases.filter(l => l.status !== 'closed').length;
+  const openEsc  = _clEscalations.filter(e => e.status !== 'closed' && e.status !== 'resolved').length;
+  const openLeg  = _clLegalCases.filter(l => l.status !== 'closed').length;
+  const totalFlags = flags.Red.length + flags.Orange.length + flags.Yellow.length;
 
-  return `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
-      ${_dStat('Red Flags',        flags.Red.length,    '#ef4444')}
-      ${_dStat('Orange Flags',     flags.Orange.length, '#f97316')}
-      ${_dStat('Yellow Flags',     flags.Yellow.length, '#f59e0b')}
-      ${_dStat('Open Escalations', openEsc,             '#6366f1')}
-      ${_dStat('Active Legal',     openLeg,             '#ef4444')}
-    </div>
+  const kpiHtml = `<div class="fc-esc-kpi-grid">
+    ${_fcKpi('flag', flags.Red.length    ? 'red'    : 'slate', 'Red Flags',        String(flags.Red.length),    '5+ no-response')}
+    ${_fcKpi('flag', flags.Orange.length ? 'red'    : 'slate', 'Orange Flags',     String(flags.Orange.length), 'Broken promises')}
+    ${_fcKpi('flag', flags.Yellow.length ? 'amber'  : 'slate', 'Yellow Flags',     String(flags.Yellow.length), '3+ no-response')}
+    ${_fcKpi('alert-triangle', openEsc ? 'blue' : 'slate', 'Open Escalations', String(openEsc), `${_clEscalations.length} total on record`)}
+    ${_fcKpi('alert-triangle', openLeg ? 'red'  : 'slate', 'Active Legal',     String(openLeg), `${_clLegalCases.length} cases total`)}
+  </div>`;
 
-    ${renderFlag('Red',    flags.Red)}
-    ${renderFlag('Orange', flags.Orange)}
-    ${renderFlag('Yellow', flags.Yellow)}
-    ${!flags.Red.length && !flags.Orange.length && !flags.Yellow.length
-      ? `<div class="card" style="margin-bottom:12px"><div class="empty"><div class="ei">${_emptyDot('green')}</div><div class="et">No escalation flags — all units in good standing</div></div></div>`
-      : ''}
+  const flagsBody = totalFlags
+    ? `${renderFlag('Red', flags.Red)}${renderFlag('Orange', flags.Orange)}${renderFlag('Yellow', flags.Yellow)}`
+    : `<div class="fc-section"><div class="fc-empty">
+        <div class="fc-empty-icon success">${_fci('check', 20)}</div>
+        <div class="fc-empty-title">No escalation flags</div>
+        <div class="fc-empty-sub">All units are in good standing — no patterns of non-response or broken promises detected.</div>
+      </div></div>`;
 
-    <div class="card" style="margin-bottom:12px">
-      <div style="padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
-        <h3 style="font-size:13px;font-weight:700;margin:0">Escalation Records</h3>
-        <div style="font-size:11px;color:var(--t3)">${_clEscalations.length} total</div>
+  const escRecordsHtml = `<div class="fc-section">
+    <div class="fc-section-header">
+      <div class="fc-section-header-left">
+        <div class="fc-section-title">Escalation Records</div>
+        <div class="fc-section-sub">Manual escalations logged to manager level</div>
       </div>
-      ${!_clEscalations.length
-        ? `<div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No escalation records</div></div>`
-        : `<div class="tw"><table class="t" style="font-size:12px">
-          <thead><tr><th>Date</th><th>Level</th><th>Reason</th><th>Status</th><th>Escalated To</th></tr></thead>
-          <tbody>${_clEscalations.map(e => {
-            const sc = {open:'#ef4444',pending:'#f59e0b',resolved:'#10b981',closed:'var(--t3)'}[e.status]||'var(--t3)';
-            const lvl = e.from_level && e.to_level ? `L${e.from_level}→L${e.to_level}` : '—';
-            return `<tr class="cr">
-              <td style="font-size:11px;white-space:nowrap">${fD((e.created_at||'').slice(0,10))}</td>
-              <td style="font-size:11px;font-weight:700">${esc(lvl)}</td>
-              <td style="font-size:11px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.reason||'—')}</td>
-              <td><span style="font-size:10px;font-weight:700;color:${sc}">${esc(e.status||'open')}</span></td>
-              <td style="font-size:11px;color:var(--t3)">${esc(gunm(e.escalated_to)||'—')}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table></div>`}
-    </div>
-
-    <div class="card">
-      <div style="padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
-        <h3 style="font-size:13px;font-weight:700;margin:0;color:#ef4444">Legal Cases</h3>
-        <div style="font-size:11px;color:var(--t3)">${_clLegalCases.length} total</div>
+      <div class="fc-section-right">
+        <span class="fc-lane-count">${_clEscalations.length} total</span>
       </div>
-      ${!_clLegalCases.length
-        ? `<div class="empty"><div class="ei">${_emptyDot('grey')}</div><div class="et">No legal cases on record</div></div>`
-        : `<div class="tw"><table class="t" style="font-size:12px">
-          <thead><tr><th>Filed</th><th>Unit</th><th>Client</th><th>Case No.</th><th>Stage</th><th>Next Hearing</th><th>Lawyer</th><th>Claim Amt</th></tr></thead>
-          <tbody>${_clLegalCases.map(lc => {
-            const u   = gunit(lc.unit_id);
-            const now = td();
-            const nxt = lc.next_hearing_date;
-            const nc  = nxt && nxt < now ? '#ef4444' : nxt === now ? '#f59e0b' : 'var(--t2)';
-            const stageCols = {
-              pre_legal:'var(--t3)', notice_sent:'#f59e0b', filed:'#f97316',
-              hearing:'#ef4444', judgment:'#ef4444', appeal:'#f97316',
-              settled:'#10b981', closed:'var(--t3)'
-            };
-            const sc = stageCols[lc.stage] || 'var(--t3)';
-            return `<tr class="cr" onclick="openUD('${lc.unit_id||''}')">
-              <td style="font-size:11px;white-space:nowrap">${fD((lc.filed_date||lc.created_at||'').slice(0,10))}</td>
-              <td style="font-weight:700">${esc(u?.unitNo||'—')}</td>
-              <td style="max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u?.customerName||'—')}</td>
-              <td style="font-size:11px">${esc(lc.case_number||'—')}</td>
-              <td><span style="font-size:10px;font-weight:700;color:${sc}">${esc(lc.stage||'—')}</span></td>
-              <td style="color:${nc};font-weight:${nxt&&nxt<=now?700:400};font-size:11px">${nxt?fD(nxt):'—'}</td>
-              <td style="font-size:11px;color:var(--t3)">${esc(lc.lawyer_name||'—')}</td>
-              <td style="font-weight:700">${lc.claim_amount?fM(Number(lc.claim_amount)):'—'}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table></div>`}
     </div>
-  `;
+    ${!_clEscalations.length
+      ? `<div class="fc-empty"><div class="fc-empty-icon">${_fci('inbox',20)}</div><div class="fc-empty-title">No escalation records</div><div class="fc-empty-sub">Escalations created via the action buttons above will appear here.</div></div>`
+      : `<div class="fc-tbl-wrap"><table class="fc-table">
+        <thead><tr><th>Date</th><th>Level</th><th>Reason</th><th>Status</th><th>Escalated To</th></tr></thead>
+        <tbody>${_clEscalations.map(e => {
+          const statusCls = e.status === 'open' || e.status === 'pending' ? 'noresponse' : e.status === 'resolved' ? 'promised' : 'unreachable';
+          const lvl = e.from_level && e.to_level ? `L${e.from_level}→L${e.to_level}` : '—';
+          return `<tr>
+            <td class="muted">${fD((e.created_at||'').slice(0,10))}</td>
+            <td>${esc(lvl)}</td>
+            <td class="muted" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.reason||'—')}</td>
+            <td><span class="fc-badge ${statusCls}">${esc(e.status||'open')}</span></td>
+            <td class="muted">${esc(gunm(e.escalated_to)||'—')}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`}
+  </div>`;
+
+  const stageBadge = stage => {
+    const cls = ({pre_legal:'unreachable',notice_sent:'dispute',filed:'noresponse',hearing:'noresponse',judgment:'noresponse',appeal:'dispute',settled:'promised',closed:'unreachable'})[stage] || 'unreachable';
+    return `<span class="fc-badge ${cls}">${esc(stage||'—')}</span>`;
+  };
+
+  const legalHtml = `<div class="fc-section">
+    <div class="fc-section-header">
+      <div class="fc-section-header-left">
+        <div class="fc-section-title">Legal Cases</div>
+        <div class="fc-section-sub">Cases that have entered formal legal process</div>
+      </div>
+      <div class="fc-section-right">
+        <span class="fc-lane-count">${_clLegalCases.length} total</span>
+      </div>
+    </div>
+    ${!_clLegalCases.length
+      ? `<div class="fc-empty"><div class="fc-empty-icon">${_fci('inbox',20)}</div><div class="fc-empty-title">No legal cases on record</div><div class="fc-empty-sub">Cases created in the Legal module will appear here.</div></div>`
+      : `<div class="fc-tbl-wrap"><table class="fc-table">
+        <thead><tr>
+          <th>Filed</th><th>Unit</th><th>Client</th><th>Case No.</th>
+          <th>Stage</th><th>Next Hearing</th><th>Lawyer</th><th class="r">Claim Amt</th>
+        </tr></thead>
+        <tbody>${_clLegalCases.map(lc => {
+          const u   = gunit(lc.unit_id);
+          const now = td();
+          const nxt = lc.next_hearing_date;
+          const nxtStyle = nxt && nxt < now ? 'color:var(--danger);font-weight:500' : nxt === now ? 'color:var(--primary);font-weight:500' : 'color:var(--text-muted)';
+          return `<tr style="cursor:pointer" onclick="openUD('${lc.unit_id||''}')">
+            <td class="muted">${fD((lc.filed_date||lc.created_at||'').slice(0,10))}</td>
+            <td><span class="fc-unit">${esc(u?.unitNo||'—')}</span></td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u?.customerName||'—')}</td>
+            <td class="muted">${esc(lc.case_number||'—')}</td>
+            <td>${stageBadge(lc.stage)}</td>
+            <td style="${nxtStyle}">${nxt?fD(nxt):'—'}</td>
+            <td class="muted">${esc(lc.lawyer_name||'—')}</td>
+            <td class="r"><span class="fc-amount">${lc.claim_amount?`<sup class="fc-pkr">PKR</sup>${fM(Number(lc.claim_amount))}`:'—'}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`}
+  </div>`;
+
+  return kpiHtml + flagsBody + escRecordsHtml + legalHtml;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
