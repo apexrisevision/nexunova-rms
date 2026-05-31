@@ -2153,7 +2153,9 @@ async function _pymSaveEditTx() {
   if (!pid) return;
 
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  try {
+  // Backdating a payment is approval-gated server-side: a recovery user editing the
+  // date earlier gets reason_required -> we prompt -> resubmit -> pending_approval.
+  const doEdit = async (reason) => {
     const { data, error } = await supabase.rpc('edit_payment_meta', {
       p_payment_id:     pid,
       p_company_id:     S.cid,
@@ -2163,18 +2165,59 @@ async function _pymSaveEditTx() {
       p_bank_name:      s('ep-bank')?.value    || null,
       p_bank_id:        s('ep-bank-id')?.value || null,
       p_notes:          s('ep-notes')?.value   || null,
-      p_updated_by:     S.userId
+      p_updated_by:     S.userId,
+      p_reason:         reason || null
     });
     if (error) throw error;
+    if (data?.status === 'pending_approval') {
+      cm('m-edit-pym');
+      toast('Backdated edit submitted for Admin approval', 'ok');
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      return;
+    }
+    if (data?.error === 'reason_required') {
+      _apReason('Approval Required', 'This change moves the payment date earlier and needs Admin approval.', r => { doEdit(r).catch(e => notify.error('Edit Failed', { detail: e.message })); });
+      return;
+    }
     if (!data?.success) throw new Error(data?.error || 'Edit failed');
     cm('m-edit-pym');
     toast('Payment record updated', 'ok');
     if (_pymCurrentUnitId) await _pymOnUnitChange(_pymCurrentUnitId);
+  };
+  try {
+    await doEdit(null);
   } catch(e) {
     notify.error('Edit Failed', { detail: e.message });
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
   }
+}
+
+// Shared approval-reason modal (used by approval-gated edit flows). Dynamic; no static markup.
+function _apReason(heading, sub, onOk) {
+  const id = 'm-ap-reason-dyn';
+  document.getElementById(id)?.remove();
+  const el = document.createElement('div');
+  el.id = id; el.className = 'mov';
+  el.innerHTML = `<div class="md" style="max-width:440px">
+    <div class="mh"><div><h3>${esc(heading || 'Approval Required')}</h3><p>${esc(sub || '')}</p></div>
+      <button class="mx" onclick="document.getElementById('${id}').remove()">✕</button></div>
+    <div class="mb">
+      <label class="fl">Reason / justification <span class="req-star">*</span></label>
+      <textarea id="${id}-val" class="inp-light" rows="3" style="width:100%" placeholder="Why is this change needed?"></textarea>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px">This action requires Admin approval before it takes effect.</div>
+    </div>
+    <div class="mf" style="justify-content:flex-end;gap:8px">
+      <button class="btn btn-gh" onclick="document.getElementById('${id}').remove()">Cancel</button>
+      <button class="btn btn-d" id="${id}-ok">Submit for Approval</button>
+    </div></div>`;
+  document.body.appendChild(el);
+  el.querySelector('#' + id + '-ok').onclick = () => {
+    const r = (document.getElementById(id + '-val').value || '').trim();
+    if (r.length < 5) { notify.warning('Please enter a reason (min 5 characters)'); return; }
+    el.remove(); onOk(r);
+  };
+  setTimeout(() => document.getElementById(id + '-val')?.focus(), 100);
 }
 
 // ── Schedule Comparison (original vs current) ─────────────────────────────────

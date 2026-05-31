@@ -1416,21 +1416,37 @@ async function setClientStatus(clientId, newStatus) {
     return;
   }
 
-  // Deactivate / Reactivate: no approval needed — apply directly
+  // Deactivate / Reactivate: status changes are approval-gated server-side for
+  // non-admins (reason_required -> prompt -> resubmit -> pending_approval). Admin applies directly.
   if (!confirm(`${label.charAt(0).toUpperCase()+label.slice(1)} client "${c?.fullName}"?`)) return;
 
-  try {
+  const doStatus = async (reason) => {
     const { data, error } = await supabase.rpc('update_client', {
       p_id:         clientId,
       p_company_id: S.cid,
-      p_data:       { status: newStatus }
+      p_data:       { status: newStatus },
+      p_reason:     reason || null
     });
     if (error) throw error;
+    if (data?.status === 'pending_approval') {
+      toast('Status change submitted for Admin approval', 'ok');
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      return;
+    }
+    if (data?.error === 'reason_required') {
+      if (typeof _apReason === 'function') {
+        _apReason(`${label.charAt(0).toUpperCase()+label.slice(1)} Client`, 'A client status change requires Admin approval.',
+          (r) => { doStatus(r).catch(e => toast('Could not update status: ' + e.message, 'err')); });
+      } else { toast('A reason is required to request this change', 'warn'); }
+      return;
+    }
     if (!data?.success) { toast(data?.error || 'Update failed', 'err'); return; }
     await loadClientsCache(S.cid);
     toast(`Client ${label}d`, 'ok');
     rClientDetail();
-  } catch (err) {
+  };
+  try { await doStatus(null); }
+  catch (err) {
     console.error('[setClientStatus]', err);
     toast('Could not update status: ' + err.message, 'err');
   }

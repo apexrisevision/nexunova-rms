@@ -355,9 +355,28 @@ async function _lcSave() {
 
 async function _lcDelete(id) {
   if (!confirm('Delete this legal case record?')) return;
-  await supabase.rpc('delete_legal_case', { p_id: id, p_company_id: S.cid });
-  await _lcLoad();
-  if (typeof toast === 'function') toast('Deleted', 'ok');
+  // Legal-case deletion is approval-gated server-side for non-admins.
+  const doDel = async (reason) => {
+    const { data, error } = await supabase.rpc('delete_legal_case', { p_id: id, p_company_id: S.cid, p_reason: reason || null });
+    if (error) throw error;
+    if (data && data.status === 'pending_approval') {
+      if (typeof toast === 'function') toast('Deletion submitted for Admin approval', 'ok');
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      return;
+    }
+    if (data && data.error === 'reason_required') {
+      if (typeof _apReason === 'function') {
+        _apReason('Delete Legal Case', 'Deleting a legal record requires Admin approval.',
+          (r) => { doDel(r).catch(e => { if (typeof toast === 'function') toast('Delete failed: ' + e.message, 'err'); }); });
+      } else if (typeof toast === 'function') { toast('A reason is required to request deletion', 'warn'); }
+      return;
+    }
+    if (data && data.success === false) throw new Error(data.error || 'Delete failed');
+    await _lcLoad();
+    if (typeof toast === 'function') toast('Deleted', 'ok');
+  };
+  try { await doDel(null); }
+  catch (e) { if (typeof toast === 'function') toast('Delete failed: ' + e.message, 'err'); }
 }
 
 // ── Demand letter / legal notice generation (Module 2.1) ───────────────

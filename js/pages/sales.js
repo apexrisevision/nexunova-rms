@@ -13,6 +13,16 @@ let _salEditId        = null;
 let _salSchedule      = [];   // [{installment_number,installment_type,due_date,amount_due,notes}]
 let _salAgents        = [];
 let _salCurrentDetail = null; // holds last loaded sale detail for print
+
+// Sale-type dropdown options (user-defined master). Filtered to a project when known.
+function _salSaleTypeOptions(projectId, selectedId) {
+  const types = (window._saleTypesCache || [])
+    .filter(s => s.isActive !== false && (!projectId || s.projectId === projectId))
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  let o = '<option value="">— Select —</option>';
+  o += types.map(s => `<option value="${s.id}"${selectedId === s.id ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
+  return o;
+}
 let _salBreachData     = null; // {lastDueDate, deliveryDate, breachMonths} when breach detected
 let _salBreachApproval = null; // {approvedBy, approvalRef, approvedAt, reasonType, reasonDetail}
 
@@ -381,6 +391,11 @@ async function rNewSale() {
             <label class="fl">Agent Commission % <span style="opacity:.45;font-size:10px">(optional — on net amount)</span></label>
             <input id="sf-comm-pct" class="inp-light" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.5" oninput="_salCalcComm()">
             <div id="sf-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px"></div>
+          </div>
+          <div class="fr">
+            <label class="fl">Sale Type <span style="opacity:.4">(optional)</span></label>
+            <select id="sf-sale-type" class="inp-light">${_salSaleTypeOptions(null)}</select>
+            <div style="font-size:10px;color:var(--t4);margin-top:4px">Installment / Full Cash / Adjustment — manage in Types &amp; Floors</div>
           </div>
         </div>
       </div>
@@ -1390,6 +1405,7 @@ async function saveSale() {
 
     // Save extended fields via direct update
     const extPatch = {
+      sale_type_id:        document.getElementById('sf-sale-type')?.value || null,
       co_buyer_name:       document.getElementById('sf-cobuyer-name')?.value?.trim()   || null,
       co_buyer_cnic:       document.getElementById('sf-cobuyer-cnic')?.value?.trim()   || null,
       co_buyer_share_pct:  parseFloat(document.getElementById('sf-cobuyer-share')?.value) || null,
@@ -2550,35 +2566,48 @@ async function saveEditSale() {
     discount_notes:       document.getElementById('ef-disc-notes').value.trim()         || null,
   };
 
+  // edit_sale (price/discount/status) and edit_installment_schedule are approval-gated
+  // server-side for non-admins. Collect one reason up front; admins apply directly.
+  const _isAdminUser = !!(S && (S.role === 'owner' || S.role === 'admin'));
+  let _reason = null;
+  if (!_isAdminUser) {
+    _reason = await _salMakerCommentPrompt('Approval Required',
+      'Changes to price/discount or the installment schedule require Admin approval. Enter a reason.');
+    if (!_reason) return;   // cancelled
+  }
+
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
   const saleRes = await supabase.rpc('edit_sale', {
-    p_sale_id: _salEditId, p_company_id: S.cid, p_data: payload
+    p_sale_id: _salEditId, p_company_id: S.cid, p_data: payload, p_reason: _reason
   });
 
-  if (saleRes.error || !saleRes.data?.success) {
+  if (saleRes.error || saleRes.data?.success === false) {
     btn.disabled    = false;
     btn.textContent = 'Save Changes';
     err.textContent = saleRes.error?.message || saleRes.data?.error || 'Save failed';
     return;
   }
+  const _salePended = saleRes.data?.status === 'pending_approval';
 
   // Sync installments via single RPC call
   const instRes = await supabase.rpc('edit_installment_schedule', {
-    p_sale_id: _salEditId, p_company_id: S.cid, p_schedule: schedule
+    p_sale_id: _salEditId, p_company_id: S.cid, p_schedule: schedule, p_reason: _reason
   });
 
   btn.disabled    = false;
   btn.textContent = 'Save Changes';
 
-  if (instRes.error || !instRes.data?.success) {
+  if (instRes.error || instRes.data?.success === false) {
     const errs = instRes.data?.errors || [instRes.error?.message || 'unknown error'];
     err.textContent = 'Sale saved but some installments failed: ' + errs.join('; ');
     return;
   }
+  const _instPended = instRes.data?.status === 'pending_approval';
 
-  toast('Sale updated');
+  if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+  toast((_salePended || _instPended) ? 'Submitted for Admin approval' : 'Sale updated', 'ok');
   nav('salesdetail');
 }
 
@@ -3140,16 +3169,32 @@ async function saveInstEdit() {
 
   if (!saleIdFromInst) { err.textContent = 'Cannot resolve parent sale'; btn.disabled=false; btn.textContent='Save'; return; }
 
+  // Schedule changes are approval-gated server-side for non-admins.
+  const _isAdminUser = !!(S && (S.role === 'owner' || S.role === 'admin'));
+  let _reason = null;
+  if (!_isAdminUser) {
+    _reason = await _salMakerCommentPrompt('Approval Required',
+      'Editing an installment requires Admin approval. Enter a reason.');
+    if (!_reason) { btn.disabled=false; btn.textContent='Save'; return; }
+  }
+
   const res = await supabase.rpc('edit_installment_schedule', {
     p_sale_id: saleIdFromInst,
     p_company_id: S.cid,
-    p_schedule: [{ id: instId, ...payload }]
+    p_schedule: [{ id: instId, ...payload }],
+    p_reason: _reason
   });
 
   btn.disabled    = false;
   btn.textContent = 'Save';
 
-  if (res.error || !res.data?.success) { err.textContent = res.error?.message || (res.data?.errors?.[0]) || 'Save failed'; return; }
+  if (res.data?.status === 'pending_approval') {
+    cm('m-inst-edit');
+    toast('Installment change submitted for Admin approval', 'ok');
+    if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+    return;
+  }
+  if (res.error || res.data?.success === false) { err.textContent = res.error?.message || (res.data?.errors?.[0]) || 'Save failed'; return; }
   cm('m-inst-edit');
   toast('Installment updated');
   rSaleDetail();
