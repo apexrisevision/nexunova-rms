@@ -192,10 +192,22 @@
 }
 
 /* ── Tab content fade ─────────────────────────────────────────── */
-.fc-content { padding-top: 20px; }
+/* Default state is VISIBLE — animation enhances, never blocks.
+   Earlier value `animation-fill-mode: both` left opacity stuck at 0
+   (the `from` state) when the animation didn't fire — e.g. element
+   created while parent was display:none on first nav into the page,
+   or while a tab swap re-added the class mid-paint. Result: tabs +
+   shell rendered fine, content built into innerHTML (verified ~7600
+   chars), but invisible. Fix: opacity:1 as the natural default,
+   `forwards` fill so the `to` state sticks but the `from` state
+   never escapes the animation window. */
+.fc-content {
+  padding-top: 20px;
+  opacity: 1;
+}
 
 .fc-tab-fade {
-  animation: fcFade 120ms ease-out both;
+  animation: fcFade 120ms ease-out forwards;
 }
 @keyframes fcFade {
   from { opacity: 0; transform: translateY(4px); }
