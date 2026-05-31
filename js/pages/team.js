@@ -175,13 +175,132 @@ function _teamDrawer(userId) {
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${projects.map(p => `<span class="dx-status neutral">${esc(p)}</span>`).join('')}</div>`
       : `<div style="font-size:12.5px;color:var(--text-muted);padding:6px 0">No projects assigned.</div>`);
 
+  // Monthly target — placeholder filled async by _teamLoadTarget after the drawer mounts.
+  const targetSection = lbl("This Month's Target")
+    + `<div id="team-target-block"><div style="font-size:12.5px;color:var(--text-muted)">Loading target…</div></div>`;
+
   const footer = `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>`;
 
   DX.drawer({
     eyebrow: 'Recovery Officer',
     title: r.full_name || '—',
     subtitle: projects.length ? projects.join(', ') : 'No projects assigned',
-    body: portfolio + activity + quality + neglect + projBlock,
+    body: portfolio + targetSection + activity + quality + neglect + projBlock,
     footer
   });
+
+  // Fire-and-forget: fetch + render the target block into the now-mounted drawer.
+  _teamLoadTarget(String(r.user_id));
+}
+
+/* ── Monthly target (admin set/edit; everyone reads) ─────────────────────────── */
+// Reuses _teamMoney (PKR en-IN formatter), .dx-dstats/.dx-dstat, .btn variants,
+// toast(msg,kind), and the same admin check as rTeam (S.role owner/admin).
+let _teamTargetCache = {};
+
+function _teamIsAdmin() {
+  return !!(typeof S !== 'undefined' && S && (S.role === 'owner' || S.role === 'admin'));
+}
+
+function _teamPeriod() {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
+
+async function _teamLoadTarget(userId) {
+  const box = document.getElementById('team-target-block');
+  if (!box) return;
+  const { year, month } = _teamPeriod();
+  let target = null;
+  try {
+    const { data, error } = await supabase.rpc('get_officer_target', { p_data: { p_user_id: userId, year, month } });
+    if (error) throw error;
+    if (data && data.success) target = data.target || null;
+  } catch (e) {
+    // On read failure, fall through and render the no-target view (collected only).
+  }
+  _teamTargetRender(userId, target);
+}
+
+function _teamTargetRender(userId, target) {
+  const box = document.getElementById('team-target-block');
+  if (!box) return;
+  const r = (_teamRows || []).find(x => String(x.user_id) === String(userId));
+  if (!r) return;
+
+  const collected = Number(r.collected_this_month) || 0;
+  const tAmt      = target ? (Number(target.target_amount) || 0) : 0;
+  const notes     = (target && target.notes) ? String(target.notes) : '';
+  _teamTargetCache[String(userId)] = { amount: tAmt, notes };
+
+  let html;
+  if (tAmt > 0) {
+    const pct = Math.round((collected / tAmt) * 100);   // tAmt>0 guards divide-by-zero
+    html = `<div class="dx-dstats">
+        <div class="dx-dstat"><div class="dx-dstat-l">Target</div><div class="dx-dstat-v">${_teamMoney(tAmt)}</div></div>
+        <div class="dx-dstat"><div class="dx-dstat-l">Collected</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div>
+        <div class="dx-dstat"><div class="dx-dstat-l">Achieved</div><div class="dx-dstat-v">${pct}%</div></div>
+      </div>`
+      + (notes ? `<div style="font-size:12.5px;color:var(--text-muted);margin-top:8px">${esc(notes)}</div>` : '');
+  } else {
+    html = `<div style="font-size:12.5px;color:var(--text-muted);padding:2px 0 8px">No monthly target set</div>`
+      + `<div class="dx-dstats"><div class="dx-dstat"><div class="dx-dstat-l">Collected this month</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div></div>`;
+  }
+
+  if (_teamIsAdmin()) {
+    html += `<div style="margin-top:10px"><button class="btn btn-gh btn-sm" onclick="_teamTargetEdit('${esc(String(userId))}')">${tAmt > 0 ? 'Edit target' : 'Set target'}</button></div>`;
+  }
+  box.innerHTML = html;
+}
+
+function _teamTargetEdit(userId) {
+  if (!_teamIsAdmin()) return;
+  const box = document.getElementById('team-target-block');
+  if (!box) return;
+  const cur = _teamTargetCache[String(userId)] || { amount: 0, notes: '' };
+  box.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:340px">
+      <label style="font-size:11px;color:var(--text-muted);font-weight:600">Target amount (PKR)
+        <input id="team-tgt-amt" class="inp" type="number" min="0" step="1" inputmode="numeric" value="${cur.amount || ''}" style="width:100%;margin-top:4px">
+      </label>
+      <label style="font-size:11px;color:var(--text-muted);font-weight:600">Notes (optional)
+        <input id="team-tgt-notes" class="inp" type="text" maxlength="200" value="${esc(cur.notes || '')}" style="width:100%;margin-top:4px">
+      </label>
+      <div id="team-tgt-err" style="font-size:12px;color:#b91c1c;display:none"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p btn-sm" onclick="_teamTargetSave('${esc(String(userId))}')">Save</button>
+        <button class="btn btn-g btn-sm" onclick="_teamLoadTarget('${esc(String(userId))}')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+async function _teamTargetSave(userId) {
+  if (!_teamIsAdmin()) return;
+  const box     = document.getElementById('team-target-block');
+  const amtEl   = document.getElementById('team-tgt-amt');
+  const notesEl = document.getElementById('team-tgt-notes');
+  const errEl   = document.getElementById('team-tgt-err');
+  const saveBtn = box ? box.querySelector('.btn-p') : null;
+
+  const raw     = parseInt(amtEl && amtEl.value, 10);
+  const target_amount = isNaN(raw) ? 0 : Math.max(0, raw);   // plain rupees, integer
+  const notes   = ((notesEl && notesEl.value) || '').trim();
+  const { year, month } = _teamPeriod();
+
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+  try {
+    const { data, error } = await supabase.rpc('set_officer_target_v2', {
+      p_data: { p_user_id: userId, year, month, target_amount, notes }
+    });
+    if (error) throw error;
+    if (!data || !data.success) throw new Error((data && (data.message || data.error)) || 'Could not save target');
+    if (typeof toast === 'function') toast('Monthly target saved', 'ok');
+    await _teamLoadTarget(userId);   // re-fetch + re-render read-only block
+  } catch (e) {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+    if (errEl) { errEl.style.display = ''; errEl.textContent = e.message || 'Could not save target'; }
+    if (typeof toast === 'function') toast(e.message || 'Could not save target', 'err');
+  }
 }
