@@ -324,73 +324,77 @@ function buildSB(){
   let navGroups = [];
 
   if(isA){
-    // Admin / Owner — 8 groups (Phase 5 IA restructure v2, 2026-05-27).
-    // All 43 item properties (id/icon/badge) preserved verbatim — only group assignment and
-    // intra-group order changed. The old 'Communications' group is dissolved (paylinks → Payments,
-    // commscenter → Reports & Docs). The old 'Finance' group is split into 'Payments' (cash in/out
-    // operations) and 'Finance & Compliance' (commissions, agent txns, escalations, legal, banks).
-    // Finance-sleep filter below still keys on `label === 'Finance'` (works for non-admin roles
-    // whose nav still uses that label); admin/owner bypass via the `&& !isA` clause, so the new
-    // Payments + Finance & Compliance groups are always visible for admins.
+    // Admin / Owner — daily-vs-setup restructure (2026-05-31).
+    // 9 groups: 4 open at top (daily operations), 5 collapsed by default
+    // (records, legal, reports, finance extras, setup). All 43 page-ids
+    // preserved verbatim; only group assignment + order changed.
+    // defaultCollapsed honored on first load via renderer line 511-512;
+    // user toggles persist in localStorage['rms.sidebar.groups'] and
+    // override defaultCollapsed thereafter.
     navGroups = [
+      // ── OPEN — daily operations ──────────────────────────────────
       { label: 'Home', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
         { id:'contacts',  ic:'inbox',       lb:'Inbox',   bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Sales & Bookings', items: [
-        { id:'projects',       ic:'building-2', lb:'Projects' },
-        { id:'categories',     ic:'layers',     lb:'Types & Floors' },
-        { id:'units',          ic:'home',       lb:'All Units', bdg:totalU||null },
-        { id:'sales',          ic:'file-text',  lb:'Sales & Bookings' },
-        { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat',     lb:'Transferred Units' },
-        { id:'agents',         ic:'users',      lb:'Sales Agents' },
-      ]},
-      { label: 'Clients', items: [
-        { id:'clients',      ic:'user-check', lb:'Clients' },
-        { id:'healthcenter', ic:'heart',      lb:'Client Health' },
-        { id:'noc',          ic:'file-check', lb:'NOC Management' },
-        { id:'blacklist',    ic:'shield-off', lb:'Blacklist Register' },
-      ]},
       { label: 'Recovery', items: [
-        { id:'recovery-dashboard', ic:'target',         lb:'Recovery Dashboard' },
-        { id:'recovery',           ic:'list-checks',    lb:'Recovery Queue' },
-        { id:'promises',           ic:'handshake',      lb:'Promise Tracker' },
-        { id:'radar',              ic:'radar',          lb:'Recovery Radar' },
-        { id:'reminders',          ic:'bell',           lb:'Reminders' },
-        { id:'contacts',           ic:'phone',          lb:'Call Logs' },
-        { id:'campaigns',          ic:'megaphone',      lb:'Campaigns' },
-        { id:'forecasting',        ic:'trending-up',    lb:'Forecasting' },
-        { id:'fieldvisits',        ic:'map-pin',        lb:'Field Visits' },
+        { id:'recovery-dashboard', ic:'target',      lb:'Recovery Dashboard' },
+        { id:'recovery',           ic:'list-checks', lb:'Recovery Queue' },
+        { id:'promises',           ic:'handshake',   lb:'Promise Tracker' },
+        { id:'reminders',          ic:'bell',        lb:'Reminders' },
+        { id:'contacts',           ic:'phone',       lb:'Call Logs' },
+      ]},
+      { label: 'Clients & Units', items: [
+        { id:'clients', ic:'user-check', lb:'Clients' },
+        { id:'units',   ic:'home',       lb:'All Units', bdg:totalU||null },
+        { id:'sales',   ic:'file-text',  lb:'Sales & Bookings' },
+        { id:'agents',  ic:'users',      lb:'Sales Agents' },
       ]},
       { label: 'Payments', items: [
-        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers' },
-        { id:'pdc',         ic:'calendar-clock',    lb:'PDC Register' },
-        { id:'reports',     ic:'alert-circle',      lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
-        { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
-        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
-        { id:'paylinks',    ic:'link',              lb:'Payment Links' },
+        { id:'receipts', ic:'receipt',        lb:'Receipt Vouchers' },
+        { id:'pdc',      ic:'calendar-clock', lb:'PDC Register' },
+        { id:'reports',  ic:'alert-circle',   lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
+        { id:'ledgers',  ic:'book-open',      lb:'Ledgers' },
+        { id:'paylinks', ic:'link',           lb:'Payment Links' },
       ]},
-      { label: 'Finance & Compliance', items: [
-        { id:'commissions',       ic:'trending-up',    lb:'Commissions' },
-        { id:'agenttransactions', ic:'trending-up',    lb:'Agent Transactions' },
-        { id:'escalations',       ic:'alert-triangle', lb:'Escalations' },
-        { id:'legalcases',        ic:'scale',          lb:'Legal Cases' },
-        { id:'banks',             ic:'banknote',       lb:'Banks Master' },
+
+      // ── COLLAPSED by default — setup / less frequent ─────────────
+      { label: 'Records', defaultCollapsed: true, items: [
+        { id:'healthcenter',   ic:'heart',      lb:'Client Health' },
+        { id:'noc',            ic:'file-check', lb:'NOC Management' },
+        { id:'blacklist',      ic:'shield-off', lb:'Blacklist Register' },
+        { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units' },
+        { id:'transferunits',  ic:'repeat',     lb:'Transferred Units' },
       ]},
-      { label: 'Reports & Docs', items: [
+      { label: 'Legal & Escalations', defaultCollapsed: true, items: [
+        { id:'escalations', ic:'alert-triangle', lb:'Escalations' },
+        { id:'legalcases',  ic:'scale',          lb:'Legal Cases' },
+        { id:'approvals',   ic:'file-check',     lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
+      ]},
+      { label: 'Reports & Comms', defaultCollapsed: true, items: [
         { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
         { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
-        { id:'ledgers',     ic:'book-open',      lb:'Ledgers' },
         { id:'documents',   ic:'printer',        lb:'Documents' },
         { id:'commscenter', ic:'message-square', lb:'Comms Center' },
+        { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
+        { id:'campaigns',   ic:'megaphone',      lb:'Campaigns' },
+        { id:'radar',       ic:'radar',          lb:'Recovery Radar' },
       ]},
-      { label: 'System', items: [
-        { id:'users',     ic:'shield',      lb:'Users & Roles' },
-        { id:'admin',     ic:'settings',    lb:'Settings' },
-        { id:'backup',    ic:'database',    lb:'Backup' },
-        { id:'audit',     ic:'history',     lb:'Audit Trail' },
-        { id:'approvals', ic:'file-check',  lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
+      { label: 'Finance Extras', defaultCollapsed: true, items: [
+        { id:'commissions',       ic:'trending-up',       lb:'Commissions' },
+        { id:'agenttransactions', ic:'trending-up',       lb:'Agent Transactions' },
+        { id:'payables',          ic:'arrow-down-circle', lb:'Payables' },
+        { id:'receivables',       ic:'arrow-up-circle',   lb:'Additional Receivables' },
+        { id:'fieldvisits',       ic:'map-pin',           lb:'Field Visits' },
+      ]},
+      { label: 'Setup', defaultCollapsed: true, items: [
+        { id:'projects',   ic:'building-2', lb:'Projects' },
+        { id:'categories', ic:'layers',     lb:'Types & Floors' },
+        { id:'banks',      ic:'banknote',   lb:'Banks Master' },
+        { id:'users',      ic:'shield',     lb:'Users & Roles' },
+        { id:'admin',      ic:'settings',   lb:'Settings' },
+        { id:'backup',     ic:'database',   lb:'Backup' },
+        { id:'audit',      ic:'history',    lb:'Audit Trail' },
       ]},
     ];
   } else if(isR){
@@ -509,7 +513,7 @@ function buildSB(){
       g.items.forEach(function(x){ html += _mkNi(x, false, null); });
     } else {
       const gid     = g.label.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-      const isCol   = !!grpStates[gid];
+      const isCol   = (gid in grpStates) ? !!grpStates[gid] : !!g.defaultCollapsed;
       const chevron = '<svg class="nav-grp-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
       html += '<div class="nav-group'+(isCol?' collapsed':'')+'" data-gid="'+gid+'">';
       html += '<button class="nav-grp-hd" onclick="toggleNavGroup(\''+gid+'\')">'
