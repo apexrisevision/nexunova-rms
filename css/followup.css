@@ -313,29 +313,38 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid var(--border);
-  gap: 8px;
+  gap: 10px;
 }
 
 .fc-lane-title-wrap { display: flex; align-items: center; gap: 6px; }
 
+/* Lane title — prominent WITHOUT being bold.
+   Per Rashid: "BOLD AUR AJEEB B NA LAGAY. Q K BOLD KAFI DAFA HAM TRY
+   KAR CHUKAY AJEEB HEE LAGTA HAI, PROMINENT KARO HEADINGS KO WITHOUT
+   BOLDING IT."
+   Trick: size + natural case + full color + tracking, weight stays at 500.
+   Previous: 11px / 600 / UPPERCASE / muted — too small + shouty.
+   Now:      15px / 500 / natural case / primary text / tight tracking. */
 .fc-lane-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: -0.15px;
+  color: var(--text);
+  line-height: 1.2;
 }
 
 .fc-lane-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
   background: var(--bg-chip);
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: 10px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
 .fc-lane-link {
