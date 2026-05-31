@@ -112,6 +112,8 @@ async function loadUnitsCache(companyId) {
         soldBy:        sale?.agent_id ? (agentById[sale.agent_id] || '') : '',
         saleId:        sale?.id || null,
         clientId:      sale?.client_id || null,
+        saleTypeId:    sale?.sale_type_id || null,
+        saleTypeName:  sale?.sale_type_id ? ((window._saleTypesCache || []).find(t => t.id === sale.sale_type_id)?.name || '') : '',
         saleDate:      sale?.sale_date || null,
         bookingNo:     sale?.sale_number || '',
         lastPaymentDate: payInfo?.lastDate || null,
@@ -633,4 +635,48 @@ async function deleteUnitStatus(id) {
     if (error) { console.error('deleteUnitStatus:', error); return false; }
     return true;
   } catch (err) { console.error('deleteUnitStatus:', err); return false; }
+}
+
+// ─── SALE TYPES (user-defined deal types: Installment / Full Cash / Adjustment …) ───
+
+window._saleTypesCache = [];
+window._saleTypesCacheLoaded = false;
+
+async function loadSaleTypesCache(companyId) {
+  try {
+    if (!companyId) { window._saleTypesCache = []; window._saleTypesCacheLoaded = false; return false; }
+    const { data, error } = await supabase.rpc('list_sale_types', { p_company_id: companyId });
+    if (error) { console.error('[loadSaleTypesCache]', error); window._saleTypesCache = []; return false; }
+    window._saleTypesCache = (data || []).map(s => ({
+      id: s.id, companyId: s.company_id, projectId: s.project_id || null,
+      typeCode: s.type_code || '', typeName: s.type_name || '',
+      name: s.type_name || '',
+      color: s.color_hex || '#6b7280',
+      sortOrder: Number(s.sort_order || 0), isActive: s.is_active !== false
+    }));
+    window._saleTypesCacheLoaded = true;
+    console.log(`✅ Sale types cache loaded: ${window._saleTypesCache.length} types`);
+    return true;
+  } catch (err) { console.error('[loadSaleTypesCache]', err); window._saleTypesCache = []; return false; }
+}
+
+async function saveSaleType(data) {
+  try {
+    const { id, ...d } = data;
+    const cid = d.company_id || getCurrentCompanyId();
+    const { data: r, error } = await supabase.rpc('upsert_sale_type', {
+      p_company_id: cid, p_data: d, p_id: id || null
+    });
+    if (error) { console.error('saveSaleType:', error); return { _error: error }; }
+    return r && r.id ? { id: r.id, ...d } : r;
+  } catch (err) { console.error('saveSaleType:', err); return { _error: err }; }
+}
+
+async function deleteSaleType(id) {
+  try {
+    const cid = getCurrentCompanyId();
+    const { error } = await supabase.rpc('delete_sale_type', { p_id: id, p_company_id: cid });
+    if (error) { console.error('deleteSaleType:', error); return false; }
+    return true;
+  } catch (err) { console.error('deleteSaleType:', err); return false; }
 }

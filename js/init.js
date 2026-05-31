@@ -51,6 +51,7 @@ async function tryRestoreSession(){
       typeof loadFloorsCache==='function'?loadFloorsCache(sess.cid):Promise.resolve(),
       typeof loadTypesCache==='function'?loadTypesCache(sess.cid):Promise.resolve(),
       typeof loadStatusesCache==='function'?loadStatusesCache(sess.cid):Promise.resolve(),
+      typeof loadSaleTypesCache==='function'?loadSaleTypesCache(sess.cid):Promise.resolve(),
       typeof loadProjectsCache==='function'?loadProjectsCache(sess.cid):Promise.resolve(),
       typeof loadClientsCache==='function'?loadClientsCache(sess.cid):Promise.resolve(),
     ]);

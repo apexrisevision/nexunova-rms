@@ -308,6 +308,7 @@ async function _completeLogin(user, company) {
     typeof loadFloorsCache   === 'function' ? loadFloorsCache(company.id)   : Promise.resolve(),
     typeof loadTypesCache    === 'function' ? loadTypesCache(company.id)    : Promise.resolve(),
     typeof loadStatusesCache === 'function' ? loadStatusesCache(company.id) : Promise.resolve(),
+    typeof loadSaleTypesCache === 'function' ? loadSaleTypesCache(company.id) : Promise.resolve(),
     typeof loadProjectsCache === 'function' ? loadProjectsCache(company.id) : Promise.resolve(),
     typeof loadClientsCache  === 'function' ? loadClientsCache(company.id)  : Promise.resolve(),
   ]);

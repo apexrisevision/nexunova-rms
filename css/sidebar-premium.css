@@ -819,3 +819,189 @@
 #s-app > .main > .pw > .pg,
 #s-app > .main > .pw > .pg.on { margin: 0 !important; }
 #s-app > .main > .erp-footer   { margin: 0 !important; }
+
+/* ════════════════════════════════════════════════
+   NAV BUTTONS v4 — raised 3D chips + coloured icons
+   Everything here is prefixed #s-app so it beats
+   visual-overhaul.css (#s-app .ni …) which otherwise
+   forces icon colour to `inherit` and flattens the
+   hover/active surfaces. Dark primary; light below.
+════════════════════════════════════════════════ */
+
+/* ── Sub-item buttons (.ni) — raised, with depth ── */
+#s-app .sb .ni {
+  height:        36px !important;
+  border-radius: 9px !important;
+  background:    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.035)) !important;
+  border:        1px solid rgba(255,255,255,0.12) !important;
+  box-shadow:    0 2px 4px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.10) !important;
+  color:         var(--text-sidebar) !important;
+  -webkit-text-fill-color: var(--text-sidebar) !important;
+  font-size:     13px !important;
+  font-weight:   500 !important;
+  gap:           10px !important;
+  margin-bottom: 4px !important;
+  transition:    background 140ms ease, border-color 140ms ease,
+                 box-shadow 140ms ease, transform 140ms ease, color 120ms ease !important;
+}
+#s-app .sb .ni .ni-lb { -webkit-text-fill-color: var(--text-sidebar) !important; }
+
+/* Hover — lift + brighter surface */
+#s-app .sb .ni:hover {
+  background:   linear-gradient(180deg, rgba(255,255,255,0.17), rgba(255,255,255,0.07)) !important;
+  border-color: rgba(255,255,255,0.20) !important;
+  box-shadow:   0 6px 14px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.14) !important;
+  transform:    translateY(-1px) !important;
+  color:        var(--text) !important;
+}
+#s-app .sb .ni:hover .ni-lb { -webkit-text-fill-color: var(--text) !important; }
+#s-app .sb .ni:active { transform: translateY(0) !important; }
+
+/* Legacy per-item indent neutralised; chip indent comes from .nav-grp-body */
+#s-app .sb .ni.ni-sub { padding-left: 11px !important; }
+
+/* Active — raised BLUE pill */
+#s-app .sb .ni.on {
+  background:   linear-gradient(180deg, rgba(37,99,235,0.28), rgba(37,99,235,0.13)) !important;
+  border:       1px solid rgba(59,130,246,0.48) !important;
+  box-shadow:   0 3px 12px rgba(37,99,235,0.36), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+  color:        #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  font-weight:  600 !important;
+  padding-left: 11px !important;
+}
+#s-app .sb .ni.ni-sub.on { padding-left: 11px !important; }
+#s-app .sb .ni.on .ni-lb { -webkit-text-fill-color: #FFFFFF !important; }
+
+/* ── Group HEADER buttons — raised, parent level (a touch stronger) ── */
+#s-app .sb .nav-grp-hd {
+  height:        32px !important;
+  border-radius: 9px !important;
+  background:    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.055)) !important;
+  border:        1px solid rgba(255,255,255,0.15) !important;
+  box-shadow:    0 2px 5px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+  transition:    background 140ms ease, border-color 140ms ease,
+                 box-shadow 140ms ease, transform 140ms ease !important;
+}
+#s-app .sb .nav-grp-hd:hover {
+  background:   linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.09)) !important;
+  border-color: rgba(255,255,255,0.24) !important;
+  box-shadow:   0 6px 14px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.14) !important;
+  transform:    translateY(-1px) !important;
+}
+#s-app .sb .nav-grp-hd:active { transform: translateY(0) !important; }
+
+/* Active group → brighten its label + chevron */
+#s-app .sb .nav-group:has(.ni.on) > .nav-grp-hd .nav-grp-lbl,
+#s-app .sb .nav-group:has(.ni.on) > .nav-grp-hd .nav-grp-chev {
+  color:                   #60A5FA !important;
+  -webkit-text-fill-color: #60A5FA !important;
+}
+
+/* Sub-items indented under header + connector rail */
+#s-app .sb .nav-grp-body {
+  padding:  3px 0 5px 13px !important;
+  position: relative !important;
+}
+#s-app .sb .nav-grp-body::before {
+  content:'' !important; display:block !important; position:absolute !important;
+  left:4px !important; top:4px !important; bottom:8px !important; width:2px !important;
+  border-radius:2px !important; background:rgba(255,255,255,0.16) !important;
+  opacity:1 !important; pointer-events:none !important;
+}
+#s-app .sb .nav-group:has(.ni.on) .nav-grp-body::before { background:#3B82F6 !important; }
+
+/* Collapsed (icon-only): keep raised chips, no indent/rail */
+#s-app .sb.collapsed .ni { margin: 0 auto 4px !important; }
+#s-app .sb.collapsed .nav-grp-body { padding: 0 !important; }
+#s-app .sb.collapsed .nav-grp-body::before { display: none !important; }
+
+/* ── Light theme: raised dark-on-white ── */
+[data-theme="light"] #s-app .sb .ni {
+  background: linear-gradient(180deg, #FFFFFF, #EEF2F7) !important;
+  border: 1px solid rgba(15,23,42,0.14) !important;
+  box-shadow: 0 2px 4px rgba(15,23,42,0.10), inset 0 1px 0 #FFFFFF !important;
+  color: var(--text-sidebar) !important; -webkit-text-fill-color: var(--text-sidebar) !important;
+}
+[data-theme="light"] #s-app .sb .ni .ni-lb { -webkit-text-fill-color: var(--text-sidebar) !important; }
+[data-theme="light"] #s-app .sb .ni:hover {
+  background: linear-gradient(180deg, #FFFFFF, #E2E8F0) !important;
+  border-color: rgba(15,23,42,0.20) !important;
+  box-shadow: 0 6px 14px rgba(15,23,42,0.16), inset 0 1px 0 #FFFFFF !important;
+}
+[data-theme="light"] #s-app .sb .ni.on {
+  background: linear-gradient(180deg, rgba(37,99,235,0.16), rgba(37,99,235,0.07)) !important;
+  border: 1px solid rgba(37,99,235,0.42) !important;
+  box-shadow: 0 3px 12px rgba(37,99,235,0.22), inset 0 1px 0 #FFFFFF !important;
+  color: #1D4ED8 !important; -webkit-text-fill-color: #1D4ED8 !important;
+}
+[data-theme="light"] #s-app .sb .ni.on .ni-lb { -webkit-text-fill-color: #1D4ED8 !important; }
+[data-theme="light"] #s-app .sb .nav-grp-hd {
+  background: linear-gradient(180deg, #FFFFFF, #E8EDF3) !important;
+  border: 1px solid rgba(15,23,42,0.15) !important;
+  box-shadow: 0 2px 4px rgba(15,23,42,0.10), inset 0 1px 0 #FFFFFF !important;
+}
+[data-theme="light"] #s-app .sb .nav-grp-hd:hover {
+  background: linear-gradient(180deg, #FFFFFF, #D8E0EA) !important;
+  border-color: rgba(15,23,42,0.22) !important;
+  box-shadow: 0 6px 14px rgba(15,23,42,0.16), inset 0 1px 0 #FFFFFF !important;
+}
+[data-theme="light"] #s-app .sb .nav-grp-body::before { background: rgba(15,23,42,0.16) !important; }
+
+/* The glyph must follow its .ni-ic per-icon colour in BOTH themes.
+   -webkit-text-fill-color inherits down from .ni (= the text colour) and
+   Chromium paints the icon with it — pin it back to the icon's own colour.
+   NOTE: don't set `color` on .ni-ic here (the per-icon rules own it). */
+#s-app .sb .ni .ni-ic {
+  -webkit-text-fill-color: currentColor !important;
+}
+#s-app .sb .ni .ni-ic svg,
+#s-app .sb .ni .ni-ic svg * {
+  color:  inherit !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* ════════════════════════════════════════════════
+   PER-ICON ACCENT COLOURS — curated, harmonized
+   (Tailwind-500 family). #s-app prefix → beats
+   visual-overhaul's `#s-app .ni-ic { color: inherit }`.
+════════════════════════════════════════════════ */
+#s-app .ni[data-pg="dashboard"]         .ni-ic { color: #6366F1 !important; }
+#s-app .ni[data-pg="contacts"]          .ni-ic { color: #3B82F6 !important; }
+#s-app .ni[data-pg="recovery-dashboard"] .ni-ic { color: #FB7185 !important; }
+#s-app .ni[data-pg="recovery"]          .ni-ic { color: #10B981 !important; }
+#s-app .ni[data-pg="promises"]          .ni-ic { color: #F59E0B !important; }
+#s-app .ni[data-pg="reminders"]         .ni-ic { color: #F97316 !important; }
+#s-app .ni[data-pg="clients"]           .ni-ic { color: #3B82F6 !important; }
+#s-app .ni[data-pg="units"]             .ni-ic { color: #14B8A6 !important; }
+#s-app .ni[data-pg="sales"]             .ni-ic { color: #8B5CF6 !important; }
+#s-app .ni[data-pg="agents"]            .ni-ic { color: #06B6D4 !important; }
+#s-app .ni[data-pg="healthcenter"]      .ni-ic { color: #F43F5E !important; }
+#s-app .ni[data-pg="noc"]               .ni-ic { color: #22C55E !important; }
+#s-app .ni[data-pg="blacklist"]         .ni-ic { color: #EF4444 !important; }
+#s-app .ni[data-pg="cancelledunits"]    .ni-ic { color: #F59E0B !important; }
+#s-app .ni[data-pg="transferunits"]     .ni-ic { color: #818CF8 !important; }
+#s-app .ni[data-pg="receipts"]          .ni-ic { color: #10B981 !important; }
+#s-app .ni[data-pg="pdc"]               .ni-ic { color: #F59E0B !important; }
+#s-app .ni[data-pg="reports"]           .ni-ic { color: #3B82F6 !important; }
+#s-app .ni[data-pg="ledgers"]           .ni-ic { color: #0EA5E9 !important; }
+#s-app .ni[data-pg="paylinks"]          .ni-ic { color: #06B6D4 !important; }
+#s-app .ni[data-pg="commissions"]       .ni-ic { color: #22C55E !important; }
+#s-app .ni[data-pg="agenttransactions"] .ni-ic { color: #14B8A6 !important; }
+#s-app .ni[data-pg="payables"]          .ni-ic { color: #FB7185 !important; }
+#s-app .ni[data-pg="receivables"]       .ni-ic { color: #34D399 !important; }
+#s-app .ni[data-pg="projects"]          .ni-ic { color: #6366F1 !important; }
+#s-app .ni[data-pg="categories"]        .ni-ic { color: #8B5CF6 !important; }
+#s-app .ni[data-pg="banks"]             .ni-ic { color: #22C55E !important; }
+#s-app .ni[data-pg="users"]             .ni-ic { color: #3B82F6 !important; }
+#s-app .ni[data-pg="admin"]             .ni-ic { color: #94A3B8 !important; }
+#s-app .ni[data-pg="backup"]            .ni-ic { color: #06B6D4 !important; }
+#s-app .ni[data-pg="audit"]             .ni-ic { color: #F59E0B !important; }
+#s-app .ni[data-pg="executive"]         .ni-ic { color: #6366F1 !important; }
+#s-app .ni[data-pg="documents"]         .ni-ic { color: #94A3B8 !important; }
+#s-app .ni[data-pg="commscenter"]       .ni-ic { color: #14B8A6 !important; }
+#s-app .ni[data-pg="forecasting"]       .ni-ic { color: #8B5CF6 !important; }
+#s-app .ni[data-pg="campaigns"]         .ni-ic { color: #F97316 !important; }
+#s-app .ni[data-pg="radar"]             .ni-ic { color: #06B6D4 !important; }
+#s-app .ni[data-pg="escalations"]       .ni-ic { color: #EF4444 !important; }

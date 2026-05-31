@@ -61,9 +61,9 @@
 }
 .cat-mob-tab.on { color:var(--primary); border-bottom-color:var(--primary); }
 
-/* ─── 3-Column Grid ───────────────────────────────────────────────── */
+/* ─── Master Grid (Floors · Types · Statuses · Sale Types) ──────────── */
 .cat-grid {
-  display:grid; grid-template-columns:repeat(3,1fr);
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
   gap:16px; padding:20px 24px 32px; align-items:start;
 }
 

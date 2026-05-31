@@ -9,6 +9,8 @@ const RPT={
   project:       {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',lbl:'Project Summary',  sub:'Project financial overview',  sec:'🏗️ Project',   subs:[{id:'summary',lbl:'Summary'},{id:'units',lbl:'All Units'}]},
   unit:          {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',lbl:'Unit Inventory',    sub:'Unit status report',          sec:'🏗️ Project',   subs:[{id:'all',lbl:'All Units'},{id:'sold',lbl:'Sold'},{id:'available',lbl:'Available'},{id:'overdue',lbl:'Overdue'},{id:'adjustment',lbl:'Adjustment'},{id:'cashsale',lbl:'Cash Sale'}]},
   floor_type:    {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',lbl:'Floor / Type',      sub:'Breakdown by floor & type',   sec:'🏗️ Project',   subs:[{id:'floor',lbl:'By Floor'},{id:'type',lbl:'By Unit Type'}]},
+  unit_status:   {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',lbl:'Units by Status',   sub:'Status-wise unit count, value & recovery', sec:'🏗️ Project',   subs:[{id:'summary',lbl:'Summary'},{id:'detail',lbl:'Detailed List'}]},
+  sale_type:     {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',lbl:'Sales by Type',     sub:'Deal-type breakdown — Cash / Installment / Adjustment …', sec:'🧾 Sales',     subs:[{id:'summary',lbl:'Summary'},{id:'detail',lbl:'Detailed List'}]},
   // 🧾 Sales
   sales_register:{ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',lbl:'Sales Register',   sub:'All sales transactions',      sec:'🧾 Sales',      subs:[{id:'all',lbl:'All'},{id:'installment',lbl:'Installment'},{id:'cash',lbl:'Full Cash'}]},
   discount:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',lbl:'Discount Report',   sub:'Discounts given on sales',    sec:'🧾 Sales',      subs:[{id:'all',lbl:'All Discounts'}]},
@@ -55,7 +57,7 @@ const _RPT_SEC_ORDER=['💰 Recovery','🏗️ Project','🧾 Sales','👨‍�
 const _DEPTS=[
   {id:'recovery',  title:'Recovery & Collections',  desc:'Outstanding dues, aging buckets, collection performance, agent activity, promises and field visits', col:'#DC2626', reports:['outstanding','aging','monthly_trend','agent_recovery','promise_tracker','field_visits']},
   {id:'financial', title:'Financial & Accounts',     desc:'Receiving ledger, per-client running accounts and payables',                    col:'#4F46E5', reports:['recovery','statement','payables']},
-  {id:'operational',title:'Operational',             desc:'Sales register, post-dated cheques and cancellations',                          col:'#16A34A', reports:['sales_register','pdc','cancelled']},
+  {id:'operational',title:'Operational',             desc:'Sales register, unit status, sale-type breakdown, post-dated cheques and cancellations', col:'#16A34A', reports:['sales_register','unit_status','sale_type','pdc','cancelled']},
   {id:'ai',        title:'AI & Analytics',           desc:'AI-scored recovery prospects and collection forecasting',                       col:'#7C3AED', reports:['ai_radar','forecasting']},
 ];
 
@@ -71,6 +73,8 @@ const _RPT_TAGS={
   cancelled:      'cancelled cancellation refund terminated',
   project:        'project summary financial overview p&l',
   unit:           'unit inventory status available sold booked',
+  unit_status:    'units by status wise breakdown count value recovery available sold booked installment reserved hold possession mortgaged transfer dead cancelled inventory summary',
+  sale_type:      'sales by deal type cash installment adjustment full payment plan breakdown bookings register count value',
   floor_type:     'floor type breakdown area sqft configuration',
   possession:          'possession handover delivery checklist snagging',
   post_possession_dues:'post possession dues outstanding overdue installment after handover',
@@ -1342,6 +1346,118 @@ async function runRpt(){
         <td style="font-size:11px;color:var(--t3)">${esc(x.soldBy)||'—'}</td>
         <td style="font-size:11px;color:var(--t3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.remarks)}">${esc(x.remarks)||'—'}</td>
       </tr>`;}).join('')}</tbody></table></div></div>`;
+
+  // ── UNITS BY STATUS ──
+  } else if(_rt==='unit_status'){
+    const u=gunits();
+    const G={};
+    u.forEach(x=>{
+      const k=x.status||'—';
+      if(!G[k])G[k]={n:0,val:0,paid:0,pend:0,color:x.statusColor||'#6b7280',avail:!!x.isAvailable};
+      const g=G[k];g.n++;g.val+=Number(x.totalPrice||0);g.paid+=actualPaid(x);g.pend+=actualPending(x);
+    });
+    const rows=Object.entries(G).sort((a,b)=>b[1].n-a[1].n);
+    const tN=u.length;
+    const tVal=u.reduce((s,x)=>s+Number(x.totalPrice||0),0);
+    const tPd=u.reduce((s,x)=>s+actualPaid(x),0);
+    const tPn=u.reduce((s,x)=>s+actualPending(x),0);
+    const cashN=u.filter(x=>Number(x.totalPrice||0)>0&&actualPending(x)===0).length;     // fully paid (100% cash)
+    const instN=u.filter(x=>Number(x.totalPrice||0)>0&&actualPending(x)>0).length;        // dues still open
+    const _badge=(name,color)=>`<span style="display:inline-flex;align-items:center;gap:6px;font-weight:600"><span style="width:9px;height:9px;border-radius:3px;background:${color};flex-shrink:0"></span>${esc(name)}</span>`;
+
+    if(_rs==='detail'){
+      const su=[...u].sort((a,b)=>(a.status||'').localeCompare(b.status||'')||(a.unitNo||'').localeCompare(b.unitNo||''));
+      html=rptBanner([{v:tN,l:'units'},{v:fM(tVal),l:'value'},{v:fM(tPd),l:'collected',c:'var(--ok)'},{v:fM(tPn),l:'pending',c:'var(--err)'}])
+      +`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Status</th><th>Unit</th><th>Floor</th><th>Type</th><th>Client</th><th class="r">Total Price</th><th class="r">Paid</th><th class="r">Pending</th><th>Recovery</th></tr></thead>
+      <tbody>${su.map(x=>{const pd=actualPaid(x),rm=actualPending(x),p2=pct(pd,x.totalPrice);
+        return `<tr class="cr" onclick="openUD('${x.id}')">
+          <td>${_badge(x.status,x.statusColor||'#6b7280')}</td>
+          <td style="font-weight:700">${esc(x.unitNo)}</td>
+          <td style="font-size:11px">${esc(x.floorLabel||x.floor)}</td>
+          <td style="font-size:11px">${esc(x.type)}</td>
+          <td>${esc(x.customerName)||'<span style="color:var(--t3)">—</span>'}</td>
+          <td class="r mono">${x.totalPrice?fM(x.totalPrice):'—'}</td>
+          <td class="r mono c-g">${x.totalPrice?fM(pd):'—'}</td>
+          <td class="r mono" style="color:${rm>0?'var(--err)':'var(--ok)'}">${x.totalPrice?(rm===0?'Paid':fM(rm)):'—'}</td>
+          <td><div style="display:flex;align-items:center;gap:5px"><div style="width:40px;height:4px;background:#EEF0F5;border-radius:2px;overflow:hidden"><div style="height:100%;width:${p2}%;background:var(--ok);border-radius:2px"></div></div><span style="font-size:10px;color:var(--t3)">${p2}%</span></div></td>
+        </tr>`;}).join('')}</tbody></table></div></div>`;
+    } else {
+      html=rptBanner([{v:tN,l:'total units'},{v:fM(tVal),l:'portfolio value'},{v:fM(tPd),l:'collected',c:'var(--ok)'},{v:fM(tPn),l:'pending',c:'var(--err)'}])
+      +`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Status</th><th class="r">Units</th><th class="r">Share</th><th class="r">Total Value</th><th class="r">Collected</th><th class="r">Pending</th><th>Recovery</th></tr></thead>
+      <tbody>${rows.map(([name,g])=>{const p2=pct(g.paid,g.val);const share=tN?Math.round(g.n/tN*100):0;
+        return `<tr class="cr" onclick="setRS('detail')" title="Open detailed list">
+          <td>${_badge(name,g.color)}${g.avail?' <span style="font-size:9px;color:var(--ok);font-weight:700">·AVAIL</span>':''}</td>
+          <td class="r" style="font-weight:700">${g.n}</td>
+          <td class="r" style="font-size:11px;color:var(--t3)">${share}%</td>
+          <td class="r mono">${fM(g.val)}</td>
+          <td class="r mono c-g">${fM(g.paid)}</td>
+          <td class="r mono" style="color:${g.pend>0?'var(--err)':'var(--ok)'}">${fM(g.pend)}</td>
+          <td><div style="display:flex;align-items:center;gap:5px"><div style="width:50px;height:5px;background:#EEF0F5;border-radius:2px;overflow:hidden"><div style="height:100%;width:${p2}%;background:${g.color};border-radius:2px"></div></div><span style="font-size:10px;color:var(--t3)">${p2}%</span></div></td>
+        </tr>`;}).join('')}
+        <tr style="border-top:2px solid var(--bd);font-weight:700"><td>Total</td><td class="r">${tN}</td><td class="r">100%</td><td class="r mono">${fM(tVal)}</td><td class="r mono c-g">${fM(tPd)}</td><td class="r mono" style="color:var(--err)">${fM(tPn)}</td><td></td></tr>
+      </tbody></table></div></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;padding:10px 16px;margin-top:10px;background:var(--canvas);border-radius:var(--rm);font-size:12px;align-items:center">
+        <span style="color:var(--t3);font-size:11px;font-weight:700;letter-spacing:0.04em">FINANCIAL CUTS</span><span style="color:var(--t4)">·</span>
+        <span style="color:var(--text)"><b>${cashN}</b> fully paid (100% cash)</span><span style="color:var(--t4)">·</span>
+        <span style="color:var(--text)"><b>${instN}</b> with open dues (installment)</span>
+        <span style="color:var(--t4)">·</span><span style="color:var(--t3);font-size:11px">Cash / Adjustment are financial cuts, not statuses — adjust via Unit status master if needed.</span>
+      </div>`;
+    }
+
+  // ── SALES BY TYPE ──
+  } else if(_rt==='sale_type'){
+    const u=gunits().filter(x=>x.saleId);                       // only actual sales/bookings
+    const STM={}; (window._saleTypesCache||[]).forEach(t=>{STM[t.id]={name:t.name,color:t.color};});
+    const G={};
+    u.forEach(x=>{
+      const t=STM[x.saleTypeId]||{name:'Unspecified',color:'#94A3B8'};
+      const k=t.name;
+      if(!G[k])G[k]={n:0,val:0,paid:0,pend:0,color:t.color};
+      const g=G[k];g.n++;g.val+=Number(x.totalPrice||0);g.paid+=actualPaid(x);g.pend+=actualPending(x);
+    });
+    const rows=Object.entries(G).sort((a,b)=>b[1].n-a[1].n);
+    const tN=u.length;
+    const tVal=u.reduce((s,x)=>s+Number(x.totalPrice||0),0);
+    const tPd=u.reduce((s,x)=>s+actualPaid(x),0);
+    const tPn=u.reduce((s,x)=>s+actualPending(x),0);
+    const _b=(name,color)=>`<span style="display:inline-flex;align-items:center;gap:6px;font-weight:600"><span style="width:9px;height:9px;border-radius:3px;background:${color};flex-shrink:0"></span>${esc(name)}</span>`;
+
+    if(_rs==='detail'){
+      const su=[...u].sort((a,b)=>(STM[a.saleTypeId]?.name||'~').localeCompare(STM[b.saleTypeId]?.name||'~')||(a.unitNo||'').localeCompare(b.unitNo||''));
+      html=rptBanner([{v:tN,l:'sold units'},{v:fM(tVal),l:'value'},{v:fM(tPd),l:'collected',c:'var(--ok)'},{v:fM(tPn),l:'pending',c:'var(--err)'}])
+      +`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Sale Type</th><th>Unit</th><th>Client</th><th>Booking</th><th class="r">Total Price</th><th class="r">Paid</th><th class="r">Pending</th><th>Recovery</th></tr></thead>
+      <tbody>${su.map(x=>{const t=STM[x.saleTypeId]||{name:'Unspecified',color:'#94A3B8'};const pd=actualPaid(x),rm=actualPending(x),p2=pct(pd,x.totalPrice);
+        return `<tr class="cr" onclick="openUD('${x.id}')">
+          <td>${_b(t.name,t.color)}</td>
+          <td style="font-weight:700">${esc(x.unitNo)}</td>
+          <td>${esc(x.customerName)||'<span style="color:var(--t3)">—</span>'}</td>
+          <td style="font-size:11px;color:var(--t3)">${esc(x.bookingNo)||'—'}</td>
+          <td class="r mono">${x.totalPrice?fM(x.totalPrice):'—'}</td>
+          <td class="r mono c-g">${x.totalPrice?fM(pd):'—'}</td>
+          <td class="r mono" style="color:${rm>0?'var(--err)':'var(--ok)'}">${x.totalPrice?(rm===0?'Paid':fM(rm)):'—'}</td>
+          <td><div style="display:flex;align-items:center;gap:5px"><div style="width:40px;height:4px;background:#EEF0F5;border-radius:2px;overflow:hidden"><div style="height:100%;width:${p2}%;background:var(--ok);border-radius:2px"></div></div><span style="font-size:10px;color:var(--t3)">${p2}%</span></div></td>
+        </tr>`;}).join('')}</tbody></table></div></div>`;
+    } else {
+      html=rptBanner([{v:tN,l:'sold units'},{v:fM(tVal),l:'total value'},{v:fM(tPd),l:'collected',c:'var(--ok)'},{v:fM(tPn),l:'pending',c:'var(--err)'}])
+      +(rows.length?'':`<div style="padding:10px 16px;margin-bottom:10px;background:var(--canvas);border-radius:var(--rm);font-size:12px;color:var(--t3)">No sales yet, or sale types not assigned. Set a Sale Type on the sale form (and add types in Types &amp; Floors).</div>`)
+      +`<div class="card"><div class="tw"><table class="t">
+      <thead><tr><th>Sale Type</th><th class="r">Deals</th><th class="r">Share</th><th class="r">Total Value</th><th class="r">Collected</th><th class="r">Pending</th><th>Recovery</th></tr></thead>
+      <tbody>${rows.map(([name,g])=>{const p2=pct(g.paid,g.val);const share=tN?Math.round(g.n/tN*100):0;
+        return `<tr class="cr" onclick="setRS('detail')" title="Open detailed list">
+          <td>${_b(name,g.color)}</td>
+          <td class="r" style="font-weight:700">${g.n}</td>
+          <td class="r" style="font-size:11px;color:var(--t3)">${share}%</td>
+          <td class="r mono">${fM(g.val)}</td>
+          <td class="r mono c-g">${fM(g.paid)}</td>
+          <td class="r mono" style="color:${g.pend>0?'var(--err)':'var(--ok)'}">${fM(g.pend)}</td>
+          <td><div style="display:flex;align-items:center;gap:5px"><div style="width:50px;height:5px;background:#EEF0F5;border-radius:2px;overflow:hidden"><div style="height:100%;width:${p2}%;background:${g.color};border-radius:2px"></div></div><span style="font-size:10px;color:var(--t3)">${p2}%</span></div></td>
+        </tr>`;}).join('')}
+        ${rows.length?`<tr style="border-top:2px solid var(--bd);font-weight:700"><td>Total</td><td class="r">${tN}</td><td class="r">100%</td><td class="r mono">${fM(tVal)}</td><td class="r mono c-g">${fM(tPd)}</td><td class="r mono" style="color:var(--err)">${fM(tPn)}</td><td></td></tr>`:''}
+      </tbody></table></div></div>`;
+    }
 
   // ── CLIENTS ──
   } else if(_rt==='client'){

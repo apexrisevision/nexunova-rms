@@ -30,7 +30,7 @@
 <link rel="stylesheet" href="css/theme.css?v=20260526c">
 <link rel="stylesheet" href="css/dashboard-premium.css?v=20260529y">
 <link rel="stylesheet" href="css/recovery-dashboard.css?v=20260526a">
-<link rel="stylesheet" href="css/sidebar-premium.css?v=20260528h">
+<link rel="stylesheet" href="css/sidebar-premium.css?v=20260531e">
 <link rel="stylesheet" href="css/enterprise-polish.css?v=20260529a">
 <link rel="stylesheet" href="css/reports-hub.css?v=20260527a">
 <link rel="stylesheet" href="css/hierarchy.css?v=20260526c">
@@ -40,7 +40,7 @@
 <link rel="stylesheet" href="css/payment-links.css?v=20260527a">
 <link rel="stylesheet" href="css/projects.css?v=20260529b">
 <link rel="stylesheet" href="css/followup.css?v=20260531i">
-<link rel="stylesheet" href="css/categories.css?v=20260529c">
+<link rel="stylesheet" href="css/categories.css?v=20260531e">
 <link rel="stylesheet" href="css/inventory.css?v=20260529a">
 <link rel="stylesheet" href="css/inventory-drawer.css?v=20260527a">
 <link rel="stylesheet" href="css/inventory-aurora.css?v=20260516b">
@@ -1387,6 +1387,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div id="pg-executive"         class="pg"></div>
       <div id="pg-noc"               class="pg"></div>
       <div id="pg-fieldvisits"       class="pg"></div>
+      <div id="pg-team"              class="pg"></div>
     </div>
 
   </div>
@@ -3884,6 +3885,61 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
   </div>
 </div></div>
 
+<div id="m-stype-edit" class="mov" onclick="if(event.target===this)cm('m-stype-edit')"><div class="md" style="max-width:460px">
+  <div class="mh">
+    <div><h3 id="sty-mtl">Add Sale Type</h3><p>Deal type used when booking a sale</p></div>
+    <button class="mx" onclick="cm('m-stype-edit')">✕</button>
+  </div>
+  <div class="mb">
+    <input type="hidden" id="sty-id">
+    <input type="hidden" id="sty-sort" value="1">
+    <div class="cat-prev" id="sty-prev">
+      <div class="cat-prev-lbl">Preview</div>
+      <div class="cat-prev-row">
+        <span class="cat-dot" id="sty-prev-dot" style="width:10px;height:10px;background:#8B5CF6"></span>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:13px;font-weight:500;color:var(--t1)" id="sty-prev-name">—</span>
+          <span class="cat-lbl-pill" id="sty-prev-pill" style="background:rgba(139,92,246,.12);color:#8B5CF6">TYPE</span>
+        </div>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="fr">
+        <label class="cat-fl">Sale Type Name *</label>
+        <input id="sty-name" class="inp-light" placeholder="e.g. Full Cash" oninput="_styPrev()">
+      </div>
+      <div class="fr">
+        <label class="cat-fl">Short Label</label>
+        <input id="sty-code-lbl" class="inp-light" placeholder="CASH" maxlength="6" oninput="_styPrev()">
+      </div>
+    </div>
+    <div class="fr" style="margin-bottom:14px">
+      <label class="cat-fl">Color</label>
+      <div class="cat-swatches" id="sty-swatches"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <input type="color" id="sty-color" value="#8B5CF6" style="width:32px;height:28px;border:1px solid var(--line);border-radius:6px;cursor:pointer;padding:2px 4px;background:var(--surface)" onchange="_styColorFromPicker()">
+        <input id="sty-hex" class="inp-light" style="width:100px;font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="#8B5CF6" maxlength="7" oninput="_styColorFromHex()">
+        <span style="font-size:11px;color:var(--t4)">Hex</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--line)">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--t1)">Active</div>
+        <div style="font-size:11px;color:var(--t3)">Available to pick on the sale form</div>
+      </div>
+      <label class="cat-tog"><input type="checkbox" id="sty-active" checked><span class="cat-tog-sl"></span></label>
+    </div>
+  </div>
+  <div class="mf" style="background:var(--hover);justify-content:space-between">
+    <span class="mf-hint">⌘+Enter to save</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gh" onclick="cm('m-stype-edit')">Cancel</button>
+      <button class="btn btn-gh" id="sty-add-btn" onclick="saveSaleTypeForm(true)">Save &amp; add another</button>
+      <button class="btn btn-g" id="sty-save-btn" onclick="saveSaleTypeForm()">Save Sale Type</button>
+    </div>
+  </div>
+</div></div>
+
 <!-- ══ SMART PAYMENT LINKS MODALS ════════════════════════════════════ -->
 
 <!-- CREATE PAYMENT LINK -->
@@ -3957,7 +4013,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/notify.js"></script>
 
 <!-- 1.5. Database store functions -->
-<script src="js/store/db.js?v=20260530a"></script>
+<script src="js/store/db.js?v=20260531e"></script>
 
 <!-- 2. Data layer: SEED_UNITS, globals, DB read/write -->
 <script src="js/data.js"></script>
@@ -3969,11 +4025,11 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/helpers.js?v=20260531b"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260531e"></script>
+<script src="js/ui.js?v=20260531g"></script>
 <script src="js/topbar-aurora.js?v=20260529c"></script>
 
 <!-- 5. Auth: login/logout -->
-<script src="js/auth.js?v=20260531c"></script>
+<script src="js/auth.js?v=20260531e"></script>
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js?v=20260528b"></script>
@@ -3987,10 +4043,10 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/clients.js?v=20260531a"></script>
 <script src="js/pages/projects.js?v=20260529a"></script>
 <script src="js/pages/agents.js?v=20260529a"></script>
-<script src="js/pages/sales.js?v=20260531b"></script>
+<script src="js/pages/sales.js?v=20260531e"></script>
 <script src="js/pages/recovery.js?v=20260526c"></script>
-<script src="js/pages/payments.js?v=20260526c"></script>
-<script src="js/pages/receipts.js?v=20260517a"></script>
+<script src="js/pages/payments.js?v=20260531e"></script>
+<script src="js/pages/receipts.js?v=20260531e"></script>
 <script src="js/pages/pdc.js?v=20260525a"></script>
 <script src="js/pages/cancelled.js?v=20260531b"></script>
 <script src="js/pages/transferred.js?v=20260531b"></script>
@@ -4009,16 +4065,17 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/radar.js?v=20260531a"></script>
 <script src="js/pages/promises.js?v=20260526b"></script>
 <script src="js/pages/audit.js?v=20260528d"></script>
-<script src="js/pages/approvals.js?v=20260526a"></script>
+<script src="js/pages/approvals.js?v=20260531e"></script>
+<script src="js/pages/team.js?v=20260531e"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
-<script src="js/pages/reports.js?v=20260531a"></script>
+<script src="js/pages/reports.js?v=20260531e"></script>
 <script src="js/pages/print.js?v=20260526a"></script>
 <script src="js/pages/documents.js?v=20260517d"></script>
 <script src="js/pages/transfers.js?v=20260529a"></script>
 <script src="js/pages/cancellation.js?v=20260528c"></script>
 <script src="js/pages/backup.js?v=20260517b"></script>
 <script src="js/pages/admin.js?v=20260528a"></script>
-<script src="js/pages/categories.js?v=20260530a"></script>
+<script src="js/pages/categories.js?v=20260531e"></script>
 <script src="js/pages/users.js?v=20260528b"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>
 <script src="js/pages/super-admin.js?v=20260525a"></script>
@@ -4058,7 +4115,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/modals-log-call.js?v=20260531a"></script>
 
 <!-- 8. App init + toast + populateLoginStats -->
-<script src="js/init.js?v=20260529y"></script>
+<script src="js/init.js?v=20260531e"></script>
 
 <!-- 9. External: XLSX for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

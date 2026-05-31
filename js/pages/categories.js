@@ -22,6 +22,8 @@ function _catProjectList() {
 // gstatuses() helpers), so they always reflect the selected project _catProject.
 function _catTypes()    { return (window._typesCache    || []).filter(t => t.projectId === _catProject); }
 function _catStatuses() { return (window._statusesCache || []).filter(s => s.projectId === _catProject); }
+function _catSaleTypes(){ return (window._saleTypesCache || []).filter(s => s.projectId === _catProject); }
+function gsaletype(id) { return (window._saleTypesCache || []).find(s => s.id === id) || null; }
 function _catRequireProject() {
   if (_catProject) return true;
   if (typeof notify !== 'undefined') notify.warning('Select a project first');
@@ -210,6 +212,7 @@ function rCategories() {
     <div class="cat-mob-tab on" onclick="_catMobTab(this,'floors')">Floors</div>
     <div class="cat-mob-tab" onclick="_catMobTab(this,'types')">Types</div>
     <div class="cat-mob-tab" onclick="_catMobTab(this,'statuses')">Statuses</div>
+    <div class="cat-mob-tab" onclick="_catMobTab(this,'saletypes')">Sale Types</div>
   </div>
   <div class="cat-grid">
     <div class="cat-col vis" id="cat-col-floors"
@@ -224,6 +227,10 @@ function rCategories() {
          style="--col-acc:#16A34A;--col-icon-bg:rgba(22,163,74,.1);--col-acc-bd:rgba(22,163,74,.2);--col-acc-bg2:rgba(22,163,74,.18);--col-glow:rgba(22,163,74,.12)">
       <div class="cat-col-bar"></div><div id="cat-statuses"></div>
     </div>
+    <div class="cat-col vis" id="cat-col-saletypes"
+         style="--col-acc:#8B5CF6;--col-icon-bg:rgba(139,92,246,.1);--col-acc-bd:rgba(139,92,246,.2);--col-acc-bg2:rgba(139,92,246,.18);--col-glow:rgba(139,92,246,.12)">
+      <div class="cat-col-bar"></div><div id="cat-saletypes"></div>
+    </div>
   </div>
 </div>
 <div class="cat-aud" id="cat-aud-drawer">
@@ -235,7 +242,7 @@ function rCategories() {
 </div>`;
 
   document.addEventListener('click', _catDocClick, true);
-  rFloorsList(); rTypesList(); rStatusesList();
+  rFloorsList(); rTypesList(); rStatusesList(); rSaleTypesList();
 
   // If arriving from another page via setCatTab(), scroll + open add modal
   if (window._catPendingTab) {
@@ -248,6 +255,7 @@ function rCategories() {
         if (tab === 'floors')   { if (typeof openFloorModal  === 'function') openFloorModal(); }
         else if (tab === 'types')    { if (typeof openTypeModal   === 'function') openTypeModal(); }
         else if (tab === 'statuses') { if (typeof openStatusModal === 'function') openStatusModal(); }
+        else if (tab === 'saletypes') { if (typeof openSaleTypeModal === 'function') openSaleTypeModal(); }
       }, 300);
     });
   }
@@ -1551,3 +1559,195 @@ function _catKbdHandler(e) {
   document.removeEventListener('keydown', _catKbdHandler);
   document.addEventListener('keydown', _catKbdHandler);
 })();
+
+// ═══════════════════════════════════════════════════════════════════════
+// SALE TYPES — user-defined deal types (Installment / Full Cash / Adjustment…)
+// Leaner sibling of the Unit Statuses column; same .cat-* / .cx-* styling.
+// ═══════════════════════════════════════════════════════════════════════
+const _STY_ICON = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+
+function _styPill(val, label, cnt) {
+  const cur = _catFilter.saletypes || 'all';
+  return `<button class="cat-pill ${cur===val?'on':''}" onclick="_stySetFilter('${val}')">${label}<span class="cat-pill-cnt">${cnt}</span></button>`;
+}
+function _stySetFilter(val) { _catFilter.saletypes = val; rSaleTypesList(); }
+
+function rSaleTypesList() {
+  const body = document.getElementById('cat-saletypes');
+  if (!body) return;
+  if (_catFilter.saletypes === undefined) _catFilter.saletypes = 'all';
+  const q   = (_catSearch.saletypes || '').toLowerCase();
+  const all = _catSaleTypes().slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const fil = _catFilter.saletypes || 'all';
+  const items = all.filter(s => {
+    if (q && !s.name.toLowerCase().includes(q)) return false;
+    if (fil === 'active')   return s.isActive !== false;
+    if (fil === 'inactive') return s.isActive === false;
+    return true;
+  });
+  const actCnt = all.filter(s => s.isActive !== false).length;
+  const inaCnt = all.filter(s => s.isActive === false).length;
+  body.innerHTML = `
+<div class="cat-col-hd">
+  <div class="cat-col-hd-top">
+    <div class="cat-col-hd-left">
+      <div class="cat-col-icon">${_STY_ICON}</div>
+      <span class="cat-col-name">Sale Types</span>
+      <span class="cat-col-badge">${all.length}</span>
+    </div>
+    <div class="cat-col-hd-right">
+      <button class="cat-ico-btn acc" onclick="openSaleTypeModal()" title="Add sale type">${_I.plus}</button>
+    </div>
+  </div>
+  <div class="cat-sub-hd">
+    <div class="cat-seg-wrap">
+      ${_styPill('all','All',all.length)}
+      ${_styPill('active','Active',actCnt)}
+      ${_styPill('inactive','Inactive',inaCnt)}
+    </div>
+    <div class="cat-srch2">
+      ${_I.srch}
+      <input id="cat-sty-search" placeholder="Search…" value="${esc(q)}"
+             oninput="_catSearch.saletypes=this.value;rSaleTypesList()">
+    </div>
+  </div>
+</div>
+<div class="cat-list">
+  ${!items.length ? _catEmpty('saletypes', q, 'sale type', 'Sale Types') : items.map((s, i) => _catStyRow(s, i)).join('')}
+</div>
+<div class="cat-qa" onclick="openSaleTypeModal()">
+  ${_I.plus} &nbsp;Add new sale type…
+</div>`;
+}
+
+function _catStyRow(s, i) {
+  const active = s.isActive !== false;
+  const color  = s.color || '#8B5CF6';
+  const code   = s.typeCode || (s.name || '').slice(0, 4).toUpperCase();
+  return `
+<div class="cx-card ${active ? '' : 'cx-inactive'}" id="cat-row-sty-${s.id}" style="animation-delay:${i*30}ms;--cx-col:${color}">
+  <span class="cx-color-swatch" style="background:${color};box-shadow:0 0 0 3px ${color}30"></span>
+  <div class="cx-body">
+    <span class="cx-name">
+      ${esc(s.name)}
+      <span class="cx-code-tag" style="background:${color}18;color:${color};border-color:${color}30">${esc(code)}</span>
+    </span>
+    <span class="cx-meta">Sale / deal type</span>
+  </div>
+  <button class="cx-pill ${active ? 'cx-pill-on' : 'cx-pill-off'}"
+          onclick="event.stopPropagation();toggleSaleTypeActive('${s.id}',${!active})">${active ? 'Active' : 'Inactive'}</button>
+  <button class="cat-ico-btn" onclick="openSaleTypeModal('${s.id}')" title="Edit">${_I.edit || '✎'}</button>
+  <button class="cat-ico-btn del" onclick="deleteSaleTypeConfirm('${s.id}')" title="Delete">${_I.trash || '🗑'}</button>
+</div>`;
+}
+
+async function toggleSaleTypeActive(id, val) {
+  const r = await saveSaleType({ id, company_id: S.cid, is_active: val });
+  if (!r || r._error) { notify.error('Could not update sale type'); return; }
+  await loadSaleTypesCache(S.cid);
+  rSaleTypesList();
+}
+
+function openSaleTypeModal(id) {
+  const s = id ? gsaletype(id) : null;
+  document.getElementById('sty-mtl').textContent = s ? 'Edit Sale Type' : 'Add Sale Type';
+  document.getElementById('sty-id').value     = s?.id || '';
+  document.getElementById('sty-name').value   = s?.name || '';
+  document.getElementById('sty-code-lbl').value = s?.typeCode || '';
+  document.getElementById('sty-sort').value   = s ? (s.sortOrder || 1) : _catNextSort(_catSaleTypes());
+  document.getElementById('sty-active').checked = s ? s.isActive !== false : true;
+  document.getElementById('sty-add-btn').style.display = s ? 'none' : '';
+  const color = s?.color || '#8B5CF6';
+  document.getElementById('sty-color').value = color;
+  document.getElementById('sty-hex').value   = color;
+  _stySwatches(color);
+  _styPrev();
+  om('m-stype-edit');
+  setTimeout(() => document.getElementById('sty-name')?.focus(), 120);
+}
+
+function _stySwatches(selected) {
+  const c = document.getElementById('sty-swatches');
+  if (!c) return;
+  c.innerHTML = _CAT_COLORS.map(col => `
+    <div class="cat-sw ${col.toLowerCase() === (selected||'').toLowerCase() ? 'on' : ''}"
+         style="background:${col}" title="${col}" onclick="_styPickColor('${col}')"></div>`).join('');
+}
+function _styPickColor(color) {
+  document.getElementById('sty-color').value = color;
+  document.getElementById('sty-hex').value   = color;
+  _stySwatches(color); _styPrev();
+}
+function _styColorFromPicker() {
+  const color = document.getElementById('sty-color').value;
+  document.getElementById('sty-hex').value = color;
+  _stySwatches(color); _styPrev();
+}
+function _styColorFromHex() {
+  const raw = document.getElementById('sty-hex').value.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(raw)) return;
+  document.getElementById('sty-color').value = raw;
+  _stySwatches(raw); _styPrev();
+}
+function _styPrev() {
+  const name  = document.getElementById('sty-name')?.value || '';
+  const color = document.getElementById('sty-color')?.value || '#8B5CF6';
+  const code  = (document.getElementById('sty-code-lbl')?.value || (name ? name.slice(0, 4).toUpperCase() : 'TYPE'));
+  document.getElementById('sty-prev-name').textContent = name || '—';
+  document.getElementById('sty-prev-dot').style.background = color;
+  const pill = document.getElementById('sty-prev-pill');
+  pill.textContent = code || 'TYPE';
+  pill.style.background = color + '18';
+  pill.style.color = color;
+}
+
+async function saveSaleTypeForm(addAnother) {
+  const name = document.getElementById('sty-name').value.trim();
+  if (!name) { notify.warning('Sale type name is required'); return; }
+  if (!_catRequireProject()) return;
+  const id         = document.getElementById('sty-id').value.trim() || null;
+  const color      = document.getElementById('sty-color').value || '#8B5CF6';
+  const sortOrder  = parseInt(document.getElementById('sty-sort').value) || _catNextSort(_catSaleTypes());
+  const isActive   = document.getElementById('sty-active').checked;
+  const shortLabel = document.getElementById('sty-code-lbl')?.value.trim() || '';
+  const typeCode   = (shortLabel
+    ? shortLabel.toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+    : name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30)
+  ) || 'SALE_TYPE';
+
+  const btn = document.getElementById('sty-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const payload = { company_id: S.cid, type_name: name, type_code: typeCode, color_hex: color, sort_order: sortOrder, is_active: isActive };
+    if (id) payload.id = id;
+    else payload.project_id = _catProject;
+    const result = await _saveWithFallback(saveSaleType, payload);
+    if (!result || result._error) {
+      const e = result?._error;
+      notify.error('Sale type save failed', { detail: e?.message || e?.code || 'Check console (F12)' });
+      return;
+    }
+    await loadSaleTypesCache(S.cid);
+    _catLog(`${id ? 'Updated' : 'Added'} sale type "${name}"`);
+    notify.success(id ? 'Sale type updated' : 'Sale type added');
+    if (addAnother) { openSaleTypeModal(); }
+    else { cm('m-stype-edit'); rSaleTypesList(); }
+  } catch (e) {
+    notify.error('Could not save sale type', { detail: e.message });
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Sale Type'; }
+  }
+}
+
+async function deleteSaleTypeConfirm(id) {
+  const s = gsaletype(id);
+  if (!s) return;
+  _catDelModal({
+    type: 'saletypes', id,
+    name: s.name,
+    usage: 0,
+    afterDelete: async () => { await loadSaleTypesCache(S.cid); rSaleTypesList(); },
+    deleteFn: () => deleteSaleType(id),
+    logMsg: `Deleted sale type "${s.name}"`,
+  });
+}
