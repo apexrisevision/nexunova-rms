@@ -1174,7 +1174,7 @@ async function _rDashRecovery(targetId = 'pg-dashboard') {
   </div>
 
   <div class="db-sec">At a Glance</div>
-  <div class="db-kpis">
+  <div class="db-kpis db-kpis-5">
 
     <div class="db-kpi" onclick="nav('reports')">
       <div class="db-kpi-hd">

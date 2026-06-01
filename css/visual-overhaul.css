@@ -1595,6 +1595,9 @@ button.btn-g, button.btn-d,
   gap:                   16px !important;
 }
 
+/* Officer "At a Glance" carries 5 KPIs (adds My Monthly Target) — 5 across so the 5th doesn't orphan */
+.db-kpis.db-kpis-5 { grid-template-columns: repeat(5, 1fr) !important; }
+
 /* Row 2: 60 / 40 */
 .db-row2 {
   display:               grid !important;
@@ -1660,11 +1663,14 @@ button.btn-g, button.btn-d,
 @media (max-width: 1024px) {
   .db-row2, .db-row3 { grid-template-columns: 1fr !important; }
 }
+@media (max-width: 1180px) {
+  .db-kpis.db-kpis-5 { grid-template-columns: repeat(3, 1fr) !important; }
+}
 @media (max-width: 900px) {
-  .db-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+  .db-kpis, .db-kpis.db-kpis-5 { grid-template-columns: repeat(2, 1fr) !important; }
 }
 @media (max-width: 540px) {
-  .db-kpis { grid-template-columns: 1fr !important; }
+  .db-kpis, .db-kpis.db-kpis-5 { grid-template-columns: 1fr !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
