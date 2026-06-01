@@ -126,7 +126,7 @@ function rClients() {
     </div>
     <div class="rb-hero-actions">
       <button class="dx-tool" onclick="printClientsList()">${_UI.printer}<span>Print</span></button>
-      ${(isA || isR) ? `<button id="um-add-client-btn" class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''}
+      ${isA ? `<button id="um-add-client-btn" class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''}
     </div>
   </div>
 
@@ -302,7 +302,7 @@ function rCLF() {
       icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>',
       title:'No clients found',
       sub: anyFilter ? 'Try adjusting your search or filters.' : 'Add your first client to get started.',
-      cta: ((isA || isR) && !anyFilter) ? `<button class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''
+      cta: (isA && !anyFilter) ? `<button class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''
     }) + `</div>`;
     if (pg) pg.innerHTML = '';
     return;

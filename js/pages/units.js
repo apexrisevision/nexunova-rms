@@ -137,7 +137,7 @@ function rUnits() {
     <div style="display:flex;align-items:center;gap:8px">
       <button class="dx-tool" onclick="printInventoryList()">${_UI.printer}<span>Print</span></button>
       ${isA?`<button class="dx-tool" onclick="openBulkImportModal()">${_UI.upload}<span>Import</span></button>`:''}
-      ${(isA||isR)?`<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>`:''}
+      ${isA?`<button id="um-add-unit-btn" class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>`:''}
     </div>
   </div>
 
@@ -326,7 +326,7 @@ function rULF() {
       icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 22V12h6v10"/><path d="M3 9l9-7 9 7"/>',
       title:'No units found',
       sub: anyFilter ? 'Try adjusting your filters or search.' : 'Add your first unit to populate inventory.',
-      cta: ((isA || isR) && !anyFilter) ? `<button class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''
+      cta: (isA && !anyFilter) ? `<button class="dx-tool primary" onclick="nav('addunit')">${_UI.plus}<span>Add Unit</span></button>` : ''
     }) + `</div>`;
     if (pg) pg.innerHTML = '';
     _renderBulkBar();

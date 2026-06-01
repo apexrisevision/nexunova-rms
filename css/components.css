@@ -4,6 +4,10 @@
    overdue list, payments table, mobile grids
 ════════════════════════════════════════════════ */
 
+/* Global fallback so .dx-tool.primary resolves even outside a .dx ancestor
+   (same value as the .dx-scoped token below). */
+:root { --dx-accent: #2563EB; }
+
 /* ── Buttons ── */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
