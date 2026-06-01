@@ -318,7 +318,7 @@ async function _completeLogin(user, company) {
 
   document.getElementById('sb-av').textContent = ini(user.name);
   document.getElementById('sb-un').textContent = user.name;
-  const roleLabels = { admin:'Admin / CFO', owner:'Owner / Admin', recovery:'Recovery Staff', accounts:'Accounts Staff' };
+  const roleLabels = { admin:'Admin / CFO', owner:'Owner / Admin', recovery:'Recovery Staff', accounts:'Accounts Staff', manager:'Manager' };
   document.getElementById('sb-ur').textContent = roleLabels[user.role] || 'Staff';
 
   document.getElementById('s-login').classList.remove('on');

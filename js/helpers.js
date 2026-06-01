@@ -172,12 +172,12 @@ function hasPermission(perm){
 
   const role = S.role === 'user' ? 'recovery' : S.role;
 
-  if(role === 'manager' || role === 'staff'){
-    // Fully permissions-driven — no hardcoded fallback
+  if(role === 'staff'){
+    // Staff: fully permissions-driven — no hardcoded fallback (admin grants modules explicitly).
     return hasExplicit ? !!(userPerms[moduleKey]) : false;
   }
 
-  // For recovery / accounts: explicit per-user permissions win when set,
+  // For recovery / accounts / manager: explicit per-user permissions win when set,
   // otherwise fall back to hardcoded role defaults (backward compatibility).
   if(hasExplicit && moduleKey in userPerms){
     return !!(userPerms[moduleKey]);
@@ -185,7 +185,12 @@ function hasPermission(perm){
 
   const defaults = {
     recovery:['dashboard','units','clients','recovery','contacts','reports','sales'],
-    accounts:['dashboard','recovery','reports','clients','agents']
+    accounts:['dashboard','recovery','reports','clients','agents'],
+    // Manager = broad READ-ONLY across the app. These grant page/module READ access only;
+    // write/edit/delete stay blocked by the `role-readonly` body class + server-side authz
+    // (manager write-block batches). Mirrors recovery/accounts so a manager works
+    // out-of-the-box even with empty module_permissions {}.
+    manager:['dashboard','projects','units','clients','recovery','contacts','reports','documents','agents','sales','search']
   };
   return(defaults[role]||[]).includes(moduleKey);
 }
