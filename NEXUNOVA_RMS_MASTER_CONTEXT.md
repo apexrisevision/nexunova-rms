@@ -44,7 +44,7 @@ The isolation work is **complete**. A non-admin user without UPA for a project c
 > **Single source of truth.** Every future chat/agent session must read this file first before doing any work on Nexunova RMS. If a decision here conflicts with older notes, **this file wins**. Update this file whenever a decision changes.
 >
 > **Last updated:** 2026-06-01
-> **Companion files:** `DATABASE_AUDIT.md` (live DB inventory), `PROPOSED_SCHEMA.md` (Phase-1 schema design), `supabase/migrations/20260526_phase1_new_tables.sql` (**APPLIED 2026-05-26**).
+> **Companion files:** `DATABASE_AUDIT.md` (live DB inventory), `PROPOSED_SCHEMA.md` (Phase-1 schema design), `supabase/migrations/20260526_phase1_new_tables.sql` (**APPLIED 2026-05-26**), `supabase/migrations/20260601_origination_admin_only.sql`.
 
 ## Table of contents
 1. Project overview
@@ -465,9 +465,18 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - ✅ **Monthly recovery target — admin set + officer self-view COMPLETE (2026-06-01)** — two commits (`4088b09` admin side, `1529d77` officer side). **Admin** sets an optional monthly target per officer inside the Team Performance detail drawer (Target / Collected / % achieved); **officer** sees a read-only "My Monthly Target" card on their Recovery Overview dashboard. **Keying note (important):** the target system is keyed on **`app_users.id`**, not `recovery_agents.id` — officers have no `recovery_agents` row, so new RPCs `set_officer_target_v2` / `get_officer_target` store the officer's `app_users.id` in the `recovery_officer_targets.recovery_agent_id` column (the FK to `recovery_agents` was dropped in migration `supabase/migrations/20260601_officer_target_by_appuser.sql`). Target = `recovery_officer_targets.target_amount`; "collected this month" comes live from `get_dashboard_kpis().this_month_collection` (self-scoped to the officer's assigned projects) and `get_team_performance_lite` — **`achieved_amount` is NOT auto-updated, do not read it as live**. `get_officer_target` self-scopes for non-admins (officer reads own only); `set_officer_target_v2` is admin-only. Gap C (refund/DND maker entry point) deferred — no demand.
 
+- ✅ **Security hardening — multi-batch (prior sessions, pre-2026-06-01):**
+  - **Write-isolation guards W1–W5** across all create RPCs.
+  - **Tenant-isolation fix T1–T6** applied to ~108 RPCs.
+  - **Anon-key EXECUTE revoked** from ~94 RPCs (27-RPC allow-list retained — report viewers + login flow that legitimately run anon).
+  - **SQL injection fixed** in `list_payments_filtered`.
+  - **Platform super-admin bypass fixed**; self-service tenant-gate gaps closed.
+
 - ✅ **Role authorization hardening — separation of duties + isolation + manager read-only COMPLETE (2026-06-01)** — multiple commits. **(1) Origination admin-only** (`44ce282`): create_client / create_unit / bulk_create_units / create_sale_with_schedule now reject non-admins (`forbidden`) — recovery officers can no longer originate accounts (separation of duties). **(2) Doer-RPC project isolation** (`97d3825` batch 1, `d16e8ca` batch 2): all 6 collections write-RPCs (create_contact_log, create_follow_up_reminder, create_payment_promise, log_payment_promise, create_reminder_log, log_field_visit, create_escalation) now resolve project (from sale/unit/client) and require an active `user_project_assignment` for non-admins — a Site-A officer cannot write to Site-B accounts. **(3) Manager read-only now DB-enforced** (`805f91d` 7 doer-RPCs + `5d14e57` 7 write-RPCs: record_payment, cancel_payment, edit_sale, edit_payment_meta, edit_installment_schedule, update_client, delete_legal_case): managers get `forbidden` even with a UPA — previously read-only was client-side CSS only. **(4) Unit cancel/transfer authz** (`d956c1c`, "Bucket C"): dropped the dead, ungated, authenticated-callable v1 `execute_unit_transfer`; revoked EXECUTE on the two `_core` executors from `authenticated` (closed a wrapper-bypass that contradicted the earlier "REVOKED" note); added caller + tenant + manager-block + UPA gate to `execute_unit_cancellation` and `execute_unit_transfer_v2`. Gate pattern throughout: super_admin/owner/admin bypass → manager forbidden → non-admin requires active UPA. **⚠️ OPEN (next session, separate audit):** ~65 other mutating RPCs (many `delete_*` / `update_*` / `mark_*` / `create_payment_link` / `create_blacklist_entry`) were flagged with `has_admin_check=false` — they may lack any role/tenant gate and need a dedicated authorization pass; this affects all non-admins, not just managers.
 
 - 📋 **Open work queue (as of 2026-06-01, next sessions):** (1) **🔴 Authz audit of ~65 ungated mutating RPCs** — many `delete_*` / `update_*` / `mark_*` / `create_payment_link` / `create_blacklist_entry` flagged `has_admin_check=false`; may lack any role/tenant gate (affects all non-admins, not just managers). Plan: read-only triage table (per RPC: caller-resolve? admin? tenant? frontend caller) → categorize each (admin-only / officer-UPA / finance-only / already-safe) → fix in small batches of 5–8 with verify+commit each (NOT one mega-migration). 2–3 sessions, fresh focus. (2) **🟡 Finance + Manager role real-data test** — no finance user exists yet and manager has no UPA, so finance-sleep + manager-readonly never tested on real data; need a finance test-user (mind the 3 `create_app_user` latent bugs: username `role@CODE` format, `email_verified=false`, email NOT NULL — all need manual DB fix) + grant manager a UPA to confirm write-block holds. Launch-relevant. (3) **🟢 Smoke-tests:** reminder with name/phone only (no unit/sale → non-admin blocked, by design — confirm); officer live-app save of Log-a-Call/promise/field-visit on assigned site. (4) **🔵 UI (deprioritized):** officer dashboard orphan 5th "My Monthly Target" card — `.db-kpis` hard 4-col grid breaks with 5 cards. **Suggested order:** #2 (small, launch-relevant, validates existing gates on real users) → #1 (the big audit, batch-by-batch) → #3/#4 as light breaks. **Principle (per past lesson):** stay conservative about completeness — do NOT declare "all safe" until every one of the ~65 is empirically verified.
+
+**Immediate next action:** Ungated-RPC authz triage — Step 1 (read-only inventory) in progress.
 
 **All 5 phases complete as of 2026-05-28. App is production-ready.**
 
@@ -489,10 +498,11 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ~~Setup wizard (6 steps, no-skip, draft-save).~~ ✅ **done.**
 - ~~Role-based access (Admin / Recovery Officer / Finance-sleep / Manager) + `user_project_assignments` enforcement.~~ ✅ **done.**
 
-### Phase 2 — Core modules ✅ **100% COMPLETE (2026-05-26)**
+### Phase 2 — Core modules — Sales / Payments / Recovery ✅; **security cross-cut ONGOING**
 - ~~**Sales** (with installment schedule)~~ ✅ **COMPLETE (2026-05-26)** — sale form + schedule, PK lakh/crore localization, Crystal-style report branding, Excel export, print templates, + the 4 management-report RPCs.
 - ~~**Payments**~~ ✅ **COMPLETE (2026-05-26)** — audited & hardened: 3 RLS-blocked `.from()` reads swapped to RPCs, PDC status standardized to `presented` + routed through dedicated RPCs, `edit_payment_meta` bank_id fix, + 2 new per-sale list RPCs.
 - ~~**Recovery Queue** redesign~~ ✅ **COMPLETE (2026-05-26)** — audited & fixed: multi-site isolation enforced server-side in `get_units_cache_bundle`/`get_contact_logs_cache` (+ client-side `hasProjectAccess` layer), `recovery-documents` storage bucket created, `project_id` tagging in the 3 recovery create RPCs, manager read-only coverage, toast fix.
+- **Security cross-cut (W1–W5 / T1–T6 / anon-revoke / origination-lock)** — ongoing; **ungated-RPC authz triage CURRENT**.
 
 ### ~~Phase 3 — Governance~~ ✅ **COMPLETE (2026-05-26)**
 - ~~Approval workflow (single-approver, mandatory comments), Audit trail, Restriction levels (hard/soft/warning).~~ All three components landed (audit-trigger coverage + backdate; approve-engine + admin queue UI; restriction rules + soft-block gates + hard-block client delete + discount RPC).
