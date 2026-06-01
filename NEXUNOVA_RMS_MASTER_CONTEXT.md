@@ -483,9 +483,11 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
   - Left by design: 3 platform RPCs already `_rms_require_super_admin`-gated; submit_buyer_complaint portal-session-token guarded.
   - ⚠️ Reusable: `_rms_caller()` returns an EMPTY row on no session (does NOT raise) → every guard MUST check `v_me.id IS NULL` first. Canonical recovery role in live DB is `recovery` (not `recovery_officer`).
 
+- ✅ **Recovery Queue audit COMPLETE (2026-06-01)** — read-only audit, module CLEAN, 0 issues. recovery.js is a pure view over window._unitsCache (get_units_cache_bundle, UPA-scoped + client hasProjectAccess); recovery-dashboard.js calls 3 read RPCs (get_dashboard_kpis, get_all_promises, get_latest_radar) + get_contact_logs_cache — all exist, 0 direct .from(), 0 shape mismatch, 0 mutations (no authz-gate trip). Unlike Payments, no RLS/.from() or missing-RPC issues.
+
 - 📋 **Open work queue (as of 2026-06-01, next sessions):** (1) **✅ Authz audit of ungated mutating RPCs — DONE 2026-06-01, 93 RPCs across 6 batches — see "Ungated-RPC authz triage COMPLETE" bullet.** (2) **⏸️ Finance + Manager role real-data test — DEFERRED to launch** — Finance-sleep logic verified in code + proven on recovery-officer path; finance/accounts user real-data confirmation deferred to launch (blocked only by browser-side create_app_user submission, not server — RPC/role/slot all confirmed healthy; revisit with DevTools when adding the real finance user). Manager-readonly real-data check (grant manager a UPA → confirm write-block) pending the same launch pass. (Note: the earlier "3 create_app_user latent bugs" were found STALE — current RPC sets email_verified=true + bare-role username; canonical finance role value is `accounts`, not `finance`.) (3) **✅ Smoke-tests COMPLETE (2026-06-01)** — (a) name/phone-only reminder correctly blocks non-admins (emergent via UPA guard: no unit/sale → null project → project_not_assigned; admins exempt by design). (b) recovery officer CAN log contact/promise/field-visit on assigned site (FMH) post-gating — batch-2 doer-isolation does not over-block legit officer work. Both verified via rollback-safe impersonated RPC probes. Latent note (non-authz): create_contact_log's jsonb_populate_record nulls unspecified keys → NOT-NULL-with-default cols must be caller-supplied (frontend does; fix if ever called elsewhere). (4) **✅ UI DONE (2026-06-01, commit `523886c`):** officer dashboard orphan 5th "My Monthly Target" card fixed — `.db-kpis-5` modifier, 5→3→2→1 responsive grid. **Suggested order:** #2 (small, launch-relevant, validates existing gates on real users) → #1 (the big audit, batch-by-batch) → #3/#4 as light breaks. **Principle (per past lesson):** stay conservative about completeness — do NOT declare "all safe" until every one of the ~65 is empirically verified.
 
-**Immediate next action:** All §11 open-work-queue items cleared. Only launch-gated item remaining: finance/manager role real-data UI confirmation (server-side verified; revisit with DevTools when adding the real finance user).
+**Immediate next action:** Phase 2 closed. Phase 3 (Governance — approval workflow / audit trail / restriction levels) is next when ready.
 
 **All 5 phases complete as of 2026-05-28. App is production-ready.**
 
@@ -507,10 +509,10 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 - ~~Setup wizard (6 steps, no-skip, draft-save).~~ ✅ **done.**
 - ~~Role-based access (Admin / Recovery Officer / Finance-sleep / Manager) + `user_project_assignments` enforcement.~~ ✅ **done.**
 
-### Phase 2 — Core modules — Sales / Payments / Recovery ✅; **security cross-cut ONGOING**
+### Phase 2 — Core modules — Sales / Payments / Recovery ✅ **COMPLETE**
 - ~~**Sales** (with installment schedule)~~ ✅ **COMPLETE (2026-05-26)** — sale form + schedule, PK lakh/crore localization, Crystal-style report branding, Excel export, print templates, + the 4 management-report RPCs.
 - ~~**Payments**~~ ✅ **COMPLETE (2026-05-26)** — audited & hardened: 3 RLS-blocked `.from()` reads swapped to RPCs, PDC status standardized to `presented` + routed through dedicated RPCs, `edit_payment_meta` bank_id fix, + 2 new per-sale list RPCs.
-- ~~**Recovery Queue** redesign~~ ✅ **COMPLETE (2026-05-26)** — audited & fixed: multi-site isolation enforced server-side in `get_units_cache_bundle`/`get_contact_logs_cache` (+ client-side `hasProjectAccess` layer), `recovery-documents` storage bucket created, `project_id` tagging in the 3 recovery create RPCs, manager read-only coverage, toast fix.
+- ~~**Recovery Queue** redesign~~ ✅ **COMPLETE (audited clean 2026-06-01)** — audited & fixed: multi-site isolation enforced server-side in `get_units_cache_bundle`/`get_contact_logs_cache` (+ client-side `hasProjectAccess` layer), `recovery-documents` storage bucket created, `project_id` tagging in the 3 recovery create RPCs, manager read-only coverage, toast fix.
 - **Security cross-cut (W1–W5 / T1–T6 / anon-revoke / origination-lock)** — ongoing; **ungated-RPC authz triage ✅ COMPLETE (2026-06-01, see §11)**.
 
 ### ~~Phase 3 — Governance~~ ✅ **COMPLETE (2026-05-26)**
