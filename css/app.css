@@ -936,6 +936,25 @@ body:has(#s-signup.on) #qab-wrap { display: none; }
 
 #qab-wrap { pointer-events: none; }
 #qab-btn, .qab-menu { pointer-events: auto; }
+
+/* ── Auth-screen "Don't have an account? Sign up free" visibility (2026-06-02) ──
+   .lx-signup-row text computed to rgba(255,255,255,0.4) on the near-black auth
+   shell — too faint to read (and on stale/cached login.css it can fall back to
+   the dark theme text colour → black-on-black). Force a clearly-readable colour,
+   scoped + !important so it beats login.css and enterprise-polish's
+   `.scr { color: var(--x-text) !important }`. Does NOT touch login.html /
+   login.css / ob-*. */
+#s-login .lx-signup-row,
+#s-signup .lx-signup-row {
+  color: rgba(255,255,255,0.75) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.75) !important;
+}
+#s-login .lx-signup-row .lx-signup-link,
+#s-signup .lx-signup-row .lx-signup-link {
+  color: rgba(0,217,255,0.95) !important;
+  -webkit-text-fill-color: rgba(0,217,255,0.95) !important;
+}
+
 @media (max-width: 768px) {
   #qab-wrap { bottom: 96px; right: 16px; }
 }
