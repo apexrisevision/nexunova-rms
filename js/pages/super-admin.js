@@ -26,17 +26,13 @@ const SA = (() => {
     panel.classList.add('on');
 
     panel.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:20px">
-        <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;background:linear-gradient(135deg,#6366F1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-          Nexunova Super Admin
-        </div>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:28px 32px;display:flex;flex-direction:column;gap:14px;width:340px">
-          <div style="font-size:13px;color:rgba(255,255,255,0.5);text-align:center">Enter super admin password to continue</div>
-          <input id="sa-pw-inp" type="password" placeholder="Password" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;color:white;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none">
-          <button onclick="SA._verifyPassword()" style="padding:10px;background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.35);border-radius:8px;color:#818CF8;font-size:13px;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">
-            Access Panel
-          </button>
-          <div id="sa-pw-err" style="display:none;color:#ef4444;font-size:12px;text-align:center"></div>
+      <div class="sa-gate">
+        <div class="sa-gate-card">
+          <div class="sa-gate-brand">Nexunova<span class="sa-gate-dot">.</span><span class="sa-gate-sub">Super Admin</span></div>
+          <div class="sa-gate-hint">Enter the super-admin password to continue.</div>
+          <input id="sa-pw-inp" class="sa-input" type="password" placeholder="Password" autocomplete="current-password">
+          <button class="sa-btn-primary" onclick="SA._verifyPassword()">Access Panel</button>
+          <div id="sa-pw-err" class="sa-gate-err"></div>
         </div>
       </div>`;
 
@@ -172,7 +168,7 @@ const SA = (() => {
           <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px">${_esc(r.company_code || '')}</div>
         </td>
         <td>
-          <div style="font-family:'Space Mono',monospace;font-size:11px;color:#818CF8">${_esc(r.invoice_number || '—')}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:#93b8fb">${_esc(r.invoice_number || '—')}</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${r.invoice_currency || 'PKR'} ${_fmtN(r.invoice_amount)}</div>
         </td>
         <td>
@@ -185,7 +181,7 @@ const SA = (() => {
         <td><span class="sa-status ${r.proof_status || 'pending'}">${(r.proof_status || 'pending').replace('_', ' ')}</span></td>
         <td style="font-size:11px;color:rgba(255,255,255,0.4)">${_date(r.submitted_at)}</td>
         <td>
-          <button onclick="SA.toggleProof('${r.proof_id}')" style="padding:4px 10px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.28);border-radius:6px;color:#818CF8;font-size:11px;font-weight:600;cursor:pointer">
+          <button onclick="SA.toggleProof('${r.proof_id}')" style="padding:4px 10px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.28);border-radius:6px;color:#93b8fb;font-size:11px;font-weight:600;cursor:pointer">
             View
           </button>
         </td>
@@ -352,7 +348,7 @@ const SA = (() => {
           <td>
             <div style="font-weight:600;color:rgba(255,255,255,0.85)">${_esc(r.company_name || '—')}</div>
           </td>
-          <td style="font-family:'Space Mono',monospace;font-size:11px;color:#818CF8">${_esc(r.invoice_number || '—')}</td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:#93b8fb">${_esc(r.invoice_number || '—')}</td>
           <td>${_esc(r.payment_method_name || '—')}</td>
           <td style="font-family:'Space Mono',monospace;font-size:11px">${_esc(r.reference_number || '—')}</td>
           <td>${r.currency || 'PKR'} ${_fmtN(r.amount_paid)}</td>
@@ -403,7 +399,7 @@ const SA = (() => {
           <td style="font-size:11px;color:rgba(255,255,255,0.4)">${_date(c.sub_expires_at)}</td>
           <td style="font-size:12px;color:rgba(255,255,255,0.5)">${c.user_count ?? 0}</td>
           <td style="font-size:12px;color:rgba(255,255,255,0.5)">${c.unit_count ?? 0}</td>
-          <td><button onclick="SA._loadCompanyDetail('${c.id}','${_esc(c.company_name||'')}')" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:6px;color:#818cf8;padding:4px 10px;font-size:11px;cursor:pointer">View</button></td>
+          <td><button onclick="SA._loadCompanyDetail('${c.id}','${_esc(c.company_name||'')}')" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#93b8fb;padding:4px 10px;font-size:11px;cursor:pointer">View</button></td>
         </tr>`).join('');
 
       ct.innerHTML = `
@@ -450,7 +446,7 @@ const SA = (() => {
           <div class="sa-partner-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
               <div>
-                <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:white;font-size:14px">${_esc(p.name || '—')}</div>
+                <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:white;font-size:14px">${_esc(p.name || '—')}</div>
                 <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${_esc(p.country_code || '')} · ${_esc(p.phone || '')}</div>
               </div>
               <span class="sa-status ${p.is_active ? 'active' : 'rejected'}">${p.is_active ? 'Active' : 'Inactive'}</span>
@@ -494,7 +490,7 @@ const SA = (() => {
       const planRows = byPlan.map(p => `<tr>
         <td style="padding:8px 12px;font-weight:600;color:rgba(255,255,255,0.85)">${_esc(p.plan)}</td>
         <td style="padding:8px 12px;text-align:center">${p.count}</td>
-        <td style="padding:8px 12px;text-align:right;font-family:'Space Mono',monospace;color:#a78bfa">PKR ${fmtM(p.mrr)}</td>
+        <td style="padding:8px 12px;text-align:right;font-family:'Space Mono',monospace;color:#93b8fb">PKR ${fmtM(p.mrr)}</td>
       </tr>`).join('') || '<tr><td colspan="3" style="padding:12px;text-align:center;color:rgba(255,255,255,0.25)">No active subscriptions</td></tr>';
 
       const monthlyNew = Array.isArray(d.monthly_new) ? d.monthly_new : [];
@@ -502,9 +498,9 @@ const SA = (() => {
       const bars = monthlyNew.map(m => {
         const pct = Math.round((m.count / maxCount) * 100);
         return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7)">${m.count}</div>
-          <div style="width:100%;background:rgba(99,102,241,0.15);border-radius:4px;height:60px;display:flex;align-items:flex-end">
-            <div style="width:100%;height:${pct}%;background:linear-gradient(180deg,#818cf8,#6366f1);border-radius:4px;min-height:4px"></div>
+          <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7)">${m.count}</div>
+          <div style="width:100%;background:rgba(59,130,246,0.15);border-radius:4px;height:60px;display:flex;align-items:flex-end">
+            <div style="width:100%;height:${pct}%;background:linear-gradient(180deg,#93b8fb,#3b82f6);border-radius:4px;min-height:4px"></div>
           </div>
           <div style="font-size:9px;color:rgba(255,255,255,0.35)">${_esc(m.month)}</div>
         </div>`;
@@ -582,15 +578,15 @@ const SA = (() => {
   }
 
   function _renderAnnouncements(ct) {
-    const typeBg = { info:'rgba(99,102,241,0.2)', warning:'rgba(251,146,60,0.2)', success:'rgba(34,197,94,0.2)', error:'rgba(239,68,68,0.2)' };
-    const typeClr= { info:'#818cf8', warning:'#fb923c', success:'#4ade80', error:'#f87171' };
+    const typeBg = { info:'rgba(59,130,246,0.2)', warning:'rgba(251,146,60,0.2)', success:'rgba(34,197,94,0.2)', error:'rgba(239,68,68,0.2)' };
+    const typeClr= { info:'#93b8fb', warning:'#fb923c', success:'#4ade80', error:'#f87171' };
     const rows   = _annList.map(a => `<tr>
       <td style="padding:10px 12px">
         <div style="font-weight:600;color:rgba(255,255,255,0.85)">${_esc(a.title)}</div>
         ${a.body ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${_esc(a.body)}</div>` : ''}
       </td>
       <td style="padding:10px 12px">
-        <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:${typeBg[a.type]||typeBg.info};color:${typeClr[a.type]||typeClr.info};text-transform:uppercase">${_esc(a.type)}</span>
+        <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:${typeBg[a.type]||typeBg.info};color:${typeClr[a.type]||typeClr.info};text-transform:uppercase">${_esc(a.type)}</span>
       </td>
       <td style="padding:10px 12px">
         <span class="sa-status ${a.is_active?'active':'rejected'}">${a.is_active?'Active':'Inactive'}</span>
@@ -607,7 +603,7 @@ const SA = (() => {
       <div class="sa-card">
         <div class="sa-card-hd">
           <div class="sa-card-title">Platform Announcements</div>
-          <button onclick="SA._annOpenForm()" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:8px;color:#818cf8;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">+ New</button>
+          <button onclick="SA._annOpenForm()" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.35);border-radius:8px;color:#93b8fb;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">+ New</button>
         </div>
         <div class="sa-card-bd">
           ${_annList.length === 0
@@ -617,8 +613,8 @@ const SA = (() => {
       </div>
       <!-- Announcement form overlay -->
       <div id="sa-ann-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:none;align-items:center;justify-content:center">
-        <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;width:480px;max-width:95vw">
-          <div style="font-weight:800;font-size:16px;color:white;margin-bottom:20px">New Announcement</div>
+        <div style="background:#14171d;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;width:480px;max-width:95vw">
+          <div style="font-weight:600;font-size:16px;color:white;margin-bottom:20px">New Announcement</div>
           <div style="display:flex;flex-direction:column;gap:12px">
             <input id="ann-title" placeholder="Title *" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;color:white;font-size:13px;outline:none;width:100%;box-sizing:border-box">
             <textarea id="ann-body" placeholder="Message (optional)" rows="3" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;color:white;font-size:13px;outline:none;resize:none;width:100%;box-sizing:border-box"></textarea>
@@ -640,7 +636,7 @@ const SA = (() => {
             <div id="ann-err" style="color:#f87171;font-size:12px;display:none"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
               <button onclick="SA._annCloseForm()" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:9px 18px;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer">Cancel</button>
-              <button onclick="SA._annSave()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:9px 18px;color:#818cf8;font-size:13px;font-weight:700;cursor:pointer">Publish</button>
+              <button onclick="SA._annSave()" style="background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);border-radius:8px;padding:9px 18px;color:#93b8fb;font-size:13px;font-weight:600;cursor:pointer">Publish</button>
             </div>
           </div>
         </div>
@@ -732,10 +728,10 @@ const SA = (() => {
 
   function _renderTickets(ct) {
     const priClr = { urgent:'#f87171', high:'#fb923c', normal:'rgba(255,255,255,0.6)', low:'rgba(255,255,255,0.3)' };
-    const stClr  = { open:'#818cf8', in_progress:'#fb923c', resolved:'#4ade80', closed:'rgba(255,255,255,0.3)' };
+    const stClr  = { open:'#93b8fb', in_progress:'#fb923c', resolved:'#4ade80', closed:'rgba(255,255,255,0.3)' };
 
     const filterBtns = ['open','in_progress','resolved','all'].map(f =>
-      `<button onclick="SA._ticketSetFilter('${f}')" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${_ticketFilter===f?'rgba(99,102,241,0.5)':'rgba(255,255,255,0.1)'};background:${_ticketFilter===f?'rgba(99,102,241,0.15)':'none'};color:${_ticketFilter===f?'#818cf8':'rgba(255,255,255,0.5)'}">${f.replace('_',' ').toUpperCase()}</button>`
+      `<button onclick="SA._ticketSetFilter('${f}')" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ${_ticketFilter===f?'rgba(59,130,246,0.5)':'rgba(255,255,255,0.1)'};background:${_ticketFilter===f?'rgba(59,130,246,0.15)':'none'};color:${_ticketFilter===f?'#93b8fb':'rgba(255,255,255,0.5)'}">${f.replace('_',' ').toUpperCase()}</button>`
     ).join('');
 
     const rows = _ticketList.map(t => `<tr>
@@ -743,9 +739,9 @@ const SA = (() => {
         <div style="font-weight:600;color:rgba(255,255,255,0.85)">${_esc(t.subject)}</div>
         <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">${_esc(t.company_name||'Unknown')} · ${_esc(t.category||'general')}</div>
       </td>
-      <td style="padding:10px 12px;font-size:11px;color:${priClr[t.priority]||priClr.normal};font-weight:700;text-transform:uppercase">${t.priority}</td>
+      <td style="padding:10px 12px;font-size:11px;color:${priClr[t.priority]||priClr.normal};font-weight:600;text-transform:uppercase">${t.priority}</td>
       <td style="padding:10px 12px">
-        <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(99,102,241,0.1);color:${stClr[t.status]||stClr.open}">${(t.status||'open').replace('_',' ')}</span>
+        <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(59,130,246,0.1);color:${stClr[t.status]||stClr.open}">${(t.status||'open').replace('_',' ')}</span>
       </td>
       <td style="padding:10px 12px;font-size:11px;color:rgba(255,255,255,0.4)">${_date(t.created_at)}</td>
       <td style="padding:10px 12px;white-space:nowrap">
@@ -800,9 +796,9 @@ const SA = (() => {
       ov.onclick = e => { if (e.target === ov) ov.remove(); };
       document.body.appendChild(ov);
     }
-    ov.innerHTML = `<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;width:640px;max-width:95vw;margin:auto">
+    ov.innerHTML = `<div style="background:#14171d;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;width:640px;max-width:95vw;margin:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <div style="font-weight:800;font-size:16px;color:white">${_esc(companyName)}</div>
+        <div style="font-weight:600;font-size:16px;color:white">${_esc(companyName)}</div>
         <button onclick="document.getElementById('sa-co-overlay').remove()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:20px;cursor:pointer">×</button>
       </div>
       <div style="color:rgba(255,255,255,0.4);font-size:12px;padding:20px;text-align:center">Loading…</div>
@@ -844,16 +840,16 @@ const SA = (() => {
         const enabled = flagMap[fk.key] !== false;
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
           <div style="font-size:12px;color:rgba(255,255,255,0.7)">${_esc(fk.label)}</div>
-          <button onclick="SA._toggleFlag('${companyId}','${fk.key}',${!enabled},'${_esc(companyName)}')" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${enabled?'rgba(34,197,94,0.35)':'rgba(239,68,68,0.3)'};background:${enabled?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.08)'};color:${enabled?'#4ade80':'#f87171'}">${enabled?'Enabled':'Disabled'}</button>
+          <button onclick="SA._toggleFlag('${companyId}','${fk.key}',${!enabled},'${_esc(companyName)}')" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ${enabled?'rgba(34,197,94,0.35)':'rgba(239,68,68,0.3)'};background:${enabled?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.08)'};color:${enabled?'#4ade80':'#f87171'}">${enabled?'Enabled':'Disabled'}</button>
         </div>`;
       }).join('');
 
       const isSuspended = !!co.suspended_at;
 
-      ov.innerHTML = `<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;width:640px;max-width:95vw;margin:auto">
+      ov.innerHTML = `<div style="background:#14171d;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;width:640px;max-width:95vw;margin:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
           <div>
-            <div style="font-weight:800;font-size:16px;color:white">${_esc(co.company_name||companyName)}</div>
+            <div style="font-weight:600;font-size:16px;color:white">${_esc(co.company_name||companyName)}</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px">${_esc(co.company_code||'')} · ${_esc(co.business_email||co.city||'')}</div>
           </div>
           <button onclick="document.getElementById('sa-co-overlay').remove()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:22px;cursor:pointer;line-height:1">×</button>
@@ -863,14 +859,14 @@ const SA = (() => {
           ${[['Users',stats.users],['Projects',stats.projects],['Units',stats.units],['Clients',stats.clients],
              ['Agents',stats.agents],['Sales',stats.sales],['Pays (30d)',stats.payments_30d],['Vol (30d)','PKR '+fmtM(stats.payments_amt_30d)]].map(([l,v])=>`
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px;text-align:center">
-              <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.85)">${v??0}</div>
+              <div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.85)">${v??0}</div>
               <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-top:2px">${l}</div>
             </div>`).join('')}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
           <div>
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);margin-bottom:8px;font-weight:700">Subscription</div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);margin-bottom:8px;font-weight:600">Subscription</div>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.8">
               Plan: <strong style="color:white">${_esc(plan.plan_name||sub.legacy_plan_name||sub.tier||'Unknown')}</strong><br>
               Status: <span style="color:${sub.status==='active'?'#4ade80':sub.status==='trialing'?'#fb923c':'#f87171'}">${_esc(sub.status||'—')}</span><br>
@@ -879,7 +875,7 @@ const SA = (() => {
             </div>
           </div>
           <div>
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);margin-bottom:8px;font-weight:700">Company</div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);margin-bottom:8px;font-weight:600">Company</div>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.8">
               Status: <span style="color:${co.status==='active'?'#4ade80':co.status==='suspended'?'#f87171':'rgba(255,255,255,0.5)'}">${_esc(co.status||'—')}</span><br>
               Joined: ${_date(co.created_at)}<br>
@@ -890,19 +886,19 @@ const SA = (() => {
         </div>
 
         <div style="margin-bottom:20px">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);margin-bottom:8px;font-weight:700">Feature Flags</div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);margin-bottom:8px;font-weight:600">Feature Flags</div>
           <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:8px 12px">${flagRows}</div>
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
           ${isSuspended
-            ? `<button onclick="SA._suspendCo('${companyId}',false,'${_esc(companyName)}')" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:8px 18px;color:#4ade80;font-size:12px;font-weight:700;cursor:pointer">Unsuspend</button>`
-            : `<button onclick="SA._suspendCo('${companyId}',true,'${_esc(companyName)}')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:8px 18px;color:#f87171;font-size:12px;font-weight:700;cursor:pointer">Suspend</button>`}
+            ? `<button onclick="SA._suspendCo('${companyId}',false,'${_esc(companyName)}')" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:8px 18px;color:#4ade80;font-size:12px;font-weight:600;cursor:pointer">Unsuspend</button>`
+            : `<button onclick="SA._suspendCo('${companyId}',true,'${_esc(companyName)}')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:8px 18px;color:#f87171;font-size:12px;font-weight:600;cursor:pointer">Suspend</button>`}
           <button onclick="document.getElementById('sa-co-overlay').remove()" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 18px;color:rgba(255,255,255,0.5);font-size:12px;cursor:pointer">Close</button>
         </div>
       </div>`;
     } catch(e) {
-      ov.innerHTML = `<div style="background:#1a1a2e;border-radius:16px;padding:40px;color:#f87171;text-align:center">${_esc(e.message)}</div>`;
+      ov.innerHTML = `<div style="background:#14171d;border-radius:16px;padding:40px;color:#f87171;text-align:center">${_esc(e.message)}</div>`;
     }
   }
 
