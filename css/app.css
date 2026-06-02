@@ -923,6 +923,19 @@ body.role-readonly::before {
   align-items: flex-end;
   gap: 0;
 }
+
+/* ── Dead-link overlay fix (2026-06-02) ──
+   The FAB wrapper's invisible bounding box (it includes the collapsed menu's
+   reserved height) was sitting over the login "Sign up free" link and swallowing
+   its click. (1) The FAB is app-only — hide it on the login/signup screens.
+   (2) Make the wrapper click-through so its empty area never blocks anything;
+   #qab-btn stays clickable, and the menu keeps its existing closed=none /
+   open=auto behavior (.qab-menu rules below). */
+body:has(#s-login.on) #qab-wrap,
+body:has(#s-signup.on) #qab-wrap { display: none; }
+
+#qab-wrap { pointer-events: none; }
+#qab-btn, .qab-menu { pointer-events: auto; }
 @media (max-width: 768px) {
   #qab-wrap { bottom: 96px; right: 16px; }
 }
