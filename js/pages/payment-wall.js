@@ -647,7 +647,7 @@ const PW = {
 
   _showErr(msg) {
     const e = document.getElementById('pw-err');
-    if (e) { e.textContent = msg; e.style.display = ''; }
+    if (e) { e.textContent = msg; e.style.display = 'block'; }
   },
 
   _fmtAmt(amount, currency) {
