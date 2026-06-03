@@ -524,40 +524,29 @@ async function loadCommandCenter() {
         </div>
       </div>
 
-      <!-- TODAY'S INTAKE DIAL -->
-      <div class="cc-card cc-dialcard">
-        <div class="cc-card-ttl">Today's Intake</div>
-        <div class="cc-dial">
-          <svg viewBox="0 0 200 132" class="cc-dial-svg">
-            <path d="M 18 110 A 82 82 0 0 1 182 110" class="cc-dial-rim"/>
-            ${dialZones}
-            ${dialTicks}
-            <line id="cc-needle" x1="100" y1="110" x2="100" y2="38" class="cc-needle" style="transform:rotate(-90deg)"/>
-            <circle cx="100" cy="110" r="6" class="cc-needle-hub"/>
-          </svg>
-          <div class="cc-dial-val"><span class="cc-count" data-to="${collToday}" data-fmt="money">PKR 0</span></div>
+      <!-- RECOVERY HEALTH (get_recovery_health_score) -->
+      <div class="cc-card cc-intel" id="cc-health-card">
+        <div class="cc-card-ttl">Recovery Health</div>
+        <div class="cc-intel-body" id="cc-health-body">
+          <div class="cc-skel cc-skel-ring"></div>
+          <div class="cc-skel-lines"><span></span><span></span><span></span></div>
         </div>
-        <div class="cc-dial-delta ${collDelta>=0?'up':'dn'}">${collDelta>=0?'▲':'▼'} PKR ${fLakhCr(Math.abs(collDelta))} vs yesterday${collDeltaPct!=null?` (${collDelta>=0?'+':''}${collDeltaPct}%)`:''}</div>
-        <svg viewBox="0 0 100 28" preserveAspectRatio="none" class="cc-ekg"><polyline points="${ekgPts}" pathLength="1" class="cc-ekg-line"/></svg>
-        <div class="cc-card-foot">7-day collection pulse</div>
       </div>
 
-      <!-- MONTHLY GOAL + SLIDER -->
-      <div class="cc-card cc-goalcard">
-        <div class="cc-card-ttl">Monthly Goal</div>
-        <div class="cc-goal-ring">
-          <svg width="120" height="120" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="46" class="cc-goal-track"/>
-            <circle id="cc-goal-arc" cx="60" cy="60" r="46" fill="none" stroke="${gColor}" stroke-width="9" stroke-linecap="round"
-              data-off="${gOff.toFixed(1)}" stroke-dasharray="${gCirc.toFixed(1)}" stroke-dashoffset="${gCirc.toFixed(1)}" transform="rotate(-90 60 60)"/>
-          </svg>
-          <div class="cc-goal-ctr"><span id="cc-goal-pct" style="color:${gColor}">${goal>0?goalPct+'%':'—'}</span><small>of goal</small></div>
+      <!-- SMART INSIGHTS (get_smart_insights) -->
+      <div class="cc-card cc-intel" id="cc-insights-card">
+        <div class="cc-card-ttl">Smart Insights</div>
+        <div class="cc-intel-body" id="cc-insights-body">
+          <div class="cc-skel-lines full"><span></span><span></span><span></span><span></span></div>
         </div>
-        <div class="cc-goal-read" id="cc-goal-read">PKR ${fLakhCr(monthColl)}${goal>0?' / PKR '+fLakhCr(goal):''}</div>
-        <div class="cc-goal-proj">${_ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',11)} Projected month-end: <b>PKR ${fLakhCr(projected)}</b>${projDelta!=null?` <span class="${projDelta>=0?'up':'dn'}">(${projDelta>=0?'on track +':'short '}${fLakhCr(Math.abs(projDelta))})</span>`:''}</div>
-        <div class="cc-goal-slider">
-          <input type="range" id="cc-goal-input" min="0" max="${goalMax}" step="${goalStep}" value="${goal}" style="--fill:${goalFill}%" oninput="_ccGoal(this.value)">
-          <div class="cc-goal-slabels"><span>Drag to set goal</span><span id="cc-goal-amt">PKR ${fLakhCr(goal)}</span></div>
+      </div>
+
+      <!-- INFLOW · 90 DAYS (get_cash_forecast) -->
+      <div class="cc-card cc-intel" id="cc-forecast-card">
+        <div class="cc-card-ttl">Inflow · 90 days</div>
+        <div class="cc-intel-body" id="cc-forecast-body">
+          <div class="cc-skel cc-skel-total"></div>
+          <div class="cc-skel-bars"><span></span><span></span><span></span></div>
         </div>
       </div>
     </div>
@@ -623,10 +612,8 @@ async function loadCommandCenter() {
   setTimeout(() => {
     if (!pg.isConnected) return;
     pg.querySelectorAll('.cc-count').forEach(_ccCountUp);
-    const ndl = document.getElementById('cc-needle');
-    if (ndl) requestAnimationFrame(()=>requestAnimationFrame(()=>{ ndl.style.transform = `rotate(${intakeDeg}deg)`; }));
-    const garc = document.getElementById('cc-goal-arc');
-    if (garc) { const off = parseFloat(garc.dataset.off); requestAnimationFrame(()=>requestAnimationFrame(()=>{ garc.style.strokeDashoffset = off.toFixed(1); })); }
+    // Mission Control intelligence cards — 3 RPCs in parallel, each renders independently
+    _ccLoadIntel(S.cid, pg);
   }, 400);
 }
 
@@ -653,6 +640,110 @@ async function _ccTeam(uid, rowEl) {
 /* ─── Action Radar — link a blip to its legend row on hover ─── */
 function _ccHot(i, on) {
   ['cc-blip-' + i, 'cc-rleg-' + i].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hot', !!on); });
+}
+
+/* ─── Mission Control intelligence cards (Recovery Health · Smart Insights · Inflow 90 din)
+       3 RPCs fired in parallel; each card renders independently; RPC error → quiet '—'. ─── */
+function _ccMotionOK() { return !window.matchMedia || window.matchMedia('(prefers-reduced-motion: no-preference)').matches; }
+
+async function _ccLoadIntel(cid, pg) {
+  const r = await Promise.allSettled([
+    supabase.rpc('get_recovery_health_score', { p_company_id: cid }),
+    supabase.rpc('get_smart_insights',        { p_company_id: cid }),
+    supabase.rpc('get_cash_forecast',         { p_company_id: cid }),
+  ]);
+  if (pg && !pg.isConnected) return;
+  _ccRenderHealth(r[0].status === 'fulfilled' ? r[0].value.data : null);
+  _ccRenderInsights(r[1].status === 'fulfilled' ? r[1].value.data : null);
+  _ccRenderForecast(r[2].status === 'fulfilled' ? r[2].value.data : null);
+}
+
+function _ccIntelNA(id) { const b = document.getElementById(id); if (b) b.innerHTML = '<div class="cc-intel-na">—</div>'; }
+
+function _ccRenderHealth(d) {
+  const b = document.getElementById('cc-health-body'); if (!b) return;
+  if (!d || d.success !== true) { _ccIntelNA('cc-health-body'); return; }
+  const score = Math.max(0, Math.min(100, Math.round(Number(d.score) || 0)));
+  const col = score >= 80 ? '#10B981' : score >= 60 ? '#0EA5A4' : score >= 40 ? '#F59E0B' : '#EF4444';
+  const c = d.components || {};
+  const pct = v => (v == null ? '—' : Math.round(Number(v) * 100) + '%');
+  const agingHot = c.aging_90_plus_share != null && Number(c.aging_90_plus_share) > 0.20;
+  const delta = Math.round(Number(d.delta_vs_last_month) || 0);
+  const R = 30, CIRC = 2 * Math.PI * R, targetOff = CIRC * (1 - score / 100);
+  b.innerHTML =
+    '<div class="cc-health-top">' +
+      '<div class="cc-ring">' +
+        '<svg viewBox="0 0 72 72" width="72" height="72">' +
+          '<circle cx="36" cy="36" r="' + R + '" class="cc-ring-trk"/>' +
+          '<circle id="cc-ring-arc" cx="36" cy="36" r="' + R + '" fill="none" stroke="' + col + '" stroke-width="7" stroke-linecap="round" ' +
+            'stroke-dasharray="' + CIRC.toFixed(1) + '" stroke-dashoffset="' + CIRC.toFixed(1) + '" transform="rotate(-90 36 36)"/>' +
+        '</svg>' +
+        '<div class="cc-ring-ctr"><b id="cc-ring-num" style="color:' + col + '">0</b></div>' +
+      '</div>' +
+      '<div class="cc-health-meta">' +
+        '<span class="cc-health-lbl" style="color:' + col + '">' + esc(d.label || '') + '</span>' +
+        '<span class="cc-health-delta ' + (delta >= 0 ? 'up' : 'dn') + '">' + (delta >= 0 ? '▲' : '▼') + ' ' + Math.abs(delta) + ' vs last month</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cc-health-tbl">' +
+      '<div class="cc-htrow"><span>Collection</span><b>' + pct(c.collection_rate) + '</b></div>' +
+      '<div class="cc-htrow"><span>Promises</span><b>' + pct(c.promise_keep_rate) + '</b></div>' +
+      '<div class="cc-htrow"><span>90+ aging</span><b class="' + (agingHot ? 'hot' : '') + '">' + pct(c.aging_90_plus_share) + '</b></div>' +
+    '</div>';
+  const arc = document.getElementById('cc-ring-arc'), num = document.getElementById('cc-ring-num');
+  if (_ccMotionOK() && arc && num) {
+    requestAnimationFrame(() => requestAnimationFrame(() => { arc.style.strokeDashoffset = targetOff.toFixed(1); }));
+    const t0 = performance.now(), dur = 900;
+    const step = now => { const k = Math.min(1, (now - t0) / dur); num.textContent = Math.round(score * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  } else if (arc && num) { arc.style.strokeDashoffset = targetOff.toFixed(1); num.textContent = score; }
+}
+
+function _ccRenderInsights(d) {
+  const b = document.getElementById('cc-insights-body'); if (!b) return;
+  const items = (d && d.success === true && Array.isArray(d.insights)) ? d.insights : null;
+  if (!items) { _ccIntelNA('cc-insights-body'); return; }
+  const ICON = {
+    'alert-triangle': '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'clock': '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    'trending-down': '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+    'check': '<path d="M20 6 9 17l-5-5"/>'
+  };
+  const html = items.slice(0, 4).map((it, i) => {
+    const sev = (it.severity === 'danger' || it.severity === 'warning' || it.severity === 'success') ? it.severity : 'success';
+    const ic = ICON[it.icon] || ICON.check;
+    const msg = String(it.message || '').replace('{amt}', it.amount != null ? ('PKR ' + fLakhCr(it.amount)) : '');
+    const page = it.page ? String(it.page).replace(/[^a-z0-9-]/gi, '') : '';
+    return '<button class="cc-insight ' + sev + '" style="--d:' + (i * 100) + 'ms" ' + (page ? 'onclick="nav(\'' + page + '\')"' : '') + '>' +
+      '<span class="cc-insight-ic">' + _ic(ic, 15) + '</span>' +
+      '<span class="cc-insight-msg">' + esc(msg) + '</span>' +
+    '</button>';
+  }).join('');
+  b.innerHTML = '<div class="cc-insight-list">' + html + '</div>';
+}
+
+function _ccRenderForecast(d) {
+  const b = document.getElementById('cc-forecast-body'); if (!b) return;
+  if (!d || d.success !== true || !Array.isArray(d.months)) { _ccIntelNA('cc-forecast-body'); return; }
+  const months = d.months.slice(0, 3);
+  const max = Math.max(1, ...months.map(m => Number(m.expected) || 0));
+  const shades = ['#1D4ED8', '#3B82F6', '#60A5FA']; // darkest = nearest month
+  const bars = months.map((m, i) => {
+    const v = Number(m.expected) || 0, h = Math.round(v / max * 100);
+    return '<div class="cc-fc-col">' +
+      '<div class="cc-fc-val">' + (v > 0 ? fLakhCr(v) : '—') + '</div>' +
+      '<div class="cc-fc-track"><div class="cc-fc-bar" style="--h:' + h + '%;--bc:' + (shades[i] || '#60A5FA') + ';--d:' + (i * 80) + 'ms"></div></div>' +
+      '<div class="cc-fc-mon">' + esc(m.month || '') + '</div>' +
+    '</div>';
+  }).join('');
+  b.innerHTML = '<div class="cc-fc-total">PKR ' + fLakhCr(Number(d.total) || 0) + '</div><div class="cc-fc-bars">' + bars + '</div>';
+  if (_ccMotionOK()) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      b.querySelectorAll('.cc-fc-bar').forEach(el => { el.style.height = el.style.getPropertyValue('--h'); });
+    }));
+  } else {
+    b.querySelectorAll('.cc-fc-bar').forEach(el => { el.style.transition = 'none'; el.style.height = el.style.getPropertyValue('--h'); });
+  }
 }
 
 /* ─── Monthly Goal slider — live-updates the ring + persists per company ─── */

@@ -212,15 +212,15 @@ const SA = (() => {
   }
 
   function _buildProofDetail(r) {
+    // Receipt lives in the PRIVATE payment-receipts bucket — render a placeholder and
+    // resolve a short-lived signed URL on demand (toggleProof → _loadReceipt).
     const receiptHtml = r.receipt_url
-      ? (r.receipt_url.toLowerCase().endsWith('.pdf')
-          ? `<div style="padding:20px;text-align:center"><a href="${_esc(r.receipt_url)}" target="_blank" class="sa-receipt-link" style="font-size:13px">Open PDF Receipt</a></div>`
-          : `<img src="${_esc(r.receipt_url)}" alt="Receipt" style="max-width:100%;max-height:400px;object-fit:contain">`)
+      ? `<div class="sa-receipt-loading" style="padding:20px;text-align:center;color:rgba(255,255,255,0.3);font-size:12px">Loading receipt…</div>`
       : `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.25);font-size:12px">No receipt uploaded</div>`;
 
     return `
       <div class="sa-proof-detail open">
-        <div class="sa-proof-img-wrap">${receiptHtml}</div>
+        <div class="sa-proof-img-wrap" id="sa-receipt-${r.proof_id}" data-receipt="${_esc(r.receipt_url || '')}">${receiptHtml}</div>
         <div class="sa-detail-rows">
           <div class="sa-detail-row">
             <div class="sa-detail-lbl">Company</div>
@@ -273,13 +273,43 @@ const SA = (() => {
       </div>`;
   }
 
+  // ── Receipt (private payment-receipts bucket) → signed URL ───────────
+  // Handles BOTH old rows (full getPublicUrl string stored) and new rows (bare path stored).
+  function _resolveReceiptPath(stored) {
+    if (!stored) return null;
+    let s = stored.split('?')[0];                        // drop any query string
+    const marker = '/payment-receipts/';
+    const i = s.indexOf(marker);
+    if (i >= 0) s = s.slice(i + marker.length);          // old: full public URL → take path after bucket
+    return s.replace(/^payment-receipts\//, '') || null; // new: bare path (strip bucket prefix if present)
+  }
+
+  async function _loadReceipt(proofId) {
+    const wrap = document.getElementById(`sa-receipt-${proofId}`);
+    if (!wrap || wrap.dataset.loaded === '1') return;
+    const path = _resolveReceiptPath(wrap.dataset.receipt || '');
+    if (!path) return;
+    wrap.dataset.loaded = '1';
+    try {
+      const { data, error } = await supabase.storage.from('payment-receipts').createSignedUrl(path, 3600);
+      if (error || !data || !data.signedUrl) throw (error || new Error('no signed url'));
+      const url = data.signedUrl;
+      wrap.innerHTML = path.toLowerCase().endsWith('.pdf')
+        ? `<div style="padding:20px;text-align:center"><a href="${_esc(url)}" target="_blank" class="sa-receipt-link" style="font-size:13px">Open PDF Receipt</a></div>`
+        : `<img src="${_esc(url)}" alt="Receipt" style="max-width:100%;max-height:400px;object-fit:contain">`;
+    } catch (e) {
+      wrap.dataset.loaded = '';   // allow a retry on next open
+      wrap.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(239,68,68,0.7);font-size:12px">Could not load receipt.</div>`;
+    }
+  }
+
   function toggleProof(proofId) {
     const row = document.getElementById(`sa-detail-${proofId}`);
     if (!row) return;
     const isHidden = row.style.display === 'none';
     // Close all open detail rows first
     document.querySelectorAll('[id^="sa-detail-"]').forEach(r => r.style.display = 'none');
-    if (isHidden) row.style.display = '';
+    if (isHidden) { row.style.display = ''; _loadReceipt(proofId); }
   }
 
   async function verify(proofId, action) {
