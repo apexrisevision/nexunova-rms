@@ -2,7 +2,6 @@
 function rBackup(){
   var db=gdb();
   var lastBkp=localStorage.getItem(STORE+'_last_manual_bkp');
-  var lastAuto=localStorage.getItem(STORE+'_last_auto_bkp');
   var totalUnits=gunits().length||(db.units[S.cid]||[]).length;
   var totalRecs=(db.recoveries[S.cid]||[]).length;
   var totalCons=(window._contactLogsCache||[]).length;
@@ -32,6 +31,7 @@ function rBackup(){
         '<button class="btn btn-g btn-w" onclick="manualBkp()" style="width:100%;margin-bottom:8px;display:inline-flex;align-items:center;justify-content:center;gap:6px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Full Backup (.json)</button>'+
         '<button class="btn btn-gh btn-w" onclick="bkpExcel()" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>Download as Excel (.xlsx)</button>'+
         '<div style="font-size:11px;color:var(--t3);margin-top:10px">Last manual backup: <b>'+(lastBkp?new Date(lastBkp).toLocaleString('en-PK'):'Never')+'</b></div>'+
+        '<div style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.5">Server data is automatically backed up by the platform. These exports contain local app data only.</div>'+
       '</div></div>'+
 
       '<div class="card"><div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Restore Backup</h3><p>Load data from a backup file</p></div>'+
@@ -42,7 +42,6 @@ function rBackup(){
         '</p>'+
         '<input type="file" id="bkp-file-inp" accept=".json" style="display:none" onchange="restoreFromFile(this)">'+
         '<button class="btn btn-d btn-w" onclick="document.getElementById(&quot;bkp-file&quot;).click()" style="width:100%;margin-bottom:8px;display:inline-flex;align-items:center;justify-content:center;gap:6px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Restore from .json File</button>'+
-        '<div style="font-size:11px;color:var(--t3);margin-top:10px">Auto backup: <b>'+(lastAuto?new Date(lastAuto).toLocaleString('en-PK'):'Not run yet (will run on next login)')+'</b></div>'+
       '</div></div>'+
     '</div>'+
 
@@ -73,19 +72,6 @@ function rBackup(){
       '</div>'+
     '</div></div>'+
 
-    // Auto backup settings
-    '<div class="card" style="margin-top:14px"><div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>Auto-Backup Settings</h3><p>Automatic daily backup — never lose your data</p></div>'+
-    '<div class="cb">'+
-      '<div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--ok-bg);border-radius:var(--rm);margin-bottom:12px">'+
-        '<svg width="24" height="24" fill="none" stroke="var(--ok)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2v3"/><circle cx="12" cy="5" r="2"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="16" y2="19"/></svg>'+
-        '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ok)">Auto-backup is ACTIVE</div>'+
-        '<div style="font-size:11px;color:var(--t2);margin-top:2px">Every time you log in, if 24 hours have passed since last backup, a backup file is automatically downloaded to your Downloads folder.</div></div>'+
-      '</div>'+
-      '<p style="font-size:12px;color:var(--t2);line-height:1.7">'+
-        '<b>Recommendation:</b> Move auto-backup files from Downloads to your Google Drive or OneDrive folder for cloud safety. '+
-        'Files are named <b>Nexunova_backup_YYYY-MM-DD.json</b> — keep the latest 3-4 files.'+
-      '</p>'+
-    '</div></div>'+
   '</div>';
 }
 
@@ -136,22 +122,6 @@ function restoreFromFile(inp){
   r.readAsText(f);
 }
 
-// Auto-backup on login (runs every 24 hours)
-function checkAutoBackup(){
-  var lastAuto=localStorage.getItem(STORE+'_last_auto_bkp');
-  var now=Date.now();
-  var dayMs=24*60*60*1000;
-  if(!lastAuto||(now-parseInt(lastAuto))>dayMs){
-    setTimeout(function(){
-      var db=gdb();
-      var j=JSON.stringify({data:db,at:new Date().toISOString(),v:'v8'});
-      var a=document.createElement('a');
-      a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));
-      a.download='Nexunova_AutoBackup_'+td()+'.json';
-      a.click();
-      localStorage.setItem(STORE+'_last_auto_bkp',now.toString());
-      toast('Daily auto-backup downloaded to your Downloads folder. Move it to Google Drive for safety!','ok');
-    },3000);
-  }
-}
+// Legacy login auto-backup removed (2026-06-04): it dumped the vestigial localStorage
+// kbh_v4 store, not Supabase. Server data is backed up by the platform.
 

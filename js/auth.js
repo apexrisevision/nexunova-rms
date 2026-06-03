@@ -350,7 +350,6 @@ async function _completeLogin(user, company) {
     if(typeof TUT !== 'undefined') TUT.maybeShow();
   }
 
-  if(typeof checkAutoBackup === 'function') checkAutoBackup();
   if(typeof initDemoBanner === 'function') initDemoBanner();
   _checkPlatformAnnouncements();
   notify.success(`Welcome, ${user.name}`, { duration: 2500 });
