@@ -129,6 +129,7 @@
     const detail = opts.detail || '';
     const okText = opts.okText || 'OK';
     const onOk = opts.onOk || null;
+    const onMount = opts.onMount || null;
     const accent = ACCENTS[type] || ACCENTS.info;
     const icon = ICONS[type] || ICONS.info;
 
@@ -214,6 +215,8 @@
     document.addEventListener('keydown', keyHandler);
 
     setTimeout(() => okBtn.focus(), 50);
+
+    if (typeof onMount === 'function') { try { onMount(dialog, close); } catch(_) {} }
 
     return close;
   }

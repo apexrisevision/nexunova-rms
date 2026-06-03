@@ -122,8 +122,20 @@ async function doLogin(){
       if (res.error === 'email_not_verified') {
         const userEmail = res.email || '';
         notify.error('Email not verified', {
-          detail: `Please check <strong>${userEmail}</strong> and click the confirmation link.<br>
-            <a href="#" onclick="fpResendConfirm('${userEmail}')" style="color:#38bdf8;text-decoration:underline">Resend confirmation email</a>`
+          detail: userEmail
+            ? `Please check ${userEmail} and click the confirmation link to activate your account.`
+            : 'Please check your inbox and click the confirmation link to activate your account.',
+          onMount: (dialog, close) => {
+            if (!userEmail) return;
+            const footer = dialog.querySelector('.nx-dialog-ok')?.parentNode;
+            if (!footer) return;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = 'Resend confirmation email';
+            b.style.cssText = 'background:transparent !important;color:#a5b4fc !important;border:1px solid rgba(165,180,252,0.3) !important;padding:6px 16px !important;border-radius:6px !important;font-weight:500 !important;font-size:13px !important;cursor:pointer !important;font-family:inherit !important;';
+            b.addEventListener('click', () => { close(); fpResendConfirm(userEmail); });
+            footer.insertBefore(b, footer.firstChild);   // sits left of OK
+          }
         });
         return;
       }

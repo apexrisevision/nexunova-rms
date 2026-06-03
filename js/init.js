@@ -32,6 +32,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 async function tryRestoreSession(){
   if(window.location.search.includes('super-admin'))return;
+  if(window.__nxnEmailConfirm)return;       // email-confirm landing renders its own screen; don't flash app/login
   try{
     // #2 — validate a real Supabase session before rendering from storage.
     // Forged/stale nxn_sess must not render the app shell on its own.

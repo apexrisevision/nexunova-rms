@@ -76,11 +76,22 @@ async function fpSubmit() {
 
   try {
     // Try admin/owner OTP flow first
-    const { data: adminRes } = await supabase.rpc('send_admin_reset_otp', {
+    const { data: adminRes, error: adminErr } = await supabase.rpc('send_admin_reset_otp', {
       p_company_code: _fpCode,
       p_email:        _fpEmail,
       p_ip:           null
     });
+
+    // A real RPC/transport failure surfaces a genuine error instead of silently
+    // falling through to the sub-user "request sent to admin" screen. A logical
+    // not_found arrives in `data` (not `error`), so anti-enumeration is preserved.
+    if (adminErr) {
+      console.error('send_admin_reset_otp failed:', adminErr);
+      fpShowErr('Something went wrong. Please try again in a moment.');
+      if (btn)     btn.disabled = false;
+      if (btnSpan) btnSpan.textContent = 'Continue';
+      return;
+    }
 
     if (adminRes?.sent) {
       // Admin/owner path: show OTP overlay
@@ -416,6 +427,7 @@ function _handleResetCode(code) {
 
 // ── Email confirmation after signup ──────────────────────────────────
 async function _handleEmailConfirm(code) {
+  window.__nxnEmailConfirm = true;
   sessionStorage.removeItem('nxn_sess');
   document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
   const el = document.getElementById('s-email-confirm');
@@ -442,6 +454,33 @@ async function _handleEmailConfirm(code) {
   if (loadEl) loadEl.style.display = 'none';
   if (okEl)   okEl.style.display   = '';
 
+  setTimeout(() => {
+    el.classList.remove('on');
+    document.getElementById('s-login')?.classList.add('on');
+    if (typeof initLogin === 'function') initLogin();
+  }, 3000);
+}
+
+// ── Email confirmation landing — IMPLICIT #hash case (type=signup, no ?code) ──
+// GoTrue's signup-confirm link returns an implicit #access_token...&type=signup hash (not ?code).
+// The server-side auth.users→app_users trigger already flips email_verified, so we don't call
+// confirm_user_email — just show a clean success screen and drop the auto-detected session so
+// init.js can't flash the app shell / attempt an auto-login.
+async function _showEmailConfirmed() {
+  window.__nxnEmailConfirm = true;
+  sessionStorage.removeItem('nxn_sess');
+  document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
+  const el = document.getElementById('s-email-confirm');
+  if (!el) { document.getElementById('s-login')?.classList.add('on'); return; }
+  el.classList.add('on');
+  const loadEl = document.getElementById('ec-loading');
+  const errEl  = document.getElementById('ec-error');
+  const okEl   = document.getElementById('ec-success');
+  if (loadEl) loadEl.style.display = 'none';
+  if (errEl)  errEl.style.display  = 'none';
+  if (okEl)   okEl.style.display   = '';
+  await supabase.auth.signOut().catch(() => {});
+  try { window.history.replaceState({}, '', window.location.pathname); } catch (_) {}
   setTimeout(() => {
     el.classList.remove('on');
     document.getElementById('s-login')?.classList.add('on');
@@ -495,10 +534,17 @@ function _handleAuthLinkError(flow, errCode, errDesc) {
   const errDesc = params.get('error_description') || hashParams.get('error_description');
   const flow    = params.get('flow') || hashParams.get('flow') || 'reset';
 
+  const isConfirm = (flow === 'confirm') || (hashParams.get('type') === 'signup');
+  if (isConfirm) window.__nxnEmailConfirm = true;   // set synchronously, before init.js tryRestoreSession runs
+
   if (!code && (error || errCode)) { _handleAuthLinkError(flow, errCode, errDesc); return; }
-  if (!code) return;
-  if (flow === 'confirm') _handleEmailConfirm(code);
-  else                    _handleResetCode(code);
+  if (code) {
+    if (flow === 'confirm') _handleEmailConfirm(code);
+    else                    _handleResetCode(code);
+    return;
+  }
+  // No ?code — implicit #hash signup confirm (or bare flow=confirm) → show success screen cleanly.
+  if (isConfirm) { _showEmailConfirmed(); return; }
 })();
 
 // ── Electron deep-link ────────────────────────────────────────────────
