@@ -11,7 +11,7 @@
 // Returns a cleanup fn you can call to dismiss the overlay programmatically.
 // The overlay also auto-dismisses itself when onVerify returns { success: true }.
 
-function showOTPScreen({ subtitle, onVerify, onResend, onExpire, onMaxAttempts }) {
+function showOTPScreen({ subtitle, onVerify, onResend, onExpire, onMaxAttempts, onClose }) {
   const OTP_TTL_MS     = 5 * 60 * 1000;
   const RESEND_COOL_MS = 30 * 1000;
 
@@ -139,6 +139,18 @@ function showOTPScreen({ subtitle, onVerify, onResend, onExpire, onMaxAttempts }
 }
 .otp-ov-resend:hover:not(:disabled) { color: var(--text, rgba(255,255,255,0.92)); }
 .otp-ov-resend:disabled { opacity: .45; cursor: default; text-decoration: none; }
+.otp-ov-close {
+  position: absolute; top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--t2, rgba(255,255,255,0.6));
+  font-size: 16px; line-height: 1; cursor: pointer;
+  transition: color .18s, background .18s, border-color .18s;
+}
+.otp-ov-close:hover { color: var(--text, #fff); background: rgba(255,255,255,0.08); }
 @media (max-width: 480px) {
   .otp-ov-card { padding: 24px 20px 20px; }
   .otp-ov-box  { width: 40px; height: 48px; font-size: 19px; }
@@ -153,6 +165,7 @@ function showOTPScreen({ subtitle, onVerify, onResend, onExpire, onMaxAttempts }
   overlay.innerHTML = `
     <div class="otp-ov-bd"></div>
     <div class="otp-ov-card" role="dialog" aria-modal="true" aria-label="Identity verification">
+      ${typeof onClose === 'function' ? '<button class="otp-ov-close" id="otp-ov-close" type="button" aria-label="Close and go back">✕</button>' : ''}
       <div class="otp-ov-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -368,6 +381,14 @@ function showOTPScreen({ subtitle, onVerify, onResend, onExpire, onMaxAttempts }
     if (resendId)    clearInterval(resendId);
     overlay.style.animation = '_otpFadeOut .18s ease both';
     setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 180);
+  }
+
+  // Opt-in close/back (only when caller provided onClose) — e.g. signup "fix my email"
+  if (typeof onClose === 'function') {
+    const closeBtn = overlay.querySelector('#otp-ov-close');
+    const _close = () => { _cleanup(); onClose(); };
+    if (closeBtn) closeBtn.addEventListener('click', _close);
+    overlay.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); _close(); } });
   }
 
   // ── Kick off ───────────────────────────────────────────────────────

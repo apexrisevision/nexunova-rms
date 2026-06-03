@@ -600,6 +600,12 @@ async function svSendEmailOtp() {
         if (r?.sent) return {};
         if (r?.error === 'rate_limited') return { error: 'Too many requests. Please wait.', cooldown: 60 };
         return { error: 'Could not resend. Please try again.' };
+      },
+      onClose: () => {
+        // Back to Step-1 email entry; step-1 fields remain intact behind the overlay.
+        SV.setHint('email', 'Edit your email and tap “Verify Email” again.', 'warn');
+        const el = document.getElementById('sg-email');
+        if (el) { el.focus(); el.select?.(); }
       }
     });
 
