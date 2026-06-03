@@ -520,6 +520,14 @@ async function loadReport(){
   const meta = REPORT_META[type];
   if(!meta){ showError('Unknown report type: '+type, 'Supported: get_collection_report, get_sales_register, get_outstanding_report, get_unit_inventory'); return; }
 
+  // B1b: report RPCs are now caller-gated — restore the shared Supabase session from
+  // localStorage BEFORE any RPC (prevents an anon race) and require a logged-in user.
+  const { data: { session: _sess } } = await sb.auth.getSession();
+  if(!_sess){
+    showError('Sign in required', 'Please open this report from inside Nexunova RMS after signing in.');
+    return;
+  }
+
   document.getElementById('loadingMsg').textContent = 'Fetching '+meta.title+'…';
 
   // Fetch branding

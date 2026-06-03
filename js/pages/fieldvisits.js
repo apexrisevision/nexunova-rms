@@ -351,7 +351,7 @@ async function fvSubmit() {
   if (photoInput?.files[0]) {
     const file = photoInput.files[0];
     const ext  = file.name.split('.').pop();
-    const path = `field-visits/${co}/${Date.now()}.${ext}`;
+    const path = `${co}/field-visits/${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from('rms-files').upload(path, file, { upsert: true });
     if (!upErr) {
       const { data: pub } = supabase.storage.from('rms-files').getPublicUrl(path);

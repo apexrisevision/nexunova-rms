@@ -33,6 +33,10 @@ window.addEventListener('DOMContentLoaded',()=>{
 async function tryRestoreSession(){
   if(window.location.search.includes('super-admin'))return;
   try{
+    // #2 — validate a real Supabase session before rendering from storage.
+    // Forged/stale nxn_sess must not render the app shell on its own.
+    const { data: { session: _sess } } = await supabase.auth.getSession();
+    if(!_sess){ sessionStorage.removeItem('nxn_sess'); document.getElementById('s-login').classList.add('on'); return; }
     const raw=sessionStorage.getItem('nxn_sess');
     if(!raw)return;
     const sess=JSON.parse(raw);

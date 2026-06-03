@@ -10,6 +10,20 @@ const CORS = {
 const OTP_TTL_SECONDS   = 5 * 60;
 const RESEND_COOLDOWN_S = 30;
 
+// ── Rate limits (H2 #3) — cost-abuse guard beyond the per-target 30s cooldown. ──
+// Window matches the OTP TTL / row retention (otp_tokens rows are cleaned at expiry),
+// so the sliding-window counts are accurate. Tunable.
+const RL_WINDOW_S   = OTP_TTL_SECONDS; // 5 min
+const IP_MAX_SENDS  = 8;               // per client IP per window
+const GLOBAL_MAX    = 100;             // all senders per window (Resend cost backstop)
+
+// Cryptographically-strong 6-digit code (replaces Math.random).
+function genOtp(): string {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(100000 + (buf[0] % 900000));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
@@ -32,6 +46,10 @@ serve(async (req) => {
       return json({ error: "Invalid OTP type" });
     }
 
+    // Client IP (for rate limiting). Supabase proxies set x-forwarded-for.
+    const fwd = req.headers.get("x-forwarded-for") || "";
+    const clientIp = fwd.split(",")[0].trim() || req.headers.get("x-real-ip") || "";
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -40,7 +58,7 @@ serve(async (req) => {
     // Identifier stored in `phone` column — prefixed with type to prevent cross-flow reuse
     const identifier = `${type}:${cleanEmail}`;
 
-    // ── Resend cooldown ───────────────────────────────────────────────
+    // ── Resend cooldown (per target) ──────────────────────────────────
     const cooldownCutoff = new Date(Date.now() - RESEND_COOLDOWN_S * 1000).toISOString();
     const { data: recentRow } = await supabase
       .from("otp_tokens")
@@ -57,6 +75,28 @@ serve(async (req) => {
       return json({ error: `Please wait ${remaining} seconds before requesting a new code.`, cooldown: remaining });
     }
 
+    // ── IP + global rate limits (H2 #3) ───────────────────────────────
+    const rlCutoff = new Date(Date.now() - RL_WINDOW_S * 1000).toISOString();
+    const { count: globalCount } = await supabase
+      .from("otp_tokens")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", rlCutoff);
+    if ((globalCount ?? 0) >= GLOBAL_MAX) {
+      console.warn("[send-auth-otp] global rate limit hit:", globalCount);
+      return json({ error: "Verification service is temporarily busy. Please try again in a few minutes." });
+    }
+    if (clientIp) {
+      const { count: ipCount } = await supabase
+        .from("otp_tokens")
+        .select("id", { count: "exact", head: true })
+        .eq("ip_address", clientIp)
+        .gte("created_at", rlCutoff);
+      if ((ipCount ?? 0) >= IP_MAX_SENDS) {
+        console.warn("[send-auth-otp] per-IP rate limit hit:", clientIp, ipCount);
+        return json({ error: "Too many verification requests from your network. Please try again later." });
+      }
+    }
+
     // ── Invalidate existing unused OTPs ───────────────────────────────
     await supabase
       .from("otp_tokens")
@@ -64,13 +104,13 @@ serve(async (req) => {
       .eq("phone", identifier)
       .eq("used", false);
 
-    // ── Generate OTP ──────────────────────────────────────────────────
-    const otp       = String(Math.floor(100000 + Math.random() * 900000));
+    // ── Generate OTP (crypto-strong) ──────────────────────────────────
+    const otp       = genOtp();
     const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000).toISOString();
 
     const { error: insertErr } = await supabase
       .from("otp_tokens")
-      .insert({ phone: identifier, otp, expires_at: expiresAt });
+      .insert({ phone: identifier, otp, expires_at: expiresAt, ip_address: clientIp || null });
 
     if (insertErr) {
       console.error("[send-auth-otp] DB insert error:", insertErr.message);
@@ -126,7 +166,6 @@ serve(async (req) => {
     const resendStatus = emailRes.status;
     const resendBody   = await emailRes.json().catch(() => ({}));
     console.log("[send-auth-otp] Resend status:", resendStatus);
-    console.log("[send-auth-otp] Resend body:",   JSON.stringify(resendBody));
 
     if (!emailRes.ok) {
       console.error("[send-auth-otp] Resend error (status", resendStatus, "):", JSON.stringify(resendBody));

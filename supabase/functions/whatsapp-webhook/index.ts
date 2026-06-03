@@ -3,18 +3,18 @@
 // ----------------------------------------------------------------------------
 // Receives provider delivery callbacks and advances message_log status
 // (sent -> delivered -> read, or failed) by correlating on
-// provider_message_id. Parses the Meta WhatsApp Cloud API webhook shape;
-// WeTarseel/other BSPs forward the same Meta envelope or a thin wrapper —
-// adjust parseStatuses() if your BSP differs.
+// provider_message_id. Parses the Meta WhatsApp Cloud API webhook shape.
 //
 // GET  = Meta verification handshake (hub.challenge).
-// POST = status notifications.
+// POST = status notifications — REQUIRES a valid X-Hub-Signature-256 (HMAC-SHA256
+//        of the raw body using the Meta App Secret). Forged callbacks are rejected.
 //
 // DEPLOY:  supabase functions deploy whatsapp-webhook --no-verify-jwt
 // SECRETS: supabase secrets set WHATSAPP_VERIFY_TOKEN=<your-random-token>
-// CONFIGURE in Meta App > WhatsApp > Configuration > Callback URL:
-//   https://<project-ref>.functions.supabase.co/whatsapp-webhook
-//   Verify token = WHATSAPP_VERIFY_TOKEN ; subscribe to "messages".
+//          supabase secrets set META_APP_SECRET=<Meta App > Settings > Basic > App Secret>
+//   ⚠️ POST verification is FAIL-CLOSED: until META_APP_SECRET is set, all POSTs are
+//      rejected (401). WhatsApp delivery callbacks are not live yet, so this is safe —
+//      but META_APP_SECRET MUST be set before going live or statuses won't advance.
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -22,10 +22,28 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") ?? "";
+const APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-// Map a Meta status string to our message_log lifecycle vocabulary.
+// Verify Meta's X-Hub-Signature-256 = "sha256=" + HMAC_SHA256(appSecret, rawBody).
+async function verifyMetaSignature(rawBody: string, header: string | null): Promise<boolean> {
+  if (!APP_SECRET) return false;                       // fail-closed if not configured
+  if (!header || !header.startsWith("sha256=")) return false;
+  const sigHex = header.slice("sha256=".length).trim().toLowerCase();
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(APP_SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const macBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  const macHex = [...new Uint8Array(macBuf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  // constant-time comparison
+  if (macHex.length !== sigHex.length) return false;
+  let diff = 0;
+  for (let i = 0; i < macHex.length; i++) diff |= macHex.charCodeAt(i) ^ sigHex.charCodeAt(i);
+  return diff === 0;
+}
+
 function mapStatus(s: string): string | null {
   switch (s) {
     case "sent": return "sent";
@@ -36,7 +54,6 @@ function mapStatus(s: string): string | null {
   }
 }
 
-// Extract [{ id, status, error }] from the Meta webhook envelope.
 function parseStatuses(body: any): Array<{ id: string; status: string; error?: string }> {
   const out: Array<{ id: string; status: string; error?: string }> = [];
   for (const entry of body?.entry ?? []) {
@@ -65,9 +82,17 @@ Deno.serve(async (req) => {
     return new Response("forbidden", { status: 403 });
   }
 
-  // --- POST: delivery status callbacks ---
+  // --- POST: delivery status callbacks (signature-verified) ---
   if (req.method === "POST") {
-    const body = await req.json().catch(() => ({}));
+    const raw = await req.text();
+    const sigOk = await verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"));
+    if (!sigOk) {
+      console.warn("[whatsapp-webhook] rejected POST: invalid/absent X-Hub-Signature-256");
+      return new Response("invalid signature", { status: 401 });
+    }
+
+    let body: any = {};
+    try { body = JSON.parse(raw || "{}"); } catch { body = {}; }
     const statuses = parseStatuses(body);
     let updated = 0;
     for (const s of statuses) {
@@ -80,7 +105,7 @@ Deno.serve(async (req) => {
       });
       if (data?.success) updated++;
     }
-    // Always 200 so the provider doesn't retry-storm on unrelated events.
+    // 200 so the provider doesn't retry-storm on unrelated (but validly-signed) events.
     return Response.json({ success: true, received: statuses.length, updated });
   }
 
