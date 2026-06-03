@@ -9,16 +9,48 @@ let _fpCode    = '';   // company code entered
 let _fpEmail   = '';   // email entered
 let _fpOtp     = '';   // OTP digits stored after OTP screen (sent to verify_admin_reset_otp with new password)
 
+// ── Mutual-exclusion: show exactly ONE auth screen, kill any lingering overlays ──
+// Prevents the email-confirm screen from stacking on top of the forgot/reset
+// screen (or vice-versa). Also dismisses the OTP + new-password overlays.
+function _showOnlyAuthScreen(id) {
+  document.getElementById('_fp-newpwd-overlay')?.remove();
+  document.getElementById('otp-overlay')?.remove();
+  document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('on');
+  return el;
+}
+
+// ── BUG 4: inject a Username field into the forgot form (UX/recall only) ──
+// Done in JS so login.html is not touched. Not sent to the reset RPC (which
+// matches on company_code + email); it just reminds the user of their login id.
+function _fpEnsureUsernameField() {
+  if (document.getElementById('fp-username')) return;
+  const emailField = document.getElementById('fp-email')?.closest('.lx-field');
+  if (!emailField) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'lx-field';
+  wrap.innerHTML =
+    '<label class="lx-label">Username</label>' +
+    '<input id="fp-username" class="lx-input" type="text" placeholder="Your login username" ' +
+    'autocomplete="username" onkeydown="if(event.key===\'Enter\')document.getElementById(\'fp-email\').focus()">';
+  emailField.parentNode.insertBefore(wrap, emailField);
+}
+
 function showForgotPassword() {
+  if (window.__nxnEmailConfirm) return;   // never overlay an email-confirm landing
   document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
   document.getElementById('s-forgot').classList.add('on');
   _fpShownAt = Date.now();
   _fpCode = ''; _fpEmail = ''; _fpOtp = '';
+  _fpEnsureUsernameField();
   const codeEl  = document.getElementById('fp-code');
   const emailEl = document.getElementById('fp-email');
+  const userEl  = document.getElementById('fp-username');
   const hpEl    = document.getElementById('fp-hp');
   if (codeEl)  codeEl.value  = '';
   if (emailEl) emailEl.value = '';
+  if (userEl)  userEl.value  = '';
   if (hpEl)    hpEl.value    = '';
   fpSetState('form');
   fpHideErr();
@@ -29,8 +61,11 @@ function showForgotPassword() {
 }
 
 function hideForgotPassword() {
+  const typedUser = (document.getElementById('fp-username')?.value || '').trim();
   document.getElementById('s-forgot').classList.remove('on');
   document.getElementById('s-login').classList.add('on');
+  const u = document.getElementById('li-u');
+  if (u && typedUser) u.value = typedUser;   // recall: carry username to the login form
 }
 
 function fpSetState(state) {
@@ -379,6 +414,7 @@ function _startResendCooldown() {
 
 // ── Shared: exchange PKCE code from magic-link reset email ────────────
 function _handleResetCode(code) {
+  if (window.__nxnEmailConfirm) return;   // confirm landing is authoritative — never show reset over it
   sessionStorage.removeItem('nxn_sess');
   document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
   const resetEl = document.getElementById('s-reset');
@@ -429,10 +465,8 @@ function _handleResetCode(code) {
 async function _handleEmailConfirm(code) {
   window.__nxnEmailConfirm = true;
   sessionStorage.removeItem('nxn_sess');
-  document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
-  const el = document.getElementById('s-email-confirm');
-  if (!el) { _handleResetCode(code); return; }
-  el.classList.add('on');
+  const el = _showOnlyAuthScreen('s-email-confirm');
+  if (!el) { window.__nxnEmailConfirm = false; _handleResetCode(code); return; }
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
@@ -469,10 +503,8 @@ async function _handleEmailConfirm(code) {
 async function _showEmailConfirmed() {
   window.__nxnEmailConfirm = true;
   sessionStorage.removeItem('nxn_sess');
-  document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
-  const el = document.getElementById('s-email-confirm');
+  const el = _showOnlyAuthScreen('s-email-confirm');
   if (!el) { document.getElementById('s-login')?.classList.add('on'); return; }
-  el.classList.add('on');
   const loadEl = document.getElementById('ec-loading');
   const errEl  = document.getElementById('ec-error');
   const okEl   = document.getElementById('ec-success');

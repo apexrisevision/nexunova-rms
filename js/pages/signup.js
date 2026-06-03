@@ -452,61 +452,87 @@ function sgShowResult(res) {
     container.appendChild(resultDiv);
   }
 
-  const isTrial   = res.status === 'trialing';
   const isPending = res.status === 'pending_payment';
+  const isTrial   = res.status === 'trialing';
   const email     = (window._sgState.data && window._sgState.data.email) || '';
+  const username  = res.username || '';
 
-  if (isTrial) {
-    resultDiv.innerHTML = `
-      <div class="sg-success">
-        <div class="sg-success-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg></div>
-        <div class="sg-success-title">Confirm your email</div>
-        <p class="sg-success-msg">Your 7-day trial account is ready. We've sent an activation link to:</p>
-        <div class="sg-code-box">
-          <div>
-            <div class="sg-code-label">Email</div>
-            <div class="sg-code-value">${email || '—'}</div>
-          </div>
+  // ── BUG 2: prominent, always-present activation-email notice ──
+  const emailNotice = `
+    <div style="display:flex;gap:11px;align-items:flex-start;background:rgba(16,185,129,0.08);
+         border:1px solid rgba(16,185,129,0.28);border-radius:12px;padding:14px 16px;margin:0 0 16px;text-align:left">
+      <span style="flex-shrink:0;color:#34d399;font-size:18px;line-height:1.25">✓</span>
+      <div style="font-size:13px;color:rgba(255,255,255,0.82);line-height:1.55">
+        <span style="color:#fff">Account created.</span> We've sent an activation link to
+        <span style="color:#fff">${email || 'your email'}</span> — check your inbox and click it to
+        activate your account <span style="color:#fff">before you can log in.</span>
+        <div style="font-size:11.5px;color:rgba(255,255,255,0.5);margin-top:5px">
+          Didn't get it? Check spam, or
+          <a href="#" onclick="fpResendConfirm('${email}');return false;" style="color:#38bdf8;text-decoration:underline">resend the email</a>.
         </div>
-        <p class="sg-success-msg" style="font-size:12px;margin-bottom:6px">
-          Click the link in that email to activate your account, then sign in with your username
-          <strong style="color:rgba(255,255,255,0.7)">${res.username}</strong>.
-        </p>
-        <p class="sg-success-msg" style="font-size:11px;margin-bottom:16px">
-          Didn't get it? Check spam, or <a href="#" onclick="fpResendConfirm('${email}');return false;" style="color:#38bdf8;text-decoration:underline">resend the email</a>.
-        </p>
-        <button class="sg-btn-next" style="max-width:280px;margin:0 auto" onclick="sgGoToLogin()">
-          <div class="sg-btn-shimmer"></div>
-          <span>Go to Sign In</span>
+      </div>
+    </div>`;
+
+  // ── BUG 3: high-emphasis username box with copy button ──
+  const usernameBox = `
+    <div style="background:rgba(99,102,241,0.10);border:1px solid rgba(129,140,248,0.40);
+         border-radius:12px;padding:14px 16px;margin:0 0 18px;text-align:left">
+      <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#a5b4fc;margin-bottom:7px">This is your username — save it</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <code id="sg-username-val" style="flex:1;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:18px;color:#fff;letter-spacing:.02em;word-break:break-all">${username || '—'}</code>
+        <button type="button" id="sg-username-copy" onclick="sgCopyUsername()"
+          style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;cursor:pointer;background:rgba(129,140,248,0.16);border:1px solid rgba(129,140,248,0.4);color:#c7d2fe;border-radius:8px;padding:7px 11px;font-size:12px;font-family:inherit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy</span>
         </button>
       </div>
-    `;
-  } else if (isPending) {
+    </div>`;
+
+  const goBtn = (label) => `
+    <button class="sg-btn-next" style="max-width:280px;margin:0 auto" onclick="sgGoToLogin()">
+      <div class="sg-btn-shimmer"></div><span>${label}</span>
+    </button>`;
+
+  if (isPending) {
     resultDiv.innerHTML = `
       <div class="sg-pending">
         <div class="sg-pending-icon">⏳</div>
         <div class="sg-success-title">Account Registered!</div>
-        <p class="sg-success-msg">
-          <strong style="color:rgba(255,255,255,0.7)">Step 1 — confirm your email:</strong>
-          we've sent an activation link to <strong style="color:rgba(255,255,255,0.7)">${email}</strong>
-          (<a href="#" onclick="fpResendConfirm('${email}');return false;" style="color:#38bdf8;text-decoration:underline">resend</a>).<br><br>
-          <strong style="color:rgba(255,255,255,0.7)">Step 2 — payment:</strong>
-          once your payment is received and verified, your account will be activated.
-          Contact <strong style="color:rgba(255,255,255,0.6)">sales@nexunova.com</strong> with your username below.
+        ${emailNotice}
+        ${usernameBox}
+        <p class="sg-success-msg" style="font-size:12.5px">
+          <span style="color:rgba(255,255,255,0.7)">Payment:</span> once your payment is received and verified,
+          your account will be activated. Contact
+          <span style="color:rgba(255,255,255,0.6)">sales@nexunova.com</span> with your username above.
         </p>
-        <div class="sg-code-box">
-          <div>
-            <div class="sg-code-label">Your Username</div>
-            <div class="sg-code-value">${res.username}</div>
-          </div>
-        </div>
-        <button class="sg-btn-next" style="max-width:280px;margin:0 auto" onclick="sgGoToLogin()">
-          <div class="sg-btn-shimmer"></div>
-          <span>Back to Login</span>
-        </button>
-      </div>
-    `;
+        ${goBtn('Back to Login')}
+      </div>`;
+  } else {
+    // trialing (default) — and any other status — always shows the notice + username
+    resultDiv.innerHTML = `
+      <div class="sg-success">
+        <div class="sg-success-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg></div>
+        <div class="sg-success-title">${isTrial ? 'Your trial is ready — confirm your email' : 'Confirm your email'}</div>
+        ${emailNotice}
+        ${usernameBox}
+        ${goBtn('Go to Sign In')}
+      </div>`;
   }
+}
+
+// ── BUG 3: copy the generated username to clipboard ──
+function sgCopyUsername() {
+  const val = (document.getElementById('sg-username-val')?.textContent || '').trim();
+  if (!val || val === '—') return;
+  const flash = () => {
+    const span = document.getElementById('sg-username-copy')?.querySelector('span');
+    if (!span) return;
+    const orig = span.textContent;
+    span.textContent = 'Copied!';
+    setTimeout(() => { span.textContent = orig || 'Copy'; }, 1500);
+  };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(val).then(flash).catch(flash);
+  else flash();
 }
 
 function sgGoToLogin() {
