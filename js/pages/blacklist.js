@@ -12,7 +12,9 @@ function _blTypeLabel(v) { const t = BL_TYPES.find(x => x.v === v); return t ? t
 function _blTypeColor(v) { return { fraud:'#dc2626', legal:'#8b5cf6', breach:'#d97706', 'default':'#2563eb' }[v] || 'var(--t3)'; }
 
 async function rBlacklist() {
-  const el = document.getElementById('pg-blacklist');
+  // Folded into the Clients page as the "Blacklist" tab (2026-06-04): render into the
+  // shared mount when present, else fall back to the legacy standalone page div.
+  const el = document.getElementById('cl-tab-mount') || document.getElementById('pg-blacklist');
   if (!el) return;
   const isA = S.role === 'admin' || S.role === 'owner';
 

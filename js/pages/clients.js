@@ -9,6 +9,8 @@ let _cHealthFilter   = '';
 let _cPage           = 1;
 const _C_PER_PAGE    = 20;
 let _cView           = localStorage.getItem('nxn_cl_view') || 'table';
+let _cTab            = 'all';   // folded sub-view: 'all' | 'health' | 'blacklist'
+let _cTabPending     = null;    // transient tab request consumed once by rClients()
 
 window._healthScoresCache = {}; // client_id → {score, category, total_exposure, ...}
 
@@ -81,6 +83,11 @@ function rClients() {
       `<div class="inv-empty" style="padding:60px"><div class="inv-empty-ic">${_UI.user}</div><h4>No company selected</h4></div>`;
     return;
   }
+  // Resolve which folded tab to show: a pending request (tab click or healthcenter/
+  // blacklist route redirect) wins once; a plain nav to Clients defaults back to All.
+  if (_cTabPending) { _cTab = _cTabPending; _cTabPending = null; }
+  else { _cTab = 'all'; }
+
   loadHealthScoresCache(cid).then(() => rCLF());
   const isA   = S.role === 'admin' || S.role === 'owner';
   const isR   = S.role === 'recovery' || S.role === 'recovery_officer';
@@ -129,6 +136,22 @@ function rClients() {
       ${isA ? `<button id="um-add-client-btn" class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''}
     </div>
   </div>
+
+  <!-- ── FOLDED SUB-VIEW TABS (All · Health · Blacklist) ──────────────
+       Client Health + Blacklist Register were standalone pages; folded in here
+       2026-06-04 as tabs. Each tab reuses its original render logic (health-center.js /
+       blacklist.js), mounted into #cl-tab-mount below. -->
+  <div class="cl-subtabs" style="display:flex;gap:6px;margin:18px 0 16px;flex-wrap:wrap">
+    <button class="btn btn-sm ${_cTab==='all'?'btn-g':'btn-gh'}"       onclick="setClientsTab('all')">All Clients</button>
+    <button class="btn btn-sm ${_cTab==='health'?'btn-g':'btn-gh'}"    onclick="setClientsTab('health')">Health</button>
+    <button class="btn btn-sm ${_cTab==='blacklist'?'btn-g':'btn-gh'}" onclick="setClientsTab('blacklist')">Blacklist</button>
+  </div>
+
+  <!-- Mount for the Health / Blacklist folded views -->
+  <div id="cl-tab-mount" style="${_cTab==='all'?'display:none':''}"></div>
+
+  <!-- ── ALL-CLIENTS CONTENT (KPI + directory) ────────────────────── -->
+  <div id="cl-tab-all" style="${_cTab==='all'?'':'display:none'}">
 
   <!-- ── KPI COMPOSITION (featured + secondary stack) ─────────────── -->
   <div class="rb-kpi-grid">
@@ -187,11 +210,17 @@ function rClients() {
     <div class="dx-pager" id="cl-pager"></div>
   </div>
   </div>
+  </div><!-- /cl-tab-all -->
 </div>`;
 
   _clRenderAFBar();
   rCLF();
   _checkClientLimitUI();
+
+  // Folded sub-views: render Health / Blacklist into the shared mount, reusing the
+  // original health-center.js / blacklist.js logic (now mount-aware).
+  if (_cTab === 'health')         rHealthCenter();
+  else if (_cTab === 'blacklist') rBlacklist();
 }
 
 async function _checkClientLimitUI() {
@@ -249,6 +278,12 @@ function setCStatusFilter(v)    { _cStatusFilter = v;   _cPage = 1; rClients(); 
 function setCCategoryFilter(v)  { _cCategoryFilter = v; _cPage = 1; _clRenderAFBar(); rCLF(); }
 function setCHealthFilter(v)    { _cHealthFilter = v;   _cPage = 1; _clRenderAFBar(); rCLF(); }
 function setCView(v)            { _cView = v; localStorage.setItem('nxn_cl_view', v); rClients(); }
+
+// Folded sub-view tabs (All · Health · Blacklist). Both in-page clicks and the
+// healthcenter/blacklist route redirects funnel through _cTabPending, so a plain
+// nav('clients') still defaults back to the All tab.
+function setClientsTab(t)          { _cTabPending = (t==='health'||t==='blacklist')?t:'all'; rClients(); }
+window.openClientsTab = function(t){ _cTabPending = (t==='health'||t==='blacklist')?t:'all'; nav('clients'); };
 
 // Client-side sort (full filtered set, then paginate)
 let _cSort = { col: '', dir: 1 };

@@ -6,7 +6,9 @@ let _hcFilter = 'ALL';
 let _hcData   = [];
 
 async function rHealthCenter() {
-  const pg = document.getElementById('pg-healthcenter');
+  // Folded into the Clients page as the "Health" tab (2026-06-04): render into the
+  // shared mount when present, else fall back to the legacy standalone page div.
+  const pg = document.getElementById('cl-tab-mount') || document.getElementById('pg-healthcenter');
   if (!pg) return;
 
   _hcData = [];
