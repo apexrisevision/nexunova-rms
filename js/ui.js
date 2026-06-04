@@ -328,18 +328,20 @@ function buildSB(){
     // HOME + RECOVERY open by default (daily operations).
     // CLIENTS & UNITS, PAYMENTS, REPORTS & ANALYTICS, LEGAL & COMPLIANCE,
     // ADMINISTRATION collapsed by default.
-    // All page-ids preserved verbatim. 'contacts' appears twice (Inbox in HOME /
-    // Call Logs in RECOVERY) and 'reports' appears twice (Outstanding in PAYMENTS /
-    // Reports & Export in REPORTS & ANALYTICS) — both intentional duplicate routes.
+    // All page-ids preserved verbatim. (Former duplicate nav entries removed 2026-06-04:
+    // 'reports' as "Outstanding" in PAYMENTS and 'contacts' as "Call Logs" in RECOVERY —
+    // both were arg-less render fns identical to their canonical entries, so they only
+    // added sidebar clutter. Canonical homes kept: reports→"Reports & Export" in REPORTS &
+    // INTELLIGENCE, contacts→"Inbox" in HOME.)
     // defaultCollapsed honored on first load via renderer line 511-512;
     // user toggles persist in localStorage['rms.sidebar.groups.v2'] and
     // override defaultCollapsed thereafter.
     navGroups = [
       // International SaaS-standard 8-group hierarchy (2026-06-04 restructure).
       // Home + Setup expanded; the rest collapsed by default. All page-ids/icons/badges
-      // preserved verbatim. 'contacts' appears twice (Inbox/Home + Call Logs/Recovery & Legal)
-      // and 'reports' twice (Outstanding/Payments & Accounts + Reports & Export/Reports &
-      // Intelligence) — both intentional duplicate routes. Collapse state persists in
+      // preserved verbatim. (Duplicate nav entries removed 2026-06-04: contacts→"Call Logs"
+      // and reports→"Outstanding"; each id now appears once — contacts in Home as "Inbox",
+      // reports in Reports & Intelligence as "Reports & Export".) Collapse state persists in
       // localStorage['rms.sidebar.groups.v2'] (key bumped so old grouping's states don't leak).
       // ── 1. Home (expanded) ──
       { label: 'Home', items: [
@@ -378,7 +380,6 @@ function buildSB(){
         { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers' },
         { id:'pdc',         ic:'calendar-clock',    lb:'PDC Register' },
         { id:'paylinks',    ic:'link',              lb:'Payment Links' },
-        { id:'reports',     ic:'alert-circle',      lb:'Outstanding', bdg:alrt||null, bdgType:alrt?'alert':null },
         { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
         { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
         { id:'ledgers',     ic:'book-open',         lb:'Ledgers' },
@@ -389,7 +390,6 @@ function buildSB(){
         { id:'recovery',           ic:'list-checks',    lb:'Recovery Queue' },
         { id:'promises',           ic:'handshake',      lb:'Promise Tracker' },
         { id:'reminders',          ic:'bell',           lb:'Reminders' },
-        { id:'contacts',           ic:'phone',          lb:'Call Logs' },
         { id:'campaigns',          ic:'megaphone',      lb:'Campaigns' },
         { id:'fieldvisits',        ic:'map-pin',        lb:'Field Visits' },
         { id:'escalations',        ic:'alert-triangle', lb:'Escalations' },
