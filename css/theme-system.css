@@ -45,6 +45,8 @@ html.no-transitions *::after {
   --group-label:        #475569;
   --bg-page:            #0B1120;
   --bg-card:            #111827;
+  --card:               #13141A;
+  --card2:              #1C1E27;
 }
 
 /* LIGHT THEME (Apple-Level Glassmorphism) */
@@ -96,6 +98,8 @@ html.no-transitions *::after {
   --group-label:        #94A3B8;
   --bg-page:            #F1F5F9;
   --bg-card:            #FFFFFF;
+  --card:               #FFFFFF;
+  --card2:              #F8FAFC;
 }
 
 /* Light mode body gradient with floating orbs */
