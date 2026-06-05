@@ -1,18 +1,24 @@
 ﻿// ══ ADMIN PAGE ════════════════════════════════
 function rAdmin(){
   if(S.role!=='admin' && S.role!=='owner'){nav('dashboard');return;}
-  if(!_at || _at==='users' || _at==='audit') _at='settings';
+  // Reset to Settings if _at is unset or points at a removed/duplicate card (see below).
+  if(!_at || ['users','audit','data','log'].includes(_at)) _at='settings';
 
+  // ── Card grid recreated 2026-06-04 ──────────────────────────────────────────
+  // Duplicate entries removed — each already has a dedicated sidebar page, so showing
+  // them here too only bloated the panel:
+  //   • Users        → Setup  ▸ Users & Roles   (the old card just did nav('users'))
+  //   • Backup       → System ▸ Backup          (rBackup is the canonical export/restore)
+  //   • Audit Trail  → System ▸ Audit Trail      (the old card just did nav('audit'))
+  //   • Activity Log → superseded by the server-side Audit Trail (was legacy localStorage)
+  // Only genuine admin-config sections remain. The legacy rAT() handlers for the removed
+  // tabs are kept as harmless fallbacks (the guard above prevents landing on them).
   const _cards=[
-    {t:'users',    ic:'users',       lb:'Users',         sub:'Team accounts & roles',    col:'#2563EB'},
-    {t:'import',   ic:'file-text',   lb:'Import Excel',  sub:'Bulk data import',         col:'#10B981'},
-    {t:'data',     ic:'database',    lb:'Backup',        sub:'Export & restore data',    col:'#0EA5E9'},
-    {t:'log',      ic:'history',     lb:'Activity Log',  sub:'Track user actions',       col:'#F59E0B'},
-    {t:'settings', ic:'settings',    lb:'Settings',      sub:'System configuration',     col:'#6366F1'},
-    {t:'security', ic:'shield',      lb:'Security',      sub:'Auth & access control',    col:'#EF4444'},
-    {t:'profile',  ic:'building-2',  lb:'Company',       sub:'Profile & branding',       col:'#8B5CF6'},
-    {t:'plan',     ic:'layers',      lb:'Plan & Usage',  sub:'Subscription & limits',    col:'#A855F7'},
-    {t:'audit',    ic:'list-checks', lb:'Audit Trail',   sub:'Full event history',       col:'#14B8A6'},
+    {t:'settings', ic:'settings',   lb:'Settings',     sub:'System configuration',  col:'#6366F1'},
+    {t:'profile',  ic:'building-2', lb:'Company',      sub:'Profile & branding',    col:'#8B5CF6'},
+    {t:'security', ic:'shield',     lb:'Security',     sub:'Auth & access control', col:'#EF4444'},
+    {t:'plan',     ic:'layers',     lb:'Plan & Usage', sub:'Subscription & limits', col:'#A855F7'},
+    {t:'import',   ic:'file-text',  lb:'Import Excel', sub:'Bulk data import',      col:'#10B981'},
   ];
 
   const h=new Date().getHours();

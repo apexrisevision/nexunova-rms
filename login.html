@@ -21,7 +21,7 @@
 
 <!-- Nexunova RMS — Modular CSS -->
 <link rel="stylesheet" href="css/design-system.css?v=20260526c">
-<link rel="stylesheet" href="css/login.css?v=20260526c">
+<link rel="stylesheet" href="css/login.css?v=20260604e">
 <link rel="stylesheet" href="css/app.css?v=20260528h">
 <link rel="stylesheet" href="css/components.css?v=20260601a">
 <link rel="stylesheet" href="css/pages.css?v=20260511c">
@@ -54,7 +54,7 @@
 <link rel="stylesheet" href="css/tutorial.css?v=20260517a">
 <link rel="stylesheet" href="css/recovery-queue.css?v=20260526a">
 <!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
-<link rel="stylesheet" href="css/visual-overhaul.css?v=20260601b">
+<link rel="stylesheet" href="css/visual-overhaul.css?v=20260604a">
 <!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260526c">
 
@@ -325,6 +325,29 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="032f6ce9-493a-4be9-8048-342e6102b364";(function(){var d=document;var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
 </head>
 <body>
+
+<!-- ═══ Legacy desktop-app update notice ═══════════════════════════════
+     Shown only when this page was reached via the Electron-shell rescue
+     redirect (?nxn_legacy=1) from the marketing/index page — i.e. the user is
+     running an OLD desktop build that doesn't hand off to the app. They can
+     sign in here normally; we just nudge them to install the latest build.
+     The current desktop build loads login.html directly (no param) so this
+     never shows for up-to-date users. -->
+<div id="nxn-legacy-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#0f172a;border-bottom:1px solid rgba(255,255,255,.12);color:#e2e8f0;font:500 13.5px/1.45 'Inter',system-ui,sans-serif;padding:11px 18px;align-items:center;gap:14px;box-shadow:0 6px 24px rgba(0,0,0,.35)">
+  <span style="flex:1">You're using an older Nexunova desktop app. Sign in below to continue — and download the latest version for the smoothest experience.</span>
+  <a href="https://rms.nexunova.com/download" target="_blank" rel="noopener" style="flex:none;background:#2563eb;color:#fff;text-decoration:none;padding:7px 16px;border-radius:8px;font-weight:600;letter-spacing:.2px">Download latest</a>
+  <button type="button" onclick="this.parentNode.style.display='none'" style="flex:none;background:transparent;border:0;color:#94a3b8;font-size:20px;line-height:1;cursor:pointer;padding:2px 6px" aria-label="Dismiss">&times;</button>
+</div>
+<script>
+(function(){
+  try{
+    if (/[?&]nxn_legacy=1/.test(location.search)) {
+      var bar = document.getElementById('nxn-legacy-bar');
+      if (bar) bar.style.display = 'flex';
+    }
+  }catch(e){}
+})();
+</script>
 
 <!-- ════════════════════════════════════════════
      LOGIN SCREEN
@@ -1195,13 +1218,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     <!-- Zone 4: Navigation -->
     <div class="sb-nav" id="sb-nav"></div>
 
-    <!-- Zone 4b: Setup Wizard shortcut -->
-    <div class="sb-wizard-btn" id="sb-wizard-btn" onclick="OB.show(S&&S.cid)" style="display:none">
-      <span class="sb-wizard-ic">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg>
-      </span>
-      <span class="sb-wizard-lb">Setup Wizard</span>
-    </div>
+    <!-- Zone 4b: Setup Wizard shortcut retired — now a nav item in the HOME group (js/ui.js) -->
 
     <!-- Zone 4c: Theme toggle (Phase 5, 2026-05-27 — moved from topbar #tb-theme-btn).
          Wires to existing window.toggleTheme() via theme.js's #tb-theme-btn click delegate;
@@ -4037,7 +4054,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/onboarding.js?v=20260526i"></script>
 
 <!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260604c"></script>
+<script src="js/pages/dashboard.js?v=20260604d"></script>
 <script src="js/pages/recovery-dashboard.js?v=20260526a"></script>
 <script src="js/pages/units.js?v=20260601a"></script>
 <script src="js/pages/clients.js?v=20260604a"></script>
@@ -4074,7 +4091,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/transfers.js?v=20260529a"></script>
 <script src="js/pages/cancellation.js?v=20260528c"></script>
 <script src="js/pages/backup.js?v=20260604b"></script>
-<script src="js/pages/admin.js?v=20260528a"></script>
+<script src="js/pages/admin.js?v=20260604a"></script>
 <script src="js/pages/categories.js?v=20260531e"></script>
 <script src="js/pages/users.js?v=20260528b"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>

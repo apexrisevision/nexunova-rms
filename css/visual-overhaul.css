@@ -990,6 +990,21 @@ button:focus-visible, a:focus-visible,
    These pages use .mo/.mo-box/.mo-hd/.mo-bd/.mo-ft with no CSS defined.
    ─────────────────────────────────────────────────────────────────────────── */
 
+/* saas-polish.css gives .pg.on a `transform: translateY(...)` (animation
+   nx-fadein, fill-mode both) which leaves a persistent transform on the page.
+   A transformed ancestor becomes the containing block for position:fixed
+   children, so the `.mo` overlay below stops being viewport-anchored: the
+   backdrop only covers the page band and a tall modal is clipped top & bottom
+   with no scroll. Override these pages' page-in animation to opacity-only (no
+   transform) so `.mo` anchors to the viewport. Same fix as #pg-units in
+   inventory-drawer.css. NOTE: the sibling .mo pages above (blacklist,
+   legalcases, escalations, receivables, payables, agenttransactions, users)
+   share this exact bug — extend this selector list if their modals overflow. */
+@keyframes mo-pg-fadein { from { opacity: 0; } to { opacity: 1; } }
+#pg-banks.on {
+  animation: mo-pg-fadein 220ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
 /* Overlay */
 .mo {
   position: fixed;

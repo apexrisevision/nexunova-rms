@@ -286,6 +286,7 @@ function _sbi(name, size){
     'message-square':      '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     'map-pin':             '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
     'file-check':          '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/>',
+    'wand-2':              '<path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/>',
   };
   return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'+(P[name]||'')+'</svg>';
 }
@@ -349,6 +350,7 @@ function buildSB(){
         { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
         { id:'approvals', ic:'file-check',  lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
         { id:'team',      ic:'users',       lb:'Team' },
+        { id:'setup-wizard', ic:'wand-2',   lb:'Setup Wizard', action:"if(typeof OB!=='undefined'&&S&&S.cid){OB.show(S.cid);}else if(typeof toast==='function'){toast('Setup wizard not available','err');}" },
       ]},
       // ── 2. Setup (expanded) ──
       { label: 'Setup', items: [
@@ -548,11 +550,10 @@ function buildSB(){
     refreshApprovalsBadge();
   }
 
-  // Setup Wizard shortcut — only visible to admin/owner AND only while onboarding is incomplete.
-  // Once onboarding_complete=true, hide it (re-run via Admin → Settings later if needed).
+  // Setup Wizard now lives as a nav item inside the HOME group (admin/owner), so the old
+  // standalone footer shortcut (#sb-wizard-btn) is retired — keep it hidden if still present.
   const _wizBtn = document.getElementById('sb-wizard-btn');
-  const _obDone = !!(typeof S !== 'undefined' && S && S.onboardingComplete);
-  if(_wizBtn) _wizBtn.style.display = (isA && !_obDone) ? 'flex' : 'none';
+  if(_wizBtn) _wizBtn.style.display = 'none';
 
   // Theme toggle (Phase 5, 2026-05-27) — the button moved from topbar to the sidebar footer
   // (static HTML in login.html, zone 4c). theme.js owns the click delegate on #tb-theme-btn
@@ -578,7 +579,8 @@ function _mkNi(x, isSub, grpLabel){
   const cls     = 'ni' + (isSub ? ' ni-sub' : '');
   const tooltip = (isSub && grpLabel) ? grpLabel+' → '+x.lb : x.lb;
   const bdg     = x.bdg ? '<span class="ni-bdg'+(x.bdgType?' '+x.bdgType:'')+'">'+x.bdg+'</span>' : '';
-  return '<div class="'+cls+'" data-pg="'+x.id+'" data-label="'+tooltip+'" onclick="nav(\''+x.id+'\')">'
+  const onclk   = x.action ? x.action : "nav('"+x.id+"')";
+  return '<div class="'+cls+'" data-pg="'+x.id+'" data-label="'+tooltip+'" onclick="'+onclk+'">'
        + '<span class="ni-ic">'+_sbi(x.ic)+'</span>'
        + '<span class="ni-lb">'+x.lb+'</span>'
        + bdg + '</div>';

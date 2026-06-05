@@ -1534,3 +1534,126 @@ body.wizard-active .chat-fab {
   pointer-events: none !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   SETUP WIZARD — LIGHT THEME SUPPORT (2026-06-04)
+   The onboarding wizard (#s-onboarding / .ob-*) was authored forced-dark with
+   hardcoded white text + dark surfaces. These overrides make it follow the
+   app's LIGHT theme. Scoped under [data-theme="light"] #s-onboarding so dark
+   mode is untouched. !important is used only where the base rule uses it.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Surfaces ── */
+[data-theme="light"] #s-onboarding,
+[data-theme="light"] #s-onboarding.ob-screen { background: #F1F5F9; }
+[data-theme="light"] #s-onboarding .ob-sidebar { background: #FFFFFF; border-right-color: #E2E8F0; }
+[data-theme="light"] #s-onboarding .ob-main { background: #F8FAFC; }
+[data-theme="light"] #s-onboarding .ob-panel { background: #FFFFFF !important; border-color: #E2E8F0 !important; }
+[data-theme="light"] #s-onboarding .ob-nav {
+  background: rgba(248,250,252,0.85);
+  border-top-color: #E2E8F0;
+  box-shadow: 0 -8px 18px rgba(15,23,42,0.06);
+}
+[data-theme="light"] #s-onboarding .ob-progress-bar { background: #E2E8F0; }
+
+/* ── Text: headings & body ── */
+[data-theme="light"] #s-onboarding .ob-sb-name,
+[data-theme="light"] #s-onboarding .ob-panel-title,
+[data-theme="light"] #s-onboarding .ob-done-title,
+[data-theme="light"] #s-onboarding .ob-existing-name { color: #0F172A; }
+[data-theme="light"] #s-onboarding .ob-panel-sub,
+[data-theme="light"] #s-onboarding .ob-done-sub,
+[data-theme="light"] #s-onboarding .ob-done-item,
+[data-theme="light"] #s-onboarding .ob-label,
+[data-theme="light"] #s-onboarding .ob-rev-row,
+[data-theme="light"] #s-onboarding .ob-mode-card { color: #475569; }
+[data-theme="light"] #s-onboarding .ob-panel-sub strong,
+[data-theme="light"] #s-onboarding .ob-rev-row b { color: #0F172A; }
+[data-theme="light"] #s-onboarding .ob-sb-sub,
+[data-theme="light"] #s-onboarding .ob-step-counter,
+[data-theme="light"] #s-onboarding .ob-section-divider,
+[data-theme="light"] #s-onboarding .ob-existing-title,
+[data-theme="light"] #s-onboarding .ob-existing-meta,
+[data-theme="light"] #s-onboarding .ob-existing-code,
+[data-theme="light"] #s-onboarding .ob-rev-hd { color: #64748B; }
+[data-theme="light"] #s-onboarding .ob-step-counter strong,
+[data-theme="light"] #s-onboarding .ob-step-counter b { color: #1E293B; }
+[data-theme="light"] #s-onboarding .ob-hint-inline,
+[data-theme="light"] #s-onboarding .ob-sl-sub,
+[data-theme="light"] #s-onboarding .ob-done-tip,
+[data-theme="light"] #s-onboarding .ob-rev-empty,
+[data-theme="light"] #s-onboarding .ob-existing-note,
+[data-theme="light"] #s-onboarding .ob-section-divider .ob-hint-inline { color: #94A3B8; }
+
+/* ── Sidebar step list ── */
+[data-theme="light"] #s-onboarding .ob-sl-label { color: #475569; }
+[data-theme="light"] #s-onboarding .ob-sl-active .ob-sl-label { color: #0F172A; }
+[data-theme="light"] #s-onboarding .ob-sl-done .ob-sl-label { color: #64748B; }
+[data-theme="light"] #s-onboarding .ob-sl-icon { background: #F1F5F9; border-color: #E2E8F0; color: #94A3B8; }
+[data-theme="light"] #s-onboarding .ob-sb-footer { border-top-color: #E2E8F0 !important; }
+
+/* ── Inputs ── */
+[data-theme="light"] #s-onboarding .ob-input,
+[data-theme="light"] #s-onboarding .ob-file { background: #FFFFFF; border-color: #CBD5E1; color: #0F172A; }
+[data-theme="light"] #s-onboarding .ob-input::placeholder { color: #94A3B8; }
+[data-theme="light"] #s-onboarding .ob-input:hover:not(:focus):not(.ob-input-err) { border-color: #94A3B8; }
+[data-theme="light"] #s-onboarding .ob-input:focus { background: #FFFFFF; border-color: #2563EB; }
+[data-theme="light"] #s-onboarding .ob-logo-prev { background: #F1F5F9; }
+
+/* ── Step dots & labels ── */
+[data-theme="light"] #s-onboarding .ob-dot { background: #E2E8F0 !important; border-color: #CBD5E1 !important; }
+[data-theme="light"] #s-onboarding .ob-step-lbl { color: #94A3B8; }
+
+/* ── Chips · mode cards · repeatable/review/existing cards ── */
+[data-theme="light"] #s-onboarding .ob-mode-card,
+[data-theme="light"] #s-onboarding .ob-rep-card,
+[data-theme="light"] #s-onboarding .ob-user-card,
+[data-theme="light"] #s-onboarding .ob-rev-sec,
+[data-theme="light"] #s-onboarding .ob-existing-card { background: #FFFFFF; border-color: #E2E8F0; }
+[data-theme="light"] #s-onboarding .ob-type-chip { background: #F8FAFC; border-color: #E2E8F0; color: #475569; }
+[data-theme="light"] #s-onboarding .ob-type-chip::before { border-color: #CBD5E1; }
+[data-theme="light"] #s-onboarding .ob-type-chip.ob-type-checked,
+[data-theme="light"] #s-onboarding .ob-mode-card:hover,
+[data-theme="light"] #s-onboarding .ob-mode-card.ob-mode-on { color: #0F172A; }
+[data-theme="light"] #s-onboarding .ob-mode-dot,
+[data-theme="light"] #s-onboarding .ob-color-chip { border-color: #CBD5E1; }
+[data-theme="light"] #s-onboarding .ob-rep-card:hover,
+[data-theme="light"] #s-onboarding .ob-user-card:hover,
+[data-theme="light"] #s-onboarding .ob-existing-card:hover { border-color: #CBD5E1; }
+[data-theme="light"] #s-onboarding .ob-existing-card:hover { background: #F1F5F9; }
+[data-theme="light"] #s-onboarding .ob-rev-hd { border-bottom-color: #E2E8F0; }
+[data-theme="light"] #s-onboarding .ob-existing-title { border-bottom-color: #E2E8F0; }
+[data-theme="light"] #s-onboarding .ob-empty { background: #F8FAFC; border-color: #E2E8F0; color: #94A3B8; }
+
+/* ── Blue accents that were too light to read on a light bg ── */
+[data-theme="light"] #s-onboarding .ob-add-btn,
+[data-theme="light"] #s-onboarding .ob-username-pill,
+[data-theme="light"] #s-onboarding .ob-existing-title span,
+[data-theme="light"] #s-onboarding .ob-panel-sub code,
+[data-theme="light"] #s-onboarding .ob-file::-webkit-file-upload-button { color: #2563EB; }
+[data-theme="light"] #s-onboarding .ob-add-btn:hover:not(:disabled) { color: #1D4ED8; }
+
+/* ── Back button ── */
+[data-theme="light"] #s-onboarding .ob-btn-back { border-color: #CBD5E1; color: #475569; }
+[data-theme="light"] #s-onboarding .ob-btn-back:hover { border-color: #94A3B8; color: #0F172A; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SETUP WIZARD — VIEWPORT FIT (2026-06-04)
+   The .scr.ob-screen wrapper had min-height:100vh + 40px padding + justify/align
+   center, while the inner .ob-wizard is height:100vh. 100vh + 80px padding,
+   vertically centred, pushed the bottom nav (Next) AND the sidebar footer
+   (Cancel & return to dashboard) ~40px below the fold. Pin the wizard to the
+   viewport exactly so both stay visible; .ob-panel-wrap scrolls internally.
+   ══════════════════════════════════════════════════════════════════════════ */
+#s-onboarding.ob-screen {
+  padding: 0 !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+#s-onboarding .ob-wizard { height: 100vh !important; max-height: 100vh !important; }
+/* Slightly tighter bottom padding so the form never crowds the pinned nav */
+#s-onboarding .ob-panel-wrap { padding-bottom: 24px !important; }
+

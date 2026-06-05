@@ -114,6 +114,61 @@ function tempPasswordHtml(fullName: string, tempPassword: string): string {
 </div>`.trim();
 }
 
+function renewalReminderHtml(
+  fullName: string, companyName: string, daysLeft: string, expiryDate: string,
+  planName: string, amount: string, currency: string, loginUrl: string
+): string {
+  const dayWord = daysLeft === "1" ? "day" : "days";
+  return `
+<div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:12px;">
+  <div style="margin-bottom:20px;">
+    <div style="font-size:20px;font-weight:700;color:#f8fafc;margin:0 0 4px;">Nexunova RMS</div>
+    <div style="font-size:12px;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;">Subscription Renewal</div>
+  </div>
+  <p style="font-size:14px;color:#cbd5e1;line-height:1.6;">Hi ${fullName},</p>
+  <p style="font-size:14px;color:#cbd5e1;line-height:1.6;">
+    Your <strong style="color:#f8fafc;">${planName}</strong> subscription for
+    <strong style="color:#f8fafc;">${companyName}</strong> expires in
+    <strong style="color:#f59e0b;">${daysLeft} ${dayWord}</strong> — on <strong style="color:#f8fafc;">${expiryDate}</strong>.
+  </p>
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px 20px;margin:20px 0;">
+    <div style="font-size:13px;color:#94a3b8;">Amount due</div>
+    <div style="font-size:24px;font-weight:700;color:#f8fafc;margin-top:2px;">${currency} ${amount}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:6px;">Renews your ${planName} plan</div>
+  </div>
+  <p style="font-size:14px;color:#cbd5e1;line-height:1.6;">
+    Please update your payment in time so your system keeps running without interruption.
+  </p>
+  <a href="${loginUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;margin:8px 0 20px;">Renew Now →</a>
+  <p style="font-size:12px;color:#475569;line-height:1.6;">Questions? Contact <a href="mailto:support@nexunova.com" style="color:#6366f1;">support@nexunova.com</a></p>
+</div>`.trim();
+}
+
+function subscriptionExpiredHtml(
+  fullName: string, companyName: string, planName: string,
+  amount: string, currency: string, loginUrl: string
+): string {
+  return `
+<div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:12px;">
+  <div style="margin-bottom:20px;">
+    <div style="font-size:20px;font-weight:700;color:#f8fafc;margin:0 0 4px;">Nexunova RMS</div>
+    <div style="font-size:12px;color:#f43f5e;letter-spacing:1px;text-transform:uppercase;">Subscription Expired</div>
+  </div>
+  <p style="font-size:14px;color:#cbd5e1;line-height:1.6;">Hi ${fullName},</p>
+  <p style="font-size:14px;color:#cbd5e1;line-height:1.6;">
+    Your <strong style="color:#f8fafc;">${planName}</strong> subscription for
+    <strong style="color:#f8fafc;">${companyName}</strong> has <strong style="color:#f43f5e;">expired</strong>.
+    Access to your RMS is paused until renewal.
+  </p>
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px 20px;margin:20px 0;">
+    <div style="font-size:13px;color:#94a3b8;">Amount to renew</div>
+    <div style="font-size:24px;font-weight:700;color:#f8fafc;margin-top:2px;">${currency} ${amount}</div>
+  </div>
+  <a href="${loginUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;margin:8px 0 20px;">Pay &amp; Reactivate →</a>
+  <p style="font-size:12px;color:#475569;line-height:1.6;">Once we verify your payment, your system is reactivated — usually within 2 hours. Need help? <a href="mailto:support@nexunova.com" style="color:#6366f1;">support@nexunova.com</a></p>
+</div>`.trim();
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -128,7 +183,8 @@ Deno.serve(async (req) => {
   }
 
   const { email, otp, purpose, company_name, subuser_name, subuser_email,
-          temp_password, full_name } = body;
+          temp_password, full_name, days_left, expiry_date, amount, currency,
+          plan_name, login_url } = body;
 
   if (!email || !purpose) {
     return Response.json({ error: "email and purpose required" }, { status: 400, headers: CORS });
@@ -163,6 +219,23 @@ Deno.serve(async (req) => {
     case "temp_password":
       subject = "Your temporary password — Nexunova RMS";
       html    = tempPasswordHtml(full_name ?? "there", temp_password ?? "");
+      break;
+
+    case "renewal_reminder":
+      subject = `Your Nexunova subscription expires in ${days_left ?? "a few"} day${days_left === "1" ? "" : "s"}`;
+      html    = renewalReminderHtml(
+        full_name ?? "there", company_name ?? "your company", days_left ?? "",
+        expiry_date ?? "", plan_name ?? "your", amount ?? "", currency ?? "PKR",
+        login_url ?? "https://rms.nexunova.com/login.html"
+      );
+      break;
+
+    case "subscription_expired":
+      subject = "Your Nexunova subscription has expired";
+      html    = subscriptionExpiredHtml(
+        full_name ?? "there", company_name ?? "your company", plan_name ?? "your",
+        amount ?? "", currency ?? "PKR", login_url ?? "https://rms.nexunova.com/login.html"
+      );
       break;
 
     default:

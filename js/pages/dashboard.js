@@ -443,13 +443,6 @@ async function loadCommandCenter() {
   const bouncedN = pdcBounced.length, bouncedAmt = pdcBounced.reduce((s,r)=>s+Number(r.amount||0),0);
   const lockedN  = lockedUsers.length;
 
-  // ── Company Setup entry (logo · letterhead · branding) ──
-  const _brandDone = !!(window._cobranding && window._cobranding.onboarding_complete);
-  const _hasLogo   = (typeof getCoLogo === 'function') && !!getCoLogo();
-  const setupSub   = _brandDone ? 'Logo, letterhead & signature set'
-                   : _hasLogo  ? 'Finish letterhead & branding'
-                   :             'Add logo, letterhead & branding';
-
   // ── TEAM ACTIVITY — per user, today (login · time · actions · contacts) ──
   const _hm = m => { m=Math.max(0,Math.round(Number(m)||0)); const h=Math.floor(m/60), mm=m%60; return h ? (mm?`${h}h ${mm}m`:`${h}h`) : `${mm}m`; };
   const _roleShort = { owner:'Owner', admin:'Admin', recovery:'Recovery', recovery_officer:'Recovery', finance:'Finance', accounts:'Finance', manager:'Manager', staff:'Staff' };
@@ -574,11 +567,6 @@ async function loadCommandCenter() {
         <button class="cc-card cc-attn ${bouncedN?'on':''}" onclick="nav('pdc')">
           <span class="cc-attn-ic" style="--ac:#EF4444">${_ic('<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/><path d="m7 15 3-3 4 4"/>',16)}</span>
           <span class="cc-attn-meta"><span class="cc-attn-n">${bouncedN}</span><span class="cc-attn-lb">Bounced cheques${bouncedAmt?` · PKR ${fLakhCr(bouncedAmt)}`:''}</span></span>
-          <span class="cc-attn-go">${_ic('<path d="m9 18 6-6-6-6"/>',13)}</span>
-        </button>
-        <button class="cc-card cc-attn cc-setup ${_brandDone?'':'on'}" onclick="openBrandingWizard()" title="Company logo, letterhead & branding — shown on all reports">
-          <span class="cc-attn-ic" style="--ac:#7C3AED">${_ic('<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/>',16)}</span>
-          <span class="cc-attn-meta"><span class="cc-attn-n" style="font-size:14px;font-weight:700;letter-spacing:-.2px">Company Setup</span><span class="cc-attn-lb">${setupSub}</span></span>
           <span class="cc-attn-go">${_ic('<path d="m9 18 6-6-6-6"/>',13)}</span>
         </button>
       </div>
