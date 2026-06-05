@@ -4,6 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- ═══ Legacy desktop-app rescue ═══════════════════════════════════════
+     Old Nexunova desktop builds (pre-2026-05-29) land on this marketing page
+     after native login instead of the RMS app. Detect the Electron shell and
+     bounce straight to the real app, flagging it legacy so the app can prompt
+     the user to update. Normal browser visitors (no "Electron" in UA) are
+     never affected; the current desktop build loads login.html directly and
+     never reaches this page automatically. -->
+<script>
+(function(){
+  try{
+    if (/Electron/i.test(navigator.userAgent || '')) {
+      location.replace('https://rms.nexunova.com/login.html?nxn_legacy=1');
+    }
+  }catch(e){}
+})();
+</script>
+
 <!-- ═══ SEO ═══════════════════════════════════════════════════ -->
 <title>Nexunova RMS — Real Estate Recovery Management System | Smart Payment Links, KYC Agents, Recovery Radar</title>
 <meta name="description" content="Nexunova RMS is the most advanced installment recovery platform in Asia. Real-time recovery radar, smart WhatsApp payment links, KYC-verified agents, PDC management, multi-level ledgers, and a self-service buyer portal — purpose-built for real estate developers and builders.">
