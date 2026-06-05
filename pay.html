@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Renew Subscription — Nexunova RMS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.34.0/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#0b1120; --card:#0f172a; --card2:#1e293b; --line:#1f2b3e; --line2:#334155;
+    --t1:#f8fafc; --t2:#cbd5e1; --t3:#94a3b8; --t4:#64748b;
+    --accent:#6366f1; --accent2:#4f46e5; --ok:#22c55e; --warn:#f59e0b; --err:#f43f5e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Inter,system-ui,-apple-system,sans-serif;background:
+    radial-gradient(1200px 600px at 50% -10%, #15213b 0%, var(--bg) 55%);
+    color:var(--t2);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px}
+  .wrap{width:100%;max-width:520px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:20px;justify-content:center}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+  .brand .name{font-size:17px;color:var(--t1);letter-spacing:.3px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 24px;
+    box-shadow:0 20px 50px -20px rgba(0,0,0,.6);margin-bottom:16px}
+  .eyebrow{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--warn);margin-bottom:8px}
+  h1{font-size:21px;color:var(--t1);font-weight:500;letter-spacing:-.2px;margin-bottom:4px}
+  .sub{font-size:13px;color:var(--t3);line-height:1.55}
+  .inv{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:18px 0}
+  .inv-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font-size:13px}
+  .inv-row .k{color:var(--t3)} .inv-row .v{color:var(--t1)}
+  .inv-amt{font-size:30px;color:var(--t1);font-weight:600;letter-spacing:-.5px}
+  .acc{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;
+    transition:border-color .15s,background .15s;position:relative}
+  .acc:hover{border-color:var(--line2)}
+  .acc.sel{border-color:var(--accent);background:rgba(99,102,241,.08)}
+  .acc-h{display:flex;justify-content:space-between;align-items:center}
+  .acc-name{font-size:13px;color:var(--t1)} .acc-type{font-size:10px;color:var(--t4);text-transform:uppercase;letter-spacing:.6px}
+  .acc-d{font-size:12px;color:var(--t2);margin-top:5px;font-family:'Courier New',monospace}
+  .acc-title{font-size:12px;color:var(--t3);margin-top:2px}
+  label{display:block;font-size:12px;color:var(--t3);margin:14px 0 6px}
+  input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:9px;
+    padding:11px 13px;color:var(--t1);font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  .file{border:1.5px dashed var(--line2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;
+    color:var(--t3);font-size:13px;transition:border-color .15s}
+  .file:hover{border-color:var(--accent)}
+  .file.has{border-color:var(--ok);color:var(--t1)}
+  .btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;
+    border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;margin-top:20px;transition:opacity .15s}
+  .btn:hover{opacity:.92} .btn:disabled{opacity:.5;cursor:not-allowed}
+  .msg{padding:11px 14px;border-radius:9px;font-size:13px;margin-top:14px;display:none;line-height:1.5}
+  .msg.err{background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.3);color:#fda4af;display:block}
+  .msg.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#86efac;display:block}
+  .center{text-align:center;padding:30px 10px}
+  .spinner{width:34px;height:34px;border:3px solid var(--line2);border-top-color:var(--accent);
+    border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ico{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+  .ico.ok{background:rgba(34,197,94,.15);color:var(--ok)} .ico.warn{background:rgba(245,158,11,.15);color:var(--warn)}
+  .foot{text-align:center;font-size:11px;color:var(--t4);margin-top:8px}
+  .foot a{color:var(--accent);text-decoration:none}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><div class="logo">N</div><div class="name">Nexunova RMS</div></div>
+
+  <!-- Loading -->
+  <div id="v-load" class="card"><div class="center"><div class="spinner"></div><div class="sub">Loading your invoice…</div></div></div>
+
+  <!-- Invalid / expired -->
+  <div id="v-bad" class="card hide"><div class="center">
+    <div class="ico warn">!</div>
+    <h1 id="bad-t">Link not valid</h1>
+    <p class="sub" id="bad-m" style="margin-top:8px"></p>
+  </div></div>
+
+  <!-- Pay form -->
+  <div id="v-pay" class="hide">
+    <div class="card">
+      <div class="eyebrow">Subscription Renewal</div>
+      <h1 id="pay-co">—</h1>
+      <p class="sub" id="pay-line">Review your invoice and submit your payment proof to renew.</p>
+      <div class="inv">
+        <div class="inv-row"><span class="k">Invoice</span><span class="v" id="i-num">—</span></div>
+        <div class="inv-row"><span class="k">Plan</span><span class="v" id="i-plan">—</span></div>
+        <div class="inv-row"><span class="k">Billing period</span><span class="v" id="i-period">—</span></div>
+        <div class="inv-row" style="border-top:1px solid var(--line);margin-top:8px;padding-top:12px">
+          <span class="k">Amount due</span><span class="inv-amt" id="i-amt">—</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Step 1 — Transfer the exact amount</div>
+      <p class="sub" style="margin-bottom:14px">Send to any one account below, then enter the details in Step 2.</p>
+      <div id="accts"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Step 2 — Submit your payment proof</div>
+      <label>Account you paid into</label>
+      <select id="f-method"></select>
+      <label>Reference / TXN number</label>
+      <input id="f-ref" placeholder="e.g. TXN-839201 or transfer ID">
+      <label>Exact amount paid</label>
+      <input id="f-amt" type="number" step="0.01" placeholder="25000">
+      <label>Payment date</label>
+      <input id="f-date" type="date">
+      <label>Your name (payer)</label>
+      <input id="f-payer" placeholder="Name on the sending account">
+      <label>Receipt / screenshot</label>
+      <div class="file" id="f-drop">Click to attach receipt (image or PDF)</div>
+      <input id="f-file" type="file" accept="image/*,application/pdf" class="hide">
+      <label>Note (optional)</label>
+      <textarea id="f-note" rows="2" placeholder="Anything we should know"></textarea>
+      <div id="msg" class="msg"></div>
+      <button class="btn" id="f-submit">Submit Payment Proof</button>
+    </div>
+    <div class="foot">Verified manually — usually activated within 2 hours. Need help? <a href="mailto:support@nexunova.com">support@nexunova.com</a></div>
+  </div>
+
+  <!-- Success -->
+  <div id="v-done" class="card hide"><div class="center">
+    <div class="ico ok">✓</div>
+    <h1>Payment proof received</h1>
+    <p class="sub" style="margin-top:8px">Thank you! Our team will verify your payment and reactivate your system — usually within 2 hours. You'll get a confirmation by email.</p>
+  </div></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:{ persistSession:false } });
+
+const $ = id => document.getElementById(id);
+const token = new URLSearchParams(location.search).get('t') || '';
+let DATA = null, file = null, currency = 'PKR';
+
+const show = v => ['v-load','v-bad','v-pay','v-done'].forEach(x => $(x).classList.toggle('hide', x !== v));
+function bad(t, m){ $('bad-t').textContent = t; $('bad-m').textContent = m; show('v-bad'); }
+const money = (n,c) => (c||'PKR')+' '+Number(n||0).toLocaleString('en-IN');
+const fmtD = s => s ? new Date(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+
+async function load(){
+  if(!token){ bad('Link not valid','This payment link is missing its token. Please use the button from your renewal email.'); return; }
+  let res;
+  try { res = await sb.rpc('get_subscription_pay_link', { p_token: token }); } catch(e){ res = { error:e }; }
+  const d = res.data;
+  if(res.error || !d || !d.success){
+    bad('Link not valid or expired', 'This payment link is no longer valid. It may have expired or already been used. Please log in or contact support.');
+    return;
+  }
+  if(d.already_paid){ bad('Already paid', 'This invoice has already been paid. No further action is needed.'); return; }
+  if(d.used){ bad('Proof already submitted', 'We have already received a payment proof for this invoice and it is under review. You will get a confirmation by email once verified.'); return; }
+  DATA = d; currency = d.invoice.currency || 'PKR';
+
+  $('pay-co').textContent = d.company.name || 'Your company';
+  $('i-num').textContent = d.invoice.invoice_number || '—';
+  $('i-plan').textContent = (d.invoice.plan_name||'—') + ' (' + (d.invoice.billing_cycle||'') + ')';
+  $('i-period').textContent = fmtD(d.invoice.period_start) + ' → ' + fmtD(d.invoice.period_end);
+  $('i-amt').textContent = money(d.invoice.amount, currency);
+  $('f-amt').value = d.invoice.amount || '';
+  $('f-date').value = new Date().toISOString().slice(0,10);
+  $('f-date').max = new Date().toISOString().slice(0,10);
+
+  const accts = d.accounts || [];
+  const labels = { bank_transfer:'Bank', jazzcash:'JazzCash', easypaisa:'EasyPaisa' };
+  $('accts').innerHTML = accts.map(a => `
+    <div class="acc" data-id="${a.id}" onclick="pick('${a.id}')">
+      <div class="acc-h"><span class="acc-name">${a.method_name||''}</span>
+        <span class="acc-type">${labels[a.method_type]||a.method_type||''}</span></div>
+      <div class="acc-d">${a.account_number||''}${a.iban?(' · '+a.iban):''}</div>
+      <div class="acc-title">${a.account_title||''}</div>
+    </div>`).join('') || '<div class="sub">No payment accounts configured. Please contact support.</div>';
+  $('f-method').innerHTML = accts.map(a => `<option value="${a.id}">${a.method_name} — ${a.account_title}</option>`).join('');
+  show('v-pay');
+}
+window.pick = id => {
+  document.querySelectorAll('.acc').forEach(e => e.classList.toggle('sel', e.dataset.id===id));
+  $('f-method').value = id;
+};
+$('f-drop').onclick = () => $('f-file').click();
+$('f-file').onchange = e => {
+  file = e.target.files[0] || null;
+  if(file){ $('f-drop').textContent = '✓ ' + file.name; $('f-drop').classList.add('has'); }
+};
+function err(m){ const el=$('msg'); el.className='msg err'; el.textContent=m; }
+
+$('f-submit').onclick = async () => {
+  const ref = $('f-ref').value.trim();
+  const amt = parseFloat($('f-amt').value);
+  const date = $('f-date').value;
+  const method = $('f-method').value || null;
+  const payer = $('f-payer').value.trim();
+  const note = $('f-note').value.trim();
+  $('msg').className = 'msg';
+
+  if(!ref)            return err('Reference / TXN number is required.');
+  if(!amt || amt<=0)  return err('Please enter the exact amount you paid.');
+  if(!date)           return err('Payment date is required.');
+  if(!file)           return err('Please attach your payment receipt.');
+
+  const btn = $('f-submit'); btn.disabled = true; btn.textContent = 'Uploading receipt…';
+  try {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `paylink/${token}/${Date.now()}.${ext}`;
+    const up = await sb.storage.from('payment-receipts').upload(path, file, { upsert:false, contentType:file.type });
+    if(up.error) throw new Error('Receipt upload failed: ' + up.error.message);
+
+    btn.textContent = 'Submitting…';
+    const { data, error } = await sb.rpc('submit_subscription_pay_proof', {
+      p_token: token, p_payment_method_id: method, p_reference_number: ref,
+      p_amount_paid: amt, p_currency: currency, p_payment_date: date,
+      p_receipt_url: path, p_receipt_filename: file.name,
+      p_receipt_size_kb: Math.ceil(file.size/1024), p_payer_name: payer || null,
+      p_payer_account: null, p_notes: note || null
+    });
+    if(error) throw error;
+    if(!data || !data.success){
+      const map = { already_paid:'This invoice has already been paid.', invalid_or_expired:'This link has expired or was already used.',
+        invalid_amount:'Please enter a valid amount.', reference_required:'Reference number is required.' };
+      throw new Error(map[data && data.error] || 'Submission failed. Please try again.');
+    }
+    show('v-done');
+  } catch(e){
+    err(e.message || 'Something went wrong. Please try again.');
+    btn.disabled = false; btn.textContent = 'Submit Payment Proof';
+  }
+};
+load();
+</script>
+</body>
+</html>

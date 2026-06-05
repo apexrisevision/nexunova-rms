@@ -79,14 +79,40 @@ const OB = (() => {
     document.body.classList.remove('wizard-active');
   }
 
-  // First-time onboarding cannot be skipped or cancelled. Once onboarding_complete=true,
-  // the wizard can be re-opened from the sidebar and cancelled (cancel() below). The
-  // sidebar 'skip' link's onclick is OB.skip() — it routes to cancel() in re-entry mode.
+  // The sidebar 'skip' link's onclick is OB.skip(). In re-entry mode it cancels back to
+  // the dashboard; on first-time setup it defers the whole wizard ("I'll do it later in
+  // Settings") — the subscriber can fill it now OR finish anytime from Company Setup.
   function skip() {
     if (_allowCancel) { cancel(); return; }
-    if (typeof toast === 'function') toast('Setup cannot be skipped — please complete all steps.', 'info');
+    deferSetup();
   }
-  function skipStep() { /* per-step skip disabled */ }
+  function skipStep() { /* per-step skip disabled — required fields are enforced instead */ }
+
+  // First-time defer: mark onboarding complete (so it won't force on every login) and
+  // drop the user into the dashboard. Whatever they typed is saved as a resumable draft;
+  // they can reopen the wizard anytime from Admin → Company Setup.
+  async function deferSetup() {
+    if (_saving) return;
+    const ok = (typeof confirm === 'function')
+      ? confirm("Skip setup for now?\n\nYou can complete it anytime — reopen the Setup Wizard from the Admin panel (“Re-run Setup Wizard”) or the menu. Anything you've already entered is saved.")
+      : true;
+    if (!ok) return;
+    _setBusy(true);
+    try {
+      _collectCurrent();
+      if (STEP_KEY[_step]) { try { await _saveDraft(_step); } catch (_) {} }     // resumable draft
+      const { data, error } = await supabase.rpc('mark_onboarding_complete', { p_company_id: _cid });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'could not skip');
+      if (typeof S !== 'undefined') S.onboardingComplete = true;
+      // persist to the cached session too, else a page reload (init.js) re-forces the wizard
+      try { const ss = JSON.parse(sessionStorage.getItem('nxn_sess') || '{}'); ss.onboardingComplete = true; sessionStorage.setItem('nxn_sess', JSON.stringify(ss)); } catch (_) {}
+      hide();
+      if (typeof nav === 'function') nav('dashboard');
+      toast("Setup skipped — reopen the Setup Wizard anytime from the Admin panel.", 'info');
+    } catch (e) {
+      toast('Could not skip setup: ' + (e.message || e), 'err');
+    } finally { _setBusy(false); }
+  }
   function cancel() {
     if (!_allowCancel) {
       if (typeof toast === 'function') toast('Cannot cancel during first-time setup.', 'info');
@@ -188,8 +214,8 @@ const OB = (() => {
     // The shell's existing onclick="OB.skip()" routes to cancel() when _allowCancel.
     const sl = document.querySelector('.ob-skip-link');
     if (sl) {
-      if (_allowCancel) { sl.style.display = ''; sl.textContent = '← Cancel & return to dashboard'; }
-      else              { sl.style.display = 'none'; }
+      sl.style.display = '';   // visible in both modes
+      sl.textContent = _allowCancel ? '← Cancel & return to dashboard' : "I'll set this up later →";
     }
   }
 
@@ -752,6 +778,25 @@ const OB = (() => {
   function _goto(step){ _collectCurrent(); _step = step; _render(); }
 
   // ── Helpers ───────────────────────────────────────────────────────────
+  // Onboarding calls toast(msg,type) as a function, but the global window.toast is an
+  // OBJECT { error, success, warning, info } — so every `typeof toast === 'function'`
+  // guard was false and validation messages were silently swallowed (a user could leave
+  // a required field empty and see nothing). This local wrapper routes them to the real
+  // toast UI so required-field errors are actually visible.
+  function toast(msg, type) {
+    const T = (typeof window !== 'undefined') ? window.toast : null;
+    if (T) {
+      const fn = ({ err:T.error, error:T.error, ok:T.success, success:T.success,
+                    warn:T.warning, warning:T.warning, info:T.info }[type]) || T.info;
+      try { fn(msg); return; } catch (_) {}
+    }
+    if (typeof notify !== 'undefined') {
+      const nf = (type==='err'||type==='error') ? notify.error
+               : (type==='ok'||type==='success') ? notify.success : notify.info;
+      try { nf && nf(msg); } catch (_) {}
+    }
+  }
+
   function _rpc(fn, args) { return supabase.rpc(fn, args).then(({data,error}) => { if (error) throw error; return data; }); }
   function _v(id)   { return (document.getElementById(id)?.value || '').trim(); }
   function _sel(id) { return document.getElementById(id)?.value || ''; }
@@ -762,7 +807,7 @@ const OB = (() => {
 
   // ── Expose ───────────────────────────────────────────────────────────
   return {
-    show, hide, skip, skipStep, cancel, back, next, finish,
+    show, hide, skip, skipStep, cancel, deferSetup, back, next, finish,
     _addSite, _removeSite, _addUser, _removeUser, _pickColor, _customColor, _pickMode, _userNamePreview, _goto, _addProjectViaModal,
     // legacy compat
     saveProject: next, saveCategories: next,
