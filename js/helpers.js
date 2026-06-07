@@ -1,3 +1,55 @@
+// ══ SHARED CRYSTAL REPORT STYLE (single source) ══════════════════════════════
+// Classic Crystal accounting look used by BOTH the hub reports (reports.js,
+// .crystal-rpt markup) and the ledgers module (ledgers.js, .ldg-crystal markup).
+// Injected once; scoped to those containers so nothing leaks to other pages.
+function _injectCrystalStyle(){
+  if(document.getElementById('crystal-rpt-style'))return;
+  var s=document.createElement('style');s.id='crystal-rpt-style';
+  s.textContent=[
+    // ── hub reports (.crystal-rpt) ──
+    '.crystal-rpt{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}',
+    '.crystal-rpt .card{border:1px solid #333;border-radius:4px;background:#fff;box-shadow:none}',
+    '.crystal-rpt .tw{overflow-x:auto}',
+    '.crystal-rpt table.t,.crystal-rpt .tw table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums;background:#fff}',
+    '.crystal-rpt .t th,.crystal-rpt .t td{border:1px solid #333;padding:5px 8px;white-space:nowrap;vertical-align:middle}',
+    '.crystal-rpt .t thead th{background:#fff;color:#1a1a1a;font-weight:700;text-align:left;text-transform:none;letter-spacing:0;border-bottom:3px double #333}',
+    '.crystal-rpt .t th.r,.crystal-rpt .t td.r,.crystal-rpt .t .num{text-align:right;font-variant-numeric:tabular-nums}',
+    '.crystal-rpt .t tbody tr:nth-child(even),.crystal-rpt .t tbody tr:nth-child(even) td{background:#fff}',
+    '.crystal-rpt .t tbody tr:hover td{background:#f4f4f4}',
+    '.crystal-rpt .t tfoot td{background:#E8E8E8;font-weight:700;border-top:3px double #333}',
+    '.crystal-rpt .t tr.totals-row td,.crystal-rpt .t tr.total td{background:#E8E8E8;font-weight:700}',
+    '.crystal-rpt .crpt-title{text-align:center;font-weight:700;font-size:15px;text-decoration:underline;margin:2px 0 10px}',
+    '.crystal-rpt .crpt-infobox{border:1px solid #333;border-radius:4px;padding:9px 13px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:3px 26px}',
+    '.crystal-rpt .crpt-infobox .ir{font-size:12px}.crystal-rpt .crpt-infobox .ir b{display:inline-block;min-width:96px}',
+    // ── ledgers (.ldg-crystal) — same tokens (serif, #333 ruled, #E8E8E8 totals) ──
+    '.ldg-crystal{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a;background:#fff;border:1px solid #333;border-radius:4px;overflow:hidden}',
+    '.ldg-crystal.lc-head{border-radius:4px 4px 0 0;border-bottom:0}',
+    '.ldg-crystal.lc-body{border-radius:0 0 4px 4px}',
+    '.ldg-crystal .lc-title{text-align:center;padding:12px 16px 10px}',
+    '.ldg-crystal .lc-co{font-size:17px;font-weight:700;letter-spacing:.3px}',
+    '.ldg-crystal .lc-doc{font-size:13px;font-weight:700;letter-spacing:1.5px;margin-top:2px;text-decoration:underline}',
+    '.ldg-crystal .lc-info{border-top:1px solid #333;border-bottom:1px solid #333;padding:9px 16px;display:grid;grid-template-columns:1fr 1fr;gap:3px 26px;font-size:12px}',
+    '.ldg-crystal .lc-info .ir b{display:inline-block;min-width:96px;font-weight:700}',
+    '.ldg-crystal .lc-tw{overflow-x:auto}',
+    '.ldg-crystal table.lc-tbl{border-collapse:collapse;width:100%;min-width:760px;font-size:11px;font-variant-numeric:tabular-nums;background:#fff}',
+    '.ldg-crystal .lc-tbl th,.ldg-crystal .lc-tbl td{border:1px solid #333;padding:5px 8px;vertical-align:middle}',
+    '.ldg-crystal .lc-tbl thead th{background:#fff;color:#1a1a1a;font-weight:700;text-align:left;border-bottom:3px double #333;white-space:nowrap}',
+    '.ldg-crystal .lc-tbl th.num,.ldg-crystal .lc-tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}',
+    '.ldg-crystal .lc-tbl tr.lc-mhdr td{background:#dcdcdc;font-weight:700;letter-spacing:.3px}',
+    '.ldg-crystal .lc-tbl tr.lc-mtot td{background:#E8E8E8;font-weight:700}',
+    '.ldg-crystal .lc-tbl tr.lc-gtot td{background:#cfcfcf;font-weight:700;border-top:3px double #333}',
+    '.ldg-crystal .lc-tbl tr.lc-ob td{font-style:italic}',
+    '.ldg-crystal .lc-dr{color:#b91c1c;font-weight:600}.ldg-crystal .lc-cr{color:#15803d;font-weight:600}.ldg-crystal .lc-zero{color:#6b7280}',
+    // bottom Outstanding Balance Summary box
+    '.ldg-crystal .lc-summary{margin:14px 16px 16px;border:1px solid #333;border-radius:5px;padding:10px 14px;max-width:380px}',
+    '.ldg-crystal .lc-summary h4{font-size:12px;font-weight:700;text-decoration:underline;text-align:center;margin:0 0 7px}',
+    '.ldg-crystal .lc-sum-row{display:flex;justify-content:space-between;gap:14px;padding:3px 0;border-bottom:1px dotted #aaa;font-size:12px}',
+    '.ldg-crystal .lc-sum-row:last-child{border-bottom:0}',
+    '.ldg-crystal .lc-sum-row .l{font-weight:700}.ldg-crystal .lc-sum-row .v{font-weight:700;text-decoration:underline;font-variant-numeric:tabular-nums}'
+  ].join('');
+  document.head.appendChild(s);
+}
+
 // ══ DATA HELPERS ══════════════════════════════
 // gunits/gunit now read from Supabase cache (window._unitsCache)
 // Cache is loaded by loadUnitsCache() on login. See db.js.

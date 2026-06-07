@@ -271,89 +271,39 @@ function _ldgPrint() {
 <title>${co} — Ledger Report</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  body {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
-    background: #fff; color: #000;
-    margin: 0; padding: 12px 18px;
-    font-size: 11px; line-height: 1.4;
-  }
-  .no-print, .ldg-page-footer { display: none !important; }
-  .ldg-rpt-wrap { box-shadow: none !important; border-radius: 0 !important; }
-
-  /* Report header */
-  .ldg-rpt-wrap > div:first-child {
-    border: 1px solid #bbb !important;
-    border-radius: 0 !important;
-    padding: 12px 16px 8px !important;
-  }
-
-  /* Table container — no scroll, let it fill full width */
-  div[style*="overflow-x"] { overflow: visible !important; }
-
-  /* Table */
-  table { border-collapse: collapse; width: 100% !important; min-width: 0 !important; table-layout: fixed; }
-  col, colgroup { display: none; }
-  th, td {
-    border: 1px solid #aaa;
-    padding: 3px 6px;
-    font-size: 9.5px;
-    font-family: Arial, sans-serif;
-    vertical-align: middle;
-    line-height: 1.3;
-    word-break: break-word;
-    overflow-wrap: break-word;
-  }
-  thead th {
-    background: #2c2c2c !important;
-    color: #fff !important;
-    font-weight: 700;
-    font-size: 9.5px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  /* Fixed column widths for landscape A4 (printable ~240mm ≈ 907px) */
-  thead th:nth-child(1) { width: 7%;  }   /* Voucher # */
-  thead th:nth-child(2) { width: 9%;  }   /* Date */
-  thead th:nth-child(3) { width: 40%; }   /* Particulars */
-  thead th:nth-child(4) { width: 8%;  }   /* Chq No */
-  thead th:nth-child(5) { width: 12%; }   /* Debit */
-  thead th:nth-child(6) { width: 12%; }   /* Credit */
-  thead th:nth-child(7) { width: 12%; }   /* Balance */
-  .ldg-month-hdr td {
-    background: #d4d4d4 !important;
-    font-weight: 700;
-    font-size: 10px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .ldg-month-total td {
-    background: #f0f0f0 !important;
-    font-size: 9.5px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .ldg-grand-total td {
-    background: #e0e0e0 !important;
-    font-weight: 700;
-    font-size: 10px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  hr { border: none; border-top: 1.5px solid #444; margin: 6px 0; }
-  strong { font-weight: 700; }
-  em { font-style: italic; }
-
-  /* Preserve Dr/Cr colors */
-  [style*="color:#dc2626"] { color: #dc2626 !important; }
-  [style*="color:#16a34a"] { color: #16a34a !important; }
-  [style*="color:#6B7280"] { color: #6B7280 !important; }
-
-  @page { size: A4 landscape; margin: 1cm 1.5cm; }
+  body { font-family:"Times New Roman",Georgia,serif; background:#fff; color:#1a1a1a; margin:0; padding:10px 16px; font-size:9pt; line-height:1.35; }
+  .no-print, .ldg-page-footer { display:none !important; }
+  /* Crystal ledger doc */
+  .ldg-crystal { border:1px solid #333; border-radius:0 !important; background:#fff; box-shadow:none !important; }
+  .ldg-crystal.lc-head { border-bottom:0; }
+  .lc-title { text-align:center; padding:10px 14px 8px; }
+  .lc-co  { font-size:15pt; font-weight:700; }
+  .lc-doc { font-size:11pt; font-weight:700; letter-spacing:1.2px; text-decoration:underline; margin-top:2px; }
+  .lc-info { border-top:1px solid #333; border-bottom:1px solid #333; padding:7px 14px; display:grid; grid-template-columns:1fr 1fr; gap:2px 22px; font-size:9pt; }
+  .lc-info .ir b { display:inline-block; min-width:84px; font-weight:700; }
+  .lc-tw { overflow:visible !important; }
+  table.lc-tbl { border-collapse:collapse; width:100% !important; min-width:0 !important; table-layout:fixed; font-variant-numeric:tabular-nums; }
+  .lc-tbl th, .lc-tbl td { border:1px solid #333; padding:3px 6px; font-size:8.5pt; vertical-align:middle; word-break:break-word; overflow-wrap:break-word; }
+  .lc-tbl thead th { background:#fff; color:#1a1a1a; font-weight:700; text-align:left; border-bottom:2.5px double #333; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .lc-tbl th.num, .lc-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .lc-tbl tr.lc-mhdr td { background:#dcdcdc; font-weight:700; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .lc-tbl tr.lc-mtot td { background:#E8E8E8; font-weight:700; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .lc-tbl tr.lc-gtot td { background:#cfcfcf; font-weight:700; border-top:3px double #333; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .lc-tbl tr.lc-ob td { font-style:italic; }
+  .lc-dr { color:#b91c1c; font-weight:600; } .lc-cr { color:#15803d; font-weight:600; } .lc-zero { color:#6b7280; }
+  .lc-tbl thead th:nth-child(1){width:8%} .lc-tbl thead th:nth-child(2){width:9%} .lc-tbl thead th:nth-child(3){width:38%}
+  .lc-tbl thead th:nth-child(4){width:10%} .lc-tbl thead th:nth-child(5){width:11%} .lc-tbl thead th:nth-child(6){width:11%} .lc-tbl thead th:nth-child(7){width:13%}
+  .lc-summary { border:1px solid #333; border-radius:4px; padding:8px 12px; max-width:320px; margin:12px 14px 8px; }
+  .lc-summary h4 { font-size:9pt; font-weight:700; text-decoration:underline; text-align:center; margin:0 0 6px; }
+  .lc-sum-row { display:flex; justify-content:space-between; gap:12px; padding:2px 0; border-bottom:1px dotted #aaa; font-size:9pt; }
+  .lc-sum-row .l { font-weight:700; } .lc-sum-row .v { font-weight:700; text-decoration:underline; }
+  @page { size:A4 landscape; margin:1cm 1.4cm; }
   @media print {
-    body { padding: 0; }
-    thead { display: table-header-group; }
-    .ldg-month-hdr { page-break-after: avoid; }
-    .ldg-grand-total { page-break-before: avoid; }
+    body { padding:0; }
+    thead { display:table-header-group; }
+    .lc-mhdr { page-break-after:avoid; }
+    .lc-gtot { page-break-before:avoid; }
+    .lc-tbl th, .lc-mhdr td, .lc-mtot td, .lc-gtot td { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
 </style>
 </head>
@@ -445,33 +395,41 @@ function _ldgErr(msg) {
   </div>`;
 }
 
-// ── Crystal Report header (SAIF-style) ──────────────────────
-// params: { entityName, entityCode, project, fromDate, toDate }
+// Ledger type label from the active page id (shared header is type-agnostic).
+function _ldgTypeLabel() {
+  const id = ((document.querySelector('.pg.on') || {}).id) || '';
+  const M = {'pg-ledger-client':'Client','pg-ledger-unit':'Unit','pg-ledger-agent':'Agent',
+             'pg-ledger-project':'Project','pg-officerledger':'Officer','pg-receivingledger':'Receiving'};
+  return M[id] || 'General';
+}
+
+// ── Crystal accounting header (shared, all dimensions) ──────────────────────
+// params: { entityName, entityCode, project, fromDate, toDate, ledgerType? }
+// Reuses the shared Crystal tokens (helpers.js _injectCrystalStyle / .ldg-crystal).
 function _ldgCrystalHdr(params) {
-  const co  = esc(S?.coName || '');
-  const fd  = _ldgFmtDate(params.fromDate);
-  const td  = _ldgFmtDate(params.toDate);
+  if (typeof _injectCrystalStyle === 'function') _injectCrystalStyle();
+  const co   = esc(S?.coName || '—');
+  const fd   = _ldgFmtDate(params.fromDate);
+  const td2  = _ldgFmtDate(params.toDate);
   const name = esc(params.entityName || '—');
   const code = esc(params.entityCode || '—');
   const proj = esc(params.project    || '—');
+  const lt   = esc(params.ledgerType || _ldgTypeLabel());
+  const gen  = _ldgFmtDate(new Date().toISOString().slice(0, 10));
   return `
-  <div style="background:#fff;border:1px solid #bbb;border-radius:6px 6px 0 0;padding:14px 18px 10px;
-              font-family:'Inter',sans-serif">
-    <div style="text-align:center;margin-bottom:10px">
-      <div style="font-size:18px;font-weight:800;color:#111;letter-spacing:0.2px">${co}</div>
-      <div style="font-size:14px;font-weight:700;color:#111;margin-top:2px;letter-spacing:1.5px">LEDGER</div>
-      <div style="font-size:12px;color:#333;margin-top:5px">
-        Period : From <strong>${fd || '—'}</strong> To <strong>${td || '—'}</strong>
-      </div>
+  <div class="ldg-crystal lc-head">
+    <div class="lc-title">
+      <div class="lc-co">${co}</div>
+      <div class="lc-doc">${lt.toUpperCase()} LEDGER</div>
     </div>
-    <hr style="border:none;border-top:1.5px solid #444;margin:8px 0 8px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;font-size:12px;color:#222">
-      <div><span style="color:#555">Head Name :</span>&nbsp;<strong>${name}</strong></div>
-      <div><span style="color:#555">Main Head :</span>&nbsp;<strong>${(params.entityName||'—').toUpperCase()}</strong></div>
-      <div><span style="color:#555">Head Code :</span>&nbsp;<strong>${code}</strong></div>
-      <div><span style="color:#555">Project :</span>&nbsp;<strong>${proj}</strong></div>
+    <div class="lc-info">
+      <div class="ir"><b>Ledger</b>${lt}</div>
+      <div class="ir"><b>Entity</b>${name}</div>
+      <div class="ir"><b>Head Code</b>${code}</div>
+      <div class="ir"><b>Project</b>${proj}</div>
+      <div class="ir"><b>Period</b>${fd || '—'} to ${td2 || '—'}</div>
+      <div class="ir"><b>Generated</b>${gen}</div>
     </div>
-    <hr style="border:none;border-top:1.5px solid #444;margin:8px 0 0">
   </div>`;
 }
 
@@ -535,32 +493,24 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
   let runBal = +ob || 0;
   let totalD = 0, totalC = 0;
   let tbody  = '';
-
-  const TH = 'padding:7px 10px;font-size:11.5px;font-weight:700;background:#2c2c2c;color:#fff;white-space:nowrap;border:1px solid #555';
-  const THR = TH + ';text-align:right';
-  const TD  = (s) => `style="padding:5px 9px;border:1px solid #d4d4d4;font-size:12px;font-family:\'Inter\',sans-serif;vertical-align:middle;${s||''}"`;
+  const bcls = (v) => (v > 0 ? 'lc-dr' : v < 0 ? 'lc-cr' : 'lc-zero');
 
   monthOrder.forEach((mk, mIdx) => {
     const mRows  = monthMap[mk];
     const mLabel = _ldgMonthLabel(mk + '-01');
     let mD = 0, mC = 0;
 
-    // Month header
-    tbody += `<tr class="ldg-month-hdr">
-      <td colspan="7" ${TD('font-weight:700;background:#d8d8d8;font-size:12px;letter-spacing:0.3px')}>${mLabel}</td>
-    </tr>`;
+    tbody += `<tr class="lc-mhdr"><td colspan="7">${mLabel}</td></tr>`;
 
     // Opening balance row (first month only)
     if (mIdx === 0) {
       const b = _ldgBalStr(runBal);
-      tbody += `<tr>
-        <td ${TD('font-family:monospace;font-size:11px;color:#555;white-space:nowrap')}>OP-0</td>
-        <td ${TD('white-space:nowrap')}>${_ldgFmtDate(fromDate)}</td>
-        <td ${TD('font-weight:600')}><em>**** Opening Balance ****</em></td>
-        <td ${TD('')}></td>
-        <td ${TD('text-align:right')}></td>
-        <td ${TD('text-align:right')}></td>
-        <td ${TD('text-align:right;white-space:nowrap')}><span style="color:${b.color};font-weight:700">${b.text}</span></td>
+      tbody += `<tr class="lc-ob">
+        <td>OP-0</td>
+        <td class="num" style="text-align:left">${_ldgFmtDate(fromDate)}</td>
+        <td>**** Opening Balance ****</td>
+        <td></td><td class="num"></td><td class="num"></td>
+        <td class="num"><span class="${bcls(runBal)}">${b.text}</span></td>
       </tr>`;
     }
 
@@ -572,47 +522,66 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
       totalD += dr; totalC += cr;
       const b = _ldgBalStr(runBal);
       tbody += `<tr>
-        <td ${TD('font-family:monospace;font-size:11px;color:#374151;white-space:nowrap')}>${esc(r.voucher_no)}</td>
-        <td ${TD('white-space:nowrap')}>${_ldgFmtDate(r.entry_date)}</td>
-        <td ${TD('')}>${esc(r.description || '—')}</td>
-        <td ${TD('font-size:11px;color:#555')}>${esc(r.chq_no)}</td>
-        <td ${TD('text-align:right;white-space:nowrap')}>${dr ? `<span style="color:#dc2626;font-weight:600">${fMF(dr)}</span>` : ''}</td>
-        <td ${TD('text-align:right;white-space:nowrap')}>${cr ? `<span style="color:#16a34a;font-weight:600">${fMF(cr)}</span>` : ''}</td>
-        <td ${TD('text-align:right;white-space:nowrap')}><span style="color:${b.color};font-weight:700">${b.text}</span></td>
+        <td>${esc(r.voucher_no)}</td>
+        <td class="num" style="text-align:left">${_ldgFmtDate(r.entry_date)}</td>
+        <td>${esc(r.description || '—')}</td>
+        <td>${esc(r.chq_no)}</td>
+        <td class="num">${dr ? `<span class="lc-dr">${fMF(dr)}</span>` : ''}</td>
+        <td class="num">${cr ? `<span class="lc-cr">${fMF(cr)}</span>` : ''}</td>
+        <td class="num"><span class="${bcls(runBal)}">${b.text}</span></td>
       </tr>`;
     });
 
     // Monthly total
-    tbody += `<tr class="ldg-month-total">
-      <td colspan="4" ${TD('text-align:right;font-weight:600;color:#333;background:#f0f0f0;font-size:11.5px')}>Monthly Total :</td>
-      <td ${TD('text-align:right;font-weight:700;color:#dc2626;background:#f0f0f0;white-space:nowrap')}>${fMF(mD)}</td>
-      <td ${TD('text-align:right;font-weight:700;color:#16a34a;background:#f0f0f0;white-space:nowrap')}>${fMF(mC)}</td>
-      <td ${TD('background:#f0f0f0')}></td>
+    tbody += `<tr class="lc-mtot">
+      <td colspan="4" class="num">Monthly Total :</td>
+      <td class="num"><span class="lc-dr">${fMF(mD)}</span></td>
+      <td class="num"><span class="lc-cr">${fMF(mC)}</span></td>
+      <td></td>
     </tr>`;
   });
 
   // Grand total
-  const fb = _ldgBalStr((+ob || 0) + totalD - totalC);
-  tbody += `<tr class="ldg-grand-total">
-    <td colspan="4" ${TD('text-align:right;font-weight:700;color:#111;background:#ddd;font-size:12px')}>Grand Total :</td>
-    <td ${TD('text-align:right;font-weight:700;color:#dc2626;background:#ddd;font-size:12.5px;white-space:nowrap')}>${fMF(totalD)}</td>
-    <td ${TD('text-align:right;font-weight:700;color:#16a34a;background:#ddd;font-size:12.5px;white-space:nowrap')}>${fMF(totalC)}</td>
-    <td ${TD('text-align:right;background:#ddd;white-space:nowrap')}><span style="color:${fb.color};font-weight:700;font-size:12.5px">${fb.text}</span></td>
+  const closing = (+ob || 0) + totalD - totalC;
+  const fb = _ldgBalStr(closing);
+  tbody += `<tr class="lc-gtot">
+    <td colspan="4" class="num">Grand Total :</td>
+    <td class="num"><span class="lc-dr">${fMF(totalD)}</span></td>
+    <td class="num"><span class="lc-cr">${fMF(totalC)}</span></td>
+    <td class="num"><span class="${bcls(closing)}">${fb.text}</span></td>
   </tr>`;
 
+  // ── Outstanding Balance Summary box (Saif-style; underlined values) ──
+  const isClient = _ldgTypeLabel() === 'Client';
+  const sL = isClient
+    ? { a: 'Total Billed (Dr)', b: 'Amount Received (Cr)', c: 'Remaining Balance' }
+    : { a: 'Total ' + dLbl + ' (Dr)', b: 'Total ' + cLbl + ' (Cr)', c: 'Closing Balance' };
+  const obStr = _ldgBalStr(+ob || 0);
+  const summary = `
+  <div class="lc-summary">
+    <h4>Outstanding Balance Summary</h4>
+    <div class="lc-sum-row"><span class="l">Opening Balance</span><span class="v">${obStr.text}</span></div>
+    <div class="lc-sum-row"><span class="l">${sL.a}</span><span class="v">${fMF(totalD)}</span></div>
+    <div class="lc-sum-row"><span class="l">${sL.b}</span><span class="v">${fMF(totalC)}</span></div>
+    <div class="lc-sum-row"><span class="l">${sL.c}</span><span class="v">${fb.text}</span></div>
+  </div>`;
+
   return `
-  <div style="overflow-x:auto;background:#fff;border:1px solid #bbb;border-top:none;border-radius:0 0 6px 6px">
-    <table class="ldg-crystal-tbl" style="width:100%;min-width:760px;border-collapse:collapse;font-family:'Inter',sans-serif">
-      <thead><tr>
-        <th style="${TH};width:75px;text-align:left">Voucher #</th>
-        <th style="${TH};width:98px;text-align:left">Date</th>
-        <th style="${TH};text-align:left">Particulars</th>
-        <th style="${TH};width:78px;text-align:left">Chq No</th>
-        <th style="${THR};width:118px">${esc(dLbl)}</th>
-        <th style="${THR};width:118px">${esc(cLbl)}</th>
-        <th style="${THR};width:128px">Balance</th>
-      </tr></thead>
-      <tbody>${tbody}</tbody>
-    </table>
+  <div class="ldg-crystal lc-body">
+    <div class="lc-tw">
+      <table class="lc-tbl">
+        <thead><tr>
+          <th style="width:78px">V/No</th>
+          <th style="width:96px">Date</th>
+          <th>Description</th>
+          <th style="width:96px">Cheque/Ref</th>
+          <th class="num" style="width:120px">${esc(dLbl)}</th>
+          <th class="num" style="width:120px">${esc(cLbl)}</th>
+          <th class="num" style="width:130px">Balance</th>
+        </tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+    ${summary}
   </div>`;
 }

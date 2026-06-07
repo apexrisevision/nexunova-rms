@@ -2242,30 +2242,8 @@ function _rpInjectStyle(){
 // fully-ruled, no zebra; tfoot/total rows → #E8E8E8. Single source of truth for
 // the in-app report tables (Recovery Position keeps its own .rp-report sheet,
 // same design tokens). Injected once.
-function _injectCrystalStyle(){
-  if(document.getElementById('crystal-rpt-style'))return;
-  var s=document.createElement('style');s.id='crystal-rpt-style';
-  s.textContent=[
-    '.crystal-rpt{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}',
-    // report summary banner (rptBanner) → bordered info strip
-    '.crystal-rpt .card{border:1px solid #333;border-radius:4px;background:#fff;box-shadow:none}',
-    '.crystal-rpt .tw{overflow-x:auto}',
-    // ruled tables — full borders, no zebra, white rows
-    '.crystal-rpt table.t,.crystal-rpt .tw table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums;background:#fff}',
-    '.crystal-rpt .t th,.crystal-rpt .t td{border:1px solid #333;padding:5px 8px;white-space:nowrap;vertical-align:middle}',
-    '.crystal-rpt .t thead th{background:#fff;color:#1a1a1a;font-weight:700;text-align:left;text-transform:none;letter-spacing:0;border-bottom:3px double #333}',
-    '.crystal-rpt .t th.r,.crystal-rpt .t td.r,.crystal-rpt .t .num{text-align:right;font-variant-numeric:tabular-nums}',
-    '.crystal-rpt .t tbody tr:nth-child(even),.crystal-rpt .t tbody tr:nth-child(even) td{background:#fff}',  // kill zebra
-    '.crystal-rpt .t tbody tr:hover td{background:#f4f4f4}',
-    '.crystal-rpt .t tfoot td{background:#E8E8E8;font-weight:700;border-top:3px double #333}',
-    '.crystal-rpt .t tr.totals-row td,.crystal-rpt .t tr.total td{background:#E8E8E8;font-weight:700}',
-    // shared info box / titles (used by reports that opt into the helper markup)
-    '.crystal-rpt .crpt-title{text-align:center;font-weight:700;font-size:15px;text-decoration:underline;margin:2px 0 10px}',
-    '.crystal-rpt .crpt-infobox{border:1px solid #333;border-radius:4px;padding:9px 13px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:3px 26px}',
-    '.crystal-rpt .crpt-infobox .ir{font-size:12px}.crystal-rpt .crpt-infobox .ir b{display:inline-block;min-width:96px}'
-  ].join('');
-  document.head.appendChild(s);
-}
+// _injectCrystalStyle() is the single shared Crystal stylesheet injector — defined
+// in js/helpers.js (loaded first) so BOTH reports.js and ledgers.js use one source.
 
 // First day of the current month, ISO (local) — default FROM bound.
 function _rpMonthStart(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
