@@ -43,7 +43,7 @@ The isolation work is **complete**. A non-admin user without UPA for a project c
 
 > **Single source of truth.** Every future chat/agent session must read this file first before doing any work on Nexunova RMS. If a decision here conflicts with older notes, **this file wins**. Update this file whenever a decision changes.
 >
-> **Last updated:** 2026-06-01
+> **Last updated:** 2026-06-08
 > **Companion files:** `DATABASE_AUDIT.md` (live DB inventory), `PROPOSED_SCHEMA.md` (Phase-1 schema design), `supabase/migrations/20260526_phase1_new_tables.sql` (**APPLIED 2026-05-26**), `supabase/migrations/20260601_origination_admin_only.sql`.
 
 ## Table of contents
@@ -500,7 +500,27 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 - 📋 **Open work queue (as of 2026-06-01, next sessions):** (1) **✅ Authz audit of ungated mutating RPCs — DONE 2026-06-01, 93 RPCs across 6 batches — see "Ungated-RPC authz triage COMPLETE" bullet.** (2) **⏸️ Finance + Manager role real-data test — DEFERRED to launch** — Finance-sleep logic verified in code + proven on recovery-officer path; finance/accounts user real-data confirmation deferred to launch (blocked only by browser-side create_app_user submission, not server — RPC/role/slot all confirmed healthy; revisit with DevTools when adding the real finance user). Manager-readonly real-data check (grant manager a UPA → confirm write-block) pending the same launch pass. (Note: the earlier "3 create_app_user latent bugs" were found STALE — current RPC sets email_verified=true + bare-role username; canonical finance role value is `accounts`, not `finance`.) (3) **✅ Smoke-tests COMPLETE (2026-06-01)** — (a) name/phone-only reminder correctly blocks non-admins (emergent via UPA guard: no unit/sale → null project → project_not_assigned; admins exempt by design). (b) recovery officer CAN log contact/promise/field-visit on assigned site (FMH) post-gating — batch-2 doer-isolation does not over-block legit officer work. Both verified via rollback-safe impersonated RPC probes. Latent note (non-authz): create_contact_log's jsonb_populate_record nulls unspecified keys → NOT-NULL-with-default cols must be caller-supplied (frontend does; fix if ever called elsewhere). (4) **✅ UI DONE (2026-06-01, commit `523886c`):** officer dashboard orphan 5th "My Monthly Target" card fixed — `.db-kpis-5` modifier, 5→3→2→1 responsive grid. **Suggested order:** #2 (small, launch-relevant, validates existing gates on real users) → #1 (the big audit, batch-by-batch) → #3/#4 as light breaks. **Principle (per past lesson):** stay conservative about completeness — do NOT declare "all safe" until every one of the ~65 is empirically verified.
 
-**Immediate next action (tomorrow):** Raise user limit to 8 → clean up test users + reactivate originals → fresh backup → launch-day smoke. WhatsApp deferred until Meta business verification clears.
+- ✅ **Lite/Pro UI mode (2026-06-07/08)** — Binance-style topbar toggle, **admin/owner only**, `localStorage['rms.uimode']` default `'lite'`. Lite collapses the grouped nav into a flat **8-item** workspace `[dashboard, recovery, clients, sales, receipts, ledgers, reports, admin]` as the FINAL filter in `buildSB()` (`body.mode-lite`); pill injected into topbar `.atb-r`. **"+ New"** topbar quick-actions (New Sale / Add Client / Receive Payment / Add Agent / Add Project / Categories — 3 direct modals, 3 nav fallbacks). `js/ui.js`, `css/app.css`.
+
+- ✅ **Dashboard current-month dues card (2026-06-08)** — Command Center card calls `get_outstanding_report` (current-month bounds), header "`<Month Year>` Dues"; footer **"Recovery Position →"** deep-links via `nav('reports')` + `openRptViewer('recovery_position')`, renders in BOTH empty + data states. `js/pages/dashboard.js`.
+
+- ✅ **`get_recovery_position` RPC v1→v3 (2026-06-07/08)** — migrations `20260607_get_recovery_position.sql` + `20260608_..._v2.sql` + `20260608_..._v3_from_to.sql`. Returns `{rows, officer_summary, totals}`: per-sale **DP / old / current** buckets, **dead-recovery** split (`recd_old` = in-period payments vs pre-period dues), `pdc_in_hand` (status pending/presented), `paid_pct`, `flag_legal` (`outcome IS NULL AND stage NOT IN (settled,closed)` OR open escalation), **officer commission** (attribution via `payments.created_by`), `recovery_pct`. **v3 = `p_from_date`/`p_to_date`** window (drops the v2 as-of sig; JSON key `month_installment` now = period due). All versions **numerically verified** via seed→verify→cleanup on the ADMIN company (regression: from=06-01/to=06-07 == v2 exactly).
+
+- ✅ **Recovery Position grand report (2026-06-08, `reports.js`)** — 24-col **Crystal A4-landscape**, category **sections + subtotals + grand total** (RPC totals preferred, computed fallback + `console.warn` on mismatch), 7 summary cards + bottom Summary box, **officer commission block**, **From/To** pickers (default current month), SheetJS Excel (sectioned) + serif print via `_lh`/`_pCSS('A4 landscape')`/`_sigBlock`. Hub → Recovery & Collections.
+
+- ✅ **Crystal accounting style — ALL hub reports + ALL 7 ledgers (2026-06-08)** — shared **`_injectCrystalStyle` in `helpers.js`** (single source for `reports.js` + `ledgers.js`); serif Times/Georgia, 1px-#333 ruled cells, white double-border header, **#E8E8E8** subtotal / `#cfcfcf` grand / `#dcdcdc` section, `.num` right-aligned tabular, no zebra. Ledgers get a Crystal **info box** (Company / Ledger / Entity / Head Code / Project / Period / Generated) + bottom **"Outstanding Balance Summary"** box; `' Dr'`/`' Cr'` markers kept. **Period** reports get a From/To bar (default current month); **snapshot** reports show As-of. Scoped to `.crystal-rpt` / `.ldg-crystal` (no page leak); 9pt serif print, repeating thead. **5 hub cards (payables / promise_tracker / field_visits / ai_radar / forecasting) have NO `runRpt` branch — flagged, not wired.**
+
+- ✅ **Western number formatting app-wide (2026-06-07/08)** — `_PK_LOCALE` **en-IN → en-US** in `utils.js` (`fM`/`fMF`/`fMH`/`fN`), `fLakhCr` → **K/M/B**, `amtWords` → Million/Billion, `xlsxWesternNumFmt` (`#,##0`). Ledgers keep `' Dr'`/`' Cr'`. Typography tightening in `visual-overhaul.css` (scoped `#s-app`). **Lakh/crore is gone.**
+
+**New gotchas / learnings (2026-06-07/08):**
+- `sales.total_amount` / `net_amount` / `remaining_amount` + `installments.outstanding` are **GENERATED columns** — cannot INSERT (error 428C9); set the base cols and let them compute.
+- `trg_payment_health` (AFTER INSERT/UPDATE on `payments` → `calculate_client_health_score`) **RAISEs `forbidden` (42501)** on raw MCP payment writes (no auth). Disable in-txn (`ALTER TABLE payments DISABLE TRIGGER …`), seed, re-enable before COMMIT, verify `tgenabled='O'`.
+- `legal_cases` has a **`stage` CHECK** (`pre_legal/notice_sent/filed/hearing/judgment/appeal/settled/closed`) and **no `status` col**; `escalations.status` CHECK = `open/acknowledged/resolved/closed`. (info_schema check-constraint queries miss these — query `pg_constraint` by regclass.)
+- `payments.created_by` is **uuid-as-text** → join `app_users.id` for officer attribution (no dedicated collecting-officer column).
+- **`.mcp.json` repoint needs a FULL VS Code restart** (soft reload won't rebind the MCP). `.mcp.json` is **gitignored — holds a live Supabase access token; NEVER commit** (use a `.mcp.json.example` or rotate).
+- `get_outstanding_report`'s `p_status` param is a **no-op** in its WHERE clause (effective filter = outstanding>0 + due_date range).
+
+**Immediate next action:** Rashid's **visual verification round** (Crystal reports / ledgers / print) before the KBH demo; then wire the **5 unwired hub cards** (payables / promise_tracker / field_visits / ai_radar / forecasting), the **Electron `loadURL` fix**, and the **WhatsApp dispatch queue**.
 
 **All 5 phases complete as of 2026-05-28. App is production-ready.**
 
@@ -554,6 +574,9 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 | Isolation | **Server-side** in ~90 read RPCs via `_rms_caller` / `_rms_is_admin` / `v_pids` from `user_project_assignments`. Anon (no session) + admin/owner = `v_all=true` (sees everything); authenticated non-admin = restricted. **10 protected report RPCs + 3 buyer-portal RPCs** stay caller-blind by design (carry COMMENT-ON warnings in `pg_proc`). See §3.
 | Finance role | dormant until Admin activates |
 | Primary colour (future) | Blue-600 `#2563EB`, Tremor + shadcn/ui |
-| Currency | PKR, lakh/crore formatting |
+| Currency | PKR, **Western en-US** grouping (`#,##0`, K/M/B) — **NO lakh/crore** (changed 2026-06-08) |
+| UI mode | `localStorage['rms.uimode']` = `lite` \| `pro` (admin/owner; default `lite`) |
+| Recovery report RPC | `get_recovery_position(company, project, from, to)` → `{rows, officer_summary, totals}` |
+| Crystal report style | shared `_injectCrystalStyle()` in `helpers.js` (`.crystal-rpt` / `.ldg-crystal`) |
 | Migration status | Phase-1 migration **applied & verified 2026-05-26** (DB: 96 base tables) |
 | Companion docs | `DATABASE_AUDIT.md`, `PROPOSED_SCHEMA.md`, `supabase/migrations/20260526_*.sql` |
