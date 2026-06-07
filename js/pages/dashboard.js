@@ -222,6 +222,24 @@ function _dbInitCharts(sparkCfg, trend6m, unitCounts) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   Dashboard Lite — feature flag (client-side, reversible, no DB)
+   ────────────────────────────────────────────────────────────
+   When ON, admin/owner see a stripped-down "Dashboard Lite" instead
+   of the full Command Center. Default = OFF (Command Center unchanged).
+   Toggle (no deploy needed):
+     ENABLE   →  localStorage.setItem('dashboard_lite','1')   (or  window.DASHBOARD_LITE = true)
+     DISABLE  →  localStorage.removeItem('dashboard_lite')    (or  window.DASHBOARD_LITE = false)
+   Fully reversible: delete this helper + the gate in rDash() + _rDashAdminLite().
+════════════════════════════════════════════════════════════ */
+function _dashLiteOn() {
+  try {
+    if (window.DASHBOARD_LITE === true)  return true;
+    if (window.DASHBOARD_LITE === false) return false;
+    return localStorage.getItem('dashboard_lite') === '1';
+  } catch (_) { return window.DASHBOARD_LITE === true; }
+}
+
+/* ════════════════════════════════════════════════════════════
    rDash — role router
 ════════════════════════════════════════════════════════════ */
 async function rDash() {
@@ -230,6 +248,8 @@ async function rDash() {
   if (role === 'recovery')                    return _rDashRecovery();
   if (role === 'accounts')                    return _rDashAccounts();
   if (role === 'manager' || role === 'staff') return _rDashManagerStaff();
+  // ── Dashboard Lite gate (admin/owner only) — remove this line to revert ──
+  if (_dashLiteOn() && (role === 'admin' || role === 'owner')) return _rDashAdminLite();
   await loadCommandCenter();
 }
 
@@ -967,6 +987,228 @@ async function _rDashAdminKPIs(targetId) {
   requestAnimationFrame(() => { _dbInitBar30(barData); });
   if (typeof _rDashHealth === 'function') _rDashHealth();
   if (typeof _rDashRadar  === 'function') _rDashRadar();
+}
+
+/* ════════════════════════════════════════════════════════════
+   _rDashAdminLite — stripped-down admin dashboard (feature-flagged)
+   ────────────────────────────────────────────────────────────
+   Shows ONLY: 4 KPIs (Total Outstanding · This Month · Portfolio ·
+   Recovery %) · Collection Trend · Needs Your Attention (Pending
+   Approvals · Due Today · Broken Promises · Bounced Cheques) ·
+   Recent Payments.
+   Hides everything else from the Command Center (clock, radar,
+   recovery health, smart insights, inflow 90d, role cards, team
+   activity, system ticker). Reuses existing RPCs + .db-* CSS only.
+   Gated by _dashLiteOn(); does NOT modify loadCommandCenter / _rDashAdminKPIs.
+════════════════════════════════════════════════════════════ */
+async function _rDashAdminLite(targetId = 'pg-dashboard') {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+
+  // Render in the user's normal theme (never the dark Command Center canvas)
+  _ccClearTimers();
+  _dbDestroyCharts();
+  if (targetId === 'pg-dashboard') { el.classList.remove('cc-active'); el.removeAttribute('style'); }
+
+  el.innerHTML = `<div class="db-skel">
+    <div class="db-sk-kpis">${[0,1,2,3].map(()=>`<div class="db-sb" style="height:88px;border-radius:10px"></div>`).join('')}</div>
+    <div class="db-sb" style="height:200px;border-radius:10px;margin-top:12px"></div>
+    <div class="db-sb" style="height:120px;border-radius:10px;margin-top:12px"></div>
+    <div class="db-sb" style="height:260px;border-radius:10px;margin-top:12px"></div>
+  </div>`;
+
+  // ── KPI maths (identical basis to _rDashAdminKPIs) ──────────
+  const units      = gunits();
+  const od         = getOverdueDays();
+  const soldUnits  = units.filter(u => u.status !== 'Available' && u.status !== 'Dead');
+  const soldU      = soldUnits.length;
+  const availU     = units.filter(u => u.status === 'Available').length;
+
+  const totalR         = soldUnits.reduce((s,u) => s + actualPaid(u), 0);
+  const outstand       = soldUnits.reduce((s,u) => s + actualPending(u), 0);
+  const totalPortfolio = soldUnits.reduce((s,u) => s + Number(u.totalPrice||0), 0);
+  const recovPct       = totalPortfolio > 0 ? Math.round(totalR / totalPortfolio * 100) : 0;
+
+  const overdueUnits = soldUnits
+    .filter(u => isOverdue(u, od) && actualPending(u) > 0)
+    .sort((a,b) => actualPending(b) - actualPending(a));
+
+  // ── Async: KPI RPC · 30-day collections · attention signals ──
+  const t = td();
+  let monthR=0, prevMonthR=0, recentRecs=[], trend6m={labels:[],values:[]};
+  let coll=null, approvals=[], pdcToday=[], promises=[], pdcBounced=[];
+
+  await Promise.all([
+    supabase.rpc('get_dashboard_kpis', { p_company_id: S.cid }).then(r=>{
+      const k=r.data;
+      if (k?.success) {
+        monthR     = Number(k.this_month_collection || 0);
+        prevMonthR = Number(k.prev_month_collection || 0);
+        recentRecs = Array.isArray(k.recent_payments) ? k.recent_payments : [];
+        (Array.isArray(k.trend_6m) ? k.trend_6m : []).forEach(tt => { trend6m.labels.push(tt.month); trend6m.values.push(Number(tt.total||0)); });
+      }
+    }).catch(e=>{ console.warn('[rDashLite] KPI RPC failed', e); }),
+    (()=>{ const from30=new Date(); from30.setDate(from30.getDate()-29);
+      return supabase.rpc('get_collection_report', { p_company_id:S.cid, p_from_date:from30.toISOString().slice(0,10), p_to_date:t })
+        .then(r=>{ coll=Array.isArray(r.data)?r.data:null; }).catch(()=>{}); })(),
+    supabase.rpc('get_pending_approvals', { p_filters:{} })
+      .then(r=>{ approvals=(r.data&&Array.isArray(r.data.rows))?r.data.rows:[]; window._approvalsPending=approvals.length; }).catch(()=>{}),
+    supabase.rpc('get_pdc_register', { p_company_id:S.cid, p_status:'presented', p_project_id:null, p_date_from:t, p_date_to:t })
+      .then(r=>{ pdcToday=(r.data&&Array.isArray(r.data.rows))?r.data.rows:[]; }).catch(()=>{}),
+    supabase.rpc('get_all_promises', { p_company_id:S.cid })
+      .then(r=>{ promises=Array.isArray(r.data)?r.data:[]; }).catch(()=>{}),
+    supabase.rpc('get_pdc_register', { p_company_id:S.cid, p_status:'bounced', p_project_id:null, p_date_from:null, p_date_to:null })
+      .then(r=>{ pdcBounced=(r.data&&Array.isArray(r.data.rows))?r.data.rows:[]; }).catch(()=>{}),
+  ]);
+
+  if (!el.isConnected) return; // stale-guard
+
+  // 30-day daily bars (fallback to 6m trend if no granular data)
+  let barData = [];
+  if (Array.isArray(coll) && coll.length > 0) {
+    const byDate = {};
+    coll.forEach(r => { byDate[r.payment_date] = (byDate[r.payment_date]||0) + Number(r.amount||0); });
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const ds = d.toISOString().slice(0,10);
+      barData.push({ label: d.getDate()+'/'+(d.getMonth()+1), amount: byDate[ds]||0 });
+    }
+  }
+  if (!barData.length && trend6m.labels.length) {
+    barData = trend6m.labels.map((l,i) => ({ label: l, amount: trend6m.values[i] }));
+  }
+
+  const _trendPct  = prevMonthR > 0 ? Math.round((monthR - prevMonthR) / prevMonthR * 100) : null;
+  const _trendHtml = _trendPct !== null
+    ? `<div class="db-trend ${_trendPct>=0?'up':'dn'}">${_ic(_trendPct>=0?'<polyline points="18 15 12 9 6 15"/>':'<polyline points="6 9 12 15 18 9"/>',10)} ${_trendPct>=0?'+':''}${_trendPct}% vs last mo</div>`
+    : '';
+
+  // ── Needs Your Attention signals ────────────────────────────
+  const approvalsN = approvals.length;
+  const dueTodayN  = pdcToday.length;
+  const brokenN    = promises.filter(p => p.status==='pending' && p.promise_date < t).length;
+  const bouncedN   = pdcBounced.length;
+  const bouncedAmt = pdcBounced.reduce((s,r)=>s+Number(r.amount||0),0);
+  const attnTile = (n, lbl, sub, color, icon, go) =>
+    `<button class="db-kpi" onclick="${go}" style="cursor:pointer;text-align:left;background:${n>0?color.bg:'transparent'};border:1px solid ${n>0?color.bd:'var(--border)'};border-left:4px solid ${n>0?color.ln:'var(--border)'}">
+      <div class="db-kpi-row">
+        <div class="db-kpi-ic" style="color:${color.ln}">${_ic(icon,14)}</div>
+        <div class="db-kpi-body">
+          <div class="db-kpi-lbl">${lbl}</div>
+          <div class="db-kpi-val db-kpi-val-sm">${n}</div>
+          <div class="db-kpi-sub">${sub}</div>
+        </div>
+      </div>
+    </button>`;
+
+  // ── Render ──────────────────────────────────────────────────
+  el.innerHTML = `
+    <div class="db-sec-lbl">Live KPIs</div>
+    <div class="db-kpis">
+
+      <div id="_kpi0" class="db-kpi db-kpi-accent-red" onclick="nav('reports')" style="cursor:pointer;background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.18);border-left:4px solid #DC2626">
+        <div class="db-kpi-row">
+          <div class="db-kpi-ic red">${_ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',14)}</div>
+          <div class="db-kpi-body">
+            <div class="db-kpi-lbl">Total Outstanding</div>
+            <div class="db-kpi-val db-kpi-val-sm"><span class="db-pkr">PKR</span>${fLakhCr(outstand)}</div>
+            <div class="db-kpi-sub">${overdueUnits.length>0?overdueUnits.length+' units overdue':'All current'}</div>
+          </div>
+          ${overdueUnits.length>0?`<div class="db-trend dn" style="align-self:flex-start">${_ic('<polyline points="6 9 12 15 18 9"/>',9)} ${overdueUnits.length}</div>`:''}
+        </div>
+      </div>
+
+      <div id="_kpi1" class="db-kpi db-kpi-accent-green" onclick="nav('recovery')" style="cursor:pointer;background:rgba(22,163,74,.05);border:1px solid rgba(22,163,74,.18);border-left:4px solid #16A34A">
+        <div class="db-kpi-row">
+          <div class="db-kpi-ic green">${_ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',14)}</div>
+          <div class="db-kpi-body">
+            <div class="db-kpi-lbl">This Month</div>
+            <div class="db-kpi-val db-kpi-val-sm"><span class="db-pkr">PKR</span>${fLakhCr(monthR)}</div>
+            <div class="db-kpi-sub">${recentRecs.length} payment${recentRecs.length!==1?'s':''} received</div>
+          </div>
+          ${_trendHtml?`<div style="align-self:flex-start">${_trendHtml}</div>`:''}
+        </div>
+      </div>
+
+      <div id="_kpi2" class="db-kpi db-kpi-accent-blue" onclick="nav('projects')" style="cursor:pointer;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.18);border-left:4px solid #2563EB">
+        <div class="db-kpi-row">
+          <div class="db-kpi-ic blue">${_ic('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',14)}</div>
+          <div class="db-kpi-body">
+            <div class="db-kpi-lbl">Portfolio Value</div>
+            <div class="db-kpi-val db-kpi-val-sm"><span class="db-pkr">PKR</span>${fLakhCr(totalPortfolio)}</div>
+            <div class="db-kpi-sub">${soldU} sold · ${availU} available</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="_kpi3" class="db-kpi db-kpi-accent-amber" onclick="nav('reports')" style="cursor:pointer;background:rgba(217,119,6,.05);border:1px solid rgba(217,119,6,.18);border-left:4px solid #D97706">
+        <div class="db-kpi-row">
+          <div class="db-kpi-ic amber">${_ic('<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',14)}</div>
+          <div class="db-kpi-body">
+            <div class="db-kpi-lbl">Recovery Rate</div>
+            <div class="db-kpi-val db-kpi-val-sm">${recovPct}<span style="font-size:13px;font-weight:400;color:var(--text-muted);margin-left:1px">%</span></div>
+            <div class="db-kpi-sub">PKR ${fMH(totalR)} of ${fMH(totalPortfolio)}</div>
+          </div>
+          ${recovPct>0?`<div class="db-trend ${recovPct>=75?'up':'dn'}" style="align-self:flex-start">${recovPct>=75?'On track':recovPct<40?'Critical':'Monitor'}</div>`:''}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="db-sec-lbl">Collection Trend</div>
+    <div class="db-card">
+      <div class="db-card-ch">
+        <div class="db-card-hl">
+          <p class="db-card-title">${_icBar()} Collection Trend</p>
+          <p class="db-card-sub">Daily cash received · last 30 days</p>
+        </div>
+        <button class="db-btn" onclick="nav('recovery')">${_icBar(12)} Recovery →</button>
+      </div>
+      <div class="db-chart-wrap" style="height:160px;padding-top:8px">
+        <canvas id="db-chart-bar30"></canvas>
+      </div>
+    </div>
+
+    <div class="db-sec-lbl">Needs Your Attention</div>
+    <div class="db-kpis">
+      ${attnTile(approvalsN, 'Pending Approvals', approvalsN>0?'awaiting your decision':'inbox zero', {bg:'rgba(124,58,237,.06)',bd:'rgba(124,58,237,.20)',ln:'#7C3AED'}, '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>', "nav('approvals')")}
+      ${attnTile(dueTodayN, 'Due Today', dueTodayN>0?'cheques presented today':'none due today', {bg:'rgba(217,119,6,.06)',bd:'rgba(217,119,6,.20)',ln:'#D97706'}, '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/>', "nav('pdc')")}
+      ${attnTile(brokenN, 'Broken Promises', brokenN>0?'overdue — follow up':'all kept', {bg:'rgba(220,38,38,.06)',bd:'rgba(220,38,38,.20)',ln:'#DC2626'}, '<path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>', "nav('promises')")}
+      ${attnTile(bouncedN, 'Bounced Cheques', bouncedN>0?`PKR ${fLakhCr(bouncedAmt)}`:'none bounced', {bg:'rgba(220,38,38,.06)',bd:'rgba(220,38,38,.20)',ln:'#DC2626'}, '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/><path d="m7 15 3-3 4 4"/>', "nav('pdc')")}
+    </div>
+
+    <div class="db-sec-lbl">Recent Payments</div>
+    <div class="db-card">
+      <div class="db-card-ch">
+        <div class="db-card-hl">
+          <p class="db-card-title">${_icCard()} Recent Payments</p>
+          <p class="db-card-sub">Most recent transactions across all units</p>
+        </div>
+        <button class="db-btn" onclick="nav('receipts')">All →</button>
+      </div>
+      ${!recentRecs.length
+        ? `<div class="db-empty"><span class="db-empty-ic">${_icCard(24)}</span><p class="db-empty-tx">No payments this month</p></div>`
+        : `<div class="db-tbl-wrap"><table class="db-tbl">
+            <thead><tr><th>Date</th><th>Client</th><th>Unit</th><th>Method</th><th>Amount</th></tr></thead>
+            <tbody>${recentRecs.slice(0,5).map(r=>{
+              const u  = r.unitId?gunit(r.unitId):null;
+              const m  = (r.payment_method||'').toLowerCase();
+              const mc = m==='bank_transfer'?'bank':m==='cheque'?'cheque':m==='cash'?'cash':m==='pdc'?'pdc':'other';
+              const ml = m==='bank_transfer'?'Bank':m==='cheque'?'Cheque':m==='cash'?'Cash':m==='pdc'?'PDC':'Other';
+              return `<tr onclick="${r.unitId?`openUD('${r.unitId}')`:'void 0'}" style="cursor:${r.unitId?'pointer':'default'}">
+                <td class="db-tbl-mute" style="white-space:nowrap">${r.payment_date||'—'}</td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((r.client_name||u?.customerName||'—').substring(0,18))}</td>
+                <td><span class="db-unit-chip">${esc(u?.unitNo||r.unit_number||'—')}</span></td>
+                <td><span class="db-meth-badge ${mc}">${ml}</span></td>
+                <td class="db-tbl-amt">PKR ${fM(Number(r.amount))}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table></div>`
+      }
+    </div>`;
+
+  _injectKpiHoverStyle();
+  requestAnimationFrame(() => { _dbInitBar30(barData); });
 }
 
 /* ─── 30-day bar chart initialiser ─────────────────────────── */
