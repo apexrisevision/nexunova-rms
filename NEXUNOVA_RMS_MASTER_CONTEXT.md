@@ -522,6 +522,55 @@ For the **future Next.js + React** build (current vanilla app uses an indigo cus
 
 **Immediate next action:** Rashid's **visual verification round** (Crystal reports / ledgers / print) before the KBH demo; then wire the **5 unwired hub cards** (payables / promise_tracker / field_visits / ai_radar / forecasting), the **Electron `loadURL` fix**, and the **WhatsApp dispatch queue**.
 
+### NEXT PRIORITY (deferred 2026-06-08): Application/Booking Form print document
+
+Sale ke print-docs family mein **7th document — "APPLICATION FORM"** (modeled on Rashid's KBH physical booking form, Crystal serif style). **Legal-size default, A4 toggle.** Branded header (`company_branding`), top grid auto-filled from sale (Booking No / Client Code / Date / Unit / Floor / Category / Size / Type), **Client Information ruled boxes** (auto-fill existing fields, **EMPTY ruled boxes for missing ones** — S/O, occupation, monthly income, NTN likely missing from `clients` schema, **AUDIT first**), **photo box** (`photo_url` else empty frame), **Nominee block** (sale fields exist), **conditional Co-buyer block**, declaration + **dual signature lines**, **QR with sale ref** (only if a QR helper already exists — audit, never add a library silently). **No schema changes.**
+
+**READY PROMPT — paste into Claude Code when picked up:**
+
+````text
+TASK: Add "Application / Booking Form" — the 7th document in the sale print-docs family.
+Frontend only (js/pages/print.js + its callers/launcher). NO schema changes. NO new libraries.
+
+HARD CONSTRAINTS:
+- Reuse the existing print stack: _lh (letterhead), _pCSS (Crystal CSS), _sigBlock, _footer, _printHTML.
+  Do NOT copy-paste letterhead/footer/signature markup — call the shared helpers.
+- Crystal serif accounting style (Times New Roman/Georgia), consistent with the other 6 sale docs.
+- Legal-size default (@page size: legal); A4 toggle control on the doc.
+- Scope all CSS to this document; no leak to other pages/docs. Token-only login.html ?v= bump if a file is touched.
+
+AUDIT FIRST (report findings before building anything):
+1. clients schema — list which fields EXIST vs MISSING. Auto-fill existing (e.g. full_name, client_code,
+   phone_primary, cnic, address, email, photo_url?). Likely MISSING → render EMPTY ruled boxes:
+   S/O (father/husband name), occupation, monthly income, NTN. Report exactly which exist vs need empty boxes.
+   DO NOT add columns.
+2. sales schema — confirm nominee_* fields (name/relation/cnic/phone) and any co-buyer fields exist. Report which.
+3. QR — search for an existing QR helper/library already loaded in the app. If none exists, OMIT the QR entirely
+   (do NOT add a QR library silently) and report it.
+4. company_branding — confirm the header fields _lh consumes (logo_url, company_name, address, etc.).
+5. Print-docs launcher — find where the other 6 sale documents are invoked (the print menu on sale/unit detail);
+   add the 7th "Application Form" entry there.
+
+DOCUMENT SPEC ("APPLICATION FORM"):
+- Branded letterhead via _lh (company_branding); doc title "APPLICATION FORM" centered + underlined.
+- Top grid, auto-filled from the sale: Booking/Sale No · Client Code · Date · Unit No · Floor · Category · Size (area) · Type.
+- "Client Information" section — ruled label:value boxes. Auto-fill existing client fields; EMPTY ruled boxes for
+  missing ones (S/O, occupation, monthly income, NTN, …) so they can be hand-filled.
+- Photo box top-right: render photo_url if present, else an empty framed box ("Affix Photo").
+- Nominee block — from the sale nominee_* fields.
+- Co-buyer block — render ONLY if co-buyer data exists (conditional).
+- Declaration paragraph + dual signature lines (Applicant / Authorized Signatory) via the _sigBlock pattern.
+- QR encoding the sale reference — ONLY if a QR helper already exists (per audit); otherwise omit.
+- Legal size by default; A4 toggle.
+
+VERIFY:
+- node --check on every changed JS file.
+- git status (only the expected files); login.html diff is ?v= token-only if bumped.
+- Screen launch + print path both covered; CSS scoped (confirm no leak).
+- Confirm: NO schema changes, NO new libraries added.
+- Commit "feat: Application/Booking Form print document (7th sale doc)". Do NOT push (Rashid verifies visually first).
+````
+
 **All 5 phases complete as of 2026-05-28. App is production-ready.**
 
 **Pending go-live items (not blocking app use):**
