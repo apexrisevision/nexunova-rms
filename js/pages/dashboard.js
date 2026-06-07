@@ -549,6 +549,15 @@ async function loadCommandCenter() {
           <div class="cc-skel-bars"><span></span><span></span><span></span></div>
         </div>
       </div>
+
+      <!-- NEXT MONTH DUES (get_outstanding_report — existing RPC, next-month bounds) -->
+      <div class="cc-card cc-intel" id="cc-dues-card">
+        <div class="cc-card-ttl">Monthly Dues</div>
+        <div class="cc-intel-body" id="cc-dues-body">
+          <div class="cc-skel cc-skel-total"></div>
+          <div class="cc-skel-lines"><span></span><span></span><span></span></div>
+        </div>
+      </div>
     </div>
 
     <!-- NEEDS YOUR DECISION -->
@@ -614,6 +623,8 @@ async function loadCommandCenter() {
     pg.querySelectorAll('.cc-count').forEach(_ccCountUp);
     // Mission Control intelligence cards — 3 RPCs in parallel, each renders independently
     _ccLoadIntel(S.cid, pg);
+    // Next Month Dues card — existing get_outstanding_report, next-month bounds
+    _ccLoadDues(S.cid, pg);
   }, 400);
 }
 
@@ -744,6 +755,106 @@ function _ccRenderForecast(d) {
   } else {
     b.querySelectorAll('.cc-fc-bar').forEach(el => { el.style.transition = 'none'; el.style.height = el.style.getPropertyValue('--h'); });
   }
+}
+
+/* ─── Next Month Dues (get_outstanding_report — EXISTING RPC, no migration) ───
+   Calls the unused-on-frontend get_outstanding_report with next calendar-month
+   bounds. p_status is a no-op in that RPC body (filter = outstanding>0 + due_date
+   range), so we pass null. Total = SUM(due_amount); top 5 rows by amount desc.
+   Row click → openClientDetail() (id resolved from the local clients cache by
+   name, disambiguated by phone). RPC error → hide the card silently. ───────── */
+function _injectDuesStyle() {
+  var old = document.getElementById('_db-dues-style'); if (old) old.remove();
+  var s = document.createElement('style'); s.id = '_db-dues-style';
+  s.textContent =
+    '#pg-dashboard.cc-active .cc-dues-mon{font-size:11px;font-weight:600;color:#93C5FD;margin-left:6px}' +
+    '#pg-dashboard.cc-active .cc-dues-list{display:flex;flex-direction:column;gap:3px;margin-top:8px}' +
+    '#pg-dashboard.cc-active .cc-dues-row{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;background:none;border:0;border-radius:7px;cursor:pointer;text-align:left;transition:background .15s ease}' +
+    '#pg-dashboard.cc-active .cc-dues-row:hover{background:rgba(37,99,235,.12)}' +
+    '#pg-dashboard.cc-active .cc-dues-cl{flex:1;min-width:0;font-size:12px;font-weight:600;color:#E2E8F0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#pg-dashboard.cc-active .cc-dues-unit{font-size:10.5px;color:#94A3B8;flex-shrink:0}' +
+    '#pg-dashboard.cc-active .cc-dues-amt{font-size:12px;font-weight:700;color:#93C5FD;flex-shrink:0}' +
+    '#pg-dashboard.cc-active .cc-dues-all{margin-top:10px;background:none;border:0;color:#60A5FA;font-size:11.5px;font-weight:600;cursor:pointer;padding:4px 0;text-align:left}' +
+    '#pg-dashboard.cc-active .cc-dues-all:hover{text-decoration:underline}' +
+    '[data-theme="light"] #pg-dashboard.cc-active .cc-dues-cl{color:#0F172A}' +
+    '[data-theme="light"] #pg-dashboard.cc-active .cc-dues-amt,[data-theme="light"] #pg-dashboard.cc-active .cc-dues-mon{color:#2563EB}';
+  document.head.appendChild(s);
+}
+
+async function _ccLoadDues(cid, pg) {
+  const card = document.getElementById('cc-dues-card');
+  const body = document.getElementById('cc-dues-body');
+  if (!body) return;
+
+  // Current calendar-month bounds (local date, no UTC drift) — the admin lives
+  // inside this month, so current-month dues are the actionable number.
+  const now   = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const iso   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const monthLbl = first.toLocaleDateString('en-US', { month:'long', year:'numeric' }); // e.g. "June 2026"
+
+  let rows = [];
+  try {
+    const { data, error } = await supabase.rpc('get_outstanding_report', {
+      p_company_id: cid,
+      p_from_date:  iso(first),
+      p_to_date:    iso(last),
+      p_project_id: null,
+      p_status:     null   // no-op in RPC body; effective filter = outstanding>0 + due_date range
+    });
+    if (error) throw error;
+    rows = Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('[rDash] Next Month Dues RPC failed', e);
+    if (card) card.style.display = 'none';
+    return;
+  }
+  if (pg && !pg.isConnected) return;
+
+  _injectDuesStyle();
+  const ttl = card ? card.querySelector('.cc-card-ttl') : null;
+  if (ttl) ttl.innerHTML = `${esc(monthLbl)} Dues`;
+
+  // Footer link — the dashboard's only entry to the Recovery Position report.
+  // Must render in BOTH the data state and the empty state.
+  const footer = `<button class="cc-dues-all" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('recovery_position');},60)">Recovery Position →</button>`;
+
+  const total = rows.reduce((s, r) => s + Number(r.due_amount || 0), 0);
+
+  if (!rows.length) {
+    body.innerHTML =
+      `<div class="cc-fc-total"><span class="db-pkr">PKR</span> ${fLakhCr(0)}</div>` +
+      `<div class="cc-intel-na" style="font-size:13px;font-weight:500;margin-top:10px">No dues scheduled this month</div>` +
+      footer;
+    return;
+  }
+
+  // Resolve client_name → id from the local clients cache (phone tiebreak for dupes)
+  const cache = (typeof gclients === 'function') ? gclients() : [];
+  const _n = v => String(v || '').trim().toLowerCase();
+  const findId = (nm, ph) => {
+    const m = cache.filter(c => _n(c.name || c.fullName) === _n(nm));
+    if (m.length === 1) return m[0].id;
+    if (m.length > 1 && ph) { const h = m.find(c => _n(c.phone || c.phonePrimary) === _n(ph)); if (h) return h.id; }
+    return m.length ? m[0].id : null;
+  };
+
+  const top5 = rows.slice().sort((a, b) => Number(b.due_amount || 0) - Number(a.due_amount || 0)).slice(0, 5);
+  const rowsHtml = top5.map(r => {
+    const id    = findId(r.client_name, r.client_phone);
+    const onclk = id ? `openClientDetail('${id}')` : `nav('clients')`;
+    return `<button class="cc-dues-row" onclick="${onclk}">` +
+      `<span class="cc-dues-cl">${esc(r.client_name || '—')}</span>` +
+      (r.unit_ref ? `<span class="cc-dues-unit">${esc(r.unit_ref)}</span>` : '') +
+      `<span class="cc-dues-amt">${fLakhCr(Number(r.due_amount || 0))}</span>` +
+    `</button>`;
+  }).join('');
+
+  body.innerHTML =
+    `<div class="cc-fc-total"><span class="db-pkr">PKR</span> ${fLakhCr(total)}</div>` +
+    `<div class="cc-dues-list">${rowsHtml}</div>` +
+    footer;
 }
 
 /* ─── Monthly Goal slider — live-updates the ring + persists per company ─── */

@@ -2286,3 +2286,45 @@ button.btn-g, button.btn-d,
 .inv-grid-card[data-col="#9333EA"] [data-sleek-line],.inv-board-card[data-col="#9333EA"] [data-sleek-line] { background: linear-gradient(90deg,#9333EA,#D8B4FE) !important; }
 .inv-grid-card[data-col="#65A30D"] [data-sleek-line],.inv-board-card[data-col="#65A30D"] [data-sleek-line] { background: linear-gradient(90deg,#65A30D,#BEF264) !important; }
 .inv-grid-card[data-col="#BE185D"] [data-sleek-line],.inv-board-card[data-col="#BE185D"] [data-sleek-line] { background: linear-gradient(90deg,#BE185D,#FBCFE8) !important; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   20260608 typography tightening
+   Additive, end-of-file (wins cascade), scoped to #s-app so login/onboarding
+   are untouched. The Recovery Position report (.rp-report / .rp-tbl / .rp-chip
+   / .rp-title) uses none of these selectors, so its serif styling is excluded.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Data tables — base font −1px (13→12), cell vertical padding −2px (12→10) */
+#s-app .tbl td {
+  font-size: 12px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+#s-app .tbl th {
+  padding-top: 9px !important;
+  padding-bottom: 9px !important;
+}
+/* DX data tables — base font −1px (13→12), row height −2px (44→42) */
+#s-app .dx-table { font-size: 12px !important; }
+#s-app .dx-table tbody td { height: 42px !important; }
+#s-app .dx-table thead th { padding-top: 9px !important; padding-bottom: 9px !important; }
+
+/* Card / KPI labels — oversized labels −1px (12→11), letter-spacing normalized */
+#s-app .prj-kpi-label,
+#s-app .dkpi-lbl,
+#s-app .kpi-label,
+#s-app .kpi-lbl,
+#s-app .dash-fin-lbl,
+#s-app .dash-section-lbl {
+  font-size: 11px !important;
+  letter-spacing: 0.04em !important;
+}
+#s-app .db-kpi-hd { letter-spacing: 0.04em !important; }
+
+/* Page titles — one step smaller where oversized (22→20) */
+#s-app .ph h1,
+#s-app .page-title,
+#s-app h1.page-title,
+#s-app h1.h-page-title {
+  font-size: 20px !important;
+}

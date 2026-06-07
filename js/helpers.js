@@ -65,13 +65,28 @@ function logA(type,msg){const db=gdb();db.log=db.log||[];db.log.unshift({id:uid(
 // and also type=number inputs: clears 0 on focus, restores on blur.
 
 function _amtFmt(raw) {
-  // Format a numeric string with Pakistani grouping: 100000 → "1,00,000"
+  // Format a numeric string with Western thousands grouping: 100000 → "100,000"
   const n = parseFloat(String(raw).replace(/,/g, ''));
   if (isNaN(n) || n === 0) return '';
-  return n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 function parseAmt(v) {
   return parseFloat(String(v).replace(/,/g, '')) || 0;
+}
+
+// 20260608 — apply a Western thousands mask (#,##0) to every NUMERIC cell of a
+// SheetJS worksheet so Excel shows 12,345,678 (raw numbers, not strings). Call
+// right before XLSX.writeFile. No-op if SheetJS / range is missing.
+function xlsxWesternNumFmt(ws) {
+  if (!ws || !ws['!ref'] || typeof XLSX === 'undefined') return ws;
+  const R = XLSX.utils.decode_range(ws['!ref']);
+  for (let r = R.s.r; r <= R.e.r; r++) {
+    for (let c = R.s.c; c <= R.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell && cell.t === 'n') cell.z = '#,##0';
+    }
+  }
+  return ws;
 }
 
 // ── CNIC mask + validation (Pakistan: xxxxx-xxxxxxx-x, 5-7-1 = 13 digits) ──
@@ -115,7 +130,7 @@ function isValidCNIC(v) {
       if (el.value === '') el.value = '0';
     } else if (el.classList.contains('inp-amt')) {
       const raw = parseFloat(el.value.replace(/,/g, ''));
-      el.value = isNaN(raw) ? '0' : raw.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+      el.value = isNaN(raw) ? '0' : raw.toLocaleString('en-US', { maximumFractionDigits: 0 });
     }
   }, true);
 
@@ -125,7 +140,7 @@ function isValidCNIC(v) {
     if (el.tagName !== 'INPUT' || !el.classList.contains('inp-amt')) return;
     const pos   = el.selectionStart;
     const raw   = el.value.replace(/[^0-9]/g, '');
-    const fmted = raw ? parseInt(raw, 10).toLocaleString('en-IN') : '';
+    const fmted = raw ? parseInt(raw, 10).toLocaleString('en-US') : '';
     const diff  = fmted.length - el.value.length;
     el.value = fmted;
     try { el.setSelectionRange(pos + diff, pos + diff); } catch(e) {}
@@ -493,7 +508,7 @@ function nxBotCheck(honeypotId, formShownAt, minMs) {
   DX.money = function (amount, o) {
     o = o || {}; const n = Number(amount) || 0;
     const cls = o.sign ? (n >= 0 ? ' pos' : ' neg') : '';
-    const fmt = window.fM ? window.fM(Math.abs(n)) : Math.abs(n).toLocaleString('en-IN');
+    const fmt = window.fM ? window.fM(Math.abs(n)) : Math.abs(n).toLocaleString('en-US');
     return '<span class="dx-money' + cls + '"><span class="cur">' + (o.cur || 'PKR') + '</span>' + fmt + '</span>';
   };
   DX.skeleton = function (rows, cols) {

@@ -728,7 +728,7 @@ function _salCalc() {
   const net       = total - discount;
   const remaining = net - down;
 
-  const fmt = n => n > 0 ? 'PKR ' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : n === 0 ? 'PKR 0' : '—';
+  const fmt = n => n > 0 ? 'PKR ' + n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n === 0 ? 'PKR 0' : '—';
 
   const tEl = document.getElementById('sf-total');
   const nEl = document.getElementById('sf-net');
@@ -764,7 +764,7 @@ function _salCalcComm() {
   const amt    = document.getElementById('sf-comm-amt');
   if (amt) {
     amt.textContent = pct > 0 && net > 0
-      ? `Est. commission: PKR ${Math.round(net * pct / 100).toLocaleString('en-IN')}`
+      ? `Est. commission: PKR ${Math.round(net * pct / 100).toLocaleString('en-US')}`
       : '';
   }
 }
@@ -1099,12 +1099,12 @@ function _salRenderGrid() {
       </td>
       <td style="width:130px">
         <input type="text" inputmode="numeric" class="inp-light inp-amt" style="width:100%;font-size:12px;padding:5px 8px;text-align:right"
-          value="${row.amount_due > 0 ? Number(row.amount_due).toLocaleString('en-IN',{maximumFractionDigits:0}) : ''}"
+          value="${row.amount_due > 0 ? Number(row.amount_due).toLocaleString('en-US',{maximumFractionDigits:0}) : ''}"
           oninput="_salRowChange(${i},'amount_due',parseAmt(this.value));_salUpdateBalance();_salRenderCumulative()"
           onkeydown="_salGridEnter(event,${i},'amount')">
       </td>
       <td id="sal-cum-${i}" style="text-align:right;font-size:12px;font-weight:700;color:var(--info);padding-right:8px;width:115px">
-        ${running > 0 ? 'PKR ' + running.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
+        ${running > 0 ? 'PKR ' + running.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—'}
       </td>
       <td style="width:32px;text-align:center">
         <button class="btn btn-r btn-xs" onclick="_salDelRow(${i})" title="Remove">×</button>
@@ -1136,7 +1136,7 @@ function _salRenderCumulative() {
     running += parseFloat(row.amount_due) || 0;
     const cell = document.getElementById(`sal-cum-${i}`);
     if (cell) cell.textContent = running > 0
-      ? 'PKR ' + running.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+      ? 'PKR ' + running.toLocaleString('en-US', { maximumFractionDigits: 0 })
       : '—';
   });
 }
@@ -1237,7 +1237,7 @@ function _salPrintScheduleFromDetail() {
 }
 
 function _salPrintSchedule(info, rows) {
-  const fmtPKR  = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR  = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const fmtDate = s => {
     if (!s) return '—';
     return new Date(s + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1280,7 +1280,7 @@ function _salPrintSchedule(info, rows) {
      + '<div class="ig-item"><span class="ig-lbl">Unit</span><span class="ig-val">' + esc(info.unitNo || '—') + (info.projectName ? ' — ' + esc(info.projectName) : '') + '</span></div>'
      + '<div class="ig-item"><span class="ig-lbl">Sale Date</span><span class="ig-val">' + fmtDate(info.saleDate) + '</span></div>'
      + '<div class="ig-item"><span class="ig-lbl">Price / Sq Ft</span><span class="ig-val">' + fmtPKR(info.pricePerSqft) + '</span></div>'
-     + '<div class="ig-item"><span class="ig-lbl">Area</span><span class="ig-val">' + (info.areaSqft ? Number(info.areaSqft).toLocaleString('en-IN') + ' sq ft' : '—') + '</span></div>'
+     + '<div class="ig-item"><span class="ig-lbl">Area</span><span class="ig-val">' + (info.areaSqft ? Number(info.areaSqft).toLocaleString('en-US') + ' sq ft' : '—') + '</span></div>'
      + '<div class="ig-item"><span class="ig-lbl">Net Amount</span><span class="ig-val">' + fmtPKR(info.netAmount) + '</span></div>'
      + '</div>';
 
@@ -1506,15 +1506,15 @@ function printSalesList() {
           <td>${s.client_name || '—'}</td>
           <td style="font-size:10px;color:#666">${s.agent_name || '—'}</td>
           <td style="white-space:nowrap">${s.sale_date ? new Date(s.sale_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
-          <td style="text-align:right;font-weight:700">PKR ${Number(s.net_amount||0).toLocaleString('en-IN')}</td>
-          <td style="text-align:right;color:${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0))>0?'#b45309':'#16a34a'};font-weight:600">PKR ${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0)).toLocaleString('en-IN')}</td>
+          <td style="text-align:right;font-weight:700">PKR ${Number(s.net_amount||0).toLocaleString('en-US')}</td>
+          <td style="text-align:right;color:${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0))>0?'#b45309':'#16a34a'};font-weight:600">PKR ${Math.max(0,Number(s.net_amount||0)-Number(s.total_collected||0)).toLocaleString('en-US')}</td>
           <td>${s.status || '—'}</td>
         </tr>`).join('')}
       </tbody>
       <tfoot><tr>
         <td colspan="6" style="font-weight:700;color:#1E2D47">Total: ${sales.length} sales</td>
-        <td style="text-align:right;font-weight:700">PKR ${Number(totalNet).toLocaleString('en-IN')}</td>
-        <td style="text-align:right;font-weight:700;color:#b45309">PKR ${Number(totalRem).toLocaleString('en-IN')}</td>
+        <td style="text-align:right;font-weight:700">PKR ${Number(totalNet).toLocaleString('en-US')}</td>
+        <td style="text-align:right;font-weight:700;color:#b45309">PKR ${Number(totalRem).toLocaleString('en-US')}</td>
         <td></td>
       </tr></tfoot>
     </table>
@@ -1550,6 +1550,7 @@ function exportSalesExcel() {
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{wch:16},{wch:26},{wch:12},{wch:22},{wch:12},{wch:18},{wch:18},{wch:16},{wch:12}];
+  xlsxWesternNumFmt(ws);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sales');
   const d = (typeof td === 'function' ? td() : new Date().toISOString().slice(0,10));
@@ -2047,7 +2048,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Agent Commission % <span style="opacity:.45;font-size:10px">(optional — on net amount)</span></label>
               <input id="ef-comm-pct" class="inp-light" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.5" value="${d.commission_rate != null ? fmtV(d.commission_rate) : ''}">
-              <div id="ef-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px">${d.commission_rate ? 'Est. commission: PKR ' + Math.round(Number(d.net_amount||0)*Number(d.commission_rate)/100).toLocaleString('en-IN') : ''}</div>
+              <div id="ef-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px">${d.commission_rate ? 'Est. commission: PKR ' + Math.round(Number(d.net_amount||0)*Number(d.commission_rate)/100).toLocaleString('en-US') : ''}</div>
             </div>
           </div>
         </div>
@@ -2061,7 +2062,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Price per Sq Ft (PKR) <span class="req-star">*</span></label>
               <input id="ef-price-sqft" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.price_per_sqft||0).toLocaleString('en-IN',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+                value="${Number(d.price_per_sqft||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
               <div id="e-ef-price-sqft" class="ferr"></div>
             </div>
             <div class="fr">
@@ -2079,7 +2080,7 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Discount (PKR)</label>
               <input id="ef-discount" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.discount||0).toLocaleString('en-IN',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+                value="${Number(d.discount||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
             </div>
           </div>
           <div class="g2">
@@ -2090,13 +2091,13 @@ async function rEditSale() {
             <div class="fr">
               <label class="fl">Down Payment (PKR)</label>
               <input id="ef-down" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.down_payment||0).toLocaleString('en-IN',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+                value="${Number(d.down_payment||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
             </div>
           </div>
           <div class="g2">
             <div class="fr">
               <label class="fl">Already Collected</label>
-              <input class="inp-light" readonly style="opacity:.65;color:var(--ok)" value="PKR ${Number(totalPaid).toLocaleString('en-IN',{maximumFractionDigits:0})}">
+              <input class="inp-light" readonly style="opacity:.65;color:var(--ok)" value="PKR ${Number(totalPaid).toLocaleString('en-US',{maximumFractionDigits:0})}">
               <div style="font-size:10px;color:var(--t3);margin-top:3px">Sum of all payments received — not editable here</div>
             </div>
             <div class="fr">
@@ -2193,11 +2194,11 @@ async function rEditSale() {
           <div class="g2">
             <div class="fr">
               <label class="fl">WHT Amount (PKR)</label>
-              <input id="ef-wht" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.wht_amount||0).toLocaleString('en-IN',{maximumFractionDigits:0})}">
+              <input id="ef-wht" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.wht_amount||0).toLocaleString('en-US',{maximumFractionDigits:0})}">
             </div>
             <div class="fr">
               <label class="fl">CVT Amount (PKR)</label>
-              <input id="ef-cvt" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.cvt_amount||0).toLocaleString('en-IN',{maximumFractionDigits:0})}">
+              <input id="ef-cvt" class="inp-light inp-amt" type="text" inputmode="numeric" value="${Number(d.cvt_amount||0).toLocaleString('en-US',{maximumFractionDigits:0})}">
             </div>
           </div>
         </div>
@@ -2274,7 +2275,7 @@ function _salEditCalc() {
   const net       = Math.max(0, total - discount);
   const remaining = Math.max(0, net - paid);
 
-  const fmt = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
   const tEl = document.getElementById('ef-total');
   const nEl = document.getElementById('ef-net');
@@ -2313,7 +2314,7 @@ function _salEditRenderGrid() {
         </select>
       </td>
       <td><input type="date" class="inp-light" style="padding:5px 8px;font-size:12px;width:100%" value="${r.due_date || ''}" onchange="_salEditField(${oi},'due_date',this.value)" onkeydown="_salEditGridEnter(event,${oi},'date')"></td>
-      <td><input type="text" inputmode="numeric" class="inp-light inp-amt" style="padding:5px 8px;font-size:12px;width:100%;text-align:right" value="${Number(r.amount_due||0) > 0 ? Number(r.amount_due).toLocaleString('en-IN',{maximumFractionDigits:0}) : 0}" oninput="_salEditField(${oi},'amount_due',parseAmt(this.value));_salEditUpdateBalance()" onkeydown="_salEditGridEnter(event,${oi},'amount')"></td>
+      <td><input type="text" inputmode="numeric" class="inp-light inp-amt" style="padding:5px 8px;font-size:12px;width:100%;text-align:right" value="${Number(r.amount_due||0) > 0 ? Number(r.amount_due).toLocaleString('en-US',{maximumFractionDigits:0}) : 0}" oninput="_salEditField(${oi},'amount_due',parseAmt(this.value));_salEditUpdateBalance()" onkeydown="_salEditGridEnter(event,${oi},'amount')"></td>
       <td><input type="text" class="inp-light" style="padding:5px 8px;font-size:12px;width:100%" value="${esc(r.notes || '')}" onchange="_salEditField(${oi},'notes',this.value)" onkeydown="_salEditGridEnter(event,${oi},'label')"></td>
       <td style="text-align:center">
         ${isPaid
@@ -2333,7 +2334,7 @@ function _salEditUpdateBalance() {
   const instSum  = schedule.filter(r => !r._deleted).reduce((s, r) => s + (parseFloat(r.amount_due) || 0), 0);
   const net      = window._salEditNetAmount || 0;
   const diff     = instSum - net;
-  const fmtPKR   = n => 'PKR ' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR   = n => 'PKR ' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
   if (net === 0) { bar.innerHTML = ''; return; }
 
@@ -2654,7 +2655,7 @@ function _salMakerCommentPrompt(title, detail) {
 
 function _salSchedErrorPopup(instSum, net, customMsg) {
   document.getElementById('_sal-err-overlay')?.remove();
-  const fmtPKR = n => 'PKR ' + Math.abs(Number(n)).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR = n => 'PKR ' + Math.abs(Number(n)).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const diff   = instSum - net;
   const detail = customMsg || (
     diff > 0
@@ -2871,7 +2872,7 @@ async function deleteSaleDoc(id) {
 function printAllotmentLetter() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
-  const fmtPKR   = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR   = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
   const coName   = (window._cobranding || {}).company_name || S?.coName || 'Company';
 
@@ -2893,7 +2894,7 @@ function printAllotmentLetter() {
   h += kv('Project', esc(d.project_name || '—'));
   h += kv('Unit No.', esc(d.unit_no || '—') + (d.floor_label ? ' — ' + esc(d.floor_label) : ''));
   if (d.unit_type) h += kv('Unit Type', esc(d.unit_type));
-  if (d.area_sqft) h += kv('Area', Number(d.area_sqft).toLocaleString('en-IN') + ' sq ft');
+  if (d.area_sqft) h += kv('Area', Number(d.area_sqft).toLocaleString('en-US') + ' sq ft');
   h += kv('Sale Date', saleDate);
   h += kv('Total Sale Value', '<b>' + fmtPKR(d.net_amount) + '</b>');
   if (d.agent_name) h += kv('Sales Agent', esc(d.agent_name));
@@ -2923,7 +2924,7 @@ function printDemandNotice(idx) {
   }
   if (!inst) { toast('No installment selected', 'warn'); return; }
 
-  const fmtPKR      = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR      = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const dueDate     = inst.due_date ? new Date(inst.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
   const outstanding = Math.max(0, Number(inst.amount_due || 0) - Number(inst.amount_paid || 0));
   const isOverdue   = inst.due_date && inst.due_date < td();
@@ -2971,7 +2972,7 @@ function printPossessionLetter() {
   const br        = window._cobranding || {};
   const H         = br.doc_brand_color || '#1E2D47';
   const printDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
   const html = `<!DOCTYPE html>
@@ -3006,7 +3007,7 @@ function printPossessionLetter() {
     <tr><td>Project</td><td>${esc(d.project_name || '—')}</td></tr>
     <tr><td>Unit No.</td><td>${esc(d.unit_no || '—')}${d.floor_label ? ' — ' + esc(d.floor_label) : ''}</td></tr>
     ${d.unit_type ? `<tr><td>Unit Type</td><td>${esc(d.unit_type)}</td></tr>` : ''}
-    ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-IN')} sq ft</td></tr>` : ''}
+    ${d.area_sqft ? `<tr><td>Area</td><td>${Number(d.area_sqft).toLocaleString('en-US')} sq ft</td></tr>` : ''}
     <tr><td>Original Sale Date</td><td>${saleDate}</td></tr>
     <tr><td>Possession Date</td><td style="font-weight:700;color:${H}">${printDate}</td></tr>
     <tr><td>Total Sale Value</td><td style="font-weight:700">${fmtPKR(d.net_amount)}</td></tr>
@@ -3034,7 +3035,7 @@ function printPossessionLetter() {
 function printSaleDetail() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
-  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  const fmtPKR    = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   const saleDate  = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
   const installments = (d.installments || []);
@@ -3079,7 +3080,7 @@ function printSaleDetail() {
   h += ig('Project', esc(d.project_name || '—'));
   h += ig('Unit No.', '<b>' + esc(d.unit_no || '—') + '</b>');
   if (d.unit_type) h += ig('Unit Type', esc(d.unit_type));
-  if (d.area_sqft) h += ig('Area', Number(d.area_sqft).toLocaleString('en-IN') + ' sq ft');
+  if (d.area_sqft) h += ig('Area', Number(d.area_sqft).toLocaleString('en-US') + ' sq ft');
   if (d.agent_name) h += ig('Agent', esc(d.agent_name));
   if (d.nominee_name) h += ig('Nominee', esc(d.nominee_name) + ' (' + esc(d.nominee_relation || '—') + ')');
   h += '</div>';

@@ -22,6 +22,9 @@ demo-react/
 .idea/
 *.swp
 
+# ── MCP local config (contains Supabase access token) ────
+.mcp.json
+
 # ── OS noise ─────────────────────────────────────────────
 .DS_Store
 Thumbs.db

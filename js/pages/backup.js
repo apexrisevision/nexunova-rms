@@ -91,10 +91,12 @@ function bkpExcel(){
   var rows=units.map(function(u){var pd=actualPaid(u),rm=actualPending(u);return {'Unit No':u.unitNo,'Floor':u.floorLabel||u.floor,'Type':u.type,'Area':u.area,'Status':u.status,'Customer':u.customerName||'','Phone':u.phone||'','Booking No':u.bookingNo||'','Total Price':u.totalPrice||0,'Paid':pd,'Pending':rm,'Recovery %':u.totalPrice?Math.round(pd/u.totalPrice*100):0,'Last Payment':u.lastPaymentDate||'','Sold By':u.soldBy||'','Remarks':u.remarks||''};});
   var wb=XLSX.utils.book_new();
   var ws=XLSX.utils.json_to_sheet(rows);
+  xlsxWesternNumFmt(ws);
   XLSX.utils.book_append_sheet(wb,ws,'Units');
   var recs=grecs().sort(function(a,b){return b.date.localeCompare(a.date);});
   var rrows=recs.map(function(r){var u=gunit(r.uid);return {'Date':r.date,'Unit':u?u.unitNo:'?','Client':u?u.customerName||'':'','Amount':r.amt,'Type':r.ptype,'Receipt':r.rcpt||'','Notes':r.notes||'','By':gunm(r.by)};});
   var ws2=XLSX.utils.json_to_sheet(rrows);
+  xlsxWesternNumFmt(ws2);
   XLSX.utils.book_append_sheet(wb,ws2,'Payments');
   XLSX.writeFile(wb,'Nexunova_DataExport_'+td()+'.xlsx');
   toast('Excel export downloaded','ok');

@@ -43,9 +43,9 @@ async function _teamLoad() {
   }
 }
 
-// PKR money — reuse the app-wide en-IN (lakh/crore) formatter; never invent one.
+// PKR money — reuse the app-wide Western-grouping formatter; never invent one.
 function _teamMoney(v) {
-  return (window.DX && DX.money) ? DX.money(v) : 'PKR ' + (typeof fM === 'function' ? fM(Number(v) || 0) : (Number(v) || 0).toLocaleString('en-IN'));
+  return (window.DX && DX.money) ? DX.money(v) : 'PKR ' + (typeof fM === 'function' ? fM(Number(v) || 0) : (Number(v) || 0).toLocaleString('en-US'));
 }
 
 function _teamRender(rows) {

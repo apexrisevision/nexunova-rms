@@ -291,6 +291,122 @@ function _sbi(name, size){
   return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'+(P[name]||'')+'</svg>';
 }
 
+// ══ LITE / PRO UI MODE (Binance-style) ════════════════════════════════════════
+// Admin/owner only. Lite = a flat 7-item workspace; Pro = the full grouped nav.
+// State in localStorage['rms.uimode'] ('lite'|'pro'); default 'lite' for admins.
+// Lite hides NAV ONLY — every page stays reachable via nav()/search/drill-downs.
+// The whitelist below reuses EXISTING page-ids from buildSB() (no new ids):
+//   dashboard, recovery(=Recovery Queue), clients, sales, receipts(=Payments),
+//   reports, admin(=Settings). Order + clean Lite labels defined here; the icons
+//   are inherited from the matching real nav item so they never drift.
+var RMS_LITE_NAV = [
+  { id:'dashboard', lb:'Dashboard' },
+  { id:'recovery',  lb:'Recovery'  },
+  { id:'clients',   lb:'Clients'   },
+  { id:'sales',     lb:'Sales'     },
+  { id:'receipts',  lb:'Payments'  },
+  { id:'ledgers',   lb:'Ledgers'   },
+  { id:'reports',   lb:'Reports'   },
+  { id:'admin',     lb:'Settings'  },
+];
+var RMS_LITE_PAGES = RMS_LITE_NAV.map(function(x){ return x.id; });
+
+function getUIMode(){
+  try{ var m=localStorage.getItem('rms.uimode'); return (m==='lite'||m==='pro')?m:'lite'; }
+  catch(e){ return 'lite'; }
+}
+function setUIMode(mode){
+  mode = (mode==='pro') ? 'pro' : 'lite';
+  try{ localStorage.setItem('rms.uimode', mode); }catch(e){}
+  buildSB();   // owns the body.mode-lite class + the flat/grouped re-render
+  // If the active page isn't in the Lite whitelist, bounce to dashboard.
+  if(mode==='lite'){
+    var cur=(document.querySelector('.pg.on')||{}).id;
+    cur = cur ? cur.replace('pg-','') : '';
+    if(cur && RMS_LITE_PAGES.indexOf(cur)===-1 && typeof nav==='function') nav('dashboard');
+  }
+}
+// Injects (once) the topbar Lite|Pro pill and syncs its active segment.
+// show=false removes it (non-admin roles never see it).
+function _renderModeToggle(show, mode){
+  var host=document.querySelector('#s-app .atb-r');
+  var pill=document.getElementById('rms-mode-toggle');
+  if(!show){ if(pill) pill.remove(); return; }
+  if(!host) return;
+  if(!pill){
+    pill=document.createElement('div');
+    pill.id='rms-mode-toggle';
+    pill.className='rms-mode-toggle';
+    pill.innerHTML=
+      '<button type="button" data-mode="lite" onclick="setUIMode(\'lite\')">Lite</button>'+
+      '<button type="button" data-mode="pro"  onclick="setUIMode(\'pro\')">Pro</button>';
+    host.insertBefore(pill, host.firstChild);
+  }
+  pill.querySelectorAll('button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-mode')===mode);
+  });
+}
+
+// ── Lite "+ New" quick-action ─────────────────────────────────────────────────
+// Visible ONLY in Lite mode for admin/owner. Each action calls an EXISTING opener;
+// items without a dedicated modal fall back to nav() (newsale, addpayment,
+// categories). No new modals are introduced here.
+function _liteNewToggle(e){
+  if(e) e.stopPropagation();
+  var m=document.getElementById('rms-lite-new-menu');
+  if(m) m.classList.toggle('open');
+}
+function _liteNewClose(){
+  var m=document.getElementById('rms-lite-new-menu');
+  if(m) m.classList.remove('open');
+}
+function _liteNewGo(what){
+  _liteNewClose();
+  switch(what){
+    case 'sale':     nav('newsale'); break;                                            // page flow — no modal
+    case 'client':   if(typeof openClientModal==='function')  openClientModal(null);  else nav('clients'); break;
+    case 'payment':  nav('addpayment'); break;                                          // page flow — no modal
+    case 'agent':    if(typeof openAgentModal==='function')   openAgentModal(null);   else nav('agents'); break;
+    case 'project':  if(typeof openProjectModal==='function') openProjectModal(null); else nav('projects'); break;
+    case 'category': nav('categories'); break;                                          // page has 4 add-modals — no single opener
+  }
+}
+function _renderLiteNew(show){
+  var host=document.querySelector('#s-app .atb-r');
+  var el=document.getElementById('rms-lite-new');
+  if(!show){ if(el) el.remove(); return; }
+  if(!host) return;
+  if(!el){
+    el=document.createElement('div');
+    el.id='rms-lite-new';
+    el.className='rms-lite-new';
+    el.innerHTML=
+      '<button type="button" class="rms-lite-new-btn" onclick="_liteNewToggle(event)">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+      + '<span>New</span></button>'
+      + '<div class="rms-lite-new-menu" id="rms-lite-new-menu">'
+      +   '<button type="button" onclick="_liteNewGo(\'sale\')">New Sale</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'client\')">Add Client</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'payment\')">Receive Payment</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'agent\')">Add Agent</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'project\')">Add Project</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'category\')">Add Categories</button>'
+      + '</div>';
+    host.insertBefore(el, host.firstChild);
+  }
+  // Wire outside-click + ESC once (idempotent — survives re-renders).
+  if(!window._liteNewWired){
+    window._liteNewWired=true;
+    document.addEventListener('click', function(ev){
+      var box=document.getElementById('rms-lite-new');
+      if(box && !box.contains(ev.target)) _liteNewClose();
+    });
+    document.addEventListener('keydown', function(ev){
+      if(ev.key==='Escape') _liteNewClose();
+    });
+  }
+}
+
 function buildSB(){
   const fus  = gfus();
   const role = effectiveRole();
@@ -520,6 +636,23 @@ function buildSB(){
     navGroups = navGroups.filter(g => g.label !== 'Finance');
   }
 
+  // ── Lite mode (admin/owner only) — FINAL filter, runs after all role logic ──
+  // Collapse the full grouped nav into a single flat, header-less list of the 7
+  // whitelisted pages, in RMS_LITE_NAV order. Icons are pulled from the real nav
+  // items so they stay in sync; labels use the clean Lite names. Non-admins and
+  // Pro mode are byte-for-byte untouched.
+  const _liteOn = isA && getUIMode()==='lite';
+  document.body.classList.toggle('mode-lite', _liteOn);
+  if(_liteOn){
+    const _byId = {};
+    navGroups.forEach(g => g.items.forEach(it => { if(!_byId[it.id]) _byId[it.id]=it; }));
+    const _liteItems = RMS_LITE_NAV.map(L => {
+      const src=_byId[L.id];
+      return src ? { id:src.id, ic:src.ic, lb:L.lb } : null;
+    }).filter(Boolean);
+    navGroups = [{ label:null, items:_liteItems }];
+  }
+
   // ── Build HTML ──
   const grpStates = _getGroupStates();
   let html = '';
@@ -573,6 +706,11 @@ function buildSB(){
   // Expose nav groups for the aurora-topbar mega menu (same data, same source of truth)
   window._navGroups = navGroups;
   if (typeof buildTopbarMega === 'function') buildTopbarMega();
+
+  // Lite|Pro topbar pill — admin/owner only; reflects the current mode.
+  _renderModeToggle(isA, getUIMode());
+  // "+ New" quick-action — Lite mode + admin/owner only.
+  _renderLiteNew(_liteOn);
 }
 
 function _mkNi(x, isSub, grpLabel){

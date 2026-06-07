@@ -66,12 +66,13 @@ function _prjPill(status) {
   return `<span class="prj-status-pill" style="background:${s.bg};color:${s.color}"><span class="prj-status-dot" style="background:${s.color}"></span>${s.label}</span>`;
 }
 
-// Compact PKR formatter — "5 Cr", "25 L", "9,500"
+// Compact PKR formatter — international K/M/B (20260608: was lakh/crore "5 Cr"/"25 L")
 function _kM(n) {
   if (!n && n !== 0) return '—';
   if (n === 0) return '0';
-  if (n >= 10000000) return (n / 10000000).toFixed(1).replace(/\.0$/, '') + ' Cr';
-  if (n >= 100000)   return (n / 100000).toFixed(1).replace(/\.0$/, '') + ' L';
+  if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e5) return Math.round(n / 1e3) + 'K';
   return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
