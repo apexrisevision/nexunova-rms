@@ -325,98 +325,116 @@ function buildSB(){
   let navGroups = [];
 
   if(isA){
-    // ════════════════════════════════════════════════════════════════════
-    // RMS LITE — Admin / Owner (2026-06-07).
-    // Default view shows ONLY the daily essentials (Workspace + Setup,
-    // expanded). EVERY former enterprise/admin module is preserved verbatim
-    // (same page-ids, icons, badges, routes) but relocated into a single
-    // collapsed "Advanced" group — nothing is removed, just tucked away.
-    // Power users expand Advanced to reach the full feature set.
-    // Collapse state persists in localStorage['rms.sidebar.groups.v2'].
-    // ════════════════════════════════════════════════════════════════════
+    // Admin / Owner — 7-group enterprise hierarchy (2026-05-31, final restructure).
+    // HOME + RECOVERY open by default (daily operations).
+    // CLIENTS & UNITS, PAYMENTS, REPORTS & ANALYTICS, LEGAL & COMPLIANCE,
+    // ADMINISTRATION collapsed by default.
+    // All page-ids preserved verbatim. (Former duplicate nav entries removed 2026-06-04:
+    // 'reports' as "Outstanding" in PAYMENTS and 'contacts' as "Call Logs" in RECOVERY —
+    // both were arg-less render fns identical to their canonical entries, so they only
+    // added sidebar clutter. Canonical homes kept: reports→"Reports & Export" in REPORTS &
+    // INTELLIGENCE, contacts→"Inbox" in HOME.)
+    // defaultCollapsed honored on first load via renderer line 511-512;
+    // user toggles persist in localStorage['rms.sidebar.groups.v2'] and
+    // override defaultCollapsed thereafter.
     navGroups = [
-      // ── Workspace (expanded) — the everyday core ──
-      { label: 'Workspace', items: [
+      // International SaaS-standard 8-group hierarchy (2026-06-04 restructure).
+      // Home + Setup expanded; the rest collapsed by default. All page-ids/icons/badges
+      // preserved verbatim. (Duplicate nav entries removed 2026-06-04: contacts→"Call Logs"
+      // and reports→"Outstanding"; each id now appears once — contacts in Home as "Inbox",
+      // reports in Reports & Intelligence as "Reports & Export".) Collapse state persists in
+      // localStorage['rms.sidebar.groups.v2'] (key bumped so old grouping's states don't leak).
+      // ── 1. Home (expanded) ──
+      { label: 'Home', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
-        { id:'clients',   ic:'user-check',  lb:'Customers' },
-        { id:'recovery',  ic:'list-checks', lb:'Recovery' },
-        { id:'receipts',  ic:'receipt',     lb:'Payments' },
-        { id:'reports',   ic:'bar-chart-3', lb:'Reports' },
+        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
+        { id:'approvals', ic:'file-check',  lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
+        { id:'team',      ic:'users',       lb:'Team' },
+        { id:'setup-wizard', ic:'wand-2',   lb:'Setup Wizard', action:"if(typeof OB!=='undefined'&&S&&S.cid){OB.show(S.cid);}else if(typeof toast==='function'){toast('Setup wizard not available','err');}" },
       ]},
-      // ── Setup (expanded) — first-run / admin basics ──
+      // ── 2. Setup (expanded) ──
       { label: 'Setup', items: [
-        { id:'projects', ic:'building-2', lb:'Projects' },
-        { id:'users',    ic:'shield',    lb:'Users' },
-        { id:'admin',    ic:'settings',  lb:'Settings' },
+        { id:'projects',   ic:'building-2', lb:'Projects' },
+        { id:'categories', ic:'layers',     lb:'Types & Floors' },
+        { id:'banks',      ic:'banknote',   lb:'Banks Master' },
+        { id:'users',      ic:'shield',     lb:'Users & Roles' },
+        { id:'admin',      ic:'settings',   lb:'Settings' },
       ]},
-      // ── Advanced (collapsed) — full feature set, preserved verbatim ──
-      // Every id below kept its route/render fn; only its menu home moved here.
-      { label: 'Advanced', defaultCollapsed: true, items: [
-        { id:'contacts',          ic:'inbox',            lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
-        { id:'approvals',         ic:'file-check',       lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
-        { id:'team',              ic:'users',            lb:'Team' },
-        { id:'setup-wizard',      ic:'wand-2',           lb:'Setup Wizard', action:"if(typeof OB!=='undefined'&&S&&S.cid){OB.show(S.cid);}else if(typeof toast==='function'){toast('Setup wizard not available','err');}" },
-        { id:'categories',        ic:'layers',           lb:'Types & Floors' },
-        { id:'banks',             ic:'banknote',         lb:'Banks Master' },
-        { id:'agents',            ic:'users',            lb:'Sales Agents' },
-        { id:'sales',             ic:'file-text',        lb:'Sales & Bookings' },
-        { id:'units',             ic:'home',             lb:'All Units', bdg:totalU||null },
-        { id:'noc',               ic:'file-check',       lb:'NOC Management' },
-        { id:'transferunits',     ic:'repeat',           lb:'Transferred Units' },
-        { id:'cancelledunits',    ic:'tag',              lb:'Cancelled Units' },
-        { id:'commissions',       ic:'trending-up',      lb:'Commissions' },
-        { id:'agenttransactions', ic:'trending-up',      lb:'Agent Transactions' },
-        { id:'pdc',               ic:'calendar-clock',   lb:'PDC Register' },
-        { id:'paylinks',          ic:'link',             lb:'Payment Links' },
-        { id:'receivables',       ic:'arrow-up-circle',  lb:'Additional Receivables' },
-        { id:'payables',          ic:'arrow-down-circle',lb:'Payables' },
-        { id:'ledgers',           ic:'book-open',        lb:'Ledgers' },
-        { id:'recovery-dashboard',ic:'target',           lb:'Recovery Dashboard' },
-        { id:'promises',          ic:'handshake',        lb:'Promise Tracker' },
-        { id:'reminders',         ic:'bell',             lb:'Reminders' },
-        { id:'campaigns',         ic:'megaphone',        lb:'Campaigns' },
-        { id:'fieldvisits',       ic:'map-pin',          lb:'Field Visits' },
-        { id:'escalations',       ic:'alert-triangle',   lb:'Escalations' },
-        { id:'legalcases',        ic:'scale',            lb:'Legal Cases' },
-        { id:'executive',         ic:'bar-chart-3',      lb:'Executive Dashboard' },
-        { id:'forecasting',       ic:'trending-up',      lb:'Forecasting' },
-        { id:'radar',             ic:'radar',            lb:'Recovery Radar' },
-        { id:'documents',         ic:'printer',          lb:'Documents' },
-        { id:'commscenter',       ic:'message-square',   lb:'Comms Center' },
-        { id:'backup',            ic:'database',         lb:'Backup' },
-        { id:'audit',             ic:'history',          lb:'Audit Trail' },
+      // ── 3. Parties (collapsed) ──
+      { label: 'Parties', defaultCollapsed: true, items: [
+        { id:'clients',      ic:'user-check', lb:'Clients' },
+        { id:'agents',       ic:'users',      lb:'Sales Agents' },
+        // Client Health + Blacklist Register folded into Clients as tabs (2026-06-04).
+        // Routes 'healthcenter'/'blacklist' still work — they redirect to the right tab.
+      ]},
+      // ── 4. Sales & Units (collapsed) ──
+      { label: 'Sales & Units', defaultCollapsed: true, items: [
+        { id:'sales',             ic:'file-text',   lb:'Sales & Bookings' },
+        { id:'units',             ic:'home',        lb:'All Units', bdg:totalU||null },
+        { id:'noc',               ic:'file-check',  lb:'NOC Management' },
+        { id:'transferunits',     ic:'repeat',      lb:'Transferred Units' },
+        { id:'cancelledunits',    ic:'tag',         lb:'Cancelled Units' },
+        { id:'commissions',       ic:'trending-up', lb:'Commissions' },
+        { id:'agenttransactions', ic:'trending-up', lb:'Agent Transactions' },
+      ]},
+      // ── 5. Payments & Accounts (collapsed) ──
+      { label: 'Payments & Accounts', defaultCollapsed: true, items: [
+        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers' },
+        { id:'pdc',         ic:'calendar-clock',    lb:'PDC Register' },
+        { id:'paylinks',    ic:'link',              lb:'Payment Links' },
+        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
+        { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
+        { id:'ledgers',     ic:'book-open',         lb:'Ledgers' },
+      ]},
+      // ── 6. Recovery & Legal (collapsed) ──
+      { label: 'Recovery & Legal', defaultCollapsed: true, items: [
+        { id:'recovery-dashboard', ic:'target',         lb:'Recovery Dashboard' },
+        { id:'recovery',           ic:'list-checks',    lb:'Recovery Queue' },
+        { id:'promises',           ic:'handshake',      lb:'Promise Tracker' },
+        { id:'reminders',          ic:'bell',           lb:'Reminders' },
+        { id:'campaigns',          ic:'megaphone',      lb:'Campaigns' },
+        { id:'fieldvisits',        ic:'map-pin',        lb:'Field Visits' },
+        { id:'escalations',        ic:'alert-triangle', lb:'Escalations' },
+        { id:'legalcases',         ic:'scale',          lb:'Legal Cases' },
+      ]},
+      // ── 7. Reports & Intelligence (collapsed) ──
+      { label: 'Reports & Intelligence', defaultCollapsed: true, items: [
+        { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
+        { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
+        { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
+        { id:'radar',       ic:'radar',          lb:'Recovery Radar' },
+        { id:'documents',   ic:'printer',        lb:'Documents' },
+        { id:'commscenter', ic:'message-square', lb:'Comms Center' },
+      ]},
+      // ── 8. System (collapsed) ──
+      { label: 'System', defaultCollapsed: true, items: [
+        { id:'backup', ic:'database', lb:'Backup' },
+        { id:'audit',  ic:'history',  lb:'Audit Trail' },
       ]},
     ];
   } else if(isR){
-    // ════════════════════════════════════════════════════════════════════
-    // RMS LITE — Recovery officer (2026-06-07).
-    // Daily essentials expanded; everything else preserved in a collapsed
-    // "Advanced" group (no routes/ids removed). The old duplicate "Call Logs"
-    // entry is folded into the single "Follow Ups" (contacts) item.
-    // 'promises' + 'reports' surfaced here are also whitelisted in the nav()
-    // baseline allow-list so they navigate (not dead links).
-    // ════════════════════════════════════════════════════════════════════
     navGroups = [
-      { label: 'Workspace', items: [
+      { label: 'Main', items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
-        { id:'clients',   ic:'user-check',  lb:'Customers' },
-        { id:'contacts',  ic:'inbox',       lb:'Follow Ups', bdg:alrt, bdgType:alrt?'alert':null },
-        { id:'promises',  ic:'handshake',   lb:'Promises' },
-        { id:'recovery',  ic:'list-checks', lb:'Payments' },
-        { id:'reports',   ic:'bar-chart-3', lb:'Reports' },
+        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Advanced', defaultCollapsed: true, items: [
-        { id:'recovery-dashboard', ic:'target',         lb:'Recovery Dashboard' },
-        { id:'units',          ic:'home',           lb:'All Units' },
-        { id:'sales',          ic:'file-text',      lb:'Sales & Bookings' },
-        { id:'cancelledunits', ic:'tag',            lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat',         lb:'Transferred Units' },
-        { id:'ledgers',        ic:'book-open',      lb:'Ledgers' },
-        { id:'receipts',       ic:'receipt',        lb:'Receipt Vouchers' },
-        { id:'pdc',            ic:'calendar-clock', lb:'PDC Register' },
-        { id:'reminders',      ic:'bell',           lb:'Reminders' },
-        { id:'paylinks',       ic:'link',           lb:'Payment Links' },
-        { id:'fieldvisits',    ic:'map-pin',        lb:'Field Visits' },
+      { label: 'Operations', items: [
+        { id:'recovery-dashboard', ic:'target',  lb:'Recovery Dashboard' },
+        { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
+        { id:'units',          ic:'home',        lb:'All Units' },
+        { id:'sales',          ic:'file-text',   lb:'Sales & Bookings' },
+        { id:'cancelledunits', ic:'tag',         lb:'Cancelled Units' },
+        { id:'transferunits',  ic:'repeat',      lb:'Transferred Units' },
+        { id:'clients',        ic:'user-check',  lb:'Clients' },
+        { id:'ledgers',        ic:'book-open',   lb:'Ledgers' },
+      ]},
+      { label: 'Finance', items: [
+        { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers' },
+        { id:'pdc',         ic:'calendar-clock', lb:'PDC Register' },
+        { id:'reminders',   ic:'bell',           lb:'Reminders' },
+        { id:'contacts',    ic:'phone',          lb:'Call Logs' },
+        { id:'paylinks',    ic:'link',           lb:'Payment Links' },
+        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
       ]},
     ];
   } else if(isAc){
@@ -626,7 +644,7 @@ function nav(pg,x){
     if(!_alwaysAllow.includes(pg)){
       // Role-based baseline allow-list (backward-compatible for existing users)
       const allow={
-        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','newsale','editsale','paylinks','paylink-detail','promises','reports'],
+        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','newsale','editsale','paylinks','paylink-detail'],
         accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
       };
       // For manager/staff: rely entirely on hasPermission()
