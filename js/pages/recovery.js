@@ -11,7 +11,7 @@ function rRec() {
   document.getElementById('pg-recovery').innerHTML =
     '<div class="ani module-financial">' +
       '<div class="ph">' +
-        '<div class="ph-l"><h2>Recovery Queue</h2><p>Daily work queue — overdue installments sorted by urgency</p></div>' +
+        '<div class="ph-l"><h2>Recovery Queue<span class="rq-hd-bdg">' + _rqBase().length + '</span></h2><p>Daily work queue — overdue installments sorted by urgency</p></div>' +
         '<div class="ph-r">' +
           '<input class="rq-search" id="rq-q" type="search" placeholder="Search client or unit…"' +
             ' value="' + esc(_rq.q) + '" oninput="_rq.q=this.value;_rq.page=1;_rqRender()">' +
@@ -153,7 +153,7 @@ function _rqRender() {
 
     const id = esc(u.id);
     return '<tr' + rowCls + ' onclick="openUD(\'' + id + '\')">' +
-      '<td style="font-weight:600">' + esc(u.customerName || '—') + '</td>' +
+      '<td>' + esc(u.customerName || '—') + '</td>' +
       '<td><span class="rq-unit-chip">' + esc(u.unitNo) + '</span></td>' +
       '<td class="rq-muted">' + esc(projName) + '</td>' +
       '<td class="rq-amt' + amtCls + '">PKR ' + fM(actualPending(u)) + '</td>' +
@@ -188,17 +188,24 @@ function _rqRender() {
     '</tr>';
   }).join('');
 
+  const totalAmt = filtered.reduce((s, u) => s + (actualPending(u) || 0), 0);
+
   body.innerHTML =
+    '<div class="rq-summary">' +
+      '<span class="rq-sum-n">' + total + (total === 1 ? ' account' : ' accounts') + '</span>' +
+      '<span class="rq-sum-sep">·</span>' +
+      '<span>PKR ' + fM(totalAmt) + ' outstanding</span>' +
+    '</div>' +
     '<div class="rq-card">' +
       '<table class="rq-tbl">' +
         '<thead><tr>' +
-          '<th>Client Name</th>' +
+          '<th>Client</th>' +
           '<th>Unit</th>' +
           '<th>Project</th>' +
-          '<th>Overdue Amount</th>' +
-          '<th>Days Overdue</th>' +
-          '<th>Last Contact Date</th>' +
-          '<th>Actions</th>' +
+          '<th>Overdue</th>' +
+          '<th>Days Late</th>' +
+          '<th>Last Contact</th>' +
+          '<th></th>' +
         '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
       '</table>' +

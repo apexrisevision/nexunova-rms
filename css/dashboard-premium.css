@@ -1691,3 +1691,62 @@
 [data-theme="light"] #pg-dashboard.cc-active .cc-intel-na { color:#94A3B8; }
 [data-theme="light"] #pg-dashboard.cc-active .cc-skel, [data-theme="light"] #pg-dashboard.cc-active .cc-skel-lines span,
 [data-theme="light"] #pg-dashboard.cc-active .cc-skel-total, [data-theme="light"] #pg-dashboard.cc-active .cc-skel-bars span { background:rgba(15,23,42,.07); }
+
+/* 2026-06 UI Polish Phase 1 Micro */
+.db {
+  gap: 16px !important;
+}
+
+.db-kpis {
+  gap: 10px !important;
+}
+
+.db-kpi {
+  padding: 14px 15px !important;
+  border-radius: 9px !important;
+  box-shadow: 0 1px 3px rgba(15,23,42,.08) !important;
+}
+
+.db-kpi:hover,
+.db-kpi.db-kpi-accent-red:hover,
+.db-kpi.db-kpi-accent-green:hover,
+.db-kpi.db-kpi-accent-blue:hover,
+.db-kpi.db-kpi-accent-amber:hover {
+  transform: none !important;
+  box-shadow: 0 4px 14px rgba(15,23,42,.10) !important;
+}
+
+.db-kpi-ic {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.db-kpi-val-sm {
+  font-size: 21px !important;
+}
+
+.db-card {
+  border-radius: 9px !important;
+  box-shadow: 0 1px 3px rgba(15,23,42,.08) !important;
+}
+
+.db .db-card:hover,
+[data-theme="dark"] .db .db-card:hover {
+  transform: none !important;
+  box-shadow: 0 4px 14px rgba(15,23,42,.10) !important;
+}
+
+.db .db-card-ch,
+.db-card-ch {
+  padding: 12px 15px 10px !important;
+}
+
+.db-grid-r1,
+.db-grid-r2,
+.db-grid-r3 {
+  gap: 10px !important;
+}
+
+.db-btn {
+  box-shadow: none !important;
+}

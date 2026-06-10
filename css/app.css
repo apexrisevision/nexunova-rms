@@ -1126,4 +1126,13 @@ body:has(#s-signup.on) #qab-wrap { display: none; }
   box-shadow:0 12px 32px rgba(15,23,42,.14);
 }
 [data-theme="light"] #s-app .rms-lite-new-menu button{ color:#334155; }
+#s-app .rms-lite-new-menu .lnm-sect{
+  display:block; font:600 9px/1 inherit; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--t3,#64748b);
+  padding:7px 11px 2px; pointer-events:none;
+}
+#s-app .rms-lite-new-menu .lnm-div{
+  border:0; border-top:1px solid rgba(255,255,255,.08); margin:4px 3px;
+}
+[data-theme="light"] #s-app .rms-lite-new-menu .lnm-div{ border-color:rgba(0,0,0,.08); }
 

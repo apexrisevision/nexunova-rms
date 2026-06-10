@@ -1005,3 +1005,50 @@
 #s-app .ni[data-pg="campaigns"]         .ni-ic { color: #F97316 !important; }
 #s-app .ni[data-pg="radar"]             .ni-ic { color: #06B6D4 !important; }
 #s-app .ni[data-pg="escalations"]       .ni-ic { color: #EF4444 !important; }
+
+/* 2026-06 UI Polish Phase 1 Micro */
+#s-app .sb .nav-group {
+  margin-bottom: 4px !important;
+}
+
+#s-app .sb .nav-grp-hd {
+  height: 30px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+#s-app .sb .nav-grp-hd:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.10) !important;
+  transform: none !important;
+}
+
+#s-app .sb .nav-grp-body {
+  padding-top: 2px !important;
+  padding-bottom: 3px !important;
+}
+
+#s-app .sb .ni {
+  height: 34px !important;
+  margin-bottom: 3px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+#s-app .sb .ni:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.10) !important;
+  transform: none !important;
+}
+
+#s-app .sb .ni.on {
+  background: rgba(37,99,235,0.18) !important;
+  border-color: rgba(59,130,246,0.34) !important;
+  box-shadow: inset 2px 0 0 #3B82F6, 0 1px 5px rgba(37,99,235,0.18) !important;
+}
+
+[data-theme="light"] #s-app .sb .nav-grp-hd,
+[data-theme="light"] #s-app .sb .ni {
+  box-shadow: 0 1px 2px rgba(15,23,42,0.08), inset 0 1px 0 #FFFFFF !important;
+}
+
+[data-theme="light"] #s-app .sb .nav-grp-hd:hover,
+[data-theme="light"] #s-app .sb .ni:hover {
+  box-shadow: 0 2px 8px rgba(15,23,42,0.11), inset 0 1px 0 #FFFFFF !important;
+}

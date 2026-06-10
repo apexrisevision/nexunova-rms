@@ -486,6 +486,169 @@ function printUnitStatement(unitId){
   printClientStatement(u.customerName);
 }
 
+// ══ 3b. ACCOUNT STATEMENT (Schedule + Ledger) ════
+async function printAccountStatement(unitId, saleId) {
+  var u = gunit(unitId);
+  if (!u) { toast('Unit not found', 'warn'); return; }
+  try {
+    var sdData = null, payData = null;
+    if (saleId) {
+      var r1 = await supabase.rpc('get_sale_detail', { p_sale_id: saleId, p_company_id: S.cid });
+      sdData = r1.data;
+    } else {
+      var rs = await supabase.rpc('get_active_sale_for_unit', { p_unit_id: unitId, p_company_id: S.cid });
+      if (rs.data?.id) {
+        var r1 = await supabase.rpc('get_sale_detail', { p_sale_id: rs.data.id, p_company_id: S.cid });
+        sdData = r1.data; saleId = rs.data.id;
+      }
+    }
+    if (!sdData?.success) { toast('Could not load sale details', 'warn'); return; }
+    var sale = sdData.sale || {};
+    var inst = Array.isArray(sdData.installments) ? sdData.installments : [];
+    var r2 = await supabase.rpc('get_unit_sale_payments', { p_unit_id: unitId, p_company_id: S.cid });
+    var payments = Array.isArray(r2.data?.payments) ? r2.data.payments : [];
+
+    var proj = gproject(u.projectId);
+    var projName = proj?.name || proj?.projectName || '—';
+    var today = td();
+    var openAmt = Number(sale.net_amount || sale.total_amount || 0);
+    var totalPaid = payments.reduce(function(s,p){return s+Number(p.amount||0);},0);
+    var totalOut = Math.max(0, openAmt - totalPaid);
+    var pct2 = openAmt ? Math.round(totalPaid/openAmt*100) : 0;
+    var fmtPKR = function(n){ return 'PKR ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); };
+    var fmtD  = function(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'; };
+
+    var w = _pw('Account Statement — ' + esc(u.customerName||''), _pCSS('A4'), 'A4');
+    if (!w) return;
+
+    var h = _lh('ACCOUNT STATEMENT');
+    h += '<div class="body">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
+      + '<div class="doc-title">Account Statement</div>'
+      + '<div style="text-align:right;font-size:9px;color:#555">'
+      + 'Date: ' + new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}) + '<br>'
+      + esc(S?S.coName||'Nexunova':'Nexunova') + '</div></div>';
+
+    // Client + Unit header
+    h += '<div style="border:1px solid #dde;border-radius:4px;overflow:hidden;margin-bottom:12px">';
+    h += '<div style="background:#1E2D47;color:#fff;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact">CLIENT &amp; UNIT DETAILS</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">';
+    var ig = function(l,v) {
+      return '<div style="padding:7px 10px;border-right:1px solid #dde;border-bottom:1px solid #dde">'
+        + '<div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:2px">'+l+'</div>'
+        + '<div style="font-size:10px;font-weight:700;color:#1E2D47">'+v+'</div></div>';
+    };
+    h += ig('Client', esc(sale.client_name||u.customerName||'—'));
+    h += ig('Unit No.', esc(u.unitNo||'—'));
+    h += ig('Project', esc(projName));
+    h += ig('Floor', esc(u.floorLabel||u.floor||'—'));
+    h += ig('Type', esc(u.type||'—'));
+    h += ig('Phone', esc(u.phone||'—'));
+    h += ig('Sale Date', fmtD(sale.sale_date));
+    h += ig('Sale #', esc(sale.sale_number||'—'));
+    if(u.bookingNo||sale.booking_no) h += ig('Booking #', esc(u.bookingNo||sale.booking_no||'—'));
+    else h += ig('Agent', esc(u.soldBy||sale.agent_name||'—'));
+    h += '</div></div>';
+
+    // KPI summary
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #dde;border-radius:4px;overflow:hidden;margin-bottom:12px">';
+    var ks = function(l,v,c) {
+      return '<div style="padding:9px 12px;border-right:1px solid #dde;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+        + '<div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:3px">'+l+'</div>'
+        + '<div style="font-size:12px;font-weight:700;color:'+(c||'#1E2D47')+'">'+v+'</div></div>';
+    };
+    h += ks('Total Price', fmtPKR(openAmt));
+    h += ks('Total Received', fmtPKR(totalPaid), '#15803d');
+    h += ks('Outstanding', fmtPKR(totalOut), totalOut>0?'#dc2626':'#15803d');
+    h += ks('Recovery', pct2+'%', pct2>=80?'#15803d':pct2>=50?'#d97706':'#dc2626');
+    h += '</div>';
+
+    // Ledger table
+    h += '<div class="sec-title">Payment Schedule &amp; Account Ledger</div>';
+    h += '<table><thead><tr>'
+      + '<th style="text-align:center;width:28px">#</th>'
+      + '<th style="width:80px">Date</th>'
+      + '<th>Description</th>'
+      + '<th style="text-align:right;width:100px">Scheduled (DR)</th>'
+      + '<th style="text-align:right;width:100px">Received (CR)</th>'
+      + '<th style="text-align:right;width:100px">Balance</th>'
+      + '</tr></thead><tbody>';
+
+    var balance = openAmt;
+    // Opening row
+    h += '<tr style="background:#f0f4f8;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+      + '<td style="text-align:center;color:#888">—</td>'
+      + '<td>' + fmtD(sale.sale_date) + '</td>'
+      + '<td><b>Sale Agreement</b>'+(sale.sale_number?' <span style="font-family:monospace;font-size:9px;color:#888">'+esc(sale.sale_number)+'</span>':'')+'</td>'
+      + '<td style="text-align:right;font-weight:700">'+fmtPKR(openAmt)+'</td>'
+      + '<td style="text-align:right;color:#888">—</td>'
+      + '<td style="text-align:right;font-weight:700;color:#dc2626">'+fmtPKR(balance)+'</td>'
+      + '</tr>';
+
+    var entries = [];
+    inst.forEach(function(i,idx){
+      var isOv=(i.status==='overdue')||(!['paid','partial'].includes(i.status)&&i.due_date&&i.due_date<today);
+      entries.push({date:i.due_date||'',type:'inst',
+        label:i.installment_type||(idx===0?'Down Payment':'Installment #'+(i.installment_number||(idx+1))),
+        num:i.installment_number||(idx+1),dr:Number(i.amount_due||0),
+        isPaid:i.status==='paid',isOv:isOv,isPartial:i.status==='partial'});
+    });
+    payments.forEach(function(p){
+      entries.push({date:p.payment_date||'',type:'pay',cr:Number(p.amount||0),
+        method:p.payment_method||'',rcpt:p.voucher_code||p.payment_code||p.reference_no||''});
+    });
+    entries.sort(function(a,b){if(a.date!==b.date)return a.date.localeCompare(b.date);return a.type==='inst'?-1:1;});
+
+    entries.forEach(function(e){
+      if(e.type==='pay'){
+        balance-=e.cr;
+        h+='<tr style="background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+          +'<td style="text-align:center;color:#16a34a;font-weight:700">✓</td>'
+          +'<td>'+fmtD(e.date)+'</td>'
+          +'<td><span style="color:#16a34a;font-weight:700">Payment Received</span>'
+          +(e.method?' <span style="font-size:9px;color:#555">('+esc(e.method)+')</span>':'')
+          +(e.rcpt?' <span style="font-family:monospace;font-size:9px;color:#888">'+esc(e.rcpt)+'</span>':'')
+          +'</td>'
+          +'<td style="text-align:right;color:#888">—</td>'
+          +'<td style="text-align:right;font-weight:700;color:#15803d">+'+fmtPKR(e.cr).replace('PKR ','')+'</td>'
+          +'<td style="text-align:right;font-weight:700;color:'+(balance>0?'#dc2626':'#15803d')+'">'+fmtPKR(balance)+'</td>'
+          +'</tr>';
+      } else {
+        var stLbl=e.isPaid?'Paid':e.isOv?'OVERDUE':e.isPartial?'Partial':'Pending';
+        var stCol=e.isPaid?'#15803d':e.isOv?'#dc2626':e.isPartial?'#d97706':'#888';
+        var rowBg=e.isOv?'background:#fff5f5;-webkit-print-color-adjust:exact;print-color-adjust:exact':e.isPaid?'opacity:.75':'';
+        h+='<tr'+(rowBg?' style="'+rowBg+'"':'')+'>'
+          +'<td style="text-align:center;color:#888;font-size:9px">'+e.num+'</td>'
+          +'<td style="color:'+(e.isOv?'#dc2626':'#333')+'">'+fmtD(e.date)+'</td>'
+          +'<td>'+esc(e.label)+'<span style="font-size:8px;font-weight:700;color:'+stCol+';margin-left:6px">'+stLbl+'</span></td>'
+          +'<td style="text-align:right;color:'+(e.isOv?'#dc2626':e.isPaid?'#888':'#333')+'">'+fmtPKR(e.dr).replace('PKR ','')+'</td>'
+          +'<td style="text-align:right;color:#888">—</td>'
+          +'<td style="text-align:right;color:#888">—</td>'
+          +'</tr>';
+      }
+    });
+
+    var totalSched=inst.reduce(function(s,i){return s+Number(i.amount_due||0);},0);
+    h+='<tr style="background:#E8E8E8;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+      +'<td colspan="3">Balance Outstanding</td>'
+      +'<td style="text-align:right">'+fmtPKR(totalSched)+'</td>'
+      +'<td style="text-align:right;color:#15803d">+'+fmtPKR(totalPaid).replace('PKR ','')+'</td>'
+      +'<td style="text-align:right;color:'+(totalOut>0?'#dc2626':'#15803d');+';font-size:11px">'+fmtPKR(totalOut)+'</td>'
+      +'</tr>';
+    h += '</tbody></table>';
+
+    h += '<div class="footer-bar">Generated by ' + esc(S?S.name||'System':'System') + ' &mdash; '
+      + esc((window._cobranding||{}).company_name||S?.coName||'Nexunova') + ' &mdash; '
+      + new Date().toLocaleString('en-GB') + '</div>';
+    h += '</div>';
+
+    w.document.write(h);
+    _pclose(w);
+  } catch(e) {
+    toast('Print error: ' + (e.message||'Unknown'), 'err');
+  }
+}
+
 // ══ 4. DEMAND LETTER ═════════════════════════════
 async function printDemandLetter(unitId){
   var u=gunit(unitId);

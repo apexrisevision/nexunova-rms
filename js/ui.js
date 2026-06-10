@@ -363,12 +363,15 @@ function _liteNewClose(){
 function _liteNewGo(what){
   _liteNewClose();
   switch(what){
-    case 'sale':     nav('newsale'); break;                                            // page flow — no modal
-    case 'client':   if(typeof openClientModal==='function')  openClientModal(null);  else nav('clients'); break;
-    case 'payment':  nav('addpayment'); break;                                          // page flow — no modal
-    case 'agent':    if(typeof openAgentModal==='function')   openAgentModal(null);   else nav('agents'); break;
-    case 'project':  if(typeof openProjectModal==='function') openProjectModal(null); else nav('projects'); break;
-    case 'category': nav('categories'); break;                                          // page has 4 add-modals — no single opener
+    case 'user':     if(typeof openAddUserModal==='function')  openAddUserModal();     else nav('users');    break;
+    case 'project':  if(typeof openProjectModal==='function')  openProjectModal(null); else nav('projects'); break;
+    case 'category': nav('categories'); break;
+    case 'unit':     if(typeof openUnitModal==='function')     openUnitModal(null);    else nav('units');    break;
+    case 'agent':    if(typeof openAgentModal==='function')    openAgentModal(null);   else nav('agents');   break;
+    case 'client':   if(typeof openClientModal==='function')   openClientModal(null);  else nav('clients');  break;
+    case 'sale':     nav('newsale'); break;
+    case 'payment':  nav('addpayment'); break;
+    case 'promise':  nav('recovery'); break;
   }
 }
 function _renderLiteNew(show){
@@ -385,12 +388,18 @@ function _renderLiteNew(show){
       + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
       + '<span>New</span></button>'
       + '<div class="rms-lite-new-menu" id="rms-lite-new-menu">'
-      +   '<button type="button" onclick="_liteNewGo(\'sale\')">New Sale</button>'
-      +   '<button type="button" onclick="_liteNewGo(\'client\')">Add Client</button>'
-      +   '<button type="button" onclick="_liteNewGo(\'payment\')">Receive Payment</button>'
-      +   '<button type="button" onclick="_liteNewGo(\'agent\')">Add Agent</button>'
+      +   '<span class="lnm-sect">Master Data</span>'
+      +   '<button type="button" onclick="_liteNewGo(\'user\')">Add User</button>'
       +   '<button type="button" onclick="_liteNewGo(\'project\')">Add Project</button>'
       +   '<button type="button" onclick="_liteNewGo(\'category\')">Add Categories</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'unit\')">Add Unit</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'agent\')">Add Agent</button>'
+      +   '<hr class="lnm-div">'
+      +   '<span class="lnm-sect">Transactions</span>'
+      +   '<button type="button" onclick="_liteNewGo(\'client\')">Add Client</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'sale\')">Add Sale</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'payment\')">Add Receipt</button>'
+      +   '<button type="button" onclick="_liteNewGo(\'promise\')">Add Promise</button>'
       + '</div>';
     host.insertBefore(el, host.firstChild);
   }
@@ -405,6 +414,11 @@ function _renderLiteNew(show){
       if(ev.key==='Escape') _liteNewClose();
     });
   }
+}
+
+function _lnqToggle(g){
+  var el=document.querySelector('.lnq-grp[data-g="'+g+'"]');
+  if(el) el.classList.toggle('collapsed');
 }
 
 function buildSB(){
@@ -643,6 +657,7 @@ function buildSB(){
   // Pro mode are byte-for-byte untouched.
   const _liteOn = isA && getUIMode()==='lite';
   document.body.classList.toggle('mode-lite', _liteOn);
+  let _rptSrc = null, _ldgSrc = null, _admSrc = null;
   if(_liteOn){
     const _byId = {};
     navGroups.forEach(g => g.items.forEach(it => { if(!_byId[it.id]) _byId[it.id]=it; }));
@@ -650,7 +665,11 @@ function buildSB(){
       const src=_byId[L.id];
       return src ? { id:src.id, ic:src.ic, lb:L.lb } : null;
     }).filter(Boolean);
-    navGroups = [{ label:null, items:_liteItems }];
+    const _coreItems = _liteItems.filter(x => x.id !== 'reports' && x.id !== 'ledgers' && x.id !== 'admin');
+    _rptSrc = _byId['reports'];
+    _ldgSrc = _byId['ledgers'];
+    _admSrc = _byId['admin'];
+    navGroups = [{ label:null, items:_coreItems }];
   }
 
   // ── Build HTML ──
@@ -675,6 +694,50 @@ function buildSB(){
     }
   });
 
+  if(_liteOn){
+    const _qni=function(lbl,w,p){
+      return '<div class="ni lnq-ni" onclick="_liteNewGo(\''+w+'\')" title="'+lbl+'">'
+        +'<span class="ni-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg></span>'
+        +'<span class="ni-lb">'+lbl+'</span></div>';
+    };
+    const _chev='<svg class="lnq-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    // ── Quick Add groups first ──
+    html+=
+      '<div class="lnq-sep"></div>'
+      +'<div class="lnq-grp collapsed" data-g="master">'
+        +'<button class="lnq-hd" onclick="_lnqToggle(\'master\')"><span>Master Data</span>'+_chev+'</button>'
+        +'<div class="lnq-body">'
+          +_qni('Add User',       'user',     '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>')
+          +_qni('Add Project',    'project',  '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>')
+          +_qni('Add Categories', 'category', '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>')
+          +_qni('Add Unit',       'unit',     '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>')
+          +_qni('Add Agent',      'agent',    '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>')
+        +'</div>'
+      +'</div>'
+      +'<div class="lnq-sep"></div>'
+      +'<div class="lnq-grp collapsed" data-g="txn">'
+        +'<button class="lnq-hd" onclick="_lnqToggle(\'txn\')"><span>Transactions</span>'+_chev+'</button>'
+        +'<div class="lnq-body">'
+          +_qni('Add Client',     'client',   '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
+          +_qni('Add Sale',       'sale',     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>')
+          +_qni('Add Receipt',    'payment',  '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+          +_qni('Add Promise',    'promise',  '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>')
+        +'</div>'
+      +'</div>';
+    // ── Reports group below Quick Add ──
+    const _rGid='reports';
+    const _rCol=(_rGid in grpStates)?!!grpStates[_rGid]:true;
+    const _rChv='<svg class="nav-grp-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    html+='<div class="lnq-sep"></div>'
+      +'<div class="nav-group'+(_rCol?' collapsed':'')+'" data-gid="'+_rGid+'">'
+        +'<button class="nav-grp-hd" onclick="toggleNavGroup(\''+_rGid+'\'")>'+_rChv+'<span class="nav-grp-lbl">Reports</span><span class="nav-grp-cnt">2</span></button>'
+        +'<div class="nav-grp-body" data-gid="'+_rGid+'"'+(_rCol?' style="display:none"':'')+' >';
+    if(_rptSrc) html+=_mkNi({id:'reports',ic:_rptSrc.ic,lb:'Reports'},true,'Reports');
+    if(_ldgSrc) html+=_mkNi({id:'ledgers',ic:_ldgSrc.ic,lb:'Ledger'}, true,'Reports');
+    html+='</div></div>';
+    // ── Settings at very bottom ──
+    if(_admSrc) html+=_mkNi({id:'admin',ic:_admSrc.ic,lb:'Settings'},false,null);
+  }
   document.getElementById('sb-nav').innerHTML = html;
 
   // Pending-approvals badge (admin/owner only) — fetch once, then re-render shows the count.
