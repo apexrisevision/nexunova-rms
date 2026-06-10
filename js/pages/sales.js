@@ -1817,6 +1817,17 @@ function _renderSaleDetail(d, docs, amendments) {
               <button class="btn btn-print btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="printAllotmentLetter()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
             </div>
 
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
+              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Application / Booking Form</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Booking application — client &amp; nominee info, ruled boxes for the physical file</div></div>
+              <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+                <select id="sd-appform-size" class="inp-light" style="font-size:12px;padding:7px 10px" title="Page size">
+                  <option value="Legal" selected>Legal</option>
+                  <option value="A4">A4</option>
+                </select>
+                <button class="btn btn-print btn-sm" style="display:inline-flex;align-items:center;gap:5px" onclick="printApplicationForm()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+              </div>
+            </div>
+
             <div style="padding:12px 16px;border-bottom:1px solid var(--line)">
               <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px;display:flex;align-items:center;gap:6px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Demand Notice</div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -2902,6 +2913,128 @@ function printAllotmentLetter() {
   h += '<p style="margin:12px 0;line-height:1.7">This letter confirms your allotment. Please retain this document for your records. For any queries, please contact our office.</p>';
   h += '<p style="margin-bottom:4px">Thank you for choosing <b>' + esc(coName) + '</b>.</p>';
   h += '<div class="no-break">' + _sigBlock({ label: 'Client Acknowledgement', value: d.client_name || '' }) + '</div>';
+  h += '</div>';
+
+  w.document.write(h);
+  _pclose(w);
+}
+
+// ══ PRINT: APPLICATION / BOOKING FORM ══════════════════════════════════
+// 7th sale print document. Crystal serif + ruled-box (Times/Georgia, 1px #333)
+// on Legal (default) or A4 — size toggle on the picker, swapped via @page.
+// Branded header via _lh(); client info auto-filled from get_client_by_id
+// (not carried in get_sale_detail), nominee/co-buyer from the sale itself.
+// Fields absent from the schema (residential address, office phone, monthly
+// income, NTN) render as empty ruled boxes to be handwritten in the file.
+async function printApplicationForm() {
+  const d = _salCurrentDetail;
+  if (!d) { toast('No sale loaded', 'warn'); return; }
+
+  const sizeSel = document.getElementById('sd-appform-size');
+  const size    = (sizeSel && sizeSel.value === 'A4') ? 'A4' : 'Legal';
+
+  // Auto-fill client info from the clients table (full row via to_jsonb).
+  let c = {};
+  if (d.client_id) {
+    try {
+      const r = await supabase.rpc('get_client_by_id', { p_id: d.client_id, p_company_id: S.cid });
+      if (!r.error && r.data) c = r.data;
+    } catch (e) { /* fall back to blank boxes */ }
+  }
+
+  const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+  // Value-or-blank-box: empty fields keep the ruled cell open for handwriting.
+  const v = x => (x === null || x === undefined || x === '') ? '&nbsp;' : esc(String(x));
+
+  const appCSS =
+    '.af-wrap{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}' +
+    '.af-banner{text-align:center;font-family:Georgia,"Times New Roman",serif;font-size:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase;border:1.5px solid #333;padding:6px;margin:6px 0 14px}' +
+    '.af-topgrid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #333;border-right:none;border-bottom:none;margin-bottom:14px}' +
+    '.af-tc{border-right:1px solid #333;border-bottom:1px solid #333;padding:4px 8px}' +
+    '.af-tc .l{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#555}' +
+    '.af-tc .v{font-size:11px;font-weight:700;min-height:14px}' +
+    '.af-sec{font-family:Georgia,serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1.5px solid #333;padding-bottom:3px;margin:16px 0 7px}' +
+    '.af-wrap table{border-collapse:collapse;width:100%;margin:0 0 4px;font-family:"Times New Roman",Georgia,serif}' +
+    '.af-wrap td{border:1px solid #333;padding:5px 8px;font-size:11px;vertical-align:middle;background:#fff;line-height:1.4}' +
+    '.af-wrap td.l{background:#f2f2f2;font-weight:700;width:155px;white-space:nowrap;font-size:10px}' +
+    '.af-wrap td.ph{width:38mm;text-align:center;vertical-align:top;padding:4px}' +
+    '.af-wrap td.ph img{width:34mm;height:42mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
+    '.af-wrap .ph-ph{width:34mm;height:42mm;border:1px dashed #666;display:flex;align-items:center;justify-content:center;font-size:9px;color:#888;margin:0 auto;text-transform:uppercase;letter-spacing:1px}' +
+    '.af-decl{font-size:10.5px;line-height:1.75;margin:18px 0 6px;text-align:justify}' +
+    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:36px}' +
+    '.af-sig{font-size:10px;text-align:center}' +
+    '.af-sigline{border-bottom:1px dotted #333;height:30px;margin-bottom:5px}';
+
+  const w = _pw('Application Form — ' + (d.sale_number || ''), _pCSS(size) + appCSS, size);
+  if (!w) return;
+
+  let h = _lh('Application Form', d.project_name);
+  h += '<div class="body af-wrap">';
+  h += '<div class="af-banner">Application / Booking Form</div>';
+
+  // ── Top grid (auto from sale) ──
+  const tg = [
+    ['Booking No',   d.sale_number],
+    ['Client Code',  c.client_code],
+    ['Date',         saleDate],
+    ['Unit Address', d.unit_no],
+    ['Floor',        d.floor_label],
+    ['Category',     d.unit_type],
+    ['Size',         d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : ''],
+    ['Type',         '']  // category nature — not stored; handwrite
+  ];
+  h += '<div class="af-topgrid">';
+  tg.forEach(x => { h += '<div class="af-tc"><div class="l">' + x[0] + '</div><div class="v">' + v(x[1]) + '</div></div>'; });
+  h += '</div>';
+
+  // ── Client information (auto-fill + blanks) with photo box top-right ──
+  h += '<div class="af-sec">Client Information</div>';
+  const photoCell = c.client_photo_url
+    ? '<td class="ph" rowspan="7"><img src="' + esc(c.client_photo_url) + '" alt="Photo"><div style="font-size:8px;color:#888;margin-top:3px">Photograph</div></td>'
+    : '<td class="ph" rowspan="7"><div class="ph-ph">Photograph</div></td>';
+  h += '<table>';
+  h += '<tr><td class="l">Name</td><td class="box">' + v(c.full_name || d.client_name) + '</td>' + photoCell + '</tr>';
+  h += '<tr><td class="l">S/O &middot; D/O &middot; W/O</td><td class="box">' + v(c.father_name) + '</td></tr>';
+  h += '<tr><td class="l">CNIC</td><td class="box">' + v(c.cnic) + '</td></tr>';
+  h += '<tr><td class="l">Mobile</td><td class="box">' + v(c.phone_primary) + '</td></tr>';
+  h += '<tr><td class="l">Phone (Res.)</td><td class="box">' + v(c.phone_secondary) + '</td></tr>';
+  h += '<tr><td class="l">Phone (Off.)</td><td class="box">&nbsp;</td></tr>';
+  h += '<tr><td class="l">Email</td><td class="box">' + v(c.email) + '</td></tr>';
+  h += '<tr><td class="l">Postal Address</td><td class="box" colspan="2">' + v(c.address) + '</td></tr>';
+  h += '<tr><td class="l">Residential Address</td><td class="box" colspan="2">&nbsp;</td></tr>';
+  h += '<tr><td class="l">Occupation</td><td class="box" colspan="2">' + v(c.occupation) + '</td></tr>';
+  h += '<tr><td class="l">Nationality</td><td class="box" colspan="2">Pakistani</td></tr>';
+  h += '<tr><td class="l">Monthly Income</td><td class="box" colspan="2">&nbsp;</td></tr>';
+  h += '<tr><td class="l">NTN</td><td class="box" colspan="2">&nbsp;</td></tr>';
+  h += '</table>';
+
+  // ── Nominee information (auto from sale; address blank) ──
+  h += '<div class="af-sec">Nominee Information</div>';
+  h += '<table>';
+  h += '<tr><td class="l">Nominee Name</td><td class="box">' + v(d.nominee_name) + '</td></tr>';
+  h += '<tr><td class="l">CNIC</td><td class="box">' + v(d.nominee_cnic) + '</td></tr>';
+  h += '<tr><td class="l">Relation</td><td class="box">' + v(d.nominee_relation) + '</td></tr>';
+  h += '<tr><td class="l">Address</td><td class="box">&nbsp;</td></tr>';
+  h += '</table>';
+
+  // ── Co-buyer (renders only when present on the sale) ──
+  if (d.co_buyer_name) {
+    h += '<div class="af-sec">Co-Buyer Information</div>';
+    h += '<table>';
+    h += '<tr><td class="l">Co-Buyer Name</td><td class="box">' + v(d.co_buyer_name) + '</td></tr>';
+    h += '<tr><td class="l">CNIC</td><td class="box">' + v(d.co_buyer_cnic) + '</td></tr>';
+    h += '<tr><td class="l">Share %</td><td class="box">' + (d.co_buyer_share_pct != null && d.co_buyer_share_pct !== '' ? esc(String(d.co_buyer_share_pct)) + ' %' : '&nbsp;') + '</td></tr>';
+    h += '</table>';
+  }
+
+  // ── Declaration + dotted signatures ──
+  h += '<div class="af-decl">I hereby agree to pay all dues (down payment and installments) as per the agreed schedule, and to abide by all rules and regulations prescribed by the management of the project from time to time.</div>';
+  h += '<div class="af-sigs no-break">'
+     + '<div class="af-sig"><div class="af-sigline"></div>Signature of Applicant</div>'
+     + '<div class="af-sig"><div class="af-sigline"></div>Authorized Signature</div>'
+     + '</div>';
+
+  h += _footer();
   h += '</div>';
 
   w.document.write(h);

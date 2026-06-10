@@ -790,6 +790,7 @@ table.t tbody tr:hover,
   -webkit-text-fill-color: var(--v-primary) !important;
 }
 
+
 /* ══ 12. SCROLLBARS — primary (not cyan) ══════════════════════════════════════ */
 ::-webkit-scrollbar-thumb {
   background: rgba(37, 99, 235, 0.20) !important;
@@ -2327,4 +2328,121 @@ button.btn-g, button.btn-d,
 #s-app h1.page-title,
 #s-app h1.h-page-title {
   font-size: 20px !important;
+}
+
+/* ══ LITE MODE — body.mode-lite scoped overrides ════════════════════════════
+   Admin/owner only (set by buildSB() in js/ui.js).
+   ALL rules use body.mode-lite #s-app prefix → beats every #s-app-scoped rule
+   above (ID + class > ID alone). Pro mode untouched. No HTML/JS changes.
+   Added 2026-06-11.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── 1. CSS var: sidebar narrower (nav items + main margin auto-update) ── */
+body.mode-lite { --nav-w: 200px; }
+
+/* ── 2. Nav items ── */
+body.mode-lite #s-app .ni,
+body.mode-lite #s-app .ni.on {
+  height:    28px !important;
+  font-size: 12px !important;
+}
+
+/* ── 3. Page wrapper — tighter padding ── */
+body.mode-lite #s-app .pw {
+  padding: 18px 22px 32px !important;
+}
+@media (max-width: 1024px) {
+  body.mode-lite #s-app .pw { padding: 16px 18px 28px !important; }
+}
+@media (max-width: 768px) {
+  body.mode-lite #s-app .pw { padding: 12px 12px 24px !important; }
+}
+
+/* ── 4. Page header bottom spacing ── */
+body.mode-lite #s-app .ph {
+  padding:       0 0 10px !important;
+  margin-bottom: 16px !important;
+}
+
+/* ── 5. Page heading ── */
+body.mode-lite #s-app .ph h2,
+body.mode-lite #s-app h1.inv-title,
+body.mode-lite #s-app h1.page-title,
+body.mode-lite #s-app h1.h-page-title,
+body.mode-lite #s-app .rb-title,
+body.mode-lite #s-app .pg-title {
+  font-size:   17px !important;
+  font-weight: 500 !important;
+}
+
+/* ── 6. Page sub-text ── */
+body.mode-lite #s-app .ph p,
+body.mode-lite #s-app .ph-l > p,
+body.mode-lite #s-app .rb-lede {
+  font-size:  12px !important;
+  margin-top: 2px !important;
+}
+
+/* ── 7. Section / card headings ── */
+body.mode-lite #s-app .ch h3,
+body.mode-lite #s-app .card h3,
+body.mode-lite #s-app h3.section-title,
+body.mode-lite #s-app .sec-heading {
+  font-size:   13px !important;
+  font-weight: 500 !important;
+}
+
+/* ── 8. KPI big numbers ── */
+body.mode-lite #s-app .dkpi-val,
+body.mode-lite #s-app .kpi-value,
+body.mode-lite #s-app .kpi-val,
+body.mode-lite #s-app .prj-kpi-value,
+body.mode-lite #s-app .prj-overall-num {
+  font-size:   20px !important;
+  font-weight: 600 !important;
+}
+
+/* ── 9. Table header ── */
+body.mode-lite #s-app .tbl th,
+body.mode-lite #s-app table.t thead th,
+body.mode-lite #s-app .pay-tbl thead th,
+body.mode-lite #s-app .tw thead th {
+  font-size:   9px !important;
+  font-weight: 600 !important;
+  padding:     8px 14px !important;
+}
+
+/* ── 10. Table body — smaller text + tighter rows (8px 14px → ~30px row) ── */
+body.mode-lite #s-app .tbl td,
+body.mode-lite #s-app table.t tbody td,
+body.mode-lite #s-app .pay-tbl tbody td,
+body.mode-lite #s-app .tw tbody td {
+  font-size: 12px !important;
+  padding:   8px 14px !important;
+}
+
+/* ── 11. Filter bar ── */
+body.mode-lite #s-app .fbar {
+  padding:       10px 14px !important;
+  margin-bottom: 12px !important;
+}
+
+/* ── 12. Buttons ── */
+body.mode-lite #s-app .btn {
+  padding:   6px 13px !important;
+  font-size: 12px !important;
+}
+body.mode-lite #s-app .btn-sm {
+  padding:   5px 10px !important;
+  font-size: 11px !important;
+}
+
+/* ── 13. Card header + body ── */
+body.mode-lite #s-app .card .ch,
+body.mode-lite #s-app .card > .ch {
+  padding: 9px 13px !important;
+}
+body.mode-lite #s-app .card .cb,
+body.mode-lite #s-app .card > .cb {
+  padding: 10px 13px !important;
 }
