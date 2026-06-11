@@ -730,7 +730,7 @@ function buildSB(){
     const _rChv='<svg class="nav-grp-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
     html+='<div class="lnq-sep"></div>'
       +'<div class="nav-group'+(_rCol?' collapsed':'')+'" data-gid="'+_rGid+'">'
-        +'<button class="nav-grp-hd" onclick="toggleNavGroup(\''+_rGid+'\'")>'+_rChv+'<span class="nav-grp-lbl">Reports</span><span class="nav-grp-cnt">2</span></button>'
+        +'<button class="nav-grp-hd" onclick="toggleNavGroup(\''+_rGid+'\')">'+_rChv+'<span class="nav-grp-lbl">Reports</span><span class="nav-grp-cnt">2</span></button>'
         +'<div class="nav-grp-body" data-gid="'+_rGid+'"'+(_rCol?' style="display:none"':'')+' >';
     if(_rptSrc) html+=_mkNi({id:'reports',ic:_rptSrc.ic,lb:'Reports'},true,'Reports');
     if(_ldgSrc) html+=_mkNi({id:'ledgers',ic:_ldgSrc.ic,lb:'Ledger'}, true,'Reports');

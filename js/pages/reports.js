@@ -43,7 +43,7 @@ const RPT={
   // 💰 Recovery (extras)
   promise_tracker:{ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',lbl:'Promise Tracker',  sub:'Payment promises — kept, broken & due', sec:'💰 Recovery', subs:[{id:'all',lbl:'All'},{id:'overdue',lbl:'Overdue'},{id:'today',lbl:'Due Today'},{id:'upcoming',lbl:'Upcoming'},{id:'kept',lbl:'Kept'},{id:'broken',lbl:'Broken'}]},
   field_visits:  {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',lbl:'Field Visits',     sub:'Recovery officer site visits log', sec:'💰 Recovery', subs:[{id:'all',lbl:'All Visits'}]},
-  recovery_position:{ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',lbl:'Recovery Position (Grand Summary)', sub:'Per-unit DP / old / current buckets, officer recovery & month grand totals', sec:'💰 Recovery', subs:[]},
+  recovery_position:{ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',lbl:'Recovery Position (Grand Summary)', sub:'Period rollforward — opening, due, recovered & closing per active sale with FIFO DP/old/current buckets', sec:'💰 Recovery', subs:[]},
   // 🧾 Financial
   payables:      {ic:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',lbl:'Payables',         sub:'Refunds & amounts payable to clients', sec:'🧾 Financial', subs:[{id:'all',lbl:'All'},{id:'pending',lbl:'Pending'},{id:'partial',lbl:'Partial'},{id:'paid',lbl:'Paid'}]},
   // 🤖 AI & Analytics
@@ -874,7 +874,7 @@ async function runRpt(){
     else if (_rs === 'cleared') pdcFilters.deposit_confirmed = 'true';
     const {data:pdcRaw,error:pdcErr}=await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: pdcFilters });
     if(pdcErr){_set(`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="et">Could not load cheque data</div><div class="es">${esc(pdcErr.message)}</div></div>`);return;}
-    const pdcs=(pdcRaw||[]).map(p=>{const cl=(window._clientsCache||[]).find(c=>c.id===p.client_id)||null;return {...p,clientName:cl?.fullName||'—',clientPhone:cl?.phone||'—'};});
+    const pdcs=(pdcRaw||[]).map(p=>{const cl=(window._clientsCache||[]).find(c=>c.id===p.client_id)||null;return {...p,clientName:cl?.fullName||'—',clientPhone:cl?.phone||'—'};}).sort((a,b)=>((b.cheque_date||b.payment_date||'').localeCompare(a.cheque_date||a.payment_date||'')));
     const tAmt=pdcs.reduce((s,p)=>s+Number(p.amount||0),0);
     const pdcBadge=confirmed=>confirmed?'<span class="badge bo">Cleared</span>':'<span class="badge bi">Pending</span>';
     html=rptBanner([{v:pdcs.length,l:'cheques'},{v:fM(tAmt),l:'total'},{v:pdcs.filter(p=>!p.deposit_confirmed).length,l:'pending'},{v:pdcs.filter(p=>p.deposit_confirmed).length,l:'cleared',c:'var(--ok)'}]);
@@ -903,6 +903,7 @@ async function runRpt(){
       p_company_id: S.cid,
       p_filters: { status: 'cancelled', cancel_from: df.fr || null, cancel_to: df.to || null }
     });
+    (cansales||[]).sort((a,b)=>(b.cancellation_date||b.created_at||'').localeCompare(a.cancellation_date||a.created_at||''));
     const cTotal=(cansales||[]).reduce((s,r)=>s+Number(r.total_amount||0),0);
     html=rptBanner([{v:(cansales||[]).length,l:'cancellations'},{v:fM(cTotal),l:'cancelled value',c:'var(--err)'}]);
     if((cansales||[]).length){
@@ -935,6 +936,7 @@ async function runRpt(){
     else if (_rs === 'upcoming') { osFilters.due_gte = todayOS; osFilters.due_to = in30OS; osFilters.status_in = 'pending,partial'; }
     else osFilters.status_in = 'pending,partial,overdue';
     const {data:osInsts=[]} = await supabase.rpc('list_installments_for_report', { p_company_id: S.cid, p_filters: osFilters });
+    osInsts.sort((a,b)=>(a.due_date||'').localeCompare(b.due_date||''));
     const osIds=[...new Set(osInsts.map(i=>i.sale_id).filter(Boolean))];
     let osSmMap={};
     if(osIds.length){const {data:osSd=[]}=await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: osIds });(osSd||[]).forEach(s=>{osSmMap[s.id]=s.unit_id;});}
@@ -973,6 +975,7 @@ async function runRpt(){
     let srRows=(srSales||[]);
     if(_rs==='installment')srRows=srRows.filter(r=>{const u=gunit(r.unit_id);return u&&u.status!=='CashSale'&&u.status!=='Available'&&u.status!=='Dead';});
     else if(_rs==='cash')srRows=srRows.filter(r=>gunit(r.unit_id)?.status==='CashSale');
+    srRows.sort((a,b)=>(b.sale_date||'').localeCompare(a.sale_date||''));
     const srVal=srRows.reduce((s,r)=>s+Number(r.total_amount||0),0);
     const srDp=srRows.reduce((s,r)=>s+Number(r.down_payment||0),0);
     const srDisc=srRows.reduce((s,r)=>s+Number(r.discount||0),0);
@@ -1008,6 +1011,7 @@ async function runRpt(){
       p_company_id: S.cid,
       p_filters: { sale_from: df.fr || null, sale_to: df.to || null, discount_gt: 0, limit: 500 }
     });
+    (drSales||[]).sort((a,b)=>(b.sale_date||'').localeCompare(a.sale_date||''));
     const drDisc=(drSales||[]).reduce((s,r)=>s+Number(r.discount||0),0);
     const drVal=(drSales||[]).reduce((s,r)=>s+Number(r.total_amount||0),0);
     html=rptBanner([{v:(drSales||[]).length,l:'sales with discount'},{v:fM(drVal),l:'total sale value'},{v:fM(drDisc),l:'total discounts',c:'var(--warn)'},{v:drVal?Math.round(drDisc/drVal*100)+'%':'0%',l:'avg discount rate',c:'var(--err)'}]);
@@ -1037,7 +1041,7 @@ async function runRpt(){
   if(_rt==='commission_hist'){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading commission payments…</div>`;
     const {data:chHistAll=[]}=await supabase.rpc('list_agent_commissions_with_agent', { p_company_id: S.cid });
-    const chHist = chHistAll.filter(r => (!df.fr || r.payment_date >= df.fr) && (!df.to || r.payment_date <= df.to)).slice(0,500);
+    const chHist = chHistAll.filter(r => (!df.fr || r.payment_date >= df.fr) && (!df.to || r.payment_date <= df.to)).sort((a,b)=>(b.payment_date||'').localeCompare(a.payment_date||'')).slice(0,500);
     const chTot=chHist.reduce((s,r)=>s+Number(r.amount||0),0);
     html=rptBanner([{v:chHist.length,l:'payments'},{v:fM(chTot),l:'total paid out',c:'var(--ok)'}]);
     if(chHist.length){
@@ -1070,7 +1074,7 @@ async function runRpt(){
     else if (_rs === 'completed') psPoss = psPoss.filter(p => p.status === 'completed');
     if (df.fr) psPoss = psPoss.filter(p => !p.possession_date || p.possession_date >= df.fr);
     if (df.to) psPoss = psPoss.filter(p => !p.possession_date || p.possession_date <= df.to);
-    psPoss = psPoss.slice(0, 500);
+    psPoss = psPoss.sort((a,b)=>(b.possession_date||'').localeCompare(a.possession_date||'')).slice(0, 500);
     const psComp=psPoss.filter(p=>p.status==='completed').length;
     const psPend=psPoss.filter(p=>p.status!=='completed').length;
     html=rptBanner([{v:psPoss.length,l:'possession records'},{v:psComp,l:'completed',c:'var(--ok)'},{v:psPend,l:'pending',c:'var(--warn)'}]);
@@ -1102,6 +1106,7 @@ async function runRpt(){
     const {data:ppd,error:ppdErr}=await supabase.rpc('get_post_possession_dues',{p_company_id:S.cid});
     if(ppdErr){_set(`<div class="empty"><div class="et">Could not load post-possession dues</div><div class="es">${esc(ppdErr.message)}</div></div>`);return;}
     const rows=ppd?.rows||[];
+    rows.sort((a,b)=>{const ad=a.oldest_overdue_date||'',bd=b.oldest_overdue_date||'';if(!ad&&!bd)return Number(b.total_outstanding||0)-Number(a.total_outstanding||0);if(!ad)return 1;if(!bd)return-1;return ad.localeCompare(bd);});
     const tOuts=rows.reduce((s,r)=>s+Number(r.total_outstanding||0),0);
     const tOverdue=rows.filter(r=>Number(r.overdue_count||0)>0).length;
     html=rptBanner([
@@ -1146,6 +1151,7 @@ async function runRpt(){
     let lcRows=Array.isArray(lcAll)?lcAll:[];
     if(_rs==='active') lcRows=lcRows.filter(r=>!resolved.includes(r.stage||''));
     if(_rs==='resolved') lcRows=lcRows.filter(r=>resolved.includes(r.stage||''));
+    lcRows.sort((a,b)=>(b.filed_date||'').localeCompare(a.filed_date||''));
     const tClaim=lcRows.reduce((s,r)=>s+Number(r.claim_amount||0),0);
     const tSettled=lcRows.reduce((s,r)=>s+Number(r.settled_amount||0),0);
     const activeCount=lcRows.filter(r=>!resolved.includes(r.stage||'')).length;
@@ -1193,7 +1199,7 @@ async function runRpt(){
     ct.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading transfers…</div>`;
     const {data:trAll,error:trErr}=await supabase.rpc('list_unit_transfers_search',{p_company_id:S.cid,p_limit:500});
     if(trErr){_set(`<div class="empty"><div class="et">Could not load transfers</div><div class="es">${esc(trErr.message)}</div></div>`);return;}
-    const trRows=Array.isArray(trAll)?trAll:[];
+    const trRows=(Array.isArray(trAll)?trAll:[]).sort((a,b)=>(b.transfer_date||'').localeCompare(a.transfer_date||''));
     const tFee=trRows.reduce((s,r)=>s+Number(r.transfer_fee||0),0);
     html=rptBanner([
       {v:trRows.length,l:'total transfers'},
@@ -1231,7 +1237,7 @@ async function runRpt(){
       p_filters: { payment_method: 'cheque', deposit_confirmed: 'false', cheque_from: todayPU, cheque_to: inXdPUStr, limit: 500 }
     });
     if(puErr){_set(`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="et">Could not load upcoming cheques</div><div class="es">${esc(puErr.message)}</div></div>`);return;}
-    const puPdcs=(puRaw||[]).map(p=>{const cl=(window._clientsCache||[]).find(c=>c.id===p.client_id)||null;return {...p,clientName:cl?.fullName||'—',clientPhone:cl?.phone||'—'};});
+    const puPdcs=(puRaw||[]).map(p=>{const cl=(window._clientsCache||[]).find(c=>c.id===p.client_id)||null;return {...p,clientName:cl?.fullName||'—',clientPhone:cl?.phone||'—'};}).sort((a,b)=>((a.cheque_date||a.payment_date||'').localeCompare(b.cheque_date||b.payment_date||'')));
     const puAmt=puPdcs.reduce((s,p)=>s+Number(p.amount||0),0);
     const puToday=puPdcs.filter(p=>(p.cheque_date||p.payment_date)===todayPU).length;
     html=rptBanner([{v:puPdcs.length,l:'upcoming cheques'},{v:fM(puAmt),l:'total value'},{v:puToday,l:'due today',c:'var(--err)'}]);
@@ -1263,6 +1269,7 @@ async function runRpt(){
       p_filters: { tax_gt: 0, date_from: df.fr || null, date_to: df.to || null, limit: 500 }
     });
     if(trErr){html=`<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div><div class="et">Could not load tax data</div><div class="es">${esc(trErr.message)}</div></div>`;ct.innerHTML=html;return;}
+    trPays.sort((a,b)=>(b.payment_date||'').localeCompare(a.payment_date||''));
     const trTax=trPays.reduce((s,p)=>s+Number(p.tax_amount||0),0);
     const trAmt=trPays.reduce((s,p)=>s+Number(p.amount||0),0);
     const trSids=[...new Set(trPays.map(p=>p.sale_id).filter(Boolean))];
@@ -2234,131 +2241,20 @@ function expRpt(){
 }
 
 // \u2550\u2550 RECOVERY POSITION (GRAND SUMMARY) \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-// Backend: get_recovery_position(p_company_id, p_project_id, p_from_date, p_to_date) \u2192
-// { rows, officer_summary, totals }. A4 LANDSCAPE grand summary grouped by
-// category, with per-section subtotals, a grand-total row (RPC totals preferred,
-// missing keys computed client-side + console.warn on disagreement), 7 summary
-// cards and an officer recovery block. Reuses fM (en-IN), fD, _lh/_pCSS/_sigBlock
-// (Crystal letterhead) for print and SheetJS for Excel.
-const RP_COLS=[
-  {k:'_sno',               l:'S#',               t:'sno',   w:34},
-  {k:'client_code',        l:'Client Code',      t:'text',  w:84},
-  {k:'client_name',        l:'Client Name',      t:'name',  w:170},
-  {k:'floor_name',         l:'Floor',            t:'text',  w:84},
-  {k:'unit_no',            l:'Unit',             t:'text',  w:66},
-  {k:'reg_date',           l:'Reg. Date',        t:'date',  w:88},
-  {k:'area',               l:'Area',             t:'num',   w:62},
-  {k:'unit_rate',          l:'Rate',             t:'num',   w:68},
-  {k:'total_price',        l:'Total Price',      t:'money', sub:1, w:98},
-  {k:'discount',           l:'Discount',         t:'money', sub:1, w:80},
-  {k:'net_price',          l:'Net Price',        t:'money', sub:1, w:98},
-  {k:'dp_total',           l:'DP Total',         t:'money', sub:1, w:92},
-  {k:'dp_received',        l:'DP Recd',          t:'money', sub:1, w:90},
-  {k:'dp_remaining',       l:'DP Remaining',     t:'money', sub:1, w:96},
-  {k:'old_outstanding',    l:'Old Outstanding',  t:'money', sub:1, w:104},
-  {k:'recd_old',           l:'Old Received',     t:'money', sub:1, w:100},
-  {k:'outstanding_old_net',l:'Old Balance',      t:'money', sub:1, w:98},
-  {k:'month_installment',  l:'Period Due',       t:'money', sub:1, w:96},
-  {k:'recd_current',       l:'Current Received', t:'money', sub:1, w:106},
-  {k:'net_outstanding',    l:'Period Balance',   t:'money', sub:1, w:104},
-  {k:'last_payment_date',  l:'Last Pay',         t:'lastpay', w:112},
-  {k:'pdc_in_hand',        l:'PDC in Hand',      t:'money', sub:1, w:94},
-  {k:'paid_pct',           l:'Paid %',           t:'pct',   w:64},
-  {k:'flag_legal',         l:'Legal',            t:'flag',  w:44},
-];
-// Total fixed width \u2248 2138px \u2192 horizontal scroll on screen; print uses proportional %.
-const RP_PRINT_KEYS=['_sno','client_code','client_name','unit_no','net_price','dp_remaining','old_outstanding','recd_old','outstanding_old_net','month_installment','recd_current','net_outstanding','pdc_in_hand','paid_pct','flag_legal'];
-function _rpCols(mode){
-  if(mode==='print')return RP_COLS.filter(function(c){return RP_PRINT_KEYS.indexOf(c.k)!==-1;});
-  return RP_COLS;
-}
-function _rpTableWidth(mode){
-  return _rpCols(mode).reduce(function(s,c){return s+(c.w||60);},0);
-}
-function _rpUniqueClients(rows){
-  var seen={};
-  rows.forEach(function(r){
-    var key=String(r.client_code||r.client_name||'').trim();
-    if(key)seen[key]=1;
-  });
-  return Object.keys(seen).length;
-}
-function _rpRecoveryPct(totals){
-  return (totals&&totals.recovery_pct!=null?Number(totals.recovery_pct).toFixed(1):'0.0')+'%';
-}
-function _rpColgroup(mode){
-  var cols=_rpCols(mode),tot=_rpTableWidth(mode);
-  return '<colgroup>'+cols.map(function(c){
-    var w=(c.w||60);
-    return '<col style="width:'+(mode==='print'?((w/tot*100).toFixed(2)+'%'):(w+'px'))+'">';
-  }).join('')+'</colgroup>';
-}
-// Scoped screen stylesheet \u2014 classic Crystal-Reports accounting look.
-// Everything under .rp-report so nothing leaks outside this report.
-function _rpInjectStyle(){
-  if(document.getElementById('rp-screen-style'))return;
-  var s=document.createElement('style');s.id='rp-screen-style';
-  s.textContent=[
-    // serif body for the whole report (figures tabular-aligned)
-    '.rp-report{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}',
-    '.rp-report .rp-title{text-align:center;font-weight:700;font-size:16px;text-decoration:underline;letter-spacing:.3px;margin:2px 0 12px}',
-    // bordered info box (Label : Value pairs, two columns)
-    '.rp-report .rp-infobox{border:1px solid #333;border-radius:4px;padding:10px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px 28px}',
-    '.rp-report .rp-info-row{display:flex;gap:8px;font-size:12.5px}',
-    '.rp-report .rp-info-row .lbl{font-weight:700;min-width:104px}',
-    '.rp-report .rp-info-row .val{font-weight:600}',
-    // compact summary chips (kept on top, serif)
-    '.rp-report .rp-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}',
-    '.rp-report .rp-chip{flex:1;min-width:120px;border:1px solid #333;border-radius:4px;padding:8px 11px}',
-    '.rp-report .rp-chip .l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#444}',
-    '.rp-report .rp-chip .v{font-size:15px;font-weight:700;margin-top:3px}',
-    // ruled table \u2014 full borders, no zebra, white rows
-    '.rp-report .rp-scroll{overflow:auto;max-height:68vh;border:1px solid #333;width:100%}',
-    '.rp-report table.rp-tbl{border-collapse:collapse;table-layout:fixed;width:max-content;min-width:100%;background:#fff;font-size:10.5px;line-height:1.25;font-variant-numeric:tabular-nums}',
-    '.rp-report .rp-tbl th,.rp-report .rp-tbl td{border:1px solid #333;padding:4px 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;vertical-align:middle}',
-    '.rp-report .rp-tbl thead th{position:sticky;top:0;z-index:2;background:#fff;color:#1a1a1a;font-size:10px;line-height:1.15;font-weight:700;text-align:left;border-bottom:3px double #333;padding-top:6px;padding-bottom:6px;white-space:normal}',
-    '.rp-report .rp-tbl th.num,.rp-report .rp-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}',
-    '.rp-report .rp-tbl td.cname{font-weight:700}',
-    '.rp-report .rp-tbl td.flag{text-align:center;overflow:visible}',
-    // section header / subtotal / grand-total shaded rows (print-safe grays)
-    '.rp-report .rp-tbl tbody tr.rp-sec td{background:#dcdcdc;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:normal}',
-    '.rp-report .rp-tbl tbody tr.rp-sub td{background:#E8E8E8;font-weight:700}',
-    '.rp-report .rp-tbl tbody tr.rp-grand td{background:#cfcfcf;font-weight:700;border-top:3px double #333}',
-    // 90+ days / never \u2014 pale print-safe red (after the gray rules so it wins on data rows)
-    '.rp-report .rp-tbl tbody tr.rp-late td{background:#fbeaea}',
-    '.rp-report .rp-sno{font-size:11px}',
-    // officer ruled table + block titles
-    '.rp-report .rp-blocktitle{font-size:13px;font-weight:700;margin:18px 0 8px}',
-    '.rp-report table.rp-off-tbl{border-collapse:collapse;width:100%;max-width:560px;font-size:12px;background:#fff}',
-    '.rp-report .rp-off-tbl th,.rp-report .rp-off-tbl td{border:1px solid #333;padding:5px 9px}',
-    '.rp-report .rp-off-tbl thead th{background:#E8E8E8;font-weight:700;text-align:left}',
-    '.rp-report .rp-off-tbl th.num,.rp-report .rp-off-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}',
-    '.rp-report .rp-off-tbl tr.rp-sub td{background:#E8E8E8;font-weight:700}',
-    // bottom Summary box (Label : underlined-value rows)
-    '.rp-report .rp-summary{margin-top:18px;border:1px solid #333;border-radius:6px;padding:12px 16px;max-width:520px}',
-    '.rp-report .rp-summary h4{font-size:13px;font-weight:700;text-decoration:underline;margin:0 0 8px;text-align:center}',
-    '.rp-report .rp-sum-row{display:flex;justify-content:space-between;gap:16px;padding:4px 0;border-bottom:1px dotted #bbb;font-size:12.5px}',
-    '.rp-report .rp-sum-row:last-child{border-bottom:0}',
-    '.rp-report .rp-sum-row .lbl{font-weight:700}',
-    '.rp-report .rp-sum-row .val{font-weight:700;text-decoration:underline;font-variant-numeric:tabular-nums}'
-  ].join('');
-  document.head.appendChild(s);
-}
+// ════════════════════════════════════════════════════════════════════════════
+// RECOVERY POSITION — period ROLLFORWARD statement (rebuilt 2026-06-11)
+// Backend: get_recovery_position(company, project, from, to) → { period, rows, totals, officer_summary }
+//   FIFO by sale_id + payment_date (payments.installment_id is NULL by design).
+//   Per row: opening(dp/arrears), due_period, received(r_dp/r_old/r_cur/r_advance),
+//   advance_bf, closing(dp/old/current), paid_pct, overdue_days, expand fields.
+// UI: 5 KPI cards · 10-col table · row expand · filters · sort · Closing DESC.
+// Design: Inter, CSS vars, indigo #4F46E5, Lucide icons, light/dark via tokens.
+// ════════════════════════════════════════════════════════════════════════════
 
-// ── Shared Crystal accounting style for ALL hub reports ──────────────────────
-// Scoped to the report viewer container only (#r-ct.crystal-rpt) so nothing
-// leaks to non-report pages. Restyles the generic report markup every runRpt
-// branch emits: rptBanner strip → bordered info box; .card/.t tables → serif,
-// fully-ruled, no zebra; tfoot/total rows → #E8E8E8. Single source of truth for
-// the in-app report tables (Recovery Position keeps its own .rp-report sheet,
-// same design tokens). Injected once.
-// _injectCrystalStyle() is the single shared Crystal stylesheet injector — defined
-// in js/helpers.js (loaded first) so BOTH reports.js and ledgers.js use one source.
-
-// First day of the current month, ISO (local) — default FROM bound.
+// First day of current month, ISO (local) — default FROM bound.
 function _rpMonthStart(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
 
-// Project + FROM/TO controls (replaces the period bar for this report).
+// Project + FROM/TO controls (drives the RPC; filters below are client-side).
 function _rpControlsBar(){
   var projs=(typeof gprojects==='function'?gprojects():[]).slice()
     .sort(function(a,b){return String(a.name||a.projectName||'').localeCompare(String(b.name||b.projectName||''));});
@@ -2374,33 +2270,14 @@ function _rpControlsBar(){
     +'<input type="date" id="rp-to" value="'+td()+'" style="'+c+'" onchange="runRpt()">'
   +'</div>';
 }
-
 function _rpDaysAgo(lastISO,asofISO){
   if(!lastISO)return null;
   try{var a=new Date(asofISO+'T00:00:00'),l=new Date(lastISO+'T00:00:00');return Math.round((a-l)/86400000);}catch(e){return null;}
 }
 function _rpAsofLbl(asofISO){try{var d=new Date(asofISO+'T00:00:00');var p=function(n){return String(n).padStart(2,'0');};return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear();}catch(e){return asofISO;}}
 
-// Grand-total value: prefer RPC totals; compute client-side for keys RPC omits; warn on mismatch.
-function _rpGrand(data,totals,k){
-  var comp=data.reduce(function(s,r){return s+Number(r[k]||0);},0);
-  if(totals&&totals[k]!=null){
-    if(Math.round(Number(totals[k]))!==Math.round(comp))
-      console.warn('[recovery_position] grand-total mismatch for "'+k+'": RPC='+totals[k]+' computed='+comp);
-    return Number(totals[k]);
-  }
-  return comp;
-}
-
 function _rpEmpty(t,s){
-  return '<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div>';
-}
-
-// Group rows by category_name, preserving the RPC's category/floor/unit order.
-function _rpGroups(rows){
-  var groups=[],idx={};
-  rows.forEach(function(r){var cat=r.category_name||'Uncategorized';if(idx[cat]==null){idx[cat]=groups.length;groups.push({cat:cat,items:[]});}groups[idx[cat]].items.push(r);});
-  return groups;
+  return '<div class="rp2-empty"><svg width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="opacity:.5;margin-bottom:8px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><div style="font-size:13px;font-weight:500;color:var(--text)">'+esc(t)+'</div>'+(s?'<div style="font-size:12px;margin-top:3px">'+esc(s)+'</div>':'')+'</div>';
 }
 
 async function _rpRun(){
@@ -2409,16 +2286,15 @@ async function _rpRun(){
   var proj=(document.getElementById('rp-proj')||{}).value||'';
   var from=(document.getElementById('rp-from')||{}).value||_rpMonthStart();
   var to  =(document.getElementById('rp-to')||{}).value||td();
-  ct.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading recovery position\u2026</div>';
+  ct.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading recovery position…</div>';
   var res=null,err=null;
   try{ var r=await supabase.rpc('get_recovery_position',{p_company_id:S.cid,p_project_id:proj||null,p_from_date:from,p_to_date:to}); err=r.error; res=r.data; }
   catch(e){ err=e; }
   if(_rptGenId!==gid)return;
   if(err){
     if(typeof toast==='function')toast('Could not load Recovery Position: '+(err.message||err),'err');
-    ct.innerHTML=_rpEmpty('Could not load report',(err&&err.message)||String(err));
-    window._rpData=null;
-    return;
+    ct.innerHTML='<div class="rp2">'+_rpEmpty('Could not load report',(err&&err.message)||String(err))+'</div>';
+    window._rpData=null; return;
   }
   res=res||{};
   var projName=proj?(((typeof gproject==='function'?gproject(proj):null)||{}).name||''):'';
@@ -2426,247 +2302,351 @@ async function _rpRun(){
   ct.innerHTML=_rpRender(res,from,to,projName);
 }
 
-// Screen cell renderer.
-function _rpCell(r,c,sno,days){
-  if(c.t==='sno')   return '<td class="rp-sno">'+sno+'</td>';
-  if(c.t==='money') return '<td class="num">'+fM(Number(r[c.k]||0))+'</td>';
-  if(c.t==='num')   return '<td class="num">'+(r[c.k]!=null&&r[c.k]!==''?Number(r[c.k]).toLocaleString('en-US'):'\u2014')+'</td>';
-  if(c.t==='pct')   return '<td class="num">'+(r[c.k]!=null?Number(r[c.k]).toFixed(1)+'%':'\u2014')+'</td>';
-  if(c.t==='date')  return '<td>'+(r[c.k]?fD(r[c.k]):'\u2014')+'</td>';
-  if(c.t==='lastpay'){
-    if(!r[c.k])return '<td style="color:#dc2626;font-weight:600">Never</td>';
-    return '<td>'+fD(r[c.k])+' <span style="color:var(--t4)">('+(days!=null?days+'d':'\u2014')+')</span></td>';
-  }
-  if(c.t==='flag')  return '<td class="flag">'+(r[c.k]?'<span title="Open legal case / escalation">\u2696\uFE0F</span>':'')+'</td>';
-  if(c.t==='name')  return '<td class="cname" title="'+esc(r[c.k]!=null?String(r[c.k]):'')+'">'+esc(r[c.k]!=null?String(r[c.k]):'\u2014')+'</td>';
-  return '<td title="'+esc(r[c.k]!=null?String(r[c.k]):'')+'">'+esc(r[c.k]!=null?String(r[c.k]):'\u2014')+'</td>';
+// Scoped, token-driven stylesheet (light/dark via CSS vars). Injected once.
+function _rpInjectStyle(){
+  if(document.getElementById('rp2-style'))return;
+  var s=document.createElement('style');s.id='rp2-style';
+  s.textContent=[
+   '.rp2{--rp-ind:#4F46E5;--rp-red:#DC2626;--rp-amb:#D97706;--rp-grn:#059669;color:var(--text);font-variant-numeric:tabular-nums}',
+   '.rp2 .rp2-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:2px 0 14px;flex-wrap:wrap}',
+   '.rp2 .rp2-head .ttl{font-size:15px;font-weight:600;letter-spacing:-.2px}',
+   '.rp2 .rp2-head .meta{font-size:11.5px;color:var(--t3);text-align:right;line-height:1.6}',
+   '.rp2 .rp2-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 16px}',
+   '@media(max-width:980px){.rp2 .rp2-kpis{grid-template-columns:repeat(2,1fr)}}',
+   '.rp2 .kpi{border:1px solid var(--line);border-radius:12px;background:var(--card,#fff);padding:13px 15px;position:relative}',
+   '.rp2 .kpi .k-l{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);font-weight:500}',
+   '.rp2 .kpi .k-v{font-size:21px;font-weight:600;margin-top:5px;letter-spacing:-.3px;line-height:1.1}',
+   '.rp2 .kpi .k-s{font-size:10.5px;color:var(--t3);margin-top:7px;line-height:1.55}',
+   '.rp2 .kpi .k-s b{font-weight:600;color:var(--t2)}',
+   '.rp2 .kpi .k-ic{position:absolute;top:13px;right:13px;color:var(--t4);opacity:.45}',
+   '.rp2 .kpi.is-close{border-color:var(--rp-ind)}',
+   '.rp2 .kpi.is-close .k-v{color:var(--rp-ind)}',
+   '.rp2 .rp2-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}',
+   '.rp2 .rp2-bar select,.rp2 .rp2-bar input{height:32px;border:1px solid var(--line);border-radius:8px;background:var(--canvas,var(--bg));color:var(--text);font:500 12px/1 inherit;padding:0 10px}',
+   '.rp2 .rp2-bar .rp2-search{min-width:210px}',
+   '.rp2 .rp2-bar .sp{flex:1}',
+   '.rp2 .rp2-count{font-size:11.5px;color:var(--t3)}',
+   '.rp2 .rp2-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:62vh;background:var(--card,#fff)}',
+   '.rp2 table.rp2-t{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;min-width:880px}',
+   '.rp2 .rp2-t thead th{position:sticky;top:0;z-index:2;background:var(--card,#fff);color:var(--t3);font-weight:500;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;text-align:right;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}',
+   '.rp2 .rp2-t thead th.l{text-align:left}',
+   '.rp2 .rp2-t thead th.act{color:var(--rp-ind)}',
+   '.rp2 .rp2-t thead th .ar{font-size:9px;margin-left:3px}',
+   '.rp2 .rp2-t tbody td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}',
+   '.rp2 .rp2-t tbody td.l{text-align:left}',
+   '.rp2 .rp2-t tbody tr.dat{cursor:pointer}',
+   '.rp2 .rp2-t tbody tr.dat:hover td,.rp2 .rp2-t tbody tr.dat.open td{background:var(--hover,#f6f7f9)}',
+   '.rp2 .cc{font-size:10.5px;color:var(--t3)}',
+   '.rp2 .cn{font-weight:500}',
+   '.rp2 .un{font-weight:500}.rp2 .uf{font-size:10.5px;color:var(--t3)}',
+   '.rp2 .chev{display:inline-flex;color:var(--t4);transition:transform .15s;vertical-align:-2px;margin-right:4px}',
+   '.rp2 tr.dat.open .chev{transform:rotate(90deg)}',
+   '.rp2 .pb{display:inline-flex;align-items:center;gap:7px;justify-content:flex-end}',
+   '.rp2 .pb .track{width:46px;height:5px;border-radius:3px;background:var(--line);overflow:hidden}',
+   '.rp2 .pb .fill{height:100%;background:var(--rp-ind);border-radius:3px}',
+   '.rp2 .pb .pn{font-size:11px;color:var(--t2);min-width:36px;text-align:right}',
+   '.rp2 .rk{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500}',
+   '.rp2 .rk .dot{width:8px;height:8px;border-radius:50%}',
+   '.rp2 .rk.red{color:var(--rp-red)}.rp2 .rk.red .dot{background:var(--rp-red)}',
+   '.rp2 .rk.amb{color:var(--rp-amb)}.rp2 .rk.amb .dot{background:var(--rp-amb)}',
+   '.rp2 .rk.grn{color:var(--rp-grn)}.rp2 .rk.grn .dot{background:var(--rp-grn)}',
+   '.rp2 tr.exp td{padding:0;border-bottom:1px solid var(--line);background:var(--bg,#fafbfc)}',
+   '.rp2 .xp{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 26px;padding:14px 18px 16px}',
+   '@media(max-width:820px){.rp2 .xp{grid-template-columns:repeat(2,1fr)}}',
+   '.rp2 .xg h6{margin:0 0 5px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);font-weight:500}',
+   '.rp2 .xr{display:flex;justify-content:space-between;gap:14px;font-size:12px;padding:2.5px 0}',
+   '.rp2 .xr .l{color:var(--t3)}',
+   '.rp2 .rp2-t tfoot td{position:sticky;bottom:0;background:var(--card,#fff);border-top:2px solid var(--line);font-weight:600;text-align:right;padding:11px 12px;font-size:12.5px}',
+   '.rp2 .rp2-t tfoot td.l{text-align:left;color:var(--t2);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px}',
+   '.rp2 .rp2-foot{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}',
+   '@media(max-width:820px){.rp2 .rp2-foot{grid-template-columns:1fr}}',
+   '.rp2 .rp2-card{border:1px solid var(--line);border-radius:12px;background:var(--card,#fff);padding:14px 16px}',
+   '.rp2 .rp2-card h5{margin:0 0 10px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);font-weight:500}',
+   '.rp2 .idr{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--line)}',
+   '.rp2 .idr:last-child{border-bottom:0}',
+   '.rp2 .idr.tot{font-weight:600;color:var(--rp-ind);border-bottom:0;border-top:2px solid var(--line);margin-top:3px;padding-top:8px}',
+   '.rp2 .offt{width:100%;border-collapse:collapse;font-size:12.5px}',
+   '.rp2 .offt th,.rp2 .offt td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right}',
+   '.rp2 .offt th:first-child,.rp2 .offt td:first-child{text-align:left}',
+   '.rp2 .offt th{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);font-weight:500}',
+   '.rp2 .offt tr.tot td{font-weight:600;border-bottom:0}',
+   '.rp2 .rp2-empty{text-align:center;padding:48px 0;color:var(--t3)}'
+  ].join('');
+  document.head.appendChild(s);
+}
+
+var RP2_HEAD=[
+  {l:'S#',cls:'l',sort:null},
+  {l:'Client',cls:'l',sort:'client'},
+  {l:'Unit',cls:'l',sort:'unit'},
+  {l:'Net Price',sort:'net_price'},
+  {l:'Opening',sort:'opening'},
+  {l:'Due',sort:'due_period'},
+  {l:'Recovered',sort:'received_total'},
+  {l:'Closing',sort:'closing'},
+  {l:'Paid %',sort:'paid_pct'},
+  {l:'Risk',sort:'overdue_days'}
+];
+function _rpNum(v){return fM(Number(v||0));}
+function _rp2RiskLevel(d){ if(d==null)return 'grn'; if(d>90)return 'red'; if(d>=1)return 'amb'; return 'grn'; }
+function _rp2RiskBadge(d){
+  var lv=_rp2RiskLevel(d);
+  var lbl=(lv==='grn')?(d?(d+'d'):'Current'):(d+'d overdue');
+  return '<span class="rk '+lv+'"><span class="dot"></span>'+lbl+'</span>';
+}
+function _rp2Bar(p){
+  var v=Math.max(0,Math.min(100,Number(p||0)));
+  return '<span class="pb"><span class="track"><span class="fill" style="width:'+v+'%"></span></span><span class="pn">'+(Number(p||0).toFixed(1))+'%</span></span>';
+}
+var _RP2_CHEV='<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+function _rp2Header(t,from,to,projName){
+  return '<div class="rp2-head"><div class="ttl">Recovery Position — Grand Summary</div>'
+    +'<div class="meta">'+esc(projName||'All Projects')+' &middot; '+_rpAsofLbl(from)+' → '+_rpAsofLbl(to)
+    +'<br>'+(Number(t.row_count||0))+' active sales &middot; Generated '+_rpAsofLbl(td())+'</div></div>';
+}
+function _rp2KPIs(t){
+  var ic=function(p){return '<span class="k-ic"><svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">'+p+'</svg></span>';};
+  var kpi=function(cls,lbl,val,sub,icon){return '<div class="kpi'+(cls?' '+cls:'')+'">'+(icon?ic(icon):'')+'<div class="k-l">'+lbl+'</div><div class="k-v">'+val+'</div>'+(sub?'<div class="k-s">'+sub+'</div>':'')+'</div>';};
+  var pct=(t.recovery_pct!=null?Number(t.recovery_pct).toFixed(1):'0.0');
+  return '<div class="rp2-kpis">'
+    +kpi('','Opening Balance',_rpNum(t.opening),'DP <b>'+_rpNum(t.opening_dp)+'</b> &middot; Arrears <b>'+_rpNum(t.opening_arrears)+'</b>','<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>')
+    +kpi('','+ Due This Period',_rpNum(t.due),'installments due in range','<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')
+    +kpi('','− Recovered',_rpNum(t.received_total),'DP <b>'+_rpNum(t.r_dp)+'</b> &middot; Old <b>'+_rpNum(t.r_old)+'</b> &middot; Curr <b>'+_rpNum(t.r_cur)+'</b>','<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    +kpi('is-close','= Closing Balance',_rpNum(t.closing),'DP <b>'+_rpNum(t.closing_dp)+'</b> &middot; Old <b>'+_rpNum(t.closing_old)+'</b> &middot; Curr <b>'+_rpNum(t.closing_current)+'</b>','<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>')
+    +kpi('','Recovery %',pct+'%','Received ÷ (Opening + Due)','<path d="M3 3v18h18"/><path d="M19 9l-5 5-4-4-3 3"/>')
+  +'</div>';
+}
+function _rp2FilterBar(rows){
+  var fl={},ty={};
+  rows.forEach(function(r){ if(r.floor_name)fl[r.floor_name]=1; if(r.unit_type)ty[r.unit_type]=1; });
+  var opt=function(o){return '<option value="'+esc(o)+'">'+esc(o)+'</option>';};
+  var floors=Object.keys(fl).sort();
+  var types=Object.keys(ty).sort();
+  return '<div class="rp2-bar">'
+    +'<select id="rp2-floor" onchange="_rp2Filter()"><option value="">All Floors</option>'+floors.map(opt).join('')+'</select>'
+    +'<select id="rp2-type" onchange="_rp2Filter()"><option value="">All Types</option>'+types.map(opt).join('')+'</select>'
+    +'<select id="rp2-risk" onchange="_rp2Filter()"><option value="">All Risk</option><option value="red">Critical (&gt;90d)</option><option value="amb">Overdue (1–90d)</option><option value="grn">Current</option></select>'
+    +'<input id="rp2-q" class="rp2-search" type="text" placeholder="Search client / unit…" oninput="_rp2Filter()">'
+    +'<span class="sp"></span><span class="rp2-count" id="rp2-count"></span>'
+  +'</div>';
+}
+function _rp2_view(){
+  var st=window._rp2, f=st.filt, rows=st.rows.slice();
+  rows=rows.filter(function(r){
+    if(f.floor && String(r.floor_name||'')!==f.floor)return false;
+    if(f.type && String(r.unit_type||'')!==f.type)return false;
+    if(f.risk && _rp2RiskLevel(r.overdue_days)!==f.risk)return false;
+    if(f.q){var hay=((r.client_name||'')+' '+(r.client_code||'')+' '+(r.unit_no||'')).toLowerCase();if(hay.indexOf(f.q)<0)return false;}
+    return true;
+  });
+  var k=st.sort.key,dir=st.sort.dir;
+  rows.sort(function(a,b){
+    if(k==='client')return String(a.client_name||'').localeCompare(String(b.client_name||''))*dir;
+    if(k==='unit')return String(a.unit_no||'').localeCompare(String(b.unit_no||''))*dir;
+    var va=Number(a[k]||0),vb=Number(b[k]||0);return (va===vb?0:(va<vb?-1:1))*dir;
+  });
+  return rows;
+}
+function _rp2TableHTML(){
+  var st=window._rp2, view=_rp2_view();
+  var head='<thead><tr>'+RP2_HEAD.map(function(h){
+    var act=(st.sort.key===h.sort);
+    var ar=act?('<span class="ar">'+(st.sort.dir<0?'▼':'▲')+'</span>'):'';
+    return '<th class="'+(h.cls||'')+(act?' act':'')+'"'+(h.sort?(' onclick="_rp2Sort(\''+h.sort+'\')"'):' style="cursor:default"')+'>'+h.l+ar+'</th>';
+  }).join('')+'</tr></thead>';
+  var body=view.map(function(r,i){
+    return '<tr class="dat" onclick="_rp2Toggle('+i+')">'
+      +'<td class="l">'+_RP2_CHEV+(i+1)+'</td>'
+      +'<td class="l"><div class="cn">'+esc(r.client_name||'—')+'</div><div class="cc">'+esc(r.client_code||'')+'</div></td>'
+      +'<td class="l"><span class="un">'+esc(r.unit_no||'—')+'</span> <span class="uf">'+esc(r.floor_name||'')+'</span></td>'
+      +'<td>'+_rpNum(r.net_price)+'</td>'
+      +'<td>'+_rpNum(r.opening)+'</td>'
+      +'<td>'+_rpNum(r.due_period)+'</td>'
+      +'<td>'+_rpNum(r.received_total)+'</td>'
+      +'<td>'+_rpNum(r.closing)+'</td>'
+      +'<td>'+_rp2Bar(r.paid_pct)+'</td>'
+      +'<td>'+_rp2RiskBadge(r.overdue_days)+'</td>'
+    +'</tr>'
+    +'<tr class="exp" id="rp2x-'+i+'" style="display:none"><td colspan="10">'+_rp2Expand(r)+'</td></tr>';
+  }).join('');
+  var sum=function(k){return view.reduce(function(s,r){return s+Number(r[k]||0);},0);};
+  var foot='<tfoot><tr>'
+    +'<td class="l" colspan="3">Grand Total · '+view.length+' sales</td>'
+    +'<td>'+_rpNum(sum('net_price'))+'</td>'
+    +'<td>'+_rpNum(sum('opening'))+'</td>'
+    +'<td>'+_rpNum(sum('due_period'))+'</td>'
+    +'<td>'+_rpNum(sum('received_total'))+'</td>'
+    +'<td>'+_rpNum(sum('closing'))+'</td>'
+    +'<td></td><td></td></tr></tfoot>';
+  return '<div class="rp2-wrap"><table class="rp2-t">'+head+'<tbody>'+body+'</tbody>'+foot+'</table></div>';
+}
+function _rp2Expand(r){
+  var xr=function(l,v){return '<div class="xr"><span class="l">'+l+'</span><span class="v">'+v+'</span></div>';};
+  var lp=r.last_payment_date?(_rpAsofLbl(r.last_payment_date)+' · '+_rpNum(r.last_payment_amount)):'No payments';
+  return '<div class="xp">'
+    +'<div class="xg"><h6>Opening Split</h6>'+xr('DP Remaining',_rpNum(r.opening_dp))+xr('Inst. Arrears',_rpNum(r.opening_arrears))+xr('Opening Total',_rpNum(r.opening))+'</div>'
+    +'<div class="xg"><h6>Received This Period</h6>'+xr('vs DP',_rpNum(r.r_dp))+xr('vs Old',_rpNum(r.r_old))+xr('vs Current',_rpNum(r.r_cur))+xr('Advance',_rpNum(r.r_advance))+xr('Advance B/F adj.',_rpNum(r.advance_bf))+'</div>'
+    +'<div class="xg"><h6>Closing Split</h6>'+xr('DP',_rpNum(r.closing_dp))+xr('Old',_rpNum(r.closing_old))+xr('Current',_rpNum(r.closing_current))+xr('Closing Total',_rpNum(r.closing))+'</div>'
+    +'<div class="xg"><h6>Account</h6>'+xr('Last Payment',lp)+xr('Phone',esc(r.phone||'—'))+xr('Reg. Date',r.reg_date?_rpAsofLbl(r.reg_date):'—')+xr('Area / Rate',(r.area!=null?Number(r.area).toLocaleString('en-US'):'—')+' / '+(r.unit_rate!=null?Number(r.unit_rate).toLocaleString('en-US'):'—'))+xr('Discount',_rpNum(r.discount))+'</div>'
+  +'</div>';
+}
+function _rp2Foot(t,officers,from,to){
+  var idr=function(l,v,c){return '<div class="idr'+(c?' '+c:'')+'"><span class="l">'+l+'</span><span class="v">'+v+'</span></div>';};
+  var stmt='<div class="rp2-card"><h5>Rollforward Statement · '+_rpAsofLbl(from)+' → '+_rpAsofLbl(to)+'</h5>'
+    +idr('Opening Balance',_rpNum(t.opening))
+    +idr('+ Due This Period',_rpNum(t.due))
+    +idr('− Recovered (applied)',_rpNum(t.received_applied))
+    +idr('− Advance B/F Adjusted',_rpNum(t.advance_bf))
+    +idr('= Closing Balance',_rpNum(t.closing),'tot')
+  +'</div>';
+  var oRows=(officers||[]).map(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);
+    return '<tr><td>'+esc(o.officer_name||'—')+'</td><td>'+_rpNum(d)+'</td><td>'+_rpNum(c)+'</td><td>'+_rpNum(d+c)+'</td></tr>';}).join('');
+  var od=(officers||[]).reduce(function(s,o){return s+Number(o.dead_recovery_total||0);},0);
+  var oc=(officers||[]).reduce(function(s,o){return s+Number(o.current_recovery_total||0);},0);
+  var off='<div class="rp2-card"><h5>Officer Recovery · period receipts</h5>'
+    +(officers&&officers.length
+      ?'<table class="offt"><thead><tr><th>Officer</th><th>Dead (&gt;90d)</th><th>Current</th><th>Total</th></tr></thead><tbody>'+oRows
+       +'<tr class="tot"><td>Total</td><td>'+_rpNum(od)+'</td><td>'+_rpNum(oc)+'</td><td>'+_rpNum(od+oc)+'</td></tr></tbody></table>'
+      :'<div style="font-size:12px;color:var(--t3)">No period receipts.</div>')
+  +'</div>';
+  return '<div class="rp2-foot">'+stmt+off+'</div>';
 }
 
 function _rpRender(res,from,to,projName){
   var rows=Array.isArray(res.rows)?res.rows:[];
   var totals=res.totals||{};
   var officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
-  var periodLbl=_rpAsofLbl(from)+' to '+_rpAsofLbl(to);
-  var ncols=RP_COLS.length;
-
   _rpInjectStyle();
-  var g=function(k){return _rpGrand(rows,totals,k);};
-  var uniqueClients=_rpUniqueClients(rows);
-  var totalBalance=g('dp_remaining')+g('net_outstanding');
-  var recoveryPct=_rpRecoveryPct(totals);
-
-  // Centered underlined title + bordered info box (Label : Value pairs)
-  var infoRow=function(l,v){return '<div class="rp-info-row"><span class="lbl">'+l+' :</span><span class="val">'+v+'</span></div>';};
-  var header='<div class="rp-title">Recovery Position \u2014 Grand Summary</div>'
-    +'<div class="rp-infobox">'
-      +infoRow('Company',       esc(S?S.coName||'\u2014':'\u2014'))
-      +infoRow('Project',       esc(projName||'All Projects'))
-      +infoRow('Period',        esc(periodLbl))
-      +infoRow('Generated',     esc(_rpAsofLbl(td())))
-      +infoRow('Total Units',   String(rows.length))
-      +infoRow('Unique Clients',String(uniqueClients))
-    +'</div>';
-
+  window._rp2={rows:rows,totals:totals,officers:officers,from:from,to:to,projName:projName,
+    sort:{key:'closing',dir:-1},filt:{floor:'',type:'',risk:'',q:''}};
   if(!rows.length)
-    return '<div class="rp-report">'+header+_rpEmpty('No active sales for this selection','Try a different project or date range.')+'</div>';
-
-  // Compact summary chips on top (serif, bordered) \u2014 same figures as the bottom box
-  var chip=function(l,v){return '<div class="rp-chip"><div class="l">'+l+'</div><div class="v">'+v+'</div></div>';};
-  var chips='<div class="rp-chips">'
-    +chip('Total Balance',fM(totalBalance))
-    +chip('DP Remaining',fM(g('dp_remaining')))
-    +chip('Old Balance',fM(g('outstanding_old_net')))
-    +chip('Period Due',fM(g('month_installment')))
-    +chip('Old Received',fM(g('recd_old')))
-    +chip('Current Received',fM(g('recd_current')))
-    +chip('Recovery %',recoveryPct)
+    return '<div class="rp2">'+_rp2Header(totals,from,to,projName)+_rpEmpty('No active sales for this selection','Try a different project or date range.')+'</div>';
+  return '<div class="rp2">'
+    +_rp2Header(totals,from,to,projName)
+    +_rp2KPIs(totals)
+    +_rp2FilterBar(rows)
+    +'<div id="rp2-tablehost">'+_rp2TableHTML()+'</div>'
+    +_rp2Foot(totals,officers,from,to)
   +'</div>';
-
-  var head='<thead><tr>'+RP_COLS.map(function(c){
-    var cl=(c.t==='money'||c.t==='num'||c.t==='pct')?' class="num"':(c.t==='flag'?' class="flag"':'');
-    return '<th'+cl+'>'+c.l+'</th>';}).join('')+'</tr></thead>';
-
-  var sno=0,body='';
-  _rpGroups(rows).forEach(function(grp){
-    body+='<tr class="rp-sec"><td colspan="'+ncols+'">'+esc(grp.cat)+' \u00B7 '+grp.items.length+' unit'+(grp.items.length!==1?'s':'')+'</td></tr>';
-    grp.items.forEach(function(r){
-      sno++;
-      var days=_rpDaysAgo(r.last_payment_date,to);
-      var cls=(days===null||days>90)?' class="rp-late"':'';
-      body+='<tr'+cls+'>'+RP_COLS.map(function(c){return _rpCell(r,c,sno,days);}).join('')+'</tr>';
-    });
-    body+='<tr class="rp-sub">'+RP_COLS.map(function(c,i){
-      if(i===0)return '<td colspan="2">'+esc(grp.cat)+' \u2014 Subtotal</td>';
-      if(i===1)return '';
-      if(c.sub)return '<td class="num">'+fM(grp.items.reduce(function(s,r){return s+Number(r[c.k]||0);},0))+'</td>';
-      return '<td></td>';
-    }).join('')+'</tr>';
-  });
-  body+='<tr class="rp-grand">'+RP_COLS.map(function(c,i){
-    if(i===0)return '<td colspan="2">GRAND TOTAL \u00B7 '+rows.length+' units</td>';
-    if(i===1)return '';
-    if(c.sub)return '<td class="num">'+fM(g(c.k))+'</td>';
-    return '<td></td>';
-  }).join('')+'</tr>';
-
-  var table='<div class="rp-scroll"><table class="rp-tbl" style="min-width:'+_rpTableWidth('screen')+'px">'+_rpColgroup('screen')+head+'<tbody>'+body+'</tbody></table></div>';
-
-  // Officer Recovery Summary \u2014 ruled table
-  var offTot={d:0,c:0};
-  var offRows=officers.map(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);offTot.d+=d;offTot.c+=c;
-    return '<tr><td class="cname">'+esc(o.officer_name||'\u2014')+'</td><td class="num">'+fM(d)+'</td><td class="num">'+fM(c)+'</td><td class="num">'+fM(d+c)+'</td></tr>';}).join('');
-  var officerBlock='<div class="rp-blocktitle">Officer Recovery Summary \u2014 '+esc(periodLbl)+'</div>';
-  officerBlock+=officers.length
-    ? '<table class="rp-off-tbl"><thead><tr><th>Officer</th><th class="num">Dead Recovery</th><th class="num">Current Recovery</th><th class="num">Total</th></tr></thead><tbody>'+offRows
-      +'<tr class="rp-sub"><td>TOTAL</td><td class="num">'+fM(offTot.d)+'</td><td class="num">'+fM(offTot.c)+'</td><td class="num">'+fM(offTot.d+offTot.c)+'</td></tr></tbody></table>'
-    : '<div style="font-size:12px;padding:6px 0">No officer recovery recorded for this period.</div>';
-
-  // Bottom Summary box (Label : underlined-value rows)
-  var sumRow=function(l,v){return '<div class="rp-sum-row"><span class="lbl">'+l+'</span><span class="val">'+v+'</span></div>';};
-  var summary='<div class="rp-summary"><h4>Summary</h4>'
-    +sumRow('Total Balance',fM(totalBalance))
-    +sumRow('DP Remaining',fM(g('dp_remaining')))
-    +sumRow('Old Opening',fM(g('old_outstanding')))
-    +sumRow('Old Balance',fM(g('outstanding_old_net')))
-    +sumRow('Period Due',fM(g('month_installment')))
-    +sumRow('Old Received',fM(g('recd_old')))
-    +sumRow('Current Received',fM(g('recd_current')))
-    +sumRow('Period Balance',fM(g('net_outstanding')))
-    +sumRow('Recovery %',recoveryPct)
-  +'</div>';
-
-  return '<div class="rp-report">'+header+chips+table+officerBlock+summary+'</div>';
 }
 
-// \u2500\u2500 PRINT \u2014 Crystal letterhead, A4 landscape, signature block \u2500\u2500
+// ── client-side handlers ──
+function _rp2Repaint(){
+  var host=document.getElementById('rp2-tablehost'); if(host)host.innerHTML=_rp2TableHTML();
+  var c=document.getElementById('rp2-count'); if(c){var n=_rp2_view().length;c.textContent=n+' of '+window._rp2.rows.length+' shown';}
+}
+window._rp2Sort=function(k){var st=window._rp2;if(!st)return;if(st.sort.key===k)st.sort.dir*=-1;else{st.sort.key=k;st.sort.dir=(k==='client'||k==='unit')?1:-1;}_rp2Repaint();};
+window._rp2Filter=function(){var st=window._rp2;if(!st)return;st.filt={floor:(document.getElementById('rp2-floor')||{}).value||'',type:(document.getElementById('rp2-type')||{}).value||'',risk:(document.getElementById('rp2-risk')||{}).value||'',q:(((document.getElementById('rp2-q')||{}).value)||'').toLowerCase().trim()};_rp2Repaint();};
+window._rp2Toggle=function(i){var row=document.getElementById('rp2x-'+i);if(!row)return;var open=row.style.display==='none';row.style.display=open?'':'none';if(row.previousElementSibling)row.previousElementSibling.classList.toggle('open',open);};
+
+// ── Reliable print emitter (scoped to this report): Electron IPC, else write
+// the document straight into a popup and print on load — no Blob URL / revoke
+// race (the old _printHTML revoked the object URL mid-render → blank/invalid PDF).
+function _rpEmitPrint(html,title){
+  if(window.electronPrint){window.electronPrint.print(html,title||'Document');return;}
+  var w=window.open('','_blank','width=1180,height=860');
+  if(!w){if(typeof toast==='function')toast('Allow pop-ups to print / save as PDF','warn');return;}
+  w.document.open(); w.document.write(html); w.document.close();
+  var fired=false,go=function(){if(fired)return;fired=true;try{w.focus();w.print();}catch(e){}};
+  try{w.onload=go;}catch(e){}
+  setTimeout(go,1200); // fallback if onload already passed (document.write)
+}
+
+// ── PRINT / SAVE-AS-PDF (A4 landscape, Crystal letterhead + KPI strip + rollforward) ──
 function _rpPrint(){
   var D=window._rpData; if(!D||!D.res){toast('Run the report first, then print','warn');return;}
-  var res=D.res, rows=Array.isArray(res.rows)?res.rows:[], totals=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
-  var cols=_rpCols('print'),ncols=cols.length,g=function(k){return _rpGrand(rows,totals,k);};
-  var uniqueClients=_rpUniqueClients(rows);
-  var totalBalance=g('dp_remaining')+g('net_outstanding');
-  var recoveryPct=_rpRecoveryPct(totals);
-  var pc=function(r,c,sno,days){
-    if(c.t==='sno')   return '<td>'+sno+'</td>';
-    if(c.t==='money') return '<td class="num">'+fM(Number(r[c.k]||0))+'</td>';
-    if(c.t==='num')   return '<td class="num">'+(r[c.k]!=null&&r[c.k]!==''?Number(r[c.k]).toLocaleString('en-US'):'\u2014')+'</td>';
-    if(c.t==='pct')   return '<td class="num">'+(r[c.k]!=null?Number(r[c.k]).toFixed(1)+'%':'\u2014')+'</td>';
-    if(c.t==='date')  return '<td>'+(r[c.k]?fD(r[c.k]):'\u2014')+'</td>';
-    if(c.t==='lastpay')return '<td>'+(r[c.k]?fD(r[c.k])+' ('+(days!=null?days+'d':'\u2014')+')':'Never')+'</td>';
-    if(c.t==='flag')  return '<td style="text-align:center">'+(r[c.k]?'\u2696':'')+'</td>';
-    if(c.t==='name')  return '<td class="cname" title="'+esc(r[c.k]!=null?String(r[c.k]):'')+'">'+esc(r[c.k]!=null?String(r[c.k]):'\u2014')+'</td>';
-    return '<td>'+esc(r[c.k]!=null?String(r[c.k]):'\u2014')+'</td>';
+  var res=D.res, rows=Array.isArray(res.rows)?res.rows:[], t=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
+  var pnum=function(v){return fM(Number(v||0));};
+  var head='<tr><th class="l">S#</th><th class="l">Client</th><th class="l">Unit</th><th class="num">Net Price</th><th class="num">Opening</th><th class="num">Due</th><th class="num">Recovered</th><th class="num">Closing</th><th class="num">Paid %</th><th class="num">Overdue</th></tr>';
+  var cg='<colgroup><col style="width:3%"><col style="width:19%"><col style="width:12%"><col style="width:10.5%"><col style="width:10.5%"><col style="width:9%"><col style="width:10.5%"><col style="width:10.5%"><col style="width:6.5%"><col style="width:8%"></colgroup>';
+  var odCell=function(r){
+    if(r.overdue_days==null)return '<td class="num">—</td>';
+    var lv=_rp2RiskLevel(r.overdue_days), c=(lv==='red'?'#DC2626':lv==='amb'?'#D97706':'#059669');
+    return '<td class="num"><span class="rdot" style="background:'+c+'"></span>'+r.overdue_days+'d</td>';
   };
-  var head='<tr>'+cols.map(function(c){var cl=(c.t==='money'||c.t==='num'||c.t==='pct')?' class="num"':'';return '<th'+cl+'>'+c.l+'</th>';}).join('')+'</tr>';
-  var sno=0,bodyRows='';
-  _rpGroups(rows).forEach(function(grp){
-    bodyRows+='<tr class="rp-sec"><td colspan="'+ncols+'">'+esc(grp.cat)+' \u00B7 '+grp.items.length+' unit'+(grp.items.length!==1?'s':'')+'</td></tr>';
-    grp.items.forEach(function(r){sno++;var days=_rpDaysAgo(r.last_payment_date,D.to);var cls=(days===null||days>90)?' class="rp-late"':'';bodyRows+='<tr'+cls+'>'+cols.map(function(c){return pc(r,c,sno,days);}).join('')+'</tr>';});
-    bodyRows+='<tr class="rp-sub">'+cols.map(function(c,i){if(i===0)return '<td colspan="2">'+esc(grp.cat)+' \u2014 Subtotal</td>';if(i===1)return '';if(c.sub)return '<td class="num">'+fM(grp.items.reduce(function(s,r){return s+Number(r[c.k]||0);},0))+'</td>';return '<td></td>';}).join('')+'</tr>';
-  });
-  bodyRows+='<tr class="rp-grand">'+cols.map(function(c,i){if(i===0)return '<td colspan="2">GRAND TOTAL \u00B7 '+rows.length+' units</td>';if(i===1)return '';if(c.sub)return '<td class="num">'+fM(g(c.k))+'</td>';return '<td></td>';}).join('')+'</tr>';
-
-  var offTot={d:0,c:0};
-  var offRows=officers.map(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);offTot.d+=d;offTot.c+=c;return '<tr><td class="cname">'+esc(o.officer_name||'\u2014')+'</td><td class="num">'+fM(d)+'</td><td class="num">'+fM(c)+'</td><td class="num">'+fM(d+c)+'</td></tr>';}).join('');
-
-  // Header info box (Label : Value)
+  var body=rows.map(function(r,i){
+    return '<tr><td>'+(i+1)+'</td><td class="cname">'+esc((r.client_code?r.client_code+' · ':'')+(r.client_name||''))+'</td><td>'+esc((r.unit_no||'')+(r.floor_name?' · '+r.floor_name:''))+'</td>'
+      +'<td class="num">'+pnum(r.net_price)+'</td><td class="num">'+pnum(r.opening)+'</td><td class="num">'+pnum(r.due_period)+'</td><td class="num">'+pnum(r.received_total)+'</td><td class="num">'+pnum(r.closing)+'</td><td class="num">'+Number(r.paid_pct||0).toFixed(1)+'%</td>'+odCell(r)+'</tr>';
+  }).join('');
+  var grand='<tr class="rp-grand"><td colspan="3">GRAND TOTAL · '+rows.length+' sales</td><td class="num">'+pnum(t.net_price)+'</td><td class="num">'+pnum(t.opening)+'</td><td class="num">'+pnum(t.due)+'</td><td class="num">'+pnum(t.received_total)+'</td><td class="num">'+pnum(t.closing)+'</td><td class="num"></td><td class="num"></td></tr>';
   var infoRow=function(l,v){return '<div class="rp-info-row"><span class="lbl">'+l+' :</span> <span class="val">'+v+'</span></div>';};
-  var infoBox='<div class="rp-infobox">'
-    +infoRow('Company',esc(S?S.coName||'\u2014':'\u2014'))
-    +infoRow('Project',esc(D.projName||'All Projects'))
-    +infoRow('Period',esc(D.periodLbl||((D.fromLbl||'')+' to '+(D.toLbl||''))))
-    +infoRow('Generated',esc(_rpAsofLbl(td())))
-    +infoRow('Total Units',String(rows.length))
-    +infoRow('Unique Clients',String(uniqueClients))
-  +'</div>';
-
-  // Bottom Summary box (Label : underlined-value)
-  var sumRow=function(l,v){return '<div class="rp-sum-row"><span class="lbl">'+l+'</span><span class="val">'+v+'</span></div>';};
-  var summaryBox='<div class="rp-summary"><h4>Summary</h4>'
-    +sumRow('Total Balance',fM(totalBalance))
-    +sumRow('DP Remaining',fM(g('dp_remaining')))
-    +sumRow('Old Opening',fM(g('old_outstanding')))
-    +sumRow('Old Balance',fM(g('outstanding_old_net')))
-    +sumRow('Period Due',fM(g('month_installment')))
-    +sumRow('Old Received',fM(g('recd_old')))
-    +sumRow('Current Received',fM(g('recd_current')))
-    +sumRow('Period Balance',fM(g('net_outstanding')))
-    +sumRow('Recovery %',recoveryPct)
-  +'</div>';
-
-  // Print CSS \u2014 serif body, fully-ruled cells, double-underlined header, shaded totals
+  var infoBox='<div class="rp-infobox">'+infoRow('Company',esc(S?S.coName||'—':'—'))+infoRow('Project',esc(D.projName||'All Projects'))+infoRow('Period',esc(D.periodLbl||''))+infoRow('Generated',esc(_rpAsofLbl(td())))+infoRow('Active Sales',String(rows.length))+infoRow('Recovery %',(t.recovery_pct!=null?Number(t.recovery_pct).toFixed(1):'0.0')+'%')+'</div>';
+  // 5-KPI rollforward strip (compact single row)
+  var kc=function(l,v,a){return '<div class="rpk"><div class="rpk-l">'+l+'</div><div class="rpk-v"'+(a?' style="color:#4F46E5"':'')+'>'+v+'</div></div>';};
+  var kpiStrip='<div class="rp-kpis">'+kc('Opening',pnum(t.opening))+kc('+ Due',pnum(t.due))+kc('− Recovered',pnum(t.received_total))+kc('Advance B/F',pnum(t.advance_bf))+kc('= Closing',pnum(t.closing),1)+kc('Recovery %',(t.recovery_pct!=null?Number(t.recovery_pct).toFixed(1):'0.0')+'%')+'</div>';
+  var sR=function(l,v,b){return '<div class="rp-sum-row"><span class="lbl">'+l+'</span><span class="val"'+(b?' style="color:#4F46E5"':'')+'>'+v+'</span></div>';};
+  var summaryBox='<div class="rp-summary"><h4>Rollforward Statement</h4>'+sR('Opening Balance',pnum(t.opening))+sR('+ Due This Period',pnum(t.due))+sR('− Recovered (applied)',pnum(t.received_applied))+sR('− Advance B/F Adjusted',pnum(t.advance_bf))+sR('= Closing Balance',pnum(t.closing),1)+'</div>';
+  var od=officers.reduce(function(s,o){return s+Number(o.dead_recovery_total||0);},0),oc=officers.reduce(function(s,o){return s+Number(o.current_recovery_total||0);},0);
+  var offRows=officers.map(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);return '<tr><td class="cname">'+esc(o.officer_name||'—')+'</td><td class="num">'+pnum(d)+'</td><td class="num">'+pnum(c)+'</td><td class="num">'+pnum(d+c)+'</td></tr>';}).join('');
+  var genStr=_rpAsofLbl(td())+' '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   var extra='body{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}'
-    +'.rp-doc-title{text-align:center;font-weight:700;font-size:14px;text-decoration:underline;margin:4px 0 10px}'
-    +'.rp-infobox{border:1px solid #333;border-radius:3px;padding:8px 12px;margin:0 0 10px;display:grid;grid-template-columns:1fr 1fr;gap:2px 24px}'
+    +'.rp-doc-title{text-align:center;font-weight:700;font-size:14px;text-decoration:underline;margin:4px 0 8px}'
+    +'.rp-infobox{border:1px solid #333;border-radius:3px;padding:8px 12px;margin:0 0 9px;display:grid;grid-template-columns:1fr 1fr;gap:2px 24px}'
     +'.rp-info-row{font-size:10px}.rp-info-row .lbl{font-weight:700;display:inline-block;min-width:88px}.rp-info-row .val{font-weight:600}'
-    +'.rp-tbl{font-size:8.5px;border-collapse:collapse;table-layout:fixed;width:100%;font-variant-numeric:tabular-nums;background:#fff}'
+    +'.rp-kpis{display:flex;gap:7px;margin:0 0 12px}'
+    +'.rp-kpis .rpk{flex:1;border:1px solid #333;border-radius:4px;padding:6px 9px;text-align:left}'
+    +'.rp-kpis .rpk-l{font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:#555;font-weight:700}'
+    +'.rp-kpis .rpk-v{font-size:12px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}'
+    +'.rp-tbl{font-size:9px;border-collapse:collapse;table-layout:fixed;width:100%;font-variant-numeric:tabular-nums}'
     +'.rp-tbl thead{display:table-header-group}'
-    +'.rp-tbl th,.rp-tbl td{border:1px solid #333;padding:2.5px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'
-    +'.rp-tbl thead th{background:#fff;color:#1a1a1a;font-size:8.5px;line-height:1.15;font-weight:700;text-align:left;border-bottom:2.5px double #333;white-space:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'.rp-tbl th.num,.rp-tbl td.num,.r{text-align:right;font-variant-numeric:tabular-nums}'
-    +'.rp-tbl td.cname{font-weight:700}'
-    +'.rp-sec td{background:#dcdcdc;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'.rp-sub td{background:#E8E8E8;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'.rp-grand td{background:#cfcfcf;font-weight:700;border-top:3px double #333;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'.rp-late td{background:#fbeaea;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'.rp-off-tbl{border-collapse:collapse;max-width:460px;font-size:9.5px;background:#fff}'
-    +'.rp-off-tbl th,.rp-off-tbl td{border:1px solid #333;padding:3px 7px}'
-    +'.rp-off-tbl thead th{background:#E8E8E8;font-weight:700;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'.rp-off-tbl tr.rp-sub td{background:#E8E8E8;font-weight:700}'
-    +'.rp-summary{border:1px solid #333;border-radius:5px;padding:8px 12px;max-width:360px;margin-top:12px}'
+    +'.rp-tbl th,.rp-tbl td{border:1px solid #333;padding:3px 5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'
+    +'.rp-tbl td{background:#fff!important}'                                   // BUG2: no row tint, plain white (kills global zebra + any tint)
+    +'.rp-tbl thead th{background:#fff!important;color:#1a1a1a;font-weight:700;text-align:left;border-bottom:2.5px double #333;-webkit-print-color-adjust:exact;print-color-adjust:exact}' // BUG1: dark label text, was inheriting white
+    +'.rp-tbl th.num,.rp-tbl td.num{text-align:right}.rp-tbl th.l,.rp-tbl td.l{text-align:left}.rp-tbl td.cname{font-weight:700}'
+    +'.rp-tbl .rdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.rp-tbl tbody tr.rp-grand td{background:#cfcfcf!important;font-weight:700;border-top:3px double #333;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.rp-off-tbl{border-collapse:collapse;max-width:480px;font-size:9.5px;margin-top:6px}'
+    +'.rp-off-tbl th,.rp-off-tbl td{border:1px solid #333;padding:3px 7px;background:#fff}'
+    +'.rp-off-tbl thead th{background:#E8E8E8!important;font-weight:700;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rp-off-tbl th.num,.rp-off-tbl td.num{text-align:right}'
+    +'.rp-summary{border:1px solid #333;border-radius:5px;padding:8px 12px;max-width:380px;margin-top:12px}'
     +'.rp-summary h4{font-size:11px;font-weight:700;text-decoration:underline;text-align:center;margin:0 0 6px}'
     +'.rp-sum-row{display:flex;justify-content:space-between;gap:14px;padding:2px 0;border-bottom:1px dotted #aaa;font-size:10px}'
-    +'.rp-sum-row .lbl{font-weight:700}.rp-sum-row .val{font-weight:700;text-decoration:underline}';
-
+    +'.rp-sum-row .lbl{font-weight:700}.rp-sum-row .val{font-weight:700}'
+    +'@media print{@page{@bottom-left{content:"Generated: '+genStr+'";font-size:8px;color:#999}}}'; // per-page generated stamp (page X of Y comes from _pCSS @bottom-right)
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery Position (Grand Summary)</title><style>'+_pCSS('A4 landscape')+extra+'</style></head><body>'
     +_lh('Recovery Position (Grand Summary)', D.projName||'All Projects')
-    +'<div class="body">'
-    +'<div class="rp-doc-title">Recovery Position \u2014 Grand Summary</div>'+infoBox
-    +'<table class="rp-tbl">'+_rpColgroup('print')+'<thead>'+head+'</thead><tbody>'+(rows.length?bodyRows:'<tr><td colspan="'+ncols+'" style="text-align:center;padding:20px;color:#888">No active sales for this selection</td></tr>')+'</tbody></table>'
-    +'<div class="sec-title">Officer Recovery Summary \u2014 '+esc(D.periodLbl||'')+'</div>'
-    +'<table class="rp-off-tbl">'+(officers.length?('<thead><tr><th>Officer</th><th class="num">Dead Recovery</th><th class="num">Current Recovery</th><th class="num">Total</th></tr></thead><tbody>'+offRows+'<tr class="rp-sub"><td>TOTAL</td><td class="num">'+fM(offTot.d)+'</td><td class="num">'+fM(offTot.c)+'</td><td class="num">'+fM(offTot.d+offTot.c)+'</td></tr></tbody>'):'<tbody><tr><td style="padding:8px;color:#888">No officer recovery recorded for this period.</td></tr></tbody>')+'</table>'
+    +'<div class="body"><div class="rp-doc-title">Recovery Position — Grand Summary</div>'+infoBox+kpiStrip
+    +'<table class="rp-tbl">'+cg+'<thead>'+head+'</thead><tbody>'+(rows.length?body+grand:'<tr><td colspan="10" style="text-align:center;padding:20px;color:#888">No active sales</td></tr>')+'</tbody></table>'
     +summaryBox
-    +_sigBlock()
-    +'</div></body></html>';
-  _printHTML(html,'Recovery Position (Grand Summary)');
+    +'<div class="sec-title">Officer Recovery Summary — '+esc(D.periodLbl||'')+'</div>'
+    +'<table class="rp-off-tbl">'+(officers.length?('<thead><tr><th>Officer</th><th class="num">Dead (&gt;90d)</th><th class="num">Current</th><th class="num">Total</th></tr></thead><tbody>'+offRows+'<tr><td>TOTAL</td><td class="num">'+pnum(od)+'</td><td class="num">'+pnum(oc)+'</td><td class="num">'+pnum(od+oc)+'</td></tr></tbody>'):'<tbody><tr><td style="padding:8px;color:#888">No period receipts.</td></tr></tbody>')+'</table>'
+    +_sigBlock()+'</div></body></html>';
+  _rpEmitPrint(html,'Recovery Position (Grand Summary)');
 }
 
-// \u2500\u2500 EXCEL \u2014 sections as blocks + subtotals + grand total + officer block, one sheet \u2500\u2500
+// ── EXCEL — 10 visible columns + all splits, grand total, officer + statement ──
 function _rpExcel(){
   if(typeof XLSX==='undefined'){toast('Excel library not loaded','warn');return;}
   var D=window._rpData; if(!D||!D.res){toast('Run the report first, then export','warn');return;}
-  var res=D.res, rows=Array.isArray(res.rows)?res.rows:[], totals=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
-  var g=function(k){return _rpGrand(rows,totals,k);};
-  var labels=RP_COLS.map(function(c){return c.l;});
-  var val=function(r,c,sno){
-    if(c.t==='sno')return sno;
-    if(c.t==='money'||c.t==='num')return Number(r[c.k]||0);
-    if(c.t==='pct')return r[c.k]!=null?Number(r[c.k]):'';
-    if(c.t==='date')return r[c.k]?fD(r[c.k]):'';
-    if(c.t==='lastpay')return r[c.k]?fD(r[c.k]):'Never';
-    if(c.t==='flag')return r[c.k]?'Yes':'';
-    return r[c.k]!=null?String(r[c.k]):'';
-  };
+  var res=D.res, t=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
+  var rows=(window._rp2&&window._rp2.rows)?_rp2_view():(Array.isArray(res.rows)?res.rows:[]);
+  var hdr=['S#','Client Code','Client Name','Unit','Floor','Net Price','Opening','Opening DP','Opening Arrears','Due','Recovered','vs DP','vs Old','vs Current','Advance','Advance B/F','Closing','Closing DP','Closing Old','Closing Current','Paid %','Overdue Days'];
   var aoa=[];
-  aoa.push(['Recovery Position \u2014 Grand Summary']);
-  aoa.push(['Company',S?S.coName||'':'','Project',D.projName||'All Projects','Period',D.periodLbl||((D.fromLbl||'')+' to '+(D.toLbl||''))]);
-  aoa.push([]);
-  aoa.push(labels);
-  var sno=0;
-  _rpGroups(rows).forEach(function(grp){
-    aoa.push([grp.cat+' ('+grp.items.length+')']);
-    grp.items.forEach(function(r){sno++;aoa.push(RP_COLS.map(function(c){return val(r,c,sno);}));});
-    aoa.push(RP_COLS.map(function(c,i){if(i===0)return grp.cat+' \u2014 Subtotal';if(c.sub)return grp.items.reduce(function(s,r){return s+Number(r[c.k]||0);},0);return '';}));
-  });
-  aoa.push(RP_COLS.map(function(c,i){if(i===0)return 'GRAND TOTAL';if(c.sub)return g(c.k);return '';}));
-  aoa.push([]);aoa.push([]);
-  aoa.push(['Officer Recovery Summary \u2014 '+(D.periodLbl||'')]);
-  aoa.push(['Officer','Dead Recovery','Current Recovery','Total']);
-  var od=0,oc=0;
-  officers.forEach(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);od+=d;oc+=c;aoa.push([o.officer_name||'\u2014',d,c,d+c]);});
+  aoa.push(['Recovery Position — Grand Summary (Rollforward)']);
+  aoa.push(['Company',S?S.coName||'':'','Project',D.projName||'All Projects','Period',D.periodLbl||'']);
+  aoa.push([]); aoa.push(hdr);
+  rows.forEach(function(r,i){aoa.push([i+1,r.client_code||'',r.client_name||'',r.unit_no||'',r.floor_name||'',
+    Number(r.net_price||0),Number(r.opening||0),Number(r.opening_dp||0),Number(r.opening_arrears||0),Number(r.due_period||0),
+    Number(r.received_total||0),Number(r.r_dp||0),Number(r.r_old||0),Number(r.r_cur||0),Number(r.r_advance||0),Number(r.advance_bf||0),
+    Number(r.closing||0),Number(r.closing_dp||0),Number(r.closing_old||0),Number(r.closing_current||0),
+    Number(r.paid_pct||0),(r.overdue_days==null?'':Number(r.overdue_days))]);});
+  aoa.push(['','','GRAND TOTAL','','',Number(t.net_price||0),Number(t.opening||0),Number(t.opening_dp||0),Number(t.opening_arrears||0),Number(t.due||0),
+    Number(t.received_total||0),Number(t.r_dp||0),Number(t.r_old||0),Number(t.r_cur||0),Number(t.r_advance||0),Number(t.advance_bf||0),
+    Number(t.closing||0),Number(t.closing_dp||0),Number(t.closing_old||0),Number(t.closing_current||0),'','']);
+  aoa.push([]); aoa.push(['Rollforward Statement']);
+  aoa.push(['Opening Balance',Number(t.opening||0)]);
+  aoa.push(['+ Due This Period',Number(t.due||0)]);
+  aoa.push(['- Recovered (applied)',Number(t.received_applied||0)]);
+  aoa.push(['- Advance B/F Adjusted',Number(t.advance_bf||0)]);
+  aoa.push(['= Closing Balance',Number(t.closing||0)]);
+  aoa.push(['Recovery %',(t.recovery_pct!=null?Number(t.recovery_pct):0)]);
+  aoa.push([]); aoa.push(['Officer Recovery Summary — '+(D.periodLbl||'')]);
+  aoa.push(['Officer','Dead Recovery (>90d)','Current Recovery','Total']);
+  var od=0,oc=0; officers.forEach(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);od+=d;oc+=c;aoa.push([o.officer_name||'—',d,c,d+c]);});
   aoa.push(['TOTAL',od,oc,od+oc]);
   var ws=XLSX.utils.aoa_to_sheet(aoa);
-  xlsxWesternNumFmt(ws);
+  if(typeof xlsxWesternNumFmt==='function')xlsxWesternNumFmt(ws);
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Recovery Position');
   var fname='Nexunova_RecoveryPosition_'+(D.from||td())+'_'+(D.to||td())+'.xlsx';
