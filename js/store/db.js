@@ -218,43 +218,137 @@ async function getClient(clientId) {
   } catch (err) { console.error('Exception in getClient:', err); return null; }
 }
 
+// RPC-only. The old localStorage-first fallback (fake 'local_' ids that never reached
+// the DB) was removed 2026-06-12 — a failed save must FAIL LOUDLY, never persist a
+// browser-only record. Currently has no callers (clients.js calls the RPCs directly);
+// kept as a guarded stub so any future re-wiring inherits the safe behaviour.
 async function saveClient(data) {
   const { id, ...clientData } = data;
   const cid = data.company_id;
-
-  // Always persist to localStorage first
-  const db = gdb();
-  if(!db.clients) db.clients = {};
-  if(!db.clients[cid]) db.clients[cid] = [];
-
-  let localRecord;
-  if(id) {
-    const idx = db.clients[cid].findIndex(c => c.id === id);
-    localRecord = { ...clientData, id };
-    if(idx !== -1) db.clients[cid][idx] = localRecord;
-    else db.clients[cid].push(localRecord);
-  } else {
-    localRecord = { ...clientData, id: 'local_' + Date.now() };
-    db.clients[cid].push(localRecord);
-  }
-  sdb(db);
-
-  // Try Supabase via RPC (best-effort)
   try {
     if(id) {
       const { data: result, error } = await supabase.rpc('update_client', {
         p_id: id, p_company_id: cid, p_data: clientData
       });
-      if(!error && result) return result?.client || result;
+      if(error) throw error;
+      return result?.client || result;
     } else {
       const { data: result, error } = await supabase.rpc('create_client', { p_data: { ...clientData, company_id: cid } });
-      if(!error && result) return result?.client || result;
+      if(error) throw error;
+      return result?.client || result;
     }
   } catch(err) {
-    console.warn('Supabase saveClient failed, using localStorage:', err);
+    console.error('[saveClient] save failed — nothing persisted:', err);
+    if (typeof toast === 'function') toast('Could not save client: ' + (err.message || 'connection error') + ' — please retry', 'err');
+    return { _error: err };
   }
+}
 
-  return localRecord;
+// ─── STRANDED LOCAL CLIENT RECORDS (legacy localStorage fallback recovery) ───
+// Older builds "saved" clients into localStorage['kbh_v4'].clients[cid] with fake
+// 'local_' ids when the RPC failed. Those records never reached the DB. Detect them
+// at login and offer a JSON export so the data can be recovered manually.
+
+function _getStrandedLocalClients() {
+  try {
+    const raw = localStorage.getItem('kbh_v4');
+    if (!raw) return [];
+    const db = JSON.parse(raw);
+    const out = [];
+    Object.keys(db.clients || {}).forEach(cid => {
+      (db.clients[cid] || []).forEach(c => {
+        if (c && typeof c.id === 'string' && c.id.indexOf('local_') === 0) out.push({ company_id: cid, ...c });
+      });
+    });
+    return out;
+  } catch (e) { console.error('[strandedClients] scan failed:', e); return []; }
+}
+
+function downloadStrandedClients() {
+  const rows = _getStrandedLocalClients();
+  if (!rows.length) return;
+  const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'stranded_clients_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+function checkStrandedLocalClients() {
+  const rows = _getStrandedLocalClients();
+  if (!rows.length) return;
+  console.warn('[strandedClients] ' + rows.length + ' unsynced local client record(s) found in this browser (never saved to the database):', rows);
+  _rmsSysBanner('sys-banner-stranded',
+    '<strong>' + rows.length + ' unsaved client record' + (rows.length > 1 ? 's' : '') + '</strong>&nbsp;found in this browser from an older version — ' +
+    (rows.length > 1 ? 'they were' : 'it was') + ' never saved to the database. Export and re-enter ' + (rows.length > 1 ? 'them' : 'it') + '.',
+    '<button class="trial-banner-cta" onclick="downloadStrandedClients()">Download JSON</button>');
+}
+
+// ─── CACHE-LOAD FAILURE TRACKING (FIX 4) ───
+// auth.js records which login-time cache loaders returned false here, so a failed
+// fetch is visually distinguishable from a genuinely empty tenant. Retry re-runs
+// ONLY the failed loaders, then re-renders the current page.
+window._cacheLoadFailed = window._cacheLoadFailed || {};
+
+const _CACHE_LOADERS = {
+  floors:    (cid) => loadFloorsCache(cid),
+  types:     (cid) => loadTypesCache(cid),
+  statuses:  (cid) => loadStatusesCache(cid),
+  saletypes: (cid) => loadSaleTypesCache(cid),
+  projects:  (cid) => loadProjectsCache(cid),
+  clients:   (cid) => loadClientsCache(cid),
+  units:     (cid) => loadUnitsCache(cid),
+};
+
+function showCacheLoadFailureBanner() {
+  const failed = Object.keys(window._cacheLoadFailed);
+  if (!failed.length) return;
+  _rmsSysBanner('sys-banner-cachefail',
+    '<strong>Couldn’t load all data</strong>&nbsp;(' + failed.join(', ') + ') — what you see may be incomplete. This is a connection problem, not missing records.',
+    '<button class="trial-banner-cta" onclick="retryFailedCacheLoads(this)">Retry</button>');
+}
+
+async function retryFailedCacheLoads(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Retrying…'; }
+  const cid = (typeof S !== 'undefined' && S && S.cid) ? S.cid : null;
+  if (!cid) { if (btn) { btn.disabled = false; btn.textContent = 'Retry'; } return; }
+  for (const name of Object.keys(window._cacheLoadFailed)) {
+    const fn = _CACHE_LOADERS[name];
+    if (!fn) { delete window._cacheLoadFailed[name]; continue; }
+    const ok = await fn(cid);
+    if (ok !== false) delete window._cacheLoadFailed[name];
+  }
+  const still = Object.keys(window._cacheLoadFailed);
+  if (!still.length) {
+    const b = document.getElementById('sys-banner-cachefail'); if (b) b.remove();
+    if (typeof toast === 'function') toast('Data loaded', 'ok');
+    const curEl = document.querySelector('.pg.on');
+    if (curEl && typeof nav === 'function') nav(curEl.id.replace(/^pg-/, ''));
+  } else {
+    if (typeof toast === 'function') toast('Still couldn’t load: ' + still.join(', ') + ' — check your connection', 'err');
+    showCacheLoadFailureBanner();
+    if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+  }
+}
+
+// ─── SHARED SYSTEM BANNER (reuses existing trial-banner styles) ───
+// Inserted above the page wrap (sibling of #trial-banner) so page re-renders never wipe it.
+function _rmsSysBanner(id, msgHtml, ctaHtml) {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    const anchor = document.getElementById('trial-banner');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else { const app = document.getElementById('s-app'); if (app) app.insertBefore(el, app.firstChild); else return; }
+  }
+  el.innerHTML =
+    '<div class="trial-banner-inner expired">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+    '<span>' + msgHtml + '</span>' + (ctaHtml || '') +
+    '<button class="demo-banner-close" onclick="document.getElementById(\'' + id + '\').remove()" title="Dismiss">&#10005;</button>' +
+    '</div>';
 }
 
 async function deleteClient(clientId) {

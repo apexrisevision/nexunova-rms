@@ -316,7 +316,11 @@ async function _completeLogin(user, company) {
     return;
   }
 
-  await Promise.all([
+  // Each loader returns false on failure (and console.errors). Record failures in
+  // window._cacheLoadFailed so a failed fetch is distinguishable from a genuinely
+  // empty tenant — banner + retry shown once the app screen is up (below).
+  const _cacheNames = ['floors','types','statuses','saletypes','projects','clients'];
+  const _cacheResults = await Promise.all([
     typeof loadFloorsCache   === 'function' ? loadFloorsCache(company.id)   : Promise.resolve(),
     typeof loadTypesCache    === 'function' ? loadTypesCache(company.id)    : Promise.resolve(),
     typeof loadStatusesCache === 'function' ? loadStatusesCache(company.id) : Promise.resolve(),
@@ -324,7 +328,12 @@ async function _completeLogin(user, company) {
     typeof loadProjectsCache === 'function' ? loadProjectsCache(company.id) : Promise.resolve(),
     typeof loadClientsCache  === 'function' ? loadClientsCache(company.id)  : Promise.resolve(),
   ]);
-  if(typeof loadUnitsCache === 'function') await loadUnitsCache(company.id);
+  window._cacheLoadFailed = {};
+  _cacheResults.forEach((ok, i) => { if (ok === false) window._cacheLoadFailed[_cacheNames[i]] = true; });
+  if(typeof loadUnitsCache === 'function') {
+    const _unitsOk = await loadUnitsCache(company.id);
+    if (_unitsOk === false) window._cacheLoadFailed.units = true;
+  }
   if(typeof loadAppUsersCache === 'function') loadAppUsersCache(company.id).catch(()=>{});
   if(typeof loadContactLogsCache === 'function') loadContactLogsCache(company.id).catch(()=>{});
 
@@ -349,6 +358,14 @@ async function _completeLogin(user, company) {
     nav(effectiveRole()==='recovery' ? 'recovery-dashboard' : 'dashboard');
     if(typeof TUT !== 'undefined') TUT.maybeShow();
   }
+
+  // FIX 4: surface any login-time cache-load failures (toast + retry banner)
+  if (Object.keys(window._cacheLoadFailed || {}).length) {
+    if (typeof toast === 'function') toast('Some data failed to load — not all records are shown', 'err');
+    if (typeof showCacheLoadFailureBanner === 'function') showCacheLoadFailureBanner();
+  }
+  // FIX 3: detect legacy unsynced 'local_' client records stranded in this browser
+  if (typeof checkStrandedLocalClients === 'function') checkStrandedLocalClients();
 
   if(typeof initDemoBanner === 'function') initDemoBanner();
   _checkPlatformAnnouncements();

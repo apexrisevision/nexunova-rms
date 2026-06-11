@@ -458,6 +458,9 @@ function rStatusesList() {
 <div class="cat-qa-inp" id="cat-st-qa-inp">
   <input id="cat-st-qa-val" placeholder="Status name…"
          onkeydown="if(event.key==='Enter')_catQASave('statuses');if(event.key==='Escape')_catQACancel('statuses')">
+  <label title="Units with this status can be sold (appear in New Sale)" style="display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer">
+    <input type="checkbox" id="cat-st-qa-avail" checked> Sellable
+  </label>
   <button class="cat-qa-save" onclick="_catQASave('statuses')" title="Save">${_I.chk}</button>
   <button class="cat-qa-can" onclick="_catQACancel('statuses')" title="Cancel">${_I.xsm}</button>
 </div>`;
@@ -625,7 +628,10 @@ async function _catQASave(col) {
       rTypesList();
     } else {
       const statusCode = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'STATUS';
-      result = await _saveWithFallback(saveUnitStatus, { company_id: S.cid, project_id: _catProject, status_name: name, status_code: statusCode, color_hex: '#64748B', is_available: false, sort_order: sortOrder, is_active: true });
+      // Sellable defaults to TRUE: a quick-added status used to hardcode is_available:false,
+      // which silently hid its units from the New Sale picker (sales.js filters on isAvailable).
+      const qaAvail = document.getElementById('cat-st-qa-avail')?.checked !== false;
+      result = await _saveWithFallback(saveUnitStatus, { company_id: S.cid, project_id: _catProject, status_name: name, status_code: statusCode, color_hex: '#64748B', is_available: qaAvail, sort_order: sortOrder, is_active: true });
       if (!result || result._error) { notify.error('Could not add status'); return; }
       await loadStatusesCache(S.cid);
       _catLog(`Added status "${name}"`);
