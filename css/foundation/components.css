@@ -1,0 +1,299 @@
+/* ════════════════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — FOUNDATION COMPONENT KIT  (Phase 2 · 2026-06-12)
+   ────────────────────────────────────────────────────────────────────────
+   Every class here is nx- prefixed and additive: it never collides with the
+   legacy .card/.btn/.dx-* classes that Phase-3 pages still use. Values come
+   ONLY from tokens.css. No gradients, no emoji, no !important, no inline
+   styles. Phase-3 migrations follow foundation/KIT.md class-for-class.
+
+   Sections:  0 base  ·  1 card  ·  2 button  ·  3 table  ·  4 modal
+              5 form  ·  6 badge/chip  ·  7 KPI  ·  8 empty-state
+              9 page-header  ·  10 banner  ·  11 APP SHELL (Phase 2C)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 0. BASE ──────────────────────────────────────────────────────────── */
+/* Opt-in typography reset for kit subtrees. Add .nx to a container to make
+   its descendants inherit Inter + the base body size without touching the
+   global cascade (keeps legacy pages unaffected). */
+.nx, .nx *{ font-family: var(--fk-font); }
+.nx{ color: var(--fk-text); font-size: var(--fk-fs-body); line-height: var(--fk-leading); }
+
+
+/* ── 1. CARD ──────────────────────────────────────────────────────────── */
+/* One spec. <div class="nx-card"> … </div>  ·  compact = tighter padding. */
+.nx-card{
+  background: var(--fk-bg-card);
+  border: 1px solid var(--fk-border);
+  border-radius: var(--fk-radius-card);
+  box-shadow: var(--fk-shadow);
+  padding: var(--fk-sp-4);                 /* 16px */
+  color: var(--fk-text);
+}
+.nx-card--compact{ padding: var(--fk-sp-3); }   /* 12px */
+.nx-card--flush{ padding: 0; }                   /* tables flush to the edge */
+
+
+/* ── 2. BUTTON ────────────────────────────────────────────────────────── */
+/* 4 variants × 2 sizes. <button class="nx-btn nx-btn--primary"> … */
+.nx-btn{
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--fk-sp-2);
+  height: var(--fk-h-btn); padding: 0 14px;
+  font-family: var(--fk-font); font-size: var(--fk-fs-body); font-weight: var(--fk-fw-medium);
+  border-radius: var(--fk-radius-control);
+  border: 1px solid transparent; cursor: pointer;
+  white-space: nowrap; user-select: none;
+  transition: background .12s ease, border-color .12s ease, color .12s ease, opacity .12s ease;
+}
+.nx-btn:focus-visible{ outline: 2px solid var(--fk-primary); outline-offset: 2px; }
+.nx-btn:disabled{ opacity: .5; cursor: not-allowed; }
+.nx-btn svg{ width: 15px; height: 15px; }
+
+.nx-btn--primary{ background: var(--fk-primary); color: #fff; }
+.nx-btn--primary:hover:not(:disabled){ background: var(--fk-primary-hover); }
+
+.nx-btn--secondary{ background: var(--fk-bg-card); color: var(--fk-text); border-color: var(--fk-border); }
+.nx-btn--secondary:hover:not(:disabled){ background: var(--fk-bg-subtle); }
+
+.nx-btn--ghost{ background: transparent; color: var(--fk-text-muted); }
+.nx-btn--ghost:hover:not(:disabled){ background: var(--fk-bg-subtle); color: var(--fk-text); }
+
+.nx-btn--danger{ background: var(--fk-danger); color: #fff; }
+.nx-btn--danger:hover:not(:disabled){ background: #B91C1C; }
+
+.nx-btn--sm{ height: var(--fk-h-btn-sm); padding: 0 10px; }
+.nx-btn--icon{ width: var(--fk-h-btn); padding: 0; }
+.nx-btn--icon.nx-btn--sm{ width: var(--fk-h-btn-sm); }
+
+
+/* ── 3. TABLE — the single standard ───────────────────────────────────── */
+/* <table class="nx-table"> with <thead><th> … numeric cells get class="num". */
+.nx-table{ width: 100%; border-collapse: collapse; font-size: var(--fk-fs-body); color: var(--fk-text); }
+.nx-table thead th{
+  position: sticky; top: 0; z-index: 1;
+  background: var(--fk-bg-subtle);
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  text-transform: uppercase; letter-spacing: var(--fk-tracking-label);
+  color: var(--fk-text-muted); text-align: left;
+  height: var(--fk-h-row); padding: 0 var(--fk-sp-3);
+  border-bottom: 1px solid var(--fk-border);
+}
+.nx-table tbody td{
+  height: var(--fk-h-row); padding: 0 var(--fk-sp-3);
+  border-bottom: 1px solid var(--fk-border);
+  vertical-align: middle;
+}
+.nx-table tbody tr:hover{ background: var(--fk-bg-subtle); }
+.nx-table th.num, .nx-table td.num{ text-align: right; font-variant-numeric: tabular-nums; }
+.nx-table--flush thead th:first-child, .nx-table--flush tbody td:first-child{ padding-left: var(--fk-sp-4); }
+.nx-table--flush thead th:last-child,  .nx-table--flush tbody td:last-child{  padding-right: var(--fk-sp-4); }
+
+
+/* ── 4. MODAL ─────────────────────────────────────────────────────────── */
+/* <div class="nx-modal-overlay"><div class="nx-modal nx-modal--m"> … */
+.nx-modal-overlay{
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(15,23,42,0.55);
+  display: flex; align-items: center; justify-content: center; padding: var(--fk-sp-4);
+}
+.nx-modal{
+  background: var(--fk-bg-card); color: var(--fk-text);
+  border: 1px solid var(--fk-border); border-radius: var(--fk-radius-card);
+  box-shadow: var(--fk-shadow);
+  width: 100%; max-height: calc(100vh - 48px); display: flex; flex-direction: column;
+}
+.nx-modal--s{ max-width: var(--fk-modal-s); }
+.nx-modal--m{ max-width: var(--fk-modal-m); }
+.nx-modal--l{ max-width: var(--fk-modal-l); }
+.nx-modal-header{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--fk-sp-4); border-bottom: 1px solid var(--fk-border);
+}
+.nx-modal-title{ font-size: var(--fk-fs-title); font-weight: var(--fk-fw-semibold); margin: 0; }
+.nx-modal-close{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: none; background: transparent;
+  color: var(--fk-text-muted); border-radius: var(--fk-radius-control); cursor: pointer;
+}
+.nx-modal-close:hover{ background: var(--fk-bg-subtle); color: var(--fk-text); }
+.nx-modal-body{ padding: var(--fk-sp-4); overflow: auto; }
+.nx-modal-footer{
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--fk-sp-2);
+  padding: var(--fk-sp-4); border-top: 1px solid var(--fk-border);
+}
+
+
+/* ── 5. FORM ──────────────────────────────────────────────────────────── */
+.nx-field{ display: flex; flex-direction: column; gap: var(--fk-sp-1); margin-bottom: var(--fk-sp-3); }
+.nx-label{
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  text-transform: uppercase; letter-spacing: var(--fk-tracking-label);
+  color: var(--fk-text-muted);
+}
+.nx-label .nx-req{ color: var(--fk-danger); margin-left: 2px; }     /* required marker */
+.nx-input, .nx-select, .nx-textarea{
+  width: 100%; height: var(--fk-h-input); box-sizing: border-box;
+  padding: 0 var(--fk-sp-3);
+  font-family: var(--fk-font); font-size: var(--fk-fs-body); color: var(--fk-text);
+  background: var(--fk-bg-card);
+  border: 1px solid var(--fk-border); border-radius: var(--fk-radius-control);
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.nx-textarea{ height: auto; min-height: 80px; padding: var(--fk-sp-2) var(--fk-sp-3); resize: vertical; }
+.nx-input:focus, .nx-select:focus, .nx-textarea:focus{
+  outline: none; border-color: var(--fk-primary);
+  box-shadow: 0 0 0 2px var(--fk-primary-tint);
+}
+.nx-input::placeholder, .nx-textarea::placeholder{ color: var(--fk-text-muted); }
+.nx-field--error .nx-input,
+.nx-field--error .nx-select,
+.nx-field--error .nx-textarea{ border-color: var(--fk-danger); }
+.nx-error{ font-size: var(--fk-fs-label); color: var(--fk-danger); min-height: 14px; }
+
+
+/* ── 6. BADGE / CHIP ──────────────────────────────────────────────────── */
+/* <span class="nx-badge nx-badge--success">Active</span> */
+.nx-badge{
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 8px;
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  border-radius: 999px; white-space: nowrap;
+  background: var(--fk-bg-subtle); color: var(--fk-text-muted);
+}
+.nx-badge--success{ background: var(--fk-success-tint); color: var(--fk-success); }
+.nx-badge--warning{ background: var(--fk-warning-tint); color: var(--fk-warning); }
+.nx-badge--danger{  background: var(--fk-danger-tint);  color: var(--fk-danger); }
+.nx-badge--info{    background: var(--fk-info-tint);    color: var(--fk-info); }
+.nx-badge--primary{ background: var(--fk-primary-tint); color: var(--fk-primary); }
+/* dot variant for status dots inside the badge */
+.nx-badge .nx-dot{ width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* count chip — used in the sidebar nav + filter pills */
+.nx-chip{
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
+  padding: 0 5px; font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  border-radius: 999px; background: var(--fk-bg-subtle); color: var(--fk-text-muted);
+}
+
+
+/* ── 7. KPI CARD ──────────────────────────────────────────────────────── */
+.nx-kpi{
+  display: flex; flex-direction: column; gap: var(--fk-sp-1);
+  background: var(--fk-bg-card); border: 1px solid var(--fk-border);
+  border-radius: var(--fk-radius-card); box-shadow: var(--fk-shadow);
+  padding: var(--fk-sp-4);
+}
+.nx-kpi-label{
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  text-transform: uppercase; letter-spacing: var(--fk-tracking-label); color: var(--fk-text-muted);
+}
+.nx-kpi-value{ font-size: var(--fk-fs-kpi); font-weight: var(--fk-fw-semibold); color: var(--fk-text); font-variant-numeric: tabular-nums; }
+.nx-kpi-delta{ font-size: var(--fk-fs-label); font-weight: var(--fk-fw-medium); }
+.nx-kpi-delta--up{ color: var(--fk-success); }
+.nx-kpi-delta--down{ color: var(--fk-danger); }
+
+
+/* ── 8. EMPTY STATE ───────────────────────────────────────────────────── */
+.nx-empty{
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--fk-sp-3); padding: var(--fk-sp-6); text-align: center; color: var(--fk-text-muted);
+}
+.nx-empty-icon{ color: var(--fk-text-muted); opacity: .7; }
+.nx-empty-icon svg{ width: 28px; height: 28px; }
+.nx-empty-msg{ font-size: var(--fk-fs-body); color: var(--fk-text-muted); max-width: 320px; }
+
+
+/* ── 9. PAGE HEADER ───────────────────────────────────────────────────── */
+.nx-page-header{
+  display: flex; align-items: center; justify-content: space-between; gap: var(--fk-sp-4);
+  margin-bottom: var(--fk-sp-4);
+}
+.nx-page-title{ font-size: var(--fk-fs-page); font-weight: var(--fk-fw-bold); color: var(--fk-text); margin: 0; }
+.nx-page-actions{ display: flex; align-items: center; gap: var(--fk-sp-2); }
+
+
+/* ── 10. BANNER ───────────────────────────────────────────────────────── */
+.nx-banner{
+  display: flex; align-items: center; gap: var(--fk-sp-2);
+  padding: var(--fk-sp-3) var(--fk-sp-4);
+  font-size: var(--fk-fs-body); border-radius: var(--fk-radius-card);
+  border: 1px solid var(--fk-border);
+}
+.nx-banner--info{    background: var(--fk-info-tint);    border-color: var(--fk-info);    color: var(--fk-text); }
+.nx-banner--warn{    background: var(--fk-warning-tint); border-color: var(--fk-warning); color: var(--fk-text); }
+.nx-banner--danger{  background: var(--fk-danger-tint);  border-color: var(--fk-danger);  color: var(--fk-text); }
+.nx-banner svg{ width: 16px; height: 16px; flex: none; }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   11. APP SHELL — Phase 2C "normalize in place"
+   ────────────────────────────────────────────────────────────────────────
+   Token-based re-skin of the EXISTING sidebar (#s-app .sb) and Aurora topbar
+   (#auroraTopbar) markup. We keep their structure/identity and only normalise
+   colour, type and elevation to the kit (kill gradients, swap stray #2563EB →
+   indigo, Plus Jakarta → Inter, formalise nav group labels / count chips /
+   active left-bar). These rules are scoped to shell IDs so no page content is
+   affected. Specificity is kept high enough to win over the legacy shell CSS
+   without !important.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* page container — consistent surface + 24px gutters */
+#s-app .pw{ background: var(--fk-bg-page); }
+#s-app .pw{ padding-left: var(--fk-sp-6); padding-right: var(--fk-sp-6); }
+
+/* sidebar surface + Inter */
+#s-app .sb{
+  background: var(--fk-bg-sidebar);
+  border-right: 1px solid var(--fk-border);
+  font-family: var(--fk-font);
+}
+#s-app .sb, #s-app .sb *{ font-family: var(--fk-font); }
+
+/* nav group header — flat, 11px uppercase muted label + count chip */
+#s-app .sb .nav-grp-hd{ background: transparent; }
+#s-app .sb .nav-grp-lbl{
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  text-transform: uppercase; letter-spacing: var(--fk-tracking-label);
+  color: var(--fk-text-muted);
+}
+#s-app .sb .nav-grp-cnt{
+  background: var(--fk-bg-subtle); color: var(--fk-text-muted);
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  border-radius: 999px; min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* nav item — 13px, no gradient, flat */
+#s-app .sb .ni{
+  font-size: var(--fk-fs-body); font-weight: var(--fk-fw-medium);
+  color: var(--fk-text-muted); background: transparent;
+  border-radius: var(--fk-radius-control);
+}
+#s-app .sb .ni .ni-lb{ font-weight: var(--fk-fw-medium); }
+#s-app .sb .ni:hover{ background: var(--fk-bg-subtle); color: var(--fk-text); }
+
+/* active item — indigo left-bar + tinted background + indigo label/icon */
+#s-app .sb .ni.on{
+  background: var(--fk-primary-tint);
+  color: var(--fk-primary-fg);
+  box-shadow: inset 3px 0 0 0 var(--fk-primary);
+}
+#s-app .sb .ni.on .ni-lb{ color: var(--fk-primary-fg); -webkit-text-fill-color: var(--fk-primary-fg); }
+#s-app .sb .ni.on .ni-ic svg, #s-app .sb .ni.on .ni-ic svg *{ color: var(--fk-primary-fg); stroke: var(--fk-primary-fg); }
+
+/* per-item count badge (.ni-bdg) */
+#s-app .sb .ni .ni-bdg{
+  background: var(--fk-bg-subtle); color: var(--fk-text-muted);
+  font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
+  border-radius: 999px; min-width: 18px; height: 18px; padding: 0 5px;
+}
+#s-app .sb .ni.on .ni-bdg{ background: var(--fk-primary); color: #fff; }
+
+/* Aurora topbar — keep the navigator identity, drop the cyan gradient skin.
+   (Aurora's retire-or-keep is deferred to the Nav phase — see KIT.md.) */
+#auroraTopbar, #auroraTopbar .aurora-topbar-bar{
+  background: var(--fk-bg-card);
+  border-bottom: 1px solid var(--fk-border);
+  font-family: var(--fk-font);
+}
+#auroraTopbar, #auroraTopbar *{ font-family: var(--fk-font); }
+#auroraTopbar .aurora-topbar-trigger{ color: var(--fk-text); }

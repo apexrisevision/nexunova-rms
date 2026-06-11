@@ -17,12 +17,17 @@
 <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/js/intlTelInput.min.js"></script>
 <style>#m-client .iti{width:100%}#m-client .iti__selected-dial-code{font-size:13px}
 #m-agent .iti{width:100%}#m-agent .iti__selected-dial-code{font-size:13px}</style>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Phase 2: Inter ONLY (400/500/600/700) is the product typeface. JetBrains Mono is kept
+     as legacy life-support for old pages that hardcode it for amounts; foundation code never
+     references it (numbers use .num tabular-nums). Plus Jakarta Sans removed. See foundation/KIT.md. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <!-- Nexunova RMS — Modular CSS -->
+<!-- ── FOUNDATION TOKENS (Phase 2) — load early so all CSS can reference --nx-* vars ── -->
+<link rel="stylesheet" href="css/foundation/tokens.css?v=20260612a">
 <link rel="stylesheet" href="css/design-system.css?v=20260526c">
 <link rel="stylesheet" href="css/login.css?v=20260604e">
-<link rel="stylesheet" href="css/app.css?v=20260611a">
+<link rel="stylesheet" href="css/app.css?v=20260612a">
 <link rel="stylesheet" href="css/components.css?v=20260601a">
 <link rel="stylesheet" href="css/pages.css?v=20260511c">
 <link rel="stylesheet" href="css/schedule.css?v=20260529a">
@@ -54,9 +59,12 @@
 <link rel="stylesheet" href="css/tutorial.css?v=20260517a">
 <link rel="stylesheet" href="css/recovery-queue.css?v=20260611b">
 <!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
-<link rel="stylesheet" href="css/visual-overhaul.css?v=20260611f">
+<link rel="stylesheet" href="css/visual-overhaul.css?v=20260612a">
 <!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260526c">
+<!-- ── FOUNDATION COMPONENT KIT (Phase 2) — loaded LAST so the nx- shell re-skin (section 11)
+     wins over legacy shell CSS without !important. Page-level nx- classes are additive. ── -->
+<link rel="stylesheet" href="css/foundation/components.css?v=20260612a">
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -370,7 +378,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div class="lx-logo-ring"></div>
       <div class="lx-logo-glow"></div>
       <div class="lx-logo-scanline" id="lx-scanline"></div>
-      <img id="lx-logo-img" alt="Nexunova">
+      <img id="lx-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
     </div>
 
     <div class="lx-brand-label lx-reveal" style="transition-delay:0.35s">NEXUNOVA ENTERPRISE PLATFORM</div>
@@ -437,7 +445,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
       <!-- Small logo + brand -->
       <div class="lx-form-logo">
-        <img id="lx-form-logo-img" alt="Nexunova">
+        <img id="lx-form-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
         <div>
           <div class="lx-form-logo-text">Nexunova RMS</div>
           <div class="lx-form-logo-sub">Recovery Management</div>
@@ -738,7 +746,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
   <div class="lx-left">
     <div class="lx-logo-wrap">
       <div class="lx-logo-glow"></div>
-      <img id="sg-logo-img" alt="Nexunova">
+      <img id="sg-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
     </div>
     <div class="lx-brand-label">NEXUNOVA ENTERPRISE PLATFORM</div>
     <h1 class="lx-headline">Start Your<br><span class="lx-headline-grad">Free Trial</span><br>Today</h1>
@@ -775,7 +783,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
       <!-- Logo -->
       <div class="sg-form-logo">
-        <img id="sg-form-logo-img" alt="Nexunova">
+        <img id="sg-form-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
         <div>
           <div class="sg-form-logo-text">Nexunova RMS</div>
           <div class="sg-form-logo-sub">Create Account</div>
@@ -1290,7 +1298,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
                Continuously screams "look at me" without being annoying. -->
           <div class="aurora-topbar-trigger" id="atbTrigger" role="button" tabindex="0" aria-label="Open navigation menu">
             <div class="atb-trigger-logo" aria-hidden="true">
-              <img id="sb-logo-img" src="Logo/Nexunova logos/NexuNova_Icon_512px.png" alt="Nexunova">
+              <img id="sb-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
             </div>
             <div class="atb-current">
               <span class="atb-current-lbl">Now Viewing</span>
@@ -4041,8 +4049,13 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 3. Data helpers: queries over DB -->
 <script src="js/helpers.js?v=20260608d"></script>
 
+<!-- 3.5 FOUNDATION (Phase 2): design-kit render helpers + race-free print emitter.
+     Loaded before ui.js + page modules so NX.* / NXPrint.* are available everywhere. -->
+<script src="js/foundation/kit.js?v=20260612a"></script>
+<script src="js/foundation/print.js?v=20260612a"></script>
+
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260611g"></script>
+<script src="js/ui.js?v=20260612a"></script>
 <script src="js/topbar-aurora.js?v=20260529c"></script>
 
 <!-- 5. Auth: login/logout -->
@@ -4086,7 +4099,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/team.js?v=20260608c"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
 <script src="js/pages/reports.js?v=20260611n"></script>
-<script src="js/pages/print.js?v=20260611a"></script>
+<script src="js/pages/print.js?v=20260612a"></script>
 <script src="js/pages/documents.js?v=20260517d"></script>
 <script src="js/pages/transfers.js?v=20260529a"></script>
 <script src="js/pages/cancellation.js?v=20260528c"></script>
@@ -4144,8 +4157,10 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 11. Three.js particle background -->
 <script src="js/login-bg.js"></script>
 
-<!-- 12. Nexunova logo injection (pixel-level black removal) -->
-<script src="js/logo.js"></script>
+<!-- 12. Nexunova logo — Phase 2 F: the 144KB base64 + runtime canvas matte was baked
+     offline into assets/img/nexunova-logo.png (transparent) and the 5 logo <img> now point
+     at it directly. js/logo.js removed. -->
+
 <script src="js/theme.js?v=20260516a"></script>
 <script src="js/dashboard-animations.js?v=20260512"></script>
 <script src="js/dev-helper.js?v=20260522a"></script>

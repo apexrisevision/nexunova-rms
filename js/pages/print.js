@@ -130,8 +130,17 @@ function _sigBlock(extraCol){
     +_footer();
 }
 
-// ── Shared: send HTML to print (Electron IPC or browser blob) ──
+// ── Shared: send HTML to print ──
+// Phase-2: delegates to the foundation emitter (window.NXPrint.emit), which
+// uses the race-free document.write+print-on-load mechanism (Electron path
+// preserved). Same signature → all existing callers ride the fix unchanged.
+// The inline branch below is a defensive fallback only if foundation/print.js
+// failed to load; it keeps the OLD behaviour rather than throwing.
 function _printHTML(html, title) {
+  if (window.NXPrint && typeof window.NXPrint.emit === 'function') {
+    window.NXPrint.emit(html, title || 'Document');
+    return;
+  }
   if (window.electronPrint) {
     window.electronPrint.print(html, title || 'Document');
   } else {

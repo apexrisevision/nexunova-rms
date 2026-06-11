@@ -1,0 +1,108 @@
+/* ════════════════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — FOUNDATION DESIGN TOKENS  (Phase 2 · 2026-06-12)
+   ────────────────────────────────────────────────────────────────────────
+   This is the ONLY place colours, type sizes, spacing, radius and shadow are
+   defined for NEW (nx-*) code. Legacy page CSS is untouched and keeps its own
+   values until its Phase-3 migration. Do NOT hardcode hex / px in kit code —
+   reference these tokens.
+
+   Rules baked in here (Phase 2 spec):
+     • Typeface: Inter ONLY (weights 400/500/600/700). Numbers use the .num
+       utility (tabular-nums) — there is intentionally NO --mono token.
+     • Brand = indigo --primary #4F46E5. #2563EB appears ONLY as --info below,
+       never as a brand colour.
+     • Type scale is closed: 11 / 13 / 14 / 18 / 20–22px. Nothing above 22px.
+     • Spacing 4/8/12/16/24. Radius 8 (controls) / 12 (cards), max 12.
+     • Exactly one shadow. Zero gradients (chart fills excepted, elsewhere).
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root,
+html[data-theme="light"]{
+
+  /* ── TYPE ───────────────────────────────────────────────────────────── */
+  --fk-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --fk-fs-label: 11px;   /* uppercase, tracked, 600, muted — field/column labels */
+  --fk-fs-body:  13px;   /* body text + table cells */
+  --fk-fs-title: 14px;   /* section / card / modal titles (600) */
+  --fk-fs-page:  18px;   /* page title (700) */
+  --fk-fs-kpi:   20px;   /* KPI values only — may stretch to 22px, never beyond */
+
+  --fk-fw-regular:  400;
+  --fk-fw-medium:   500;
+  --fk-fw-semibold: 600;
+  --fk-fw-bold:     700;
+
+  --fk-tracking-label: 0.06em;
+  --fk-leading: 1.45;
+
+  /* ── BRAND + STATUS  (identical in both themes) ─────────────────────── */
+  --fk-primary:       #4F46E5;              /* indigo — the one brand accent */
+  --fk-primary-hover: #4338CA;
+  --fk-primary-tint:  rgba(79,70,229,0.10); /* active-row / selected background */
+
+  --fk-info:    #2563EB;   /* the ONLY sanctioned use of #2563EB in new code */
+  --fk-success: #16A34A;
+  --fk-warning: #D97706;
+  --fk-danger:  #DC2626;
+
+  --fk-info-tint:    rgba(37,99,235,0.12);
+  --fk-success-tint: rgba(22,163,74,0.12);
+  --fk-warning-tint: rgba(217,119,6,0.12);
+  --fk-danger-tint:  rgba(220,38,38,0.12);
+
+  /* ── SURFACES (light) ───────────────────────────────────────────────── */
+  --fk-bg-page:    #F1F5F9;
+  --fk-bg-card:    #FFFFFF;
+  --fk-bg-sidebar: #FFFFFF;
+  --fk-bg-subtle:  #F8FAFC;   /* table header band, row hover */
+  --fk-border:     #E2E8F0;
+  --fk-text:       #0F172A;
+  --fk-text-muted: #64748B;
+  --fk-primary-fg: #4F46E5;   /* active label/icon colour on sidebar */
+
+  /* ── SPACING ────────────────────────────────────────────────────────── */
+  --fk-sp-1: 4px;
+  --fk-sp-2: 8px;
+  --fk-sp-3: 12px;
+  --fk-sp-4: 16px;
+  --fk-sp-6: 24px;            /* page gutter */
+
+  /* ── RADIUS ─────────────────────────────────────────────────────────── */
+  --fk-radius-control: 8px;  /* inputs, buttons, badges */
+  --fk-radius-card:    12px; /* cards, modals, banners — the ceiling */
+
+  /* ── ELEVATION — the single shadow ──────────────────────────────────── */
+  --fk-shadow: 0 1px 3px rgba(0,0,0,0.06);
+
+  /* ── CONTROL SIZING ─────────────────────────────────────────────────── */
+  --fk-h-btn:     32px;
+  --fk-h-btn-sm:  28px;
+  --fk-h-input:   36px;
+  --fk-h-row:     40px;      /* table row height */
+
+  /* ── MODAL WIDTH TIERS ──────────────────────────────────────────────── */
+  --fk-modal-s: 480px;
+  --fk-modal-m: 640px;
+  --fk-modal-l: 880px;
+}
+
+/* ── SURFACES (dark) — only the surface ramp flips; brand/status are fixed ── */
+html[data-theme="dark"]{
+  --fk-bg-page:    #0B1120;
+  --fk-bg-card:    #111A2E;
+  --fk-bg-sidebar: #0F172A;
+  --fk-bg-subtle:  #0F1B33;
+  --fk-border:     #1E293B;
+  --fk-text:       #E5E7EB;
+  --fk-text-muted: #94A3B8;
+  --fk-primary-fg: #818CF8;  /* lighter indigo reads better on dark */
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Tabular figures for any numeric cell/value. Replaces all mono-for-numbers
+   usage in new code (there is no --mono token by design). */
+.num{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
