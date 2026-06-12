@@ -188,11 +188,18 @@
 
   // ── summary strip ─────────────────────────────────────────────────────────
   function _summaryHTML(out) {
-    const blocks = out.summary || [];
-    if (!blocks.length) return '';
-    return `<div style="display:grid;grid-template-columns:repeat(${Math.min(blocks.length, 6)},1fr);gap:var(--fk-sp-3)">` +
-      blocks.map(b => `<div class="nx-kpi"><div class="nx-kpi-label">${esc(b.label)}</div><div class="nx-kpi-value num">${b.money ? money(b.value) : esc(b.value)}</div></div>`).join('') +
-      `</div>`;
+    const all = out.summary || [];
+    if (!all.length) return '';
+    const period = all.filter(b => !b.cumulative), cum = all.filter(b => b.cumulative);
+    let html = '';
+    if (period.length) html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(period.length, 6)},1fr);gap:var(--fk-sp-3)">` +
+      period.map(b => `<div class="nx-kpi"><div class="nx-kpi-label">${esc(b.label)}</div><div class="nx-kpi-value num">${b.money ? money(b.value) : esc(b.value)}</div></div>`).join('') + `</div>`;
+    // Cumulative (not period-filtered) — rendered visually distinct so the two are never confused.
+    if (cum.length) html += `<div style="display:flex;gap:var(--fk-sp-3);margin-top:var(--fk-sp-2)">` +
+      cum.map(b => `<div class="nx-kpi" style="border-style:dashed;background:var(--fk-bg-subtle)">
+        <div class="nx-kpi-label" style="color:var(--fk-text-muted)">${esc(b.label)} · not period-filtered</div>
+        <div class="nx-kpi-value num" style="color:var(--fk-text-muted)">${b.money ? money(b.value) : esc(b.value)}</div></div>`).join('') + `</div>`;
+    return html;
   }
 
   // ── on-screen document table (supports grouped sub-totals) ─────────────────

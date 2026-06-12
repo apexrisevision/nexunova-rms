@@ -129,17 +129,33 @@ const REPORTS = {
     config: {
       id: 'sales_summary', title: 'Sales Summary', group: 'OPERATIONS', orientation: 'landscape',
       description: 'Bookings in period + cumulative position; floor/type breakdown; cancellations',
-      filters: [{ kind: 'project' }, { kind: 'daterange', allTime: true }, { kind: 'status', label: 'View', default: 'all', options: [{ v: 'all', l: 'All Sales' }, { v: 'active', l: 'Active' }, { v: 'cancelled', l: 'Cancelled (cancel/resale trail)' }] }],
-      fetch: f => {
-        const flt = { limit: 5000 };
+      filters: [{ kind: 'project' }, { kind: 'daterange' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Active' }, { v: 'all', l: 'All (incl. cancelled)' }, { v: 'cancelled', l: 'Cancelled (cancel/resale trail)' }] }],
+      // BUGFIX (Phase 3B-fix): list_sales_for_report honours sale_from/sale_to
+      // (NOT date_from/date_to) — the wrong keys made every period identical.
+      fetch: async f => {
+        if (f.status === 'cancelled') {
+          const flt = { status: 'cancelled', cancel_from: f.from || null, cancel_to: f.to || null, limit: 5000 };
+          if (f.project) flt.project_id = f.project;
+          const r = await supabase.rpc('list_sales_for_report', { p_company_id: S.cid, p_filters: flt });
+          if (r.error) throw r.error;
+          return { rows: r.data || [], cancelled: true };
+        }
+        const flt = { sale_from: f.from || null, sale_to: f.to || null, limit: 5000 };
         if (f.project) flt.project_id = f.project;
-        if (f.status === 'cancelled') { flt.status = 'cancelled'; flt.cancel_from = f.from || null; flt.cancel_to = f.to || null; }
-        else { flt.date_from = f.from || null; flt.date_to = f.to || null; if (f.status === 'active') flt.status = 'active'; }
-        return supabase.rpc('list_sales_for_report', { p_company_id: S.cid, p_filters: flt }).then(r => { if (r.error) throw r.error; return r.data; });
+        if (f.status !== 'all') flt.status = 'active';                // default Active; 'all' = active + cancelled
+        const cumFlt = { status: 'active', limit: 5000 };            // cumulative = ALL active, not period-filtered
+        if (f.project) cumFlt.project_id = f.project;
+        const [period, cumulative] = await Promise.all([
+          supabase.rpc('list_sales_for_report', { p_company_id: S.cid, p_filters: flt }),
+          supabase.rpc('list_sales_for_report', { p_company_id: S.cid, p_filters: cumFlt })
+        ]);
+        if (period.error) throw period.error;
+        const cumulativeNet = (cumulative.data || []).reduce((s, r) => s + Number(r.net_amount || 0), 0);
+        return { rows: period.data || [], cumulativeNet: cumulativeNet, cancelled: false };
       },
       transform: (data, f) => {
-        const cancelled = f.status === 'cancelled';
-        const raw = (data || []).slice();
+        const cancelled = !!(data && data.cancelled);
+        const raw = ((data && data.rows) || []).slice();
         if (cancelled) {
           const rows = raw.map(s => ({
             sale_number: s.sale_number || s.sale_no || '—', booking_date: s.sale_date || s.created_at, client: s.client_name || _rClientName(s.client_id) || '—',
@@ -159,7 +175,9 @@ const REPORTS = {
         const value = rows.reduce((s, r) => s + r.value, 0), disc = rows.reduce((s, r) => s + r.discount, 0), net = rows.reduce((s, r) => s + r.net, 0);
         const byFloor = {}; rows.forEach(r => { const x = byFloor[r.floor || '—'] = byFloor[r.floor || '—'] || { count: 0, net: 0 }; x.count++; x.net += r.net; });
         const appendix = [{ title: 'Floor / Type breakdown', columns: [{ key: 'floor', label: 'Floor' }, { key: 'count', label: 'Units', num: true }, { key: 'net', label: 'Net Value', num: true, fmt: 'money' }], rows: Object.keys(byFloor).sort().map(fl => ({ floor: fl, count: byFloor[fl].count, net: byFloor[fl].net })), totals: { count: rows.length, net }, totalsLabel: 'TOTAL' }];
-        return { columns, rows, totals: { value, discount: disc, net }, totalsLabel: 'TOTAL', summary: [{ label: 'Bookings', value: rows.length }, { label: 'Sales Value', value, money: true }, { label: 'Discount', value: disc, money: true }, { label: 'Net', value: net, money: true }], appendix };
+        const summary = [{ label: 'Bookings (period)', value: rows.length }, { label: 'Sales Value (period)', value, money: true }, { label: 'Discount (period)', value: disc, money: true }, { label: 'Net (period)', value: net, money: true }];
+        if (data && data.cumulativeNet != null) summary.push({ label: 'Cumulative position — net (all active sales)', value: data.cumulativeNet, money: true, cumulative: true });
+        return { columns, rows, totals: { value, discount: disc, net }, totalsLabel: 'PERIOD TOTAL', summary, appendix };
       }
     } },
 
