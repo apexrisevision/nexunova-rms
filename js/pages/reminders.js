@@ -1,37 +1,37 @@
-﻿// ── Reminder System ───────────────────────────────────────────────
-// Shows overdue + upcoming installments/PDC; log reminders sent
+// ── Reminder System ───────────────────────────────────────────────
+// Shows overdue + upcoming installments/PDC; log reminders sent.
+// Phase-3 batch-1: restyled onto the nx- foundation kit. Logic/RPCs unchanged
+// (get_reminders_page_data · create_reminder_log · list_reminder_logs) and the
+// band/merge/clientInfo computations are byte-identical to the legacy version.
 
 let _remFilter  = 'all';   // all | overdue | today | week | month | pdc
 let _remData    = null;    // {installments, pdcRows, sales, clients}
+
+// Band → kit semantic tone (overdue=danger · today=warning · week=info · month=neutral)
+const _REM_TONE = { overdue:'danger', today:'warning', week:'info', month:'' };
+function _remToneVar(band) { const t = _REM_TONE[band]; return t ? 'var(--fk-' + t + ')' : 'var(--fk-text-muted)'; }
+function _remBandLabel(band) { return band === 'overdue' ? 'Overdue' : band === 'today' ? 'Due today' : band === 'week' ? 'This week' : 'This month'; }
 
 // ── Page entry ────────────────────────────────────────────────────
 
 async function rReminders() {
   const el = document.getElementById('pg-reminders');
   if (!el) return;
-  el.innerHTML = `
-  <div class="ph">
-    <div><h2>Reminders</h2><p>Overdue &amp; upcoming payments — track and send reminders</p></div>
-    <button class="btn btn-g btn-sm" onclick="rReminders()">↺ Refresh</button>
-  </div>
-  <div id="rem-body"><div class="card"><div class="cb"><div class="empty"><div class="ei">⏳</div><div class="et">Loading reminders…</div></div></div></div></div>`;
+  el.innerHTML =
+    NX.pageHeader('Reminders', NX.button('Refresh', { variant:'secondary', size:'sm', onclick:'rReminders()' })) +
+    '<div id="rem-body">' + NX.card(NX.empty({ icon:'info', message:'Loading reminders…' })) + '</div>';
 
   try {
     await _remLoad();
     _remRender();
   } catch (e) {
-    document.getElementById('rem-body').innerHTML =
-      `<div class="card"><div class="cb"><div style="color:var(--err);font-size:13px">Failed to load: ${esc(e.message)}</div></div></div>`;
+    document.getElementById('rem-body').innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Could not load reminders — ' + (e.message || 'error') }));
   }
 }
 
 // ── Load data from Supabase ───────────────────────────────────────
 
 async function _remLoad() {
-  const todayStr = td();
-  const in30     = new Date(); in30.setDate(in30.getDate() + 30);
-  const in30Str  = in30.toISOString().split('T')[0];
-
   // Combined bundle via single RPC
   const { data: bundle, error: bErr } = await supabase.rpc('get_reminders_page_data', { p_company_id: S.cid });
   if (bErr) throw bErr;
@@ -51,7 +51,6 @@ async function _remLoad() {
   function clientInfo(saleId) {
     const sale   = salesMap[saleId] || {};
     const unitId = sale.unit_id;
-    // Try localStorage first (has customerName + phone from sale modal)
     const lsUnit = unitId ? (gdbUnits[unitId] || gdbUnits[Object.keys(gdbUnits).find(k => k === unitId)]) : null;
     const cached = clientsCache.find(c => c.id === sale.client_id);
     const unit   = unitId ? gunit(unitId) : null;
@@ -79,8 +78,6 @@ function _remRender() {
   const todayStr = td();
   const in7      = new Date(); in7.setDate(in7.getDate() + 7);
   const in7Str   = in7.toISOString().split('T')[0];
-  const in30     = new Date(); in30.setDate(in30.getDate() + 30);
-  const in30Str  = in30.toISOString().split('T')[0];
 
   const { installments, pdcRows, recentLogs, clientInfo } = _remData;
 
@@ -135,92 +132,67 @@ function _remRender() {
   const weekCnt     = instRows.filter(r => r.band === 'week').length;
   const pdcOverdue  = pdcInfoRows.filter(r => r.band === 'overdue' || r.band === 'today').length;
 
-  const filterBtns = [
-    { id: 'all',     label: 'All',          count: instRows.length + pdcInfoRows.length },
-    { id: 'overdue', label: 'Overdue',   count: overdueCount },
-    { id: 'today',   label: 'Due Today', count: todayCnt },
-    { id: 'week',    label: 'This Week', count: weekCnt },
-    { id: 'month',   label: 'This Month',count: instRows.filter(r => r.band === 'month').length },
-    { id: 'pdc',     label: 'PDC Due',   count: pdcInfoRows.length },
-  ].map(f => `<button class="btn btn-${_remFilter===f.id?'d':'gh'} btn-sm" onclick="_remSetFilter('${f.id}')">${f.label}${f.count ? ` <span style="margin-left:4px;background:${_remFilter===f.id?'rgba(255,255,255,.25)':'var(--line)'};border-radius:10px;padding:1px 6px;font-size:10px">${f.count}</span>` : ''}</button>`).join('');
+  // ── KPI tiles ──
+  const kpis =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--fk-sp-2);margin-bottom:var(--fk-sp-4)">' +
+      NX.card(NX.kpi({ label:'Overdue clients', value:overdueCount, delta:'PKR ' + fM(overdueAmt) + ' total', dot:'danger' }), { compact:true }) +
+      NX.card(NX.kpi({ label:'Due today',     value:todayCnt, dot:'warn' }), { compact:true }) +
+      NX.card(NX.kpi({ label:'Due this week', value:weekCnt,  dot:'info' }), { compact:true }) +
+      NX.card(NX.kpi({ label:'PDC due / overdue', value:pdcOverdue, dot:'warn' }), { compact:true }) +
+    '</div>';
 
-  // Build table rows
+  // ── Filter tabs ──
+  const filterDefs = [
+    { id:'all',     label:'All',        count: instRows.length + pdcInfoRows.length },
+    { id:'overdue', label:'Overdue',    count: overdueCount },
+    { id:'today',   label:'Due today',  count: todayCnt },
+    { id:'week',    label:'This week',  count: weekCnt },
+    { id:'month',   label:'This month', count: instRows.filter(r => r.band === 'month').length },
+    { id:'pdc',     label:'PDC due',    count: pdcInfoRows.length },
+  ];
+  const filterBtns = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--fk-sp-3)">' +
+    filterDefs.map(f => NX.button(f.label + ' · ' + f.count, { variant: _remFilter === f.id ? 'primary' : 'secondary', size:'sm', onclick:"_remSetFilter('" + f.id + "')" })).join('') + '</div>';
+
+  // ── Table rows ──
   const allVisible = [
     ...visibleInst.map(r => _remInstRow(r, todayStr)),
     ...visiblePDC.map(r => _remPDCRow(r, todayStr)),
   ].sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
 
+  const cols = [
+    { label:'Client' }, { label:'Unit' }, { label:'Amount due', num:true },
+    { label:'Due date' }, { label:'Status' }, { label:'Type' }, { label:'', width:'230px' }
+  ];
   const tableHtml = allVisible.length === 0
-    ? `<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:28px;font-size:12px">No reminders in this category. Great job!</td></tr>`
-    : allVisible.map(r => r.html).join('');
+    ? NX.card(NX.empty({ icon:'check', message:'No reminders in this category. Great job!' }))
+    : NX.card('<table class="nx-table nx-table--flush"><thead><tr>' +
+        cols.map(c => '<th class="' + (c.num ? 'num' : '') + '"' + (c.width ? ' style="width:' + c.width + '"' : '') + '>' + NX.esc(c.label) + '</th>').join('') +
+        '</tr></thead><tbody>' + allVisible.map(r => r.html).join('') + '</tbody></table>', { flush:true });
 
-  // Recent logs
+  // ── Recent logs ──
   const logsHtml = recentLogs.length === 0
-    ? `<div style="color:var(--t3);font-size:12px;text-align:center;padding:14px">No reminders sent yet.</div>`
-    : recentLogs.slice(0, 20).map(l => {
-        const typeIcons = { whatsapp:'', email:'', call:'', sms:'', other:'' };
-        const ic = typeIcons[l.reminder_type] || '';
-        return `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--hover)">
-          <span style="font-size:18px">${ic}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700;color:var(--t1)">${esc(l.client_name||'—')}</div>
-            <div style="font-size:10px;color:var(--t3)">${l.amount_due ? 'PKR ' + fM(l.amount_due) + ' · ' : ''}${l.notes ? esc(l.notes) + ' · ' : ''}Sent by ${esc(l.sent_by||'—')}</div>
-          </div>
-          <div style="font-size:10px;color:var(--t3);white-space:nowrap">${fD(l.sent_at?.split('T')[0]||'')}</div>
-        </div>`;
-      }).join('');
+    ? NX.empty({ icon:'inbox', message:'No reminders sent yet.' })
+    : recentLogs.slice(0, 20).map(l =>
+        '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--fk-border)">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + NX.esc(l.client_name || '—') + '</div>' +
+            '<div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">' +
+              (l.amount_due ? 'PKR ' + fM(l.amount_due) + ' · ' : '') + (l.notes ? NX.esc(l.notes) + ' · ' : '') + 'Sent by ' + NX.esc(l.sent_by || '—') +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);white-space:nowrap">' + fD(l.sent_at?.split('T')[0] || '') + '</div>' +
+        '</div>'
+      ).join('');
 
-  el.innerHTML = `
-  <!-- Stats -->
-  <div class="dash-kpi-row" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:20px">
-    <div class="dash-kpi red" style="cursor:default">
-      <div class="dkpi-top"><span class="dkpi-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span class="dkpi-val">${overdueCount}</span></div>
-      <div class="dkpi-lbl">Overdue Clients</div>
-      <div class="dkpi-sub">PKR ${fM(overdueAmt)} total</div>
-    </div>
-    <div class="dash-kpi yellow" style="cursor:default">
-      <div class="dkpi-top"><span class="dkpi-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span class="dkpi-val">${todayCnt}</span></div>
-      <div class="dkpi-lbl">Due Today</div>
-    </div>
-    <div class="dash-kpi blue" style="cursor:default">
-      <div class="dkpi-top"><span class="dkpi-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span class="dkpi-val">${weekCnt}</span></div>
-      <div class="dkpi-lbl">Due This Week</div>
-    </div>
-    <div class="dash-kpi" style="cursor:default">
-      <div class="dkpi-top"><span class="dkpi-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="dkpi-val">${pdcOverdue}</span></div>
-      <div class="dkpi-lbl">PDC Due/Overdue</div>
-    </div>
-  </div>
-
-  <!-- Filter tabs -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">${filterBtns}</div>
-
-  <!-- Main table -->
-  <div class="card mb14">
-    <div class="ch"><h3>Payment Reminders</h3><span style="font-size:11px;color:var(--t3)">${allVisible.length} client${allVisible.length!==1?'s':''}</span></div>
-    <div class="cb" style="padding:0">
-      <div class="tw">
-        <table class="t">
-          <thead><tr>
-            <th>Client</th>
-            <th>Unit</th>
-            <th class="r">Amount Due</th>
-            <th>Due Date</th>
-            <th>Status</th>
-            <th>Type</th>
-            <th>Actions</th>
-          </tr></thead>
-          <tbody>${tableHtml}</tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Recent reminder log -->
-  <div class="card">
-    <div class="ch"><h3>Recent Reminders Sent</h3></div>
-    <div class="cb">${logsHtml}</div>
-  </div>`;
+  el.innerHTML =
+    kpis + filterBtns +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--fk-sp-2)">' +
+      '<div class="nx-kpi-label" style="text-transform:none">Payment reminders</div>' +
+      '<div class="nx-kpi-label">' + allVisible.length + ' client' + (allVisible.length !== 1 ? 's' : '') + '</div>' +
+    '</div>' +
+    tableHtml +
+    '<div style="margin-top:var(--fk-sp-4)"><div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-2)">Recent reminders sent</div>' +
+    NX.card(logsHtml) + '</div>';
 }
 
 // ── Row builders ──────────────────────────────────────────────────
@@ -228,57 +200,50 @@ function _remRender() {
 function _remInstRow(r, todayStr) {
   const days   = r.minDue ? Math.ceil((new Date(r.minDue) - new Date(todayStr)) / 86400000) : null;
   const isOver = r.band === 'overdue';
-  const col    = isOver ? '#ef4444' : r.band === 'today' ? '#f59e0b' : r.band === 'week' ? '#3b82f6' : '#22c55e';
-  const dayLbl = days === null ? '—' : days === 0 ? 'TODAY' : isOver ? `${Math.abs(days)}d ago` : `in ${days}d`;
+  const tone   = _remToneVar(r.band);
+  const dayLbl = days === null ? '—' : days === 0 ? 'Today' : isOver ? `${Math.abs(days)}d ago` : `in ${days}d`;
   const wa     = r.phone ? _remWALink(r, r.outstanding) : '';
-  const em     = r.email ? `<a href="mailto:${esc(r.email)}?subject=${encodeURIComponent('Payment Reminder — Unit ' + r.unitNo)}&body=${encodeURIComponent(_remEmailBody(r))}" class="btn btn-gh btn-xs" target="_blank" title="Send Email">Email</a>` : '';
+  const em     = r.email ? `<a href="mailto:${esc(r.email)}?subject=${encodeURIComponent('Payment Reminder — Unit ' + r.unitNo)}&body=${encodeURIComponent(_remEmailBody(r))}" class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" title="Send Email"><span>Email</span></a>` : '';
   return {
     sortKey: r.minDue || '9999',
-    html: `<tr style="${isOver ? 'background:rgba(239,68,68,.03)' : ''}">
-      <td style="font-weight:700">${esc(r.name)}</td>
-      <td style="font-size:11px;font-family:monospace">${esc(r.unitNo)}</td>
-      <td class="r mono" style="font-weight:700;color:${col}">PKR ${fM(r.outstanding)}</td>
-      <td style="font-size:11px">
-        <div>${r.minDue ? fD(r.minDue) : '—'}</div>
-        <div style="font-size:10px;font-weight:700;color:${col}">${dayLbl}</div>
-      </td>
-      <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${col}18;color:${col};border:1px solid ${col}33">${r.band==='overdue'?'Overdue':r.band==='today'?'Due Today':r.band==='week'?'This Week':'This Month'}</span></td>
-      <td style="font-size:11px;color:var(--t3)">Installment${r.installCount>1?' ('+r.installCount+')':''}</td>
-      <td>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
-          ${wa}${em}
-          <button class="btn btn-gh btn-xs" style="color:var(--ok);border-color:var(--ok)" onclick="_remLog('${r.unitId||''}','${r.saleId||''}','${esc(r.name)}','${esc(r.phone||'')}',${r.outstanding},'whatsapp')" title="Mark Reminded">✓ Reminded</button>
-        </div>
-      </td>
-    </tr>`
+    html:
+      '<tr>' +
+        '<td>' + NX.esc(r.name) + '</td>' +
+        '<td><span class="num">' + NX.esc(r.unitNo) + '</span></td>' +
+        '<td class="num"><span style="color:' + tone + '">PKR ' + fM(r.outstanding) + '</span></td>' +
+        '<td>' + (r.minDue ? fD(r.minDue) : '—') +
+          '<div class="nx-kpi-label" style="text-transform:none;color:' + tone + '">' + dayLbl + '</div></td>' +
+        '<td>' + NX.badge(_remBandLabel(r.band), _REM_TONE[r.band], { dot: isOver }) + '</td>' +
+        '<td><span style="color:var(--fk-text-muted)">Installment' + (r.installCount > 1 ? ' (' + r.installCount + ')' : '') + '</span></td>' +
+        '<td><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">' + wa + em +
+          NX.button('Reminded', { variant:'secondary', size:'sm', icon:'check', onclick:"_remLog('" + (r.unitId || '') + "','" + (r.saleId || '') + "','" + esc(r.name) + "','" + esc(r.phone || '') + "'," + r.outstanding + ",'whatsapp')" }) +
+        '</div></td>' +
+      '</tr>'
   };
 }
 
 function _remPDCRow(r, todayStr) {
   const days   = r.cheque_date ? Math.ceil((new Date(r.cheque_date) - new Date(todayStr)) / 86400000) : null;
   const isOver = r.band === 'overdue';
-  const col    = isOver ? '#ef4444' : r.band === 'today' ? '#f59e0b' : '#3b82f6';
-  const dayLbl = days === null ? '—' : days === 0 ? 'TODAY' : isOver ? `${Math.abs(days)}d ago` : `in ${days}d`;
+  const tone   = _remToneVar(r.band === 'month' ? 'week' : r.band);
+  const toneKey= r.band === 'overdue' ? 'danger' : r.band === 'today' ? 'warning' : 'info';
+  const dayLbl = days === null ? '—' : days === 0 ? 'Today' : isOver ? `${Math.abs(days)}d ago` : `in ${days}d`;
   const wa     = r.phone ? _remWALink(r, r.amount, true) : '';
   return {
     sortKey: r.cheque_date || '9999',
-    html: `<tr style="${isOver ? 'background:rgba(239,68,68,.03)' : ''}">
-      <td style="font-weight:700">${esc(r.name)}</td>
-      <td style="font-size:11px;font-family:monospace">${esc(r.unitNo)}</td>
-      <td class="r mono" style="font-weight:700;color:${col}">PKR ${fM(r.amount||0)}</td>
-      <td style="font-size:11px">
-        <div>${r.cheque_date ? fD(r.cheque_date) : '—'}</div>
-        <div style="font-size:10px;font-weight:700;color:${col}">${dayLbl}</div>
-      </td>
-      <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${col}18;color:${col};border:1px solid ${col}33">${isOver?'PDC Overdue':'PDC Due'}</span></td>
-      <td style="font-size:11px;color:var(--t3)">${esc(r.cheque_no||'—')} · ${esc(r.bank_name||'')}</td>
-      <td>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
-          ${wa}
-          <button class="btn btn-gh btn-xs" style="color:var(--ok);border-color:var(--ok)" onclick="_remLog('${r.unitId||''}','${r.saleId||''}','${esc(r.name)}','${esc(r.phone||'')}',${r.amount||0},'whatsapp')" title="Mark Reminded">✓ Reminded</button>
-        </div>
-      </td>
-    </tr>`
+    html:
+      '<tr>' +
+        '<td>' + NX.esc(r.name) + '</td>' +
+        '<td><span class="num">' + NX.esc(r.unitNo) + '</span></td>' +
+        '<td class="num"><span style="color:' + tone + '">PKR ' + fM(r.amount || 0) + '</span></td>' +
+        '<td>' + (r.cheque_date ? fD(r.cheque_date) : '—') +
+          '<div class="nx-kpi-label" style="text-transform:none;color:' + tone + '">' + dayLbl + '</div></td>' +
+        '<td>' + NX.badge(isOver ? 'PDC overdue' : 'PDC due', toneKey, { dot: isOver }) + '</td>' +
+        '<td><span style="color:var(--fk-text-muted)">' + NX.esc(r.cheque_no || '—') + ' · ' + NX.esc(r.bank_name || '') + '</span></td>' +
+        '<td><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">' + wa +
+          NX.button('Reminded', { variant:'secondary', size:'sm', icon:'check', onclick:"_remLog('" + (r.unitId || '') + "','" + (r.saleId || '') + "','" + esc(r.name) + "','" + esc(r.phone || '') + "'," + (r.amount || 0) + ",'whatsapp')" }) +
+        '</div></td>' +
+      '</tr>'
   };
 }
 
@@ -291,7 +256,7 @@ function _remWALink(r, amount, isPDC) {
     ? `Assalam o Alaikum ${r.name}, aap ke unit ${r.unitNo} ka post-dated cheque PKR ${Number(amount||0).toLocaleString('en-PK')} present hone wala hai. Kripya account mein funds ensure karein. Shukriya. Nexunova.`
     : `Assalam o Alaikum ${r.name}, aap ke unit ${r.unitNo} ki PKR ${Number(amount||0).toLocaleString('en-PK')} ki payment pending hai. Jald payment karein ya rabta karein. Nexunova.`;
   const href = `https://wa.me/${ph}?text=${encodeURIComponent(msg)}`;
-  return `<a href="${href}" target="_blank" class="btn btn-gh btn-xs" style="color:#16a34a;border-color:#16a34a;text-decoration:none" title="Send WhatsApp" onclick="_remLog('${r.unitId||''}','${r.saleId||''}','${esc(r.name)}','${esc(r.phone||'')}',${amount||0},'whatsapp')">WhatsApp</a>`;
+  return `<a href="${href}" target="_blank" class="nx-btn nx-btn--ghost nx-btn--sm" title="Send WhatsApp" onclick="_remLog('${r.unitId||''}','${r.saleId||''}','${esc(r.name)}','${esc(r.phone||'')}',${amount||0},'whatsapp')"><span>WhatsApp</span></a>`;
 }
 
 function _remEmailBody(r) {
@@ -315,7 +280,6 @@ async function _remLog(unitId, saleId, clientName, phone, amountDue, type) {
       }
     });
     toast('Reminder logged', 'ok');
-    // Refresh logs section without full reload
     const { data } = await supabase.rpc('list_reminder_logs', { p_company_id: S.cid, p_limit: 50 });
     if (_remData) _remData.recentLogs = data || [];
     _remRender();

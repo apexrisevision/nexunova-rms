@@ -1,44 +1,21 @@
 // ── Banks Master ─────────────────────────────────────────────────────────────
-// Manage company bank accounts used for PDC & payment references
+// Manage company bank accounts used for PDC & payment references.
+// Phase-3 batch-1: restyled onto the nx- foundation kit. Logic/RPCs unchanged
+// (list_banks · upsert_bank · delete_bank).
 
 let _banksData = null;
+let _bankEditId = null;
+
+function _banksIsAdmin() { return S.role === 'admin' || S.role === 'owner'; }
 
 async function rBanks() {
   const el = document.getElementById('pg-banks');
   if (!el) return;
-  const isA = S.role === 'admin' || S.role === 'owner';
-
-  el.innerHTML = `
-  <div class="ph">
-    <div><h2>Banks</h2><p>Company bank accounts used for PDC &amp; payment tracking</p></div>
-    ${isA ? `<button class="btn btn-p btn-sm" onclick="_bankOpenModal()">+ Add Bank</button>` : ''}
-  </div>
-  <div id="banks-body"><div class="card"><div class="cb"><div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div></div></div></div>
-
-  <!-- Modal -->
-  <div id="bank-modal" class="mo" style="display:none" onclick="if(event.target===this)_bankCloseModal()">
-    <div class="mo-box" style="max-width:480px">
-      <div class="mo-hd"><span id="bank-modal-title">Add Bank</span><button class="mo-cl" onclick="_bankCloseModal()">✕</button></div>
-      <div class="mo-bd">
-        <div class="fg"><label class="fl">Bank Name *</label><input id="bk-bank_name" class="fi" placeholder="e.g. HBL"></div>
-        <div class="fg"><label class="fl">Account Title *</label><input id="bk-account_title" class="fi" placeholder="Company title on account"></div>
-        <div class="fg"><label class="fl">Account Number *</label><input id="bk-account_number" class="fi" placeholder="Account No."></div>
-        <div class="fg"><label class="fl">IBAN</label><input id="bk-iban" class="fi" placeholder="PK00XXXX..."></div>
-        <div class="fg"><label class="fl">Branch</label><input id="bk-branch" class="fi" placeholder="Branch name/code"></div>
-        <div class="fg"><label class="fl">Notes</label><textarea id="bk-notes" class="fi" rows="2"></textarea></div>
-        <div class="fg" style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" id="bk-is_active" checked style="width:16px;height:16px">
-          <label for="bk-is_active" class="fl" style="margin:0">Active</label>
-        </div>
-        <div id="bank-modal-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
-      </div>
-      <div class="mo-ft">
-        <button class="btn btn-g btn-sm" onclick="_bankCloseModal()">Cancel</button>
-        <button class="btn btn-p btn-sm" id="bank-save-btn" onclick="_bankSave()">Save</button>
-      </div>
-    </div>
-  </div>`;
-
+  el.innerHTML =
+    NX.pageHeader('Banks',
+      (_banksIsAdmin() ? NX.button('Add bank', { variant:'primary', icon:'plus', onclick:'_bankOpenModal()' }) : '')) +
+    '<div id="banks-body">' + NX.card(NX.empty({ icon:'info', message:'Loading…' })) + '</div>' +
+    '<div id="bank-modal-host"></div>';
   await _banksLoad();
 }
 
@@ -51,51 +28,68 @@ async function _banksLoad() {
 function _banksRender() {
   const el = document.getElementById('banks-body');
   if (!el) return;
-  const isA = S.role === 'admin' || S.role === 'owner';
+  const isA = _banksIsAdmin();
 
   if (!_banksData.length) {
-    el.innerHTML = `<div class="card"><div class="cb"><div class="empty"><div class="ei">🏦</div><div class="et">No banks added yet${isA ? '<br><button class="btn btn-p btn-sm" style="margin-top:12px" onclick="_bankOpenModal()">+ Add First Bank</button>' : ''}</div></div></div></div>`;
+    el.innerHTML = NX.card(NX.empty({
+      icon:'inbox',
+      message:'No bank accounts yet — add the accounts you use for PDC and payment references.',
+      action: isA ? NX.button('Add bank', { variant:'primary', icon:'plus', onclick:'_bankOpenModal()' }) : ''
+    }));
     return;
   }
 
-  const rows = _banksData.map(b => `
-    <tr>
-      <td style="font-weight:700">${esc(b.bank_name)}</td>
-      <td>${esc(b.account_title)}</td>
-      <td class="mono" style="font-size:12px">${esc(b.account_number)}</td>
-      <td class="mono" style="font-size:11px;color:var(--t3)">${esc(b.iban || '—')}</td>
-      <td style="font-size:12px;color:var(--t3)">${esc(b.branch || '—')}</td>
-      <td><span class="badge ${b.is_active ? 'ok' : 'g'}">${b.is_active ? 'Active' : 'Inactive'}</span></td>
-      ${isA ? `<td style="text-align:right">
-        <button class="btn btn-gh btn-xs" onclick="_bankOpenModal('${b.id}')">Edit</button>
-        <button class="btn btn-r btn-xs" onclick="_bankDelete('${b.id}')">Del</button>
-      </td>` : '<td></td>'}
-    </tr>`).join('');
+  const cols = [
+    { label:'Bank' }, { label:'Account title' }, { label:'Account #', num:true },
+    { label:'IBAN', num:true }, { label:'Branch' }, { label:'Status' }
+  ];
+  if (isA) cols.push({ label:'', width:'140px' });
 
-  el.innerHTML = `<div class="card"><div class="cb">
-    <div class="tw"><table class="t">
-      <thead><tr><th>Bank</th><th>Account Title</th><th>Account #</th><th>IBAN</th><th>Branch</th><th>Status</th>${isA ? '<th></th>' : ''}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-  </div></div>`;
+  const rows = _banksData.map(b => {
+    const cells = [
+      NX.esc(b.bank_name),
+      NX.esc(b.account_title),
+      '<span class="num">' + NX.esc(b.account_number) + '</span>',
+      '<span class="num">' + NX.esc(b.iban || '—') + '</span>',
+      NX.esc(b.branch || '—'),
+      NX.badge(b.is_active ? 'Active' : 'Inactive', b.is_active ? 'success' : '', { dot: b.is_active })
+    ];
+    if (isA) cells.push(
+      '<div style="display:flex;gap:6px;justify-content:flex-end">' +
+        NX.button('Edit',   { variant:'ghost',  size:'sm', onclick:"_bankOpenModal('" + b.id + "')" }) +
+        NX.button('Delete', { variant:'danger', size:'sm', onclick:"_bankDelete('" + b.id + "')" }) +
+      '</div>'
+    );
+    return cells;
+  });
+
+  el.innerHTML = NX.card(NX.table({ cols, rows, flush:true }), { flush:true });
 }
 
-let _bankEditId = null;
+// ── Add / Edit modal (built on the kit, injected into the host) ──────────────
 function _bankOpenModal(id) {
   _bankEditId = id || null;
   const b = id ? _banksData.find(x => x.id === id) : null;
-  document.getElementById('bank-modal-title').textContent = id ? 'Edit Bank' : 'Add Bank';
-  document.getElementById('bk-bank_name').value = b?.bank_name || '';
-  document.getElementById('bk-account_title').value = b?.account_title || '';
-  document.getElementById('bk-account_number').value = b?.account_number || '';
-  document.getElementById('bk-iban').value = b?.iban || '';
-  document.getElementById('bk-branch').value = b?.branch || '';
-  document.getElementById('bk-notes').value = b?.notes || '';
-  document.getElementById('bk-is_active').checked = b ? b.is_active : true;
-  document.getElementById('bank-modal-err').textContent = '';
-  document.getElementById('bank-modal').style.display = 'flex';
+  const active = b ? !!b.is_active : true;
+  document.getElementById('bank-modal-host').innerHTML = NX.modal({
+    title: id ? 'Edit bank' : 'Add bank', size:'s', onClose:'_bankCloseModal()',
+    body:
+      NX.field({ label:'Bank name',      name:'bk-bank_name',      required:true, value:b?.bank_name || '',      placeholder:'e.g. HBL' }) +
+      NX.field({ label:'Account title',  name:'bk-account_title',  required:true, value:b?.account_title || '',  placeholder:'Company title on account' }) +
+      NX.field({ label:'Account number', name:'bk-account_number', required:true, value:b?.account_number || '', placeholder:'Account No.', attrs:'class="nx-input num"' }) +
+      NX.field({ label:'IBAN',           name:'bk-iban',           value:b?.iban || '',   placeholder:'PK00XXXX…', attrs:'class="nx-input num"' }) +
+      NX.field({ label:'Branch',         name:'bk-branch',         value:b?.branch || '', placeholder:'Branch name / code' }) +
+      NX.field({ label:'Notes', name:'bk-notes', el:'textarea', value:b?.notes || '' }) +
+      '<label class="nx-field" style="flex-direction:row;align-items:center;gap:8px;cursor:pointer">' +
+        '<input type="checkbox" id="bk-is_active"' + (active ? ' checked' : '') + '>' +
+        '<span class="nx-label" style="margin:0">Active</span></label>' +
+      '<div class="nx-error" id="bank-modal-err"></div>',
+    footer:
+      NX.button('Cancel', { variant:'ghost', onclick:'_bankCloseModal()' }) +
+      NX.button('Save',   { variant:'primary', attrs:'id="bank-save-btn"', onclick:'_bankSave()' })
+  });
 }
-function _bankCloseModal() { document.getElementById('bank-modal').style.display = 'none'; }
+function _bankCloseModal() { const h = document.getElementById('bank-modal-host'); if (h) h.innerHTML = ''; }
 
 async function _bankSave() {
   const name = document.getElementById('bk-bank_name').value.trim();
@@ -105,7 +99,7 @@ async function _bankSave() {
   if (!name || !title || !acct) { errEl.textContent = 'Bank name, account title, and account number are required.'; return; }
 
   const btn = document.getElementById('bank-save-btn');
-  btn.disabled = true; btn.textContent = 'Saving…';
+  btn.disabled = true; const _bs = btn.querySelector('span'); if (_bs) _bs.textContent = 'Saving…';
 
   const payload = {
     bank_name: name,
@@ -123,7 +117,7 @@ async function _bankSave() {
     p_id: _bankEditId || null
   });
 
-  btn.disabled = false; btn.textContent = 'Save';
+  btn.disabled = false; if (_bs) _bs.textContent = 'Save';
   if (error) { errEl.textContent = error.message; return; }
   _bankCloseModal();
   await _banksLoad();

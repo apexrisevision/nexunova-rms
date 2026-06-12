@@ -756,7 +756,7 @@ function nav(pg,x){
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',
-    possession:'possession', legalcases:'legal', blacklist:'blacklist',
+    legalcases:'legal', blacklist:'blacklist',
     escalations:'escalations', pdc:'pdc',
   };
   const requiredFlag = _PAGE_FLAG[pg];
