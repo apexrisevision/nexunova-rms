@@ -1,18 +1,20 @@
 // ══ PAYMENT METHODS SETTINGS ════════════════════════════════════════
+// Phase-3 batch-2: restyled onto the nx- foundation kit. Logic/RPCs unchanged
+// (list/upsert/delete/set_default/toggle_active). The static m-pm-edit modal is
+// replaced by a host-injected NX.modal (same field ids → pmSave untouched).
 
 let _pmRows   = [];
 let _pmEditId = null;
 
 const _pmTypes = [
-  { type: 'jazzcash',  icon: '<svg width="28" height="28" fill="none" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>', label: 'JazzCash',      bankFields: false },
-  { type: 'easypaisa', icon: '<svg width="28" height="28" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>', label: 'EasyPaisa',     bankFields: false },
-  { type: 'raast',     icon: '<svg width="28" height="28" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>', label: 'Raast',         bankFields: false },
-  { type: 'sadapay',   icon: '<svg width="28" height="28" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', label: 'SadaPay',       bankFields: false },
-  { type: 'nayapay',   icon: '<svg width="28" height="28" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', label: 'NayaPay',       bankFields: false },
-  { type: 'bank',      icon: '<svg width="28" height="28" fill="none" stroke="#0ea5e9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>', label: 'Bank Transfer', bankFields: true  },
+  { type: 'jazzcash',  label: 'JazzCash',      bankFields: false },
+  { type: 'easypaisa', label: 'EasyPaisa',     bankFields: false },
+  { type: 'raast',     label: 'Raast',         bankFields: false },
+  { type: 'sadapay',   label: 'SadaPay',       bankFields: false },
+  { type: 'nayapay',   label: 'NayaPay',       bankFields: false },
+  { type: 'bank',      label: 'Bank Transfer', bankFields: true  },
 ];
 
-function _pmIcon(type)  { return (_pmTypes.find(t => t.type === type) || {}).icon  || '<svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'; }
 function _pmLabel(type) { return (_pmTypes.find(t => t.type === type) || {}).label || type; }
 
 async function rPaymentMethods() {
@@ -20,21 +22,11 @@ async function rPaymentMethods() {
   const el = document.getElementById('pg-payment-methods');
   if (!el) return;
 
-  el.innerHTML = `<div class="ani module-executive">
-    <div class="ph" style="margin-bottom:22px">
-      <div class="ph-l" style="display:flex;align-items:center;gap:12px">
-        <div style="width:44px;height:44px;background:linear-gradient(135deg,#10b981,#0d9488);border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(16,185,129,.32)"><svg width="22" height="22" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-        <div>
-          <h2 style="margin:0;font-size:21px;font-weight:800;color:var(--text);letter-spacing:-.3px">Payment Methods</h2>
-          <p style="margin:3px 0 0;font-size:12px;color:var(--t3)">Configure accounts included in WhatsApp payment links</p>
-        </div>
-      </div>
-      <div class="ph-r">
-        <button class="btn" onclick="pmOpenEdit(null)">+ Add Method</button>
-      </div>
-    </div>
-    <div id="pm-grid-wrap"></div>
-  </div>`;
+  el.innerHTML =
+    NX.pageHeader('Payment methods', NX.button('Add method', { variant:'primary', icon:'plus', onclick:'pmOpenEdit(null)' })) +
+    '<div class="nx-kpi-label" style="text-transform:none;margin:-4px 0 var(--fk-sp-3)">Accounts included in WhatsApp payment links</div>' +
+    '<div id="pm-grid-wrap"></div>' +
+    '<div id="pm-modal-host"></div>';
 
   await pmLoad();
 }
@@ -42,12 +34,12 @@ async function rPaymentMethods() {
 async function pmLoad() {
   const wrap = document.getElementById('pm-grid-wrap');
   if (!wrap) return;
-  wrap.innerHTML = `<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">Loading…</div>`;
+  wrap.innerHTML = NX.card(NX.empty({ icon:'info', message:'Loading…' }));
 
   const { data, error } = await supabase.rpc('list_payment_methods', { p_company_id: S.cid });
 
   if (error) {
-    wrap.innerHTML = `<div style="padding:40px;text-align:center;color:var(--err);font-size:13px">Error: ${esc(error.message)}</div>`;
+    wrap.innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Could not load payment methods — ' + (error.message || 'error') }));
     return;
   }
   _pmRows = data || [];
@@ -59,119 +51,79 @@ function _pmRender() {
   if (!wrap) return;
 
   if (!_pmRows.length) {
-    wrap.innerHTML = `<div style="padding:60px 0;text-align:center">
-      <div style="margin-bottom:12px;opacity:.25"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No payment methods yet</div>
-      <div style="font-size:13px;color:var(--t3);margin-bottom:20px">Add JazzCash, EasyPaisa, Bank Transfer and more</div>
-      <button class="btn" onclick="pmOpenEdit(null)">+ Add First Method</button>
-    </div>`;
+    wrap.innerHTML = NX.card(NX.empty({
+      icon:'inbox',
+      message:'No payment methods yet — add JazzCash, EasyPaisa, Bank Transfer and more.',
+      action: NX.button('Add method', { variant:'primary', icon:'plus', onclick:'pmOpenEdit(null)' })
+    }));
     return;
   }
 
-  wrap.innerHTML = `<div class="pm-grid">${_pmRows.map(_pmCardHTML).join('')}</div>`;
+  wrap.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--fk-sp-3)">' +
+    _pmRows.map(_pmCardHTML).join('') + '</div>';
 }
 
 function _pmCardHTML(m) {
-  const icon  = _pmIcon(m.method_type);
   const label = _pmLabel(m.method_type);
-  return `<div class="pm-card${m.is_active ? '' : ' inactive'}">
-    <span class="pm-type-badge">${esc(label)}</span>
-    <div class="pm-icon">${icon}</div>
-    <div class="pm-title">${esc(m.account_title)}</div>
-    <div class="pm-number">${esc(m.account_number)}</div>
-    ${m.bank_name ? `<div class="pm-bank" style="display:flex;align-items:center;gap:4px"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>${esc(m.bank_name)}${m.branch_code ? ' · ' + esc(m.branch_code) : ''}</div>` : ''}
-    ${m.iban      ? `<div class="pm-bank" style="font-size:10px">IBAN: ${esc(m.iban)}</div>` : ''}
-    <div style="margin-top:10px">
-      ${m.is_default
-        ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.25)">✓ Default</span>`
-        : `<button onclick="pmSetDefault('${m.id}')" style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--t3);cursor:pointer;font-family:inherit" onmouseover="this.style.borderColor='#10b981';this.style.color='#059669'" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--t3)'">Set Default</button>`}
-    </div>
-    <div class="pm-actions">
-      <label class="tog" title="${m.is_active ? 'Active' : 'Inactive'}">
-        <input type="checkbox" ${m.is_active ? 'checked' : ''} onchange="pmToggleActive('${m.id}',this.checked)">
-        <span class="tog-sl"></span>
-      </label>
-      <button onclick="pmOpenEdit('${m.id}')" style="flex:1;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);color:#6366f1;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(99,102,241,.15)'" onmouseout="this.style.background='rgba(99,102,241,.08)'">Edit</button>
-      <button onclick="pmDelete('${m.id}')" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#dc2626;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(239,68,68,.15)'" onmouseout="this.style.background='rgba(239,68,68,.08)'">Del</button>
-    </div>
-  </div>`;
+  const inner =
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:var(--fk-sp-2)">' +
+      NX.badge(label, 'primary') +
+      (m.is_default ? NX.badge('Default', 'success', { dot:true })
+                    : NX.button('Set default', { variant:'ghost', size:'sm', onclick:"pmSetDefault('" + m.id + "')" })) +
+    '</div>' +
+    '<div style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + NX.esc(m.account_title) + '</div>' +
+    '<div class="num" style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">' + NX.esc(m.account_number) + '</div>' +
+    (m.bank_name ? '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">' + NX.esc(m.bank_name) + (m.branch_code ? ' · ' + NX.esc(m.branch_code) : '') + '</div>' : '') +
+    (m.iban ? '<div class="nx-kpi-label" style="text-transform:none"><span class="num">IBAN: ' + NX.esc(m.iban) + '</span></div>' : '') +
+    '<div style="display:flex;align-items:center;gap:8px;margin-top:var(--fk-sp-3);padding-top:var(--fk-sp-2);border-top:1px solid var(--fk-border)">' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="' + (m.is_active ? 'Active' : 'Inactive') + '">' +
+        '<input type="checkbox" ' + (m.is_active ? 'checked' : '') + ' onchange="pmToggleActive(\'' + m.id + '\',this.checked)">' +
+        '<span class="nx-kpi-label" style="text-transform:none">' + (m.is_active ? 'Active' : 'Inactive') + '</span></label>' +
+      '<span style="flex:1"></span>' +
+      NX.button('Edit',   { variant:'secondary', size:'sm', onclick:"pmOpenEdit('" + m.id + "')" }) +
+      NX.button('Delete', { variant:'danger',    size:'sm', onclick:"pmDelete('" + m.id + "')" }) +
+    '</div>';
+  return NX.card(inner, { class: m.is_active ? '' : 'nx-card' , compact:true });
 }
 
 function pmOpenEdit(id) {
   _pmEditId = id;
   const m = id ? _pmRows.find(r => r.id === id) : null;
 
-  const typeOptions = _pmTypes.map(t =>
-    `<option value="${t.type}"${m && m.method_type === t.type ? ' selected' : ''}>${t.label}</option>`
-  ).join('');
+  const body =
+    NX.field({ label:'Method type', name:'pm-type', el:'select', value:m?.method_type || 'jazzcash',
+               options:_pmTypes.map(t => ({ value:t.type, label:t.label })), attrs:'onchange="_pmShowFields()"' }) +
+    NX.field({ label:'Account title', name:'pm-title', value:m?.account_title || '', placeholder:'e.g. Muhammad Ali' }) +
+    '<div class="nx-field"><label class="nx-label" id="pm-num-lbl">Account / mobile number</label>' +
+      '<input class="nx-input" id="pm-number" type="text" placeholder="03001234567" value="' + NX.esc(m?.account_number || '') + '"></div>' +
+    '<div id="pm-bank-fields" style="display:none;flex-direction:column">' +
+      NX.field({ label:'Bank name', name:'pm-bank', value:m?.bank_name || '', placeholder:'e.g. HBL, MCB, UBL' }) +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">' +
+        NX.field({ label:'Branch code', name:'pm-branch', value:m?.branch_code || '', placeholder:'Optional' }) +
+        NX.field({ label:'SWIFT code',  name:'pm-swift',  value:m?.swift_code || '',  placeholder:'Optional' }) +
+      '</div>' +
+      NX.field({ label:'IBAN', name:'pm-iban', value:m?.iban || '', placeholder:'PK36SCBL0000001123456702', attrs:'class="nx-input num"' }) +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3);align-items:end">' +
+      NX.field({ label:'Display order', name:'pm-order', type:'number', value:(m ? m.display_order : _pmRows.length), attrs:'min="0" class="nx-input num"' }) +
+      '<div style="display:flex;gap:16px;align-items:center;padding-bottom:8px">' +
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--fk-fs-body);color:var(--fk-text)"><input type="checkbox" id="pm-active" ' + (m ? (m.is_active ? 'checked' : '') : 'checked') + '> Active</label>' +
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--fk-fs-body);color:var(--fk-text)"><input type="checkbox" id="pm-default" ' + (m?.is_default ? 'checked' : '') + '> Default</label>' +
+      '</div>' +
+    '</div>' +
+    NX.field({ label:'Notes (internal)', name:'pm-notes', value:m?.notes || '', placeholder:'Optional' });
 
-  document.getElementById('pm-mbody').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="fg">
-        <label class="fl">Method Type</label>
-        <select id="pm-type" class="fi" onchange="_pmShowFields()">
-          ${typeOptions}
-        </select>
-      </div>
-      <div class="fg">
-        <label class="fl">Account Title</label>
-        <input id="pm-title" class="fi" type="text" placeholder="e.g. Muhammad Ali" value="${esc(m?.account_title || '')}">
-      </div>
-      <div class="fg">
-        <label class="fl" id="pm-num-lbl">Account / Mobile Number</label>
-        <input id="pm-number" class="fi" type="text" placeholder="03001234567" value="${esc(m?.account_number || '')}">
-      </div>
-      <div id="pm-bank-fields" style="display:none;flex-direction:column;gap:14px">
-        <div class="fg">
-          <label class="fl">Bank Name</label>
-          <input id="pm-bank" class="fi" type="text" placeholder="e.g. HBL, MCB, UBL" value="${esc(m?.bank_name || '')}">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="fg">
-            <label class="fl">Branch Code</label>
-            <input id="pm-branch" class="fi" type="text" placeholder="Optional" value="${esc(m?.branch_code || '')}">
-          </div>
-          <div class="fg">
-            <label class="fl">SWIFT Code</label>
-            <input id="pm-swift" class="fi" type="text" placeholder="Optional" value="${esc(m?.swift_code || '')}">
-          </div>
-        </div>
-        <div class="fg">
-          <label class="fl">IBAN</label>
-          <input id="pm-iban" class="fi" type="text" placeholder="PK36SCBL0000001123456702" value="${esc(m?.iban || '')}">
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="fg">
-          <label class="fl">Display Order</label>
-          <input id="pm-order" class="fi" type="number" min="0" value="${m ? m.display_order : _pmRows.length}">
-        </div>
-        <div class="fg">
-          <label class="fl">&nbsp;</label>
-          <div style="display:flex;gap:16px;align-items:center;padding-top:6px">
-            <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer">
-              <input type="checkbox" id="pm-active" ${m ? (m.is_active ? 'checked' : '') : 'checked'}> Active
-            </label>
-            <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer">
-              <input type="checkbox" id="pm-default" ${m?.is_default ? 'checked' : ''}> Default
-            </label>
-          </div>
-        </div>
-      </div>
-      <div class="fg">
-        <label class="fl">Notes (internal)</label>
-        <input id="pm-notes" class="fi" type="text" placeholder="Optional" value="${esc(m?.notes || '')}">
-      </div>
-    </div>
-    <div class="mf" style="margin-top:20px">
-      <button class="btn-ghost" onclick="cm('m-pm-edit')">Cancel</button>
-      <button class="btn" id="pm-save-btn" onclick="pmSave()">Save Method</button>
-    </div>`;
-
-  document.getElementById('pm-mtl').textContent = m ? 'Edit Payment Method' : 'Add Payment Method';
+  document.getElementById('pm-modal-host').innerHTML = NX.modal({
+    title: m ? 'Edit payment method' : 'Add payment method', size:'m', onClose:'_pmCloseModal()',
+    body,
+    footer: NX.button('Cancel', { variant:'ghost', onclick:'_pmCloseModal()' }) +
+            NX.button('Save method', { variant:'primary', attrs:'id="pm-save-btn"', onclick:'pmSave()' })
+  });
   _pmShowFields();
-  om('m-pm-edit');
+  setTimeout(() => document.getElementById('pm-title')?.focus(), 80);
 }
+function _pmCloseModal() { const h = document.getElementById('pm-modal-host'); if (h) h.innerHTML = ''; }
 
 function _pmShowFields() {
   const type    = document.getElementById('pm-type')?.value;
@@ -179,8 +131,8 @@ function _pmShowFields() {
   const numLbl  = document.getElementById('pm-num-lbl');
   if (!bankDiv || !type) return;
   bankDiv.style.display = (type === 'bank') ? 'flex' : 'none';
-  const labels = { jazzcash: 'Mobile Number', easypaisa: 'Mobile Number', raast: 'Raast ID', sadapay: 'Mobile Number', nayapay: 'Mobile Number', bank: 'Account Number' };
-  if (numLbl) numLbl.textContent = labels[type] || 'Account / Mobile Number';
+  const labels = { jazzcash: 'Mobile number', easypaisa: 'Mobile number', raast: 'Raast ID', sadapay: 'Mobile number', nayapay: 'Mobile number', bank: 'Account number' };
+  if (numLbl) numLbl.textContent = labels[type] || 'Account / mobile number';
 }
 
 async function pmSave() {
@@ -209,7 +161,7 @@ async function pmSave() {
   };
 
   const btn = document.getElementById('pm-save-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  if (btn) { btn.disabled = true; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Saving…'; }
 
   try {
     const { error } = await supabase.rpc('upsert_payment_method', {
@@ -217,21 +169,15 @@ async function pmSave() {
     });
     if (error) { notify.error('Save failed', { detail: error.message }); return; }
 
-    // is_default toggle is handled atomically by set_payment_method_default RPC if needed
-
-    cm('m-pm-edit');
+    _pmCloseModal();
     notify.success(_pmEditId ? 'Method updated' : 'Method added');
     await pmLoad();
   } catch (e) {
     console.error('[pmSave]', e);
     notify.error('Could not save method', { detail: e.message });
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Save Method'; }
+    if (btn) { btn.disabled = false; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Save method'; }
   }
-}
-
-async function _pmClearOtherDefaults(keepId) {
-  // Handled atomically by set_payment_method_default RPC
 }
 
 async function pmSetDefault(id) {
