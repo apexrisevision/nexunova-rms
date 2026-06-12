@@ -469,6 +469,7 @@ function rClientDetail() {
           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0"><h1 class="nx-page-title">' + esc(c.fullName||'Unnamed') + '</h1>' + statusBadge + (c.clientCategory?NX.chip(c.clientCategory):'') + '</div>' +
           '<div class="nx-kpi-label" style="text-transform:none">' + (c.fatherName?'S/o '+esc(c.fatherName)+' · ':'') + (c.cnic?'NIC '+esc(c.cnic):'') + '</div>' +
           '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">' + (c.phonePrimary?'<a href="tel:'+esc(c.phonePrimary)+'" style="color:var(--fk-info)">'+esc(c.phonePrimary)+'</a>':'') + (c.address?' · '+esc(c.address):'') + (c.city?', '+esc(c.city):'') + '</div>' +
+          (c.nextOfKinName ? '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Nominee: ' + esc(c.nextOfKinName) + (c.nextOfKinRelation?' ('+esc(c.nextOfKinRelation)+')':'') + (c.nextOfKinPhone?' · '+esc(c.nextOfKinPhone):'') + '</div>' : '') +
         '</div>' +
         '<div class="no-p" style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">' +
           (c.phonePrimary?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(c.phonePrimary)+'"><span>Call</span></a>':'') +

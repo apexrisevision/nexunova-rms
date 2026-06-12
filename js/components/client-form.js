@@ -60,7 +60,7 @@
         ${fld({ label: 'Passport no', name: 'cfm-passport_no', value: c?.passportNo || '' })}
       </div>
       ${isEdit ? '' : `<div id="cfm-project-wrap" style="${lockProject ? 'display:none' : ''}">${fld({ label: 'Project', name: 'cfm-project', el: 'select', required: true, options: projOpts, value: projId })}</div>`}
-      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes) ? ' open' : ''}>
+      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation) ? ' open' : ''}>
         <summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More details</summary>
         <div style="margin-top:var(--fk-sp-3)">
           ${fld({ label: 'Address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
@@ -77,6 +77,12 @@
             ${isEdit ? fld({ label: 'Status', name: 'cfm-status', el: 'select', value: c?.status || 'active', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Historical / Inactive' }] }) : ''}
           </div>
           ${fld({ label: 'Notes', name: 'cfm-notes', el: 'textarea', value: c?.notes || '' })}
+          <div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3);margin-bottom:var(--fk-sp-1);color:var(--fk-text)">Nominee / Next of Kin</div>
+          <div class="nx-grid-2">
+            ${fld({ label: 'Nominee name', name: 'cfm-kin_name', value: c?.nextOfKinName || '' })}
+            ${fld({ label: 'Relation', name: 'cfm-kin_relation', el: 'select', value: c?.nextOfKinRelation || '', options: [{ value: '', label: '— Relation —' }].concat(['Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister', 'Other'].map(x => ({ value: x, label: x }))) })}
+          </div>
+          ${fld({ label: 'Nominee phone', name: 'cfm-kin_phone', value: c?.nextOfKinPhone || '', placeholder: '03xx-xxxxxxx' })}
         </div>
       </details>
       <div id="cfm-error" class="nx-error" style="margin-top:var(--fk-sp-2)"></div>`;
@@ -144,7 +150,10 @@
       phone_primary: phone, whatsapp: _val('cfm-whatsapp') || null, email: email || null,
       address: _val('cfm-address') || null, city: _val('cfm-city') || null,
       client_category: _val('cfm-client_category') || null, reference_by: _val('cfm-reference_by') || null,
-      notes: _val('cfm-notes') || null, overseas_local: overseas ? 'overseas' : 'local'
+      notes: _val('cfm-notes') || null, overseas_local: overseas ? 'overseas' : 'local',
+      next_of_kin_name: _val('cfm-kin_name') || null,
+      next_of_kin_relation: _val('cfm-kin_relation') || null,
+      next_of_kin_phone: _val('cfm-kin_phone') || null
     };
 
     const btn = document.getElementById('cfm-save');

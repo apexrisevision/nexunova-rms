@@ -692,6 +692,14 @@ function _nsStep5() {
   const agent = (_salAgents||[]).find(a => a.id === _ns.agentId);
   const booking = _spBooking(_ns.plan);
   const row = (l, v) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--fk-border)"><span class="nx-kpi-label" style="text-transform:none">${l}</span><span style="font-weight:var(--fk-fw-semibold)">${v}</span></div>`;
+  // Nominee reminder — non-blocking. Existing client without a nominee links to the
+  // profile; a brand-new client gets the same reminder (profile exists after save).
+  const _nsExistingId = (!c.isNew && c.id) ? c.id : null;
+  const _nsCli = _nsExistingId && typeof gclient === 'function' ? gclient(_nsExistingId) : null;
+  const _nsNoNominee = !(_nsCli && _nsCli.nextOfKinName);
+  const nomineeChip = _nsNoNominee
+    ? `<div style="padding:6px 0"><span class="nx-badge nx-badge--warning"${_nsExistingId?` onclick="ClientForm.open({clientId:'${_nsExistingId}', onSaved:function(){ _nsRenderStep(); }})" style="cursor:pointer"`:''}><span class="nx-dot"></span>Nominee missing — add after sale</span></div>`
+    : '';
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-4)">
     <div class="nx-card">
       <div class="nx-card-title">Sale summary</div>
@@ -699,6 +707,7 @@ function _nsStep5() {
         ${row('Unit', esc(_ns.unit?.unitNo||'—') + (_ns.unit?.floorLabel?` · ${esc(_ns.unit.floorLabel)}`:''))}
         ${row('Client', esc(c.full_name||c.fullName||'—') + (c.isNew?' <span class="nx-chip">new</span>':''))}
         ${c.cnic?row('NIC', esc(c.cnic)):''}
+        ${nomineeChip}
         ${agent?row('Agent', esc(agent.full_name) + (_ns.commPct?` · ${_ns.commPct}%`:'')):''}
         ${row('Sale date', fD(_ns.saleDate))}
       </div>
