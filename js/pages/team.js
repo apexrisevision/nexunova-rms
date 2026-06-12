@@ -1,8 +1,15 @@
 // ══ TEAM PERFORMANCE (Admin-only) ═════════════════════════════════════════════
 // One row per active recovery user — activity, collections, neglected accounts.
-// Clickable rows open a DX slide-over drawer with the full per-officer breakdown.
-// Data: get_team_performance_lite(p_company_id) — UNCHANGED. Built on the shared DX
-// table + DX.drawer layer (helpers.js / components.css), not a bespoke table system.
+// Clickable rows open a slide-over drawer with the full per-officer breakdown.
+// Data: get_team_performance_lite(p_company_id) — UNCHANGED.
+//
+// Phase-3 ADMIN batch: list restyled onto the nx- foundation kit (nx-table /
+// page header / badges / empty). The per-officer detail still uses the shared
+// DX.drawer slide-over (cross-page infra; out of this batch's scope).
+//
+// QA NOTE (merge review): Team Performance is NOT a duplicate of Users & Roles.
+// Users & Roles manages accounts/roles/access; this is a recovery-operations
+// scoreboard (calls, promises, collections, neglect) per officer. Keep both.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
@@ -18,12 +25,9 @@ async function rTeam() {
     return;
   }
 
-  el.innerHTML = `<div class="ani">
-    <div class="ph">
-      <div class="ph-l"><h2>Team Performance</h2><p>Per-officer activity, collections, and neglected accounts</p></div>
-    </div>
-    <div id="team-body"></div>
-  </div>`;
+  el.innerHTML = '<div class="ani">' +
+    NX.pageHeader('Team Performance', '', { icon:'users', sub:'Per-officer activity, collections, and neglected accounts' }) +
+    '<div id="team-body"></div></div>';
 
   await _teamLoad();
 }
@@ -31,7 +35,7 @@ async function rTeam() {
 async function _teamLoad() {
   const body = document.getElementById('team-body');
   if (!body) return;
-  body.innerHTML = `<div class="card"><div class="empty" style="padding:32px"><div class="es" style="color:var(--t3)">Loading team performance…</div></div></div>`;
+  body.innerHTML = NX.card(NX.empty({ icon:'users', message:'Loading team performance…' }));
 
   try {
     const { data, error } = await supabase.rpc('get_team_performance_lite', { p_company_id: S.cid });
@@ -39,7 +43,7 @@ async function _teamLoad() {
     _teamRows = Array.isArray(data) ? data : [];
     _teamRender(_teamRows);
   } catch (e) {
-    body.innerHTML = `<div class="card"><div class="empty"><div class="et">Could not load team performance</div><div class="es">${esc(e.message)}</div></div></div>`;
+    body.innerHTML = NX.card(NX.banner('Could not load team performance: ' + (e.message || e), 'danger'));
   }
 }
 
@@ -53,70 +57,65 @@ function _teamRender(rows) {
   if (!body) return;
 
   if (!rows.length) {
-    body.innerHTML = `<div class="dx-wrap">` + DX.empty({
-      icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-      title: 'No recovery users',
-      sub: 'No active recovery users found for this company.'
-    }) + `</div>`;
+    body.innerHTML = NX.card(NX.empty({
+      icon: 'users',
+      message: 'No active recovery users found for this company.'
+    }));
     return;
   }
 
+  const muted = (t) => `<span style="color:var(--fk-text-muted)">${t}</span>`;
+
   const trs = rows.map(r => {
     const nm       = r.full_name || '—';
-    const mono     = (String(nm).trim()[0] || '?').toUpperCase();
+    const initial  = (String(nm).trim()[0] || '?').toUpperCase();
     const projects = Array.isArray(r.projects) ? r.projects : [];
-    const projCell = projects.length
-      ? esc(projects.join(', '))
-      : '<span style="color:var(--text-muted)">—</span>';
+    const projCell = projects.length ? esc(projects.join(', ')) : muted('—');
 
     const calls    = Number(r.calls_this_month) || 0;
     const made     = Number(r.promises_made) || 0;
     const kept     = Number(r.promises_kept) || 0;
     const broken   = Number(r.promises_broken) || 0;
-    const promCell = made === 0
-      ? '<span style="color:var(--text-muted)">—</span>'
-      : `<span title="kept / broken">${kept} / ${broken}</span>`;
+    const promCell = made === 0 ? muted('—') : `<span title="kept / broken">${kept} / ${broken}</span>`;
 
     const collected = Number(r.collected_this_month) || 0;
 
-    const un        = Number(r.untouched_overdue) || 0;
-    const unCell    = un > 0 ? DX.statusChip(String(un), 'danger') : '<span style="color:var(--text-muted)">0</span>';
+    const un     = Number(r.untouched_overdue) || 0;
+    const unCell = un > 0 ? NX.badge(String(un), 'danger') : muted('0');
 
-    const pa        = Number(r.pending_approvals) || 0;
-    const paCell    = pa > 0 ? DX.statusChip(String(pa), 'warn') : '<span style="color:var(--text-muted)">0</span>';
+    const pa     = Number(r.pending_approvals) || 0;
+    const paCell = pa > 0 ? NX.badge(String(pa), 'warning') : muted('0');
 
-    return `<tr class="clickable" data-search="${esc((nm + ' ' + projects.join(' ')).toLowerCase())}" onclick="_teamDrawer('${esc(String(r.user_id))}')">
-      <td data-v="${esc(String(nm).toLowerCase())}">
-        <span class="dx-cell"><span class="dx-mono">${esc(mono)}</span>
-          <span class="dx-cell-main"><span class="dx-cell-t" style="font-weight:600">${esc(nm)}</span></span>
-        </span>
-      </td>
-      <td class="muted" style="max-width:260px;white-space:normal" data-v="${esc(projects.join(', ').toLowerCase())}">${projCell}</td>
-      <td class="num" data-v="${calls}">${calls}</td>
-      <td class="num" data-v="${made}">${promCell}</td>
-      <td class="num" data-v="${collected}">${_teamMoney(collected)}</td>
-      <td class="num" data-v="${un}">${unCell}</td>
-      <td class="num" data-v="${pa}">${paCell}</td>
+    const userCell =
+      '<span style="display:inline-flex;align-items:center;gap:10px">' +
+        '<span class="nx-avatar" style="background:var(--fk-primary-chip);color:var(--fk-primary)">' + esc(initial) + '</span>' +
+        '<span style="font-weight:var(--fk-fw-semibold);color:var(--fk-text)">' + esc(nm) + '</span>' +
+      '</span>';
+
+    return `<tr style="cursor:pointer" onclick="_teamDrawer('${esc(String(r.user_id))}')">
+      <td>${userCell}</td>
+      <td style="max-width:260px;white-space:normal;color:var(--fk-text-muted)">${projCell}</td>
+      <td class="num">${calls}</td>
+      <td class="num">${promCell}</td>
+      <td class="num">${_teamMoney(collected)}</td>
+      <td class="num">${unCell}</td>
+      <td class="num">${paCell}</td>
     </tr>`;
   }).join('');
 
-  body.innerHTML = `<div class="dx-wrap" id="team-wrap"><div class="dx-scroll"><table class="dx-table" id="team-table">
-    <thead><tr>
-      <th data-sort="text">Officer</th>
-      <th data-sort="text">Projects</th>
-      <th class="num" data-sort="num">Calls</th>
-      <th class="num" data-sort="num">Promises</th>
-      <th class="num" data-sort="num">Collected</th>
-      <th class="num" data-sort="num">Untouched</th>
-      <th class="num" data-sort="num">Approvals</th>
-    </tr></thead>
-    <tbody>${trs}</tbody>
-  </table></div></div>`;
-
-  if (window.DX) {
-    DX.density(document.getElementById('team-wrap'));
-    DX.enhance(document.getElementById('team-table'), {});
-  }
+  body.innerHTML = NX.card(
+    `<table class="nx-table nx-table--flush">
+      <thead><tr>
+        <th>Officer</th>
+        <th>Projects</th>
+        <th class="num">Calls</th>
+        <th class="num">Promises</th>
+        <th class="num">Collected</th>
+        <th class="num">Untouched</th>
+        <th class="num">Approvals</th>
+      </tr></thead>
+      <tbody>${trs}</tbody>
+    </table>`, { flush:true });
 }
 
 /* ── Detail drawer: full per-officer breakdown ──────────────────────────────── */

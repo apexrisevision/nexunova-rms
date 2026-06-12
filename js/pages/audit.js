@@ -21,115 +21,53 @@ async function rAudit() {
   _audPage    = 0;
   _audFilters = { table: '', action: '', userId: '', from: '', to: '', sensitive: false, search: '' };
 
-  el.innerHTML = `
-  <div class="ani module-executive" style="padding:0 0 40px">
-    <div class="ph" style="margin-bottom:0">
-      <div class="ph-l" style="align-items:center;gap:12px">
-        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#1e40af,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 14px rgba(30,64,175,.3);flex-shrink:0"><svg width="22" height="22" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-        <div>
-          <h2 style="margin:0">Audit Trail</h2>
-          <p style="margin:0;font-size:11px;color:var(--t3)">Complete history of every change — who, what, when</p>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;flex-shrink:0">
-        <button class="btn btn-gh btn-sm" onclick="_audExportCSV()">Export CSV</button>
-        <button class="btn btn-gh btn-sm" onclick="_audExportExcel()">Export Excel</button>
-        <button class="btn btn-gh btn-sm" onclick="_audLoad(true)">↺ Refresh</button>
-      </div>
-    </div>
+  const tableOpts = ['payments','sales','installments','pdc_cheques','clients','units','projects','agents',
+    'payment_promises','sale_amendments','unit_cancellations','unit_transfers','app_users','approval_requests',
+    'approval_request_comments','blacklisted_clients','contact_logs','escalations','follow_up_reminders','legal_cases']
+    .map(t => `<option value="${t}">${t}</option>`).join('');
+  const actionOpts = ['INSERT','UPDATE','DELETE','restriction_warning','approval_applied']
+    .map(a => `<option value="${a}">${a}</option>`).join('');
 
-    <!-- Stats row -->
-    <div id="aud-stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 24px;margin:16px 0"></div>
+  const field = (label, ctrl) =>
+    `<div class="nx-field" style="margin-bottom:0"><label class="nx-label">${label}</label>${ctrl}</div>`;
 
-    <!-- Filters -->
-    <div style="padding:0 24px;margin-bottom:14px">
-      <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.4fr 1.4fr;gap:10px;margin-bottom:10px">
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">Table</div>
-            <select id="aud-f-table" class="inp-light" style="width:100%" onchange="_audFilterChange()">
-              <option value="">All Tables</option>
-              <option value="payments">payments</option>
-              <option value="sales">sales</option>
-              <option value="installments">installments</option>
-              <option value="pdc_cheques">pdc_cheques</option>
-              <option value="clients">clients</option>
-              <option value="units">units</option>
-              <option value="projects">projects</option>
-              <option value="agents">agents</option>
-              <option value="payment_promises">payment_promises</option>
-              <option value="sale_amendments">sale_amendments</option>
-              <option value="unit_cancellations">unit_cancellations</option>
-              <option value="unit_transfers">unit_transfers</option>
-              <option value="app_users">app_users</option>
-              <option value="approval_requests">approval_requests</option>
-              <option value="approval_request_comments">approval_request_comments</option>
-              <option value="blacklisted_clients">blacklisted_clients</option>
-              <option value="contact_logs">contact_logs</option>
-              <option value="escalations">escalations</option>
-              <option value="follow_up_reminders">follow_up_reminders</option>
-              <option value="legal_cases">legal_cases</option>
-            </select>
-          </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">Action</div>
-            <select id="aud-f-action" class="inp-light" style="width:100%" onchange="_audFilterChange()">
-              <option value="">All Actions</option>
-              <option value="INSERT">INSERT</option>
-              <option value="UPDATE">UPDATE</option>
-              <option value="DELETE">DELETE</option>
-              <option value="restriction_warning">restriction_warning</option>
-              <option value="approval_applied">approval_applied</option>
-            </select>
-          </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">User</div>
-            <select id="aud-f-user" class="inp-light" style="width:100%" onchange="_audFilterChange()">
-              <option value="">All Users</option>
-            </select>
-          </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">From Date</div>
-            <input id="aud-f-from" type="date" class="inp-light" style="width:100%" onchange="_audFilterChange()">
-          </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">To Date</div>
-            <input id="aud-f-to" type="date" class="inp-light" style="width:100%" onchange="_audFilterChange()">
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">
-            <input type="checkbox" id="aud-f-sensitive" style="accent-color:var(--err);width:14px;height:14px" onchange="_audFilterChange()">
-            <span>Sensitive only</span>
-          </label>
-          <input id="aud-f-search" type="text" class="inp-light" placeholder="Search record ID…"
-            style="flex:1;max-width:260px" oninput="_audFilterChange()">
-          <button class="btn btn-gh btn-xs" onclick="_audClearFilters()">✕ Clear</button>
-          <span id="aud-count-label" style="font-size:11px;color:var(--t3);margin-left:auto"></span>
-        </div>
-      </div>
-    </div>
+  const filters =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--fk-sp-3);margin-bottom:var(--fk-sp-3)">' +
+      field('Table', `<select id="aud-f-table" class="nx-select" onchange="_audFilterChange()"><option value="">All tables</option>${tableOpts}</select>`) +
+      field('Action', `<select id="aud-f-action" class="nx-select" onchange="_audFilterChange()"><option value="">All actions</option>${actionOpts}</select>`) +
+      field('User', `<select id="aud-f-user" class="nx-select" onchange="_audFilterChange()"><option value="">All users</option></select>`) +
+      field('From date', `<input id="aud-f-from" type="date" class="nx-input" onchange="_audFilterChange()">`) +
+      field('To date', `<input id="aud-f-to" type="date" class="nx-input" onchange="_audFilterChange()">`) +
+    '</div>' +
+    '<div style="display:flex;align-items:center;gap:var(--fk-sp-3);flex-wrap:wrap">' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--fk-fs-body);font-weight:var(--fk-fw-medium);color:var(--fk-text)">' +
+        '<input type="checkbox" id="aud-f-sensitive" onchange="_audFilterChange()"><span>Sensitive only</span></label>' +
+      '<input id="aud-f-search" type="text" class="nx-input" placeholder="Search record ID…" style="flex:1;max-width:260px" oninput="_audFilterChange()">' +
+      NX.button('Clear', { variant:'ghost', size:'sm', onclick:'_audClearFilters()' }) +
+      '<span id="aud-count-label" style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-left:auto"></span>' +
+    '</div>';
 
-    <!-- Table -->
-    <div style="padding:0 24px">
-      <div class="card" style="overflow:hidden">
-        <div id="aud-table-wrap">
-          <div style="padding:40px;text-align:center;color:var(--t3)">
-            <div style="font-size:32px;margin-bottom:8px">⏳</div>
-            <div style="font-size:13px">Loading audit logs…</div>
-          </div>
-        </div>
-        <!-- Pagination -->
-        <div id="aud-pagination" style="display:none;padding:12px 16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <button id="aud-prev" class="btn btn-gh btn-sm" onclick="_audPagePrev()" disabled>← Prev</button>
-          <span id="aud-page-info" style="font-size:11px;color:var(--t3)"></span>
-          <button id="aud-next" class="btn btn-gh btn-sm" onclick="_audPageNext()">Next →</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
+  const actions =
+    NX.button('Export CSV',   { variant:'secondary', size:'sm', onclick:'_audExportCSV()' }) +
+    NX.button('Export Excel', { variant:'secondary', size:'sm', onclick:'_audExportExcel()' }) +
+    NX.button('Refresh',      { variant:'secondary', size:'sm', icon:'history', onclick:'_audLoad(true)' });
 
-  _audEnsureModals();
+  el.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Audit Trail', actions, { icon:'history', sub:'Complete history of every change — who, what, when' }) +
+      '<div id="aud-stats-row" class="nx-kpi-row" style="margin-bottom:var(--fk-sp-4)"></div>' +
+      NX.card(filters, { class:'nx-aud-filters' }) +
+      '<div style="height:var(--fk-sp-4)"></div>' +
+      NX.card(
+        '<div id="aud-table-wrap">' + NX.empty({ icon:'history', message:'Loading audit logs…' }) + '</div>' +
+        '<div id="aud-pagination" style="display:none;padding:var(--fk-sp-3) var(--fk-sp-4);border-top:1px solid var(--fk-border);align-items:center;justify-content:space-between;gap:var(--fk-sp-3)">' +
+          NX.button('Prev', { variant:'secondary', size:'sm', attrs:'id="aud-prev"', onclick:'_audPagePrev()' }) +
+          '<span id="aud-page-info" style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)"></span>' +
+          NX.button('Next', { variant:'secondary', size:'sm', attrs:'id="aud-next"', onclick:'_audPageNext()' }) +
+        '</div>', { flush:true }) +
+    '</div>' +
+    '<div id="aud-modal-host"></div>';
+
   await Promise.all([_audLoadStats(), _audLoadUsers()]);
   await _audLoad();
 }
@@ -153,17 +91,11 @@ function _audRenderStats() {
   const el = document.getElementById('aud-stats-row');
   if (!el || !_audStats) return;
   const s = _audStats;
-  const statCard = (icon, label, val, col, sub) => `
-    <div style="background:var(--surface);border:1px solid var(--line);border-left:3px solid ${col};border-radius:10px;padding:14px 16px">
-      <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${icon} ${label}</div>
-      <div style="font-size:22px;font-weight:800;color:var(--text);line-height:1">${val.toLocaleString()}</div>
-      ${sub ? `<div style="font-size:10px;color:var(--t3);margin-top:4px">${sub}</div>` : ''}
-    </div>`;
   el.innerHTML =
-    statCard('', 'Total Changes (30d)', s.total_changes || 0, 'var(--brand)', `${s.inserts||0} inserts · ${s.updates||0} updates`) +
-    statCard('', 'Sensitive Changes', s.sensitive_changes || 0, 'var(--err)', 'Amount & price edits, deletions') +
-    statCard('', 'Deletions', s.deletes || 0, '#ef4444', 'Records permanently removed') +
-    statCard('', 'Active Users', (s.top_users || []).length, '#8b5cf6', 'Made changes in last 30 days');
+    NX.kpi({ icon:'history',        tone:'',        label:'Total changes (30d)', value:(s.total_changes||0).toLocaleString(), delta:`${s.inserts||0} ins · ${s.updates||0} upd` }) +
+    NX.kpi({ icon:'alert-triangle', tone:'danger',  label:'Sensitive changes',   value:(s.sensitive_changes||0).toLocaleString(), delta:'Amount & price edits' }) +
+    NX.kpi({ icon:'x',              tone:'danger',  label:'Deletions',           value:(s.deletes||0).toLocaleString(), delta:'Permanently removed' }) +
+    NX.kpi({ icon:'users',          tone:'info',    label:'Active users',        value:((s.top_users||[]).length).toLocaleString(), delta:'Made changes (30d)' });
 }
 
 // ── Load users list for filter dropdown ──────────────────────────
@@ -239,67 +171,63 @@ function _audRenderTable() {
   if (countLabel) countLabel.textContent = `${_audTotal.toLocaleString()} result${_audTotal !== 1 ? 's' : ''}`;
 
   if (_audRows.length === 0) {
-    wrap.innerHTML = `<div style="padding:48px;text-align:center;color:var(--t3)">
-      <div style="font-size:36px;margin-bottom:10px"><svg width="36" height="36" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
-      <div style="font-size:14px;font-weight:600">No audit logs found</div>
-      <div style="font-size:12px;margin-top:4px">Try adjusting your filters</div>
-    </div>`;
+    wrap.innerHTML = NX.empty({ icon:'history', message:'No audit logs found — try adjusting your filters.' });
     _audRenderPagination();
     return;
   }
 
+  // Action chip tone (semantic): INSERT=success, UPDATE=warning, DELETE=danger.
+  const actionTone = { INSERT:'success', UPDATE:'warning', DELETE:'danger' };
+  // Credential/identity tables read as danger-tinted; ordinary data stays neutral.
+  const credentialTables = { app_users:1, approval_requests:1, approval_request_comments:1 };
+
   const rows = _audRows.map(r => {
-    const actionCfg = {
-      INSERT: { col: '#10b981', bg: 'rgba(16,185,129,.1)',  icon: '' },
-      UPDATE: { col: '#f59e0b', bg: 'rgba(245,158,11,.1)',  icon: '' },
-      DELETE: { col: '#ef4444', bg: 'rgba(239,68,68,.1)',   icon: '' },
-    };
-    const ac  = actionCfg[r.action] || { col: 'var(--t3)', bg: 'var(--surface)', icon: '' };
+    const tone = actionTone[r.action] || '';
     const tStr = r.changed_at ? _audFmtTime(r.changed_at) : '—';
+
     const fields = Array.isArray(r.changed_fields) && r.changed_fields.length > 0
-      ? r.changed_fields.slice(0, 4).map(f => `<span style="font-size:9px;padding:1px 5px;background:var(--hover);border:1px solid var(--line);border-radius:3px;font-family:monospace;color:var(--t2)">${esc(f)}</span>`).join(' ')
-        + (r.changed_fields.length > 4 ? `<span style="font-size:9px;color:var(--t3)">+${r.changed_fields.length - 4}</span>` : '')
-      : '<span style="font-size:10px;color:var(--t3)">—</span>';
-    const sensitiveBadge = r.is_sensitive
-      ? `<span style="font-size:9px;font-weight:700;color:var(--err);background:rgba(239,68,68,.1);padding:1px 5px;border-radius:3px;margin-left:4px">!</span>`
-      : '';
+      ? r.changed_fields.slice(0, 4).map(f => `<span class="nx-mono" style="font-size:10px;padding:1px 6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:5px;color:var(--fk-text-muted)">${esc(f)}</span>`).join(' ')
+        + (r.changed_fields.length > 4 ? ` <span style="font-size:10px;color:var(--fk-text-muted)">+${r.changed_fields.length - 4}</span>` : '')
+      : `<span style="color:var(--fk-text-muted)">—</span>`;
+
+    const isCred = credentialTables[r.table_name] || r.is_sensitive;
+    const tableChip = isCred
+      ? NX.badge(r.table_name, 'danger')
+      : `<span class="nx-mono" style="color:var(--fk-text-muted)">${esc(r.table_name)}</span>`;
+    const sensTag = r.is_sensitive ? ' ' + NX.badge('sensitive', 'danger', { dot:true }) : '';
+
+    const userCell =
+      `<div style="font-weight:var(--fk-fw-semibold);color:var(--fk-text)">${esc(r.changed_by_name || 'system')}</div>` +
+      `<div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">${esc(r.changed_by_role || '')}</div>`;
+
+    const recId = `<span class="nx-mono" style="color:var(--fk-text-muted);max-width:140px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${esc(r.record_id||'')}">${esc((r.record_id||'').substring(0,18))}${(r.record_id||'').length>18?'…':''}</span>`;
+
+    const diffCell = r.has_diff
+      ? NX.button('View diff', { variant:'ghost', size:'sm', onclick:`event.stopPropagation();_audOpenEntry(${r.id})` })
+      : `<span style="color:var(--fk-text-muted)">—</span>`;
 
     return `<tr style="cursor:pointer" onclick="_audOpenEntry(${r.id})">
-      <td style="font-size:11px;color:var(--t3);white-space:nowrap;font-family:monospace">${tStr}</td>
-      <td>
-        <div style="font-size:12px;font-weight:600;color:var(--text)">${esc(r.changed_by_name || 'system')}</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:1px">${esc(r.changed_by_role || '')}</div>
-      </td>
-      <td>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${ac.bg};color:${ac.col};border:1px solid ${ac.col}44">${ac.icon} ${r.action}</span>
-      </td>
-      <td>
-        <span style="font-size:11px;font-family:monospace;font-weight:600;color:var(--brand)">${esc(r.table_name)}</span>
-        ${sensitiveBadge}
-      </td>
-      <td style="font-size:10px;color:var(--t3);font-family:monospace;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.record_id||'')}">${esc((r.record_id||'').substring(0,18))}${(r.record_id||'').length>18?'…':''}</td>
+      <td><span class="nx-mono" style="color:var(--fk-text-muted);white-space:nowrap">${tStr}</span></td>
+      <td>${userCell}</td>
+      <td>${NX.badge(r.action, tone)}</td>
+      <td>${tableChip}${sensTag}</td>
+      <td>${recId}</td>
       <td style="max-width:240px">${fields}</td>
-      <td>
-        ${r.has_diff
-          ? `<button class="btn btn-gh btn-xs" onclick="event.stopPropagation();_audOpenEntry(${r.id})">View Diff</button>`
-          : `<span style="font-size:10px;color:var(--t3)">—</span>`}
-      </td>
+      <td>${diffCell}</td>
     </tr>`;
   }).join('');
 
-  wrap.innerHTML = `<div class="tw" style="overflow-x:auto">
-    <table class="t" style="font-size:12px;min-width:800px">
-      <thead>
-        <tr>
-          <th style="min-width:110px">Time</th>
-          <th>User</th>
-          <th style="width:90px">Action</th>
-          <th>Table</th>
-          <th>Record ID</th>
-          <th>Changed Fields</th>
-          <th style="width:80px">Diff</th>
-        </tr>
-      </thead>
+  wrap.innerHTML = `<div class="nx-table-wrap">
+    <table class="nx-table nx-table--flush" style="min-width:840px">
+      <thead><tr>
+        <th style="min-width:150px">Time</th>
+        <th>User</th>
+        <th style="width:96px">Action</th>
+        <th>Table</th>
+        <th>Record ID</th>
+        <th>Changed fields</th>
+        <th style="width:90px"></th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
@@ -348,13 +276,16 @@ function _audClearFilters() {
   _audLoad(true);
 }
 
-// ── Open entry diff viewer ────────────────────────────────────────
+// ── Open entry diff viewer (host-injected kit modal) ──────────────
+function _audCloseModal(){ const h = document.getElementById('aud-modal-host'); if (h) h.innerHTML = ''; }
+
 async function _audOpenEntry(auditId) {
-  _audEnsureModals();
-  const body = document.getElementById('m-audit-diff-body');
-  if (!body) return;
-  body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3)"><div style="font-size:24px">⏳</div><div style="margin-top:8px">Loading…</div></div>';
-  om('m-audit-diff');
+  const host = _audGetModalHost();
+  host.innerHTML = NX.modal({
+    title: 'Change details', size: 'l', onClose: '_audCloseModal()',
+    body: '<div id="aud-diff-body">' + NX.empty({ icon:'history', message:'Loading…' }) + '</div>'
+  });
+  const body = document.getElementById('aud-diff-body');
 
   try {
     const { data, error } = await supabase.rpc('get_audit_entry', {
@@ -366,20 +297,16 @@ async function _audOpenEntry(auditId) {
     _audViewEntry = data[0];
     _audRenderDiff(_audViewEntry);
   } catch (e) {
-    body.innerHTML = `<div style="padding:24px;color:var(--err);font-size:13px">${esc(e.message)}</div>`;
+    if (body) body.innerHTML = NX.banner(e.message || String(e), 'danger');
   }
 }
 
 function _audRenderDiff(e) {
-  const body = document.getElementById('m-audit-diff-body');
+  const body = document.getElementById('aud-diff-body');
   if (!body) return;
 
-  const actionCfg = {
-    INSERT: { col: '#10b981', icon: 'INSERT' },
-    UPDATE: { col: '#f59e0b', icon: 'UPDATE' },
-    DELETE: { col: '#ef4444', icon: 'DELETE' },
-  };
-  const ac = actionCfg[e.action] || { col: 'var(--t3)', icon: e.action };
+  const actionTone = { INSERT:'success', UPDATE:'warning', DELETE:'danger' };
+  const aTone = actionTone[e.action] || '';
 
   // Build field diff table for UPDATEs
   let diffRows = '';
@@ -426,21 +353,19 @@ function _audRenderDiff(e) {
 
   body.innerHTML = `
     <!-- Header strip -->
-    <div style="background:linear-gradient(135deg,rgba(30,64,175,.08),rgba(124,58,237,.05));border-bottom:1px solid var(--line);padding:16px 20px;margin:-16px -20px 16px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Audit #${e.id}</div>
-          <div style="font-size:15px;font-weight:700;color:var(--text)">${esc(e.table_name)} <span style="font-size:12px;font-weight:400;color:var(--t3)">· Record ${esc((e.record_id||'?').substring(0,18))}</span></div>
-          <div style="margin-top:4px">
-            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${ac.col}18;color:${ac.col};border:1px solid ${ac.col}44">${ac.icon}</span>
-            ${e.is_sensitive ? `<span style="font-size:10px;font-weight:700;color:var(--err);margin-left:6px">SENSITIVE CHANGE</span>` : ''}
-          </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:var(--fk-sp-4);border-bottom:1px solid var(--fk-border);margin-bottom:var(--fk-sp-4)">
+      <div>
+        <div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:var(--fk-tracking-label);font-weight:var(--fk-fw-semibold);margin-bottom:4px">Audit #${e.id}</div>
+        <div style="font-size:var(--fk-fs-title);font-weight:var(--fk-fw-semibold);color:var(--fk-text)">${esc(e.table_name)} <span style="font-weight:400;color:var(--fk-text-muted)">· Record ${esc((e.record_id||'?').substring(0,18))}</span></div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+          ${NX.badge(e.action, aTone)}
+          ${e.is_sensitive ? NX.badge('Sensitive change', 'danger', { dot:true }) : ''}
         </div>
-        <div style="text-align:right;font-size:11px;color:var(--t3);line-height:1.8">
-          <div><b style="color:var(--t2)">${esc(e.changed_by_name || 'system')}</b> (${esc(e.changed_by_role || '—')})</div>
-          <div>${_audFmtTime(e.changed_at)}</div>
-          ${ip ? `<div>IP: ${esc(ip)}</div>` : ''}
-        </div>
+      </div>
+      <div style="text-align:right;font-size:var(--fk-fs-label);color:var(--fk-text-muted);line-height:1.8">
+        <div><b style="color:var(--fk-text)">${esc(e.changed_by_name || 'system')}</b> (${esc(e.changed_by_role || '—')})</div>
+        <div>${_audFmtTime(e.changed_at)}</div>
+        ${ip ? `<div>IP: ${esc(ip)}</div>` : ''}
       </div>
     </div>
 
@@ -466,19 +391,19 @@ function _audRenderDiff(e) {
 
     <!-- Raw JSON (collapsible) -->
     ${e.old_data || e.new_data ? `
-    <div style="margin-bottom:12px">
-      <button class="btn btn-gh btn-xs" onclick="_audToggleJson('aud-json-old')"
-        style="margin-right:6px">${e.old_data ? '▾ Old Data (JSON)' : ''}</button>
-      <button class="btn btn-gh btn-xs" onclick="_audToggleJson('aud-json-new')">${e.new_data ? '▾ New Data (JSON)' : ''}</button>
-      ${e.old_data ? `<pre id="aud-json-old" style="display:none;margin-top:8px;padding:10px;background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.2);border-radius:6px;font-size:10px;overflow:auto;max-height:220px;line-height:1.5">${esc(JSON.stringify(e.old_data, null, 2))}</pre>` : ''}
-      ${e.new_data ? `<pre id="aud-json-new" style="display:none;margin-top:8px;padding:10px;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.2);border-radius:6px;font-size:10px;overflow:auto;max-height:220px;line-height:1.5">${esc(JSON.stringify(e.new_data, null, 2))}</pre>` : ''}
-    </div>` : ''}
+    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+      ${e.old_data ? NX.button('Old data (JSON)', { variant:'ghost', size:'sm', onclick:"_audToggleJson('aud-json-old')" }) : ''}
+      ${e.new_data ? NX.button('New data (JSON)', { variant:'ghost', size:'sm', onclick:"_audToggleJson('aud-json-new')" }) : ''}
+    </div>
+    ${e.old_data ? `<pre id="aud-json-old" class="nx-mono" style="display:none;margin-bottom:12px;padding:10px;background:var(--fk-danger-surface);border:1px solid var(--fk-danger-edge);border-radius:var(--fk-radius-control);font-size:10px;overflow:auto;max-height:220px;line-height:1.5">${esc(JSON.stringify(e.old_data, null, 2))}</pre>` : ''}
+    ${e.new_data ? `<pre id="aud-json-new" class="nx-mono" style="display:none;margin-bottom:12px;padding:10px;background:var(--fk-success-surface);border:1px solid var(--fk-success-edge);border-radius:var(--fk-radius-control);font-size:10px;overflow:auto;max-height:220px;line-height:1.5">${esc(JSON.stringify(e.new_data, null, 2))}</pre>` : ''}
+    ` : ''}
 
     <!-- Actions -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:14px;margin-top:4px">
-      <button class="btn btn-gh btn-sm" onclick="_audViewFullHistory('${esc(e.table_name)}','${esc(e.record_id||'')}')">Full History</button>
-      <button class="btn btn-gh btn-sm" onclick="_audExportEntryCSV(${e.id})">Export</button>
-      <button class="btn btn-gh btn-sm" style="margin-left:auto" onclick="cm('m-audit-diff')">✕ Close</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--fk-border);padding-top:14px;margin-top:4px">
+      ${NX.button('Full history', { variant:'secondary', size:'sm', onclick:`_audViewFullHistory('${esc(e.table_name)}','${esc(e.record_id||'')}')` })}
+      ${NX.button('Export', { variant:'secondary', size:'sm', onclick:`_audExportEntryCSV(${e.id})` })}
+      <span style="margin-left:auto">${NX.button('Close', { variant:'ghost', size:'sm', onclick:'_audCloseModal()' })}</span>
     </div>`;
 }
 
@@ -487,15 +412,23 @@ function _audToggleJson(id) {
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+// A body-level modal host so this works on the audit page AND when other pages
+// call openAuditHistory() / _audOpenEntry() for an inline record timeline.
+function _audGetModalHost(){
+  let h = document.getElementById('aud-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'aud-modal-host'; document.body.appendChild(h); }
+  return h;
+}
+
 // ── Record timeline (reusable from any page) ──────────────────────
 async function openAuditHistory(tableName, recordId, title) {
-  _audEnsureModals();
-  const body = document.getElementById('m-audit-hist-body');
-  const hdr  = document.getElementById('m-audit-hist-title');
+  const host = _audGetModalHost();
+  host.innerHTML = NX.modal({
+    title: title || `History: ${tableName}`, size: 'm', onClose: '_audCloseModal()',
+    body: '<div id="aud-hist-body">' + NX.empty({ icon:'history', message:'Loading history…' }) + '</div>'
+  });
+  const body = document.getElementById('aud-hist-body');
   if (!body) return;
-  if (hdr) hdr.textContent = title || `History: ${tableName}`;
-  body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3)"><div style="font-size:20px">⏳</div><div style="margin-top:6px;font-size:12px">Loading history…</div></div>';
-  om('m-audit-hist');
 
   try {
     const { data, error } = await supabase.rpc('get_record_history', {
@@ -539,7 +472,7 @@ async function openAuditHistory(tableName, recordId, title) {
             </div>
             <div style="font-size:11px;color:var(--t2);font-family:monospace">${esc(flds)}</div>
             ${(r.action === 'UPDATE' && r.old_data && r.new_data) ?
-              `<button class="btn btn-gh btn-xs" style="margin-top:5px" onclick="cm('m-audit-hist');_audOpenEntry(${r.id})">View Diff →</button>` : ''}
+              `<button class="btn btn-gh btn-xs" style="margin-top:5px" onclick="_audOpenEntry(${r.id})">View Diff →</button>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -551,7 +484,7 @@ async function openAuditHistory(tableName, recordId, title) {
 }
 
 function _audViewFullHistory(tableName, recordId) {
-  cm('m-audit-diff');
+  // openAuditHistory replaces the shared modal host, so no explicit close needed.
   openAuditHistory(tableName, recordId, `History: ${tableName}`);
 }
 
@@ -600,37 +533,6 @@ function _audExportEntryCSV(auditId) {
   const a    = document.createElement('a');
   a.href = url; a.download = `audit_entry_${e.id}.csv`; a.click();
   URL.revokeObjectURL(url);
-}
-
-// ── Modal injection ───────────────────────────────────────────────
-function _audEnsureModals() {
-  if (document.getElementById('m-audit-diff')) return;
-
-  // Diff viewer modal
-  const diff = document.createElement('div');
-  diff.id        = 'm-audit-diff';
-  diff.className = 'mov';
-  diff.innerHTML = `<div class="md" style="max-width:680px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden">
-    <div class="mh" style="flex-shrink:0">
-      <div><h3>Change Details</h3><p>Full diff view for this audit entry</p></div>
-      <button class="mx" onclick="cm('m-audit-diff')">✕</button>
-    </div>
-    <div id="m-audit-diff-body" class="mb" style="overflow-y:auto;flex:1;padding:16px 20px"></div>
-  </div>`;
-  document.body.appendChild(diff);
-
-  // Record history modal
-  const hist = document.createElement('div');
-  hist.id        = 'm-audit-hist';
-  hist.className = 'mov';
-  hist.innerHTML = `<div class="md" style="max-width:580px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
-    <div class="mh" style="flex-shrink:0">
-      <div><h3 id="m-audit-hist-title">Record History</h3><p>Full timeline of changes to this record</p></div>
-      <button class="mx" onclick="cm('m-audit-hist')">✕</button>
-    </div>
-    <div id="m-audit-hist-body" class="mb" style="overflow-y:auto;flex:1;padding:14px 20px"></div>
-  </div>`;
-  document.body.appendChild(hist);
 }
 
 // ── Helper: format timestamp ──────────────────────────────────────
