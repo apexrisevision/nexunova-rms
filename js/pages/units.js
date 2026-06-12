@@ -28,10 +28,13 @@ function _uFloors() { return (window._floorsCache || []).slice().sort((a, b) => 
 function _uTypes() { return (window._typesCache || []).filter(t => t.isActive !== false); }
 function _uStatuses() { return (window._statusesCache || []).filter(s => s.isActive !== false); }
 
-// status chip — token tone only (Available=success, Sold=info, Blocked/other=warning/neutral)
+// status chip — Available (green) is the ONLY loud chip: a sales team scans for open
+// inventory, so that's the one that should pop. Sold is settled, not a call to action →
+// neutral/muted (bare nx-badge: subtle bg + muted text). Blocked/other → amber caution.
 function _uStatusChip(u) {
-  const tone = u.saleId ? 'info' : (u.isAvailable ? 'success' : 'warning');
-  return `<span class="nx-badge nx-badge--${tone}"><span class="nx-dot"></span>${esc(u.status || (u.saleId ? 'Sold' : 'Available'))}</span>`;
+  const tone = u.saleId ? '' : (u.isAvailable ? 'success' : 'warning');
+  const cls = 'nx-badge' + (tone ? ' nx-badge--' + tone : '');
+  return `<span class="${cls}"><span class="nx-dot"></span>${esc(u.status || (u.saleId ? 'Sold' : 'Available'))}</span>`;
 }
 
 function _uCounts(units) {
@@ -133,7 +136,7 @@ function _uGridHTML(units) {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div style="font-weight:var(--fk-fw-semibold)">${esc(u.unitNo)}</div>${_uStatusChip(u)}
         </div>
-        <div class="nx-kpi-label" style="text-transform:none">${esc(u.type || '—')}${u.area ? ' · ' + _uArea(u) : ''}</div>
+        <div class="nx-kpi-label" style="text-transform:none">${esc(_uMeta(u))}</div>
         ${u.customerName ? `<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted)">${esc(u.customerName)}</div>` : ''}
       </div>`).join('');
     return `<div style="margin-bottom:var(--fk-sp-4)">
@@ -146,6 +149,9 @@ function _uGridHTML(units) {
 }
 function _uToggleFloor(id) { _uCollapsed[id] = !_uCollapsed[id]; _uRefreshBody(); }
 function _uArea(u) { return Number(u.area).toLocaleString('en-US') + ' ' + (u.areaUnit || 'sqft'); }
+// Card meta line: type · area, but never an empty dash — fall back to area alone when
+// type is missing (e.g. G-02 shows "2,700 sqft"), or "—" only when BOTH are absent.
+function _uMeta(u) { return [u.type, u.area ? _uArea(u) : ''].filter(Boolean).join(' · ') || '—'; }
 
 // Floor CODE for the {floor} token in unit naming — derived from the floor name,
 // editable in the bulk generator + wizard. floors has no code column yet, so this
