@@ -414,16 +414,10 @@ async function sgSubmit() {
     st.companyCode = res.company_code;
     st.signupResult = res;
 
-    // Send the email-confirmation link. The new owner's auth identity was just
-    // auto-bridged in an UNCONFIRMED state, so resend(type:'signup') delivers the
-    // activation email. Login stays gated on email_verified until they click it.
-    try {
-      const redirectTo = (typeof window.electronWindow !== 'undefined')
-        ? 'nexunovarms://auth/callback?flow=confirm'
-        : window.location.origin + window.location.pathname + '?flow=confirm';
-      await supabase.auth.resend({ type: 'signup', email: d.email, options: { emailRedirectTo: redirectTo } });
-    } catch(_) { /* best-effort — the result screen offers a manual Resend link */ }
-
+    // Collapsed flow (2026-06-12): the email was already proven via the Step-1 OTP,
+    // so signup_new_company creates the owner email_verified=true and the auto-bridge
+    // mints a CONFIRMED auth identity. The owner can sign in immediately — no second
+    // email, no activation link.
     sgShowResult(res);
 
   } catch(e) {
@@ -463,13 +457,8 @@ function sgShowResult(res) {
          border:1px solid rgba(16,185,129,0.28);border-radius:12px;padding:14px 16px;margin:0 0 16px;text-align:left">
       <span style="flex-shrink:0;color:#34d399;font-size:18px;line-height:1.25">✓</span>
       <div style="font-size:13px;color:rgba(255,255,255,0.82);line-height:1.55">
-        <span style="color:#fff">Account created.</span> We've sent an activation link to
-        <span style="color:#fff">${email || 'your email'}</span> — check your inbox and click it to
-        activate your account <span style="color:#fff">before you can log in.</span>
-        <div style="font-size:11.5px;color:rgba(255,255,255,0.5);margin-top:5px">
-          Didn't get it? Check spam, or
-          <a href="#" onclick="fpResendConfirm('${email}');return false;" style="color:#38bdf8;text-decoration:underline">resend the email</a>.
-        </div>
+        <span style="color:#fff">Your email is verified and your account is ready.</span>
+        Sign in with the username below and the password you just set — no email link needed.
       </div>
     </div>`;
 
@@ -512,7 +501,7 @@ function sgShowResult(res) {
     resultDiv.innerHTML = `
       <div class="sg-success">
         <div class="sg-success-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg></div>
-        <div class="sg-success-title">${isTrial ? 'Your trial is ready — confirm your email' : 'Confirm your email'}</div>
+        <div class="sg-success-title">${isTrial ? 'Your trial is ready' : 'Your account is ready'}</div>
         ${emailNotice}
         ${usernameBox}
         ${goBtn('Go to Sign In')}

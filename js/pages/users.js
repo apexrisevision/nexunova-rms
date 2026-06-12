@@ -32,6 +32,49 @@ const MODULE_LIST = [
 
 let _usersData = [];
 
+// Synthetic plumbing emails (created when a user is added without a real email)
+// are never shown as contact info and never treated as mailable.
+function _isSyntheticEmail(e){ return !!e && /@users\.internal$/i.test(e); }
+
+// Live "<username>@COMPANYCODE" preview under the Username field.
+function umUnamePrev(){
+  var i=document.getElementById('um-username'), p=document.getElementById('um-uname-prev');
+  if(!i||!p) return;
+  var v=(i.value||'').toLowerCase().replace(/[^a-z0-9._-]/g,'');
+  if(i.value!==v) i.value=v;            // gently enforce lowercase as they type
+  p.textContent = v || 'username';
+}
+// Suggest a username from the full name, but only while the field is still empty.
+function umSuggestFromName(){
+  var n=document.getElementById('um-name'), u=document.getElementById('um-username');
+  if(!n||!u||u.value.trim()) return;
+  u.value=(n.value||'').toLowerCase().replace(/[^a-z0-9._-]/g,'').slice(0,30);
+  umUnamePrev();
+}
+
+// One-time on-screen temp-password reveal (for users without a real email).
+// Never logged / never toasted in plaintext.
+function umShowTempPassword(name, tempPw){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:10001;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=
+    '<div style="background:var(--bg-modal,#0f172a);border:1px solid var(--border,#1e293b);border-radius:14px;max-width:420px;width:100%;padding:26px">'+
+      '<h2 style="margin:0 0 6px;font-size:17px;color:var(--text,#f1f5f9)">Temporary password for '+_esc(name)+'</h2>'+
+      '<p style="margin:0 0 16px;font-size:12.5px;color:var(--text-muted,#94a3b8);line-height:1.5">This user has no email on file, so share this password with them directly. They’ll be asked to change it at first login. <b>Shown once</b> — it won’t be displayed again.</p>'+
+      '<div style="display:flex;gap:8px;align-items:center;background:var(--bg-input,#1e293b);border:1px solid var(--border,#334155);border-radius:10px;padding:12px 14px;margin-bottom:16px">'+
+        '<code id="um-temppw-val" style="flex:1;font-family:ui-monospace,monospace;font-size:18px;color:var(--text,#fff);letter-spacing:.04em;word-break:break-all">'+_esc(tempPw)+'</code>'+
+        '<button type="button" id="um-temppw-copy" class="btn btn-sm btn-gh">Copy</button>'+
+      '</div>'+
+      '<button type="button" id="um-temppw-done" class="btn btn-primary" style="width:100%">Done</button>'+
+    '</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#um-temppw-copy').addEventListener('click',function(){
+    try{ navigator.clipboard.writeText(tempPw); }catch(e){}
+    this.textContent='Copied!'; var b=this; setTimeout(function(){b.textContent='Copy';},1400);
+  });
+  ov.querySelector('#um-temppw-done').addEventListener('click',function(){ ov.remove(); });
+}
+
 // ── Page entry ────────────────────────────────────────────────────────
 async function rUsers() {
   const el = document.getElementById('pg-users');
@@ -202,11 +245,12 @@ function _renderUsersList() {
     top.appendChild(pill);
     body.appendChild(top);
 
-    // Contact info
-    if (u.email || u.phone) {
+    // Contact info — synthetic plumbing emails (@users.internal) are never shown.
+    var _showEmail = u.email && !_isSyntheticEmail(u.email);
+    if (_showEmail || u.phone) {
       const meta = document.createElement('div');
       meta.className = 'um-card-meta';
-      if (u.email) {
+      if (_showEmail) {
         const em = document.createElement('div');
         em.className = 'um-card-row';
         em.innerHTML = _sbi('mail', 12) + ' ' + _esc(u.email);
@@ -268,13 +312,11 @@ function _renderUsersList() {
       resetBtn.innerHTML = _sbi('key', 12) + ' Reset Pwd';
       (function(userId, userName, userEmail) {
         resetBtn.addEventListener('click', async function() {
-          if (!userEmail) {
-            toast('No email address on file for this user — cannot send temp password.', 'err');
-            return;
-          }
+          var hasReal = userEmail && !_isSyntheticEmail(userEmail);
           const confirmed = window.confirm(
-            'Send a temporary password to ' + userName + ' (' + userEmail + ')?\n\n' +
-            'They will be required to change it on next login.'
+            hasReal
+              ? 'Email a temporary password to ' + userName + ' (' + userEmail + ')?\n\nThey will be required to change it at next login.'
+              : 'Generate a temporary password for ' + userName + '?\n\nThis user has no email, so it will be shown to you once on screen to share with them. They must change it at next login.'
           );
           if (!confirmed) return;
           resetBtn.disabled = true;
@@ -290,10 +332,15 @@ function _renderUsersList() {
               p_temp_password: tmp
             });
             if (error) throw error;
-            if (!res?.reset) throw new Error(res?.error || 'Reset failed');
-            toast('Temporary password sent to ' + (userEmail || userName), 'ok');
+            if (!res || !res.reset) throw new Error('reset_failed');
+            if (res.delivery === 'onscreen') {
+              umShowTempPassword(userName, res.temp_password || tmp);
+            } else {
+              toast('Temporary password emailed to ' + userEmail, 'ok');
+            }
           } catch(err) {
-            toast(err.message || 'Could not reset password', 'err');
+            console.error('[users] reset', err);
+            toast('We couldn’t reset the password just now. Please try again.', 'err');
           } finally {
             resetBtn.disabled = false;
             resetBtn.innerHTML = _sbi('key', 12) + ' Reset Pwd';
@@ -361,9 +408,12 @@ function _buildUserModal() {
         '</div>' +
         '<div class="mo-bd">' +
           '<input type="hidden" id="um-id">' +
-          '<div class="fo"><label class="fl">Full Name *</label><input id="um-name" class="fi" type="text" placeholder="Ahmed Khan"></div>' +
+          '<div class="fo"><label class="fl">Full Name *</label><input id="um-name" class="fi" type="text" placeholder="Ahmed Khan" oninput="umSuggestFromName()"></div>' +
+          '<div class="fo" id="um-username-wrap"><label class="fl">Username *</label><input id="um-username" class="fi" type="text" placeholder="e.g. jamal" autocomplete="off" oninput="umUnamePrev()">' +
+            '<div style="font-size:11px;color:var(--t3);margin-top:4px">Lowercase letters, numbers, dot, dash. Signs in as <b><span id="um-uname-prev">username</span>@' + (typeof S !== 'undefined' && S && S.coCode ? _esc(S.coCode) : 'company') + '</b></div></div>' +
           '<div class="fo"><label class="fl">Role *</label><select id="um-role" class="fi">' + roleOpts + '</select></div>' +
-          '<div class="fo"><label class="fl">Email</label><input id="um-email" class="fi" type="email" placeholder="staff@company.com"></div>' +
+          '<div class="fo"><label class="fl">Email <span style="opacity:.5">(optional)</span></label><input id="um-email" class="fi" type="email" placeholder="optional — only for password-reset emails">' +
+            '<div style="font-size:11px;color:var(--t3);margin-top:4px">Leave blank if the user has no email — you’ll set a temporary password and see it on screen.</div></div>' +
           '<div class="fo"><label class="fl">Phone</label><input id="um-phone" class="fi" type="tel" placeholder="+92 300 0000000"></div>' +
           '<div class="fo" id="um-pass-wrap"><label class="fl">Password *</label><input id="um-pass" class="fi" type="password" placeholder="Min 8 characters"></div>' +
           '<div class="fo" id="um-pass-edit-wrap" style="display:none"><label class="fl">New Password <span style="opacity:.5">(leave blank to keep current)</span></label><input id="um-pass-edit" class="fi" type="password" placeholder="Leave blank to keep unchanged"></div>' +
@@ -387,6 +437,9 @@ function openAddUserModal() {
   document.getElementById('um-title').textContent = 'Add User';
   document.getElementById('um-id').value    = '';
   document.getElementById('um-name').value  = '';
+  var _uw = document.getElementById('um-username-wrap'); if (_uw) _uw.style.display = '';
+  var _uu = document.getElementById('um-username'); if (_uu) _uu.value = '';
+  var _up = document.getElementById('um-uname-prev'); if (_up) _up.textContent = 'username';
   document.getElementById('um-role').value  = 'recovery';
   document.getElementById('um-email').value = '';
   document.getElementById('um-phone').value = '';
@@ -409,7 +462,9 @@ function openEditUserModal(userId) {
   document.getElementById('um-title').textContent = 'Edit User';
   document.getElementById('um-id').value    = u.id;
   document.getElementById('um-name').value  = u.full_name || '';
-  document.getElementById('um-email').value = u.email || '';
+  // Username is the login identity and is not renamed here — hide the field in edit mode.
+  var _uw2 = document.getElementById('um-username-wrap'); if (_uw2) _uw2.style.display = 'none';
+  document.getElementById('um-email').value = _isSyntheticEmail(u.email) ? '' : (u.email || '');
   document.getElementById('um-phone').value = u.phone || '';
   document.getElementById('um-pass').value  = '';
   document.getElementById('um-pass-wrap').style.display      = 'none';
@@ -443,6 +498,8 @@ async function saveUserModal() {
 
   var uid    = document.getElementById('um-id').value;
   var name   = document.getElementById('um-name').value.trim();
+  var unameEl = document.getElementById('um-username');
+  var username = unameEl ? unameEl.value.trim().toLowerCase() : '';
   var role   = document.getElementById('um-role').value;
   var email  = document.getElementById('um-email').value.trim();
   var phone  = document.getElementById('um-phone').value.trim();
@@ -459,6 +516,8 @@ async function saveUserModal() {
   if (!name) { errEl.textContent = 'Full name is required.'; errEl.style.display = ''; return; }
 
   if (!isEdit) {
+    if (!username) { errEl.textContent = 'Username is required.'; errEl.style.display = ''; return; }
+    if (!/^[a-z0-9._-]{2,30}$/.test(username)) { errEl.textContent = 'Username must be 2–30 characters: lowercase letters, numbers, dot, dash or underscore.'; errEl.style.display = ''; return; }
     if (!pass) { errEl.textContent = 'Password is required.'; errEl.style.display = ''; return; }
     if (typeof validatePasswordStrength === 'function') {
       var chk = validatePasswordStrength(pass);
@@ -520,7 +579,8 @@ async function saveUserModal() {
         p_password:           pass,
         p_email:              email || null,
         p_phone:              phone || null,
-        p_module_permissions: modulePerms
+        p_module_permissions: modulePerms,
+        p_username:           username || null
       });
       res = r2.data; error = r2.error;
     }

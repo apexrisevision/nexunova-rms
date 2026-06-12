@@ -14,6 +14,9 @@ var OB = (function () {
   var _step = 1, _cid = null;
   var _state = { projectName: '', projectId: null, typeDefaults: {}, floorCodes: {}, unitsPer: 10, defaultTypeId: '', generated: 0 };
   function _code(name) { return (_state.floorCodes && _state.floorCodes[name] != null) ? _state.floorCodes[name] : (typeof _uFloorCode === 'function' ? _uFloorCode(name) : String(name || '').charAt(0).toUpperCase()); }
+  // Suggest a short project code from the name (initials for multi-word, else first 4 chars).
+  // Server uniquifies this (auto_code), so it never collides.
+  function _projCode(name) { var c = (name || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim(); var out = c.indexOf(' ') > -1 ? c.split(/\s+/).filter(Boolean).map(function (w) { return w.charAt(0); }).join('') : c.slice(0, 4); return out || 'PRJ'; }
 
   function _key() { return 'rms.wizard.' + (_cid || 'x'); }
   function _save() { try { localStorage.setItem(_key(), JSON.stringify({ step: _step, state: _state })); } catch (e) {} }
@@ -78,14 +81,20 @@ var OB = (function () {
     _state.projectName = name.trim();
     try {
       if (!_state.projectId) {
-        var r = await supabase.rpc('upsert_project', { p_company_id: _cid, p_data: { project_name: _state.projectName, location: loc || null } });
+        var r = await supabase.rpc('upsert_project', { p_company_id: _cid, p_data: { project_name: _state.projectName, location: loc || null, project_code: _projCode(_state.projectName), auto_code: true } });
         if (r.error) throw r.error;
+        if (r.data && r.data.success === false) throw new Error(r.data.message || r.data.error || 'save_failed');
         _state.projectId = (r.data && (r.data.id || (r.data.project && r.data.project.id))) || _state.projectId;
         if (typeof loadProjectsCache === 'function') await loadProjectsCache(_cid);
         if (!_state.projectId) { var ps = window._projectsCache || []; var m = ps.find(function (p) { return (p.name || p.projectName) === _state.projectName; }); if (m) _state.projectId = m.id; }
+        // Creating the first project seeds the company's default unit types & statuses.
+        // Refresh those caches so the Types and Units steps show them right away
+        // (a brand-new tenant has empty caches at login, before any project exists).
+        if (typeof loadTypesCache === 'function') { try { await loadTypesCache(_cid); } catch (e) {} }
+        if (typeof loadStatusesCache === 'function') { try { await loadStatusesCache(_cid); } catch (e) {} }
       }
       _step = 2; _save(); _render();
-    } catch (e) { if (err) err.textContent = 'Could not save project: ' + (e.message || e); }
+    } catch (e) { console.error('[wizard] saveProject', e); if (err) err.textContent = 'We couldn’t create the project just now. Please check your connection and try again.'; }
   }
 
   // ── Step 2: Floors (quick-generate) ──
@@ -96,6 +105,7 @@ var OB = (function () {
       '<label style="display:flex;align-items:center;gap:8px;font-size:var(--fk-fs-body);margin-bottom:8px"><input type="checkbox" id="ob-fl-ground" checked onchange="OB._floorPreview()"> Ground floor</label>' +
       '<label style="display:flex;align-items:center;gap:8px;font-size:var(--fk-fs-body);margin-bottom:8px"><input type="checkbox" id="ob-fl-ug" onchange="OB._floorPreview()"> Upper Ground</label>' +
       '<div class="nx-field"><label class="nx-label">Numbered floors (1st, 2nd, …)</label><input class="nx-input" id="ob-fl-n" type="number" min="0" max="100" value="8" style="max-width:120px" oninput="OB._floorPreview()"></div>' +
+      '<div class="nx-kpi-label" style="text-transform:none;margin:var(--fk-sp-2) 0">The <b>Code</b> beside each floor is used in unit numbers — e.g. code <b>G</b> makes units <b>G-01, G-02…</b> You can edit any code below.</div>' +
       '<div id="ob-floor-list" style="margin-top:var(--fk-sp-2)">' + _floorListHTML() + '</div>' +
       '<div class="nx-error" id="ob-err"></div>' + _nav(null, 'Generate floors & continue', 'OB._genFloors()');
   }
@@ -133,7 +143,7 @@ var OB = (function () {
       }
       if (typeof loadFloorsCache === 'function') await loadFloorsCache(_cid);
       _step = 3; _save(); _render();
-    } catch (e) { if (err) err.textContent = 'Could not create floors: ' + (e.message || e); }
+    } catch (e) { console.error('[wizard] genFloors', e); if (err) err.textContent = 'We couldn’t save the floors just now. Please try again.'; }
   }
 
   // ── Step 3: Types (seeded checklist + in-session area/price defaults) ──
@@ -148,7 +158,7 @@ var OB = (function () {
     return '<div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">Step 3 · Unit types &amp; default area / price</div>' +
       (types.length ? '<table class="nx-table"><thead><tr><th>Type</th><th>Default area</th><th>Default price</th></tr></thead><tbody>' + rows + '</tbody></table>'
         : '<div class="nx-empty"><div class="nx-empty-msg">No types seeded. You can add them later in Types &amp; Floors.</div></div>') +
-      '<div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-2)">Defaults are saved on each type and pre-fill the bulk generator next time.</div>' +
+      '<div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-2)">Tip: set a typical size and price for each type — new units start with these values (you can change any unit later). Leaving them blank is fine.</div>' +
       '<div class="nx-error" id="ob-err"></div>' + _nav(null, 'Continue', 'OB._saveTypes()');
   }
   async function _saveTypes() {
@@ -173,6 +183,13 @@ var OB = (function () {
     var floors = _obFloorsSorted();
     var types = (window._typesCache || []).filter(function (t) { return t.isActive !== false; });
     var typeOpts = '<option value="">— No type —</option>' + types.map(function (t) { return '<option value="' + NX.esc(t.id) + '"' + (t.id === _state.defaultTypeId ? ' selected' : '') + '>' + NX.esc(t.name) + '</option>'; }).join('');
+    if (!floors.length) {
+      return '<div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">Step 4 · Generate units</div>' +
+        '<div class="nx-banner nx-banner--info" style="margin-bottom:var(--fk-sp-3)">' + NX.icon('info', 16) + '<span>No floors found yet. Go back to the Floors step and add at least one floor — units are numbered per floor (e.g. G-01).</span></div>' +
+        '<div class="nx-modal-footer" style="border:0;padding:var(--fk-sp-4) 0 0">' +
+        NX.button('Back to floors', { variant: 'secondary', onclick: 'OB._goto(2)' }) +
+        NX.button('Skip — I’ll add units later', { variant: 'ghost', onclick: 'OB._goto(5)' }) + '</div>';
+    }
     return '<div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">Step 4 · Generate units</div>' +
       '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-3)">' + floors.length + ' floors · pattern <b>{floor}-{NN}</b></div>' +
       '<div style="display:flex;gap:var(--fk-sp-3);flex-wrap:wrap;align-items:flex-end">' +
@@ -217,10 +234,17 @@ var OB = (function () {
     try {
       var r = await supabase.rpc('bulk_create_units', { p_company_id: _cid, p_project_id: _state.projectId, p_units: rows });
       if (r.error) throw r.error;
+      if (r.data && r.data.success === false) {
+        var bmsg = (r.data.error === 'plan_limit')
+          ? 'This would exceed your plan’s unit limit. Lower the units per floor, or upgrade your plan.'
+          : 'Some units couldn’t be created. Please review your inputs and try again.';
+        if (gen) { gen.disabled = false; gen.textContent = 'Generate & finish'; }
+        var el2 = document.getElementById('ob-err'); if (el2) el2.textContent = bmsg; return;
+      }
       _state.generated = (r.data && r.data.inserted) || 0;
       if (_state.generated > 0 && typeof loadUnitsCache === 'function') await loadUnitsCache(_cid);
       _step = 5; _save(); _render();
-    } catch (e) { var el = document.getElementById('ob-err'); if (el) el.textContent = 'Generate failed: ' + (e.message || e); if (gen) { gen.disabled = false; gen.textContent = 'Generate & finish'; } }
+    } catch (e) { console.error('[wizard] genUnits', e); var el = document.getElementById('ob-err'); if (el) el.textContent = 'We couldn’t generate the units just now. Please try again.'; if (gen) { gen.disabled = false; gen.textContent = 'Generate & finish'; } }
   }
 
   // ── Step 5: Done ──
@@ -234,9 +258,15 @@ var OB = (function () {
       NX.button('Go to dashboard', { variant: 'primary', onclick: 'OB._finish()' }) +
       NX.button('View units', { variant: 'secondary', onclick: "OB._finish('units')" }) + '</div></div>';
   }
-  function _finish(dest) {
-    _clear(); close();
-    try { supabase.rpc('mark_onboarding_complete', { p_company_id: _cid }).catch(function () {}); } catch (e) {}
+  async function _finish(dest) {
+    _clear();
+    // Await the flag flip so a reload / next login never re-opens a completed wizard.
+    try {
+      var r = await supabase.rpc('mark_onboarding_complete', { p_company_id: _cid });
+      if (r && r.error) console.error('[wizard] mark complete', r.error);
+      if (window.S && S.cid === _cid) { S.onboardingComplete = true; try { sessionStorage.setItem('nxn_sess', JSON.stringify(S)); } catch (e) {} }
+    } catch (e) { console.error('[wizard] mark complete', e); }
+    close();
     if (typeof nav === 'function') nav(dest || 'dashboard');
   }
 
