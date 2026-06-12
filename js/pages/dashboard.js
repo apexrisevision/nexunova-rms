@@ -57,6 +57,21 @@ async function _dashRP(from, to, projectId) {
   return data;
 }
 
+/* ── get_daily_collections — per-day collected for a period (Pulse sparkline).
+   Reconciles to get_recovery_position.received_total for the same period (proven
+   in the migration cross-check). Per-session cached on the same store. ── */
+async function _dashDaily(from, to, projectId) {
+  window._dashDayCache = window._dashDayCache || {};
+  const key = `${S.cid}|${projectId || ''}|${from}|${to}`;
+  if (window._dashDayCache[key]) return window._dashDayCache[key];
+  const { data, error } = await supabase.rpc('get_daily_collections', {
+    p_company_id: S.cid, p_project_id: projectId || null, p_from: from, p_to: to
+  });
+  if (error || !Array.isArray(data)) throw (error || new Error('daily collections unavailable'));
+  window._dashDayCache[key] = data;
+  return data;
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    rDash — role router (the only external entry; called from ui.js fns map)
    ════════════════════════════════════════════════════════════════════════ */
@@ -103,27 +118,148 @@ function _dashSkeleton() {
    ════════════════════════════════════════════════════════════════════════ */
 async function _dashAdmin(pg) {
   const months = _dashMonths(6);
-  // All RP month calls + PDC + approvals in parallel (per-session cached).
-  const [rps, pdc, apprCount, receivable] = await Promise.all([
+  // All RP month calls + PDC + approvals + the two daily series (this MTD + last
+  // full month, for the pace sparkline) in parallel (per-session cached).
+  const [rps, pdc, apprCount, receivable, dailyThis, dailyLast] = await Promise.all([
     Promise.all(months.map(m => _dashRP(m.from, m.to))),
     _dashLoadPDC().catch(() => null),
     _dashLoadApprovals().catch(() => 0),
-    _dashLoadReceivable().catch(() => 0)
+    _dashLoadReceivable().catch(() => 0),
+    _dashDaily(months[5].from, months[5].to).catch(() => null),
+    _dashDaily(months[4].from, months[4].to).catch(() => null)
   ]);
   months.forEach((m, i) => { m.collected = Number(rps[i].totals?.received_total || 0); });
   const rp     = rps[months.length - 1];            // current month MTD = KPI/source of truth
   const t      = rp.totals || {};
   const rows   = Array.isArray(rp.rows) ? rp.rows : [];
   const overdueAmt = rows.reduce((s, r) => s + (Number(r.overdue_days) > 0 ? Number(r.closing || 0) : 0), 0);
-  const cross90    = rows.filter(r => { const d = Number(r.overdue_days || 0); return d >= 84 && d <= 90; }).length;
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
     ${_dashHeader()}
     ${_dashKpiRow(t, overdueAmt, receivable)}
+    ${_dashPulse({ rps, months, t, rows, overdueAmt, dailyThis, dailyLast })}
     ${_dashWhoLate(rows)}
-    ${_dashActionStrip(pdc, cross90, apprCount)}
+    ${_dashActionStrip(pdc, apprCount)}
     ${_dashInflow(months)}
   </div>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PULSE STRIP — 3–4 compact insight cards. Each: real RPC data · ⓘ formula ·
+   renders only if its backing data exists · one sharp sentence + one micro-viz.
+   ════════════════════════════════════════════════════════════════════════ */
+function _dashDaysInMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); }
+function _dashSumDaily(arr) { return (arr || []).reduce((s, x) => s + Number(x.amount || 0), 0); }
+function _dashCumByDay(arr, n) {                 // sparse [{day,amount}] -> cumulative[1..n]
+  const m = {}; (arr || []).forEach(d => { const k = Number(String(d.day).slice(8, 10)); m[k] = (m[k] || 0) + Number(d.amount || 0); });
+  const out = []; let run = 0;
+  for (let i = 1; i <= n; i++) { run += (m[i] || 0); out.push(run); }
+  return out;
+}
+function _dashSet90(rp) {                          // sale_ids with 90+ days overdue & balance
+  const rows = Array.isArray(rp && rp.rows) ? rp.rows : [], s = new Set();
+  rows.forEach(r => { if (Number(r.overdue_days || 0) >= 90 && Number(r.closing || 0) > 0) s.add(String(r.sale_id)); });
+  return s;
+}
+
+function _dashPulse(ctx) {
+  const { rps, months, t, rows, overdueAmt, dailyThis, dailyLast } = ctx;
+  const now = new Date(), daysElapsed = now.getDate(), dim = _dashDaysInMonth(now);
+  const collected = Number(months[5].collected || 0), lastTotal = Number(months[4].collected || 0);
+  const cards = [];
+
+  // 1 · COLLECTION PACE (needs MTD + a prior full month to compare against)
+  if (collected > 0 && lastTotal > 0) {
+    const pace = collected / daysElapsed * dim;
+    const head = `<strong>PKR ${_dashCompact(collected)}</strong> by day ${daysElapsed} — at this pace `
+      + `${esc(months[5].label)} closes <strong>~${_dashCompact(pace)}</strong> vs ${esc(months[4].label)}'s ${_dashCompact(lastTotal)}`;
+    // Cross-check the series against the KPI; only draw the line if it reconciles.
+    const okThis = dailyThis && Math.abs(_dashSumDaily(dailyThis) - collected) <= 1;
+    const okLast = dailyLast && Math.abs(_dashSumDaily(dailyLast) - lastTotal) <= 1;
+    let viz;
+    if (okThis && okLast) {
+      const lastLen = _dashDaysInMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      viz = NX.sparkline({
+        series: [_dashCumByDay(dailyThis, daysElapsed), _dashCumByDay(dailyLast, lastLen)],
+        colors: ['var(--fk-primary)', 'var(--fk-text-muted)'], spanMax: Math.max(dim, lastLen), height: 32
+      }) + `<div class="nx-kpi-label" style="display:flex;gap:var(--fk-sp-3);text-transform:none;margin-top:4px">
+        <span style="color:var(--fk-primary)">— ${esc(months[5].label)}</span><span>- - ${esc(months[4].label)}</span></div>`;
+    } else {
+      viz = _dashPaceBar(collected, pace, lastTotal, months);   // arithmetic fallback (no lying line)
+    }
+    cards.push(_dashPulseCard('Collection pace',
+      'pace = collected ÷ days elapsed × days in month (arithmetic projection, not a forecast)', head, viz));
+  }
+
+  // 2 · RISK CONCENTRATION (needs overdue balance)
+  if (overdueAmt > 0) {
+    const overdue = rows.filter(r => Number(r.overdue_days) > 0 && Number(r.closing) > 0)
+      .sort((a, b) => Number(b.closing) - Number(a.closing));
+    const top10 = overdue.slice(0, 10).reduce((s, r) => s + Number(r.closing || 0), 0);
+    const pct = overdueAmt > 0 ? (top10 / overdueAmt * 100) : 0;
+    const head = `Top 10 defaulters hold <strong>PKR ${_dashCompact(top10)}</strong> — <strong>${pct.toFixed(0)}%</strong> of all overdue`;
+    const viz = NX.minibar({ a: top10, b: Math.max(0, overdueAmt - top10), toneA: 'danger' })
+      + `<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Top 10 vs rest of overdue</div>`;
+    cards.push(_dashPulseCard('Risk concentration',
+      'Σ closing of the 10 largest overdue sales ÷ Σ closing of all overdue sales (= Overdue Today)', head, viz));
+  }
+
+  // 3 · RECOVERY MIX (needs collections this month)
+  const rt = Number(t.received_total || 0);
+  if (rt > 0) {
+    const segOld = Number(t.r_old || 0), segCur = Number(t.r_cur || 0) + Number(t.r_dp || 0), segAdv = Number(t.r_advance || 0);
+    const other = rt - (segOld + segCur + segAdv);
+    const segs = [{ value: segOld, tone: 'danger' }, { value: segCur, tone: 'primary' }, { value: segAdv, tone: 'success' }];
+    if (Math.abs(other) > 0.005) segs.push({ value: Math.max(0, other), tone: 'info' });   // never hide a paisa
+    const pctOld = (segOld / rt * 100);
+    const head = `<strong>${pctOld.toFixed(0)}%</strong> of this month's collections cleared <strong>old arrears</strong>`;
+    const viz = NX.stackbar({ segments: segs })
+      + `<div class="nx-kpi-label" style="display:flex;gap:var(--fk-sp-3);text-transform:none;margin-top:4px">
+        <span style="color:var(--fk-danger)">Old</span><span style="color:var(--fk-primary)">Current</span><span style="color:var(--fk-success)">Advance</span></div>`;
+    cards.push(_dashPulseCard('Recovery mix',
+      'Old arrears (r_old) · Current dues + down-payment (r_cur+r_dp) · Advance (r_advance) — segments sum to received_total', head, viz));
+  }
+
+  // 4 · 90-DAY DRIFT (needs any 90+ membership at either as-of date)
+  const setStart = _dashSet90(rps[4]), setNow = _dashSet90(rps[5]);
+  if (setStart.size || setNow.size) {
+    let inN = 0, outN = 0;
+    setNow.forEach(id => { if (!setStart.has(id)) inN++; });
+    setStart.forEach(id => { if (!setNow.has(id)) outN++; });
+    const head = `<strong>${inN}</strong> sales crossed 90 days this month · <strong>${outN}</strong> recovered out`;
+    const viz = `<div style="display:flex;gap:var(--fk-sp-4);margin-top:2px">
+      <span class="nx-badge nx-badge--danger"><span class="nx-dot"></span>${inN} in</span>
+      <span class="nx-badge nx-badge--success"><span class="nx-dot"></span>${outN} out</span></div>`;
+    cards.push(_dashPulseCard('90-day drift',
+      'Sales at 90+ days overdue: newly entered (now − month-start) vs left the set = paid down (month-start − now)', head, viz));
+  }
+
+  if (!cards.length) return '';
+  return `<div class="nx-pulse-grid" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join('')}</div>`;
+}
+
+function _dashPulseCard(title, tip, headlineHTML, footHTML) {
+  return `<div class="nx-card nx-card--compact nx-pulse-card">
+    <div class="nx-kpi-label" style="display:flex;align-items:center">${esc(title)}${NX.infoTip(tip)}</div>
+    <div class="nx-pulse-headline" style="margin-top:6px">${headlineHTML}</div>
+    ${footHTML ? `<div style="margin-top:var(--fk-sp-2)">${footHTML}</div>` : ''}
+  </div>`;
+}
+
+/* Pace-bar fallback — pure arithmetic, drawn only when the daily series fails to
+   reconcile to the KPI (so we never draw a misleading cumulative line). MTD fill,
+   dotted projection cap, last-month tick. */
+function _dashPaceBar(collected, pace, lastTotal, months) {
+  const W = 132, H = 12, max = Math.max(pace, lastTotal, collected, 1);
+  const cw = collected / max * W, px = pace / max * W, lx = lastTotal / max * W, r = H / 2;
+  const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true" style="width:100%">
+    <rect x="0" y="0" width="${W}" height="${H}" rx="${r}" fill="var(--fk-border)"/>
+    <rect x="0" y="0" width="${cw.toFixed(1)}" height="${H}" rx="${r}" fill="var(--fk-primary)"/>
+    <line x1="${px.toFixed(1)}" y1="0" x2="${px.toFixed(1)}" y2="${H}" stroke="var(--fk-primary)" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <line x1="${lx.toFixed(1)}" y1="0" x2="${lx.toFixed(1)}" y2="${H}" stroke="var(--fk-text-muted)" stroke-width="1.5"/>
+  </svg>`;
+  return svg + `<div class="nx-kpi-label" style="display:flex;gap:var(--fk-sp-3);text-transform:none;margin-top:4px">
+    <span style="color:var(--fk-primary)">MTD</span><span style="color:var(--fk-primary)">··· projected</span><span>| ${esc(months[4].label)}</span></div>`;
 }
 
 function _dashKpiRow(t, overdueAmt, receivable) {
@@ -172,8 +308,10 @@ function _dashWhoLate(rows) {
   </div>`;
 }
 
-/* ACTION STRIP — PDCs ≤7d · sales crossing 90d this week · pending approvals (if any) */
-function _dashActionStrip(pdc, cross90, apprCount) {
+/* ACTION STRIP — PDCs ≤7d · pending approvals (if any). The 90-day story moved
+   to the Pulse "90-day drift" card (in vs recovered-out), so the old crossing
+   tile is retired to avoid duplication. */
+function _dashActionStrip(pdc, apprCount) {
   const card = (label, value, sub, onclick) =>
     `<div class="nx-card nx-card--compact" ${onclick ? `style="cursor:pointer" onclick="${onclick}"` : ''}>
       <div class="nx-kpi-label">${label}</div>
@@ -183,27 +321,40 @@ function _dashActionStrip(pdc, cross90, apprCount) {
   const cards = [];
   if (pdc) cards.push(card('PDCs due ≤ 7 days', String(pdc.count),
     'PKR ' + _dashExact(pdc.amount), "nav('pdc')"));
-  cards.push(card('Sales crossing 90 days', String(cross90), 'this week', "nav('reports')"));
   if (Number(apprCount) > 0) cards.push(card('Pending approvals', String(apprCount), 'awaiting you', "nav('approvals')"));
+  if (!cards.length) return '';
   return `<div style="display:grid;grid-template-columns:repeat(${cards.length},1fr);gap:var(--fk-sp-3)">${cards.join('')}</div>`;
 }
 
-/* INFLOW — collections last 6 months (flat token bars, no gradient) */
+/* INFLOW — collections last 6 months (flat token bars, no gradient). The current
+   month's bar carries a dotted projection cap at the same pace as Pulse card 1. */
 function _dashInflow(months) {
-  const max = Math.max(1, ...months.map(m => m.collected));
+  const now = new Date(), daysElapsed = now.getDate(), dim = _dashDaysInMonth(now);
+  const cur = months[months.length - 1];
+  const pace = daysElapsed > 0 ? (Number(cur.collected || 0) / daysElapsed * dim) : 0;
+  const max = Math.max(1, ...months.map(m => m.collected), pace);
+  const BARH = 120;
   const bars = months.map(m => {
     const h = Math.round((m.collected / max) * 100);
+    let cap = '';
+    if (m.current && pace > m.collected) {
+      const capPct = Math.min(100, pace / max * 100);
+      cap = `<div title="At current pace: ${_dashExact(pace)}"
+        style="position:absolute;left:0;right:0;bottom:${capPct}%;border-top:2px dotted var(--fk-primary);opacity:.7"></div>
+        <div style="position:absolute;left:0;right:0;bottom:calc(${capPct}% + 2px);text-align:center;font-size:11px;color:var(--fk-text-muted)">~${_dashCompact(pace)}</div>`;
+    }
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--fk-sp-2)">
-      <div style="width:100%;height:120px;display:flex;align-items:flex-end">
-        <div style="width:100%;height:${h}%;min-height:2px;background:var(--fk-primary);border-radius:6px 6px 0 0"
+      <div style="position:relative;width:100%;height:${BARH}px;display:flex;align-items:flex-end">
+        <div style="width:100%;height:${h}%;min-height:2px;background:var(--fk-primary);border-radius:6px 6px 0 0${m.current ? ';opacity:.92' : ''}"
              title="${esc(m.label)}: ${_dashExact(m.collected)}"></div>
+        ${cap}
       </div>
       <div class="num">${_dashCompact(m.collected)}</div>
       <div class="nx-kpi-label">${esc(m.label)}</div>
     </div>`;
   }).join('');
   return `<div class="nx-card">
-    <div class="nx-kpi-label">Collections — last 6 months</div>
+    <div class="nx-kpi-label">Collections — last 6 months${pace > cur.collected ? ' · dotted = current-pace projection' : ''}</div>
     <div style="display:flex;gap:var(--fk-sp-3);align-items:flex-end;margin-top:var(--fk-sp-3)">${bars}</div>
   </div>`;
 }

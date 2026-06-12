@@ -194,6 +194,20 @@
 .nx-kpi-dot--success{ background: var(--fk-success); }
 .nx-kpi-dot--warn{    background: var(--fk-warning); }
 .nx-kpi-dot--danger{  background: var(--fk-danger); }
+
+/* ── Micro-visualizations (NX.sparkline / minibar / stackbar) ── */
+.nx-sparkline{ display: block; width: 100%; overflow: visible; }
+.nx-minibar, .nx-stackbar{ display: block; width: 100%; }
+.nx-infotip{ display: inline-flex; align-items: center; vertical-align: middle; margin-left: 4px; color: var(--fk-text-muted); cursor: help; }
+.nx-infotip:hover, .nx-infotip:focus-visible{ color: var(--fk-text); outline: none; }
+
+/* ── Dashboard Pulse strip — compact insight cards (≤120px), 200ms ease-in ── */
+.nx-pulse-grid{ display: grid; gap: var(--fk-sp-3); }
+.nx-pulse-card{ animation: nx-pulse-in 200ms ease-in; }
+.nx-pulse-headline{ font-size: var(--fk-fs-body); color: var(--fk-text); line-height: 1.4; }
+.nx-pulse-headline strong{ font-weight: var(--fk-fw-semibold); }
+.nx-pulse-foot{ display: flex; align-items: center; justify-content: space-between; gap: var(--fk-sp-2); margin-top: var(--fk-sp-2); }
+@keyframes nx-pulse-in{ from{ opacity: 0; transform: translateY(2px); } to{ opacity: 1; transform: none; } }
 .nx-kpi-value{ font-size: var(--fk-fs-kpi); font-weight: var(--fk-fw-semibold); color: var(--fk-text); font-variant-numeric: tabular-nums; }
 .nx-kpi-delta{ font-size: var(--fk-fs-label); font-weight: var(--fk-fw-medium); }
 .nx-kpi-delta--up{ color: var(--fk-success); }

@@ -203,9 +203,81 @@
       '<span>' + _esc(message) + '</span></div>';
   }
 
+  /* ════════════════════════════════════════════════════════════════════════
+     MICRO-VISUALIZATIONS — inline SVG, single accent + muted, no gradient.
+     Reusable across surfaces; the dashboard Pulse strip is the first consumer.
+     ════════════════════════════════════════════════════════════════════════ */
+  function _cv(tone) { return 'var(--fk-' + (tone || 'primary') + ')'; }
+  var _nxUid = 0;
+
+  /* NX.sparkline({ series:[[…],[…]], colors, spanMax, width, height, strokeWidth })
+     Each series = array of values (e.g. cumulative). series[0] solid, rest muted
+     + dashed. spanMax fixes the x-scale so a shorter series stops part-way (a
+     month-to-date line overlaid on a full prior month). */
+  function sparkline(o) {
+    o = o || {};
+    var W = o.width || 132, H = o.height || 34, pad = 3, sw = o.strokeWidth || 1.5;
+    var series = o.series || [], colors = o.colors || ['var(--fk-primary)', 'var(--fk-text-muted)'];
+    var span = o.spanMax || Math.max.apply(null, series.map(function (s) { return (s || []).length; }).concat([2]));
+    var maxV = 0; series.forEach(function (s) { (s || []).forEach(function (v) { if (v > maxV) maxV = v; }); });
+    maxV = maxV || 1;
+    function pts(s) {
+      return s.map(function (v, i) {
+        var x = pad + (span <= 1 ? 0 : (i / (span - 1)) * (W - 2 * pad));
+        var y = (H - pad) - (v / maxV) * (H - 2 * pad);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' ');
+    }
+    var lines = series.map(function (s, idx) {
+      if (!s || s.length < 2) return '';
+      return '<polyline points="' + pts(s) + '" fill="none" stroke="' + (colors[idx] || 'var(--fk-text-muted)') +
+        '" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" opacity="' +
+        (idx > 0 ? '0.5' : '1') + '"' + (idx > 0 ? ' stroke-dasharray="3 3"' : '') + '/>';
+    }).join('');
+    return '<svg class="nx-sparkline" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H +
+      '" preserveAspectRatio="none" aria-hidden="true">' + lines + '</svg>';
+  }
+
+  /* NX.minibar({ a, b, toneA, toneB, width, height }) — two-segment track
+     (e.g. top-10 vs rest). toneB defaults to a neutral border fill. */
+  function minibar(o) {
+    o = o || {};
+    var W = o.width || 132, H = o.height || 8, a = Number(o.a || 0), b = Number(o.b || 0);
+    var tot = a + b || 1, aw = Math.max(0, Math.min(W, a / tot * W)), r = H / 2;
+    var cA = _cv(o.toneA || 'danger'), cB = o.toneB ? _cv(o.toneB) : 'var(--fk-border)';
+    return '<svg class="nx-minibar" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' +
+      '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="' + r + '" fill="' + cB + '"/>' +
+      '<rect x="0" y="0" width="' + aw.toFixed(1) + '" height="' + H + '" rx="' + r + '" fill="' + cA + '"/></svg>';
+  }
+
+  /* NX.stackbar({ segments:[{value,tone}], width, height }) — rounded stacked bar.
+     Segments should sum to the whole (caller surfaces any remainder as a segment). */
+  function stackbar(o) {
+    o = o || {};
+    var W = o.width || 132, H = o.height || 8, segs = o.segments || [], r = H / 2;
+    var tot = segs.reduce(function (s, x) { return s + Math.max(0, Number(x.value || 0)); }, 0) || 1;
+    var uid = 'nxsb' + (++_nxUid), x = 0, out = '';
+    segs.forEach(function (seg) {
+      var w = Math.max(0, Number(seg.value || 0) / tot * W);
+      if (w <= 0) return;
+      out += '<rect x="' + x.toFixed(1) + '" y="0" width="' + w.toFixed(1) + '" height="' + H + '" fill="' + _cv(seg.tone) + '"/>';
+      x += w;
+    });
+    return '<svg class="nx-stackbar" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H +
+      '" aria-hidden="true"><defs><clipPath id="' + uid + '"><rect x="0" y="0" width="' + W + '" height="' + H +
+      '" rx="' + r + '"/></clipPath></defs><g clip-path="url(#' + uid + ')">' + out + '</g></svg>';
+  }
+
+  /* NX.infoTip(text) — a small ⓘ with a native tooltip ("How is this computed?"). */
+  function infoTip(text) {
+    return '<span class="nx-infotip" tabindex="0" title="' + _esc(text) + '" aria-label="' + _esc(text) + '">' +
+      icon('info', 13) + '</span>';
+  }
+
   global.NX = {
     esc: _esc, icon: icon, card: card, button: button, table: table, modal: modal,
     field: field, badge: badge, chip: chip, kpi: kpi, empty: empty,
-    pageHeader: pageHeader, banner: banner
+    pageHeader: pageHeader, banner: banner,
+    sparkline: sparkline, minibar: minibar, stackbar: stackbar, infoTip: infoTip
   };
 })(window);
