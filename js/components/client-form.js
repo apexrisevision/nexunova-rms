@@ -37,6 +37,10 @@
     _state = { clientId, projectId: projId, onSaved: opts.onSaved || null, lockProject };
 
     const overseas = (c?.overseasLocal === 'overseas');
+    const initials = (((c?.fullName || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('')) || '?').toUpperCase();
+    const photoInner = c?.clientPhotoUrl
+      ? `<img src="${esc(c.clientPhotoUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${esc(initials)}'">`
+      : esc(initials);
     const projOpts = [{ value: '', label: '— Select project —' }]
       .concat(_projects().map(p => ({ value: p.id, label: p.projectName || p.name || 'Project' })));
 
@@ -52,6 +56,15 @@
           <div id="cfm-dup" class="nx-banner nx-banner--warn" style="display:none;margin-top:6px"></div>
         </div>
         ${fld({ label: 'Phone', name: 'cfm-phone_primary', required: true, value: c?.phonePrimary || '', placeholder: '03xx-xxxxxxx' })}
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--fk-sp-3);margin:var(--fk-sp-2) 0">
+        <div id="cfm-photo-prev" style="width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:18px;font-weight:600;color:var(--fk-text-muted)">${photoInner}</div>
+        <div>
+          <input type="file" id="cfm-photo-file" accept="image/jpeg,image/png" style="display:none" onchange="ClientForm._photo(this)">
+          <input type="hidden" id="cfm-photo_url" value="${esc(c?.clientPhotoUrl || '')}">
+          ${NX.button('Upload photo', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-photo-btn"', onclick: "document.getElementById('cfm-photo-file').click()" })}
+          <div class="nx-kpi-label" style="text-transform:none;margin-top:4px">JPG or PNG · auto-resized to 512px</div>
+        </div>
       </div>
       <label class="nx-check" style="display:flex;align-items:center;gap:8px;margin:var(--fk-sp-2) 0;font-size:13px;color:var(--fk-text-muted);cursor:pointer">
         <input type="checkbox" id="cfm-overseas" ${overseas ? 'checked' : ''} onchange="ClientForm._overseas(this.checked)"> Overseas client (no CNIC — uses passport)
@@ -104,6 +117,50 @@
     const w = document.getElementById('cfm-passport-wrap'); if (w) w.style.display = on ? '' : 'none';
   }
 
+  // Client photo — same legacy storage mechanism (rms-documents bucket, clients/photos
+  // folder, public URL → client_photo_url) plus a client-side resize to <=512px.
+  function _resize(file, max) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > max || h > max) { const s = Math.min(max / w, max / h); w = Math.round(w * s); h = Math.round(h * s); }
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        cv.toBlob(b => b ? resolve(b) : reject(new Error('resize failed')), 'image/jpeg', 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('not a valid image')); };
+      img.src = url;
+    });
+  }
+
+  async function _photo(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!/^image\/(jpeg|png)$/.test(file.type)) { if (typeof toast === 'function') toast('JPG or PNG only', 'warn'); input.value = ''; return; }
+    const btn = document.getElementById('cfm-photo-btn');
+    const setLabel = t => { if (btn) { const s = btn.querySelector('span'); if (s) s.textContent = t; } };
+    if (btn) btn.disabled = true; setLabel('Uploading…');
+    try {
+      const blob = await _resize(file, 512);
+      const cid = (typeof S !== 'undefined' && S && S.cid) ? S.cid : 'shared';
+      const path = cid + '/clients/photos/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.jpg';
+      const up = await supabase.storage.from('rms-documents').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (up.error) throw up.error;
+      const pub = supabase.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
+      const hidden = document.getElementById('cfm-photo_url'); if (hidden) hidden.value = pub;
+      const prev = document.getElementById('cfm-photo-prev');
+      if (prev) prev.innerHTML = '<img src="' + pub + '" style="width:100%;height:100%;object-fit:cover">';
+      if (typeof toast === 'function') toast('Photo uploaded', 'ok');
+    } catch (e) {
+      if (typeof toast === 'function') toast('Upload failed: ' + (e.message || e), 'err');
+    } finally {
+      if (btn) btn.disabled = false; setLabel('Upload photo'); input.value = '';
+    }
+  }
+
   function _dup(v) {
     clearTimeout(_dupTimer);
     _dupTimer = setTimeout(() => _dupCheck(v), 350);
@@ -153,7 +210,8 @@
       notes: _val('cfm-notes') || null, overseas_local: overseas ? 'overseas' : 'local',
       next_of_kin_name: _val('cfm-kin_name') || null,
       next_of_kin_relation: _val('cfm-kin_relation') || null,
-      next_of_kin_phone: _val('cfm-kin_phone') || null
+      next_of_kin_phone: _val('cfm-kin_phone') || null,
+      client_photo_url: _val('cfm-photo_url') || null
     };
 
     const btn = document.getElementById('cfm-save');
@@ -189,5 +247,5 @@
     }
   }
 
-  global.ClientForm = { open, close, save, _dup, _overseas, _dupCheck };
+  global.ClientForm = { open, close, save, _dup, _overseas, _dupCheck, _photo };
 })(window);

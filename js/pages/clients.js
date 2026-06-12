@@ -446,6 +446,11 @@ function rClientDetail() {
   const isA = S.role === 'admin' || S.role === 'owner';
   const hist = c.status === 'inactive';
 
+  const cdInitials = (((c.fullName || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('')) || '?').toUpperCase();
+  const cdAvatar = c.clientPhotoUrl
+    ? '<img src="' + esc(c.clientPhotoUrl) + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    : '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0">' + esc(cdInitials) + '</div>';
+
   const act = [];
   act.push(NX.button('← Back', { variant:'ghost', size:'sm', onclick:"nav('clients')" }));
   if (isA) act.push(NX.button('Edit', { variant:'secondary', size:'sm', onclick:"ClientForm.open({ clientId:'" + clientId + "', onSaved:function(){ rClientDetail(); } })" }));
@@ -464,13 +469,13 @@ function rClientDetail() {
     (hist ? NX.banner('Historical / cancelled buyer — this client is inactive. Their cancelled sales are shown below; no current dues are computed.', 'warn') : '') +
     '<div class="nx-card" style="margin:var(--fk-sp-3) 0">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--fk-sp-3)">' +
-        '<div>' +
+        '<div style="display:flex;gap:var(--fk-sp-3);align-items:flex-start">' + cdAvatar + '<div>' +
           '<div class="nx-mono nx-kpi-label" style="text-transform:none">' + esc(c.clientCode||'') + '</div>' +
           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0"><h1 class="nx-page-title">' + esc(c.fullName||'Unnamed') + '</h1>' + statusBadge + (c.clientCategory?NX.chip(c.clientCategory):'') + '</div>' +
           '<div class="nx-kpi-label" style="text-transform:none">' + (c.fatherName?'S/o '+esc(c.fatherName)+' · ':'') + (c.cnic?'NIC '+esc(c.cnic):'') + '</div>' +
           '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">' + (c.phonePrimary?'<a href="tel:'+esc(c.phonePrimary)+'" style="color:var(--fk-info)">'+esc(c.phonePrimary)+'</a>':'') + (c.address?' · '+esc(c.address):'') + (c.city?', '+esc(c.city):'') + '</div>' +
           (c.nextOfKinName ? '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Nominee: ' + esc(c.nextOfKinName) + (c.nextOfKinRelation?' ('+esc(c.nextOfKinRelation)+')':'') + (c.nextOfKinPhone?' · '+esc(c.nextOfKinPhone):'') + '</div>' : '') +
-        '</div>' +
+        '</div></div>' +
         '<div class="no-p" style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">' +
           (c.phonePrimary?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(c.phonePrimary)+'"><span>Call</span></a>':'') +
           ((c.whatsapp||c.phonePrimary)?'<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/'+(c.whatsapp||c.phonePrimary).replace(/[^0-9]/g,'')+'"><span>WhatsApp</span></a>':'') +
