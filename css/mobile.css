@@ -213,9 +213,7 @@
   /* ── Filter bar labels hide on small phones ──────────────── */
   .fbar-label { display: none; }
 
-  /* ── QAB positioning ─────────────────────────────────────── */
-  #qab-wrap { bottom: 72px; right: 12px; }
-  .qab-item { padding: 10px 14px 10px 10px; font-size: 12px; }
+  /* ── QAB retired (Nav phase, 2026-06-12) → "+ New" menu in topbar ── */
 
   /* ── Topbar compact ──────────────────────────────────────── */
   .tb-chip { display: none !important; }

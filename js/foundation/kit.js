@@ -161,15 +161,18 @@
   function chip(text) { return '<span class="nx-chip">' + _esc(text) + '</span>'; }
 
   /* ── KPI ──────────────────────────────────────────────────────────────
-     NX.kpi({ label, value, delta, deltaDir:'up'|'down', class }) */
+     NX.kpi({ label, value, delta, deltaDir:'up'|'down', dot, class })
+     dot = 'primary'|'success'|'warn'|'danger'|'info' → quiet semantic dot
+           before the label (color-with-meaning, no borders/strips). */
   function kpi(o) {
     o = o || {};
     var delta = '';
     if (o.delta != null && o.delta !== '') {
       delta = '<div class="nx-kpi-delta' + (o.deltaDir ? ' nx-kpi-delta--' + o.deltaDir : '') + '">' + _esc(o.delta) + '</div>';
     }
+    var dot = o.dot ? '<span class="nx-kpi-dot nx-kpi-dot--' + _esc(o.dot) + '"></span>' : '';
     return '<div class="nx-kpi' + _cls(o.class) + '">' +
-      '<div class="nx-kpi-label">' + _esc(o.label || '') + '</div>' +
+      '<div class="nx-kpi-label">' + dot + _esc(o.label || '') + '</div>' +
       '<div class="nx-kpi-value num">' + _esc(o.value == null ? '' : o.value) + '</div>' +
       delta + '</div>';
   }

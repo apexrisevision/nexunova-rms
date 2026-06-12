@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="css/foundation/tokens.css?v=20260612a">
 <link rel="stylesheet" href="css/design-system.css?v=20260526c">
 <link rel="stylesheet" href="css/login.css?v=20260604e">
-<link rel="stylesheet" href="css/app.css?v=20260612a">
+<link rel="stylesheet" href="css/app.css?v=20260612g">
 <link rel="stylesheet" href="css/components.css?v=20260601a">
 <link rel="stylesheet" href="css/pages.css?v=20260511c">
 <link rel="stylesheet" href="css/schedule.css?v=20260529a">
@@ -35,7 +35,7 @@
 <link rel="stylesheet" href="css/theme.css?v=20260526c">
 <link rel="stylesheet" href="css/dashboard-premium.css?v=20260604a">
 <link rel="stylesheet" href="css/recovery-dashboard.css?v=20260526a">
-<link rel="stylesheet" href="css/sidebar-premium.css?v=20260531e">
+<link rel="stylesheet" href="css/sidebar-premium.css?v=20260612g">
 <link rel="stylesheet" href="css/enterprise-polish.css?v=20260529a">
 <link rel="stylesheet" href="css/reports-hub.css?v=20260611b">
 <link rel="stylesheet" href="css/hierarchy.css?v=20260526c">
@@ -53,7 +53,7 @@
 <link rel="stylesheet" href="css/recovery-ops.css?v=20260527a">
 <link rel="stylesheet" href="css/form-nav.css?v=20260516i">
 <link rel="stylesheet" href="css/footer-aurora.css?v=20260517i">
-<link rel="stylesheet" href="css/topbar-aurora.css?v=20260529k">
+<!-- topbar-aurora.css RETIRED (Nav phase, 2026-06-12) — replaced by foundation/shell.css -->
 <!-- ── SAAS POLISH — loaded LAST so it wins the cascade ── -->
 <link rel="stylesheet" href="css/saas-polish.css?v=20260529a">
 <link rel="stylesheet" href="css/tutorial.css?v=20260517a">
@@ -61,10 +61,12 @@
 <!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
 <link rel="stylesheet" href="css/visual-overhaul.css?v=20260612a">
 <!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
-<link rel="stylesheet" href="css/mobile.css?v=20260526c">
+<link rel="stylesheet" href="css/mobile.css?v=20260612g">
 <!-- ── FOUNDATION COMPONENT KIT (Phase 2) — loaded LAST so the nx- shell re-skin (section 11)
      wins over legacy shell CSS without !important. Page-level nx- classes are additive. ── -->
-<link rel="stylesheet" href="css/foundation/components.css?v=20260612f">
+<link rel="stylesheet" href="css/foundation/components.css?v=20260612h">
+<!-- ── SHELL CHROME (Nav phase) — thin utility topbar + "+ New"/menus + sidebar "More" tier. Loaded after components.css so it wins without !important. ── -->
+<link rel="stylesheet" href="css/foundation/shell.css?v=20260612h">
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -1201,17 +1203,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       </button>
     </div>
 
-    <!-- Zone 2: Workspace Switcher -->
-    <div class="sb-ws">
-      <div class="sb-ws-av" id="sb-ws-av">N</div>
-      <div class="sb-ws-info">
-        <div class="sb-ws-name" id="sb-ws-name">Nexunova</div>
-        <div class="sb-ws-plan">Enterprise</div>
-      </div>
-      <span class="sb-ws-icon">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-      </span>
-    </div>
+    <!-- Zone 2: Workspace switcher REMOVED (Nav phase, 2026-06-12 — de-dup identity).
+         Company identity now lives ONCE, in the topbar company chip (#tb-c). -->
 
     <!-- Zone 3: Quick Search -->
     <div class="sb-search-zone" onclick="nav('search')" title="Search (⌘K)">
@@ -1228,37 +1221,18 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
     <!-- Zone 4b: Setup Wizard shortcut retired — now a nav item in the HOME group (js/ui.js) -->
 
-    <!-- Zone 4c: Theme toggle (Phase 5, 2026-05-27 — moved from topbar #tb-theme-btn).
-         Wires to existing window.toggleTheme() via theme.js's #tb-theme-btn click delegate;
-         the SVG (#tb-theme-icon) is updated by theme.js applyTheme(). buildSB syncs the
-         initial icon to match data-theme in case the sidebar renders after theme.js init. -->
-    <button id="tb-theme-btn" class="sb-theme-btn" title="Toggle theme (light/dark)"
-            style="margin:0 12px 8px;padding:8px 12px;display:flex;align-items:center;gap:10px;background:transparent;border:1px solid var(--border,#1E293B);border-radius:8px;color:var(--text-sidebar,#94A3B8);cursor:pointer;font-size:13px;font-weight:500;transition:background 150ms ease,color 150ms ease;"
-            onmouseover="this.style.background='var(--bg-sidebar-hover,rgba(255,255,255,0.04))';this.style.color='var(--text-sidebar-active,#FFFFFF)'"
-            onmouseout="this.style.background='transparent';this.style.color='var(--text-sidebar,#94A3B8)'">
-      <svg id="tb-theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-      <span style="flex:1;text-align:left">Theme</span>
-    </button>
+    <!-- Zone 4c: Theme toggle relocated to the utility TOPBAR (Nav phase, 2026-06-12).
+         The single #tb-theme-btn / #tb-theme-icon now lives in #nxTopbar; theme.js's
+         click delegate + applyTheme() icon sync are unchanged (one id, no duplication). -->
 
-    <!-- Zone 5: User Profile -->
-    <div class="sb-user-zone" id="sb-user-zone" onclick="_sbToggleUserMenu(event)">
-      <div class="sb-av" id="sb-av">A</div>
-      <div class="sb-user-info">
-        <div class="sb-uname" id="sb-un">—</div>
-        <div class="sb-urole" id="sb-ur">—</div>
-      </div>
-      <span class="sb-user-more">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-      </span>
-    </div>
-
-    <!-- User Popover -->
-    <div class="sb-user-pop" id="sb-user-pop">
-      <button class="sb-pop-item" onclick="_sbCloseUserMenu();nav('changepassword')">Change Password</button>
-      <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Notifications</button>
-      <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Help &amp; docs</button>
-      <div class="sb-pop-div"></div>
-      <button class="sb-pop-item danger" onclick="doLogout()">Sign out</button>
+    <!-- Zone 5: User profile RELOCATED to the topbar (Nav phase — de-dup identity).
+         The user menu is the top-right avatar (#nxTopbar). The sidebar footer keeps
+         ONLY the collapse control. -->
+    <div class="sb-foot">
+      <button class="sb-foot-collapse" title="Collapse sidebar" onclick="toggleSidebar()" aria-label="Collapse sidebar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        <span class="sb-foot-lbl">Collapse</span>
+      </button>
     </div>
 
   </div>
@@ -1286,47 +1260,65 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       </div>
     </div>
 
-    <!-- ✦ AURORA TOPBAR — hover the trigger pill to reveal the mega menu -->
-    <div class="aurora-topbar" id="auroraTopbar">
-      <div class="aurora-topbar-bar">
-        <div class="atb-l">
-          <button id="tb-sb-toggle" class="tb-icon-btn" title="Toggle sidebar" onclick="toggleSidebar()">
-            <svg id="tb-sb-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>
-          </button>
-
-          <!-- Trigger pill — lightsaber border + shake + tooltip pop.
-               Continuously screams "look at me" without being annoying. -->
-          <div class="aurora-topbar-trigger" id="atbTrigger" role="button" tabindex="0" aria-label="Open navigation menu">
-            <div class="atb-trigger-logo" aria-hidden="true">
-              <img id="sb-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
-            </div>
-            <div class="atb-current">
-              <span class="atb-current-lbl">Now Viewing</span>
-              <span class="atb-current-name" id="tb-t">Dashboard</span>
-            </div>
-            <svg class="atb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </div>
-        </div>
-        <div class="atb-r">
-          <span class="tb-chip date" id="tb-d"></span>
-          <span class="tb-chip co" id="tb-c"></span>
-          <div class="tb-search" onclick="nav('search')">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            Search Units
-          </div>
-          <!-- Theme toggle moved to sidebar footer (Phase 5, 2026-05-27). See #tb-theme-btn in the sidebar zone 4c. -->
-          <button class="tb-help-btn" onclick="TUT.open()" title="Getting Started Guide">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            Get Started
-            <span class="tb-help-dot"></span>
-          </button>
-        </div>
+    <!-- ── UTILITY TOPBAR (Nav phase, 2026-06-12) — Aurora mega-menu RETIRED.
+         Thin chrome over the persistent sidebar (QuickBooks/SAP/Stripe standard):
+         page title · search (⌘K) · "+ New" (role-aware) · theme · company / super-admin.
+         Owned by js/foundation/shell.js. Old aurora markup → js/pages/archive/. ── -->
+    <div class="nx-topbar" id="nxTopbar">
+      <div class="nx-tb-l">
+        <button id="tb-sb-toggle" class="nx-tb-icon" title="Toggle sidebar" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+          <svg id="tb-sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>
+        </button>
+        <span class="nx-tb-title" id="tb-t">Dashboard</span>
       </div>
 
-      <!-- MEGA — drops down on hover -->
-      <div class="aurora-topbar-mega" id="atbMega">
-        <div class="atb-mega-grid" id="atbMegaGrid">
-          <!-- filled by buildTopbarMega() in topbar-aurora.js -->
+      <div class="nx-tb-r">
+        <!-- Global search → search page (⌘K global handler lives in search.js) -->
+        <div class="nx-tb-search" id="nx-tb-search" onclick="nav('search')" title="Search (Ctrl/⌘ K)" role="button" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span class="nx-tb-search-ph">Search</span>
+          <span class="nx-tb-kbd">⌘K</span>
+        </div>
+
+        <!-- "+ New" — the FAB's actions, role-aware. Menu filled by buildTopbar(). -->
+        <div class="nx-tb-new-wrap" id="nx-tb-new-wrap">
+          <button class="nx-tb-new" type="button" aria-haspopup="true" onclick="event.stopPropagation();NXShell.toggleMenu('nx-tb-new-menu')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+            <span class="nx-tb-new-lbl">New</span>
+            <svg class="nx-tb-new-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="nx-menu" id="nx-tb-new-menu" role="menu"><!-- filled by buildTopbar() --></div>
+        </div>
+
+        <!-- Theme toggle — wired by theme.js (#tb-theme-btn delegate; icon = #tb-theme-icon) -->
+        <button id="tb-theme-btn" class="nx-tb-icon" title="Toggle theme (light / dark)" aria-label="Toggle theme">
+          <svg id="tb-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
+
+        <span class="nx-tb-sep" aria-hidden="true"></span>
+
+        <!-- Company display chip (filled by updateCoLogo) + super-admin console link -->
+        <span class="nx-tb-co-wrap"><span class="nx-tb-co" id="tb-c"></span></span>
+        <button id="nx-tb-superadmin" class="nx-tb-icon" title="Super Admin Console" aria-label="Super Admin Console" onclick="NXShell.openSuperAdmin()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </button>
+
+        <!-- User menu — relocated from the sidebar footer (ids preserved so
+             auth.js / init.js keep populating #sb-av / #sb-un / #sb-ur). -->
+        <div class="nx-tb-user-wrap" id="sb-user-zone" onclick="_sbToggleUserMenu(event)">
+          <button class="nx-tb-avatar" id="sb-av" type="button" aria-haspopup="true" aria-label="User menu">A</button>
+          <div class="sb-user-pop" id="sb-user-pop" role="menu">
+            <div class="nx-menu-userhd">
+              <span class="nx-uname" id="sb-un">—</span>
+              <span class="nx-urole" id="sb-ur">—</span>
+            </div>
+            <div class="sb-pop-div"></div>
+            <button class="sb-pop-item" onclick="_sbCloseUserMenu();nav('changepassword')">Change Password</button>
+            <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Notifications</button>
+            <button class="sb-pop-item" onclick="_sbCloseUserMenu()">Help &amp; docs</button>
+            <div class="sb-pop-div"></div>
+            <button class="sb-pop-item danger" onclick="doLogout()">Sign out</button>
+          </div>
         </div>
       </div>
     </div>
@@ -4051,14 +4043,14 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 3.5 FOUNDATION (Phase 2): design-kit render helpers + race-free print emitter.
      Loaded before ui.js + page modules so NX.* / NXPrint.* are available everywhere. -->
-<script src="js/foundation/kit.js?v=20260612d"></script>
+<script src="js/foundation/kit.js?v=20260612h"></script>
 <script src="js/foundation/print.js?v=20260612a"></script>
 <script src="js/foundation/report-page.js?v=20260612c"></script>
 <script src="js/components/client-form.js?v=20260612i"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260612c"></script>
-<script src="js/topbar-aurora.js?v=20260529c"></script>
+<script src="js/ui.js?v=20260612h"></script>
+<script src="js/foundation/shell.js?v=20260612g"></script>
 
 <!-- 5. Auth: login/logout -->
 <script src="js/auth.js?v=20260612a"></script>
@@ -4069,8 +4061,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/onboarding.js?v=20260612d"></script>
 
 <!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260612b"></script>
-<script src="js/pages/units.js?v=20260612d"></script>
+<script src="js/pages/dashboard.js?v=20260612h"></script>
+<script src="js/pages/units.js?v=20260612e"></script>
 <script src="js/pages/clients.js?v=20260612i"></script>
 <script src="js/pages/projects.js?v=20260608c"></script>
 <script src="js/pages/agents.js?v=20260529a"></script>
@@ -4352,30 +4344,9 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     </div>
   </div>
 </div>
-<!-- ✦ QUICK ACTION BUTTON — floating, bottom-right -->
-<div id="qab-wrap">
-  <div class="qab-menu">
-    <button class="qab-item" onclick="qabClose();nav('addpayment')">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-      Add Payment
-    </button>
-    <button class="qab-item" onclick="qabClose();openConModal(null)">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.33A2 2 0 0 1 3.54 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l.79-.99a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-      Log a Call
-    </button>
-    <button class="qab-item" onclick="qabClose();fvOpenLog()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-      Log Field Visit
-    </button>
-    <button class="qab-item" onclick="qabClose();prmLogNew()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-1"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></svg>
-      Record Promise
-    </button>
-  </div>
-  <button id="qab-btn" onclick="qabToggle()" title="Quick Actions" aria-label="Quick Actions">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-  </button>
-</div>
+<!-- Quick-Action FAB RETIRED (Nav phase, 2026-06-12) → its actions live in the
+     topbar "+ New" menu (#nx-tb-new-wrap, js/foundation/shell.js). No floating
+     elements remain in the shell. -->
 
 <script>
 (function(){var b=document.getElementById('nx-price-bar'),t=document.getElementById('priceTab'),d=document.getElementById('priceDrawer'),c=document.getElementById('priceClose'),k=document.getElementById('priceBackdrop');if(!b||!t||!d)return;function o(){b.classList.add('is-open');d.classList.add('is-open');d.setAttribute('aria-hidden','false');t.setAttribute('aria-expanded','true');if(k)k.classList.add('is-open')}function cl(){b.classList.remove('is-open');d.classList.remove('is-open');d.setAttribute('aria-hidden','true');t.setAttribute('aria-expanded','false');if(k)k.classList.remove('is-open')}var isTouch=window.matchMedia('(hover: none)').matches,tm=null;if(!isTouch){t.addEventListener('mouseenter',function(){clearTimeout(tm);o()});t.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)});d.addEventListener('mouseenter',function(){clearTimeout(tm)});d.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)})}else{t.addEventListener('click',o)}if(c)c.addEventListener('click',cl);if(k)k.addEventListener('click',cl);document.addEventListener('keydown',function(e){if(e.key==='Escape'&&b.classList.contains('is-open'))cl()});var bl=d.querySelector('.sb-billing'),pl=document.getElementById('sbPills'),mb=document.getElementById('sbBillMonthly'),yb=document.getElementById('sbBillYearly');if(bl&&mb&&yb){function sb(m){bl.setAttribute('data-bill',m);mb.classList.toggle('is-active',m==='monthly');mb.setAttribute('aria-pressed',String(m==='monthly'));yb.classList.toggle('is-active',m==='yearly');yb.setAttribute('aria-pressed',String(m==='yearly'));if(pl)pl.setAttribute('data-billing',m);d.querySelectorAll('.sb-pill-price').forEach(function(s){s.classList.add('is-flipping');setTimeout(function(){s.textContent=s.getAttribute('data-'+m)||s.textContent;s.classList.remove('is-flipping')},110)})}mb.addEventListener('click',function(){sb('monthly')});yb.addEventListener('click',function(){sb('yearly')})}})();

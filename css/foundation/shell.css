@@ -1,0 +1,338 @@
+/* ════════════════════════════════════════════════════════════════════════
+   NEXUNOVA RMS — SHELL CHROME  (Nav phase · 2026-06-12)
+   ────────────────────────────────────────────────────────────────────────
+   The thin utility topbar that REPLACES the retired Aurora mega-menu, plus
+   the shared "+ New" / company / popover menus. Persistent sidebar + thin
+   topbar = the QuickBooks / SAP / Stripe standard.
+
+   Tokens only (--fk-*). No gradients, no glows, no bounce. One shadow
+   (--fk-shadow). Transitions 150–200ms ease. Loaded AFTER components.css so
+   these win the cascade without !important. Scoped to #s-app so no page
+   content is touched.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── The bar — thin (56px), airy, pinned to the top of .main (flex child) ── */
+#s-app .nx-topbar{
+  flex: 0 0 auto;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fk-sp-4);
+  padding: 0 var(--fk-sp-6);
+  background: var(--fk-bg-card);
+  border-bottom: 1px solid var(--fk-border);
+  font-family: var(--fk-font);
+}
+#s-app .nx-tb-l{ display: flex; align-items: center; gap: var(--fk-sp-3); min-width: 0; }
+#s-app .nx-tb-r{ display: flex; align-items: center; gap: var(--fk-sp-2); }
+
+/* page title — prominence via size + colour, NOT weight (house rule) */
+#s-app .nx-tb-title{
+  font-size: var(--fk-fs-title);
+  font-weight: var(--fk-fw-medium);
+  color: var(--fk-text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Icon buttons (sidebar toggle, theme, super-admin) ── */
+#s-app .nx-tb-icon{
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--fk-radius-control);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fk-text-muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+#s-app .nx-tb-icon:hover{ background: var(--fk-bg-subtle); color: var(--fk-text); }
+#s-app .nx-tb-icon svg{ width: 18px; height: 18px; }
+
+/* ── Search field — quiet until focus, then a subtle indigo ring ── */
+#s-app .nx-tb-search{
+  display: flex; align-items: center; gap: var(--fk-sp-2);
+  height: 32px;
+  min-width: 240px;
+  padding: 0 var(--fk-sp-3);
+  background: var(--fk-bg-subtle);
+  border: 1px solid var(--fk-border);
+  border-radius: var(--fk-radius-control);
+  color: var(--fk-text-muted);
+  font-size: var(--fk-fs-body);
+  cursor: text;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+#s-app .nx-tb-search:hover{ border-color: var(--fk-text-muted); }
+#s-app .nx-tb-search.is-focus,
+#s-app .nx-tb-search:focus-visible{
+  border-color: var(--fk-primary);
+  box-shadow: 0 0 0 3px var(--fk-primary-tint);
+  background: var(--fk-bg-card);
+}
+#s-app .nx-tb-search svg{ width: 15px; height: 15px; flex: 0 0 auto; }
+#s-app .nx-tb-search-ph{ flex: 1; white-space: nowrap; }
+#s-app .nx-tb-kbd{
+  font-size: 11px;
+  color: var(--fk-text-muted);
+  border: 1px solid var(--fk-border);
+  border-radius: 6px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+/* ── "+ New" — the single confident primary accent in the chrome ── */
+#s-app .nx-tb-new-wrap{ position: relative; }
+#s-app .nx-tb-new{
+  display: inline-flex; align-items: center; gap: var(--fk-sp-2);
+  height: 32px;
+  padding: 0 var(--fk-sp-3);
+  background: var(--fk-primary);
+  border: 1px solid var(--fk-primary);
+  border-radius: var(--fk-radius-control);
+  color: #fff;
+  font-family: var(--fk-font);
+  font-size: var(--fk-fs-body);
+  font-weight: var(--fk-fw-medium);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+#s-app .nx-tb-new:hover{ background: var(--fk-primary-hover); border-color: var(--fk-primary-hover); }
+#s-app .nx-tb-new svg{ width: 16px; height: 16px; }
+#s-app .nx-tb-new .nx-tb-new-caret{ width: 13px; height: 13px; opacity: .85; }
+
+/* ── Company chip (display; super-admin gets the console link beside it) ── */
+#s-app .nx-tb-co{
+  display: inline-flex; align-items: center; gap: var(--fk-sp-2);
+  height: 32px;
+  max-width: 200px;
+  padding: 0 var(--fk-sp-2);
+  border-radius: var(--fk-radius-control);
+  color: var(--fk-text-muted);
+  font-size: var(--fk-fs-body);
+  overflow: hidden;
+  white-space: nowrap;
+}
+#s-app .nx-tb-co img{ height: 24px; max-width: 120px; object-fit: contain; }
+
+/* a quiet vertical divider between zones in the right cluster */
+#s-app .nx-tb-sep{
+  width: 1px; height: 22px;
+  background: var(--fk-border);
+  margin: 0 var(--fk-sp-1);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SHARED POPOVER MENU  (+ New, user) — soft 160ms ease, kit shadow only
+   ════════════════════════════════════════════════════════════════════════ */
+#s-app .nx-menu{
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 232px;
+  padding: var(--fk-sp-1);
+  background: var(--fk-bg-card);
+  border: 1px solid var(--fk-border);
+  border-radius: var(--fk-radius-card);
+  box-shadow: var(--fk-shadow);
+  z-index: 60;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+#s-app .nx-menu.is-open{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+#s-app .nx-menu-label{
+  font-size: var(--fk-fs-label);
+  font-weight: var(--fk-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--fk-tracking-label);
+  color: var(--fk-text-muted);
+  padding: var(--fk-sp-2) var(--fk-sp-3) var(--fk-sp-1);
+}
+#s-app .nx-menu-item{
+  display: flex; align-items: center; gap: var(--fk-sp-3);
+  width: 100%;
+  padding: var(--fk-sp-2) var(--fk-sp-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--fk-radius-control);
+  color: var(--fk-text);
+  font-family: var(--fk-font);
+  font-size: var(--fk-fs-body);
+  font-weight: var(--fk-fw-regular);
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+#s-app .nx-menu-item:hover{ background: var(--fk-bg-subtle); }
+#s-app .nx-menu-item svg{ width: 16px; height: 16px; flex: 0 0 auto; color: var(--fk-text-muted); }
+#s-app .nx-menu-item.is-danger{ color: var(--fk-danger); }
+#s-app .nx-menu-item.is-danger svg{ color: var(--fk-danger); }
+#s-app .nx-menu-div{ height: 1px; background: var(--fk-border); margin: var(--fk-sp-1) var(--fk-sp-2); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIDEBAR — intra-group "More" tier (collapsed long-tail, per-user remembered)
+   ════════════════════════════════════════════════════════════════════════ */
+#s-app .sb .nav-grp-more{
+  display: flex; align-items: center; gap: var(--fk-sp-2);
+  width: 100%;
+  padding: var(--fk-sp-2) var(--fk-sp-3);
+  margin-top: 2px;
+  background: transparent;
+  border: none;
+  border-radius: var(--fk-radius-control);
+  color: var(--fk-text-muted);
+  font-family: var(--fk-font);
+  font-size: var(--fk-fs-body);
+  font-weight: var(--fk-fw-medium);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+#s-app .sb .nav-grp-more:hover{ background: var(--fk-bg-subtle); color: var(--fk-text); }
+#s-app .sb .nav-grp-more-chev{
+  width: 13px; height: 13px;
+  transition: transform 160ms ease;
+}
+#s-app .sb .nav-grp-more.is-open .nav-grp-more-chev{ transform: rotate(180deg); }
+#s-app .sb .nav-grp-more-tail{ overflow: hidden; }
+#s-app .sb .nav-grp-more-tail[hidden]{ display: none; }
+
+/* Collapsed (icons-only) sidebar: the "More" toggle is meaningless without
+   labels — hide it and always reveal the tail items as icons. */
+#s-app .sb.collapsed .nav-grp-more{ display: none; }
+#s-app .sb.collapsed .nav-grp-more-tail[hidden]{ display: block; }
+
+/* ── Mobile: keep the topbar tidy ── */
+@media (max-width: 768px){
+  #s-app .nx-topbar{ padding: 0 var(--fk-sp-4); gap: var(--fk-sp-2); }
+  #s-app .nx-tb-search{ min-width: 0; width: 36px; padding: 0; justify-content: center; }
+  #s-app .nx-tb-search .nx-tb-search-ph,
+  #s-app .nx-tb-search .nx-tb-kbd{ display: none; }
+  #s-app .nx-tb-co{ display: none; }
+  #s-app .nx-tb-new .nx-tb-new-lbl{ display: none; }
+  #s-app .nx-tb-new{ padding: 0 var(--fk-sp-2); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RICHNESS PASS (2026-06-12) — depth + warmth, still ZERO gradients/glows.
+   Surfaces separate, color carries meaning, hovers + active feel tactile.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. SURFACE DEPTH — the chrome sits above the page, not on its plane ── */
+#s-app .nx-topbar{ box-shadow: 0 1px 2px rgba(15,23,42,0.05); }
+html[data-theme="dark"] #s-app .nx-topbar{ box-shadow: 0 1px 0 rgba(0,0,0,0.35), 0 3px 8px rgba(0,0,0,0.22); }
+/* sidebar reads as its own raised surface (border + soft edge; stronger in dark) */
+[data-theme="light"] #s-app .sb{ box-shadow: 1px 0 0 var(--fk-border) !important; }
+html[data-theme="dark"] #s-app .sb{ box-shadow: 1px 0 0 var(--fk-border), 6px 0 20px rgba(0,0,0,0.32) !important; }
+
+/* ── 2. "+ New" — confident indigo presence, crisp hover, real press ── */
+#s-app .nx-tb-new{ box-shadow: 0 1px 2px rgba(79,70,229,0.25); }
+#s-app .nx-tb-new:hover{ box-shadow: 0 3px 10px rgba(79,70,229,0.32); }
+#s-app .nx-tb-new:active{ transform: scale(0.98); }
+#s-app .nx-tb-search{ box-shadow: inset 0 1px 1px rgba(15,23,42,0.03); }
+#s-app .nx-menu-item:active{ background: var(--fk-primary-tint); }
+
+/* ── 3. BRAND PRESENCE — top-right user avatar (deterministic indigo tint) ── */
+#s-app .nx-tb-user-wrap{ position: relative; display: inline-flex; }
+#s-app .nx-tb-avatar{
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--fk-primary-tint);
+  color: var(--fk-primary-fg);
+  -webkit-text-fill-color: var(--fk-primary-fg);
+  border: 1px solid rgba(79,70,229,0.22);
+  font-family: var(--fk-font); font-size: 12px; font-weight: var(--fk-fw-semibold);
+  cursor: pointer; flex: 0 0 auto;
+  transition: box-shadow 150ms ease, background 150ms ease, transform 120ms ease;
+}
+#s-app .nx-tb-avatar:hover{ box-shadow: 0 0 0 3px var(--fk-primary-tint); }
+#s-app .nx-tb-avatar:active{ transform: scale(0.96); }
+/* user dropdown — reuses the .open class toggled by _sbToggleUserMenu().
+   left/bottom/transform forced to override the old sidebar-anchored rules. */
+#s-app .sb-user-pop{
+  position: absolute !important; top: calc(100% + 8px) !important; bottom: auto !important;
+  left: auto !important; right: 0 !important; min-width: 224px;
+  padding: var(--fk-sp-1);
+  background: var(--fk-bg-card); border: 1px solid var(--fk-border);
+  border-radius: var(--fk-radius-card); box-shadow: var(--fk-shadow);
+  z-index: 60; opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+#s-app .sb-user-pop.open{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+#s-app .nx-menu-userhd{ display: flex; flex-direction: column; gap: 1px; padding: var(--fk-sp-2) var(--fk-sp-3); }
+#s-app .nx-menu-userhd .nx-uname{ font-size: var(--fk-fs-body); font-weight: var(--fk-fw-semibold); color: var(--fk-text); }
+#s-app .nx-menu-userhd .nx-urole{ font-size: var(--fk-fs-label); color: var(--fk-text-muted); text-transform: uppercase; letter-spacing: var(--fk-tracking-label); }
+#s-app .sb-user-pop .sb-pop-item{
+  display: flex; align-items: center; width: 100%;
+  padding: var(--fk-sp-2) var(--fk-sp-3);
+  background: transparent; border: none; border-radius: var(--fk-radius-control);
+  color: var(--fk-text); font-family: var(--fk-font); font-size: var(--fk-fs-body);
+  text-align: left; cursor: pointer; transition: background 150ms ease;
+}
+#s-app .sb-user-pop .sb-pop-item:hover{ background: var(--fk-bg-subtle); }
+#s-app .sb-user-pop .sb-pop-item.danger{ color: var(--fk-danger); }
+#s-app .sb-user-pop .sb-pop-div{ height: 1px; background: var(--fk-border); margin: var(--fk-sp-1) var(--fk-sp-2); }
+
+/* ── 3b. SIDEBAR SURFACE TONE — reads as a rail, not a void ── */
+[data-theme="light"] #s-app .sb{ background: #FAFBFC !important; }
+/* (dark sidebar #0F172A already separates from page #0B1120; border + edge above) */
+
+/* ── 3c. GROUP HEADER — label left (11px uppercase muted), chevron right edge ── */
+#s-app .sb .nav-grp-hd{ display: flex; align-items: center; }
+#s-app .sb .nav-grp-lbl{ flex: 1; text-align: left; }
+#s-app .sb .nav-grp-chev{ margin-left: auto; color: var(--fk-text-muted); transition: transform 160ms ease; }
+#s-app .sb .nav-group.collapsed .nav-grp-chev{ transform: rotate(-90deg); }
+
+/* ── 3d. SIDEBAR FOOTER — collapse control only ── */
+#s-app .sb .sb-foot{ margin-top: auto; padding: var(--fk-sp-2) var(--fk-sp-3); border-top: 1px solid var(--fk-border); }
+#s-app .sb .sb-foot-collapse{
+  display: flex; align-items: center; gap: var(--fk-sp-2);
+  width: 100%; height: 32px; padding: 0 var(--fk-sp-2);
+  background: transparent; border: none; border-radius: var(--fk-radius-control);
+  color: var(--fk-text-muted); font-family: var(--fk-font); font-size: var(--fk-fs-body);
+  cursor: pointer; transition: background 150ms ease, color 150ms ease;
+}
+#s-app .sb .sb-foot-collapse:hover{ background: var(--fk-bg-subtle); color: var(--fk-text); }
+#s-app .sb.collapsed .sb-foot{ padding: var(--fk-sp-2) var(--fk-sp-1); }
+#s-app .sb.collapsed .sb-foot-collapse{ justify-content: center; padding: 0; }
+#s-app .sb.collapsed .sb-foot-collapse .sb-foot-lbl{ display: none; }
+#s-app .sb.collapsed .sb-foot-collapse svg{ transform: rotate(180deg); }
+
+/* ── 4. TACTILITY + 5. DENSITY — denser rhythm, present hover, rich active ── */
+html[data-theme] #s-app .sb .ni{
+  height: 34px !important;
+  margin-bottom: 2px !important;
+}
+html[data-theme] #s-app .sb .ni:hover{
+  background: var(--fk-bg-subtle) !important;
+  color: var(--fk-text) !important;
+}
+html[data-theme] #s-app .sb .ni:active{ transform: scale(0.99) !important; }
+/* active item — richer: indigo bar + tint + medium-weight label + indigo glyph */
+html[data-theme] #s-app .sb .ni.on{ font-weight: var(--fk-fw-medium) !important; }
+html[data-theme] #s-app .sb .ni.on .ni-lb{ font-weight: var(--fk-fw-semibold) !important; }
+html[data-theme] #s-app .sb .nav-grp-body{ padding-top: 1px !important; padding-bottom: 4px !important; }
+
+/* ── 2b. COLOR WITH MEANING — semantic count chips + attention dots ── */
+#s-app .sb .ni-bdg.alert{
+  background: var(--fk-danger-tint) !important;
+  color: var(--fk-danger) !important;
+  -webkit-text-fill-color: var(--fk-danger) !important;
+}
+#s-app .sb .ni-bdg.warn{
+  background: var(--fk-warning-tint) !important;
+  color: var(--fk-warning) !important;
+  -webkit-text-fill-color: var(--fk-warning) !important;
+}
+#s-app .sb .ni .ni-dot{
+  width: 7px; height: 7px; border-radius: 50%;
+  margin-left: auto; flex: 0 0 auto;
+}
+#s-app .sb .ni .ni-bdg + .ni-dot{ margin-left: 6px; }
+#s-app .sb .ni .ni-dot.danger{ background: var(--fk-danger); box-shadow: 0 0 0 3px var(--fk-danger-tint); }
+#s-app .sb .ni .ni-dot.warn{ background: var(--fk-warning); box-shadow: 0 0 0 3px var(--fk-warning-tint); }

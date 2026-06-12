@@ -235,7 +235,7 @@ function updateCoLogo(){
     if(logo){
       tbC.innerHTML='<img src="'+logo+'" style="height:32px;max-width:110px;object-fit:contain;background:transparent;vertical-align:middle;display:inline-block" alt="'+coName+'">';
     }else{
-      tbC.innerHTML='<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#2563EB;color:white;font-size:10px;font-weight:700;flex-shrink:0">'+ini_+'</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;padding-left:5px">'+coName+'</span>';
+      tbC.innerHTML='<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--fk-primary,#4F46E5);color:#fff;font-size:10px;font-weight:600;flex-shrink:0">'+ini_+'</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;padding-left:6px;font-weight:500">'+coName+'</span>';
     }
   }
 }
@@ -330,163 +330,167 @@ function buildSB(){
   // Each group: { label: string|null, items: [{id, ic, lb, bdg, bdgType}] }
   let navGroups = [];
 
+  // ════════════════════════════════════════════════════════════════════════
+  // NAV PHASE (2026-06-12): the 7-area model — Dashboard · INVENTORY · SALES ·
+  // RECOVERY · REPORTS · INBOX · ADMIN. Every primary surface ≤2 clicks; group
+  // labels are 11px uppercase (foundation §11). RECOVERY + ADMIN are TIERED:
+  // primaries always visible, the long tail behind an in-group "More" divider
+  // (items flagged `more:true`), remembered per-user in localStorage. Active
+  // state = indigo left-bar + tint (foundation §11; no per-zone colours).
+  // Non-admin roles use the SAME area vocabulary, re-grouped from their EXISTING
+  // id sets only (no id added/removed → nav() permission gate unchanged).
+  // ════════════════════════════════════════════════════════════════════════
   if(isA){
-    // Admin / Owner — 7-group enterprise hierarchy (2026-05-31, final restructure).
-    // HOME + RECOVERY open by default (daily operations).
-    // CLIENTS & UNITS, PAYMENTS, REPORTS & ANALYTICS, LEGAL & COMPLIANCE,
-    // ADMINISTRATION collapsed by default.
-    // All page-ids preserved verbatim. (Former duplicate nav entries removed 2026-06-04:
-    // 'reports' as "Outstanding" in PAYMENTS and 'contacts' as "Call Logs" in RECOVERY —
-    // both were arg-less render fns identical to their canonical entries, so they only
-    // added sidebar clutter. Canonical homes kept: reports→"Reports & Export" in REPORTS &
-    // INTELLIGENCE, contacts→"Inbox" in HOME.)
-    // defaultCollapsed honored on first load via renderer line 511-512;
-    // user toggles persist in localStorage['rms.sidebar.groups.v2'] and
-    // override defaultCollapsed thereafter.
     navGroups = [
-      // International SaaS-standard 8-group hierarchy (2026-06-04 restructure).
-      // Home + Setup expanded; the rest collapsed by default. All page-ids/icons/badges
-      // preserved verbatim. (Duplicate nav entries removed 2026-06-04: contacts→"Call Logs"
-      // and reports→"Outstanding"; each id now appears once — contacts in Home as "Inbox",
-      // reports in Reports & Intelligence as "Reports & Export".) Collapse state persists in
-      // localStorage['rms.sidebar.groups.v2'] (key bumped so old grouping's states don't leak).
-      // ── 1. Home (expanded) ──
-      { label: 'Home', items: [
+      // Dashboard — ungrouped, always first.
+      { label: null, items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
-        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
-        { id:'approvals', ic:'file-check',  lb:'Approvals', bdg:(window._approvalsPending||null), bdgType:(window._approvalsPending?'alert':null) },
-        { id:'team',      ic:'users',       lb:'Team' },
-        { id:'setup-wizard', ic:'wand-2',   lb:'Setup Wizard', action:"if(typeof OB!=='undefined'&&S&&S.cid){OB.show(S.cid);}else if(typeof toast==='function'){toast('Setup wizard not available','err');}" },
       ]},
-      // ── 2. Setup (expanded) ──
-      { label: 'Setup', items: [
-        { id:'projects',   ic:'building-2', lb:'Projects' },
-        { id:'categories', ic:'layers',     lb:'Types & Floors' },
-        { id:'banks',      ic:'banknote',   lb:'Banks Master' },
-        { id:'users',      ic:'shield',     lb:'Users & Roles' },
-        { id:'admin',      ic:'settings',   lb:'Settings' },
+      // ── INVENTORY (expanded by default; secondary items behind "More") ──
+      { label: 'Inventory', items: [
+        { id:'units',          ic:'home',       lb:'Units' },
+        { id:'projects',       ic:'building-2', lb:'Projects' },
+        { id:'noc',            ic:'file-check', lb:'NOC Management',    more:true },
+        { id:'transferunits',  ic:'repeat',     lb:'Transferred Units', more:true },
+        { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units',   more:true },
       ]},
-      // ── 3. Parties (collapsed) ──
-      { label: 'Parties', defaultCollapsed: true, items: [
-        { id:'clients',      ic:'user-check', lb:'Clients' },
-        { id:'agents',       ic:'users',      lb:'Sales Agents' },
-        // Client Health + Blacklist Register folded into Clients as tabs (2026-06-04).
-        // Routes 'healthcenter'/'blacklist' still work — they redirect to the right tab.
+      // ── SALES ──
+      { label: 'Sales', items: [
+        { id:'sales',             ic:'file-text',   lb:'Sales' },
+        { id:'clients',           ic:'user-check',  lb:'Clients' },
+        { id:'agents',            ic:'users',       lb:'Sales Agents',       more:true },
+        { id:'commissions',       ic:'trending-up', lb:'Commissions',        more:true },
+        { id:'agenttransactions', ic:'trending-up', lb:'Agent Transactions', more:true },
+        // Client Health + Blacklist live as tabs inside Clients (routes redirect).
       ]},
-      // ── 4. Sales & Units (collapsed) ──
-      { label: 'Sales & Units', defaultCollapsed: true, items: [
-        { id:'sales',             ic:'file-text',   lb:'Sales & Bookings' },
-        { id:'units',             ic:'home',        lb:'All Units', bdg:totalU||null },
-        { id:'noc',               ic:'file-check',  lb:'NOC Management' },
-        { id:'transferunits',     ic:'repeat',      lb:'Transferred Units' },
-        { id:'cancelledunits',    ic:'tag',         lb:'Cancelled Units' },
-        { id:'commissions',       ic:'trending-up', lb:'Commissions' },
-        { id:'agenttransactions', ic:'trending-up', lb:'Agent Transactions' },
+      // ── RECOVERY (the money area — 4 primaries + a long "More" tail) ──
+      // Count chips killed except where they signal: PDC due ≤7d = warning.
+      { label: 'Recovery', items: [
+        { id:'recovery',  ic:'list-checks',    lb:'Payments', dot:(overdueN>0?'danger':null) },
+        { id:'pdc',       ic:'calendar-clock', lb:'PDC', bdg:(window._pdcDueCount||null), bdgType:(window._pdcDueCount?'warn':null) },
+        { id:'promises',  ic:'handshake',      lb:'Follow-ups' },
+        { id:'reminders', ic:'bell',           lb:'Reminders' },
+        { id:'campaigns',   ic:'megaphone',         lb:'Campaigns',             more:true },
+        { id:'fieldvisits', ic:'map-pin',           lb:'Field Visits',          more:true },
+        { id:'escalations', ic:'alert-triangle',    lb:'Escalations',           more:true },
+        { id:'legalcases',  ic:'scale',             lb:'Legal Cases',           more:true },
+        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers',      more:true },
+        { id:'ledgers',     ic:'book-open',         lb:'Ledgers',               more:true },
+        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables',more:true },
+        { id:'payables',    ic:'arrow-down-circle', lb:'Payables',              more:true },
+        { id:'paylinks',    ic:'link',              lb:'Payment Links',         more:true },
       ]},
-      // ── 5. Payments & Accounts (collapsed) ──
-      { label: 'Payments & Accounts', defaultCollapsed: true, items: [
-        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers' },
-        { id:'pdc',         ic:'calendar-clock',    lb:'PDC Register' },
-        { id:'paylinks',    ic:'link',              lb:'Payment Links' },
-        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
-        { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
-        { id:'ledgers',     ic:'book-open',         lb:'Ledgers' },
-      ]},
-      // ── 6. Recovery & Legal (collapsed) ──
-      { label: 'Recovery & Legal', defaultCollapsed: true, items: [
-        { id:'recovery',           ic:'list-checks',    lb:'Recovery Queue' },
-        { id:'promises',           ic:'handshake',      lb:'Promise Tracker' },
-        { id:'reminders',          ic:'bell',           lb:'Reminders' },
-        { id:'campaigns',          ic:'megaphone',      lb:'Campaigns' },
-        { id:'fieldvisits',        ic:'map-pin',        lb:'Field Visits' },
-        { id:'escalations',        ic:'alert-triangle', lb:'Escalations' },
-        { id:'legalcases',         ic:'scale',          lb:'Legal Cases' },
-      ]},
-      // ── 7. Reports & Intelligence (collapsed) ──
-      { label: 'Reports & Intelligence', defaultCollapsed: true, items: [
-        { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
-        { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
+      // ── REPORTS ──
+      { label: 'Reports', items: [
+        { id:'reports',     ic:'bar-chart-3',    lb:'Reports' },
         { id:'documents',   ic:'printer',        lb:'Documents' },
-        { id:'commscenter', ic:'message-square', lb:'Comms Center' },
+        { id:'forecasting', ic:'trending-up',    lb:'Forecasting',  more:true },
+        { id:'commscenter', ic:'message-square', lb:'Comms Center', more:true },
       ]},
-      // ── 8. System (collapsed) ──
-      { label: 'System', defaultCollapsed: true, items: [
-        { id:'backup', ic:'database', lb:'Backup' },
-        { id:'audit',  ic:'history',  lb:'Audit Trail' },
+      // ── INBOX / APPROVALS — the one place a count is signal (unread = danger) ──
+      { label: 'Inbox', items: [
+        { id:'contacts',  ic:'inbox',      lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
+        { id:'approvals', ic:'file-check', lb:'Approvals', dot:(window._approvalsPending>0?'danger':null) },
+      ]},
+      // ── ADMIN (5 primaries + a "More" tail) ──
+      { label: 'Admin', defaultCollapsed: true, items: [
+        { id:'categories',     ic:'layers',      lb:'Types & Floors' },
+        { id:'banks',          ic:'banknote',    lb:'Banks' },
+        { id:'users',          ic:'shield',      lb:'Users & Roles' },
+        { id:'admin',          ic:'settings',    lb:'Settings' },
+        { id:'setup-wizard',   ic:'wand-2',      lb:'Setup Wizard', action:"if(typeof OB!=='undefined'&&S&&S.cid){OB.show(S.cid);}else if(typeof toast==='function'){toast('Setup wizard not available','err');}" },
+        { id:'payment-methods',ic:'credit-card', lb:'Payment Methods', more:true },
+        { id:'team',           ic:'users',       lb:'Team',            more:true },
+        { id:'backup',         ic:'database',    lb:'Backup',          more:true },
+        { id:'audit',          ic:'history',     lb:'Audit Trail',     more:true },
       ]},
     ];
   } else if(isR){
+    // Recovery officer — same vocabulary, existing id set only.
     navGroups = [
-      { label: 'Main', items: [
+      { label: null, items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
-        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Operations', items: [
-        { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
-        { id:'units',          ic:'home',        lb:'All Units' },
-        { id:'sales',          ic:'file-text',   lb:'Sales & Bookings' },
-        { id:'cancelledunits', ic:'tag',         lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat',      lb:'Transferred Units' },
-        { id:'clients',        ic:'user-check',  lb:'Clients' },
-        { id:'ledgers',        ic:'book-open',   lb:'Ledgers' },
+      { label: 'Inventory', items: [
+        { id:'units',          ic:'home',   lb:'Units' },
+        { id:'transferunits',  ic:'repeat', lb:'Transferred Units', more:true },
+        { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units',   more:true },
       ]},
-      { label: 'Finance', items: [
-        { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers' },
-        { id:'pdc',         ic:'calendar-clock', lb:'PDC Register' },
+      { label: 'Sales', items: [
+        { id:'sales',   ic:'file-text',  lb:'Sales' },
+        { id:'clients', ic:'user-check', lb:'Clients' },
+      ]},
+      { label: 'Recovery', items: [
+        { id:'recovery',    ic:'list-checks',    lb:'Payments' },
+        { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
         { id:'reminders',   ic:'bell',           lb:'Reminders' },
-        { id:'contacts',    ic:'phone',          lb:'Call Logs' },
-        { id:'paylinks',    ic:'link',           lb:'Payment Links' },
         { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
+        { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers', more:true },
+        { id:'ledgers',     ic:'book-open',      lb:'Ledgers',          more:true },
+        { id:'paylinks',    ic:'link',           lb:'Payment Links',    more:true },
+      ]},
+      { label: 'Inbox', items: [
+        { id:'contacts', ic:'inbox', lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
     ];
   } else if(isAc){
+    // Finance / accounts — same vocabulary, existing id set only.
     navGroups = [
-      { label: 'Main', items: [
+      { label: null, items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
       ]},
-      { label: 'Operations', items: [
-        { id:'sales',          ic:'file-text', lb:'Sales & Bookings' },
-        { id:'cancelledunits', ic:'tag',       lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat',    lb:'Transferred Units' },
-        { id:'clients',        ic:'user-check',lb:'Clients' },
-        { id:'agents',         ic:'users',     lb:'Sales Agents' },
-        { id:'ledgers',        ic:'book-open', lb:'Ledgers' },
+      { label: 'Inventory', items: [
+        { id:'transferunits',  ic:'repeat', lb:'Transferred Units' },
+        { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units' },
       ]},
-      { label: 'Finance', items: [
-        { id:'recovery',  ic:'banknote',    lb:'Payments' },
-        { id:'paylinks',  ic:'link',        lb:'Payment Links' },
+      { label: 'Sales', items: [
+        { id:'sales',   ic:'file-text',  lb:'Sales' },
+        { id:'clients', ic:'user-check', lb:'Clients' },
+        { id:'agents',  ic:'users',      lb:'Sales Agents', more:true },
+      ]},
+      { label: 'Recovery', items: [
+        { id:'recovery', ic:'banknote',  lb:'Payments' },
+        { id:'paylinks', ic:'link',      lb:'Payment Links' },
+        { id:'ledgers',  ic:'book-open', lb:'Ledgers', more:true },
+      ]},
+      { label: 'Reports', items: [
         { id:'reports',   ic:'bar-chart-3', lb:'Reports' },
         { id:'documents', ic:'printer',     lb:'Documents' },
       ]},
     ];
   } else if(isM){
-    // Manager — broad read-only access (NO admin-only System group: Users/Settings/Audit/Backup)
+    // Manager — broad read-only access (NO Admin area: Users/Settings/Audit/Backup).
     navGroups = [
-      { label: 'Main', items: [
+      { label: null, items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
-        { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
-      { label: 'Operations', items: [
-        { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
-        { id:'projects',       ic:'building-2',  lb:'Projects' },
-        { id:'units',          ic:'home',        lb:'All Units', bdg:totalU||null },
-        { id:'sales',          ic:'file-text',   lb:'Sales & Bookings' },
-        { id:'cancelledunits', ic:'tag',         lb:'Cancelled Units' },
-        { id:'transferunits',  ic:'repeat',      lb:'Transferred Units' },
-        { id:'clients',        ic:'user-check',  lb:'Clients' },
-        { id:'agents',         ic:'users',       lb:'Sales Agents' },
-        { id:'promises',       ic:'handshake',   lb:'Promise Tracker' },
-        { id:'campaigns',      ic:'megaphone',   lb:'Campaigns' },
-        { id:'reminders',      ic:'bell',        lb:'Reminders' },
-        { id:'contacts',       ic:'phone',       lb:'Call Logs' },
-        { id:'fieldvisits',    ic:'map-pin',     lb:'Field Visits' },
+      { label: 'Inventory', items: [
+        { id:'units',          ic:'home',       lb:'Units' },
+        { id:'projects',       ic:'building-2', lb:'Projects' },
+        { id:'transferunits',  ic:'repeat',     lb:'Transferred Units', more:true },
+        { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units',   more:true },
       ]},
-      { label: 'Finance', items: [
-        { id:'receipts',    ic:'receipt',          lb:'Receipt Vouchers' },
-        { id:'pdc',         ic:'calendar-clock',   lb:'PDC Register' },
-        { id:'commissions', ic:'trending-up',      lb:'Commissions' },
-        { id:'reports',     ic:'bar-chart-3',      lb:'Reports' },
-        { id:'ledgers',     ic:'book-open',        lb:'Ledgers' },
+      { label: 'Sales', items: [
+        { id:'sales',       ic:'file-text',   lb:'Sales' },
+        { id:'clients',     ic:'user-check',  lb:'Clients' },
+        { id:'agents',      ic:'users',       lb:'Sales Agents', more:true },
+        { id:'commissions', ic:'trending-up', lb:'Commissions',  more:true },
+      ]},
+      { label: 'Recovery', items: [
+        { id:'recovery',    ic:'list-checks',    lb:'Payments' },
+        { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
+        { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
+        { id:'reminders',   ic:'bell',           lb:'Reminders' },
+        { id:'campaigns',   ic:'megaphone',      lb:'Campaigns',        more:true },
+        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits',     more:true },
+        { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers', more:true },
+        { id:'ledgers',     ic:'book-open',      lb:'Ledgers',          more:true },
+      ]},
+      { label: 'Reports', items: [
+        { id:'reports', ic:'bar-chart-3', lb:'Reports' },
+      ]},
+      { label: 'Inbox', items: [
+        { id:'contacts', ic:'inbox', lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
     ];
   } else {
@@ -530,15 +534,29 @@ function buildSB(){
     } else {
       const gid     = g.label.toLowerCase().replace(/[^a-z0-9]+/g,'-');
       const isCol   = (gid in grpStates) ? !!grpStates[gid] : !!g.defaultCollapsed;
-      const chevron = '<svg class="nav-grp-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      // Label LEFT (11px uppercase muted), chevron on the RIGHT edge. No count
+      // chip — menu-entry counts carry zero signal (Nav-phase verdict).
+      const chevron = '<svg class="nav-grp-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
       html += '<div class="nav-group'+(isCol?' collapsed':'')+'" data-gid="'+gid+'">';
       html += '<button class="nav-grp-hd" onclick="toggleNavGroup(\''+gid+'\')">'
-            + chevron
             + '<span class="nav-grp-lbl">'+g.label+'</span>'
-            + '<span class="nav-grp-cnt">'+g.items.length+'</span>'
+            + chevron
             + '</button>';
       html += '<div class="nav-grp-body" data-gid="'+gid+'"'+(isCol?' style="display:none"':'')+' >';
-      g.items.forEach(function(x){ html += _mkNi(x, true, g.label); });
+      const _primary = g.items.filter(function(x){ return !x.more; });
+      const _more    = g.items.filter(function(x){ return  x.more; });
+      _primary.forEach(function(x){ html += _mkNi(x, true, g.label); });
+      if(_more.length){
+        // Intra-group "More" tier — long tail collapsed by default, remembered per user.
+        const _mOpen = _getMoreState(gid);
+        html += '<button class="nav-grp-more'+(_mOpen?' is-open':'')+'" type="button" onclick="toggleNavMore(\''+gid+'\')" aria-expanded="'+(_mOpen?'true':'false')+'">'
+              + '<svg class="nav-grp-more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+              + '<span class="nav-grp-more-lbl">'+(_mOpen?'Less':'More')+'</span>'
+              + '</button>';
+        html += '<div class="nav-grp-more-tail" data-gid="'+gid+'"'+(_mOpen?'':' hidden')+'>';
+        _more.forEach(function(x){ html += _mkNi(x, true, g.label); });
+        html += '</div>';
+      }
       html += '</div></div>';
     }
   });
@@ -571,28 +589,35 @@ function buildSB(){
       : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
   }
 
-  // Expose nav groups for the aurora-topbar mega menu (same data, same source of truth)
+  // Rebuild the topbar's role-aware "+ New" menu + super-admin link (shell.js).
+  // (Aurora mega-menu retired in the Nav phase — buildTopbarMega is gone.)
   window._navGroups = navGroups;
-  if (typeof buildTopbarMega === 'function') buildTopbarMega();
+  if (typeof buildTopbar === 'function') buildTopbar();
 }
 
 function _mkNi(x, isSub, grpLabel){
   const cls     = 'ni' + (isSub ? ' ni-sub' : '');
   const tooltip = (isSub && grpLabel) ? grpLabel+' → '+x.lb : x.lb;
   const bdg     = x.bdg ? '<span class="ni-bdg'+(x.bdgType?' '+x.bdgType:'')+'">'+x.bdg+'</span>' : '';
+  const dot     = x.dot ? '<span class="ni-dot '+x.dot+'" title="Needs attention"></span>' : '';
   const onclk   = x.action ? x.action : "nav('"+x.id+"')";
   return '<div class="'+cls+'" data-pg="'+x.id+'" data-label="'+tooltip+'" onclick="'+onclk+'">'
        + '<span class="ni-ic">'+_sbi(x.ic)+'</span>'
        + '<span class="ni-lb">'+x.lb+'</span>'
-       + bdg + '</div>';
+       + bdg + dot + '</div>';
 }
 
 // ── GROUP COLLAPSE STATE ──────────────────────────
+// Key VERSIONED for the Nav-phase richness restructure (2026-06-12): bumped from
+// 'rms.sidebar.groups.v2' → 'nx.sb.groups.v3' so every existing user's old
+// collapsed states are abandoned ONCE. Absence of stored state ⇒ each group's
+// defaultCollapsed applies ⇒ Inventory/Sales/Recovery/Reports/Inbox expanded,
+// only ADMIN (+ the per-group "More" tails) start collapsed.
 function _getGroupStates(){
-  try{return JSON.parse(localStorage.getItem('rms.sidebar.groups.v2')||'{}');}catch(e){return{};}
+  try{return JSON.parse(localStorage.getItem('nx.sb.groups.v3')||'{}');}catch(e){return{};}
 }
 function setCollapsedGroup(gid,collapsed){
-  try{var s=_getGroupStates();s[gid]=collapsed;localStorage.setItem('rms.sidebar.groups.v2',JSON.stringify(s));}catch(e){}
+  try{var s=_getGroupStates();s[gid]=collapsed;localStorage.setItem('nx.sb.groups.v3',JSON.stringify(s));}catch(e){}
 }
 function toggleNavGroup(gid){
   var grp=document.querySelector('.nav-group[data-gid="'+gid+'"]');
@@ -624,6 +649,29 @@ function toggleNavGroup(gid){
     setTimeout(function(){body.style.display='none';body.style.maxHeight='';body.style.overflow='';body.style.opacity='';body.style.transition='';},230);
     setCollapsedGroup(gid,true);
   }
+}
+
+// ── INTRA-GROUP "MORE" TIER (long-tail items, remembered per user) ──────────
+function _getMoreStates(){
+  try{ return JSON.parse(localStorage.getItem('nx.sb.more.v1')||'{}'); }catch(e){ return {}; }
+}
+function _getMoreState(gid){ return !!_getMoreStates()[gid]; }
+function _setMoreState(gid,open){
+  try{ var s=_getMoreStates(); s[gid]=open; localStorage.setItem('nx.sb.more.v1',JSON.stringify(s)); }catch(e){}
+}
+function toggleNavMore(gid){
+  var grp=document.querySelector('.nav-group[data-gid="'+gid+'"]');
+  if(!grp)return;
+  var btn=grp.querySelector('.nav-grp-more');
+  var tail=grp.querySelector('.nav-grp-more-tail');
+  if(!btn||!tail)return;
+  var willOpen=tail.hasAttribute('hidden');   // currently hidden → opening
+  if(willOpen) tail.removeAttribute('hidden'); else tail.setAttribute('hidden','');
+  btn.classList.toggle('is-open',willOpen);
+  btn.setAttribute('aria-expanded',willOpen?'true':'false');
+  var lbl=btn.querySelector('.nav-grp-more-lbl');
+  if(lbl) lbl.textContent=willOpen?'Less':'More';
+  _setMoreState(gid,willOpen);
 }
 
 function _sbToggleUserMenu(e){
@@ -682,6 +730,9 @@ function nav(pg,x){
       const gid=parentGrp.dataset.gid;
       if(gid) toggleNavGroup(gid);
     }
+    // Auto-reveal the "More" tail if the active item lives in a collapsed one.
+    const moreTail=nel.closest('.nav-grp-more-tail[hidden]');
+    if(moreTail&&moreTail.dataset.gid&&typeof toggleNavMore==='function') toggleNavMore(moreTail.dataset.gid);
   }
   document.querySelector('.sb')?.setAttribute('data-pg', pg);
   const ts={dashboard:'Dashboard',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',team:'Team Performance',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
@@ -894,16 +945,6 @@ function startLeakGuard(){
   mo.observe(root,{childList:true,subtree:true});
 }
 
-// ══ QUICK ACTION BUTTON (floating) ════════════════
-function qabToggle(){
-  var wrap=document.getElementById('qab-wrap');
-  if(wrap) wrap.classList.toggle('open');
-}
-function qabClose(){
-  var wrap=document.getElementById('qab-wrap');
-  if(wrap) wrap.classList.remove('open');
-}
-document.addEventListener('click',function(e){
-  var wrap=document.getElementById('qab-wrap');
-  if(wrap&&wrap.classList.contains('open')&&!wrap.contains(e.target)) qabClose();
-});
+// ══ QUICK ACTION FAB — RETIRED (Nav phase, 2026-06-12) ════════════════
+// The floating quick-action button is gone; its actions now live in the topbar
+// "+ New" menu (js/foundation/shell.js). qabToggle/qabClose removed.

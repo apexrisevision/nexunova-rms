@@ -420,19 +420,19 @@
 }
 .ni:hover .ni-ic { color: var(--text) !important; }
 
-/* Active state — blue-600 left border + subtle tint */
+/* Active state — indigo left-bar + subtle tint (Nav-phase: brand = --fk-primary) */
 .ni.on {
-  background:    rgba(37,99,235,0.08) !important;
-  color:         #2563EB !important;
-  -webkit-text-fill-color: #2563EB !important;
+  background:    var(--fk-primary-tint, rgba(79,70,229,0.10)) !important;
+  color:         var(--fk-primary-fg, #4F46E5) !important;
+  -webkit-text-fill-color: var(--fk-primary-fg, #4F46E5) !important;
   font-weight:   500 !important;
   border:        none !important;
-  border-left:   3px solid #2563EB !important;
+  border-left:   3px solid var(--fk-primary, #4F46E5) !important;
   border-radius: 0 6px 6px 0 !important;
   box-shadow:    none !important;
   padding-left:  9px !important;
 }
-.ni.on .ni-ic     { color: #2563EB !important; }
+.ni.on .ni-ic     { color: var(--fk-primary-fg, #4F46E5) !important; }
 .ni.ni-sub.on     { padding-left: 19px !important; }
 
 /* Active indicator bar — replaced by border-left on .ni.on */
@@ -485,9 +485,9 @@
   font-weight:600 !important;
 }
 .ni.on .ni-bdg {
-  background: rgba(37,99,235,0.12) !important;
-  color:      #2563EB !important;
-  -webkit-text-fill-color: #2563EB !important;
+  background: var(--fk-primary-tint, rgba(79,70,229,0.12)) !important;
+  color:      var(--fk-primary-fg, #4F46E5) !important;
+  -webkit-text-fill-color: var(--fk-primary-fg, #4F46E5) !important;
 }
 
 /* ─── Zone 4b: Setup Wizard shortcut ────────── */
@@ -1052,3 +1052,76 @@
 [data-theme="light"] #s-app .sb .ni:hover {
   box-shadow: 0 2px 8px rgba(15,23,42,0.11), inset 0 1px 0 #FFFFFF !important;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   NAV-PHASE FLATTEN (2026-06-12) — authoritative final layer.
+   The owner's Nav-phase visual bar retires the "raised 3D chips + coloured
+   icons" skin above (all the v4 / UI-Polish-Micro / per-data-pg rules): nav
+   must read FLAT — no per-item border/shadow/lift, NEUTRAL icons (no
+   tutti-frutty), active = indigo left-bar + tint ONLY. Last in the file →
+   wins over every chip rule above; the `html[data-theme]` prefix also
+   out-specifies the `[data-theme=light]` chip rules. Tokens drive colour so
+   it is correct in both themes. (Restyle, not rebuild — the chip rules stay
+   in place, simply superseded, so this is one revert away.)
+   ════════════════════════════════════════════════════════════════════════ */
+html[data-theme] #s-app .sb .ni{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  border-radius: 6px !important;
+  color: var(--text-sidebar) !important;
+  -webkit-text-fill-color: var(--text-sidebar) !important;
+}
+html[data-theme] #s-app .sb .ni:hover{
+  background: var(--bg-sidebar-hover, rgba(255,255,255,0.05)) !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  color: var(--text) !important;
+}
+html[data-theme] #s-app .sb .ni:hover .ni-lb{ -webkit-text-fill-color: var(--text) !important; }
+html[data-theme] #s-app .sb .ni.on{
+  background: var(--fk-primary-tint, rgba(79,70,229,0.10)) !important;
+  border: none !important;
+  border-left: 3px solid var(--fk-primary, #4F46E5) !important;
+  border-radius: 0 6px 6px 0 !important;
+  box-shadow: none !important;
+  color: var(--fk-primary-fg, #4F46E5) !important;
+  -webkit-text-fill-color: var(--fk-primary-fg, #4F46E5) !important;
+}
+html[data-theme] #s-app .sb .ni.on .ni-lb{
+  color: var(--fk-primary-fg, #4F46E5) !important;
+  -webkit-text-fill-color: var(--fk-primary-fg, #4F46E5) !important;
+}
+/* neutral icons — kill the per-data-pg accent colours */
+html[data-theme] #s-app .sb .ni .ni-ic,
+html[data-theme] #s-app .sb .ni .ni-ic svg,
+html[data-theme] #s-app .sb .ni .ni-ic svg *{
+  color: var(--text-sidebar-muted) !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html[data-theme] #s-app .sb .ni:hover .ni-ic,
+html[data-theme] #s-app .sb .ni:hover .ni-ic svg{ color: var(--text) !important; }
+html[data-theme] #s-app .sb .ni.on .ni-ic,
+html[data-theme] #s-app .sb .ni.on .ni-ic svg,
+html[data-theme] #s-app .sb .ni.on .ni-ic svg *{ color: var(--fk-primary-fg, #4F46E5) !important; }
+/* group header + body — flat, no chip, no connector rail */
+html[data-theme] #s-app .sb .nav-grp-hd{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-theme] #s-app .sb .nav-grp-hd:hover{
+  background: var(--bg-sidebar-hover, rgba(255,255,255,0.04)) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-theme] #s-app .sb .nav-group:has(.ni.on) > .nav-grp-hd .nav-grp-lbl,
+html[data-theme] #s-app .sb .nav-group:has(.ni.on) > .nav-grp-hd .nav-grp-chev{
+  color: var(--fk-primary-fg, #4F46E5) !important;
+  -webkit-text-fill-color: var(--fk-primary-fg, #4F46E5) !important;
+}
+html[data-theme] #s-app .sb .nav-grp-body::before{ display: none !important; }

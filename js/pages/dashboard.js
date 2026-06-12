@@ -128,11 +128,11 @@ async function _dashAdmin(pg) {
 
 function _dashKpiRow(t, overdueAmt, receivable) {
   const cards = [
-    NX.kpi({ label: 'Total Receivable',     value: _dashCompact(receivable) }),
-    NX.kpi({ label: 'Overdue Today',        value: _dashCompact(overdueAmt) }),
-    NX.kpi({ label: 'Due This Month',       value: _dashCompact(t.due) }),
-    NX.kpi({ label: 'Collected This Month', value: _dashCompact(t.received_total) }),
-    NX.kpi({ label: 'Recovery %',           value: _dashPct(t.recovery_pct) })
+    NX.kpi({ label: 'Total Receivable',     value: _dashCompact(receivable),       dot: 'primary' }),
+    NX.kpi({ label: 'Overdue Today',        value: _dashCompact(overdueAmt),       dot: 'danger'  }),
+    NX.kpi({ label: 'Due This Month',       value: _dashCompact(t.due),            dot: 'warn'    }),
+    NX.kpi({ label: 'Collected This Month', value: _dashCompact(t.received_total), dot: 'success' }),
+    NX.kpi({ label: 'Recovery %',           value: _dashPct(t.recovery_pct),       dot: 'primary' })
   ].join('');
   return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--fk-sp-3)">${cards}</div>`;
 }
