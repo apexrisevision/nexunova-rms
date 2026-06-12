@@ -167,10 +167,17 @@ function _pw(title, css, sz) {
 function _pclose(col) {
   col.document.write('</body></html>');
   var html = col._chunks.join('');
+  // Phase-3B register #10: delegate to the foundation emitter (race-free
+  // document.write+print-on-load, Electron-aware) — same as the _printHTML fix.
+  // All ~30 voucher/receipt/statement callers ride this with no code change.
+  if (window.NXPrint && typeof window.NXPrint.emit === 'function') {
+    window.NXPrint.emit(html, col._title || 'Document');
+    return;
+  }
+  // Defensive fallback (only if foundation/print.js failed to load) — old path.
   if (window.electronPrint) {
     window.electronPrint.print(html, col._title);
   } else {
-    // Browser fallback
     var blob = new Blob([html], { type: 'text/html' });
     var url  = URL.createObjectURL(blob);
     var w    = window.open(url, '_blank', 'width=820,height=900');
