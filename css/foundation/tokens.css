@@ -51,6 +51,32 @@ html[data-theme="light"]{
   --fk-warning-tint: rgba(217,119,6,0.12);
   --fk-danger-tint:  rgba(220,38,38,0.12);
 
+  /* ── WARMTH v2 · semantic tint ramps (theme-adaptive, OPAQUE) ──────────
+     Two strengths, mixed against the live card surface so they read the same
+     warmth in light + dark. -chip ≈12% = tinted icon-chip / badge backing;
+     -surface ≈5% = quiet stat-card tint. Never gradient, never saturated. */
+  --fk-primary-chip: color-mix(in srgb, var(--fk-primary) 12%, var(--fk-bg-card));
+  --fk-info-chip:    color-mix(in srgb, var(--fk-info)    12%, var(--fk-bg-card));
+  --fk-success-chip: color-mix(in srgb, var(--fk-success) 12%, var(--fk-bg-card));
+  --fk-warning-chip: color-mix(in srgb, var(--fk-warning) 14%, var(--fk-bg-card));
+  --fk-danger-chip:  color-mix(in srgb, var(--fk-danger)  12%, var(--fk-bg-card));
+
+  --fk-primary-surface: color-mix(in srgb, var(--fk-primary) 5%, var(--fk-bg-card));
+  --fk-info-surface:    color-mix(in srgb, var(--fk-info)    5%, var(--fk-bg-card));
+  --fk-success-surface: color-mix(in srgb, var(--fk-success) 5%, var(--fk-bg-card));
+  --fk-warning-surface: color-mix(in srgb, var(--fk-warning) 6%, var(--fk-bg-card));
+  --fk-danger-surface:  color-mix(in srgb, var(--fk-danger)  5%, var(--fk-bg-card));
+
+  /* tinted badge BORDER (warmth ⑦ — presence, not a borderless wash) */
+  --fk-primary-edge: color-mix(in srgb, var(--fk-primary) 26%, transparent);
+  --fk-info-edge:    color-mix(in srgb, var(--fk-info)    26%, transparent);
+  --fk-success-edge: color-mix(in srgb, var(--fk-success) 26%, transparent);
+  --fk-warning-edge: color-mix(in srgb, var(--fk-warning) 28%, transparent);
+  --fk-danger-edge:  color-mix(in srgb, var(--fk-danger)  26%, transparent);
+
+  /* secondary button hover deepen (filled-subtle, warmth ②) */
+  --fk-subtle-hover: color-mix(in srgb, var(--fk-text) 8%, var(--fk-bg-subtle));
+
   /* ── SURFACES (light) ───────────────────────────────────────────────── */
   --fk-bg-page:    #F1F5F9;
   --fk-bg-card:    #FFFFFF;
@@ -72,8 +98,9 @@ html[data-theme="light"]{
   --fk-radius-control: 8px;  /* inputs, buttons, badges */
   --fk-radius-card:    12px; /* cards, modals, banners — the ceiling */
 
-  /* ── ELEVATION — the single shadow ──────────────────────────────────── */
-  --fk-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  /* ── ELEVATION — WARMTH v2: bumped one notch (still restrained) ──────── */
+  --fk-shadow:        0 1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.06);
+  --fk-shadow-raised: 0 1px 3px rgba(0,0,0,0.08), 0 6px 16px rgba(0,0,0,0.10);
 
   /* ── CONTROL SIZING ─────────────────────────────────────────────────── */
   --fk-h-btn:     32px;

@@ -117,7 +117,8 @@ async function rSales() {
 
   pg.innerHTML = `<div class="nx-page">
     <div class="nx-page-header">
-      <div><h1 class="nx-page-title">Sales</h1><div class="nx-kpi-label" id="sal-count" style="margin-top:4px"></div></div>
+      <div class="nx-page-head-l">${NX.ichip('file-text', '', { size:'lg' })}
+        <div><h1 class="nx-page-title">Sales</h1><div class="nx-kpi-label" id="sal-count" style="margin-top:4px"></div></div></div>
       <div class="nx-page-actions">${actions}</div>
     </div>
     <div id="sal-kpis" class="nx-kpi-row" style="margin-bottom:var(--fk-sp-4)"></div>

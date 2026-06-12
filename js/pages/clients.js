@@ -96,8 +96,9 @@ function rClients() {
 
   pg.innerHTML = `<div class="nx-page">
     <div class="nx-page-header">
-      <div><h1 class="nx-page-title">Clients</h1>
-        <div class="nx-kpi-label" id="cl-count" style="margin-top:4px">${total} clients · ${active} active · ${historical} historical</div></div>
+      <div class="nx-page-head-l">${NX.ichip('users', '', { size:'lg' })}
+        <div><h1 class="nx-page-title">Clients</h1>
+        <div class="nx-kpi-label" id="cl-count" style="margin-top:4px">${total} clients · ${active} active · ${historical} historical</div></div></div>
       <div class="nx-page-actions">${actions}</div>
     </div>
     <div class="nx-segment" style="margin-bottom:var(--fk-sp-4)">

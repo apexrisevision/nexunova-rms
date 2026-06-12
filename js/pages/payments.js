@@ -64,7 +64,7 @@ function _apShowPicker() {
   const sold = (window._unitsCache || []).filter(u => u.isAvailable === false);
   if (!sold.length) {
     el.innerHTML =
-      NX.pageHeader('Record Payment') +
+      NX.pageHeader('Record Payment', '', { icon:'wallet' }) +
       NX.card(NX.empty({
         icon:'inbox',
         message:'No sold units yet — create a sale first to receive payments.',
@@ -74,7 +74,7 @@ function _apShowPicker() {
   }
 
   el.innerHTML =
-    NX.pageHeader('Record Payment') +
+    NX.pageHeader('Record Payment', '', { icon:'wallet' }) +
     NX.card(
       '<div class="nx-field" style="margin-bottom:0">' +
         '<label class="nx-label">Find a sold unit</label>' +
@@ -133,7 +133,8 @@ async function _apShowPayment(unitId) {
 
   el.innerHTML =
     NX.pageHeader('Record Payment',
-      NX.button('Back to list', { variant:'ghost', size:'sm', onclick:'_apShowPicker()' })) +
+      NX.button('Back to list', { variant:'ghost', size:'sm', onclick:'_apShowPicker()' }),
+      { icon:'wallet' }) +
     NX.card('<div id="ap-ctx" class="num"></div>', { compact:true }) +
     '<div id="ap-body" style="margin-top:var(--fk-sp-4,16px)"></div>';
 

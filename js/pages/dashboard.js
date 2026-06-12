@@ -101,9 +101,12 @@ function _dashMonthLabel() { return new Date().toLocaleDateString('en-US', { mon
 function _dashHeader() {
   const action = NX.button('Record Payment', { variant: 'primary', icon: 'plus', onclick: "nav('addpayment')" });
   return `<div class="nx-page-header">
-    <div>
-      <h1 class="nx-page-title">Dashboard</h1>
-      <div class="nx-kpi-label" style="margin-top:4px">${esc(_dashMonthLabel())}</div>
+    <div class="nx-page-head-l">
+      ${NX.ichip('layout-dashboard', '', { size:'lg' })}
+      <div>
+        <h1 class="nx-page-title">Dashboard</h1>
+        <div class="nx-kpi-label" style="margin-top:4px">${esc(_dashMonthLabel())}</div>
+      </div>
     </div>
     <div class="nx-page-actions">${action}</div>
   </div>`;
@@ -188,7 +191,7 @@ function _dashPulse(ctx) {
       viz = _dashPaceBar(collected, pace, lastTotal, months);   // arithmetic fallback (no lying line)
     }
     cards.push(_dashPulseCard('Collection pace',
-      'pace = collected ÷ days elapsed × days in month (arithmetic projection, not a forecast)', head, viz));
+      'pace = collected ÷ days elapsed × days in month (arithmetic projection, not a forecast)', head, viz, 'trending-up', ''));
   }
 
   // 2 · RISK CONCENTRATION (needs overdue balance)
@@ -201,7 +204,7 @@ function _dashPulse(ctx) {
     const viz = NX.minibar({ a: top10, b: Math.max(0, overdueAmt - top10), toneA: 'danger' })
       + `<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Top 10 vs rest of overdue</div>`;
     cards.push(_dashPulseCard('Risk concentration',
-      'Σ closing of the 10 largest overdue sales ÷ Σ closing of all overdue sales (= Overdue Today)', head, viz));
+      'Σ closing of the 10 largest overdue sales ÷ Σ closing of all overdue sales (= Overdue Today)', head, viz, 'alert-triangle', 'danger'));
   }
 
   // 3 · RECOVERY MIX (needs collections this month)
@@ -217,7 +220,7 @@ function _dashPulse(ctx) {
       + `<div class="nx-kpi-label" style="display:flex;gap:var(--fk-sp-3);text-transform:none;margin-top:4px">
         <span style="color:var(--fk-danger)">Old</span><span style="color:var(--fk-primary)">Current</span><span style="color:var(--fk-success)">Advance</span></div>`;
     cards.push(_dashPulseCard('Recovery mix',
-      'Old arrears (r_old) · Current dues + down-payment (r_cur+r_dp) · Advance (r_advance) — segments sum to received_total', head, viz));
+      'Old arrears (r_old) · Current dues + down-payment (r_cur+r_dp) · Advance (r_advance) — segments sum to received_total', head, viz, 'layers', 'success'));
   }
 
   // 4 · 90-DAY DRIFT (needs any 90+ membership at either as-of date)
@@ -231,16 +234,17 @@ function _dashPulse(ctx) {
       <span class="nx-badge nx-badge--danger"><span class="nx-dot"></span>${inN} in</span>
       <span class="nx-badge nx-badge--success"><span class="nx-dot"></span>${outN} out</span></div>`;
     cards.push(_dashPulseCard('90-day drift',
-      'Sales at 90+ days overdue: newly entered (now − month-start) vs left the set = paid down (month-start − now)', head, viz));
+      'Sales at 90+ days overdue: newly entered (now − month-start) vs left the set = paid down (month-start − now)', head, viz, 'history', 'warning'));
   }
 
   if (!cards.length) return '';
   return `<div class="nx-pulse-grid" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join('')}</div>`;
 }
 
-function _dashPulseCard(title, tip, headlineHTML, footHTML) {
+function _dashPulseCard(title, tip, headlineHTML, footHTML, icon, tone) {
+  const chip = icon ? NX.ichip(icon, tone || '', { size: 'sm' }) : '';
   return `<div class="nx-card nx-card--compact nx-pulse-card">
-    <div class="nx-kpi-label" style="display:flex;align-items:center">${esc(title)}${NX.infoTip(tip)}</div>
+    <div class="nx-kpi-label" style="display:flex;align-items:center;gap:var(--fk-sp-2)">${chip}<span style="display:inline-flex;align-items:center">${esc(title)}${NX.infoTip(tip)}</span></div>
     <div class="nx-pulse-headline" style="margin-top:6px">${headlineHTML}</div>
     ${footHTML ? `<div style="margin-top:var(--fk-sp-2)">${footHTML}</div>` : ''}
   </div>`;
@@ -263,12 +267,13 @@ function _dashPaceBar(collected, pace, lastTotal, months) {
 }
 
 function _dashKpiRow(t, overdueAmt, receivable) {
+  // WARMTH v2 — tinted icon chips carry the semantic meaning (chip, not loud dot).
   const cards = [
-    NX.kpi({ label: 'Total Receivable',     value: _dashCompact(receivable),       dot: 'primary' }),
-    NX.kpi({ label: 'Overdue Today',        value: _dashCompact(overdueAmt),       dot: 'danger'  }),
-    NX.kpi({ label: 'Due This Month',       value: _dashCompact(t.due),            dot: 'warn'    }),
-    NX.kpi({ label: 'Collected This Month', value: _dashCompact(t.received_total), dot: 'success' }),
-    NX.kpi({ label: 'Recovery %',           value: _dashPct(t.recovery_pct),       dot: 'primary' })
+    NX.kpi({ label: 'Total Receivable',     value: _dashCompact(receivable),       icon: 'banknote',       tone: ''        }),
+    NX.kpi({ label: 'Overdue Today',        value: _dashCompact(overdueAmt),       icon: 'alert-triangle', tone: 'danger'  }),
+    NX.kpi({ label: 'Due This Month',       value: _dashCompact(t.due),            icon: 'calendar-clock', tone: 'warning' }),
+    NX.kpi({ label: 'Collected This Month', value: _dashCompact(t.received_total), icon: 'wallet',         tone: 'success' }),
+    NX.kpi({ label: 'Recovery %',           value: _dashPct(t.recovery_pct),       icon: 'trending-up',    tone: ''        })
   ].join('');
   return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--fk-sp-3)">${cards}</div>`;
 }
@@ -300,9 +305,10 @@ function _dashWhoLate(rows) {
     }).join('') + '</tbody>';
   }
   return `<div class="nx-card nx-card--flush">
-    <div class="nx-page-header" style="padding:var(--fk-sp-4) var(--fk-sp-4) 0;margin:0">
-      <h2 class="nx-modal-title">Who is late</h2>
-      <a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav('reports'); if(typeof openRptViewer==='function') setTimeout(function(){openRptViewer('recovery_position');},300)">View full Recovery Position report</a>
+    <div class="nx-card-hd">
+      ${NX.ichip('alert-triangle', 'danger', {})}
+      <div class="nx-card-hd-t">Who is late</div>
+      <div class="nx-card-hd-a"><a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav('reports'); if(typeof openRptViewer==='function') setTimeout(function(){openRptViewer('recovery_position');},300)">View full Recovery Position report</a></div>
     </div>
     <table class="nx-table nx-table--flush">${head}${body}</table>
   </div>`;
@@ -312,16 +318,21 @@ function _dashWhoLate(rows) {
    to the Pulse "90-day drift" card (in vs recovered-out), so the old crossing
    tile is retired to avoid duplication. */
 function _dashActionStrip(pdc, apprCount) {
-  const card = (label, value, sub, onclick) =>
-    `<div class="nx-card nx-card--compact" ${onclick ? `style="cursor:pointer" onclick="${onclick}"` : ''}>
-      <div class="nx-kpi-label">${label}</div>
-      <div class="nx-kpi-value num">${value}</div>
-      ${sub ? `<div class="nx-kpi-label" style="text-transform:none">${sub}</div>` : ''}
+  const card = (label, value, sub, onclick, icon, tone) =>
+    `<div class="nx-card nx-card--compact${onclick ? ' nx-card--hover' : ''}" ${onclick ? `onclick="${onclick}"` : ''}>
+      <div style="display:flex;align-items:center;gap:var(--fk-sp-3)">
+        ${icon ? NX.ichip(icon, tone || '', {}) : ''}
+        <div style="min-width:0">
+          <div class="nx-kpi-label">${label}</div>
+          <div class="nx-kpi-value num">${value}</div>
+          ${sub ? `<div class="nx-kpi-label" style="text-transform:none">${sub}</div>` : ''}
+        </div>
+      </div>
     </div>`;
   const cards = [];
   if (pdc) cards.push(card('PDCs due ≤ 7 days', String(pdc.count),
-    'PKR ' + _dashExact(pdc.amount), "nav('pdc')"));
-  if (Number(apprCount) > 0) cards.push(card('Pending approvals', String(apprCount), 'awaiting you', "nav('approvals')"));
+    'PKR ' + _dashExact(pdc.amount), "nav('pdc')", 'calendar-clock', 'warning'));
+  if (Number(apprCount) > 0) cards.push(card('Pending approvals', String(apprCount), 'awaiting you', "nav('approvals')", 'check', 'info'));
   if (!cards.length) return '';
   return `<div style="display:grid;grid-template-columns:repeat(${cards.length},1fr);gap:var(--fk-sp-3)">${cards.join('')}</div>`;
 }
@@ -354,7 +365,7 @@ function _dashInflow(months) {
     </div>`;
   }).join('');
   return `<div class="nx-card">
-    <div class="nx-kpi-label">Collections — last 6 months${pace > cur.collected ? ' · dotted = current-pace projection' : ''}</div>
+    <div style="display:flex;align-items:center;gap:var(--fk-sp-2)">${NX.ichip('bar-chart-3', '', { size: 'sm' })}<span class="nx-kpi-label">Collections — last 6 months${pace > cur.collected ? ' · dotted = current-pace projection' : ''}</span></div>
     <div style="display:flex;gap:var(--fk-sp-3);align-items:flex-end;margin-top:var(--fk-sp-3)">${bars}</div>
   </div>`;
 }

@@ -69,7 +69,7 @@ function rUnits() {
   // Empty inventory → wizard CTA
   if (!all.length) {
     pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6)">
-      ${NX.pageHeader('Inventory', '')}
+      ${NX.pageHeader('Inventory', '', { icon:'package' })}
       <div class="nx-card">${NX.empty({
         icon: 'inbox',
         message: 'No units yet. Set up your project — floors, types and units — in a couple of minutes.',
@@ -88,9 +88,12 @@ function rUnits() {
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
     <div class="nx-page-header">
-      <div>
-        <h1 class="nx-page-title">Inventory</h1>
-        <div class="nx-kpi-label" style="margin-top:4px">${esc(countLine)}</div>
+      <div class="nx-page-head-l">
+        ${NX.ichip('package', '', { size:'lg' })}
+        <div>
+          <h1 class="nx-page-title">Inventory</h1>
+          <div class="nx-kpi-label" style="margin-top:4px">${esc(countLine)}</div>
+        </div>
       </div>
       <div class="nx-page-actions">${actions}</div>
     </div>

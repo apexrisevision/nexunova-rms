@@ -32,6 +32,23 @@
 .nx-card--compact{ padding: var(--fk-sp-3); }   /* 12px */
 .nx-card--flush{ padding: 0; }                   /* tables flush to the edge */
 
+/* WARMTH v2 ⑤ — interactive cards lift on hover (150ms, restrained). */
+.nx-card--hover{ transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; cursor: pointer; }
+.nx-card--hover:hover{ transform: translateY(-1px); box-shadow: var(--fk-shadow-raised); border-color: color-mix(in srgb, var(--fk-primary) 28%, var(--fk-border)); }
+
+/* WARMTH v2 ④ — optional card HEADER zone: icon chip + title + actions over a
+   hairline. <div class="nx-card-hd"><span class="nx-ichip">…</span>
+   <div class="nx-card-hd-t">Title</div><div class="nx-card-hd-a">…</div></div> */
+.nx-card-hd{
+  display: flex; align-items: center; gap: var(--fk-sp-3);
+  padding-bottom: var(--fk-sp-3); margin-bottom: var(--fk-sp-3);
+  border-bottom: 1px solid var(--fk-border);
+}
+.nx-card--flush > .nx-card-hd{ padding: var(--fk-sp-3) var(--fk-sp-4); margin-bottom: 0; }
+.nx-card-hd-t{ font-size: var(--fk-fs-title); font-weight: var(--fk-fw-semibold); color: var(--fk-text); line-height: 1.2; }
+.nx-card-hd-sub{ font-size: var(--fk-fs-label); font-weight: var(--fk-fw-medium); color: var(--fk-text-muted); margin-top: 2px; }
+.nx-card-hd-a{ margin-left: auto; display: flex; align-items: center; gap: var(--fk-sp-2); }
+
 
 /* ── 2. BUTTON ────────────────────────────────────────────────────────── */
 /* 4 variants × 2 sizes. <button class="nx-btn nx-btn--primary"> … */
@@ -48,11 +65,15 @@
 .nx-btn:disabled{ opacity: .5; cursor: not-allowed; }
 .nx-btn svg{ width: 15px; height: 15px; }
 
+/* WARMTH v2 ② — hierarchy visible at a glance + pressed state on all. */
+.nx-btn:active:not(:disabled){ transform: translateY(0.5px); }
+
 .nx-btn--primary{ background: var(--fk-primary); color: #fff; }
 .nx-btn--primary:hover:not(:disabled){ background: var(--fk-primary-hover); }
 
-.nx-btn--secondary{ background: var(--fk-bg-card); color: var(--fk-text); border-color: var(--fk-border); }
-.nx-btn--secondary:hover:not(:disabled){ background: var(--fk-bg-subtle); }
+/* secondary = FILLED subtle (no more border-only ghost posing as secondary) */
+.nx-btn--secondary{ background: var(--fk-bg-subtle); color: var(--fk-text); border-color: var(--fk-border); }
+.nx-btn--secondary:hover:not(:disabled){ background: var(--fk-subtle-hover); border-color: var(--fk-text-muted); }
 
 .nx-btn--ghost{ background: transparent; color: var(--fk-text-muted); }
 .nx-btn--ghost:hover:not(:disabled){ background: var(--fk-bg-subtle); color: var(--fk-text); }
@@ -60,9 +81,61 @@
 .nx-btn--danger{ background: var(--fk-danger); color: #fff; }
 .nx-btn--danger:hover:not(:disabled){ background: #B91C1C; }
 
+/* destructive resting action — danger-tinted fill (use for non-confirm deletes) */
+.nx-btn--danger-soft{ background: var(--fk-danger-chip); color: var(--fk-danger); border-color: var(--fk-danger-edge); }
+.nx-btn--danger-soft:hover:not(:disabled){ background: var(--fk-danger); color: #fff; border-color: transparent; }
+
 .nx-btn--sm{ height: var(--fk-h-btn-sm); padding: 0 10px; }
 .nx-btn--icon{ width: var(--fk-h-btn); padding: 0; }
 .nx-btn--icon.nx-btn--sm{ width: var(--fk-h-btn-sm); }
+
+
+/* ── 2b. TINTED ICON CHIP  (WARMTH v2 ④ — the single biggest warmth lever) ─
+   A rounded chip with a ~12% semantic tint behind a Lucide glyph. Indigo by
+   default; semantic tone where meaning exists. Muted, never saturated. Used in
+   card/section/page headers, list-leading slots and empty states. */
+.nx-ichip{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: 0 0 auto;
+  border-radius: 9px; background: var(--fk-primary-chip); color: var(--fk-primary);
+}
+.nx-ichip svg{ width: 16px; height: 16px; }
+.nx-ichip--sm{ width: 26px; height: 26px; border-radius: 8px; }
+.nx-ichip--sm svg{ width: 15px; height: 15px; }
+.nx-ichip--lg{ width: 34px; height: 34px; border-radius: 10px; }
+.nx-ichip--lg svg{ width: 18px; height: 18px; }
+.nx-ichip--info{    background: var(--fk-info-chip);    color: var(--fk-info); }
+.nx-ichip--success{ background: var(--fk-success-chip); color: var(--fk-success); }
+.nx-ichip--warning{ background: var(--fk-warning-chip); color: var(--fk-warning); }
+.nx-ichip--danger{  background: var(--fk-danger-chip);  color: var(--fk-danger); }
+
+
+/* ── 2c. TABS — SEGMENTED TRACK  (WARMTH v2 ① — "tabs look like controls") ─
+   A contained bar holding pill tabs. Active = raised card pill (shadow +
+   semibold + indigo). Inactive = muted, hover tint. Count chip inside pill. */
+.nx-tabs{
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px; background: var(--fk-bg-subtle);
+  border: 1px solid var(--fk-border); border-radius: 10px;
+}
+.nx-tabs--fill{ display: flex; width: 100%; }
+.nx-tabs--fill .nx-tab{ flex: 1 1 0; justify-content: center; }
+.nx-tab{
+  display: inline-flex; align-items: center; gap: var(--fk-sp-2);
+  height: 30px; padding: 0 14px; border: 0; background: transparent;
+  border-radius: 7px; cursor: pointer;
+  font-family: var(--fk-font); font-size: var(--fk-fs-body);
+  font-weight: var(--fk-fw-medium); color: var(--fk-text-muted);
+  transition: background .12s ease, color .12s ease, box-shadow .12s ease;
+}
+.nx-tab:hover:not(.nx-tab--on){ background: var(--fk-subtle-hover); color: var(--fk-text); }
+.nx-tab--on{
+  background: var(--fk-bg-card); color: var(--fk-primary);
+  font-weight: var(--fk-fw-semibold); box-shadow: var(--fk-shadow);
+}
+.nx-tab svg{ width: 15px; height: 15px; }
+.nx-tab .nx-chip{ background: color-mix(in srgb, var(--fk-text) 8%, transparent); }
+.nx-tab--on .nx-chip{ background: var(--fk-primary-tint); color: var(--fk-primary); }
 
 
 /* ── 3. TABLE — the single standard ───────────────────────────────────── */
@@ -158,12 +231,13 @@
   font-size: var(--fk-fs-label); font-weight: var(--fk-fw-semibold);
   border-radius: 999px; white-space: nowrap;
   background: var(--fk-bg-subtle); color: var(--fk-text-muted);
+  border: 1px solid transparent;       /* WARMTH v2 ⑦ — presence via tinted edge */
 }
-.nx-badge--success{ background: var(--fk-success-tint); color: var(--fk-success); }
-.nx-badge--warning{ background: var(--fk-warning-tint); color: var(--fk-warning); }
-.nx-badge--danger{  background: var(--fk-danger-tint);  color: var(--fk-danger); }
-.nx-badge--info{    background: var(--fk-info-tint);    color: var(--fk-info); }
-.nx-badge--primary{ background: var(--fk-primary-tint); color: var(--fk-primary); }
+.nx-badge--success{ background: var(--fk-success-chip); color: var(--fk-success); border-color: var(--fk-success-edge); }
+.nx-badge--warning{ background: var(--fk-warning-chip); color: var(--fk-warning); border-color: var(--fk-warning-edge); }
+.nx-badge--danger{  background: var(--fk-danger-chip);  color: var(--fk-danger);  border-color: var(--fk-danger-edge); }
+.nx-badge--info{    background: var(--fk-info-chip);    color: var(--fk-info);    border-color: var(--fk-info-edge); }
+.nx-badge--primary{ background: var(--fk-primary-chip); color: var(--fk-primary); border-color: var(--fk-primary-edge); }
 /* dot variant for status dots inside the badge */
 .nx-badge .nx-dot{ width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
@@ -187,6 +261,16 @@
   text-transform: uppercase; letter-spacing: var(--fk-tracking-label); color: var(--fk-text-muted);
   display: flex; align-items: center; gap: var(--fk-sp-2);
 }
+/* WARMTH v2 ⑥ — a KPI surface MAY carry a quiet 5% semantic tint (choose this
+   OR the icon chip per surface, never both loud). */
+.nx-kpi--tint-primary{ background: var(--fk-primary-surface); border-color: var(--fk-primary-edge); }
+.nx-kpi--tint-info{    background: var(--fk-info-surface);    border-color: var(--fk-info-edge); }
+.nx-kpi--tint-success{ background: var(--fk-success-surface); border-color: var(--fk-success-edge); }
+.nx-kpi--tint-warn{    background: var(--fk-warning-surface); border-color: var(--fk-warning-edge); }
+.nx-kpi--tint-danger{  background: var(--fk-danger-surface);  border-color: var(--fk-danger-edge); }
+/* KPI with a leading icon chip: header row holds chip + label/value column. */
+.nx-kpi-hd{ display: flex; align-items: center; gap: var(--fk-sp-3); }
+.nx-kpi-hd > .nx-kpi-col{ display: flex; flex-direction: column; gap: var(--fk-sp-1); min-width: 0; }
 /* quiet semantic dot before a KPI label — dot only, no borders/strips/gradients */
 .nx-kpi-dot{ width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; display: inline-block; }
 .nx-kpi-dot--primary{ background: var(--fk-primary); }
@@ -231,6 +315,8 @@
 }
 .nx-page-title{ font-size: var(--fk-fs-page); font-weight: var(--fk-fw-bold); color: var(--fk-text); margin: 0; }
 .nx-page-actions{ display: flex; align-items: center; gap: var(--fk-sp-2); }
+/* WARMTH v2 ④ — page title gets a leading icon chip (left group). */
+.nx-page-head-l{ display: flex; align-items: center; gap: var(--fk-sp-3); min-width: 0; }
 
 
 /* ── 10. BANNER ───────────────────────────────────────────────────────── */

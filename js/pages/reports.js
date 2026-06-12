@@ -263,7 +263,7 @@ function rReports() {
     { title: 'OPERATIONS', keys: ['collections', 'pdc', 'sales_summary', 'availability'] }
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
-    ${NX.pageHeader('Reports', '')}
+    ${NX.pageHeader('Reports', '', { icon:'bar-chart-3' })}
     ${groups.map(g => `<div>
       <div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">${g.title}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--fk-sp-3)">

@@ -21,9 +21,71 @@ document class-for-class. Nothing here changes legacy pages — every class is
 
 **Hard rules (enforced in review):** Inter only · indigo `--fk-primary` is the
 only brand colour (`#2563EB` = `--fk-info` only) · type scale 11/13/14/18/20–22
-· spacing 4/8/12/16/24 · radius 8 control / 12 card · one shadow · no gradients
+· spacing 4/8/12/16/24 · radius 8 control / 12 card · no gradients
 (charts excepted) · no emoji (Lucide via `NX.icon`) · no `!important` · no inline
 styles in JS — use the helpers.
+
+---
+
+## WARMTH v2 — the warmth vocabulary (2026-06-13)
+
+The owner's verdict that drove this: *"the old was confusing, the new is BORING —
+everything is being stripped flat; find the middle path."* **Premium = restraint
++ precision + WARMTH.** Flat is not the goal; *quiet* is. Warmth is added through
+a fixed vocabulary — never through gradients, glows, bounce, emoji or saturation.
+
+**Build warm by default. Every new surface uses these:**
+
+1. **Tabs = a segmented track, never underline buttons.** Use `NX.tabs(...)` /
+   `.nx-tabs`. A contained bar (`bg-subtle` + 1px border + radius 10) holding pill
+   tabs; the active pill is a **raised card pill** (`--fk-shadow` + semibold +
+   indigo text), inactive is muted with a hover tint. Count chip lives *inside*
+   the pill. `fill:true` spreads them full-width. Nobody should wonder whether a
+   tab is clickable.
+2. **Button hierarchy is visible at a glance.** `primary` solid indigo · `secondary`
+   = **filled subtle** (`bg-subtle` + border, hover deepens — *not* a border-only
+   ghost) · `ghost` text-only for tertiary · `danger` solid (confirm) /
+   `danger-soft` tinted (resting destructive). All have a pressed state.
+3. **Tinted icon chips — the single biggest warmth lever.** `NX.ichip(name, tone)`
+   / `.nx-ichip`: a 30px (sm 26 / lg 34) rounded chip with a ~12% semantic tint
+   behind a Lucide glyph. Indigo by default; semantic tone *where meaning exists*
+   (recovery danger-tint, success green-tint). Muted, never saturated, never
+   gradient. Put one on every page header, card/section header, list-leading slot
+   and empty state.
+4. **Cards have structure.** Optional header zone via `NX.card(body,{header:{icon,
+   tone,title,sub,actions}})` → `.nx-card-hd` (chip + title + actions over a
+   hairline). Shadow is bumped one notch globally (token). Interactive cards add
+   `hover:true` → `.nx-card--hover` (lift 1px + raised shadow, 150ms).
+5. **Stat surfaces may be tinted.** `NX.kpi({tint:'success'})` (5% bg) **or**
+   `NX.kpi({icon,tone})` (icon chip) — choose one per surface, never both loud.
+   Numbers stay `.num` tabular.
+6. **Empty states + section labels get the chip pulse** so even empty screens have
+   a heartbeat (`NX.empty` wraps its icon in a chip automatically).
+7. **Badges have presence:** tinted bg **+ 1px tinted border** (`--fk-*-edge`), not
+   a borderless wash.
+
+**New tokens:** `--fk-{tone}-chip` (≈12%, theme-adaptive via `color-mix` against
+`--fk-bg-card`) · `--fk-{tone}-surface` (≈5%) · `--fk-{tone}-edge` (badge border) ·
+`--fk-subtle-hover` · `--fk-shadow` (bumped) + `--fk-shadow-raised`.
+
+**Before → after:**
+```js
+// tabs — BEFORE: bespoke underline buttons (flat, "are these clickable?")
+'<button style="border-bottom:2px solid …">Floors <span class=nx-chip>11</span></button>'
+// AFTER: a segmented control
+NX.tabs({ tabs:[{k:'floors',label:'Floors',count:11,icon:'building-2'}], active:_tab,
+          onSelect:"showTab('%k')", fill:true });
+
+// page header — BEFORE: bare title
+NX.pageHeader('Inventory', actions);
+// AFTER: leading tinted icon chip
+NX.pageHeader('Inventory', actions, { icon:'package' });
+
+// card — BEFORE: title was just a <div> inside the body
+NX.card('<div class="nx-card-title">Recovery mix</div>' + body);
+// AFTER: a structured header zone with a semantic chip
+NX.card(body, { header:{ icon:'trending-up', tone:'success', title:'Recovery mix' } });
+```
 
 ---
 

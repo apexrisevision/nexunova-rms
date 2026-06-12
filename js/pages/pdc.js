@@ -61,7 +61,8 @@ function rPDC() {
   if (!pg) return;
   pg.innerHTML =
     NX.pageHeader('PDC Register',
-      (_pdcIsAdmin() ? NX.button('New cheque bundle', { variant:'primary', icon:'plus', onclick:'_pdcOpenBundle()' }) : '')) +
+      (_pdcIsAdmin() ? NX.button('New cheque bundle', { variant:'primary', icon:'plus', onclick:'_pdcOpenBundle()' }) : ''),
+      { icon:'calendar-clock' }) +
     '<div id="pdc-summary"></div>' +
     '<div id="pdc-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:var(--fk-sp-4,16px) 0 var(--fk-sp-3,12px)"></div>' +
     NX.card(
