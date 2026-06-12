@@ -306,3 +306,5 @@
 .nx-mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .nx-skel{ background: var(--fk-bg-subtle); border-radius: var(--fk-radius-control); animation: nx-skel-pulse 1.2s ease-in-out infinite; }
 @keyframes nx-skel-pulse{ 0%,100%{ opacity: 1; } 50%{ opacity: .5; } }
+.nx-grid-2{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--fk-sp-3); }
+@media (max-width: 640px){ .nx-grid-2{ grid-template-columns: 1fr; } }

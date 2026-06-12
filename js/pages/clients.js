@@ -78,153 +78,64 @@ function genClientCode(companyId) {
 
 function rClients() {
   const cid = S?.cid;
-  if (!cid) {
-    document.getElementById('pg-clients').innerHTML =
-      `<div class="inv-empty" style="padding:60px"><div class="inv-empty-ic">${_UI.user}</div><h4>No company selected</h4></div>`;
-    return;
-  }
-  // Resolve which folded tab to show: a pending request (tab click or healthcenter/
-  // blacklist route redirect) wins once; a plain nav to Clients defaults back to All.
-  if (_cTabPending) { _cTab = _cTabPending; _cTabPending = null; }
-  else { _cTab = 'all'; }
+  const pg = document.getElementById('pg-clients');
+  if (!pg) return;
+  if (!cid) { pg.innerHTML = `<div class="nx-card">${NX.empty({ icon:'inbox', message:'No company selected' })}</div>`; return; }
 
-  loadHealthScoresCache(cid).then(() => rCLF());
-  const isA   = S.role === 'admin' || S.role === 'owner';
-  const isR   = S.role === 'recovery' || S.role === 'recovery_officer';
-  const all   = gclients();
+  if (_cTabPending) { _cTab = _cTabPending; _cTabPending = null; } else { _cTab = 'all'; }
+  const isA = S.role === 'admin' || S.role === 'owner';
+
+  const all = gclients();
   const total = all.length;
-  const active      = all.filter(c => c.status === 'active').length;
-  const inactive    = all.filter(c => c.status === 'inactive').length;
-  const blacklisted = all.filter(c => c.status === 'blacklisted').length;
+  const active = all.filter(c => c.status === 'active').length;
+  const historical = all.filter(c => c.status === 'inactive').length;
 
-  const _catLabel  = _cCategoryFilter || '';
-  const _hlthLabel = _cHealthFilter || '';
+  const actions =
+    NX.button('Print', { variant:'ghost', size:'sm', onclick:'printClientsList()' }) +
+    (isA ? NX.button('Add client', { variant:'primary', size:'sm', icon:'plus', attrs:'id="cl-add-btn"', onclick:'ClientForm.open({ onSaved: function(){ rClients(); } })' }) : '');
 
-  // ── Secondary stat tile (stacked beside the featured card) ──
-  const _sec = (key, title, sub, val, accent) => {
-    const on = _cStatusFilter === key;
-    return `<div class="rb-stat-sec${on?' on':''}" style="--rb-accent:${accent}" onclick="setCStatusFilter('${key}')">
-      <span class="v">${val}</span>
-      <div class="l"><span class="l-t">${esc(title)}</span><span class="l-s">${esc(sub)}</span></div>
-      <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-    </div>`;
-  };
-
-  // Proportions for the featured-stat breakdown bar
-  const _pA = total ? (active/total)*100      : 0;
-  const _pI = total ? (inactive/total)*100    : 0;
-  const _pB = total ? (blacklisted/total)*100 : 0;
-  const engPct = total ? Math.round(active/total*100) : 0;
-
-  document.getElementById('pg-clients').innerHTML = `<div class="ani module-client rb-page">
-
-  <!-- ── HERO (display title + lede + actions) ────────────────────── -->
-  <div class="rb-crumb">
-    <span class="lnk" onclick="nav('dashboard')">Home</span>
-    <span class="sep">·</span>
-    <span class="cur">Clients</span>
-  </div>
-  <div class="rb-hero">
-    <div class="rb-hero-text">
-      <h1 class="rb-title">All Clients</h1>
-      <p class="rb-lede">
-        ${total ? `Manage relationships, health, and recovery exposure across <b>${total} client${total!==1?'s':''}</b>${active?` — including <span class="pos">${active} active</span>`:''}${blacklisted?` and <span class="neg">${blacklisted} flagged</span>`:''}.` : 'Your client directory is empty. Add the first client to begin tracking relationships and recovery exposure.'}
-      </p>
+  pg.innerHTML = `<div class="nx-page">
+    <div class="nx-page-header">
+      <div><h1 class="nx-page-title">Clients</h1>
+        <div class="nx-kpi-label" id="cl-count" style="margin-top:4px">${total} clients · ${active} active · ${historical} historical</div></div>
+      <div class="nx-page-actions">${actions}</div>
     </div>
-    <div class="rb-hero-actions">
-      <button class="dx-tool" onclick="printClientsList()">${_UI.printer}<span>Print</span></button>
-      ${isA ? `<button id="um-add-client-btn" class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''}
+    <div class="nx-segment" style="margin-bottom:var(--fk-sp-4)">
+      <button class="nx-btn nx-btn--sm ${_cTab==='all'?'nx-btn--primary':'nx-btn--ghost'}" onclick="setClientsTab('all')">All clients</button>
+      <button class="nx-btn nx-btn--sm ${_cTab==='health'?'nx-btn--primary':'nx-btn--ghost'}" onclick="setClientsTab('health')">Health</button>
+      <button class="nx-btn nx-btn--sm ${_cTab==='blacklist'?'nx-btn--primary':'nx-btn--ghost'}" onclick="setClientsTab('blacklist')">Blacklist</button>
     </div>
-  </div>
-
-  <!-- ── FOLDED SUB-VIEW TABS (All · Health · Blacklist) ──────────────
-       Client Health + Blacklist Register were standalone pages; folded in here
-       2026-06-04 as tabs. Each tab reuses its original render logic (health-center.js /
-       blacklist.js), mounted into #cl-tab-mount below. -->
-  <div class="cl-subtabs" style="display:flex;gap:6px;margin:18px 0 16px;flex-wrap:wrap">
-    <button class="btn btn-sm ${_cTab==='all'?'btn-g':'btn-gh'}"       onclick="setClientsTab('all')">All Clients</button>
-    <button class="btn btn-sm ${_cTab==='health'?'btn-g':'btn-gh'}"    onclick="setClientsTab('health')">Health</button>
-    <button class="btn btn-sm ${_cTab==='blacklist'?'btn-g':'btn-gh'}" onclick="setClientsTab('blacklist')">Blacklist</button>
-  </div>
-
-  <!-- Mount for the Health / Blacklist folded views -->
-  <div id="cl-tab-mount" style="${_cTab==='all'?'display:none':''}"></div>
-
-  <!-- ── ALL-CLIENTS CONTENT (KPI + directory) ────────────────────── -->
-  <div id="cl-tab-all" style="${_cTab==='all'?'':'display:none'}">
-
-  <!-- ── KPI COMPOSITION (featured + secondary stack) ─────────────── -->
-  <div class="rb-kpi-grid">
-    <!-- Featured: client portfolio with proportional breakdown -->
-    <div class="rb-stat-feature" onclick="setCStatusFilter('')" style="cursor:pointer">
-      <div class="rb-feat-label">Client Portfolio</div>
-      <div class="rb-feat-value"><span>${total}</span><small>total · ${engPct}% active engagement</small></div>
-      ${total ? `
-      <div class="rb-feat-bar">
-        <span style="background:#16A34A;width:${_pA}%" title="Active"></span>
-        <span style="background:#64748B;width:${_pI}%" title="Inactive"></span>
-        <span style="background:#DC2626;width:${_pB}%" title="Blacklisted"></span>
-      </div>
-      <div class="rb-feat-legend">
-        <span class="li" onclick="event.stopPropagation();setCStatusFilter('active')"><span class="dot" style="background:#16A34A"></span>Active <b>${active}</b></span>
-        <span class="li" onclick="event.stopPropagation();setCStatusFilter('inactive')"><span class="dot" style="background:#64748B"></span>Inactive <b>${inactive}</b></span>
-        <span class="li" onclick="event.stopPropagation();setCStatusFilter('blacklisted')"><span class="dot" style="background:#DC2626"></span>Blacklisted <b>${blacklisted}</b></span>
-      </div>` : `<div style="font-size:13px;color:var(--text-muted)">No clients yet.</div>`}
-    </div>
-    <!-- Secondary: clickable status filters, stacked -->
-    <div class="rb-sec-stack">
-      ${_sec('active',      'Active',      'currently engaged',    active,      '#16A34A')}
-      ${_sec('inactive',    'Inactive',    'no recent activity',   inactive,    '#64748B')}
-      ${_sec('blacklisted', 'Blacklisted', 'flagged for review',   blacklisted, '#DC2626')}
-    </div>
-  </div>
-
-  <!-- ── DIRECTORY (data experience) ──────────────────────────────── -->
-  <div class="rb-section">
-  <div class="rb-section-eyebrow">Directory</div>
-  <div class="dx">
-    <div class="dx-toolbar">
-      <div class="dx-toolbar-l">
-        <div class="dx-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input id="c-s" type="search" placeholder="Name, CNIC, phone, email, code…" value="${esc(_cs)}" oninput="setCS(this.value)" autocomplete="off">
+    <div id="cl-tab-mount" style="${_cTab==='all'?'display:none':''}"></div>
+    <div id="cl-all" style="${_cTab==='all'?'':'display:none'}">
+      <div id="cl-kpis" class="nx-kpi-row" style="margin-bottom:var(--fk-sp-4)"></div>
+      <div class="nx-card nx-card--compact" style="display:flex;flex-wrap:wrap;gap:var(--fk-sp-3);align-items:center;margin-bottom:var(--fk-sp-4)">
+        <div style="position:relative;flex:1;min-width:200px;max-width:300px">
+          <input class="nx-input" id="cl-s" placeholder="Name, NIC, phone, code…" value="${esc(_clSearch)}" oninput="_clSetSearch(this.value)" autocomplete="off" style="padding-left:32px">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--fk-text-muted);pointer-events:none">${NX.icon('search',14)}</span>
         </div>
-        <button class="dx-tool${_catLabel?' primary':''}" onclick="_clFilterMenu('cat',this)">${_UI.tag}<span>${_catLabel?esc(_catLabel):'Category'}</span>${_UI.chevD}</button>
-        <button class="dx-tool${_hlthLabel?' primary':''}" onclick="_clFilterMenu('health',this)">${_UI.activity}<span>${_hlthLabel?esc(_hlthLabel):'Health'}</span>${_UI.chevD}</button>
-      </div>
-      <div class="dx-toolbar-r">
-        <div style="display:inline-flex;background:var(--bg-elevated);border:1px solid var(--border-color);border-radius:9px;padding:2px;gap:2px">
-          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_cView==='cards'?'var(--bg-surface)':'transparent'}" onclick="setCView('cards')" title="Card view">${_UI.grid}</button>
-          <button class="dx-tool icon" style="border:none;height:30px;width:32px;background:${_cView==='table'?'var(--bg-surface)':'transparent'}" onclick="setCView('table')" title="Table view">${_UI.list}</button>
+        <div class="nx-segment" id="cl-status-seg">
+          ${[['active','Active'],['inactive','Historical'],['','All']].map(([v,l])=>`<button class="nx-btn nx-btn--sm ${_clStatus===v?'nx-btn--primary':'nx-btn--ghost'}" onclick="_clSetStatus('${v}')">${l}</button>`).join('')}
         </div>
-        <button class="dx-tool icon" title="Row density" onclick="var w=document.getElementById('cl-wrap');if(w)DX.density(w,this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <button class="dx-tool icon" title="Columns" onclick="var t=document.getElementById('cl-table');if(t)DX.columns(t,this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
-        </button>
+        <div id="cl-project-wrap"></div>
+        <select class="nx-select" style="width:auto" onchange="_clSetRisk(this.value)">
+          ${[['','Any risk'],['overdue','Overdue > 0'],['aging90','90d+ overdue']].map(([v,l])=>`<option value="${v}"${_clRisk===v?' selected':''}>${l}</option>`).join('')}
+        </select>
       </div>
+      <div id="cl-ct"></div>
     </div>
-    <div class="dx-chips" id="cl-af-bar" style="display:none"></div>
-    <div id="cl-ct"></div>
-    <div class="dx-pager" id="cl-pager"></div>
-  </div>
-  </div>
-  </div><!-- /cl-tab-all -->
-</div>`;
+  </div>`;
 
-  _clRenderAFBar();
-  rCLF();
-  _checkClientLimitUI();
+  const projs = (typeof gprojects==='function'?gprojects():(window._projectsCache||[]))||[];
+  const pw = document.getElementById('cl-project-wrap');
+  if (pw && projs.length>1) pw.innerHTML = `<select class="nx-select" style="width:auto" onchange="_clSetProject(this.value)"><option value="">All projects</option>${projs.map(p=>`<option value="${esc(p.id)}"${_clProject===p.id?' selected':''}>${esc(p.projectName||p.name||'Project')}</option>`).join('')}</select>`;
 
-  // Folded sub-views: render Health / Blacklist into the shared mount, reusing the
-  // original health-center.js / blacklist.js logic (now mount-aware).
-  if (_cTab === 'health')         rHealthCenter();
-  else if (_cTab === 'blacklist') rBlacklist();
+  if (_cTab==='all') { _clLoadAndRender(); _checkClientLimitUI(); }
+  else if (_cTab==='health' && typeof rHealthCenter==='function') rHealthCenter();
+  else if (_cTab==='blacklist' && typeof rBlacklist==='function') rBlacklist();
 }
 
 async function _checkClientLimitUI() {
-  const btn = document.getElementById('um-add-client-btn');
+  const btn = document.getElementById('cl-add-btn');
   if (!btn) return;
   try {
     const { data, error } = await supabase.rpc('get_clients_plan_status', { p_company_id: S.cid });
@@ -232,9 +143,8 @@ async function _checkClientLimitUI() {
     const maxClients     = data.max_allowed ?? 0;
     const currentClients = data.current_count ?? 0;
     if (maxClients > 0 && currentClients >= maxClients) {
-      btn.disabled    = true;
-      btn.title       = `Client limit reached (${currentClients}/${maxClients}). Upgrade your plan to add more.`;
-      btn.textContent = `+ Add Client (${currentClients}/${maxClients})`;
+      btn.disabled = true;
+      btn.title    = `Client limit reached (${currentClients}/${maxClients}). Upgrade your plan to add more.`;
     }
   } catch(e) { /* UI hint only — not blocking */ }
 }
@@ -292,165 +202,105 @@ function setCSort(col) {
   rCLF();
 }
 
-function rCLF() {
+var _clStatus = 'active';   // Active default (spec)
+var _clProject = '';
+var _clRisk = '';            // '' | 'overdue' | 'aging90'
+var _clSearch = '';
+var _clRpByCode = {};        // client_code -> aggregated RP balances
+var _clSearchTimer = null;
+
+// Balances/overdue come from get_recovery_position (dashboard-consistent), merged
+// by client_code onto the roster. NEVER sales.remaining_amount (cohort trap).
+async function _clLoadAndRender() {
   const ct = document.getElementById('cl-ct');
-  const pg = document.getElementById('cl-pager');
   if (!ct) return;
-
-  const isA = S.role === 'admin' || S.role === 'owner';
-  const isR = S.role === 'recovery' || S.role === 'recovery_officer';
-  let clients = gclients().map(c => ({...c}));
-
-  if (_cStatusFilter)   clients = clients.filter(c => c.status         === _cStatusFilter);
-  if (_cCategoryFilter) clients = clients.filter(c => c.clientCategory === _cCategoryFilter);
-  if (_cHealthFilter)   clients = clients.filter(c => (window._healthScoresCache?.[c.id]?.category) === _cHealthFilter);
-
-  if (_cs) {
-    const q = _cs.toLowerCase();
-    clients = clients.filter(c =>
-      c.fullName.toLowerCase().includes(q) ||
-      (c.cnic         || '').toLowerCase().includes(q) ||
-      (c.phonePrimary || '').includes(q) ||
-      (c.email        || '').toLowerCase().includes(q) ||
-      (c.clientCode   || '').toLowerCase().includes(q) ||
-      (c.city         || '').toLowerCase().includes(q)
-    );
-  }
-
-  // Sort (full filtered set, then paginate)
-  if (_cSort.col) {
-    const hv = (c) => window._healthScoresCache?.[c.id]?.score ?? -1;
-    const keyFn = {
-      name:     c => (c.fullName||'').toLowerCase(),
-      city:     c => (c.city||'').toLowerCase(),
-      category: c => (c.clientCategory||'').toLowerCase(),
-      status:   c => (c.status||'').toLowerCase(),
-      health:   c => hv(c)
-    }[_cSort.col];
-    if (keyFn) clients.sort((a,b) => { const x=keyFn(a), y=keyFn(b); return (x<y?-1:x>y?1:0) * _cSort.dir; });
-  }
-
-  const anyFilter = _cs || _cStatusFilter || _cCategoryFilter || _cHealthFilter;
-
-  if (!clients.length) {
-    ct.innerHTML = `<div class="dx-wrap" id="cl-wrap">` + DX.empty({
-      icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>',
-      title:'No clients found',
-      sub: anyFilter ? 'Try adjusting your search or filters.' : 'Add your first client to get started.',
-      cta: (isA && !anyFilter) ? `<button class="dx-tool primary" onclick="openClientModal(null)">${_UI.plus}<span>Add Client</span></button>` : ''
-    }) + `</div>`;
-    if (pg) pg.innerHTML = '';
-    return;
-  }
-
-  const totalPages = Math.ceil(clients.length / _C_PER_PAGE);
-  if (_cPage > totalPages) _cPage = totalPages;
-  if (_cPage < 1) _cPage = 1;
-  const sliced = clients.slice((_cPage - 1) * _C_PER_PAGE, _cPage * _C_PER_PAGE);
-
-  const _clrPal     = ['#6366f1','#8b5cf6','#ec4899','#06b6d4','#10b981','#f59e0b','#f97316','#3b82f6'];
-  const _hlthClrMap = { PLATINUM:'#16a34a', GOOD:'#2563eb', 'AT RISK':'#d97706', CRITICAL:'#dc2626' };
-  const _mono = (c) => (c.fullName||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
-  const _clrOf = (c) => _clrPal[c.fullName.split('').reduce((a,ch)=>a+ch.charCodeAt(0),0) % _clrPal.length];
-  const _statusKind = (s) => s==='active'?'ok':s==='blacklisted'?'danger':'neutral';
-  const _statusLbl  = (s) => s==='active'?'Active':s==='blacklisted'?'Blacklisted':s==='inactive'?'Inactive':(s||'—');
-
-  if (_cView === 'cards') {
-    ct.innerHTML = `<div id="cl-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px">` +
-      sliced.map(c => {
-        const clr = _clrOf(c), initials = _mono(c), flag = CF_FLAGS[c.country] || '';
-        const hlth = window._healthScoresCache?.[c.id];
-        const hlthClr = hlth ? (_hlthClrMap[hlth.category] || 'var(--text-muted)') : null;
-        return `<div onclick="openClientPeek('${c.id}')" style="background:var(--bg-surface);border-radius:15px;border:1px solid var(--border-color);padding:18px;cursor:pointer;display:flex;flex-direction:column;gap:11px;transition:box-shadow 180ms,transform 180ms;box-shadow:0 1px 3px rgba(15,23,42,.06)"
-          onmouseover="this.style.boxShadow='0 0 0 1.5px ${clr},0 10px 26px ${clr}22';this.style.transform='translateY(-3px)'"
-          onmouseout="this.style.boxShadow='0 1px 3px rgba(15,23,42,.06)';this.style.transform=''">
-          <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,${clr},${clr}bb);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;letter-spacing:-.5px">${initials}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:14px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag?flag+' ':''}${esc(c.fullName||'Unnamed')}</div>
-              <div style="font-size:10px;font-family:var(--mono);color:var(--text-muted);margin-top:2px">${esc(c.clientCode||'—')}</div>
-            </div>
-            ${isA?`<button class="dx-act" onclick="event.stopPropagation();openClientModal('${c.id}')" title="Edit"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`:''}
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            ${c.clientCategory?`<span class="dx-status info">${esc(c.clientCategory)}</span>`:''}
-            ${DX.statusChip(_statusLbl(c.status), _statusKind(c.status))}
-            ${hlth&&hlthClr?`<span class="dx-status" style="color:${hlthClr};background:${hlthClr}1a">${hlth.score}</span>`:''}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;padding-top:11px;border-top:1px solid var(--border-color)">
-            ${c.phonePrimary?`<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-muted)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>${esc(c.phonePrimary)}</div>`:''}
-            ${c.city||c.country?`<div style="font-size:12px;color:var(--text-muted)">${flag} ${[c.city,c.country].filter(Boolean).join(', ')}</div>`:''}
-          </div>
-        </div>`;
-      }).join('') + `</div>`;
-  } else {
-    const th = (col, label, cls) => {
-      const on = _cSort.col === col;
-      return `<th class="${cls||''} dx-sortable${on?' dx-sorted'+(_cSort.dir<0?' desc':''):''}" onclick="setCSort('${col}')"><span class="dx-th-in">${label}<svg class="dx-sort-ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg></span></th>`;
-    };
-    ct.innerHTML = `<div class="dx-wrap" id="cl-wrap"><div class="dx-scroll"><table class="dx-table" id="cl-table">
-      <thead><tr>
-        ${th('name','Client')}
-        <th class="dx-hide-sm">Contact</th>
-        ${th('city','Location','dx-hide-sm')}
-        ${th('category','Category','dx-hide-sm')}
-        ${th('status','Status')}
-        ${th('health','Health','num')}
-        ${isA?'<th class="num"></th>':'<th></th>'}
-      </tr></thead>
-      <tbody>${sliced.map(c => {
-        const flag = CF_FLAGS[c.country] || '', clr = _clrOf(c), initials = _mono(c);
-        const h = window._healthScoresCache?.[c.id];
-        const hcat = h?.category;
-        const sev = hcat==='CRITICAL'?'sev-critical':hcat==='AT RISK'?'sev-warn':hcat==='PLATINUM'?'sev-ok':'';
-        const healthCell = h
-          ? `<span class="dx-risk"><span class="dx-risk-bar"><span class="dx-risk-fill ${h.score>=70?'lo':h.score>=40?'md':'hi'}" style="width:${Math.max(6,Math.min(100,h.score))}%"></span></span><span class="dx-risk-n">${h.score}</span></span>`
-          : '<span class="muted">—</span>';
-        const sd = (c.fullName+' '+(c.clientCode||'')+' '+(c.cnic||'')+' '+(c.phonePrimary||'')+' '+(c.city||'')).toLowerCase();
-        return `<tr class="clickable ${sev}" data-search="${esc(sd)}" onclick="openClientPeek('${c.id}')">
-          <td data-v="${esc((c.fullName||'').toLowerCase())}">
-            <span class="dx-cell"><span class="dx-mono" style="background:${clr}1a;color:${clr}">${esc(initials)}</span>
-              <span class="dx-cell-main"><span class="dx-cell-t">${flag?flag+' ':''}${esc(c.fullName||'Unnamed')}</span><span class="dx-cell-s">${esc(c.clientCode||'—')}</span></span></span>
-          </td>
-          <td class="dx-hide-sm muted">${c.phonePrimary?`<a href="tel:${esc(c.phonePrimary)}" onclick="event.stopPropagation()" style="color:var(--text-primary);text-decoration:none">${esc(c.phonePrimary)}</a>`:'—'}</td>
-          <td class="dx-hide-sm muted" data-v="${esc((c.city||'').toLowerCase())}">${flag?flag+' ':''}${esc(c.city||'—')}</td>
-          <td class="dx-hide-sm" data-v="${esc((c.clientCategory||'').toLowerCase())}">${c.clientCategory?`<span class="dx-status info">${esc(c.clientCategory)}</span>`:'<span class="muted">—</span>'}</td>
-          <td data-v="${esc(c.status||'')}">${DX.statusChip(_statusLbl(c.status), _statusKind(c.status))}</td>
-          <td class="num" data-v="${h?h.score:-1}">${healthCell}</td>
-          ${isA?`<td class="num"><span class="dx-acts" onclick="event.stopPropagation()">
-            <button class="dx-act" title="Quick view" onclick="openClientPeek('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button class="dx-act" title="Edit" onclick="openClientModal('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          </span></td>`:'<td></td>'}
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div></div>`;
-    DX.density(document.getElementById('cl-wrap'));
-  }
-
-  // Smart pager
-  if (pg) {
-    if (totalPages <= 1) { pg.innerHTML = ''; }
-    else {
-      const from = (_cPage-1)*_C_PER_PAGE + 1;
-      const to   = Math.min(_cPage*_C_PER_PAGE, clients.length);
-      const win = [];
-      for (let i=1;i<=totalPages;i++){ if(i===1||i===totalPages||Math.abs(i-_cPage)<=2) win.push(i); else if(win[win.length-1]!=='…') win.push('…'); }
-      const nums = win.map(i => i==='…'
-        ? `<span style="padding:0 4px;color:var(--text-muted)">…</span>`
-        : `<button class="dx-pager-btn${i===_cPage?' on':''}" onclick="_cPage=${i};rCLF()">${i}</button>`).join('');
-      pg.innerHTML = `<div class="dx-pager-info">Showing <b>${from}–${to}</b> of <b>${clients.length}</b> clients</div>`
-        + `<div class="dx-pager-ctrls">`
-        + `<button class="dx-pager-btn" ${_cPage<=1?'disabled':''} onclick="if(_cPage>1){_cPage--;rCLF()}">‹ Prev</button>`
-        + nums
-        + `<button class="dx-pager-btn" ${_cPage>=totalPages?'disabled':''} onclick="if(_cPage<${totalPages}){_cPage++;rCLF()}">Next ›</button>`
-        + `</div>`;
-    }
-  }
+  ct.innerHTML = `<div class="nx-card">${[0,1,2,3].map(()=>'<div class="nx-skel" style="height:40px;margin:6px 0;border-radius:8px"></div>').join('')}</div>`;
+  _clRpByCode = {};
+  try {
+    const { data } = await supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: null, p_from_date: null, p_to_date: (typeof td==='function'?td():null) });
+    const rows = (data && data.rows) ? data.rows : [];
+    rows.forEach(r => {
+      const code = r.client_code; if (!code) return;
+      const a = _clRpByCode[code] || (_clRpByCode[code] = { units:0, contracted:0, paid:0, balance:0, overdue:0, overdueDays:0 });
+      a.units += 1;
+      a.contracted += Number(r.net_price||0);
+      a.paid += Number(r.paid_to_date||0);
+      a.balance += Number(r.closing||0);
+      if (Number(r.overdue_days||0) > 0) a.overdue += Number(r.closing||0);   // row-level overdue amount
+      if (Number(r.closing||0) > 0 && Number(r.overdue_days||0) > 0) a.overdueDays = Math.max(a.overdueDays, Number(r.overdue_days||0));
+    });
+  } catch(e) { /* balances unavailable — roster still renders */ }
+  _clRenderKpis();
+  rCLF();
 }
 
-/* ══ CLIENT QUICK-VIEW DRAWER (Linear/Stripe-style peek) ════════════════
-   Reads only (no business-logic change). Full profile remains the
-   clientdetail page, reachable via "Open full profile →". */
+function _clRosterFiltered() {
+  const q = (_clSearch||'').trim().toLowerCase();
+  return gclients().filter(c => {
+    if (_clStatus && c.status !== _clStatus) return false;
+    if (_clProject && c.projectId !== _clProject) return false;
+    const rp = _clRpByCode[c.clientCode] || null;
+    if (_clRisk === 'overdue' && !(rp && rp.overdue > 0)) return false;
+    if (_clRisk === 'aging90' && !(rp && rp.overdue > 0 && rp.overdueDays >= 90)) return false;
+    if (q) {
+      const hay = (`${c.fullName||''} ${c.cnic||''} ${c.phonePrimary||''} ${c.clientCode||''}`).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function _clRenderKpis() {
+  const el = document.getElementById('cl-kpis'); if (!el) return;
+  const roster = _clRosterFiltered();
+  let bal = 0, ovd = 0;
+  roster.forEach(c => { const rp = _clRpByCode[c.clientCode]; if (rp) { bal += rp.balance; ovd += rp.overdue; } });
+  const active = roster.filter(c => c.status === 'active').length;
+  el.innerHTML =
+    NX.kpi({ label:'Clients shown', value: roster.length }) +
+    NX.kpi({ label:'Active', value: active }) +
+    NX.kpi({ label:'Total balance', value: fMF(bal) }) +
+    NX.kpi({ label:'Overdue', value: fMF(ovd) });
+}
+
+function rCLF() {
+  const ct = document.getElementById('cl-ct'); if (!ct) return;
+  const roster = _clRosterFiltered();
+  if (!roster.length) { ct.innerHTML = `<div class="nx-card">${NX.empty({ icon:'search', message:'No clients match these filters.' })}</div>`; return; }
+  const cols = [
+    {label:'Code'},{label:'Client'},{label:'NIC'},{label:'Phone'},
+    {label:'Units',num:true},{label:'Balance',num:true},{label:'Overdue',num:true},{label:'Status'}
+  ];
+  const rows = roster.map(c => {
+    const rp = _clRpByCode[c.clientCode] || null;
+    const bal = rp ? rp.balance : 0, ovd = rp ? rp.overdue : 0, units = rp ? rp.units : 0;
+    const tone = c.status === 'active' ? 'success' : c.status === 'blacklisted' ? 'danger' : '';
+    const lbl = c.status === 'inactive' ? 'Historical' : (c.status ? c.status[0].toUpperCase()+c.status.slice(1) : '—');
+    return [
+      `<span class="nx-mono" style="color:var(--fk-primary);font-weight:var(--fk-fw-semibold)">${esc(c.clientCode||'—')}</span>`,
+      `${esc(c.fullName||'Unnamed')}${c.fatherName?`<div class="nx-kpi-label" style="text-transform:none">S/o ${esc(c.fatherName)}</div>`:''}`,
+      `<span class="nx-mono">${esc(c.cnic||'—')}</span>`,
+      esc(c.phonePrimary||'—'),
+      units||'—',
+      fMF(bal),
+      `<span style="color:${ovd>0?'var(--fk-danger)':'var(--fk-text-muted)'}">${ovd>0?fMF(ovd):'—'}</span>`,
+      NX.badge(lbl, tone, { dot:true })
+    ];
+  });
+  ct.innerHTML = `<div class="nx-card nx-card--flush"><div class="nx-table-wrap">${NX.table({ cols, rows, flush:true })}</div></div>`;
+  ct.querySelectorAll('tbody tr').forEach((tr,i)=>{ tr.style.cursor='pointer'; tr.onclick=()=>openClientDetail(roster[i].id); });
+}
+
+function _clSetSearch(v){ _clSearch=v; clearTimeout(_clSearchTimer); _clSearchTimer=setTimeout(()=>{ _clRenderKpis(); rCLF(); },200); }
+function _clSetStatus(v){
+  _clStatus=v;
+  const seg=document.getElementById('cl-status-seg');
+  if(seg) seg.querySelectorAll('.nx-btn').forEach(b=>{ const on=(b.textContent.trim()===(v==='active'?'Active':v==='inactive'?'Historical':'All')); b.classList.toggle('nx-btn--primary',on); b.classList.toggle('nx-btn--ghost',!on); });
+  _clRenderKpis(); rCLF();
+}
+function _clSetProject(v){ _clProject=v; _clRenderKpis(); rCLF(); }
+function _clSetRisk(v){ _clRisk=v; _clRenderKpis(); rCLF(); }
+
 function openClientPeek(id) {
   const c = gclient(id);
   if (!c) return;
@@ -591,257 +441,176 @@ function rClientDetail() {
   if (!clientId) { nav('clients'); return; }
   const c = gclient(clientId);
   if (!c) { nav('clients'); return; }
+  const pg = document.getElementById('pg-clientdetail');
+  if (!pg) return;
+  const isA = S.role === 'admin' || S.role === 'owner';
+  const hist = c.status === 'inactive';
 
-  const isA  = S.role === 'admin' || S.role === 'owner';
-  const flag = CF_FLAGS[c.country] || '';
+  const act = [];
+  act.push(NX.button('← Back', { variant:'ghost', size:'sm', onclick:"nav('clients')" }));
+  if (isA) act.push(NX.button('Edit', { variant:'secondary', size:'sm', onclick:"ClientForm.open({ clientId:'" + clientId + "', onSaved:function(){ rClientDetail(); } })" }));
+  act.push(NX.button('Record payment', { variant:'primary', size:'sm', onclick:"nav('addpayment')" }));
+  act.push(NX.button('Client ledger', { variant:'secondary', size:'sm', onclick:"openLedgerReport('" + clientId + "')" }));
+  act.push(NX.button('Log follow-up', { variant:'secondary', size:'sm', onclick:"_cdLogFollowUp()" }));
+  if (isA && !hist) act.push(NX.button('Deactivate', { variant:'ghost', size:'sm', onclick:"setClientStatus('" + clientId + "','inactive')" }));
+  if (isA && hist)  act.push(NX.button('Reactivate', { variant:'ghost', size:'sm', onclick:"setClientStatus('" + clientId + "','active')" }));
 
-  // Units linked via legacy customerName matching (until Sales module is built)
-  const allUnits = gunits();
-  const myUnits  = allUnits.filter(u =>
-    u.clientId === clientId ||
-    (c.fullName && u.customerName && u.customerName.toLowerCase() === c.fullName.toLowerCase())
-  );
-  const totalPortfolio = myUnits.reduce((s, u) => s + Number(u.totalPrice || 0), 0);
-  const totalPaid      = myUnits.reduce((s, u) => s + Number(u.totalPaid  || 0), 0);
-  const outstanding    = Math.max(0, totalPortfolio - totalPaid);
-  const recovPct       = totalPortfolio > 0 ? Math.min(100, Math.round(totalPaid / totalPortfolio * 100)) : 0;
+  const tab = (id, label) => '<button class="nx-btn nx-btn--sm ' + (id==='overview'?'nx-btn--primary':'nx-btn--ghost') + '" id="cd-tab-' + id + '-btn" onclick="cdSwitchTab(\'' + id + '\')">' + label + '</button>';
+  const statusBadge = NX.badge(hist?'Historical':(c.status?c.status[0].toUpperCase()+c.status.slice(1):'—'), hist?'':(c.status==='blacklisted'?'danger':'success'), {dot:true});
 
-  const row = (l, v) => v ? `<div class="ir"><span class="ir-l">${l}</span><span class="ir-r">${v}</span></div>` : '';
+  pg.innerHTML = '<div class="nx-page">' +
+    '<div id="cd-form-nav"></div>' +
+    '<div class="no-p" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--fk-sp-3)">' + act.join('') + '</div>' +
+    (hist ? NX.banner('Historical / cancelled buyer — this client is inactive. Their cancelled sales are shown below; no current dues are computed.', 'warn') : '') +
+    '<div class="nx-card" style="margin:var(--fk-sp-3) 0">' +
+      '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--fk-sp-3)">' +
+        '<div>' +
+          '<div class="nx-mono nx-kpi-label" style="text-transform:none">' + esc(c.clientCode||'') + '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0"><h1 class="nx-page-title">' + esc(c.fullName||'Unnamed') + '</h1>' + statusBadge + (c.clientCategory?NX.chip(c.clientCategory):'') + '</div>' +
+          '<div class="nx-kpi-label" style="text-transform:none">' + (c.fatherName?'S/o '+esc(c.fatherName)+' · ':'') + (c.cnic?'NIC '+esc(c.cnic):'') + '</div>' +
+          '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">' + (c.phonePrimary?'<a href="tel:'+esc(c.phonePrimary)+'" style="color:var(--fk-info)">'+esc(c.phonePrimary)+'</a>':'') + (c.address?' · '+esc(c.address):'') + (c.city?', '+esc(c.city):'') + '</div>' +
+        '</div>' +
+        '<div class="no-p" style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">' +
+          (c.phonePrimary?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(c.phonePrimary)+'"><span>Call</span></a>':'') +
+          ((c.whatsapp||c.phonePrimary)?'<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/'+(c.whatsapp||c.phonePrimary).replace(/[^0-9]/g,'')+'"><span>WhatsApp</span></a>':'') +
+          (c.email?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="mailto:'+esc(c.email)+'"><span>Email</span></a>':'') +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="nx-segment" style="margin-bottom:var(--fk-sp-3)">' + tab('overview','Overview') + tab('ledger','Ledger') + tab('health','Health') + tab('promises','Promises') + tab('paylinks','Payment Links') + tab('documents','Documents') + (isA?tab('history','History'):'') + '</div>' +
+    '<div id="cd-tab-overview">' +
+      '<div id="cd-fin" class="nx-kpi-row" style="margin-bottom:var(--fk-sp-4)"></div>' +
+      '<div class="nx-card nx-card--flush" style="margin-bottom:var(--fk-sp-4)"><div class="nx-card-title" style="padding:var(--fk-sp-3) var(--fk-sp-4)">Portfolio</div><div id="cd-portfolio"><div class="nx-skel" style="height:120px;margin:var(--fk-sp-3)"></div></div></div>' +
+      '<div class="nx-grid-2">' +
+        '<div class="nx-card"><div class="nx-card-title" style="margin-bottom:var(--fk-sp-3)">Recent payments</div><div id="cd-payments"><div class="nx-skel" style="height:80px"></div></div></div>' +
+        '<div class="nx-card"><div class="nx-card-title" style="margin-bottom:var(--fk-sp-3)">Follow-up history</div><div id="cd-followups"><div class="nx-skel" style="height:80px"></div></div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div id="cd-tab-ledger" style="display:none"><div id="cd-ledger-body"></div></div>' +
+    '<div id="cd-tab-health" style="display:none"><div id="cd-health-body"><div class="nx-card">' + NX.empty({message:'Loading…'}) + '</div></div></div>' +
+    '<div id="cd-tab-promises" style="display:none"><div id="cd-promises-body"><div class="nx-card">' + NX.empty({message:'Loading…'}) + '</div></div></div>' +
+    '<div id="cd-tab-paylinks" style="display:none"><div id="cd-paylinks-body"><div class="nx-card">' + NX.empty({message:'Loading…'}) + '</div></div></div>' +
+    '<div id="cd-tab-documents" style="display:none"><div id="cd-documents-body"><div class="nx-card">' + NX.empty({message:'Loading…'}) + '</div></div></div>' +
+    (isA?'<div id="cd-tab-history" style="display:none"><div id="cd-history-body"><div class="nx-card">' + NX.empty({message:'Loading…'}) + '</div></div></div>':'') +
+  '</div>';
 
-  document.getElementById('pg-clientdetail').innerHTML = `<div class="ani">
-    <!-- Form navigation bar -->
-    <div id="cd-form-nav"></div>
+  _cdLoadOverview(clientId, c);
+  _cdLoadActivity(clientId, c);
 
-    <!-- Header actions -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
-      <button class="bk" onclick="nav('clients')">← Back</button>
-      <button class="btn btn-print btn-sm" onclick="printClientDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-      <button class="btn btn-sm" onclick="openLedgerReport('${clientId}')" style="background:#1e2d47;color:#fff;border:1px solid #1e2d47;display:inline-flex;align-items:center;gap:5px" title="A4 Account Ledger"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>A4 Ledger</button>
-      ${isA ? `<button class="btn btn-gh btn-sm" onclick="openClientModal('${clientId}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
-      ${isA && c.status !== 'inactive'    ? `<button class="btn btn-d btn-sm" onclick="setClientStatus('${clientId}','inactive')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Deactivate</button>`    : ''}
-      ${isA && c.status !== 'blacklisted' ? `<button class="btn btn-r btn-sm" onclick="setClientStatus('${clientId}','blacklisted')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Blacklist</button>`   : ''}
-      ${isA && c.status !== 'active'      ? `<button class="btn btn-g btn-sm" onclick="setClientStatus('${clientId}','active')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Reactivate</button>`       : ''}
-    </div>
-
-    <!-- Hero card -->
-    <div class="card mb14">
-      <div class="cb">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div style="display:flex;align-items:flex-start;gap:14px">
-            ${c.clientPhotoUrl ? `<img src="${esc(c.clientPhotoUrl)}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--line);flex-shrink:0" onerror="this.style.display='none'">` : ''}
-            <div>
-              <div style="font-size:10px;color:var(--t3);font-family:monospace;margin-bottom:4px">${esc(c.clientCode)}</div>
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;flex-wrap:wrap">
-                <h2 style="font-size:22px;font-weight:700">${flag} ${esc(c.fullName||'Unnamed')}</h2>
-                ${cStatusBadge(c.status)}
-                ${c.clientCategory ? `<span style="font-size:11px;background:var(--canvas);padding:2px 8px;border-radius:20px;border:1px solid var(--line)">${cCategoryIcon(c.clientCategory)} ${esc(c.clientCategory)}</span>` : ''}
-                ${c.overseasLocal === 'overseas' ? `<span style="font-size:11px;background:rgba(99,102,241,.15);color:#818cf8;padding:2px 8px;border-radius:20px;border:1px solid rgba(99,102,241,.3)">Overseas</span>` : ''}
-              </div>
-              ${c.cnic ? `<div style="font-size:12px;color:var(--t3);font-family:monospace">CNIC: ${esc(c.cnic)}</div>` : ''}
-            </div>
-          </div>
-          <div style="display:flex;gap:7px;flex-wrap:wrap" class="no-p">
-            ${c.phonePrimary ? `<a href="tel:${esc(c.phonePrimary)}" class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>Call</a>` : ''}
-            ${(c.whatsapp||c.phonePrimary) ? `<a href="https://wa.me/${(c.whatsapp||c.phonePrimary).replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>WhatsApp</a>` : ''}
-            ${c.email ? `<a href="mailto:${esc(c.email)}" class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email</a>` : ''}
-          </div>
-        </div>
-
-        ${totalPortfolio > 0 ? `
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
-          <div style="font-size:11px;color:var(--t3)">Units<br><span style="font-size:15px;font-weight:700;color:var(--t1)">${myUnits.length}</span></div>
-          <div style="font-size:11px;color:var(--t3)">Portfolio<br><span style="font-size:15px;font-weight:700;color:var(--t1)">${fM(totalPortfolio)}</span></div>
-          <div style="font-size:11px;color:var(--t3)">Paid<br><span style="font-size:15px;font-weight:700;color:var(--ok)">${fM(totalPaid)}</span></div>
-          <div style="font-size:11px;color:var(--t3)">Outstanding<br><span style="font-size:15px;font-weight:700;color:${outstanding>0?'var(--err)':'var(--ok)'}">${outstanding>0?fM(outstanding):'Nil'}</span></div>
-          <div style="font-size:11px;color:var(--t3)">Recovery<br><span style="font-size:15px;font-weight:700;color:var(--t1)">${recovPct}%</span></div>
-        </div>
-        <div style="margin-top:10px">
-          <div class="pbar" style="width:100%;height:6px"><div class="pbar-f" style="width:${recovPct}%"></div></div>
-        </div>` : ''}
-      </div>
-    </div>
-
-    <!-- Tab strip -->
-    <div style="display:flex;border-bottom:2px solid var(--line);margin-bottom:14px">
-      <button id="cd-tab-overview-btn" onclick="cdSwitchTab('overview')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid var(--brand);margin-bottom:-2px;background:none;font-size:13px;font-weight:700;color:var(--brand);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Overview</button>
-      <button id="cd-tab-ledger-btn" onclick="cdSwitchTab('ledger')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Ledger</button>
-      <button id="cd-tab-health-btn" onclick="cdSwitchTab('health')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>Health Score</button>
-      <button id="cd-tab-promises-btn" onclick="cdSwitchTab('promises')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Promises</button>
-      <button id="cd-tab-paylinks-btn" onclick="cdSwitchTab('paylinks')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Payment Links</button>
-      <button id="cd-tab-documents-btn" onclick="cdSwitchTab('documents')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Documents</button>
-      ${(S.role==='admin'||S.role==='owner')?`<button id="cd-tab-history-btn" onclick="cdSwitchTab('history')"
-        style="padding:8px 18px;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History</button>`:''}
-    </div>
-
-    <div id="cd-tab-overview">
-    <div class="cd">
-      <!-- Left column: Personal info -->
-      <div style="display:flex;flex-direction:column;gap:13px">
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Personal Info</h3></div>
-          <div class="cb">
-            ${row('Full Name',    esc(c.fullName||'—'))}
-            ${row('Father Name',  c.fatherName ? esc(c.fatherName) : null)}
-            ${row('CNIC',         c.cnic ? `<span style="font-family:monospace">${esc(c.cnic)}</span>` : null)}
-            ${row('Passport',     c.passportNo ? esc(c.passportNo) : null)}
-            ${row('Resident',     c.overseasLocal === 'overseas' ? 'Overseas (NICOP)' : 'Local (CNIC)')}
-            ${row('Category',     c.clientCategory ? cCategoryIcon(c.clientCategory)+' '+esc(c.clientCategory) : null)}
-            ${row('Lead Source',  c.leadSource ? esc(c.leadSource) : null)}
-            ${row('Occupation',   c.occupation ? esc(c.occupation) : null)}
-            ${row('Company',      c.companyName ? esc(c.companyName) : null)}
-            ${row('Referred By',  c.referenceBy ? esc(c.referenceBy) : null)}
-            ${row('Created',      c.createdAt ? fD(c.createdAt.slice(0,10)) : null)}
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>Contact</h3></div>
-          <div class="cb">
-            ${row('Phone',    c.phonePrimary ? `<a href="tel:${esc(c.phonePrimary)}" style="color:var(--info);text-decoration:none">${esc(c.phonePrimary)}</a>` : null)}
-            ${row('Phone 2',  c.phoneSecondary ? esc(c.phoneSecondary) : null)}
-            ${row('WhatsApp', c.whatsapp ? `<a href="https://wa.me/${c.whatsapp.replace(/[^0-9]/g,'')}" target="_blank" style="color:var(--ok);text-decoration:none;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${esc(c.whatsapp)}</a>` : null)}
-            ${row('Email',    c.email ? `<a href="mailto:${esc(c.email)}" style="color:var(--info);text-decoration:none">${esc(c.email)}</a>` : null)}
-          </div>
-        </div>
-
-        ${c.address || c.city ? `
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Address</h3></div>
-          <div class="cb">
-            ${row('Address', c.address ? esc(c.address) : null)}
-            ${row('City',    c.city    ? esc(c.city)    : null)}
-            ${row('Country', c.country ? esc(c.country) : null)}
-          </div>
-        </div>` : ''}
-
-        ${c.cnicFrontUrl || c.cnicBackUrl ? `
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/><line x1="14" y1="15" x2="18" y2="15"/></svg>KYC Documents</h3></div>
-          <div class="cb">
-            ${c.cnicFrontUrl ? `<div style="margin-bottom:10px">
-              <div style="font-size:11px;color:var(--t3);margin-bottom:5px">CNIC Front</div>
-              <a href="${esc(c.cnicFrontUrl)}" target="_blank"><img src="${esc(c.cnicFrontUrl)}" style="max-width:100%;border-radius:var(--rm);border:1px solid var(--line)" onerror="this.parentElement.innerHTML='<span style=color:var(--t3)>Could not load image</span>'"></a>
-            </div>` : ''}
-            ${c.cnicBackUrl ? `<div>
-              <div style="font-size:11px;color:var(--t3);margin-bottom:5px">CNIC Back</div>
-              <a href="${esc(c.cnicBackUrl)}" target="_blank"><img src="${esc(c.cnicBackUrl)}" style="max-width:100%;border-radius:var(--rm);border:1px solid var(--line)" onerror="this.parentElement.innerHTML='<span style=color:var(--t3)>Could not load image</span>'"></a>
-            </div>` : ''}
-          </div>
-        </div>` : ''}
-
-        ${c.nextOfKinName || c.nextOfKinPhone ? `
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Next of Kin / Nominee</h3></div>
-          <div class="cb">
-            ${row('Name',     c.nextOfKinName     ? esc(c.nextOfKinName)     : null)}
-            ${row('Relation', c.nextOfKinRelation ? esc(c.nextOfKinRelation) : null)}
-            ${row('Phone',    c.nextOfKinPhone ? `<a href="tel:${esc(c.nextOfKinPhone)}" style="color:var(--info);text-decoration:none">${esc(c.nextOfKinPhone)}</a>` : null)}
-          </div>
-        </div>` : ''}
-
-        ${c.bankName || c.bankAccountNo ? `
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>Bank Account</h3></div>
-          <div class="cb">
-            ${row('Bank',     c.bankName         ? esc(c.bankName)         : null)}
-            ${row('Title',    c.bankAccountTitle ? esc(c.bankAccountTitle) : null)}
-            ${row('A/C No',   c.bankAccountNo    ? `<span style="font-family:monospace">${esc(c.bankAccountNo)}</span>` : null)}
-            ${row('IBAN',     c.bankIban         ? `<span style="font-family:monospace">${esc(c.bankIban)}</span>`     : null)}
-          </div>
-        </div>` : ''}
-
-        ${c.notes ? `
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Notes</h3></div>
-          <div class="cb"><p style="font-size:12px;color:var(--t2);line-height:1.6;margin:0">${esc(c.notes)}</p></div>
-        </div>` : ''}
-      </div>
-
-      <!-- Right column: Units + financial -->
-      <div style="display:flex;flex-direction:column;gap:13px">
-        <div class="card">
-          <div class="ch"><div><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M8 10h.01M16 10h.01"/></svg>Units Owned</h3><p>${myUnits.length} unit(s)</p></div></div>
-          ${!myUnits.length
-            ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M8 10h.01M16 10h.01"/></svg></div><div class="et">No units linked</div><div class="es">Units will appear here when linked via the Sales module</div></div>`
-            : `<div class="ul">` + myUnits.map(u => {
-                const paid = actualPaid(u), rem = actualPending(u), p2 = pct(paid, u.totalPrice);
-                const prj  = gproject(u.projectId);
-                return `<div class="ur" onclick="openUD('${u.id}')">
-                  <div class="ur-no">${esc(u.unitNo||'—')}</div>
-                  <div style="flex-shrink:0">${uStatusBadge ? uStatusBadge(u.status,u.statusColor) : sbadge(u.status)}</div>
-                  <div class="ur-meta">
-                    <div class="ur-name">${esc(prj?.projectName||prj?.name||u.type||'—')}</div>
-                    <div class="ur-sub">${esc(u.floorLabel||'—')} · ${esc(u.type||'—')} · ${u.area||'—'} ${u.areaUnit||'sqft'}</div>
-                  </div>
-                  ${u.totalPrice > 0
-                    ? `<div style="flex-shrink:0;width:68px"><div class="pbar"><div class="pbar-f" style="width:${p2}%"></div></div><div style="font-size:9px;color:var(--t3);margin-top:2px">${p2}% paid</div></div>
-                       <div class="ur-bal"><div class="ur-v" style="color:${rem>0?'var(--err)':'var(--ok)'}">${fM(rem>0?rem:paid)}</div><div class="ur-vs">${rem>0?'pending':'paid'}</div></div>`
-                    : `<div class="ur-bal"><div class="ur-v c-m">—</div></div>`}
-                  <div class="arr">›</div>
-                </div>`;
-              }).join('') + `</div>`
-          }
-        </div>
-
-        ${totalPortfolio > 0 ? `
-        <div class="card">
-          <div class="ch"><h3>Financial Summary</h3></div>
-          <div class="cb">
-            ${row('Total Portfolio', fMF(totalPortfolio))}
-            ${row('Total Paid',      `<span style="color:var(--ok);font-weight:700">${fMF(totalPaid)}</span>`)}
-            ${row('Outstanding',     `<span style="color:${outstanding>0?'var(--err)':'var(--ok)'};font-weight:700">${outstanding>0?fMF(outstanding):'Fully Paid'}</span>`)}
-            ${row('Recovery %',      `<strong>${recovPct}%</strong>`)}
-          </div>
-        </div>` : ''}
-      </div>
-    </div>
-    </div><!-- /cd-tab-overview -->
-    <div id="cd-tab-ledger" style="display:none">
-      <div id="cd-ledger-body"></div>
-    </div>
-    <div id="cd-tab-health" style="display:none">
-      <div id="cd-health-body"><div class="empty" style="padding:28px"><div class="es">Loading…</div></div></div>
-    </div>
-    <div id="cd-tab-promises" style="display:none">
-      <div id="cd-promises-body"><div class="empty" style="padding:28px"><div class="es">Loading…</div></div></div>
-    </div>
-    <div id="cd-tab-paylinks" style="display:none">
-      <div id="cd-paylinks-body"><div class="empty" style="padding:28px"><div class="es">Loading…</div></div></div>
-    </div>
-    <div id="cd-tab-documents" style="display:none">
-      <div id="cd-documents-body"><div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">Loading…</div></div>
-    </div>
-    ${(S.role==='admin'||S.role==='owner')?`<div id="cd-tab-history" style="display:none">
-      <div id="cd-history-body"><div class="empty" style="padding:28px"><div class="es">Loading…</div></div></div>
-    </div>`:''}
-  </div>`;
-
-  // Mount the reusable form-nav bar at the top of the client detail page.
   if (typeof mountFormNav === 'function') {
     mountFormNav({
-      targetSel: '#cd-form-nav',
-      entity:    'client',
-      dateField: 'createdAt',
-      currentId: clientId,
-      storageKey:'rms.fnav.client',
-      loadList: async () => (window._clientsCache || []).map(x => ({
-        id: x.id,
-        createdAt: x.createdAt || x.created_at || ''
-      })),
+      targetSel: '#cd-form-nav', entity: 'client', dateField: 'createdAt', currentId: clientId, storageKey:'rms.fnav.client',
+      loadList: async () => (window._clientsCache || []).map(x => ({ id: x.id, createdAt: x.createdAt || x.created_at || '' })),
       openEntry: (id) => openClientDetail(id),
-      onEdit:    (id) => isA && openClientModal(id),
-      onDelete:  async () => {
-        // Hard delete blocked by design — guide user to Deactivate/Blacklist.
-        if (typeof toast === 'function') toast('Use Deactivate or Blacklist instead — clients are never hard-deleted.', 'warn');
-      }
+      onEdit:    (id) => isA && ClientForm.open({ clientId: id, onSaved: function(){ rClientDetail(); } }),
+      onDelete:  async () => { if (typeof toast === 'function') toast('Use Deactivate instead — clients are never hard-deleted.', 'warn'); }
     });
   }
+}
+
+// Units linked to this client (for Log Follow-up, which is unit-keyed via openConModal)
+let _cdUnitIds = [];
+function _cdClientUnitIds() {
+  if (_cdUnitIds.length) return _cdUnitIds;
+  const c = gclient(_cid); if (!c) return [];
+  return ((typeof gunits==='function'?gunits():[])||[]).filter(u => u.clientId === _cid || (c.fullName && u.customerName && u.customerName.toLowerCase() === c.fullName.toLowerCase())).map(u => u.id);
+}
+function _cdLogFollowUp() {
+  const ids = _cdClientUnitIds();
+  if (!ids.length) { toast('No unit linked to this client to log against.', 'warn'); return; }
+  if (typeof openConModal === 'function') openConModal(ids[0]);
+  else toast('Contact log unavailable.', 'warn');
+}
+
+// Portfolio + financial summary. Spine = list_sales_by_client_all (all sales incl
+// cancelled, with sale_number/status); active balances merged from get_recovery_position
+// by sale_id. Balances come from RP (dashboard-consistent), NEVER sales.remaining_amount.
+async function _cdLoadOverview(clientId, c) {
+  const fin = document.getElementById('cd-fin');
+  const port = document.getElementById('cd-portfolio');
+  let allSales = [], rpRows = [];
+  try {
+    const [allRes, rpRes] = await Promise.all([
+      supabase.rpc('list_sales_by_client_all', { p_client_id: clientId, p_company_id: S.cid }),
+      supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: null, p_from_date: null, p_to_date: (typeof td==='function'?td():null) })
+    ]);
+    allSales = Array.isArray(allRes.data) ? allRes.data : [];
+    rpRows = ((rpRes.data && rpRes.data.rows) || []).filter(r => r.client_code === c.clientCode);
+  } catch (e) { if (port) port.innerHTML = NX.empty({ icon:'alert-triangle', message:'Could not load portfolio.' }); }
+
+  const rpBySale = {};
+  rpRows.forEach(r => { if (r.sale_id) rpBySale[r.sale_id] = r; });
+  _cdUnitIds = allSales.filter(s => s.status === 'active').map(s => s.unit_id).filter(Boolean);
+
+  // RP buckets (closing_old/current) degenerate to 0 in an all-time call; only 'closing'
+  // and 'overdue_days' are meaningful. Overdue = row-level Σ closing WHERE overdue_days>0
+  // (the dashboard's Overdue-Today formula at client scope), NOT closing_old.
+  const contracted = rpRows.reduce((a,r)=>a+Number(r.net_price||0),0);
+  const paid = rpRows.reduce((a,r)=>a+Number(r.paid_to_date||0),0);
+  const remaining = contracted - paid;                                  // total still owed on the contract
+  const dueToday = rpRows.reduce((a,r)=>a+Number(r.closing||0),0);       // billed-to-date minus paid
+  const overdue = rpRows.reduce((a,r)=>a + (Number(r.overdue_days||0) > 0 ? Number(r.closing||0) : 0), 0);
+  if (fin) fin.innerHTML = NX.kpi({label:'Contracted (net)', value:fMF(contracted)}) + NX.kpi({label:'Paid', value:fMF(paid)}) + NX.kpi({label:'Remaining', value:fMF(remaining)}) + NX.kpi({label:'Due till today', value:fMF(dueToday)}) + NX.kpi({label:'Overdue', value:fMF(overdue)});
+
+  if (!port) return;
+  const unitsCache = (typeof gunits==='function'?gunits():[])||[];
+  if (!allSales.length) { port.innerHTML = NX.empty({ icon:'inbox', message:'No sales linked to this client.' }); return; }
+  // active first, then cancelled
+  allSales.sort((a,b) => (a.status==='cancelled'?1:0) - (b.status==='cancelled'?1:0));
+  const rows = allSales.map(s => {
+    const cancelled = s.status === 'cancelled';
+    const rp = rpBySale[s.id];
+    const u = unitsCache.find(x => x.id === s.unit_id);
+    const unitNo = (rp && rp.unit_no) || (u && u.unitNo) || '—';
+    const net = rp ? Number(rp.net_price||0) : Number(s.net_amount||0);
+    const pd = rp ? Number(rp.paid_to_date||0) : 0;
+    const bal = cancelled ? 0 : (rp ? Number(rp.closing||0) : 0);
+    const odd = rp ? Number(rp.overdue_days||0) : 0;
+    return [
+      esc(unitNo),
+      '<span class="nx-mono">' + esc(s.sale_number||'—') + '</span>',
+      fMF(net),
+      cancelled ? '—' : fMF(pd),
+      cancelled ? '<span style="color:var(--fk-text-muted)">—</span>' : '<span style="color:' + (bal>0?'var(--fk-warning)':'var(--fk-success)') + '">' + fMF(bal) + '</span>',
+      (!cancelled && odd>0) ? NX.badge(odd+'d','danger',{dot:true}) : '—',
+      cancelled ? NX.badge('Cancelled','danger') : NX.badge('Active','success')
+    ];
+  });
+  const cols = [{label:'Unit'},{label:'Sale #'},{label:'Net',num:true},{label:'Paid',num:true},{label:'Balance',num:true},{label:'Overdue'},{label:'Status'}];
+  const nCancel = allSales.filter(s=>s.status==='cancelled').length;
+  port.innerHTML = '<div class="nx-table-wrap">' + NX.table({ cols, rows, flush:true }) + '</div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:18px;padding:var(--fk-sp-3) var(--fk-sp-4);border-top:1px solid var(--fk-border);font-size:13px;flex-wrap:wrap">' +
+      '<span class="nx-kpi-label" style="text-transform:none">' + rpRows.length + ' active' + (nCancel?(' · ' + nCancel + ' cancelled'):'') + '</span>' +
+      '<span>Net <strong>' + fMF(contracted) + '</strong></span><span>Paid <strong>' + fMF(paid) + '</strong></span><span>Due <strong>' + fMF(dueToday) + '</strong></span>' +
+    '</div>';
+}
+
+// Activity: recent payments (ledger CR rows) + follow-up history (contact_logs)
+async function _cdLoadActivity(clientId, c) {
+  try {
+    const { data } = await supabase.rpc('get_client_ledger', { p_client_id: clientId, p_company_id: S.cid, p_from_date: null, p_to_date: null });
+    const rows = (data && data.rows) ? data.rows : [];
+    const pays = rows.filter(r => r.row_type === 'CR').reverse().slice(0, 10);
+    const el = document.getElementById('cd-payments');
+    if (el) el.innerHTML = pays.length ? pays.map(p =>
+      '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--fk-border)">' +
+        '<div><div style="font-size:13px">' + esc((p.description||'Payment').replace('Payment Received — ','')) + '</div>' +
+        '<div class="nx-kpi-label" style="text-transform:none">' + fD(p.entry_date) + (p.voucher_no?' · '+esc(p.voucher_no):'') + (p.chq_no?' · Chq '+esc(p.chq_no):'') + '</div></div>' +
+        '<div style="color:var(--fk-success);font-weight:var(--fk-fw-semibold);white-space:nowrap">' + fMF(p.credit) + '</div></div>'
+    ).join('') : NX.empty({ message:'No payments recorded yet.' });
+  } catch (e) {}
+  try {
+    const { data } = await supabase.rpc('get_contact_logs_cache', { p_company_id: S.cid });
+    const logs = (Array.isArray(data)?data:[]).filter(l => l.client_id === clientId).slice(0, 10);
+    const el = document.getElementById('cd-followups');
+    if (el) el.innerHTML = logs.length ? logs.map(l =>
+      '<div style="padding:7px 0;border-bottom:1px solid var(--fk-border)">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:13px">' + esc(l.contact_type||l.intent||l.outcome||'Contact') + (l.agent_name?' · '+esc(l.agent_name):'') + '</span><span class="nx-kpi-label" style="text-transform:none">' + fD(l.contact_date) + '</span></div>' +
+        (l.notes?'<div class="nx-kpi-label" style="text-transform:none">' + esc(l.notes) + '</div>':'') +
+        (l.next_follow_up_date?'<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-warning)">Next: ' + fD(l.next_follow_up_date) + '</div>':'') +
+      '</div>'
+    ).join('') : NX.empty({ message:'No follow-ups logged yet.' });
+  } catch (e) {}
 }
 
 // ── Client detail tabs ─────────────────────────────────────
@@ -850,11 +619,7 @@ function cdSwitchTab(tab) {
     const div = document.getElementById('cd-tab-'+t);
     const btn = document.getElementById('cd-tab-'+t+'-btn');
     if (div) div.style.display = t === tab ? '' : 'none';
-    if (btn) {
-      btn.style.color             = t === tab ? 'var(--brand)' : 'var(--t3)';
-      btn.style.borderBottomColor = t === tab ? 'var(--brand)' : 'transparent';
-      btn.style.fontWeight        = t === tab ? '700' : '600';
-    }
+    if (btn) { btn.classList.toggle('nx-btn--primary', t === tab); btn.classList.toggle('nx-btn--ghost', t !== tab); }
   });
   if (tab === 'ledger')    _cdLoadLedger(_cid);
   if (tab === 'health')    _cdLoadHealth(_cid);
@@ -1527,91 +1292,8 @@ function _clBlacklistCommentPrompt(clientName) {
 // ══ ADD / EDIT CLIENT MODAL ════════════════════════════════
 
 function openClientModal(clientId) {
-  const isEdit = !!clientId;
-  document.getElementById('client-mtl').textContent = isEdit ? 'Edit Client' : 'Add Client';
-  document.getElementById('cf-client-id').value = clientId || '';
-
-  const resetFields = ['cf-name','cf-father','cf-cnic','cf-passport',
-    'cf-phone','cf-phone2','cf-whatsapp','cf-email',
-    'cf-address','cf-city','cf-occupation','cf-company','cf-reference','cf-notes',
-    'cf-photo-url','cf-cnic-front','cf-cnic-back',
-    'cf-kin-name','cf-kin-relation','cf-kin-phone',
-    'cf-bank-name','cf-bank-title','cf-bank-acctno','cf-bank-iban'];
-  resetFields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  ['cf-photo-file','cf-cnic-front-file','cf-cnic-back-file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  ['cf-photo-url-prev','cf-cnic-front-prev','cf-cnic-back-prev'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
-
-  const codeEl = document.getElementById('cf-code');
-  const catEl  = document.getElementById('cf-category');
-  const stEl   = document.getElementById('cf-status');
-  const ctryEl = document.getElementById('cf-country');
-
-  document.querySelectorAll('#m-client .cf-err').forEach(el => el.textContent = '');
-  document.querySelectorAll('#m-client .inp-err').forEach(el => el.classList.remove('inp-err'));
-  const dupWarn = document.getElementById('cf-dup-warn');
-  if (dupWarn) dupWarn.style.display = 'none';
-
-  const ovlEl = document.getElementById('cf-overseas-local');
-  const lsEl  = document.getElementById('cf-lead-source');
-
-  if (isEdit) {
-    const c = gclient(clientId);
-    if (c) {
-      const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
-      if (codeEl) codeEl.value = c.clientCode;
-      set('cf-name',       c.fullName);
-      set('cf-father',     c.fatherName);
-      set('cf-cnic',       c.cnic);
-      set('cf-passport',   c.passportNo);
-      set('cf-phone',      c.phonePrimary);
-      set('cf-phone2',     c.phoneSecondary);
-      set('cf-whatsapp',   c.whatsapp);
-      set('cf-email',      c.email);
-      set('cf-address',    c.address);
-      set('cf-city',       c.city);
-      set('cf-occupation', c.occupation);
-      set('cf-company',    c.companyName);
-      set('cf-reference',  c.referenceBy);
-      set('cf-notes',      c.notes);
-      // Extended fields
-      set('cf-photo-url',    c.clientPhotoUrl);
-      set('cf-cnic-front',   c.cnicFrontUrl);
-      set('cf-cnic-back',    c.cnicBackUrl);
-      // Show existing file previews for hidden URL inputs
-      const _showPrev = (urlId, prevId) => {
-        const url = document.getElementById(urlId)?.value;
-        const el  = document.getElementById(prevId);
-        if (!el || !url) { if (el) el.innerHTML = ''; return; }
-        _fileUploadPreview(el, url, 'Existing file', true, urlId);
-      };
-      _showPrev('cf-photo-url',  'cf-photo-url-prev');
-      _showPrev('cf-cnic-front', 'cf-cnic-front-prev');
-      _showPrev('cf-cnic-back',  'cf-cnic-back-prev');
-      set('cf-kin-name',     c.nextOfKinName);
-      set('cf-kin-relation', c.nextOfKinRelation);
-      set('cf-kin-phone',    c.nextOfKinPhone);
-      set('cf-bank-name',    c.bankName);
-      set('cf-bank-title',   c.bankAccountTitle);
-      set('cf-bank-acctno',  c.bankAccountNo);
-      set('cf-bank-iban',    c.bankIban);
-      if (catEl)  catEl.value  = c.clientCategory || '';
-      if (stEl)   stEl.value   = c.status         || 'active';
-      if (ctryEl) ctryEl.value = c.country         || 'Pakistan';
-      if (ovlEl)  ovlEl.value  = c.overseasLocal   || 'local';
-      if (lsEl)   lsEl.value   = c.leadSource      || '';
-    }
-  } else {
-    if (codeEl) codeEl.value = genClientCode(S.cid);
-    if (catEl)  catEl.value  = 'Individual';
-    if (stEl)   stEl.value   = 'active';
-    if (ctryEl) ctryEl.value = 'Pakistan';
-    if (ovlEl)  ovlEl.value  = 'local';
-    if (lsEl)   lsEl.value   = '';
-  }
-
-  _cfEnsureProjectPicker();
-  _cfPopulateProjects(isEdit ? (gclient(clientId)?.projectId || '') : '', isEdit);
-  om('m-client');
+  // Legacy entry — now delegates to the ONE shared ClientForm (Phase 3E).
+  ClientForm.open({ clientId: clientId || null, onSaved: function(){ if (_cid && clientId) rClientDetail(); else rClients(); } });
 }
 
 function closeClientModal() { cm('m-client'); }

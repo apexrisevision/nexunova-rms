@@ -472,40 +472,27 @@ function _nsStep2() {
     <div class="nx-card-title">Client <span class="nx-kpi-label" style="text-transform:none">· for ${esc(_ns.unit?.unitNo||'')}${proj?` (${esc(proj.name)})`:''}</span></div>
     ${sel ? `<div class="nx-banner nx-banner--info" style="margin:var(--fk-sp-3) 0">${NX.icon('check',16)}<span>Selected: <strong>${esc(sel.full_name||sel.fullName)}</strong>${sel.cnic?` · ${esc(sel.cnic)}`:''} ${NX.button('Change', { variant:'ghost', size:'sm', onclick:'_nsClearClient()' })}</span></div>` : ''}
     <div id="ns-client-pane" style="${sel?'display:none':''}">
-      <div class="nx-segment" style="margin:var(--fk-sp-3) 0">
-        <button class="nx-btn nx-btn--sm nx-btn--primary" id="ns-cmode-find" onclick="_nsClientMode('find')">Find existing</button>
-        <button class="nx-btn nx-btn--sm nx-btn--ghost" id="ns-cmode-new" onclick="_nsClientMode('new')">Create new</button>
+      <div style="display:flex;gap:var(--fk-sp-3);align-items:center;margin:var(--fk-sp-3) 0;flex-wrap:wrap">
+        <input class="nx-input" id="ns-client-q" placeholder="Search existing — name / NIC / phone…" oninput="_nsClientSearch(this.value)" style="flex:1;min-width:200px">
+        ${NX.button('+ Create new client', { variant:'secondary', onclick:'_nsOpenCreateClient()' })}
       </div>
-      <div id="ns-client-find">
-        <input class="nx-input" id="ns-client-q" placeholder="Search name / NIC / phone…" oninput="_nsClientSearch(this.value)">
-        <div id="ns-client-results" style="margin-top:var(--fk-sp-3)"></div>
-      </div>
-      <div id="ns-client-new" style="display:none">${_nsClientNewForm()}</div>
+      <div id="ns-client-results"></div>
     </div>
   </div>
   ${_nsNav('← Back', 'Next: Deal →', _ns.client ? '_nsGoto(3)' : null, !_ns.client)}`;
 }
 
-function _nsClientNewForm() {
-  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">
-    ${NX.field({ label:'Full name', name:'ns-c-name', required:true })}
-    ${NX.field({ label:'Father / Husband name', name:'ns-c-father' })}
-    ${NX.field({ label:'NIC / CNIC', name:'ns-c-cnic', attrs:'oninput="_nsCnicDup(this.value)" placeholder="42101-1234567-1"' })}
-    ${NX.field({ label:'Phone', name:'ns-c-phone', attrs:'placeholder="03xx-xxxxxxx"' })}
-  </div>
-  <div id="ns-cnic-dup" class="nx-banner nx-banner--warn" style="display:none;margin-top:var(--fk-sp-3)">${NX.icon('alert-triangle',16)}<span></span></div>
-  <details style="margin-top:var(--fk-sp-3)"><summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More</summary>
-    <div style="margin-top:var(--fk-sp-3)">${NX.field({ label:'Address', name:'ns-c-address', el:'textarea' })}</div>
-  </details>
-  <div style="margin-top:var(--fk-sp-3)">${NX.button('Use this client', { variant:'primary', onclick:'_nsUseNewClient()' })}</div>
-  <div id="ns-cnew-err" class="nx-error"></div>`;
-}
-
-function _nsClientMode(m) {
-  document.getElementById('ns-client-find').style.display = m === 'find' ? '' : 'none';
-  document.getElementById('ns-client-new').style.display  = m === 'new' ? '' : 'none';
-  document.getElementById('ns-cmode-find').className = 'nx-btn nx-btn--sm ' + (m==='find'?'nx-btn--primary':'nx-btn--ghost');
-  document.getElementById('ns-cmode-new').className  = 'nx-btn nx-btn--sm ' + (m==='new'?'nx-btn--primary':'nx-btn--ghost');
+// Opens the ONE shared client form (same component as the Clients page / profile).
+// On save it creates the client immediately and selects it, then advances to Deal.
+function _nsOpenCreateClient() {
+  if (typeof ClientForm === 'undefined') { toast('Client form unavailable', 'warn'); return; }
+  ClientForm.open({
+    projectId: _ns.unit?.projectId,
+    onSaved: (c) => {
+      _ns.client = { id: c.id, full_name: c.full_name, cnic: c.cnic, projectId: c.projectId, isNew: false };
+      _nsGoto(3);
+    }
+  });
 }
 
 function _nsClientSearch(q) {
@@ -534,38 +521,6 @@ function _nsUseExisting(id) {
   _nsGoto(3);  // auto-advance to Deal on selection
 }
 function _nsClearClient() { _ns.client = null; _nsGoto(2); }
-
-function _nsCnicDup(v) {
-  const warn = document.getElementById('ns-cnic-dup');
-  if (!warn) return;
-  v = (v||'').trim();
-  const span = warn.querySelector('span');
-  if (!v) { warn.style.display = 'none'; return; }
-  const pid = _ns.unit?.projectId;
-  const dup = (window._clientsCache || []).find(c => (c.cnic||'').trim() === v);
-  if (dup) {
-    const samePj = dup.projectId === pid;
-    span.textContent = `A client with this NIC already exists: ${dup.fullName||'Unnamed'}${samePj?' (this project)':' (different project)'}. ${samePj?'Consider selecting them instead of creating a duplicate.':''}`;
-    warn.style.display = '';
-  } else { warn.style.display = 'none'; }
-}
-
-function _nsUseNewClient() {
-  const name = document.getElementById('ns-c-name')?.value?.trim();
-  const err  = document.getElementById('ns-cnew-err');
-  if (!name) { if (err) err.textContent = 'Full name is required.'; return; }
-  if (err) err.textContent = '';
-  _ns.client = {
-    isNew: true,
-    full_name: name,
-    father_name: document.getElementById('ns-c-father')?.value?.trim() || null,
-    cnic: document.getElementById('ns-c-cnic')?.value?.trim() || null,
-    phone_primary: document.getElementById('ns-c-phone')?.value?.trim() || null,
-    address: document.getElementById('ns-c-address')?.value?.trim() || null,
-    projectId: _ns.unit?.projectId
-  };
-  _nsGoto(3);
-}
 
 // ── STEP 3: DEAL (list = area×rate; deal → discount live) ─────────────────
 function _nsStep3() {
