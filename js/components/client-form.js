@@ -73,7 +73,7 @@
         ${fld({ label: 'Passport no', name: 'cfm-passport_no', value: c?.passportNo || '' })}
       </div>
       ${isEdit ? '' : `<div id="cfm-project-wrap" style="${lockProject ? 'display:none' : ''}">${fld({ label: 'Project', name: 'cfm-project', el: 'select', required: true, options: projOpts, value: projId })}</div>`}
-      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation) ? ' open' : ''}>
+      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinPhotoUrl) ? ' open' : ''}>
         <summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More details</summary>
         <div style="margin-top:var(--fk-sp-3)">
           ${fld({ label: 'Address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
@@ -95,7 +95,19 @@
             ${fld({ label: 'Nominee name', name: 'cfm-kin_name', value: c?.nextOfKinName || '' })}
             ${fld({ label: 'Relation', name: 'cfm-kin_relation', el: 'select', value: c?.nextOfKinRelation || '', options: [{ value: '', label: '— Relation —' }].concat(['Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister', 'Other'].map(x => ({ value: x, label: x }))) })}
           </div>
-          ${fld({ label: 'Nominee phone', name: 'cfm-kin_phone', value: c?.nextOfKinPhone || '', placeholder: '03xx-xxxxxxx' })}
+          <div class="nx-grid-2">
+            ${fld({ label: 'Nominee phone', name: 'cfm-kin_phone', value: c?.nextOfKinPhone || '', placeholder: '03xx-xxxxxxx' })}
+            ${fld({ label: 'Nominee CNIC', name: 'cfm-kin_cnic', value: c?.nextOfKinCnic || '', placeholder: '42101-1234567-1' })}
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--fk-sp-3);margin:var(--fk-sp-2) 0">
+            <div id="cfm-kin-photo-prev" style="width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:18px;font-weight:600;color:var(--fk-text-muted)">${c?.nextOfKinPhotoUrl ? `<img src="${esc(c.nextOfKinPhotoUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='N'">` : 'N'}</div>
+            <div>
+              <input type="file" id="cfm-kin-photo-file" accept="image/jpeg,image/png" style="display:none" onchange="ClientForm._photo(this,'nominee')">
+              <input type="hidden" id="cfm-kin_photo_url" value="${esc(c?.nextOfKinPhotoUrl || '')}">
+              ${NX.button('Upload nominee photo', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-kin-photo-btn"', onclick: "document.getElementById('cfm-kin-photo-file').click()" })}
+              <div class="nx-kpi-label" style="text-transform:none;margin-top:4px">JPG or PNG · auto-resized to 512px</div>
+            </div>
+          </div>
         </div>
       </details>
       <div id="cfm-error" class="nx-error" style="margin-top:var(--fk-sp-2)"></div>`;
@@ -136,11 +148,17 @@
     });
   }
 
-  async function _photo(input) {
+  // which = 'client' (default) | 'nominee' — same mechanism (rms-documents bucket,
+  // clients/photos path, ≤512px resize), different target hidden input + preview (#19/#20).
+  async function _photo(input, which) {
     const file = input.files && input.files[0];
     if (!file) return;
     if (!/^image\/(jpeg|png)$/.test(file.type)) { if (typeof toast === 'function') toast('JPG or PNG only', 'warn'); input.value = ''; return; }
-    const btn = document.getElementById('cfm-photo-btn');
+    const isKin = which === 'nominee';
+    const ids = isKin
+      ? { btn: 'cfm-kin-photo-btn', hidden: 'cfm-kin_photo_url', prev: 'cfm-kin-photo-prev', label: 'Upload nominee photo' }
+      : { btn: 'cfm-photo-btn',     hidden: 'cfm-photo_url',     prev: 'cfm-photo-prev',     label: 'Upload photo' };
+    const btn = document.getElementById(ids.btn);
     const setLabel = t => { if (btn) { const s = btn.querySelector('span'); if (s) s.textContent = t; } };
     if (btn) btn.disabled = true; setLabel('Uploading…');
     try {
@@ -150,14 +168,14 @@
       const up = await supabase.storage.from('rms-documents').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
       if (up.error) throw up.error;
       const pub = supabase.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
-      const hidden = document.getElementById('cfm-photo_url'); if (hidden) hidden.value = pub;
-      const prev = document.getElementById('cfm-photo-prev');
+      const hidden = document.getElementById(ids.hidden); if (hidden) hidden.value = pub;
+      const prev = document.getElementById(ids.prev);
       if (prev) prev.innerHTML = '<img src="' + pub + '" style="width:100%;height:100%;object-fit:cover">';
-      if (typeof toast === 'function') toast('Photo uploaded', 'ok');
+      if (typeof toast === 'function') toast((isKin ? 'Nominee photo' : 'Photo') + ' uploaded', 'ok');
     } catch (e) {
       if (typeof toast === 'function') toast('Upload failed: ' + (e.message || e), 'err');
     } finally {
-      if (btn) btn.disabled = false; setLabel('Upload photo'); input.value = '';
+      if (btn) btn.disabled = false; setLabel(ids.label); input.value = '';
     }
   }
 
@@ -197,6 +215,8 @@
     if (!phone) return fail('Phone number is required.');
     if (!overseas && !cnic) return fail('NIC is required (or tick “Overseas client”).');
     if (cnic && !/^\d{5}-\d{7}-\d$/.test(cnic)) return fail('NIC format: 42101-1234567-1');
+    const kinCnic = _val('cfm-kin_cnic');
+    if (kinCnic && !/^\d{5}-\d{7}-\d$/.test(kinCnic)) return fail('Nominee CNIC format: 42101-1234567-1');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Invalid email format.');
     if (!isEdit && !projId) return fail('Project is required.');
 
@@ -211,6 +231,8 @@
       next_of_kin_name: _val('cfm-kin_name') || null,
       next_of_kin_relation: _val('cfm-kin_relation') || null,
       next_of_kin_phone: _val('cfm-kin_phone') || null,
+      next_of_kin_cnic: kinCnic || null,
+      next_of_kin_photo_url: _val('cfm-kin_photo_url') || null,
       client_photo_url: _val('cfm-photo_url') || null
     };
 

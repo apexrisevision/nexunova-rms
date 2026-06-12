@@ -128,7 +128,7 @@ var OB = (function () {
       var existingNames = (window._floorsCache || []).map(function (f) { return String(f.name || '').toLowerCase(); });
       for (var j = 0; j < want.length; j++) {
         if (existingNames.indexOf(want[j].name.toLowerCase()) !== -1) continue;
-        var r = await supabase.rpc('upsert_floor', { p_company_id: _cid, p_data: { name: want[j].name, sort_order: want[j].sort } });
+        var r = await supabase.rpc('upsert_floor', { p_company_id: _cid, p_data: { name: want[j].name, sort_order: want[j].sort, floor_code: _state.floorCodes[want[j].name] || _code(want[j].name) } });
         if (r.error) throw r.error;
       }
       if (typeof loadFloorsCache === 'function') await loadFloorsCache(_cid);
@@ -140,7 +140,7 @@ var OB = (function () {
   function _s3() {
     var types = (window._typesCache || []).filter(function (t) { return t.isActive !== false; });
     var rows = types.map(function (t) {
-      var d = _state.typeDefaults[t.id] || {};
+      var d = _state.typeDefaults[t.id] || { area: t.defaultArea, price: t.defaultPrice };
       return '<tr><td><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="ob-ty" value="' + NX.esc(t.id) + '" checked> ' + NX.esc(t.name) + '</label></td>' +
         '<td><input class="nx-input ob-ty-area" data-id="' + NX.esc(t.id) + '" type="number" placeholder="area" value="' + (d.area || '') + '" style="height:30px"></td>' +
         '<td><input class="nx-input ob-ty-price" data-id="' + NX.esc(t.id) + '" type="number" placeholder="price" value="' + (d.price || '') + '" style="height:30px"></td></tr>';
@@ -148,15 +148,23 @@ var OB = (function () {
     return '<div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">Step 3 · Unit types &amp; default area / price</div>' +
       (types.length ? '<table class="nx-table"><thead><tr><th>Type</th><th>Default area</th><th>Default price</th></tr></thead><tbody>' + rows + '</tbody></table>'
         : '<div class="nx-empty"><div class="nx-empty-msg">No types seeded. You can add them later in Types &amp; Floors.</div></div>') +
-      '<div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-2)">Defaults are applied when you generate units next. (Per-type defaults aren’t stored on the type yet — tracked for a later release.)</div>' +
+      '<div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-2)">Defaults are saved on each type and pre-fill the bulk generator next time.</div>' +
       '<div class="nx-error" id="ob-err"></div>' + _nav(null, 'Continue', 'OB._saveTypes()');
   }
-  function _saveTypes() {
+  async function _saveTypes() {
     _state.typeDefaults = {};
     document.querySelectorAll('.ob-ty-area').forEach(function (el) { var id = el.dataset.id; _state.typeDefaults[id] = _state.typeDefaults[id] || {}; _state.typeDefaults[id].area = parseFloat(el.value) || null; });
     document.querySelectorAll('.ob-ty-price').forEach(function (el) { var id = el.dataset.id; _state.typeDefaults[id] = _state.typeDefaults[id] || {}; _state.typeDefaults[id].price = parseFloat(el.value) || null; });
     var checked = [].map.call(document.querySelectorAll('.ob-ty:checked'), function (c) { return c.value; });
     _state.defaultTypeId = checked[0] || '';
+    // Persist per-type defaults ON the type (#16) so they pre-fill the bulk generator + reopened wizard.
+    try {
+      await Promise.all(checked.map(function (id) {
+        var d = _state.typeDefaults[id] || {};
+        return supabase.rpc('upsert_unit_type', { p_company_id: _cid, p_data: { default_area: d.area, default_price: d.price }, p_id: id });
+      }));
+      if (typeof loadTypesCache === 'function') { try { await loadTypesCache(_cid); } catch (_) {} }
+    } catch (e) { /* non-blocking — defaults still apply in-session for this run */ }
     _step = 4; _save(); _render();
   }
 

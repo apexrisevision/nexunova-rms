@@ -448,8 +448,15 @@ function rClientDetail() {
 
   const cdInitials = (((c.fullName || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('')) || '?').toUpperCase();
   const cdAvatar = c.clientPhotoUrl
-    ? '<img src="' + esc(c.clientPhotoUrl) + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">'
-    : '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0">' + esc(cdInitials) + '</div>';
+    ? '<img src="' + esc(c.clientPhotoUrl) + '" title="' + esc(c.fullName || '') + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    : '<div title="' + esc(c.fullName || '') + '" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0">' + esc(cdInitials) + '</div>';
+  // Nominee avatar beside the client's (#20) — photo or initials fallback; only when a nominee exists.
+  const cdKinInitials = (((c.nextOfKinName || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('')) || 'N').toUpperCase();
+  const cdKinAvatar = (c.nextOfKinName || c.nextOfKinPhotoUrl)
+    ? (c.nextOfKinPhotoUrl
+        ? '<img src="' + esc(c.nextOfKinPhotoUrl) + '" title="Nominee: ' + esc(c.nextOfKinName || '') + '" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">'
+        : '<div title="Nominee: ' + esc(c.nextOfKinName || '') + '" style="width:44px;height:44px;border-radius:50%;background:var(--fk-bg-subtle);color:var(--fk-text-muted);display:grid;place-items:center;font-size:14px;font-weight:700;flex-shrink:0">' + esc(cdKinInitials) + '</div>')
+    : '';
 
   const act = [];
   act.push(NX.button('← Back', { variant:'ghost', size:'sm', onclick:"nav('clients')" }));
@@ -469,12 +476,12 @@ function rClientDetail() {
     (hist ? NX.banner('Historical / cancelled buyer — this client is inactive. Their cancelled sales are shown below; no current dues are computed.', 'warn') : '') +
     '<div class="nx-card" style="margin:var(--fk-sp-3) 0">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--fk-sp-3)">' +
-        '<div style="display:flex;gap:var(--fk-sp-3);align-items:flex-start">' + cdAvatar + '<div>' +
+        '<div style="display:flex;gap:var(--fk-sp-3);align-items:flex-start">' + '<div style="display:flex;gap:6px;align-items:flex-start">' + cdAvatar + cdKinAvatar + '</div>' + '<div>' +
           '<div class="nx-mono nx-kpi-label" style="text-transform:none">' + esc(c.clientCode||'') + '</div>' +
           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0"><h1 class="nx-page-title">' + esc(c.fullName||'Unnamed') + '</h1>' + statusBadge + (c.clientCategory?NX.chip(c.clientCategory):'') + '</div>' +
           '<div class="nx-kpi-label" style="text-transform:none">' + (c.fatherName?'S/o '+esc(c.fatherName)+' · ':'') + (c.cnic?'NIC '+esc(c.cnic):'') + '</div>' +
           '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">' + (c.phonePrimary?'<a href="tel:'+esc(c.phonePrimary)+'" style="color:var(--fk-info)">'+esc(c.phonePrimary)+'</a>':'') + (c.address?' · '+esc(c.address):'') + (c.city?', '+esc(c.city):'') + '</div>' +
-          (c.nextOfKinName ? '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Nominee: ' + esc(c.nextOfKinName) + (c.nextOfKinRelation?' ('+esc(c.nextOfKinRelation)+')':'') + (c.nextOfKinPhone?' · '+esc(c.nextOfKinPhone):'') + '</div>' : '') +
+          (c.nextOfKinName ? '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Nominee: ' + esc(c.nextOfKinName) + (c.nextOfKinRelation?' ('+esc(c.nextOfKinRelation)+')':'') + (c.nextOfKinPhone?' · '+esc(c.nextOfKinPhone):'') + (c.nextOfKinCnic?' · NIC '+esc(c.nextOfKinCnic):'') + '</div>' : '') +
         '</div></div>' +
         '<div class="no-p" style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">' +
           (c.phonePrimary?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(c.phonePrimary)+'"><span>Call</span></a>':'') +
@@ -1582,12 +1589,13 @@ function printClientDetail() {
   h += '</table>';
 
   // Next of Kin
-  if (c.nextOfKinName || c.nextOfKinPhone) {
+  if (c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinCnic) {
     h += '<div class="sec-title">Next of Kin / Nominee</div>';
     h += '<table>';
     if (c.nextOfKinName)     h += r('Name',     esc(c.nextOfKinName));
     if (c.nextOfKinRelation) h += r('Relation', esc(c.nextOfKinRelation));
     if (c.nextOfKinPhone)    h += r('Phone',    esc(c.nextOfKinPhone));
+    if (c.nextOfKinCnic)     h += r('CNIC',     esc(c.nextOfKinCnic));
     h += '</table>';
   }
 

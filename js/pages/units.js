@@ -349,7 +349,7 @@ function openBulkGen() {
   const floorChecks = floors.map(f => `<div style="display:flex;align-items:center;gap:8px;font-size:var(--fk-fs-body)">
     <input type="checkbox" class="bg-floor" value="${esc(f.id)}" checked data-name="${esc(f.name)}" data-no="${f.sortOrder ?? ''}">
     <span style="flex:1">${esc(f.name)}</span>
-    <input class="nx-input bg-code" data-id="${esc(f.id)}" value="${esc(_uFloorCode(f.name))}" title="Code used in {floor} unit naming" oninput="buildBulkPreview()" style="width:60px;height:28px;padding:0 8px">
+    <input class="nx-input bg-code" data-id="${esc(f.id)}" value="${esc(f.floorCode || _uFloorCode(f.name))}" title="Code used in {floor} unit naming (saved to the floor)" oninput="buildBulkPreview()" style="width:60px;height:28px;padding:0 8px">
   </div>`).join('');
   const typeOpts = '<option value="">— No type —</option>' + _uTypes().map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
   const body = `
@@ -361,7 +361,7 @@ function openBulkGen() {
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-3)">
         <div class="nx-field" style="margin:0"><label class="nx-label">Units per floor</label><input class="nx-input" id="bg-per" type="number" value="10" min="1" max="200"></div>
         <div class="nx-field" style="margin:0"><label class="nx-label">Naming pattern</label><input class="nx-input" id="bg-pattern" value="{floor}-{NN}"><div class="nx-kpi-label" style="text-transform:none">{floor}=floor no · {NN}=2-digit unit · {N}=plain</div></div>
-        <div class="nx-field" style="margin:0"><label class="nx-label">Default type</label><select class="nx-select" id="bg-type">${typeOpts}</select></div>
+        <div class="nx-field" style="margin:0"><label class="nx-label">Default type</label><select class="nx-select" id="bg-type" onchange="_bgFillTypeDefaults()">${typeOpts}</select></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-2)">
           <div class="nx-field" style="margin:0"><label class="nx-label">Area (each)</label><input class="nx-input" id="bg-area" type="number" placeholder="optional"></div>
           <div class="nx-field" style="margin:0"><label class="nx-label">Price (each)</label><input class="nx-input" id="bg-price" type="number" placeholder="optional"></div>
@@ -377,6 +377,16 @@ function openBulkGen() {
 }
 function _bgPad(n, pattern) {
   return pattern.replace(/\{floor\}/g, n.code).replace(/\{NN\}/g, String(n.i).padStart(2, '0')).replace(/\{N\}/g, String(n.i));
+}
+// Pre-fill area/price from the selected type's persisted defaults (#16). Only
+// fills empty inputs so a manual override the user already typed is preserved.
+function _bgFillTypeDefaults() {
+  const t = _uTypes().find(x => x.id === (document.getElementById('bg-type')?.value || ''));
+  if (!t) return;
+  const a = document.getElementById('bg-area'), p = document.getElementById('bg-price');
+  if (a && !a.value && t.defaultArea != null) a.value = t.defaultArea;
+  if (p && !p.value && t.defaultPrice != null) p.value = t.defaultPrice;
+  buildBulkPreview();
 }
 function buildBulkPreview() {
   const floors = [...document.querySelectorAll('.bg-floor:checked')].map(c => {
@@ -406,8 +416,18 @@ async function executeBulkGen() {
   if (!projId) { toast('No project found — create a project first.', 'err'); return; }
   const statusId = _uSellableStatusId();
   const rows = _bgRows.map(r => ({ unit_no: r.unit_no, floor_id: r.floor_id, floor_no: r.floor_no, floor_label: r.floor_label, unit_type_id: r.unit_type_id, status_id: statusId, area: r.area, base_price: r.base_price, area_unit: 'sqft', created_by: S.userId || null }));
+  // Persist any floor codes the user set/edited so {floor} naming reads the column next time.
+  const codeEdits = [...document.querySelectorAll('.bg-code')].map(el => {
+    const f = _uFloors().find(x => x.id === el.dataset.id);
+    const code = (el.value || '').trim();
+    return (f && code && code !== (f.floorCode || '')) ? { id: el.dataset.id, code } : null;
+  }).filter(Boolean);
   const go = document.getElementById('bg-go'); if (go) { go.disabled = true; go.textContent = 'Generating…'; }
   try {
+    if (codeEdits.length) {
+      await Promise.all(codeEdits.map(e => supabase.rpc('upsert_floor', { p_company_id: S.cid, p_data: { floor_code: e.code }, p_id: e.id })));
+      if (typeof loadFloorsCache === 'function') { try { await loadFloorsCache(S.cid); } catch (_) {} }
+    }
     const { data, error } = await supabase.rpc('bulk_create_units', { p_company_id: S.cid, p_project_id: projId, p_units: rows });
     if (error) throw error;
     if (data?.inserted > 0) { await loadUnitsCache(S.cid); if (typeof logA === 'function') logA('unit', `Bulk generated ${data.inserted} units`); }

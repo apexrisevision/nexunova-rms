@@ -228,13 +228,31 @@ function _pdcRenderTable() {
       NX.esc(r.unit_no || '—') + (r.sale_number ? ' · <span style="color:var(--fk-text-muted)">' + NX.esc(r.sale_number) + '</span>' : ''),
       r.cheque_date ? fD(r.cheque_date) : '—',
       '<span class="num">PKR ' + fM(r.amount || 0) + '</span>',
-      _pdcStatusChip(r),
+      _pdcStatusChip(r) + _pdcReplacedLink(r),
       _pdcDueCell(r)
     ];
     if (isA) cells.push(_pdcActions(r));
     return cells;
   });
   host.innerHTML = NX.card(NX.table({ cols, rows: trows, flush:true }), { flush:true });
+}
+
+// "Replaced by #<cheque_no>" link under a replaced cheque (#18 — resolved
+// client-side from replaced_by_id against the loaded rows; click surfaces it).
+function _pdcReplacedLink(r) {
+  if (String(r.status || '').toLowerCase() !== 'replaced' || !r.replaced_by_id) return '';
+  const repl = _pdcRows.find(x => String(x.id) === String(r.replaced_by_id));
+  const label = '#' + ((repl && repl.cheque_no) || '—');
+  return '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px">Replaced by '
+    + (repl ? '<a style="color:var(--fk-info);cursor:pointer" onclick="_pdcScrollToCheque(\'' + repl.id + '\')">' + NX.esc(label) + '</a>'
+            : NX.esc(label)) + '</div>';
+}
+function _pdcScrollToCheque(id) {
+  const repl = _pdcRows.find(x => String(x.id) === String(id)); if (!repl) return;
+  _pdcTab = _pdcBucket(repl);                     // jump to the tab holding the replacement
+  _pdcFilter.q = repl.cheque_no || '';
+  const qEl = document.getElementById('pdc-q'); if (qEl) qEl.value = _pdcFilter.q;
+  _pdcRenderTabs(); _pdcRenderTable();
 }
 
 // ══ MODAL PLUMBING ══════════════════════════════════════════════════════════
@@ -332,9 +350,10 @@ async function _pdcConfirmReplace(id) {
     });
     if (ins.error) throw ins.error;
     if (!ins.data?.success) throw new Error(ins.data?.error || 'Could not create replacement');
-    // 2. Mark the old cheque Replaced + append the link note.
+    const newId = ins.data.ids && ins.data.ids[0];   // #18: FK link to the replacement cheque
+    // 2. Mark the old cheque Replaced + set the FK (note kept for human readability).
     const note = ((r.notes ? r.notes + ' | ' : '') + 'Replaced by cheque ' + no).slice(0, 500);
-    const upd = await supabase.rpc('update_pdc_cheque', { p_id:id, p_company_id:S.cid, p_data:{ status:'replaced', notes:note } });
+    const upd = await supabase.rpc('update_pdc_cheque', { p_id:id, p_company_id:S.cid, p_data:{ status:'replaced', notes:note, replaced_by_id: newId || null } });
     if (upd.error) throw upd.error;
     if (!upd.data?.success) throw new Error(upd.data?.error || 'Could not mark replaced');
     toast('Cheque replaced — ' + no + ' entered', 'ok');

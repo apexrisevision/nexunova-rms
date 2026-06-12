@@ -422,6 +422,8 @@ async function loadClientsCache(companyId) {
       nextOfKinName:     c.next_of_kin_name    || '',
       nextOfKinRelation: c.next_of_kin_relation|| '',
       nextOfKinPhone:    c.next_of_kin_phone   || '',
+      nextOfKinCnic:     c.next_of_kin_cnic    || '',
+      nextOfKinPhotoUrl: c.next_of_kin_photo_url || '',
       leadSource:        c.lead_source         || '',
       bankName:          c.bank_name           || '',
       bankAccountTitle:  c.bank_account_title  || '',
@@ -614,7 +616,8 @@ async function loadFloorsCache(companyId) {
     if (error) { console.error('[loadFloorsCache]', error); window._floorsCache = []; return false; }
     window._floorsCache = (data || []).map(f => ({
       id: f.id, companyId: f.company_id,
-      name: f.name, sortOrder: Number(f.sort_order || 0), isActive: f.is_active !== false
+      name: f.name, floorCode: f.floor_code || '',
+      sortOrder: Number(f.sort_order || 0), isActive: f.is_active !== false
     }));
     window._floorsCacheLoaded = true;
     console.log(`✅ Floors cache loaded: ${window._floorsCache.length} floors`);
@@ -657,6 +660,8 @@ async function loadTypesCache(companyId) {
       id: t.id, companyId: t.company_id, projectId: t.project_id || null,
       typeCode: t.type_code || '', typeName: t.type_name || '',
       name: t.type_name || '',
+      defaultArea:  t.default_area  != null ? Number(t.default_area)  : null,
+      defaultPrice: t.default_price != null ? Number(t.default_price) : null,
       sortOrder: Number(t.sort_order || 0), isActive: t.is_active !== false
     }));
     window._typesCacheLoaded = true;
