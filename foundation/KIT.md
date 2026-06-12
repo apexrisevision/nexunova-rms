@@ -214,6 +214,10 @@ changes. Report *layouts* are migrated onto `reportFrame` in Phase 3+.
   phase review*** (not forever). Phase 2 only re-skins it to tokens (no
   gradient, Inter, indigo). Whether to keep or replace the mega-menu is decided
   in the Nav phase.
+- **Quick-Actions FAB (`#qab-btn`):** the floating ⚡ menu (Log a Call / Log
+  Field Visit / Record Promise) is a **global shell** element on every page.
+  Phase 3A (dashboard) deliberately left it alone — relocating its actions into
+  the topbar is a shell job for the **Nav phase** (decide alongside Aurora).
 - Legacy `.card` (162) / `.btn` (106) / 30 table systems get migrated to the
   `nx-*` equivalents page-by-page; delete the legacy class once its last
   consumer is gone.

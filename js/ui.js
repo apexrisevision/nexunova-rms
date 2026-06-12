@@ -394,7 +394,6 @@ function buildSB(){
       ]},
       // ── 6. Recovery & Legal (collapsed) ──
       { label: 'Recovery & Legal', defaultCollapsed: true, items: [
-        { id:'recovery-dashboard', ic:'target',         lb:'Recovery Dashboard' },
         { id:'recovery',           ic:'list-checks',    lb:'Recovery Queue' },
         { id:'promises',           ic:'handshake',      lb:'Promise Tracker' },
         { id:'reminders',          ic:'bell',           lb:'Reminders' },
@@ -405,10 +404,8 @@ function buildSB(){
       ]},
       // ── 7. Reports & Intelligence (collapsed) ──
       { label: 'Reports & Intelligence', defaultCollapsed: true, items: [
-        { id:'executive',   ic:'bar-chart-3',    lb:'Executive Dashboard' },
         { id:'reports',     ic:'bar-chart-3',    lb:'Reports & Export' },
         { id:'forecasting', ic:'trending-up',    lb:'Forecasting' },
-        { id:'radar',       ic:'radar',          lb:'Recovery Radar' },
         { id:'documents',   ic:'printer',        lb:'Documents' },
         { id:'commscenter', ic:'message-square', lb:'Comms Center' },
       ]},
@@ -425,7 +422,6 @@ function buildSB(){
         { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
       { label: 'Operations', items: [
-        { id:'recovery-dashboard', ic:'target',  lb:'Recovery Dashboard' },
         { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
         { id:'units',          ic:'home',        lb:'All Units' },
         { id:'sales',          ic:'file-text',   lb:'Sales & Bookings' },
@@ -471,7 +467,6 @@ function buildSB(){
         { id:'contacts',  ic:'inbox',       lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
       ]},
       { label: 'Operations', items: [
-        { id:'recovery-dashboard', ic:'target',  lb:'Recovery Dashboard' },
         { id:'recovery',       ic:'list-checks', lb:'Recovery Queue' },
         { id:'projects',       ic:'building-2',  lb:'Projects' },
         { id:'units',          ic:'home',        lb:'All Units', bdg:totalU||null },
@@ -642,6 +637,9 @@ function _sbCloseUserMenu(){
 }
 
 function nav(pg,x){
+  // ── Phase 3A: retired dashboards redirect to the single Dashboard ──
+  // recovery-dashboard / executive / radar were consolidated into dashboard.
+  if(pg==='recovery-dashboard'||pg==='executive'||pg==='radar') pg='dashboard';
   // ── Permission guard ──
   if(S&&S.role!=='admin'&&S.role!=='owner'){
     const r=effectiveRole();
@@ -701,7 +699,7 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,'recovery-dashboard':rRecDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:()=>openClientsTab('health'),radar:rRadar,promises:rPromises,audit:rAudit,approvals:rApprovals,team:rTeam,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:()=>openClientsTab('blacklist'),payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,executive:rExecutive,noc:rNOC,fieldvisits:rFieldVisits};
+  const fns={dashboard:rDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:()=>openClientsTab('health'),promises:rPromises,audit:rAudit,approvals:rApprovals,team:rTeam,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:()=>openClientsTab('blacklist'),payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,noc:rNOC,fieldvisits:rFieldVisits};
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',
