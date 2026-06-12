@@ -345,7 +345,11 @@ async function rNewSale() {
     rate: 0, area: 0, list: 0, deal: 0, discount: 0, pricePerSqft: 0, net: 0,
     tpl: 'equal', bookingPct: 30, months: 12, possessionPct: 10,
     custom: { bookingAmt: 0, monthlyAmt: 0, months: 12 },
-    plan: []
+    plan: [],
+    // Optional booking-time extras (FIELD_CENSUS B2) — same columns Edit Sale writes via edit_sale().
+    coBuyerName: '', coBuyerCnic: '', coBuyerShare: '',
+    nomineeName: '', nomineeCnic: '', nomineeRelation: '',
+    wht: '', cvt: '', saleTypeId: ''
   };
 
   // Pre-select from unit detail ("Sell this unit")
@@ -523,6 +527,26 @@ function _nsUseExisting(id) {
 function _nsClearClient() { _ns.client = null; _nsGoto(2); }
 
 // ── STEP 3: DEAL (list = area×rate; deal → discount live) ─────────────────
+// Optional booking extras → the exact columns Edit Sale persists via edit_sale().
+// Empty when the disclosure is untouched, so no second-phase write happens.
+function _nsMorePatch() {
+  if (!_ns) return {};
+  const s = v => { v = (v == null ? '' : String(v)).trim(); return v || null; };
+  const n = v => { const x = parseAmt(v); return x > 0 ? x : null; };
+  const p = {};
+  if (s(_ns.coBuyerName))     p.co_buyer_name      = s(_ns.coBuyerName);
+  if (s(_ns.coBuyerCnic))     p.co_buyer_cnic      = s(_ns.coBuyerCnic);
+  if (n(_ns.coBuyerShare) != null) p.co_buyer_share_pct = n(_ns.coBuyerShare);
+  if (s(_ns.nomineeName))     p.nominee_name       = s(_ns.nomineeName);
+  if (s(_ns.nomineeCnic))     p.nominee_cnic       = s(_ns.nomineeCnic);
+  if (s(_ns.nomineeRelation)) p.nominee_relation   = s(_ns.nomineeRelation);
+  if (n(_ns.wht) != null)     p.wht_amount         = n(_ns.wht);
+  if (n(_ns.cvt) != null)     p.cvt_amount         = n(_ns.cvt);
+  if (s(_ns.saleTypeId))      p.sale_type_id       = s(_ns.saleTypeId);
+  return p;
+}
+function _nsHasMore() { return Object.keys(_nsMorePatch()).length > 0; }
+
 function _nsStep3() {
   const agentOpts = '<option value="">— None —</option>' +
     (_salAgents||[]).filter(a => !_ns.unit?.projectId || a.project_id === _ns.unit.projectId)
@@ -542,6 +566,29 @@ function _nsStep3() {
     </div>
     <div id="ns-deal-note" class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3)"></div>
   </div>
+  <details class="nx-card" style="margin-top:var(--fk-sp-3)"${_nsHasMore() ? ' open' : ''}>
+    <summary style="cursor:pointer;font-size:var(--fk-fs-body,13px);color:var(--fk-text-muted)">More booking details (optional) — co-buyer · nominee · WHT/CVT · sale type</summary>
+    <div style="margin-top:var(--fk-sp-3)">
+      <div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-1);color:var(--fk-text)">Co-buyer / joint applicant</div>
+      <div style="display:grid;grid-template-columns:2fr 1.6fr 1fr;gap:var(--fk-sp-3)">
+        <div class="nx-field"><label class="nx-label">Co-buyer name</label><input class="nx-input" id="ns-cb-name" value="${esc(_ns.coBuyerName)}" oninput="_ns.coBuyerName=this.value"></div>
+        <div class="nx-field"><label class="nx-label">Co-buyer CNIC</label><input class="nx-input" id="ns-cb-cnic" value="${esc(_ns.coBuyerCnic)}" placeholder="42101-1234567-1" oninput="_ns.coBuyerCnic=this.value"></div>
+        <div class="nx-field"><label class="nx-label">Share %</label><input class="nx-input num" id="ns-cb-share" type="text" inputmode="decimal" value="${esc(_ns.coBuyerShare)}" oninput="_ns.coBuyerShare=this.value"></div>
+      </div>
+      <div class="nx-kpi-label" style="text-transform:none;margin:var(--fk-sp-3) 0 var(--fk-sp-1);color:var(--fk-text)">Sale nominee</div>
+      <div style="display:grid;grid-template-columns:2fr 1.6fr 1fr;gap:var(--fk-sp-3)">
+        <div class="nx-field"><label class="nx-label">Nominee name</label><input class="nx-input" id="ns-nm-name" value="${esc(_ns.nomineeName)}" oninput="_ns.nomineeName=this.value"></div>
+        <div class="nx-field"><label class="nx-label">Nominee CNIC</label><input class="nx-input" id="ns-nm-cnic" value="${esc(_ns.nomineeCnic)}" placeholder="42101-1234567-1" oninput="_ns.nomineeCnic=this.value"></div>
+        <div class="nx-field"><label class="nx-label">Relation</label><select class="nx-select" id="ns-nm-rel" onchange="_ns.nomineeRelation=this.value">${['', 'Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister', 'Other'].map(r => `<option value="${r}"${_ns.nomineeRelation === r ? ' selected' : ''}>${r || '— Relation —'}</option>`).join('')}</select></div>
+      </div>
+      <div class="nx-kpi-label" style="text-transform:none;margin:var(--fk-sp-3) 0 var(--fk-sp-1);color:var(--fk-text)">Taxes &amp; classification</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--fk-sp-3)">
+        <div class="nx-field"><label class="nx-label">WHT amount</label><input class="nx-input num" id="ns-wht" type="text" inputmode="decimal" value="${esc(_ns.wht)}" oninput="_ns.wht=this.value"></div>
+        <div class="nx-field"><label class="nx-label">CVT amount</label><input class="nx-input num" id="ns-cvt" type="text" inputmode="decimal" value="${esc(_ns.cvt)}" oninput="_ns.cvt=this.value"></div>
+        <div class="nx-field"><label class="nx-label">Sale type</label><select class="nx-select" id="ns-saletype" onchange="_ns.saleTypeId=this.value">${_salSaleTypeOptions(_ns.unit?.projectId, _ns.saleTypeId)}</select></div>
+      </div>
+    </div>
+  </details>
   ${_nsNav('← Back', 'Next: Plan →', '_nsDealNext()')}`;
 }
 
@@ -724,6 +771,15 @@ function _nsStep5() {
       </div>
     </div>
   </div>
+  ${_nsHasMore() ? `<div class="nx-card" style="margin-top:var(--fk-sp-4)"><div class="nx-card-title">Booking extras</div><div style="margin-top:var(--fk-sp-3)">
+    ${_ns.coBuyerName ? row('Co-buyer', esc(_ns.coBuyerName) + (_ns.coBuyerShare ? ` · ${esc(_ns.coBuyerShare)}%` : '')) : ''}
+    ${_ns.coBuyerCnic ? row('Co-buyer CNIC', esc(_ns.coBuyerCnic)) : ''}
+    ${_ns.nomineeName ? row('Nominee', esc(_ns.nomineeName) + (_ns.nomineeRelation ? ` (${esc(_ns.nomineeRelation)})` : '')) : ''}
+    ${_ns.nomineeCnic ? row('Nominee CNIC', esc(_ns.nomineeCnic)) : ''}
+    ${parseAmt(_ns.wht) > 0 ? row('WHT', fMF(parseAmt(_ns.wht))) : ''}
+    ${parseAmt(_ns.cvt) > 0 ? row('CVT', fMF(parseAmt(_ns.cvt))) : ''}
+    ${_ns.saleTypeId ? row('Sale type', esc((window._saleTypesCache || []).find(t => t.id === _ns.saleTypeId)?.name || '—')) : ''}
+  </div></div>` : ''}
   <div id="ns-create-err" class="nx-error" style="margin-top:var(--fk-sp-3)"></div>
   <div style="display:flex;justify-content:space-between;gap:10px;margin-top:var(--fk-sp-4)">
     ${NX.button('← Back', { variant:'ghost', onclick:'_nsBack()' })}
@@ -767,6 +823,11 @@ async function _nsCreate() {
       return { installment_number: num, due_date: l.due, amount_due: l.amount, installment_type: itype, notes };
     });
 
+    // Optional CNICs — validate format only when entered (mirrors Edit Sale)
+    const _cbCnic = (_ns.coBuyerCnic || '').trim(), _nmCnic = (_ns.nomineeCnic || '').trim();
+    if (_cbCnic && !isValidCNIC(_cbCnic)) throw new Error('Co-buyer CNIC format: 42101-1234567-1');
+    if (_nmCnic && !isValidCNIC(_nmCnic)) throw new Error('Nominee CNIC format: 42101-1234567-1');
+
     // 3. Tie-out asserts (binding note #2): header can never disagree with schedule
     const booking = _spBooking(_ns.plan);
     const monthlyCount = _spMonthlyCount(_ns.plan);
@@ -785,6 +846,19 @@ async function _nsCreate() {
     const { data, error } = await supabase.rpc('create_sale_with_schedule', { p_sale: pSale, p_installments: installments });
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error === 'cross_project_client' ? 'Client is not in the unit\'s project.' : (data?.detail || data?.error || 'Create failed'));
+
+    // Optional booking extras (FIELD_CENSUS B2). create_sale_with_schedule's contract does NOT
+    // accept these columns, so — exactly like Edit Sale — persist them via a second edit_sale().
+    // Untouched disclosure ⇒ empty patch ⇒ NO second call ⇒ core payload byte-identical to 3D.
+    const _morePatch = _nsMorePatch();
+    if (data.sale_id && Object.keys(_morePatch).length) {
+      const ext = await supabase.rpc('edit_sale', { p_sale_id: data.sale_id, p_company_id: cid, p_data: _morePatch });
+      if (ext.error || !ext.data?.success) {
+        toast(`Sale ${data.sale_number} created — but co-buyer / nominee / tax details didn't save (${ext.error?.message || ext.data?.error || 'error'}). Open the sale and use Edit to re-enter them.`, 'warn');
+        if (typeof loadUnitsCache === 'function') { try { await loadUnitsCache(cid); } catch(e){} }
+        _ns = null; openSaleDetail(data.sale_id); return;
+      }
+    }
 
     if (typeof loadUnitsCache === 'function') { try { await loadUnitsCache(cid); } catch(e){} }
     toast(`Sale ${data.sale_number} created`, 'ok');
