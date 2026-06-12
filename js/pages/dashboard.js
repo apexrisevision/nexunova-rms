@@ -1,18 +1,23 @@
 // ══════════════════════════════════════════════════════════════════════════
-// DASHBOARD — Phase 3A rebuild (2026-06-12)
-// The single, role-aware home page on the foundation kit. Answers exactly three
-// questions: HOW MUCH is owed · BY WHOM · WHO IS LATE. No theater — the gradient
-// greeting, analog clock, MISSION CONTROL / ACTION RADAR, invented health score,
-// gradient strips, ticker and FAB are all gone.
+// DASHBOARD 2.0 — "THE COMMAND VIEW" (2026-06-13)
+// The single, role-aware home page on the foundation kit. Anatomy:
+//   HERO (money picture: receivable + journey bar + overdue gauge) → 3 stat chips
+//   → PULSE row (4 insight cards) → WORK GRID 2/3 Who-is-late + 1/3 gadget rail
+//   (Aaj ka din · Aging donut · PDC pipeline · Inflow). Truth-law: every gadget
+//   ⓘ formula-tipped, render-gated on real data, ZERO invented metrics.
 //
 // Every number is real and traceable:
-//   • KPIs / WHO-IS-LATE / overdue  = get_recovery_position (current month-to-date)
-//   • Inflow (6 mo)                 = get_recovery_position per month (parallel, cached)
-//                                     -> totals.received_total (same RPC = consistent)
-//   • PDCs ≤7d                      = get_pdc_register
+//   • Hero journey + gauge          = get_dashboard_receivable (net/paid/receivable)
+//                                     + get_recovery_position (overdue closing)
+//   • Stat chips / Who-is-late / aging = get_recovery_position (MTD)
+//   • Aaj ka din due+promises       = get_today_snapshot (thin read-only RPC)
+//   • Aaj ka din received           = get_daily_collections (today)
+//   • Inflow (6 mo)                 = get_recovery_position per month (cached)
+//   • PDC pipeline                  = get_pdc_register (next 4 weeks)
 //   • Pending approvals             = get_pending_approvals (count; hidden if 0)
-// Kit only: NX.* / .nx-* + --fk-* tokens. No hardcoded hex, no off-scale sizes,
-// no gradients (chart uses a flat token fill), no emoji.
+// Motion: NX.animateCounts (count-up ≤400ms) + CSS one-shot fills; reduced-motion
+// safe; no loops. Kit only: NX.* / .nx-* + --fk-* tokens. No hex/off-scale/emoji
+// (the single >22px figure is the hero number, via --fk-fs-hero).
 // ══════════════════════════════════════════════════════════════════════════
 
 /* ── format helpers ──────────────────────────────────────────────────────── */
@@ -121,30 +126,104 @@ function _dashSkeleton() {
    ════════════════════════════════════════════════════════════════════════ */
 async function _dashAdmin(pg) {
   const months = _dashMonths(6);
-  // All RP month calls + PDC + approvals + the two daily series (this MTD + last
-  // full month, for the pace sparkline) in parallel (per-session cached).
-  const [rps, pdc, apprCount, receivable, dailyThis, dailyLast] = await Promise.all([
+  // All RP month calls + receivable + today + PDC pipeline + approvals + the two
+  // daily series (this MTD + last full month, for the pace sparkline) in parallel.
+  const [rps, rec, today, pdc, apprCount, dailyThis, dailyLast] = await Promise.all([
     Promise.all(months.map(m => _dashRP(m.from, m.to))),
-    _dashLoadPDC().catch(() => null),
+    _dashReceivable().catch(() => ({ receivable: 0, contracted: 0, collected: 0 })),
+    _dashToday().catch(() => null),
+    _dashLoadPdcPipeline().catch(() => null),
     _dashLoadApprovals().catch(() => 0),
-    _dashLoadReceivable().catch(() => 0),
     _dashDaily(months[5].from, months[5].to).catch(() => null),
     _dashDaily(months[4].from, months[4].to).catch(() => null)
   ]);
   months.forEach((m, i) => { m.collected = Number(rps[i].totals?.received_total || 0); });
-  const rp     = rps[months.length - 1];            // current month MTD = KPI/source of truth
+  const rp     = rps[months.length - 1];            // current month MTD = source of truth
   const t      = rp.totals || {};
   const rows   = Array.isArray(rp.rows) ? rp.rows : [];
   const overdueAmt = rows.reduce((s, r) => s + (Number(r.overdue_days) > 0 ? Number(r.closing || 0) : 0), 0);
+  // overdue-closing per month-end (same Σ closing WHERE overdue as the hero) for the
+  // trend. Last element === overdueAmt by construction → cross-tie holds. Zero new RPC.
+  const overdueSeries = rps.map(r => (Array.isArray(r.rows) ? r.rows : []).reduce((s, x) => s + (Number(x.overdue_days) > 0 ? Number(x.closing || 0) : 0), 0));
+  const monLabels = months.map(m => m.label);
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
     ${_dashHeader()}
-    ${_dashKpiRow(t, overdueAmt, receivable)}
+    ${_dashHero(rec, overdueAmt, overdueSeries, monLabels)}
+    ${_dashStatChips(t)}
     ${_dashPulse({ rps, months, t, rows, overdueAmt, dailyThis, dailyLast })}
-    ${_dashWhoLate(rows)}
-    ${_dashActionStrip(pdc, apprCount)}
-    ${_dashInflow(months)}
+    <div class="nx-workgrid" style="display:grid;grid-template-columns:2fr 1fr;gap:var(--fk-sp-4);align-items:start">
+      <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${_dashWhoLate(rows)}</div>
+      <div style="display:flex;flex-direction:column;gap:var(--fk-sp-3);min-width:0">
+        ${_dashApprovalsMini(apprCount)}
+        ${_dashTodayCard(today)}
+        ${_dashAging(rows, overdueAmt)}
+        ${_dashPdcPipeline(pdc)}
+        ${_dashInflow(months)}
+      </div>
+    </div>
   </div>`;
+  if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HERO — "the money picture": receivable + journey bar (left) · overdue gauge
+   (right). Every number cross-ties: journey Σ = contracted; gauge = overdue/recv.
+   ════════════════════════════════════════════════════════════════════════ */
+function _dashHero(rec, overdueAmt, series, labels) {
+  const future = Math.max(0, rec.receivable - overdueAmt);
+  const pct = rec.receivable > 0 ? (overdueAmt / rec.receivable * 100) : 0;
+  const collPct = rec.contracted > 0 ? (rec.collected / rec.contracted * 100) : 0;
+  const tip = 'Contracted (Σ net of active sales) = Collected (Σ payments) + Receivable. ' +
+    'Receivable = Overdue (past due) + Future (not yet due). Source: get_dashboard_receivable + recovery position.';
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6);display:grid;grid-template-columns:1.55fr 1fr;gap:var(--fk-sp-6);align-items:stretch">
+    <div style="min-width:0;display:flex;flex-direction:column;justify-content:center">
+      <div class="nx-kpi-label" style="display:flex;align-items:center">Total receivable${NX.infoTip(tip)}</div>
+      <div class="nx-hero-value" style="margin:10px 0 6px">${_dashCompact(rec.receivable)}</div>
+      <div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-4)">${_dashCompact(rec.collected)} collected of ${_dashCompact(rec.contracted)} contracted · ${collPct.toFixed(0)}%</div>
+      ${NX.journeybar({ height: 10, segments: [
+        { value: rec.collected, tone: 'primary', label: 'Collected', amount: _dashCompact(rec.collected) },
+        { value: overdueAmt,    tone: 'danger',  label: 'Overdue',   amount: _dashCompact(overdueAmt) },
+        { value: future,        tone: 'muted',   label: 'Future',    amount: _dashCompact(future) }
+      ] })}
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;padding-left:var(--fk-sp-6);border-left:1px solid var(--fk-border)">
+      ${_dashOverdueTrend(overdueAmt, pct, series, labels)}
+    </div>
+  </div>`;
+}
+
+/* the hero's right side — OVERDUE TREND: is the stuck money growing or shrinking?
+   ≥3 months → delta chip + area/line trend (last point === Overdue Today); below
+   that → plain stat + caption. Data is the 6 already-cached RPs (zero new RPC). */
+function _dashOverdueTrend(overdueAmt, pct, series, labels) {
+  const ttip = 'Month-end recoverable (Σ closing of sales past their due date) per the recovery-position rollforward, last 6 months + today.';
+  const caption = `Overdue today ${_dashCompact(overdueAmt)} · ${pct.toFixed(1)}% of book`;
+  series = Array.isArray(series) ? series : [];
+  if (series.length < 3) {
+    // render-gate fallback — the old gauge's facts as a quiet stat
+    return `<div class="nx-kpi-label" style="display:flex;align-items:center">Overdue today${NX.infoTip(ttip)}</div>
+      <div class="nx-hero-value" style="color:var(--fk-danger);margin:10px 0 6px">${pct.toFixed(0)}%</div>
+      <div class="nx-kpi-label" style="text-transform:none">${_dashCompact(overdueAmt)} of the book past its due date</div>`;
+  }
+  const last = series[series.length - 1], prev = series[series.length - 2];
+  const delta = last - prev, up = delta >= 0;
+  const prevLabel = (labels && labels[labels.length - 2]) || 'last month';
+  const deltaChip = `<span class="nx-badge nx-badge--${up ? 'danger' : 'success'}">${up ? '▲' : '▼'} ${up ? '+' : '−'}${_dashCompact(Math.abs(delta))} vs ${esc(prevLabel)}</span>`;
+  return `<div class="nx-kpi-label" style="display:flex;align-items:center">Overdue trend${NX.infoTip(ttip)}</div>
+    <div style="margin:8px 0 6px">${deltaChip}</div>
+    ${NX.trendline({ series, tone: 'danger' })}
+    <div class="nx-kpi-label" style="text-transform:none;margin-top:6px">${caption}</div>`;
+}
+
+/* three quiet inline stats under the hero — borderless, hairline-separated (airy) */
+function _dashStatChips(t) {
+  const stat = (label, val) => `<div style="flex:1;padding:0 var(--fk-sp-4)">
+    <div class="nx-statchip-l">${label}</div>
+    <div class="nx-statchip-v" style="font-size:var(--fk-fs-kpi);margin-top:3px">${val}</div></div>`;
+  const div = '<div style="width:1px;align-self:stretch;background:var(--fk-border)"></div>';
+  return `<div class="nx-card" style="display:flex;align-items:center;padding:var(--fk-sp-4) var(--fk-sp-2)">
+    ${stat('Due this month', _dashCompact(t.due))}${div}${stat('Collected this month', _dashCompact(t.received_total))}${div}${stat('Recovery rate', _dashPct(t.recovery_pct))}</div>`;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -191,7 +270,7 @@ function _dashPulse(ctx) {
       viz = _dashPaceBar(collected, pace, lastTotal, months);   // arithmetic fallback (no lying line)
     }
     cards.push(_dashPulseCard('Collection pace',
-      'pace = collected ÷ days elapsed × days in month (arithmetic projection, not a forecast)', head, viz, 'trending-up', ''));
+      'pace = collected ÷ days elapsed × days in month (arithmetic projection, not a forecast)', head, viz));
   }
 
   // 2 · RISK CONCENTRATION (needs overdue balance)
@@ -204,7 +283,7 @@ function _dashPulse(ctx) {
     const viz = NX.minibar({ a: top10, b: Math.max(0, overdueAmt - top10), toneA: 'danger' })
       + `<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Top 10 vs rest of overdue</div>`;
     cards.push(_dashPulseCard('Risk concentration',
-      'Σ closing of the 10 largest overdue sales ÷ Σ closing of all overdue sales (= Overdue Today)', head, viz, 'alert-triangle', 'danger'));
+      'Σ closing of the 10 largest overdue sales ÷ Σ closing of all overdue sales (= Overdue Today)', head, viz));
   }
 
   // 3 · RECOVERY MIX (needs collections this month)
@@ -220,7 +299,7 @@ function _dashPulse(ctx) {
       + `<div class="nx-kpi-label" style="display:flex;gap:var(--fk-sp-3);text-transform:none;margin-top:4px">
         <span style="color:var(--fk-danger)">Old</span><span style="color:var(--fk-primary)">Current</span><span style="color:var(--fk-success)">Advance</span></div>`;
     cards.push(_dashPulseCard('Recovery mix',
-      'Old arrears (r_old) · Current dues + down-payment (r_cur+r_dp) · Advance (r_advance) — segments sum to received_total', head, viz, 'layers', 'success'));
+      'Old arrears (r_old) · Current dues + down-payment (r_cur+r_dp) · Advance (r_advance) — segments sum to received_total', head, viz));
   }
 
   // 4 · 90-DAY DRIFT (needs any 90+ membership at either as-of date)
@@ -234,7 +313,7 @@ function _dashPulse(ctx) {
       <span class="nx-badge nx-badge--danger"><span class="nx-dot"></span>${inN} in</span>
       <span class="nx-badge nx-badge--success"><span class="nx-dot"></span>${outN} out</span></div>`;
     cards.push(_dashPulseCard('90-day drift',
-      'Sales at 90+ days overdue: newly entered (now − month-start) vs left the set = paid down (month-start − now)', head, viz, 'history', 'warning'));
+      'Sales at 90+ days overdue: newly entered (now − month-start) vs left the set = paid down (month-start − now)', head, viz));
   }
 
   if (!cards.length) return '';
@@ -266,16 +345,82 @@ function _dashPaceBar(collected, pace, lastTotal, months) {
     <span style="color:var(--fk-primary)">MTD</span><span style="color:var(--fk-primary)">··· projected</span><span>| ${esc(months[4].label)}</span></div>`;
 }
 
-function _dashKpiRow(t, overdueAmt, receivable) {
-  // WARMTH v2 — tinted icon chips carry the semantic meaning (chip, not loud dot).
-  const cards = [
-    NX.kpi({ label: 'Total Receivable',     value: _dashCompact(receivable),       icon: 'banknote',       tone: ''        }),
-    NX.kpi({ label: 'Overdue Today',        value: _dashCompact(overdueAmt),       icon: 'alert-triangle', tone: 'danger'  }),
-    NX.kpi({ label: 'Due This Month',       value: _dashCompact(t.due),            icon: 'calendar-clock', tone: 'warning' }),
-    NX.kpi({ label: 'Collected This Month', value: _dashCompact(t.received_total), icon: 'wallet',         tone: 'success' }),
-    NX.kpi({ label: 'Recovery %',           value: _dashPct(t.recovery_pct),       icon: 'trending-up',    tone: ''        })
-  ].join('');
-  return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--fk-sp-3)">${cards}</div>`;
+/* ── GADGET RAIL (right 1/3) ──────────────────────────────────────────── */
+
+// quiet initials avatar — single neutral tone (premium restraint, no rainbow)
+function _dashAvatar(name) {
+  const parts = String(name || '—').trim().split(/\s+/);
+  const ini = (((parts[0] || '')[0] || '') + ((parts[1] || '')[0] || '')).toUpperCase() || '—';
+  return `<span class="nx-avatar" style="background:var(--fk-bg-subtle);color:var(--fk-text-muted)">${esc(ini)}</span>`;
+}
+
+// a. AAJ KA DIN — due today · received today · promises due today
+function _dashTodayCard(today) {
+  if (!today) return '';
+  const tip = 'Due today = Σ outstanding of installments dated today (get_today_snapshot). ' +
+    'Received today = get_daily_collections for today. Promises = contact_logs with next-followup today.';
+  const names = (today.promiseNames && today.promiseNames.length) ? today.promiseNames.join(', ') : 'No names on file';
+  const line = (label, valHTML, extra, last) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--fk-sp-2);padding:7px 0${last ? '' : ';border-bottom:1px solid var(--fk-border)'}">
+    <span class="nx-kpi-label" style="text-transform:none">${label}</span><span style="display:flex;align-items:baseline;gap:6px">${valHTML}${extra || ''}</span></div>`;
+  const body =
+    line('Due today', `<span class="nx-statchip-v">${_dashCompact(today.due)}</span>`, today.dueCount ? `<span class="nx-kpi-label">${today.dueCount} inst.</span>` : '') +
+    line('Received today', `<span class="nx-statchip-v">${_dashCompact(today.received)}</span>`, '') +
+    line('Promises due', `<span class="nx-statchip-v" title="${esc(names)}">${today.promises}</span>`, '', true);
+  return NX.card(`<div style="margin-top:var(--fk-sp-1)">${body}</div>`,
+    { class: 'nx-rise', header: { icon: 'sunrise', tone: '', title: 'Aaj ka din', sub: 'Today at a glance', actions: NX.infoTip(tip) } });
+}
+
+// b. AGING DONUT — closing split by overdue age; click → Aging report
+function _dashAging(rows, overdueAmt) {
+  if (!(overdueAmt > 0)) return '';
+  const b = [0, 0, 0, 0];
+  rows.forEach(r => {
+    const d = Number(r.overdue_days || 0), c = Number(r.closing || 0);
+    if (c <= 0 || d <= 0) return;
+    if (d <= 30) b[0] += c; else if (d <= 60) b[1] += c; else if (d <= 90) b[2] += c; else b[3] += c;
+  });
+  const segs = [
+    { value: b[0], tone: 'muted',   label: '0–30 days',  amount: _dashCompact(b[0]) },
+    { value: b[1], tone: 'warning', label: '31–60 days', amount: _dashCompact(b[1]) },
+    { value: b[2], tone: 'warning', label: '61–90 days', amount: _dashCompact(b[2]) },
+    { value: b[3], tone: 'danger',  label: '90+ days',   amount: _dashCompact(b[3]) }
+  ];
+  const tip = 'Σ closing grouped by overdue age (0–30 / 31–60 / 61–90 / 90+). Sums to Overdue Today.';
+  const dotCol = tone => tone === 'muted' ? 'var(--fk-muted-fill)' : `var(--fk-${tone})`;
+  const bar = NX.stackbar({ segments: segs, height: 10 });
+  const legend = segs.map(s => `<div class="nx-jl" style="justify-content:flex-start;width:100%">
+    <span class="nx-jl-dot" style="background:${dotCol(s.tone)}"></span>
+    <span class="nx-jl-t" style="text-transform:none;letter-spacing:0;font-weight:var(--fk-fw-medium);color:var(--fk-text-muted)">${s.label}</span>
+    <span class="nx-jl-a num" style="margin-left:auto">${s.amount}</span></div>`).join('');
+  const inner = `<div style="margin-top:var(--fk-sp-2)">${bar}
+    <div style="display:flex;flex-direction:column;gap:7px;margin-top:var(--fk-sp-3)">${legend}</div></div>`;
+  const card = NX.card(inner, { hover: true, header: { title: 'Aging', sub: _dashCompact(overdueAmt) + ' overdue', actions: NX.infoTip(tip) } });
+  return `<div class="nx-rise" style="cursor:pointer" onclick="nav('reports');if(typeof openRptViewer==='function')setTimeout(function(){openRptViewer('aging')},300)">${card}</div>`;
+}
+
+// c. PDC PIPELINE — next 4 weeks' maturing cheques, or a useful empty state
+function _dashPdcPipeline(pipe) {
+  const tip = 'Open cheques in hand maturing in the next 4 weeks (get_pdc_register), bucketed by week.';
+  if (!pipe || !pipe.count) {
+    return NX.card(NX.empty({ icon: 'calendar-clock', message: 'No cheques in hand — record PDCs to see your paper pipeline.', action: NX.button('Add PDC', { variant: 'secondary', size: 'sm', icon: 'plus', onclick: "nav('pdc')" }) }),
+      { class: 'nx-rise', header: { icon: 'calendar-clock', title: 'PDC pipeline', actions: NX.infoTip(tip) } });
+  }
+  const max = Math.max(1, ...pipe.weeks.map(w => w.amount));
+  const bars = pipe.weeks.map(w => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+    <div style="width:100%;height:56px;display:flex;align-items:flex-end"><div style="width:100%;height:${Math.round(w.amount / max * 100)}%;min-height:2px;background:var(--fk-info);border-radius:4px 4px 0 0"></div></div>
+    <div class="num" style="font-size:var(--fk-fs-label);color:var(--fk-text)">${w.count ? _dashCompact(w.amount) : '—'}</div>
+    <div class="nx-kpi-label">${w.label}</div></div>`).join('');
+  return NX.card(`<div style="display:flex;gap:var(--fk-sp-2);align-items:flex-end;margin-top:var(--fk-sp-2)">${bars}</div>`,
+    { class: 'nx-rise', header: { icon: 'calendar-clock', title: 'PDC pipeline', sub: _dashCompact(pipe.amount) + ' in hand', actions: NX.infoTip(tip) } });
+}
+
+// pending approvals — small actionable card, hidden when none
+function _dashApprovalsMini(n) {
+  if (!(Number(n) > 0)) return '';
+  return NX.card(`<div style="display:flex;align-items:center;gap:var(--fk-sp-3)">${NX.ichip('check', 'info', {})}
+    <div style="min-width:0"><div class="nx-statchip-l">Pending approvals</div><div class="nx-statchip-v num">${Number(n)}</div></div>
+    <a class="nx-btn nx-btn--ghost nx-btn--sm" style="margin-left:auto" onclick="nav('approvals')">Open</a></div>`,
+    { class: 'nx-rise nx-card--hover', compact: true });
 }
 
 /* WHO IS LATE — the heart of the page */
@@ -285,11 +430,11 @@ function _dashWhoLate(rows) {
     .sort((a, b) => Number(b.closing) - Number(a.closing))
     .slice(0, 10);
   const head = `<thead><tr>
-    <th>Client</th><th>Unit</th><th class="num">Overdue</th><th>Days</th><th>Last payment</th>
+    <th>Client</th><th>Unit</th><th class="num">Overdue</th><th>Days</th><th>Last payment</th><th></th>
   </tr></thead>`;
   let body;
   if (!late.length) {
-    body = `<tbody><tr><td colspan="5">${NX.empty({ icon: 'check', message: 'Nothing overdue right now.' })}</td></tr></tbody>`;
+    body = `<tbody><tr><td colspan="6">${NX.empty({ icon: 'check', message: 'Nothing overdue right now.' })}</td></tr></tbody>`;
   } else {
     body = '<tbody>' + late.map(r => {
       const tone = _dashRiskTone(r.overdue_days);
@@ -299,9 +444,11 @@ function _dashWhoLate(rows) {
         : '—';
       const client = esc(r.client_name || '') + (r.client_code ? ` · ${esc(r.client_code)}` : '');
       const unit   = esc(r.unit_no || '') + (r.floor_name ? ` · ${esc(r.floor_name)}` : '');
-      return `<tr style="cursor:pointer" onclick="nav('salesdetail','${esc(r.sale_id)}')">
-        <td>${client}</td><td>${unit}</td>
-        <td class="num">${_dashExact(r.closing)}</td><td>${days}</td><td>${last}</td></tr>`;
+      return `<tr class="nx-late-row" style="cursor:pointer" onclick="nav('salesdetail','${esc(r.sale_id)}')">
+        <td><div style="display:flex;align-items:center;gap:var(--fk-sp-2)">${_dashAvatar(r.client_name)}<span style="min-width:0">${client}</span></div></td>
+        <td>${unit}</td>
+        <td class="num">${_dashExact(r.closing)}</td><td>${days}</td><td>${last}</td>
+        <td style="text-align:right">${_dashLateActions(r)}</td></tr>`;
     }).join('') + '</tbody>';
   }
   return `<div class="nx-card nx-card--flush">
@@ -310,31 +457,18 @@ function _dashWhoLate(rows) {
       <div class="nx-card-hd-t">Who is late</div>
       <div class="nx-card-hd-a"><a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav('reports'); if(typeof openRptViewer==='function') setTimeout(function(){openRptViewer('recovery_position');},300)">View full Recovery Position report</a></div>
     </div>
-    <table class="nx-table nx-table--flush">${head}${body}</table>
+    <table class="nx-table nx-table--flush nx-table--static">${head}${body}</table>
   </div>`;
 }
 
-/* ACTION STRIP — PDCs ≤7d · pending approvals (if any). The 90-day story moved
-   to the Pulse "90-day drift" card (in vs recovered-out), so the old crossing
-   tile is retired to avoid duplication. */
-function _dashActionStrip(pdc, apprCount) {
-  const card = (label, value, sub, onclick, icon, tone) =>
-    `<div class="nx-card nx-card--compact${onclick ? ' nx-card--hover' : ''}" ${onclick ? `onclick="${onclick}"` : ''}>
-      <div style="display:flex;align-items:center;gap:var(--fk-sp-3)">
-        ${icon ? NX.ichip(icon, tone || '', {}) : ''}
-        <div style="min-width:0">
-          <div class="nx-kpi-label">${label}</div>
-          <div class="nx-kpi-value num">${value}</div>
-          ${sub ? `<div class="nx-kpi-label" style="text-transform:none">${sub}</div>` : ''}
-        </div>
-      </div>
-    </div>`;
-  const cards = [];
-  if (pdc) cards.push(card('PDCs due ≤ 7 days', String(pdc.count),
-    'PKR ' + _dashExact(pdc.amount), "nav('pdc')", 'calendar-clock', 'warning'));
-  if (Number(apprCount) > 0) cards.push(card('Pending approvals', String(apprCount), 'awaiting you', "nav('approvals')", 'check', 'info'));
-  if (!cards.length) return '';
-  return `<div style="display:grid;grid-template-columns:repeat(${cards.length},1fr);gap:var(--fk-sp-3)">${cards.join('')}</div>`;
+/* row-hover quick actions on Who-is-late — Call (tel) · WhatsApp (wa.me) · Log
+   promise (openConModal). Phone comes from the recovery-position row. */
+function _dashLateActions(r) {
+  const ph = String(r.phone || '').replace(/[^0-9]/g, '');
+  const tel = r.phone ? `<a class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Call ${esc(r.phone)}" href="tel:${esc(r.phone)}" onclick="event.stopPropagation()">${NX.icon('phone', 15)}</a>` : '';
+  const wa  = ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/${ph}" onclick="event.stopPropagation()">${NX.icon('message-circle', 15)}</a>` : '';
+  const log = `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Log a call / promise" onclick="event.stopPropagation();if(typeof openConModal==='function')openConModal(null)">${NX.icon('check', 15)}</button>`;
+  return `<span class="nx-rowact">${tel}${wa}${log}</span>`;
 }
 
 /* INFLOW — collections last 6 months (flat token bars, no gradient). The current
@@ -370,34 +504,64 @@ function _dashInflow(months) {
   </div>`;
 }
 
-/* ── action-strip loaders ─────────────────────────────────────────────────── */
-async function _dashLoadPDC() {
-  const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
-  const end   = new Date(); end.setDate(end.getDate() + 7);
-  const to    = end.toISOString().slice(0, 10);
-  const { data } = await supabase.rpc('get_pdc_register', {
-    p_company_id: S.cid, p_status: 'all', p_project_id: null, p_date_from: today, p_date_to: to
-  });
-  const rows = (data && Array.isArray(data.rows)) ? data.rows : [];
-  // status not yet cleared/bounced, cheque due within the window
-  const open = rows.filter(r => {
-    const st = String(r.status || '').toLowerCase();
-    return st !== 'cleared' && st !== 'bounced' && st !== 'cancelled';
-  });
-  return { count: open.length, amount: open.reduce((s, r) => s + Number(r.amount || 0), 0) };
-}
+/* ── loaders ──────────────────────────────────────────────────────────────── */
 async function _dashLoadApprovals() {
   const { data } = await supabase.rpc('get_pending_approvals', { p_filters: {} });
   if (Array.isArray(data)) return data.length;
   if (data && Array.isArray(data.rows)) return data.rows.length;
   return 0;
 }
-// Total Receivable — Σ net_amount(active) − Σ payments(active sales). Non-aging
-// contract metric (read-only RPC get_dashboard_receivable), distinct from the
-// recovery rollforward, so it does not duplicate Overdue Today / closing.
-async function _dashLoadReceivable() {
+// The money picture — get_dashboard_receivable returns net_active (Contracted),
+// paid_active (Collected) and receivable (= net − paid). One RPC powers the whole
+// hero journey bar + gauge. Non-aging contract metric, distinct from the recovery
+// rollforward so it never double-counts Overdue Today / closing.
+async function _dashReceivable() {
   const { data } = await supabase.rpc('get_dashboard_receivable', { p_company_id: S.cid, p_project_id: null });
-  return Number((data && data.receivable) || 0);
+  return {
+    receivable: Number((data && data.receivable) || 0),
+    contracted: Number((data && data.net_active) || 0),
+    collected:  Number((data && data.paid_active) || 0)
+  };
+}
+
+// AAJ KA DIN — the morning glance. due_today + promises_today come from the thin
+// read-only get_today_snapshot (installments have no other read RPC); received
+// today reuses get_daily_collections (proven to reconcile to RP received_total).
+async function _dashToday() {
+  const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
+  const [snap, daily] = await Promise.all([
+    supabase.rpc('get_today_snapshot', { p_company_id: S.cid, p_project_id: null, p_today: today }).then(r => r.data).catch(() => null),
+    _dashDaily(today, today).catch(() => null)
+  ]);
+  const s = snap || {};
+  return {
+    due:          Number(s.due_today || 0),
+    dueCount:     Number(s.due_today_count || 0),
+    received:     daily ? daily.reduce((a, x) => a + Number(x.amount || 0), 0) : 0,
+    promises:     Number(s.promises_today || 0),
+    promiseNames: Array.isArray(s.promise_names) ? s.promise_names : []
+  };
+}
+
+// PDC pipeline — open cheques maturing in the next 4 weeks, bucketed by week.
+async function _dashLoadPdcPipeline() {
+  const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
+  const end = new Date(); end.setDate(end.getDate() + 28);
+  const to = end.toISOString().slice(0, 10);
+  const { data } = await supabase.rpc('get_pdc_register', {
+    p_company_id: S.cid, p_status: 'all', p_project_id: null, p_date_from: today, p_date_to: to
+  });
+  const rows = (data && Array.isArray(data.rows)) ? data.rows : [];
+  const open = rows.filter(r => { const st = String(r.status || '').toLowerCase(); return st !== 'cleared' && st !== 'bounced' && st !== 'cancelled'; });
+  const weeks = [0, 1, 2, 3].map(i => ({ label: 'W' + (i + 1), count: 0, amount: 0 }));
+  const t0 = new Date(today);
+  open.forEach(r => {
+    const d = r.cheque_date || r.due_date || r.maturity_date || r.deposit_date;
+    if (!d) return;
+    const wi = Math.floor((new Date(d) - t0) / (7 * 864e5));
+    if (wi >= 0 && wi < 4) { weeks[wi].count++; weeks[wi].amount += Number(r.amount || 0); }
+  });
+  return { count: open.length, amount: open.reduce((s, r) => s + Number(r.amount || 0), 0), weeks };
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -409,9 +573,10 @@ async function _dashLoadReceivable() {
    ════════════════════════════════════════════════════════════════════════ */
 async function _dashStaff(pg, role) {
   const months = _dashMonths(1);
-  const [rp, receivable] = await Promise.all([
+  const [rp, rec, todaySnap] = await Promise.all([
     _dashRP(months[0].from, months[0].to),
-    _dashLoadReceivable().catch(() => 0)
+    _dashReceivable().catch(() => ({ receivable: 0, contracted: 0, collected: 0 })),
+    _dashToday().catch(() => null)
   ]);
   const t  = rp.totals || {};
   const rows = Array.isArray(rp.rows) ? rp.rows : [];
@@ -430,13 +595,16 @@ async function _dashStaff(pg, role) {
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
     ${_dashHeader()}
-    ${_dashKpiRow(t, overdueAmt, receivable)}
+    ${_dashTodayCard(todaySnap)}
+    ${_dashHero(rec, overdueAmt)}
+    ${_dashStatChips(t)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">
       ${_dashStaffFollowups(followToday)}
       ${_dashStaffWorked(workedArrears)}
     </div>
     ${_dashStaffRecoveries()}
   </div>`;
+  if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
 }
 
 function _dashPanel(title, inner) {

@@ -50,7 +50,10 @@
     'list':         '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
     'banknote':     '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
     'trending-up':  '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
-    'history':      '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>'
+    'history':      '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+    'phone':        '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+    'message-circle':'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    'sunrise':      '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>'
   };
   function icon(name, size) {
     var sz = size || 16;
@@ -276,8 +279,15 @@
      MICRO-VISUALIZATIONS — inline SVG, single accent + muted, no gradient.
      Reusable across surfaces; the dashboard Pulse strip is the first consumer.
      ════════════════════════════════════════════════════════════════════════ */
-  function _cv(tone) { return 'var(--fk-' + (tone || 'primary') + ')'; }
+  function _cv(tone) { return tone === 'muted' ? 'var(--fk-muted-fill)' : 'var(--fk-' + (tone || 'primary') + ')'; }
   var _nxUid = 0;
+  function _fmtCompact(v) {
+    v = Number(v || 0); var a = Math.abs(v), s = v < 0 ? '-' : '';
+    if (a >= 1e9) return s + (a / 1e9).toFixed(1) + 'B';
+    if (a >= 1e6) return s + (a / 1e6).toFixed(1) + 'M';
+    if (a >= 1e3) return s + (a / 1e3).toFixed(1) + 'K';
+    return s + Math.round(a);
+  }
 
   /* NX.sparkline({ series:[[…],[…]], colors, spanMax, width, height, strokeWidth })
      Each series = array of values (e.g. cumulative). series[0] solid, rest muted
@@ -343,10 +353,154 @@
       icon('info', 13) + '</span>';
   }
 
+  /* ════════════════════════════════════════════════════════════════════════
+     DASHBOARD 2.0 gadget primitives — journey bar · gauge · donut. Inline SVG,
+     flat token fills (no gradients), one-shot fill motion. All reusable.
+     ════════════════════════════════════════════════════════════════════════ */
+
+  /* NX.journeybar({ segments:[{value,tone,label,amount}], height, animate, class })
+     One rounded segmented bar telling a whole quantity's story + a legend row.
+     tone: success|danger|warning|info|primary|muted. amount = preformatted text. */
+  function journeybar(o) {
+    o = o || {};
+    var segs = o.segments || [], H = o.height || 14, r = Math.min(H / 2, 7);
+    var tot = segs.reduce(function (s, x) { return s + Math.max(0, Number(x.value || 0)); }, 0) || 1;
+    var uid = 'nxjb' + (++_nxUid), x = 0, rects = '';
+    segs.forEach(function (sg) {
+      var w = Math.max(0, Number(sg.value || 0) / tot * 100); if (w <= 0) return;
+      rects += '<rect x="' + x.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="' + H + '" fill="' + _cv(sg.tone) +
+        '"><title>' + _esc((sg.label || '') + (sg.amount != null ? ' · ' + sg.amount : '')) + '</title></rect>';
+      x += w;
+    });
+    var grow = (o.animate === false) ? '' : ' nx-grow-x';
+    var bar = '<svg class="nx-journeybar' + grow + '" width="100%" height="' + H + '" viewBox="0 0 100 ' + H +
+      '" preserveAspectRatio="none" aria-hidden="true"><defs><clipPath id="' + uid + '"><rect x="0" y="0" width="100" height="' + H +
+      '" rx="' + r + '"/></clipPath></defs><g clip-path="url(#' + uid + ')">' + rects + '</g></svg>';
+    var legend = segs.map(function (sg) {
+      return '<span class="nx-jl"><span class="nx-jl-dot" style="background:' + _cv(sg.tone) + '"></span>' +
+        '<span class="nx-jl-t">' + _esc(sg.label || '') + '</span>' +
+        (sg.amount != null ? '<span class="nx-jl-a num">' + _esc(sg.amount) + '</span>' : '') + '</span>';
+    }).join('');
+    return '<div class="nx-journey' + _cls(o.class) + '">' + bar + '<div class="nx-journey-legend">' + legend + '</div></div>';
+  }
+
+  /* NX.gauge({ value, max, tone, caption, size, valueText, count }) — semi-donut.
+     Draws a 180° arc; value arc = value/max of it. valueText overrides the centre
+     label; count:{fmt} lets the centre number animate via data-nx-count. */
+  function gauge(o) {
+    o = o || {};
+    var W = o.size || 168, H = Math.round(W * 0.60), sw = Math.max(9, Math.round(W * 0.085));
+    var cx = W / 2, cy = H - 6, R = W / 2 - sw / 2 - 2;
+    var f = Math.max(0, Math.min(1, Number(o.max) ? Number(o.value) / Number(o.max) : 0));
+    var tone = o.tone || 'danger';
+    var ang = Math.PI * (1 - f), px = cx + R * Math.cos(ang), py = cy - R * Math.sin(ang);
+    var bg = 'M ' + (cx - R) + ' ' + cy + ' A ' + R + ' ' + R + ' 0 0 1 ' + (cx + R) + ' ' + cy;
+    var val = f > 0.0001 ? '<path d="M ' + (cx - R) + ' ' + cy + ' A ' + R + ' ' + R + ' 0 0 1 ' + px.toFixed(2) + ' ' + py.toFixed(2) +
+      '" fill="none" stroke="' + _cv(tone) + '" stroke-width="' + sw + '" stroke-linecap="round" class="nx-arc-draw" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>' : '';
+    var centre = (o.count
+      ? '<span data-nx-count="' + _esc(o.count.value) + '" data-nx-fmt="' + _esc(o.count.fmt || 'pct') + '">' + _esc(o.valueText != null ? o.valueText : '') + '</span>'
+      : _esc(o.valueText != null ? o.valueText : ''));
+    return '<div class="nx-gauge' + _cls(o.class) + '" style="width:' + W + 'px">' +
+      '<div class="nx-gauge-wrap" style="height:' + H + 'px">' +
+        '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' +
+          '<path d="' + bg + '" fill="none" stroke="var(--fk-border)" stroke-width="' + sw + '" stroke-linecap="round"/>' + val + '</svg>' +
+        '<div class="nx-gauge-val" style="color:' + _cv(tone) + '">' + centre + '</div>' +
+      '</div>' +
+      (o.caption ? '<div class="nx-gauge-cap">' + _esc(o.caption) + '</div>' : '') + '</div>';
+  }
+
+  /* NX.donut({ segments:[{value,tone,label,amount}], size, thickness, centerLabel,
+     centerSub, legend }) — full multi-segment ring with a centred total + legend. */
+  function donut(o) {
+    o = o || {};
+    var size = o.size || 150, th = o.thickness || 16, r = (size - th) / 2, c = 2 * Math.PI * r, cx = size / 2, cy = size / 2;
+    var segs = o.segments || [], tot = segs.reduce(function (s, x) { return s + Math.max(0, Number(x.value || 0)); }, 0) || 1;
+    var off = 0, arcs = '';
+    segs.forEach(function (sg) {
+      var v = Math.max(0, Number(sg.value || 0)); if (v <= 0) return;
+      var len = v / tot * c;
+      arcs += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + _cv(sg.tone) +
+        '" stroke-width="' + th + '" stroke-dasharray="' + len.toFixed(2) + ' ' + (c - len).toFixed(2) +
+        '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')">' +
+        '<title>' + _esc((sg.label || '') + (sg.amount != null ? ' · ' + sg.amount : '')) + '</title></circle>';
+      off += len;
+    });
+    var ring = '<svg class="nx-pop" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--fk-border)" stroke-width="' + th + '"/>' + arcs + '</svg>';
+    var centre = (o.centerLabel != null)
+      ? '<div class="nx-donut-center"><div class="nx-donut-c-val num">' + _esc(o.centerLabel) + '</div>' +
+        (o.centerSub ? '<div class="nx-donut-c-sub">' + _esc(o.centerSub) + '</div>' : '') + '</div>' : '';
+    var legend = (o.legend === false) ? '' : '<div class="nx-donut-legend">' + segs.map(function (sg) {
+      return '<span class="nx-jl"><span class="nx-jl-dot" style="background:' + _cv(sg.tone) + '"></span>' +
+        '<span class="nx-jl-t">' + _esc(sg.label || '') + '</span>' +
+        (sg.amount != null ? '<span class="nx-jl-a num">' + _esc(sg.amount) + '</span>' : '') + '</span>';
+    }).join('') + '</div>';
+    return '<div class="nx-donut' + _cls(o.class) + '"><div class="nx-donut-ring" style="width:' + size + 'px;height:' + size + 'px">' +
+      ring + centre + '</div>' + legend + '</div>';
+  }
+
+  /* NX.trendline({ series, tone, animate, maxWidth }) — a small area+line chart:
+     single-tone line, soft flat area fill (~8%, no gradient), hollow dots with the
+     LAST point emphasized (filled). Uniform scale (round dots), draws in once. */
+  function trendline(o) {
+    o = o || {};
+    var W = 320, H = 72, padX = 8, padY = 12;
+    var data = (o.series || []).map(Number), tone = o.tone || 'danger', col = _cv(tone);
+    var n = data.length; if (n < 2) return '';
+    var min = Math.min.apply(null, data), max = Math.max.apply(null, data), range = (max - min) || Math.abs(max) || 1;
+    var lo = min - range * 0.2, hi = max + range * 0.2, span = (hi - lo) || 1;
+    var X = function (i) { return padX + (n === 1 ? 0 : (i / (n - 1)) * (W - 2 * padX)); };
+    var Y = function (v) { return (H - padY) - ((v - lo) / span) * (H - 2 * padY); };
+    var pts = data.map(function (v, i) { return X(i).toFixed(1) + ',' + Y(v).toFixed(1); });
+    var area = 'M ' + X(0).toFixed(1) + ',' + (H - padY).toFixed(1) + ' L ' + pts.join(' L ') +
+      ' L ' + X(n - 1).toFixed(1) + ',' + (H - padY).toFixed(1) + ' Z';
+    var dots = data.map(function (v, i) {
+      var last = i === n - 1;
+      return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(v).toFixed(1) + '" r="' + (last ? 3.4 : 2.1) +
+        '" fill="' + (last ? col : 'var(--fk-bg-card)') + '" stroke="' + col + '" stroke-width="' + (last ? 0 : 1.5) + '"/>';
+    }).join('');
+    var animate = o.animate !== false;
+    var lineAttrs = animate ? ' class="nx-arc-draw" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"' : '';
+    return '<svg class="nx-trendline" width="100%" height="' + H + '" viewBox="0 0 ' + W + ' ' + H +
+      '" preserveAspectRatio="xMidYMid meet" aria-hidden="true" style="display:block;max-width:' + (o.maxWidth || 360) + 'px">' +
+      '<path d="' + area + '" fill="' + col + '" fill-opacity="0.08" stroke="none"/>' +
+      '<polyline' + lineAttrs + ' points="' + pts.join(' ') + '" fill="none" stroke="' + col +
+      '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' + dots + '</svg>';
+  }
+
+  /* NX.animateCounts(root) — count-up every [data-nx-count] once (≤400ms, ease-out).
+     data-nx-fmt = compact|exact|pct|int. Honors prefers-reduced-motion (snaps). */
+  function animateCounts(root) {
+    root = root || document;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var fmtFn = function (fmt) {
+      if (fmt === 'compact') return _fmtCompact;
+      if (fmt === 'pct') return function (v) { return Number(v).toFixed(1) + '%'; };
+      if (fmt === 'exact') return function (v) { return Math.round(v).toLocaleString('en-US'); };
+      return function (v) { return String(Math.round(v)); };
+    };
+    var els = root.querySelectorAll('[data-nx-count]');
+    Array.prototype.forEach.call(els, function (el) {
+      if (el.getAttribute('data-nx-done')) return;
+      el.setAttribute('data-nx-done', '1');
+      var target = parseFloat(el.getAttribute('data-nx-count')) || 0;
+      var fn = fmtFn(el.getAttribute('data-nx-fmt') || 'int');
+      if (reduce) { el.textContent = fn(target); return; }
+      var dur = Math.min(400, 220 + String(Math.round(Math.abs(target))).length * 20), t0 = null;
+      function step(ts) {
+        if (!t0) t0 = ts; var p = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = fn(target * e);
+        if (p < 1) requestAnimationFrame(step); else el.textContent = fn(target);
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
   global.NX = {
     esc: _esc, icon: icon, ichip: ichip, tabs: tabs, card: card, button: button,
     table: table, modal: modal, field: field, badge: badge, chip: chip, kpi: kpi,
     empty: empty, pageHeader: pageHeader, banner: banner,
-    sparkline: sparkline, minibar: minibar, stackbar: stackbar, infoTip: infoTip
+    sparkline: sparkline, minibar: minibar, stackbar: stackbar, infoTip: infoTip,
+    journeybar: journeybar, gauge: gauge, donut: donut, trendline: trendline, animateCounts: animateCounts
   };
 })(window);

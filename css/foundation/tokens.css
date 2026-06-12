@@ -27,6 +27,7 @@ html[data-theme="light"]{
   --fk-fs-title: 14px;   /* section / card / modal titles (600) */
   --fk-fs-page:  18px;   /* page title (700) */
   --fk-fs-kpi:   20px;   /* KPI values only — may stretch to 22px, never beyond */
+  --fk-fs-hero:  30px;   /* SINGLE exception: the dashboard hero "money picture" number */
 
   --fk-fw-regular:  400;
   --fk-fw-medium:   500;
@@ -76,6 +77,9 @@ html[data-theme="light"]{
 
   /* secondary button hover deepen (filled-subtle, warmth ②) */
   --fk-subtle-hover: color-mix(in srgb, var(--fk-text) 8%, var(--fk-bg-subtle));
+
+  /* neutral "remaining / not-yet-due" fill for journey bars & charts (muted, theme-adaptive) */
+  --fk-muted-fill: color-mix(in srgb, var(--fk-text-muted) 26%, var(--fk-bg-card));
 
   /* ── SURFACES (light) ───────────────────────────────────────────────── */
   --fk-bg-page:    #F1F5F9;

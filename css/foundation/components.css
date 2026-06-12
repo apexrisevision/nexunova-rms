@@ -159,6 +159,10 @@
 .nx-table th.num, .nx-table td.num{ text-align: right; font-variant-numeric: tabular-nums; }
 .nx-table--flush thead th:first-child, .nx-table--flush tbody td:first-child{ padding-left: var(--fk-sp-4); }
 .nx-table--flush thead th:last-child,  .nx-table--flush tbody td:last-child{  padding-right: var(--fk-sp-4); }
+/* --static: header scrolls away with the content instead of sticking. Use for
+   short card-embedded tables that have NO scroll-wrap (the page is the scroller),
+   where a sticky thead would otherwise pin to the viewport and float mid-card. */
+.nx-table--static thead th{ position: static; }
 
 
 /* ── 4. MODAL ─────────────────────────────────────────────────────────── */
@@ -296,6 +300,71 @@
 .nx-kpi-delta{ font-size: var(--fk-fs-label); font-weight: var(--fk-fw-medium); }
 .nx-kpi-delta--up{ color: var(--fk-success); }
 .nx-kpi-delta--down{ color: var(--fk-danger); }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   DASHBOARD 2.0 — gadget primitives (journey bar · gauge · donut) + motion.
+   Inline-SVG components from kit.js; flat token fills, one-shot fill animation.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* journey bar — one segmented bar + legend */
+.nx-journey{ display: flex; flex-direction: column; gap: var(--fk-sp-2); }
+.nx-journeybar{ display: block; width: 100%; border-radius: 999px; }
+.nx-journey-legend{ display: flex; flex-wrap: wrap; gap: var(--fk-sp-2) var(--fk-sp-4); }
+.nx-jl{ display: inline-flex; align-items: center; gap: 6px; font-size: var(--fk-fs-label); color: var(--fk-text-muted); }
+.nx-jl-dot{ width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.nx-jl-t{ text-transform: uppercase; letter-spacing: var(--fk-tracking-label); font-weight: var(--fk-fw-semibold); }
+.nx-jl-a{ color: var(--fk-text); font-weight: var(--fk-fw-semibold); }
+
+/* gauge — semi-donut with centred value + caption */
+.nx-gauge{ display: flex; flex-direction: column; align-items: center; gap: var(--fk-sp-1); }
+.nx-gauge-wrap{ position: relative; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.nx-gauge-val{ position: absolute; left: 0; right: 0; bottom: 2px; text-align: center;
+  font-size: var(--fk-fs-kpi); font-weight: var(--fk-fw-bold); font-variant-numeric: tabular-nums; line-height: 1; }
+.nx-gauge-cap{ font-size: var(--fk-fs-label); color: var(--fk-text-muted); text-align: center; max-width: 180px; }
+
+/* donut — full ring with centred total + legend */
+.nx-donut{ display: flex; flex-direction: column; align-items: center; gap: var(--fk-sp-3); }
+.nx-donut-ring{ position: relative; }
+.nx-donut-center{ position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.nx-donut-c-val{ font-size: var(--fk-fs-title); font-weight: var(--fk-fw-bold); color: var(--fk-text); }
+.nx-donut-c-sub{ font-size: var(--fk-fs-label); color: var(--fk-text-muted); text-transform: uppercase; letter-spacing: var(--fk-tracking-label); }
+.nx-donut-legend{ display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.nx-donut-legend .nx-jl{ justify-content: flex-start; }
+.nx-donut-legend .nx-jl-a{ margin-left: auto; }
+
+/* deterministic initials avatar (Who-is-late) — tint passed inline by caller */
+.nx-avatar{ display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border-radius: 8px; font-size: 11px; font-weight: var(--fk-fw-semibold); flex: 0 0 auto; }
+
+/* the dashboard hero number — the one sanctioned >22px figure (see tokens) */
+.nx-hero-value{ font-size: var(--fk-fs-hero); font-weight: var(--fk-fw-bold); color: var(--fk-text);
+  font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -0.01em; }
+
+/* compact stat chip — the three "still visible" hero metrics */
+.nx-statchip{ display: flex; align-items: center; gap: var(--fk-sp-3); padding: var(--fk-sp-2) var(--fk-sp-3);
+  background: var(--fk-bg-card); border: 1px solid var(--fk-border); border-radius: var(--fk-radius-control); }
+.nx-statchip .nx-statchip-v{ font-size: var(--fk-fs-title); font-weight: var(--fk-fw-semibold); color: var(--fk-text); font-variant-numeric: tabular-nums; }
+.nx-statchip .nx-statchip-l{ font-size: var(--fk-fs-label); color: var(--fk-text-muted); text-transform: uppercase; letter-spacing: var(--fk-tracking-label); font-weight: var(--fk-fw-semibold); }
+
+/* row-hover quick actions (Who-is-late) — hidden until the row is hovered */
+.nx-rowact{ display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s ease; }
+tr:hover > td > .nx-rowact, .nx-late-row:hover .nx-rowact{ opacity: 1; }
+
+/* ── one-shot motion (≤400ms, never loops); snaps under reduced-motion ── */
+@keyframes nx-grow-x{ from{ transform: scaleX(0); } to{ transform: scaleX(1); } }
+.nx-grow-x{ transform-origin: left center; animation: nx-grow-x .3s ease-out both; }
+@keyframes nx-arc-draw{ to{ stroke-dashoffset: 0; } }
+.nx-arc-draw{ animation: nx-arc-draw .3s ease-out both; }
+.nx-trendline{ display: block; width: 100%; overflow: visible; }
+@keyframes nx-pop{ from{ opacity: 0; transform: scale(.94); } to{ opacity: 1; transform: none; } }
+.nx-pop{ animation: nx-pop .3s ease-out both; transform-box: fill-box; transform-origin: center; }
+@keyframes nx-rise{ from{ opacity: 0; transform: translateY(4px); } to{ opacity: 1; transform: none; } }
+.nx-rise{ animation: nx-rise .3s ease-out both; }
+@media (prefers-reduced-motion: reduce){
+  .nx-grow-x, .nx-arc-draw, .nx-pop, .nx-rise, .nx-pulse-card{ animation: none; }
+  .nx-grow-x{ transform: none; } .nx-arc-draw{ stroke-dashoffset: 0; }
+}
 
 
 /* ── 8. EMPTY STATE ───────────────────────────────────────────────────── */

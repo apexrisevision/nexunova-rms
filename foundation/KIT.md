@@ -235,6 +235,46 @@ NX.pageHeader('Clients', NX.button('Add client',{variant:'primary',icon:'plus'})
 NX.banner('Some data failed to load — not all records are shown', 'warn');
 ```
 
+### Dashboard gadget primitives — `journeybar` · `gauge` · `donut`
+Inline-SVG, flat token fills (no gradients), one-shot fill motion. Reusable anywhere.
+```js
+// One segmented bar telling a whole quantity's story + a legend row.
+NX.journeybar({ height:16, segments:[
+  { value:580, tone:'success', label:'Collected',         amount:'580.1M' },
+  { value:212, tone:'danger',  label:'Recoverable today', amount:'212.0M' },
+  { value:388, tone:'muted',   label:'Future',            amount:'388.4M' } ]});
+// Semi-donut gauge — value/max arc + centred value + caption. count:{} animates it.
+NX.gauge({ value:212, max:600, tone:'danger', size:180, count:{ value:35.3, fmt:'pct' },
+           caption:'of the book is overdue' });
+// Full multi-segment ring + centred total + legend.
+NX.donut({ segments:[{value:67,tone:'info',label:'0–30',amount:'0.7M'}, …],
+           size:132, thickness:15, centerLabel:'212.0M', centerSub:'Overdue' });
+// Small area+line trend — single tone, soft 8% flat fill (no gradient), hollow
+// dots, LAST point emphasized, draws in once ≤300ms. Render-gate ≥3 points.
+NX.trendline({ series:[164.4,170.6,183.2,195.6,206.7,211.4], tone:'danger' });
+```
+tone = `success|danger|warning|info|primary|muted` (muted = `--fk-muted-fill`, the
+neutral "remaining / not-yet-due" fill).
+
+> Taste note (owner verdict 2026-06-13): the **gauge** semi-donut and full **donut**
+> ring can read as *preloaders* — prefer `journeybar` / `trendline` / `stackbar`
+> (horizontal, flat, premium) for dashboard surfaces. Keep gauge/donut for genuine
+> radial cases only. Charts stay single-tone + restrained; rainbow ≠ premium.
+
+### Motion (lawful gadget feel) — `NX.animateCounts` + CSS one-shots
+Numbers count up once on load; bars/arcs fill in; **no loops, no pulsing.**
+```js
+// mark a number, then animate every [data-nx-count] under a root (once, ≤400ms):
+'<span data-nx-count="600345471" data-nx-fmt="compact">0</span>'   // fmt: compact|exact|pct|int
+NX.animateCounts(containerEl);
+```
+CSS one-shot classes (`both`, never iterate): `.nx-grow-x` (bar grows L→R), `.nx-arc-draw`
+(gauge arc strokes in, needs `pathLength="1"`), `.nx-pop` (donut scales in), `.nx-rise`
+(card fades up). **All gated by `prefers-reduced-motion: reduce` (snap to final).**
+
+> Type-scale note: the **only** sanctioned figure above 22px is the dashboard hero
+> number — `--fk-fs-hero` (30px) / `.nx-hero-value`. Nothing else breaks the closed scale.
+
 ### Icons — Lucide only (never emoji)
 ```js
 NX.icon('search');        // 16px default
