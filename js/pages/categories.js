@@ -190,6 +190,18 @@ const _I = {
   inf:  `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
 };
 
+// ─── Responsive board columns: 4 on wide · 2×2 on ~1366 laptops · 1 on narrow.
+// Explicit (auto-fit minmax can't satisfy both 2@1366 and 4@1920 at real widths).
+function _catGridTpl() {
+  const w = window.innerWidth;
+  const n = w >= 1600 ? 4 : w >= 1080 ? 2 : 1;
+  return 'repeat(' + n + ',minmax(0,1fr))';
+}
+window.addEventListener('resize', function () {
+  const b = document.getElementById('cat-board'), pg = document.getElementById('pg-categories');
+  if (b && pg && pg.classList.contains('on')) b.style.gridTemplateColumns = _catGridTpl();
+});
+
 // ─── Main Render ──────────────────────────────────────────────────────
 function rCategories() {
   if (!S || (S.role !== 'admin' && S.role !== 'owner')) { nav('dashboard'); return; }
@@ -211,7 +223,7 @@ function rCategories() {
     NX.pageHeader('Types & Floors', actions) +
     NX.card('<div id="cat-strip-txt">' + _catSummaryText() + '</div>' +
             '<div style="margin-top:var(--fk-sp-2)">' + NX.button('View audit log', { variant:'ghost', size:'sm', onclick:'_catOpenAud()' }) + '</div>', { compact:true }) +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--fk-sp-3);margin-top:var(--fk-sp-3)">' +
+    '<div id="cat-board" style="display:grid;grid-template-columns:' + _catGridTpl() + ';gap:var(--fk-sp-3);margin-top:var(--fk-sp-3);align-items:start">' +
       '<div id="cat-col-floors"   class="nx-card nx-card--flush"><div id="cat-floors"></div></div>' +
       '<div id="cat-col-types"    class="nx-card nx-card--flush"><div id="cat-types"></div></div>' +
       '<div id="cat-col-statuses" class="nx-card nx-card--flush"><div id="cat-statuses"></div></div>' +
@@ -246,7 +258,7 @@ function _catColHead(col, icon, title, count, addFn, withMenu) {
   return '<div style="padding:var(--fk-sp-3) var(--fk-sp-3) var(--fk-sp-2);border-bottom:1px solid var(--fk-border)">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
       '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--fk-text-muted)">' + icon + '</span>' +
-        '<span style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + title + '</span>' + NX.chip(count) + '</div>' +
+        '<span style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + title + '</span>' + NX.chip(String(count)) + '</div>' +
       '<div style="display:flex;gap:4px">' +
         '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Add" onclick="' + addFn + '">' + _I.plus + '</button>' +
         (withMenu ? '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Column actions" onclick="_catColMenu(\'' + col + '\',this)">' + _I.more + '</button>' : '') +
@@ -358,57 +370,60 @@ function _pill(col, val, label, cnt) {
   return NX.button(label + ' ' + cnt, { variant: on ? 'primary' : 'secondary', size:'sm', onclick:"_catSetFilter('" + col + "','" + val + "')" });
 }
 
-function _catRowShell(col, pfx, id, active, sel, inner) {
-  return '<div class="cat-row cx-card' + (sel ? ' sel' : '') + '" id="cat-row-' + pfx + '-' + id + '"' +
-    ' style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--fk-radius-control);border:1px solid transparent;' + (active ? '' : 'opacity:.55;') + '"' +
-    ' draggable="true" ondragstart="_catDS(\'' + col + '\',\'' + id + '\',event)" ondragover="_catDO(\'' + col + '\',\'' + id + '\',event)"' +
-    ' ondrop="_catDP(\'' + col + '\',\'' + id + '\',event)" ondragleave="this.classList.remove(\'drag-over\')">' + inner + '</div>';
+// Strict-grid row — shared by all 4 columns so long names/chips never overlap,
+// stack, or clip. Columns: [drag 16][chk 18][lead chip auto][name+meta 1fr,
+// truncates][end chip auto, nowrap][actions auto, nowrap].
+function _catRow(o) {
+  const drag = o.draggable ? '<span class="cat-drag" style="cursor:grab;color:var(--fk-text-muted);display:flex;justify-content:center">' + _I.grip + '</span>' : '<span></span>';
+  const chk  = o.checkbox  ? '<input type="checkbox" ' + (o.sel ? 'checked' : '') + ' onchange="_catChk(\'' + o.col + '\',\'' + o.id + '\',this.checked)">' : '<span></span>';
+  const dA   = o.draggable ? ' draggable="true" ondragstart="_catDS(\'' + o.col + '\',\'' + o.id + '\',event)" ondragover="_catDO(\'' + o.col + '\',\'' + o.id + '\',event)" ondrop="_catDP(\'' + o.col + '\',\'' + o.id + '\',event)" ondragleave="this.classList.remove(\'drag-over\')"' : '';
+  return '<div class="cat-row' + (o.sel ? ' sel' : '') + '" id="cat-row-' + o.pfx + '-' + o.id + '"' + dA +
+    ' style="display:grid;grid-template-columns:16px 18px auto minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--fk-radius-control);border:1px solid transparent' + (o.active ? '' : ';opacity:.55') + '">' +
+    drag + chk +
+    '<span style="white-space:nowrap;display:flex;align-items:center">' + (o.lead || '') + '</span>' +
+    '<span style="min-width:0">' +
+      '<span title="' + esc(o.nameRaw || '') + '" style="display:block;font-size:var(--fk-fs-body);color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + o.name + '</span>' +
+      '<span class="nx-kpi-label" style="text-transform:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (o.meta || '') + '</span>' +
+    '</span>' +
+    '<span style="white-space:nowrap">' + (o.endChip || '') + '</span>' +
+    '<span style="white-space:nowrap;display:flex;gap:2px;align-items:center">' + (o.actions || '') + '</span>' +
+  '</div>';
 }
-function _catRowChk(col, id, sel) {
-  return '<span class="cat-drag" style="cursor:grab;color:var(--fk-text-muted);display:flex">' + _I.grip + '</span>' +
-    '<input type="checkbox" ' + (sel ? 'checked' : '') + ' onchange="_catChk(\'' + col + '\',\'' + id + '\',this.checked)">';
+function _catActivePill(id, active, toggleFn) {
+  return '<button class="nx-btn ' + (active ? 'nx-btn--secondary' : 'nx-btn--ghost') + ' nx-btn--sm" style="white-space:nowrap" onclick="event.stopPropagation();' + toggleFn + '(\'' + id + '\',' + (!active) + ')"><span>' + (active ? 'Active' : 'Inactive') + '</span></button>';
 }
-function _catRowEnd(col, id, active, toggleFn) {
-  return '<button class="nx-btn ' + (active ? 'nx-btn--secondary' : 'nx-btn--ghost') + ' nx-btn--sm" onclick="event.stopPropagation();' + toggleFn + '(\'' + id + '\',' + (!active) + ')"><span>' + (active ? 'Active' : 'Inactive') + '</span></button>' +
-    '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" onclick="_catKebab(\'' + col + '\',\'' + id + '\',this)">' + _I.more + '</button>';
+function _catKebabBtn(col, id) {
+  return '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" onclick="_catKebab(\'' + col + '\',\'' + id + '\',this)">' + _I.more + '</button>';
 }
+function _catChipNW(html) { return '<span style="white-space:nowrap">' + html + '</span>'; }
 
 function _catFlRow(f, i) {
-  const usage = _catUsage('floors', f.id), sel = _catBulkSel.floors.has(f.id), active = f.isActive !== false;
-  const ord = String(f.sortOrder || 0).padStart(2, '0');
+  const usage = _catUsage('floors', f.id), active = f.isActive !== false;
   const code = f.floorCode || f.floor_code;
-  const inner = _catRowChk('floors', f.id, sel) +
-    '<span class="num" style="width:26px;color:var(--fk-text-muted);font-size:var(--fk-fs-label)">' + ord + '</span>' +
-    '<div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + esc(f.name) +
-      (code ? ' <span class="nx-badge" style="margin-left:4px">' + esc(code) + '</span>' : '') + '</div>' +
-      '<div class="nx-kpi-label" style="text-transform:none">' + (usage > 0 ? usage + ' unit' + (usage !== 1 ? 's' : '') : 'Not used yet') + '</div></div>' +
-    _catRowEnd('floors', f.id, active, 'toggleFloorActive');
-  return _catRowShell('floors', 'fl', f.id, active, sel, inner);
+  const ord = String(f.sortOrder || 0).padStart(2, '0');
+  const lead = code ? _catChipNW(NX.badge(code, '')) : '<span class="num" style="color:var(--fk-text-muted);font-size:var(--fk-fs-label)">' + ord + '</span>';
+  return _catRow({ col:'floors', pfx:'fl', id:f.id, draggable:true, checkbox:true, sel:_catBulkSel.floors.has(f.id), active,
+    lead, name:esc(f.name), nameRaw:f.name, meta:(usage > 0 ? usage + ' unit' + (usage !== 1 ? 's' : '') : 'Not used yet'),
+    endChip:_catActivePill(f.id, active, 'toggleFloorActive'), actions:_catKebabBtn('floors', f.id) });
 }
-
 function _catTpRow(t, i) {
-  const usage = _catUsage('types', t.id), sel = _catBulkSel.types.has(t.id), active = t.isActive !== false;
-  const abbr = t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  const dArea = t.defaultArea || t.default_area, dPrice = t.defaultPrice || t.default_price;
+  const usage = _catUsage('types', t.id), active = t.isActive !== false;
+  const abbr = (t.name || '').split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const dArea = t.defaultArea ?? t.default_area, dPrice = t.defaultPrice ?? t.default_price;
   const dmeta = [dArea ? dArea + ' sqft' : '', dPrice ? 'PKR ' + (typeof fM === 'function' ? fM(dPrice) : dPrice) : ''].filter(Boolean).join(' · ');
-  const inner = _catRowChk('types', t.id, sel) +
-    '<span class="num" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--fk-border);border-radius:6px;font-size:var(--fk-fs-label);color:var(--fk-text-muted)">' + esc(abbr) + '</span>' +
-    '<div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + esc(t.name) + '</div>' +
-      '<div class="nx-kpi-label" style="text-transform:none">' + (dmeta ? dmeta + ' · ' : '') + (usage > 0 ? usage + ' unit' + (usage !== 1 ? 's' : '') : 'Not used yet') + '</div></div>' +
-    _catRowEnd('types', t.id, active, 'toggleTypeActive');
-  return _catRowShell('types', 'tp', t.id, active, sel, inner);
+  const lead = '<span class="num" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--fk-border);border-radius:6px;font-size:var(--fk-fs-label);color:var(--fk-text-muted)">' + esc(abbr) + '</span>';
+  return _catRow({ col:'types', pfx:'tp', id:t.id, draggable:true, checkbox:true, sel:_catBulkSel.types.has(t.id), active,
+    lead, name:esc(t.name), nameRaw:t.name, meta:(dmeta ? dmeta + ' · ' : '') + (usage > 0 ? usage + ' unit' + (usage !== 1 ? 's' : '') : 'Not used yet'),
+    endChip:_catActivePill(t.id, active, 'toggleTypeActive'), actions:_catKebabBtn('types', t.id) });
 }
-
 function _catStRow(s, i) {
-  const usage = _catUsage('statuses', s.id), sel = _catBulkSel.statuses.has(s.id), active = s.isActive !== false;
+  const usage = _catUsage('statuses', s.id), active = s.isActive !== false;
   const tone = _catStatusTone(s);
-  const code = s.statusCode || s.status_code || s.name.slice(0, 4).toUpperCase();
-  const inner = _catRowChk('statuses', s.id, sel) +
-    '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;font-size:var(--fk-fs-body);color:var(--fk-text)">' +
-      esc(s.name) + NX.badge(code, tone) + '</div>' +
-      '<div class="nx-kpi-label" style="text-transform:none">' + (s.isAvailable ? 'Bookable' : 'Locked') + (usage > 0 ? ' · ' + usage + ' unit' + (usage !== 1 ? 's' : '') : ' · Not used') + '</div></div>' +
-    _catRowEnd('statuses', s.id, active, 'toggleStatusActive');
-  return _catRowShell('statuses', 'st', s.id, active, sel, inner);
+  const code = s.statusCode || s.status_code || (s.name || '').slice(0, 4).toUpperCase();
+  return _catRow({ col:'statuses', pfx:'st', id:s.id, draggable:true, checkbox:true, sel:_catBulkSel.statuses.has(s.id), active,
+    lead:_catChipNW(NX.badge(code, tone)), name:esc(s.name), nameRaw:s.name,
+    meta:(s.isAvailable ? 'Bookable' : 'Locked') + (usage > 0 ? ' · ' + usage + ' unit' + (usage !== 1 ? 's' : '') : ' · Not used'),
+    endChip:_catActivePill(s.id, active, 'toggleStatusActive'), actions:_catKebabBtn('statuses', s.id) });
 }
 
 function _catClearSearch(col) {
@@ -1160,14 +1175,12 @@ function rSaleTypesList() {
 function _catStyRow(s, i) {
   const active = s.isActive !== false;
   const code = s.typeCode || (s.name || '').slice(0, 4).toUpperCase();
-  const inner =
-    '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;font-size:var(--fk-fs-body);color:var(--fk-text)">' +
-      esc(s.name) + NX.badge(code, 'primary') + '</div>' +
-      '<div class="nx-kpi-label" style="text-transform:none">Sale / deal type</div></div>' +
-    '<button class="nx-btn ' + (active ? 'nx-btn--secondary' : 'nx-btn--ghost') + ' nx-btn--sm" onclick="event.stopPropagation();toggleSaleTypeActive(\'' + s.id + '\',' + (!active) + ')"><span>' + (active ? 'Active' : 'Inactive') + '</span></button>' +
-    '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" onclick="openSaleTypeModal(\'' + s.id + '\')" title="Edit">' + _I.edit + '</button>' +
-    '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" style="color:var(--fk-danger)" onclick="deleteSaleTypeConfirm(\'' + s.id + '\')" title="Delete">' + _I.trash + '</button>';
-  return '<div class="cat-row cx-card" id="cat-row-sty-' + s.id + '" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--fk-radius-control)' + (active ? '' : ';opacity:.55') + '">' + inner + '</div>';
+  const actions =
+    '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" onclick="event.stopPropagation();openSaleTypeModal(\'' + s.id + '\')" title="Edit">' + _I.edit + '</button>' +
+    '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" style="color:var(--fk-danger)" onclick="event.stopPropagation();deleteSaleTypeConfirm(\'' + s.id + '\')" title="Delete">' + _I.trash + '</button>';
+  return _catRow({ col:'saletypes', pfx:'sty', id:s.id, draggable:false, checkbox:false, active,
+    lead:_catChipNW(NX.badge(code, 'primary')), name:esc(s.name), nameRaw:s.name, meta:'Sale / deal type',
+    endChip:_catActivePill(s.id, active, 'toggleSaleTypeActive'), actions });
 }
 async function toggleSaleTypeActive(id, val) {
   const r = await saveSaleType({ id, company_id: S.cid, is_active: val });
