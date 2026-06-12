@@ -640,6 +640,8 @@ function nav(pg,x){
   // ── Phase 3A: retired dashboards redirect to the single Dashboard ──
   // recovery-dashboard / executive / radar were consolidated into dashboard.
   if(pg==='recovery-dashboard'||pg==='executive'||pg==='radar') pg='dashboard';
+  // Phase 3C: the standalone Add-Unit page is retired — quick-add / full modal live on the Units page.
+  if(pg==='addunit') pg='units';
   // ── Permission guard ──
   if(S&&S.role!=='admin'&&S.role!=='owner'){
     const r=effectiveRole();
@@ -699,7 +701,7 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,addunit:rAddUnit,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:()=>openClientsTab('health'),promises:rPromises,audit:rAudit,approvals:rApprovals,team:rTeam,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:()=>openClientsTab('blacklist'),payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,noc:rNOC,fieldvisits:rFieldVisits};
+  const fns={dashboard:rDash,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,documents:rDocs,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:()=>openClientsTab('health'),promises:rPromises,audit:rAudit,approvals:rApprovals,team:rTeam,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:()=>openClientsTab('blacklist'),payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,noc:rNOC,fieldvisits:rFieldVisits};
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',

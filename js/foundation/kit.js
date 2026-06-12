@@ -29,6 +29,7 @@
     'x':            '<path d="M18 6 6 18M6 6l12 12"/>',
     'search':       '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
     'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+    'chevron-up':   '<path d="m18 15-6-6-6 6"/>',
     'chevron-right':'<path d="m9 18 6-6-6-6"/>',
     'check':        '<path d="M20 6 9 17l-5-5"/>',
     'alert-triangle':'<path d="m21.7 18-9-15.5a1.5 1.5 0 0 0-2.6 0L1.1 18a1.5 1.5 0 0 0 1.3 2.3h18.2a1.5 1.5 0 0 0 1.3-2.3Z"/><path d="M12 9v4M12 17h.01"/>',
