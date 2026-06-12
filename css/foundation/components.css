@@ -297,3 +297,12 @@
 }
 #auroraTopbar, #auroraTopbar *{ font-family: var(--fk-font); }
 #auroraTopbar .aurora-topbar-trigger{ color: var(--fk-text); }
+
+/* ── Kit utilities (added for Sales flow — generic, reusable) ──────────── */
+.nx-kpi-row{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--fk-sp-3); }
+.nx-segment{ display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.nx-card-title{ font-size: var(--fk-fs-body, 14px); font-weight: var(--fk-fw-semibold); color: var(--fk-text); }
+.nx-table-wrap{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.nx-mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.nx-skel{ background: var(--fk-bg-subtle); border-radius: var(--fk-radius-control); animation: nx-skel-pulse 1.2s ease-in-out infinite; }
+@keyframes nx-skel-pulse{ 0%,100%{ opacity: 1; } 50%{ opacity: .5; } }
