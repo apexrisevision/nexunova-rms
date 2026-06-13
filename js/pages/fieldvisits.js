@@ -1,413 +1,349 @@
-// ══ FIELD VISITS — Mobile Recovery ════════════════════════════
-// Field visit logging with GPS, outcome tracking, analytics.
-// ═════════════════════════════════════════════════════════════
+// ══ FIELD VISITS MODULE ════════════════════════════════════════
 
-let _fvData = [];
-let _fvAnalytics = {};
-let _fvFilter = { search: '', outcome: '', date_from: '', date_to: '' };
+let _fvData      = [];
+let _fvAnalytics = null;
+let _fvFilter    = 'all';
 
+const _FV_OUTCOMES = {
+  contacted:          { label:'Contacted',         tone:'info' },
+  payment_collected:  { label:'Payment Collected', tone:'success' },
+  promise_received:   { label:'Promise Received',  tone:'warning' },
+  not_found:          { label:'Not Found',         tone:'' },
+  refused:            { label:'Refused',           tone:'danger' },
+  other:              { label:'Other',             tone:'' },
+};
+
+// ── Entry point ────────────────────────────────────────────────
 async function rFieldVisits() {
-  const el = document.getElementById('pg-fieldvisits');
-  if (!el) return;
+  const pg = document.getElementById('pg-fieldvisits');
+  if (!pg) return;
 
-  el.innerHTML = `
-    <div class="ph">
-      <div class="ph-l">
-        <div class="ph-title">Field Visits</div>
-        <div class="ph-sub">Track officer field recovery visits</div>
-      </div>
-      <div class="ph-r">
-        <button class="btn btn-g" onclick="fvOpenLog()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Log Visit
-        </button>
-      </div>
+  pg.innerHTML = `<div class="ani">
+    ${NX.pageHeader('Field Visits',
+      NX.button('Log Visit', { variant:'primary', icon:'plus', onclick:'fvOpenLog()' }) +
+      NX.button('Refresh',   { variant:'ghost', size:'sm', onclick:'_fvLoad()' }),
+      { icon:'map-pin', tone:'', sub:'Track field recovery visits and outcomes' })}
+    <div id="fv-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
+      ${[...Array(5)].map(()=>NX.kpi({label:'Loading…',value:'—'})).join('')}
     </div>
+    <div id="fv-filter" style="margin-bottom:14px"></div>
+    <div id="fv-body"><div style="padding:48px;text-align:center;color:var(--fk-text-muted)">Loading…</div></div>
+  </div>`;
 
-    <div class="fv-kpi-strip" id="fv-kpi-strip" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
-      <div class="kpi"><div class="kpi-lbl"><span class="kpi-lbl-dot"></span>Total Visits</div><div class="kpi-val" id="fv-k-total">—</div></div>
-      <div class="kpi"><div class="kpi-lbl"><span class="kpi-lbl-dot" style="--ka:#6366f1"></span>This Month</div><div class="kpi-val" id="fv-k-month">—</div></div>
-      <div class="kpi"><div class="kpi-lbl"><span class="kpi-lbl-dot" style="--ka:#22c55e"></span>Today</div><div class="kpi-val" id="fv-k-today">—</div></div>
-      <div class="kpi"><div class="kpi-lbl"><span class="kpi-lbl-dot" style="--ka:#f59e0b"></span>Payment Collected</div><div class="kpi-val" id="fv-k-collected">—</div></div>
-    </div>
-
-    <div class="fbar" style="margin-bottom:16px">
-      <input class="inp" id="fv-search" placeholder="Search officer, client, unit…" oninput="fvFilter()" style="flex:1;min-width:180px">
-      <select class="inp" id="fv-outcome" onchange="fvFilter()" style="min-width:160px">
-        <option value="">All Outcomes</option>
-        <option value="contacted">Contacted</option>
-        <option value="payment_collected">Payment Collected</option>
-        <option value="promise_received">Promise Received</option>
-        <option value="not_found">Not Found</option>
-        <option value="refused">Refused</option>
-        <option value="other">Other</option>
-      </select>
-      <input class="inp" type="date" id="fv-date-from" onchange="fvFilter()" title="From date">
-      <input class="inp" type="date" id="fv-date-to"   onchange="fvFilter()" title="To date">
-    </div>
-
-    <div class="fv-table-wrap tbl-wrap">
-      <table class="data-tbl">
-        <thead><tr>
-          <th>Date</th>
-          <th>Officer</th>
-          <th>Client</th>
-          <th>Unit / Project</th>
-          <th>Location</th>
-          <th>Outcome</th>
-          <th>Notes</th>
-        </tr></thead>
-        <tbody id="fv-tbody"></tbody>
-      </table>
-    </div>`;
-
-  await fvLoad();
+  await _fvLoad();
 }
 
-async function fvLoad() {
-  const co = gco();
-  if (!co) return;
-
-  const [analyticsRes, visitsRes] = await Promise.all([
-    supabase.rpc('get_field_visit_analytics', { p_company_id: co }),
-    supabase.rpc('get_field_visits', { p_company_id: co }),
-  ]);
-
-  if (analyticsRes.data && analyticsRes.data.success !== false) {
-    _fvAnalytics = analyticsRes.data;
-    _fvSetKpis(_fvAnalytics);
+// ── Data ───────────────────────────────────────────────────────
+async function _fvLoad() {
+  try {
+    const [{ data: rows, error: e1 }, { data: analytics }] = await Promise.all([
+      supabase.rpc('get_field_visits', { p_company_id: S.cid }),
+      supabase.rpc('get_field_visit_analytics', { p_company_id: S.cid, p_days: 30 })
+    ]);
+    if (e1) throw e1;
+    _fvData      = Array.isArray(rows) ? rows : [];
+    _fvAnalytics = analytics || {};
+    _fvRenderStats();
+    _fvRenderFilter();
+    _fvRenderTable();
+  } catch(e) {
+    const body = document.getElementById('fv-body');
+    if (body) body.innerHTML = NX.card(NX.empty({ icon:'x-circle', tone:'danger', message: esc(e.message||'Failed to load visits') }));
   }
-
-  _fvData = Array.isArray(visitsRes.data) ? visitsRes.data : [];
-  fvRender(_fvData);
 }
 
-function _fvSetKpis(a) {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v ?? '0'; };
-  set('fv-k-total',     a.total     ?? 0);
-  set('fv-k-month',     a.this_month ?? 0);
-  set('fv-k-today',     a.today     ?? 0);
-  set('fv-k-collected', a.collected ?? 0);
+// ── Stats ──────────────────────────────────────────────────────
+function _fvRenderStats() {
+  const el = document.getElementById('fv-stats');
+  if (!el) return;
+  const a = _fvAnalytics || {};
+  const total   = _fvData.length;
+  const today   = _fvData.filter(v => v.visit_date===new Date().toISOString().split('T')[0]).length;
+  const paid    = _fvData.filter(v => v.outcome==='payment_collected').length;
+  const promise = _fvData.filter(v => v.outcome==='promise_received').length;
+  const refused = _fvData.filter(v => v.outcome==='refused').length;
+
+  el.innerHTML = [
+    NX.kpi({ label:'Total Visits',    value: total,                          dot:'' }),
+    NX.kpi({ label:'Today',           value: today,                          dot:'primary' }),
+    NX.kpi({ label:'Payment Coll.',   value: paid,                           dot:'success' }),
+    NX.kpi({ label:'Promise Given',   value: promise,                        dot:'warning' }),
+    NX.kpi({ label:'Refused',         value: refused,                        dot:'danger' }),
+  ].join('');
 }
 
-function fvFilter() {
-  _fvFilter.search    = (document.getElementById('fv-search')    || {}).value || '';
-  _fvFilter.outcome   = (document.getElementById('fv-outcome')   || {}).value || '';
-  _fvFilter.date_from = (document.getElementById('fv-date-from') || {}).value || '';
-  _fvFilter.date_to   = (document.getElementById('fv-date-to')   || {}).value || '';
-
-  const q = _fvFilter.search.toLowerCase();
-  const filtered = _fvData.filter(v => {
-    if (_fvFilter.outcome && v.outcome !== _fvFilter.outcome) return false;
-    if (_fvFilter.date_from && v.visit_date < _fvFilter.date_from) return false;
-    if (_fvFilter.date_to   && v.visit_date > _fvFilter.date_to)   return false;
-    if (q && !((v.officer_name||'').toLowerCase().includes(q) ||
-               (v.client_name||'').toLowerCase().includes(q)  ||
-               (v.unit_no||'').toLowerCase().includes(q)       ||
-               (v.project_name||'').toLowerCase().includes(q))) return false;
-    return true;
+// ── Filter tabs ────────────────────────────────────────────────
+function _fvRenderFilter() {
+  const el = document.getElementById('fv-filter');
+  if (!el) return;
+  const countOf = key => key==='all' ? _fvData.length : _fvData.filter(v=>v.outcome===key).length;
+  el.innerHTML = NX.tabs({
+    tabs: [
+      { k:'all',               label:'All',       count: countOf('all') },
+      { k:'payment_collected', label:'Collected',  count: countOf('payment_collected') },
+      { k:'promise_received',  label:'Promise',    count: countOf('promise_received') },
+      { k:'contacted',         label:'Contacted',  count: countOf('contacted') },
+      { k:'not_found',         label:'Not Found',  count: countOf('not_found') },
+      { k:'refused',           label:'Refused',    count: countOf('refused') },
+    ],
+    active: _fvFilter,
+    onSelect: "fvSetFilter('%k')"
   });
-  fvRender(filtered);
 }
 
-const _FV_OUTCOME_LABELS = {
-  contacted:         'Contacted',
-  payment_collected: 'Payment Collected',
-  promise_received:  'Promise Received',
-  not_found:         'Not Found',
-  refused:           'Refused',
-  other:             'Other',
-};
-const _FV_OUTCOME_COLORS = {
-  contacted:         '#6366f1',
-  payment_collected: '#22c55e',
-  promise_received:  '#f59e0b',
-  not_found:         '#94a3b8',
-  refused:           '#ef4444',
-  other:             '#64748b',
-};
+function fvSetFilter(f) {
+  _fvFilter = f;
+  _fvRenderFilter();
+  _fvRenderTable();
+}
 
-function fvRender(rows) {
-  const tb = document.getElementById('fv-tbody');
-  if (!tb) return;
+function _fvFiltered() {
+  return _fvFilter==='all' ? _fvData : _fvData.filter(v=>v.outcome===_fvFilter);
+}
+
+// ── Table ──────────────────────────────────────────────────────
+function _fvRenderTable() {
+  const body = document.getElementById('fv-body');
+  if (!body) return;
+  const rows = _fvFiltered();
+
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--t4)">No field visits found</td></tr>';
+    body.innerHTML = NX.card(NX.empty({
+      icon: _fvFilter==='all' ? 'map-pin' : 'check-circle',
+      tone: _fvFilter==='all' ? undefined  : 'success',
+      message: _fvFilter==='all' ? 'No field visits logged yet'
+             : 'No visits with this outcome',
+      action: _fvFilter==='all' ? NX.button('Log First Visit', { variant:'primary', icon:'plus', onclick:'fvOpenLog()' }) : ''
+    }));
     return;
   }
-  tb.innerHTML = rows.map(v => {
-    const color = _FV_OUTCOME_COLORS[v.outcome] || '#64748b';
-    const label = esc(_FV_OUTCOME_LABELS[v.outcome] || v.outcome || '—');
-    const dt    = v.visit_date ? new Date(v.visit_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
-    const loc   = v.location_name ? esc(v.location_name) : (v.latitude ? `${Number(v.latitude).toFixed(4)}, ${Number(v.longitude).toFixed(4)}` : '—');
-    const notes = v.notes ? `<span title="${esc(v.notes)}">${esc(v.notes.length>40 ? v.notes.slice(0,40)+'…' : v.notes)}</span>` : '—';
-    const photo = v.photo_url
-      ? `<a href="${esc(v.photo_url)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--brand)">View Photo</a>`
-      : '';
-    return `<tr>
-      <td style="white-space:nowrap">${dt}${v.visit_time ? '<br><span style="font-size:11px;color:var(--t4)">' + esc(String(v.visit_time).slice(0,5)) + '</span>' : ''}</td>
-      <td>${esc(v.officer_name || '—')}</td>
-      <td>${esc(v.client_name || '—')}</td>
-      <td>${v.unit_no ? `<b>${esc(v.unit_no)}</b>` : ''}${v.project_name ? `<br><span style="font-size:11px;color:var(--t4)">${esc(v.project_name)}</span>` : ''}</td>
-      <td style="font-size:12px;color:var(--t3)">${loc}</td>
-      <td><span style="display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;background:${color}22;color:${color}">${label}</span></td>
-      <td style="font-size:12px;max-width:200px">${notes}${photo ? '<br>' + photo : ''}</td>
-    </tr>`;
-  }).join('');
+
+  body.innerHTML = NX.card(`
+    <table class="nx-table">
+      <thead><tr>
+        <th style="width:100px">Outcome</th>
+        <th>Client</th>
+        <th class="hide-sm">Property</th>
+        <th class="num hide-sm">Collected</th>
+        <th>Date</th>
+        <th class="hide-sm">Officer</th>
+        <th class="hide-sm">Notes</th>
+      </tr></thead>
+      <tbody>${rows.map(_fvRow).join('')}</tbody>
+    </table>`, { flush: true });
 }
 
-// ── Log Visit Modal ────────────────────────────────────────
-function fvOpenLog() {
-  const co = gco();
-  if (!co) return;
+function _fvRow(v) {
+  const out = _FV_OUTCOMES[v.outcome] || { label: v.outcome||'Other', tone:'' };
+  const outBadge = NX.badge(out.label, out.tone, {dot:true});
 
-  const today = new Date().toISOString().slice(0, 10);
-  const now   = new Date().toTimeString().slice(0, 5);
+  const prop = [v.project_name, v.unit_info].filter(Boolean).join(' · ') || '—';
+  const hasGPS = v.gps_lat && v.gps_lng;
+  const hasPhoto = v.photo_url;
 
-  const clients = typeof gclients === 'function' ? gclients() : [];
-  const clientOpts = clients.map(c =>
-    `<option value="${esc(c.id)}" data-name="${esc(c.full_name||c.name||'')}">${esc(c.full_name||c.name||'')}</option>`
-  ).join('');
+  return `<tr>
+    <td>${outBadge}</td>
+    <td>
+      <div style="font-weight:600;font-size:13px">${esc(v.client_name||'—')}</div>
+      <div style="font-size:11px;color:var(--fk-text-muted)">${esc(v.client_phone||'—')}</div>
+    </td>
+    <td class="hide-sm" style="font-size:12px;color:var(--fk-text-muted)">${esc(prop)}</td>
+    <td class="num hide-sm" style="font-size:12px;color:var(--fk-success);font-weight:600">${v.amount_collected>0?'PKR '+fM(v.amount_collected):'—'}</td>
+    <td>
+      <div style="font-size:12px">${fD(v.visit_date)}</div>
+      ${hasGPS?`<a href="https://maps.google.com/?q=${v.gps_lat},${v.gps_lng}" target="_blank" style="font-size:11px;color:var(--fk-primary)">${NX.icon('map-pin',10)} GPS</a>`:''}
+      ${hasPhoto?`<a href="${esc(v.photo_url)}" target="_blank" style="font-size:11px;color:var(--fk-primary);margin-left:4px">${NX.icon('image',10)} Photo</a>`:''}
+    </td>
+    <td class="hide-sm" style="font-size:12px;color:var(--fk-text-muted)">${esc(v.officer_name||'—')}</td>
+    <td class="hide-sm" style="font-size:11px;color:var(--fk-text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.notes||'')}">${esc((v.notes||'').substring(0,60))}${(v.notes||'').length>60?'…':''}</td>
+  </tr>`;
+}
 
-  const html = `
-    <div class="mh">
-      <div class="mt">Log Field Visit</div>
-      <button class="mc" onclick="cm('fv-modal')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+// ── Log Visit Modal ────────────────────────────────────────────
+let _fvClientsCache = [];
+
+async function fvOpenLog(prefill) {
+  prefill = prefill || {};
+
+  if (!document.getElementById('m-fv-log')) {
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="m-fv-log" class="mov">
+      <div class="nx-modal nx-modal--m">
+        <div class="nx-modal-header">
+          <h3 class="nx-modal-title">Log Field Visit</h3>
+          <button class="nx-modal-close" onclick="cm('m-fv-log')">${NX.icon('x',16)}</button>
+        </div>
+        <div class="nx-modal-body" id="m-fv-log-body">
+          <div style="padding:28px;text-align:center;color:var(--fk-text-muted)">Loading…</div>
+        </div>
+        <div class="nx-modal-footer">
+          ${NX.button('Cancel',    { variant:'ghost',   onclick:"cm('m-fv-log')" })}
+          ${NX.button('Log Visit', { variant:'primary', attrs:'id="fv-log-save-btn"', onclick:'fvSubmitLog()' })}
+        </div>
+      </div>
+    </div>`);
+  }
+
+  om('m-fv-log');
+  const body = document.getElementById('m-fv-log-body');
+  body.innerHTML = `<div style="padding:28px;text-align:center;color:var(--fk-text-muted)">Loading clients…</div>`;
+
+  if (!_fvClientsCache.length) {
+    const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
+    _fvClientsCache = Array.isArray(data) ? data : [];
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  body.innerHTML = `
+    <div class="nx-field">
+      <label class="nx-label" for="fv-l-client">Client <span class="nx-req">*</span></label>
+      <select class="nx-select" id="fv-l-client">
+        <option value="">— Select client —</option>
+        ${_fvClientsCache.map(c=>`<option value="${c.id}" ${prefill.clientId===c.id?'selected':''}>${esc(c.full_name||'')} (${esc(c.client_code||'')})</option>`).join('')}
+      </select>
+      <div class="nx-error"></div>
     </div>
-    <div class="mb" style="display:flex;flex-direction:column;gap:12px">
-      <div class="g2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="fg">
-          <label class="fl">Visit Date *</label>
-          <input class="inp" type="date" id="fv-l-date" value="${today}">
-        </div>
-        <div class="fg">
-          <label class="fl">Time</label>
-          <input class="inp" type="time" id="fv-l-time" value="${now}">
-        </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="nx-field">
+        <label class="nx-label" for="fv-l-date">Visit Date <span class="nx-req">*</span></label>
+        <input class="nx-input" type="date" id="fv-l-date" value="${today}" max="${today}">
+        <div class="nx-error"></div>
       </div>
-      <div class="fg">
-        <label class="fl">Officer Name *</label>
-        <input class="inp" id="fv-l-officer" placeholder="Your name" value="${(typeof S !== 'undefined' && S.name) ? S.name : ''}">
-      </div>
-      <div class="fg">
-        <label class="fl">Client</label>
-        <select class="inp" id="fv-l-client" onchange="fvClientChange(this)">
-          <option value="">— Select Client —</option>
-          ${clientOpts}
+      <div class="nx-field">
+        <label class="nx-label" for="fv-l-outcome">Outcome <span class="nx-req">*</span></label>
+        <select class="nx-select" id="fv-l-outcome" onchange="fvOnOutcomeChange(this.value)">
+          ${Object.entries(_FV_OUTCOMES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}
         </select>
-      </div>
-      <div class="g2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="fg">
-          <label class="fl">Unit No.</label>
-          <input class="inp" id="fv-l-unit" placeholder="e.g. B-204">
-        </div>
-        <div class="fg">
-          <label class="fl">Project</label>
-          <input class="inp" id="fv-l-project" placeholder="Project name">
-        </div>
-      </div>
-      <div class="fg">
-        <label class="fl">Outcome *</label>
-        <select class="inp" id="fv-l-outcome">
-          <option value="contacted">Contacted</option>
-          <option value="payment_collected">Payment Collected</option>
-          <option value="promise_received">Promise Received</option>
-          <option value="not_found">Not Found</option>
-          <option value="refused">Refused</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label class="fl">Location</label>
-        <div class="fv-location-row" style="display:flex;gap:8px;align-items:flex-end">
-          <input class="inp" id="fv-l-location" placeholder="Address or area" style="flex:1">
-          <button class="btn btn-gh" onclick="fvGetGPS()" title="Get GPS location" style="white-space:nowrap;flex-shrink:0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-            GPS
-          </button>
-        </div>
-        <input type="hidden" id="fv-l-lat">
-        <input type="hidden" id="fv-l-lng">
-      </div>
-      <div class="fg">
-        <label class="fl">Notes</label>
-        <textarea class="inp" id="fv-l-notes" rows="3" placeholder="What happened during the visit?"></textarea>
-      </div>
-      <div class="fg">
-        <label class="fl">Photo (optional)</label>
-        <input class="inp" type="file" id="fv-l-photo" accept="image/*" capture="environment" onchange="fvPhotoPreview(this)">
-        <div id="fv-l-photo-prev" style="margin-top:6px"></div>
+        <div class="nx-error"></div>
       </div>
     </div>
-    <div class="mf" style="display:flex;justify-content:flex-end;gap:10px">
-      <button class="btn btn-gh" onclick="cm('fv-modal')">Cancel</button>
-      <button class="btn btn-g" onclick="fvSubmit()">Save Visit</button>
+    <div id="fv-l-conditional"></div>
+    <div class="nx-field">
+      <label class="nx-label" for="fv-l-address">Address Visited</label>
+      <input class="nx-input" type="text" id="fv-l-address" placeholder="Street, area, city">
+      <div class="nx-error"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="nx-field">
+        <label class="nx-label" for="fv-l-lat">GPS Latitude</label>
+        <div style="display:flex;gap:6px">
+          <input class="nx-input" type="number" id="fv-l-lat" step="any" placeholder="Latitude" style="flex:1">
+          ${NX.button('GPS', { variant:'ghost', size:'sm', onclick:'fvGetGPS()' })}
+        </div>
+      </div>
+      <div class="nx-field">
+        <label class="nx-label" for="fv-l-lng">GPS Longitude</label>
+        <input class="nx-input" type="number" id="fv-l-lng" step="any" placeholder="Longitude">
+      </div>
+    </div>
+    <div class="nx-field">
+      <label class="nx-label" for="fv-l-notes">Notes</label>
+      <textarea class="nx-textarea" id="fv-l-notes" rows="3" placeholder="Describe what happened during the visit…"></textarea>
+      <div class="nx-error"></div>
     </div>`;
 
-  let modal = document.getElementById('fv-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'fv-modal';
-    modal.className = 'mov';
-    modal.innerHTML = '<div class="md">' + html + '</div>';
-    document.body.appendChild(modal);
-  } else {
-    modal.querySelector('.md').innerHTML = html;
-  }
-  om('fv-modal');
+  fvOnOutcomeChange(document.getElementById('fv-l-outcome')?.value||'contacted');
 }
 
-function fvClientChange(sel) {
-  const opt = sel.options[sel.selectedIndex];
-  const name = opt.getAttribute('data-name') || '';
-  const unitEl = document.getElementById('fv-l-unit');
-  // If client has a linked unit in memory, could auto-fill — skip for now
+function fvOnOutcomeChange(outcome) {
+  const el = document.getElementById('fv-l-conditional');
+  if (!el) return;
+
+  if (outcome==='payment_collected') {
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="nx-field">
+          <label class="nx-label" for="fv-l-amount">Amount Collected (PKR) <span class="nx-req">*</span></label>
+          <input class="nx-input" type="number" id="fv-l-amount" min="1" placeholder="0">
+          <div class="nx-error"></div>
+        </div>
+        <div class="nx-field">
+          <label class="nx-label" for="fv-l-method">Payment Method</label>
+          <select class="nx-select" id="fv-l-method">
+            <option value="cash">Cash</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cheque">Cheque</option>
+          </select>
+        </div>
+      </div>`;
+  } else if (outcome==='promise_received') {
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="nx-field">
+          <label class="nx-label" for="fv-l-promise-amount">Promised Amount (PKR)</label>
+          <input class="nx-input" type="number" id="fv-l-promise-amount" min="0" placeholder="0">
+          <div class="nx-error"></div>
+        </div>
+        <div class="nx-field">
+          <label class="nx-label" for="fv-l-promise-date">Promise Date</label>
+          <input class="nx-input" type="date" id="fv-l-promise-date">
+          <div class="nx-error"></div>
+        </div>
+      </div>`;
+  } else {
+    el.innerHTML = '';
+  }
 }
 
 function fvGetGPS() {
-  if (!navigator.geolocation) {
-    toast('GPS not supported on this device', 'warn'); return;
-  }
-  const btn = document.querySelector('[onclick="fvGetGPS()"]');
-  if (btn) { btn.disabled = true; btn.textContent = 'Getting…'; }
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const latEl = document.getElementById('fv-l-lat');
-      const lngEl = document.getElementById('fv-l-lng');
-      const locEl = document.getElementById('fv-l-location');
-      if (latEl) latEl.value = lat;
-      if (lngEl) lngEl.value = lng;
-      if (locEl && !locEl.value) locEl.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Got it'; btn.style.color='var(--ok)'; }
-    },
-    err => {
-      toast('Could not get location: ' + err.message, 'warn');
-      if (btn) { btn.disabled = false; btn.textContent = 'GPS'; }
-    },
-    { timeout: 10000, enableHighAccuracy: true }
-  );
+  if (!navigator.geolocation) { notify.error('GPS not available in this browser.'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const latEl = document.getElementById('fv-l-lat');
+    const lngEl = document.getElementById('fv-l-lng');
+    if (latEl) latEl.value = pos.coords.latitude.toFixed(6);
+    if (lngEl) lngEl.value = pos.coords.longitude.toFixed(6);
+    if (typeof showToast==='function') showToast('GPS location captured','ok');
+  }, () => { notify.error('Could not get GPS location. Please enter manually.'); });
 }
 
-function fvPhotoPreview(input) {
-  const prev = document.getElementById('fv-l-photo-prev');
-  if (!prev || !input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    prev.innerHTML = `<img src="${e.target.result}" style="max-height:80px;border-radius:6px;border:1px solid var(--line)">`;
-  };
-  reader.readAsDataURL(input.files[0]);
-}
+async function fvSubmitLog() {
+  const clientId = document.getElementById('fv-l-client')?.value;
+  const date     = document.getElementById('fv-l-date')?.value;
+  const outcome  = document.getElementById('fv-l-outcome')?.value;
+  const address  = document.getElementById('fv-l-address')?.value?.trim()||null;
+  const lat      = parseFloat(document.getElementById('fv-l-lat')?.value||'')||null;
+  const lng      = parseFloat(document.getElementById('fv-l-lng')?.value||'')||null;
+  const notes    = document.getElementById('fv-l-notes')?.value?.trim()||null;
 
-async function fvSubmit() {
-  const co = gco();
-  if (!co) return;
+  if (!clientId) { notify.error('Please select a client.'); return; }
+  if (!date)     { notify.error('Visit date is required.'); return; }
+  if (!outcome)  { notify.error('Please select an outcome.'); return; }
 
-  const officerEl  = document.getElementById('fv-l-officer');
-  const dateEl     = document.getElementById('fv-l-date');
-  const timeEl     = document.getElementById('fv-l-time');
-  const clientEl   = document.getElementById('fv-l-client');
-  const unitEl     = document.getElementById('fv-l-unit');
-  const projectEl  = document.getElementById('fv-l-project');
-  const outcomeEl  = document.getElementById('fv-l-outcome');
-  const locationEl = document.getElementById('fv-l-location');
-  const latEl      = document.getElementById('fv-l-lat');
-  const lngEl      = document.getElementById('fv-l-lng');
-  const notesEl    = document.getElementById('fv-l-notes');
+  const amtEl    = document.getElementById('fv-l-amount');
+  const methodEl = document.getElementById('fv-l-method');
+  const promAmt  = document.getElementById('fv-l-promise-amount');
+  const promDate = document.getElementById('fv-l-promise-date');
 
-  const officerName = (officerEl?.value || '').trim();
-  const visitDate   = dateEl?.value || '';
+  const collected = outcome==='payment_collected' ? parseFloat(amtEl?.value||0)||0 : null;
+  if (outcome==='payment_collected' && !(collected>0)) { notify.error('Enter the amount collected.'); return; }
 
-  if (!officerName) { toast('Officer name is required', 'err'); officerEl?.focus(); return; }
-  if (!visitDate)   { toast('Visit date is required', 'err'); dateEl?.focus(); return; }
+  const btn = document.getElementById('fv-log-save-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Saving…'; }
 
-  const clientId   = clientEl?.value || '';
-  const clientName = clientEl
-    ? (clientEl.options[clientEl.selectedIndex]?.getAttribute('data-name') || '')
-    : '';
-
-  const data = {
-    officer_id:    (typeof S !== 'undefined' && S.userId) ? S.userId : null,
-    officer_name:  officerName,
-    client_id:     clientId || null,
-    client_name:   clientName || null,
-    unit_id:       null,
-    unit_no:       unitEl?.value?.trim() || null,
-    project_name:  projectEl?.value?.trim() || null,
-    visit_date:    visitDate,
-    visit_time:    timeEl?.value || null,
-    latitude:      latEl?.value ? parseFloat(latEl.value) : null,
-    longitude:     lngEl?.value ? parseFloat(lngEl.value) : null,
-    location_name: locationEl?.value?.trim() || null,
-    outcome:       outcomeEl?.value || 'other',
-    notes:         notesEl?.value?.trim() || null,
-    photo_url:     null,
-  };
-
-  // Photo upload if present
-  const photoInput = document.getElementById('fv-l-photo');
-  if (photoInput?.files[0]) {
-    const file = photoInput.files[0];
-    const ext  = file.name.split('.').pop();
-    const path = `${co}/field-visits/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('rms-files').upload(path, file, { upsert: true });
-    if (!upErr) {
-      const { data: pub } = supabase.storage.from('rms-files').getPublicUrl(path);
-      data.photo_url = pub?.publicUrl || null;
-    }
-  }
-
-  const saveBtn = document.querySelector('#fv-modal .btn-g');
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
-
-  const { data: res, error } = await supabase.rpc('log_field_visit', {
-    p_company_id: co,
-    p_data: data,
-  });
-
-  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Visit'; }
-
-  if (error || (res && res.success === false)) {
-    toast(error?.message || res?.error || 'Failed to save visit', 'err'); return;
-  }
-
-  toast('Visit logged successfully', 'ok');
-  cm('fv-modal');
-  await fvLoad();
-}
-
-// ── Offline Call Log Queue ─────────────────────────────────
-// Offline queuing for call logs — syncs when back online.
-const _FV_QUEUE_KEY = 'rms.offline.calllog';
-
-function fvQueueCallLog(data) {
   try {
-    const q = JSON.parse(localStorage.getItem(_FV_QUEUE_KEY) || '[]');
-    q.push({ ...data, _queued_at: Date.now() });
-    localStorage.setItem(_FV_QUEUE_KEY, JSON.stringify(q));
-  } catch (e) { /* ignore */ }
-}
-
-async function fvSyncOfflineQueue() {
-  const co = gco();
-  if (!co || !navigator.onLine) return;
-  let q;
-  try { q = JSON.parse(localStorage.getItem(_FV_QUEUE_KEY) || '[]'); } catch (e) { return; }
-  if (!q.length) return;
-
-  const remaining = [];
-  for (const item of q) {
-    const { _queued_at, ...payload } = item;
-    const { error } = await supabase.rpc('create_contact_log', { p_company_id: co, p_data: payload });
-    if (error) remaining.push(item);
+    const { data, error } = await supabase.rpc('log_field_visit', {
+      p_company_id:        S.cid,
+      p_client_id:         clientId,
+      p_visit_date:        date,
+      p_outcome:           outcome,
+      p_address:           address,
+      p_gps_lat:           lat,
+      p_gps_lng:           lng,
+      p_notes:             notes,
+      p_amount_collected:  collected,
+      p_payment_method:    outcome==='payment_collected' ? (methodEl?.value||null) : null,
+      p_promised_amount:   outcome==='promise_received'  ? parseFloat(promAmt?.value||0)||null : null,
+      p_promise_date:      outcome==='promise_received'  ? (promDate?.value||null) : null,
+      p_officer_name:      S.name||null
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error||'Failed');
+    cm('m-fv-log');
+    if (typeof showToast==='function') showToast('Field visit logged successfully','ok');
+    await _fvLoad();
+  } catch(e) {
+    notify.error(e.message||'Failed to log visit');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Log Visit'; }
   }
-  localStorage.setItem(_FV_QUEUE_KEY, JSON.stringify(remaining));
-  if (remaining.length < q.length) {
-    toast(`${q.length - remaining.length} offline call log(s) synced`, 'ok');
-  }
 }
-
-// Run sync on reconnect
-window.addEventListener('online', fvSyncOfflineQueue);

@@ -1,129 +1,258 @@
-// ══ RECOVERY CAMPAIGNS (Module 1.2) ═══════════════════════════════
-// Create + manage recovery drives: assign clients, track collection vs
-// target, see officer performance, calls and promises within the window.
-// Backend: supabase/migrations/20260525_module1_2_recovery_campaigns.sql
-// RPCs: list_campaigns, get_campaign_detail, create_campaign,
-//       update_campaign, delete_campaign, close_campaign,
-//       assign_clients_to_campaign, remove_client_from_campaign.
+// ══ RECOVERY CAMPAIGNS MODULE ══════════════════════════════════
 
-let _camList         = [];
-let _camFilter       = 'active';   // 'active' | 'closed' | 'all'
-let _camCurId        = null;       // when set, render detail view
-let _camDetail       = null;
-let _camClientsCache = null;       // list_clients_lookup result
-let _camAssignSel    = new Set();
-let _camAssignSearch = '';
+let _camList        = [];
+let _camFilter      = 'active';
+let _camCurId       = null;
+let _camDetail      = null;
+let _camClientsCache= [];
+let _camAssignSel   = [];
 
-// ─── Entry point (router calls rCampaigns) ────────────────────────
+// ── Entry point ────────────────────────────────────────────────
 async function rCampaigns() {
   const pg = document.getElementById('pg-campaigns');
   if (!pg) return;
-  if (_camCurId) { await _camRenderDetail(pg); return; }
 
-  pg.innerHTML = `<div class="ani">
-    <div class="ph">
-      <div class="ph-l">
-        <h2>Recovery Campaigns</h2>
-        <p>Run targeted recovery drives — assign clients, track collection vs target, see officer performance.</p>
-      </div>
-      <div class="ph-r" style="display:flex;gap:7px;flex-wrap:wrap">
-        <button class="btn btn-g btn-sm"  onclick="_camOpenCreate()">+ New Campaign</button>
-        <button class="btn btn-gh btn-sm" onclick="_camLoad()">↺ Refresh</button>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-      ${['active','closed','all'].map(f => {
-        const active = _camFilter === f;
-        return `<button class="btn btn-xs" style="padding:5px 14px;border-radius:20px;border:1px solid ${active?'var(--brand)':'var(--line)'};background:${active?'var(--brand)':'transparent'};color:${active?'#fff':'var(--t2)'};font-weight:700;cursor:pointer" onclick="_camSetFilter('${f}')">${f[0].toUpperCase()+f.slice(1)}</button>`;
-      }).join('')}
-    </div>
-
-    <div id="cam-list-body"><div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading campaigns…</div></div>
-  </div>`;
-
-  pg.insertAdjacentHTML('beforeend', _camCreateModalHTML());
-  pg.insertAdjacentHTML('beforeend', _camAssignModalHTML());
-
-  await _camLoad();
+  if (_camCurId) {
+    await _camRenderDetail(pg);
+    return;
+  }
+  _camRenderList(pg);
+  await _camLoadList();
 }
 
-function _camSetFilter(f) { _camFilter = f; _camRenderList(); rCampaigns(); }
+// ── List view ──────────────────────────────────────────────────
+function _camRenderList(pg) {
+  pg.innerHTML = `<div class="ani">
+    ${NX.pageHeader('Recovery Campaigns',
+      NX.button('New Campaign', { variant:'primary', icon:'plus', onclick:'camOpenCreate()' }),
+      { icon:'megaphone', tone:'', sub:'Drive collection with targeted recovery pushes' })}
+    <div id="cam-tabs" style="margin-bottom:16px"></div>
+    <div id="cam-grid"></div>
+  </div>`;
+}
 
-async function _camLoad() {
-  const body = document.getElementById('cam-list-body');
-  if (!body) return;
-  body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading campaigns…</div>';
+async function _camLoadList() {
+  const gridEl = document.getElementById('cam-grid');
+  if (!gridEl) return;
+  gridEl.innerHTML = `<div style="padding:32px;text-align:center;color:var(--fk-text-muted)">Loading…</div>`;
+
   try {
-    const { data, error } = await supabase.rpc('list_campaigns', { p_company_id: S.cid });
+    const { data, error } = await supabase.rpc('get_campaigns_list', { p_company_id: S.cid });
     if (error) throw error;
     _camList = Array.isArray(data) ? data : [];
-    _camRenderList();
+    _camRenderTabs();
+    _camRenderGrid();
   } catch(e) {
-    body.innerHTML = `<div class="card"><div class="empty">
-      <div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-      <div class="et">Could not load campaigns</div>
-      <div class="es">${esc(e.message || 'Error')}</div>
-    </div></div>`;
+    if (gridEl) gridEl.innerHTML = NX.card(NX.empty({ icon:'x-circle', tone:'danger', message: esc(e.message||'Failed to load campaigns') }));
   }
 }
 
-function _camRenderList() {
-  const body = document.getElementById('cam-list-body');
-  if (!body) return;
-  let rows = _camList;
-  if (_camFilter !== 'all') rows = rows.filter(c => c.status === _camFilter);
+function _camFiltered() {
+  if (_camFilter==='active') return _camList.filter(c=>c.status==='active'||c.status==='draft');
+  if (_camFilter==='closed') return _camList.filter(c=>c.status==='closed'||c.status==='completed'||c.status==='cancelled');
+  return _camList;
+}
 
-  if (!rows.length) {
-    body.innerHTML = `<div class="card"><div class="empty">
-      <div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>
-      <div class="et">No ${_camFilter==='all'?'':_camFilter+' '}campaigns yet</div>
-      <div class="es">Create a recovery drive to assign clients, track progress, and compare officer performance.</div>
-      <button class="btn btn-g btn-sm" style="margin-top:12px" onclick="_camOpenCreate()">+ Create First Campaign</button>
-    </div></div>`;
+function _camRenderTabs() {
+  const el = document.getElementById('cam-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({
+    tabs: [
+      { k:'active', label:'Active',    count: _camList.filter(c=>c.status==='active'||c.status==='draft').length },
+      { k:'closed', label:'Completed', count: _camList.filter(c=>c.status==='closed'||c.status==='completed'||c.status==='cancelled').length },
+      { k:'all',    label:'All',       count: _camList.length },
+    ],
+    active: _camFilter,
+    onSelect: "camSetFilter('%k')"
+  });
+}
+
+function camSetFilter(f) {
+  _camFilter = f;
+  _camRenderTabs();
+  _camRenderGrid();
+}
+
+function _camRenderGrid() {
+  const el = document.getElementById('cam-grid');
+  if (!el) return;
+  const list = _camFiltered();
+
+  if (!list.length) {
+    el.innerHTML = NX.card(NX.empty({
+      icon: 'megaphone',
+      message: _camFilter==='active' ? 'No active campaigns right now'
+             : _camFilter==='closed' ? 'No completed campaigns yet'
+             : 'No campaigns created yet',
+      action: NX.button('Create First Campaign', { variant:'primary', icon:'plus', onclick:'camOpenCreate()' })
+    }));
     return;
   }
 
-  body.innerHTML = rows.map(c => _camCardHTML(c)).join('');
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px">
+    ${list.map(_camCardHTML).join('')}
+  </div>`;
 }
 
 function _camCardHTML(c) {
-  const pct       = Number(c.progress_pct || 0);
-  const collected = Number(c.collected || 0);
-  const target    = Number(c.target_amount || 0);
-  const barColor  = pct >= 100 ? '#22c55e' : pct >= 60 ? '#3b82f6' : pct >= 30 ? '#f59e0b' : '#ef4444';
-  const statusCfg = {
-    active:    { bg:'rgba(34,197,94,.12)',  color:'#16a34a', lbl:'Active' },
-    closed:    { bg:'rgba(59,130,246,.12)', color:'#2563eb', lbl:'Closed' },
-    cancelled: { bg:'rgba(239,68,68,.12)',  color:'#dc2626', lbl:'Cancelled' }
-  }[c.status] || { bg:'rgba(108,99,255,.12)', color:'var(--brand)', lbl: c.status };
+  const progress = Math.min(100, Math.round(
+    (Number(c.collected_amount||0) / Math.max(1, Number(c.target_amount||1))) * 100
+  ));
+  const statusBadge = {
+    active:    NX.badge('Active',    'success', {dot:true}),
+    closed:    NX.badge('Completed', 'info',    {dot:true}),
+    completed: NX.badge('Completed', 'info',    {dot:true}),
+    cancelled: NX.badge('Cancelled', '',        {dot:true}),
+    draft:     NX.badge('Draft',     '',        {dot:true}),
+  }[c.status] || NX.badge(c.status||'—', '');
 
-  return `<div class="card" style="margin-bottom:12px;cursor:pointer" onclick="_camOpenDetail('${c.id}')">
-    <div class="cb" style="padding:14px 16px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        <div style="min-width:0;flex:1">
-          <div style="font-size:15px;font-weight:800;color:var(--t1);margin-bottom:3px">${esc(c.name)}</div>
-          <div style="font-size:11px;color:var(--t3)">${fD(c.start_date)} → ${fD(c.end_date)} · ${c.clients_count||0} clients</div>
-          ${c.description ? `<div style="font-size:12px;color:var(--t2);margin-top:4px">${esc(c.description)}</div>` : ''}
-        </div>
-        <span style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;background:${statusCfg.bg};color:${statusCfg.color};white-space:nowrap">${statusCfg.lbl.toUpperCase()}</span>
-      </div>
+  const daysLeft = c.end_date
+    ? Math.round((new Date(c.end_date) - new Date()) / 86400000)
+    : null;
+  const timeStr = daysLeft===null ? '' :
+    daysLeft>0  ? `<span style="font-size:11px;color:var(--fk-text-muted)">${daysLeft}d left</span>`
+  : daysLeft===0? `<span style="font-size:11px;color:var(--fk-warning)">Ends today</span>`
+                : `<span style="font-size:11px;color:var(--fk-danger)">Ended ${Math.abs(daysLeft)}d ago</span>`;
 
-      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--t3);margin-bottom:6px">
-        <span><b style="color:${barColor};font-size:13px">${pct}%</b> &nbsp;PKR ${fM(collected)} / ${fM(target)}</span>
+  return `<div class="nx-card nx-card--hover" onclick="camOpenDetail('${c.id}')" style="cursor:pointer">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-weight:600;font-size:14px;color:var(--fk-text)">${esc(c.campaign_name||'—')}</div>
+      ${statusBadge}
+    </div>
+    ${c.description ? `<p style="font-size:12px;color:var(--fk-text-muted);margin:0 0 10px;line-height:1.5">${esc(c.description.substring(0,100))}${c.description.length>100?'…':''}</p>` : ''}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      ${NX.kpi({ label:'Target',    value: 'PKR '+fM(c.target_amount||0),    inline:true })}
+      ${NX.kpi({ label:'Collected', value: 'PKR '+fM(c.collected_amount||0), inline:true })}
+      ${NX.kpi({ label:'Clients',   value: c.client_count||0,                inline:true })}
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:11px;color:var(--fk-text-muted)">Progress</span>
+        <span style="font-size:11px;font-weight:600;color:${progress>=100?'var(--fk-success)':progress>=50?'var(--fk-warning)':'var(--fk-danger)'}">${progress}%</span>
       </div>
-      <div style="height:7px;background:var(--line);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${Math.min(100,pct)}%;background:${barColor};border-radius:4px;transition:width .3s"></div>
+      <div style="height:5px;border-radius:100px;background:var(--fk-border);overflow:hidden">
+        <div style="height:100%;border-radius:100px;background:${progress>=100?'var(--fk-success)':progress>=50?'var(--fk-warning)':'var(--fk-primary)'};width:${progress}%;transition:width .4s ease"></div>
       </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      ${c.start_date?`<span style="font-size:11px;color:var(--fk-text-muted)">${fD(c.start_date)}${c.end_date?' → '+fD(c.end_date):''}</span>`:'<span></span>'}
+      ${timeStr}
     </div>
   </div>`;
 }
 
-// ─── Detail view ─────────────────────────────────────────────────
-function _camOpenDetail(id) {
+// ── Campaign Detail ────────────────────────────────────────────
+async function camOpenDetail(id) {
   _camCurId = id;
   const pg = document.getElementById('pg-campaigns');
-  if (pg) _camRenderDetail(pg);
+  if (!pg) return;
+
+  pg.innerHTML = `<div class="ani">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <button class="nx-btn nx-btn--ghost nx-btn--sm" onclick="_camBackToList()">${NX.icon('arrow-left',14)} Campaigns</button>
+    </div>
+    <div style="padding:32px;text-align:center;color:var(--fk-text-muted)">Loading campaign…</div>
+  </div>`;
+
+  await _camRenderDetail(pg);
+}
+
+async function _camRenderDetail(pg) {
+  try {
+    const [{ data: det, error: e1 }, { data: clients }, { data: officers }] = await Promise.all([
+      supabase.rpc('get_campaign_detail',  { p_id: _camCurId, p_company_id: S.cid }),
+      supabase.rpc('get_campaign_clients', { p_id: _camCurId, p_company_id: S.cid }),
+      supabase.rpc('get_campaign_officers',{ p_id: _camCurId, p_company_id: S.cid })
+    ]);
+    if (e1) throw e1;
+    _camDetail = det;
+
+    const c = det;
+    const progress = Math.min(100, Math.round((Number(c.collected_amount||0)/Math.max(1,Number(c.target_amount||1)))*100));
+    const statusBadge = {
+      active:    NX.badge('Active',    'success', {dot:true}),
+      closed:    NX.badge('Completed', 'info',    {dot:true}),
+      completed: NX.badge('Completed', 'info',    {dot:true}),
+      cancelled: NX.badge('Cancelled', '',        {dot:true}),
+      draft:     NX.badge('Draft',     '',        {dot:true}),
+    }[c.status] || NX.badge(c.status||'—', '');
+
+    pg.innerHTML = `<div class="ani">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="nx-btn nx-btn--ghost nx-btn--sm" onclick="_camBackToList()">${NX.icon('arrow-left',14)} Campaigns</button>
+        <span style="color:var(--fk-border)">|</span>
+        <span style="font-size:13px;font-weight:600;color:var(--fk-text)">${esc(c.campaign_name||'Campaign')}</span>
+        ${statusBadge}
+        <div style="margin-left:auto;display:flex;gap:8px">
+          ${c.status==='active'||c.status==='draft' ? NX.button('Assign Clients',  { variant:'secondary', size:'sm', icon:'users',    onclick:"camOpenAssign('"+_camCurId+"')" }) : ''}
+          ${c.status==='active'||c.status==='draft' ? NX.button('Close Campaign',  { variant:'ghost',     size:'sm',                   onclick:"camCloseCampaign('"+_camCurId+"')" }) : ''}
+        </div>
+      </div>
+
+      ${c.description?`<p style="font-size:13px;color:var(--fk-text-muted);margin:0 0 16px">${esc(c.description)}</p>`:''}
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+        ${NX.kpi({ label:'Target',    value: 'PKR '+fM(c.target_amount||0),    dot:'info' })}
+        ${NX.kpi({ label:'Collected', value: 'PKR '+fM(c.collected_amount||0), dot:'success' })}
+        ${NX.kpi({ label:'Progress',  value: progress+'%',                      dot: progress>=100?'success':progress>=50?'warning':'danger' })}
+        ${NX.kpi({ label:'Clients',   value: (clients||[]).length,              dot:'primary' })}
+        ${NX.kpi({ label:'Start',     value: c.start_date?fD(c.start_date):'—',dot:'' })}
+        ${NX.kpi({ label:'End',       value: c.end_date?fD(c.end_date):'Open', dot:'' })}
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
+        ${NX.card(`
+          <table class="nx-table">
+            <thead><tr>
+              <th>Client</th><th class="num">Outstanding</th><th class="num">Collected</th><th>Status</th>
+            </tr></thead>
+            <tbody>${!(clients||[]).length
+              ? `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--fk-text-muted)">No clients assigned yet</td></tr>`
+              : (clients||[]).map(cl=>`<tr>
+              <td>
+                <div style="font-weight:600;font-size:13px">${esc(cl.client_name||'—')}</div>
+                <div style="font-size:11px;color:var(--fk-text-muted)">${esc(cl.phone_primary||'—')}</div>
+              </td>
+              <td class="num" style="font-weight:600;font-size:13px">PKR ${fM(cl.outstanding_amount||0)}</td>
+              <td class="num" style="font-size:12px;color:var(--fk-success)">PKR ${fM(cl.collected_amount||0)}</td>
+              <td>${{
+                cleared:    NX.badge('Cleared','success'),
+                partial:    NX.badge('Partial','warning'),
+                no_contact: NX.badge('No Contact',''),
+                promised:   NX.badge('Promised','info'),
+                refused:    NX.badge('Refused','danger'),
+              }[cl.status]||NX.badge(cl.status||'Pending','')}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>`,
+          { flush:true, header:{ icon:'users', title:'Assigned Clients ('+(clients||[]).length+')' } })}
+
+        ${NX.card(`
+          <table class="nx-table">
+            <thead><tr>
+              <th>Officer</th><th class="num">Contacted</th><th class="num">Collected</th>
+            </tr></thead>
+            <tbody>${!(officers||[]).length
+              ? `<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--fk-text-muted)">No officer activity yet</td></tr>`
+              : (officers||[]).map(o=>`<tr>
+              <td>
+                <div style="font-weight:600;font-size:13px">${esc(o.officer_name||o.username||'—')}</div>
+                <div style="font-size:11px;color:var(--fk-text-muted)">@${esc(o.username||'')}</div>
+              </td>
+              <td class="num" style="font-weight:600">${o.contacts_made||0}</td>
+              <td class="num" style="color:var(--fk-success);font-weight:600">PKR ${fM(o.amount_collected||0)}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>`,
+          { flush:true, header:{ icon:'users', title:'Officer Activity' } })}
+      </div>
+    </div>`;
+  } catch(e) {
+    pg.innerHTML = `<div>
+      <button class="nx-btn nx-btn--ghost nx-btn--sm" onclick="_camBackToList()" style="margin-bottom:16px">${NX.icon('arrow-left',14)} Back</button>
+      ${NX.card(NX.empty({ icon:'x-circle', tone:'danger', message: esc(e.message||'Failed to load campaign detail') }))}
+    </div>`;
+  }
 }
 
 function _camBackToList() {
@@ -132,346 +261,224 @@ function _camBackToList() {
   rCampaigns();
 }
 
-async function _camRenderDetail(pg) {
-  pg.innerHTML = `<div class="ani">
-    <div class="ph">
-      <div class="ph-l"><button class="btn btn-gh btn-sm" onclick="_camBackToList()">← Campaigns</button></div>
-    </div>
-    <div id="cam-det-body" style="margin-top:8px"><div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading campaign…</div></div>
-  </div>`;
-  pg.insertAdjacentHTML('beforeend', _camAssignModalHTML());
-
-  try {
-    const { data, error } = await supabase.rpc('get_campaign_detail', {
-      p_id: _camCurId, p_company_id: S.cid
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'Failed');
-    _camDetail = data;
-    _camRenderDetailBody();
-  } catch(e) {
-    const body = document.getElementById('cam-det-body');
-    if (body) body.innerHTML = `<div class="card"><div class="empty">
-      <div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-      <div class="et">Could not load campaign</div>
-      <div class="es">${esc(e.message || 'Error')}</div>
-    </div></div>`;
+// ── Create Campaign ────────────────────────────────────────────
+function camOpenCreate() {
+  if (!document.getElementById('m-cam-create')) {
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="m-cam-create" class="mov">
+      <div class="nx-modal nx-modal--m">
+        <div class="nx-modal-header">
+          <h3 class="nx-modal-title">New Recovery Campaign</h3>
+          <button class="nx-modal-close" onclick="cm('m-cam-create')">${NX.icon('x',16)}</button>
+        </div>
+        <div class="nx-modal-body">
+          <div class="nx-field">
+            <label class="nx-label" for="cam-c-name">Campaign Name <span class="nx-req">*</span></label>
+            <input class="nx-input" type="text" id="cam-c-name" placeholder="e.g. June Recovery Drive">
+            <div class="nx-error"></div>
+          </div>
+          <div class="nx-field">
+            <label class="nx-label" for="cam-c-desc">Description</label>
+            <textarea class="nx-textarea" id="cam-c-desc" rows="2" placeholder="Campaign goal and approach…"></textarea>
+            <div class="nx-error"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="nx-field">
+              <label class="nx-label" for="cam-c-start">Start Date <span class="nx-req">*</span></label>
+              <input class="nx-input" type="date" id="cam-c-start">
+              <div class="nx-error"></div>
+            </div>
+            <div class="nx-field">
+              <label class="nx-label" for="cam-c-end">End Date</label>
+              <input class="nx-input" type="date" id="cam-c-end">
+              <div class="nx-error"></div>
+            </div>
+          </div>
+          <div class="nx-field">
+            <label class="nx-label" for="cam-c-target">Collection Target (PKR)</label>
+            <input class="nx-input" type="number" id="cam-c-target" min="0" placeholder="Leave blank for open-ended">
+            <div class="nx-error"></div>
+          </div>
+          <div class="nx-field">
+            <label class="nx-label" for="cam-c-type">Campaign Type</label>
+            <select class="nx-select" id="cam-c-type">
+              <option value="overdue">Overdue Recovery</option>
+              <option value="upcoming">Pre-Due Reminder</option>
+              <option value="broken_promises">Broken Promises Follow-up</option>
+              <option value="high_risk">High-Risk Clients</option>
+              <option value="general">General</option>
+            </select>
+            <div class="nx-error"></div>
+          </div>
+        </div>
+        <div class="nx-modal-footer">
+          ${NX.button('Cancel',          { variant:'ghost',   onclick:"cm('m-cam-create')" })}
+          ${NX.button('Create Campaign', { variant:'primary', attrs:'id="cam-create-btn"', onclick:'camSubmitCreate()' })}
+        </div>
+      </div>
+    </div>`);
   }
+
+  document.getElementById('cam-c-name').value   = '';
+  document.getElementById('cam-c-desc').value   = '';
+  document.getElementById('cam-c-end').value    = '';
+  document.getElementById('cam-c-target').value = '';
+  document.getElementById('cam-c-start').value  = new Date().toISOString().split('T')[0];
+  om('m-cam-create');
 }
 
-function _camRenderDetailBody() {
-  const body = document.getElementById('cam-det-body');
-  if (!body || !_camDetail) return;
-  const c        = _camDetail.campaign;
-  const m        = _camDetail.metrics || {};
-  const clients  = Array.isArray(_camDetail.clients) ? _camDetail.clients : [];
-  const officers = Array.isArray(_camDetail.officer_performance) ? _camDetail.officer_performance : [];
-  const pct      = Number(m.progress_pct || 0);
-  const barColor = pct >= 100 ? '#22c55e' : pct >= 60 ? '#3b82f6' : pct >= 30 ? '#f59e0b' : '#ef4444';
-  const isOpen   = c.status === 'active';
-  const isA      = S.role === 'admin' || S.role === 'owner';
+async function camSubmitCreate() {
+  const name   = document.getElementById('cam-c-name')?.value?.trim();
+  const desc   = document.getElementById('cam-c-desc')?.value?.trim()||null;
+  const start  = document.getElementById('cam-c-start')?.value;
+  const end    = document.getElementById('cam-c-end')?.value||null;
+  const target = parseFloat(document.getElementById('cam-c-target')?.value||0)||null;
+  const type   = document.getElementById('cam-c-type')?.value||'general';
 
-  const headerActions = isA ? `
-    ${isOpen ? `<button class="btn btn-g btn-sm" onclick="_camOpenAssign()">+ Assign Clients</button>` : ''}
-    ${isOpen ? `<button class="btn btn-gh btn-sm" onclick="_camClose()">Close Campaign</button>` : ''}
-    <button class="btn btn-gh btn-sm" style="color:#ef4444" onclick="_camDelete()">Delete</button>
-  ` : '';
-
-  body.innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-      <div style="min-width:0;flex:1">
-        <h2 style="margin:0 0 4px;font-size:22px;font-weight:800">${esc(c.name)}</h2>
-        <div style="font-size:12px;color:var(--t3)">${fD(c.start_date)} → ${fD(c.end_date)} · status: <b>${esc(c.status)}</b>${c.closed_at?` · closed ${fD(c.closed_at)}`:''}</div>
-        ${c.description ? `<div style="font-size:13px;color:var(--t2);margin-top:6px">${esc(c.description)}</div>` : ''}
-        ${c.outcome_summary ? `<div style="font-size:12px;color:var(--t2);margin-top:6px;padding:8px 10px;background:var(--canvas);border-radius:6px"><b>Outcome:</b> ${esc(c.outcome_summary)}</div>` : ''}
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${headerActions}</div>
-    </div>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-      ${_camMetricCard('Target',           'PKR '+fM(m.target_amount||0), 'var(--t1)')}
-      ${_camMetricCard('Collected',        'PKR '+fM(m.collected||0),     barColor)}
-      ${_camMetricCard('Progress',         pct+'%',                       barColor)}
-      ${_camMetricCard('Clients Assigned', (m.clients_count||0)+'',       'var(--brand)')}
-      ${_camMetricCard('Calls Made',       (m.calls_made||0)+'',          '#3b82f6')}
-      ${_camMetricCard('Promises Kept',    (m.promises_kept||0)+' / '+(m.promises_total||0), '#22c55e')}
-    </div>
-
-    <div class="card" style="margin-bottom:14px"><div class="cb">
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px">
-        <span style="color:var(--t3)">Collected vs Target</span>
-        <span style="color:${barColor};font-weight:800">${pct}%</span>
-      </div>
-      <div style="height:10px;background:var(--line);border-radius:5px;overflow:hidden">
-        <div style="height:100%;width:${Math.min(100,pct)}%;background:${barColor};border-radius:5px;transition:width .3s"></div>
-      </div>
-    </div></div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
-      <div class="card">
-        <div class="ch"><h3>Assigned Clients (${clients.length})</h3></div>
-        <div class="cb" style="padding:0">${clients.length ? `
-          <div class="tw"><table class="t" style="width:100%">
-            <thead><tr><th>Client</th><th class="hide-sm">Phone</th><th class="r">Contributed</th>${isOpen&&isA?'<th style="width:1%"></th>':''}</tr></thead>
-            <tbody>${clients.map(cl => `<tr>
-              <td style="cursor:pointer" onclick="openClientDetail('${cl.client_id}')">
-                <div style="font-weight:700;font-size:13px">${esc(cl.full_name||'—')}</div>
-                <div style="font-size:10px;color:var(--t3);font-family:monospace">${esc(cl.client_code||'—')}</div>
-              </td>
-              <td class="hide-sm" style="font-size:12px;color:var(--t2)">${esc(cl.phone_primary||'—')}</td>
-              <td class="r" style="font-size:12px;font-weight:700;color:${Number(cl.contributed||0)>0?'var(--ok)':'var(--t3)'}">${Number(cl.contributed||0)>0?'PKR '+fM(cl.contributed):'—'}</td>
-              ${isOpen&&isA?`<td><button class="btn btn-gh btn-xs" title="Remove from campaign" onclick="event.stopPropagation();_camRemoveClient('${cl.client_id}')">✕</button></td>`:''}
-            </tr>`).join('')}</tbody>
-          </table></div>` : `<div class="empty" style="padding:24px">
-            <div class="es">No clients assigned yet.</div>
-            ${isOpen&&isA?`<button class="btn btn-g btn-sm" style="margin-top:8px" onclick="_camOpenAssign()">+ Assign Clients</button>`:''}
-          </div>`}
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="ch"><h3>Officer Performance</h3></div>
-        <div class="cb" style="padding:0">${officers.length ? `
-          <div class="tw"><table class="t" style="width:100%">
-            <thead><tr><th>Officer</th><th class="r">Payments</th><th class="r">Collected</th><th class="r hide-sm">Calls</th></tr></thead>
-            <tbody>${officers.map(o => `<tr>
-              <td>
-                <div style="font-weight:700;font-size:13px">${esc(o.officer_name||o.username||'—')}</div>
-                <div style="font-size:10px;color:var(--t3);font-family:monospace">@${esc(o.username||'')}</div>
-              </td>
-              <td class="r" style="font-size:12px;font-weight:700">${o.payment_count||0}</td>
-              <td class="r" style="font-size:12px;font-weight:700;color:var(--ok)">PKR ${fM(o.amount_collected||0)}</td>
-              <td class="r hide-sm" style="font-size:12px">${o.calls_made||0}</td>
-            </tr>`).join('')}</tbody>
-          </table></div>` : `<div class="empty" style="padding:24px"><div class="es">No officer activity in this window yet.</div></div>`}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function _camMetricCard(label, value, color) {
-  return `<div style="flex:1;min-width:130px;padding:12px 14px;border-radius:10px;background:var(--surface);border:1px solid var(--line);border-top:3px solid ${color}">
-    <div style="font-size:11px;color:var(--t3);font-weight:600;letter-spacing:.4px;text-transform:uppercase">${label}</div>
-    <div style="font-size:18px;font-weight:800;color:${color};margin-top:3px">${value}</div>
-  </div>`;
-}
-
-// ─── Create modal ────────────────────────────────────────────────
-function _camCreateModalHTML() {
-  const today = new Date().toISOString().slice(0,10);
-  const end90 = new Date(Date.now() + 86400000*90).toISOString().slice(0,10);
-  return `<div id="cam-create-modal" class="mo" style="display:none" onclick="if(event.target===this)_camCloseCreate()">
-    <div class="mo-box" style="max-width:520px">
-      <div class="mo-hd"><span>New Recovery Campaign</span><button class="mo-cl" onclick="_camCloseCreate()">✕</button></div>
-      <div class="mo-bd">
-        <div class="fg"><label class="fl">Name *</label>
-          <input id="cam-name" class="fi" placeholder="e.g. Q3 2026 Recovery Drive"></div>
-        <div class="fg"><label class="fl">Description</label>
-          <textarea id="cam-desc" class="fi" rows="2" placeholder="Optional context — purpose, scope, etc."></textarea></div>
-        <div style="display:flex;gap:10px">
-          <div class="fg" style="flex:1"><label class="fl">Start Date *</label>
-            <input id="cam-start" type="date" class="fi" value="${today}"></div>
-          <div class="fg" style="flex:1"><label class="fl">End Date *</label>
-            <input id="cam-end" type="date" class="fi" value="${end90}"></div>
-        </div>
-        <div class="fg"><label class="fl">Target Amount (PKR)</label>
-          <input id="cam-target" type="number" min="0" step="1000" class="fi" placeholder="0"></div>
-        <div id="cam-create-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
-      </div>
-      <div class="mo-ft">
-        <button class="btn btn-gh btn-sm" onclick="_camCloseCreate()">Cancel</button>
-        <button class="btn btn-g btn-sm"  id="cam-create-btn" onclick="_camSaveCreate()">Create Campaign</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function _camOpenCreate() {
-  const m = document.getElementById('cam-create-modal');
-  if (!m) return;
-  ['cam-name','cam-desc','cam-target'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const err = document.getElementById('cam-create-err'); if (err) err.textContent = '';
-  m.style.display = 'flex';
-}
-function _camCloseCreate() { const m = document.getElementById('cam-create-modal'); if (m) m.style.display = 'none'; }
-
-async function _camSaveCreate() {
-  const name  = (document.getElementById('cam-name')   || {}).value?.trim() || '';
-  const desc  = (document.getElementById('cam-desc')   || {}).value?.trim() || '';
-  const start = (document.getElementById('cam-start')  || {}).value || '';
-  const end   = (document.getElementById('cam-end')    || {}).value || '';
-  const tgt   = Number((document.getElementById('cam-target') || {}).value) || 0;
-  const err   = document.getElementById('cam-create-err');
-  if (!name)         { if (err) err.textContent = 'Name is required'; return; }
-  if (!start || !end){ if (err) err.textContent = 'Start and end dates are required'; return; }
-  if (new Date(end) < new Date(start)) { if (err) err.textContent = 'End date must be on or after start date'; return; }
+  if (!name) { notify.error('Campaign name is required.'); return; }
+  if (!start) { notify.error('Start date is required.'); return; }
 
   const btn = document.getElementById('cam-create-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Creating…'; }
+  if (btn) { btn.disabled=true; btn.textContent='Creating…'; }
+
   try {
     const { data, error } = await supabase.rpc('create_campaign', {
-      p_company_id: S.cid,
-      p_data: { name, description: desc, target_amount: tgt, start_date: start, end_date: end, created_by: S.username || null }
+      p_company_id:    S.cid,
+      p_campaign_name: name,
+      p_description:   desc,
+      p_start_date:    start,
+      p_end_date:      end,
+      p_target_amount: target,
+      p_campaign_type: type,
+      p_created_by:    S.name||null
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'Failed');
-    _camCloseCreate();
-    toast('Campaign created', 'ok');
-    await _camLoad();
+    if (!data?.success) throw new Error(data?.error||'Failed');
+    cm('m-cam-create');
+    if (typeof showToast==='function') showToast('Campaign created successfully','ok');
+    await _camLoadList();
   } catch(e) {
-    if (err) err.textContent = e.message || 'Failed';
+    notify.error(e.message||'Failed to create campaign');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Create Campaign'; }
+    if (btn) { btn.disabled=false; btn.textContent='Create Campaign'; }
   }
 }
 
-// ─── Assign-clients modal ────────────────────────────────────────
-function _camAssignModalHTML() {
-  return `<div id="cam-assign-modal" class="mo" style="display:none" onclick="if(event.target===this)_camCloseAssign()">
-    <div class="mo-box" style="max-width:560px">
-      <div class="mo-hd"><span>Assign Clients to Campaign</span><button class="mo-cl" onclick="_camCloseAssign()">✕</button></div>
-      <div class="mo-bd">
-        <input id="cam-assign-search" class="fi" placeholder="Search clients by name, code, or phone…" oninput="_camAssignFilter(this.value)" style="margin-bottom:8px">
-        <div id="cam-assign-list" style="max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 0">
-          <div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">⏳ Loading clients…</div>
+// ── Assign Clients ─────────────────────────────────────────────
+async function camOpenAssign(campaignId) {
+  if (!document.getElementById('m-cam-assign')) {
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="m-cam-assign" class="mov">
+      <div class="nx-modal nx-modal--m">
+        <div class="nx-modal-header">
+          <h3 class="nx-modal-title">Assign Clients to Campaign</h3>
+          <button class="nx-modal-close" onclick="cm('m-cam-assign')">${NX.icon('x',16)}</button>
         </div>
-        <div style="font-size:11px;color:var(--t3);margin-top:8px"><span id="cam-assign-count">0</span> selected</div>
-        <div id="cam-assign-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
+        <div class="nx-modal-body" id="m-cam-assign-body">
+          <div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Loading clients…</div>
+        </div>
+        <div class="nx-modal-footer">
+          ${NX.button('Cancel',          { variant:'ghost',   onclick:"cm('m-cam-assign')" })}
+          ${NX.button('Assign Selected', { variant:'primary', attrs:'id="cam-assign-btn"', onclick:'camSubmitAssign()' })}
+        </div>
       </div>
-      <div class="mo-ft">
-        <button class="btn btn-gh btn-sm" onclick="_camCloseAssign()">Cancel</button>
-        <button class="btn btn-g btn-sm"  id="cam-assign-btn" onclick="_camSaveAssign()">Assign Selected</button>
-      </div>
-    </div>
-  </div>`;
-}
+    </div>`);
+  }
 
-async function _camOpenAssign() {
-  const m = document.getElementById('cam-assign-modal');
-  if (!m) return;
-  _camAssignSel = new Set();
-  _camAssignSearch = '';
-  const s = document.getElementById('cam-assign-search'); if (s) s.value = '';
-  const err = document.getElementById('cam-assign-err');  if (err) err.textContent = '';
-  m.style.display = 'flex';
-  await _camLoadClientLookup();
-  _camRenderAssignList();
-}
-function _camCloseAssign() { const m = document.getElementById('cam-assign-modal'); if (m) m.style.display = 'none'; }
+  om('m-cam-assign');
+  const body = document.getElementById('m-cam-assign-body');
+  if (!body) return;
 
-async function _camLoadClientLookup() {
-  if (_camClientsCache && _camClientsCache.length) return;
   try {
-    const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
-    _camClientsCache = Array.isArray(data) ? data : [];
-  } catch(e) { _camClientsCache = []; }
-}
+    if (!_camClientsCache.length) {
+      const { data } = await supabase.rpc('get_overdue_clients_for_campaign', { p_company_id: S.cid });
+      _camClientsCache = Array.isArray(data) ? data : [];
+    }
 
-function _camAssignFilter(q) { _camAssignSearch = (q || '').toLowerCase(); _camRenderAssignList(); }
-
-function _camRenderAssignList() {
-  const list = document.getElementById('cam-assign-list');
-  if (!list) return;
-  const assigned = new Set((_camDetail?.clients || []).map(x => x.client_id));
-  let rows = (_camClientsCache || []).filter(c => !assigned.has(c.id));
-  if (_camAssignSearch) {
-    const q = _camAssignSearch;
-    rows = rows.filter(c =>
-      (c.full_name||'').toLowerCase().includes(q) ||
-      (c.client_code||'').toLowerCase().includes(q) ||
-      (c.phone_primary||'').toLowerCase().includes(q)
-    );
-  }
-  if (!rows.length) {
-    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">No clients to assign</div>';
-    return;
-  }
-  list.innerHTML = rows.map(c => {
-    const sel = _camAssignSel.has(c.id);
-    return `<label style="display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--line);background:${sel?'rgba(108,99,255,.06)':''}">
-      <input type="checkbox" ${sel?'checked':''} onchange="_camAssignToggle('${c.id}', this.checked)">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700">${esc(c.full_name||'—')}</div>
-        <div style="font-size:10px;color:var(--t3);font-family:monospace">${esc(c.client_code||'')}${c.phone_primary?' · '+esc(c.phone_primary):''}</div>
+    _camAssignSel = [];
+    body.innerHTML = `
+      <div style="margin-bottom:10px">
+        <input class="nx-input" type="search" id="cam-assign-search" placeholder="Search clients…" oninput="_camFilterAssignList(this.value)">
       </div>
-    </label>`;
-  }).join('');
-  const ct = document.getElementById('cam-assign-count'); if (ct) ct.textContent = _camAssignSel.size;
+      <div id="cam-assign-list" style="max-height:350px;overflow-y:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control)">
+        ${_camRenderAssignList(_camClientsCache)}
+      </div>
+      <p style="font-size:11px;color:var(--fk-text-muted);margin:8px 0 0" id="cam-assign-count">0 selected</p>`;
+  } catch(e) {
+    body.innerHTML = NX.empty({ icon:'x-circle', tone:'danger', message: esc(e.message||'Failed to load clients') });
+  }
 }
 
-function _camAssignToggle(id, checked) {
-  if (checked) _camAssignSel.add(id); else _camAssignSel.delete(id);
-  const ct = document.getElementById('cam-assign-count'); if (ct) ct.textContent = _camAssignSel.size;
+function _camRenderAssignList(clients) {
+  if (!clients.length) return `<p style="padding:16px;text-align:center;font-size:12px;color:var(--fk-text-muted)">No clients found</p>`;
+  return clients.map(c => `
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--fk-border);transition:background .1s" onmouseover="this.style.background='var(--fk-surface2)'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${c.client_id}" onchange="_camToggleAssign(this)" style="accent-color:var(--fk-primary);width:14px;height:14px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--fk-text)">${esc(c.client_name||'—')}</div>
+        <div style="font-size:11px;color:var(--fk-text-muted)">${esc(c.phone_primary||'—')} · Overdue: PKR ${fM(c.overdue_amount||0)}</div>
+      </div>
+      ${NX.badge(fM(c.overdue_amount||0), c.overdue_amount>500000?'danger':c.overdue_amount>100000?'warning':'')}
+    </label>`).join('');
 }
 
-async function _camSaveAssign() {
-  const ids = Array.from(_camAssignSel);
-  const err = document.getElementById('cam-assign-err');
-  if (!ids.length) { if (err) err.textContent = 'Select at least one client.'; return; }
+function _camFilterAssignList(q) {
+  const all = _camClientsCache.filter(c =>
+    !q || (c.client_name||'').toLowerCase().includes(q.toLowerCase()) || (c.phone_primary||'').includes(q)
+  );
+  const el = document.getElementById('cam-assign-list');
+  if (el) el.innerHTML = _camRenderAssignList(all);
+}
+
+function _camToggleAssign(cb) {
+  const id = cb.value;
+  if (cb.checked) { if (!_camAssignSel.includes(id)) _camAssignSel.push(id); }
+  else _camAssignSel = _camAssignSel.filter(x=>x!==id);
+  const ct = document.getElementById('cam-assign-count');
+  if (ct) ct.textContent = _camAssignSel.length + ' selected';
+}
+
+async function camSubmitAssign() {
+  if (!_camAssignSel.length) { notify.error('Please select at least one client.'); return; }
+
   const btn = document.getElementById('cam-assign-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Assigning…'; }
+  if (btn) { btn.disabled=true; btn.textContent='Assigning…'; }
+
   try {
     const { data, error } = await supabase.rpc('assign_clients_to_campaign', {
       p_campaign_id: _camCurId,
-      p_company_id:  S.cid,
-      p_client_ids:  ids,
-      p_assigned_by: S.username || null
+      p_client_ids:  _camAssignSel,
+      p_company_id:  S.cid
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'Failed');
-    _camCloseAssign();
-    toast((data.added_count || ids.length) + ' client(s) assigned', 'ok');
+    if (!data?.success) throw new Error(data?.error||'Failed');
+    cm('m-cam-assign');
+    if (typeof showToast==='function') showToast(_camAssignSel.length+' clients assigned','ok');
+    _camAssignSel = [];
     await _camRenderDetail(document.getElementById('pg-campaigns'));
   } catch(e) {
-    if (err) err.textContent = e.message || 'Failed';
+    notify.error(e.message||'Failed');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Assign Selected'; }
+    if (btn) { btn.disabled=false; btn.textContent='Assign Selected'; }
   }
 }
 
-async function _camRemoveClient(clientId) {
-  if (!confirm('Remove this client from the campaign? (Their payments remain unchanged.)')) return;
-  try {
-    const { data, error } = await supabase.rpc('remove_client_from_campaign', {
-      p_campaign_id: _camCurId, p_client_id: clientId, p_company_id: S.cid
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'Failed');
-    toast('Client removed', 'ok');
-    await _camRenderDetail(document.getElementById('pg-campaigns'));
-  } catch(e) {
-    toast('Remove failed: ' + (e.message || ''), 'err');
-  }
-}
+// ── Close Campaign ─────────────────────────────────────────────
+async function camCloseCampaign(id) {
+  const c = _camDetail || _camList.find(x=>x.id===id);
+  const name = c ? esc(c.campaign_name) : 'this campaign';
+  if (!confirm(`Close "${name}"?\nThis will mark it as completed and lock further changes.`)) return;
 
-async function _camClose() {
-  const note = prompt('Outcome summary (optional — what did this campaign achieve?):', '');
-  if (note === null) return;
   try {
     const { data, error } = await supabase.rpc('close_campaign', {
-      p_id: _camCurId, p_company_id: S.cid, p_outcome_summary: note || null
+      p_id: id, p_company_id: S.cid, p_closed_by: S.name||null
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'Failed');
-    toast('Campaign closed', 'ok');
-    await _camRenderDetail(document.getElementById('pg-campaigns'));
+    if (!data?.success) throw new Error(data?.error||'Failed');
+    if (typeof showToast==='function') showToast('Campaign closed','ok');
+    if (_camCurId) await _camRenderDetail(document.getElementById('pg-campaigns'));
+    else await _camLoadList();
   } catch(e) {
-    toast('Close failed: ' + (e.message || ''), 'err');
-  }
-}
-
-async function _camDelete() {
-  if (!confirm('Delete this campaign permanently? Client assignments will be removed (payments are NOT affected).')) return;
-  try {
-    const { data, error } = await supabase.rpc('delete_campaign', {
-      p_id: _camCurId, p_company_id: S.cid
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error('Failed');
-    toast('Campaign deleted', 'ok');
-    _camBackToList();
-  } catch(e) {
-    toast('Delete failed: ' + (e.message || ''), 'err');
+    notify.error(e.message||'Failed to close campaign');
   }
 }

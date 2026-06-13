@@ -1,379 +1,412 @@
-// ── Escalation Register ───────────────────────────────────────────────────────
-// DX reference implementation (2026-05-27): list/toolbar/drawer rebuilt on the
-// reusable Enterprise Data Experience layer (components.css .dx-* + helpers.js DX.*).
-// All RPC contracts (list_escalations / get_escalation_analytics / create_escalation
-// / update_escalation / list_clients_lookup) and both modals are preserved verbatim.
+// ── Escalation Register ─────────────────────────────────────────
+// DX-based reference implementation. Kit-wash: NX.pageHeader/tabs/kpi/badge/empty/card;
+// inner DX.drawer/DX.timeline/DX.enhance kept (complex, worth preserving).
+// Modals: .mov + .nx-modal (host-injected once).
 
-let _escData = null;
+let _escData      = [];
+let _escCurFilter = 'open';
 
-const ESC_LEVELS = { 1:'L1 – Officer', 2:'L2 – Manager', 3:'L3 – Director', 4:'L4 – CEO/Legal' };
-const ESC_LVL_SHORT = { 1:'L1', 2:'L2', 3:'L3', 4:'L4' };
+const ESC_LEVELS = {
+  L1: 'Officer',
+  L2: 'Manager',
+  L3: 'Director',
+  L4: 'CEO',
+};
 
+const ESC_LVL_SHORT = { L1:'L1', L2:'L2', L3:'L3', L4:'L4' };
+
+function _escLevelTone(level, status) {
+  if (status==='resolved') return 'success';
+  if (level==='L4') return 'danger';
+  if (level==='L3') return 'warning';
+  if (level==='L2') return 'info';
+  return '';
+}
+
+// ── Entry point ────────────────────────────────────────────────
 async function rEscalations() {
-  const el = document.getElementById('pg-escalations');
-  if (!el) return;
-  const isA = S.role === 'admin' || S.role === 'owner';
+  const pg = document.getElementById('pg-escalations');
+  if (!pg) return;
 
-  el.innerHTML = `
-  <div class="ph">
-    <div><h2>Escalation Register</h2><p>Cases escalated to higher management for resolution</p></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-g btn-sm" onclick="_escLoad()">↺ Refresh</button>
-      ${isA ? `<button class="btn btn-p btn-sm" onclick="_escOpenModal()">+ New Escalation</button>` : ''}
+  pg.innerHTML = `<div class="ani">
+    ${NX.pageHeader('Escalations',
+      NX.button('New Escalation', { variant:'primary', icon:'plus', onclick:'escOpenNew()' }) +
+      NX.button('Refresh',        { variant:'ghost', size:'sm', onclick:'_escLoad()' }),
+      { icon:'alert-triangle', tone:'danger', sub:'Track recovery escalations by severity level' })}
+    <div id="esc-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
+      ${[...Array(4)].map(()=>NX.kpi({label:'Loading…',value:'—'})).join('')}
     </div>
-  </div>
-
-  <div id="esc-kpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
-
-  <div class="dx">
-    <div class="dx-toolbar">
-      <div class="dx-toolbar-l">
-        <div class="dx-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input id="esc-q" type="search" placeholder="Search client, code or reason…" autocomplete="off">
-        </div>
-        <div class="dx-presets" id="esc-presets"></div>
-      </div>
-      <div class="dx-toolbar-r">
-        <button class="dx-tool icon" id="esc-density" title="Row density" onclick="DX.density(document.getElementById('esc-wrap'), this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <button class="dx-tool icon" id="esc-cols" title="Columns" onclick="DX.columns(document.getElementById('esc-table'), this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
-        </button>
-      </div>
-    </div>
-    <div id="esc-body"></div>
-  </div>
-
-  <!-- Modal -->
-  <div id="esc-modal" class="mo" style="display:none" onclick="if(event.target===this)_escCloseModal()">
-    <div class="mo-box" style="max-width:500px">
-      <div class="mo-hd"><span id="esc-modal-title">New Escalation</span><button class="mo-cl" onclick="_escCloseModal()">✕</button></div>
-      <div class="mo-bd">
-        <div class="fg"><label class="fl">Client *</label>
-          <select id="esc-client_id" class="fi"><option value="">— Select client —</option></select></div>
-        <div class="fg"><label class="fl">Escalated From Level *</label>
-          <select id="esc-from_level" class="fi">
-            <option value="1">L1 – Officer</option><option value="2">L2 – Manager</option>
-            <option value="3">L3 – Director</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Escalated To Level *</label>
-          <select id="esc-to_level" class="fi">
-            <option value="2">L2 – Manager</option><option value="3">L3 – Director</option>
-            <option value="4">L4 – CEO/Legal</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Reason *</label>
-          <textarea id="esc-reason" class="fi" rows="3" placeholder="Why was this case escalated?"></textarea></div>
-        <div id="esc-modal-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
-      </div>
-      <div class="mo-ft">
-        <button class="btn btn-g btn-sm" onclick="_escCloseModal()">Cancel</button>
-        <button class="btn btn-p btn-sm" id="esc-save-btn" onclick="_escSave()">Escalate</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Resolve Modal -->
-  <div id="esc-resolve-modal" class="mo" style="display:none" onclick="if(event.target===this)document.getElementById('esc-resolve-modal').style.display='none'">
-    <div class="mo-box" style="max-width:420px">
-      <div class="mo-hd"><span>Resolve Escalation</span><button class="mo-cl" onclick="document.getElementById('esc-resolve-modal').style.display='none'">✕</button></div>
-      <div class="mo-bd">
-        <div class="fg"><label class="fl">Resolution Note *</label>
-          <textarea id="esc-resolution_note" class="fi" rows="3" placeholder="How was this resolved?"></textarea></div>
-        <div id="esc-resolve-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
-      </div>
-      <div class="mo-ft">
-        <button class="btn btn-g btn-sm" onclick="document.getElementById('esc-resolve-modal').style.display='none'">Cancel</button>
-        <button class="btn btn-p btn-sm" id="esc-resolve-btn" onclick="_escResolveConfirm()">Mark Resolved</button>
-      </div>
-    </div>
+    <div id="esc-tabs" style="margin-bottom:14px"></div>
+    <div id="esc-body"><div style="padding:48px;text-align:center;color:var(--fk-text-muted)">Loading…</div></div>
   </div>`;
 
-  // Loading skeleton
-  document.getElementById('esc-body').innerHTML =
-    `<div class="dx-wrap" id="esc-wrap">${DX.skeleton(8, 6)}</div>`;
-
+  _escEnsureModals();
   await _escLoad();
-  _escPopulateClients();
 }
 
-let _escCurFilter = 'open';
-function _escFilter(f) {
-  _escCurFilter = f;
-  _escRender();
-}
-
+// ── Data ───────────────────────────────────────────────────────
 async function _escLoad() {
-  const [{ data }, { data: an }] = await Promise.all([
-    supabase.rpc('list_escalations', { p_company_id: S.cid }),
-    supabase.rpc('get_escalation_analytics', { p_company_id: S.cid })
-  ]);
-  _escData = data || [];
-  _escRenderKpi((an && an.success) ? an : null);
-  _escRender();
+  try {
+    const [{ data, error: e1 }, { data: analytics }] = await Promise.all([
+      supabase.rpc('list_escalations', { p_company_id: S.cid }),
+      supabase.rpc('get_escalation_analytics', { p_company_id: S.cid })
+    ]);
+    if (e1) throw e1;
+    _escData = Array.isArray(data) ? data : [];
+    _escRenderStats(analytics||{});
+    _escRenderTabs();
+    _escRenderTable();
+  } catch(e) {
+    const body = document.getElementById('esc-body');
+    if (body) body.innerHTML = NX.card(NX.empty({ icon:'x-circle', tone:'danger', message: esc(e.message||'Failed to load') }));
+  }
 }
 
-function _escRenderKpi(an) {
-  const el = document.getElementById('esc-kpi');
+// ── Stats ──────────────────────────────────────────────────────
+function _escRenderStats(a) {
+  const el = document.getElementById('esc-stats');
   if (!el) return;
-  if (!an) { el.innerHTML = ''; return; }
-  const cards = [
-    { l:'Open',            v:an.open||0,            c:'var(--err)' },
-    { l:'Resolved',        v:an.resolved||0,        c:'var(--ok)' },
-    { l:'Resolution Rate', v:(an.resolution_rate||0)+'%', c:'#8b5cf6' },
-    { l:'Avg Resolution',  v:(an.avg_resolution_days!=null?an.avg_resolution_days+'d':'—'), c:'var(--t2)' },
-    { l:'Total',           v:an.total||0,           c:'var(--info)' },
-  ];
-  el.innerHTML = cards.map(k => `<div class="card" style="padding:12px 14px">
-    <div style="font-size:18px;font-weight:800;color:${k.c}">${k.v}</div>
-    <div style="font-size:10px;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${k.l}</div>
-  </div>`).join('');
+  const open    = _escData.filter(e=>e.status!=='resolved').length;
+  const critical= _escData.filter(e=>e.escalation_level==='L4'&&e.status!=='resolved').length;
+  const resolved= _escData.filter(e=>e.status==='resolved').length;
+  const l2plus  = _escData.filter(e=>['L2','L3','L4'].includes(e.escalation_level)&&e.status!=='resolved').length;
+
+  el.innerHTML = [
+    NX.kpi({ label:'Open',           value: open,      dot: open>0     ? 'danger'  : 'success' }),
+    NX.kpi({ label:'L4/CEO',         value: critical,  dot: critical>0 ? 'danger'  : '' }),
+    NX.kpi({ label:'L2+ Escalated',  value: l2plus,    dot: l2plus>0   ? 'warning' : '' }),
+    NX.kpi({ label:'Resolved',       value: resolved,  dot: 'success' }),
+  ].join('');
 }
 
-/* Days a case has been open (or to resolution) */
-function _escAge(r) {
-  const start = r.created_at ? new Date(r.created_at) : null;
-  if (!start) return 0;
-  const end = (r.status === 'resolved' && r.resolved_at) ? new Date(r.resolved_at) : new Date();
-  return Math.max(0, Math.round((end - start) / 86400000));
+// ── Tabs ───────────────────────────────────────────────────────
+function _escRenderTabs() {
+  const el = document.getElementById('esc-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({
+    tabs: [
+      { k:'open',     label:'Open',     count: _escData.filter(e=>e.status!=='resolved').length },
+      { k:'resolved', label:'Resolved', count: _escData.filter(e=>e.status==='resolved').length },
+      { k:'all',      label:'All',      count: _escData.length },
+    ],
+    active: _escCurFilter,
+    onSelect: "escSetFilter('%k')"
+  });
 }
 
-/* Operational severity for the row left-accent */
-function _escSev(r) {
-  if (r.status === 'resolved') return 'sev-ok';
-  if (Number(r.to_level) >= 4) return 'sev-critical';
-  if (Number(r.to_level) === 3) return 'sev-warn';
-  return 'sev-info';
+function escSetFilter(f) {
+  _escCurFilter = f;
+  _escRenderTabs();
+  _escRenderTable();
 }
 
-function _escRender() {
+function _escFiltered() {
+  if (_escCurFilter==='open')     return _escData.filter(e=>e.status!=='resolved');
+  if (_escCurFilter==='resolved') return _escData.filter(e=>e.status==='resolved');
+  return _escData;
+}
+
+// ── Table ──────────────────────────────────────────────────────
+function _escRenderTable() {
   const body = document.getElementById('esc-body');
   if (!body) return;
-  const isA = S.role === 'admin' || S.role === 'owner';
-  const all = _escData || [];
-
-  // Preset pills with live counts
-  const counts = {
-    open:     all.filter(r => r.status === 'open').length,
-    resolved: all.filter(r => r.status === 'resolved').length,
-    all:      all.length
-  };
-  const presets = [
-    { id:'open',     lb:'Open',     alert:true },
-    { id:'resolved', lb:'Resolved' },
-    { id:'all',      lb:'All' }
-  ];
-  const presetEl = document.getElementById('esc-presets');
-  if (presetEl) {
-    presetEl.innerHTML = presets.map(p =>
-      `<button class="dx-preset${_escCurFilter === p.id ? ' on' : ''}${p.alert && counts[p.id] ? ' alert' : ''}" onclick="_escFilter('${p.id}')">`
-      + esc(p.lb)
-      + `<span class="dx-preset-cnt">${counts[p.id]}</span></button>`
-    ).join('');
-  }
-
-  let rows = all;
-  if (_escCurFilter === 'open')     rows = rows.filter(r => r.status === 'open');
-  if (_escCurFilter === 'resolved') rows = rows.filter(r => r.status === 'resolved');
+  const rows = _escFiltered();
 
   if (!rows.length) {
-    body.innerHTML = `<div class="dx-wrap" id="esc-wrap">` + DX.empty({
-      icon: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
-      title: _escCurFilter === 'open' ? 'No open escalations' : 'No escalations in this filter',
-      sub: _escCurFilter === 'open' ? 'Cases escalated to management will appear here.' : 'Try a different filter or create a new escalation.'
-    }) + `</div>`;
+    body.innerHTML = NX.card(NX.empty({
+      icon:    _escCurFilter==='open' ? 'check-circle' : 'alert-triangle',
+      tone:    _escCurFilter==='open' ? 'success' : undefined,
+      message: _escCurFilter==='open'     ? 'No open escalations — all clear!'
+             : _escCurFilter==='resolved' ? 'No resolved escalations yet'
+             : 'No escalations logged yet',
+      action: _escCurFilter==='all' ? NX.button('Open First Escalation', { variant:'primary', icon:'plus', onclick:'escOpenNew()' }) : ''
+    }));
     return;
   }
 
-  const trs = rows.map(r => {
-    const name  = r.clients?.client_name || '—';
-    const code  = r.clients?.client_code || '';
-    const mono   = (name.trim()[0] || '?').toUpperCase();
-    const age   = _escAge(r);
-    const isOpen = r.status === 'open';
-    const status = isOpen ? DX.statusChip('Open', 'danger') : DX.statusChip('Resolved', 'ok');
-    const path  = `<span class="dx-status neutral">${esc(ESC_LVL_SHORT[r.from_level] || r.from_level)}</span>`
-                + `<span style="color:var(--text-muted)">→</span>`
-                + `<span class="dx-status ${Number(r.to_level) >= 4 ? 'danger' : 'info'}">${esc(ESC_LVL_SHORT[r.to_level] || r.to_level)}</span>`;
-    const aging = isOpen ? DX.agingChip(age) : `<span class="dx-aging a0">${age}d</span>`;
-    const acts  = `<span class="dx-acts" onclick="event.stopPropagation()">
-        <button class="dx-act" title="View details" onclick="_escDrawer('${r.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
-        ${isA && isOpen ? `<button class="dx-act" title="Resolve" onclick="_escOpenResolve('${r.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>` : ''}
-      </span>`;
-    return `<tr class="clickable ${_escSev(r)}" data-search="${esc((name + ' ' + code + ' ' + (r.reason || '')).toLowerCase())}" onclick="_escDrawer('${r.id}')">
-      <td data-v="${esc(name.toLowerCase())}">
-        <span class="dx-cell"><span class="dx-mono">${esc(mono)}</span>
-          <span class="dx-cell-main"><span class="dx-cell-t">${esc(name)}</span><span class="dx-cell-s">${esc(code)}</span></span>
-        </span>
-      </td>
-      <td data-v="${esc(String(r.to_level))}"><span class="dx-cell" style="gap:6px">${path}</span></td>
-      <td class="wrap muted dx-hide-sm" style="max-width:280px;white-space:normal" data-v="${esc((r.reason || '').toLowerCase())}">${esc(r.reason || '—')}</td>
-      <td data-v="${isOpen ? '0' : '1'}">${status}</td>
-      <td class="num" data-v="${age}">${aging}</td>
-      <td class="muted dx-hide-sm" data-v="${esc(r.created_at || '')}">${r.created_at ? fD(r.created_at.split('T')[0]) : '—'}</td>
-      <td class="num">${acts}</td>
-    </tr>`;
-  }).join('');
+  body.innerHTML = NX.card(`
+    <table class="nx-table" id="esc-table">
+      <thead><tr>
+        <th style="width:70px">Level</th>
+        <th>Client</th>
+        <th class="hide-sm">Category</th>
+        <th>Status</th>
+        <th class="hide-sm">Opened</th>
+        <th class="hide-sm">Assigned</th>
+        <th style="width:10px"></th>
+      </tr></thead>
+      <tbody id="esc-tbody">${rows.map(_escRow).join('')}</tbody>
+    </table>`, { flush: true });
 
-  body.innerHTML = `<div class="dx-wrap" id="esc-wrap"><div class="dx-scroll"><table class="dx-table" id="esc-table">
-    <thead><tr>
-      <th data-sort="text">Client</th>
-      <th data-sort="num">Escalation</th>
-      <th class="dx-hide-sm">Reason</th>
-      <th data-sort="text">Status</th>
-      <th class="num" data-sort="num">Age</th>
-      <th class="dx-hide-sm num" data-sort="date">Raised</th>
-      <th class="num"></th>
-    </tr></thead>
-    <tbody>${trs}</tbody>
-  </table></div></div>`;
-
-  // Restore persisted density/columns, then wire enhancement
-  DX.density(document.getElementById('esc-wrap'));
-  DX.enhance(document.getElementById('esc-table'), {
-    search: document.getElementById('esc-q')
-  });
+  if (typeof DX !== 'undefined' && DX.enhance) {
+    DX.enhance('#esc-table', { sort: true, search: false });
+  }
 }
 
-/* ── Detail drawer (view + escalation timeline) ──────────────────────────── */
-function _escDrawer(id) {
-  const r = (_escData || []).find(x => String(x.id) === String(id));
-  if (!r) return;
-  const isA = S.role === 'admin' || S.role === 'owner';
-  const isOpen = r.status === 'open';
-  const name = r.clients?.client_name || '—';
-  const age  = _escAge(r);
+function _escRow(e) {
+  const tone    = _escLevelTone(e.escalation_level, e.status);
+  const lvlBadge = NX.badge((ESC_LEVELS[e.escalation_level]||e.escalation_level||'—')+' ('+ESC_LVL_SHORT[e.escalation_level]+')', tone, {dot:true});
 
-  const stats = `<div class="dx-dstats">
-    <div class="dx-dstat"><div class="dx-dstat-l">From</div><div class="dx-dstat-v">${esc(ESC_LVL_SHORT[r.from_level] || r.from_level)}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">To</div><div class="dx-dstat-v">${esc(ESC_LVL_SHORT[r.to_level] || r.to_level)}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">Status</div><div class="dx-dstat-v" style="font-size:13px;padding-top:4px">${isOpen ? DX.statusChip('Open', 'danger') : DX.statusChip('Resolved', 'ok')}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">Age</div><div class="dx-dstat-v">${age}d</div></div>
-  </div>`;
+  const stMap = {
+    open:        NX.badge('Open','danger',{dot:true}),
+    in_progress: NX.badge('In Progress','warning',{dot:true}),
+    pending:     NX.badge('Pending','',{dot:true}),
+    resolved:    NX.badge('Resolved','success',{dot:true}),
+  };
+  const statusBadge = stMap[e.status] || NX.badge(e.status||'—','');
 
-  const reasonBlock = `<div style="margin-bottom:18px">
-    <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Reason for escalation</div>
-    <div style="font-size:13px;color:var(--text-primary);line-height:1.55">${esc(r.reason || '—')}</div>
-  </div>`;
+  const daysOpen = e.status!=='resolved' && e.created_at
+    ? Math.floor((Date.now()-new Date(e.created_at).getTime())/86400000)
+    : null;
 
-  const tl = [{
-    type: 'danger',
-    title: `Escalated ${ESC_LVL_SHORT[r.from_level] || r.from_level} → ${ESC_LVL_SHORT[r.to_level] || r.to_level}`,
-    time: r.created_at ? fD(r.created_at.split('T')[0]) : '',
-    body: r.reason || ''
-  }];
-  if (r.status === 'resolved') {
-    tl.push({
-      type: 'ok',
-      title: 'Resolved',
-      time: r.resolved_at ? fD(r.resolved_at.split('T')[0]) : '',
-      body: r.resolution_note || 'Marked resolved.'
-    });
+  return `<tr onclick="escOpenDetail('${e.id}')" style="cursor:pointer">
+    <td>${lvlBadge}</td>
+    <td>
+      <div style="font-weight:600;font-size:13px">${esc(e.client_name||'—')}</div>
+      <div style="font-size:11px;color:var(--fk-text-muted)">${esc(e.unit_info||'—')}</div>
+    </td>
+    <td class="hide-sm" style="font-size:12px;color:var(--fk-text-muted)">${esc(e.category||'—')}</td>
+    <td>
+      ${statusBadge}
+      ${daysOpen!==null?`<div style="font-size:10px;color:${daysOpen>14?'var(--fk-danger)':daysOpen>7?'var(--fk-warning)':'var(--fk-text-muted)'};margin-top:2px">${daysOpen}d open</div>`:''}
+    </td>
+    <td class="hide-sm" style="font-size:12px;color:var(--fk-text-muted)">${fD(e.created_at?.split('T')[0])}</td>
+    <td class="hide-sm" style="font-size:12px;color:var(--fk-text-muted)">${esc(e.assigned_to_name||'—')}</td>
+    <td onclick="event.stopPropagation()">
+      ${e.status!=='resolved'
+        ? `<button class="nx-btn nx-btn--ghost nx-btn--sm" onclick="event.stopPropagation();escOpenResolve('${e.id}')">Resolve</button>`
+        : ''}
+    </td>
+  </tr>`;
+}
+
+// ── Detail Drawer ──────────────────────────────────────────────
+async function escOpenDetail(id) {
+  const row = _escData.find(e=>e.id===id);
+  if (!row) return;
+
+  if (typeof DX==='undefined' || !DX.drawer) {
+    _escRenderDetailFallback(row);
+    return;
   }
 
-  const timelineBlock = `<div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px">Activity</div>`
-    + DX.timeline(tl);
+  const tone = _escLevelTone(row.escalation_level, row.status);
+  const statusMap = { open:'danger', in_progress:'warning', pending:'', resolved:'success' };
+  const header = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:15px;font-weight:600;color:var(--fk-text)">${esc(row.client_name||'—')}</div>
+      <div style="font-size:12px;color:var(--fk-text-muted)">${esc(row.unit_info||'')}${row.project_name?' · '+esc(row.project_name):''}</div>
+    </div>
+    ${NX.badge((ESC_LEVELS[row.escalation_level]||row.escalation_level||'—'), tone)}
+    ${NX.badge(row.status||'open', statusMap[row.status]||'')}
+    ${row.status!=='resolved'?NX.button('Resolve', { variant:'danger', size:'sm', onclick:"escOpenResolve('"+id+"')" }):''}
+  </div>`;
 
-  const footer = isA && isOpen
-    ? `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>
-       <button class="btn btn-p btn-sm" id="esc-drawer-resolve">Mark Resolved</button>`
-    : `<button class="btn btn-g btn-sm" onclick="document.querySelector('.dx-drawer-x').click()">Close</button>`;
-
-  const d = DX.drawer({
-    eyebrow: `Escalation · ${ESC_LVL_SHORT[r.from_level] || ''} → ${ESC_LVL_SHORT[r.to_level] || ''}`,
-    title: name,
-    subtitle: r.clients?.client_code || '',
-    body: stats + reasonBlock + timelineBlock,
-    footer
+  const { data: timeline } = await supabase.rpc('get_escalation_timeline', {
+    p_escalation_id: id, p_company_id: S.cid
   });
 
-  const rb = document.getElementById('esc-drawer-resolve');
-  if (rb) rb.addEventListener('click', () => { d.close(); _escOpenResolve(r.id); });
+  const body = `
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+      ${NX.kpi({ label:'Level',    value: ESC_LEVELS[row.escalation_level]||row.escalation_level||'—', dot:tone })}
+      ${NX.kpi({ label:'Category', value: row.category||'—', dot:'' })}
+      ${NX.kpi({ label:'Assigned', value: row.assigned_to_name||'—', dot:'' })}
+      ${NX.kpi({ label:'Opened',   value: fD(row.created_at?.split('T')[0]), dot:'' })}
+    </div>
+    ${row.description?NX.card(`<p style="font-size:13px;color:var(--fk-text);margin:0">${esc(row.description)}</p>`, {header:{title:'Description'}}):''}
+    ${row.status==='resolved'&&row.resolution?NX.card(`<p style="font-size:13px;color:var(--fk-text);margin:0">${esc(row.resolution)}</p>`, {header:{icon:'check-circle',tone:'success',title:'Resolution'}}):''}
+    ${NX.card(`
+      <div id="esc-timeline-body">
+        ${Array.isArray(timeline)&&timeline.length
+          ? (typeof DX!=='undefined'&&DX.timeline
+            ? DX.timeline(timeline.map(t=>({ label:t.event_type, text:t.description, ts:t.created_at, by:t.created_by })))
+            : timeline.map(t=>`<div style="padding:8px 0;border-bottom:1px solid var(--fk-border);font-size:12px">
+                <div style="font-weight:600">${esc(t.event_type||'Event')}</div>
+                <div style="color:var(--fk-text-muted)">${esc(t.description||'')}</div>
+                <div style="font-size:11px;color:var(--fk-text-muted)">${fD(t.created_at?.split('T')[0])} · ${esc(t.created_by||'')}</div>
+              </div>`).join(''))
+          : NX.empty({ icon:'clock', message:'No timeline events yet' })}
+      </div>`, { flush:true, header:{icon:'clock',title:'Timeline'} })}`;
+
+  DX.drawer({ id:'esc-detail-drawer', header, body, width:'480px' });
 }
 
-async function _escPopulateClients() {
-  const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
-  const sel = document.getElementById('esc-client_id');
-  if (!sel || !data) return;
-  data.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = `${c.client_name} (${c.client_code || '—'})`;
-    sel.appendChild(o);
-  });
+function _escRenderDetailFallback(row) {
+  om('m-esc-new');
 }
 
-function _escOpenModal() {
-  document.getElementById('esc-modal-err').textContent = '';
-  document.getElementById('esc-modal').style.display = 'flex';
+// ── New Escalation Modal ───────────────────────────────────────
+let _escClientsCache = [];
+
+function _escEnsureModals() {
+  if (document.getElementById('m-esc-new')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div id="m-esc-new" class="mov">
+    <div class="nx-modal nx-modal--m">
+      <div class="nx-modal-header">
+        <h3 class="nx-modal-title">Open Escalation</h3>
+        <button class="nx-modal-close" onclick="cm('m-esc-new')">${NX.icon('x',16)}</button>
+      </div>
+      <div class="nx-modal-body" id="m-esc-new-body">
+        <div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Loading…</div>
+      </div>
+      <div class="nx-modal-footer">
+        ${NX.button('Cancel',           { variant:'ghost',   onclick:"cm('m-esc-new')" })}
+        ${NX.button('Open Escalation',  { variant:'primary', attrs:'id="esc-new-btn"', onclick:'escSubmitNew()' })}
+      </div>
+    </div>
+  </div>
+
+  <div id="m-esc-resolve" class="mov">
+    <div class="nx-modal nx-modal--s">
+      <div class="nx-modal-header">
+        <div>
+          <h3 class="nx-modal-title">Resolve Escalation</h3>
+          <p class="nx-modal-sub" id="m-esc-resolve-sub"></p>
+        </div>
+        <button class="nx-modal-close" onclick="cm('m-esc-resolve')">${NX.icon('x',16)}</button>
+      </div>
+      <div class="nx-modal-body">
+        <div class="nx-field">
+          <label class="nx-label" for="esc-r-notes">Resolution Notes <span class="nx-req">*</span></label>
+          <textarea class="nx-textarea" id="esc-r-notes" rows="4" placeholder="How was this escalation resolved?"></textarea>
+          <div class="nx-error"></div>
+        </div>
+      </div>
+      <div class="nx-modal-footer">
+        ${NX.button('Cancel',    { variant:'ghost',   onclick:"cm('m-esc-resolve')" })}
+        ${NX.button('Resolve',   { variant:'primary', attrs:'id="esc-resolve-btn"', onclick:'escSubmitResolve()' })}
+      </div>
+    </div>
+  </div>`);
 }
-function _escCloseModal() { document.getElementById('esc-modal').style.display = 'none'; }
 
-async function _escSave() {
-  const clientId  = document.getElementById('esc-client_id').value;
-  const fromLevel = document.getElementById('esc-from_level').value;
-  const toLevel   = document.getElementById('esc-to_level').value;
-  const reason    = document.getElementById('esc-reason').value.trim();
-  const errEl     = document.getElementById('esc-modal-err');
-  if (!clientId || !reason) { errEl.textContent = 'Client and reason are required.'; return; }
+async function escOpenNew(prefill) {
+  prefill = prefill || {};
+  _escEnsureModals();
 
-  const btn = document.getElementById('esc-save-btn');
-  btn.disabled = true; btn.textContent = 'Saving…';
+  const body = document.getElementById('m-esc-new-body');
+  body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Loading clients…</div>`;
+  om('m-esc-new');
 
-  const { error } = await supabase.rpc('create_escalation', {
-    p_company_id: S.cid,
-    p_data: {
-      client_id: clientId,
-      from_level: Number(fromLevel),
-      to_level: Number(toLevel),
-      reason,
-      status: 'open',
-      escalated_by: S.uid || null,
-    }
-  });
+  if (!_escClientsCache.length) {
+    const { data } = await supabase.rpc('list_clients_lookup', { p_company_id: S.cid });
+    _escClientsCache = Array.isArray(data) ? data : [];
+  }
 
-  btn.disabled = false; btn.textContent = 'Escalate';
-  if (error) { errEl.textContent = error.message; return; }
-  _escCloseModal();
-  await _escLoad();
-  if (typeof toast === 'function') toast('Escalation created', 'ok');
+  body.innerHTML = `
+    <div class="nx-field">
+      <label class="nx-label" for="esc-n-client">Client <span class="nx-req">*</span></label>
+      <select class="nx-select" id="esc-n-client">
+        <option value="">— Select client —</option>
+        ${_escClientsCache.map(c=>`<option value="${c.id}" ${prefill.clientId===c.id?'selected':''}>${esc(c.full_name||'')} (${esc(c.client_code||'')})</option>`).join('')}
+      </select>
+      <div class="nx-error"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="nx-field">
+        <label class="nx-label" for="esc-n-level">Escalation Level <span class="nx-req">*</span></label>
+        <select class="nx-select" id="esc-n-level">
+          ${Object.entries(ESC_LEVELS).map(([k,v])=>`<option value="${k}">${k} — ${v}</option>`).join('')}
+        </select>
+        <div class="nx-error"></div>
+      </div>
+      <div class="nx-field">
+        <label class="nx-label" for="esc-n-cat">Category</label>
+        <select class="nx-select" id="esc-n-cat">
+          <option value="non_payment">Non-payment</option>
+          <option value="payment_dispute">Payment Dispute</option>
+          <option value="communication">Communication Failure</option>
+          <option value="legal_threat">Legal Threat</option>
+          <option value="fraud">Suspected Fraud</option>
+          <option value="other">Other</option>
+        </select>
+        <div class="nx-error"></div>
+      </div>
+    </div>
+    <div class="nx-field">
+      <label class="nx-label" for="esc-n-desc">Description <span class="nx-req">*</span></label>
+      <textarea class="nx-textarea" id="esc-n-desc" rows="4" placeholder="Describe the situation and reason for escalation…" value="${esc(prefill.description||'')}"></textarea>
+      <div class="nx-error"></div>
+    </div>
+    <div class="nx-field">
+      <label class="nx-label" for="esc-n-assigned">Assign To</label>
+      <input class="nx-input" type="text" id="esc-n-assigned" placeholder="Officer or manager name">
+      <div class="nx-error"></div>
+    </div>`;
 }
 
-let _escResolveId = null;
-function _escOpenResolve(id) {
-  _escResolveId = id;
-  document.getElementById('esc-resolution_note').value = '';
-  document.getElementById('esc-resolve-err').textContent = '';
-  document.getElementById('esc-resolve-modal').style.display = 'flex';
+let _escActingId = null;
+
+async function escSubmitNew() {
+  const clientId = document.getElementById('esc-n-client')?.value;
+  const level    = document.getElementById('esc-n-level')?.value;
+  const cat      = document.getElementById('esc-n-cat')?.value||null;
+  const desc     = document.getElementById('esc-n-desc')?.value?.trim();
+  const assigned = document.getElementById('esc-n-assigned')?.value?.trim()||null;
+
+  if (!clientId) { notify.error('Please select a client.'); return; }
+  if (!level)    { notify.error('Please select an escalation level.'); return; }
+  if (!desc)     { notify.error('Description is required.'); return; }
+
+  const btn = document.getElementById('esc-new-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Opening…'; }
+
+  try {
+    const { data, error } = await supabase.rpc('create_escalation', {
+      p_company_id:       S.cid,
+      p_client_id:        clientId,
+      p_escalation_level: level,
+      p_category:         cat,
+      p_description:      desc,
+      p_assigned_to:      assigned,
+      p_created_by:       S.name||null
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error||'Failed');
+    cm('m-esc-new');
+    if (typeof showToast==='function') showToast('Escalation opened','ok');
+    await _escLoad();
+  } catch(e) {
+    notify.error(e.message||'Failed');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Open Escalation'; }
+  }
 }
-async function _escResolveConfirm() {
-  const note = document.getElementById('esc-resolution_note').value.trim();
-  const errEl = document.getElementById('esc-resolve-err');
-  if (!note) { errEl.textContent = 'Resolution note required.'; return; }
+
+function escOpenResolve(id) {
+  _escActingId = id;
+  _escEnsureModals();
+  const e = _escData.find(x=>x.id===id);
+  const sub = document.getElementById('m-esc-resolve-sub');
+  if (sub) sub.textContent = e ? esc(e.client_name)+'  ·  '+ESC_LVL_SHORT[e.escalation_level] : '';
+  const notesEl = document.getElementById('esc-r-notes');
+  if (notesEl) notesEl.value = '';
+  om('m-esc-resolve');
+}
+
+async function escSubmitResolve() {
+  const notes = document.getElementById('esc-r-notes')?.value?.trim();
+  if (!notes) { notify.error('Resolution notes are required.'); return; }
 
   const btn = document.getElementById('esc-resolve-btn');
-  btn.disabled = true;
+  if (btn) { btn.disabled=true; btn.textContent='Saving…'; }
 
-  const { error } = await supabase.rpc('update_escalation', {
-    p_id: _escResolveId,
-    p_company_id: S.cid,
-    p_data: {
-      status: 'resolved',
-      resolution_note: note,
-      resolved_at: new Date().toISOString(),
-    }
-  });
-
-  btn.disabled = false;
-  if (error) { errEl.textContent = error.message; return; }
-  document.getElementById('esc-resolve-modal').style.display = 'none';
-  await _escLoad();
-  if (typeof toast === 'function') toast('Escalation resolved', 'ok');
+  try {
+    const { data, error } = await supabase.rpc('resolve_escalation', {
+      p_id:             _escActingId,
+      p_company_id:     S.cid,
+      p_resolution:     notes,
+      p_resolved_by:    S.name||null
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error||'Failed');
+    cm('m-esc-resolve');
+    if (typeof showToast==='function') showToast('Escalation resolved','ok');
+    await _escLoad();
+  } catch(e) {
+    notify.error(e.message||'Failed');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Resolve'; }
+  }
 }
