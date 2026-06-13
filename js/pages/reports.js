@@ -69,6 +69,17 @@ const REPORTS = {
       transform: (data, f) => _unitStatementTransform(data, f)
     } },
 
+  client_summary: { meta: { title: 'Client Recovery Summary', group: 'CLIENT & UNIT', desc: 'One row per client — total, paid, shortfall, balance to final — with a grand total of all clients' },
+    config: {
+      id: 'client_summary', title: 'Client Recovery Summary', group: 'CLIENT & UNIT', orientation: 'landscape',
+      description: 'Every active sale on one page — for each client: Total Contract · Paid to Date · Current Shortfall (overdue) · Balance to Final Installment · Recovery %, with a grand total summed across all clients at the bottom',
+      filters: [{ kind: 'project' }],
+      // As-of-today position for every sale in ONE call (FIFO). from=epoch → opening 0,
+      // received_total = everything paid to date, closing = unpaid due-to-date (shortfall).
+      fetch: f => supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: f.project || null, p_from_date: '2000-01-01', p_to_date: td() }).then(r => { if (r.error) throw r.error; return r.data; }),
+      transform: (data, f) => _clientSummaryTransform(data, f)
+    } },
+
   collections: { meta: { title: 'Collections Report', group: 'OPERATIONS', desc: 'Period receipts — daily, mode-wise (Cash/Bank Book), officer-wise' },
     config: {
       id: 'collections', title: 'Collections Report', group: 'OPERATIONS', orientation: 'portrait',
@@ -354,13 +365,57 @@ function _unitStatementTransform(data, f) {
   };
 }
 
+// Portfolio grand-summary: one row per active sale, grand total of all clients.
+// data = get_recovery_position(epoch..today): per row net_price (total contract),
+// received_total (paid to date), closing (shortfall — unpaid & due to date).
+function _clientSummaryTransform(data, f) {
+  const rows = ((data && data.rows) || []).map(r => {
+    const total = Number(r.net_price || 0);
+    const paid = Number(r.received_total || 0);
+    const shortfall = Math.max(0, Number(r.closing || 0));   // due & overdue, still unpaid
+    const balance = Math.max(0, total - paid);               // remaining to the final installment
+    const pct = total > 0 ? Math.round(paid / total * 100) : 0;
+    return {
+      client: (r.client_name || '—') + (r.client_code ? '  ·  ' + r.client_code : ''),
+      unit: (r.unit_no || '—') + (r.floor_name ? '  ·  ' + r.floor_name : ''),
+      total, paid, shortfall, balance, pct,
+      _short: shortfall, _bal: balance
+    };
+  }).sort((a, b) => b._short - a._short || b._bal - a._bal);
+  const columns = [
+    { key: 'client', label: 'Client' },
+    { key: 'unit', label: 'Unit' },
+    { key: 'total', label: 'Total Contract', num: true, fmt: 'money' },
+    { key: 'paid', label: 'Paid to Date', num: true, fmt: 'money' },
+    { key: 'shortfall', label: 'Shortfall (overdue)', num: true, fmt: 'money' },
+    { key: 'balance', label: 'Balance to Final', num: true, fmt: 'money' },
+    { key: 'pct', label: 'Recovery', num: true, fmt: 'pct' }
+  ];
+  const sum = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+  const tTotal = sum('total'), tPaid = sum('paid'), tShort = sum('shortfall'), tBal = sum('balance');
+  const shortClients = rows.filter(r => r.shortfall > 0.005).length;
+  return {
+    columns, rows,
+    totals: { total: tTotal, paid: tPaid, shortfall: tShort, balance: tBal, pct: tTotal > 0 ? Math.round(tPaid / tTotal * 100) : 0 },
+    totalsLabel: 'ALL CLIENTS (' + rows.length + ')',
+    summary: [
+      { label: 'Clients', value: rows.length },
+      { label: 'With Shortfall', value: shortClients },
+      { label: 'Total Contract', value: tTotal, money: true },
+      { label: 'Paid to Date', value: tPaid, money: true },
+      { label: 'Total Shortfall (overdue)', value: tShort, money: true },
+      { label: 'Balance to Final Installment', value: tBal, money: true }
+    ]
+  };
+}
+
 // ── HUB — 3 groups, nx- kit, no "35 reports" banner ─────────────────────────
 function rReports() {
   const pg = document.getElementById('pg-reports'); if (!pg) return;
   document.querySelector('.pw')?.classList.remove('rpt-mode');
   const groups = [
     { title: 'RECOVERY', keys: ['recovery_position', 'aging'] },
-    { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement'] },
+    { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement', 'client_summary'] },
     { title: 'OPERATIONS', keys: ['collections', 'pdc', 'sales_summary', 'availability', 'team_performance'] }
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
