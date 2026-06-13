@@ -519,8 +519,12 @@ function buildSB(){
       { label: 'Recovery', items: [
         { id:'recovery',    ic:'list-checks',    lb:'Payments' },
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
+        { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
         { id:'reminders',   ic:'bell',           lb:'Reminders' },
         { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
+        { id:'escalations', ic:'alert-triangle', lb:'Escalations',      more:true },
+        { id:'campaigns',   ic:'megaphone',      lb:'Campaigns',        more:true },
+        { id:'legalcases',  ic:'scale',          lb:'Legal Cases',      more:true },
         { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers', more:true },
         { id:'ledgers',     ic:'book-open',      lb:'Ledgers',          more:true },
         { id:'paylinks',    ic:'link',           lb:'Payment Links',    more:true },
@@ -794,7 +798,7 @@ function nav(pg,x){
     if(!_alwaysAllow.includes(pg)){
       // Role-based baseline allow-list (backward-compatible for existing users)
       const allow={
-        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','sales','salesdetail','newsale','editsale','paylinks','paylink-detail'],
+        recovery:['dashboard','recovery-dashboard','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','promises','fieldvisits','escalations','campaigns','legalcases','sales','salesdetail','newsale','editsale','paylinks','paylink-detail'],
         accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail'],
       };
       // For manager/staff: rely entirely on hasPermission()

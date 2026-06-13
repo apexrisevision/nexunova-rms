@@ -34,6 +34,34 @@ const MODULE_LIST = [
 ];
 
 let _usersData = [];
+let _umProjects = [];   // company projects for the modal project picker
+let _umAssigned = [];   // project ids already assigned to the user being edited
+
+async function _umLoadProjects() {
+  if (_umProjects.length) return;
+  try {
+    const { data } = await supabase.rpc('list_projects', { p_company_id: S.cid });
+    _umProjects = Array.isArray(data) ? data : [];
+  } catch(_) { _umProjects = []; }
+}
+
+// Project-access picker — scoped roles can only work the projects checked here.
+// (Owners/admins are never project-gated server-side, so it's advisory for them.)
+function _umProjectsBlock() {
+  if (!_umProjects.length) {
+    return '<div class="nx-field"><label class="nx-label">Project access</label>' +
+      '<div class="nx-error" style="color:var(--fk-text-muted)">No projects exist yet — create a project first, then assign it here.</div></div>';
+  }
+  const cbs = _umProjects.map(function(p){
+    const ck = _umAssigned.indexOf(p.id) >= 0 ? ' checked' : '';
+    return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:var(--fk-fs-body);color:var(--fk-text);cursor:pointer">' +
+      '<input type="checkbox" class="um-proj-cb" data-id="' + NX.esc(p.id) + '"' + ck + '> ' +
+      NX.esc(p.project_name || p.project_code || 'Project') + '</label>';
+  }).join('');
+  return '<div class="nx-field" id="um-projects-wrap"><label class="nx-label">Project access</label>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:12px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:var(--fk-radius-control)">' + cbs + '</div>' +
+    '<div class="nx-error" style="color:var(--fk-text-muted)">Recovery &amp; staff can only work the projects checked here. Owners &amp; admins always see all projects.</div></div>';
+}
 
 // Synthetic plumbing emails (created when a user is added without a real email)
 // are never shown as contact info and never treated as mailable.
@@ -195,7 +223,15 @@ function _renderUsersList() {
         '</span>' +
       '</span>';
 
-    const roleCell = NX.badge(rl, _umRoleTone(u.role));
+    // Project scope under the role — 'All projects' for admins, the assigned set
+    // for scoped roles, or a warning when a non-admin has no assignment (dead queue).
+    const _projs = Array.isArray(u.projects) ? u.projects : [];
+    const _projLine = isAdminRole
+      ? '<div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px">All projects</div>'
+      : (_projs.length
+          ? '<div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px">' + NX.esc(_projs.slice(0,2).join(', ')) + (_projs.length > 2 ? ' +' + (_projs.length - 2) : '') + '</div>'
+          : '<div style="font-size:var(--fk-fs-label);color:var(--fk-warning);margin-top:3px">No project assigned</div>');
+    const roleCell = NX.badge(rl, _umRoleTone(u.role)) + _projLine;
 
     // Contact — synthetic plumbing emails (@users.internal) are never shown
     const showEmail = u.email && !_isSyntheticEmail(u.email);
@@ -328,6 +364,7 @@ function _umModalMarkup(mode, u) {
     NX.field({ label:'Full name', name:'um-name', required:true, value:(isEdit && u ? (u.full_name || '') : ''), placeholder:'Ahmed Khan', attrs:(isEdit ? '' : 'oninput="umSuggestFromName()"') }) +
     usernameBlock +
     '<div class="nx-field"><label class="nx-label" for="um-role">Role <span class="nx-req">*</span></label><select class="nx-select" id="um-role">' + roleOpts + '</select></div>' +
+    _umProjectsBlock() +
     '<div class="nx-field"><label class="nx-label" for="um-email">Email <span style="color:var(--fk-text-muted)">(optional)</span></label>' +
       '<input class="nx-input" id="um-email" type="email" value="' + NX.esc(emailVal) + '" placeholder="only for password-reset emails">' +
       '<div class="nx-error" style="color:var(--fk-text-muted)">Leave blank if the user has no email — you’ll set a temporary password and see it on screen.</div></div>' +
@@ -351,14 +388,16 @@ function _umModalMarkup(mode, u) {
 
 function _umCloseModal(){ var h=document.getElementById('um-modal-host'); if(h) h.innerHTML=''; }
 
-function openAddUserModal() {
+async function openAddUserModal() {
   const host = document.getElementById('um-modal-host');
   if (!host) return;
+  _umAssigned = [];
+  await _umLoadProjects();
   host.innerHTML = _umModalMarkup('add', null);
   umUnamePrev();
 }
 
-function openEditUserModal(userId) {
+async function openEditUserModal(userId) {
   var u = null;
   for (var i = 0; i < _usersData.length; i++) {
     if (_usersData[i].id === userId) { u = _usersData[i]; break; }
@@ -366,6 +405,12 @@ function openEditUserModal(userId) {
   if (!u) return;
   const host = document.getElementById('um-modal-host');
   if (!host) return;
+  await _umLoadProjects();
+  _umAssigned = [];
+  try {
+    const { data } = await supabase.rpc('get_user_projects', { p_user_id: userId });
+    if (data && data.success && Array.isArray(data.rows)) _umAssigned = data.rows.map(function(r){ return r.project_id; });
+  } catch(_) {}
   host.innerHTML = _umModalMarkup('edit', u);
 }
 
@@ -420,6 +465,13 @@ async function saveUserModal() {
   });
   var modulePerms = Object.keys(perms).length ? perms : {};
 
+  // Project assignments — the set the admin checked in the picker. Sent on both
+  // create and update so a recovery officer is actually scoped to projects.
+  var projIds = [];
+  document.querySelectorAll('.um-proj-cb').forEach(function(cb){
+    if (cb.checked) projIds.push(cb.dataset.id);
+  });
+
   if (!isEdit) {
     var limRes;
     try { limRes = await supabase.rpc('get_plan_limits_with_usage', { p_company_id: S.cid }); }
@@ -446,7 +498,8 @@ async function saveUserModal() {
         p_email:              email || null,
         p_phone:              phone || null,
         p_password:           pass,
-        p_module_permissions: modulePerms
+        p_module_permissions: modulePerms,
+        p_project_ids:        projIds
       });
       res = r1.data; error = r1.error;
     } else {
@@ -458,7 +511,8 @@ async function saveUserModal() {
         p_email:              email || null,
         p_phone:              phone || null,
         p_module_permissions: modulePerms,
-        p_username:           username || null
+        p_username:           username || null,
+        p_project_ids:        projIds
       });
       res = r2.data; error = r2.error;
     }

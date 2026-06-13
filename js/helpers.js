@@ -230,6 +230,7 @@ function hasPermission(perm){
     healthcenter:'clients',
     radar:'recovery',
     promises:'contacts',
+    fieldvisits:'recovery', escalations:'recovery', campaigns:'recovery', legalcases:'recovery',
     officerledger:'reports', receivingledger:'reports',
     audit:'reports',
   };

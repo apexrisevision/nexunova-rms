@@ -79,6 +79,19 @@ function _rqRender() {
   const pager = document.getElementById('rq-pager');
   if (!tabs || !body || !pager) return;
 
+  // A scoped role with no project assignment would otherwise see a silent empty
+  // queue. Tell them why, and who can fix it — never a dead end.
+  if (S && S.role !== 'admin' && S.role !== 'owner' &&
+      Array.isArray(S.assignedProjectIds) && S.assignedProjectIds.length === 0) {
+    tabs.innerHTML = '';
+    pager.innerHTML = '';
+    body.innerHTML = NX.card(NX.empty({
+      icon:'folder-lock',
+      message:'No project assigned yet — ask your admin to assign you to a project (Admin → Users & Roles) so your recovery queue can load.'
+    }));
+    return;
+  }
+
   const base = _rqBase();
 
   // Apply search filter

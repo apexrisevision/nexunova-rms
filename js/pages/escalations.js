@@ -52,7 +52,15 @@ async function _escLoad() {
       supabase.rpc('get_escalation_analytics', { p_company_id: S.cid })
     ]);
     if (e1) throw e1;
-    _escData = Array.isArray(data) ? data : [];
+    // Normalize list_escalations (DB contract) → the fields this page renders.
+    // DB stores to_level (int) / reason / resolution_note / nested clients{};
+    // the page reads escalation_level ('Ln') / description / resolution / client_name.
+    _escData = (Array.isArray(data) ? data : []).map(e => Object.assign({}, e, {
+      escalation_level: e.escalation_level || (e.to_level ? ('L' + e.to_level) : null),
+      description:      e.description      || e.reason || '',
+      resolution:      e.resolution       || e.resolution_note || '',
+      client_name:     e.client_name       || (e.clients && e.clients.client_name) || '—'
+    }));
     _escRenderStats(analytics||{});
     _escRenderTabs();
     _escRenderTable();
@@ -353,14 +361,22 @@ async function escSubmitNew() {
   if (btn) { btn.disabled=true; btn.textContent='Opening…'; }
 
   try {
+    // RPC signature is (p_company_id, p_data jsonb). The table stores to_level (int) /
+    // reason / escalated_by(uuid). Map the form's L-level → int, fold category +
+    // assignee into the reason text, and attribute to the officer (the calls pattern).
+    const _toLevel = parseInt(String(level).replace(/[^0-9]/g, ''), 10) || 1;
+    const _reason  = (cat ? '[' + cat + '] ' : '') + desc +
+                     (assigned ? '\nAssigned to: ' + assigned : '');
     const { data, error } = await supabase.rpc('create_escalation', {
-      p_company_id:       S.cid,
-      p_client_id:        clientId,
-      p_escalation_level: level,
-      p_category:         cat,
-      p_description:      desc,
-      p_assigned_to:      assigned,
-      p_created_by:       S.name||null
+      p_company_id: S.cid,
+      p_data: {
+        client_id:    clientId,
+        to_level:     _toLevel,
+        from_level:   1,
+        reason:       _reason,
+        escalated_by: S.userId,
+        status:       'open'
+      }
     });
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error||'Failed');

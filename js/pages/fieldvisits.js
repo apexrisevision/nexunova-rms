@@ -321,20 +321,23 @@ async function fvSubmitLog() {
   if (btn) { btn.disabled=true; btn.textContent='Saving…'; }
 
   try {
+    // RPC signature is (p_company_id, p_data jsonb). Attribution = the calls pattern:
+    // officer_id = S.userId (app-user UUID) + project_id derived server-side from the client.
+    const _fvClient = (_fvClientsCache||[]).find(c => c.id === clientId);
     const { data, error } = await supabase.rpc('log_field_visit', {
-      p_company_id:        S.cid,
-      p_client_id:         clientId,
-      p_visit_date:        date,
-      p_outcome:           outcome,
-      p_address:           address,
-      p_gps_lat:           lat,
-      p_gps_lng:           lng,
-      p_notes:             notes,
-      p_amount_collected:  collected,
-      p_payment_method:    outcome==='payment_collected' ? (methodEl?.value||null) : null,
-      p_promised_amount:   outcome==='promise_received'  ? parseFloat(promAmt?.value||0)||null : null,
-      p_promise_date:      outcome==='promise_received'  ? (promDate?.value||null) : null,
-      p_officer_name:      S.name||null
+      p_company_id: S.cid,
+      p_data: {
+        officer_id:    S.userId,
+        officer_name:  S.name || S.username || 'Officer',
+        client_id:     clientId,
+        client_name:   _fvClient ? (_fvClient.full_name || '') : null,
+        visit_date:    date,
+        outcome:       outcome,
+        location_name: address,
+        latitude:      lat,
+        longitude:     lng,
+        notes:         notes
+      }
     });
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error||'Failed');

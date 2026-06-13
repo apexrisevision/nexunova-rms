@@ -443,8 +443,8 @@ async function prmLogNew(prefill) {
       </div>
       <div class="nx-field">
         <label class="nx-label" for="prm-l-logged">Logged By</label>
-        <input class="nx-input" type="text" id="prm-l-logged" value="${esc(S.username||S.name||'')}" placeholder="Officer username">
-        <div class="nx-error"></div>
+        <input class="nx-input" type="text" id="prm-l-logged" value="${esc(S.name||S.username||'')}" readonly style="opacity:.7;cursor:not-allowed">
+        <div class="nx-error" style="color:var(--fk-text-muted)">Recorded automatically as the logged-in officer.</div>
       </div>
     </div>
     <div class="nx-field">
