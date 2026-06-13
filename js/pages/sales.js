@@ -1386,13 +1386,8 @@ function _renderSaleDetail(d, docs, amendments) {
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
       <button class="bk" onclick="nav('sales')">← Back</button>
-      <button class="btn btn-print btn-sm" onclick="printSaleDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-      <button class="btn btn-sm" onclick="openAgreementReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Sale Agreement"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Agreement</button>
-      <button class="btn btn-sm" onclick="openScheduleReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Installment Schedule"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
-      <button class="btn btn-sm" onclick="openDemandNotice('${d.id}')" style="background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Demand Notice"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Demand</button>
+      ${_salDocsBar(d)}
       ${d.status !== 'cancelled' ? `<button class="btn btn-g btn-sm" onclick="nav('addpayment','${d.unit_id}')" style="display:inline-flex;align-items:center;gap:5px" title="Record a payment against this unit"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Record Payment</button>` : ''}
-      <button class="btn btn-gh btn-sm" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)" style="display:inline-flex;align-items:center;gap:5px" title="Per-unit statement (plan vs payments)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Unit Statement</button>
-      <button class="btn btn-gh btn-sm" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)" style="display:inline-flex;align-items:center;gap:5px" title="Per-client ledger (running balance)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Client Ledger</button>
       ${(isA || isR) ? `<button class="btn btn-gh btn-sm" onclick="openSaleEdit('${d.id}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
       ${isA && typeof openAuditHistory==='function' ? `<button class="btn btn-gh btn-sm" onclick="openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number||'')}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg> History</button>` : ''}
       ${d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? `<button class="btn btn-sm" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.3);display:inline-flex;align-items:center;gap:5px" onclick="plOpenCreate(null,'${d.client_id}','${d.id}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Payment Link</button>` : ''}
@@ -2632,13 +2627,77 @@ function printAllotmentLetter() {
   _pclose(w);
 }
 
-// ══ PRINT: APPLICATION / BOOKING FORM ══════════════════════════════════
-// 7th sale print document. Crystal serif + ruled-box (Times/Georgia, 1px #333)
-// on Legal (default) or A4 — size toggle on the picker, swapped via @page.
-// Branded header via _lh(); client info auto-filled from get_client_by_id
-// (not carried in get_sale_detail), nominee/co-buyer from the sale itself.
-// Fields absent from the schema (residential address, office phone, monthly
-// income, NTN) render as empty ruled boxes to be handwritten in the file.
+// ══ SALE DETAIL — "Print / Documents ▾" dropdown ══════════════════════════
+// Groups the per-sale print outputs (Application Form · Sale Agreement ·
+// Installment Schedule · Demand Notice · Unit Statement · Client Ledger · the
+// generic sale sheet) under one named, warmth-kit menu so each is findable and
+// the action bar stays uncluttered. Each item names exactly what it generates.
+function _salDocsBar(d) {
+  const ic = p => '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">' + p + '</svg>';
+  const printerP = '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>';
+  const fileP    = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
+  const calP     = '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>';
+  const bellP    = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>';
+  const gridP    = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>';
+  const ledgerP  = '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>';
+  const it = (fn, label, sub, p) =>
+    '<button type="button" class="sd-docs-item" onclick="_salDocsHide();' + fn + '">' +
+      '<span class="sd-docs-ic">' + ic(p) + '</span>' +
+      '<span class="sd-docs-tx"><span class="sd-docs-l">' + label + '</span><span class="sd-docs-s">' + sub + '</span></span>' +
+    '</button>';
+  const id = esc(d.id);
+  return '' +
+    '<style>' +
+      '.sd-docs-wrap{position:relative;display:inline-block}' +
+      '.sd-docs-trigger{display:inline-flex;align-items:center;gap:6px;font-weight:500;background:var(--fk-bg-subtle,#f3f4f6);color:var(--fk-text,#1f2430);border:1px solid var(--fk-border,#e3e5ea)}' +
+      // menu = a consistent LIGHT popover (explicit colors) so it reads in both themes
+      '.sd-docs-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:60;min-width:262px;background:#ffffff;border:1px solid #e6e7ec;border-radius:12px;box-shadow:0 12px 34px rgba(20,22,40,.18);padding:6px}' +
+      '.sd-docs-wrap.is-open .sd-docs-menu{display:block;animation:sdDocsIn .12s ease}' +
+      '@keyframes sdDocsIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}' +
+      '.sd-docs-hd{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#8a90a0;padding:8px 10px 4px}' +
+      '.sd-docs-div{height:1px;background:#ececf1;margin:6px 6px}' +
+      '.sd-docs-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;padding:7px 10px;border-radius:9px;cursor:pointer;color:#1f2430}' +
+      '.sd-docs-item:hover{background:#eef0ff}' +
+      '.sd-docs-ic{flex-shrink:0;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#eef0ff;color:#4f46e5}' +
+      '.sd-docs-tx{display:flex;flex-direction:column;min-width:0}' +
+      '.sd-docs-l{font-size:13px;font-weight:500;line-height:1.25;color:#1f2430}' +
+      '.sd-docs-s{font-size:11px;color:#8a90a0;line-height:1.3}' +
+    '</style>' +
+    '<div class="sd-docs-wrap">' +
+      '<button type="button" class="btn btn-sm sd-docs-trigger" onclick="_salDocsToggle(event)">' +
+        ic(printerP) + 'Print / Documents' +
+        '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>' +
+      '</button>' +
+      '<div class="sd-docs-menu" role="menu">' +
+        '<div class="sd-docs-hd">KBH Forms</div>' +
+        it('printApplicationForm()',                 'Application Form',     'KBH booking form · legal sheet',   printerP) +
+        it("openAgreementReport('" + id + "')",      'Sale Agreement',       'A4 contract',                       fileP) +
+        it("openScheduleReport('" + id + "')",       'Installment Schedule', 'A4 payment plan',                   calP) +
+        it("openDemandNotice('" + id + "')",         'Demand Notice',        'A4 overdue notice',                 bellP) +
+        '<div class="sd-docs-hd">Statements</div>' +
+        it("nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)", 'Unit Statement', 'Plan vs payments', gridP) +
+        it("nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)",  'Client Ledger',  'Running balance',  ledgerP) +
+        '<div class="sd-docs-div"></div>' +
+        it('printSaleDetail()',                      'Print sale sheet',     'This detail page',                  printerP) +
+      '</div>' +
+    '</div>';
+}
+function _salDocsToggle(ev) {
+  ev.stopPropagation();
+  const w = ev.currentTarget.closest('.sd-docs-wrap'); if (!w) return;
+  const open = !w.classList.contains('is-open');
+  document.querySelectorAll('.sd-docs-wrap.is-open').forEach(x => x.classList.remove('is-open'));
+  w.classList.toggle('is-open', open);
+  if (open) setTimeout(() => document.addEventListener('click', _salDocsOutside), 0);
+}
+function _salDocsOutside(e) {
+  if (!e.target.closest('.sd-docs-wrap')) _salDocsHide();
+}
+function _salDocsHide() {
+  document.querySelectorAll('.sd-docs-wrap.is-open').forEach(x => x.classList.remove('is-open'));
+  document.removeEventListener('click', _salDocsOutside);
+}
+
 // ══ PRINT: KBH APPLICATION / BOOKING FORM ══════════════════════════════
 // Body-only generator for the pre-printed KBH legal sheet (8.5in × 14in). The
 // physical sheet already carries the green header (logo) at top and the
