@@ -1410,21 +1410,24 @@ function _renderSaleDetail(d, docs, amendments) {
           isA ? `<button class="nx-btn nx-btn--danger-soft nx-btn--sm nx-btn--icon" title="Delete" onclick="deleteSaleAmendment('${a.id}')">${NX.icon('trash-2', 13)}</button>` : ''
         ]), flush: true });
 
-  // ── Toolbar ──
+  // ── Actions: primary live in the header; documents/reports grouped in a toolbar ──
   const B = (label, opts) => NX.button(label, opts);
-  const toolbar = '<div class="no-p" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--fk-sp-4)">'
-    + '<a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav(\'sales\')">← Back</a>'
+  const headerActions = ''
     + (d.status !== 'cancelled' ? B('Record Payment', { variant:'primary', size:'sm', icon:'hand-coins', onclick:`nav('addpayment','${d.unit_id}')` }) : '')
-    + B('Application Form', { variant:'primary', size:'sm', icon:'file-text', onclick:'printApplicationForm()' })
-    + B('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printSaleDetail()' })
-    + B('Agreement', { variant:'secondary', size:'sm', icon:'file-text', onclick:`openAgreementReport('${d.id}')` })
-    + B('Schedule', { variant:'secondary', size:'sm', icon:'calendar', onclick:`openScheduleReport('${d.id}')` })
-    + B('Demand', { variant:'secondary', size:'sm', icon:'megaphone', onclick:`openDemandNotice('${d.id}')` })
+    + ((isA || isR) ? B('Edit', { variant:'secondary', size:'sm', icon:'pencil', onclick:`openSaleEdit('${d.id}')` }) : '');
+  const tbDiv = '<span aria-hidden="true" style="width:1px;align-self:stretch;background:var(--fk-border);margin:3px 5px"></span>';
+  const moreBtns = (isA && typeof openAuditHistory === 'function' ? B('History', { variant:'ghost', size:'sm', icon:'history', onclick:`openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number || '')}')` }) : '')
+    + (d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? B('Payment Link', { variant:'ghost', size:'sm', icon:'handshake', onclick:`plOpenCreate(null,'${d.client_id}','${d.id}')` }) : '');
+  const toolbar = '<div class="no-p" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:var(--fk-sp-5)">'
+    + B('Application Form', { variant:'secondary', size:'sm', icon:'file-text', onclick:'printApplicationForm()' })
+    + B('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'printSaleDetail()' })
+    + B('Agreement', { variant:'ghost', size:'sm', icon:'file-text', onclick:`openAgreementReport('${d.id}')` })
+    + B('Schedule', { variant:'ghost', size:'sm', icon:'calendar', onclick:`openScheduleReport('${d.id}')` })
+    + B('Demand', { variant:'ghost', size:'sm', icon:'megaphone', onclick:`openDemandNotice('${d.id}')` })
+    + tbDiv
     + B('Unit Statement', { variant:'ghost', size:'sm', icon:'list', onclick:"nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)" })
     + B('Client Ledger', { variant:'ghost', size:'sm', icon:'wallet', onclick:"nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)" })
-    + ((isA || isR) ? B('Edit', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleEdit('${d.id}')` }) : '')
-    + (isA && typeof openAuditHistory === 'function' ? B('History', { variant:'ghost', size:'sm', icon:'history', onclick:`openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number || '')}')` }) : '')
-    + (d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? B('Payment Link', { variant:'ghost', size:'sm', icon:'handshake', onclick:`plOpenCreate(null,'${d.client_id}','${d.id}')` }) : '')
+    + (moreBtns ? tbDiv + moreBtns : '')
     + '</div>';
 
   // ── Banners ──
@@ -1437,16 +1440,19 @@ function _renderSaleDetail(d, docs, amendments) {
   const heroTip = 'Net = contract value (gross − discount). Balance = Net − Σ installments paid. Collected + Remaining = Net.';
   const subline = [d.unit_no ? 'Unit ' + esc(d.unit_no) : '', d.project_name ? esc(d.project_name) : '', d.agent_name ? 'Agent: ' + esc(d.agent_name) : ''].filter(Boolean).join('  ·  ');
 
-  const header = `<div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:var(--fk-sp-4)">
-    ${NX.ichip('file-text', '', { size:'lg' })}
-    <div style="min-width:0;flex:1">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <h1 class="sd-title">${esc(d.client_name || 'Unknown Client')}</h1>
-        ${saleStBadge()}
-        ${d.co_buyer_name ? NX.badge('Joint owner', 'info') : ''}
+  const header = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:var(--fk-sp-4)">
+    <div style="display:flex;align-items:flex-start;gap:13px;min-width:0">
+      ${NX.ichip('file-text', '', { size:'lg' })}
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h1 class="sd-title">${esc(d.client_name || 'Unknown Client')}</h1>
+          ${saleStBadge()}
+          ${d.co_buyer_name ? NX.badge('Joint owner', 'info') : ''}
+        </div>
+        <div class="sd-meta"><span class="sd-mono" style="color:var(--fk-primary);font-weight:600">${esc(d.sale_number || '—')}</span>${subline ? '  ·  ' + subline : ''}</div>
       </div>
-      <div class="sd-meta"><span class="sd-mono" style="color:var(--fk-primary);font-weight:600">${esc(d.sale_number || '—')}</span>${subline ? '  ·  ' + subline : ''}</div>
     </div>
+    ${headerActions ? `<div style="display:flex;gap:8px;flex-shrink:0;align-items:center">${headerActions}</div>` : ''}
   </div>`;
 
   const fact = (l, v) => `<div><div class="sd-fact-l">${l}</div><div class="sd-fact-v">${v}</div></div>`;
@@ -1455,8 +1461,8 @@ function _renderSaleDetail(d, docs, amendments) {
       <div style="min-width:0">
         <div class="nx-kpi-label" style="display:flex;align-items:center">Net contract value${NX.infoTip(heroTip)}</div>
         <div class="sd-heronum" style="margin-top:6px">${fMF(d.net_amount)}</div>
-        <div class="sd-cap"><b style="color:var(--fk-success)">${fMF(totalPaid)}</b> collected  ·  <b style="color:var(--fk-text)">${fMF(remaining)}</b> remaining  ·  ${recovPct}% recovered</div>
-        <div style="margin-top:13px">${NX.journeybar({ height:10, segments:[{ value:totalPaid, tone:'primary', label:'Collected', amount:fMF(totalPaid) }, { value:remaining, tone:'muted', label:'Remaining', amount:fMF(remaining) }] })}</div>
+        <div class="sd-cap"><b style="color:${recovPct >= 100 ? 'var(--fk-success)' : 'var(--fk-primary)'};font-weight:600">${recovPct}%</b> of the contract value recovered</div>
+        <div style="margin-top:14px">${NX.journeybar({ height:10, segments:[{ value:totalPaid, tone:'primary', label:'Collected', amount:fMF(totalPaid) }, { value:remaining, tone:'muted', label:'Remaining', amount:fMF(remaining) }] })}</div>
       </div>
       <div style="border-left:1px solid var(--fk-border);padding-left:var(--fk-sp-6);display:grid;grid-template-columns:1fr 1fr;gap:14px 16px">
         ${fact('Down payment', fMF(d.down_payment))}
