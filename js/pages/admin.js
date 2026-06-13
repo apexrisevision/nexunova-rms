@@ -6,11 +6,12 @@
 // Sidebar pages own Users, Audit, Backup — so this hub keeps only genuine
 // admin-config sections (Settings · Company · Security · Plan · Import).
 const _ADM_TABS = [
-  { k:'settings', label:'Settings', icon:'settings' },
-  { k:'profile',  label:'Company',  icon:'building-2' },
-  { k:'security', label:'Security', icon:'shield' },
-  { k:'plan',     label:'Plan & usage', icon:'credit-card' },
-  { k:'import',   label:'Import',   icon:'upload' },
+  { k:'settings',  label:'Settings', icon:'settings' },
+  { k:'profile',   label:'Company',  icon:'building-2' },
+  { k:'security',  label:'Security', icon:'shield' },
+  { k:'approvals', label:'Approvals', icon:'check-circle' },
+  { k:'plan',      label:'Plan & usage', icon:'credit-card' },
+  { k:'import',    label:'Import',   icon:'upload' },
 ];
 
 function rAdmin(){
@@ -91,6 +92,9 @@ function rAT(){
     return;
   } else if(_at==='security'){
     _adminLoadSecurity(ct);
+    return;
+  } else if(_at==='approvals'){
+    _adminLoadApprovals(ct);
     return;
   }
 }
@@ -546,6 +550,71 @@ async function submitChangePassword() {
 }
 
 // ══ MODULE 12 — SECURITY TAB ══════════════════════════════════════
+
+// ── Approvals & Controls (maker-checker rule config) ────────────────────────
+// Reads the per-company rule catalog (get_approval_settings, merged with engine
+// defaults) and writes one rule at a time (save_approval_settings). The level
+// governs what happens when a rule trips; the number (where shown) is the trip
+// threshold. Enforcement lives in the RPCs — this only configures it.
+async function _adminLoadApprovals(ct) {
+  ct.innerHTML = NX.card(NX.empty({ icon:'check-circle', message:'Loading approval controls…' }));
+  const { data, error } = await supabase.rpc('get_approval_settings', { p_company_id: S.cid });
+  if (error || !data || data.success === false) {
+    ct.innerHTML = NX.card(NX.banner('Could not load approval settings.', 'danger')); return;
+  }
+  const rules = Array.isArray(data.rules) ? data.rules : [];
+  window._apvRules = rules;
+
+  const levelOpts = (cur) => [
+    { v:'off',     l:'Off — always allowed' },
+    { v:'warning', l:'Warn — allow + log' },
+    { v:'soft',    l:'Approval — needs sign-off' },
+    { v:'hard',    l:'Block — never allowed' },
+  ].map(o => `<option value="${o.v}"${o.v === cur ? ' selected' : ''}>${o.l}</option>`).join('');
+
+  const intro = '<p style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin:0 0 var(--fk-sp-4);line-height:1.6">Decide which actions need Admin sign-off before they take effect. <b style="color:var(--fk-text)">Approval</b> parks the action for review in the Approvals queue; <b style="color:var(--fk-text)">Warn</b> allows it but records it; <b style="color:var(--fk-text)">Block</b> forbids it outright. Where a number is shown, the rule only triggers past that limit.</p>';
+
+  const GICON = { Sale:'tag', Money:'banknote', Structure:'git-branch', Other:'shield' };
+  const groups = ['Sale','Money','Structure','Other'];
+  const cards = groups.map(g => {
+    const rs = rules.filter(r => r.group === g);
+    if (!rs.length) return '';
+    const rows = rs.map(r => {
+      const num = r.num
+        ? `<input class="nx-input" id="apv-num-${esc(r.action)}" type="number" min="0" step="1" value="${esc(String((r.threshold && r.threshold[r.num] != null) ? r.threshold[r.num] : ''))}" style="width:84px" title="${esc(r.num_label||'')}"><span class="nx-kpi-label" style="text-transform:none">${esc(r.unit||'')}</span>`
+        : '<span class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted)">—</span>';
+      return `<div style="display:flex;align-items:center;gap:var(--fk-sp-3);padding:10px 0;border-bottom:1px solid var(--fk-border)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-medium);color:var(--fk-text)">${esc(r.label)}</div>
+          <div class="nx-kpi-label" style="text-transform:none">${esc(r.desc)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">${num}</div>
+        <select class="nx-select" id="apv-lvl-${esc(r.action)}" style="width:auto">${levelOpts(r.level)}</select>
+        ${NX.button('Save', { variant:'secondary', size:'sm', onclick:`apvSaveRule('${esc(r.action)}')` })}
+      </div>`;
+    }).join('');
+    return NX.card(rows, { header:{ icon:GICON[g]||'shield', title:g + ' controls' } });
+  }).join('');
+
+  ct.innerHTML = '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);max-width:780px">' + intro + cards + '</div>';
+}
+
+async function apvSaveRule(action) {
+  const r = (window._apvRules || []).find(x => x.action === action);
+  if (!r) return;
+  const lvl = document.getElementById('apv-lvl-' + action)?.value || 'soft';
+  const threshold = {};
+  if (r.num) {
+    const v = document.getElementById('apv-num-' + action)?.value;
+    if (v !== '' && v != null) threshold[r.num] = Number(v);
+  }
+  const { data, error } = await supabase.rpc('save_approval_settings', {
+    p_company_id: S.cid, p_data: { action, level: lvl, threshold }
+  });
+  if (error || !data || data.success === false) { toast('Could not save rule', 'err'); return; }
+  r.level = lvl; r.threshold = Object.assign({}, r.threshold, threshold);  // reflect locally
+  toast('Approval rule saved', 'ok');
+}
 
 async function _adminLoadSecurity(ct) {
   ct.innerHTML = NX.card(NX.empty({ icon:'shield', message:'Loading security settings…' }));
