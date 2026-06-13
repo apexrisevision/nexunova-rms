@@ -51,10 +51,10 @@ const REPORTS = {
       transform: (data, f) => _ledgerTransform(data, f)
     } },
 
-  unit_statement: { meta: { title: 'Unit Statement', group: 'CLIENT & UNIT', desc: 'Per-unit booking, full plan vs payments, current position' },
+  unit_statement: { meta: { title: 'Unit Statement', group: 'CLIENT & UNIT', desc: 'Schedule vs payments — full plan, month-wise payments, shortfall & balance to last installment' },
     config: {
       id: 'unit_statement', title: 'Unit Statement', group: 'CLIENT & UNIT', orientation: 'portrait',
-      description: 'Per-unit document — FULL installment plan (incl. future), Paid/Partial/Due/Future, recoverable + contract balance',
+      description: 'Per-unit account — the planned schedule (down-payment + installments) with FIFO-paid status, the actual payments received (month-wise), the current shortfall, and the balance to the final installment',
       filters: [{ kind: 'unitPicker' }],   // full plan: no date bound (future installments shown)
       // Two get_unit_ledger calls: full (entire plan + contract-remaining) and
       // as-of-today (recoverable closing == the Recovery Position row).
@@ -277,16 +277,26 @@ function _ledgerTransform(data, f) {
 // balance remaining. data = { full: get_unit_ledger(all), recoverable: closing as-of today }.
 function _unitStatementTransform(data, f) {
   const full = (data && data.full) || {};
+  const info = full.unit_info || {};
   const opening = Number(full.opening_balance || 0);
   const allRows = (full.rows || []).slice();
   const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
+
+  // ── A. The PLANNED schedule (down-payment + each installment), with FIFO-paid ──
   const inst = allRows.filter(r => Number(r.debit || 0) > 0)
     .map(r => ({ due_date: r.entry_date, particulars: r.description || '', voucher: r.voucher_no || '', due: Number(r.debit || 0), paid: 0, balance: 0, status: '' }))
     .sort((a, b) => String(a.due_date || '').localeCompare(String(b.due_date || '')));
-  const totalPaid = allRows.reduce((s, r) => s + Number(r.credit || 0), 0);
+
+  // ── The ACTUAL payments the client made (receipts) ──
+  const payRows = allRows.filter(r => Number(r.credit || 0) > 0)
+    .map(r => ({ date: r.entry_date, voucher: r.voucher_no || '—', mode: String(r.description || '').replace(/^Payment Received — /, ''), amount: Number(r.credit || 0) }))
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const totalPaid = payRows.reduce((s, r) => s + r.amount, 0);
+
   let pool = totalPaid;                                  // FIFO: oldest installment first
   inst.forEach(it => { const a = Math.min(pool, it.due); it.paid = a; pool -= a; it.balance = it.due - it.paid; });
   inst.forEach(it => { it.status = it.balance <= 0 ? 'Paid' : (it.paid > 0 ? 'Partial' : (String(it.due_date || '') > today ? 'Future' : 'Due')); });
+
   const columns = [
     { key: 'due_date', label: 'Due Date', fmt: 'date' }, { key: 'particulars', label: 'Installment' },
     { key: 'due', label: 'Amount Due', num: true, fmt: 'money' }, { key: 'paid', label: 'Paid', num: true, fmt: 'money' },
@@ -294,20 +304,53 @@ function _unitStatementTransform(data, f) {
   ];
   const totDue = inst.reduce((s, it) => s + it.due, 0), totPaid = inst.reduce((s, it) => s + it.paid, 0);
   const contractRemaining = Number(full.closing_balance != null ? full.closing_balance : (opening + totDue - totalPaid));
-  const recoverable = Number((data && data.recoverable) || 0);
+  const netAsOfToday = Number((data && data.recoverable) || 0);   // as-of-today net (due − paid), RP-consistent
+  const shortfall = Math.max(0, netAsOfToday);                    // owed now (overdue & due, unpaid)
+  const advance   = Math.max(0, -netAsOfToday);                   // paid ahead of schedule
+  const dpRow = inst.find(it => /down\s*payment|booking/i.test(it.particulars));
+  const dpAmt = dpRow ? dpRow.due : 0;
+  const overdueCount = inst.filter(it => String(it.due_date || '') <= today && it.balance > 0.005).length;
+
+  // ── C. Month-wise payments — "how much they paid each month" ──
+  const MON = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const byMonth = {};
+  payRows.forEach(r => { const m = String(r.date || '').slice(0, 7); if (m.length !== 7) return; const x = byMonth[m] = byMonth[m] || { count: 0, amount: 0 }; x.count++; x.amount += r.amount; });
+  const monthRows = Object.keys(byMonth).sort().map(m => ({ month: (MON[Number(m.slice(5, 7))] || m.slice(5, 7)) + ' ' + m.slice(0, 4), count: byMonth[m].count, amount: byMonth[m].amount }));
+
   return {
     columns, rows: inst, totals: { due: totDue, paid: totPaid, balance: contractRemaining }, totalsLabel: 'TOTAL',
     summary: [
-      { label: 'Total Contract', value: opening + totDue, money: true }, { label: 'Paid to Date', value: totPaid, money: true },
-      { label: 'Recoverable as of today', value: recoverable, money: true }, { label: 'Contract Balance Remaining', value: contractRemaining, money: true }
+      { label: 'Total Contract', value: opening + totDue, money: true },
+      { label: 'Down Payment / Booking', value: dpAmt, money: true },
+      { label: 'Paid to Date', value: totPaid, money: true },
+      { label: advance > 0 ? 'Paid in Advance' : 'Current Shortfall (overdue)', value: advance > 0 ? advance : shortfall, money: true },
+      { label: 'Balance to Final Installment', value: contractRemaining, money: true }
     ],
-    appendix: [{
-      title: 'Closing position', columns: [{ key: 'line', label: 'Position' }, { key: 'amount', label: 'Amount', num: true, fmt: 'money' }],
-      rows: [
-        { line: 'Recoverable as of today (due & overdue, unpaid)', amount: recoverable },
-        { line: 'Total contract balance remaining (incl. future installments)', amount: contractRemaining }
-      ]
-    }]
+    appendix: [
+      { title: 'Account',
+        columns: [{ key: 'k', label: '' }, { key: 'v', label: '' }],
+        rows: [
+          { k: 'Client', v: info.client_name || '—' },
+          { k: 'Unit', v: (info.unit_no || '—') + (info.project_name ? ' · ' + info.project_name : '') },
+          { k: 'Sale #', v: info.sale_number || '—' },
+          { k: 'Schedule', v: inst.length + ' line' + (inst.length !== 1 ? 's' : '') + (dpAmt ? ' (incl. down-payment)' : '') }
+        ] },
+      { title: 'Payments Received — actual receipts (' + payRows.length + ')',
+        columns: [{ key: 'date', label: 'Paid On', fmt: 'date' }, { key: 'voucher', label: 'Receipt #' }, { key: 'mode', label: 'Mode / Reference' }, { key: 'amount', label: 'Amount', num: true, fmt: 'money' }],
+        rows: payRows, totals: { amount: totalPaid }, totalsLabel: 'TOTAL PAID',
+        note: payRows.length ? '' : 'No payments recorded against this unit yet.' },
+      { title: 'Month-wise Payments — how much was paid each month',
+        columns: [{ key: 'month', label: 'Month' }, { key: 'count', label: 'Receipts', num: true }, { key: 'amount', label: 'Paid', num: true, fmt: 'money' }],
+        rows: monthRows, totals: { count: payRows.length, amount: totalPaid }, totalsLabel: 'TOTAL',
+        note: monthRows.length ? '' : 'No payments yet.' },
+      { title: 'Closing position',
+        columns: [{ key: 'line', label: 'Position' }, { key: 'amount', label: 'Amount', num: true, fmt: 'money' }],
+        rows: [
+          { line: 'Current shortfall — due & overdue, unpaid (recoverable now)', amount: shortfall },
+          { line: overdueCount + ' installment' + (overdueCount !== 1 ? 's' : '') + ' overdue / short', amount: '' },
+        ].concat(advance > 0 ? [{ line: 'Paid in advance — ahead of the schedule', amount: advance }] : [])
+        .concat([{ line: 'Total contract balance remaining (incl. future installments)', amount: contractRemaining }]) }
+    ]
   };
 }
 
