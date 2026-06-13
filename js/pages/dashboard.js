@@ -51,6 +51,7 @@ function _dashMonths(n) {
 /* ── get_recovery_position with per-session cache (keyed by cid|project|from|to) ── */
 function _dashRpCacheClear() { window._dashRpCache = {}; }
 async function _dashRP(from, to, projectId) {
+  if (projectId === undefined) projectId = (typeof activeProjectId === 'function' ? activeProjectId() : null);  // global project lens
   window._dashRpCache = window._dashRpCache || {};
   const key = `${S.cid}|${projectId || ''}|${from}|${to}`;
   if (window._dashRpCache[key]) return window._dashRpCache[key];
@@ -66,6 +67,7 @@ async function _dashRP(from, to, projectId) {
    Reconciles to get_recovery_position.received_total for the same period (proven
    in the migration cross-check). Per-session cached on the same store. ── */
 async function _dashDaily(from, to, projectId) {
+  if (projectId === undefined) projectId = (typeof activeProjectId === 'function' ? activeProjectId() : null);  // global project lens
   window._dashDayCache = window._dashDayCache || {};
   const key = `${S.cid}|${projectId || ''}|${from}|${to}`;
   if (window._dashDayCache[key]) return window._dashDayCache[key];
@@ -128,14 +130,15 @@ async function _dashAdmin(pg) {
   const months = _dashMonths(6);
   // All RP month calls + receivable + today + PDC pipeline + approvals + the two
   // daily series (this MTD + last full month, for the pace sparkline) in parallel.
-  const [rps, rec, today, pdc, apprCount, dailyThis, dailyLast] = await Promise.all([
+  const [rps, rec, today, pdc, apprCount, dailyThis, dailyLast, team] = await Promise.all([
     Promise.all(months.map(m => _dashRP(m.from, m.to))),
     _dashReceivable().catch(() => ({ receivable: 0, contracted: 0, collected: 0 })),
     _dashToday().catch(() => null),
     _dashLoadPdcPipeline().catch(() => null),
     _dashLoadApprovals().catch(() => 0),
     _dashDaily(months[5].from, months[5].to).catch(() => null),
-    _dashDaily(months[4].from, months[4].to).catch(() => null)
+    _dashDaily(months[4].from, months[4].to).catch(() => null),
+    _dashTeam(months[5].from, months[5].to).catch(() => [])
   ]);
   months.forEach((m, i) => { m.collected = Number(rps[i].totals?.received_total || 0); });
   const rp     = rps[months.length - 1];            // current month MTD = source of truth
@@ -156,6 +159,7 @@ async function _dashAdmin(pg) {
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${_dashWhoLate(rows)}</div>
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-3);min-width:0">
         ${_dashApprovalsMini(apprCount)}
+        ${_dashTeamPanel(team, dailyThis)}
         ${_dashTodayCard(today)}
         ${_dashAging(rows, overdueAmt)}
         ${_dashPdcPipeline(pdc)}
@@ -423,6 +427,61 @@ function _dashApprovalsMini(n) {
     { class: 'nx-rise nx-card--hover', compact: true });
 }
 
+/* RECOVERY TEAM — compact admin-only officer leaderboard (this month), top by
+   recovered, with the fair keep-rate. Company collected-trend sparkline reuses
+   the already-fetched daily series (get_daily_collections — zero new RPC on the
+   trend). RENDER-GATED: hidden entirely when no officer has activity (the FG
+   reality today), so it never shows an empty shell. */
+async function _dashTeam(from, to) {
+  const { data, error } = await supabase.rpc('get_team_performance', {
+    p_company_id: S.cid, p_project_id: (typeof activeProjectId === 'function' ? activeProjectId() : null), p_from: from, p_to: to
+  });
+  if (error || !Array.isArray(data)) throw (error || new Error('team performance unavailable'));
+  return data;
+}
+
+function _dashTeamPanel(officers, dailyThis) {
+  const active = (officers || []).filter(o =>
+    (Number(o.calls) || 0) + (Number(o.visits) || 0) + (Number(o.promises_made) || 0) + (Number(o.recovered) || 0) > 0);
+  if (!active.length) return '';                          // RENDER-GATE — no activity ⇒ no panel
+
+  const top = active.slice().sort((a, b) => (Number(b.recovered) || 0) - (Number(a.recovered) || 0)).slice(0, 5);
+  const tip = 'Recovered = Σ receipts on each officer’s assigned projects this month (gross). ' +
+    'Keep-rate = promises kept ÷ matured. Σ officer recovered reconciles to the company collected. Source: get_team_performance.';
+
+  const rowsHtml = top.map(o => {
+    const nm = o.full_name || '—', initial = (String(nm).trim()[0] || '?').toUpperCase();
+    const rec = Number(o.recovered) || 0;
+    const fair = o.keep_rate_matured;
+    const keepChip = (fair == null)
+      ? '<span class="nx-kpi-label" style="text-transform:none">no promises</span>'
+      : NX.badge(Math.round(Number(fair)) + '%', Number(fair) >= 70 ? 'success' : Number(fair) >= 40 ? 'warning' : 'danger');
+    return `<div style="display:flex;align-items:center;gap:var(--fk-sp-3);padding:6px 0">
+      <span class="nx-avatar" style="background:var(--fk-primary-chip);color:var(--fk-primary)">${esc(initial)}</span>
+      <span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fk-text)">${esc(nm)}</span>
+      <span class="num" style="color:var(--fk-text);font-variant-numeric:tabular-nums">${_dashCompact(rec)}</span>
+      <span style="width:48px;text-align:right">${keepChip}</span>
+    </div>`;
+  }).join('');
+
+  // Company collected trend (cumulative MTD) — reuse dailyThis; render-gate ≥3 pts.
+  let spark = '';
+  const days = new Date().getDate();
+  const cum = (typeof _dashCumByDay === 'function' && dailyThis) ? _dashCumByDay(dailyThis, days) : [];
+  if (cum.length >= 3) {
+    spark = `<div style="margin-top:var(--fk-sp-3);border-top:1px solid var(--fk-border);padding-top:var(--fk-sp-3)">
+      <div class="nx-kpi-label" style="text-transform:none;margin-bottom:4px">Company collected — this month</div>
+      ${NX.sparkline({ series: [cum], colors: ['var(--fk-primary)'], height: 30 })}</div>`;
+  }
+
+  const header = `<div style="display:flex;align-items:center;gap:var(--fk-sp-2);margin-bottom:var(--fk-sp-2)">
+    ${NX.ichip('users', '', {})}
+    <span class="nx-statchip-l" style="display:flex;align-items:center">Recovery team${NX.infoTip(tip)}</span>
+    <a class="nx-btn nx-btn--ghost nx-btn--sm" style="margin-left:auto" onclick="nav('team')">View</a></div>`;
+
+  return NX.card(header + rowsHtml + spark, { class: 'nx-rise nx-card--hover', compact: true });
+}
+
 /* WHO IS LATE — the heart of the page */
 function _dashWhoLate(rows) {
   const late = rows
@@ -516,7 +575,7 @@ async function _dashLoadApprovals() {
 // hero journey bar + gauge. Non-aging contract metric, distinct from the recovery
 // rollforward so it never double-counts Overdue Today / closing.
 async function _dashReceivable() {
-  const { data } = await supabase.rpc('get_dashboard_receivable', { p_company_id: S.cid, p_project_id: null });
+  const { data } = await supabase.rpc('get_dashboard_receivable', { p_company_id: S.cid, p_project_id: (typeof activeProjectId === 'function' ? activeProjectId() : null) });
   return {
     receivable: Number((data && data.receivable) || 0),
     contracted: Number((data && data.net_active) || 0),
@@ -530,7 +589,7 @@ async function _dashReceivable() {
 async function _dashToday() {
   const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
   const [snap, daily] = await Promise.all([
-    supabase.rpc('get_today_snapshot', { p_company_id: S.cid, p_project_id: null, p_today: today }).then(r => r.data).catch(() => null),
+    supabase.rpc('get_today_snapshot', { p_company_id: S.cid, p_project_id: (typeof activeProjectId === 'function' ? activeProjectId() : null), p_today: today }).then(r => r.data).catch(() => null),
     _dashDaily(today, today).catch(() => null)
   ]);
   const s = snap || {};
@@ -549,7 +608,7 @@ async function _dashLoadPdcPipeline() {
   const end = new Date(); end.setDate(end.getDate() + 28);
   const to = end.toISOString().slice(0, 10);
   const { data } = await supabase.rpc('get_pdc_register', {
-    p_company_id: S.cid, p_status: 'all', p_project_id: null, p_date_from: today, p_date_to: to
+    p_company_id: S.cid, p_status: 'all', p_project_id: (typeof activeProjectId === 'function' ? activeProjectId() : null), p_date_from: today, p_date_to: to
   });
   const rows = (data && Array.isArray(data.rows)) ? data.rows : [];
   const open = rows.filter(r => { const st = String(r.status || '').toLowerCase(); return st !== 'cleared' && st !== 'bounced' && st !== 'cancelled'; });

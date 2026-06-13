@@ -1,19 +1,36 @@
 // ══ TEAM PERFORMANCE (Admin-only) ═════════════════════════════════════════════
-// One row per active recovery user — activity, collections, neglected accounts.
+// One row per active recovery user — activity, collections, neglected accounts,
+// over an arbitrary period (Today / This week / This month / Custom) and project.
 // Clickable rows open a slide-over drawer with the full per-officer breakdown.
-// Data: get_team_performance_lite(p_company_id) — UNCHANGED.
 //
-// Phase-3 ADMIN batch: list restyled onto the nx- foundation kit (nx-table /
-// page header / badges / empty). The per-officer detail still uses the shared
-// DX.drawer slide-over (cross-page infra; out of this batch's scope).
+// Data: get_team_performance(p_company_id, p_project_id, p_from, p_to) — the
+// period-aware RPC (extends the old _lite with field_visits, escalations, dual
+// keep-rate, and the get_recovery_position OLD/CURRENT/DEAD collections split).
+// Keep-rate: FAIR (kept ÷ matured) is the headline; STRICT (kept ÷ made) shown
+// as a secondary. Collections attribution = project-assignment (see RPC comment;
+// created_by-precise is a future upgrade once receipts are stamped).
 //
 // QA NOTE (merge review): Team Performance is NOT a duplicate of Users & Roles.
 // Users & Roles manages accounts/roles/access; this is a recovery-operations
-// scoreboard (calls, promises, collections, neglect) per officer. Keep both.
+// scoreboard (recovered, keep-rate, calls, visits, escalations, neglect) per
+// officer. Keep both.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
 let _teamRows = [];
+let _teamFilt = { period: 'month', from: '', to: '', project: '' };
+
+function _teamTodayISO() { return new Date().toISOString().slice(0, 10); }
+
+// Selected period → {from,to}. Day/week/month are all just date ranges; the RPC
+// is period-agnostic so the UI owns the calendar arithmetic.
+function _teamRange() {
+  const p = _teamFilt.period, t = _teamTodayISO();
+  if (p === 'today') return { from: t, to: t };
+  if (p === 'week')  { const d = new Date(); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return { from: d.toISOString().slice(0, 10), to: t }; }
+  if (p === 'custom') return { from: _teamFilt.from || t, to: _teamFilt.to || t };
+  const d = new Date(); d.setDate(1); return { from: d.toISOString().slice(0, 10), to: t };  // month
+}
 
 async function rTeam() {
   const el = document.getElementById('pg-team');
@@ -26,19 +43,64 @@ async function rTeam() {
   }
 
   el.innerHTML = '<div class="ani">' +
-    NX.pageHeader('Team Performance', '', { icon:'users', sub:'Per-officer activity, collections, and neglected accounts' }) +
+    NX.pageHeader('Team Performance', '', { icon: 'users', sub: 'Per-officer recovery — recovered, promise keep-rate, calls, visits & escalations' }) +
+    '<div id="team-filt" class="nx" style="display:flex;flex-wrap:wrap;align-items:center;gap:var(--fk-sp-3);margin-bottom:var(--fk-sp-4)"></div>' +
     '<div id="team-body"></div></div>';
 
+  _teamRenderFilters();
   await _teamLoad();
 }
+
+function _teamRenderFilters() {
+  const bar = document.getElementById('team-filt');
+  if (!bar) return;
+  const tabs = NX.tabs({
+    active: _teamFilt.period,
+    onSelect: "_teamSetPeriod('%k')",
+    tabs: [
+      { k: 'today', label: 'Today' },
+      { k: 'week',  label: 'This week' },
+      { k: 'month', label: 'This month' },
+      { k: 'custom', label: 'Custom' }
+    ]
+  });
+
+  const projs = (typeof gprojects === 'function' ? gprojects() : []).slice()
+    .sort((a, b) => String(a.name || a.project_name || '').localeCompare(String(b.name || b.project_name || '')));
+  const projSel = '<select class="nx-select" style="width:auto" onchange="_teamSetProject(this.value)">' +
+    '<option value="">All projects</option>' +
+    projs.map(p => `<option value="${esc(p.id)}"${p.id === _teamFilt.project ? ' selected' : ''}>${esc(p.name || p.project_name || 'Project')}</option>`).join('') +
+    '</select>';
+
+  let custom = '';
+  if (_teamFilt.period === 'custom') {
+    const r = _teamRange();
+    custom = `<span class="nx-kpi-label">From</span>` +
+      `<input type="date" class="nx-input" style="width:auto" value="${esc(r.from)}" onchange="_teamSetCustom('from',this.value)">` +
+      `<span class="nx-kpi-label">To</span>` +
+      `<input type="date" class="nx-input" style="width:auto" value="${esc(r.to)}" onchange="_teamSetCustom('to',this.value)">`;
+  }
+
+  bar.innerHTML = tabs + projSel + custom;
+}
+
+function _teamSetPeriod(k) { _teamFilt.period = k; _teamRenderFilters(); if (k !== 'custom') _teamLoad(); }
+function _teamSetProject(v) { _teamFilt.project = v || ''; _teamLoad(); }
+function _teamSetCustom(key, val) { _teamFilt[key] = val; _teamRenderFilters(); if (_teamFilt.from && _teamFilt.to) _teamLoad(); }
 
 async function _teamLoad() {
   const body = document.getElementById('team-body');
   if (!body) return;
-  body.innerHTML = NX.card(NX.empty({ icon:'users', message:'Loading team performance…' }));
+  body.innerHTML = NX.card(NX.empty({ icon: 'users', message: 'Loading team performance…' }));
 
+  const r = _teamRange();
   try {
-    const { data, error } = await supabase.rpc('get_team_performance_lite', { p_company_id: S.cid });
+    const { data, error } = await supabase.rpc('get_team_performance', {
+      p_company_id: S.cid,
+      p_project_id: _teamFilt.project || null,
+      p_from: r.from,
+      p_to: r.to
+    });
     if (error) throw error;
     _teamRows = Array.isArray(data) ? data : [];
     _teamRender(_teamRows);
@@ -51,40 +113,57 @@ async function _teamLoad() {
 function _teamMoney(v) {
   return (window.DX && DX.money) ? DX.money(v) : 'PKR ' + (typeof fM === 'function' ? fM(Number(v) || 0) : (Number(v) || 0).toLocaleString('en-US'));
 }
+function _teamPct(v) { return (v == null || v === '') ? '—' : (Number(v).toFixed(1).replace(/\.0$/, '') + '%'); }
 
 function _teamRender(rows) {
   const body = document.getElementById('team-body');
   if (!body) return;
 
+  // RENDER-GATE: the RPC returns every active recovery officer, so an empty list
+  // means the company has no recovery users at all (the FG reality today). Show a
+  // warm, helpful next-step — never a dead table.
   if (!rows.length) {
     body.innerHTML = NX.card(NX.empty({
-      icon: 'users',
-      message: 'No active recovery users found for this company.'
+      icon: 'user-plus',
+      tone: '',
+      message: 'No recovery activity yet — assign a recovery user (Users & Roles → role “Recovery”) and they’ll appear here with their calls, promises, visits and collections.'
     }));
     return;
   }
 
   const muted = (t) => `<span style="color:var(--fk-text-muted)">${t}</span>`;
+  const recTip  = 'Recovered = Σ receipts on the officer’s assigned projects in the period (gross). ' +
+    'from Arrears / from Current = the FIFO split of what those receipts cleared (old vs current dues). ' +
+    'Attribution is by assigned project — a shared project credits each assigned officer.';
+  const keepTip = 'Keep-rate (fair) = promises kept ÷ promises matured (whose date has passed). ' +
+    'Strict = kept ÷ all promises made in the period (a not-yet-due promise counts against it).';
 
   const trs = rows.map(r => {
     const nm       = r.full_name || '—';
     const initial  = (String(nm).trim()[0] || '?').toUpperCase();
-    const projects = Array.isArray(r.projects) ? r.projects : [];
-    const projCell = projects.length ? esc(projects.join(', ')) : muted('—');
 
-    const calls    = Number(r.calls_this_month) || 0;
-    const made     = Number(r.promises_made) || 0;
-    const kept     = Number(r.promises_kept) || 0;
-    const broken   = Number(r.promises_broken) || 0;
-    const promCell = made === 0 ? muted('—') : `<span title="kept / broken">${kept} / ${broken}</span>`;
+    const recovered = Number(r.recovered) || 0;
+    const rOld = Number(r.recovered_old) || 0, rCur = Number(r.recovered_current) || 0;
+    const split = recovered > 0
+      ? `<div class="nx-kpi-label" style="text-transform:none;margin-top:2px">${_teamMoney(rOld)} arrears · ${_teamMoney(rCur)} current</div>`
+      : '';
+    const recCell = recovered > 0
+      ? `<div style="color:var(--fk-text)">${_teamMoney(recovered)}</div>${split}`
+      : muted('—');
 
-    const collected = Number(r.collected_this_month) || 0;
+    const made = Number(r.promises_made) || 0;
+    const fair = r.keep_rate_matured, strict = r.keep_rate_made;
+    const keepCell = made === 0
+      ? muted('—')
+      : `<div style="color:var(--fk-text)">${_teamPct(fair)}</div>` +
+        `<div class="nx-kpi-label" style="text-transform:none;margin-top:2px">${_teamPct(strict)} strict · ${made} made</div>`;
+
+    const calls  = Number(r.calls) || 0;
+    const visits = Number(r.visits) || 0;
+    const escs   = Number(r.escalations) || 0;
 
     const un     = Number(r.untouched_overdue) || 0;
     const unCell = un > 0 ? NX.badge(String(un), 'danger') : muted('0');
-
-    const pa     = Number(r.pending_approvals) || 0;
-    const paCell = pa > 0 ? NX.badge(String(pa), 'warning') : muted('0');
 
     const userCell =
       '<span style="display:inline-flex;align-items:center;gap:10px">' +
@@ -94,12 +173,12 @@ function _teamRender(rows) {
 
     return `<tr style="cursor:pointer" onclick="_teamDrawer('${esc(String(r.user_id))}')">
       <td>${userCell}</td>
-      <td style="max-width:260px;white-space:normal;color:var(--fk-text-muted)">${projCell}</td>
-      <td class="num">${calls}</td>
-      <td class="num">${promCell}</td>
-      <td class="num">${_teamMoney(collected)}</td>
+      <td class="num">${recCell}</td>
+      <td class="num">${keepCell}</td>
+      <td class="num">${calls || muted('0')}</td>
+      <td class="num">${visits || muted('0')}</td>
+      <td class="num">${escs ? NX.badge(String(escs), 'warning') : muted('0')}</td>
       <td class="num">${unCell}</td>
-      <td class="num">${paCell}</td>
     </tr>`;
   }).join('');
 
@@ -107,15 +186,15 @@ function _teamRender(rows) {
     `<table class="nx-table nx-table--flush">
       <thead><tr>
         <th>Officer</th>
-        <th>Projects</th>
+        <th class="num">Recovered${NX.infoTip(recTip)}</th>
+        <th class="num">Keep-rate${NX.infoTip(keepTip)}</th>
         <th class="num">Calls</th>
-        <th class="num">Promises</th>
-        <th class="num">Collected</th>
+        <th class="num">Visits</th>
+        <th class="num">Escalations</th>
         <th class="num">Untouched</th>
-        <th class="num">Approvals</th>
       </tr></thead>
       <tbody>${trs}</tbody>
-    </table>`, { flush:true });
+    </table>`, { flush: true });
 }
 
 /* ── Detail drawer: full per-officer breakdown ──────────────────────────────── */
@@ -126,38 +205,52 @@ function _teamDrawer(userId) {
   const projects  = Array.isArray(r.projects) ? r.projects : [];
   const outstanding = Number(r.outstanding) || 0;
   const overdue     = Number(r.overdue) || 0;
-  const collected   = Number(r.collected_this_month) || 0;
+  const recovered   = Number(r.recovered) || 0;
+  const rOld = Number(r.recovered_old) || 0, rCur = Number(r.recovered_current) || 0, rDead = Number(r.recovered_dead) || 0;
   const pa          = Number(r.pending_approvals) || 0;
-  const calls       = Number(r.calls_this_month) || 0;
+  const calls       = Number(r.calls) || 0;
+  const visits      = Number(r.visits) || 0;
+  const escs        = Number(r.escalations) || 0;
   const made        = Number(r.promises_made) || 0;
   const kept        = Number(r.promises_kept) || 0;
-  const broken      = Number(r.promises_broken) || 0;
+  const matured     = Number(r.promises_matured) || 0;
   const un          = Number(r.untouched_overdue) || 0;
-  const resolved    = kept + broken;
-  const keptRate    = resolved > 0 ? Math.round((kept / resolved) * 100) + '%' : '—';
+  const rr          = _teamRange();
+  const periodLbl   = rr.from === rr.to ? rr.from : (rr.from + ' → ' + rr.to);
 
   const lbl = (t) => `<div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px">${esc(t)}</div>`;
 
-  // Portfolio
+  // Portfolio (as-of today)
   const portfolio = `<div class="dx-dstats">
     <div class="dx-dstat"><div class="dx-dstat-l">Total Outstanding</div><div class="dx-dstat-v">${_teamMoney(outstanding)}</div></div>
     <div class="dx-dstat"><div class="dx-dstat-l">Overdue</div><div class="dx-dstat-v" style="${overdue > 0 ? 'color:#b91c1c' : ''}">${_teamMoney(overdue)}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">Collected (this month)</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div>
     <div class="dx-dstat"><div class="dx-dstat-l">Pending Approvals</div><div class="dx-dstat-v">${pa}</div></div>
   </div>`;
 
-  // Activity
-  const activity = lbl('Activity — this month') + `<div class="dx-dstats">
-    <div class="dx-dstat"><div class="dx-dstat-l">Calls Logged</div><div class="dx-dstat-v">${calls}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">Promises Made</div><div class="dx-dstat-v">${made}</div></div>
+  // Collections recovered (period) — gross + FIFO split
+  const collections = lbl('Recovered — ' + periodLbl) + `<div class="dx-dstats">
+    <div class="dx-dstat"><div class="dx-dstat-l">Recovered (gross)</div><div class="dx-dstat-v">${_teamMoney(recovered)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">from Arrears (old)</div><div class="dx-dstat-v">${_teamMoney(rOld)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">from Current dues</div><div class="dx-dstat-v">${_teamMoney(rCur)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">of which Dead (&gt;90d)</div><div class="dx-dstat-v">${_teamMoney(rDead)}</div></div>
   </div>`;
 
-  // Promise quality (past-due)
-  const quality = lbl('Promise quality — past-due') + `<div class="dx-dstats">
-    <div class="dx-dstat"><div class="dx-dstat-l">Kept</div><div class="dx-dstat-v">${kept}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">Broken</div><div class="dx-dstat-v" style="${broken > 0 ? 'color:#b91c1c' : ''}">${broken}</div></div>
-    <div class="dx-dstat"><div class="dx-dstat-l">Kept Rate</div><div class="dx-dstat-v">${keptRate}</div></div>
+  // Activity (period)
+  const activity = lbl('Activity — ' + periodLbl) + `<div class="dx-dstats">
+    <div class="dx-dstat"><div class="dx-dstat-l">Calls Logged</div><div class="dx-dstat-v">${calls}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Field Visits</div><div class="dx-dstat-v">${visits}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Escalations Opened</div><div class="dx-dstat-v">${escs}</div></div>
   </div>`;
+
+  // Promise quality — dual keep-rate
+  const fair   = r.keep_rate_matured, strict = r.keep_rate_made;
+  const quality = lbl('Promise quality') + `<div class="dx-dstats">
+    <div class="dx-dstat"><div class="dx-dstat-l">Made</div><div class="dx-dstat-v">${made}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Kept</div><div class="dx-dstat-v">${kept}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Keep-rate (fair)</div><div class="dx-dstat-v">${_teamPct(fair)}</div></div>
+    <div class="dx-dstat"><div class="dx-dstat-l">Keep-rate (strict)</div><div class="dx-dstat-v">${_teamPct(strict)}</div></div>
+  </div>`
+    + `<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Fair = kept ÷ ${matured} matured · Strict = kept ÷ ${made} made</div>`;
 
   // Neglect
   const neglect = lbl('Neglected accounts')
@@ -184,7 +277,7 @@ function _teamDrawer(userId) {
     eyebrow: 'Recovery Officer',
     title: r.full_name || '—',
     subtitle: projects.length ? projects.join(', ') : 'No projects assigned',
-    body: portfolio + targetSection + activity + quality + neglect + projBlock,
+    body: portfolio + collections + targetSection + activity + quality + neglect + projBlock,
     footer
   });
 
@@ -193,8 +286,9 @@ function _teamDrawer(userId) {
 }
 
 /* ── Monthly target (admin set/edit; everyone reads) ─────────────────────────── */
-// Reuses _teamMoney (PKR en-IN formatter), .dx-dstats/.dx-dstat, .btn variants,
+// Reuses _teamMoney (PKR Western formatter), .dx-dstats/.dx-dstat, .btn variants,
 // toast(msg,kind), and the same admin check as rTeam (S.role owner/admin).
+// Compared against the row's `recovered` for the selected period.
 let _teamTargetCache = {};
 
 function _teamIsAdmin() {
@@ -216,7 +310,7 @@ async function _teamLoadTarget(userId) {
     if (error) throw error;
     if (data && data.success) target = data.target || null;
   } catch (e) {
-    // On read failure, fall through and render the no-target view (collected only).
+    // On read failure, fall through and render the no-target view (recovered only).
   }
   _teamTargetRender(userId, target);
 }
@@ -227,7 +321,7 @@ function _teamTargetRender(userId, target) {
   const r = (_teamRows || []).find(x => String(x.user_id) === String(userId));
   if (!r) return;
 
-  const collected = Number(r.collected_this_month) || 0;
+  const collected = Number(r.recovered) || 0;     // recovered for the selected period
   const tAmt      = target ? (Number(target.target_amount) || 0) : 0;
   const notes     = (target && target.notes) ? String(target.notes) : '';
   _teamTargetCache[String(userId)] = { amount: tAmt, notes };
@@ -237,13 +331,13 @@ function _teamTargetRender(userId, target) {
     const pct = Math.round((collected / tAmt) * 100);   // tAmt>0 guards divide-by-zero
     html = `<div class="dx-dstats">
         <div class="dx-dstat"><div class="dx-dstat-l">Target</div><div class="dx-dstat-v">${_teamMoney(tAmt)}</div></div>
-        <div class="dx-dstat"><div class="dx-dstat-l">Collected</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div>
+        <div class="dx-dstat"><div class="dx-dstat-l">Recovered (period)</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div>
         <div class="dx-dstat"><div class="dx-dstat-l">Achieved</div><div class="dx-dstat-v">${pct}%</div></div>
       </div>`
       + (notes ? `<div style="font-size:12.5px;color:var(--text-muted);margin-top:8px">${esc(notes)}</div>` : '');
   } else {
     html = `<div style="font-size:12.5px;color:var(--text-muted);padding:2px 0 8px">No monthly target set</div>`
-      + `<div class="dx-dstats"><div class="dx-dstat"><div class="dx-dstat-l">Collected this month</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div></div>`;
+      + `<div class="dx-dstats"><div class="dx-dstat"><div class="dx-dstat-l">Recovered (period)</div><div class="dx-dstat-v">${_teamMoney(collected)}</div></div></div>`;
   }
 
   if (_teamIsAdmin()) {

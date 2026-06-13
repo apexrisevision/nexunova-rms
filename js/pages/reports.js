@@ -197,6 +197,64 @@ const REPORTS = {
         const value = rows.reduce((s, r) => s + r.value, 0);
         return { columns, rows, totals: { value }, totalsLabel: 'TOTAL', summary: [{ label: 'Total Units', value: rows.length }, { label: 'Sold', value: sold }, { label: 'Available', value: avail }, { label: 'Blocked', value: blocked }] };
       }
+    } },
+
+  // Report #9 — Officer Performance. Per-officer recovery scorecard over a period:
+  // recovered (with the OLD/CURRENT FIFO split), promise keep-rate (fair + strict),
+  // calls, field visits, escalations. Feeds off the same get_team_performance RPC
+  // as the Team page + dashboard panel (single source of truth).
+  team_performance: { meta: { title: 'Officer Performance', group: 'OPERATIONS', desc: 'Per-officer recovery — recovered (arrears vs current), promise keep-rate, calls, visits, escalations' },
+    config: {
+      id: 'team_performance', title: 'Officer Performance Report', group: 'OPERATIONS', orientation: 'landscape',
+      description: 'Per-officer recovery scorecard for the period — recovered (FIFO arrears/current split), promise keep-rate, calls, visits, escalations',
+      filters: [{ kind: 'project' }, { kind: 'daterange' }, { kind: 'officerPicker' }],
+      fetch: f => supabase.rpc('get_team_performance', { p_company_id: S.cid, p_project_id: f.project || null, p_from: f.from || null, p_to: f.to || null })
+        .then(r => { if (r.error) throw r.error; return Array.isArray(r.data) ? r.data : []; }),
+      transform: (data, f) => {
+        let rows = (data || []).slice();
+        if (f.officerId) rows = rows.filter(r => String(r.user_id) === String(f.officerId));
+        const out = rows.map(r => ({
+          officer: r.full_name || '—',
+          calls: Number(r.calls) || 0,
+          visits: Number(r.visits) || 0,
+          made: Number(r.promises_made) || 0,
+          keep_fair: r.keep_rate_matured,           // headline (kept ÷ matured)
+          keep_strict: r.keep_rate_made,            // secondary (kept ÷ made)
+          escalations: Number(r.escalations) || 0,
+          recovered: Number(r.recovered) || 0,
+          r_old: Number(r.recovered_old) || 0,
+          r_cur: Number(r.recovered_current) || 0
+        })).sort((a, b) => b.recovered - a.recovered || String(a.officer).localeCompare(String(b.officer)));
+        const columns = [
+          { key: 'officer', label: 'Officer' },
+          { key: 'calls', label: 'Calls', num: true },
+          { key: 'visits', label: 'Visits', num: true },
+          { key: 'made', label: 'Promises', num: true },
+          { key: 'keep_fair', label: 'Keep-rate', num: true, fmt: 'pct', blank: '—' },
+          { key: 'keep_strict', label: 'Keep (strict)', num: true, fmt: 'pct', blank: '—' },
+          { key: 'escalations', label: 'Escalations', num: true },
+          { key: 'recovered', label: 'Recovered', num: true, fmt: 'money' },
+          { key: 'r_old', label: 'from Arrears', num: true, fmt: 'money' },
+          { key: 'r_cur', label: 'from Current', num: true, fmt: 'money' }
+        ];
+        const sum = k => out.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+        const totals = { calls: sum('calls'), visits: sum('visits'), made: sum('made'), escalations: sum('escalations'), recovered: sum('recovered'), r_old: sum('r_old'), r_cur: sum('r_cur') };
+        const summary = [
+          { label: 'Officers', value: out.length },
+          { label: 'Recovered (period)', value: totals.recovered, money: true },
+          { label: 'Calls', value: totals.calls },
+          { label: 'Promises Made', value: totals.made }
+        ];
+        const appendix = [{
+          title: 'Method & attribution', columns: [{ key: 'k', label: '' }, { key: 'v', label: '' }],
+          rows: [
+            { k: 'Recovered', v: 'Σ receipts on the officer’s assigned projects in the period (gross). Attribution by project — a shared project credits each assigned officer (created_by-precise attribution is a future upgrade).' },
+            { k: 'Arrears / Current', v: 'FIFO split of what those receipts cleared — old dues (due before the period) vs current dues (due in the period).' },
+            { k: 'Keep-rate', v: 'Fair = promises kept ÷ promises matured (date passed). Strict = kept ÷ all promises made in the period.' }
+          ]
+        }];
+        return { columns, rows: out, totals, totalsLabel: 'TOTAL', summary, appendix };
+      }
     } }
 };
 
@@ -260,7 +318,7 @@ function rReports() {
   const groups = [
     { title: 'RECOVERY', keys: ['recovery_position', 'aging'] },
     { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement'] },
-    { title: 'OPERATIONS', keys: ['collections', 'pdc', 'sales_summary', 'availability'] }
+    { title: 'OPERATIONS', keys: ['collections', 'pdc', 'sales_summary', 'availability', 'team_performance'] }
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
     ${NX.pageHeader('Reports', '', { icon:'bar-chart-3' })}

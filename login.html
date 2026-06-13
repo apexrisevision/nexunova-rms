@@ -1270,6 +1270,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <svg id="tb-sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>
         </button>
         <span class="nx-tb-title" id="tb-t">Dashboard</span>
+        <!-- Active-project lens — built by buildProjectSwitcher() in ui.js; hidden when ≤1 project -->
+        <div class="nx-tb-proj-wrap" id="nx-tb-proj" style="display:none"></div>
       </div>
 
       <div class="nx-tb-r">
@@ -3262,7 +3264,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
      Loaded before ui.js + page modules so NX.* / NXPrint.* are available everywhere. -->
 <script src="js/foundation/kit.js?v=20260613j"></script>
 <script src="js/foundation/print.js?v=20260612a"></script>
-<script src="js/foundation/report-page.js?v=20260612c"></script>
+<script src="js/foundation/report-page.js?v=20260613tp"></script>
 <script src="js/components/client-form.js?v=20260613a"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
@@ -3278,7 +3280,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/onboarding.js?v=20260612g"></script>
 
 <!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260613d5"></script>
+<script src="js/pages/dashboard.js?v=20260613tp"></script>
 <script src="js/pages/units.js?v=20260613w"></script>
 <script src="js/pages/clients.js?v=20260613w"></script>
 <script src="js/pages/projects.js?v=20260613c"></script>
@@ -3305,9 +3307,9 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/promises.js?v=20260613a"></script>
 <script src="js/pages/audit.js?v=20260613e"></script>
 <script src="js/pages/approvals.js?v=20260613a"></script>
-<script src="js/pages/team.js?v=20260613e"></script>
+<script src="js/pages/team.js?v=20260613tp"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
-<script src="js/pages/reports.js?v=20260613w"></script>
+<script src="js/pages/reports.js?v=20260613tp"></script>
 <script src="js/pages/print.js?v=20260612b"></script>
 <script src="js/pages/documents.js?v=20260517d"></script>
 <script src="js/pages/transfers.js?v=20260613a"></script>

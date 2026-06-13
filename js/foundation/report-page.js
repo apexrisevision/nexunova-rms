@@ -122,6 +122,14 @@
       const opts = '<option value="">— Select unit —</option>' + us.map(u => `<option value="${esc(u.id)}">${esc((u.unitNo || u.unit_no || '') + (u.floorLabel ? ' · ' + u.floorLabel : ''))}</option>`).join('');
       return lbl('Unit') + `<select class="nx-select" style="min-width:240px" onchange="NXReport._set('unitId',this.value)">${opts}</select>`;
     }
+    if (fl.kind === 'officerPicker') {
+      // Recovery officers only (the same set the team RPC scores). Optional filter:
+      // empty = all officers, so it is NOT a selection-gate (unlike client/unit).
+      const offs = (global._appUsersCache || []).filter(u => /recovery/.test(String(u.role || '')) && (u.status || 'active') === 'active')
+        .slice().sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
+      const opts = '<option value="">All officers</option>' + offs.map(u => `<option value="${esc(u.id)}">${esc(u.name || u.fullName || '—')}</option>`).join('');
+      return lbl('Officer') + `<select class="nx-select" style="width:auto" onchange="NXReport._set('officerId',this.value)">${opts}</select>`;
+    }
     return '';
   }
 
