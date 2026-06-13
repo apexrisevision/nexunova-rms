@@ -72,7 +72,7 @@ const REPORTS = {
   client_summary: { meta: { title: 'Recovery Demand Summary', group: 'CLIENT & UNIT', desc: 'Unit-wise demand sheet — price, arrears to last month, this-month installment & total due now, with a grand total' },
     config: {
       id: 'client_summary', title: 'Recovery Demand Summary', group: 'CLIENT & UNIT', orientation: 'landscape',
-      description: 'Unit-wise demand & collection sheet for the running month — each unit’s price (total · discount · net), the arrears carried forward from last month-end, this month’s installment, what has actually been received this month so far, the resulting Net Due Now (arrears + installment − received; a negative is an advance), and the balance to the final installment; grand total of every unit at the bottom',
+      description: 'Unit-wise demand & collection sheet for the running month — each unit’s price (total · discount · net), the arrears carried forward from last month-end, this month’s installment, what has actually been received this month so far, an advance adjustment (credit a client paid ahead, or overpaid this month), the resulting Net Due Now (the live net recoverable, so a prepaid unit shows 0 — Arrears + Installment − Received − Advance Adj. always ties to it), and the balance to the final installment; grand total of every unit at the bottom',
       filters: [{ kind: 'project' }],
       // Month-anchored, TWO rollforward calls merged by sale_id:
       //   A = epoch..last-month-end → due_period (receivable that should've come),
@@ -399,18 +399,24 @@ function _clientSummaryTransform(data, f) {
   const monShort = cs.length >= 7 ? MON[Number(cs.slice(5, 7)) - 1] : 'This Mo';
   const bById = {}; B.forEach(r => { bById[r.sale_id] = r; });
   const rows = A.map(r => {
-    const b = bById[r.sale_id] || {};
+    const bRow = bById[r.sale_id]; const hasB = !!bRow; const b = bRow || {};
     const total = Number(r.total_price || 0), disc = Number(r.discount || 0), net = Number(r.net_price || 0);
     const arrears = Math.max(0, Number(r.closing || 0));        // overdue carried into this month
     const curInst = Number(b.due_period || 0);                  // this month's installment (demand)
     const recdMonth = Number(b.received_total || 0);            // received this month, to date
     const recdToLast = Number(r.received_total || 0);           // received up to last-month-end
-    const netDue = arrears + curInst - recdMonth;               // collect now; <0 = advance/credit
+    // Net Due Now = the engine's authoritative month-end closing (FIFO, advance-aware).
+    // It already credits any advance the client paid ahead, so a prepaid client shows 0
+    // due — NOT arrears+installment−received, which would wrongly bill the advance again.
+    const netDue = hasB ? Math.max(0, Number(b.closing || 0)) : Math.max(0, arrears + curInst - recdMonth);
+    // Signed residual so every row ties: Arrears + Installment − Received − AdvAdj = Net Due.
+    // +ve = prior advance applied against this month's demand; −ve = overpaid this month (credit).
+    const advApplied = (arrears + curInst - recdMonth) - netDue;
     const balance = Math.max(0, net - (recdToLast + recdMonth));// remaining to the final installment
     return {
       unit: (r.unit_no || '—') + (r.floor_name ? '  ·  ' + r.floor_name : ''),
       client: (r.client_name || '—') + (r.client_code ? '  ·  ' + r.client_code : ''),
-      total, disc, net, arrears, curInst, recdMonth, netDue, balance,
+      total, disc, net, arrears, curInst, recdMonth, advApplied: Math.abs(advApplied) > 0.5 ? advApplied : null, netDue, balance,
       _u: r.unit_no || ''
     };
   }).sort((a, b) => String(a._u).localeCompare(String(b._u), undefined, { numeric: true }));
@@ -423,11 +429,12 @@ function _clientSummaryTransform(data, f) {
     { key: 'arrears', label: 'Arrears to ' + leLabel, num: true, fmt: 'money' },
     { key: 'curInst', label: monShort + ' Installment', num: true, fmt: 'money' },
     { key: 'recdMonth', label: 'Received in ' + monShort, num: true, fmt: 'money' },
+    { key: 'advApplied', label: 'Advance Adj.', num: true, fmt: 'money', blank: '—' },
     { key: 'netDue', label: 'Net Due Now', num: true, fmt: 'money' },
     { key: 'balance', label: 'Balance to Final', num: true, fmt: 'money' }
   ];
   const sum = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
-  const totals = { total: sum('total'), disc: sum('disc'), net: sum('net'), arrears: sum('arrears'), curInst: sum('curInst'), recdMonth: sum('recdMonth'), netDue: sum('netDue'), balance: sum('balance') };
+  const totals = { total: sum('total'), disc: sum('disc'), net: sum('net'), arrears: sum('arrears'), curInst: sum('curInst'), recdMonth: sum('recdMonth'), advApplied: sum('advApplied'), netDue: sum('netDue'), balance: sum('balance') };
   return {
     columns, rows, totals, totalsLabel: 'ALL UNITS (' + rows.length + ')',
     summary: [
