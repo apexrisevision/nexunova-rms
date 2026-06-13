@@ -271,21 +271,29 @@ function openUnitModal(unitId) {
       ${fld('Unit no', `<input class="nx-input" id="uf-no" value="${u ? esc(u.unitNo) : ''}">`, true)}
       ${fld('Project', `<select class="nx-select" id="uf-project">${projOpts}</select>`, true)}
       ${fld('Floor', `<select class="nx-select" id="uf-floor">${floorOpts}</select>`)}
+      ${fld('Block', `<input class="nx-input" id="uf-block" value="${u ? esc(u.block || '') : ''}">`)}
       ${fld('Type', `<select class="nx-select" id="uf-type">${typeOpts}</select>`)}
       ${fld('Status', `<select class="nx-select" id="uf-status">${statusOpts}</select>`)}
       ${fld('Area', `<input class="nx-input" id="uf-area" type="number" value="${u && u.area ? u.area : ''}">`)}
+      ${fld('Area unit', `<select class="nx-select" id="uf-area-unit">${['sqft','sqyd','marla','kanal'].map(x => `<option value="${x}"${(u && u.areaUnit === x) || (!u && x === 'sqft') ? ' selected' : ''}>${x}</option>`).join('')}</select>`)}
       ${fld('Base price', `<input class="nx-input" id="uf-price" type="number" value="${u && u.basePrice ? u.basePrice : ''}">`)}
-      ${fld('Block', `<input class="nx-input" id="uf-block" value="${u ? esc(u.block || '') : ''}">`)}
+      ${fld('Carpet area', `<input class="nx-input" id="uf-carpet" type="number" value="${u && u.carpetArea ? u.carpetArea : ''}">`)}
     </div>
     <div style="margin-top:var(--fk-sp-3)">
       <button class="nx-btn nx-btn--ghost nx-btn--sm" onclick="_uToggleMore()" id="uf-more-btn">${NX.icon('chevron-down', 14)} More fields</button>
-      <div id="uf-more" style="display:none;margin-top:var(--fk-sp-3);display:none;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">
+      <div id="uf-more" style="display:none;margin-top:var(--fk-sp-3);grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">
         ${fld('Bedrooms', `<input class="nx-input" id="uf-bedrooms" type="number" value="${u && u.bedrooms ? u.bedrooms : ''}">`)}
         ${fld('Bathrooms', `<input class="nx-input" id="uf-bathrooms" type="number" value="${u && u.bathrooms ? u.bathrooms : ''}">`)}
         ${fld('Parking', `<input class="nx-input" id="uf-parking" type="number" value="${u ? (u.parkingCount || 0) : 0}">`)}
-        ${fld('Facing', `<input class="nx-input" id="uf-facing" value="${u ? esc(u.facing || '') : ''}">`)}
-        ${fld('Notes', `<input class="nx-input" id="uf-notes" value="">`)}
-        <input type="hidden" id="uf-area-unit" value="sqft">
+        ${fld('Facing', `<input class="nx-input" id="uf-facing" value="${u ? esc(u.facing || '') : ''}" placeholder="e.g. East, Main Road">`)}
+        ${fld('Maintenance (monthly)', `<input class="nx-input" id="uf-maint" type="number" value="${u && u.maintenanceMonthly ? u.maintenanceMonthly : ''}">`)}
+        ${fld('Possession date', `<input class="nx-input" id="uf-possession" type="date" value="${u && u.possessionDate ? esc(String(u.possessionDate).slice(0,10)) : ''}">`)}
+        ${fld('Handover status', `<select class="nx-select" id="uf-handover"><option value="">— Not set —</option>${['pending','in_progress','delivered','disputed'].map(x => `<option value="${x}"${u && u.handoverStatus === x ? ' selected' : ''}>${x.replace('_', ' ')}</option>`).join('')}</select>`)}
+        <div class="nx-field" style="margin:0;display:flex;align-items:center;gap:18px;padding-top:24px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="uf-premium" ${u && u.isPremium ? 'checked' : ''}> Premium</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="uf-corner" ${u && u.isCorner ? 'checked' : ''}> Corner</label>
+        </div>
+        <div style="grid-column:1/-1">${fld('Notes', `<input class="nx-input" id="uf-notes" value="${u ? esc(u.notes || u.remarks || '') : ''}">`)}</div>
       </div>
     </div>`;
   const footer = NX.button('Cancel', { variant: 'ghost', onclick: '_uCloseModal()' }) +
@@ -323,10 +331,16 @@ async function saveUnitForm() {
       block: (document.getElementById('uf-block')?.value || '').trim() || null,
       area: parseFloat(document.getElementById('uf-area')?.value) || null,
       area_unit: document.getElementById('uf-area-unit')?.value || 'sqft',
+      carpet_area: parseFloat(document.getElementById('uf-carpet')?.value) || null,
       bedrooms: parseInt(document.getElementById('uf-bedrooms')?.value) || null,
       bathrooms: parseInt(document.getElementById('uf-bathrooms')?.value) || null,
       parking_count: parseInt(document.getElementById('uf-parking')?.value) || 0,
       facing: document.getElementById('uf-facing')?.value || null,
+      maintenance_monthly: parseFloat(document.getElementById('uf-maint')?.value) || null,
+      possession_date: document.getElementById('uf-possession')?.value || null,
+      handover_status: document.getElementById('uf-handover')?.value || null,
+      is_premium: !!document.getElementById('uf-premium')?.checked,
+      is_corner: !!document.getElementById('uf-corner')?.checked,
       base_price: parseFloat(document.getElementById('uf-price')?.value) || 0,
       features: [], notes: (document.getElementById('uf-notes')?.value || '').trim() || null
     };
