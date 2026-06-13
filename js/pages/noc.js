@@ -30,14 +30,32 @@ const NOC_TYPE_META = {
   general:  { label: 'General NOC',   icon: '📋' },
 };
 
+const _NOC_STATUS_TONE = { pending:'warning', under_review:'info', approved:'success', rejected:'danger', revoked:'' };
+const _NOC_TYPE_ICON   = { bank:'banknote', transfer:'history', general:'file-text' };
+
 function _nocBadge(status) {
-  const m = NOC_STATUS_META[status] || { label: status, color: '#6b7280', bg: '#f3f4f6' };
-  return `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:${m.bg};color:${m.color};border:1px solid ${m.color}33;white-space:nowrap">${m.label}</span>`;
+  const m = NOC_STATUS_META[status] || { label: status };
+  return NX.badge(m.label || status, _NOC_STATUS_TONE[status] || '', { dot:true });
 }
 
 function _nocTypeBadge(type) {
-  const m = NOC_TYPE_META[type] || { label: type, icon: '📄' };
-  return `<span style="font-size:11px;color:var(--t2)">${m.icon} ${m.label}</span>`;
+  const m = NOC_TYPE_META[type] || { label: type };
+  return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--fk-text-muted)">${NX.icon(_NOC_TYPE_ICON[type] || 'file-text', 14)}${esc(m.label)}</span>`;
+}
+
+// One-time NOC page CSS
+function _nocCSS() {
+  if (document.getElementById('_noc_css')) return;
+  const s = document.createElement('style'); s.id = '_noc_css';
+  s.textContent = `
+    .noc-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
+    @media(max-width:960px){.noc-kpis{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:560px){.noc-kpis{grid-template-columns:repeat(2,1fr)}}
+    .noc-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+    .noc-toolbar .nx-input{max-width:280px}
+    .noc-acts{display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  `;
+  document.head.appendChild(s);
 }
 
 // ── Entry point ───────────────────────────────────────────────────
@@ -45,44 +63,30 @@ function _nocTypeBadge(type) {
 async function rNOC() {
   const pg = document.getElementById('pg-noc');
   if (!pg) return;
+  _nocCSS();
 
-  pg.innerHTML = `<div class="ani">
-    <div class="ph">
-      <div class="ph-l">
-        <h2>NOC Management</h2>
-        <p>Issue and manage No-Objection Certificates — bank, transfer, and general.</p>
-      </div>
-      <div class="ph-r" style="display:flex;gap:7px;flex-wrap:wrap">
-        <button class="btn btn-g btn-sm" onclick="_nocOpenCreate()">+ New NOC Request</button>
-        <button class="btn btn-gh btn-sm" onclick="_nocRefresh()">↺ Refresh</button>
-      </div>
-    </div>
+  const typeSel = `<select class="nx-select" style="max-width:150px" onchange="_nocSetType(this.value)">
+      <option value="">All types</option>
+      <option value="bank" ${_nocTypeFilter==='bank'?'selected':''}>Bank NOC</option>
+      <option value="transfer" ${_nocTypeFilter==='transfer'?'selected':''}>Transfer NOC</option>
+      <option value="general" ${_nocTypeFilter==='general'?'selected':''}>General NOC</option>
+    </select>`;
 
-    <div id="noc-kpi-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px"></div>
+  pg.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('NOC Management',
+        NX.button('Refresh', { variant:'secondary', onclick:'_nocRefresh()' }) +
+        NX.button('New NOC request', { variant:'primary', icon:'plus', onclick:'_nocOpenCreate()' }),
+        { icon:'file-text', sub:'Issue and manage No-Objection Certificates — bank, transfer and general.' }) +
+      '<div id="noc-kpi-strip" class="noc-kpis"></div>' +
+      '<div id="noc-tabs" style="margin-bottom:12px"></div>' +
+      `<div class="noc-toolbar">${typeSel}
+        <input class="nx-input" type="search" placeholder="Search client / unit / NOC#…" value="${esc(_nocSearch)}" oninput="_nocSetSearch(this.value)">
+      </div>` +
+      '<div id="noc-list-body">' + NX.card(NX.empty({ icon:'file-text', message:'Loading NOCs…' })) + '</div>' +
+    '</div>';
 
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <div style="display:flex;gap:5px;flex-wrap:wrap">
-        ${['all','pending','under_review','approved','rejected','revoked'].map(f => {
-          const lbl = f === 'all' ? 'All' : (NOC_STATUS_META[f]?.label || f);
-          const active = _nocFilter === f;
-          return `<button class="btn btn-xs" style="padding:4px 12px;border-radius:20px;border:1px solid ${active?'var(--brand)':'var(--line)'};background:${active?'var(--brand)':'transparent'};color:${active?'#fff':'var(--t2)'};font-weight:700;cursor:pointer" onclick="_nocSetFilter('${f}')">${lbl}</button>`;
-        }).join('')}
-      </div>
-      <div style="display:flex;gap:6px;margin-left:auto;flex-wrap:wrap">
-        <select class="inp" style="width:140px;font-size:12px;padding:5px 8px" onchange="_nocSetType(this.value)">
-          <option value="">All Types</option>
-          <option value="bank" ${_nocTypeFilter==='bank'?'selected':''}>Bank NOC</option>
-          <option value="transfer" ${_nocTypeFilter==='transfer'?'selected':''}>Transfer NOC</option>
-          <option value="general" ${_nocTypeFilter==='general'?'selected':''}>General NOC</option>
-        </select>
-        <input class="inp" type="search" placeholder="Search client / unit / NOC#…" value="${esc(_nocSearch)}"
-          style="width:220px;font-size:12px;padding:5px 10px" oninput="_nocSetSearch(this.value)">
-      </div>
-    </div>
-
-    <div id="noc-list-body"><div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading…</div></div>
-  </div>`;
-
+  _nocRenderTabs();
   _nocInjectModals(pg);
   await _nocRefresh();
 }
@@ -91,7 +95,19 @@ async function _nocRefresh() {
   await Promise.all([_nocLoadAnalytics(), _nocLoad()]);
 }
 
-function _nocSetFilter(f) { _nocFilter = f; rNOC(); }
+function _nocRenderTabs() {
+  const el = document.getElementById('noc-tabs');
+  if (!el) return;
+  const a = _nocAnalytics || {};
+  const counts = { all:a.total, pending:a.pending, approved:a.approved };
+  const defs = [['all','All'],['pending','Pending'],['under_review','Under Review'],['approved','Approved'],['rejected','Rejected'],['revoked','Revoked']];
+  el.innerHTML = NX.tabs({
+    tabs: defs.map(([k,label]) => ({ k, label, count: counts[k] })),
+    active: _nocFilter, onSelect: "_nocSetFilter('%k')"
+  });
+}
+
+function _nocSetFilter(f) { _nocFilter = f; _nocRenderTabs(); _nocLoad(); }
 function _nocSetType(v)   { _nocTypeFilter = v; _nocLoad(); }
 function _nocSetSearch(v) { _nocSearch = v; _nocLoad(); }
 
@@ -105,18 +121,15 @@ async function _nocLoadAnalytics() {
     _nocAnalytics = data || {};
     const a = _nocAnalytics;
     const kpis = [
-      { label: 'Total NOCs',    val: a.total        || 0, color: 'var(--brand)' },
-      { label: 'Pending',       val: a.pending       || 0, color: '#f59e0b' },
-      { label: 'Approved',      val: a.approved      || 0, color: '#16a34a' },
-      { label: 'This Month',    val: a.this_month    || 0, color: '#6366f1' },
-      { label: 'Expiring Soon', val: a.expiring_soon || 0, color: '#ef4444', sub: '(30 days)' },
-      { label: 'Revoked',       val: a.revoked       || 0, color: '#9ca3af' },
+      { icon:'file-text',      label:'Total NOCs',    val:a.total        || 0 },
+      { icon:'clock',          tone:'warning', label:'Pending',  val:a.pending      || 0 },
+      { icon:'check-circle',   tone:'success', label:'Approved', val:a.approved     || 0 },
+      { icon:'calendar',       label:'This Month',    val:a.this_month   || 0 },
+      { icon:'alert-triangle', tone:'danger',  label:'Expiring Soon', val:a.expiring_soon || 0 },
+      { icon:'x-circle',       label:'Revoked',       val:a.revoked      || 0 },
     ];
-    strip.innerHTML = kpis.map(k => `
-      <div class="card" style="padding:14px 16px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:${k.color};line-height:1.1">${k.val}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:3px">${k.label}${k.sub?`<br><span style="font-size:10px">${k.sub}</span>`:''}</div>
-      </div>`).join('');
+    strip.innerHTML = kpis.map(k => NX.kpi({ icon:k.icon, tone:k.tone, label:k.label, value:String(k.val) })).join('');
+    _nocRenderTabs();   // refresh count chips now that analytics are in
   } catch(e) { /* non-blocking */ }
 }
 
@@ -125,7 +138,7 @@ async function _nocLoadAnalytics() {
 async function _nocLoad() {
   const body = document.getElementById('noc-list-body');
   if (!body) return;
-  body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3)">⏳ Loading NOCs…</div>';
+  body.innerHTML = NX.card(NX.empty({ icon:'file-text', message:'Loading NOCs…' }));
   try {
     const { data, error } = await supabase.rpc('get_noc_list', {
       p_company_id: S.cid,
@@ -137,11 +150,7 @@ async function _nocLoad() {
     _nocList = Array.isArray(data) ? data : [];
     _nocRenderList();
   } catch(e) {
-    body.innerHTML = `<div class="card"><div class="empty">
-      <div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-      <div class="et">Could not load NOCs</div>
-      <div class="es">${esc(e.message||'Error')}</div>
-    </div></div>`;
+    body.innerHTML = NX.card(NX.banner('Could not load NOCs: ' + (e.message || 'Error'), 'danger'));
   }
 }
 
@@ -150,71 +159,56 @@ function _nocRenderList() {
   if (!body) return;
 
   if (!_nocList.length) {
-    body.innerHTML = `<div class="card"><div class="empty">
-      <div class="ei"><svg width="40" height="40" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
-      <div class="et">No NOCs found</div>
-      <div class="es">Create the first NOC request using the button above.</div>
-    </div></div>`;
+    body.innerHTML = NX.card(NX.empty({
+      icon:'file-text',
+      message:'No NOCs found — create the first NOC request using the button above.',
+      action: NX.button('New NOC request', { variant:'primary', icon:'plus', onclick:'_nocOpenCreate()' })
+    }));
     return;
   }
 
   const canAdmin = ['admin','owner','manager'].includes(S.role);
 
-  body.innerHTML = `<div class="card" style="overflow:hidden">
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="border-bottom:1px solid var(--line)">
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3);white-space:nowrap">NOC #</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Type</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Client / Unit</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Status</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3);white-space:nowrap">Requested</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3);white-space:nowrap">Valid Until</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${_nocList.map(n => {
-            const sm = NOC_STATUS_META[n.status] || {};
-            const isExpired = n.valid_until && new Date(n.valid_until) < new Date();
-            const validUntilTxt = n.valid_until
-              ? (isExpired ? `<span style="color:#dc2626">${fD(n.valid_until)} (expired)</span>` : fD(n.valid_until))
-              : '—';
+  const rows = _nocList.map(n => {
+    const isExpired = n.valid_until && new Date(n.valid_until) < new Date();
+    const validUntilTxt = n.valid_until
+      ? (isExpired ? `<span style="color:var(--fk-danger)">${fD(n.valid_until)} · expired</span>` : fD(n.valid_until))
+      : '—';
 
-            const canReview  = canAdmin && (n.status === 'pending');
-            const canApprove = canAdmin && (n.status === 'pending' || n.status === 'under_review');
-            const canReject  = canAdmin && (n.status === 'pending' || n.status === 'under_review');
-            const canRevoke  = canAdmin && n.status === 'approved';
-            const canDel     = canAdmin && (n.status === 'pending' || n.status === 'rejected');
-            const canPrint   = n.status === 'approved';
+    const canReview  = canAdmin && (n.status === 'pending');
+    const canApprove = canAdmin && (n.status === 'pending' || n.status === 'under_review');
+    const canReject  = canAdmin && (n.status === 'pending' || n.status === 'under_review');
+    const canRevoke  = canAdmin && n.status === 'approved';
+    const canDel     = canAdmin && (n.status === 'pending' || n.status === 'rejected');
+    const canPrint   = n.status === 'approved';
 
-            return `<tr style="border-bottom:1px solid var(--hover);transition:background .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
-              <td style="padding:10px 12px;font-weight:700;color:var(--brand);white-space:nowrap">${esc(n.noc_number||'—')}</td>
-              <td style="padding:10px 12px">${_nocTypeBadge(n.noc_type)}</td>
-              <td style="padding:10px 12px">
-                <div style="font-weight:600;color:var(--t1)">${esc(n.client_name||'—')}</div>
-                <div style="font-size:11px;color:var(--t3)">${esc(n.unit_no||'')}${n.project_name?` · ${esc(n.project_name)}`:''}</div>
-              </td>
-              <td style="padding:10px 12px">${_nocBadge(n.status)}</td>
-              <td style="padding:10px 12px;color:var(--t2);white-space:nowrap;font-size:12px">${n.requested_at?fD(n.requested_at):'—'}</td>
-              <td style="padding:10px 12px;font-size:12px">${validUntilTxt}</td>
-              <td style="padding:10px 12px;text-align:right;white-space:nowrap">
-                <div style="display:inline-flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
-                  ${canReview  ? `<button class="btn btn-xs btn-gh" onclick="_nocMarkReview('${n.id}')">Review</button>` : ''}
-                  ${canApprove ? `<button class="btn btn-xs btn-g"  onclick="_nocOpenApprove('${n.id}')">Approve</button>` : ''}
-                  ${canReject  ? `<button class="btn btn-xs" style="background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.2)" onclick="_nocOpenReject('${n.id}')">Reject</button>` : ''}
-                  ${canRevoke  ? `<button class="btn btn-xs btn-gh" onclick="_nocOpenRevoke('${n.id}')">Revoke</button>` : ''}
-                  ${canPrint   ? `<button class="btn btn-xs btn-gh" onclick="_nocPrint('${n.id}')">Print</button>` : ''}
-                  ${canDel     ? `<button class="btn btn-xs btn-gh" style="color:#dc2626" onclick="_nocDelete('${n.id}')">Del</button>` : ''}
-                </div>
-              </td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  </div>`;
+    const acts =
+      (canReview  ? NX.button('Review',  { variant:'secondary', size:'sm', onclick:`_nocMarkReview('${n.id}')` }) : '') +
+      (canApprove ? NX.button('Approve', { variant:'primary',   size:'sm', onclick:`_nocOpenApprove('${n.id}')` }) : '') +
+      (canReject  ? NX.button('Reject',  { variant:'danger-soft', size:'sm', onclick:`_nocOpenReject('${n.id}')` }) : '') +
+      (canRevoke  ? NX.button('Revoke',  { variant:'secondary', size:'sm', onclick:`_nocOpenRevoke('${n.id}')` }) : '') +
+      (canPrint   ? NX.button('Print',   { variant:'ghost', size:'sm', onclick:`_nocPrint('${n.id}')` }) : '') +
+      (canDel     ? NX.button('Delete',  { variant:'ghost', size:'sm', onclick:`_nocDelete('${n.id}')` }) : '');
+
+    return [
+      `<span style="font-weight:600;color:var(--fk-primary);white-space:nowrap">${esc(n.noc_number||'—')}</span>`,
+      _nocTypeBadge(n.noc_type),
+      `<div style="font-weight:500;color:var(--fk-text)">${esc(n.client_name||'—')}</div>
+       <div style="font-size:11px;color:var(--fk-text-muted)">${esc(n.unit_no||'')}${n.project_name?` · ${esc(n.project_name)}`:''}</div>`,
+      _nocBadge(n.status),
+      `<span style="white-space:nowrap;font-size:12px;color:var(--fk-text-muted)">${n.requested_at?fD(n.requested_at):'—'}</span>`,
+      `<span style="font-size:12px">${validUntilTxt}</span>`,
+      `<div class="noc-acts">${acts}</div>`
+    ];
+  });
+
+  body.innerHTML = NX.card(NX.table({
+    cols: [
+      { label:'NOC #' }, { label:'Type' }, { label:'Client / Unit' }, { label:'Status' },
+      { label:'Requested' }, { label:'Valid Until' }, { label:'Actions', num:true }
+    ],
+    rows, flush:true
+  }), { flush:true });
 }
 
 // ── Modals HTML injection ─────────────────────────────────────────

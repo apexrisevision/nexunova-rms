@@ -2717,271 +2717,6 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
   </div>
 </div></div>
 
-<!-- PROJECT -->
-<div id="m-project" class="mov"><div class="md">
-  <div class="mh"><div><h3 id="prj-mtl">🏗️ Add Project</h3><p>Real estate project details</p></div><button class="mx" onclick="closeProjectModal()">✕</button></div>
-  <div class="mb">
-    <input type="hidden" id="pf-prj-id">
-
-    <!-- Project Details -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">🏗️</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Project Details</div>
-          <div style="font-size:10px;color:var(--t3)">Code, status, name and description</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.12);color:var(--brand)">Required</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Project Code</label>
-            <input id="pf-code" class="inp-light" type="text" placeholder="Auto-generated" readonly style="font-family:monospace;opacity:.7">
-          </div>
-          <div class="fr">
-            <label class="fl">Status</label>
-            <select id="pf-status" class="inp-light">
-              <option value="planning">Planning</option>
-              <option value="active" selected>Active</option>
-              <option value="on_hold">On Hold</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-        </div>
-        <div class="fr">
-          <label class="fl">Project Name *</label>
-          <input id="pf-name" class="inp-light" type="text" placeholder="e.g. Nexus Heights Phase 2">
-          <div class="pf-err" id="e-pf-name" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>
-        </div>
-        <div class="fr">
-          <label class="fl">Description</label>
-          <textarea id="pf-desc" class="inp-light" rows="2" placeholder="Brief description of the project..."></textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- Location -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">📍</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Location</div>
-          <div style="font-size:10px;color:var(--t3)">Address, city, GPS coordinates and map link</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="fr">
-          <label class="fl">Address / Location</label>
-          <input id="pf-location" class="inp-light" type="text" placeholder="Street address, area or landmark">
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">City</label>
-            <input id="pf-city" class="inp-light" type="text" placeholder="e.g. Karachi">
-          </div>
-          <div class="fr">
-            <label class="fl">Country</label>
-            <input id="pf-country" class="inp-light" type="text" value="Pakistan" readonly style="opacity:.7">
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">GPS Latitude</label>
-            <input id="pf-gps-lat" class="inp-light" type="number" step="0.000001" placeholder="e.g. 24.8607">
-          </div>
-          <div class="fr">
-            <label class="fl">GPS Longitude</label>
-            <input id="pf-gps-lng" class="inp-light" type="number" step="0.000001" placeholder="e.g. 67.0011">
-          </div>
-        </div>
-        <div class="fr">
-          <label class="fl">Map Link (Google Maps URL)</label>
-          <input id="pf-map-link" class="inp-light" type="url" placeholder="https://maps.google.com/...">
-        </div>
-      </div>
-    </div>
-
-    <!-- Scale & Timeline -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">📐</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Scale &amp; Timeline</div>
-          <div style="font-size:10px;color:var(--t3)">Total area, units and project dates</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Total Area</label>
-            <input id="pf-total-area" class="inp-light" type="number" min="0" step="0.01" placeholder="e.g. 50000">
-          </div>
-          <div class="fr">
-            <label class="fl">Area Unit</label>
-            <select id="pf-area-unit" class="inp-light">
-              <option value="sqft">Sq ft</option>
-              <option value="sqyd">Sq yd</option>
-              <option value="sqm">Sq m</option>
-              <option value="marla">Marla</option>
-              <option value="kanal">Kanal</option>
-              <option value="acre">Acre</option>
-            </select>
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Total Units (planned)</label>
-            <input id="pf-total-units" class="inp-light" type="number" min="0" placeholder="e.g. 120">
-          </div>
-          <div class="fr">
-            <label class="fl">Start Date</label>
-            <input id="pf-start" class="inp-light" type="date">
-          </div>
-        </div>
-        <div class="fr">
-          <label class="fl">Expected Completion</label>
-          <input id="pf-expected-completion" class="inp-light" type="date">
-        </div>
-        <div class="fr">
-          <label class="fl">Delivery Date <span style="font-size:10px;color:var(--warn);font-weight:600">(Breach Limit)</span></label>
-          <input id="pf-delivery-date" class="inp-light" type="date">
-        </div>
-      </div>
-    </div>
-
-    <!-- Media & Progress -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">🖼️</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Media &amp; Progress</div>
-          <div style="font-size:10px;color:var(--t3)">Cover image, construction progress and project photos</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="fr">
-          <label class="fl">Cover Image URL (main)</label>
-          <input id="pf-cover-url" class="inp-light" type="url" placeholder="https://...">
-        </div>
-        <div class="fr">
-          <label class="fl">Construction Progress: <span id="pf-progress-val">0</span>%</label>
-          <input id="pf-construction-progress" class="inp-light" type="range" min="0" max="100" step="1" value="0" oninput="document.getElementById('pf-progress-val').textContent=this.value" style="padding:8px 0;cursor:pointer">
-        </div>
-        <div class="fr">
-          <label class="fl">Project Photos</label>
-          <label style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;background:var(--hover);border:2px dashed var(--line);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--t2);margin-bottom:8px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--line)'">
-            📁 Browse / Upload Project Photo
-            <input type="file" id="pf-cover-file" accept="image/*" style="display:none" onchange="_handleFileUploadAppend(this,'pf-cover-images','rms-documents','projects/photos')">
-          </label>
-          <textarea id="pf-cover-images" class="inp-light" rows="3" placeholder="Uploaded URLs appear here (one per line)&#10;You can also paste URLs manually"></textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- Amenities -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">🏊</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Amenities</div>
-          <div style="font-size:10px;color:var(--t3)">Facilities and features available in this project</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px">
-        <div style="display:flex;flex-wrap:wrap;gap:10px">
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Swimming Pool"> Swimming Pool</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Gym / Fitness"> Gym / Fitness</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Parking"> Parking</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Security 24/7"> Security 24/7</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Generator / UPS"> Generator / UPS</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="CCTV"> CCTV</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Elevator / Lift"> Elevator / Lift</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Mosque"> Mosque</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Playground"> Playground</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Community Hall"> Community Hall</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Garden / Park"> Garden / Park</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Rooftop Terrace"> Rooftop Terrace</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Solar Energy"> Solar Energy</label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="pf-amenity" value="Commercial Area"> Commercial Area</label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Builder / Developer -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">👷</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Builder / Developer</div>
-          <div style="font-size:10px;color:var(--t3)">Developer name, contact and email</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Builder / Developer Name</label>
-            <input id="pf-builder-name" class="inp-light" type="text" placeholder="e.g. ABC Builders Ltd">
-          </div>
-          <div class="fr">
-            <label class="fl">Contact Number</label>
-            <input id="pf-builder-contact" class="inp-light" type="text" placeholder="e.g. 0300-0000000">
-          </div>
-        </div>
-        <div class="fr">
-          <label class="fl">Builder Email</label>
-          <input id="pf-builder-email" class="inp-light" type="email" placeholder="builder@yourbusiness.com">
-        </div>
-      </div>
-    </div>
-
-    <!-- NOC / Approvals -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">📋</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">NOC / Approvals</div>
-          <div style="font-size:10px;color:var(--t3)">Regulatory approvals and compliance documents</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">NOC Number</label>
-            <input id="pf-noc-number" class="inp-light" type="text" placeholder="e.g. NOC-2024-0001">
-          </div>
-          <div class="fr">
-            <label class="fl">Issuing Authority</label>
-            <input id="pf-noc-authority" class="inp-light" type="text" placeholder="e.g. KDA / LDA / SBCA">
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">NOC Date</label>
-            <input id="pf-noc-date" class="inp-light" type="date">
-          </div>
-          <div class="fr"></div>
-        </div>
-        <div class="fr">
-          <label class="fl">NOC Notes</label>
-          <textarea id="pf-noc-notes" class="inp-light" rows="2" placeholder="Any additional notes about approvals or compliance..."></textarea>
-        </div>
-      </div>
-    </div>
-
-  </div>
-  <div class="mf">
-    <button class="btn btn-gh" onclick="closeProjectModal()">Cancel</button>
-    <button class="btn btn-g" id="prj-save-btn" onclick="saveProjectForm()">💾 Save Project</button>
-  </div>
-</div></div>
 
 <!-- PROJECT MILESTONE -->
 <div id="m-milestone" class="mov"><div class="md" style="max-width:500px">
@@ -3792,7 +3527,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 3.5 FOUNDATION (Phase 2): design-kit render helpers + race-free print emitter.
      Loaded before ui.js + page modules so NX.* / NXPrint.* are available everywhere. -->
-<script src="js/foundation/kit.js?v=20260613f"></script>
+<script src="js/foundation/kit.js?v=20260613g"></script>
 <script src="js/foundation/print.js?v=20260612a"></script>
 <script src="js/foundation/report-page.js?v=20260612c"></script>
 <script src="js/components/client-form.js?v=20260613a"></script>
@@ -3813,7 +3548,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/dashboard.js?v=20260613d5"></script>
 <script src="js/pages/units.js?v=20260613w"></script>
 <script src="js/pages/clients.js?v=20260613w"></script>
-<script src="js/pages/projects.js?v=20260608c"></script>
+<script src="js/pages/projects.js?v=20260613c"></script>
 <script src="js/pages/agents.js?v=20260529a"></script>
 <script src="js/pages/sales.js?v=20260613w"></script>
 <script src="js/pages/recovery.js?v=20260612b1"></script>
@@ -3864,7 +3599,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/forecasting.js?v=20260525a"></script>
 <script src="js/pages/comms-center.js?v=20260528a"></script>
 <!-- executive.js retired (Phase 3A) → js/pages/archive/ -->
-<script src="js/pages/noc.js?v=20260525a"></script>
+<script src="js/pages/noc.js?v=20260613a"></script>
 <script src="js/pages/fieldvisits.js?v=20260613a"></script>
 <script src="js/pages/company-branding.js?v=20260525b"></script>
 

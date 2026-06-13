@@ -118,23 +118,18 @@ function _renderKPIs(allUnits, allProjs) {
   const soldUnits      = allUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
   const soldPct        = allUnits.length>0?Math.round(soldUnits/allUnits.length*100):0;
   const recovPct       = totalPortfolio>0?Math.min(100,Math.round(totalCollected/totalPortfolio*100)):0;
-  const kpis = [
-    { id:'_prj-kpi0', col:'#6b7280', rgb:'107,114,128', ico:_prjIco.home,     lbl:'Total Units',     val:String(allUnits.length),                                sub:`${allProjs.length} project${allProjs.length!==1?'s':''}` },
-    { id:'_prj-kpi1', col:'#10b981', rgb:'16,185,129',  ico:_prjIco.check,    lbl:'Units Sold',      val:String(soldUnits),                                      sub:`${soldPct}% sold rate` },
-    { id:'_prj-kpi2', col:'#f59e0b', rgb:'245,158,11',  ico:_prjIco.trending, lbl:'Portfolio Value', val:`<span class="db-pkr">PKR</span>${_kM(totalPortfolio)}`, sub:'Total contract value' },
-    { id:'_prj-kpi3', col:'#8b5cf6', rgb:'139,92,246',  ico:_prjIco.wallet,   lbl:'Collected',       val:`<span class="db-pkr">PKR</span>${_kM(totalCollected)}`, sub:`${recovPct}% recovery` },
-  ];
-  kpiEl.innerHTML = kpis.map(k=>`
-    <div id="${k.id}" class="db-kpi" data-col="${k.col}" style="background:rgba(${k.rgb},.05);border:1px solid rgba(${k.rgb},.18);border-left:4px solid ${k.col}">
-      <div class="db-kpi-row">
-        <div class="db-kpi-ic" style="background:rgba(${k.rgb},.12);color:${k.col}">${k.ico}</div>
-        <div class="db-kpi-body">
-          <div class="db-kpi-lbl">${k.lbl}</div>
-          <div class="db-kpi-val db-kpi-val-sm">${k.val}</div>
-          <div class="db-kpi-sub">${k.sub}</div>
-        </div>
-      </div>
-    </div>`).join('');
+  kpiEl.innerHTML =
+    NX.kpi({ icon:'package',      label:'Total Units',     value:String(allUnits.length), delta:`${allProjs.length} project${allProjs.length!==1?'s':''}` }) +
+    NX.kpi({ icon:'check-circle', tone:'success', label:'Units Sold', value:String(soldUnits), delta:`${soldPct}% sold` }) +
+    NX.kpi({ icon:'trending-up',  label:'Portfolio Value', value:`PKR ${_kM(totalPortfolio)}` }) +
+    NX.kpi({ icon:'wallet',       tone:'success', label:'Collected', value:`PKR ${_kM(totalCollected)}`, delta:`${recovPct}% recovery` });
+}
+
+// Status → kit badge tone
+const _PRJ_STATUS_TONE = { active:'success', planning:'info', on_hold:'warning', completed:'', cancelled:'danger' };
+function _prjBadge(status) {
+  const lbl = (_prjSmMap[status] || {}).label || status || 'Unknown';
+  return NX.badge(lbl, _PRJ_STATUS_TONE[status] || '', { dot:true });
 }
 
 // ── List page ────────────────────────────────────────────────
@@ -166,157 +161,73 @@ async function rProjects() {
     let s = document.getElementById('_zp_css');
     if (!s) { s = document.createElement('style'); s.id = '_zp_css'; document.head.appendChild(s); }
     s.textContent = `
-      .prj-kpi-strip{grid-template-columns:repeat(4,1fr)!important}
-      .zp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-      @media(max-width:1100px){.zp-grid{grid-template-columns:repeat(2,1fr)}}
-      @media(max-width:700px){.zp-grid{grid-template-columns:1fr}}
-      .zp-card{display:flex!important;cursor:pointer!important}
-      .zp-accent{width:4px;flex-shrink:0;border-radius:0}
-      .zp-inner{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px;min-width:0}
-      .zp-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-      .zp-code{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(0,0,0,.07);color:var(--t3);letter-spacing:.04em;white-space:nowrap}
-      [data-theme=dark] .zp-code{background:rgba(255,255,255,.09)}
-      .zp-name{font-size:14px;font-weight:700;color:var(--t1);letter-spacing:-.02em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-      .zp-loc{display:flex;align-items:center;gap:3px;font-size:10.5px;color:var(--t3)}
-      .zp-stats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg-page,var(--surface2));border-radius:8px;overflow:hidden;border:1px solid var(--border-color,var(--line))}
-      .zp-stat{display:flex;flex-direction:column;align-items:center;padding:6px 4px;gap:1px}
-      .zp-stat:not(:last-child){border-right:1px solid var(--border-color,var(--line))}
-      .zp-sn{font-size:15px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
-      .zp-sl{font-size:8px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
-      .zp-prog{display:flex;flex-direction:column;gap:4px}
-      .zp-prog-hd{display:flex;justify-content:space-between;align-items:center}
-      .zp-prog-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t3)}
-      .zp-prog-pct{font-size:10px;font-weight:700}
-      .zp-pb{height:4px;background:rgba(15,23,42,.06);border-radius:99px;overflow:hidden}
-      [data-theme=dark] .zp-pb{background:rgba(255,255,255,.08)}
-      .zp-pf{height:100%;border-radius:99px;transition:width 600ms cubic-bezier(.4,0,.2,1)}
-      .zp-fin{display:flex;align-items:center;justify-content:space-between;gap:4px}
-      .zp-fv{font-size:12px;font-weight:700;color:var(--t1);display:flex;align-items:baseline;gap:2px}
-      .zp-fc{font-size:9px;font-weight:500;color:var(--t3)}
-      .zp-fr{font-size:10px;font-weight:600}
-      .zp-foot{display:flex;align-items:center;justify-content:space-between;padding-top:7px;border-top:1px solid var(--border-color,rgba(15,23,42,.06));margin-top:2px}
-      [data-theme=dark] .zp-foot{border-top-color:rgba(255,255,255,.06)}
-      .zp-fl{font-size:10px;color:var(--t3);display:flex;align-items:center;gap:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-      .zp-fb{font-size:10.5px;font-weight:600;color:var(--text-accent,#2563EB);background:none;border:none;cursor:pointer;padding:2px 8px;border-radius:5px;white-space:nowrap;flex-shrink:0;transition:background 120ms ease}
-      .zp-fb:hover{background:rgba(37,99,235,.09)}
-      [data-theme=dark] .zp-fb{color:#818CF8}
-      [data-theme=dark] .zp-fb:hover{background:rgba(99,102,241,.14)}
+      .prj-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+      @media(max-width:900px){.prj-kpis{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:520px){.prj-kpis{grid-template-columns:1fr}}
+      .prj-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+      .prj-search{position:relative;flex:1;min-width:200px;max-width:340px}
+      .prj-search .nx-input{padding-left:32px}
+      .prj-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--fk-text-muted);display:inline-flex;pointer-events:none}
+      .prj-count{margin-left:auto;font-size:12px;color:var(--fk-text-muted)}
+      .prj-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+      @media(max-width:1100px){.prj-grid{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:680px){.prj-grid{grid-template-columns:1fr}}
+      .prjcard{cursor:pointer;display:flex;flex-direction:column;gap:11px}
+      .prjc-hd{display:flex;align-items:flex-start;gap:10px}
+      .prjc-id{min-width:0;flex:1}
+      .prjc-name{font-size:14px;font-weight:600;color:var(--fk-text);letter-spacing:-.01em;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+      .prjc-code{font-size:10px;font-family:var(--fk-font-mono,ui-monospace,monospace);color:var(--fk-text-muted);margin-top:2px;letter-spacing:.02em}
+      .prjc-loc{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--fk-text-muted);min-width:0}
+      .prjc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .prjc-stats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);overflow:hidden}
+      .prjc-stat{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px}
+      .prjc-stat + .prjc-stat{border-left:1px solid var(--fk-border)}
+      .prjc-sv{font-size:16px;font-weight:600;color:var(--fk-text);font-variant-numeric:tabular-nums;line-height:1}
+      .prjc-sl{font-size:9px;font-weight:600;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.05em}
+      .prjc-prog{display:flex;flex-direction:column;gap:5px}
+      .prjc-prog-hd{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted)}
+      .prjc-pb{height:5px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:99px;overflow:hidden}
+      .prjc-pf{height:100%;border-radius:99px;background:var(--fk-primary)}
+      .prjc-fin{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--fk-text-muted)}
+      .prjc-fin .num{font-weight:600;color:var(--fk-text);font-variant-numeric:tabular-nums}
+      .prjc-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--fk-border);padding-top:10px;margin-top:auto}
+      .prjc-foot-l{font-size:11px;color:var(--fk-text-muted);display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .prjc-view{font-size:12px;font-weight:500;color:var(--fk-primary);display:inline-flex;align-items:center;gap:3px;flex-shrink:0}
     `;
   })();
 
-  document.getElementById('_prjDrawerOverlay')?.remove();
-  document.getElementById('_prjDrawer')?.remove();
+  const statusOpts = [['','Status: All'], ..._PRJ_STATUSES]
+    .map(([v,l]) => `<option value="${v}"${_prjStatus===v?' selected':''}>${l}</option>`).join('');
+  const sortDefs = [['recent','Sort: Recent'],['name_az','Name (A–Z)'],['name_za','Name (Z–A)'],
+    ['val_hi','Highest value'],['val_lo','Lowest value'],['units_hi','Most units'],
+    ['prog_hi','Most progress'],['prog_lo','Least progress']];
+  const sortOpts = sortDefs.map(([v,l]) => `<option value="${v}"${_prjSort===v?' selected':''}>${l}</option>`).join('');
 
-  document.getElementById('pg-projects').innerHTML = `<div class="prj-page ani module-inventory">
+  const actions =
+    NX.button('Export', { variant:'secondary', icon:'file-text', onclick:'prjExport()' }) +
+    (isA && !atLimit ? NX.button('New project', { variant:'primary', icon:'plus', onclick:'openProjectModal(null)' })
+     : isA && atLimit ? `<span class="nx-badge nx-badge--warning">${total}/${maxP} limit</span>` : '');
 
-    <div class="prj-header">
-      <div class="prj-header-left">
-        <div class="prj-breadcrumb">
-          <span class="prj-bc-link" onclick="nav('dashboard')">Home</span>
-          <span>/</span>
-          <span>Projects</span>
-        </div>
-        <div class="prj-title-row">
-          <h1 class="prj-title">Projects</h1>
-          <span class="prj-count-chip" id="prj-count-chip">${total} of ${maxP}</span>
-          <span class="prj-plan-badge">${planLbl}</span>
-        </div>
-      </div>
-      <div class="prj-header-right">
-        <button class="prj-btn-ghost" onclick="prjExport()">${_prjIco.export}&nbsp;Export</button>
-        <button class="prj-btn-insights" id="prj-insights-btn" onclick="toggleInsightsDrawer()">${_prjIco.chart}&nbsp;Insights</button>
-        <div class="prj-view-toggle">
-          <button class="prj-view-btn ${_prjView==='grid'?'active':''}" id="prj-vg" onclick="setPrjView('grid')" title="Grid">${_prjIco.grid}</button>
-          <button class="prj-view-btn ${_prjView==='list'?'active':''}" id="prj-vl" onclick="setPrjView('list')" title="List">${_prjIco.list}</button>
-        </div>
-        ${isA&&!atLimit?`<button class="prj-btn-primary" onclick="openProjectModal(null)">${_prjIco.plus}&nbsp;New Project</button>`:''}
-        ${isA&&atLimit?`<span class="prj-count-chip">${total}/${maxP} limit</span>`:''}
-      </div>
-    </div>
-
-    <div class="prj-kpi-strip" id="prj-kpi"></div>
-
-    <div class="prj-toolbar">
-      <div class="prj-toolbar-left">
-        <div class="prj-search-wrap">
-          <span class="prj-search-icon">${_prjIco.search}</span>
-          <input class="prj-search-input" id="prj-s" placeholder="Search projects..." value="${esc(_prjS)}" oninput="setPrjS(this.value)" autocomplete="off">
-          <span class="prj-search-kbd">⌘K</span>
-        </div>
-        <select class="prj-filter-select${_prjStatus?' active':''}" id="prj-status-sel" onchange="setPrjStatus(this.value)">
-          <option value="" ${!_prjStatus?'selected':''}>Status: All</option>
-          <option value="active"    ${_prjStatus==='active'   ?'selected':''}>Active</option>
-          <option value="planning"  ${_prjStatus==='planning' ?'selected':''}>Planning</option>
-          <option value="on_hold"   ${_prjStatus==='on_hold'  ?'selected':''}>On Hold</option>
-          <option value="completed" ${_prjStatus==='completed'?'selected':''}>Completed</option>
-          <option value="cancelled" ${_prjStatus==='cancelled'?'selected':''}>Cancelled</option>
-        </select>
-        <select class="prj-filter-select${_prjCity?' active':''}" id="prj-city-sel" onchange="setPrjCity(this.value)">
-          <option value="">City: All</option>
-          ${[...new Set(gprojects().map(p=>p.city||'').filter(Boolean))].sort().map(c=>`<option value="${esc(c)}"${_prjCity===c?' selected':''}>${esc(c)}</option>`).join('')}
-        </select>
-        <select class="prj-filter-select" id="prj-sort-sel" onchange="setPrjSort(this.value)">
-          <option value="recent"  ${_prjSort==='recent' ?'selected':''}>Sort: Recent</option>
-          <option value="name_az" ${_prjSort==='name_az'?'selected':''}>Name (A–Z)</option>
-          <option value="name_za" ${_prjSort==='name_za'?'selected':''}>Name (Z–A)</option>
-          <option value="val_hi"  ${_prjSort==='val_hi' ?'selected':''}>Highest Value</option>
-          <option value="val_lo"  ${_prjSort==='val_lo' ?'selected':''}>Lowest Value</option>
-          <option value="units_hi"${_prjSort==='units_hi'?'selected':''}>Most Units</option>
-          <option value="prog_hi" ${_prjSort==='prog_hi'?'selected':''}>Most Progress</option>
-          <option value="prog_lo" ${_prjSort==='prog_lo'?'selected':''}>Least Progress</option>
-        </select>
-      </div>
-      <div class="prj-toolbar-right" id="prj-results-count"></div>
-    </div>
-
-    <div class="prj-content"><div id="prj-ct"></div></div>
-  </div>`;
-
-  // Insights drawer injected into body (position:fixed, outside page flow)
-  const ov = document.createElement('div');
-  ov.id = '_prjDrawerOverlay'; ov.className = 'prj-overlay';
-  ov.addEventListener('click', closeInsightsDrawer);
-  document.body.appendChild(ov);
-
-  const dr = document.createElement('div');
-  dr.id = '_prjDrawer'; dr.className = 'prj-drawer';
-  dr.innerHTML = `<div class="prj-drawer-hd"><span class="prj-drawer-ttl">Portfolio Insights</span><button class="prj-drawer-x" onclick="closeInsightsDrawer()">×</button></div><div class="prj-drawer-body" id="prj-drawer-body"></div>`;
-  document.body.appendChild(dr);
-
-  // Keyboard shortcuts
-  if (_prjKbListener) document.removeEventListener('keydown', _prjKbListener);
-  _prjKbListener = (e) => {
-    const tag = document.activeElement?.tagName;
-    if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') {
-      if (e.key==='Escape') { document.activeElement.blur(); closeInsightsDrawer(); }
-      return;
-    }
-    if (e.metaKey||e.ctrlKey||e.altKey) return;
-    switch(e.key) {
-      case '/': e.preventDefault(); document.getElementById('prj-s')?.focus(); break;
-      case 'g': setPrjView('grid'); break;
-      case 'l': setPrjView('list'); break;
-      case 'i': toggleInsightsDrawer(); break;
-      case 'n': if (isA&&!atLimit) openProjectModal(null); break;
-      case 'Escape': closeInsightsDrawer(); break;
-    }
-  };
-  document.addEventListener('keydown', _prjKbListener);
+  document.getElementById('pg-projects').innerHTML =
+    '<div class="ani module-inventory">' +
+      NX.pageHeader('Projects', actions, { icon:'building-2', sub:`${total} of ${maxP} · ${planLbl} plan` }) +
+      '<div class="prj-kpis" id="prj-kpi"></div>' +
+      `<div class="prj-toolbar">
+        <div class="prj-search"><span class="prj-search-ic">${NX.icon('search',15)}</span>
+          <input class="nx-input" id="prj-s" placeholder="Search projects…" value="${esc(_prjS)}" oninput="setPrjS(this.value)" autocomplete="off"></div>
+        <select class="nx-select" id="prj-status-sel" style="max-width:160px" onchange="setPrjStatus(this.value)">${statusOpts}</select>
+        <select class="nx-select" id="prj-sort-sel" style="max-width:170px" onchange="setPrjSort(this.value)">${sortOpts}</select>
+        <span class="prj-count" id="prj-results-count"></span>
+      </div>` +
+      '<div id="prj-ct"></div>' +
+    '</div>';
 
   rPRJF();
 }
 
 function setPrjS(q)      { _prjS=q;      rPRJF(); }
 function setPrjStatus(v) { _prjStatus=v;  rPRJF(); }
-function setPrjCity(v)   { _prjCity=v;    rPRJF(); }
 function setPrjSort(v)   { _prjSort=v;    rPRJF(); }
-function setPrjView(v) {
-  _prjView = v;
-  localStorage.setItem('nxn_prj_view', v);
-  document.getElementById('prj-vg')?.classList.toggle('active', v==='grid');
-  document.getElementById('prj-vl')?.classList.toggle('active', v==='list');
-  rPRJF();
-}
 
 // ── Filtered render ──────────────────────────────────────────
 
@@ -354,188 +265,74 @@ function rPRJF() {
 
   const allProjs = gprojects();
   const rcEl = document.getElementById('prj-results-count');
-  if (rcEl) rcEl.textContent = `${prjs.length} result${prjs.length!==1?'s':''}`;
-  const chipEl = document.getElementById('prj-count-chip');
-  if (chipEl) chipEl.textContent = `${prjs.length} of ${allProjs.length}`;
+  if (rcEl) rcEl.textContent = `${prjs.length} of ${allProjs.length}`;
 
   _renderKPIs(allUnits, allProjs);
 
   if (!prjs.length) {
     const isA = S.role==='admin'||S.role==='owner';
     if (!allProjs.length) {
-      ct.innerHTML = `<div class="prj-empty"><div class="prj-empty-icon">${_prjIco.building48}</div><div class="prj-empty-ttl">No projects yet</div><div class="prj-empty-sub">Create your first project to start tracking units, sales, and recovery.</div>${isA?`<button class="prj-btn-primary" onclick="openProjectModal(null)" style="margin-top:8px">${_prjIco.plus}&nbsp;New Project</button>`:''}</div>`;
+      ct.innerHTML = NX.card(NX.empty({ icon:'building-2',
+        message:'No projects yet — create your first project to start tracking units, sales and recovery.',
+        action: isA ? NX.button('New project', { variant:'primary', icon:'plus', onclick:'openProjectModal(null)' }) : '' }));
     } else if (_prjS) {
-      ct.innerHTML = `<div class="prj-empty"><div class="prj-empty-ttl">No projects match "${esc(_prjS)}"</div><div class="prj-empty-sub">Try adjusting filters or <button class="prj-empty-link" onclick="setPrjS('');document.getElementById('prj-s').value=''">clear search</button></div></div>`;
+      ct.innerHTML = NX.card(NX.empty({ icon:'search', message:`No projects match "${esc(_prjS)}".`,
+        action: NX.button('Clear search', { variant:'secondary', onclick:"setPrjS('');document.getElementById('prj-s').value=''" }) }));
     } else {
-      ct.innerHTML = `<div class="prj-empty"><div class="prj-empty-ttl">No projects match these filters</div><div class="prj-empty-sub"><button class="prj-empty-link" onclick="setPrjStatus('');setPrjCity('');rProjects()">Reset filters</button></div></div>`;
+      ct.innerHTML = NX.card(NX.empty({ icon:'building-2', message:'No projects match this filter.',
+        action: NX.button('Reset filter', { variant:'secondary', onclick:"setPrjStatus('');var s=document.getElementById('prj-status-sel');if(s)s.value=''" }) }));
     }
     return;
   }
 
-  ct.innerHTML = `<div class="${_prjView==='list'?'prj-list':'zp-grid'}">${prjs.map((p,idx)=>_prjView==='list'?_prjListRow(p,allUnits,idx):_prjGridCard(p,allUnits,idx)).join('')}</div>`;
-  if (_prjView === 'grid') {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        document.querySelectorAll('#prj-ct .zp-card').forEach(card => {
-          var col = card.dataset.col || '#2563EB';
-          var line = card.querySelector('[data-sleek-line]');
-          if (line) {
-            line.style.setProperty('background', 'linear-gradient(90deg,' + col + ',' + col + '88)', 'important');
-          } else {
-            _sleekCard(card, col);
-          }
-        });
-      });
-    });
-  }
+  ct.innerHTML = `<div class="prj-grid">${prjs.map(p=>_prjGridCard(p,allUnits)).join('')}</div>`;
 }
 
 function _prjPV(p, allUnits) {
   return allUnits.filter(u=>u.projectId===p.id).reduce((s,u)=>s+Number(u.totalPrice||0),0);
 }
 
-// ── List row ─────────────────────────────────────────────────
-
-function _prjListRow(p, allUnits) {
-  const pUnits    = allUnits.filter(u=>u.projectId===p.id);
-  const sold      = pUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
-  const available = pUnits.filter(u=>u.status==='Available').length;
-  const portfolio = pUnits.reduce((s,u)=>s+Number(u.totalPrice||0),0);
-  const collected = pUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
-  const recovPct  = portfolio>0?Math.min(100,Math.round(collected/portfolio*100)):0;
-  const constrPct = Math.min(100,Number(p.constructionProgress||0));
-  const sm        = _prjSmMap[p.status]||_prjSmMap.active;
-  const location  = [p.location,p.city].filter(Boolean).join(' · ');
-  const isA       = S.role==='admin'||S.role==='owner';
-  return `<div class="prj-list-row" onclick="openProjectDetail('${p.id}')">
-    <div class="prj-list-status-bar" style="background:${sm.color}"></div>
-    <div class="prj-list-body">
-      <div class="prj-row-primary">
-        <span class="prj-row-name">${esc(p.projectName||p.name)}</span>
-        ${p.projectCode?`<span class="prj-id-badge">${esc(p.projectCode)}</span>`:''}
-        ${_prjPill(p.status)}
-      </div>
-      ${location?`<div class="prj-row-secondary">${_prjIco.mappin}<span>${esc(location)}</span></div>`:''}
-      <div class="prj-row-tertiary"><span class="sn">${pUnits.length}</span>&nbsp;units&nbsp;·&nbsp;<span class="sn">${sold}</span>&nbsp;sold&nbsp;·&nbsp;<span class="sn">${available}</span>&nbsp;available${portfolio>0?`&nbsp;·&nbsp;PKR&nbsp;<span class="sn">${_kM(portfolio)}</span>`:''}&nbsp;·&nbsp;<span class="sn">${recovPct}%</span>&nbsp;recovery</div>
-    </div>
-    <div class="prj-row-right">
-      <div class="prj-row-progress-wrap">
-        <div class="prj-row-progress-bar"><div class="prj-row-progress-fill" style="width:${constrPct}%;background:${sm.color}"></div></div>
-        <span class="prj-row-pct" style="color:${sm.color}">${constrPct}%</span>
-        <span class="prj-row-built">built</span>
-      </div>
-    </div>
-    <div class="prj-row-actions">
-      <button class="prj-row-act-btn primary" onclick="event.stopPropagation();openProjectDetail('${p.id}')">View →</button>
-      ${isA?`<button class="prj-row-act-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')">Edit</button>`:''}
-    </div>
-  </div>`;
-}
-
-// ── Grid card ────────────────────────────────────────────────
-
-function _prjGridCard(p, allUnits, idx) {
+// ── Project card (warm — hover lift, ichip, tinted stat strip) ──────
+function _prjGridCard(p, allUnits) {
   const pUnits     = allUnits.filter(u=>u.projectId===p.id);
   const sold       = pUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
   const available  = pUnits.filter(u=>u.status==='Available').length;
   const portfolio  = pUnits.reduce((s,u)=>s+Number(u.totalPrice||0),0);
   const collected  = pUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
+  const outstanding= Math.max(0, portfolio - collected);
   const recovPct   = portfolio>0?Math.min(100,Math.round(collected/portfolio*100)):0;
   const constrPct  = Math.min(100,Number(p.constructionProgress||0));
-  const sm         = _prjSmMap[p.status]||_prjSmMap.active;
-  const locLine    = p.location||p.city||'';
-  const dueDate    = p.expectedCompletion?fD(p.expectedCompletion):null;
-  const sqft       = p.totalArea>0?Number(p.totalArea).toLocaleString()+' '+(p.areaUnit||'sqft'):null;
-  const builder    = (!dueDate&&!sqft&&p.builderName)?p.builderName:null;
-  const recovColor = recovPct>=70?'var(--ok)':recovPct>=40?'var(--warn)':'var(--t3)';
-  const pCol       = _prjColor(idx||0);
-  return `<div class="db-card zp-card" onclick="openProjectDetail('${p.id}')" data-col="${pCol}">
-    <div class="zp-accent" style="background:${pCol}"></div>
-    <div class="zp-inner">
-      <div class="zp-top">
-        ${_prjPill(p.status)}
-        ${p.projectCode?`<span class="zp-code">${esc(p.projectCode)}</span>`:''}
-      </div>
-      <div class="zp-name">${esc(p.projectName||p.name)}</div>
-      ${locLine?`<div class="zp-loc">${_prjIco.mappin}<span>${esc(locLine)}</span></div>`:''}
-      <div class="zp-stats">
-        <div class="zp-stat"><span class="zp-sn">${pUnits.length}</span><span class="zp-sl">Units</span></div>
-        <div class="zp-stat"><span class="zp-sn" style="color:${sm.color}">${sold}</span><span class="zp-sl">Sold</span></div>
-        <div class="zp-stat"><span class="zp-sn">${available}</span><span class="zp-sl">Avail</span></div>
-      </div>
-      <div class="zp-prog">
-        <div class="zp-prog-hd">
-          <span class="zp-prog-lbl">Construction</span>
-          <span class="zp-prog-pct" style="color:${sm.color}">${constrPct}%</span>
-        </div>
-        <div class="zp-pb"><div class="zp-pf" style="width:${constrPct}%;background:${sm.color}"></div></div>
-      </div>
-      ${portfolio>0?`<div class="zp-fin">
-        <span class="zp-fv"><span class="zp-fc">PKR</span>${_kM(portfolio)}</span>
-        <span class="zp-fr" style="color:${recovColor}">${recovPct}% recov.</span>
-      </div>`:''}
-      <div class="zp-foot">
-        <span class="zp-fl">${dueDate?`${_prjIco.calendar}&nbsp;${dueDate}`:sqft?sqft:builder?`by ${esc(builder)}`:''}</span>
-        <button class="zp-fb" onclick="event.stopPropagation();openProjectDetail('${p.id}')">View →</button>
-      </div>
-    </div>
-  </div>`;
-}
+  const locLine    = [p.location,p.city].filter(Boolean).join(' · ');
+  const name       = esc(p.projectName||p.name||'Untitled');
 
-// ── Insights drawer ──────────────────────────────────────────
-
-function toggleInsightsDrawer() { _insightsOpen?closeInsightsDrawer():openInsightsDrawer(); }
-
-function openInsightsDrawer() {
-  _insightsOpen = true;
-  document.getElementById('_prjDrawerOverlay')?.classList.add('open');
-  document.getElementById('_prjDrawer')?.classList.add('open');
-  document.getElementById('prj-insights-btn')?.classList.add('active');
-  _renderInsightsDrawer();
-}
-
-function closeInsightsDrawer() {
-  _insightsOpen = false;
-  document.getElementById('_prjDrawerOverlay')?.classList.remove('open');
-  document.getElementById('_prjDrawer')?.classList.remove('open');
-  document.getElementById('prj-insights-btn')?.classList.remove('active');
-}
-
-function _renderInsightsDrawer() {
-  const body = document.getElementById('prj-drawer-body');
-  if (!body) return;
-  const allUnits = gunits(), allProjs = gprojects();
-  const total = allUnits.length;
-  const sold  = allUnits.filter(u=>u.status!=='Available'&&u.status!=='Dead').length;
-  const avail = allUnits.filter(u=>u.status==='Available').length;
-  const p2tot = allUnits.reduce((s,u)=>s+Number(u.totalPrice||0),0);
-  const c2tot = allUnits.reduce((s,u)=>s+Number(u.totalPaid||0),0);
-  const rPct  = p2tot>0?Math.round(c2tot/p2tot*100):0;
-  const recovRows = allProjs.map(p=>{
-    const pu=allUnits.filter(u=>u.projectId===p.id);
-    const pt=pu.reduce((s,u)=>s+Number(u.totalPrice||0),0);
-    const pc=pu.reduce((s,u)=>s+Number(u.totalPaid||0),0);
-    const pp=pt>0?Math.round(pc/pt*100):0;
-    const sm2=_prjSmMap[p.status]||_prjSmMap.active;
-    return `<div class="prj-recov-item"><div class="prj-recov-hdr"><span class="prj-recov-name">${esc(p.projectName||p.name)}</span><span class="prj-recov-pct" style="color:${pp>=70?'var(--ok)':pp>=40?'var(--warn)':'var(--t3)'}">${pp}%</span></div><div class="prj-recov-bar"><div class="prj-recov-fill" style="width:${pp}%;background:${sm2.color}"></div></div><div class="prj-recov-meta"><span style="color:var(--ok);font-weight:600">PKR ${_kM(pc)}</span><span style="color:var(--t3)">of PKR ${_kM(pt)}</span></div></div>`;
-  }).join('');
-  const bRows = [['active','Active','#10b981'],['planning','Planning','#3b82f6'],['on_hold','On Hold','#f59e0b'],['completed','Completed','#6b7280'],['cancelled','Cancelled','#ef4444']].map(([st,lb,cl])=>{
-    const cnt=allProjs.filter(p=>p.status===st).length; if(!cnt)return '';
-    return `<div class="prj-breakdown-row"><span class="prj-breakdown-lbl"><span class="prj-legend-dot" style="background:${cl}"></span>${lb}</span><span class="prj-breakdown-val">${cnt}</span></div>`;
-  }).join('');
-  body.innerHTML = `
-    <div class="prj-dsec"><div class="prj-dsec-title">Unit Distribution</div>
-      <div class="prj-donut-wrap">${_prjDonutSVG(sold,avail,total)}
-        <div class="prj-donut-legend">
-          <div class="prj-legend-row"><span class="prj-legend-lbl"><span class="prj-legend-dot" style="background:#6366f1"></span>Sold</span><span class="prj-legend-val">${sold}</span></div>
-          <div class="prj-legend-row"><span class="prj-legend-lbl"><span class="prj-legend-dot" style="background:#10b981"></span>Available</span><span class="prj-legend-val">${avail}</span></div>
-          ${total-sold-avail>0?`<div class="prj-legend-row"><span class="prj-legend-lbl"><span class="prj-legend-dot" style="background:var(--warn)"></span>Other</span><span class="prj-legend-val">${total-sold-avail}</span></div>`:''}
-        </div>
+  const inner =
+    `<div class="prjc-hd">${NX.ichip('building-2', '', {})}
+      <div class="prjc-id">
+        <div class="prjc-name">${name}</div>
+        ${p.projectCode?`<div class="prjc-code">${esc(p.projectCode)}</div>`:''}
       </div>
-    </div>
-    <div class="prj-dsec"><div class="prj-dsec-title">Payment Recovery</div>${recovRows||'<div style="font-size:11px;color:var(--t3);font-style:italic">No financial data yet</div>'}</div>
-    ${p2tot>0?`<div class="prj-dsec"><div class="prj-dsec-title">Overall Recovery</div><div class="prj-overall-num" style="color:${rPct>=70?'var(--ok)':rPct>=40?'var(--warn)':'var(--t3)'}">${rPct}%</div><div class="prj-overall-sub">PKR ${_kM(c2tot)} of ${_kM(p2tot)}</div><div class="prj-overall-bar"><div class="prj-overall-fill" style="width:${rPct}%;background:${rPct>=70?'var(--ok)':rPct>=40?'var(--warn)':'#6366f1'}"></div></div></div>`:''}
-    <div class="prj-dsec"><div class="prj-dsec-title">Portfolio Breakdown</div>${bRows||'<div style="font-size:11px;color:var(--t3)">No projects</div>'}${p2tot>0?`<div class="prj-breakdown-total">Total Value:&nbsp;<span>PKR ${_kM(p2tot)}</span></div>`:''}</div>`;
+      ${_prjBadge(p.status)}
+    </div>` +
+    (locLine?`<div class="prjc-loc">${NX.icon('map-pin',13)}<span>${esc(locLine)}</span></div>`:'') +
+    `<div class="prjc-stats">
+      <div class="prjc-stat"><span class="prjc-sv">${pUnits.length}</span><span class="prjc-sl">Units</span></div>
+      <div class="prjc-stat"><span class="prjc-sv">${sold}</span><span class="prjc-sl">Sold</span></div>
+      <div class="prjc-stat"><span class="prjc-sv">${available}</span><span class="prjc-sl">Avail</span></div>
+    </div>` +
+    (constrPct>0?`<div class="prjc-prog">
+      <div class="prjc-prog-hd"><span>Construction</span><span>${constrPct}%</span></div>
+      <div class="prjc-pb"><div class="prjc-pf" style="width:${constrPct}%"></div></div>
+    </div>`:'') +
+    (portfolio>0?`<div class="prjc-fin">
+      <span>Receivable <span class="num">PKR ${_kM(outstanding)}</span></span>
+      <span>${recovPct}% recovered</span>
+    </div>`:'') +
+    `<div class="prjc-foot">
+      <span class="prjc-foot-l">${portfolio>0?`PKR ${_kM(portfolio)} portfolio`:`${pUnits.length} unit${pUnits.length!==1?'s':''}`}</span>
+      <span class="prjc-view">View ${NX.icon('chevron-right',13)}</span>
+    </div>`;
+
+  return `<div class="nx-card nx-card--hover prjcard" onclick="openProjectDetail('${p.id}')">${inner}</div>`;
 }
 
 function prjExport() {
@@ -549,6 +346,42 @@ function _msBadge(status) {
   const map = { pending:['var(--t3)','Pending'], in_progress:['var(--info)','In Progress'], completed:['var(--ok)','Completed'], delayed:['var(--err)','Delayed'] };
   const [c, l] = map[status] || ['var(--t3)', status || 'Unknown'];
   return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c}22;color:${c};border:1px solid ${c}44">${l}</span>`;
+}
+
+// One-time detail-page CSS — hero, tinted stat strip, two-column section grid.
+function _prjDetailCSS() {
+  if (document.getElementById('_pd_css')) return;
+  const s = document.createElement('style'); s.id = '_pd_css';
+  s.textContent = `
+    .pd-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .pd-actions .pd-back{margin-right:auto}
+    .pd-hero{display:flex;align-items:flex-start;gap:14px}
+    .pd-hero-id{min-width:0;flex:1}
+    .pd-hero-code{font-size:11px;font-family:var(--fk-font-mono,ui-monospace,monospace);color:var(--fk-text-muted);letter-spacing:.04em;margin-bottom:3px}
+    .pd-hero .nx-page-title{margin:0 0 7px}
+    .pd-hero-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .pd-hero-loc{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--fk-text-muted)}
+    .pd-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--fk-border)}
+    .pd-progress{display:flex;flex-direction:column;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--fk-border)}
+    .pd-prog-hd{display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--fk-text-muted);margin-bottom:5px}
+    .pd-pb{height:7px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:99px;overflow:hidden}
+    .pd-pf{height:100%;border-radius:99px;background:var(--fk-primary)}
+    .pd-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+    @media(max-width:900px){.pd-cols{grid-template-columns:1fr}}
+    .pd-col{display:flex;flex-direction:column;gap:14px}
+  `;
+  document.head.appendChild(s);
+}
+
+// Segmented tab bar for the detail page (Overview · Ledger · Revisions)
+function _prjRenderTabs(active) {
+  const el = document.getElementById('pd-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({ tabs: [
+    { k:'overview',  label:'Overview',         icon:'layout-dashboard' },
+    { k:'ledger',    label:'Collection Ledger', icon:'banknote' },
+    { k:'revisions', label:'Price Revisions',   icon:'history' }
+  ], active, onSelect:"prjSwitchTab('%k')" });
 }
 
 async function rProjectDetail() {
@@ -653,214 +486,136 @@ async function rProjectDetail() {
         ${isAe ? '<td></td>' : ''}
       </tr></tbody></table></div>`;
 
+  _prjDetailCSS();
+
+  const locTxt = [prj.city, prj.country].filter(Boolean).join(', ') || prj.location || '';
+  const heroStats =
+    NX.kpi({ tint:'primary', label:'Total Units', value:String(pUnits.length) }) +
+    NX.kpi({ tint:'success', label:'Sold',        value:String(sold) }) +
+    NX.kpi({ tint:'info',    label:'Available',   value:String(available) }) +
+    (portfolio > 0 ? (
+      NX.kpi({ label:'Portfolio', value:`PKR ${_kM(portfolio)}` }) +
+      NX.kpi({ tint:'success', label:'Collected', value:`PKR ${_kM(collected)}` }) +
+      NX.kpi({ tint: outstanding > 0 ? 'danger' : 'success', label:'Outstanding', value:`PKR ${_kM(outstanding)}` })
+    ) : '') +
+    (totalExpenses > 0 ? NX.kpi({ tint:'warn', label:'Expenses', value:`-PKR ${_kM(totalExpenses)}` }) : '');
+
+  const progressBars = (portfolio > 0 || prj.constructionProgress > 0) ? `<div class="pd-progress">
+    ${portfolio > 0 ? `<div><div class="pd-prog-hd"><span>Recovery</span><span>${recovPct}%</span></div><div class="pd-pb"><div class="pd-pf" style="width:${recovPct}%;background:var(--fk-success)"></div></div></div>` : ''}
+    ${prj.constructionProgress > 0 ? `<div><div class="pd-prog-hd"><span>Construction</span><span>${prj.constructionProgress}%</span></div><div class="pd-pb"><div class="pd-pf" style="width:${prj.constructionProgress}%"></div></div></div>` : ''}
+  </div>` : '';
+
+  const heroCard = NX.card(
+    `<div class="pd-hero">${NX.ichip('building-2', '', { size:'lg' })}
+      <div class="pd-hero-id">
+        ${prj.projectCode ? `<div class="pd-hero-code">${esc(prj.projectCode)}</div>` : ''}
+        <h1 class="nx-page-title" style="font-size:22px">${esc(prj.projectName || prj.name)}</h1>
+        <div class="pd-hero-meta">${_prjBadge(prj.status)}${locTxt ? `<span class="pd-hero-loc">${NX.icon('map-pin', 13)} ${esc(locTxt)}</span>` : ''}</div>
+      </div>
+    </div>
+    <div class="pd-stats">${heroStats}</div>${progressBars}`);
+
+  // Section card helper — warm header (chip + title + count + actions)
+  const sec = (icon, tone, title, sub, actions, body) =>
+    NX.card(body, { header: { icon, tone, title, sub, actions } });
+  const addBtn = (fn) => isA ? NX.button('Add', { variant:'secondary', size:'sm', icon:'plus', onclick:fn }) : '';
+
+  const projectInfo = sec('building-2', '', 'Project Info', '', '',
+    row('Code',        `<span style="font-family:var(--fk-font-mono,monospace)">${esc(prj.projectCode||'—')}</span>`) +
+    row('Name',        esc(prj.projectName||prj.name||'—')) +
+    row('Status',      _prjBadge(prj.status)) +
+    (prj.location ? row('Address',   esc(prj.location)) : '') +
+    (prj.city     ? row('City',      esc(prj.city)) : '') +
+    (prj.country  ? row('Country',   esc(prj.country)) : '') +
+    (prj.gpsLat && prj.gpsLng ? row('GPS', `${prj.gpsLat}, ${prj.gpsLng}${prj.mapLink ? ` <a href="${esc(prj.mapLink)}" target="_blank" style="font-size:11px;color:var(--fk-info)">Open Map</a>` : ''}`) : prj.mapLink ? row('Map', `<a href="${esc(prj.mapLink)}" target="_blank" style="color:var(--fk-info)">Open Map</a>`) : '') +
+    (prj.totalArea > 0 ? row('Total Area', `${Number(prj.totalArea).toLocaleString()} ${prj.areaUnit||'sqft'}`) : '') +
+    (prj.totalUnits > 0 ? row('Planned Units', prj.totalUnits) : '') +
+    (prj.startDate ? row('Start Date', fD(prj.startDate)) : '') +
+    (prj.expectedCompletion ? row('Expected Completion', fD(prj.expectedCompletion)) : '') +
+    (prj.description ? row('Description', esc(prj.description)) : '') +
+    row('Created', prj.createdAt ? fD(prj.createdAt.slice(0,10)) : '—'));
+
+  const amenitiesCard = (prj.amenities && prj.amenities.length)
+    ? sec('check-circle', 'success', 'Amenities', '', '',
+        `<div style="display:flex;flex-wrap:wrap;gap:8px">${prj.amenities.map(a => `<span class="nx-badge">${esc(a)}</span>`).join('')}</div>`)
+    : '';
+
+  const builderCard = (prj.builderName || prj.builderContact || prj.builderEmail)
+    ? sec('briefcase', '', 'Builder / Developer', '', '',
+        (prj.builderName    ? row('Builder',  esc(prj.builderName))    : '') +
+        (prj.builderContact ? row('Contact',  esc(prj.builderContact)) : '') +
+        (prj.builderEmail   ? row('Email',    `<a href="mailto:${esc(prj.builderEmail)}" style="color:var(--fk-info)">${esc(prj.builderEmail)}</a>`) : ''))
+    : '';
+
+  const nocCard = (prj.nocNumber || prj.nocAuthority || prj.nocDate)
+    ? sec('shield', '', 'NOC / Approvals', '', '',
+        (prj.nocNumber    ? row('NOC No.',    esc(prj.nocNumber))    : '') +
+        (prj.nocAuthority ? row('Authority',  esc(prj.nocAuthority)) : '') +
+        (prj.nocDate      ? row('NOC Date',   fD(prj.nocDate))       : '') +
+        (prj.nocNotes     ? row('Notes',      esc(prj.nocNotes))     : ''))
+    : '';
+
+  const financialCard = sec('wallet', 'success', 'Financial Summary', '', '',
+    row('Total Portfolio', fMF(portfolio)) +
+    row('Total Collected', `<span style="color:var(--fk-success);font-weight:600">${fMF(collected)}</span>`) +
+    row('Outstanding',     `<span style="color:${outstanding > 0 ? 'var(--fk-danger)' : 'var(--fk-success)'};font-weight:600">${outstanding > 0 ? fMF(outstanding) : 'Fully Collected'}</span>`) +
+    (portfolio > 0 ? row('Recovery %', `<strong>${recovPct}%</strong>`) : '') +
+    (totalExpenses > 0 ? row('Total Expenses', `<span style="color:var(--fk-danger);font-weight:600">-${fMF(totalExpenses)}</span>`) : '') +
+    (totalExpenses > 0 && portfolio > 0 ? row('Net (Portfolio − Expenses)', `<strong>${fMF(portfolio - totalExpenses)}</strong>`) : ''));
+
+  const unitsBody = !pUnits.length
+    ? NX.empty({ icon:'package', message:'No units linked yet — open any unit → Edit → assign this project.' })
+    : `<div class="ul">` + pUnits.map(u => {
+        const paid = actualPaid(u), rem = actualPending(u), p2 = pct(paid, u.totalPrice);
+        return `<div class="ur" onclick="openUD('${u.id}')">
+          <div class="ur-no">${esc(u.unitNo || '—')}</div>
+          <div style="flex-shrink:0">${sbadge(u.status)}</div>
+          <div class="ur-meta">
+            <div class="ur-name">${u.customerName || '<span style="color:var(--t3)">Available</span>'}</div>
+            <div class="ur-sub">${esc(u.floorLabel || '—')} · ${esc(u.type || '—')} · ${u.area || '—'} ${u.areaUnit||'sqft'}</div>
+          </div>
+          ${u.totalPrice > 0
+            ? `<div style="flex-shrink:0;width:68px"><div class="pbar"><div class="pbar-f" style="width:${p2}%"></div></div><div style="font-size:9px;color:var(--t3);margin-top:2px">${p2}% paid</div></div>
+               <div class="ur-bal"><div class="ur-v" style="color:${rem>0?'var(--err)':'var(--ok)'}">${fM(rem>0?rem:paid)}</div><div class="ur-vs">${rem>0?'pending':'paid'}</div></div>`
+            : `<div class="ur-bal"><div class="ur-v c-m">—</div></div>`}
+          <div class="arr">›</div>
+        </div>`;
+      }).join('') + `</div>`;
+
   document.getElementById('pg-projectdetail').innerHTML = `<div class="ani">
-    <!-- Form navigation bar -->
     <div id="pd-form-nav"></div>
 
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap" class="no-p">
-      <button class="bk" onclick="nav('projects')">← Back</button>
-      <button class="btn btn-print btn-sm" onclick="printProjectDetail('${prjId}')">Print</button>
-      ${isA ? `<button class="btn btn-gh btn-sm" onclick="openProjectModal('${prjId}')">Edit</button>` : ''}
-      ${isA ? `<button class="btn btn-r btn-sm" onclick="deleteProjectConfirm('${prjId}')">Delete</button>` : ''}
+    <div class="pd-actions no-p">
+      <span class="pd-back">${NX.button('Back', { variant:'ghost', icon:'arrow-left', onclick:"nav('projects')" })}</span>
+      ${NX.button('Print', { variant:'secondary', icon:'printer', onclick:`printProjectDetail('${prjId}')` })}
+      ${isA ? NX.button('Edit', { variant:'secondary', icon:'pencil', onclick:`openProjectModal('${prjId}')` }) : ''}
+      ${isA ? NX.button('Delete', { variant:'danger-soft', icon:'trash-2', onclick:`deleteProjectConfirm('${prjId}')` }) : ''}
     </div>
 
     ${coverBanner}
     ${galleryImgs}
 
-    <div class="card mb14">
-      <div class="cb">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div>
-            <div style="font-size:11px;color:var(--t3);font-family:monospace;margin-bottom:4px">${esc(prj.projectCode||'')}</div>
-            <h2 style="font-size:28px;font-weight:800;margin-bottom:8px;letter-spacing:-.3px">${esc(prj.projectName||prj.name)}</h2>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              ${prjStatusBadge(prj.status)}
-              ${prj.city ? `<span style="font-size:12px;color:var(--t3)">${esc(prj.city)}${prj.country?', '+esc(prj.country):''}</span>` : prj.location ? `<span style="font-size:12px;color:var(--t3)">${esc(prj.location)}</span>` : ''}
-            </div>
-          </div>
-        </div>
+    <div style="margin-bottom:16px">${heroCard}</div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)">
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:20px;font-weight:800;color:var(--t1)">${pUnits.length}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Total Units</div>
-          </div>
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:20px;font-weight:800;color:var(--ok)">${sold}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Sold</div>
-          </div>
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:20px;font-weight:800;color:var(--info)">${available}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Available</div>
-          </div>
-          ${portfolio > 0 ? `
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:14px;font-weight:800;color:var(--t1)">${fM(portfolio)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Portfolio</div>
-          </div>
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:14px;font-weight:800;color:var(--ok)">${fM(collected)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Collected</div>
-          </div>
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:14px;font-weight:800;color:${outstanding > 0 ? 'var(--err)' : 'var(--ok)'}">${fM(outstanding)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Outstanding</div>
-          </div>` : ''}
-          ${totalExpenses > 0 ? `
-          <div style="padding:10px 12px;background:var(--canvas);border-radius:var(--rm);text-align:center">
-            <div style="font-size:14px;font-weight:800;color:var(--err)">-${fM(totalExpenses)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Expenses</div>
-          </div>` : ''}
-        </div>
+    <div id="pd-tabs" style="margin-bottom:14px"></div>
 
-        ${portfolio > 0 || prj.constructionProgress > 0 ? `
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px">
-          ${portfolio > 0 ? `
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:5px">
-              <span>Recovery Progress</span><span style="font-weight:700;color:var(--t1)">${recovPct}%</span>
-            </div>
-            <div class="pbar" style="width:100%;height:8px"><div class="pbar-f" style="width:${recovPct}%"></div></div>
-          </div>` : ''}
-          ${prj.constructionProgress > 0 ? `
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:5px">
-              <span>Construction Progress</span><span style="font-weight:700;color:var(--info)">${prj.constructionProgress}%</span>
-            </div>
-            <div class="pbar" style="width:100%;height:8px"><div class="pbar-f" style="width:${prj.constructionProgress}%;background:var(--info)"></div></div>
-          </div>` : ''}
-        </div>` : ''}
-      </div>
-    </div>
-
-    <!-- Project Collection Ledger tabs -->
-    <div style="display:flex;border-bottom:2px solid var(--line);margin-bottom:14px">
-      <button id="prj-tab-overview-btn"   onclick="prjSwitchTab('overview')"   style="padding:8px 16px;background:none;border:none;border-bottom:2px solid var(--pri);color:var(--pri);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Overview</button>
-      <button id="prj-tab-ledger-btn"     onclick="prjSwitchTab('ledger')"     style="padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Collection Ledger</button>
-      <button id="prj-tab-revisions-btn"  onclick="prjSwitchTab('revisions')"  style="padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Price Revisions</button>
-    </div>
     <div id="prj-tab-overview">
-    <div class="cd">
-      <div style="display:flex;flex-direction:column;gap:13px">
-
-        <div class="card">
-          <div class="ch"><h3>Project Info</h3></div>
-          <div class="cb">
-            ${row('Code',        `<span style="font-family:monospace">${esc(prj.projectCode||'—')}</span>`)}
-            ${row('Name',        esc(prj.projectName||prj.name||'—'))}
-            ${row('Status',      prjStatusBadge(prj.status))}
-            ${prj.location ? row('Address',   esc(prj.location)) : ''}
-            ${prj.city     ? row('City',      esc(prj.city)) : ''}
-            ${prj.country  ? row('Country',   esc(prj.country)) : ''}
-            ${prj.gpsLat && prj.gpsLng ? row('GPS', `${prj.gpsLat}, ${prj.gpsLng}${prj.mapLink ? ` <a href="${esc(prj.mapLink)}" target="_blank" style="font-size:11px;color:var(--info)">Open Map</a>` : ''}`) : prj.mapLink ? row('Map', `<a href="${esc(prj.mapLink)}" target="_blank" style="color:var(--info)">Open Map</a>`) : ''}
-            ${prj.totalArea > 0 ? row('Total Area', `${Number(prj.totalArea).toLocaleString()} ${prj.areaUnit||'sqft'}`) : ''}
-            ${prj.totalUnits > 0 ? row('Planned Units', prj.totalUnits) : ''}
-            ${prj.startDate ? row('Start Date', fD(prj.startDate)) : ''}
-            ${prj.expectedCompletion ? row('Expected Completion', fD(prj.expectedCompletion)) : ''}
-            ${prj.description ? row('Description', esc(prj.description)) : ''}
-            ${row('Created', prj.createdAt ? fD(prj.createdAt.slice(0,10)) : '—')}
-          </div>
+      <div class="pd-cols">
+        <div class="pd-col">
+          ${projectInfo}
+          ${amenitiesCard}
+          ${builderCard}
+          ${nocCard}
+          ${financialCard}
         </div>
-
-        ${prj.amenities && prj.amenities.length ? `
-        <div class="card">
-          <div class="ch"><h3>Amenities</h3></div>
-          <div class="cb">
-            <div style="display:flex;flex-wrap:wrap;gap:8px">
-              ${prj.amenities.map(a => `<span style="font-size:12px;padding:4px 10px;background:var(--canvas);border:1px solid var(--line);border-radius:20px">${esc(a)}</span>`).join('')}
-            </div>
-          </div>
-        </div>` : ''}
-
-        ${prj.builderName || prj.builderContact || prj.builderEmail ? `
-        <div class="card">
-          <div class="ch"><h3>Builder / Developer</h3></div>
-          <div class="cb">
-            ${prj.builderName    ? row('Builder',  esc(prj.builderName))    : ''}
-            ${prj.builderContact ? row('Contact',  esc(prj.builderContact)) : ''}
-            ${prj.builderEmail   ? row('Email',    `<a href="mailto:${esc(prj.builderEmail)}" style="color:var(--info)">${esc(prj.builderEmail)}</a>`) : ''}
-          </div>
-        </div>` : ''}
-
-        ${prj.nocNumber || prj.nocAuthority || prj.nocDate ? `
-        <div class="card">
-          <div class="ch"><h3>NOC / Approvals</h3></div>
-          <div class="cb">
-            ${prj.nocNumber    ? row('NOC No.',    esc(prj.nocNumber))    : ''}
-            ${prj.nocAuthority ? row('Authority',  esc(prj.nocAuthority)) : ''}
-            ${prj.nocDate      ? row('NOC Date',   fD(prj.nocDate))       : ''}
-            ${prj.nocNotes     ? row('Notes',      esc(prj.nocNotes))     : ''}
-          </div>
-        </div>` : ''}
-
-        <div class="card">
-          <div class="ch"><h3>Financial Summary</h3></div>
-          <div class="cb">
-            ${row('Total Portfolio', fMF(portfolio))}
-            ${row('Total Collected', `<span style="color:var(--ok);font-weight:700">${fMF(collected)}</span>`)}
-            ${row('Outstanding',     `<span style="color:${outstanding > 0 ? 'var(--err)' : 'var(--ok)'};font-weight:700">${outstanding > 0 ? fMF(outstanding) : 'Fully Collected'}</span>`)}
-            ${portfolio > 0 ? row('Recovery %', `<strong>${recovPct}%</strong>`) : ''}
-            ${totalExpenses > 0 ? row('Total Expenses', `<span style="color:var(--err);font-weight:700">-${fMF(totalExpenses)}</span>`) : ''}
-            ${totalExpenses > 0 && portfolio > 0 ? row('Net (Portfolio − Expenses)', `<strong>${fMF(portfolio - totalExpenses)}</strong>`) : ''}
-          </div>
+        <div class="pd-col">
+          ${sec('package', '', 'Units in Project', `${pUnits.length} unit${pUnits.length !== 1 ? 's' : ''} linked`, '', unitsBody)}
+          ${sec('layers', '', 'Milestones / Phases', `${milestones.length} milestone${milestones.length !== 1 ? 's' : ''}`, addBtn(`openMilestoneModal(null,'${prjId}')`), milestonesHtml)}
+          ${sec('banknote', '', 'Bank Accounts', `${bankAccounts.length} account${bankAccounts.length !== 1 ? 's' : ''}`, addBtn(`openBankAcctModal(null,'${prjId}')`), bankHtml)}
+          ${sec('hand-coins', 'warning', 'Project Expenses', `${expenses.length} record${expenses.length !== 1 ? 's' : ''}${totalExpenses > 0 ? ' · -'+fM(totalExpenses) : ''}`, addBtn(`openExpenseModal(null,'${prjId}')`), expensesHtml)}
         </div>
-
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:13px">
-
-        <div class="card">
-          <div class="ch">
-            <div><h3>Units in Project</h3><p>${pUnits.length} unit${pUnits.length !== 1 ? 's' : ''} linked</p></div>
-          </div>
-          ${!pUnits.length
-            ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div class="et">No units linked yet</div><div class="es">Open any unit → Edit → assign this project</div></div>`
-            : `<div class="ul">` + pUnits.map(u => {
-                const paid = actualPaid(u), rem = actualPending(u), p2 = pct(paid, u.totalPrice);
-                return `<div class="ur" onclick="openUD('${u.id}')">
-                  <div class="ur-no">${esc(u.unitNo || '—')}</div>
-                  <div style="flex-shrink:0">${sbadge(u.status)}</div>
-                  <div class="ur-meta">
-                    <div class="ur-name">${u.customerName || '<span style="color:var(--t3)">Available</span>'}</div>
-                    <div class="ur-sub">${esc(u.floorLabel || '—')} · ${esc(u.type || '—')} · ${u.area || '—'} ${u.areaUnit||'sqft'}</div>
-                  </div>
-                  ${u.totalPrice > 0
-                    ? `<div style="flex-shrink:0;width:68px"><div class="pbar"><div class="pbar-f" style="width:${p2}%"></div></div><div style="font-size:9px;color:var(--t3);margin-top:2px">${p2}% paid</div></div>
-                       <div class="ur-bal"><div class="ur-v" style="color:${rem>0?'var(--err)':'var(--ok)'}">${fM(rem>0?rem:paid)}</div><div class="ur-vs">${rem>0?'pending':'paid'}</div></div>`
-                    : `<div class="ur-bal"><div class="ur-v c-m">—</div></div>`}
-                  <div class="arr">›</div>
-                </div>`;
-              }).join('') + `</div>`
-          }
-        </div>
-
-        <div class="card">
-          <div class="ch">
-            <div><h3>Milestones / Phases</h3><p>${milestones.length} milestone${milestones.length !== 1 ? 's' : ''}</p></div>
-            ${isA ? `<button class="btn btn-g btn-xs" onclick="openMilestoneModal(null,'${prjId}')">+ Add</button>` : ''}
-          </div>
-          ${milestonesHtml}
-        </div>
-
-        <div class="card">
-          <div class="ch">
-            <div><h3>Bank Accounts</h3><p>${bankAccounts.length} account${bankAccounts.length !== 1 ? 's' : ''}</p></div>
-            ${isA ? `<button class="btn btn-g btn-xs" onclick="openBankAcctModal(null,'${prjId}')">+ Add</button>` : ''}
-          </div>
-          ${bankHtml}
-        </div>
-
-        <div class="card">
-          <div class="ch">
-            <div><h3>Project Expenses</h3><p>${expenses.length} record${expenses.length !== 1 ? 's' : ''}${totalExpenses > 0 ? ' · -'+fM(totalExpenses) : ''}</p></div>
-            ${isA ? `<button class="btn btn-g btn-xs" onclick="openExpenseModal(null,'${prjId}')">+ Add</button>` : ''}
-          </div>
-          ${expensesHtml}
-        </div>
-
       </div>
     </div>
-    </div><!-- /prj-tab-overview -->
     <div id="prj-tab-ledger" data-project-id="${prjId}" style="display:none">
       <div id="prj-ledger-body"></div>
     </div>
@@ -868,6 +623,8 @@ async function rProjectDetail() {
       <div id="prj-revisions-body"></div>
     </div>
   </div>`;
+
+  _prjRenderTabs('overview');
 
   // Mount reusable form-nav bar
   if (typeof mountFormNav === 'function') {
@@ -892,13 +649,10 @@ async function rProjectDetail() {
 
 function prjSwitchTab(tab) {
   ['overview','ledger','revisions'].forEach(t => {
-    document.getElementById('prj-tab-'+t).style.display = t === tab ? '' : 'none';
-    const btn = document.getElementById('prj-tab-'+t+'-btn');
-    if (btn) {
-      btn.style.borderBottom = t === tab ? '2px solid var(--pri)' : '2px solid transparent';
-      btn.style.color        = t === tab ? 'var(--pri)' : 'var(--t3)';
-    }
+    const c = document.getElementById('prj-tab-'+t);
+    if (c) c.style.display = t === tab ? '' : 'none';
   });
+  _prjRenderTabs(tab);
   if (tab === 'ledger') {
     const el   = document.getElementById('prj-tab-ledger');
     const body = document.getElementById('prj-ledger-body');
@@ -1048,75 +802,191 @@ async function _prjLoadLedger(projectId) {
 
 // ── Modal open/close ───────────────────────────────────────
 
-function openProjectModal(prjId) {
-  const isEdit = !!prjId;
-  document.getElementById('prj-mtl').textContent = isEdit ? 'Edit Project' : 'Add Project';
-  document.getElementById('pf-prj-id').value = prjId || '';
+// ── Lean create / edit form — warmth kit, host-injected ──────────────
+// The owner's named offender ("purana aur ghatya"): 8 always-open stacked
+// emoji panels → essentials visible (name · location · code · status) with
+// everything else folded under a "More details" disclosure. Same form serves
+// edit (prefilled). saveProjectForm() reads the same pf-* ids, untouched.
 
-  const fields = ['pf-name','pf-desc','pf-location','pf-city','pf-total-area','pf-total-units','pf-start','pf-expected-completion','pf-delivery-date','pf-cover-url'];
-  fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+const _PRJ_AMENITIES = [
+  'Swimming Pool','Gym / Fitness','Parking','Security 24/7','Generator / UPS',
+  'CCTV','Elevator / Lift','Mosque','Playground','Community Hall',
+  'Garden / Park','Rooftop Terrace','Solar Energy','Commercial Area'
+];
+const _PRJ_AREA_UNITS = [['sqft','Sq ft'],['sqyd','Sq yd'],['sqm','Sq m'],['marla','Marla'],['kanal','Kanal'],['acre','Acre']];
+const _PRJ_STATUSES   = [['planning','Planning'],['active','Active'],['on_hold','On Hold'],['completed','Completed'],['cancelled','Cancelled']];
 
-  const codeEl = document.getElementById('pf-code');
-  const statusEl = document.getElementById('pf-status');
-  const areaUnitEl = document.getElementById('pf-area-unit');
-
-  document.querySelectorAll('#m-project .pf-err').forEach(el => el.textContent = '');
-  document.querySelectorAll('#m-project .inp-err').forEach(el => el.classList.remove('inp-err'));
-
-  if (isEdit) {
-    const p = gproject(prjId);
-    if (p) {
-      const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
-      set('pf-code',                p.projectCode || '');
-      set('pf-name',                p.projectName || p.name);
-      set('pf-desc',                p.description);
-      set('pf-location',            p.location);
-      set('pf-city',                p.city);
-      set('pf-total-area',          p.totalArea || '');
-      set('pf-total-units',         p.totalUnits || '');
-      set('pf-start',               p.startDate);
-      set('pf-expected-completion', p.expectedCompletion);
-      set('pf-delivery-date',       p.deliveryDate || '');
-      set('pf-cover-url',           p.coverImageUrl);
-      // Extended fields
-      set('pf-gps-lat',             p.gpsLat || '');
-      set('pf-gps-lng',             p.gpsLng || '');
-      set('pf-map-link',            p.mapLink);
-      set('pf-construction-progress', p.constructionProgress || 0);
-      set('pf-builder-name',        p.builderName);
-      set('pf-builder-contact',     p.builderContact);
-      set('pf-builder-email',       p.builderEmail);
-      set('pf-noc-number',          p.nocNumber);
-      set('pf-noc-authority',       p.nocAuthority);
-      set('pf-noc-date',            p.nocDate);
-      set('pf-noc-notes',           p.nocNotes);
-      set('pf-cover-images',        (p.coverImages || []).join('\n'));
-      const progressVal = document.getElementById('pf-progress-val');
-      if (progressVal) progressVal.textContent = p.constructionProgress || 0;
-      const amenitySet = new Set(p.amenities || []);
-      document.querySelectorAll('#m-project .pf-amenity').forEach(cb => { cb.checked = amenitySet.has(cb.value); });
-      if (statusEl)   statusEl.value   = p.status   || 'active';
-      if (areaUnitEl) areaUnitEl.value = p.areaUnit || 'sqft';
-    }
-  } else {
-    if (codeEl)     codeEl.value     = genProjectCode();
-    if (statusEl)   statusEl.value   = 'active';
-    if (areaUnitEl) areaUnitEl.value = 'sqft';
-    ['pf-gps-lat','pf-gps-lng','pf-map-link','pf-builder-name','pf-builder-contact','pf-builder-email',
-     'pf-noc-number','pf-noc-authority','pf-noc-date','pf-noc-notes','pf-cover-images'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
-    const progressEl = document.getElementById('pf-construction-progress');
-    if (progressEl) progressEl.value = 0;
-    const progressVal = document.getElementById('pf-progress-val');
-    if (progressVal) progressVal.textContent = '0';
-    document.querySelectorAll('#m-project .pf-amenity').forEach(cb => { cb.checked = false; });
-  }
-
-  om('m-project');
+function _prjModalHost() {
+  let h = document.getElementById('prj-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'prj-modal-host'; document.body.appendChild(h); }
+  return h;
 }
 
-function closeProjectModal() { cm('m-project'); }
+// One-time form CSS — section sub-labels, upload dropzone, amenity grid.
+function _prjFormCSS() {
+  if (document.getElementById('_pf_css')) return;
+  const s = document.createElement('style'); s.id = '_pf_css';
+  s.textContent = `
+    .pf-sublabel{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
+    .pf-sublabel:first-child{margin-top:4px}
+    .pf-sublabel span{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted)}
+    .pf-upload{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;
+      background:var(--fk-bg-subtle);border:1.5px dashed var(--fk-border);border-radius:var(--fk-radius-control);
+      font-size:13px;font-weight:500;cursor:pointer;color:var(--fk-text-muted);margin-bottom:8px;transition:border-color .15s,color .15s}
+    .pf-upload:hover{border-color:var(--fk-primary);color:var(--fk-primary)}
+    .pf-amenities{display:flex;flex-wrap:wrap;gap:8px 14px}
+    .pf-amenity-chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--fk-text);cursor:pointer}
+    .pf-amenity-chk input{accent-color:var(--fk-primary)}
+  `;
+  document.head.appendChild(s);
+}
+
+// Compact field builder — returns nx-field markup with a stable id.
+function _pfField(label, id, o) {
+  o = o || {};
+  const tag   = o.el || 'input';
+  const val   = o.value != null && o.value !== '' ? esc(String(o.value)) : '';
+  const ph    = o.ph ? ` placeholder="${esc(o.ph)}"` : '';
+  const attrs = o.attrs ? ` ${o.attrs}` : '';
+  const req   = o.req ? ' <span class="nx-req">*</span>' : '';
+  const lbl   = `<label class="nx-label" for="${id}">${esc(label)}${req}</label>`;
+  let ctrl;
+  if (tag === 'textarea') {
+    ctrl = `<textarea class="nx-textarea" id="${id}"${ph}${attrs} rows="${o.rows||2}">${val}</textarea>`;
+  } else if (tag === 'select') {
+    const opts = (o.options || []).map(([v, l]) =>
+      `<option value="${esc(v)}"${String(v) === String(o.value) ? ' selected' : ''}>${esc(l)}</option>`).join('');
+    ctrl = `<select class="nx-select" id="${id}"${attrs}>${opts}</select>`;
+  } else {
+    ctrl = `<input class="nx-input" id="${id}" type="${o.type || 'text'}" value="${val}"${ph}${attrs}>`;
+  }
+  const foot = o.errId ? `<div class="nx-error" id="${o.errId}"></div>`
+             : o.hint  ? `<div class="nx-error" style="color:var(--fk-text-muted)">${esc(o.hint)}</div>` : '';
+  return `<div class="nx-field"${o.fieldId ? ` id="${o.fieldId}"` : ''}>${lbl}${ctrl}${foot}</div>`;
+}
+
+function _prjSubLabel(icon, tone, title) {
+  return `<div class="pf-sublabel">${NX.ichip(icon, tone, { size:'sm' })}<span>${esc(title)}</span></div>`;
+}
+
+function openProjectModal(prjId) {
+  _prjFormCSS();
+  const isEdit = !!prjId;
+  const p      = isEdit ? (gproject(prjId) || {}) : {};
+  const code   = isEdit ? (p.projectCode || genProjectCode()) : genProjectCode();
+  const amenitySet = new Set(p.amenities || []);
+  const moreHas = isEdit && !!(
+    p.description || p.totalArea || p.totalUnits || p.startDate || p.expectedCompletion ||
+    p.deliveryDate || p.gpsLat || p.gpsLng || p.mapLink || p.constructionProgress ||
+    p.builderName || p.builderContact || p.builderEmail || p.nocNumber || p.nocAuthority ||
+    p.nocDate || p.nocNotes || p.coverImageUrl || (p.coverImages && p.coverImages.length) || amenitySet.size
+  );
+
+  // ── Essentials (always visible) ──
+  const essentials =
+    _pfField('Project name', 'pf-name', { value: p.projectName || p.name || '', ph: 'e.g. Nexus Heights Phase 2', req: true, errId: 'e-pf-name', fieldId: 'pf-name-field' }) +
+    `<div class="nx-grid-2">` +
+      _pfField('Address / location', 'pf-location', { value: p.location || '', ph: 'Street, area or landmark' }) +
+      _pfField('City', 'pf-city', { value: p.city || '', ph: 'e.g. Karachi' }) +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      _pfField('Project code', 'pf-code', { value: code, attrs: 'style="font-family:var(--fk-font-mono,monospace)"', hint: 'Auto-suggested — edit if you use your own scheme.' }) +
+      _pfField('Status', 'pf-status', { el: 'select', options: _PRJ_STATUSES, value: p.status || 'active' }) +
+    `</div>`;
+
+  // ── More details (disclosure) ──
+  const more =
+    _prjSubLabel('file-text', '', 'About') +
+    _pfField('Description', 'pf-desc', { el: 'textarea', value: p.description || '', ph: 'Brief description of the project…' }) +
+
+    _prjSubLabel('package', '', 'Scale & timeline') +
+    `<div class="nx-grid-2">` +
+      _pfField('Total area', 'pf-total-area', { type: 'number', value: p.totalArea || '', ph: 'e.g. 50000', attrs: 'min="0" step="0.01"' }) +
+      _pfField('Area unit', 'pf-area-unit', { el: 'select', options: _PRJ_AREA_UNITS, value: p.areaUnit || 'sqft' }) +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      _pfField('Total units (planned)', 'pf-total-units', { type: 'number', value: p.totalUnits || '', ph: 'e.g. 120', attrs: 'min="0"' }) +
+      _pfField('Start date', 'pf-start', { type: 'date', value: p.startDate || '' }) +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      _pfField('Expected completion', 'pf-expected-completion', { type: 'date', value: p.expectedCompletion || '' }) +
+      _pfField('Delivery date', 'pf-delivery-date', { type: 'date', value: p.deliveryDate || '', hint: 'Breach limit for possession reporting.' }) +
+    `</div>` +
+
+    _prjSubLabel('map-pin', '', 'Map & coordinates') +
+    `<div class="nx-grid-2">` +
+      _pfField('GPS latitude', 'pf-gps-lat', { type: 'number', value: p.gpsLat || '', ph: 'e.g. 24.8607', attrs: 'step="0.000001"' }) +
+      _pfField('GPS longitude', 'pf-gps-lng', { type: 'number', value: p.gpsLng || '', ph: 'e.g. 67.0011', attrs: 'step="0.000001"' }) +
+    `</div>` +
+    _pfField('Map link (Google Maps URL)', 'pf-map-link', { type: 'url', value: p.mapLink || '', ph: 'https://maps.google.com/…' }) +
+
+    _prjSubLabel('image', '', 'Media & progress') +
+    _pfField('Cover image URL', 'pf-cover-url', { type: 'url', value: p.coverImageUrl || '', ph: 'https://…' }) +
+    `<div class="nx-field">
+       <label class="nx-label" for="pf-construction-progress">Construction progress: <span id="pf-progress-val">${Number(p.constructionProgress || 0)}</span>%</label>
+       <input class="nx-input" id="pf-construction-progress" type="range" min="0" max="100" step="1" value="${Number(p.constructionProgress || 0)}"
+              oninput="document.getElementById('pf-progress-val').textContent=this.value" style="padding:0;cursor:pointer">
+     </div>` +
+    `<div class="nx-field">
+       <label class="nx-label">Project photos</label>
+       <label class="pf-upload">${NX.icon('upload', 15)}<span>Browse / upload photo</span>
+         <input type="file" id="pf-cover-file" accept="image/*" style="display:none" onchange="_handleFileUploadAppend(this,'pf-cover-images','rms-documents','projects/photos')">
+       </label>
+       <textarea class="nx-textarea" id="pf-cover-images" rows="2" placeholder="Uploaded URLs appear here (one per line) — you can also paste URLs">${esc((p.coverImages || []).join('\n'))}</textarea>
+     </div>` +
+
+    _prjSubLabel('check-circle', 'success', 'Amenities') +
+    `<div class="pf-amenities">` + _PRJ_AMENITIES.map(a =>
+      `<label class="pf-amenity-chk"><input type="checkbox" class="pf-amenity" value="${esc(a)}"${amenitySet.has(a) ? ' checked' : ''}> ${esc(a)}</label>`).join('') + `</div>` +
+
+    _prjSubLabel('briefcase', '', 'Builder / developer') +
+    `<div class="nx-grid-2">` +
+      _pfField('Builder / developer', 'pf-builder-name', { value: p.builderName || '', ph: 'e.g. Marwan Builders' }) +
+      _pfField('Contact number', 'pf-builder-contact', { value: p.builderContact || '', ph: 'e.g. 0300-0000000' }) +
+    `</div>` +
+    _pfField('Builder email', 'pf-builder-email', { type: 'email', value: p.builderEmail || '', ph: 'builder@business.com' }) +
+
+    _prjSubLabel('shield', '', 'NOC / approvals') +
+    `<div class="nx-grid-2">` +
+      _pfField('NOC number', 'pf-noc-number', { value: p.nocNumber || '', ph: 'e.g. NOC-2024-0001' }) +
+      _pfField('Issuing authority', 'pf-noc-authority', { value: p.nocAuthority || '', ph: 'e.g. KDA / LDA / SBCA' }) +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      _pfField('NOC date', 'pf-noc-date', { type: 'date', value: p.nocDate || '' }) +
+      `<div></div>` +
+    `</div>` +
+    _pfField('NOC notes', 'pf-noc-notes', { el: 'textarea', value: p.nocNotes || '', ph: 'Notes about approvals or compliance…' });
+
+  const body =
+    `<input type="hidden" id="pf-prj-id" value="${esc(prjId || '')}">` +
+    essentials +
+    `<button type="button" class="nx-btn nx-btn--secondary nx-btn--sm" id="pf-more-btn" onclick="prjToggleMore()" style="margin-top:6px">` +
+      `<span id="pf-more-ico" style="display:inline-flex">${NX.icon(moreHas ? 'chevron-up' : 'chevron-down', 15)}</span>` +
+      `<span id="pf-more-txt">${moreHas ? 'Fewer details' : 'More details'}</span></button>` +
+    `<div id="pf-more"${moreHas ? '' : ' style="display:none"'}>${more}</div>`;
+
+  const footer =
+    NX.button('Cancel', { variant: 'secondary', onclick: 'closeProjectModal()' }) +
+    NX.button(isEdit ? 'Save changes' : 'Create project', { variant: 'primary', attrs: 'id="prj-save-btn"', onclick: 'saveProjectForm()' });
+
+  _prjModalHost().innerHTML = NX.modal({
+    id: 'm-project', title: isEdit ? 'Edit project' : 'New project',
+    size: 'l', onClose: 'closeProjectModal()', body, footer
+  });
+}
+
+function prjToggleMore() {
+  const more = document.getElementById('pf-more');
+  const txt  = document.getElementById('pf-more-txt');
+  const ico  = document.getElementById('pf-more-ico');
+  if (!more) return;
+  const open = more.style.display === 'none';
+  more.style.display = open ? '' : 'none';
+  if (txt) txt.textContent = open ? 'Fewer details' : 'More details';
+  if (ico) ico.innerHTML = NX.icon(open ? 'chevron-up' : 'chevron-down', 15);
+}
+
+function closeProjectModal() { const h = document.getElementById('prj-modal-host'); if (h) h.innerHTML = ''; }
 
 // ── Save ───────────────────────────────────────────────────
 
@@ -1128,7 +998,8 @@ async function saveProjectForm() {
     const el = document.getElementById(id);
     if (el) el.textContent = msg;
     const inp = document.getElementById(inputId || id.slice(2));
-    if (inp) inp.classList.toggle('inp-err', !!msg);
+    const fld = inp ? inp.closest('.nx-field') : null;
+    if (fld) fld.classList.toggle('nx-field--error', !!msg);
     if (msg) hasErr = true;
   };
 
@@ -1159,7 +1030,7 @@ async function saveProjectForm() {
   }
 
   const btn = document.getElementById('prj-save-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
     const totalArea  = parseFloat(document.getElementById('pf-total-area')?.value)  || null;
@@ -1220,13 +1091,13 @@ async function saveProjectForm() {
     await loadProjectsCache(S.cid);
     logA('project', (existingId ? 'Updated' : 'Added') + ' project: ' + name);
     toast(existingId ? 'Project updated' : 'Project added', 'ok');
-    cm('m-project');
+    closeProjectModal();
     rProjects();
   } catch (err) {
     console.error('[saveProjectForm]', err);
     toast('Could not save project: ' + err.message, 'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Save Project'; }
+    if (btn) { btn.disabled = false; btn.textContent = existingId ? 'Save changes' : 'Create project'; }
   }
 }
 
