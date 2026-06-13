@@ -70,6 +70,43 @@ function _fci(name, size=14) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${_FC_ICONS[name]||''}</svg>`;
 }
 
+// WARMTH BRIDGE — the Inbox runs on followup.css (its own `fc-*` system, used
+// nowhere else). Per "RESTYLE ≠ REBUILD", the chrome (header/tabs/KPIs) is
+// rebuilt on the nx-kit; the dense tab CONTENT (lanes/sections/tables) stays on
+// followup.css but is re-pointed to the kit palette by remapping its local CSS
+// variables to --fk-* on #pg-contacts. Presentational only, page-scoped.
+function _fcWarmCSS() {
+  if (document.getElementById('_fc_warm_css')) return;
+  const s = document.createElement('style'); s.id = '_fc_warm_css';
+  s.textContent = `
+    #pg-contacts{
+      --primary:var(--fk-primary); --border:var(--fk-border); --border-strong:var(--fk-border);
+      --border-focus:var(--fk-primary); --text:var(--fk-text); --text-muted:var(--fk-text-muted);
+      --text-soft:var(--fk-text-muted); --text-faint:var(--fk-text-muted);
+      --bg-card:var(--fk-bg-card); --bg-card-hover:var(--fk-bg-subtle); --bg-page:var(--fk-bg-page);
+      --bg-chip:var(--fk-bg-subtle); --bg-row-hover:var(--fk-bg-subtle);
+      --bg-primary-soft:var(--fk-primary-tint);
+      --bg-success-soft:var(--fk-success-surface,rgba(22,163,74,.08));
+      --bg-danger-soft:var(--fk-danger-surface,rgba(220,38,38,.08));
+      --success:var(--fk-success); --danger:var(--fk-danger); --warning:var(--fk-warning);
+      --shadow-sm:var(--fk-shadow); font-family:var(--fk-font);
+    }
+    #pg-contacts .fc-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+    @media(max-width:900px){#pg-contacts .fc-kpi-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:520px){#pg-contacts .fc-kpi-grid{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(s);
+}
+
+function _fcRenderTabs(TABS) {
+  const el = document.getElementById('fc-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({
+    tabs: TABS.map(t => ({ k:t.id, label:t.label, icon:t.icon, count: t.badge > 0 ? t.badge : undefined })),
+    active: _clTab, onSelect: "_fcSetTab('%k')"
+  });
+}
+
 // ─── Cache Loader (called at login + manual refresh) ──────────────────────
 async function loadContactLogsCache(companyId) {
   try {
@@ -158,40 +195,18 @@ function _fcBuild(pg) {
     </div>`;
   }
 
-  // ── ONE-SHOT innerHTML — header + tabs + content together ──
-  pg.innerHTML = `<div class="module-recovery" style="opacity:1">
-    <header class="fc-header">
-      <div class="fc-header-left">
-        <div class="fc-title-row">
-          <span class="fc-title-icon">${_fci('phone-call',16)}</span>
-          <span class="fc-title">Follow-up &amp; Recovery</span>
-          <span class="fc-sub" style="margin-left:10px;padding-left:10px;border-left:1px solid var(--border);line-height:1.4">Communication tracking and recovery analytics</span>
-        </div>
-      </div>
-      <div class="fc-header-right">
-        <button class="fc-icon-btn" onclick="rCons()" title="Refresh">
-          ${_fci('refresh-cw',16)}
-        </button>
-        <button class="fc-btn-primary" onclick="openConModal(null)">
-          ${_fci('plus',14)} Log Contact
-        </button>
-      </div>
-    </header>
-    <nav class="fc-tabs" role="tablist">
-      ${TABS.map(tab => {
-        const on = _clTab === tab.id;
-        return `<button class="fc-tab${on?' active':''}" role="tab" aria-selected="${on}"
-          onclick="_fcSetTab('${tab.id}')">
-          ${_fci(tab.icon,14)} ${tab.label}
-          ${tab.badge > 0 ? `<span class="fc-tab-badge">${tab.badge}</span>` : ''}
-        </button>`;
-      }).join('')}
-    </nav>
-    <div class="fc-content" id="cl-content" role="tabpanel" style="opacity:1;padding-top:20px">
-      ${body}
-    </div>
-  </div>`;
+  // ── ONE-SHOT innerHTML — warm kit header + segmented tabs + content ──
+  _fcWarmCSS();
+  pg.innerHTML = '<div class="module-recovery" style="opacity:1">' +
+    NX.pageHeader('Follow-up & Recovery',
+      NX.button('Refresh', { variant:'secondary', icon:'refresh-cw', onclick:'rCons()' }) +
+      NX.button('Log contact', { variant:'primary', icon:'plus', onclick:'openConModal(null)' }),
+      { icon:'phone', sub:'Communication tracking and recovery analytics' }) +
+    '<div id="fc-tabs" style="margin-bottom:4px"></div>' +
+    `<div class="fc-content" id="cl-content" role="tabpanel" style="opacity:1;padding-top:20px">${body}</div>` +
+  '</div>';
 
+  _fcRenderTabs(TABS);
   _fcEnsureDrawer();
 
   // Post-render hook for the Contact Log tab: populate cl-sum + cl-tbl
@@ -337,14 +352,8 @@ function _tabDashboardHtml() {
 
 // ── Reusable building blocks for the SaaS-grade dashboard ────────────────
 function _fcKpi(iconName, tone, label, value, sub) {
-  return `<div class="fc-kpi">
-    <div class="fc-kpi-icon ${tone}">${_fci(iconName, 16)}</div>
-    <div class="fc-kpi-body">
-      <div class="fc-kpi-label">${label}</div>
-      <div class="fc-kpi-value">${value}</div>
-      <div class="fc-kpi-sub">${sub}</div>
-    </div>
-  </div>`;
+  const toneMap = { blue:'', red:'danger', emerald:'success', slate:'' };
+  return NX.kpi({ icon:iconName, tone:toneMap[tone] || '', label, value, delta:sub });
 }
 
 function _fcLane({ title, count, countTone, onViewAll, emptyTitle, emptySuccess, items, overflow }) {

@@ -68,32 +68,70 @@ const _AP_SLA_META = {
   breached: { c:'#ef4444', lb:'Breached' },
 };
 
-// ─── Pure helpers ───────────────────────────────────────────────────────────
-function _apTypeBadge(t) {
-  const m = _AP_TYPE[t] || { c:'#94a3b8', lb: t || '—' };
-  return `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:${m.c}1a;color:${m.c};border:1px solid ${m.c}40;text-transform:uppercase;letter-spacing:.4px">${esc(m.lb)}</span>`;
+// ─── Warmth-kit tone maps + helpers ──────────────────────────────────────────
+const _AP_TYPE_TONE = {
+  discount:'primary', price_revision:'info', cancellation:'danger', transfer:'warning',
+  refund:'info', dnd:'', blacklist:'danger', payment_void:'primary',
+  payment_backdate:'primary', schedule_change:'info', client_status:'info',
+  legal_delete:'danger', sale_edit:'warning',
+};
+const _AP_RISK_TONE = { high:'danger', medium:'warning', low:'info' };
+const _AP_SLA_TONE  = { on_track:'success', at_risk:'warning', breached:'danger' };
+const _AP_STATUS_TONE = { approved:'success', rejected:'danger', pending:'warning', cancelled:'' };
+
+// One-time CSS — sla band, filter row, inbox rows (class names avoid "-card").
+function _apCSS() {
+  if (document.getElementById('_ap_css')) return;
+  const s = document.createElement('style'); s.id = '_ap_css';
+  s.textContent = `
+    .ap-band{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:12px 16px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card)}
+    .ap-band-l,.ap-band-r{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+    .ap-tier{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;border:1px solid var(--fk-border);background:var(--fk-bg-card);cursor:pointer;color:var(--fk-text-muted)}
+    .ap-tier .dot{width:6px;height:6px;border-radius:50%}
+    .ap-tier.is-on{border-color:var(--fk-primary);color:var(--fk-primary);background:var(--fk-primary-tint)}
+    .ap-band-meta{font-size:11px;color:var(--fk-text-muted)}
+    .ap-band-meta b{color:var(--fk-text)}
+    .ap-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+    .ap-filters .nx-select{max-width:160px}
+    .ap-filters .ap-search{flex:1;min-width:200px;max-width:360px}
+    .ap-row{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;margin-bottom:9px;cursor:pointer}
+    .ap-row-lead{display:flex;flex-direction:column;gap:6px;min-width:92px;flex-shrink:0}
+    .ap-row-main{flex:1;min-width:0}
+    .ap-row-title{font-size:13px;font-weight:600;color:var(--fk-text)}
+    .ap-row-desc{font-size:11.5px;color:var(--fk-text-muted);margin-top:2px;max-width:560px}
+    .ap-row-chips{margin-top:7px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:11.5px;color:var(--fk-text-muted)}
+    .ap-row-age{font-size:11px;color:var(--fk-text-muted);margin-top:7px;display:flex;align-items:center;gap:8px}
+    .ap-row-acts{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0}
+    .ap-grp{margin-bottom:14px}
+    .ap-grp-hd{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted);margin-bottom:7px}
+    .ap-kv{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:12.5px}
+    .ap-kv .l{color:var(--fk-text-muted)} .ap-kv .r{color:var(--fk-text);font-weight:500;font-variant-numeric:tabular-nums;word-break:break-all;text-align:right}
+    .ap-thread{padding:9px 0;border-bottom:1px solid var(--fk-border)}
+    .ap-thread:last-child{border-bottom:none}
+    .ap-thread-meta{font-size:11px;color:var(--fk-text-muted)} .ap-thread-meta b{color:var(--fk-text)}
+    .ap-thread-body{font-size:12.5px;color:var(--fk-text);margin-top:3px}
+    .ap-payload{background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);padding:8px 12px;font-family:var(--fk-font-mono,ui-monospace,monospace);font-size:11px;max-height:200px;overflow:auto}
+    .ap-payload-row{display:flex;gap:8px;padding:3px 0;border-bottom:1px dashed var(--fk-border)}
+    .ap-payload-row b{color:var(--fk-text-muted);min-width:140px}
+  `;
+  document.head.appendChild(s);
 }
 
+function _apTypeBadge(t) {
+  const m = _AP_TYPE[t] || { lb: t || '—' };
+  return NX.badge(m.lb, _AP_TYPE_TONE[t] || '');
+}
 function _apRiskPill(risk) {
   const m = _AP_RISK_META[risk] || _AP_RISK_META.low;
-  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:${m.c}1a;color:${m.c};border:1px solid ${m.c}40;text-transform:uppercase;letter-spacing:.5px"><span style="width:6px;height:6px;border-radius:50%;background:${m.c}"></span>${m.lb}</span>`;
+  return NX.badge(m.lb, _AP_RISK_TONE[risk] || 'info', { dot:true });
 }
-
 function _apSlaBadge(sla) {
   const m = _AP_SLA_META[sla.status] || _AP_SLA_META.on_track;
-  const icon = sla.status === 'breached' ? '⚠ ' : '';
-  return `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:${m.c}1a;color:${m.c};white-space:nowrap" title="Target: ${m.lb} within ${_AP_SLA_HOURS[sla.risk]}h">${icon}${m.lb}</span>`;
+  return NX.badge(m.lb, _AP_SLA_TONE[sla.status] || 'success');
 }
-
 function _apStatusBadge(s) {
-  const map = {
-    approved:  ['#22c55e','Approved'],
-    rejected:  ['#ef4444','Rejected'],
-    pending:   ['#f59e0b','Pending'],
-    cancelled: ['#94a3b8','Cancelled'],
-  };
-  const [c, l] = map[s] || ['#94a3b8', s || '—'];
-  return `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${c}22;color:${c}">${esc(l)}</span>`;
+  const map = { approved:'Approved', rejected:'Rejected', pending:'Pending', cancelled:'Cancelled' };
+  return NX.badge(map[s] || s || '—', _AP_STATUS_TONE[s] || '', { dot:true });
 }
 
 function _apRelTime(ts) {
@@ -190,27 +228,28 @@ function _apClientInfo(row) {
 function _apEntityRef(row) {
   if (!row.entity_table) return '—';
   const short = row.entity_id ? String(row.entity_id).slice(0, 8) : '';
-  return `<span style="font-family:monospace;font-size:11px;color:var(--t3)">${esc(row.entity_table)}${short ? ' · ' + short : ''}</span>`;
+  return `<span class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(row.entity_table)}${short ? ' · ' + short : ''}</span>`;
 }
 
 // Chip renderers used in rows + drawer
+function _apChip(icon, text, suffix) {
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--fk-text);font-weight:500">${NX.icon(icon,13)} ${esc(text)}${suffix||""}</span>`;
+}
 function _apMakerChip(row) {
   const m = _apMakerInfo(row);
-  if (!m.name) return `<span style="font-size:11px;color:var(--t3)">Maker: —</span>`;
-  const roleSfx = m.role ? ` <span style="color:var(--t3);font-weight:500"> · ${esc(m.role)}</span>` : '';
-  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);font-weight:600">👤 ${esc(m.name)}${roleSfx}</span>`;
+  if (!m.name) return `<span style="font-size:11px;color:var(--fk-text-muted)">Maker: —</span>`;
+  const roleSfx = m.role ? ` <span style="color:var(--fk-text-muted);font-weight:400"> · ${esc(m.role)}</span>` : "";
+  return _apChip("user", m.name, roleSfx);
 }
-
 function _apProjectChip(row) {
   const name = _apProjectName(row.project_id);
-  if (!name) return '';
-  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);font-weight:600">🏢 ${esc(name)}</span>`;
+  if (!name) return "";
+  return _apChip("building-2", name);
 }
-
 function _apClientChip(row) {
   const c = _apClientInfo(row);
-  if (!c || !c.name) return '';
-  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);font-weight:600">👥 ${esc(c.name)}</span>`;
+  if (!c || !c.name) return "";
+  return _apChip("users", c.name);
 }
 
 // Restriction rule (default level only — no reader RPC in v1)
@@ -307,42 +346,33 @@ async function rApprovals() {
     return;
   }
 
-  el.innerHTML = `<div class="ani">
-    <div class="ph">
-      <div class="ph-l">
-        <h2>Approval Control Center</h2>
-        <p>Maker-checker requests — review, decide with a comment, full trail kept.</p>
-      </div>
-    </div>
+  _apCSS();
+  el.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Approval Control Center', '', { icon:'shield', sub:'Maker-checker requests — review, decide with a comment, full trail kept.' }) +
+      '<div class="ap-band" id="ap-sla-band"></div>' +
+      '<div id="ap-tabs" style="margin-bottom:14px"></div>' +
+      '<div id="ap-body"></div>' +
+    '</div>' +
+    '<div id="ap-modal-host"></div>';
 
-    <!-- SLA dashboard band -->
-    <div id="ap-sla-band" style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin:6px 0 14px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px"></div>
-
-    <!-- Tabs -->
-    <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)">
-      <button id="ap-tab-inbox"   class="ap-tab" onclick="_apSetTab('inbox')"
-        style="background:none;border:none;border-bottom:2px solid transparent;padding:9px 14px;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;font-family:inherit">Inbox</button>
-      <button id="ap-tab-history" class="ap-tab" onclick="_apSetTab('history')"
-        style="background:none;border:none;border-bottom:2px solid transparent;padding:9px 14px;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;font-family:inherit">History</button>
-    </div>
-
-    <div id="ap-body"></div>
-  </div>`;
-
-  _apEnsureDrawer();
   _apBindEscOnce();
+  _apRenderTabs(_apTab);
   _apSetTab(_apTab);
+}
+
+function _apRenderTabs(active) {
+  const el = document.getElementById('ap-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({ tabs: [
+    { k:'inbox',   label:'Inbox',   icon:'inbox',   count: _apPending.length || undefined },
+    { k:'history', label:'History', icon:'history' }
+  ], active, onSelect:"_apSetTab('%k')" });
 }
 
 function _apSetTab(t) {
   _apTab = t;
-  ['inbox','history'].forEach(k => {
-    const b = document.getElementById('ap-tab-' + k);
-    if (!b) return;
-    const on = k === t;
-    b.style.color        = on ? 'var(--brand)' : 'var(--t3)';
-    b.style.borderBottom = on ? '2px solid var(--brand)' : '2px solid transparent';
-  });
+  _apRenderTabs(t);
   if (t === 'inbox') _apLoadInbox(); else _apLoadHistory();
 }
 
@@ -351,8 +381,8 @@ function _apBindEscOnce() {
   _apEscBound = true;
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-      const d = document.getElementById('ap-drawer');
-      if (d && d.classList.contains('open')) { e.stopPropagation(); _apCloseDrawer(); }
+      const h = document.getElementById('ap-modal-host');
+      if (h && h.firstChild) { e.stopPropagation(); _apCloseDrawer(); }
     }
   });
 }
@@ -387,30 +417,28 @@ function _apRenderSlaBand() {
     }
   }
 
+  const _DOT = { high:'var(--fk-danger)', medium:'var(--fk-warning)', low:'var(--fk-info)' };
   const tier = (lvl, n) => {
     const meta = _AP_RISK_META[lvl];
-    return `<button onclick="_apFilterRisk('${lvl}')" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:${meta.c}1a;color:${meta.c};border:1px solid ${meta.c}40;cursor:pointer">
-      <span style="width:6px;height:6px;border-radius:50%;background:${meta.c}"></span>${meta.lb} ${n}
-    </button>`;
+    const on = _apFilter.risk === lvl;
+    return `<button class="ap-tier${on?' is-on':''}" onclick="_apFilterRisk('${lvl}')"><span class="dot" style="background:${_DOT[lvl]}"></span>${meta.lb} ${n}</button>`;
   };
-
   const sla = (status, n) => {
-    const meta = _AP_SLA_META[status];
-    const danger = status === 'breached';
-    return `<span style="font-size:11px;font-weight:600;color:${danger?meta.c:'var(--t2)'}">${danger?'⚠ ':''}${meta.lb} <b style="color:${meta.c}">${n}</b></span>`;
+    const tone = _AP_SLA_TONE[status] || 'success';
+    return `<span class="ap-band-meta">${_AP_SLA_META[status].lb} <b style="color:var(--fk-${tone})">${n}</b></span>`;
   };
 
   band.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+    <div class="ap-band-l">
       ${tier('high', h)} ${tier('medium', m)} ${tier('low', l)}
-      <span style="font-size:11px;color:var(--t3);margin-left:6px">${total} pending</span>
+      <span class="ap-band-meta" style="margin-left:4px">${total} pending</span>
     </div>
-    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:flex-end">
-      ${sla('on_track', onTrack)} <span style="color:var(--line)">·</span>
-      ${sla('at_risk',  atRisk)}  <span style="color:var(--line)">·</span>
+    <div class="ap-band-r">
+      ${sla('on_track', onTrack)}<span style="color:var(--fk-border)">·</span>
+      ${sla('at_risk', atRisk)}<span style="color:var(--fk-border)">·</span>
       ${sla('breached', breach)}
-      <span style="font-size:11px;color:var(--t3)">Oldest: <b style="color:var(--t1)">${esc(oldestLbl)}</b></span>
-      <span style="font-size:11px;color:var(--t3)">Avg decision: <b style="color:var(--t1)">${esc(avgLbl)}</b></span>
+      <span class="ap-band-meta">Oldest <b>${esc(oldestLbl)}</b></span>
+      <span class="ap-band-meta">Avg <b>${esc(avgLbl)}</b></span>
     </div>`;
 }
 
@@ -427,16 +455,17 @@ function _apPersistFilters() {
 async function _apLoadInbox() {
   const body = document.getElementById('ap-body');
   if (!body) return;
-  body.innerHTML = `<div class="empty" style="padding:32px"><div class="es" style="color:var(--t3)">Loading inbox…</div></div>`;
+  body.innerHTML = NX.card(NX.empty({ icon:'inbox', message:'Loading inbox…' }));
   try {
     const { data, error } = await supabase.rpc('get_pending_approvals', { p_filters: {} });
     if (error) throw error;
     if (!data || !data.success) throw new Error(data?.error || 'Failed to load');
     _apPending = Array.isArray(data.rows) ? data.rows : [];
+    _apRenderTabs('inbox');   // refresh the count chip
     _apRenderSlaBand();
     _apRenderInbox();
   } catch (e) {
-    body.innerHTML = `<div class="card"><div class="empty"><div class="et">Could not load inbox</div><div class="es">${esc(e.message)}</div></div></div>`;
+    body.innerHTML = NX.card(NX.banner('Could not load inbox: ' + (e.message || 'Error'), 'danger'));
   }
 }
 
@@ -494,26 +523,19 @@ function _apFilterRail() {
   const makerOpts = Array.from(makerSet.entries()).map(([id, n]) => `<option value="${esc(id)}"${_apFilter.maker===id?' selected':''}>${esc(n)}</option>`).join('');
   const prjOpts = Array.from(projectSet.entries()).map(([id, n]) => `<option value="${esc(id)}"${_apFilter.project===id?' selected':''}>${esc(n)}</option>`).join('');
 
-  return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px">
-    <select class="inp-light" style="font-size:12px;padding:5px 8px" onchange="_apSetFilter('type', this.value)">
-      <option value="all"${_apFilter.type==='all'?' selected':''}>All Types</option>${typeOpts}
-    </select>
-    <select class="inp-light" style="font-size:12px;padding:5px 8px" onchange="_apSetFilter('maker', this.value)">
-      <option value="all"${_apFilter.maker==='all'?' selected':''}>All Makers</option>${makerOpts}
-    </select>
-    <select class="inp-light" style="font-size:12px;padding:5px 8px" onchange="_apSetFilter('project', this.value)">
-      <option value="all"${_apFilter.project==='all'?' selected':''}>All Projects</option>${prjOpts}
-    </select>
-    <select class="inp-light" style="font-size:12px;padding:5px 8px" onchange="_apSetFilter('sla', this.value)">
+  const hasFilters = _apFilter.risk !== 'all' || _apFilter.type !== 'all' || _apFilter.maker !== 'all' || _apFilter.project !== 'all' || _apFilter.sla !== 'all' || _apFilter.search;
+  return `<div class="ap-filters">
+    <select class="nx-select" onchange="_apSetFilter('type', this.value)"><option value="all"${_apFilter.type==='all'?' selected':''}>All types</option>${typeOpts}</select>
+    <select class="nx-select" onchange="_apSetFilter('maker', this.value)"><option value="all"${_apFilter.maker==='all'?' selected':''}>All makers</option>${makerOpts}</select>
+    <select class="nx-select" onchange="_apSetFilter('project', this.value)"><option value="all"${_apFilter.project==='all'?' selected':''}>All projects</option>${prjOpts}</select>
+    <select class="nx-select" onchange="_apSetFilter('sla', this.value)">
       <option value="all"${_apFilter.sla==='all'?' selected':''}>All SLA</option>
       <option value="on_track"${_apFilter.sla==='on_track'?' selected':''}>On track</option>
       <option value="at_risk"${_apFilter.sla==='at_risk'?' selected':''}>At risk</option>
       <option value="breached"${_apFilter.sla==='breached'?' selected':''}>Breached</option>
     </select>
-    <input class="inp-light" type="search" placeholder="Search title / maker / project / client…"
-      value="${esc(_apFilter.search || '')}" style="flex:1;min-width:180px;font-size:12px;padding:5px 10px"
-      oninput="_apSetFilter('search', this.value)">
-    ${(_apFilter.risk !== 'all' || _apFilter.type !== 'all' || _apFilter.maker !== 'all' || _apFilter.project !== 'all' || _apFilter.sla !== 'all' || _apFilter.search) ? `<button class="btn btn-gh btn-xs" onclick="_apResetFilters()">Reset</button>` : ''}
+    <input class="nx-input ap-search" type="search" placeholder="Search title / maker / project / client…" value="${esc(_apFilter.search || '')}" oninput="_apSetFilter('search', this.value)">
+    ${hasFilters ? NX.button('Reset', { variant:'secondary', size:'sm', onclick:'_apResetFilters()' }) : ''}
   </div>`;
 }
 
@@ -534,52 +556,37 @@ function _apRenderInbox() {
   if (!body) return;
 
   if (!_apPending.length) {
-    body.innerHTML = _apFilterRail() + `<div class="card"><div class="empty" style="padding:40px">
-      <div class="ei"><svg width="34" height="34" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-      <div class="et">Inbox zero</div><div class="es">Nothing waiting for your decision.</div>
-    </div></div>`;
+    body.innerHTML = _apFilterRail() + NX.card(NX.empty({ icon:'check-circle', tone:'success', message:'Inbox zero — nothing waiting for your decision.' }));
     return;
   }
 
   const filtered = _apSortInbox(_apApplyFilters(_apPending));
 
   if (!filtered.length) {
-    body.innerHTML = _apFilterRail() + `<div class="card"><div class="empty" style="padding:32px">
-      <div class="et">No requests match the filters</div>
-      <div class="es"><a href="javascript:void(0)" onclick="_apResetFilters()" style="color:var(--brand)">Reset filters</a></div>
-    </div></div>`;
+    body.innerHTML = _apFilterRail() + NX.card(NX.empty({ icon:'inbox', message:'No requests match the filters.',
+      action: NX.button('Reset filters', { variant:'secondary', onclick:'_apResetFilters()' }) }));
     return;
   }
 
   const cards = filtered.map(r => {
     const sla = _apSLA(r);
-    const meta = _AP_TYPE[r.request_type] || { lb: r.request_type || '—', c:'#94a3b8' };
-    const amtStr = r.amount != null ? `PKR ${fM(Number(r.amount))}` : '';
-    const titleLine = `<div style="font-size:13px;font-weight:600;color:var(--text)">${esc(r.title || meta.lb)}${amtStr ? ` <span style="color:var(--t2);font-weight:500"> · ${amtStr}</span>` : ''}</div>`;
-    const descLine = r.description ? `<div style="font-size:11px;color:var(--t3);margin-top:2px;max-width:540px">${esc(r.description)}</div>` : '';
+    const meta = _AP_TYPE[r.request_type] || { lb: r.request_type || '—' };
+    const amtStr = r.amount != null ? `<span style="color:var(--fk-text-muted);font-weight:500"> · PKR ${fM(Number(r.amount))}</span>` : '';
+    const chips = [_apMakerChip(r), _apProjectChip(r), _apClientChip(r)].filter(Boolean).join('<span style="color:var(--fk-border)">·</span>');
 
-    const chips = [_apMakerChip(r), _apProjectChip(r), _apClientChip(r)].filter(Boolean).join('<span style="color:var(--line);margin:0 2px">·</span>');
-    const ageLine = `<div style="font-size:11px;color:var(--t3);margin-top:6px">${esc(_apAging(r.requested_at))} ago · ${_apSlaBadge(sla)}</div>`;
-
-    return `<div class="ap-row" data-id="${esc(r.id)}" onclick="_apOpenDrawer('${esc(r.id)}')"
-      style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:border-color .12s ease,box-shadow .12s ease"
-      onmouseover="this.style.borderColor='var(--brand)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.06)'"
-      onmouseout="this.style.borderColor='var(--line)';this.style.boxShadow=''">
-      <div style="display:flex;flex-direction:column;gap:6px;min-width:88px">
-        ${_apRiskPill(sla.risk)}
-        ${_apTypeBadge(r.request_type)}
+    const inner = `
+      <div class="ap-row-lead">${_apRiskPill(sla.risk)}${_apTypeBadge(r.request_type)}</div>
+      <div class="ap-row-main">
+        <div class="ap-row-title">${esc(r.title || meta.lb)}${amtStr}</div>
+        ${r.description ? `<div class="ap-row-desc">${esc(r.description)}</div>` : ''}
+        ${chips ? `<div class="ap-row-chips">${chips}</div>` : ''}
+        <div class="ap-row-age">${esc(_apAging(r.requested_at))} ago${_apSlaBadge(sla)}</div>
       </div>
-      <div style="flex:1;min-width:0">
-        ${titleLine}
-        ${descLine}
-        ${chips ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px">${chips}</div>` : ''}
-        ${ageLine}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end" onclick="event.stopPropagation()">
-        <button class="btn btn-g btn-xs" onclick="_apQuickDecide('${esc(r.id)}','approve')">Approve</button>
-        <button class="btn btn-gh btn-xs" style="color:var(--err);border-color:var(--err)" onclick="_apQuickDecide('${esc(r.id)}','reject')">Reject</button>
-      </div>
-    </div>`;
+      <div class="ap-row-acts" onclick="event.stopPropagation()">
+        ${NX.button('Approve', { variant:'primary', size:'sm', onclick:`_apQuickDecide('${esc(r.id)}','approve')` })}
+        ${NX.button('Reject', { variant:'danger-soft', size:'sm', onclick:`_apQuickDecide('${esc(r.id)}','reject')` })}
+      </div>`;
+    return `<div class="nx-card nx-card--hover ap-row" data-id="${esc(r.id)}" onclick="_apOpenDrawer('${esc(r.id)}')">${inner}</div>`;
   }).join('');
 
   body.innerHTML = _apFilterRail() + cards;
@@ -594,7 +601,7 @@ function _apQuickDecide(id, action) {
 async function _apLoadHistory() {
   const body = document.getElementById('ap-body');
   if (!body) return;
-  body.innerHTML = `<div class="empty" style="padding:32px"><div class="es" style="color:var(--t3)">Loading history…</div></div>`;
+  body.innerHTML = NX.card(NX.empty({ icon:'history', message:'Loading history…' }));
   try {
     const { data, error } = await supabase.rpc('get_approval_history', { p_filters: { limit: 200 } });
     if (error) throw error;
@@ -603,7 +610,7 @@ async function _apLoadHistory() {
     _apRenderHistory();
     _apRenderSlaBand(); // refresh avg decision time using new history data
   } catch (e) {
-    body.innerHTML = `<div class="card"><div class="empty"><div class="et">Could not load history</div><div class="es">${esc(e.message)}</div></div></div>`;
+    body.innerHTML = NX.card(NX.banner('Could not load history: ' + (e.message || 'Error'), 'danger'));
   }
 }
 
@@ -613,113 +620,68 @@ function _apRenderHistory() {
 
   const decided = _apHistory.filter(r => r.status !== 'pending');
   if (!decided.length) {
-    body.innerHTML = `<div class="card"><div class="empty" style="padding:40px"><div class="et">No decided requests yet</div><div class="es">Approved, rejected, and cancelled requests will appear here.</div></div></div>`;
+    body.innerHTML = NX.card(NX.empty({ icon:'history', message:'No decided requests yet — approved, rejected and cancelled requests appear here.' }));
     return;
   }
 
   const rows = decided.map(r => {
-    const risk = _apRiskPill(_apRisk(r));
-    const maker = r.requested_by_name ? esc(r.requested_by_name) : '—';
     const project = _apProjectName(r.project_id);
     const decidedAt = r.decided_at ? fD(String(r.decided_at).slice(0,10)) : '—';
-    return `<tr style="cursor:pointer" onclick="_apOpenDrawer('${esc(r.id)}', null, true)">
-      <td>${risk}</td>
-      <td>${_apTypeBadge(r.request_type)}</td>
-      <td>
-        <div style="font-size:13px;font-weight:600;color:var(--text)">${esc(r.title || '—')}</div>
-        ${project ? `<div style="font-size:11px;color:var(--t3);margin-top:2px">🏢 ${esc(project)}</div>` : ''}
-      </td>
-      <td>${_apStatusBadge(r.status)}</td>
-      <td style="font-size:12px">${maker}</td>
-      <td style="font-size:12px">${esc(r.decided_by_name || '—')}</td>
-      <td style="font-size:11px;color:var(--t3);white-space:nowrap">${decidedAt}</td>
-      <td style="font-size:11px;color:var(--t2);max-width:260px">${r.decision_comment ? esc(r.decision_comment) : '<span style="color:var(--t3)">—</span>'}</td>
-    </tr>`;
-  }).join('');
+    const reqCell = '<div style="font-weight:500">' + esc(r.title || '—') + '</div>' +
+      (project ? '<div style="font-size:11px;color:var(--fk-text-muted);margin-top:2px">' + esc(project) + '</div>' : '');
+    return [
+      _apRiskPill(_apRisk(r)),
+      _apTypeBadge(r.request_type),
+      reqCell,
+      _apStatusBadge(r.status),
+      esc(r.requested_by_name || '—'),
+      esc(r.decided_by_name || '—'),
+      '<span style="white-space:nowrap;color:var(--fk-text-muted)">' + decidedAt + '</span>',
+      r.decision_comment ? '<span style="color:var(--fk-text-muted)">' + esc(r.decision_comment) + '</span>' : '<span style="color:var(--fk-text-muted)">—</span>'
+    ];
+  });
 
-  body.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
-    <div class="tw"><table class="t">
-      <thead><tr>
-        <th>Risk</th><th>Type</th><th>Request</th><th>Decision</th><th>Maker</th><th>Decided By</th><th>Date</th><th>Decision Comment</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-  </div>`;
+  body.innerHTML = NX.card(NX.table({
+    cols: [{label:'Risk'},{label:'Type'},{label:'Request'},{label:'Decision'},{label:'Maker'},{label:'Decided By'},{label:'Date'},{label:'Comment'}],
+    rows, flush:true
+  }), { flush:true });
 }
 
 // ─── DECISION DRAWER ─────────────────────────────────────────────────────────
-function _apEnsureDrawer() {
-  if (document.getElementById('ap-drawer')) return;
-
-  const bd = document.createElement('div');
-  bd.id = 'ap-drawer-bd';
-  bd.onclick = _apCloseDrawer;
-  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:none;opacity:0;transition:opacity .2s ease';
-  document.body.appendChild(bd);
-
-  const dr = document.createElement('div');
-  dr.id = 'ap-drawer';
-  dr.style.cssText = 'position:fixed;top:0;right:0;width:440px;max-width:96vw;height:100vh;background:var(--surface);border-left:1px solid var(--line);box-shadow:-8px 0 32px rgba(0,0,0,0.18);z-index:9999;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease-out';
-  dr.innerHTML = `
-    <div id="ap-drawer-head" style="flex:0 0 auto;padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:10px"></div>
-    <div id="ap-drawer-body" style="flex:1 1 auto;overflow-y:auto;padding:0 18px"></div>
-    <div id="ap-drawer-foot" style="flex:0 0 auto;padding:12px 18px;border-top:1px solid var(--line);background:var(--surface)"></div>`;
-  document.body.appendChild(dr);
+function _apModalHost() {
+  let h = document.getElementById('ap-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'ap-modal-host'; document.body.appendChild(h); }
+  return h;
 }
+function _apEnsureDrawer() { _apModalHost(); }
 
 function _apCloseDrawer() {
-  const dr = document.getElementById('ap-drawer');
-  const bd = document.getElementById('ap-drawer-bd');
-  if (dr) { dr.style.transform = 'translateX(100%)'; dr.classList.remove('open'); }
-  if (bd) { bd.style.opacity = '0'; setTimeout(() => { bd.style.display = 'none'; }, 200); }
+  const h = document.getElementById('ap-modal-host'); if (h) h.innerHTML = '';
   _apDrawerRequest  = null;
   _apDrawerComments = [];
 }
 
 async function _apOpenDrawer(id, stagedAction, readOnly) {
-  _apEnsureDrawer();
-  const dr = document.getElementById('ap-drawer');
-  const bd = document.getElementById('ap-drawer-bd');
-  if (!dr || !bd) return;
+  _apModalHost().innerHTML = NX.modal({ id:'ap-modal', title:'Loading request…', size:'l', onClose:'_apCloseDrawer()', body: NX.empty({ icon:'shield', message:'Loading…' }) });
 
-  // Slide in
-  bd.style.display = 'block';
-  requestAnimationFrame(() => { bd.style.opacity = '1'; dr.style.transform = 'translateX(0)'; dr.classList.add('open'); });
-
-  // Reset content while loading
-  document.getElementById('ap-drawer-head').innerHTML = `<div><div style="font-size:11px;color:var(--t3)">Loading request…</div></div><button class="mx" onclick="_apCloseDrawer()" style="background:none;border:none;font-size:20px;color:var(--t3);cursor:pointer;padding:0 4px">✕</button>`;
-  document.getElementById('ap-drawer-body').innerHTML = `<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">⏳</div>`;
-  document.getElementById('ap-drawer-foot').innerHTML = '';
-
-  // Find row (from pending if present; otherwise from history)
   let row = _apPending.find(x => x.id === id) || _apHistory.find(x => x.id === id) || { id };
-
   _apDrawerLoading  = true;
   _apDrawerRequest  = row;
   _apDrawerComments = [];
-
   try {
     const { data } = await supabase.rpc('get_approval_history', { p_filters: { request_id: id } });
-    if (data && data.request) {
-      _apDrawerRequest = Object.assign({}, row, data.request);
-    }
+    if (data && data.request) _apDrawerRequest = Object.assign({}, row, data.request);
     _apDrawerComments = (data && Array.isArray(data.comments)) ? data.comments : [];
   } catch (e) {
     console.warn('[approvals] drawer detail load failed', e);
   } finally {
     _apDrawerLoading = false;
   }
-
   _apRenderDrawer(stagedAction, !!readOnly);
 }
 
 function _apRenderDrawer(stagedAction, readOnly) {
   const req = _apDrawerRequest || {};
-  const head = document.getElementById('ap-drawer-head');
-  const body = document.getElementById('ap-drawer-body');
-  const foot = document.getElementById('ap-drawer-foot');
-  if (!head || !body || !foot) return;
-
   const sla = _apSLA(req);
   const rule = _apRestrictionInfo(req.request_type);
   const maker = _apMakerInfo(req);
@@ -727,95 +689,55 @@ function _apRenderDrawer(stagedAction, readOnly) {
   const client  = _apClientInfo(req);
   const isDecided = req.status && req.status !== 'pending';
 
-  // Header
-  head.innerHTML = `
-    <div style="flex:1;min-width:0">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px">
-        ${_apRiskPill(sla.risk)} ${_apTypeBadge(req.request_type)} ${isDecided ? _apStatusBadge(req.status) : _apSlaBadge(sla)}
-      </div>
-      <div style="font-size:14px;font-weight:700;color:var(--text);line-height:1.3">${esc(req.title || _AP_TYPE[req.request_type]?.lb || 'Request')}</div>
-      <div style="font-size:11px;color:var(--t3);margin-top:3px;font-family:monospace">#${esc(String(req.id || '').slice(0,8))} · ${esc(req.entity_table || '')}${req.entity_id?' · '+esc(String(req.entity_id).slice(0,8)):''}</div>
-    </div>
-    <button class="mx" onclick="_apCloseDrawer()" style="background:none;border:none;font-size:20px;color:var(--t3);cursor:pointer;padding:0 4px">✕</button>`;
+  const grp = (icon, tone, title, inner) => '<div class="ap-grp"><div class="ap-grp-hd">' + NX.ichip(icon, tone, { size:'sm' }) + esc(title) + '</div>' + inner + '</div>';
+  const kv = (l, v) => '<div class="ap-kv"><span class="l">' + esc(l) + '</span><span class="r">' + v + '</span></div>';
 
-  // Body sections
-  const chipsHtml = `<div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)">
-    ${maker.name ? `<span style="font-size:12px;color:var(--t2)">👤 <b>${esc(maker.name)}</b>${maker.role?` <span style="color:var(--t3)">· ${esc(maker.role)}</span>`:''}</span>` : ''}
-    ${project ? `<span style="font-size:12px;color:var(--t2)">🏢 <b>${esc(project)}</b></span>` : ''}
-    ${client && client.name ? `<span style="font-size:12px;color:var(--t2)">👥 <b>${esc(client.name)}</b></span>` : ''}
-    ${req.amount != null ? `<span style="font-size:12px;color:var(--t2)">💰 <b>PKR ${fM(Number(req.amount))}</b></span>` : ''}
-    <span style="font-size:11px;color:var(--t3)">${esc(_apAging(req.requested_at))} ago</span>
-  </div>`;
+  const overview =
+    (maker.name ? kv('Maker', '<strong>' + esc(maker.name) + '</strong>' + (maker.role ? ' · ' + esc(maker.role) : '')) : '') +
+    (project ? kv('Project', esc(project)) : '') +
+    (client && client.name ? kv('Client', esc(client.name)) : '') +
+    (req.amount != null ? kv('Amount', '<strong>PKR ' + fM(Number(req.amount)) + '</strong>') : '') +
+    kv('Requested', esc(_apAging(req.requested_at)) + ' ago') +
+    kv('Reference', '<span class="nx-mono">#' + esc(String(req.id || '').slice(0,8)) + '</span> · ' + esc(req.entity_table || ''));
 
-  const ruleHtml = `<div style="margin:12px 0;padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b45309;margin-bottom:4px">Why approval is required</div>
-    <div style="font-size:12px;color:var(--t1)">Action <code style="background:rgba(0,0,0,.05);padding:1px 5px;border-radius:3px">${esc(rule.action)}</code> is configured as <b style="text-transform:uppercase">${esc(rule.level)}</b> block. Default behavior: route to admin approval.</div>
-    <div style="font-size:11px;color:var(--t3);margin-top:4px">Hard-blocks still apply at the executor level (e.g. payment &gt; outstanding, delete client with active financials).</div>
-  </div>`;
+  const ruleHtml = NX.banner('Action "' + esc(rule.action) + '" is configured as ' + String(rule.level).toUpperCase() + ' block — routed to admin approval. Hard-blocks still apply at the executor level.', 'warn');
 
   const callouts = _apRiskCallouts(req);
-  const calloutsHtml = callouts.length ? `<div style="margin:12px 0;padding:10px 14px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.18);border-radius:8px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--err);margin-bottom:6px">What changes if you approve</div>
-    <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--t1);line-height:1.6">
-      ${callouts.map(c => `<li>${c}</li>`).join('')}
-    </ul>
-  </div>` : '';
+  const calloutsHtml = callouts.length ? grp('alert-triangle','danger','What changes if you approve', '<ul style="margin:0;padding-left:18px;font-size:12.5px;color:var(--fk-text);line-height:1.6">' + callouts.map(c => '<li>' + c + '</li>').join('') + '</ul>') : '';
 
-  // Payload preview (top-level keys only, values stringified short)
   const pl = req.payload || {};
   const plKeys = Object.keys(pl).filter(k => k !== 'fields' && k !== 'schedule');
-  const plHtml = plKeys.length ? `<div style="margin:12px 0">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:6px">Proposed payload</div>
-    <div style="background:var(--canvas);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:monospace;font-size:11px;color:var(--t1);max-height:180px;overflow-y:auto">
-      ${plKeys.map(k => `<div style="padding:3px 0;display:flex;gap:8px;border-bottom:1px dashed var(--line)"><b style="color:var(--t2);min-width:140px">${esc(k)}</b><span style="word-break:break-all">${esc(_apFmtVal(pl[k]))}</span></div>`).join('')}
-    </div>
-  </div>` : '';
+  const plHtml = plKeys.length ? grp('file-text','','Proposed payload', '<div class="ap-payload">' + plKeys.map(k => '<div class="ap-payload-row"><b>' + esc(k) + '</b><span>' + esc(_apFmtVal(pl[k])) + '</span></div>').join('') + '</div>') : '';
 
-  // Comments thread (newest last per typical maker-checker order)
   const thread = (_apDrawerComments || []).slice().sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-  const threadHtml = `<div style="margin:14px 0 6px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:6px">Comments</div>
-    ${thread.length ? thread.map(c => `
-      <div style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="font-size:11px;color:var(--t3)"><b style="color:var(--t2)">${esc(c.author_name || '—')}</b> · ${esc(c.action || 'comment')} · ${esc(_apRelTime(c.created_at))}</div>
-        <div style="font-size:12px;color:var(--text);margin-top:3px">${esc(c.comment || '—')}</div>
-      </div>`).join('') : `<div style="font-size:12px;color:var(--t3)">No comments on file.</div>`}
-  </div>`;
+  const threadHtml = grp('message-circle','','Comments', thread.length ? thread.map(c => '<div class="ap-thread"><div class="ap-thread-meta"><b>' + esc(c.author_name || '—') + '</b> · ' + esc(c.action || 'comment') + ' · ' + esc(_apRelTime(c.created_at)) + '</div><div class="ap-thread-body">' + esc(c.comment || '—') + '</div></div>').join('') : '<div style="font-size:12.5px;color:var(--fk-text-muted)">No comments on file.</div>');
 
-  body.innerHTML = chipsHtml + ruleHtml + calloutsHtml + plHtml + threadHtml;
+  const badges = '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px">' + _apRiskPill(sla.risk) + ' ' + _apTypeBadge(req.request_type) + ' ' + (isDecided ? _apStatusBadge(req.status) : _apSlaBadge(sla)) + '</div>';
+  const body = badges + grp('user','','Overview', overview) + ruleHtml + calloutsHtml + plHtml + threadHtml;
 
-  // Footer — decision composer (only when pending)
+  let footer;
   if (isDecided) {
-    foot.innerHTML = `<div style="font-size:12px;color:var(--t3);text-align:center;padding:6px">
-      Decided ${esc(req.decided_at ? _apRelTime(req.decided_at) : 'previously')} by ${esc(req.decided_by_name || '—')}.
-    </div>`;
-    return;
+    footer = '<div style="font-size:12px;color:var(--fk-text-muted);text-align:center;width:100%">Decided ' + esc(req.decided_at ? _apRelTime(req.decided_at) : 'previously') + ' by ' + esc(req.decided_by_name || '—') + '.</div>';
+  } else {
+    footer =
+      '<div style="width:100%">' +
+      '<textarea id="ap-dec-comment" class="nx-textarea" rows="2" placeholder="Required — explain your decision (≥5 chars)" oninput="_apClearDrawerErr()"></textarea>' +
+      '<div class="nx-error" id="ap-dec-err"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
+        NX.button('Reject', { variant:'danger-soft', attrs:'id="ap-reject-btn" style="flex:1"', onclick:"_apDrawerSubmit('reject')" }) +
+        NX.button('Approve', { variant:'primary', attrs:'id="ap-approve-btn" style="flex:2"', onclick:"_apDrawerSubmit('approve')" }) +
+      '</div></div>';
   }
 
-  foot.innerHTML = `
-    <textarea id="ap-dec-comment" class="inp-light" rows="2"
-      placeholder="Required — explain your decision (≥5 chars)"
-      style="width:100%;font-size:12px;margin-bottom:8px;resize:vertical" oninput="_apClearDrawerErr()"></textarea>
-    <div id="ap-dec-err" style="font-size:11px;color:var(--err);margin-bottom:8px;min-height:14px"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-gh" onclick="_apDrawerSubmit('reject')" style="flex:1;color:var(--err);border-color:var(--err)">Reject</button>
-      <button class="btn btn-g"  onclick="_apDrawerSubmit('approve')" style="flex:2">Approve</button>
-    </div>`;
+  _apModalHost().innerHTML = NX.modal({ id:'ap-modal', title: req.title || (_AP_TYPE[req.request_type] && _AP_TYPE[req.request_type].lb) || 'Request', size:'l', onClose:'_apCloseDrawer()', body, footer });
 
-  // Auto-focus textarea, optionally pre-warm based on staged action
-  setTimeout(() => {
-    const ta = document.getElementById('ap-dec-comment');
-    if (ta) ta.focus();
-    if (stagedAction === 'reject') {
-      // visually emphasize the Reject button if user clicked Reject chip in inbox
-      const btn = foot.querySelector('button.btn-gh');
-      if (btn) { btn.style.boxShadow = '0 0 0 2px rgba(239,68,68,.25)'; }
-    } else if (stagedAction === 'approve') {
-      const btn = foot.querySelector('button.btn-g');
-      if (btn) { btn.style.boxShadow = '0 0 0 2px rgba(34,197,94,.25)'; }
-    }
+  if (!isDecided) setTimeout(() => {
+    const ta = document.getElementById('ap-dec-comment'); if (ta) ta.focus();
+    const bid = stagedAction === 'reject' ? 'ap-reject-btn' : (stagedAction === 'approve' ? 'ap-approve-btn' : null);
+    if (bid) { const b = document.getElementById(bid); if (b) b.style.boxShadow = '0 0 0 3px var(--fk-primary-tint)'; }
   }, 50);
 }
+
 
 function _apFmtVal(v) {
   if (v === null || v === undefined) return '—';
@@ -827,7 +749,7 @@ function _apFmtVal(v) {
 function _apClearDrawerErr() {
   const e = document.getElementById('ap-dec-err');
   if (e) e.textContent = '';
-  document.getElementById('ap-dec-comment')?.classList.remove('inp-err');
+  document.getElementById('ap-dec-comment')?.closest('div')?.classList.remove('nx-field--error');
 }
 
 async function _apDrawerSubmit(action) {
@@ -838,15 +760,15 @@ async function _apDrawerSubmit(action) {
   if (comment.length < 5) {
     const e = document.getElementById('ap-dec-err');
     if (e) e.textContent = 'A comment of at least 5 characters is required.';
-    document.getElementById('ap-dec-comment')?.classList.add('inp-err');
+    
     document.getElementById('ap-dec-comment')?.focus();
     return;
   }
 
-  const foot = document.getElementById('ap-drawer-foot');
-  const allBtns = foot ? foot.querySelectorAll('button') : [];
+  const host = document.getElementById('ap-modal-host');
+  const allBtns = host ? host.querySelectorAll('button') : [];
   allBtns.forEach(b => { b.disabled = true; });
-  const submitBtn = foot ? foot.querySelector(action === 'approve' ? 'button.btn-g' : 'button.btn-gh') : null;
+  const submitBtn = document.getElementById(action === 'approve' ? 'ap-approve-btn' : 'ap-reject-btn');
   const origTxt = submitBtn ? submitBtn.textContent : '';
   if (submitBtn) submitBtn.textContent = 'Saving…';
 
