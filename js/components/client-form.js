@@ -74,7 +74,7 @@
         ${fld({ label: 'Passport no', name: 'cfm-passport_no', value: c?.passportNo || '' })}
       </div>
       ${isEdit ? '' : `<div id="cfm-project-wrap" style="${lockProject ? 'display:none' : ''}">${fld({ label: 'Project', name: 'cfm-project', el: 'select', required: true, options: projOpts, value: projId })}</div>`}
-      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinPhotoUrl) ? ' open' : ''}>
+      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.occupation || c.monthlyIncome || c.ntn || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinPhotoUrl) ? ' open' : ''}>
         <summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More details</summary>
         <div style="margin-top:var(--fk-sp-3)">
           ${fld({ label: 'Address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
@@ -90,6 +90,11 @@
             ${fld({ label: 'Referred by', name: 'cfm-reference_by', value: c?.referenceBy || '' })}
             ${isEdit ? fld({ label: 'Status', name: 'cfm-status', el: 'select', value: c?.status || 'active', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Historical / Inactive' }] }) : ''}
           </div>
+          <div class="nx-grid-2">
+            ${fld({ label: 'Occupation', name: 'cfm-occupation', value: c?.occupation || '' })}
+            ${fld({ label: 'Monthly income (PKR)', name: 'cfm-monthly_income', value: (c?.monthlyIncome ?? ''), attrs: 'inputmode="numeric"' })}
+          </div>
+          ${fld({ label: 'NTN #', name: 'cfm-ntn', value: c?.ntn || '', placeholder: '1234567-8' })}
           ${fld({ label: 'Notes', name: 'cfm-notes', el: 'textarea', value: c?.notes || '' })}
           <div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3);margin-bottom:var(--fk-sp-1);color:var(--fk-text)">Nominee / Next of Kin</div>
           <div class="nx-grid-2">
@@ -228,6 +233,9 @@
       phone_primary: phone, whatsapp: _val('cfm-whatsapp') || null, email: email || null,
       address: _val('cfm-address') || null, city: _val('cfm-city') || null,
       client_category: _val('cfm-client_category') || null, reference_by: _val('cfm-reference_by') || null,
+      occupation: _val('cfm-occupation') || null,
+      monthly_income: _val('cfm-monthly_income') ? Number(String(_val('cfm-monthly_income')).replace(/[^\d.]/g, '')) || null : null,
+      ntn: _val('cfm-ntn') || null,
       notes: _val('cfm-notes') || null, overseas_local: overseas ? 'overseas' : 'local',
       next_of_kin_name: _val('cfm-kin_name') || null,
       next_of_kin_relation: _val('cfm-kin_relation') || null,

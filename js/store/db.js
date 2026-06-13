@@ -409,6 +409,8 @@ async function loadClientsCache(companyId) {
       city:           c.city            || '',
       country:        c.country         || 'Pakistan',
       occupation:     c.occupation      || '',
+      monthlyIncome:  (c.monthly_income != null ? c.monthly_income : ''),
+      ntn:            c.ntn             || '',
       companyName:    c.company_name    || '',
       referenceBy:    c.reference_by    || '',
       clientCategory: c.client_category || '',

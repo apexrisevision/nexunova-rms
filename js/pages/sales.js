@@ -2639,6 +2639,14 @@ function printAllotmentLetter() {
 // (not carried in get_sale_detail), nominee/co-buyer from the sale itself.
 // Fields absent from the schema (residential address, office phone, monthly
 // income, NTN) render as empty ruled boxes to be handwritten in the file.
+// ══ PRINT: KBH APPLICATION / BOOKING FORM ══════════════════════════════
+// Body-only generator for the pre-printed KBH legal sheet (8.5in × 14in). The
+// physical sheet already carries the green header (logo) at top and the
+// sayadeveloper.com footer at bottom, so we print ONLY the body between them —
+// the @page top/bottom margins (AF.marginTop / AF.marginBottom) reserve those
+// pre-printed bands. CALIBRATE those two constants against a real test print.
+// Every field is populated from RMS (sale + unit + full client row); empty
+// fields render as open ruled boxes. Sent via NXPrint.emit (race-free).
 async function printApplicationForm() {
   const d = _salCurrentDetail;
   if (!d) { toast('No sale loaded', 'warn'); return; }
@@ -2646,7 +2654,8 @@ async function printApplicationForm() {
   const sizeSel = document.getElementById('sd-appform-size');
   const size    = (sizeSel && sizeSel.value === 'A4') ? 'A4' : 'Legal';
 
-  // Auto-fill client info from the clients table (full row via to_jsonb).
+  // Full client row — occupation / monthly_income / ntn / next_of_kin / photos
+  // all surface via get_client_by_id's to_jsonb(clients).
   let c = {};
   if (d.client_id) {
     try {
@@ -2655,103 +2664,97 @@ async function printApplicationForm() {
     } catch (e) { /* fall back to blank boxes */ }
   }
 
-  const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
-  // Value-or-blank-box: empty fields keep the ruled cell open for handwriting.
-  const v = x => (x === null || x === undefined || x === '') ? '&nbsp;' : esc(String(x));
+  // ── CALIBRATION CONSTANTS — tune to the real pre-printed KBH sheet ──────
+  const AF = {
+    pageW:        size === 'A4' ? '210mm' : '8.5in',
+    pageH:        size === 'A4' ? '297mm' : '14in',
+    marginTop:    size === 'A4' ? '1.2in' : '1.8in',  // blank band: pre-printed header
+    marginBottom: size === 'A4' ? '0.5in' : '0.6in',  // blank band: pre-printed footer
+    marginSide:   '0.5in'
+  };
 
-  const appCSS =
-    '.af-wrap{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}' +
-    '.af-banner{text-align:center;font-family:Georgia,"Times New Roman",serif;font-size:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase;border:1.5px solid #333;padding:6px;margin:6px 0 14px}' +
-    '.af-topgrid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #333;border-right:none;border-bottom:none;margin-bottom:14px}' +
-    '.af-tc{border-right:1px solid #333;border-bottom:1px solid #333;padding:4px 8px}' +
-    '.af-tc .l{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#555}' +
-    '.af-tc .v{font-size:11px;font-weight:700;min-height:14px}' +
-    '.af-sec{font-family:Georgia,serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1.5px solid #333;padding-bottom:3px;margin:16px 0 7px}' +
-    '.af-wrap table{border-collapse:collapse;width:100%;margin:0 0 4px;font-family:"Times New Roman",Georgia,serif}' +
-    '.af-wrap td{border:1px solid #333;padding:5px 8px;font-size:11px;vertical-align:middle;background:#fff;line-height:1.4}' +
-    '.af-wrap td.l{background:#f2f2f2;font-weight:700;width:155px;white-space:nowrap;font-size:10px}' +
-    '.af-wrap td.ph{width:38mm;text-align:center;vertical-align:top;padding:4px}' +
-    '.af-wrap td.ph img{width:34mm;height:42mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
-    '.af-wrap .ph-ph{width:34mm;height:42mm;border:1px dashed #666;display:flex;align-items:center;justify-content:center;font-size:9px;color:#888;margin:0 auto;text-transform:uppercase;letter-spacing:1px}' +
-    '.af-decl{font-size:10.5px;line-height:1.75;margin:18px 0 6px;text-align:justify}' +
-    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:36px}' +
-    '.af-sig{font-size:10px;text-align:center}' +
-    '.af-sigline{border-bottom:1px dotted #333;height:30px;margin-bottom:5px}';
+  const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+  const v     = x => (x === null || x === undefined || x === '') ? '&nbsp;' : esc(String(x));
+  const money = x => (x === null || x === undefined || x === '' || isNaN(Number(x))) ? '&nbsp;' : 'PKR ' + Number(x).toLocaleString('en-US');
 
-  const w = _pw('Application Form — ' + (d.sale_number || ''), _pCSS(size) + appCSS, size);
-  if (!w) return;
+  // Nominee: prefer the client's next-of-kin (the booking-nominee template);
+  // fall back to the sale-level nominee fields for legacy sales.
+  const nomName  = c.next_of_kin_name     || d.nominee_name     || '';
+  const nomCnic  = c.next_of_kin_cnic     || d.nominee_cnic     || '';
+  const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
+  const nomPhoto = c.next_of_kin_photo_url || '';
 
-  let h = _lh('Application Form', d.project_name);
-  h += '<div class="body af-wrap">';
-  h += '<div class="af-banner">Application / Booking Form</div>';
+  const css =
+    '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
+    '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
+    'body{font-family:"Times New Roman",Georgia,serif;color:#000;font-size:11px}' +
+    '.af-top{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #000;border-right:none;border-bottom:none;margin-bottom:10px}' +
+    '.af-tc{border-right:1px solid #000;border-bottom:1px solid #000;padding:3px 7px;min-height:30px}' +
+    '.af-tc .l{font-size:7.5px;text-transform:uppercase;letter-spacing:.4px;color:#444}' +
+    '.af-tc .v{font-size:11px;font-weight:bold;min-height:13px}' +
+    '.af-sec{font-size:10.5px;font-weight:bold;text-transform:uppercase;letter-spacing:1.2px;border-bottom:1.5px solid #000;padding-bottom:2px;margin:12px 0 5px}' +
+    'table.af{border-collapse:collapse;width:100%;margin-bottom:2px}' +
+    'table.af td{border:1px solid #000;padding:4px 7px;font-size:11px;vertical-align:middle;line-height:1.35}' +
+    'td.l{background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:bold;width:150px;white-space:nowrap;font-size:9.5px}' +
+    'td.ph{width:34mm;text-align:center;vertical-align:top;padding:3px}' +
+    'td.ph img{width:30mm;height:36mm;object-fit:cover;border:1px solid #000;display:block;margin:0 auto}' +
+    '.ph-blank{width:30mm;height:36mm;border:1px dashed #555;display:flex;align-items:center;justify-content:center;font-size:8px;color:#777;margin:0 auto;text-transform:uppercase;letter-spacing:.5px}' +
+    '.af-decl{font-size:10px;line-height:1.7;margin:14px 0 4px;text-align:justify}' +
+    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px;page-break-inside:avoid}' +
+    '.af-sig{font-size:9.5px;text-align:center}' +
+    '.af-sigline{border-bottom:1px solid #000;height:28px;margin-bottom:4px}';
 
-  // ── Top grid (auto from sale) ──
+  // ── Top row grid (8 boxed cells) ──
   const tg = [
-    ['Booking No',   d.sale_number],
-    ['Client Code',  c.client_code],
-    ['Date',         saleDate],
-    ['Unit Address', d.unit_no],
-    ['Floor',        d.floor_label],
-    ['Category',     d.unit_type],
-    ['Size',         d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : ''],
-    ['Type',         '']  // category nature — not stored; handwrite
+    ['Booking No', d.sale_number], ['MID #', c.client_code], ['Date', saleDate], ['Type', ''],
+    ['Unit Address', d.unit_no], ['Floor', d.floor_label], ['Categorie', d.unit_type],
+    ['Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '']
   ];
-  h += '<div class="af-topgrid">';
-  tg.forEach(x => { h += '<div class="af-tc"><div class="l">' + x[0] + '</div><div class="v">' + v(x[1]) + '</div></div>'; });
-  h += '</div>';
+  let b = '<div class="af-top">';
+  tg.forEach(x => { b += '<div class="af-tc"><div class="l">' + x[0] + '</div><div class="v">' + v(x[1]) + '</div></div>'; });
+  b += '</div>';
 
-  // ── Client information (auto-fill + blanks) with photo box top-right ──
-  h += '<div class="af-sec">Client Information</div>';
-  const photoCell = c.client_photo_url
-    ? '<td class="ph" rowspan="7"><img src="' + esc(c.client_photo_url) + '" alt="Photo"><div style="font-size:8px;color:#888;margin-top:3px">Photograph</div></td>'
-    : '<td class="ph" rowspan="7"><div class="ph-ph">Photograph</div></td>';
-  h += '<table>';
-  h += '<tr><td class="l">Name</td><td class="box">' + v(c.full_name || d.client_name) + '</td>' + photoCell + '</tr>';
-  h += '<tr><td class="l">S/O &middot; D/O &middot; W/O</td><td class="box">' + v(c.father_name) + '</td></tr>';
-  h += '<tr><td class="l">CNIC</td><td class="box">' + v(c.cnic) + '</td></tr>';
-  h += '<tr><td class="l">Mobile</td><td class="box">' + v(c.phone_primary) + '</td></tr>';
-  h += '<tr><td class="l">Phone (Res.)</td><td class="box">' + v(c.phone_secondary) + '</td></tr>';
-  h += '<tr><td class="l">Phone (Off.)</td><td class="box">&nbsp;</td></tr>';
-  h += '<tr><td class="l">Email</td><td class="box">' + v(c.email) + '</td></tr>';
-  h += '<tr><td class="l">Postal Address</td><td class="box" colspan="2">' + v(c.address) + '</td></tr>';
-  h += '<tr><td class="l">Residential Address</td><td class="box" colspan="2">&nbsp;</td></tr>';
-  h += '<tr><td class="l">Occupation</td><td class="box" colspan="2">' + v(c.occupation) + '</td></tr>';
-  h += '<tr><td class="l">Nationality</td><td class="box" colspan="2">Pakistani</td></tr>';
-  h += '<tr><td class="l">Monthly Income</td><td class="box" colspan="2">&nbsp;</td></tr>';
-  h += '<tr><td class="l">NTN</td><td class="box" colspan="2">&nbsp;</td></tr>';
-  h += '</table>';
+  // ── Client Information (photo box top-right) ──
+  const cPhoto = c.client_photo_url
+    ? '<td class="ph" rowspan="7"><img src="' + esc(c.client_photo_url) + '"><div style="font-size:7.5px;margin-top:2px">Photograph</div></td>'
+    : '<td class="ph" rowspan="7"><div class="ph-blank">Photograph</div></td>';
+  b += '<div class="af-sec">Client Information</div><table class="af">';
+  b += '<tr><td class="l">Name</td><td>' + v(c.full_name || d.client_name) + '</td>' + cPhoto + '</tr>';
+  b += '<tr><td class="l">S/O &middot; D/O &middot; W/O</td><td>' + v(c.father_name) + '</td></tr>';
+  b += '<tr><td class="l">CNIC</td><td>' + v(c.cnic) + '</td></tr>';
+  b += '<tr><td class="l">Mobile</td><td>' + v(c.phone_primary) + '</td></tr>';
+  b += '<tr><td class="l">Phone (Res.)</td><td>' + v(c.phone_secondary) + '</td></tr>';
+  b += '<tr><td class="l">Phone (Off.)</td><td>&nbsp;</td></tr>';
+  b += '<tr><td class="l">Email</td><td>' + v(c.email) + '</td></tr>';
+  b += '<tr><td class="l">Postal Address</td><td colspan="2">' + v(c.address) + '</td></tr>';
+  b += '<tr><td class="l">Residential Address</td><td colspan="2">&nbsp;</td></tr>';
+  b += '<tr><td class="l">Occupation</td><td colspan="2">' + v(c.occupation) + '</td></tr>';
+  b += '<tr><td class="l">Nationality</td><td colspan="2">' + v(c.country ? (c.country === 'Pakistan' ? 'Pakistani' : c.country) : 'Pakistani') + '</td></tr>';
+  b += '<tr><td class="l">Monthly Income</td><td colspan="2">' + money(c.monthly_income) + '</td></tr>';
+  b += '<tr><td class="l">NTN #</td><td colspan="2">' + v(c.ntn) + '</td></tr>';
+  b += '</table>';
 
-  // ── Nominee information (auto from sale; address blank) ──
-  h += '<div class="af-sec">Nominee Information</div>';
-  h += '<table>';
-  h += '<tr><td class="l">Nominee Name</td><td class="box">' + v(d.nominee_name) + '</td></tr>';
-  h += '<tr><td class="l">CNIC</td><td class="box">' + v(d.nominee_cnic) + '</td></tr>';
-  h += '<tr><td class="l">Relation</td><td class="box">' + v(d.nominee_relation) + '</td></tr>';
-  h += '<tr><td class="l">Address</td><td class="box">&nbsp;</td></tr>';
-  h += '</table>';
+  // ── Nominee Information (thumb / photo box top-right) ──
+  const nPhoto = nomPhoto
+    ? '<td class="ph" rowspan="4"><img src="' + esc(nomPhoto) + '"><div style="font-size:7.5px;margin-top:2px">Photo / Thumb</div></td>'
+    : '<td class="ph" rowspan="4"><div class="ph-blank">Photo / Thumb</div></td>';
+  b += '<div class="af-sec">Nominee Information</div><table class="af">';
+  b += '<tr><td class="l">Name</td><td>' + v(nomName) + '</td>' + nPhoto + '</tr>';
+  b += '<tr><td class="l">CNIC</td><td>' + v(nomCnic) + '</td></tr>';
+  b += '<tr><td class="l">Relation</td><td>' + v(nomRel) + '</td></tr>';
+  b += '<tr><td class="l">Address</td><td>&nbsp;</td></tr>';
+  b += '</table>';
 
-  // ── Co-buyer (renders only when present on the sale) ──
-  if (d.co_buyer_name) {
-    h += '<div class="af-sec">Co-Buyer Information</div>';
-    h += '<table>';
-    h += '<tr><td class="l">Co-Buyer Name</td><td class="box">' + v(d.co_buyer_name) + '</td></tr>';
-    h += '<tr><td class="l">CNIC</td><td class="box">' + v(d.co_buyer_cnic) + '</td></tr>';
-    h += '<tr><td class="l">Share %</td><td class="box">' + (d.co_buyer_share_pct != null && d.co_buyer_share_pct !== '' ? esc(String(d.co_buyer_share_pct)) + ' %' : '&nbsp;') + '</td></tr>';
-    h += '</table>';
-  }
+  // ── Declaration + two signature lines ──
+  b += '<div class="af-decl">I/We hereby agree to pay all dues — the down-payment and all installments — as per the agreed payment schedule, and to abide by all the existing rules and regulations prescribed by the management of the project from time to time.</div>';
+  b += '<div class="af-sigs">' +
+       '<div class="af-sig"><div class="af-sigline"></div>Signature of Applicant</div>' +
+       '<div class="af-sig"><div class="af-sigline"></div>Authorized Signature</div>' +
+       '</div>';
 
-  // ── Declaration + dotted signatures ──
-  h += '<div class="af-decl">I hereby agree to pay all dues (down payment and installments) as per the agreed schedule, and to abide by all rules and regulations prescribed by the management of the project from time to time.</div>';
-  h += '<div class="af-sigs no-break">'
-     + '<div class="af-sig"><div class="af-sigline"></div>Signature of Applicant</div>'
-     + '<div class="af-sig"><div class="af-sigline"></div>Authorized Signature</div>'
-     + '</div>';
-
-  h += _footer();
-  h += '</div>';
-
-  w.document.write(h);
-  _pclose(w);
+  const docHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Application Form — ' +
+    esc(d.sale_number || '') + '</title><style>' + css + '</style></head><body>' + b + '</body></html>';
+  NXPrint.emit(docHtml, 'Application Form — ' + (d.sale_number || ''));
 }
 
 // ══ PRINT: DEMAND NOTICE ═══════════════════════════════════════════════

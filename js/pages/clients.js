@@ -1572,6 +1572,8 @@ function printClientDetail() {
   h += r('Resident',     c.overseasLocal === 'overseas' ? 'Overseas (NICOP)' : 'Local (CNIC)');
   if (c.clientCategory) h += r('Category',          esc(c.clientCategory));
   if (c.occupation)     h += r('Occupation',        esc(c.occupation));
+  if (c.monthlyIncome)  h += r('Monthly Income',    'PKR ' + Number(c.monthlyIncome).toLocaleString('en-US'));
+  if (c.ntn)            h += r('NTN #',             esc(c.ntn));
   if (c.companyName)    h += r('Company',           esc(c.companyName));
   if (c.referenceBy)    h += r('Referred By',       esc(c.referenceBy));
   if (c.leadSource)     h += r('Lead Source',       esc(c.leadSource));
