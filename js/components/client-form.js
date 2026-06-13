@@ -17,8 +17,21 @@
 
 (function (global) {
   const CATS = ['Individual', 'Investor', 'Corporate', 'NRI', 'VIP'];
+  const LEAD_SOURCES = ['Walk-in', 'Referral', 'Facebook', 'Instagram', 'Website', 'WhatsApp', 'Property Portal', 'Agent', 'Newspaper', 'Hoarding / Banner', 'Other'];
   let _state = null;   // { clientId, projectId, onSaved, lockProject }
   let _dupTimer = null;
+
+  // A rectangular document-upload tile (CNIC front/back) — shares the photo
+  // upload pipeline via _photo(input, which). idk = short id key, which = target.
+  function _docUpload(label, idk, which, url) {
+    return `<div>
+      <label class="nx-label">${esc(label)}</label>
+      <div id="cfm-${idk}-prev" style="height:88px;border-radius:var(--fk-radius-control);overflow:hidden;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:11px;color:var(--fk-text-muted)">${url ? '<img src="' + esc(url) + '" style="width:100%;height:100%;object-fit:cover">' : 'No image'}</div>
+      <input type="file" id="cfm-${idk}-file" accept="image/jpeg,image/png" style="display:none" onchange="ClientForm._photo(this,'${which}')">
+      <input type="hidden" id="cfm-${which}_url" value="${esc(url || '')}">
+      ${NX.button('Upload', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-' + idk + '-btn" style="margin-top:6px"', onclick: "document.getElementById('cfm-" + idk + "-file').click()" })}
+    </div>`;
+  }
 
   function _projects() {
     const all = (typeof gprojects === 'function' ? gprojects() : (global._projectsCache || [])) || [];
@@ -74,28 +87,52 @@
         ${fld({ label: 'Passport no', name: 'cfm-passport_no', value: c?.passportNo || '' })}
       </div>
       ${isEdit ? '' : `<div id="cfm-project-wrap" style="${lockProject ? 'display:none' : ''}">${fld({ label: 'Project', name: 'cfm-project', el: 'select', required: true, options: projOpts, value: projId })}</div>`}
-      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.occupation || c.monthlyIncome || c.ntn || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinPhotoUrl) ? ' open' : ''}>
+      <details style="margin-top:var(--fk-sp-2)"${c && (c.address || c.city || c.email || c.clientCategory || c.referenceBy || c.notes || c.occupation || c.monthlyIncome || c.ntn || c.phoneSecondary || c.companyName || c.leadSource || c.cnicFrontUrl || c.cnicBackUrl || c.bankName || c.bankAccountTitle || c.bankAccountNo || c.bankIban || c.nextOfKinName || c.nextOfKinPhone || c.nextOfKinRelation || c.nextOfKinCnic || c.nextOfKinPhotoUrl) ? ' open' : ''}>
         <summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted)">More details</summary>
         <div style="margin-top:var(--fk-sp-3)">
           ${fld({ label: 'Address', name: 'cfm-address', el: 'textarea', value: c?.address || '' })}
           <div class="nx-grid-2">
             ${fld({ label: 'City', name: 'cfm-city', value: c?.city || '' })}
-            ${fld({ label: 'Email', name: 'cfm-email', value: c?.email || '' })}
+            ${fld({ label: 'Country', name: 'cfm-country', value: c?.country || 'Pakistan' })}
           </div>
           <div class="nx-grid-2">
+            ${fld({ label: 'Secondary phone', name: 'cfm-phone_secondary', value: c?.phoneSecondary || '', placeholder: '03xx-xxxxxxx' })}
             ${fld({ label: 'WhatsApp', name: 'cfm-whatsapp', value: c?.whatsapp || '' })}
+          </div>
+          <div class="nx-grid-2">
+            ${fld({ label: 'Email', name: 'cfm-email', value: c?.email || '' })}
             ${fld({ label: 'Category', name: 'cfm-client_category', el: 'select', value: c?.clientCategory || 'Individual', options: CATS.map(x => ({ value: x, label: x })) })}
           </div>
           <div class="nx-grid-2">
             ${fld({ label: 'Referred by', name: 'cfm-reference_by', value: c?.referenceBy || '' })}
-            ${isEdit ? fld({ label: 'Status', name: 'cfm-status', el: 'select', value: c?.status || 'active', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Historical / Inactive' }] }) : ''}
+            ${fld({ label: 'Lead source', name: 'cfm-lead_source', el: 'select', value: c?.leadSource || '', options: [{ value: '', label: '— Select —' }].concat(LEAD_SOURCES.map(x => ({ value: x, label: x }))) })}
           </div>
           <div class="nx-grid-2">
             ${fld({ label: 'Occupation', name: 'cfm-occupation', value: c?.occupation || '' })}
-            ${fld({ label: 'Monthly income (PKR)', name: 'cfm-monthly_income', value: (c?.monthlyIncome ?? ''), attrs: 'inputmode="numeric"' })}
+            ${fld({ label: 'Company / Employer', name: 'cfm-company_name', value: c?.companyName || '' })}
           </div>
-          ${fld({ label: 'NTN #', name: 'cfm-ntn', value: c?.ntn || '', placeholder: '1234567-8' })}
+          <div class="nx-grid-2">
+            ${fld({ label: 'Monthly income (PKR)', name: 'cfm-monthly_income', value: (c?.monthlyIncome ?? ''), attrs: 'inputmode="numeric"' })}
+            ${fld({ label: 'NTN #', name: 'cfm-ntn', value: c?.ntn || '', placeholder: '1234567-8' })}
+          </div>
+          ${isEdit ? fld({ label: 'Status', name: 'cfm-status', el: 'select', value: c?.status || 'active', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Historical / Inactive' }] }) : ''}
           ${fld({ label: 'Notes', name: 'cfm-notes', el: 'textarea', value: c?.notes || '' })}
+
+          <div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-4);margin-bottom:var(--fk-sp-2);color:var(--fk-text)">Identity Documents (CNIC)</div>
+          <div class="nx-grid-2">
+            ${_docUpload('CNIC front', 'cnicf', 'cnic_front', c?.cnicFrontUrl)}
+            ${_docUpload('CNIC back', 'cnicb', 'cnic_back', c?.cnicBackUrl)}
+          </div>
+
+          <div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-4);margin-bottom:var(--fk-sp-1);color:var(--fk-text)">Bank Details <span style="text-transform:none;font-weight:400">· for refunds / verification</span></div>
+          <div class="nx-grid-2">
+            ${fld({ label: 'Bank name', name: 'cfm-bank_name', value: c?.bankName || '' })}
+            ${fld({ label: 'Account title', name: 'cfm-bank_account_title', value: c?.bankAccountTitle || '' })}
+          </div>
+          <div class="nx-grid-2">
+            ${fld({ label: 'Account number', name: 'cfm-bank_account_no', value: c?.bankAccountNo || '' })}
+            ${fld({ label: 'IBAN', name: 'cfm-bank_iban', value: c?.bankIban || '', placeholder: 'PK00XXXX0000000000000000' })}
+          </div>
           <div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3);margin-bottom:var(--fk-sp-1);color:var(--fk-text)">Nominee / Next of Kin</div>
           <div class="nx-grid-2">
             ${fld({ label: 'Nominee name', name: 'cfm-kin_name', value: c?.nextOfKinName || '' })}
@@ -160,10 +197,13 @@
     const file = input.files && input.files[0];
     if (!file) return;
     if (!/^image\/(jpeg|png)$/.test(file.type)) { if (typeof toast === 'function') toast('JPG or PNG only', 'warn'); input.value = ''; return; }
-    const isKin = which === 'nominee';
-    const ids = isKin
-      ? { btn: 'cfm-kin-photo-btn', hidden: 'cfm-kin_photo_url', prev: 'cfm-kin-photo-prev', label: 'Upload nominee photo' }
-      : { btn: 'cfm-photo-btn',     hidden: 'cfm-photo_url',     prev: 'cfm-photo-prev',     label: 'Upload photo' };
+    const TARGETS = {
+      nominee:    { btn: 'cfm-kin-photo-btn', hidden: 'cfm-kin_photo_url',  prev: 'cfm-kin-photo-prev', label: 'Upload nominee photo' },
+      cnic_front: { btn: 'cfm-cnicf-btn',     hidden: 'cfm-cnic_front_url', prev: 'cfm-cnicf-prev',     label: 'Upload' },
+      cnic_back:  { btn: 'cfm-cnicb-btn',     hidden: 'cfm-cnic_back_url',  prev: 'cfm-cnicb-prev',     label: 'Upload' },
+    };
+    const ids = TARGETS[which] || { btn: 'cfm-photo-btn', hidden: 'cfm-photo_url', prev: 'cfm-photo-prev', label: 'Upload photo' };
+    const _docName = { nominee: 'Nominee photo', cnic_front: 'CNIC front', cnic_back: 'CNIC back' }[which] || 'Photo';
     const btn = document.getElementById(ids.btn);
     const setLabel = t => { if (btn) { const s = btn.querySelector('span'); if (s) s.textContent = t; } };
     if (btn) btn.disabled = true; setLabel('Uploading…');
@@ -177,7 +217,7 @@
       const hidden = document.getElementById(ids.hidden); if (hidden) hidden.value = pub;
       const prev = document.getElementById(ids.prev);
       if (prev) prev.innerHTML = '<img src="' + pub + '" style="width:100%;height:100%;object-fit:cover">';
-      if (typeof toast === 'function') toast((isKin ? 'Nominee photo' : 'Photo') + ' uploaded', 'ok');
+      if (typeof toast === 'function') toast(_docName + ' uploaded', 'ok');
     } catch (e) {
       if (typeof toast === 'function') toast('Upload failed: ' + (e.message || e), 'err');
     } finally {
@@ -230,10 +270,15 @@
     const payload = {
       full_name: name, father_name: father,
       cnic: overseas ? null : cnic, passport_no: overseas ? (_val('cfm-passport_no') || null) : null,
-      phone_primary: phone, whatsapp: _val('cfm-whatsapp') || null, email: email || null,
-      address: _val('cfm-address') || null, city: _val('cfm-city') || null,
+      phone_primary: phone, phone_secondary: _val('cfm-phone_secondary') || null,
+      whatsapp: _val('cfm-whatsapp') || null, email: email || null,
+      address: _val('cfm-address') || null, city: _val('cfm-city') || null, country: _val('cfm-country') || 'Pakistan',
       client_category: _val('cfm-client_category') || null, reference_by: _val('cfm-reference_by') || null,
-      occupation: _val('cfm-occupation') || null,
+      lead_source: _val('cfm-lead_source') || null,
+      occupation: _val('cfm-occupation') || null, company_name: _val('cfm-company_name') || null,
+      cnic_front_url: _val('cfm-cnic_front_url') || null, cnic_back_url: _val('cfm-cnic_back_url') || null,
+      bank_name: _val('cfm-bank_name') || null, bank_account_title: _val('cfm-bank_account_title') || null,
+      bank_account_no: _val('cfm-bank_account_no') || null, bank_iban: _val('cfm-bank_iban') || null,
       monthly_income: _val('cfm-monthly_income') ? Number(String(_val('cfm-monthly_income')).replace(/[^\d.]/g, '')) || null : null,
       ntn: _val('cfm-ntn') || null,
       notes: _val('cfm-notes') || null, overseas_local: overseas ? 'overseas' : 'local',
