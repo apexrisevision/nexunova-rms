@@ -1267,6 +1267,38 @@ function exportSalesExcel() {
 
 function openSaleDetail(id) { _salId = id; nav('salesdetail'); }
 
+// Warmth-kit bridge for the Sale Detail page — flattens the legacy glass/3D cards
+// (heavy 8/32 shadow + backdrop-blur + the gradient "sweep" ::before) into flat
+// nx-card-style surfaces, and remaps the legacy --t*/--brand/--line tokens onto the
+// --fk-* kit palette, so the page matches the rest of the reskinned app. Scoped to
+// #pg-salesdetail, zero markup change (same pattern as the batch-5/6 CSS bridges).
+function _salDetailWarmCSS() {
+  return '<style>' +
+    '#pg-salesdetail{' +
+      '--brand:var(--fk-primary,#4f46e5);--line:var(--fk-border,#e6e7ec);' +
+      '--t1:var(--fk-text,#1f2430);--t2:var(--fk-text-muted,#5b6270);' +
+      '--t3:var(--fk-text-muted,#8a90a0);--t4:var(--fk-text-muted,#aab);' +
+      '--hover:var(--fk-bg-subtle,#f4f5f7);--surface:var(--fk-surface,#fff)}' +
+    // flat warm cards — kill glass blur, the heavy shadow, and the gradient sweep line
+    '#pg-salesdetail .card{background:var(--fk-surface,#fff)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border:1px solid var(--fk-border,#e6e7ec)!important;border-radius:14px!important;box-shadow:0 1px 2px rgba(20,22,40,.04)!important;transition:border-color .18s ease,box-shadow .18s ease!important}' +
+    '#pg-salesdetail .card::before{content:none!important;display:none!important;background:none!important;width:0!important;height:0!important}' +
+    '#pg-salesdetail .card:hover{border-color:var(--fk-border,#dfe1e7)!important;box-shadow:0 4px 14px rgba(20,22,40,.07)!important}' +
+    // card header
+    '#pg-salesdetail .ch{background:transparent!important;border-bottom:1px solid var(--fk-border,#eef0f3)!important;padding:13px 16px!important}' +
+    '#pg-salesdetail .ch h3{font-size:13px!important;font-weight:600!important;letter-spacing:.01em!important;text-transform:none!important;color:var(--fk-text,#1f2430)!important}' +
+    '#pg-salesdetail .ch h3 svg{color:var(--fk-primary,#4f46e5)!important;opacity:.92}' +
+    '#pg-salesdetail .ch p{color:var(--fk-text-muted,#8a90a0)!important}' +
+    '#pg-salesdetail .cb{padding:15px 16px!important}' +
+    // recovery progress bar
+    '#pg-salesdetail .pbar{background:var(--fk-bg-subtle,#eceef2)!important;border-radius:99px!important;overflow:hidden}' +
+    '#pg-salesdetail .pbar-f{background:var(--fk-primary,#4f46e5)!important}' +
+    // data / schedule tables (.t)
+    '#pg-salesdetail table.t thead th{background:var(--fk-bg-subtle,#f6f7f9)!important;color:var(--fk-text-muted,#6b7280)!important;font-weight:600!important;border-bottom:1px solid var(--fk-border,#e6e7ec)!important;text-transform:none!important}' +
+    '#pg-salesdetail table.t td{border-bottom:1px solid var(--fk-border,#f0f1f4)!important}' +
+    '#pg-salesdetail .tw{border:1px solid var(--fk-border,#e6e7ec)!important;border-radius:12px!important;overflow:hidden!important}' +
+  '</style>';
+}
+
 async function rSaleDetail() {
   const pg = document.getElementById('pg-salesdetail');
   if (!pg) return;
@@ -1381,6 +1413,7 @@ function _renderSaleDetail(d, docs, amendments) {
        </tbody></table></div>`;
 
   pg.innerHTML = `<div class="ani">
+    ${_salDetailWarmCSS()}
     <!-- Form navigation bar -->
     <div id="sd-form-nav"></div>
 
