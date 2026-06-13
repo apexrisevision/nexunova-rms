@@ -1386,7 +1386,13 @@ function _renderSaleDetail(d, docs, amendments) {
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
       <button class="bk" onclick="nav('sales')">← Back</button>
-      ${_salDocsBar(d)}
+      <button class="btn btn-sm" onclick="printApplicationForm()" style="background:#15613f;color:#fff;border:1px solid #11502f;display:inline-flex;align-items:center;gap:5px" title="KBH Application / Booking Form (legal — for the pre-printed sheet)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Application Form</button>
+      <button class="btn btn-print btn-sm" onclick="printSaleDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+      <button class="btn btn-sm" onclick="openAgreementReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Sale Agreement"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Agreement</button>
+      <button class="btn btn-sm" onclick="openScheduleReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Installment Schedule"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
+      <button class="btn btn-sm" onclick="openDemandNotice('${d.id}')" style="background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Demand Notice"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Demand</button>
+      <button class="btn btn-gh btn-sm" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)" style="display:inline-flex;align-items:center;gap:5px" title="Per-unit statement (plan vs payments)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Unit Statement</button>
+      <button class="btn btn-gh btn-sm" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)" style="display:inline-flex;align-items:center;gap:5px" title="Per-client ledger (running balance)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Client Ledger</button>
       ${d.status !== 'cancelled' ? `<button class="btn btn-g btn-sm" onclick="nav('addpayment','${d.unit_id}')" style="display:inline-flex;align-items:center;gap:5px" title="Record a payment against this unit"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Record Payment</button>` : ''}
       ${(isA || isR) ? `<button class="btn btn-gh btn-sm" onclick="openSaleEdit('${d.id}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
       ${isA && typeof openAuditHistory==='function' ? `<button class="btn btn-gh btn-sm" onclick="openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number||'')}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg> History</button>` : ''}
@@ -2627,76 +2633,6 @@ function printAllotmentLetter() {
   _pclose(w);
 }
 
-// ══ SALE DETAIL — "Print / Documents ▾" dropdown ══════════════════════════
-// Groups the per-sale print outputs (Application Form · Sale Agreement ·
-// Installment Schedule · Demand Notice · Unit Statement · Client Ledger · the
-// generic sale sheet) under one named, warmth-kit menu so each is findable and
-// the action bar stays uncluttered. Each item names exactly what it generates.
-function _salDocsBar(d) {
-  const ic = p => '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">' + p + '</svg>';
-  const printerP = '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>';
-  const fileP    = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
-  const calP     = '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>';
-  const bellP    = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>';
-  const gridP    = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>';
-  const ledgerP  = '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>';
-  const it = (fn, label, sub, p) =>
-    '<button type="button" class="sd-docs-item" onclick="_salDocsHide();' + fn + '">' +
-      '<span class="sd-docs-ic">' + ic(p) + '</span>' +
-      '<span class="sd-docs-tx"><span class="sd-docs-l">' + label + '</span><span class="sd-docs-s">' + sub + '</span></span>' +
-    '</button>';
-  const id = esc(d.id);
-  return '' +
-    '<style>' +
-      '.sd-docs-wrap{position:relative;display:inline-block}' +
-      '.sd-docs-trigger{display:inline-flex;align-items:center;gap:6px;font-weight:500;background:var(--fk-bg-subtle,#f3f4f6);color:var(--fk-text,#1f2430);border:1px solid var(--fk-border,#e3e5ea)}' +
-      // menu = a consistent LIGHT popover (explicit colors) so it reads in both themes
-      '.sd-docs-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:60;min-width:262px;background:#ffffff;border:1px solid #e6e7ec;border-radius:12px;box-shadow:0 12px 34px rgba(20,22,40,.18);padding:6px}' +
-      '.sd-docs-wrap.is-open .sd-docs-menu{display:block;animation:sdDocsIn .12s ease}' +
-      '@keyframes sdDocsIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}' +
-      '.sd-docs-hd{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#8a90a0;padding:8px 10px 4px}' +
-      '.sd-docs-div{height:1px;background:#ececf1;margin:6px 6px}' +
-      '.sd-docs-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;padding:7px 10px;border-radius:9px;cursor:pointer;color:#1f2430}' +
-      '.sd-docs-item:hover{background:#eef0ff}' +
-      '.sd-docs-ic{flex-shrink:0;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#eef0ff;color:#4f46e5}' +
-      '.sd-docs-tx{display:flex;flex-direction:column;min-width:0}' +
-      '.sd-docs-l{font-size:13px;font-weight:500;line-height:1.25;color:#1f2430}' +
-      '.sd-docs-s{font-size:11px;color:#8a90a0;line-height:1.3}' +
-    '</style>' +
-    '<div class="sd-docs-wrap">' +
-      '<button type="button" class="btn btn-sm sd-docs-trigger" onclick="_salDocsToggle(event)">' +
-        ic(printerP) + 'Print / Documents' +
-        '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>' +
-      '</button>' +
-      '<div class="sd-docs-menu" role="menu">' +
-        '<div class="sd-docs-hd">KBH Forms</div>' +
-        it('printApplicationForm()',                 'Application Form',     'KBH booking form · legal sheet',   printerP) +
-        it("openAgreementReport('" + id + "')",      'Sale Agreement',       'A4 contract',                       fileP) +
-        it("openScheduleReport('" + id + "')",       'Installment Schedule', 'A4 payment plan',                   calP) +
-        it("openDemandNotice('" + id + "')",         'Demand Notice',        'A4 overdue notice',                 bellP) +
-        '<div class="sd-docs-hd">Statements</div>' +
-        it("nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)", 'Unit Statement', 'Plan vs payments', gridP) +
-        it("nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)",  'Client Ledger',  'Running balance',  ledgerP) +
-        '<div class="sd-docs-div"></div>' +
-        it('printSaleDetail()',                      'Print sale sheet',     'This detail page',                  printerP) +
-      '</div>' +
-    '</div>';
-}
-function _salDocsToggle(ev) {
-  ev.stopPropagation();
-  const w = ev.currentTarget.closest('.sd-docs-wrap'); if (!w) return;
-  const open = !w.classList.contains('is-open');
-  document.querySelectorAll('.sd-docs-wrap.is-open').forEach(x => x.classList.remove('is-open'));
-  w.classList.toggle('is-open', open);
-  if (open) setTimeout(() => document.addEventListener('click', _salDocsOutside), 0);
-}
-function _salDocsOutside(e) {
-  if (!e.target.closest('.sd-docs-wrap')) _salDocsHide();
-}
-function _salDocsHide() {
-  document.querySelectorAll('.sd-docs-wrap.is-open').forEach(x => x.classList.remove('is-open'));
-  document.removeEventListener('click', _salDocsOutside);
-}
 
 // ══ PRINT: KBH APPLICATION / BOOKING FORM ══════════════════════════════
 // Body-only generator for the pre-printed KBH legal sheet (8.5in × 14in). The
@@ -2724,17 +2660,22 @@ async function printApplicationForm() {
   }
 
   // ── CALIBRATION CONSTANTS — tune to the real pre-printed KBH sheet ──────
+  // The KBH green header (KHUSHAL BAGH HEIGHTS logo + "APPLICATION FORM" banner)
+  // is a TALL band, so the top gap is large; the sayadeveloper.com footer band is
+  // small. Adjust these two against an actual test print on the pre-printed sheet.
   const AF = {
     pageW:        size === 'A4' ? '210mm' : '8.5in',
     pageH:        size === 'A4' ? '297mm' : '14in',
-    marginTop:    size === 'A4' ? '1.2in' : '1.8in',  // blank band: pre-printed header
+    marginTop:    size === 'A4' ? '2.1in' : '2.5in',  // blank band: pre-printed green header
     marginBottom: size === 'A4' ? '0.5in' : '0.6in',  // blank band: pre-printed footer
-    marginSide:   '0.5in'
+    marginSide:   '0.45in'
   };
 
   const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
   const v     = x => (x === null || x === undefined || x === '') ? '&nbsp;' : esc(String(x));
   const money = x => (x === null || x === undefined || x === '' || isNaN(Number(x))) ? '&nbsp;' : 'PKR ' + Number(x).toLocaleString('en-US');
+  const nat   = c.country ? (c.country === 'Pakistan' ? 'Pakistani' : c.country) : 'Pakistani';
+  const addr  = v(c.address);
 
   // Nominee: prefer the client's next-of-kin (the booking-nominee template);
   // fall back to the sale-level nominee fields for legacy sales.
@@ -2743,69 +2684,75 @@ async function printApplicationForm() {
   const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
   const nomPhoto = c.next_of_kin_photo_url || '';
 
+  // Layout mirrors the physical KHUSHAL BAGH HEIGHTS form: sans-serif, a 3-column
+  // top grid with inline labels + filled value boxes, then label/value field
+  // tables (single-value rows w/ photo, then 2-up paired rows), grey input boxes.
   const css =
     '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:"Times New Roman",Georgia,serif;color:#000;font-size:11px}' +
-    '.af-top{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #000;border-right:none;border-bottom:none;margin-bottom:10px}' +
-    '.af-tc{border-right:1px solid #000;border-bottom:1px solid #000;padding:3px 7px;min-height:30px}' +
-    '.af-tc .l{font-size:7.5px;text-transform:uppercase;letter-spacing:.4px;color:#444}' +
-    '.af-tc .v{font-size:11px;font-weight:bold;min-height:13px}' +
-    '.af-sec{font-size:10.5px;font-weight:bold;text-transform:uppercase;letter-spacing:1.2px;border-bottom:1.5px solid #000;padding-bottom:2px;margin:12px 0 5px}' +
-    'table.af{border-collapse:collapse;width:100%;margin-bottom:2px}' +
-    'table.af td{border:1px solid #000;padding:4px 7px;font-size:11px;vertical-align:middle;line-height:1.35}' +
-    'td.l{background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:bold;width:150px;white-space:nowrap;font-size:9.5px}' +
-    'td.ph{width:34mm;text-align:center;vertical-align:top;padding:3px}' +
-    'td.ph img{width:30mm;height:36mm;object-fit:cover;border:1px solid #000;display:block;margin:0 auto}' +
-    '.ph-blank{width:30mm;height:36mm;border:1px dashed #555;display:flex;align-items:center;justify-content:center;font-size:8px;color:#777;margin:0 auto;text-transform:uppercase;letter-spacing:.5px}' +
-    '.af-decl{font-size:10px;line-height:1.7;margin:14px 0 4px;text-align:justify}' +
-    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px;page-break-inside:avoid}' +
-    '.af-sig{font-size:9.5px;text-align:center}' +
-    '.af-sigline{border-bottom:1px solid #000;height:28px;margin-bottom:4px}';
+    'body{font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;color:#111;font-size:10px}' +
+    '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px 14px;margin:0 0 14px}' +
+    '.af-gc{display:flex;align-items:center;gap:6px}' +
+    '.af-gl{font-size:8.5px;color:#333;white-space:nowrap}' +
+    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 6px;font-size:10px;font-weight:bold;min-height:21px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.af-sec{font-size:10px;font-weight:bold;letter-spacing:.4px;color:#15412e;border-bottom:1.4px solid #15412e;padding:0 0 2px;margin:16px 0 6px}' +
+    'table.af{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:2px}' +
+    'table.af td{border:1px solid #9aa6ac;padding:0;vertical-align:middle}' +
+    'td.afl{background:#fff;font-size:8.5px;color:#222;font-weight:bold;padding:7px 6px;width:120px;white-space:nowrap}' +
+    'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:10px;font-weight:bold;padding:7px 7px;overflow:hidden}' +
+    'td.afph{width:33mm;text-align:center;vertical-align:middle;background:#fff;padding:3px}' +
+    'td.afph img{width:29mm;height:35mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
+    '.af-ph-blank{width:29mm;height:35mm;border:1px dashed #888;display:flex;align-items:center;justify-content:center;font-size:7.5px;color:#999;margin:0 auto;text-align:center;text-transform:uppercase;letter-spacing:.4px}' +
+    '.af-decl-t{font-size:9.5px;font-weight:bold;margin:18px 0 3px}' +
+    '.af-decl{font-size:9px;line-height:1.6;text-align:justify}' +
+    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:52px;page-break-inside:avoid}' +
+    '.af-sig{font-size:9px;text-align:center;color:#222}' +
+    '.af-sigline{border-bottom:1px solid #333;height:26px;margin-bottom:4px}';
 
-  // ── Top row grid (8 boxed cells) ──
-  const tg = [
-    ['Booking No', d.sale_number], ['MID #', c.client_code], ['Date', saleDate], ['Type', ''],
-    ['Unit Address', d.unit_no], ['Floor', d.floor_label], ['Categorie', d.unit_type],
-    ['Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '']
-  ];
-  let b = '<div class="af-top">';
-  tg.forEach(x => { b += '<div class="af-tc"><div class="l">' + x[0] + '</div><div class="v">' + v(x[1]) + '</div></div>'; });
-  b += '</div>';
+  // ── Top row grid: 3 columns, inline label + filled value box ──
+  const gc = (l, val) => '<div class="af-gc"><span class="af-gl">' + l + '</span><span class="af-gb">' + v(val) + '</span></div>';
+  let b = '<div class="af-grid">' +
+    gc('Booking No', d.sale_number) + gc('MID #', c.client_code) + gc('Date', saleDate) +
+    gc('Unit Address', d.unit_no) + gc('Floor', d.floor_label) + gc('Categorie', d.unit_type) +
+    gc('Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '') +
+    gc('Type', '') + '<div></div>' +
+  '</div>';
 
-  // ── Client Information (photo box top-right) ──
+  // ── Client Information: top block (single-value rows + photo) ──
   const cPhoto = c.client_photo_url
-    ? '<td class="ph" rowspan="7"><img src="' + esc(c.client_photo_url) + '"><div style="font-size:7.5px;margin-top:2px">Photograph</div></td>'
-    : '<td class="ph" rowspan="7"><div class="ph-blank">Photograph</div></td>';
-  b += '<div class="af-sec">Client Information</div><table class="af">';
-  b += '<tr><td class="l">Name</td><td>' + v(c.full_name || d.client_name) + '</td>' + cPhoto + '</tr>';
-  b += '<tr><td class="l">S/O &middot; D/O &middot; W/O</td><td>' + v(c.father_name) + '</td></tr>';
-  b += '<tr><td class="l">CNIC</td><td>' + v(c.cnic) + '</td></tr>';
-  b += '<tr><td class="l">Mobile</td><td>' + v(c.phone_primary) + '</td></tr>';
-  b += '<tr><td class="l">Phone (Res.)</td><td>' + v(c.phone_secondary) + '</td></tr>';
-  b += '<tr><td class="l">Phone (Off.)</td><td>&nbsp;</td></tr>';
-  b += '<tr><td class="l">Email</td><td>' + v(c.email) + '</td></tr>';
-  b += '<tr><td class="l">Postal Address</td><td colspan="2">' + v(c.address) + '</td></tr>';
-  b += '<tr><td class="l">Residential Address</td><td colspan="2">&nbsp;</td></tr>';
-  b += '<tr><td class="l">Occupation</td><td colspan="2">' + v(c.occupation) + '</td></tr>';
-  b += '<tr><td class="l">Nationality</td><td colspan="2">' + v(c.country ? (c.country === 'Pakistan' ? 'Pakistani' : c.country) : 'Pakistani') + '</td></tr>';
-  b += '<tr><td class="l">Monthly Income</td><td colspan="2">' + money(c.monthly_income) + '</td></tr>';
-  b += '<tr><td class="l">NTN #</td><td colspan="2">' + v(c.ntn) + '</td></tr>';
+    ? '<td class="afph" rowspan="5"><img src="' + esc(c.client_photo_url) + '"></td>'
+    : '<td class="afph" rowspan="5"><div class="af-ph-blank">Affix<br>Photograph</div></td>';
+  b += '<div class="af-sec">Client Information</div>';
+  b += '<table class="af">';
+  b += '<tr><td class="afl">Name</td><td class="afv">' + v(c.full_name || d.client_name) + '</td>' + cPhoto + '</tr>';
+  b += '<tr><td class="afl">S / O</td><td class="afv">' + v(c.father_name) + '</td></tr>';
+  b += '<tr><td class="afl">C.N.I.C. #</td><td class="afv">' + v(c.cnic) + '</td></tr>';
+  b += '<tr><td class="afl">Postal Address</td><td class="afv">' + addr + '</td></tr>';
+  b += '<tr><td class="afl">Residential Address</td><td class="afv">' + addr + '</td></tr>';
+  b += '</table>';
+  // ── Client Information: 2-up paired rows ──
+  b += '<table class="af">';
+  b += '<tr><td class="afl">Phone Off.</td><td class="afv">&nbsp;</td><td class="afl">Phone Res #</td><td class="afv">' + v(c.phone_secondary) + '</td></tr>';
+  b += '<tr><td class="afl">Mobile #</td><td class="afv">' + v(c.phone_primary) + '</td><td class="afl">Email Id</td><td class="afv">' + v(c.email) + '</td></tr>';
+  b += '<tr><td class="afl">Occupation</td><td class="afv">' + v(c.occupation) + '</td><td class="afl">Nationality</td><td class="afv">' + v(nat) + '</td></tr>';
+  b += '<tr><td class="afl">Monthly Income</td><td class="afv">' + money(c.monthly_income) + '</td><td class="afl">NTN #</td><td class="afv">' + v(c.ntn) + '</td></tr>';
   b += '</table>';
 
-  // ── Nominee Information (thumb / photo box top-right) ──
-  const nPhoto = nomPhoto
-    ? '<td class="ph" rowspan="4"><img src="' + esc(nomPhoto) + '"><div style="font-size:7.5px;margin-top:2px">Photo / Thumb</div></td>'
-    : '<td class="ph" rowspan="4"><div class="ph-blank">Photo / Thumb</div></td>';
-  b += '<div class="af-sec">Nominee Information</div><table class="af">';
-  b += '<tr><td class="l">Name</td><td>' + v(nomName) + '</td>' + nPhoto + '</tr>';
-  b += '<tr><td class="l">CNIC</td><td>' + v(nomCnic) + '</td></tr>';
-  b += '<tr><td class="l">Relation</td><td>' + v(nomRel) + '</td></tr>';
-  b += '<tr><td class="l">Address</td><td>&nbsp;</td></tr>';
+  // ── Nominee Information (thumb / photo box on the right) ──
+  const nThumb = nomPhoto
+    ? '<td class="afph" rowspan="4"><img src="' + esc(nomPhoto) + '"></td>'
+    : '<td class="afph" rowspan="4"><div class="af-ph-blank">Photo /<br>Thumb</div></td>';
+  b += '<div class="af-sec">Nominee Information</div>';
+  b += '<table class="af">';
+  b += '<tr><td class="afl">Name</td><td class="afv">' + v(nomName) + '</td>' + nThumb + '</tr>';
+  b += '<tr><td class="afl">C.N.I.C No.</td><td class="afv">' + v(nomCnic) + '</td></tr>';
+  b += '<tr><td class="afl">Relation</td><td class="afv">' + v(nomRel) + '</td></tr>';
+  b += '<tr><td class="afl">Address</td><td class="afv">&nbsp;</td></tr>';
   b += '</table>';
 
   // ── Declaration + two signature lines ──
-  b += '<div class="af-decl">I/We hereby agree to pay all dues — the down-payment and all installments — as per the agreed payment schedule, and to abide by all the existing rules and regulations prescribed by the management of the project from time to time.</div>';
+  b += '<div class="af-decl-t">Declaration</div>';
+  b += '<div class="af-decl">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time.</div>';
   b += '<div class="af-sigs">' +
        '<div class="af-sig"><div class="af-sigline"></div>Signature of Applicant</div>' +
        '<div class="af-sig"><div class="af-sigline"></div>Authorized Signature</div>' +
