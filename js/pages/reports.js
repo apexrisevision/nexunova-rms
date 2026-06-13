@@ -69,14 +69,31 @@ const REPORTS = {
       transform: (data, f) => _unitStatementTransform(data, f)
     } },
 
-  client_summary: { meta: { title: 'Client Recovery Summary', group: 'CLIENT & UNIT', desc: 'One row per client — total, paid, shortfall, balance to final — with a grand total of all clients' },
+  client_summary: { meta: { title: 'Recovery Demand Summary', group: 'CLIENT & UNIT', desc: 'Unit-wise demand sheet — price, arrears to last month, this-month installment & total due now, with a grand total' },
     config: {
-      id: 'client_summary', title: 'Client Recovery Summary', group: 'CLIENT & UNIT', orientation: 'landscape',
-      description: 'Every active sale on one page — for each client: Total Contract · Paid to Date · Current Shortfall (overdue) · Balance to Final Installment · Recovery %, with a grand total summed across all clients at the bottom',
+      id: 'client_summary', title: 'Recovery Demand Summary', group: 'CLIENT & UNIT', orientation: 'landscape',
+      description: 'Unit-wise demand sheet for the running month — each unit’s price (total · discount · net), the receivable that should have come in by last month-end vs what was actually received, the arrears carried forward, this month’s installment, and the total due now; grand total of every unit at the bottom',
       filters: [{ kind: 'project' }],
-      // As-of-today position for every sale in ONE call (FIFO). from=epoch → opening 0,
-      // received_total = everything paid to date, closing = unpaid due-to-date (shortfall).
-      fetch: f => supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: f.project || null, p_from_date: '2000-01-01', p_to_date: td() }).then(r => { if (r.error) throw r.error; return r.data; }),
+      // Month-anchored, TWO rollforward calls merged by sale_id:
+      //   A = epoch..last-month-end → due_period (receivable that should've come),
+      //       received_total (received), closing (arrears carried forward).
+      //   B = this-month-start..this-month-end → due_period (this month's installment).
+      fetch: f => {
+        const t = td(), d = new Date(t + 'T00:00:00'), y = d.getFullYear(), m = d.getMonth();
+        const pad = n => String(n).padStart(2, '0');
+        const curStart = y + '-' + pad(m + 1) + '-01';
+        const le = new Date(y, m, 0), ce = new Date(y, m + 1, 0);
+        const lastEnd = le.getFullYear() + '-' + pad(le.getMonth() + 1) + '-' + pad(le.getDate());
+        const curEnd = ce.getFullYear() + '-' + pad(ce.getMonth() + 1) + '-' + pad(ce.getDate());
+        const proj = f.project || null;
+        return Promise.all([
+          supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: proj, p_from_date: '2000-01-01', p_to_date: lastEnd }),
+          supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: proj, p_from_date: curStart, p_to_date: curEnd })
+        ]).then(([A, B]) => {
+          if (A.error) throw A.error; if (B.error) throw B.error;
+          return { A: (A.data && A.data.rows) || [], B: (B.data && B.data.rows) || [], lastEnd, curStart };
+        });
+      },
       transform: (data, f) => _clientSummaryTransform(data, f)
     } },
 
@@ -365,46 +382,54 @@ function _unitStatementTransform(data, f) {
   };
 }
 
-// Portfolio grand-summary: one row per active sale, grand total of all clients.
-// data = get_recovery_position(epoch..today): per row net_price (total contract),
-// received_total (paid to date), closing (shortfall — unpaid & due to date).
+// Unit-wise monthly demand sheet (grand total of all units). Two rollforwards:
+//   A = epoch..last-month-end → due_period (receivable that should've come in),
+//       received_total (received), closing (arrears carried forward).
+//   B = this-month..end        → due_period (this month's installment).
+// Merged by sale_id. Sorted unit-wise. Total Due Now = arrears + this-month installment.
 function _clientSummaryTransform(data, f) {
-  const rows = ((data && data.rows) || []).map(r => {
-    const total = Number(r.net_price || 0);
-    const paid = Number(r.received_total || 0);
-    const shortfall = Math.max(0, Number(r.closing || 0));   // due & overdue, still unpaid
-    const balance = Math.max(0, total - paid);               // remaining to the final installment
-    const pct = total > 0 ? Math.round(paid / total * 100) : 0;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const A = (data && data.A) || [], B = (data && data.B) || [];
+  const le = String((data && data.lastEnd) || ''), cs = String((data && data.curStart) || '');
+  const leLabel = le.length === 10 ? (Number(le.slice(8, 10)) + ' ' + MON[Number(le.slice(5, 7)) - 1]) : 'last month';
+  const monShort = cs.length >= 7 ? MON[Number(cs.slice(5, 7)) - 1] : 'This Mo';
+  const bById = {}; B.forEach(r => { bById[r.sale_id] = r; });
+  const rows = A.map(r => {
+    const b = bById[r.sale_id] || {};
+    const total = Number(r.total_price || 0), disc = Number(r.discount || 0), net = Number(r.net_price || 0);
+    const dueTill = Number(r.due_period || 0);          // receivable that should have come in by last-month-end
+    const recdTill = Number(r.received_total || 0);     // actually received by last-month-end
+    const arrears = Math.max(0, Number(r.closing || 0));// overdue carried forward
+    const curInst = Number(b.due_period || 0);          // this month's installment
     return {
-      client: (r.client_name || '—') + (r.client_code ? '  ·  ' + r.client_code : ''),
       unit: (r.unit_no || '—') + (r.floor_name ? '  ·  ' + r.floor_name : ''),
-      total, paid, shortfall, balance, pct,
-      _short: shortfall, _bal: balance
+      client: (r.client_name || '—') + (r.client_code ? '  ·  ' + r.client_code : ''),
+      total, disc, net, dueTill, recdTill, arrears, curInst, totalDue: arrears + curInst,
+      _u: r.unit_no || ''
     };
-  }).sort((a, b) => b._short - a._short || b._bal - a._bal);
+  }).sort((a, b) => String(a._u).localeCompare(String(b._u), undefined, { numeric: true }));
   const columns = [
-    { key: 'client', label: 'Client' },
     { key: 'unit', label: 'Unit' },
-    { key: 'total', label: 'Total Contract', num: true, fmt: 'money' },
-    { key: 'paid', label: 'Paid to Date', num: true, fmt: 'money' },
-    { key: 'shortfall', label: 'Shortfall (overdue)', num: true, fmt: 'money' },
-    { key: 'balance', label: 'Balance to Final', num: true, fmt: 'money' },
-    { key: 'pct', label: 'Recovery', num: true, fmt: 'pct' }
+    { key: 'client', label: 'Client' },
+    { key: 'total', label: 'Total Price', num: true, fmt: 'money' },
+    { key: 'disc', label: 'Less Discount', num: true, fmt: 'money' },
+    { key: 'net', label: 'Net Amount', num: true, fmt: 'money' },
+    { key: 'dueTill', label: 'Receivable to ' + leLabel, num: true, fmt: 'money' },
+    { key: 'recdTill', label: 'Received to ' + leLabel, num: true, fmt: 'money' },
+    { key: 'arrears', label: 'Arrears', num: true, fmt: 'money' },
+    { key: 'curInst', label: monShort + ' Installment', num: true, fmt: 'money' },
+    { key: 'totalDue', label: 'Total Due Now', num: true, fmt: 'money' }
   ];
   const sum = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
-  const tTotal = sum('total'), tPaid = sum('paid'), tShort = sum('shortfall'), tBal = sum('balance');
-  const shortClients = rows.filter(r => r.shortfall > 0.005).length;
+  const totals = { total: sum('total'), disc: sum('disc'), net: sum('net'), dueTill: sum('dueTill'), recdTill: sum('recdTill'), arrears: sum('arrears'), curInst: sum('curInst'), totalDue: sum('totalDue') };
   return {
-    columns, rows,
-    totals: { total: tTotal, paid: tPaid, shortfall: tShort, balance: tBal, pct: tTotal > 0 ? Math.round(tPaid / tTotal * 100) : 0 },
-    totalsLabel: 'ALL CLIENTS (' + rows.length + ')',
+    columns, rows, totals, totalsLabel: 'ALL UNITS (' + rows.length + ')',
     summary: [
-      { label: 'Clients', value: rows.length },
-      { label: 'With Shortfall', value: shortClients },
-      { label: 'Total Contract', value: tTotal, money: true },
-      { label: 'Paid to Date', value: tPaid, money: true },
-      { label: 'Total Shortfall (overdue)', value: tShort, money: true },
-      { label: 'Balance to Final Installment', value: tBal, money: true }
+      { label: 'Units', value: rows.length },
+      { label: 'Net Value', value: totals.net, money: true },
+      { label: 'Arrears to ' + leLabel, value: totals.arrears, money: true },
+      { label: monShort + ' Installment', value: totals.curInst, money: true },
+      { label: 'Total Due Now', value: totals.totalDue, money: true }
     ]
   };
 }
