@@ -1649,7 +1649,7 @@ body.wizard-active .chat-fab {
   height: 100vh !important;
   min-height: 100vh !important;
   max-height: 100vh !important;
-  overflow: hidden !important;
+  overflow-y: auto !important;     /* screen scrolls internally — the new nx wizard has no internal scroll panel (old .ob-panel-wrap is gone) */
   align-items: stretch !important;
   justify-content: flex-start !important;
 }
