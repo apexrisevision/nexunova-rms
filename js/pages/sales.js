@@ -414,12 +414,17 @@ function _nsNav(backLabel, nextLabel, nextFn, nextDisabled) {
 // ── STEP 1: UNIT (available only, floor-grouped) ──────────────────────────
 function _nsStep1() {
   const avail = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).filter(u => u.isAvailable !== false && !u.saleId);
-  return `<div class="nx-card">
+  // "Next" sits in a STICKY bar at the top so a long unit list never needs
+  // scrolling to the bottom to advance — it stays in view and enables on pick.
+  return `<div style="position:sticky;top:0;z-index:6;background:var(--fk-bg);border-bottom:1px solid var(--fk-border);padding:var(--fk-sp-2) 0 var(--fk-sp-3);margin-bottom:var(--fk-sp-2);display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span class="nx-kpi-label" style="text-transform:none">${_ns.unit ? 'Selected: <strong>' + esc(_ns.unit.unitNo || '') + '</strong>' : 'Pick a unit to continue'}</span>
+      ${NX.button('Next: Client →', { variant:'primary', onclick:'_nsGoto(2)', disabled: !_ns.unit })}
+    </div>
+    <div class="nx-card">
     <div class="nx-card-title">Select a unit <span class="nx-kpi-label" style="text-transform:none">· ${avail.length} available</span></div>
     <input class="nx-input" id="ns-unit-q" placeholder="Search unit no / type / floor…" oninput="_nsUnitSearch(this.value)" style="margin:var(--fk-sp-3) 0">
     <div id="ns-unit-list"></div>
-  </div>
-  ${_nsNav(null, 'Next: Client →', _ns.unit ? '_nsGoto(2)' : null, !_ns.unit)}`;
+  </div>`;
 }
 
 function _nsUnitSearch(q) {
@@ -429,7 +434,12 @@ function _nsUnitSearch(q) {
   let avail = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).filter(u => u.isAvailable !== false && !u.saleId);
   if (q) avail = avail.filter(u => `${u.unitNo||''} ${u.type||''} ${u.floorLabel||''}`.toLowerCase().includes(q));
   if (!avail.length) { wrap.innerHTML = NX.empty({ icon:'search', message:'No available units match.' }); return; }
-  // group by floor
+  // sort by floor order (floorNo = floor sort_order) then natural unit no — so
+  // groups read bottom-to-top and units go 01,02,…10 (not 4F-first string sort)
+  avail = avail.slice().sort((a, b) =>
+    (Number(a.floorNo != null ? a.floorNo : 9999) - Number(b.floorNo != null ? b.floorNo : 9999)) ||
+    String(a.unitNo || '').localeCompare(String(b.unitNo || ''), undefined, { numeric: true }));
+  // group by floor (insertion order now follows the sort above)
   const groups = {};
   avail.forEach(u => { const k = u.floorLabel || 'Unassigned'; (groups[k] = groups[k] || []).push(u); });
   wrap.innerHTML = Object.keys(groups).map(fl => `
@@ -1274,28 +1284,15 @@ function openSaleDetail(id) { _salId = id; nav('salesdetail'); }
 // #pg-salesdetail, zero markup change (same pattern as the batch-5/6 CSS bridges).
 function _salDetailWarmCSS() {
   return '<style>' +
-    '#pg-salesdetail{' +
-      '--brand:var(--fk-primary,#4f46e5);--line:var(--fk-border,#e6e7ec);' +
-      '--t1:var(--fk-text,#1f2430);--t2:var(--fk-text-muted,#5b6270);' +
-      '--t3:var(--fk-text-muted,#8a90a0);--t4:var(--fk-text-muted,#aab);' +
-      '--hover:var(--fk-bg-subtle,#f4f5f7);--surface:var(--fk-surface,#fff)}' +
-    // flat warm cards — kill glass blur, the heavy shadow, and the gradient sweep line
-    '#pg-salesdetail .card{background:var(--fk-surface,#fff)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border:1px solid var(--fk-border,#e6e7ec)!important;border-radius:14px!important;box-shadow:0 1px 2px rgba(20,22,40,.04)!important;transition:border-color .18s ease,box-shadow .18s ease!important}' +
-    '#pg-salesdetail .card::before{content:none!important;display:none!important;background:none!important;width:0!important;height:0!important}' +
-    '#pg-salesdetail .card:hover{border-color:var(--fk-border,#dfe1e7)!important;box-shadow:0 4px 14px rgba(20,22,40,.07)!important}' +
-    // card header
-    '#pg-salesdetail .ch{background:transparent!important;border-bottom:1px solid var(--fk-border,#eef0f3)!important;padding:13px 16px!important}' +
-    '#pg-salesdetail .ch h3{font-size:13px!important;font-weight:600!important;letter-spacing:.01em!important;text-transform:none!important;color:var(--fk-text,#1f2430)!important}' +
-    '#pg-salesdetail .ch h3 svg{color:var(--fk-primary,#4f46e5)!important;opacity:.92}' +
-    '#pg-salesdetail .ch p{color:var(--fk-text-muted,#8a90a0)!important}' +
-    '#pg-salesdetail .cb{padding:15px 16px!important}' +
-    // recovery progress bar
-    '#pg-salesdetail .pbar{background:var(--fk-bg-subtle,#eceef2)!important;border-radius:99px!important;overflow:hidden}' +
-    '#pg-salesdetail .pbar-f{background:var(--fk-primary,#4f46e5)!important}' +
-    // data / schedule tables (.t)
-    '#pg-salesdetail table.t thead th{background:var(--fk-bg-subtle,#f6f7f9)!important;color:var(--fk-text-muted,#6b7280)!important;font-weight:600!important;border-bottom:1px solid var(--fk-border,#e6e7ec)!important;text-transform:none!important}' +
-    '#pg-salesdetail table.t td{border-bottom:1px solid var(--fk-border,#f0f1f4)!important}' +
-    '#pg-salesdetail .tw{border:1px solid var(--fk-border,#e6e7ec)!important;border-radius:12px!important;overflow:hidden!important}' +
+    '#pg-salesdetail .sd-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}' +
+    '#pg-salesdetail .sd-kv{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--fk-border);font-size:13px}' +
+    '#pg-salesdetail .sd-kv:last-child{border-bottom:none}' +
+    '#pg-salesdetail .sd-kv-l{color:var(--fk-text-muted);flex-shrink:0}' +
+    '#pg-salesdetail .sd-kv-r{color:var(--fk-text);font-weight:500;text-align:right;word-break:break-word}' +
+    '#pg-salesdetail .sd-ops-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--fk-border)}' +
+    '#pg-salesdetail .sd-ops-row:last-child{border-bottom:none}' +
+    '#pg-salesdetail .sd-ops-t{font-size:13px;font-weight:500;color:var(--fk-text)}' +
+    '#pg-salesdetail .sd-ops-s{font-size:11.5px;color:var(--fk-text-muted);margin-top:2px}' +
   '</style>';
 }
 
@@ -1334,313 +1331,200 @@ function _renderSaleDetail(d, docs, amendments) {
   const pg  = document.getElementById('pg-salesdetail');
   const isA = S.role === 'admin' || S.role === 'owner';
   const isR = S.role === 'recovery' || S.role === 'recovery_officer';
-  const inst = Array.isArray(d.installments) ? d.installments : [];
-
-  // BALANCE FROM INSTALLMENTS, NOT sales.remaining_amount (binding note #1).
-  // The 232 imported KBH sales carry down_payment=0 by migration design (their
-  // balance lives entirely in installments); new 5-step sales set down_payment =
-  // booking line. So remaining_amount is semantically inconsistent across the two
-  // cohorts — plan-vs-paid + balance MUST derive from Σ installments.amount_paid.
-  const totalPaid = rawInst.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
-  const recovPct  = Number(d.net_amount) > 0 ? Math.min(100, Math.round(totalPaid / Number(d.net_amount) * 100)) : 0;
-  const row = (l, v) => v ? `<div class="ir"><span class="ir-l">${l}</span><span class="ir-r">${v}</span></div>` : '';
+  const inst = rawInst;
   const today = td();
 
-  // ── Schedule rows ──
+  // Balance derives from Σ installments paid (sales.remaining_amount is inconsistent
+  // across the imported-KBH vs 5-step cohorts — see binding note #1).
+  const totalPaid = rawInst.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+  const remaining = Math.max(0, Number(d.net_amount || 0) - totalPaid);
+  const recovPct  = Number(d.net_amount) > 0 ? Math.min(100, Math.round(totalPaid / Number(d.net_amount) * 100)) : 0;
+  const cmp = n => { n = Number(n || 0); const a = Math.abs(n), s = n < 0 ? '-' : ''; if (a >= 1e9) return s + (a / 1e9).toFixed(2) + 'B'; if (a >= 1e6) return s + (a / 1e6).toFixed(2) + 'M'; if (a >= 1e3) return s + Math.round(a / 1e3) + 'K'; return s + Math.round(a); };
+  const kv = (l, v) => v ? `<div class="sd-kv"><span class="sd-kv-l">${l}</span><span class="sd-kv-r">${v}</span></div>` : '';
+  const stBadge = s => { const m = { paid:['Paid','success'], overdue:['Overdue','danger'], pending:['Pending','warning'], partial:['Partial','info'], cancelled:['Cancelled',''] }; const x = m[s] || [String(s || '—'), '']; return NX.badge(x[0], x[1]); };
+  const saleStBadge = () => { const m = { active:['Active','success'], cancelled:['Cancelled','danger'], completed:['Completed','info'], transferred:['Transferred','warning'] }; const x = m[d.status] || [String(d.status || '—'), '']; return NX.badge(x[0], x[1]); };
+
+  // ── Schedule table rows ──
   let runTotal = 0;
-  const pendingInstOpts = rawInst
-    .filter(r => r.installment_number > 0 && r.status !== 'paid')
-    .map(r => {
-      const idx = inst.findIndex(x => x.installment_number === r.installment_number && !x._isSynth);
-      return `<option value="${inst.indexOf(r)}">${_ordinal(r.installment_number)} Installment · PKR ${fM(r.amount_due)} · Due ${fD(r.due_date)}</option>`;
-    }).join('');
-
-  const instRows = inst.map((ins, idx) => {
+  const pendingInstOpts = rawInst.filter(r => r.installment_number > 0 && r.status !== 'paid')
+    .map(r => `<option value="${inst.indexOf(r)}">${_ordinal(r.installment_number)} Installment · PKR ${fM(r.amount_due)} · Due ${fD(r.due_date)}</option>`).join('');
+  const schedRows = inst.map((ins, idx) => {
     runTotal += Number(ins.amount_due || 0);
-    const isOverdue     = ins.status !== 'paid' && ins.due_date < today;
-    const displayStatus = isOverdue && ins.status === 'pending' ? 'overdue' : ins.status;
-    const isBooking     = ins.installment_type === 'down_payment' || ins.installment_number === 0;
-    const instN         = Number(ins.installment_number || 0);
-    const demandBtn     = !isBooking && ins.status !== 'paid'
-      ? `<button class="btn btn-gh btn-xs" onclick="printDemandNotice(${idx})" title="Print Demand Notice"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>` : '';
-    const editBtn = isA && ins.id
-      ? `<button class="btn btn-gh btn-xs" onclick="openInstEditModal('${ins.id}')" title="Edit installment"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
-    return `<tr${isBooking ? ' class="bk-row"' : ''}>
-      <td style="font-size:12px;color:var(--t3);text-align:center">${isBooking ? '—' : instN}</td>
-      <td style="font-size:12px;font-weight:${isBooking?'700':'400'};color:${isBooking?'var(--brand)':'var(--t1)'}">${esc(ins.notes||(isBooking?'BOOKING':_ordinal(instN)+' Installment'))}</td>
-      <td style="font-size:12px">${fD(ins.due_date)}</td>
-      <td style="font-weight:700;text-align:right">${fMF(ins.amount_due)}</td>
-      <td style="color:var(--ok);text-align:right">${ins.amount_paid > 0 ? fMF(ins.amount_paid) : '—'}</td>
-      <td style="text-align:right;font-size:11px;color:var(--info)">${fMF(runTotal)}</td>
-      <td>${_instStatusBadge(displayStatus)}</td>
-      <td style="padding:4px 6px;white-space:nowrap">${demandBtn}${editBtn}</td>
-    </tr>`;
-  }).join('');
+    const isOverdue = ins.status !== 'paid' && ins.due_date < today;
+    const ds = isOverdue && ins.status === 'pending' ? 'overdue' : ins.status;
+    const isBooking = ins.installment_type === 'down_payment' || ins.installment_number === 0;
+    const instN = Number(ins.installment_number || 0);
+    const demandBtn = !isBooking && ins.status !== 'paid' ? `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Demand notice" onclick="printDemandNotice(${idx})">${NX.icon('megaphone', 13)}</button>` : '';
+    const editBtn = isA && ins.id ? `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Edit installment" onclick="openInstEditModal('${ins.id}')">${NX.icon('pencil', 13)}</button>` : '';
+    return [
+      `<span style="color:var(--fk-text-muted)">${isBooking ? '—' : instN}</span>`,
+      `<span style="font-weight:${isBooking ? 600 : 400};color:${isBooking ? 'var(--fk-primary)' : 'var(--fk-text)'}">${esc(ins.notes || (isBooking ? 'BOOKING' : _ordinal(instN) + ' Installment'))}</span>`,
+      fD(ins.due_date),
+      fMF(ins.amount_due),
+      ins.amount_paid > 0 ? `<span style="color:var(--fk-success)">${fMF(ins.amount_paid)}</span>` : '<span style="color:var(--fk-text-muted)">—</span>',
+      `<span style="color:var(--fk-text-muted)">${fMF(runTotal)}</span>`,
+      stBadge(ds),
+      `<span style="display:inline-flex;gap:4px;justify-content:flex-end;white-space:nowrap">${demandBtn}${editBtn}</span>`
+    ];
+  });
+  const schedInner = inst.length
+    ? NX.table({ cols: [{ label:'#', width:'34px' }, { label:'Installment' }, { label:'Due' }, { label:'Amount', num:true }, { label:'Paid', num:true }, { label:'Cumulative', num:true }, { label:'Status' }, { label:'', width:'72px' }], rows: schedRows, flush: true })
+    : NX.empty({ icon:'calendar', message:'No installments on this sale.' });
 
-  // ── Amendment type labels ──
-  const aTypeLbl = t => ({price_change:'Price Change',schedule_change:'Schedule Change',discount_change:'Discount Change',agent_change:'Agent Change',other:'Other'}[t]||t||'—');
+  const aTypeLbl = t => ({ price_change:'Price Change', schedule_change:'Schedule Change', discount_change:'Discount Change', agent_change:'Agent Change', other:'Other' }[t] || t || '—');
 
-  // ── Documents HTML ──
-  const docsHtml = docs.length === 0
-    ? `<div style="font-size:12px;color:var(--t3);padding:8px 0">No documents uploaded yet.</div>`
+  // ── Documents ──
+  const docsInner = (docs.length === 0
+    ? `<div style="font-size:13px;color:var(--fk-text-muted);padding:4px 0">No documents uploaded yet.</div>`
     : docs.map(doc => {
         const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.document_url);
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">
-          <span style="color:var(--t3)">${isImg?`<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`:`<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`}</span>
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-border)">
+          <span style="color:var(--fk-primary);flex-shrink:0">${NX.icon(isImg ? 'image' : 'file-text', 16)}</span>
           <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(doc.document_name)}</div>
-            <div style="font-size:10px;color:var(--t3)">${esc(doc.document_type)} · ${fD(doc.uploaded_at?.slice(0,10))}</div>
+            <div style="font-size:13px;font-weight:500;color:var(--fk-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(doc.document_name)}</div>
+            <div style="font-size:11px;color:var(--fk-text-muted)">${esc(doc.document_type)} · ${fD(doc.uploaded_at ? doc.uploaded_at.slice(0,10) : '')}</div>
           </div>
-          <a href="${esc(doc.document_url)}" target="_blank" class="btn btn-gh btn-xs">View</a>
-          ${isA?`<button class="btn btn-r btn-xs" onclick="deleteSaleDoc('${doc.id}')" title="Delete"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:''}
+          <a href="${esc(doc.document_url)}" target="_blank" class="nx-btn nx-btn--ghost nx-btn--sm">View</a>
+          ${isA ? `<button class="nx-btn nx-btn--danger-soft nx-btn--sm nx-btn--icon" title="Delete" onclick="deleteSaleDoc('${doc.id}')">${NX.icon('trash-2', 13)}</button>` : ''}
         </div>`;
-      }).join('');
+      }).join(''))
+    + (isA ? `<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-top:12px;background:var(--fk-bg-subtle);border:1.5px dashed var(--fk-border);border-radius:10px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--fk-text-muted)">${NX.icon('upload', 14)} Attach document<input type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="uploadSaleDoc(this,'${d.id}')"></label>` : '');
 
-  // ── Amendments HTML ──
-  const amendsHtml = amendments.length === 0
-    ? `<div class="empty" style="padding:20px"><div class="ei"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="et">No amendments recorded</div></div>`
-    : `<div class="tw"><table class="t"><thead><tr>
-        <th>Type</th><th>Description</th><th>Reason</th><th>By</th><th>Date</th><th></th>
-       </tr></thead><tbody>
-       ${amendments.map(a => `<tr>
-         <td style="font-size:11px;font-weight:600;white-space:nowrap">${aTypeLbl(a.amendment_type)}</td>
-         <td style="font-size:12px">${esc(a.description||'—')}</td>
-         <td style="font-size:11px;color:var(--t3)">${esc(a.reason||'—')}</td>
-         <td style="font-size:11px;color:var(--t3);white-space:nowrap">${esc(a.amended_by||'—')}</td>
-         <td style="font-size:11px;color:var(--t3);white-space:nowrap">${fD(a.amended_at?.slice(0,10))}</td>
-         <td>${isA?`<button class="btn btn-r btn-xs" onclick="deleteSaleAmendment('${a.id}')" title="Delete"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:''}</td>
-       </tr>`).join('')}
-       </tbody></table></div>`;
+  // ── Amendments ──
+  const amendInner = amendments.length === 0
+    ? NX.empty({ icon:'file-text', message:'No amendments recorded.' })
+    : NX.table({ cols: [{ label:'Type' }, { label:'Description' }, { label:'Reason' }, { label:'By' }, { label:'Date' }, { label:'', width:'46px' }],
+        rows: amendments.map(a => [
+          `<span style="font-weight:600;white-space:nowrap">${aTypeLbl(a.amendment_type)}</span>`,
+          esc(a.description || '—'),
+          `<span style="color:var(--fk-text-muted)">${esc(a.reason || '—')}</span>`,
+          `<span style="color:var(--fk-text-muted);white-space:nowrap">${esc(a.amended_by || '—')}</span>`,
+          `<span style="color:var(--fk-text-muted);white-space:nowrap">${fD(a.amended_at ? a.amended_at.slice(0,10) : '')}</span>`,
+          isA ? `<button class="nx-btn nx-btn--danger-soft nx-btn--sm nx-btn--icon" title="Delete" onclick="deleteSaleAmendment('${a.id}')">${NX.icon('trash-2', 13)}</button>` : ''
+        ]), flush: true });
+
+  // ── Toolbar ──
+  const B = (label, opts) => NX.button(label, opts);
+  const toolbar = '<div class="no-p" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--fk-sp-4)">'
+    + '<a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav(\'sales\')">← Back</a>'
+    + (d.status !== 'cancelled' ? B('Record Payment', { variant:'primary', size:'sm', icon:'hand-coins', onclick:`nav('addpayment','${d.unit_id}')` }) : '')
+    + B('Application Form', { variant:'primary', size:'sm', icon:'file-text', onclick:'printApplicationForm()' })
+    + B('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printSaleDetail()' })
+    + B('Agreement', { variant:'secondary', size:'sm', icon:'file-text', onclick:`openAgreementReport('${d.id}')` })
+    + B('Schedule', { variant:'secondary', size:'sm', icon:'calendar', onclick:`openScheduleReport('${d.id}')` })
+    + B('Demand', { variant:'secondary', size:'sm', icon:'megaphone', onclick:`openDemandNotice('${d.id}')` })
+    + B('Unit Statement', { variant:'ghost', size:'sm', icon:'list', onclick:"nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)" })
+    + B('Client Ledger', { variant:'ghost', size:'sm', icon:'wallet', onclick:"nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)" })
+    + ((isA || isR) ? B('Edit', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleEdit('${d.id}')` }) : '')
+    + (isA && typeof openAuditHistory === 'function' ? B('History', { variant:'ghost', size:'sm', icon:'history', onclick:`openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number || '')}')` }) : '')
+    + (d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? B('Payment Link', { variant:'ghost', size:'sm', icon:'handshake', onclick:`plOpenCreate(null,'${d.client_id}','${d.id}')` }) : '')
+    + '</div>';
+
+  // ── Banners ──
+  let banners = '';
+  if (d.status === 'cancelled') banners += NX.banner('Sale cancelled' + (d.cancellation_date ? ' — ' + fD(d.cancellation_date) : '') + (d.cancellation_reason ? ' · ' + d.cancellation_reason : ''), 'danger');
+  if (d.delivery_breach) banners += '<div style="margin-top:8px">' + NX.banner('Delivery date breach — approved' + (d.breach_months ? ' · ' + d.breach_months + ' month' + (d.breach_months !== 1 ? 's' : '') : '') + (d.breach_approved_by ? ' · by ' + d.breach_approved_by : '') + (d.breach_approval_ref ? ' · ref ' + d.breach_approval_ref : ''), 'warn') + '</div>';
+  if (banners) banners = '<div style="margin-bottom:var(--fk-sp-4)">' + banners + '</div>';
+
+  // ── Hero (money picture) ──
+  const heroTip = 'Net = contract value (gross − discount). Balance = Net − Σ installments paid. Collected + Remaining = Net.';
+  const subline = [d.unit_no ? 'Unit ' + esc(d.unit_no) : '', d.project_name ? esc(d.project_name) : '', d.agent_name ? 'Agent: ' + esc(d.agent_name) : ''].filter(Boolean).join('  ·  ');
+  const hero = NX.card(
+    `<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:var(--fk-sp-6);align-items:center">
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px">
+          <span class="sd-mono" style="font-size:11px;color:var(--fk-primary);font-weight:600">${esc(d.sale_number || '—')}</span>
+          ${saleStBadge()}
+          ${d.co_buyer_name ? NX.badge('Joint owner', 'info') : ''}
+        </div>
+        <div style="font-size:20px;font-weight:var(--fk-fw-semibold);color:var(--fk-text);line-height:1.2">${esc(d.client_name || 'Unknown Client')}</div>
+        <div class="nx-kpi-label" style="text-transform:none;margin-top:5px">${subline || '—'}</div>
+        <div class="nx-kpi-label" style="display:flex;align-items:center;margin:16px 0 6px">Net contract value${NX.infoTip(heroTip)}</div>
+        <div style="font-size:25px;font-weight:var(--fk-fw-semibold);color:var(--fk-text);letter-spacing:-.01em">${fMF(d.net_amount)}</div>
+        <div style="margin-top:12px">${NX.journeybar({ height:10, segments:[{ value:totalPaid, tone:'primary', label:'Collected', amount:fMF(totalPaid) }, { value:remaining, tone:'muted', label:'Remaining', amount:fMF(remaining) }] })}</div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--fk-border);padding-left:var(--fk-sp-6)">
+        <div class="nx-kpi-label">Recovery</div>
+        <div style="font-size:42px;font-weight:var(--fk-fw-semibold);color:${recovPct >= 100 ? 'var(--fk-success)' : 'var(--fk-primary)'};line-height:1.05;margin:5px 0">${recovPct}%</div>
+        <div class="nx-kpi-label" style="text-transform:none">${fMF(totalPaid)} of ${fMF(d.net_amount)}</div>
+        <div class="nx-kpi-label" style="text-transform:none;margin-top:10px">Sale date · <b style="color:var(--fk-text)">${fD(d.sale_date)}</b></div>
+      </div>
+    </div>`, { class:'nx-rise' });
+
+  // ── KPI strip ──
+  const kpis = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--fk-sp-3);margin-top:var(--fk-sp-4)">'
+    + NX.kpi({ label:'Total', value:'PKR ' + cmp(d.total_amount), icon:'tag' })
+    + NX.kpi({ label:'Discount', value: d.discount > 0 ? '− PKR ' + cmp(d.discount) : '—', icon:'banknote', tone: d.discount > 0 ? 'danger' : '' })
+    + NX.kpi({ label:'Net', value:'PKR ' + cmp(d.net_amount), icon:'wallet', tone:'info' })
+    + NX.kpi({ label:'Collected', value:'PKR ' + cmp(totalPaid), icon:'hand-coins', tone:'success' })
+    + NX.kpi({ label:'Remaining', value:'PKR ' + cmp(remaining), icon:'trending-up', tone: remaining > 0 ? 'warning' : 'success' })
+    + '</div>';
+
+  // ── Sale Info ──
+  const saleInfo = NX.card(
+    kv('Sale number', `<span class="sd-mono" style="color:var(--fk-primary)">${esc(d.sale_number)}</span>`)
+    + kv('Sale date', fD(d.sale_date))
+    + kv('Price / sq ft', fMF(d.price_per_sqft))
+    + kv('Area', d.area_sqft ? fM(d.area_sqft) + ' sq ft' : '')
+    + kv('Down payment', fMF(d.down_payment))
+    + kv('Discount', d.discount > 0 ? fMF(d.discount) : '')
+    + (d.discount > 0 && d.discount_approved_by ? kv('Discount approved by', esc(d.discount_approved_by)) : '')
+    + (d.discount > 0 && d.discount_notes ? kv('Discount notes', esc(d.discount_notes)) : '')
+    + kv('Installments', d.installment_count ? d.installment_count + ' installments' : '')
+    + kv('Notes', d.notes ? esc(d.notes) : ''),
+    { header:{ icon:'info', title:'Sale Information' } });
+
+  // ── Co-buyer & Nominee ──
+  const cobuyer = (d.co_buyer_name || d.nominee_name) ? NX.card(
+    (d.co_buyer_name ? '<div class="nx-kpi-label" style="margin-bottom:4px">Co-buyer / Joint owner</div>'
+      + kv('Name', esc(d.co_buyer_name)) + kv('CNIC', d.co_buyer_cnic ? `<span class="sd-mono">${esc(d.co_buyer_cnic)}</span>` : '') + kv('Share', d.co_buyer_share_pct ? d.co_buyer_share_pct + '%' : '') : '')
+    + (d.co_buyer_name && d.nominee_name ? '<div style="height:12px"></div>' : '')
+    + (d.nominee_name ? '<div class="nx-kpi-label" style="margin-bottom:4px">Nominee (legal heir)</div>'
+      + kv('Name', esc(d.nominee_name)) + kv('CNIC', d.nominee_cnic ? `<span class="sd-mono">${esc(d.nominee_cnic)}</span>` : '') + kv('Relation', d.nominee_relation ? esc(d.nominee_relation) : '') : ''),
+    { header:{ icon:'users', title:'Co-buyer & Nominee' } }) : '';
+
+  // ── WHT / CVT ──
+  const tax = (Number(d.wht_amount) > 0 || Number(d.cvt_amount) > 0) ? NX.card(
+    kv('Withholding Tax (WHT)', fMF(d.wht_amount)) + kv('Capital Value Tax (CVT)', fMF(d.cvt_amount)) + kv('Total tax', fMF(Number(d.wht_amount || 0) + Number(d.cvt_amount || 0))),
+    { header:{ icon:'banknote', title:'Taxes (WHT / CVT)' } }) : '';
+
+  const docsCard = NX.card(docsInner, { header:{ icon:'file-text', title:'Documents', sub: docs.length + ' file' + (docs.length !== 1 ? 's' : '') } });
+
+  const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
+
+  // ── Letters & Operations (admin) ──
+  const opRow = (title, sub, action) => `<div class="sd-ops-row"><div style="min-width:0"><div class="sd-ops-t">${title}</div><div class="sd-ops-s">${sub}</div></div><div style="flex-shrink:0;display:flex;gap:8px;align-items:center">${action}</div></div>`;
+  const ops = isA ? NX.card(
+      opRow('Allotment Letter', 'Formal letter confirming unit allotment', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' }))
+    + opRow('Application / Booking Form', 'KBH booking form for the physical file',
+        `<select id="sd-appform-size" class="nx-select" style="width:auto;font-size:12px"><option value="Legal" selected>Legal</option><option value="A4">A4</option></select>`
+        + NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printApplicationForm()' }))
+    + `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Demand Notice</div><div class="sd-ops-s">For a specific overdue installment</div></div><div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;min-width:220px"><select id="sd-demand-inst" class="nx-select" style="flex:1;max-width:280px;font-size:12px">${pendingInstOpts || '<option value="">— No pending installments —</option>'}</select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printDemandNotice()' })}</div></div>`
+    + opRow('Possession Letter', 'Unit handover document', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' }))
+    + opRow('Payment Statement', 'Outstanding balance view', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'_salPrintPaymentStatement()' }))
+    + opRow('Log Amendment', 'Record a price or schedule change', NX.button('Log', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleAmendmentModal('${d.id}')` }))
+    + (d.status !== 'cancelled'
+        ? opRow('<span style="color:var(--fk-danger)">Cancel Sale</span>', 'Mark as cancelled — requires a reason', NX.button('Cancel', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`openCancelSaleModal('${d.id}')` }))
+        : '<div class="sd-ops-row" style="color:var(--fk-text-muted);font-style:italic;font-size:12px">This sale has been cancelled.</div>'),
+    { header:{ icon:'settings', title:'Letters & Operations' } }) : '';
+
+  const amendCard = NX.card(amendInner, { flush: amendments.length > 0, header:{ icon:'file-text', title:'Amendment History', sub: amendments.length + ' record' + (amendments.length !== 1 ? 's' : '') } });
 
   pg.innerHTML = `<div class="ani">
     ${_salDetailWarmCSS()}
-    <!-- Form navigation bar -->
     <div id="sd-form-nav"></div>
-
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
-      <button class="bk" onclick="nav('sales')">← Back</button>
-      <button class="btn btn-sm" onclick="printApplicationForm()" style="background:#4f46e5;color:#fff;border:1px solid #4338ca;display:inline-flex;align-items:center;gap:5px" title="KBH Application / Booking Form (legal — for the pre-printed sheet)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Application Form</button>
-      <button class="btn btn-print btn-sm" onclick="printSaleDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-      <button class="btn btn-sm" onclick="openAgreementReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Sale Agreement"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Agreement</button>
-      <button class="btn btn-sm" onclick="openScheduleReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Installment Schedule"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
-      <button class="btn btn-sm" onclick="openDemandNotice('${d.id}')" style="background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Demand Notice"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Demand</button>
-      <button class="btn btn-gh btn-sm" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)" style="display:inline-flex;align-items:center;gap:5px" title="Per-unit statement (plan vs payments)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Unit Statement</button>
-      <button class="btn btn-gh btn-sm" onclick="nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)" style="display:inline-flex;align-items:center;gap:5px" title="Per-client ledger (running balance)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Client Ledger</button>
-      ${d.status !== 'cancelled' ? `<button class="btn btn-g btn-sm" onclick="nav('addpayment','${d.unit_id}')" style="display:inline-flex;align-items:center;gap:5px" title="Record a payment against this unit"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Record Payment</button>` : ''}
-      ${(isA || isR) ? `<button class="btn btn-gh btn-sm" onclick="openSaleEdit('${d.id}')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>` : ''}
-      ${isA && typeof openAuditHistory==='function' ? `<button class="btn btn-gh btn-sm" onclick="openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number||'')}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg> History</button>` : ''}
-      ${d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? `<button class="btn btn-sm" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.3);display:inline-flex;align-items:center;gap:5px" onclick="plOpenCreate(null,'${d.client_id}','${d.id}')"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Payment Link</button>` : ''}
-    </div>
-
-    ${d.status === 'cancelled' ? `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;margin-bottom:14px">
-      <span style="color:var(--err);flex-shrink:0"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
-      <div>
-        <div style="font-weight:700;color:var(--err)">Sale Cancelled${d.cancellation_date?' — '+fD(d.cancellation_date):''}</div>
-        ${d.cancellation_reason?`<div style="font-size:12px;color:var(--t2);margin-top:2px">${esc(d.cancellation_reason)}</div>`:''}
-        ${d.cancelled_by?`<div style="font-size:11px;color:var(--t3)">Cancelled by: ${esc(d.cancelled_by)}</div>`:''}
-      </div>
-    </div>` : ''}
-
-    ${d.delivery_breach ? `
-    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:rgba(185,28,28,.08);border:1px solid rgba(239,68,68,.3);border-radius:10px;margin-bottom:14px">
-      <span style="color:#ef4444;flex-shrink:0"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
-      <div style="flex:1">
-        <div style="font-weight:700;color:#ef4444;margin-bottom:6px">Delivery Date Breach — Approved</div>
-        <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:11px;color:var(--t2)">
-          ${d.breach_months?`<span><strong style="color:var(--t1)">Breach:</strong> ${d.breach_months} month${d.breach_months!==1?'s':''}</span>`:''}
-          ${d.breach_reason_type?`<span><strong style="color:var(--t1)">Type:</strong> ${esc(d.breach_reason_type)}</span>`:''}
-          ${d.breach_approved_by?`<span><strong style="color:var(--t1)">Approved By:</strong> ${esc(d.breach_approved_by)}</span>`:''}
-          ${d.breach_approval_ref?`<span><strong style="color:var(--t1)">Ref #:</strong> ${esc(d.breach_approval_ref)}</span>`:''}
-          ${d.breach_approved_at?`<span><strong style="color:var(--t1)">Date:</strong> ${fD(d.breach_approved_at)}</span>`:''}
-        </div>
-        ${d.breach_reason_detail?`<div style="font-size:11px;color:var(--t3);margin-top:4px">${esc(d.breach_reason_detail)}</div>`:''}
-      </div>
-    </div>` : ''}
-
-    <!-- Hero -->
-    <div class="card mb14"><div class="cb">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <div style="font-family:monospace;font-size:11px;color:var(--brand);font-weight:700;margin-bottom:4px">${esc(d.sale_number||'—')}</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
-            <h2 style="font-size:20px;font-weight:700">${esc(d.client_name||'Unknown Client')}</h2>
-            ${_salStatusBadge(d.status)}
-            ${d.delivery_breach?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(185,28,28,.15);color:#ef4444;border:1px solid rgba(239,68,68,.4);display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>BREACH APPROVED</span>`:''}
-          </div>
-          <div style="font-size:12px;color:var(--t3)">Unit: <strong style="color:var(--t1)">${esc(d.unit_no||'—')}</strong>${d.project_name?' · '+esc(d.project_name):''}</div>
-          ${d.agent_name?`<div style="font-size:12px;color:var(--t3);margin-top:2px">Agent: <strong style="color:var(--t1)">${esc(d.agent_name)}</strong></div>`:''}
-          ${d.co_buyer_name?`<div style="font-size:12px;color:var(--t3);margin-top:2px">Co-buyer: <strong style="color:var(--t1)">${esc(d.co_buyer_name)}</strong></div>`:''}
-        </div>
-        <div style="font-size:11px;color:var(--t3)">Sale Date<br><strong style="color:var(--t1);font-size:14px">${fD(d.sale_date)}</strong></div>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
-        <div style="font-size:11px;color:var(--t3)">Total<br><span style="font-size:15px;font-weight:700;color:var(--t1)">${fMF(d.total_amount)}</span></div>
-        <div style="font-size:11px;color:var(--t3)">Discount<br><span style="font-size:15px;font-weight:700;color:var(--err)">${d.discount>0?'- '+fMF(d.discount):'—'}</span></div>
-        <div style="font-size:11px;color:var(--t3)">Net<br><span style="font-size:15px;font-weight:700;color:var(--info)">${fMF(d.net_amount)}</span></div>
-        <div style="font-size:11px;color:var(--t3)">Down Pmt<br><span style="font-size:15px;font-weight:700;color:var(--ok)">${fMF(d.down_payment)}</span></div>
-        <div style="font-size:11px;color:var(--t3)">Remaining<br><span style="font-size:15px;font-weight:700;color:${(Number(d.net_amount)-totalPaid)>0?'var(--warn)':'var(--ok)'}">${fMF(Number(d.net_amount)-totalPaid)}</span></div>
-        <div style="font-size:11px;color:var(--t3)">Collected<br><span style="font-size:15px;font-weight:700;color:var(--ok)">${fMF(totalPaid)}</span></div>
-        ${Number(d.wht_amount)>0?`<div style="font-size:11px;color:var(--t3)">WHT<br><span style="font-size:13px;font-weight:700;color:var(--t2)">${fMF(d.wht_amount)}</span></div>`:''}
-        ${Number(d.cvt_amount)>0?`<div style="font-size:11px;color:var(--t3)">CVT<br><span style="font-size:13px;font-weight:700;color:var(--t2)">${fMF(d.cvt_amount)}</span></div>`:''}
-      </div>
-      <div style="margin-top:10px">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:4px"><span>Recovery Progress</span><span>${recovPct}%</span></div>
-        <div class="pbar" style="width:100%;height:6px"><div class="pbar-f" style="width:${recovPct}%"></div></div>
-      </div>
-    </div></div>
-
-    <div class="cd">
-      <!-- Left column -->
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Sale Info</h3></div>
-          <div class="cb">
-            ${row('Sale Number',`<span style="font-family:monospace;color:var(--brand)">${esc(d.sale_number)}</span>`)}
-            ${row('Sale Date', fD(d.sale_date))}
-            ${row('Price / Sq Ft', fMF(d.price_per_sqft))}
-            ${row('Area', d.area_sqft ? fM(d.area_sqft)+' sq ft' : null)}
-            ${row('Discount', d.discount>0 ? fMF(d.discount) : null)}
-            ${d.discount>0&&d.discount_approved_by ? row('Disc. Approved By', esc(d.discount_approved_by)) : ''}
-            ${d.discount>0&&d.discount_notes ? row('Disc. Notes', esc(d.discount_notes)) : ''}
-            ${row('Installments', d.installment_count ? d.installment_count+' installments' : null)}
-            ${row('Notes', d.notes ? esc(d.notes) : null)}
-          </div>
-        </div>
-
-        ${(d.co_buyer_name||d.nominee_name) ? `<div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Co-buyer &amp; Nominee</h3></div>
-          <div class="cb">
-            ${d.co_buyer_name ? `
-              <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Co-buyer / Joint Owner</div>
-              ${row('Name', esc(d.co_buyer_name))}
-              ${row('CNIC', d.co_buyer_cnic?`<span style="font-family:monospace">${esc(d.co_buyer_cnic)}</span>`:null)}
-              ${row('Share', d.co_buyer_share_pct ? d.co_buyer_share_pct+'%' : null)}
-            ` : ''}
-            ${d.co_buyer_name&&d.nominee_name ? `<div style="margin:10px 0;border-top:1px solid var(--line)"></div>` : ''}
-            ${d.nominee_name ? `
-              <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Nominee (Legal Heir)</div>
-              ${row('Name', esc(d.nominee_name))}
-              ${row('CNIC', d.nominee_cnic?`<span style="font-family:monospace">${esc(d.nominee_cnic)}</span>`:null)}
-              ${row('Relation', d.nominee_relation ? esc(d.nominee_relation) : null)}
-            ` : ''}
-          </div>
-        </div>` : ''}
-
-        ${(Number(d.wht_amount)>0||Number(d.cvt_amount)>0) ? `<div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>WHT / CVT</h3></div>
-          <div class="cb">
-            ${row('Withholding Tax (WHT)', fMF(d.wht_amount))}
-            ${row('Capital Value Tax (CVT)', fMF(d.cvt_amount))}
-            ${row('Total Tax', fMF(Number(d.wht_amount||0)+Number(d.cvt_amount||0)))}
-          </div>
-        </div>` : ''}
-
-        <div class="card">
-          <div class="ch"><div><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Documents</h3><p>${docs.length} file${docs.length!==1?'s':''}</p></div></div>
-          <div class="cb">
-            ${docsHtml}
-            ${isA ? `<div style="margin-top:12px">
-              <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--hover);border:2px dashed var(--line);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);transition:border-color .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--line)'">
-                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.47"/></svg> Attach Document
-                <input type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="uploadSaleDoc(this,'${d.id}')">
-              </label>
-            </div>` : ''}
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Right column -->
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        ${isA ? `<div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Operations</h3></div>
-          <div style="display:flex;flex-direction:column">
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Allotment Letter</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Formal letter confirming unit allotment</div></div>
-              <button class="btn btn-print btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="printAllotmentLetter()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Application / Booking Form</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Booking application — client &amp; nominee info, ruled boxes for the physical file</div></div>
-              <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-                <select id="sd-appform-size" class="inp-light" style="font-size:12px;padding:7px 10px" title="Page size">
-                  <option value="Legal" selected>Legal</option>
-                  <option value="A4">A4</option>
-                </select>
-                <button class="btn btn-print btn-sm" style="display:inline-flex;align-items:center;gap:5px" onclick="printApplicationForm()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-              </div>
-            </div>
-
-            <div style="padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px;display:flex;align-items:center;gap:6px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Demand Notice</div>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <select id="sd-demand-inst" class="inp-light" style="flex:1;min-width:140px;font-size:12px;padding:7px 10px">
-                  ${pendingInstOpts || `<option value="">— No pending installments —</option>`}
-                </select>
-                <button class="btn btn-print btn-sm" style="flex-shrink:0" onclick="printDemandNotice()">Print</button>
-              </div>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Possession Letter</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Unit handover document</div></div>
-              <button class="btn btn-print btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="printPossessionLetter()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Payment Schedule</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Full installment schedule</div></div>
-              <button class="btn btn-print btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="_salPrintScheduleFromDetail()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Payment Statement</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Outstanding balance view</div></div>
-              <button class="btn btn-print btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="_salPrintPaymentStatement()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Log Amendment</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Record a price or schedule change</div></div>
-              <button class="btn btn-gh btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="openSaleAmendmentModal('${d.id}')"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Log</button>
-            </div>
-
-            ${d.status !== 'cancelled' ? `
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">
-              <div><div style="font-size:13px;font-weight:600;color:var(--err)">Cancel Sale</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Mark as cancelled — requires reason</div></div>
-              <button class="btn btn-r btn-sm" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px" onclick="openCancelSaleModal('${d.id}')"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Cancel</button>
-            </div>` : `<div style="padding:12px 16px;font-size:12px;color:var(--t3);font-style:italic">This sale has been cancelled.</div>`}
-
-          </div>
-        </div>` : ''}
-
-        <div class="card">
-          <div class="ch"><h3><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Payment Schedule</h3><span style="font-size:11px;color:var(--t3)">${inst.length} row${inst.length!==1?'s':''}</span><button class="btn btn-print btn-xs" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px" onclick="_salPrintScheduleFromDetail()"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button></div>
-          <div class="cb" style="padding:0">
-            ${inst.length ? `<div class="tw" style="max-height:420px;overflow-y:auto">
-              <table class="t" style="width:100%">
-                <thead><tr>
-                  <th style="width:32px">#</th><th>Installment</th><th>Due Date</th>
-                  <th style="text-align:right">Amount</th><th style="text-align:right">Paid</th>
-                  <th style="text-align:right">Cumulative</th><th>Status</th><th style="width:38px"></th>
-                </tr></thead>
-                <tbody>${instRows}</tbody>
-              </table>
-            </div>` : `<div class="empty" style="padding:24px"><div class="et">No installments</div></div>`}
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="ch"><div><h3><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Amendment History</h3><p>${amendments.length} record${amendments.length!==1?'s':''}</p></div></div>
-          ${amendsHtml}
-        </div>
-
-      </div>
+    ${toolbar}
+    ${banners}
+    ${hero}
+    ${kpis}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-4);align-items:start;margin-top:var(--fk-sp-4)">
+      <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${saleInfo}${cobuyer}${tax}${docsCard}</div>
+      <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${schedCard}${ops}${amendCard}</div>
     </div>
   </div>`;
+  if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
 
-  // Mount the reusable form-nav bar at the top.
-  // Source list: all active sales for this company (light projection — id + date).
+  // Mount the reusable form-nav bar (unchanged): all active sales (light projection).
   if (typeof mountFormNav === 'function') {
     mountFormNav({
       targetSel: '#sd-form-nav',
@@ -1657,7 +1541,7 @@ function _renderSaleDetail(d, docs, amendments) {
       openEntry: (id) => openSaleDetail(id),
       onEdit:    (id) => isA && openSaleEdit(id),
       onDelete:  async () => {
-        if (typeof toast === 'function') toast('Use Cancel Sale (Operations menu) — sales are not hard-deleted.', 'warn');
+        if (typeof toast === 'function') toast('Use Cancel Sale (Operations) — sales are not hard-deleted.', 'warn');
       }
     });
   }
