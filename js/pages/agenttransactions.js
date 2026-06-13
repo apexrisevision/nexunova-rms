@@ -1,90 +1,71 @@
-// ── Agent Transactions ────────────────────────────────────────────────────────
-// Commission credits, deductions, adjustments, and clawbacks per agent
+// ── Agent Transactions (warmth kit) ───────────────────────────────────────────
+// Commission credits, deductions, adjustments and clawbacks per agent.
+// RPCs untouched: list_agent_transactions · list_agents_lookup ·
+//                 create_agent_transaction · delete_agent_transaction
 
-let _atData = null;
+let _atData       = null;
+let _atTypeFilter = 'all';
+
+// HARDEN (2026-06-13): the legacy form offered transaction_type values
+// (commission_credit/deduction/adjustment/advance/bonus) that the DB CHECK
+// constraint rejects — only commission_paid·clawback·adjustment_debit·
+// adjustment_credit·write_off are valid, and create_agent_transaction inserts
+// the value raw (no remap). So every manual entry except "clawback" silently
+// 400'd. Options below now match the constraint exactly.
+const _AT_TYPES = [
+  ['adjustment_credit', 'Adjustment (Credit)'],
+  ['commission_paid',   'Commission Paid'],
+  ['adjustment_debit',  'Adjustment (Debit)'],
+  ['clawback',          'Clawback (Cancellation)'],
+  ['write_off',         'Write-off'],
+];
+const _AT_TYPE_LABELS = Object.fromEntries(_AT_TYPES);
+// Only adjustment_credit adds to the agent's balance; the rest reduce/pay it.
+const _atIsCredit = t => t === 'adjustment_credit';
 
 async function rAgentTransactions() {
   const el = document.getElementById('pg-agenttransactions');
   if (!el) return;
+  if (typeof _agCSS === 'function') _agCSS();
   const isA = S.role === 'admin' || S.role === 'owner';
 
-  el.innerHTML = `
-  <div class="ph">
-    <div><h2>Agent Transactions</h2><p>Commission credits, deductions &amp; adjustments for all agents</p></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-g btn-sm" onclick="_atLoad()">↺ Refresh</button>
-      ${isA ? `<button class="btn btn-p btn-sm" onclick="_atOpenModal()">+ Manual Entry</button>` : ''}
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
-    <label class="fl" style="margin:0;font-size:12px">Agent:</label>
-    <select id="at-agent-filter" class="fi" style="width:220px;padding:5px 8px" onchange="_atFilterRender()">
-      <option value="">All Agents</option>
-    </select>
-    <button class="btn btn-gh btn-xs at-ttab on" onclick="_atSetType('all',this)">All</button>
-    <button class="btn btn-gh btn-xs at-ttab"    onclick="_atSetType('credit',this)">Credits</button>
-    <button class="btn btn-gh btn-xs at-ttab"    onclick="_atSetType('debit',this)">Deductions</button>
-  </div>
-  <div id="at-kpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px"></div>
-  <div id="at-body"><div class="card"><div class="cb"><div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div></div></div></div>
+  el.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Agent Transactions',
+        NX.button('Refresh', { variant:'secondary', onclick:'_atLoad()' }) +
+        (isA ? NX.button('Manual entry', { variant:'primary', icon:'plus', onclick:'_atOpenModal()' }) : ''),
+        { icon:'banknote', sub:'Commission credits, deductions and adjustments for all agents.' }) +
+      '<div class="agc-kpis" id="at-kpi"></div>' +
+      `<div class="agc-toolbar">
+        <select id="at-agent-filter" class="nx-select" style="max-width:240px" onchange="_atFilterRender()"><option value="">All agents</option></select>
+        <span id="at-tabs"></span>
+      </div>` +
+      '<div id="at-body">' + NX.card(NX.empty({ icon:'banknote', message:'Loading…' })) + '</div>' +
+    '</div>';
 
-  <!-- Modal -->
-  <div id="at-modal" class="mo" style="display:none" onclick="if(event.target===this)_atCloseModal()">
-    <div class="mo-box" style="max-width:460px">
-      <div class="mo-hd"><span>Manual Agent Transaction</span><button class="mo-cl" onclick="_atCloseModal()">✕</button></div>
-      <div class="mo-bd">
-        <div class="fg"><label class="fl">Agent *</label>
-          <select id="at-agent_id" class="fi"><option value="">— Select agent —</option></select></div>
-        <div class="fg"><label class="fl">Transaction Type *</label>
-          <select id="at-transaction_type" class="fi">
-            <option value="commission_credit">Commission Credit</option>
-            <option value="commission_deduction">Commission Deduction</option>
-            <option value="clawback">Clawback (Cancellation)</option>
-            <option value="adjustment">Manual Adjustment</option>
-            <option value="advance">Advance Payment</option>
-            <option value="bonus">Bonus</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Amount *</label>
-          <input type="number" id="at-amount" class="fi" step="0.01" min="0"></div>
-        <div class="fg"><label class="fl">Payment Method</label>
-          <select id="at-payment_method" class="fi">
-            <option value="">— N/A —</option>
-            <option>Cash</option><option>Cheque</option><option>Bank Transfer</option><option>Online</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Reference</label>
-          <input id="at-reference" class="fi" placeholder="Cheque #, voucher #…"></div>
-        <div class="fg"><label class="fl">Notes</label>
-          <textarea id="at-notes" class="fi" rows="2"></textarea></div>
-        <div id="at-modal-err" style="color:var(--err);font-size:12px;margin-top:4px"></div>
-      </div>
-      <div class="mo-ft">
-        <button class="btn btn-g btn-sm" onclick="_atCloseModal()">Cancel</button>
-        <button class="btn btn-p btn-sm" id="at-save-btn" onclick="_atSave()">Save</button>
-      </div>
-    </div>
-  </div>`;
-
+  _atRenderTabs();
   await _atLoad();
   _atPopulateFilters();
 }
 
-let _atTypeFilter = 'all';
-function _atSetType(t, el) {
-  _atTypeFilter = t;
-  document.querySelectorAll('.at-ttab').forEach(b => b.classList.remove('on'));
-  if (el) el.classList.add('on');
-  _atFilterRender();
+function _atRenderTabs() {
+  const el = document.getElementById('at-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({ tabs: [
+    { k:'all',    label:'All' },
+    { k:'credit', label:'Credits' },
+    { k:'debit',  label:'Deductions' }
+  ], active:_atTypeFilter, onSelect:"_atSetType('%k')" });
 }
+
+function _atSetType(t) { _atTypeFilter = t; _atRenderTabs(); _atFilterRender(); }
+
 function _atFilterRender() {
   const agentId = (document.getElementById('at-agent-filter') || {}).value || '';
   let rows = _atData || [];
   if (agentId) rows = rows.filter(r => r.agent_id === agentId);
-  if (_atTypeFilter !== 'all') {
-    if (_atTypeFilter === 'credit') rows = rows.filter(r => ['commission_credit','bonus','adjustment'].includes(r.transaction_type));
-    if (_atTypeFilter === 'debit')  rows = rows.filter(r => ['commission_deduction','clawback','advance'].includes(r.transaction_type));
-  }
+  if (_atTypeFilter === 'credit') rows = rows.filter(r => _atIsCredit(r.transaction_type));
+  if (_atTypeFilter === 'debit')  rows = rows.filter(r => !_atIsCredit(r.transaction_type));
   _atRender(rows);
 }
 
@@ -112,64 +93,84 @@ function _atRender(rows) {
   if (!bodyEl) return;
   const isA = S.role === 'admin' || S.role === 'owner';
 
-  const credits = (rows||[]).filter(r => ['commission_credit','bonus','adjustment'].includes(r.transaction_type))
-    .reduce((s, r) => s + Number(r.amount || 0), 0);
-  const debits  = (rows||[]).filter(r => ['commission_deduction','clawback','advance'].includes(r.transaction_type))
-    .reduce((s, r) => s + Number(r.amount || 0), 0);
+  const credits = (rows||[]).filter(r => _atIsCredit(r.transaction_type)).reduce((s, r) => s + Number(r.amount || 0), 0);
+  const debits  = (rows||[]).filter(r => !_atIsCredit(r.transaction_type)).reduce((s, r) => s + Number(r.amount || 0), 0);
 
   if (kpiEl) {
-    kpiEl.innerHTML = [
-      { l:'Credits', v:fM(credits), c:'var(--ok)' },
-      { l:'Deductions', v:fM(debits), c:'var(--err)' },
-      { l:'Net', v:fM(credits - debits), c:'var(--info)' },
-      { l:'Records', v:(rows||[]).length, c:'var(--t1)' },
-    ].map(k => `<div class="card" style="padding:14px 16px">
-      <div style="font-size:16px;font-weight:800;color:${k.c}">${k.v}</div>
-      <div style="font-size:11px;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${k.l}</div>
-    </div>`).join('');
+    kpiEl.innerHTML =
+      NX.kpi({ icon:'hand-coins',   tone:'success', label:'Credits',    value:`PKR ${_atK(credits)}` }) +
+      NX.kpi({ icon:'x-circle',     tone:'danger',  label:'Deductions', value:`PKR ${_atK(debits)}` }) +
+      NX.kpi({ icon:'banknote',     label:'Net',     value:`PKR ${_atK(credits - debits)}` }) +
+      NX.kpi({ icon:'list',         label:'Records', value:String((rows||[]).length) });
   }
 
   if (!rows || !rows.length) {
-    bodyEl.innerHTML = `<div class="card"><div class="cb"><div class="empty"><div class="ei">💸</div><div class="et">No transactions found</div></div></div></div>`;
+    bodyEl.innerHTML = NX.card(NX.empty({ icon:'banknote', message:'No transactions found.' }));
     return;
   }
 
-  const TYPE_LABELS = {
-    commission_credit:'Commission Credit', commission_deduction:'Deduction',
-    clawback:'Clawback', adjustment:'Adjustment', advance:'Advance', bonus:'Bonus',
-  };
-  const isCredit = t => ['commission_credit','bonus','adjustment'].includes(t);
-
-  const trs = rows.map(r => `<tr>
-    <td>
-      <div style="font-weight:700;font-size:13px">${esc(r.agents?.agent_name || '—')}</div>
-      <div style="font-size:11px;color:var(--t3)">${esc(r.agents?.agent_code || '')}</div>
-    </td>
-    <td><span class="badge ${isCredit(r.transaction_type) ? 'ok' : 'err'}">${esc(TYPE_LABELS[r.transaction_type] || r.transaction_type)}</span></td>
-    <td class="r mono" style="font-weight:700;color:${isCredit(r.transaction_type) ? 'var(--ok)' : 'var(--err)'}">${isCredit(r.transaction_type) ? '+' : '-'}${fM(r.amount)}</td>
-    <td style="font-size:12px;color:var(--t3)">${esc(r.payment_method || '—')}</td>
-    <td class="mono" style="font-size:11px;color:var(--t3)">${esc(r.reference || '—')}</td>
-    <td style="font-size:11px;color:var(--t3)">${r.created_at ? fD(r.created_at.split('T')[0]) : '—'}</td>
-    ${isA ? `<td style="text-align:right"><button class="btn btn-r btn-xs" onclick="_atDelete('${r.id}')">Del</button></td>` : '<td></td>'}
-  </tr>`).join('');
-
-  bodyEl.innerHTML = `<div class="card"><div class="cb"><div class="tw"><table class="t">
-    <thead><tr><th>Agent</th><th>Type</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Date</th>${isA ? '<th></th>' : ''}</tr></thead>
-    <tbody>${trs}</tbody>
-  </table></div></div></div>`;
+  bodyEl.innerHTML = NX.card(
+    `<table class="nx-table"><thead><tr>
+        <th>Agent</th><th>Type</th><th class="num">Amount</th><th>Method</th><th>Reference</th><th>Date</th>${isA?'<th class="num"></th>':''}
+      </tr></thead><tbody>
+      ${rows.map(r => {
+        const credit = _atIsCredit(r.transaction_type);
+        return `<tr>
+          <td><div style="font-weight:500">${esc(r.agents?.agent_name || '—')}</div><div class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(r.agents?.agent_code || '')}</div></td>
+          <td>${NX.badge(_AT_TYPE_LABELS[r.transaction_type] || r.transaction_type, credit ? 'success' : 'danger')}</td>
+          <td class="num" style="font-weight:600;color:${credit ? 'var(--fk-success)' : 'var(--fk-danger)'}">${credit ? '+' : '-'}${fM(r.amount)}</td>
+          <td style="color:var(--fk-text-muted)">${esc(r.payment_method || '—')}</td>
+          <td class="nx-mono" style="color:var(--fk-text-muted)">${esc(r.reference || '—')}</td>
+          <td style="color:var(--fk-text-muted)">${r.created_at ? fD(r.created_at.split('T')[0]) : '—'}</td>
+          ${isA ? `<td class="num">${NX.button('Delete',{variant:'ghost',size:'sm',onclick:`_atDelete('${r.id}')`})}</td>` : ''}
+        </tr>`;
+      }).join('')}</tbody></table>`,
+    { flush:true });
 }
+
+// Compact PKR for the KPI strip (falls back if _agK isn't present)
+function _atK(n) {
+  if (typeof _agK === 'function') return _agK(n);
+  n = Number(n || 0); const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (a >= 1e3) return Math.round(n / 1e3) + 'K';
+  return String(Math.round(n));
+}
+
+// ── Manual entry — host-injected nx-modal ─────────────────────────────────────
+function _atModalHost() {
+  let h = document.getElementById('at-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'at-modal-host'; document.body.appendChild(h); }
+  return h;
+}
+function _atCloseModal() { const h = document.getElementById('at-modal-host'); if (h) h.innerHTML = ''; }
 
 function _atOpenModal() {
-  document.getElementById('at-modal-err').textContent = '';
-  document.getElementById('at-agent_id').value = '';
-  document.getElementById('at-transaction_type').value = 'commission_credit';
-  document.getElementById('at-amount').value = '';
-  document.getElementById('at-payment_method').value = '';
-  document.getElementById('at-reference').value = '';
-  document.getElementById('at-notes').value = '';
-  document.getElementById('at-modal').style.display = 'flex';
+  const typeOpts = _AT_TYPES.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+  const methodOpts = '<option value="">— N/A —</option><option>Cash</option><option>Cheque</option><option>Bank Transfer</option><option>Online</option>';
+
+  const body =
+    `<div class="nx-field"><label class="nx-label" for="at-agent_id">Agent <span class="nx-req">*</span></label><select class="nx-select" id="at-agent_id"><option value="">— Select agent —</option></select></div>` +
+    `<div class="nx-grid-2">` +
+      `<div class="nx-field"><label class="nx-label" for="at-transaction_type">Transaction type <span class="nx-req">*</span></label><select class="nx-select" id="at-transaction_type">${typeOpts}</select></div>` +
+      `<div class="nx-field"><label class="nx-label" for="at-amount">Amount <span class="nx-req">*</span></label><input class="nx-input" id="at-amount" type="number" step="0.01" min="0"></div>` +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      `<div class="nx-field"><label class="nx-label" for="at-payment_method">Payment method</label><select class="nx-select" id="at-payment_method">${methodOpts}</select></div>` +
+      `<div class="nx-field"><label class="nx-label" for="at-reference">Reference</label><input class="nx-input" id="at-reference" placeholder="Cheque #, voucher #…"></div>` +
+    `</div>` +
+    `<div class="nx-field"><label class="nx-label" for="at-notes">Notes</label><textarea class="nx-textarea" id="at-notes" rows="2"></textarea></div>` +
+    `<div class="nx-error" id="at-modal-err"></div>`;
+
+  _atModalHost().innerHTML = NX.modal({
+    id:'at-modal', title:'Manual agent transaction', size:'m', onClose:'_atCloseModal()', body,
+    footer: NX.button('Cancel', { variant:'secondary', onclick:'_atCloseModal()' }) +
+            NX.button('Save', { variant:'primary', attrs:'id="at-save-btn"', onclick:'_atSave()' })
+  });
+
+  // Populate the agent dropdown inside the freshly-injected modal
+  _atPopulateFilters();
 }
-function _atCloseModal() { document.getElementById('at-modal').style.display = 'none'; }
 
 async function _atSave() {
   const agentId = document.getElementById('at-agent_id').value;
@@ -179,7 +180,7 @@ async function _atSave() {
   if (!agentId || !amount) { errEl.textContent = 'Agent and amount are required.'; return; }
 
   const btn = document.getElementById('at-save-btn');
-  btn.disabled = true; btn.textContent = 'Saving…';
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   const { error } = await supabase.rpc('create_agent_transaction', {
     p_company_id: S.cid,
@@ -194,7 +195,7 @@ async function _atSave() {
     }
   });
 
-  btn.disabled = false; btn.textContent = 'Save';
+  if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
   if (error) { errEl.textContent = error.message; return; }
   _atCloseModal();
   await _atLoad();

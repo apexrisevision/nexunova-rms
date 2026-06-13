@@ -2924,273 +2924,6 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     <button class="btn btn-g" id="ex-save-btn" onclick="saveExpenseForm()">💾 Save Expense</button>
   </div>
 </div></div>
-
-<!-- AGENT -->
-<div id="m-agent" class="mov"><div class="md" style="max-width:600px">
-  <div class="mh"><div><h3 id="agent-mtl">👨‍💼 Add Agent</h3><p>Sales agent details</p></div><button class="mx" onclick="closeAgentModal()">✕</button></div>
-  <div class="mb">
-    <input type="hidden" id="af-agent-id">
-
-    <!-- 1: Personal Info -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">👤</span>
-        <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Personal Info</div><div style="font-size:10px;color:var(--t3)">Name, contact &amp; identity documents</div></div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.12);color:var(--brand)">Required</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="fr" style="display:flex;align-items:flex-start;gap:14px">
-          <div>
-            <img id="af-photo-preview" src="data:," alt="Photo" style="display:none;width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--line);margin-bottom:6px">
-            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--hover);border:2px dashed var(--line);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);white-space:nowrap;transition:border-color .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--line)'">
-              📷 Photo<input id="af-photo-file" type="file" accept="image/jpeg,image/png" style="display:none" onchange="_agPreviewPhoto(this)">
-            </label>
-          </div>
-          <div style="flex:1">
-            <label class="fl">Full Name <span class="req-star">*</span></label>
-            <input id="af-name" class="inp-light" type="text" placeholder="Agent full name">
-            <div class="af-err" id="e-af-name" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Phone <span class="req-star">*</span></label>
-            <input id="af-phone" class="inp-light" type="tel" placeholder="Phone number">
-            <div class="af-err" id="e-af-phone" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>
-          </div>
-          <div class="fr">
-            <label class="fl">Email</label>
-            <input id="af-email" class="inp-light" type="email" placeholder="agent@yourbusiness.com">
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">CNIC</label>
-            <input id="af-cnic" class="inp-light" type="text" placeholder="42101-1234567-1" maxlength="15">
-            <div class="af-err" id="e-af-cnic" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>
-          </div>
-          <div class="fr">
-            <label class="fl">Join Date</label>
-            <input id="af-join-date" class="inp-light" type="date">
-          </div>
-        </div>
-        <div class="fr">
-          <label class="fl">Address</label>
-          <input id="af-address" class="inp-light" type="text" placeholder="Home or office address">
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">CNIC Front</label>
-            <label style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;background:var(--hover);border:2px dashed var(--line);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);transition:border-color .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--line)'">
-              📎 <span id="af-cnic-front-lbl">Browse Front</span>
-              <input id="af-cnic-front-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-front-lbl').textContent=this.files[0]?.name||'Browse Front'">
-            </label>
-          </div>
-          <div class="fr">
-            <label class="fl">CNIC Back</label>
-            <label style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;background:var(--hover);border:2px dashed var(--line);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);transition:border-color .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--line)'">
-              📎 <span id="af-cnic-back-lbl">Browse Back</span>
-              <input id="af-cnic-back-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-back-lbl').textContent=this.files[0]?.name||'Browse Back'">
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2: Commission & Bank -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">💰</span>
-        <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Commission &amp; Bank</div><div style="font-size:10px;color:var(--t3)">Payout rate &amp; bank account details</div></div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.12);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Default Commission % <span style="opacity:.45;font-size:10px">(optional — set per sale)</span></label>
-            <input id="af-commission" class="inp-light" type="number" min="0" max="100" step="0.01" placeholder="Leave blank — set at sale time">
-            <div class="af-err" id="e-af-comm" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>
-          </div>
-          <div class="fr">
-            <label class="fl">Bank Name</label>
-            <select id="af-bank-name" class="inp-light">
-              <option value="">— Select Bank —</option>
-              <option>Meezan Bank</option><option>HBL</option><option>UBL</option><option>MCB Bank</option>
-              <option>Standard Chartered</option><option>Bank Alfalah</option><option>Faysal Bank</option>
-              <option>Allied Bank</option><option>Habib Metropolitan Bank</option><option>Askari Bank</option>
-              <option>Bank Al-Habib</option><option>JS Bank</option><option>Silk Bank</option>
-              <option>Summit Bank</option><option>Other</option>
-            </select>
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Account Number</label>
-            <input id="af-bank-acct" class="inp-light" type="text" placeholder="Account number">
-          </div>
-          <div class="fr">
-            <label class="fl">Account Title</label>
-            <input id="af-bank-title" class="inp-light" type="text" placeholder="As per bank records">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3: Territory & Targets -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">🗺️</span>
-        <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Territory &amp; Targets</div><div style="font-size:10px;color:var(--t3)">Coverage area, reporting &amp; sales goals</div></div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Territory / Area</label>
-            <input id="af-territory" class="inp-light" type="text" placeholder="e.g. Falcon Heights, Sapphire Town, Goldenberg">
-          </div>
-          <div class="fr">
-            <label class="fl">Reports To</label>
-            <select id="af-parent-agent" class="inp-light">
-              <option value="">— Independent Agent —</option>
-            </select>
-            <div style="font-size:10px;color:var(--t3);margin-top:3px">Leave blank unless this agent works under a senior agent</div>
-          </div>
-        </div>
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Monthly Target (PKR)</label>
-            <input id="af-monthly-target" class="inp-light" type="number" min="0" step="10000" placeholder="0">
-          </div>
-          <div class="fr">
-            <label class="fl">Quarterly Target (PKR)</label>
-            <input id="af-quarterly-target" class="inp-light" type="number" min="0" step="10000" placeholder="0">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4: Contract Document -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">📄</span>
-        <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Contract Document</div><div style="font-size:10px;color:var(--t3)">Agent agreement or onboarding paperwork</div></div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 10px">
-        <label style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:var(--hover);border:2px dashed var(--line);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--t2);transition:border-color .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--line)'">
-          📄 <span id="af-contract-lbl">Browse Contract (PDF / Image)</span>
-          <input id="af-contract-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-contract-lbl').textContent=this.files[0]?.name||'Browse Contract (PDF / Image)'">
-        </label>
-        <div id="af-contract-prev"></div>
-      </div>
-    </div>
-
-    <!-- 5: Settings -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:4px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">⚙️</span>
-        <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Settings</div><div style="font-size:10px;color:var(--t3)">Status &amp; internal notes</div></div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="fr">
-          <label class="fl">Status</label>
-          <select id="af-status" class="inp-light">
-            <option value="active">🟢 Active</option>
-            <option value="inactive">⛔ Inactive</option>
-          </select>
-        </div>
-        <div class="fr">
-          <label class="fl">Notes</label>
-          <textarea id="af-notes" class="inp-light" rows="2" placeholder="Any additional notes…"></textarea>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="mf">
-    <button class="btn btn-gh" onclick="closeAgentModal()">Cancel</button>
-    <button class="btn btn-g" onclick="saveAgentForm()">💾 Save Agent</button>
-  </div>
-</div></div>
-
-<!-- COMMISSION PAYMENT MODAL -->
-<div id="m-comm-pay" class="mov"><div class="md" style="max-width:460px">
-  <div class="mh"><div><h3>💳 Record Commission Payment</h3><p>Mark commission as paid to agent</p></div><button class="mx" onclick="cm('m-comm-pay')">✕</button></div>
-  <div class="mb">
-    <input type="hidden" id="cp-agent-id">
-
-    <!-- Agent strip -->
-    <div id="cp-agent-strip" style="display:flex;align-items:center;gap:10px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.25);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;font-weight:700;color:var(--text)"></div>
-
-    <!-- Payment Details -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">💰</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Payment Details</div>
-          <div style="font-size:10px;color:var(--t3)">Amount and date of commission disbursement</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.12);color:var(--brand)">Required</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Amount (PKR) *</label>
-            <input id="cp-amount" class="inp-light" type="number" min="1" step="1" placeholder="0.00">
-            <div id="e-cp-amount" style="font-size:11px;color:var(--err);min-height:14px"></div>
-          </div>
-          <div class="fr">
-            <label class="fl">Payment Date *</label>
-            <input id="cp-date" class="inp-light" type="date">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Transfer Details -->
-    <div style="border:1px solid var(--line);border-radius:var(--r);margin-bottom:4px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--hover);border-bottom:1px solid var(--line)">
-        <span style="font-size:16px">🏦</span>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--t1)">Transfer Details</div>
-          <div style="font-size:10px;color:var(--t3)">Method, reference and remarks</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--t3)">Optional</span>
-      </div>
-      <div style="padding:14px 14px 2px">
-        <div class="g2">
-          <div class="fr">
-            <label class="fl">Payment Method</label>
-            <select id="cp-method" class="inp-light">
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cash">Cash</option>
-              <option value="cheque">Cheque</option>
-              <option value="online">Online / Mobile</option>
-            </select>
-          </div>
-          <div class="fr">
-            <label class="fl">Reference No</label>
-            <input id="cp-refno" class="inp-light" type="text" placeholder="Transaction / cheque no">
-          </div>
-        </div>
-        <div class="fr">
-          <label class="fl">Notes</label>
-          <textarea id="cp-notes" class="inp-light" rows="2" placeholder="Optional notes…"></textarea>
-        </div>
-        <div id="cp-err" style="color:var(--err);font-size:12px;min-height:16px;margin-top:4px"></div>
-      </div>
-    </div>
-  </div>
-  <div class="mf">
-    <button class="btn btn-gh" onclick="cm('m-comm-pay')">Cancel</button>
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;margin-right:auto">
-      <input type="checkbox" id="cp-print-voucher" checked> Print Voucher
-    </label>
-    <button class="btn btn-g" id="cp-save-btn" onclick="saveCommPayForm()">💾 Record Payment</button>
-  </div>
-</div></div>
-
 <!-- SALE modal removed — new sale uses pg-newsale full page -->
 
 <!-- POSSESSION MODAL -->
@@ -3527,7 +3260,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 3.5 FOUNDATION (Phase 2): design-kit render helpers + race-free print emitter.
      Loaded before ui.js + page modules so NX.* / NXPrint.* are available everywhere. -->
-<script src="js/foundation/kit.js?v=20260613g"></script>
+<script src="js/foundation/kit.js?v=20260613h"></script>
 <script src="js/foundation/print.js?v=20260612a"></script>
 <script src="js/foundation/report-page.js?v=20260612c"></script>
 <script src="js/components/client-form.js?v=20260613a"></script>
@@ -3549,7 +3282,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/units.js?v=20260613w"></script>
 <script src="js/pages/clients.js?v=20260613w"></script>
 <script src="js/pages/projects.js?v=20260613c"></script>
-<script src="js/pages/agents.js?v=20260529a"></script>
+<script src="js/pages/agents.js?v=20260613a"></script>
 <script src="js/pages/sales.js?v=20260613w"></script>
 <script src="js/pages/recovery.js?v=20260612b1"></script>
 <script src="js/pages/payments.js?v=20260613w"></script>
@@ -3594,7 +3327,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/receivables.js?v=20260522a"></script>
 <script src="js/pages/escalations.js?v=20260613a"></script>
 <script src="js/pages/legalcases.js?v=20260613a"></script>
-<script src="js/pages/agenttransactions.js?v=20260522a"></script>
+<script src="js/pages/agenttransactions.js?v=20260613b"></script>
 <script src="js/pages/campaigns.js?v=20260613a"></script>
 <script src="js/pages/forecasting.js?v=20260525a"></script>
 <script src="js/pages/comms-center.js?v=20260528a"></script>

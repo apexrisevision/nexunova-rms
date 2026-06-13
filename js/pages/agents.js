@@ -3,7 +3,6 @@
 let _agSearch       = '';
 let _agStatus       = '';
 let _agSort         = 'name';
-let _agView         = localStorage.getItem('nxn_ag_view') || 'cards';
 let _agId           = null;
 let _agIti          = null;
 let _agCache        = [];
@@ -24,46 +23,116 @@ function _agPreviewPhoto(input) {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-// Hash agent's UUID → stable unique accent color across a 12-hue vibrant palette
-const _AG_PALETTE = [
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#f43f5e', // rose
-  '#f97316', // orange
-  '#f59e0b', // amber
-  '#84cc16', // lime
-  '#10b981', // emerald
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#3b82f6', // blue
-  '#a855f7', // purple
-];
-function _agColor(agent) {
-  const key = agent.id || agent.full_name || '';
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
-  return _AG_PALETTE[Math.abs(h) % _AG_PALETTE.length];
+// One-time agents CSS — list grid, detail, commissions, transactions.
+// NOTE: class names deliberately avoid the substring "-card" (visual-overhaul.css
+// #s-app [class*="-card"] would box them). Safe prefixes: agc-/agd-.
+function _agCSS() {
+  if (document.getElementById('_ag_css')) return;
+  const s = document.createElement('style'); s.id = '_ag_css';
+  s.textContent = `
+    .agc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+    @media(max-width:900px){.agc-kpis{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:520px){.agc-kpis{grid-template-columns:1fr}}
+    .agc-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+    .agc-search{position:relative;flex:1;min-width:200px;max-width:320px}
+    .agc-search .nx-input{padding-left:32px}
+    .agc-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--fk-text-muted);display:inline-flex;pointer-events:none}
+    .agc-count{margin-left:auto;font-size:12px;color:var(--fk-text-muted)}
+    .agc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));gap:14px}
+    .agc-tile{cursor:pointer;display:flex;flex-direction:column;padding:0;overflow:hidden;position:relative}
+    .agc-hd{display:flex;align-items:flex-start;gap:12px;padding:15px 16px 13px}
+    .agc-id{flex:1;min-width:0}
+    .agc-name{font-size:14px;font-weight:600;color:var(--fk-text);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .agc-code{font-size:10px;font-family:var(--fk-font-mono,ui-monospace,monospace);color:var(--fk-text-muted);margin-top:2px}
+    .agc-contact{font-size:11px;color:var(--fk-text-muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .agc-rank{position:absolute;top:13px;right:14px;font-size:10px;font-weight:600;color:var(--fk-text-muted);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:99px;padding:1px 7px}
+    .agc-stats{display:grid;grid-template-columns:auto 1fr;border-top:1px solid var(--fk-border);background:var(--fk-bg-subtle)}
+    .agc-sales{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 20px;border-right:1px solid var(--fk-border)}
+    .agc-sales-v{font-size:24px;font-weight:600;color:var(--fk-text);font-variant-numeric:tabular-nums;line-height:1}
+    .agc-sales-l{font-size:9px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+    .agc-comm{padding:11px 14px;display:flex;flex-direction:column;justify-content:center;gap:7px}
+    .agc-comm-row{display:flex;align-items:baseline;justify-content:space-between;font-size:11px;color:var(--fk-text-muted)}
+    .agc-comm-row .num{font-weight:600;font-variant-numeric:tabular-nums}
+    .agc-foot{padding:8px 16px;display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--fk-text-muted);border-top:1px solid var(--fk-border)}
+    .agd-hero{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+    .agd-hero-id{flex:1;min-width:0}
+    .agd-hero-code{font-size:12px;font-family:var(--fk-font-mono,ui-monospace,monospace);color:var(--fk-text-muted);margin-top:3px}
+    .agd-hero-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+    .agd-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--fk-border)}
+    .agd-target{margin-top:14px;padding:12px 14px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:var(--fk-radius-control)}
+    .agd-target-hd{display:flex;justify-content:space-between;font-size:11px;color:var(--fk-text-muted);margin-bottom:6px}
+    .agd-pb{height:7px;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:99px;overflow:hidden}
+    .agd-pf{height:100%;border-radius:99px;background:var(--fk-primary)}
+    .agd-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+    @media(max-width:900px){.agd-cols{grid-template-columns:1fr}}
+    .agd-col{display:flex;flex-direction:column;gap:14px}
+    .agd-op{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--fk-border)}
+    .agd-op:last-child{border-bottom:none}
+    .agd-op-t{font-size:13px;font-weight:500;color:var(--fk-text)}
+    .agd-op-s{font-size:11px;color:var(--fk-text-muted);margin-top:2px}
+    .agc-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+    @media(max-width:560px){.agc-summary{grid-template-columns:1fr}}
+    .ag-doc-img{width:100%;border-radius:var(--fk-radius-control);border:1px solid var(--fk-border)}
+    .ag-sub{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
+    .ag-sub:first-child{margin-top:2px}
+    .ag-sub span{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted)}
+    .ag-up{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:var(--fk-bg-subtle);border:1.5px dashed var(--fk-border);border-radius:var(--fk-radius-control);font-size:12.5px;font-weight:500;cursor:pointer;color:var(--fk-text-muted);transition:border-color .15s,color .15s}
+    .ag-up:hover{border-color:var(--fk-primary);color:var(--fk-primary)}
+    .ag-photo-wrap{display:flex;align-items:center;gap:12px}
+    .ag-photo-prev{width:54px;height:54px;border-radius:50%;object-fit:cover;border:1px solid var(--fk-border)}
+  `;
+  document.head.appendChild(s);
+}
+
+// Compact nx-field builder for the agent form (stable af-* ids preserved).
+function _agFld(label, id, o) {
+  o = o || {};
+  const tag = o.el || 'input';
+  const ph  = o.ph ? ` placeholder="${esc(o.ph)}"` : '';
+  const ax  = o.attrs ? ` ${o.attrs}` : '';
+  const req = o.req ? ' <span class="nx-req">*</span>' : '';
+  const lbl = `<label class="nx-label" for="${id}">${esc(label)}${req}</label>`;
+  let ctrl;
+  if (tag === 'textarea') ctrl = `<textarea class="nx-textarea" id="${id}"${ph}${ax} rows="${o.rows||2}"></textarea>`;
+  else if (tag === 'select') ctrl = `<select class="nx-select" id="${id}"${ax}>${o.options||''}</select>`;
+  else ctrl = `<input class="nx-input" id="${id}" type="${o.type||'text'}"${ph}${ax}>`;
+  const foot = o.errId ? `<div class="nx-error" id="${o.errId}"></div>`
+             : o.hint  ? `<div class="nx-error" style="color:var(--fk-text-muted)">${esc(o.hint)}</div>` : '';
+  return `<div class="nx-field"${o.fieldId?` id="${o.fieldId}"`:''}>${lbl}${ctrl}${foot}</div>`;
+}
+function _agSub(icon, title) { return `<div class="ag-sub">${NX.ichip(icon, '', { size:'sm' })}<span>${esc(title)}</span></div>`; }
+
+function _agModalHost() {
+  let h = document.getElementById('ag-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'ag-modal-host'; document.body.appendChild(h); }
+  return h;
 }
 
 function _agAvatar(agent, size = 40) {
   if (agent.profile_photo_url) {
     return `<img src="${esc(agent.profile_photo_url)}" alt="${esc(agent.full_name)}"
-      style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;">`;
+      style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
   }
   const initials = ini(agent.full_name);
-  const color    = _agColor(agent);
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
-    font-size:${Math.round(size * 0.35)}px;color:white;flex-shrink:0;
-    box-shadow:0 0 0 2px ${color}44">${initials}</div>`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:var(--fk-primary-tint);color:var(--fk-primary);
+    display:flex;align-items:center;justify-content:center;font-weight:600;
+    font-size:${Math.round(size * 0.38)}px;flex-shrink:0">${initials}</div>`;
 }
 
+// Status → kit badge (success / neutral). Single source for list, detail, commissions.
 function _agStatusBadge(status) {
   return status === 'active'
-    ? `<span class="badge ba"><span class="b-dot"></span>Active</span>`
-    : `<span class="badge bd"><span class="b-dot"></span>Inactive</span>`;
+    ? NX.badge('Active', 'success', { dot:true })
+    : NX.badge('Inactive', '', { dot:true });
+}
+
+// Compact PKR (K/M/B) for tight stat surfaces — Western locale.
+function _agK(n) {
+  n = Number(n || 0); const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (a >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (a >= 1e3) return Math.round(n / 1e3) + 'K';
+  return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
 // ── LIST PAGE ────────────────────────────────────────────────────────
@@ -71,57 +140,30 @@ async function rAgents() {
   const cid = S?.cid;
   const pg  = document.getElementById('pg-agents');
   if (!pg) return;
-  if (!cid) { pg.innerHTML = `<div class="inv-empty" style="padding:60px"><div class="inv-empty-ic">${_UI.user}</div><h4>Not logged in</h4></div>`; return; }
+  if (!cid) { pg.innerHTML = NX.card(NX.empty({ icon:'users', message:'Not logged in.' })); return; }
+  _agCSS();
 
   const canEdit = _canEditAgent();
+  const statusSel = [['','Status: All'],['active','Active'],['inactive','Inactive']]
+    .map(([v,l]) => `<option value="${v}"${_agStatus===v?' selected':''}>${l}</option>`).join('');
+  const sortSel = [['name','Sort: Name'],['sales','Top Sales'],['commission','Top Commission']]
+    .map(([v,l]) => `<option value="${v}"${_agSort===v?' selected':''}>${l}</option>`).join('');
 
-  pg.innerHTML = `<div class="inv-page ani module-agent">
-
-  <!-- Breadcrumb -->
-  <div class="inv-breadcrumb">
-    <span class="lnk" onclick="nav('dashboard')">Home</span>
-    <span style="opacity:.4">${_UI.chevR}</span>
-    <span style="color:var(--text-soft)">Agents</span>
-  </div>
-
-  <!-- Page Header -->
-  <div class="inv-ph-row">
-    <h1 class="inv-title">Sales Agents</h1>
-    <div class="inv-ph-actions">
-      ${canEdit ? `<button id="um-add-agent-btn" class="btn btn-g btn-sm" onclick="openAgentModal(null)" style="display:inline-flex;align-items:center;gap:6px;height:32px;font-size:13px">${_UI.plus} Add Agent</button>` : ''}
-    </div>
-  </div>
-
-  <!-- Stats Row -->
-  <div id="ag-stats"></div>
-
-  <!-- Filter Toolbar -->
-  <div class="inv-toolbar">
-    <div class="inv-search-wrap">
-      <span class="inv-search-icon">${_UI.search}</span>
-      <input class="inv-search-inp" id="ag-search" placeholder="Name, CNIC, phone, code…"
-             value="${esc(_agSearch)}" oninput="_agDoSearch(this.value)" autocomplete="off">
-      <span class="inv-search-cmd">⌘K</span>
-    </div>
-    <div class="inv-status-pills">
-      <button class="inv-spill${!_agStatus?' on':''}" onclick="_agSetStatus('')">All</button>
-      <button class="inv-spill${_agStatus==='active'?' on':''}" onclick="_agSetStatus('active')">Active</button>
-      <button class="inv-spill${_agStatus==='inactive'?' on':''}" onclick="_agSetStatus('inactive')">Inactive</button>
-    </div>
-    <button class="inv-fc" id="ag-fc-sort" onclick="_agSortDropdown(this)">
-      ${_UI.sort}
-      <span class="inv-fc-label">Sort</span>
-      <span class="inv-fc-val">${_agSort==='sales'?'Top Sales':_agSort==='commission'?'Commission':'Name'}</span>
-      ${_UI.chevD}
-    </button>
-    <div class="inv-view-toggle">
-      <button class="inv-view-btn${_agView==='cards'?' on':''}" onclick="_agSetView('cards')" title="Card view">${_UI.grid}</button>
-      <button class="inv-view-btn${_agView==='board'?' on':''}" onclick="_agSetView('board')" title="Leaderboard">${_UI.board}</button>
-    </div>
-  </div>
-
-  <div id="ag-grid"></div>
-</div>`;
+  pg.innerHTML =
+    '<div class="ani module-agent">' +
+      NX.pageHeader('Sales Agents',
+        canEdit ? NX.button('Add agent', { variant:'primary', icon:'plus', attrs:'id="um-add-agent-btn"', onclick:'openAgentModal(null)' }) : '',
+        { icon:'users', sub:'Your sales team — attribution, targets and commission.' }) +
+      '<div class="agc-kpis" id="ag-stats"></div>' +
+      `<div class="agc-toolbar">
+        <div class="agc-search"><span class="agc-search-ic">${NX.icon('search',15)}</span>
+          <input class="nx-input" id="ag-search" placeholder="Name, CNIC, phone, code…" value="${esc(_agSearch)}" oninput="_agDoSearch(this.value)" autocomplete="off"></div>
+        <select class="nx-select" id="ag-status-sel" style="max-width:150px" onchange="_agSetStatus(this.value)">${statusSel}</select>
+        <select class="nx-select" id="ag-sort-sel" style="max-width:170px" onchange="_agSetSort(this.value)">${sortSel}</select>
+        <span class="agc-count" id="ag-count-lbl"></span>
+      </div>` +
+      '<div id="ag-grid"></div>' +
+    '</div>';
 
   await _loadAgentList();
   _checkAgentLimitUI();
@@ -143,39 +185,16 @@ async function _checkAgentLimitUI() {
   } catch(e) { /* UI hint only — not blocking */ }
 }
 
-function _agSortDropdown(btn) {
-  _invCloseDD();
-  const rect = btn.getBoundingClientRect();
-  const dd = document.createElement('div');
-  dd.className = 'inv-dd'; dd.id = 'inv-dd-open';
-  dd.style.top  = (rect.bottom + 4) + 'px';
-  dd.style.left = rect.left + 'px';
-  const opts = [['name','Name A–Z'],['sales','Top Sales'],['commission','Commission']];
-  dd.innerHTML = `<div class="inv-dd-hd">SORT BY</div>` +
-    opts.map(([v,l]) => `<button class="inv-dd-item" onclick="_invCloseDD();_agSetSort('${v}')">${_agSort===v?'✓ ':''} ${l}</button>`).join('');
-  document.body.appendChild(dd);
-  _invDD = dd;
-  _invArmOutsideClose(btn);
-}
-
 let _agSearchTimer = null;
 function _agDoSearch(v) { _agSearch = v; clearTimeout(_agSearchTimer); _agSearchTimer = setTimeout(_loadAgentList, 300); }
 function _agSetStatus(v) { _agStatus = v; _loadAgentList(); }
 function _agSetSort(v)   { _agSort   = v; _loadAgentList(); }
-function _agSetView(v) {
-  _agView = v;
-  localStorage.setItem('nxn_ag_view', v);
-  document.querySelectorAll('.inv-view-btn').forEach(b => b.classList.remove('on'));
-  const active = document.querySelector(`.inv-view-btn[onclick*="${v}"]`);
-  if (active) active.classList.add('on');
-  _renderAgentGrid(_agCache);
-}
 
 async function _loadAgentList() {
   const cid  = S?.cid;
   const grid = document.getElementById('ag-grid');
   if (!grid || !cid) return;
-  grid.innerHTML = `<div class="empty"><div class="ei" style="font-size:28px">⏳</div><div class="et">Loading agents…</div></div>`;
+  grid.innerHTML = NX.card(NX.empty({ icon:'users', message:'Loading agents…' }));
 
   try {
     const { data, error } = await supabase.rpc('list_agents', {
@@ -190,7 +209,7 @@ async function _loadAgentList() {
     _renderAgentStats(_agCache);
     _renderAgentGrid(_agCache);
   } catch(e) {
-    grid.innerHTML = `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="et">Failed to load agents</div><div class="es">${esc(e.message)}</div></div>`;
+    grid.innerHTML = NX.card(NX.banner('Failed to load agents: ' + (e.message || 'Error'), 'danger'));
   }
 }
 
@@ -200,236 +219,59 @@ function _renderAgentStats(agents) {
   const active   = agents.filter(a => a.status === 'active').length;
   const totalComm = agents.reduce((s, a) => s + Number(a.total_commission_earned || 0), 0);
   const pendingComm = agents.reduce((s, a) => s + Number(a.total_commission_pending || 0), 0);
-  el.className = 'stat-row module-agent';
-  el.innerHTML = `
-    <div class="stat-card">
-      <div class="stat-val">${agents.length}</div>
-      <div class="stat-lbl">Total Agents</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" style="color:var(--ok)">${active}</div>
-      <div class="stat-lbl">Active</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" style="color:var(--info);font-size:18px">${fM(totalComm)}</div>
-      <div class="stat-lbl">Commission Earned</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" style="color:var(--warn);font-size:18px">${fM(pendingComm)}</div>
-      <div class="stat-lbl">Commission Pending</div>
-    </div>`;
+  el.innerHTML =
+    NX.kpi({ icon:'users',        label:'Total Agents',       value:String(agents.length) }) +
+    NX.kpi({ icon:'check-circle', tone:'success', label:'Active', value:String(active) }) +
+    NX.kpi({ icon:'hand-coins',   tone:'success', label:'Commission Earned',  value:`PKR ${fM(totalComm)}` }) +
+    NX.kpi({ icon:'clock',        tone:'warning', label:'Commission Pending', value:`PKR ${fM(pendingComm)}` });
 
   const lbl = document.getElementById('ag-count-lbl');
   if (lbl) lbl.textContent = agents.length + (agents.length === 1 ? ' agent' : ' agents');
 }
 
+// Warm agent card grid (avatar indigo, kit badge, tinted stat strip, hover lift).
 function _renderAgentGrid(agents) {
-  if (_agView === 'board') { _renderLeaderboard(agents); return; }
-
   const grid = document.getElementById('ag-grid');
   if (!grid) return;
   const canEdit  = _canEditAgent();
   const showRank = _agSort === 'sales' || _agSort === 'commission';
 
   if (!agents.length) {
-    grid.innerHTML = `<div class="inv-empty">
-      <span class="inv-empty-ic">${_UI.user}</span>
-      <p class="inv-empty-tx">No agents found</p>
-      <p class="inv-empty-sub">${_agSearch||_agStatus ? 'Try clearing filters' : (canEdit ? 'Add your first sales agent to get started' : 'No agents added yet')}</p>
-      ${(!_agSearch && !_agStatus && canEdit) ? `<button class="btn btn-g btn-sm" style="margin-top:12px" onclick="openAgentModal(null)">${_UI.plus} Add Agent</button>` : ''}
-    </div>`;
+    grid.innerHTML = NX.card(NX.empty({
+      icon:'users',
+      message: (_agSearch||_agStatus) ? 'No agents match your filters.' : (canEdit ? 'No agents yet — add your first sales agent to get started.' : 'No agents added yet.'),
+      action: (!_agSearch && !_agStatus && canEdit) ? NX.button('Add agent', { variant:'primary', icon:'plus', onclick:'openAgentModal(null)' }) : ''
+    }));
     return;
   }
 
-  const _rankMedal = [
-    '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f5c842;font-size:11px;font-weight:800;color:#7c5e00">1</span>',
-    '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#94a3b8;font-size:11px;font-weight:800;color:#fff">2</span>',
-    '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#cd7c3f;font-size:11px;font-weight:800;color:#fff">3</span>'
-  ];
-
-  grid.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px">
-    ${agents.map((a, idx) => {
-      const pending = Number(a.total_commission_pending || 0);
-      const earned  = Number(a.total_commission_earned  || 0);
-      const ac      = _agColor(a);
-      const medal   = showRank && idx < 3 ? _rankMedal[idx] : null;
-      const rankBadge = showRank
-        ? (medal
-            ? `<span style="position:absolute;top:10px;right:10px;font-size:18px;line-height:1">${medal}</span>`
-            : `<span style="position:absolute;top:12px;right:12px;font-size:10px;font-weight:700;color:var(--t3);background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:1px 7px">#${idx+1}</span>`)
-        : '';
-
-      return `
-      <div onclick="openAgentDetail('${a.id}')"
-        style="cursor:pointer;background:var(--surface);border:1px solid var(--line);
-               border-radius:14px;overflow:hidden;position:relative;
-               box-shadow:0 1px 4px rgba(0,0,0,.08);
-               transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s ease,border-color .2s ease"
-        onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 28px rgba(0,0,0,.16)';this.style.borderColor='${ac}99'"
-        onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';this.style.borderColor=''">
-
-        ${rankBadge}
-        <div style="height:3px;background:linear-gradient(90deg,${ac},${ac}88)"></div>
-
-        <div style="padding:16px 16px 14px;display:flex;align-items:flex-start;gap:13px;border-bottom:1px solid var(--line)">
-          ${_agAvatar(a, 46)}
-          <div style="flex:1;min-width:0;padding-top:2px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:5px">
-              <span style="font-size:14px;font-weight:600;color:var(--t1);line-height:1.3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.full_name)}</span>
-              ${_agStatusBadge(a.status)}
-            </div>
-            <div style="font-size:10px;color:var(--t4);font-family:'JetBrains Mono',monospace;margin-bottom:7px">${esc(a.agent_code)}</div>
-            ${a.phone    ? `<div style="font-size:11px;color:var(--t2);margin-bottom:2px">${esc(a.phone)}</div>` : ''}
-            ${a.email    ? `<div style="font-size:10px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.email)}</div>` : ''}
-            ${a.territory? `<div style="font-size:10px;color:var(--t4);margin-top:2px">${esc(a.territory)}</div>` : ''}
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:stretch;background:${ac}0d;border-bottom:1px solid var(--line)">
-          <div style="flex:0 0 80px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 0;border-right:1px solid ${ac}28">
-            <div style="font-size:26px;font-weight:600;color:var(--t1);font-family:'JetBrains Mono',monospace;line-height:1">${a.total_sales_count || 0}</div>
-            <div style="font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:.7px;margin-top:5px">sales</div>
-          </div>
-          <div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;gap:8px">
-            <div style="display:flex;align-items:baseline;justify-content:space-between">
-              <span style="font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:.5px">Earned</span>
-              <span style="font-size:13px;color:var(--ok);font-family:'JetBrains Mono',monospace">${fM(earned)}</span>
-            </div>
-            <div style="display:flex;align-items:baseline;justify-content:space-between">
-              <span style="font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:.5px">Pending</span>
-              <span style="font-size:13px;font-family:'JetBrains Mono',monospace;color:${pending>0?'var(--warn)':'var(--t4)'}">${fM(pending)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div style="padding:7px 16px;display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:10px;color:var(--t4)">${Number(a.commission_percent||0)}% commission</span>
-          ${a.rating ? `<span style="font-size:10px;color:${ac}">★ ${Number(a.rating).toFixed(1)}</span>` : ''}
-        </div>
-
-      </div>`;
-    }).join('')}
-  </div>`;
-}
-
-// ── LEADERBOARD VIEW ─────────────────────────────────────────────────
-function _renderLeaderboard(agents) {
-  const grid = document.getElementById('ag-grid');
-  if (!grid) return;
-  const canEdit = _canEditAgent();
-
-  if (!agents.length) {
-    grid.innerHTML = `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></div><div class="et">No agents found</div><div class="es">${_agSearch||_agStatus?'Try clearing filters':''}</div></div>`;
-    return;
-  }
-
-  // Sort by sales for leaderboard display
-  const ranked  = [...agents].sort((a,b) => Number(b.total_sales_count||0) - Number(a.total_sales_count||0));
-  const maxSales = Math.max(1, Number(ranked[0]?.total_sales_count || 0));
-  const maxEarned = Math.max(1, ranked.reduce((m,a) => Math.max(m, Number(a.total_commission_earned||0)), 0));
-
-  const rankCfg = [
-    { medal:'<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#f5c842;font-size:14px;font-weight:800;color:#7c5e00">1</span>', color:'#f5c842', bg:'rgba(245,200,66,.08)', border:'rgba(245,200,66,.3)',  label:'1st', size:56 },
-    { medal:'<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#94a3b8;font-size:13px;font-weight:800;color:#fff">2</span>', color:'#94a3b8', bg:'rgba(148,163,184,.06)', border:'rgba(148,163,184,.25)', label:'2nd', size:48 },
-    { medal:'<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#cd7c3f;font-size:13px;font-weight:800;color:#fff">3</span>', color:'#cd7c3f', bg:'rgba(205,124,63,.08)', border:'rgba(205,124,63,.3)',  label:'3rd', size:48 },
-  ];
-
-  // ── Podium (top 3) ──────────────────────────────────────────────
-  const podium3 = ranked.slice(0, 3);
-  // Reorder: 2nd | 1st | 3rd (classic podium)
-  const podiumOrder = podium3.length >= 3
-    ? [podium3[1], podium3[0], podium3[2]]
-    : podium3.length === 2
-    ? [podium3[1], podium3[0]]
-    : [podium3[0]];
-  const podiumCfgOrder = podium3.length >= 3
-    ? [rankCfg[1], rankCfg[0], rankCfg[2]]
-    : podium3.length === 2
-    ? [rankCfg[1], rankCfg[0]]
-    : [rankCfg[0]];
-
-  const podiumHTML = podiumOrder.map((a, pi) => {
-    const rc  = podiumCfgOrder[pi];
-    const ac  = _agColor(a);
-    const earned = Number(a.total_commission_earned || 0);
-    const isFirst = rc.label === '1st';
-    return `
-    <div onclick="openAgentDetail('${a.id}')" style="
-      flex:1;max-width:260px;background:var(--surface);border:1px solid ${rc.border};border-radius:16px;
-      padding:20px 16px;text-align:center;cursor:pointer;
-      background:linear-gradient(160deg,var(--surface),${rc.bg});
-      box-shadow:0 4px 20px rgba(0,0,0,.12)${isFirst?`,0 0 40px ${rc.color}18`:''};
-      transform:${isFirst?'scale(1.03)':'scale(1)'};
-      transition:transform .2s,box-shadow .2s"
-      onmouseenter="this.style.transform='${isFirst?'scale(1.06)':'translateY(-3px)'}';this.style.boxShadow='0 8px 30px rgba(0,0,0,.2)'"
-      onmouseleave="this.style.transform='${isFirst?'scale(1.03)':'scale(1)'}';this.style.boxShadow='0 4px 20px rgba(0,0,0,.12)${isFirst?`,0 0 40px ${rc.color}18`:''}'"
-    >
-      <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:center">${rc.medal}</div>
-      <div style="margin:0 auto 10px;border:2px solid ${rc.color}66;border-radius:50%;display:inline-flex">${_agAvatar(a, rc.size)}</div>
-      <div style="font-size:${isFirst?'15':'13'}px;font-weight:700;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.full_name)}</div>
-      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3);margin-bottom:12px">${esc(a.agent_code)}</div>
-      <div style="font-size:${isFirst?'32':'26'}px;font-weight:800;color:${rc.color};font-family:'JetBrains Mono',monospace;line-height:1">${a.total_sales_count||0}</div>
-      <div style="font-size:9px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">sales</div>
-      <div style="font-size:11px;color:var(--ok);font-family:'JetBrains Mono',monospace">${fM(earned)}</div>
-      <div style="font-size:9px;color:var(--t3);margin-top:1px">earned</div>
-    </div>`;
-  }).join('');
-
-  // ── Ranked list (all agents) ─────────────────────────────────────
-  const listHTML = ranked.map((a, idx) => {
-    const ac      = _agColor(a);
-    const sales   = Number(a.total_sales_count || 0);
-    const earned  = Number(a.total_commission_earned || 0);
-    const pct     = Math.round(sales / maxSales * 100);
-    const commPct = Math.round(earned / maxEarned * 100);
-    const medals  = [
-      '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f5c842;font-size:11px;font-weight:800;color:#7c5e00">1</span>',
-      '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#94a3b8;font-size:11px;font-weight:800;color:#fff">2</span>',
-      '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#cd7c3f;font-size:11px;font-weight:800;color:#fff">3</span>'
-    ];
-    const rankDisp = idx < 3
-      ? medals[idx]
-      : `<span style="font-size:12px;font-weight:700;color:var(--t3);font-family:'JetBrains Mono',monospace;min-width:24px;text-align:center">#${idx+1}</span>`;
-
-    return `
-    <div onclick="openAgentDetail('${a.id}')" style="
-      display:flex;align-items:center;gap:14px;padding:13px 16px;
-      border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s"
-      onmouseenter="this.style.background='rgba(255,255,255,.02)'"
-      onmouseleave="this.style.background=''">
-      <div style="flex-shrink:0;width:28px;text-align:center">${rankDisp}</div>
-      ${_agAvatar(a, 38)}
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.full_name)}</span>
-          ${_agStatusBadge(a.status)}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div style="flex:1;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;max-width:180px">
-            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${ac},${ac}bb);border-radius:99px;transition:width .6s ease"></div>
-          </div>
-          <span style="font-size:10px;color:var(--t3);flex-shrink:0">${sales} sale${sales!==1?'s':''}</span>
+  grid.innerHTML = `<div class="agc-grid">${agents.map((a, idx) => {
+    const pending = Number(a.total_commission_pending || 0);
+    const earned  = Number(a.total_commission_earned  || 0);
+    const contact = [a.phone, a.email].filter(Boolean).join(' · ') || a.territory || '';
+    return `<div class="nx-card nx-card--hover agc-tile" onclick="openAgentDetail('${a.id}')">
+      ${showRank ? `<span class="agc-rank">#${idx+1}</span>` : ''}
+      <div class="agc-hd">
+        ${_agAvatar(a, 44)}
+        <div class="agc-id">
+          <div class="agc-name">${esc(a.full_name)}</div>
+          ${a.agent_code ? `<div class="agc-code">${esc(a.agent_code)}</div>` : ''}
+          ${contact ? `<div class="agc-contact">${esc(contact)}</div>` : ''}
         </div>
       </div>
-      <div style="text-align:right;flex-shrink:0;min-width:90px">
-        <div style="font-size:13px;font-weight:700;color:var(--ok);font-family:'JetBrains Mono',monospace">${fM(earned)}</div>
-        <div style="font-size:10px;color:var(--t3)">${Number(a.commission_percent||0)}% rate</div>
+      <div class="agc-stats">
+        <div class="agc-sales"><span class="agc-sales-v">${a.total_sales_count || 0}</span><span class="agc-sales-l">Sales</span></div>
+        <div class="agc-comm">
+          <div class="agc-comm-row"><span>Earned</span><span class="num" style="color:var(--fk-success)">${fM(earned)}</span></div>
+          <div class="agc-comm-row"><span>Pending</span><span class="num"${pending>0?' style="color:var(--fk-warning)"':''}>${fM(pending)}</span></div>
+        </div>
       </div>
-      ${a.territory ? `<div style="font-size:11px;color:var(--t3);flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.territory)}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  grid.innerHTML = `
-    <div style="display:flex;gap:14px;justify-content:center;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;padding:4px">
-      ${podiumHTML}
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden">
-      <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
-        <span style="font-size:13px;font-weight:700;color:var(--t1);display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>Full Rankings</span>
-        <span style="font-size:11px;color:var(--t3);background:var(--surface2);padding:2px 8px;border-radius:20px">${ranked.length} agents</span>
+      <div class="agc-foot">
+        <span>${Number(a.commission_percent||0)}% commission</span>
+        ${_agStatusBadge(a.status)}
       </div>
-      ${listHTML}
     </div>`;
+  }).join('')}</div>`;
 }
 
 // ── DETAIL VIEW ──────────────────────────────────────────────────────
@@ -489,282 +331,142 @@ function _renderAgentDetail(a, sales, ext, commPays, subAgents, parentAgent) {
   // Method label helper
   const methodLbl = m => ({ bank_transfer:'Bank Transfer', cash:'Cash', cheque:'Cheque', online:'Online/Mobile' }[m] || m || '—');
 
-  // Commission payments table
+  _agCSS();
+  const sec = (icon, tone, title, sub, body, flush) => NX.card(body, { header:{ icon, tone, title, sub }, flush });
+
+  // Anchor contact buttons — NX.button emits <button>, so anchors are hand-built.
+  const linkBtn = (href, ic, label, ext2='') => `<a class="nx-btn nx-btn--secondary nx-btn--sm" href="${href}"${ext2}>${NX.icon(ic,15)}<span>${label}</span></a>`;
+  const heroActs =
+    (a.phone ? linkBtn(`tel:${esc(a.phone)}`, 'phone', 'Call') : '') +
+    (a.phone ? linkBtn(`https://wa.me/${(a.phone||'').replace(/\D/g,'')}`, 'message-circle', 'WhatsApp', ' target="_blank"') : '') +
+    (a.email ? linkBtn(`mailto:${esc(a.email)}`, 'mail', 'Email') : '') +
+    NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAgentProfile()' }) +
+    (canEdit ? NX.button('Edit', { variant:'secondary', size:'sm', icon:'pencil', onclick:`openAgentModal('${a.id}')` }) : '');
+
+  const heroStats =
+    NX.kpi({ tint:'primary', label:'Total Sales',   value:String(a.total_sales_count || 0) }) +
+    NX.kpi({ label:'Portfolio',      value:`PKR ${_agK(salesAmt)}` }) +
+    NX.kpi({ tint:'success', label:'Comm. Earned',  value:`PKR ${_agK(commEarned)}` }) +
+    NX.kpi({ label:'Comm. Paid',     value:`PKR ${_agK(commPaidTotal)}` }) +
+    NX.kpi({ tint: commPending>0?'warning':'success', label:'Comm. Pending', value:`PKR ${_agK(commPending)}` });
+
+  const targetBar = targetPct !== null ? `<div class="agd-target">
+    <div class="agd-target-hd"><span>Monthly Target Progress</span><span style="color:var(--fk-text)">${targetPct}% · PKR ${_agK(salesAmt)} / ${_agK(monthlyTarget)}</span></div>
+    <div class="agd-pb"><div class="agd-pf" style="width:${targetPct}%;background:${targetPct>=100?'var(--fk-success)':targetPct>=30?'var(--fk-primary)':'var(--fk-danger)'}"></div></div>
+  </div>` : '';
+
+  const heroCard = NX.card(
+    `<div class="agd-hero">${_agAvatar(a, 60)}
+      <div class="agd-hero-id">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="nx-page-title" style="font-size:22px">${esc(a.full_name)}</h1>${_agStatusBadge(a.status)}</div>
+        <div class="agd-hero-code">${esc(a.agent_code||'')}</div>
+        ${parentAgent ? `<div style="font-size:12px;color:var(--fk-text-muted);margin-top:4px">Reports to <strong style="color:var(--fk-text)">${esc(parentAgent.full_name)}</strong></div>` : ''}
+        <div class="agd-hero-acts">${heroActs}</div>
+      </div>
+    </div>
+    <div class="agd-stats">${heroStats}</div>${targetBar}`);
+
   const commLedgerBody = commPays.length === 0
-    ? `<div class="empty" style="padding:20px"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="22" height="16" x="1" y="4" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="et">No commission payments recorded yet</div></div>`
-    : `<div class="tw"><table class="t"><thead><tr>
-        <th>Date</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th><th></th>
-       </tr></thead><tbody>
+    ? NX.empty({ icon:'hand-coins', message:'No commission payments recorded yet.' })
+    : `<table class="nx-table"><thead><tr><th>Date</th><th class="num">Amount</th><th>Method</th><th>Reference</th><th>Notes</th>${canEdit?'<th></th>':''}</tr></thead><tbody>
        ${commPays.map(p => `<tr>
-         <td style="font-size:12px">${fD(p.payment_date)}</td>
-         <td class="r mono" style="font-weight:700;color:var(--ok)">PKR ${fM(p.amount)}</td>
-         <td style="font-size:11px">${methodLbl(p.payment_method)}</td>
-         <td style="font-family:monospace;font-size:11px">${esc(p.reference_no||'—')}</td>
-         <td style="font-size:11px;color:var(--t3)">${esc(p.notes||'')}</td>
-         <td>${canEdit ? `<button class="btn btn-r btn-xs" onclick="deleteCommPay('${p.id}')" style="display:inline-flex;align-items:center;justify-content:center"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>` : ''}</td>
-       </tr>`).join('')}
-       </tbody></table></div>
-       <div style="padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:12px">
-         <span>Total Paid: <strong style="color:var(--ok)">PKR ${fM(commPaidTotal)}</strong></span>
-         <span>Still Pending: <strong style="color:var(--warn)">PKR ${fM(commPending)}</strong></span>
+         <td>${fD(p.payment_date)}</td>
+         <td class="num" style="color:var(--fk-success);font-weight:600">PKR ${fM(p.amount)}</td>
+         <td>${methodLbl(p.payment_method)}</td>
+         <td class="nx-mono">${esc(p.reference_no||'—')}</td>
+         <td style="color:var(--fk-text-muted)">${esc(p.notes||'')}</td>
+         ${canEdit?`<td class="num">${NX.button('Delete',{variant:'ghost',size:'sm',onclick:`deleteCommPay('${p.id}')`})}</td>`:''}
+       </tr>`).join('')}</tbody></table>
+       <div style="padding:10px 14px;border-top:1px solid var(--fk-border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:12px">
+         <span>Total Paid: <strong style="color:var(--fk-success)">PKR ${fM(commPaidTotal)}</strong></span>
+         <span>Still Pending: <strong style="color:var(--fk-warning)">PKR ${fM(commPending)}</strong></span>
        </div>`;
 
-  // Sub-agents section
-  const subAgentsSection = subAgents.length > 0 ? `
-    <div class="card">
-      <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Sub-agents (${subAgents.length})</h3></div>
-      <div class="tw"><table class="t"><thead><tr>
-        <th>Name</th><th>Code</th><th>Sales</th><th>Comm %</th><th>Status</th><th></th>
-      </tr></thead><tbody>
-      ${subAgents.map(s => `<tr>
-        <td style="font-weight:600">${esc(s.full_name)}</td>
-        <td style="font-family:monospace;font-size:11px">${esc(s.agent_code||'')}</td>
-        <td>${s.total_sales_count||0}</td>
-        <td>${Number(s.commission_percent||0)}%</td>
-        <td>${_agStatusBadge(s.status)}</td>
-        <td><button class="btn btn-gh btn-xs" onclick="_agId='${s.id}';rAgentDetail()">View</button></td>
-      </tr>`).join('')}
-      </tbody></table></div>
-    </div>` : '';
+  const salesBody = !sales.length
+    ? NX.empty({ icon:'trending-up', message:'No sales yet — units sold by this agent will appear here.' })
+    : `<table class="nx-table"><thead><tr><th>Unit</th><th>Project</th><th>Client</th><th>Date</th><th class="num">Price</th><th class="num">Commission</th></tr></thead><tbody>
+       ${sales.map(s => `<tr>
+         <td style="font-weight:600">${esc(s.unit_no||s.unit_code||'—')}</td>
+         <td style="color:var(--fk-text-muted)">${esc(s.project_name||'—')}</td>
+         <td>${esc(s.client_name||'—')}</td>
+         <td style="color:var(--fk-text-muted)">${fD(s.sale_date)}</td>
+         <td class="num">${fMF(s.net_amount)}</td>
+         <td class="num" style="color:var(--fk-success);font-weight:600">${fMF(s.commission_amount)}</td>
+       </tr>`).join('')}</tbody></table>
+       <div style="padding:10px 14px;border-top:1px solid var(--fk-border);font-size:12px;color:var(--fk-text-muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+         <span>Portfolio: <strong style="color:var(--fk-text)">${fMF(a.total_sales_amount)}</strong></span>
+         <span>Commission: <strong style="color:var(--fk-success)">${fMF(commEarned)}</strong></span>
+       </div>`;
+
+  const subAgentsBody = !subAgents.length ? '' :
+    `<table class="nx-table"><thead><tr><th>Name</th><th>Code</th><th class="num">Sales</th><th class="num">Comm %</th><th>Status</th><th></th></tr></thead><tbody>
+     ${subAgents.map(s => `<tr>
+       <td style="font-weight:500">${esc(s.full_name)}</td>
+       <td class="nx-mono">${esc(s.agent_code||'')}</td>
+       <td class="num">${s.total_sales_count||0}</td>
+       <td class="num">${Number(s.commission_percent||0)}%</td>
+       <td>${_agStatusBadge(s.status)}</td>
+       <td class="num">${NX.button('View',{variant:'ghost',size:'sm',onclick:`_agId='${s.id}';rAgentDetail()`})}</td>
+     </tr>`).join('')}</tbody></table>`;
+
+  const opsBody = canEdit ? `
+    <div class="agd-op"><div><div class="agd-op-t">Edit agent profile</div><div class="agd-op-s">Contact info, commission rate, bank details</div></div>${NX.button('Edit',{variant:'secondary',size:'sm',icon:'pencil',onclick:`openAgentModal('${a.id}')`})}</div>
+    <div class="agd-op"><div><div class="agd-op-t">Pay commission</div><div class="agd-op-s">Record a disbursement · Pending <strong style="color:var(--fk-warning)">PKR ${fM(commPending)}</strong></div></div>${NX.button('Pay',{variant:'primary',size:'sm',icon:'hand-coins',onclick:`openCommPayModal('${a.id}','${esc(a.full_name)}',${commPending})`})}</div>
+    ${a.status==='active'
+      ? `<div class="agd-op"><div><div class="agd-op-t">Deactivate agent</div><div class="agd-op-s">Remove from active duty — sales history preserved</div></div>${NX.button('Deactivate',{variant:'danger-soft',size:'sm',onclick:`deactivateAgent('${a.id}')`})}</div>`
+      : `<div class="agd-op"><div><div class="agd-op-t">Reactivate agent</div><div class="agd-op-s">Restore this agent to active status</div></div>${NX.button('Reactivate',{variant:'secondary',size:'sm',onclick:`reactivateAgent('${a.id}')`})}</div>`}
+    <div class="agd-op"><div><div class="agd-op-t" style="color:var(--fk-danger)">Delete agent</div><div class="agd-op-s">Permanent — only if no sales on record</div></div>${NX.button('Delete',{variant:'danger-soft',size:'sm',icon:'trash-2',onclick:`deleteAgentConfirm('${a.id}')`})}</div>` : '';
+
+  const docsBody = (a.cnic_front_url || a.cnic_back_url || ext.contract_doc_url) ? `
+    ${(a.cnic_front_url || a.cnic_back_url) ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${a.cnic_front_url ? `<div style="flex:1;min-width:110px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">CNIC Front</div><a href="${esc(a.cnic_front_url)}" target="_blank"><img class="ag-doc-img" src="${esc(a.cnic_front_url)}"></a></div>` : ''}
+      ${a.cnic_back_url ? `<div style="flex:1;min-width:110px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">CNIC Back</div><a href="${esc(a.cnic_back_url)}" target="_blank"><img class="ag-doc-img" src="${esc(a.cnic_back_url)}"></a></div>` : ''}
+    </div>` : ''}
+    ${ext.contract_doc_url ? `<div style="margin-top:12px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Agent Contract</div><a href="${esc(ext.contract_doc_url)}" target="_blank" class="nx-btn nx-btn--secondary nx-btn--sm">${NX.icon('file-text',15)}<span>View contract</span></a></div>` : ''}` : '';
 
   pg.innerHTML = `<div class="ani">
-    <!-- Form navigation bar -->
     <div id="ad-form-nav"></div>
-
-    <!-- Back -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap" class="no-p">
-      <button class="bk" onclick="nav('agents')">← Back</button>
-    </div>
-
-    <!-- Header card -->
-    <div class="card mb14" style="padding:20px">
-      <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
-        ${_agAvatar(a, 64)}
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
-            <h2 style="font-size:20px;font-weight:800;color:var(--t1)">${esc(a.full_name)}</h2>
-            ${_agStatusBadge(a.status)}
-          </div>
-          <div style="font-size:12px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-bottom:8px">${esc(a.agent_code)}</div>
-          ${parentAgent ? `<div style="font-size:12px;color:var(--t3);margin-bottom:8px">Reports to: <b style="color:var(--text)">${esc(parentAgent.full_name)}</b></div>` : ''}
-          <div style="display:flex;gap:7px;flex-wrap:wrap">
-            ${a.phone ? `<a href="tel:${esc(a.phone)}" class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.52 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1.18l3-.01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.37a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>Call</a>` : ''}
-            ${a.phone ? `<a href="https://wa.me/${(a.phone||'').replace(/\D/g,'')}" target="_blank" class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>WhatsApp</a>` : ''}
-            ${a.email ? `<a href="mailto:${esc(a.email)}" class="btn btn-gh btn-sm" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email</a>` : ''}
-            <button class="btn btn-print btn-sm" onclick="printAgentProfile()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- KPI strip -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
-        <div style="padding:10px 12px;text-align:center;border-right:1px solid var(--line)">
-          <div style="font-size:22px;font-weight:800;color:var(--t1)">${a.total_sales_count || 0}</div>
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Total Sales</div>
-        </div>
-        <div style="padding:10px 12px;text-align:center;border-right:1px solid var(--line)">
-          <div style="font-size:16px;font-weight:800;color:var(--t1)">${fMF(a.total_sales_amount)}</div>
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Portfolio Value</div>
-        </div>
-        <div style="padding:10px 12px;text-align:center;border-right:1px solid var(--line)">
-          <div style="font-size:16px;font-weight:800;color:var(--ok)">${fMF(commEarned)}</div>
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Comm. Earned</div>
-        </div>
-        <div style="padding:10px 12px;text-align:center;border-right:1px solid var(--line)">
-          <div style="font-size:16px;font-weight:800;color:var(--t2)">${fMF(commPaidTotal)}</div>
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Comm. Paid</div>
-        </div>
-        <div style="padding:10px 12px;text-align:center">
-          <div style="font-size:16px;font-weight:800;color:var(--warn)">${fMF(commPending)}</div>
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Comm. Pending</div>
-        </div>
-      </div>
-
-      <!-- Target progress bar -->
-      ${targetPct !== null ? `
-      <div style="margin-top:14px;padding:10px 14px;background:var(--hover);border-radius:8px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:6px">
-          <span>Monthly Target Progress</span>
-          <span style="font-weight:700;color:var(--text)">${targetPct}% · PKR ${fM(salesAmt)} / ${fM(monthlyTarget)}</span>
-        </div>
-        <div style="height:7px;background:var(--line);border-radius:99px;overflow:hidden">
-          <div style="height:100%;width:${targetPct}%;background:${targetPct>=100?'var(--ok)':targetPct>=60?'#22c55e':targetPct>=30?'#f59e0b':'var(--err)'};-webkit-print-color-adjust:exact"></div>
-        </div>
-      </div>` : ''}
-    </div>
-
-    <!-- Agent Ledger tabs -->
-    <div style="display:flex;border-bottom:2px solid var(--line);margin-bottom:14px">
-      <button id="ag-tab-overview-btn" onclick="agSwitchTab('overview')" style="padding:8px 16px;background:none;border:none;border-bottom:2px solid var(--pri);color:var(--pri);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Overview</button>
-      <button id="ag-tab-ledger-btn"   onclick="agSwitchTab('ledger')"   style="padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Ledger</button>
-    </div>
+    <div class="pd-actions no-p" style="margin-bottom:16px">${NX.button('Back',{variant:'ghost',icon:'arrow-left',onclick:"nav('agents')"})}</div>
+    <div style="margin-bottom:16px">${heroCard}</div>
+    <div id="ag-tabs" style="margin-bottom:14px"></div>
     <div id="ag-tab-overview">
-    <!-- Two-column layout -->
-    <div class="cd">
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        <!-- Personal info -->
-        <div class="card">
-          <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Personal Info</h3></div>
-          <div class="cb">
-            ${row('Full Name',    esc(a.full_name))}
-            ${row('Agent Code',  `<span style="font-family:'JetBrains Mono',monospace">${esc(a.agent_code)}</span>`)}
-            ${row('Phone',       a.phone ? `<a href="tel:${esc(a.phone)}" style="color:var(--info)">${esc(a.phone)}</a>` : null)}
-            ${row('Email',       a.email ? `<a href="mailto:${esc(a.email)}" style="color:var(--info)">${esc(a.email)}</a>` : null)}
-            ${row('CNIC',        esc(a.cnic))}
-            ${row('Address',     esc(a.address))}
-            ${row('Join Date',   fD(a.join_date))}
-            ${a.termination_date ? row('Termination', fD(a.termination_date)) : ''}
-            ${row('Status',      _agStatusBadge(a.status))}
-          </div>
+      <div class="agd-cols">
+        <div class="agd-col">
+          ${sec('user','','Personal Info','',
+            row('Full Name', esc(a.full_name)) +
+            row('Agent Code', `<span class="nx-mono">${esc(a.agent_code)}</span>`) +
+            row('Phone', a.phone ? `<a href="tel:${esc(a.phone)}" style="color:var(--fk-info)">${esc(a.phone)}</a>` : null) +
+            row('Email', a.email ? `<a href="mailto:${esc(a.email)}" style="color:var(--fk-info)">${esc(a.email)}</a>` : null) +
+            row('CNIC', esc(a.cnic)) +
+            row('Address', esc(a.address)) +
+            row('Join Date', fD(a.join_date)) +
+            (a.termination_date ? row('Termination', fD(a.termination_date)) : '') +
+            row('Status', _agStatusBadge(a.status)))}
+          ${(ext.territory || ext.monthly_target || ext.quarterly_target || parentAgent) ? sec('map-pin','','Territory & Targets','',
+            row('Territory', esc(ext.territory)) +
+            row('Reports To', parentAgent ? `<strong>${esc(parentAgent.full_name)}</strong> <span class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(parentAgent.agent_code||'')}</span>` : null) +
+            row('Monthly Target', ext.monthly_target ? `PKR ${fM(ext.monthly_target)}` : null) +
+            row('Quarterly Target', ext.quarterly_target ? `PKR ${fM(ext.quarterly_target)}` : null)) : ''}
+          ${sec('banknote','','Commission & Bank','',
+            row('Commission Rate', `<strong style="color:var(--fk-success)">${Number(a.commission_percent || 0)}%</strong>`) +
+            row('Bank', esc(a.bank_name)) +
+            row('Account No.', a.bank_account_no ? `<span class="nx-mono">${esc(a.bank_account_no)}</span>` : null) +
+            row('Account Title', esc(a.bank_account_title)))}
+          ${a.notes ? sec('file-text','','Notes','', `<div style="font-size:13px;color:var(--fk-text);line-height:1.6">${esc(a.notes)}</div>`) : ''}
+          ${docsBody ? sec('image','','Documents','', docsBody) : ''}
         </div>
-
-        <!-- Territory & Targets -->
-        ${(ext.territory || ext.monthly_target || ext.quarterly_target || parentAgent) ? `
-        <div class="card">
-          <div class="ch"><h3>Territory &amp; Targets</h3></div>
-          <div class="cb">
-            ${row('Territory',         esc(ext.territory))}
-            ${row('Reports To',        parentAgent ? `<b>${esc(parentAgent.full_name)}</b> <span style="font-family:monospace;font-size:11px;color:var(--t3)">${esc(parentAgent.agent_code||'')}</span>` : null)}
-            ${row('Monthly Target',    ext.monthly_target ? `PKR ${fM(ext.monthly_target)}` : null)}
-            ${row('Quarterly Target',  ext.quarterly_target ? `PKR ${fM(ext.quarterly_target)}` : null)}
-          </div>
-        </div>` : ''}
-
-        <!-- Commission & Bank -->
-        <div class="card">
-          <div class="ch"><h3>Commission &amp; Bank</h3></div>
-          <div class="cb">
-            ${row('Commission Rate',  `<strong style="color:var(--ok)">${Number(a.commission_percent || 0)}%</strong>`)}
-            ${row('Bank',            esc(a.bank_name))}
-            ${row('Account No.',     a.bank_account_no ? `<span style="font-family:'JetBrains Mono',monospace">${esc(a.bank_account_no)}</span>` : null)}
-            ${row('Account Title',   esc(a.bank_account_title))}
-          </div>
+        <div class="agd-col">
+          ${canEdit ? sec('settings','','Operations','', opsBody) : ''}
+          ${NX.card(commLedgerBody, { header:{ icon:'hand-coins', tone:'success', title:'Commission Ledger', sub:`${commPays.length} payment${commPays.length !== 1 ? 's' : ''} recorded` }, flush: commPays.length>0 })}
+          ${NX.card(salesBody, { header:{ icon:'trending-up', title:'Sales History', sub:`${sales.length} sale${sales.length !== 1 ? 's' : ''}` }, flush: sales.length>0 })}
+          ${subAgentsBody ? NX.card(subAgentsBody, { header:{ icon:'users', title:'Sub-agents', sub:`${subAgents.length}` }, flush:true }) : ''}
         </div>
-
-        ${a.notes ? `<div class="card">
-          <div class="ch"><h3>Notes</h3></div>
-          <div class="cb"><div style="font-size:13px;color:var(--t2);line-height:1.6">${esc(a.notes)}</div></div>
-        </div>` : ''}
-
-        <!-- Documents -->
-        ${(a.cnic_front_url || a.cnic_back_url || ext.contract_doc_url) ? `<div class="card">
-          <div class="ch"><h3>Documents</h3></div>
-          <div class="cb" style="display:flex;flex-direction:column;gap:12px">
-            ${(a.cnic_front_url || a.cnic_back_url) ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
-              ${a.cnic_front_url ? `<div style="flex:1;min-width:110px">
-                <div style="font-size:11px;color:var(--t3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">CNIC Front</div>
-                <a href="${esc(a.cnic_front_url)}" target="_blank">
-                  <img src="${esc(a.cnic_front_url)}" style="width:100%;border-radius:8px;border:1px solid var(--line)">
-                </a>
-              </div>` : ''}
-              ${a.cnic_back_url ? `<div style="flex:1;min-width:110px">
-                <div style="font-size:11px;color:var(--t3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">CNIC Back</div>
-                <a href="${esc(a.cnic_back_url)}" target="_blank">
-                  <img src="${esc(a.cnic_back_url)}" style="width:100%;border-radius:8px;border:1px solid var(--line)">
-                </a>
-              </div>` : ''}
-            </div>` : ''}
-            ${ext.contract_doc_url ? `<div>
-              <div style="font-size:11px;color:var(--t3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Agent Contract</div>
-              <a href="${esc(ext.contract_doc_url)}" target="_blank" class="btn btn-gh btn-sm">View Contract Document</a>
-            </div>` : ''}
-          </div>
-        </div>` : ''}
-
-      </div>
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        <!-- Operations -->
-        ${canEdit ? `<div class="card">
-          <div class="ch"><h3>Operations</h3></div>
-          <div style="display:flex;flex-direction:column">
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--t1)">Edit Agent Profile</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:2px">Update contact info, commission rate, bank details</div>
-              </div>
-              <button class="btn btn-gh btn-sm" style="flex-shrink:0" onclick="openAgentModal('${a.id}')">✏ Edit</button>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--t1)">Pay Commission</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:2px">Record a commission disbursement · Pending: <strong style="color:var(--warn)">PKR ${fM(commPending)}</strong></div>
-              </div>
-              <button class="btn btn-g btn-sm" style="flex-shrink:0" onclick="openCommPayModal('${a.id}','${esc(a.full_name)}',${commPending})">Pay</button>
-            </div>
-
-            ${a.status === 'active' ? `
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--t1)">Deactivate Agent</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:2px">Remove from active duty — sales history is preserved</div>
-              </div>
-              <button class="btn btn-r btn-sm" style="flex-shrink:0" onclick="deactivateAgent('${a.id}')">⏸ Deactivate</button>
-            </div>` : `
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--t1)">Reactivate Agent</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:2px">Restore this agent to active status</div>
-              </div>
-              <button class="btn btn-g btn-sm" style="flex-shrink:0" onclick="reactivateAgent('${a.id}')">▶ Reactivate</button>
-            </div>`}
-
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--err)">Delete Agent</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:2px">Permanently remove — only possible if no sales on record</div>
-              </div>
-              <button class="btn btn-r btn-sm" style="flex-shrink:0" onclick="deleteAgentConfirm('${a.id}')">Delete</button>
-            </div>
-
-          </div>
-        </div>` : ''}
-
-        <!-- Commission Payment Ledger -->
-        <div class="card">
-          <div class="ch">
-            <div><h3>Commission Ledger</h3><p>${commPays.length} payment${commPays.length !== 1 ? 's' : ''} recorded</p></div>
-          </div>
-          ${commLedgerBody}
-        </div>
-
-        <!-- Sales history -->
-        <div class="card">
-          <div class="ch">
-            <div><h3>Sales History</h3><p>${sales.length} sale${sales.length !== 1 ? 's' : ''}</p></div>
-          </div>
-          ${!sales.length
-            ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div class="et">No sales yet</div><div class="es">Units sold by this agent will appear here</div></div>`
-            : `<div class="tw"><table class="t"><thead><tr>
-                <th>Unit</th><th>Project</th><th>Client</th><th>Date</th><th class="r">Price</th><th class="r">Commission</th>
-               </tr></thead><tbody>
-               ${sales.map(s => `<tr>
-                 <td><strong>${esc(s.unit_no||s.unit_code||'—')}</strong></td>
-                 <td style="font-size:12px;color:var(--t3)">${esc(s.project_name||'—')}</td>
-                 <td>${esc(s.client_name||'—')}</td>
-                 <td style="font-size:12px;color:var(--t3)">${fD(s.sale_date)}</td>
-                 <td class="r">${fMF(s.net_amount)}</td>
-                 <td class="r" style="color:var(--ok);font-weight:600">${fMF(s.commission_amount)}</td>
-               </tr>`).join('')}
-               </tbody></table></div>
-               <div style="padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
-                 <span>Portfolio: <strong style="color:var(--t1)">${fMF(a.total_sales_amount)}</strong></span>
-                 <span>Commission: <strong style="color:var(--ok)">${fMF(commEarned)}</strong></span>
-               </div>`}
-        </div>
-
-        ${subAgentsSection}
-
       </div>
     </div>
-    </div><!-- /ag-tab-overview -->
-    <div id="ag-tab-ledger" data-agent-id="${a.id}" style="display:none">
-      <div id="ag-ledger-body"></div>
-    </div>
+    <div id="ag-tab-ledger" data-agent-id="${a.id}" style="display:none"><div id="ag-ledger-body"></div></div>
   </div>`;
+
+  _agRenderTabs('overview');
 
   // Mount reusable form-nav bar
   if (typeof mountFormNav === 'function') {
@@ -791,15 +493,21 @@ function _renderAgentDetail(a, sales, ext, commPays, subAgents, parentAgent) {
 
 // ── AGENT LEDGER TAB ─────────────────────────────────────────────────
 
+function _agRenderTabs(active) {
+  const el = document.getElementById('ag-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({ tabs: [
+    { k:'overview', label:'Overview', icon:'list' },
+    { k:'ledger',   label:'Ledger',   icon:'banknote' }
+  ], active, onSelect:"agSwitchTab('%k')" });
+}
+
 function agSwitchTab(tab) {
   ['overview','ledger'].forEach(t => {
-    document.getElementById('ag-tab-'+t).style.display = t === tab ? '' : 'none';
-    const btn = document.getElementById('ag-tab-'+t+'-btn');
-    if (btn) {
-      btn.style.borderBottom = t === tab ? '2px solid var(--pri)' : '2px solid transparent';
-      btn.style.color        = t === tab ? 'var(--pri)' : 'var(--t3)';
-    }
+    const c = document.getElementById('ag-tab-'+t);
+    if (c) c.style.display = t === tab ? '' : 'none';
   });
+  _agRenderTabs(tab);
   if (tab === 'ledger') {
     const el   = document.getElementById('ag-tab-ledger');
     const body = document.getElementById('ag-ledger-body');
@@ -811,20 +519,21 @@ function agSwitchTab(tab) {
 async function _agLoadLedger(agentId) {
   const el = document.getElementById('ag-ledger-body');
   if (!el) return;
-  el.innerHTML = `<div class="empty" style="padding:24px"><div class="es" style="color:var(--t3)">Loading…</div></div>`;
+  el.innerHTML = NX.card(NX.empty({ icon:'banknote', message:'Loading…' }));
 
   const { data, error } = await supabase.rpc('get_agent_ledger', {
     p_agent_id: agentId, p_company_id: S.cid
   });
   if (error || !data?.success) {
-    el.innerHTML = `<div class="card"><div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="et">Could not load ledger</div><div class="es">${esc(data?.error || error?.message || 'Error')}</div></div></div>`;
+    el.innerHTML = NX.card(NX.banner('Could not load ledger: ' + (data?.error || error?.message || 'Error'), 'danger'));
     return;
   }
 
   const rows = data.rows || [];
 
   if (!rows.length) {
-    el.innerHTML = `<div class="card"><div class="ch"><h3>Commission Ledger</h3></div><div class="empty" style="padding:28px"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div class="et">No transactions yet</div><div class="es">Commission earned and payment records will appear here</div></div></div>`;
+    el.innerHTML = NX.card(NX.empty({ icon:'banknote', message:'No transactions yet — commission earned and payment records will appear here.' }),
+      { header:{ icon:'hand-coins', tone:'success', title:'Commission Ledger' } });
     el.dataset.loaded = agentId;
     return;
   }
@@ -841,143 +550,149 @@ async function _agLoadLedger(agentId) {
   });
   const pending = totalEarned - totalPaid;
 
-  el.innerHTML = `
-    <div class="card">
-      <div class="ch"><h3>Commission Ledger</h3><p>${rows.length} entr${rows.length !== 1 ? 'ies' : 'y'}</p></div>
-      <div class="tw">
-        <table class="t">
-          <thead><tr>
-            <th style="white-space:nowrap">Date</th>
-            <th>Description</th>
-            <th class="r" style="color:var(--ok);white-space:nowrap">Earned</th>
-            <th class="r" style="color:var(--t1);white-space:nowrap">Paid</th>
-            <th class="r" style="white-space:nowrap">Balance</th>
-          </tr></thead>
-          <tbody>
-          ${enriched.map(r => `<tr>
-            <td style="white-space:nowrap;font-size:12px;color:var(--t3)">${fD(r.row_date)}</td>
-            <td style="font-size:12px;color:var(--t2)">${esc(r.description || '')}</td>
-            <td class="r mono" style="color:var(--ok);font-weight:700">${r._earned > 0 ? fM(r._earned) : '<span style="color:var(--t4)">—</span>'}</td>
-            <td class="r mono" style="color:var(--t1);font-weight:700">${r._paid   > 0 ? fM(r._paid)   : '<span style="color:var(--t4)">—</span>'}</td>
-            <td class="r mono" style="font-weight:700;color:${r._balance > 0 ? 'var(--err)' : 'var(--ok)'}">
-              ${fM(Math.abs(r._balance))}
-            </td>
-          </tr>`).join('')}
-          </tbody>
-        </table>
+  const body = `<table class="nx-table">
+      <thead><tr>
+        <th>Date</th><th>Description</th>
+        <th class="num">Earned</th><th class="num">Paid</th><th class="num">Balance</th>
+      </tr></thead>
+      <tbody>
+      ${enriched.map(r => `<tr>
+        <td style="white-space:nowrap;color:var(--fk-text-muted)">${fD(r.row_date)}</td>
+        <td style="color:var(--fk-text-muted)">${esc(r.description || '')}</td>
+        <td class="num" style="color:var(--fk-success);font-weight:600">${r._earned > 0 ? fM(r._earned) : '<span style="color:var(--fk-text-muted)">—</span>'}</td>
+        <td class="num" style="font-weight:600">${r._paid   > 0 ? fM(r._paid)   : '<span style="color:var(--fk-text-muted)">—</span>'}</td>
+        <td class="num" style="font-weight:600;color:${r._balance > 0 ? 'var(--fk-danger)' : 'var(--fk-success)'}">${fM(Math.abs(r._balance))}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--fk-border)">
+      <div style="padding:12px 16px;border-right:1px solid var(--fk-border);text-align:center">
+        <div style="font-size:10px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Earned</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:var(--fk-success)">PKR ${fM(totalEarned)}</div>
       </div>
-      <!-- Footer summary -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:2px solid var(--line)">
-        <div style="padding:12px 16px;border-right:1px solid var(--line);text-align:center">
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total Earned</div>
-          <div style="font-size:15px;font-weight:800;color:var(--ok)">PKR ${fM(totalEarned)}</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--line);text-align:center">
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total Paid</div>
-          <div style="font-size:15px;font-weight:800;color:var(--t1)">PKR ${fM(totalPaid)}</div>
-        </div>
-        <div style="padding:12px 16px;text-align:center">
-          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Pending Balance</div>
-          <div style="font-size:15px;font-weight:800;color:${pending > 0 ? 'var(--err)' : 'var(--ok)'}">
-            ${pending > 0 ? 'PKR ' + fM(pending) : 'Nil'}
-          </div>
-        </div>
+      <div style="padding:12px 16px;border-right:1px solid var(--fk-border);text-align:center">
+        <div style="font-size:10px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Paid</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:var(--fk-text)">PKR ${fM(totalPaid)}</div>
+      </div>
+      <div style="padding:12px 16px;text-align:center">
+        <div style="font-size:10px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Pending Balance</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:${pending > 0 ? 'var(--fk-danger)' : 'var(--fk-success)'}">${pending > 0 ? 'PKR ' + fM(pending) : 'Nil'}</div>
       </div>
     </div>`;
+
+  el.innerHTML = NX.card(body, { header:{ icon:'hand-coins', tone:'success', title:'Commission Ledger', sub:`${rows.length} entr${rows.length !== 1 ? 'ies' : 'y'}` }, flush:true });
   el.dataset.loaded = agentId;
 }
 
-// ── MODAL ────────────────────────────────────────────────────────────
+// ── AGENT FORM — lean, host-injected nx-modal (essentials + More disclosure) ──
+function _agFormBody(isEdit) {
+  const bankOpts = ['Meezan Bank','HBL','UBL','MCB Bank','Standard Chartered','Bank Alfalah','Faysal Bank','Allied Bank','Habib Metropolitan Bank','Askari Bank','Bank Al-Habib','JS Bank','Silk Bank','Summit Bank','Other'];
+  const bankSel  = '<option value="">— Select bank —</option>' + bankOpts.map(b => `<option>${esc(b)}</option>`).join('');
+  const statusOpts = '<option value="active">Active</option><option value="inactive">Inactive</option>';
+  const moreOpen = isEdit;   // editors usually touch the extended fields
+
+  const essentials =
+    `<input type="hidden" id="af-agent-id">` +
+    _agFld('Full name', 'af-name', { ph:'Agent full name', req:true, errId:'e-af-name', fieldId:'af-name-field' }) +
+    `<div class="nx-grid-2">` +
+      _agFld('Phone', 'af-phone', { type:'tel', ph:'Phone number', req:true, errId:'e-af-phone', fieldId:'af-phone-field' }) +
+      (isEdit
+        ? _agFld('Project', 'af-project', { el:'select', attrs:'disabled', hint:'Project is fixed after creation.' })
+        : _agFld('Project', 'af-project', { el:'select', req:true, errId:'e-af-project', fieldId:'af-project-field' })) +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      _agFld('Default commission %', 'af-commission', { type:'number', ph:'Optional — set at sale time', attrs:'min="0" max="100" step="0.01"', errId:'e-af-comm', fieldId:'af-comm-field' }) +
+      _agFld('Status', 'af-status', { el:'select', options:statusOpts }) +
+    `</div>`;
+
+  const more =
+    _agSub('user', 'Contact & identity') +
+    `<div class="nx-grid-2">` + _agFld('Email', 'af-email', { type:'email', ph:'agent@business.com' }) + _agFld('CNIC', 'af-cnic', { ph:'42101-1234567-1', attrs:'maxlength="15"', errId:'e-af-cnic', fieldId:'af-cnic-field' }) + `</div>` +
+    `<div class="nx-grid-2">` + _agFld('Join date', 'af-join-date', { type:'date' }) + _agFld('Address', 'af-address', { ph:'Home or office address' }) + `</div>` +
+    `<div class="ag-photo-wrap">
+      <img id="af-photo-preview" src="data:," alt="" class="ag-photo-prev" style="display:none">
+      <label class="ag-up" style="flex:1">${NX.icon('image',15)}<span>Profile photo</span><input id="af-photo-file" type="file" accept="image/jpeg,image/png" style="display:none" onchange="_agPreviewPhoto(this)"></label>
+    </div>` +
+    `<div class="nx-grid-2" style="margin-top:10px">
+      <label class="ag-up">${NX.icon('image',15)}<span id="af-cnic-front-lbl">CNIC front</span><input id="af-cnic-front-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-front-lbl').textContent=this.files[0]?.name||'CNIC front'"></label>
+      <label class="ag-up">${NX.icon('image',15)}<span id="af-cnic-back-lbl">CNIC back</span><input id="af-cnic-back-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-back-lbl').textContent=this.files[0]?.name||'CNIC back'"></label>
+    </div>` +
+
+    _agSub('banknote', 'Commission & bank') +
+    `<div class="nx-grid-2">` + _agFld('Bank name', 'af-bank-name', { el:'select', options:bankSel }) + _agFld('Account number', 'af-bank-acct', { ph:'Account number' }) + `</div>` +
+    _agFld('Account title', 'af-bank-title', { ph:'As per bank records' }) +
+
+    _agSub('map-pin', 'Territory & targets') +
+    `<div class="nx-grid-2">` + _agFld('Territory / area', 'af-territory', { ph:'e.g. Falcon Heights, Sapphire Town' }) + _agFld('Reports to', 'af-parent-agent', { el:'select', options:'<option value="">— Independent agent —</option>', hint:'Leave blank unless under a senior agent.' }) + `</div>` +
+    `<div class="nx-grid-2">` + _agFld('Monthly target (PKR)', 'af-monthly-target', { type:'number', ph:'0', attrs:'min="0" step="10000"' }) + _agFld('Quarterly target (PKR)', 'af-quarterly-target', { type:'number', ph:'0', attrs:'min="0" step="10000"' }) + `</div>` +
+
+    _agSub('file-text', 'Contract & notes') +
+    `<label class="ag-up">${NX.icon('file-text',15)}<span id="af-contract-lbl">Browse contract (PDF / image)</span><input id="af-contract-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-contract-lbl').textContent=this.files[0]?.name||'Browse contract (PDF / image)'"></label>
+    <div id="af-contract-prev"></div>` +
+    `<div style="margin-top:10px">` + _agFld('Notes', 'af-notes', { el:'textarea', ph:'Any additional notes…' }) + `</div>`;
+
+  return essentials +
+    `<button type="button" class="nx-btn nx-btn--secondary nx-btn--sm" id="af-more-btn" onclick="agToggleMore()" style="margin-top:6px">` +
+      `<span id="af-more-ico" style="display:inline-flex">${NX.icon(moreOpen?'chevron-up':'chevron-down',15)}</span><span id="af-more-txt">${moreOpen?'Fewer details':'More details'}</span></button>` +
+    `<div id="af-more"${moreOpen?'':' style="display:none"'}>${more}</div>`;
+}
+
+function agToggleMore() {
+  const more = document.getElementById('af-more'), txt = document.getElementById('af-more-txt'), ico = document.getElementById('af-more-ico');
+  if (!more) return;
+  const open = more.style.display === 'none';
+  more.style.display = open ? '' : 'none';
+  if (txt) txt.textContent = open ? 'Fewer details' : 'More details';
+  if (ico) ico.innerHTML = NX.icon(open ? 'chevron-up' : 'chevron-down', 15);
+}
+
 async function openAgentModal(agentId) {
   if (!_canEditAgent()) { toast('You do not have permission to edit agents', 'warn'); return; }
-
+  _agCSS();
   const isEdit = !!agentId;
-  const m = document.getElementById('m-agent');
-  if (!m) return;
 
-  document.getElementById('agent-mtl').textContent = isEdit ? 'Edit Agent' : 'Add Agent';
-  document.getElementById('af-agent-id').value = agentId || '';
-
-  // Reset all fields
-  const fields = ['af-name','af-email','af-cnic','af-address','af-notes',
-                   'af-bank-name','af-bank-acct','af-bank-title','af-join-date',
-                   'af-territory','af-monthly-target','af-quarterly-target'];
-  fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const sv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
-  sv('af-commission', '');
-  sv('af-status', 'active');
-
-  const phoneEl = document.getElementById('af-phone');
-  if (phoneEl) phoneEl.value = '';
-  document.querySelectorAll('#m-agent .af-err').forEach(el => el.textContent = '');
-  document.querySelectorAll('#m-agent .inp-err').forEach(el => el.classList.remove('inp-err'));
-
-  // Reset file inputs & previews
-  const prevPhoto = document.getElementById('af-photo-preview');
-  if (prevPhoto) prevPhoto.style.display = 'none';
-  ['af-cnic-front-file','af-cnic-back-file','af-contract-file'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
+  _agModalHost().innerHTML = NX.modal({
+    id:'m-agent', title: isEdit ? 'Edit agent' : 'New agent', size:'l',
+    onClose:'closeAgentModal()',
+    body: _agFormBody(isEdit),
+    footer: NX.button('Cancel', { variant:'secondary', onclick:'closeAgentModal()' }) +
+            NX.button(isEdit ? 'Save changes' : 'Create agent', { variant:'primary', attrs:'id="ag-save-btn"', onclick:'saveAgentForm()' })
   });
-  const contractLbl = document.getElementById('af-contract-lbl');
-  if (contractLbl) contractLbl.textContent = 'Browse Contract (PDF / Image)';
-  const contractPrev = document.getElementById('af-contract-prev');
-  if (contractPrev) contractPrev.innerHTML = '';
 
-  // Load parent agent dropdown.
-  // Fetch ALL agents (not just active) so a currently-assigned inactive parent
-  // doesn't get silently dropped on save. Inactive ones render greyed out.
+  document.getElementById('af-agent-id').value = agentId || '';
+  const sv = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+
+  // Parent-agent dropdown — ALL agents (inactive flagged) so an assigned inactive parent isn't dropped.
   const parentSel = document.getElementById('af-parent-agent');
   if (parentSel) {
     try {
       const { data: allAgents } = await supabase.rpc('list_agents_lookup', { p_company_id: S.cid });
       const candidates = (allAgents || []).filter(a => a.id !== agentId);
-      parentSel.innerHTML = `<option value="">— None (Independent) —</option>` +
-        candidates.map(a => {
-          const inactive = a.status && a.status !== 'active';
-          return `<option value="${a.id}"${inactive?' style="color:var(--text-faint)"':''}>${esc(a.full_name)}${inactive?' (inactive)':''}</option>`;
-        }).join('');
-    } catch(e) {
-      console.error('[agents] parent list load failed:', e);
-      parentSel.innerHTML = `<option value="">— Could not load agents (will retry on save) —</option>`;
-    }
+      parentSel.innerHTML = `<option value="">— Independent agent —</option>` +
+        candidates.map(a => { const inactive = a.status && a.status !== 'active';
+          return `<option value="${a.id}">${esc(a.full_name)}${inactive?' (inactive)':''}</option>`; }).join('');
+    } catch(e) { parentSel.innerHTML = `<option value="">— Could not load agents (will retry on save) —</option>`; }
   }
 
   if (isEdit) {
     const a = _agCache.find(x => x.id === agentId);
     if (a) {
-      sv('af-name',        a.full_name);
-      sv('af-email',       a.email);
-      sv('af-cnic',        a.cnic);
-      sv('af-commission',  a.commission_percent);
-      sv('af-status',      a.status || 'active');
-      sv('af-address',     a.address);
-      sv('af-notes',       a.notes);
-      sv('af-bank-name',   a.bank_name);
-      sv('af-bank-acct',   a.bank_account_no);
-      sv('af-bank-title',  a.bank_account_title);
-      sv('af-join-date',   a.join_date || '');
-      if (a.profile_photo_url && prevPhoto) {
-        prevPhoto.src = a.profile_photo_url;
-        prevPhoto.style.display = 'block';
-      }
+      sv('af-name', a.full_name); sv('af-email', a.email); sv('af-cnic', a.cnic);
+      sv('af-commission', a.commission_percent); sv('af-status', a.status || 'active');
+      sv('af-address', a.address); sv('af-notes', a.notes); sv('af-bank-name', a.bank_name);
+      sv('af-bank-acct', a.bank_account_no); sv('af-bank-title', a.bank_account_title); sv('af-join-date', a.join_date || '');
+      const prevPhoto = document.getElementById('af-photo-preview');
+      if (a.profile_photo_url && prevPhoto) { prevPhoto.src = a.profile_photo_url; prevPhoto.style.display = 'block'; }
     }
-    // Fetch extended fields
     try {
       const { data: ext } = await supabase.rpc('get_agent_extended', { p_id: agentId, p_company_id: S.cid });
       if (ext) {
-        sv('af-territory',        ext.territory);
-        sv('af-monthly-target',   ext.monthly_target);
-        sv('af-quarterly-target', ext.quarterly_target);
+        sv('af-territory', ext.territory); sv('af-monthly-target', ext.monthly_target); sv('af-quarterly-target', ext.quarterly_target);
         if (parentSel && ext.parent_agent_id) parentSel.value = ext.parent_agent_id;
         if (ext.contract_doc_url) {
-          if (contractLbl) contractLbl.textContent = '✓ Contract on file (browse to replace)';
-          if (contractPrev) {
-            const isPdf = ext.contract_doc_url.toLowerCase().includes('.pdf');
-            contractPrev.innerHTML = `<div style="margin-top:8px;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--hover);border-radius:8px;font-size:12px">
-              <span>${isPdf ? 'PDF' : 'IMG'}</span>
-              <a href="${esc(ext.contract_doc_url)}" target="_blank" style="color:var(--info);flex:1">View existing contract</a>
-            </div>`;
-          }
+          const cl = document.getElementById('af-contract-lbl'); if (cl) cl.textContent = 'Contract on file — browse to replace';
+          const cp = document.getElementById('af-contract-prev');
+          if (cp) cp.innerHTML = `<a href="${esc(ext.contract_doc_url)}" target="_blank" style="display:inline-block;margin-top:8px;font-size:12px;color:var(--fk-info)">View existing contract</a>`;
         }
       }
     } catch(e) {}
@@ -985,9 +700,7 @@ async function openAgentModal(agentId) {
     sv('af-join-date', new Date().toISOString().slice(0,10));
   }
 
-  _afEnsureProjectPicker();
   _afPopulateProjects('', isEdit);
-  om('m-agent');
 
   setTimeout(() => {
     const phoneInp = document.getElementById('af-phone');
@@ -995,38 +708,15 @@ async function openAgentModal(agentId) {
     if (_agIti) { try { _agIti.destroy(); } catch(e) {} _agIti = null; }
     if (window.intlTelInput) {
       _agIti = window.intlTelInput(phoneInp, {
-        initialCountry: 'pk',
-        preferredCountries: ['pk','ae','sa','gb','us'],
-        separateDialCode: true,
-        utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/js/utils.js'
+        initialCountry: 'pk', preferredCountries: ['pk','ae','sa','gb','us'],
+        separateDialCode: true, utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/js/utils.js'
       });
-      if (isEdit) {
-        const a = _agCache.find(x => x.id === agentId);
-        if (a?.phone) { try { _agIti.setNumber(a.phone); } catch(e) { phoneInp.value = a.phone; } }
-      }
-    } else if (isEdit) {
-      const a = _agCache.find(x => x.id === agentId);
-      if (a?.phone) phoneInp.value = a.phone;
-    }
+      if (isEdit) { const a = _agCache.find(x => x.id === agentId); if (a?.phone) { try { _agIti.setNumber(a.phone); } catch(e) { phoneInp.value = a.phone; } } }
+    } else if (isEdit) { const a = _agCache.find(x => x.id === agentId); if (a?.phone) phoneInp.value = a.phone; }
   }, 80);
 }
 
-function closeAgentModal() { cm('m-agent'); }
-
-// ── Project picker (injected into the static #m-agent modal; login.html is frozen) ──
-function _afEnsureProjectPicker() {
-  if (document.getElementById('af-project')) return;
-  const mb = document.querySelector('#m-agent .mb');
-  if (!mb) return;
-  const fr = document.createElement('div');
-  fr.className = 'fr'; fr.id = 'af-project-row'; fr.style.marginBottom = '14px';
-  fr.innerHTML = '<label class="fl">Project <span class="req-star">*</span></label>'
-    + '<select id="af-project" class="inp-light"></select>'
-    + '<div class="cf-err" id="e-af-project" style="font-size:11px;color:var(--err);margin-top:3px;min-height:14px"></div>';
-  const anchor = document.getElementById('af-agent-id');
-  if (anchor && anchor.parentNode === mb) mb.insertBefore(fr, anchor.nextSibling);
-  else mb.insertBefore(fr, mb.firstChild);
-}
+function closeAgentModal() { if (_agIti) { try { _agIti.destroy(); } catch(e) {} _agIti = null; } const h = document.getElementById('ag-modal-host'); if (h) h.innerHTML = ''; }
 
 // Fill the picker with the caller's accessible projects. Disabled on edit (project is immutable).
 function _afPopulateProjects(selectedId, isEdit) {
@@ -1065,7 +755,8 @@ async function saveAgentForm() {
     const el = document.getElementById(id);
     if (el) el.textContent = msg;
     const inp = document.getElementById(inputId || id.slice(2));
-    if (inp) inp.classList.toggle('inp-err', !!msg);
+    const fld = inp ? inp.closest('.nx-field') : null;
+    if (fld) fld.classList.toggle('nx-field--error', !!msg);
     if (msg) hasErr = true;
   };
 
@@ -1095,8 +786,9 @@ async function saveAgentForm() {
 
   if (hasErr) return;
 
-  const saveBtn = document.querySelector('#m-agent .btn-g');
+  const saveBtn = document.getElementById('ag-save-btn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+  const _wasEdit = !!(document.getElementById('af-agent-id')?.value?.trim());
 
   try {
     const existingId = document.getElementById('af-agent-id')?.value?.trim() || '';
@@ -1214,14 +906,14 @@ async function saveAgentForm() {
     }
 
     toast(isEdit ? 'Agent updated!' : `Agent added! Code: ${result.agent_code || ''}`, 'ok');
-    cm('m-agent');
+    closeAgentModal();
     await _loadAgentList();
     if (!isEdit && result.agent_id) { _agId = result.agent_id; nav('agentdetail'); }
 
   } catch(e) {
     toast('Error: ' + e.message, 'err');
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Agent'; }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = _wasEdit ? 'Save changes' : 'Create agent'; }
   }
 }
 
@@ -1299,38 +991,40 @@ let _commTab = 'payouts';
 async function rCommissions() {
   const pg = document.getElementById('pg-commissions');
   if (!pg) return;
-  if (!S?.cid) { pg.innerHTML = `<div class="card"><div class="empty"><div class="ei">⚠</div><div class="et">Not logged in</div></div></div>`; return; }
+  if (!S?.cid) { pg.innerHTML = NX.card(NX.empty({ icon:'hand-coins', message:'Not logged in.' })); return; }
+  _agCSS();
 
-  const canAdmin = _canEditAgent();
-
-  pg.innerHTML = `<div class="ani">
-    <div class="ph">
-      <div class="ph-l"><h2>Commissions</h2><p>Agent payouts and per-project commission rate configuration.</p></div>
-      <div class="ph-r" id="comm-ph-actions"></div>
-    </div>
-    <div style="display:flex;border-bottom:2px solid var(--line);margin-bottom:16px">
-      <button id="comm-tab-payouts-btn"    onclick="_commSwitchTab('payouts')"    style="padding:8px 18px;background:none;border:none;border-bottom:2px solid var(--pri);color:var(--pri);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Payouts</button>
-      <button id="comm-tab-structures-btn" onclick="_commSwitchTab('structures')" style="padding:8px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-weight:600;cursor:pointer;font-size:13px;margin-bottom:-2px">Commission Structures</button>
-    </div>
-    <div id="comm-tab-payouts"></div>
-    <div id="comm-tab-structures" style="display:none"></div>
-  </div>`;
+  pg.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Commissions',
+        '<span id="comm-ph-actions"></span>',
+        { icon:'hand-coins', tone:'success', sub:'Agent payouts and per-project commission rate configuration.' }) +
+      '<div id="comm-tabs" style="margin-bottom:16px"></div>' +
+      '<div id="comm-tab-payouts"></div>' +
+      '<div id="comm-tab-structures" style="display:none"></div>' +
+    '</div>';
 
   _commTab = 'payouts';
+  _commRenderTabs('payouts');
   await _commLoadPayouts();
+}
+
+function _commRenderTabs(active) {
+  const el = document.getElementById('comm-tabs');
+  if (!el) return;
+  el.innerHTML = NX.tabs({ tabs: [
+    { k:'payouts',    label:'Payouts',                icon:'hand-coins' },
+    { k:'structures', label:'Commission Structures',  icon:'settings' }
+  ], active, onSelect:"_commSwitchTab('%k')" });
 }
 
 function _commSwitchTab(tab) {
   _commTab = tab;
   ['payouts','structures'].forEach(t => {
-    const el  = document.getElementById('comm-tab-' + t);
-    const btn = document.getElementById('comm-tab-' + t + '-btn');
-    if (el)  el.style.display  = t === tab ? '' : 'none';
-    if (btn) {
-      btn.style.borderBottom = t === tab ? '2px solid var(--pri)' : '2px solid transparent';
-      btn.style.color        = t === tab ? 'var(--pri)' : 'var(--t3)';
-    }
+    const el = document.getElementById('comm-tab-' + t);
+    if (el) el.style.display = t === tab ? '' : 'none';
   });
+  _commRenderTabs(tab);
   if (tab === 'payouts')    _commLoadPayouts();
   if (tab === 'structures') _commLoadStructures();
 }
@@ -1341,7 +1035,7 @@ async function _commLoadPayouts() {
   if (!el) return;
   const ph = document.getElementById('comm-ph-actions');
   if (ph) ph.innerHTML = '';
-  el.innerHTML = `<div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div>`;
+  el.innerHTML = NX.card(NX.empty({ icon:'hand-coins', message:'Loading…' }));
   try {
     const { data: overview, error: ovErr } = await supabase.rpc('get_commissions_overview', { p_company_id: S.cid });
     if (ovErr) throw ovErr;
@@ -1362,48 +1056,29 @@ async function _commLoadPayouts() {
     const totalPending = rows.reduce((s, r) => s + r.pending, 0);
     const canEdit      = _canEditAgent();
 
-    el.innerHTML = `
-      <div class="card mb14">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
-          <div style="padding:14px 16px;text-align:center;border-right:1px solid var(--line)">
-            <div style="font-size:18px;font-weight:800;color:var(--ok)">${fMF(totalEarned)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Total Earned</div>
-          </div>
-          <div style="padding:14px 16px;text-align:center;border-right:1px solid var(--line)">
-            <div style="font-size:18px;font-weight:800;color:var(--t2)">${fMF(totalPaid)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Total Paid</div>
-          </div>
-          <div style="padding:14px 16px;text-align:center">
-            <div style="font-size:18px;font-weight:800;color:var(--warn)">${fMF(totalPending)}</div>
-            <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Total Pending</div>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="ch"><h3>Agents</h3><p>${rows.length} agent${rows.length !== 1 ? 's' : ''}</p></div>
-        ${rows.length === 0
-          ? `<div class="empty"><div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="et">No agents found</div></div>`
-          : `<div class="tw"><table class="t"><thead><tr>
-              <th>Agent</th><th>Status</th><th class="r">Earned</th><th class="r">Paid</th><th class="r">Pending</th>${canEdit?'<th></th>':''}
-             </tr></thead><tbody>
-             ${rows.map(r => `<tr>
-               <td>
-                 <div style="font-weight:600">${esc(r.full_name)}</div>
-                 <div style="font-size:11px;font-family:monospace;color:var(--t3)">${esc(r.agent_code||'')}</div>
-               </td>
-               <td>${_agStatusBadge(r.status)}</td>
-               <td class="r" style="color:var(--ok);font-weight:600">${fMF(r.earned)}</td>
-               <td class="r" style="color:var(--t2)">${fMF(r.paid)}</td>
-               <td class="r" style="font-weight:700;color:${r.pending>0?'var(--warn)':'var(--t3)'}">${fMF(r.pending)}</td>
-               ${canEdit?`<td style="white-space:nowrap">
-                 <button class="btn btn-g btn-xs" onclick="openCommPayModal('${r.id}','${esc(r.full_name)}',${r.pending})">Pay</button>
-                 <button class="btn btn-gh btn-xs" onclick="printAgentStatement('${r.id}')" title="Commission Statement">⎙</button>
-               </td>`:''}
-             </tr>`).join('')}
-             </tbody></table></div>`}
-      </div>`;
+    const summary = '<div class="agc-summary">' +
+      NX.kpi({ icon:'hand-coins', tone:'success', label:'Total Earned',  value:`PKR ${_agK(totalEarned)}` }) +
+      NX.kpi({ icon:'check-circle', label:'Total Paid', value:`PKR ${_agK(totalPaid)}` }) +
+      NX.kpi({ icon:'clock', tone:'warning', label:'Total Pending', value:`PKR ${_agK(totalPending)}` }) +
+      '</div>';
+
+    const table = rows.length === 0
+      ? NX.card(NX.empty({ icon:'users', message:'No agents found.' }))
+      : NX.card(
+          `<table class="nx-table"><thead><tr><th>Agent</th><th>Status</th><th class="num">Earned</th><th class="num">Paid</th><th class="num">Pending</th>${canEdit?'<th class="num"></th>':''}</tr></thead><tbody>
+           ${rows.map(r => `<tr>
+             <td><div style="font-weight:500">${esc(r.full_name)}</div><div class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(r.agent_code||'')}</div></td>
+             <td>${_agStatusBadge(r.status)}</td>
+             <td class="num" style="color:var(--fk-success);font-weight:600">${fMF(r.earned)}</td>
+             <td class="num">${fMF(r.paid)}</td>
+             <td class="num" style="font-weight:600;color:${r.pending>0?'var(--fk-warning)':'var(--fk-text-muted)'}">${fMF(r.pending)}</td>
+             ${canEdit?`<td class="num"><div style="display:inline-flex;gap:6px;justify-content:flex-end">${NX.button('Pay',{variant:'primary',size:'sm',icon:'hand-coins',onclick:`openCommPayModal('${r.id}','${esc(r.full_name)}',${r.pending})`})}${NX.button('Statement',{variant:'ghost',size:'sm',onclick:`printAgentStatement('${r.id}')`})}</div></td>`:''}
+           </tr>`).join('')}</tbody></table>`,
+          { header:{ icon:'users', title:'Agents', sub:`${rows.length} agent${rows.length !== 1 ? 's' : ''}` }, flush:true });
+
+    el.innerHTML = summary + table;
   } catch(e) {
-    el.innerHTML = `<div class="card"><div class="empty"><div class="et">Failed to load</div><div class="es">${esc(e.message)}</div></div></div>`;
+    el.innerHTML = NX.card(NX.banner('Failed to load commissions: ' + (e.message || 'Error'), 'danger'));
   }
 }
 
@@ -1417,9 +1092,9 @@ async function _commLoadStructures() {
   if (!el) return;
   const ph = document.getElementById('comm-ph-actions');
   if (ph && _canEditAgent()) {
-    ph.innerHTML = `<button class="btn btn-g btn-sm" onclick="_csOpenForm(null)">+ Add Structure</button>`;
+    ph.innerHTML = NX.button('Add structure', { variant:'primary', size:'sm', icon:'plus', onclick:'_csOpenForm(null)' });
   }
-  el.innerHTML = `<div class="empty"><div class="ei">⏳</div><div class="et">Loading…</div></div>`;
+  el.innerHTML = NX.card(NX.empty({ icon:'settings', message:'Loading…' }));
 
   try {
     const [csRes, prRes] = await Promise.all([
@@ -1430,7 +1105,7 @@ async function _commLoadStructures() {
     _csProjects = Array.isArray(prRes.data) ? prRes.data : [];
     _csRender(el);
   } catch(e) {
-    el.innerHTML = `<div class="card"><div class="empty"><div class="et">Failed to load</div><div class="es">${esc(e.message)}</div></div></div>`;
+    el.innerHTML = NX.card(NX.banner('Failed to load structures: ' + (e.message || 'Error'), 'danger'));
   }
 }
 
@@ -1439,153 +1114,75 @@ function _csRender(container) {
   if (!el) return;
   const canEdit = _canEditAgent();
 
-  const introHtml = `
-    <div class="card mb14" style="padding:14px 16px">
-      <div style="font-size:13px;color:var(--t2);line-height:1.6">
-        <strong>Commission Structures</strong> define the commission rate per project (and optionally per agent).<br>
-        <span style="font-size:12px;color:var(--t3)">
-          Lookup order: <strong>Agent + Project</strong> → <strong>Project Default</strong> → <strong>Company Default</strong> → <strong>Agent's global rate</strong>.
-          Milestone splits define how commission is distributed between booking and possession events.
-        </span>
-      </div>
-    </div>`;
+  const intro = NX.banner('Lookup order: Agent + Project → Project Default → Company Default → Agent\'s global rate. Milestone splits define how commission is distributed between booking and possession.', 'info');
 
   if (!_csData.length) {
-    el.innerHTML = introHtml + `<div class="card"><div class="empty">
-      <div class="ei"><svg width="32" height="32" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
-      <div class="et">No commission structures configured</div>
-      <div class="es">Add a structure to define per-project or agent-specific commission rates.</div>
-      ${canEdit ? `<button class="btn btn-g btn-sm" style="margin-top:10px" onclick="_csOpenForm(null)">+ Add Structure</button>` : ''}
-    </div></div>`;
+    el.innerHTML = `<div style="margin-bottom:14px">${intro}</div>` + NX.card(NX.empty({
+      icon:'settings', message:'No commission structures configured — add one to define per-project or agent-specific rates.',
+      action: canEdit ? NX.button('Add structure', { variant:'primary', icon:'plus', onclick:'_csOpenForm(null)' }) : ''
+    }));
     return;
   }
 
-  el.innerHTML = introHtml + `<div class="card" style="overflow:hidden">
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="border-bottom:1px solid var(--line)">
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Project</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Agent</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Rate</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Booking Split</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Possession Split</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Status</th>
-            ${canEdit ? `<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">Actions</th>` : ''}
-          </tr>
-        </thead>
-        <tbody>
-          ${_csData.map(cs => {
-            const projLbl = cs.project_name || '<span style="color:var(--t3);font-style:italic">Company-wide default</span>';
-            const agntLbl = cs.agent_name
-              ? `${esc(cs.agent_name)} <span style="font-size:10px;color:var(--t3);font-family:monospace">${esc(cs.agent_code||'')}</span>`
-              : '<span style="color:var(--t3);font-style:italic">All agents</span>';
-            const bookPct = Number(cs.milestone_booking_pct || 50);
-            const possPct = Number(cs.milestone_possession_pct || 50);
-            return `<tr style="border-bottom:1px solid var(--hover);transition:background .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
-              <td style="padding:10px 12px;font-weight:600;color:var(--t1)">${cs.project_name ? esc(cs.project_name) : projLbl}</td>
-              <td style="padding:10px 12px">${agntLbl}</td>
-              <td style="padding:10px 12px;text-align:center;font-weight:800;font-size:16px;color:var(--brand)">${Number(cs.rate_percent)}%</td>
-              <td style="padding:10px 12px;text-align:center">
-                <span style="font-size:12px;font-weight:700;color:#6366f1">${bookPct}%</span>
-                <span style="font-size:10px;color:var(--t3);display:block">on booking</span>
-              </td>
-              <td style="padding:10px 12px;text-align:center">
-                <span style="font-size:12px;font-weight:700;color:#16a34a">${possPct}%</span>
-                <span style="font-size:10px;color:var(--t3);display:block">on possession</span>
-              </td>
-              <td style="padding:10px 12px;text-align:center">
-                ${cs.is_active
-                  ? `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.2)">Active</span>`
-                  : `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(107,114,128,.1);color:#6b7280;border:1px solid rgba(107,114,128,.2)">Inactive</span>`}
-              </td>
-              ${canEdit ? `<td style="padding:10px 12px;text-align:right;white-space:nowrap">
-                <button class="btn btn-xs btn-gh" onclick="_csOpenForm('${cs.id}')">Edit</button>
-                <button class="btn btn-xs btn-gh" style="color:var(--err)" onclick="_csDelete('${cs.id}')">Del</button>
-              </td>` : ''}
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  </div>
+  el.innerHTML = `<div style="margin-bottom:14px">${intro}</div>` + NX.card(
+    `<table class="nx-table"><thead><tr>
+        <th>Project</th><th>Agent</th><th class="num">Rate</th><th class="num">Booking</th><th class="num">Possession</th><th>Status</th>${canEdit?'<th class="num"></th>':''}
+      </tr></thead><tbody>
+      ${_csData.map(cs => {
+        const projLbl = cs.project_name ? esc(cs.project_name) : '<span style="color:var(--fk-text-muted);font-style:italic">Company-wide default</span>';
+        const agntLbl = cs.agent_name
+          ? `${esc(cs.agent_name)} <span class="nx-mono" style="font-size:10px;color:var(--fk-text-muted)">${esc(cs.agent_code||'')}</span>`
+          : '<span style="color:var(--fk-text-muted);font-style:italic">All agents</span>';
+        const bookPct = Number(cs.milestone_booking_pct || 50);
+        const possPct = Number(cs.milestone_possession_pct || 50);
+        return `<tr>
+          <td style="font-weight:500">${projLbl}</td>
+          <td>${agntLbl}</td>
+          <td class="num" style="font-weight:600;color:var(--fk-primary)">${Number(cs.rate_percent)}%</td>
+          <td class="num">${bookPct}%</td>
+          <td class="num">${possPct}%</td>
+          <td>${cs.is_active ? NX.badge('Active','success',{dot:true}) : NX.badge('Inactive','',{dot:true})}</td>
+          ${canEdit?`<td class="num"><div style="display:inline-flex;gap:6px;justify-content:flex-end">${NX.button('Edit',{variant:'ghost',size:'sm',onclick:`_csOpenForm('${cs.id}')`})}${NX.button('Delete',{variant:'ghost',size:'sm',onclick:`_csDelete('${cs.id}')`})}</div></td>`:''}
+        </tr>`;
+      }).join('')}</tbody></table>`,
+    { header:{ icon:'settings', title:'Commission Structures', sub:`${_csData.length} rule${_csData.length !== 1 ? 's' : ''}` }, flush:true });
+}
 
-  <!-- Inline modal -->
-  <div class="mov" id="m-cs-form">
-    <div class="mox" style="max-width:480px">
-      <div class="moh">
-        <span class="mot" id="cs-form-title">Add Commission Structure</span>
-        <button class="moc" onclick="cm('m-cs-form')">✕</button>
-      </div>
-      <div class="mob" style="display:flex;flex-direction:column;gap:14px">
-        <input type="hidden" id="cs-id">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <label class="lbl">Project <span style="color:var(--t3);font-size:11px">(blank = company default)</span></label>
-            <select class="inp" id="cs-project-id">
-              <option value="">— Company-wide default —</option>
-              ${_csProjects.map(p => `<option value="${p.id}">${esc(p.project_name)}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <label class="lbl">Agent <span style="color:var(--t3);font-size:11px">(blank = all agents)</span></label>
-            <select class="inp" id="cs-agent-id">
-              <option value="">— All agents —</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="lbl">Commission Rate (%) *</label>
-          <input class="inp" id="cs-rate" type="number" min="0" max="100" step="0.5" placeholder="e.g. 2.5">
-        </div>
-        <div>
-          <label class="lbl">Milestone Splits <span style="color:var(--t3);font-size:11px">(must total ≤ 100%)</span></label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div>
-              <label class="lbl" style="font-size:11px;color:var(--t3)">On Booking (%)</label>
-              <input class="inp" id="cs-book-pct" type="number" min="0" max="100" step="5" value="50">
-            </div>
-            <div>
-              <label class="lbl" style="font-size:11px;color:var(--t3)">On Possession (%)</label>
-              <input class="inp" id="cs-poss-pct" type="number" min="0" max="100" step="5" value="50">
-            </div>
-          </div>
-        </div>
-        <div>
-          <label class="lbl">Status</label>
-          <select class="inp" id="cs-active">
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
-        </div>
-        <div>
-          <label class="lbl">Notes</label>
-          <textarea class="inp" id="cs-notes" rows="2" style="resize:vertical" placeholder="Optional notes…"></textarea>
-        </div>
-        <div id="cs-err" style="color:var(--err);font-size:12px;display:none"></div>
-      </div>
-      <div class="mof">
-        <button class="btn btn-gh" onclick="cm('m-cs-form')">Cancel</button>
-        <button class="btn btn-g" id="cs-save-btn" onclick="_csSave()">Save Structure</button>
-      </div>
-    </div>
-  </div>`;
+// Host-injected lean structure form (replaces the legacy .mov inline modal).
+function _csFormHost() {
+  let h = document.getElementById('cs-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'cs-modal-host'; document.body.appendChild(h); }
+  return h;
 }
 
 async function _csOpenForm(id) {
   _csEditId = id || null;
-  const titleEl = document.getElementById('cs-form-title');
-  if (titleEl) titleEl.textContent = id ? 'Edit Commission Structure' : 'Add Commission Structure';
+  _agCSS();
+  const projOpts = '<option value="">— Company-wide default —</option>' + _csProjects.map(p => `<option value="${p.id}">${esc(p.project_name)}</option>`).join('');
+  const body =
+    `<input type="hidden" id="cs-id">` +
+    `<div class="nx-grid-2">` +
+      `<div class="nx-field"><label class="nx-label" for="cs-project-id">Project <span class="nx-error" style="display:inline;color:var(--fk-text-muted);text-transform:none;letter-spacing:0;font-weight:400">(blank = company default)</span></label><select class="nx-select" id="cs-project-id">${projOpts}</select></div>` +
+      `<div class="nx-field"><label class="nx-label" for="cs-agent-id">Agent <span class="nx-error" style="display:inline;color:var(--fk-text-muted);text-transform:none;letter-spacing:0;font-weight:400">(blank = all agents)</span></label><select class="nx-select" id="cs-agent-id"><option value="">— All agents —</option></select></div>` +
+    `</div>` +
+    `<div class="nx-field"><label class="nx-label" for="cs-rate">Commission rate (%) <span class="nx-req">*</span></label><input class="nx-input" id="cs-rate" type="number" min="0" max="100" step="0.5" placeholder="e.g. 2.5"></div>` +
+    `<div class="nx-field"><label class="nx-label">Milestone splits <span style="color:var(--fk-text-muted);font-weight:400;text-transform:none;letter-spacing:0">(total ≤ 100%)</span></label>
+      <div class="nx-grid-2">
+        <div class="nx-field" style="margin:0"><label class="nx-label" for="cs-book-pct">On booking (%)</label><input class="nx-input" id="cs-book-pct" type="number" min="0" max="100" step="5" value="50"></div>
+        <div class="nx-field" style="margin:0"><label class="nx-label" for="cs-poss-pct">On possession (%)</label><input class="nx-input" id="cs-poss-pct" type="number" min="0" max="100" step="5" value="50"></div>
+      </div></div>` +
+    `<div class="nx-field"><label class="nx-label" for="cs-active">Status</label><select class="nx-select" id="cs-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>` +
+    `<div class="nx-field"><label class="nx-label" for="cs-notes">Notes</label><textarea class="nx-textarea" id="cs-notes" rows="2" placeholder="Optional notes…"></textarea></div>` +
+    `<div class="nx-error" id="cs-err"></div>`;
 
-  document.getElementById('cs-id').value       = id || '';
-  document.getElementById('cs-project-id').value = '';
-  document.getElementById('cs-rate').value     = '';
-  document.getElementById('cs-book-pct').value = '50';
-  document.getElementById('cs-poss-pct').value = '50';
-  document.getElementById('cs-active').value   = 'true';
-  document.getElementById('cs-notes').value    = '';
-  const errEl = document.getElementById('cs-err');
-  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  _csFormHost().innerHTML = NX.modal({
+    id:'m-cs-form', title: id ? 'Edit commission structure' : 'Add commission structure', size:'m',
+    onClose:'_csCloseForm()', body,
+    footer: NX.button('Cancel', { variant:'secondary', onclick:'_csCloseForm()' }) +
+            NX.button('Save structure', { variant:'primary', attrs:'id="cs-save-btn"', onclick:'_csSave()' })
+  });
+
+  document.getElementById('cs-id').value = id || '';
 
   // Populate agent dropdown
   const agSel = document.getElementById('cs-agent-id');
@@ -1612,9 +1209,9 @@ async function _csOpenForm(id) {
       document.getElementById('cs-notes').value    = cs.notes || '';
     }
   }
-
-  om('m-cs-form');
 }
+
+function _csCloseForm() { const h = document.getElementById('cs-modal-host'); if (h) h.innerHTML = ''; }
 
 async function _csSave() {
   const rate     = parseFloat(document.getElementById('cs-rate')?.value);
@@ -1651,7 +1248,7 @@ async function _csSave() {
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error || 'Save failed');
     toast(_csEditId ? 'Structure updated' : 'Structure added', 'ok');
-    cm('m-cs-form');
+    _csCloseForm();
     await _commLoadStructures();
   } catch(e) {
     errEl.textContent = 'Error: ' + e.message; errEl.style.display = '';
@@ -1672,8 +1269,16 @@ async function _csDelete(id) {
 }
 
 // ── Commission Payment Modal ─────────────────────────────────────────
+function _cpFormHost() {
+  let h = document.getElementById('cp-modal-host');
+  if (!h) { h = document.createElement('div'); h.id = 'cp-modal-host'; document.body.appendChild(h); }
+  return h;
+}
+function closeCommPayModal() { const h = document.getElementById('cp-modal-host'); if (h) h.innerHTML = ''; }
+
 function openCommPayModal(agentId, agentName, commPending) {
   if (!_canEditAgent()) { toast('Permission denied', 'warn'); return; }
+  _agCSS();
 
   // Store agent context for voucher generation
   const ac = _agCache.find(a => a.id === agentId) || {};
@@ -1688,17 +1293,28 @@ function openCommPayModal(agentId, agentName, commPending) {
     commPending: Number(commPending || 0)
   };
 
-  document.getElementById('cp-agent-id').value = agentId;
-  document.getElementById('cp-agent-strip').innerHTML =
-    `${esc(agentName)}&nbsp;&nbsp;<span style="font-weight:400;font-size:12px;color:var(--t3)">Pending commission: </span><span style="color:var(--warn)">PKR ${fM(commPending)}</span>`;
-  document.getElementById('cp-amount').value = commPending > 0 ? Math.round(commPending) : '';
-  document.getElementById('cp-date').value   = new Date().toISOString().slice(0, 10);
-  document.getElementById('cp-method').value = 'bank_transfer';
-  document.getElementById('cp-refno').value  = '';
-  document.getElementById('cp-notes').value  = '';
-  document.getElementById('cp-err').textContent     = '';
-  document.getElementById('e-cp-amount').textContent = '';
-  om('m-comm-pay');
+  const today = new Date().toISOString().slice(0, 10);
+  const methodOpts = '<option value="bank_transfer">Bank Transfer</option><option value="cash">Cash</option><option value="cheque">Cheque</option><option value="online">Online / Mobile</option>';
+  const body =
+    `<input type="hidden" id="cp-agent-id" value="${esc(agentId)}">` +
+    `<div style="display:flex;align-items:center;gap:10px;background:var(--fk-warning-surface,var(--fk-bg-subtle));border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);padding:10px 14px;margin-bottom:14px;font-size:13px;font-weight:500">${esc(agentName)} <span style="color:var(--fk-text-muted);font-weight:400">· pending</span> <span style="color:var(--fk-warning);font-weight:600">PKR ${fM(commPending)}</span></div>` +
+    `<div class="nx-grid-2">` +
+      `<div class="nx-field"><label class="nx-label" for="cp-amount">Amount (PKR) <span class="nx-req">*</span></label><input class="nx-input" id="cp-amount" type="number" min="1" step="1" value="${commPending > 0 ? Math.round(commPending) : ''}" placeholder="0.00"><div class="nx-error" id="e-cp-amount"></div></div>` +
+      `<div class="nx-field"><label class="nx-label" for="cp-date">Payment date <span class="nx-req">*</span></label><input class="nx-input" id="cp-date" type="date" value="${today}"></div>` +
+    `</div>` +
+    `<div class="nx-grid-2">` +
+      `<div class="nx-field"><label class="nx-label" for="cp-method">Payment method</label><select class="nx-select" id="cp-method">${methodOpts}</select></div>` +
+      `<div class="nx-field"><label class="nx-label" for="cp-refno">Reference no</label><input class="nx-input" id="cp-refno" type="text" placeholder="Transaction / cheque no"></div>` +
+    `</div>` +
+    `<div class="nx-field"><label class="nx-label" for="cp-notes">Notes</label><textarea class="nx-textarea" id="cp-notes" rows="2" placeholder="Optional notes…"></textarea></div>` +
+    `<div class="nx-error" id="cp-err"></div>`;
+
+  _cpFormHost().innerHTML = NX.modal({
+    id:'m-comm-pay', title:'Record commission payment', size:'m', onClose:'closeCommPayModal()', body,
+    footer: `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fk-text-muted);cursor:pointer;margin-right:auto"><input type="checkbox" id="cp-print-voucher" checked style="accent-color:var(--fk-primary)"> Print voucher</label>` +
+            NX.button('Cancel', { variant:'secondary', onclick:'closeCommPayModal()' }) +
+            NX.button('Record payment', { variant:'primary', attrs:'id="cp-save-btn"', onclick:'saveCommPayForm()' })
+  });
 }
 
 async function saveCommPayForm() {
@@ -1740,7 +1356,7 @@ async function saveCommPayForm() {
     const inserted = result?.row || null;
 
     toast('Commission payment recorded', 'ok');
-    cm('m-comm-pay');
+    closeCommPayModal();
 
     if (doPrintVoucher && inserted) {
       const year      = new Date().getFullYear();
@@ -1778,7 +1394,7 @@ async function saveCommPayForm() {
   } catch(e) {
     errEl.textContent = 'Error: ' + e.message;
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Record Payment'; }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Record payment'; }
   }
 }
 
