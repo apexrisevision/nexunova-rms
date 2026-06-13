@@ -1386,7 +1386,7 @@ function _renderSaleDetail(d, docs, amendments) {
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-p">
       <button class="bk" onclick="nav('sales')">← Back</button>
-      <button class="btn btn-sm" onclick="printApplicationForm()" style="background:#15613f;color:#fff;border:1px solid #11502f;display:inline-flex;align-items:center;gap:5px" title="KBH Application / Booking Form (legal — for the pre-printed sheet)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Application Form</button>
+      <button class="btn btn-sm" onclick="printApplicationForm()" style="background:#4f46e5;color:#fff;border:1px solid #4338ca;display:inline-flex;align-items:center;gap:5px" title="KBH Application / Booking Form (legal — for the pre-printed sheet)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Application Form</button>
       <button class="btn btn-print btn-sm" onclick="printSaleDetail()" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
       <button class="btn btn-sm" onclick="openAgreementReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Sale Agreement"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Agreement</button>
       <button class="btn btn-sm" onclick="openScheduleReport('${d.id}')" style="background:rgba(30,45,71,.08);color:#1e2d47;border:1px solid rgba(30,45,71,.2);display:inline-flex;align-items:center;gap:5px" title="A4 Installment Schedule"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
@@ -2660,15 +2660,18 @@ async function printApplicationForm() {
   }
 
   // ── CALIBRATION CONSTANTS — tune to the real pre-printed KBH sheet ──────
-  // The KBH green header (KHUSHAL BAGH HEIGHTS logo + "APPLICATION FORM" banner)
-  // is a TALL band, so the top gap is large; the sayadeveloper.com footer band is
-  // small. Adjust these two against an actual test print on the pre-printed sheet.
+  // _mTop reserves the pre-printed green header band; _mBot the footer band. The
+  // body stretches to fill everything between them (AF.bodyH) so the signatures
+  // sit at the bottom — no awkward empty gap. Adjust _mTop / _mBot to a test print.
+  const _pageH = size === 'A4' ? 11.69 : 14;
+  const _pageW = size === 'A4' ? 8.27  : 8.5;
+  const _mTop  = size === 'A4' ? 1.7   : 2.0;   // pre-printed green header gap
+  const _mBot  = 0.5;                            // pre-printed footer gap
+  const _mSide = 0.45;
   const AF = {
-    pageW:        size === 'A4' ? '210mm' : '8.5in',
-    pageH:        size === 'A4' ? '297mm' : '14in',
-    marginTop:    size === 'A4' ? '2.1in' : '2.5in',  // blank band: pre-printed green header
-    marginBottom: size === 'A4' ? '0.5in' : '0.6in',  // blank band: pre-printed footer
-    marginSide:   '0.45in'
+    pageW: _pageW + 'in', pageH: _pageH + 'in',
+    marginTop: _mTop + 'in', marginBottom: _mBot + 'in', marginSide: _mSide + 'in',
+    bodyH: (_pageH - _mTop - _mBot).toFixed(2) + 'in'   // printable area = the body fills it
   };
 
   const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
@@ -2690,28 +2693,32 @@ async function printApplicationForm() {
   const css =
     '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;color:#111;font-size:10px}' +
-    '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px 14px;margin:0 0 14px}' +
-    '.af-gc{display:flex;align-items:center;gap:6px}' +
-    '.af-gl{font-size:8.5px;color:#333;white-space:nowrap}' +
-    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 6px;font-size:10px;font-weight:bold;min-height:21px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.af-sec{font-size:10px;font-weight:bold;letter-spacing:.4px;color:#15412e;border-bottom:1.4px solid #15412e;padding:0 0 2px;margin:16px 0 6px}' +
-    'table.af{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:2px}' +
-    'table.af td{border:1px solid #9aa6ac;padding:0;vertical-align:middle}' +
-    'td.afl{background:#fff;font-size:8.5px;color:#222;font-weight:bold;padding:7px 6px;width:120px;white-space:nowrap}' +
-    'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:10px;font-weight:bold;padding:7px 7px;overflow:hidden}' +
-    'td.afph{width:33mm;text-align:center;vertical-align:middle;background:#fff;padding:3px}' +
-    'td.afph img{width:29mm;height:35mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
-    '.af-ph-blank{width:29mm;height:35mm;border:1px dashed #888;display:flex;align-items:center;justify-content:center;font-size:7.5px;color:#999;margin:0 auto;text-align:center;text-transform:uppercase;letter-spacing:.4px}' +
-    '.af-decl-t{font-size:9.5px;font-weight:bold;margin:18px 0 3px}' +
-    '.af-decl{font-size:9px;line-height:1.6;text-align:justify}' +
-    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:52px;page-break-inside:avoid}' +
-    '.af-sig{font-size:9px;text-align:center;color:#222}' +
-    '.af-sigline{border-bottom:1px solid #333;height:26px;margin-bottom:4px}';
+    'body{font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;color:#111;font-size:11px}' +
+    // the sheet fills the whole printable area so signatures sit at the bottom
+    '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
+    '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px 16px;margin:0 0 12px}' +
+    '.af-gc{display:flex;align-items:center;gap:7px}' +
+    '.af-gl{font-size:9px;color:#333;white-space:nowrap}' +
+    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 8px;font-size:11px;font-weight:bold;height:0.46in;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.af-sec{font-size:11px;font-weight:bold;letter-spacing:.4px;color:#15412e;border-bottom:1.5px solid #15412e;padding:0 0 3px;margin:20px 0 8px}' +
+    'table.af{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:0}' +
+    // uniform tall rows — every row (single + paired) the same height, no cramping
+    'table.af td{border:1px solid #9aa6ac;height:0.52in;vertical-align:middle}' +
+    'td.afl{background:#fff;font-size:9px;color:#222;font-weight:bold;padding:4px 8px;width:128px;white-space:nowrap}' +
+    'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:11px;font-weight:bold;padding:4px 9px;overflow:hidden}' +
+    'td.afph{width:35mm;text-align:center;vertical-align:middle;background:#fff;padding:4px}' +
+    'td.afph img{width:31mm;height:38mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
+    '.af-ph-blank{width:31mm;height:38mm;border:1px dashed #888;display:flex;align-items:center;justify-content:center;font-size:8px;color:#999;margin:0 auto;text-align:center;text-transform:uppercase;letter-spacing:.4px}' +
+    '.af-decl-t{font-size:10px;font-weight:bold;margin:22px 0 4px}' +
+    '.af-decl{font-size:9.5px;line-height:1.7;text-align:justify}' +
+    '.af-sp{flex:1 1 auto;min-height:0.35in}' +            // absorbs any remainder; signatures sit at the bottom
+    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;page-break-inside:avoid}' +
+    '.af-sig{font-size:10px;text-align:center;color:#222}' +
+    '.af-sigline{border-bottom:1px solid #333;height:30px;margin-bottom:5px}';
 
   // ── Top row grid: 3 columns, inline label + filled value box ──
   const gc = (l, val) => '<div class="af-gc"><span class="af-gl">' + l + '</span><span class="af-gb">' + v(val) + '</span></div>';
-  let b = '<div class="af-grid">' +
+  let b = '<div class="af-sheet"><div class="af-grid">' +
     gc('Booking No', d.sale_number) + gc('MID #', c.client_code) + gc('Date', saleDate) +
     gc('Unit Address', d.unit_no) + gc('Floor', d.floor_label) + gc('Categorie', d.unit_type) +
     gc('Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '') +
@@ -2753,10 +2760,12 @@ async function printApplicationForm() {
   // ── Declaration + two signature lines ──
   b += '<div class="af-decl-t">Declaration</div>';
   b += '<div class="af-decl">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time.</div>';
+  b += '<div class="af-sp"></div>';
   b += '<div class="af-sigs">' +
        '<div class="af-sig"><div class="af-sigline"></div>Signature of Applicant</div>' +
        '<div class="af-sig"><div class="af-sigline"></div>Authorized Signature</div>' +
        '</div>';
+  b += '</div>';   // close .af-sheet
 
   const docHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Application Form — ' +
     esc(d.sale_number || '') + '</title><style>' + css + '</style></head><body>' + b + '</body></html>';
