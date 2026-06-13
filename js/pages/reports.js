@@ -72,7 +72,7 @@ const REPORTS = {
   client_summary: { meta: { title: 'Recovery Demand Summary', group: 'CLIENT & UNIT', desc: 'Unit-wise demand sheet — price, arrears to last month, this-month installment & total due now, with a grand total' },
     config: {
       id: 'client_summary', title: 'Recovery Demand Summary', group: 'CLIENT & UNIT', orientation: 'landscape',
-      description: 'Unit-wise demand sheet for the running month — each unit’s price (total · discount · net), the receivable that should have come in by last month-end vs what was actually received, the arrears carried forward, this month’s installment, and the total due now; grand total of every unit at the bottom',
+      description: 'Unit-wise demand & collection sheet for the running month — each unit’s price (total · discount · net), the arrears carried forward from last month-end, this month’s installment, what has actually been received this month so far, the resulting Net Due Now (arrears + installment − received; a negative is an advance), and the balance to the final installment; grand total of every unit at the bottom',
       filters: [{ kind: 'project' }],
       // Month-anchored, TWO rollforward calls merged by sale_id:
       //   A = epoch..last-month-end → due_period (receivable that should've come),
@@ -382,11 +382,15 @@ function _unitStatementTransform(data, f) {
   };
 }
 
-// Unit-wise monthly demand sheet (grand total of all units). Two rollforwards:
-//   A = epoch..last-month-end → due_period (receivable that should've come in),
-//       received_total (received), closing (arrears carried forward).
-//   B = this-month..end        → due_period (this month's installment).
-// Merged by sale_id. Sorted unit-wise. Total Due Now = arrears + this-month installment.
+// Unit-wise monthly demand+collection sheet (grand total of all units). The model is
+// a per-unit month rollforward T-account:
+//     Arrears b/f  +  this-month installment  −  received this month  =  Net Due Now
+// Two get_recovery_position calls merged by sale_id:
+//   A = epoch..last-month-end → closing (arrears b/f), received_total (received to last
+//       month — used for the lifetime balance), total/discount/net_price (pricing).
+//   B = this-month-start..this-month-end → due_period (this month's installment),
+//       received_total (received this month, to date — no future receipts exist).
+// Net Due Now is signed: a negative value means the client is in advance / credit.
 function _clientSummaryTransform(data, f) {
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const A = (data && data.A) || [], B = (data && data.B) || [];
@@ -397,14 +401,16 @@ function _clientSummaryTransform(data, f) {
   const rows = A.map(r => {
     const b = bById[r.sale_id] || {};
     const total = Number(r.total_price || 0), disc = Number(r.discount || 0), net = Number(r.net_price || 0);
-    const dueTill = Number(r.due_period || 0);          // receivable that should have come in by last-month-end
-    const recdTill = Number(r.received_total || 0);     // actually received by last-month-end
-    const arrears = Math.max(0, Number(r.closing || 0));// overdue carried forward
-    const curInst = Number(b.due_period || 0);          // this month's installment
+    const arrears = Math.max(0, Number(r.closing || 0));        // overdue carried into this month
+    const curInst = Number(b.due_period || 0);                  // this month's installment (demand)
+    const recdMonth = Number(b.received_total || 0);            // received this month, to date
+    const recdToLast = Number(r.received_total || 0);           // received up to last-month-end
+    const netDue = arrears + curInst - recdMonth;               // collect now; <0 = advance/credit
+    const balance = Math.max(0, net - (recdToLast + recdMonth));// remaining to the final installment
     return {
       unit: (r.unit_no || '—') + (r.floor_name ? '  ·  ' + r.floor_name : ''),
       client: (r.client_name || '—') + (r.client_code ? '  ·  ' + r.client_code : ''),
-      total, disc, net, dueTill, recdTill, arrears, curInst, totalDue: arrears + curInst,
+      total, disc, net, arrears, curInst, recdMonth, netDue, balance,
       _u: r.unit_no || ''
     };
   }).sort((a, b) => String(a._u).localeCompare(String(b._u), undefined, { numeric: true }));
@@ -414,22 +420,23 @@ function _clientSummaryTransform(data, f) {
     { key: 'total', label: 'Total Price', num: true, fmt: 'money' },
     { key: 'disc', label: 'Less Discount', num: true, fmt: 'money' },
     { key: 'net', label: 'Net Amount', num: true, fmt: 'money' },
-    { key: 'dueTill', label: 'Receivable to ' + leLabel, num: true, fmt: 'money' },
-    { key: 'recdTill', label: 'Received to ' + leLabel, num: true, fmt: 'money' },
-    { key: 'arrears', label: 'Arrears', num: true, fmt: 'money' },
+    { key: 'arrears', label: 'Arrears to ' + leLabel, num: true, fmt: 'money' },
     { key: 'curInst', label: monShort + ' Installment', num: true, fmt: 'money' },
-    { key: 'totalDue', label: 'Total Due Now', num: true, fmt: 'money' }
+    { key: 'recdMonth', label: 'Received in ' + monShort, num: true, fmt: 'money' },
+    { key: 'netDue', label: 'Net Due Now', num: true, fmt: 'money' },
+    { key: 'balance', label: 'Balance to Final', num: true, fmt: 'money' }
   ];
   const sum = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
-  const totals = { total: sum('total'), disc: sum('disc'), net: sum('net'), dueTill: sum('dueTill'), recdTill: sum('recdTill'), arrears: sum('arrears'), curInst: sum('curInst'), totalDue: sum('totalDue') };
+  const totals = { total: sum('total'), disc: sum('disc'), net: sum('net'), arrears: sum('arrears'), curInst: sum('curInst'), recdMonth: sum('recdMonth'), netDue: sum('netDue'), balance: sum('balance') };
   return {
     columns, rows, totals, totalsLabel: 'ALL UNITS (' + rows.length + ')',
     summary: [
       { label: 'Units', value: rows.length },
-      { label: 'Net Value', value: totals.net, money: true },
       { label: 'Arrears to ' + leLabel, value: totals.arrears, money: true },
       { label: monShort + ' Installment', value: totals.curInst, money: true },
-      { label: 'Total Due Now', value: totals.totalDue, money: true }
+      { label: 'Received in ' + monShort, value: totals.recdMonth, money: true },
+      { label: 'Net Due Now', value: totals.netDue, money: true },
+      { label: 'Balance to Final', value: totals.balance, money: true }
     ]
   };
 }
