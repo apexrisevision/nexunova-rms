@@ -175,7 +175,11 @@ function _uFloorCode(name) {
 // ── Table: one nx-table ────────────────────────────────────────────────────
 function _uTableHTML(units) {
   if (!units.length) return `<div class="nx-card">${NX.empty({ icon: 'search', message: 'No units match these filters.' })}</div>`;
-  const rows = units.slice().sort((a, b) => String(a.floorLabel).localeCompare(String(b.floorLabel)) || String(a.unitNo).localeCompare(String(b.unitNo), undefined, { numeric: true })).map(u => `
+  // Order rows the SAME way the grid groups: by floor sort_order (not the floor
+  // label string — that sorts "Fifth/First/Second…" alphabetically), then unit no.
+  const _fo = {}; _uFloors().forEach((f, i) => { _fo[f.id] = i; });
+  const _ford = u => (u.floorId != null && _fo[u.floorId] != null) ? _fo[u.floorId] : 999;
+  const rows = units.slice().sort((a, b) => (_ford(a) - _ford(b)) || String(a.unitNo).localeCompare(String(b.unitNo), undefined, { numeric: true })).map(u => `
     <tr style="cursor:pointer" onclick="rUD('${u.id}')">
       <td>${esc(u.unitNo)}</td><td>${esc(u.floorLabel || '—')}</td><td>${esc(u.type || '—')}</td>
       <td class="num">${u.area ? esc(_uArea(u)) : '—'}</td><td>${_uStatusChip(u)}</td><td>${esc(u.customerName || '—')}</td></tr>`).join('');
