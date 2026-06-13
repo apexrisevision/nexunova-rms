@@ -93,6 +93,7 @@ async function _cxLoadBanks() {
 function _cxRender(elParam) {
   const el = elParam || document.getElementById('pg-unitcancel');
   if (!el) return;
+  if (typeof _opsWarmCSS === 'function') _opsWarmCSS();
 
   el.innerHTML = `
     <div class="rops" id="cx-root">

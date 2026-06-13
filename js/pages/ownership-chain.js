@@ -1,44 +1,74 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   UNIT OWNERSHIP CHAIN — Shajra-e-Nasab
-   Standalone page (pg-unitchain) + helper to embed the timeline anywhere.
-   RPC: get_unit_ownership_chain
+   UNIT OWNERSHIP CHAIN — Shajra-e-Nasab (warmth kit timeline)
+   Standalone page (pg-unitchain) + embed helper. RPC: get_unit_ownership_chain
    ════════════════════════════════════════════════════════════════════════════ */
 
 let _ucChain = null;
 let _ucUnitId = null;
 
-/* ── Standalone page ─────────────────────────────────────────────────── */
+// One-time timeline CSS. Class names avoid "-card" (visual-overhaul boxes those) → uc-*.
+function _ucCSS() {
+  if (document.getElementById('_uc_css')) return;
+  const s = document.createElement('style'); s.id = '_uc_css';
+  s.textContent = `
+    .uc-tl{position:relative;padding-left:26px}
+    .uc-tl::before{content:'';position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--fk-border)}
+    .uc-ev{position:relative;margin-bottom:14px}
+    .uc-ev:last-child{margin-bottom:0}
+    .uc-dot{position:absolute;left:-23px;top:16px;width:13px;height:13px;border-radius:50%;border:3px solid var(--fk-bg-page);box-shadow:0 0 0 1px var(--fk-border);background:var(--fk-primary)}
+    .uc-dot.is-cancel{background:var(--fk-danger)}
+    .uc-dot.is-xfer{background:var(--fk-warning)}
+    .uc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+    .uc-type{font-size:13.5px;font-weight:600;color:var(--fk-text)}
+    .uc-date{font-size:11.5px;color:var(--fk-text-muted);margin-left:auto;white-space:nowrap}
+    .uc-vch{font-size:11px;font-family:var(--fk-font-mono,ui-monospace,monospace);color:var(--fk-text-muted)}
+    .uc-client{font-size:14px;font-weight:600;color:var(--fk-text);margin-bottom:9px}
+    .uc-fin{display:flex;flex-wrap:wrap;gap:8px 18px}
+    .uc-fin>div{display:flex;flex-direction:column;gap:1px}
+    .uc-fin .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted)}
+    .uc-fin .val{font-size:13px;font-weight:500;color:var(--fk-text);font-variant-numeric:tabular-nums}
+    .uc-note{margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-border);font-size:12px;color:var(--fk-text-muted)}
+    .uc-summary{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+    .uc-unit-no{font-size:20px;font-weight:600;color:var(--fk-text);letter-spacing:-.01em}
+    .uc-unit-sub{font-size:12.5px;color:var(--fk-text-muted);margin-top:3px}
+  `;
+  document.head.appendChild(s);
+}
+
+/* ── Standalone page ─────────────────────────────────────────────────────
+   HARDEN (2026-06-13): the legacy code called `nav('unitchain')` from INSIDE
+   rUnitChain — and nav() re-invokes rUnitChain() with no same-page guard. Since
+   that call sits before the first `await`, it recursed synchronously → stack
+   overflow every time the chain opened (the verify harness logged ~750 rejected
+   navigations). Fixed with an activation guard: if a link calls us directly while
+   another page is active, activate the route once (nav re-invokes us, now active,
+   and we render). When nav invokes us, pg-unitchain is already `.on` → we render
+   directly, no recursion. */
 async function rUnitChain(unitId) {
   const el = document.getElementById('pg-unitchain');
   if (!el) return;
+  _ucCSS();
 
-  // Set as current page (so nav() works)
-  if (unitId) _ucUnitId = unitId;
+  if (unitId !== undefined && unitId !== null) _ucUnitId = unitId;
+
+  // Direct call from a link while on another page → activate the route once.
+  if (!el.classList.contains('on')) { if (typeof nav === 'function') nav('unitchain'); return; }
+
   if (!_ucUnitId) {
-    el.innerHTML = `<div class="rops">${_ucPickerHTML()}</div>`;
-    if (typeof nav === 'function') nav('unitchain');
+    el.innerHTML = '<div class="ani">' + _ucPickerHTML() + '</div>';
     return;
   }
 
-  el.innerHTML = `<div class="rops">
-    <div class="rops-hd">
-      <div class="rops-hd-l">
-        <div class="rops-hd-mark">${_ucIco('chain')}</div>
-        <div>
-          <h1 class="rops-hd-title">Ownership Chain</h1>
-          <div class="rops-hd-sub">Complete shajra-e-nasab of this unit</div>
-        </div>
-      </div>
-      <div class="rops-hd-r">
-        <button class="rops-btn rops-btn-ghost rops-btn-sm" onclick="rUnitChain()">Pick Different Unit</button>
-        <button class="rops-btn rops-btn-ghost rops-btn-sm" onclick="_ucPrint()">Print</button>
-        <button class="rops-btn rops-btn-ghost rops-btn-sm" onclick="nav('units')">Back to Units</button>
-      </div>
-    </div>
-    <div id="uc-body"><div class="rops-tbl-empty"><span class="rops-spin"></span> Loading chain…</div></div>
-  </div>`;
+  el.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Ownership Chain',
+        NX.button('Pick unit', { variant:'secondary', onclick:'_ucUnitId=null;rUnitChain()' }) +
+        NX.button('Print', { variant:'secondary', icon:'printer', onclick:'_ucPrint()' }) +
+        NX.button('Back to units', { variant:'ghost', onclick:"nav('units')" }),
+        { icon:'git-branch', sub:'Complete shajra-e-nasab of this unit.' }) +
+      '<div id="uc-body">' + NX.card(NX.empty({ icon:'git-branch', message:'Loading chain…' })) + '</div>' +
+    '</div>';
 
-  if (typeof nav === 'function') nav('unitchain');
   await _ucLoad(_ucUnitId, document.getElementById('uc-body'));
 }
 
@@ -49,31 +79,20 @@ function _ucPickerHTML() {
     const prj = (window._projectsCache || []).find(p => p.id === u.projectId);
     return `<option value="${esc(u.id)}">${esc(u.unitNo)}${prj ? ' · ' + esc(prj.name || prj.projectName) : ''}</option>`;
   }).join('');
-  return `
-    <div class="rops-hd">
-      <div class="rops-hd-l">
-        <div class="rops-hd-mark">${_ucIco('chain')}</div>
-        <div>
-          <h1 class="rops-hd-title">Ownership Chain Report</h1>
-          <div class="rops-hd-sub">Pick a unit to view its full transfer / cancellation history</div>
-        </div>
-      </div>
-    </div>
-    <div class="rops-sec">
-      <div class="rops-sec-bd">
-        <div class="rops-fr" style="max-width:480px">
-          <label class="rops-fl">Unit</label>
-          <select class="rops-sel" onchange="if(this.value) rUnitChain(this.value)">
-            <option value="">Select a unit</option>${opts}
-          </select>
-        </div>
-      </div>
-    </div>`;
+  return NX.pageHeader('Ownership Chain', '', { icon:'git-branch', sub:'Pick a unit to view its full transfer / cancellation history.' }) +
+    NX.card(
+      `<div class="nx-field uc-pick" style="max-width:480px;margin:0">
+        <label class="nx-label" for="uc-pick">Unit</label>
+        <select class="nx-select" id="uc-pick" onchange="if(this.value) rUnitChain(this.value)">
+          <option value="">Select a unit</option>${opts}
+        </select>
+      </div>`);
 }
 
 /* ── Loader (also called by embed helper) ─────────────────────────────── */
 async function _ucLoad(unitId, targetEl) {
   if (!targetEl) return;
+  _ucCSS();
   try {
     const { data, error } = await supabase.rpc('get_unit_ownership_chain', {
       p_unit_id: unitId,
@@ -84,97 +103,80 @@ async function _ucLoad(unitId, targetEl) {
     _ucChain = data;
     targetEl.innerHTML = _ucBodyHTML(data);
   } catch (e) {
-    targetEl.innerHTML = `<div class="rops-alert is-danger">${_ucIco('warn')} ${esc(e.message)}</div>`;
+    targetEl.innerHTML = NX.card(NX.banner(esc(e.message), 'danger'));
   }
 }
 
 function _ucBodyHTML(data) {
   const unit = data.unit || {};
   const chain = data.chain || [];
-  const originBadge = _ucOriginBadge(unit.origin_type);
 
-  return `
-    <div class="rops-sec" style="margin-bottom:18px">
-      <div class="rops-sec-bd">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap">
-          <div>
-            <div style="font-size:22px; font-weight:700; letter-spacing:-0.01em">${esc(unit.unit_no || '—')}${unit.block ? ' · ' + esc(unit.block) : ''}</div>
-            <div style="font-size:12.5px; color:var(--t2); margin-top:4px">
-              ${esc(unit.project_name || '—')}${unit.floor_label ? ' · ' + esc(unit.floor_label) : ''}
-            </div>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center">
-            ${originBadge}
-            <span class="rops-badge"><span class="dot"></span> ${chain.length} event${chain.length === 1 ? '' : 's'}</span>
-          </div>
-        </div>
+  const summary = NX.card(
+    `<div class="uc-summary">
+      <div>
+        <div class="uc-unit-no">${esc(unit.unit_no || '—')}${unit.block ? ' · ' + esc(unit.block) : ''}</div>
+        <div class="uc-unit-sub">${esc(unit.project_name || '—')}${unit.floor_label ? ' · ' + esc(unit.floor_label) : ''}</div>
       </div>
-    </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        ${_ucOriginBadge(unit.origin_type)}
+        ${NX.badge(chain.length + ' event' + (chain.length === 1 ? '' : 's'), 'info', { dot:true })}
+      </div>
+    </div>`);
 
-    ${chain.length === 0 ? `
-      <div class="rops-empty">
-        <div class="rops-empty-mark">${_ucIco('chain')}</div>
-        <div class="rops-empty-t">No history yet</div>
-        <div class="rops-empty-s">When this unit is sold, cancelled, or transferred, the chain will appear here.</div>
-      </div>` : `
-      <div class="rops-sec">
-        <div class="rops-sec-bd">
-          <div class="rops-chain">
-            ${chain.map((evt, i) => _ucEventHTML(evt, i, chain.length)).join('')}
-          </div>
-        </div>
-      </div>`}`;
+  if (chain.length === 0) {
+    return `<div style="margin-bottom:16px">${summary}</div>` +
+      NX.card(NX.empty({ icon:'git-branch', message:'No history yet — when this unit is sold, cancelled or transferred, the chain will appear here.' }));
+  }
+
+  const tl = NX.card(`<div class="uc-tl">${chain.map((evt, i) => _ucEventHTML(evt, i, chain.length)).join('')}</div>`);
+  return `<div style="margin-bottom:16px">${summary}</div>` + tl;
 }
 
 function _ucOriginBadge(origin) {
-  if (origin === 'ex_cancelled') return `<span class="rops-internal">EX-CANCELLED</span>`;
-  if (origin === 'transferred')  return `<span class="rops-internal">TRANSFERRED</span>`;
-  return `<span class="rops-badge"><span class="dot"></span> Fresh inventory</span>`;
+  if (origin === 'ex_cancelled') return NX.badge('Ex-cancelled', 'warning', { dot:true });
+  if (origin === 'transferred')  return NX.badge('Transferred', 'info', { dot:true });
+  return NX.badge('Fresh inventory', '', { dot:true });
 }
 
 function _ucEventHTML(evt, idx, total) {
-  const typeMap = { sale: 'is-sale', cancellation: 'is-cancel', transfer: 'is-xfer' };
+  const typeMap  = { sale: 'is-sale', cancellation: 'is-cancel', transfer: 'is-xfer' };
   const labelMap = { sale: 'Sale', cancellation: 'Cancellation', transfer: 'Transfer' };
+  const toneMap  = { sale: 'primary', cancellation: 'danger', transfer: 'warning' };
   const cls = typeMap[evt.event_type] || '';
   const lbl = labelMap[evt.event_type] || evt.event_type;
+  const tone = toneMap[evt.event_type] || '';
   const date = _ucFormatDate(evt.event_at);
   const amtA = Number(evt.amount_a || 0);
   const amtB = Number(evt.amount_b || 0);
 
-  // Re-sale badge for sales that follow a cancellation
   const isReSale = evt.event_type === 'sale' && evt.is_resale;
   const isTransferSale = evt.event_type === 'sale' && evt.is_transfer;
-
-  // Order number badge (1st owner / 2nd owner / ... — only for sale events)
   const ownershipOrder = evt.event_type === 'sale' ? _ucCalcOwnerOrder(idx) : null;
 
   let aLabel = '', bLabel = '';
-  if (evt.event_type === 'sale')        { aLabel = 'Sale Price'; bLabel = 'Paid'; }
-  if (evt.event_type === 'cancellation'){ aLabel = 'Total Paid'; bLabel = 'Net Refund'; }
-  if (evt.event_type === 'transfer')    { aLabel = 'New Sale Price'; bLabel = 'Transfer Charges'; }
+  if (evt.event_type === 'sale')         { aLabel = 'Sale Price'; bLabel = 'Paid'; }
+  if (evt.event_type === 'cancellation') { aLabel = 'Total Paid'; bLabel = 'Net Refund'; }
+  if (evt.event_type === 'transfer')     { aLabel = 'New Sale Price'; bLabel = 'Transfer Charges'; }
 
-  return `
-    <div class="rops-chain-evt ${cls}">
-      <div class="rops-chain-dot"></div>
-      <div class="rops-chain-card">
-        <div class="rops-chain-meta">
-          <span class="rops-chain-type">${lbl}</span>
-          ${ownershipOrder ? `<span class="rops-badge"><span class="dot"></span> ${ownershipOrder}</span>` : ''}
-          ${isReSale ? `<span class="rops-internal">RE-SALE</span>` : ''}
-          ${isTransferSale ? `<span class="rops-internal">VIA TRANSFER</span>` : ''}
-          <span class="rops-chain-date">${date}</span>
-          ${evt.voucher_no ? `<span class="rops-chain-vch">${esc(evt.voucher_no)}</span>` : ''}
-        </div>
-        <div class="rops-chain-client">${esc(evt.client_name || '—')}</div>
-        <div class="rops-chain-fin">
-          ${evt.client_cnic ? `<div><span class="lbl">CNIC</span><span class="val">${esc(evt.client_cnic)}</span></div>` : ''}
-          ${evt.client_phone ? `<div><span class="lbl">Phone</span><span class="val">${esc(evt.client_phone)}</span></div>` : ''}
-          ${amtA ? `<div><span class="lbl">${aLabel}</span><span class="val">PKR ${_ucFM(amtA)}</span></div>` : ''}
-          ${amtB ? `<div><span class="lbl">${bLabel}</span><span class="val">PKR ${_ucFM(amtB)}</span></div>` : ''}
-        </div>
-        ${evt.reason || evt.note ? `<div class="rops-chain-note">${[evt.reason, evt.note].filter(Boolean).map(esc).join(' — ')}</div>` : ''}
-      </div>
-    </div>`;
+  const inner =
+    `<div class="uc-meta">
+      ${NX.badge(lbl, tone, { dot:true })}
+      ${ownershipOrder ? NX.chip(ownershipOrder) : ''}
+      ${isReSale ? NX.badge('Re-sale', 'warning') : ''}
+      ${isTransferSale ? NX.badge('Via transfer', 'info') : ''}
+      ${evt.voucher_no ? `<span class="uc-vch">${esc(evt.voucher_no)}</span>` : ''}
+      <span class="uc-date">${date}</span>
+    </div>
+    <div class="uc-client">${esc(evt.client_name || '—')}</div>
+    <div class="uc-fin">
+      ${evt.client_cnic ? `<div><span class="lbl">CNIC</span><span class="val">${esc(evt.client_cnic)}</span></div>` : ''}
+      ${evt.client_phone ? `<div><span class="lbl">Phone</span><span class="val">${esc(evt.client_phone)}</span></div>` : ''}
+      ${amtA ? `<div><span class="lbl">${aLabel}</span><span class="val">PKR ${_ucFM(amtA)}</span></div>` : ''}
+      ${amtB ? `<div><span class="lbl">${bLabel}</span><span class="val">PKR ${_ucFM(amtB)}</span></div>` : ''}
+    </div>
+    ${evt.reason || evt.note ? `<div class="uc-note">${[evt.reason, evt.note].filter(Boolean).map(esc).join(' — ')}</div>` : ''}`;
+
+  return `<div class="uc-ev"><span class="uc-dot ${cls}"></span>${NX.card(inner, { compact:true })}</div>`;
 }
 
 function _ucCalcOwnerOrder(idx) {
@@ -196,17 +198,17 @@ function _ucOrdinal(n) {
 async function ucEmbedTimeline(targetEl, unitId) {
   const el = typeof targetEl === 'string' ? document.querySelector(targetEl) : targetEl;
   if (!el) return;
-  el.innerHTML = `<div class="rops" style="padding:0"><div class="rops-tbl-empty"><span class="rops-spin"></span> Loading ownership chain…</div></div>`;
-  // Wrap a .rops scope so the chain styles apply
-  await _ucLoad(unitId, el.querySelector('.rops') || el);
+  _ucCSS();
+  el.innerHTML = NX.card(NX.empty({ icon:'git-branch', message:'Loading ownership chain…' }));
+  await _ucLoad(unitId, el);
 }
 
-/* ── Print ────────────────────────────────────────────────────────────── */
+/* ── Print (unchanged) ──────────────────────────────────────────────── */
 function _ucPrint() {
   if (!_ucChain) return;
   const unit = _ucChain.unit || {};
   const co = window._companyCache || {};
-  const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+  const today = new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const rows = (_ucChain.chain || []).map((evt, i) => {
     const date = _ucFormatDate(evt.event_at);
@@ -251,16 +253,9 @@ function _ucPrint() {
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
-function _ucFM(n) { return Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 }); }
+function _ucFM(n) { return Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }); }
 function _ucFormatDate(d) {
   if (!d) return '';
   try { return new Date(d).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }); }
   catch { return d; }
-}
-function _ucIco(name) {
-  const i = {
-    chain: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>',
-    warn:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'
-  };
-  return i[name] || '';
 }

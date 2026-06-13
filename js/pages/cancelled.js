@@ -1,5 +1,6 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   CANCELLED UNITS LEDGER — premium SaaS list
+   CANCELLED UNITS LEDGER — warmth kit (read register)
+   RPC untouched: get_cancelled_units_ledger
    ════════════════════════════════════════════════════════════════════════════ */
 
 let _clList = [];
@@ -8,6 +9,7 @@ let _clFilter = { project: '', fr: '', to: '', refund_status: 'All' };
 function rCancelLedger() {
   const pg = document.getElementById('pg-cancelledunits');
   if (!pg) return;
+  if (typeof _ldgCSS === 'function') _ldgCSS();
 
   if (!_clFilter.fr && typeof _ldgFiscalYear === 'function') {
     const { from, to } = _ldgFiscalYear();
@@ -15,50 +17,28 @@ function rCancelLedger() {
   }
 
   const projects = (typeof gprojects === 'function') ? gprojects() : (window._projectsCache || []);
-  const projOpts = projects.map(p => `<option value="${esc(p.id)}"${_clFilter.project===p.id?' selected':''}>${esc(p.projectName || p.name || '')}</option>`).join('');
+  const projOpts = '<option value="">All projects</option>' +
+    projects.map(p => `<option value="${esc(p.id)}"${_clFilter.project===p.id?' selected':''}>${esc(p.projectName || p.name || '')}</option>`).join('');
+  const stOpts = [['All','All statuses'],['paid','Paid'],['partial','Partial'],['pending','Pending']]
+    .map(([v,l]) => `<option value="${v}"${_clFilter.refund_status===v?' selected':''}>${l}</option>`).join('');
   const isA = S?.role === 'admin' || S?.role === 'owner';
 
-  pg.innerHTML = `
-    <div class="rops">
-      <div class="rops-hd">
-        <div class="rops-hd-l">
-          <div class="rops-hd-mark is-danger">${_clIco('x')}</div>
-          <div>
-            <h1 class="rops-hd-title" style="font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em">Cancelled Units Ledger</h1>
-            <div class="rops-hd-sub" style="font-size:12px;margin-top:2px">Forfeiture &amp; refund breakdown</div>
-          </div>
-        </div>
-        <div class="rops-hd-r">
-          ${isA ? `<button class="dx-tool primary" onclick="nav('unitcancel')">+ New Cancellation</button>` : ''}
-        </div>
-      </div>
-
-      <div class="dx-toolbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div class="dx-toolbar-l" style="flex-wrap:wrap;gap:8px">
-          <select class="rops-sel" id="cl-f-project" onchange="_clApplyFilter()" style="min-width:150px">
-            <option value="">All Projects</option>${projOpts}
-          </select>
-          <select class="rops-sel" id="cl-f-refund" onchange="_clApplyFilter()" style="min-width:140px">
-            <option value="All"${_clFilter.refund_status==='All'?' selected':''}>All Statuses</option>
-            <option value="paid"${_clFilter.refund_status==='paid'?' selected':''}>Paid</option>
-            <option value="partial"${_clFilter.refund_status==='partial'?' selected':''}>Partial</option>
-            <option value="pending"${_clFilter.refund_status==='pending'?' selected':''}>Pending</option>
-          </select>
-          <input type="date" class="rops-sel" id="cl-f-fr" value="${esc(_clFilter.fr)}" onchange="_clApplyFilter()" style="min-width:130px">
-          <input type="date" class="rops-sel" id="cl-f-to" value="${esc(_clFilter.to)}" onchange="_clApplyFilter()" style="min-width:130px">
-          <button class="dx-tool" onclick="_clClearFilter()">Clear</button>
-        </div>
-      </div>
-
-      <div class="rops-kpis" id="cl-kpis"></div>
-
-      <div class="rops-tbl-wrap">
-        <div id="cl-tbl"></div>
-      </div>
-    </div>
-
-    <div class="rops-drawer-overlay" id="cl-drawer-ov" onclick="_clCloseDrawer()"></div>
-    <div class="rops-drawer" id="cl-drawer"></div>`;
+  pg.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Cancelled Units',
+        isA ? NX.button('New cancellation', { variant:'danger-soft', icon:'ban', onclick:"nav('unitcancel')" }) : '',
+        { icon:'x-circle', tone:'danger', sub:'Forfeiture & refund breakdown.' }) +
+      '<div class="ldg-kpis" id="cl-kpis"></div>' +
+      `<div class="ldg-filters">
+        <div class="ldg-f"><label>Project</label><select class="nx-select" id="cl-f-project" onchange="_clApplyFilter()">${projOpts}</select></div>
+        <div class="ldg-f"><label>Refund</label><select class="nx-select" id="cl-f-refund" onchange="_clApplyFilter()">${stOpts}</select></div>
+        <div class="ldg-f"><label>From</label><input class="nx-input" type="date" id="cl-f-fr" value="${esc(_clFilter.fr)}" onchange="_clApplyFilter()"></div>
+        <div class="ldg-f"><label>To</label><input class="nx-input" type="date" id="cl-f-to" value="${esc(_clFilter.to)}" onchange="_clApplyFilter()"></div>
+        ${NX.button('Clear', { variant:'secondary', onclick:'_clClearFilter()' })}
+      </div>` +
+      '<div id="cl-tbl"></div>' +
+    '</div>' +
+    '<div id="cl-modal-host"></div>';
 
   _clLoad();
 }
@@ -67,7 +47,7 @@ async function _clLoad() {
   const tbl = document.getElementById('cl-tbl');
   const kpis = document.getElementById('cl-kpis');
   if (!tbl) return;
-  tbl.innerHTML = `<div class="rops-tbl-empty"><span class="rops-spin"></span> Loading ledger…</div>`;
+  tbl.innerHTML = NX.card(NX.empty({ icon:'x-circle', message:'Loading ledger…' }));
 
   try {
     const f = _clFilter;
@@ -84,7 +64,7 @@ async function _clLoad() {
     _clRenderKPIs();
     _clRenderTable();
   } catch (e) {
-    tbl.innerHTML = `<div class="rops-tbl-empty" style="color:var(--err)">Could not load ledger — ${esc(e.message)}</div>`;
+    tbl.innerHTML = NX.card(NX.banner('Could not load ledger: ' + (e.message || 'Error'), 'danger'));
     if (kpis) kpis.innerHTML = '';
   }
 }
@@ -115,136 +95,109 @@ function _clRenderKPIs() {
     (r.refund_status || '').toLowerCase() === 'paid' ? s + (+r.net_refund_amount || 0) : s, 0);
   const totalPending = Math.max(0, totalRefundDue - totalRefundPaid);
 
-  el.innerHTML = `
-    <div class="rops-kpi"><div class="rops-kpi-lbl">Cancelled</div><div class="rops-kpi-val" style="font-size:28px">${totalCount}</div></div>
-    <div class="rops-kpi is-danger"><div class="rops-kpi-lbl">Forfeited</div><div class="rops-kpi-val" style="font-size:18px">PKR ${_clFM(totalForfeited)}</div></div>
-    <div class="rops-kpi is-success"><div class="rops-kpi-lbl">Refund Paid</div><div class="rops-kpi-val" style="font-size:18px">PKR ${_clFM(totalRefundPaid)}</div></div>
-    <div class="rops-kpi is-warn"><div class="rops-kpi-lbl">Pending Refund</div><div class="rops-kpi-val" style="font-size:18px">PKR ${_clFM(totalPending)}</div></div>`;
+  el.innerHTML =
+    NX.kpi({ icon:'x-circle',   tone:'danger',  label:'Cancelled',       value:String(totalCount) }) +
+    NX.kpi({ icon:'ban',        tone:'danger',  label:'Forfeited',       value:`PKR ${_clK(totalForfeited)}` }) +
+    NX.kpi({ icon:'check-circle', tone:'success', label:'Refund Paid',   value:`PKR ${_clK(totalRefundPaid)}` }) +
+    NX.kpi({ icon:'clock',      tone:'warning', label:'Pending Refund',  value:`PKR ${_clK(totalPending)}` });
 }
 
 function _clRenderTable() {
   const wrap = document.getElementById('cl-tbl');
   if (!wrap) return;
   if (!_clList.length) {
-    wrap.innerHTML = `<div class="rops-tbl-empty">No cancellations found for the selected filters.</div>`;
+    wrap.innerHTML = NX.card(NX.empty({ icon:'x-circle', message:'No cancellations found for the selected filters.' }));
     return;
   }
-  const rows = _clList.map((r, i) => {
-    const refundDue = +r.net_refund_amount || 0;
-    const forfeited = +r.total_deductions || 0;
-    const paid = (r.refund_status || '').toLowerCase() === 'paid' ? refundDue : 0;
-    const pending = Math.max(0, refundDue - paid);
-    return `<tr onclick="_clOpenDrawer(${i})">
-      <td>${esc(_clDate(r.cancellation_date))}</td>
-      <td>
-        <div style="font-weight:600">${esc(r.unit_no || r.unit_code || '—')}</div>
-        <div style="font-size:11px; color:var(--t3); font-family:'JetBrains Mono', monospace">${esc(r.cancellation_voucher_no || '')}</div>
-      </td>
-      <td>${esc(r.client_name || '—')}</td>
-      <td>${esc(r.project_name || '—')}</td>
-      <td class="num">${_clFM(+r.total_paid || 0)}</td>
-      <td class="num neg">${_clFM(forfeited)}</td>
-      <td class="num">${_clFM(refundDue)}</td>
-      <td class="num pos">${_clFM(paid)}</td>
-      <td class="num ${pending > 0 ? 'neg' : 'muted'}">${_clFM(pending)}</td>
-      <td>${_clBadge(r.refund_status)}</td>
-    </tr>`;
-  }).join('');
-
-  wrap.innerHTML = `
-    <div style="overflow-x:auto">
-      <table class="rops-tbl">
-        <thead><tr>
-          <th>Date</th>
-          <th>Unit / Voucher</th>
-          <th>Client</th>
-          <th>Project</th>
-          <th class="num">Total Paid</th>
-          <th class="num">Forfeited</th>
-          <th class="num">Refund Due</th>
-          <th class="num">Refund Paid</th>
-          <th class="num">Pending</th>
-          <th>Status</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+  const body = `<table class="nx-table"><thead><tr>
+      <th>Date</th><th>Unit / Voucher</th><th>Client</th><th>Project</th>
+      <th class="num">Total Paid</th><th class="num">Forfeited</th><th class="num">Refund Due</th>
+      <th class="num">Refund Paid</th><th class="num">Pending</th><th>Status</th>
+    </tr></thead><tbody>
+    ${_clList.map((r, i) => {
+      const refundDue = +r.net_refund_amount || 0;
+      const forfeited = +r.total_deductions || 0;
+      const paid = (r.refund_status || '').toLowerCase() === 'paid' ? refundDue : 0;
+      const pending = Math.max(0, refundDue - paid);
+      return `<tr style="cursor:pointer" onclick="_clOpenDetail(${i})">
+        <td style="white-space:nowrap">${esc(_clDate(r.cancellation_date))}</td>
+        <td><div style="font-weight:500">${esc(r.unit_no || r.unit_code || '—')}</div><div class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(r.cancellation_voucher_no || '')}</div></td>
+        <td>${esc(r.client_name || '—')}</td>
+        <td style="color:var(--fk-text-muted)">${esc(r.project_name || '—')}</td>
+        <td class="num">${_clFM(+r.total_paid || 0)}</td>
+        <td class="num" style="color:var(--fk-danger)">${_clFM(forfeited)}</td>
+        <td class="num">${_clFM(refundDue)}</td>
+        <td class="num" style="color:var(--fk-success)">${_clFM(paid)}</td>
+        <td class="num" style="color:${pending > 0 ? 'var(--fk-danger)' : 'var(--fk-text-muted)'}">${_clFM(pending)}</td>
+        <td>${_clBadge(r.refund_status)}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  wrap.innerHTML = NX.card(body, { flush:true });
 }
 
 function _clBadge(status) {
   const s = (status || '').toLowerCase();
-  if (s === 'paid') return `<span class="rops-badge is-success"><span class="dot"></span> Paid</span>`;
-  if (s === 'partial') return `<span class="rops-badge is-warn"><span class="dot"></span> Partial</span>`;
-  return `<span class="rops-badge is-danger"><span class="dot"></span> Pending</span>`;
+  if (s === 'paid') return NX.badge('Paid', 'success', { dot:true });
+  if (s === 'partial') return NX.badge('Partial', 'warning', { dot:true });
+  return NX.badge('Pending', 'danger', { dot:true });
 }
 
-function _clOpenDrawer(idx) {
+function _clOpenDetail(idx) {
   const r = _clList[idx];
   if (!r) return;
-  const drawer = document.getElementById('cl-drawer');
-  const ov = document.getElementById('cl-drawer-ov');
-  if (!drawer || !ov) return;
+  const host = document.getElementById('cl-modal-host');
+  if (!host) return;
 
   const refundDue = +r.net_refund_amount || 0;
   const forfeited = +r.total_deductions || 0;
   const paid = (r.refund_status || '').toLowerCase() === 'paid' ? refundDue : 0;
   const pending = Math.max(0, refundDue - paid);
 
-  drawer.innerHTML = `
-    <div class="rops-drawer-hd">
-      <div>
-        <div class="rops-drawer-title">Cancellation Detail</div>
-        <div class="rops-drawer-sub">${esc(r.cancellation_voucher_no || '')} · ${esc(_clDate(r.cancellation_date))}</div>
-      </div>
-      <button class="rops-drawer-close" onclick="_clCloseDrawer()">×</button>
-    </div>
-    <div class="rops-drawer-bd">
-      <div style="margin-bottom:18px">${_clBadge(r.refund_status)}</div>
-      <div class="rops-ledger" style="margin-bottom:14px">
-        <div class="rops-ledger-hd">Unit & Client</div>
-        <div class="rops-ledger-row"><span class="l">Client</span><span class="r">${esc(r.client_name || '—')}</span></div>
-        <div class="rops-ledger-row"><span class="l">Unit</span><span class="r">${esc(r.unit_no || r.unit_code || '—')}</span></div>
-        <div class="rops-ledger-row"><span class="l">Project</span><span class="r">${esc(r.project_name || '—')}</span></div>
-        <div class="rops-ledger-row"><span class="l">Type</span><span class="r">${esc(r.cancellation_type || '—')}</span></div>
-        <div class="rops-ledger-row"><span class="l">Reason</span><span class="r">${esc(r.reason_category || '—')}</span></div>
-      </div>
-      <div class="rops-ledger" style="margin-bottom:14px">
-        <div class="rops-ledger-hd">Refund</div>
-        <div class="rops-ledger-row"><span class="l">Refund Date</span><span class="r">${esc(_clDate(r.refund_date) || '—')}</span></div>
-        <div class="rops-ledger-row"><span class="l">Method</span><span class="r">${esc(r.refund_method || '—')}</span></div>
-        <div class="rops-ledger-row"><span class="l">Reference</span><span class="r">${esc(r.refund_reference || '—')}</span></div>
-      </div>
-      <div class="rops-ledger">
-        <div class="rops-ledger-hd">Financial Breakdown</div>
-        <div class="rops-ledger-row"><span class="l">Total Paid</span><span class="r">PKR ${_clFM(+r.total_paid || 0)}</span></div>
-        <div class="rops-ledger-row"><span class="l">Booking Forfeiture</span><span class="r neg">− PKR ${_clFM(+r.booking_forfeiture || 0)}</span></div>
-        <div class="rops-ledger-row"><span class="l">Cancellation Charges</span><span class="r neg">− PKR ${_clFM(+r.cancellation_charges || 0)}</span></div>
-        <div class="rops-ledger-row"><span class="l">Total Deductions</span><span class="r neg">− PKR ${_clFM(forfeited)}</span></div>
-        <div class="rops-ledger-row is-total"><span class="l">Net Refund Due</span><span class="r" style="color:var(--brand)">PKR ${_clFM(refundDue)}</span></div>
-        <div class="rops-ledger-row"><span class="l">Refund Paid</span><span class="r pos">PKR ${_clFM(paid)}</span></div>
-        <div class="rops-ledger-row"><span class="l">Refund Pending</span><span class="r ${pending > 0 ? 'neg' : 'muted'}">PKR ${_clFM(pending)}</span></div>
-      </div>
-      ${r.detailed_reason ? `<div style="margin-top:14px; padding:12px 14px; background:var(--surface2); border-radius:6px; font-size:12.5px; color:var(--t2); line-height:1.5"><strong style="color:var(--text)">Reason: </strong>${esc(r.detailed_reason)}</div>` : ''}
-      ${r.notes ? `<div style="margin-top:8px; padding:12px 14px; background:var(--surface2); border-radius:6px; font-size:12.5px; color:var(--t2); line-height:1.5"><strong style="color:var(--text)">Notes: </strong>${esc(r.notes)}</div>` : ''}
-    </div>`;
-  drawer.classList.add('is-open');
-  ov.classList.add('is-open');
-}
+  const grp = (icon, tone, title, rows) =>
+    `<div class="ldg-grp"><div class="ldg-grp-hd">${NX.ichip(icon, tone, { size:'sm' })}${esc(title)}</div>${rows}</div>`;
+  const row = (l, v, cls) => `<div class="ldg-row"><span class="l">${esc(l)}</span><span class="r ${cls||''}">${v}</span></div>`;
 
-function _clCloseDrawer() {
-  document.getElementById('cl-drawer')?.classList.remove('is-open');
-  document.getElementById('cl-drawer-ov')?.classList.remove('is-open');
-}
+  const body =
+    `<div style="margin-bottom:14px">${_clBadge(r.refund_status)}</div>` +
+    grp('package', '', 'Unit & Client',
+      row('Client', esc(r.client_name || '—')) +
+      row('Unit', esc(r.unit_no || r.unit_code || '—')) +
+      row('Project', esc(r.project_name || '—')) +
+      row('Type', esc(r.cancellation_type || '—')) +
+      row('Reason', esc(r.reason_category || '—'))) +
+    grp('rotate-ccw', '', 'Refund',
+      row('Refund Date', esc(_clDate(r.refund_date) || '—')) +
+      row('Method', esc(r.refund_method || '—')) +
+      row('Reference', esc(r.refund_reference || '—'))) +
+    grp('wallet', '', 'Financial Breakdown',
+      row('Total Paid', 'PKR ' + _clFM(+r.total_paid || 0)) +
+      row('Booking Forfeiture', '− PKR ' + _clFM(+r.booking_forfeiture || 0), 'ldg-neg') +
+      row('Cancellation Charges', '− PKR ' + _clFM(+r.cancellation_charges || 0), 'ldg-neg') +
+      row('Total Deductions', '− PKR ' + _clFM(forfeited), 'ldg-neg') +
+      row('Net Refund Due', '<span style="color:var(--fk-primary)">PKR ' + _clFM(refundDue) + '</span>', 'is-total') +
+      row('Refund Paid', 'PKR ' + _clFM(paid), 'ldg-pos') +
+      row('Refund Pending', 'PKR ' + _clFM(pending), pending > 0 ? 'ldg-neg' : '')) +
+    (r.detailed_reason ? `<div style="padding:12px 14px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:12.5px;color:var(--fk-text-muted);line-height:1.5;margin-bottom:8px"><strong style="color:var(--fk-text)">Reason: </strong>${esc(r.detailed_reason)}</div>` : '') +
+    (r.notes ? `<div style="padding:12px 14px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:12.5px;color:var(--fk-text-muted);line-height:1.5"><strong style="color:var(--fk-text)">Notes: </strong>${esc(r.notes)}</div>` : '');
 
-function _clFM(n) { return Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 }); }
+  host.innerHTML = NX.modal({
+    id:'cl-detail', title:'Cancellation detail', size:'m', onClose:'_clCloseDetail()', body,
+    footer: (r.unit_id ? NX.button('Ownership chain', { variant:'secondary', icon:'git-branch', onclick:`_clCloseDetail();rUnitChain('${esc(r.unit_id)}')` }) : '') +
+            NX.button('Close', { variant:'primary', onclick:'_clCloseDetail()' })
+  });
+}
+function _clCloseDetail() { const h = document.getElementById('cl-modal-host'); if (h) h.innerHTML = ''; }
+
+function _clFM(n) { return Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+function _clK(n) {
+  n = Number(n || 0); const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (a >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (a >= 1e3) return Math.round(n / 1e3) + 'K';
+  return _clFM(n);
+}
 function _clDate(d) {
   if (!d) return '';
   try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }); }
   catch { return d; }
-}
-function _clIco(name) {
-  const i = {
-    x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
-  };
-  return i[name] || '';
 }
