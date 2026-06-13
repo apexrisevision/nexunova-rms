@@ -1418,13 +1418,9 @@ function _renderSaleDetail(d, docs, amendments) {
   const tbDiv = '<span aria-hidden="true" style="width:1px;align-self:stretch;background:var(--fk-border);margin:3px 5px"></span>';
   const moreBtns = (isA && typeof openAuditHistory === 'function' ? B('History', { variant:'ghost', size:'sm', icon:'history', onclick:`openAuditHistory('sales','${d.id}','Sale History: ${esc(d.sale_number || '')}')` }) : '')
     + (d.status !== 'cancelled' && typeof plOpenCreate === 'function' ? B('Payment Link', { variant:'ghost', size:'sm', icon:'handshake', onclick:`plOpenCreate(null,'${d.client_id}','${d.id}')` }) : '');
+  // Slim cross-reference row only — every printable doc/letter now lives in the
+  // single "Documents, Letters & Operations" card (no more toolbar duplication).
   const toolbar = '<div class="no-p" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:var(--fk-sp-5)">'
-    + B('Application Form', { variant:'secondary', size:'sm', icon:'file-text', onclick:'printApplicationForm()' })
-    + B('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'printSaleDetail()' })
-    + B('Agreement', { variant:'ghost', size:'sm', icon:'file-text', onclick:`openAgreementReport('${d.id}')` })
-    + B('Schedule', { variant:'ghost', size:'sm', icon:'calendar', onclick:`openScheduleReport('${d.id}')` })
-    + B('Demand', { variant:'ghost', size:'sm', icon:'megaphone', onclick:`openDemandNotice('${d.id}')` })
-    + tbDiv
     + B('Unit Statement', { variant:'ghost', size:'sm', icon:'list', onclick:"nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('unit_statement')},300)" })
     + B('Client Ledger', { variant:'ghost', size:'sm', icon:'wallet', onclick:"nav('reports');setTimeout(function(){if(typeof openRptViewer==='function')openRptViewer('client_ledger')},300)" })
     + (moreBtns ? tbDiv + moreBtns : '')
@@ -1473,16 +1469,15 @@ function _renderSaleDetail(d, docs, amendments) {
     </div>`, { class:'nx-rise' });
 
   // ── Sale Info ──
+  // Down payment / Total / Discount / Sale date already headline the hero — keep
+  // this card to the details the hero does NOT show (no duplication).
   const saleInfo = NX.card(
     kv('Sale number', `<span class="sd-mono" style="color:var(--fk-primary)">${esc(d.sale_number)}</span>`)
-    + kv('Sale date', fD(d.sale_date))
     + kv('Price / sq ft', fMF(d.price_per_sqft))
     + kv('Area', d.area_sqft ? fM(d.area_sqft) + ' sq ft' : '')
-    + kv('Down payment', fMF(d.down_payment))
-    + kv('Discount', d.discount > 0 ? fMF(d.discount) : '')
+    + kv('Installments', d.installment_count ? d.installment_count + ' installments' : '')
     + (d.discount > 0 && d.discount_approved_by ? kv('Discount approved by', esc(d.discount_approved_by)) : '')
     + (d.discount > 0 && d.discount_notes ? kv('Discount notes', esc(d.discount_notes)) : '')
-    + kv('Installments', d.installment_count ? d.installment_count + ' installments' : '')
     + kv('Notes', d.notes ? esc(d.notes) : ''),
     { header:{ icon:'info', title:'Sale Information' } });
 
@@ -1504,21 +1499,23 @@ function _renderSaleDetail(d, docs, amendments) {
 
   const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
 
-  // ── Letters & Operations (admin) ──
+  // ── Documents, Letters & Operations — ONE home for everything printable ──
+  // (was split between a top toolbar and an admin-only card → consolidated here).
   const opRow = (title, sub, action) => `<div class="sd-ops-row"><div style="min-width:0"><div class="sd-ops-t">${title}</div><div class="sd-ops-s">${sub}</div></div><div style="flex-shrink:0;display:flex;gap:8px;align-items:center">${action}</div></div>`;
-  const ops = isA ? NX.card(
-      opRow('Allotment Letter', 'Formal letter confirming unit allotment', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' }))
-    + opRow('Application / Booking Form', 'KBH booking form for the physical file',
-        `<select id="sd-appform-size" class="nx-select" style="width:auto;font-size:12px"><option value="Legal" selected>Legal</option><option value="A4">A4</option></select>`
-        + NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printApplicationForm()' }))
+  const opDivider = '<div style="height:1px;background:var(--fk-border);margin:var(--fk-sp-2) 0"></div>';
+  const ops = NX.card(
+      opRow('Sale Detail', 'Full sale record print-out', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printSaleDetail()' }))
+    + `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Application / Booking Form</div><div class="sd-ops-s">Booking form for the physical file</div></div><div style="display:flex;gap:8px;align-items:center"><select id="sd-appform-size" class="nx-select" style="width:auto;font-size:12px"><option value="Legal" selected>Legal</option><option value="A4">A4</option></select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printApplicationForm()' })}</div></div>`
+    + opRow('Sale Agreement', 'Formal sale agreement document', NX.button('Open', { variant:'secondary', size:'sm', icon:'file-text', onclick:`openAgreementReport('${d.id}')` }))
+    + opRow('Payment Schedule', 'Full installment schedule', NX.button('Open', { variant:'secondary', size:'sm', icon:'calendar', onclick:`openScheduleReport('${d.id}')` }))
     + `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Demand Notice</div><div class="sd-ops-s">For a specific overdue installment</div></div><div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;min-width:220px"><select id="sd-demand-inst" class="nx-select" style="flex:1;max-width:280px;font-size:12px">${pendingInstOpts || '<option value="">— No pending installments —</option>'}</select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printDemandNotice()' })}</div></div>`
-    + opRow('Possession Letter', 'Unit handover document', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' }))
     + opRow('Payment Statement', 'Outstanding balance view', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'_salPrintPaymentStatement()' }))
-    + opRow('Log Amendment', 'Record a price or schedule change', NX.button('Log', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleAmendmentModal('${d.id}')` }))
-    + (d.status !== 'cancelled'
-        ? opRow('<span style="color:var(--fk-danger)">Cancel Sale</span>', 'Mark as cancelled — requires a reason', NX.button('Cancel', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`openCancelSaleModal('${d.id}')` }))
-        : '<div class="sd-ops-row" style="color:var(--fk-text-muted);font-style:italic;font-size:12px">This sale has been cancelled.</div>'),
-    { header:{ icon:'settings', title:'Letters & Operations' } }) : '';
+    + (isA ? opRow('Allotment Letter', 'Confirms unit allotment', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' })) : '')
+    + (isA ? opRow('Possession Letter', 'Unit handover document', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' })) : '')
+    + (isA ? opDivider + opRow('Log Amendment', 'Record a price or schedule change', NX.button('Log', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleAmendmentModal('${d.id}')` })) : '')
+    + (isA && d.status !== 'cancelled' ? opRow('<span style="color:var(--fk-danger)">Cancel Sale</span>', 'Mark as cancelled — requires a reason', NX.button('Cancel', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`openCancelSaleModal('${d.id}')` })) : '')
+    + (isA && d.status === 'cancelled' ? '<div class="sd-ops-row" style="color:var(--fk-text-muted);font-style:italic;font-size:12px">This sale has been cancelled.</div>' : ''),
+    { header:{ icon:'printer', title:'Documents, Letters & Operations' } });
 
   const amendCard = NX.card(amendInner, { flush: amendments.length > 0, header:{ icon:'file-text', title:'Amendment History', sub: amendments.length + ' record' + (amendments.length !== 1 ? 's' : '') } });
 
