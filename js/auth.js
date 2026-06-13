@@ -351,6 +351,7 @@ async function _completeLogin(user, company) {
   if(typeof startLeakGuard === 'function') startLeakGuard();
   await _loadRoleContext(company.id, user.id, user.role);   // hasFinanceUser + assignedProjectIds for buildSB / data filters
   buildSB();
+  if(typeof buildProjectSwitcher === 'function') buildProjectSwitcher();   // topbar active-project lens
 
   if(company.onboarding_complete === false && typeof OB !== 'undefined'){
     OB.show(company.id);

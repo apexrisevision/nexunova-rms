@@ -218,7 +218,7 @@ async function _clLoadAndRender() {
   ct.innerHTML = `<div class="nx-card">${[0,1,2,3].map(()=>'<div class="nx-skel" style="height:40px;margin:6px 0;border-radius:8px"></div>').join('')}</div>`;
   _clRpByCode = {};
   try {
-    const { data } = await supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: null, p_from_date: null, p_to_date: (typeof td==='function'?td():null) });
+    const { data } = await supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: (typeof activeProjectId==='function'?activeProjectId():null), p_from_date: null, p_to_date: (typeof td==='function'?td():null) });
     const rows = (data && data.rows) ? data.rows : [];
     rows.forEach(r => {
       const code = r.client_code; if (!code) return;
@@ -546,7 +546,7 @@ async function _cdLoadOverview(clientId, c) {
   try {
     const [allRes, rpRes] = await Promise.all([
       supabase.rpc('list_sales_by_client_all', { p_client_id: clientId, p_company_id: S.cid }),
-      supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: null, p_from_date: null, p_to_date: (typeof td==='function'?td():null) })
+      supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: (typeof activeProjectId==='function'?activeProjectId():null), p_from_date: null, p_to_date: (typeof td==='function'?td():null) })
     ]);
     allSales = Array.isArray(allRes.data) ? allRes.data : [];
     rpRows = ((rpRes.data && rpRes.data.rows) || []).filter(r => r.client_code === c.clientCode);

@@ -61,7 +61,7 @@ function _apShowPicker() {
   const el = document.getElementById('pg-addpayment');
   if (!el) return;
 
-  const sold = (window._unitsCache || []).filter(u => u.isAvailable === false);
+  const sold = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).filter(u => u.isAvailable === false);
   if (!sold.length) {
     el.innerHTML =
       NX.pageHeader('Record Payment', '', { icon:'wallet' }) +
@@ -94,7 +94,7 @@ function _apRenderPicker(q) {
   const projName = id => (window._projectsCache || []).find(p => p.id === id)?.name
     || (window._projectsCache || []).find(p => p.id === id)?.projectName || '';
 
-  const rows = (window._unitsCache || [])
+  const rows = (typeof gunits === 'function' ? gunits() : (window._unitsCache || []))
     .filter(u => u.isAvailable === false)
     .filter(u => !query
       || (u.customerName || '').toLowerCase().includes(query)

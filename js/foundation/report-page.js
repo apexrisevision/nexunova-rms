@@ -62,7 +62,9 @@
   }
 
   function _defaultFilters(config) {
-    const f = { from: monthStart(), to: today(), project: '', status: '', clientId: '', unitId: '' };
+    // Seed the project filter from the global active-project lens (topbar selector).
+    const _ap = (typeof activeProjectId === 'function' ? activeProjectId() : '') || '';
+    const f = { from: monthStart(), to: today(), project: _ap, status: '', clientId: '', unitId: '' };
     (config.filters || []).forEach(fl => {
       if (fl.kind === 'daterange') {
         if (fl.allTime) { f.from = ''; f.to = ''; }
@@ -104,8 +106,9 @@
     }
     if (fl.kind === 'project') {
       const projs = (typeof gprojects === 'function' ? gprojects() : []).slice()
+        .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id))
         .sort((a, b) => String(a.name || a.projectName || '').localeCompare(String(b.name || b.projectName || '')));
-      const opts = '<option value="">All projects</option>' + projs.map(p => `<option value="${esc(p.id)}">${esc(p.name || p.projectName || 'Project')}</option>`).join('');
+      const opts = `<option value=""${!FILT.project?' selected':''}>All projects</option>` + projs.map(p => `<option value="${esc(p.id)}"${FILT.project===p.id?' selected':''}>${esc(p.name || p.projectName || 'Project')}</option>`).join('');
       return lbl('Project') + `<select class="nx-select" style="width:auto" onchange="NXReport._set('project',this.value)">${opts}</select>`;
     }
     if (fl.kind === 'status') {

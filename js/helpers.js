@@ -53,9 +53,13 @@ function _injectCrystalStyle(){
 // ══ DATA HELPERS ══════════════════════════════
 // gunits/gunit now read from Supabase cache (window._unitsCache)
 // Cache is loaded by loadUnitsCache() on login. See db.js.
-function gunits(){let u=(window._unitsCache||[]);return S?.role==='admin'||S?.role==='owner'?u:u.filter(u=>u.status!=='Dead');}
+// gunits/gclients apply the global PROJECT LENS (active project + per-user
+// assignment) via projFilter() — see js/ui.js. Singular gunit(id)/gclient(id)
+// lookups stay UNSCOPED so a detail page reached by explicit navigation still
+// resolves its record even when another project is the active lens.
+function gunits(){let u=(window._unitsCache||[]);if(!(S?.role==='admin'||S?.role==='owner'))u=u.filter(x=>x.status!=='Dead');return typeof projFilter==='function'?projFilter(u):u;}
 function gunit(id){return (window._unitsCache||[]).find(u=>u.id===id);}
-function gclients(){return window._clientsCache||[];}
+function gclients(){let c=(window._clientsCache||[]);return typeof projFilter==='function'?projFilter(c):c;}
 function gclient(id){return (window._clientsCache||[]).find(c=>c.id===id);}
 function gprojects(){return window._projectsCache||[];}
 function gproject(id){return (window._projectsCache||[]).find(p=>p.id===id);}

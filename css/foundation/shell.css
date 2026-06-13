@@ -125,6 +125,30 @@
   margin: 0 var(--fk-sp-1);
 }
 
+/* ── Active-project lens (topbar left, next to title) ── */
+#s-app .nx-tb-proj-wrap{ position: relative; display: inline-flex; align-items: center; }
+#s-app .nx-tb-proj-wrap::before{
+  content: ""; width: 1px; height: 18px; margin: 0 var(--fk-sp-2) 0 var(--fk-sp-1);
+  background: var(--fk-border);
+}
+#s-app .nx-proj-btn{
+  display: inline-flex; align-items: center; gap: var(--fk-sp-2);
+  height: 30px; max-width: 220px; padding: 0 var(--fk-sp-2);
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--fk-radius-control);
+  color: var(--fk-text); font-family: var(--fk-font);
+  font-size: var(--fk-fs-body); font-weight: var(--fk-fw-medium);
+  cursor: pointer; transition: background 150ms ease, border-color 150ms ease;
+}
+#s-app .nx-proj-btn:hover{ background: var(--fk-bg-subtle); border-color: var(--fk-border); }
+#s-app .nx-proj-btn > svg:first-child{ width: 15px; height: 15px; color: var(--fk-primary); flex: 0 0 auto; }
+#s-app .nx-proj-lbl{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#s-app .nx-proj-caret{ width: 13px; height: 13px; opacity: .7; flex: 0 0 auto; }
+/* this menu opens LEFT-aligned (lens lives on the left of the topbar) */
+#s-app .nx-proj-menu{ right: auto; left: 0; }
+#s-app .nx-menu-item.is-active{ background: var(--fk-primary-tint); font-weight: var(--fk-fw-medium); }
+#s-app .nx-menu-item.is-active svg{ color: var(--fk-primary); }
+
 /* ════════════════════════════════════════════════════════════════════════
    SHARED POPOVER MENU  (+ New, user) — soft 160ms ease, kit shadow only
    ════════════════════════════════════════════════════════════════════════ */

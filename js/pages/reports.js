@@ -383,10 +383,12 @@ function _rpMonthStart(){var d=new Date();return d.getFullYear()+'-'+String(d.ge
 
 // Project + FROM/TO controls (drives the RPC; filters below are client-side).
 function _rpControlsBar(){
+  var _ap=(typeof activeProjectId==='function'?activeProjectId():'')||'';
   var projs=(typeof gprojects==='function'?gprojects():[]).slice()
+    .filter(function(p){return typeof hasProjectAccess!=='function'||hasProjectAccess(p.id);})
     .sort(function(a,b){return String(a.name||a.projectName||'').localeCompare(String(b.name||b.projectName||''));});
-  var opts='<option value="">All Projects</option>'+projs.map(function(p){
-    return '<option value="'+p.id+'">'+esc(p.name||p.projectName||'Project')+'</option>';}).join('');
+  var opts='<option value=""'+(!_ap?' selected':'')+'>All Projects</option>'+projs.map(function(p){
+    return '<option value="'+p.id+'"'+(_ap===p.id?' selected':'')+'>'+esc(p.name||p.projectName||'Project')+'</option>';}).join('');
   var c='font:500 12px/1 inherit;padding:6px 10px;border-radius:7px;border:1px solid var(--line);background:var(--canvas);color:var(--text)';
   return '<div class="rpt-fbar">'
     +'<span class="rpt-stabs-lbl">Project</span>'

@@ -43,7 +43,8 @@ function rTransferLedger() {
     _tlFilter.fr = from; _tlFilter.to = to;
   }
 
-  const projects = window._projectsCache || [];
+  if (!_tlFilter.project && typeof activeProjectId === 'function') _tlFilter.project = activeProjectId() || '';   // global project lens
+  const projects = (window._projectsCache || []).filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
   const projOpts = '<option value="">All projects</option>' +
     projects.map(p => `<option value="${esc(p.id)}"${_tlFilter.project===p.id?' selected':''}>${esc(p.projectName || p.name || '')}</option>`).join('');
   const stOpts = [['All','All statuses'],['completed','Completed'],['partial','Partial'],['pending','Pending']]

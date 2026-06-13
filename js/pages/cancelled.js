@@ -16,7 +16,9 @@ function rCancelLedger() {
     _clFilter.fr = from; _clFilter.to = to;
   }
 
-  const projects = (typeof gprojects === 'function') ? gprojects() : (window._projectsCache || []);
+  if (!_clFilter.project && typeof activeProjectId === 'function') _clFilter.project = activeProjectId() || '';   // global project lens
+  const projects = ((typeof gprojects === 'function') ? gprojects() : (window._projectsCache || []))
+    .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
   const projOpts = '<option value="">All projects</option>' +
     projects.map(p => `<option value="${esc(p.id)}"${_clFilter.project===p.id?' selected':''}>${esc(p.projectName || p.name || '')}</option>`).join('');
   const stOpts = [['All','All statuses'],['paid','Paid'],['partial','Partial'],['pending','Pending']]

@@ -177,6 +177,7 @@ function _salFiltered() {
   if (_salPeriod === 'year')    from = new Date(now.getFullYear(), 0, 1);
   if (_salPeriod === '12m')     from = new Date(now.getFullYear()-1, now.getMonth(), now.getDate());
   return _salAllSales.filter(s => {
+    if (typeof inProj === 'function' && !inProj(s)) return false;   // global project lens
     if (_salStatus && s.status !== _salStatus) return false;
     if (_salProject && s.project_name !== _salProject) return false;
     if (from && s.sale_date && new Date(s.sale_date) < from) return false;
@@ -412,7 +413,7 @@ function _nsNav(backLabel, nextLabel, nextFn, nextDisabled) {
 
 // ── STEP 1: UNIT (available only, floor-grouped) ──────────────────────────
 function _nsStep1() {
-  const avail = (window._unitsCache || []).filter(u => u.isAvailable !== false && !u.saleId);
+  const avail = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).filter(u => u.isAvailable !== false && !u.saleId);
   return `<div class="nx-card">
     <div class="nx-card-title">Select a unit <span class="nx-kpi-label" style="text-transform:none">· ${avail.length} available</span></div>
     <input class="nx-input" id="ns-unit-q" placeholder="Search unit no / type / floor…" oninput="_nsUnitSearch(this.value)" style="margin:var(--fk-sp-3) 0">
@@ -425,7 +426,7 @@ function _nsUnitSearch(q) {
   const wrap = document.getElementById('ns-unit-list');
   if (!wrap) return;
   q = (q||'').trim().toLowerCase();
-  let avail = (window._unitsCache || []).filter(u => u.isAvailable !== false && !u.saleId);
+  let avail = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).filter(u => u.isAvailable !== false && !u.saleId);
   if (q) avail = avail.filter(u => `${u.unitNo||''} ${u.type||''} ${u.floorLabel||''}`.toLowerCase().includes(q));
   if (!avail.length) { wrap.innerHTML = NX.empty({ icon:'search', message:'No available units match.' }); return; }
   // group by floor

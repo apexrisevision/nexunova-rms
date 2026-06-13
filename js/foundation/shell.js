@@ -132,7 +132,7 @@
     _wireSearch();
     // outside-click + Esc close every shell popover
     document.addEventListener('click', function(e){
-      if (!e.target.closest('.nx-tb-new-wrap') && !e.target.closest('.nx-tb-co-wrap')) _closeAll(null);
+      if (!e.target.closest('.nx-tb-new-wrap') && !e.target.closest('.nx-tb-co-wrap') && !e.target.closest('.nx-tb-proj-wrap')) _closeAll(null);
     });
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') _closeAll(null); });
     buildTopbar();

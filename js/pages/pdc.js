@@ -85,7 +85,7 @@ async function _pdcLoad() {
   try {
     const { data, error } = await supabase.rpc('get_pdc_register', {
       p_company_id: S.cid, p_status: 'All',
-      p_project_id: _pdcFilter.project || null,
+      p_project_id: _pdcFilter.project || (typeof activeProjectId === 'function' ? activeProjectId() : null),
       p_date_from:  _pdcFilter.fr || null,
       p_date_to:    _pdcFilter.to || null
     });
@@ -388,7 +388,7 @@ async function _pdcRun(btnId, rpcFn, okMsg) {
 // confirm → batch insert (create_pdc_bundle). A 36-cheque bundle in one pass.
 function _pdcOpenBundle() {
   _pdcBundle = { sale:null, lines:[] };
-  const sold = (window._unitsCache || []).filter(u => u.isAvailable === false);
+  const sold = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).filter(u => u.isAvailable === false);
   const opts = sold.map(u => {
     const pn = (window._projectsCache || []).find(p => p.id === u.projectId);
     return '<option value="' + u.id + '">' + NX.esc((u.customerName || '—') + ' · Unit ' + (u.unitNo || '') + (pn ? ' · ' + (pn.name || pn.projectName || '') : '')) + '</option>';

@@ -205,7 +205,7 @@ async function _loadAgentList() {
     });
     if (error) throw error;
 
-    _agCache = Array.isArray(data) ? data : [];
+    _agCache = (Array.isArray(data) ? data : []).filter(a => typeof inProj !== 'function' || inProj(a));  // global project lens
     _renderAgentStats(_agCache);
     _renderAgentGrid(_agCache);
   } catch(e) {

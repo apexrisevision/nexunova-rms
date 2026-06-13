@@ -240,6 +240,102 @@ function updateCoLogo(){
   }
 }
 
+// ══ PROJECT SCOPE — global active-project selector ═══════════════════════════
+// A single tenant can run several projects. The active project (S.projectId) is
+// the lens every operational list/report is viewed through. null = "All Projects"
+// (consolidated). Persisted inside S (nxn_sess). Built on top of the existing
+// per-user assignment gate (hasProjectAccess / S.assignedProjectIds), so a staff
+// user can only ever pick — and only ever sees — the projects assigned to them.
+
+function _projList(){ return (window._projectsCache || []); }
+
+// Projects the current user is actually allowed to pick / see.
+function _selectableProjects(){
+  return _projList().filter(function(p){
+    return typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id);
+  });
+}
+
+function activeProjectId(){ return (typeof S !== 'undefined' && S && S.projectId) || null; }
+
+function activeProjectName(){
+  var id = activeProjectId();
+  if(!id) return 'All Projects';
+  var p = _projList().find(function(x){ return x.id === id; });
+  return p ? (p.projectName || p.name || 'Project') : 'All Projects';
+}
+
+// THE single filter every operational page uses. Combines two gates:
+//   (a) per-user assignment — a non-admin never sees a project not assigned to them
+//   (b) the active-project selection — when a project is picked, hide the rest
+// Rows with no project_id (company-level / legacy) are never hidden.
+function inProj(row){
+  if(!row) return true;
+  var rid = (row.projectId !== undefined) ? row.projectId : row.project_id;
+  if(rid == null) return true;                                  // untagged → visible everywhere
+  if(typeof hasProjectAccess === 'function' && !hasProjectAccess(rid)) return false; // (a)
+  var act = activeProjectId();
+  if(act && rid !== act) return false;                          // (b)
+  return true;
+}
+function projFilter(arr){ return (arr || []).filter(inProj); }
+
+// Switch the active project, persist, rebuild the chip, re-render current page.
+function setActiveProject(id){
+  if(typeof S === 'undefined' || !S) return;
+  S.projectId = id || null;
+  try{ sessionStorage.setItem('nxn_sess', JSON.stringify(S)); }catch(e){}
+  var m=document.getElementById('nx-proj-menu'); if(m) m.classList.remove('is-open');
+  // Stateful per-page project filters mirror the lens — clear them so they re-seed
+  // to the NEW active project on the upcoming re-render (they live in shared script
+  // scope; guard each in case its page script is not present).
+  try{ if(typeof _clFilter==='object' && _clFilter) _clFilter.project=''; }catch(e){}
+  try{ if(typeof _tlFilter==='object' && _tlFilter) _tlFilter.project=''; }catch(e){}
+  try{ if(typeof _teamFilt==='object' && _teamFilt) _teamFilt.project=''; }catch(e){}
+  try{ if(typeof _pdcFilter==='object' && _pdcFilter) _pdcFilter.project=''; }catch(e){}
+  try{ if(typeof _salProject!=='undefined') _salProject=''; }catch(e){}
+  buildProjectSwitcher();
+  var cur = document.querySelector('.pg.on')?.id?.replace('pg-','');
+  if(cur && typeof nav === 'function') nav(cur);
+}
+
+// Choose a sensible default when the session has no (valid) active project yet.
+function initActiveProject(){
+  if(typeof S === 'undefined' || !S) return;
+  var list = _selectableProjects();
+  if(S.projectId && list.some(function(p){ return p.id === S.projectId; })) return; // keep valid choice
+  // single project → scope straight to it; multiple → All Projects (consolidated)
+  S.projectId = (list.length === 1) ? list[0].id : null;
+}
+
+// (Re)build the topbar project switcher. Hidden when there is nothing to switch.
+function buildProjectSwitcher(){
+  var host = document.getElementById('nx-tb-proj');
+  if(!host) return;
+  initActiveProject();
+  var list = _selectableProjects();
+  if(list.length <= 1){ host.style.display='none'; host.innerHTML=''; return; }
+  host.style.display='';
+  var act = activeProjectId();
+  var items = '<button class="nx-menu-item'+(!act?' is-active':'')+'" type="button" onclick="setActiveProject(null)">'
+            + _sbi('layers',16) + 'All Projects</button>'
+            + '<div class="nx-menu-div"></div>';
+  list.forEach(function(p){
+    var nm = esc(p.projectName || p.name || 'Project');
+    items += '<button class="nx-menu-item'+(act===p.id?' is-active':'')+'" type="button" onclick="setActiveProject(\''+p.id+'\')">'
+           + _sbi('building-2',16) + nm + '</button>';
+  });
+  host.innerHTML =
+    '<button class="nx-proj-btn" type="button" aria-haspopup="true" '
+    + 'onclick="event.stopPropagation();NXShell.toggleMenu(\'nx-proj-menu\')">'
+    + _sbi('layers',15)
+    + '<span class="nx-proj-lbl">'+esc(activeProjectName())+'</span>'
+    + '<svg class="nx-proj-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+    + '</button>'
+    + '<div class="nx-menu nx-proj-menu" id="nx-proj-menu" role="menu">'
+    + '<div class="nx-menu-label">Viewing project</div>' + items + '</div>';
+}
+
 // ══ SIDEBAR & NAV ══════════════════════════════
 
 /* ── Lucide SVG icon helper ── */

@@ -23,7 +23,7 @@ let _uSearch = '';
 let _uFloorFilter = '', _uTypeFilter = '', _uStatusFilter = '';
 let _uCollapsed = {};                // floor section collapse state (by floorId)
 
-function _uUnits() { return Array.isArray(window._unitsCache) ? window._unitsCache : []; }
+function _uUnits() { var u = Array.isArray(window._unitsCache) ? window._unitsCache : []; return typeof projFilter === 'function' ? projFilter(u) : u; }
 function _uFloors() { return (window._floorsCache || []).slice().sort((a, b) => (Number(a.sortOrder || 0) - Number(b.sortOrder || 0)) || String(a.name || '').localeCompare(String(b.name || ''))); }
 function _uTypes() { return (window._typesCache || []).filter(t => t.isActive !== false); }
 function _uStatuses() { return (window._statusesCache || []).filter(s => s.isActive !== false); }
@@ -255,7 +255,8 @@ async function quickAddUnit() {
    ════════════════════════════════════════════════════════════════════════ */
 function openUnitModal(unitId) {
   const u = unitId ? _uUnits().find(x => x.id === unitId) : null;
-  const projOpts = (window._projectsCache || []).map(p => `<option value="${esc(p.id)}"${u && u.projectId === p.id ? ' selected' : ''}>${esc(p.name || p.projectName || 'Project')}</option>`).join('');
+  const _apU = (typeof activeProjectId === 'function' ? activeProjectId() : '') || '';   // new unit defaults to active-project lens
+  const projOpts = (window._projectsCache || []).map(p => `<option value="${esc(p.id)}"${(u ? u.projectId === p.id : _apU === p.id) ? ' selected' : ''}>${esc(p.name || p.projectName || 'Project')}</option>`).join('');
   const floorOpts = '<option value="">— No floor —</option>' + _uFloors().map(f => `<option value="${esc(f.id)}"${u && u.floorId === f.id ? ' selected' : ''}>${esc(f.name)}</option>`).join('');
   const typeOpts = '<option value="">— Type —</option>' + _uTypes().map(t => `<option value="${esc(t.id)}"${u && u.unitTypeId === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
   const statusOpts = _uStatuses().map(s => `<option value="${esc(s.id)}"${u ? (u.statusId === s.id ? ' selected' : '') : (s.isAvailable ? ' selected' : '')}>${esc(s.name)}</option>`).join('');

@@ -394,7 +394,7 @@ async function _nocSearchUnits(q) {
   if (!_nocUnitSearch) { rs.innerHTML = ''; rs.style.display = 'none'; return; }
 
   const lower = _nocUnitSearch.toLowerCase();
-  const hits = (_unitsCache || [])
+  const hits = (typeof gunits === 'function' ? gunits() : (_unitsCache || []))
     .filter(u => !u.isAvailable &&
       (u.unitNo?.toLowerCase().includes(lower) ||
        u.customerName?.toLowerCase().includes(lower) ||

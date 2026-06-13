@@ -33,7 +33,8 @@
     if (isEdit && !c) { if (typeof toast === 'function') toast('Client not found', 'warn'); return; }
 
     const lockProject = !!opts.projectId || isEdit;
-    const projId = opts.projectId || c?.projectId || '';
+    // default a new client to the active-project lens (topbar selector)
+    const projId = opts.projectId || c?.projectId || (isEdit ? '' : (typeof activeProjectId === 'function' ? activeProjectId() : '')) || '';
     _state = { clientId, projectId: projId, onSaved: opts.onSaved || null, lockProject };
 
     const overseas = (c?.overseasLocal === 'overseas');

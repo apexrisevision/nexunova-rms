@@ -65,7 +65,9 @@ function _teamRenderFilters() {
     ]
   });
 
+  if (!_teamFilt.project && typeof activeProjectId === 'function') _teamFilt.project = activeProjectId() || '';   // global project lens
   const projs = (typeof gprojects === 'function' ? gprojects() : []).slice()
+    .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id))
     .sort((a, b) => String(a.name || a.project_name || '').localeCompare(String(b.name || b.project_name || '')));
   const projSel = '<select class="nx-select" style="width:auto" onchange="_teamSetProject(this.value)">' +
     '<option value="">All projects</option>' +

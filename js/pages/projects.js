@@ -1089,6 +1089,7 @@ async function saveProjectForm() {
     }
 
     await loadProjectsCache(S.cid);
+    if (typeof buildProjectSwitcher === 'function') buildProjectSwitcher();   // refresh topbar lens
     logA('project', (existingId ? 'Updated' : 'Added') + ' project: ' + name);
     toast(existingId ? 'Project updated' : 'Project added', 'ok');
     closeProjectModal();
@@ -1122,6 +1123,8 @@ async function deleteProjectConfirm(prjId) {
       },
       onSuccess: async () => {
         await loadProjectsCache(S.cid);
+        if (S && S.projectId === prjId) S.projectId = null;   // active lens was deleted → consolidated
+        if (typeof buildProjectSwitcher === 'function') buildProjectSwitcher();
         logA('project', 'Deleted project: ' + name);
         nav('projects');
       }
@@ -1139,6 +1142,8 @@ async function deleteProjectConfirm(prjId) {
   const ok = await deleteProjectDB(prjId);
   if (!ok) { toast('Could not delete project', 'err'); return; }
   await loadProjectsCache(S.cid);
+  if (S && S.projectId === prjId) S.projectId = null;   // active lens was deleted → consolidated
+  if (typeof buildProjectSwitcher === 'function') buildProjectSwitcher();
   toast('Project deleted', 'ok'); nav('projects');
 }
 

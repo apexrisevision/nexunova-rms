@@ -5,9 +5,10 @@ function rReceivingLedger() {
   const pg = document.getElementById('pg-receivingledger');
   if (!pg) return;
 
-  const projects = window._projectsCache || [];
+  const _ap = (typeof activeProjectId === 'function' ? activeProjectId() : '') || '';   // global project lens
+  const projects = (window._projectsCache || []).filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
   const projOpts = projects.map(p =>
-    `<option value="${p.id}">${esc(p.projectName || p.name || '')}</option>`
+    `<option value="${p.id}"${_ap === p.id ? ' selected' : ''}>${esc(p.projectName || p.name || '')}</option>`
   ).join('');
 
   const { from, to } = _ldgFiscalYear();
