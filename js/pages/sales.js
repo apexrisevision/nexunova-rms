@@ -849,6 +849,14 @@ async function _nsCreate() {
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error === 'cross_project_client' ? 'Client is not in the unit\'s project.' : (data?.detail || data?.error || 'Create failed'));
 
+    // Booking-rule exception parked for Admin sign-off (no sale_id yet — the sale is
+    // created when the request is approved). Don't run the extras / detail nav.
+    if (data.status === 'pending_approval') {
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      toast('Sale submitted for Admin approval', 'ok');
+      _ns = null; nav('sales'); return;
+    }
+
     // Optional booking extras (FIELD_CENSUS B2). create_sale_with_schedule's contract does NOT
     // accept these columns, so — exactly like Edit Sale — persist them via a second edit_sale().
     // Untouched disclosure ⇒ empty patch ⇒ NO second call ⇒ core payload byte-identical to 3D.
@@ -1091,6 +1099,14 @@ async function saveSale() {
 
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error || 'Unknown error');
+
+    // Booking-rule exception parked for Admin sign-off (no sale_id yet — created on approval).
+    if (data.status === 'pending_approval') {
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      toast('Sale submitted for Admin approval', 'ok');
+      _salSchedule = []; _salBreachData = null; _salBreachApproval = null;
+      nav('sales'); return;
+    }
 
     // Save extended fields via direct update
     const extPatch = {
