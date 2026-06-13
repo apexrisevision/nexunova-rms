@@ -1285,6 +1285,13 @@ function openSaleDetail(id) { _salId = id; nav('salesdetail'); }
 function _salDetailWarmCSS() {
   return '<style>' +
     '#pg-salesdetail .sd-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}' +
+    // ── strict type scale (one place) ──
+    '#pg-salesdetail .sd-title{font-size:22px;font-weight:600;color:var(--fk-text);margin:0;line-height:1.15;letter-spacing:-.01em}' +
+    '#pg-salesdetail .sd-meta{font-size:12.5px;color:var(--fk-text-muted);margin-top:5px}' +
+    '#pg-salesdetail .sd-heronum{font-size:28px;font-weight:600;color:var(--fk-text);letter-spacing:-.015em;line-height:1.05}' +
+    '#pg-salesdetail .sd-cap{font-size:12.5px;color:var(--fk-text-muted);margin-top:8px}' +
+    '#pg-salesdetail .sd-fact-l{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--fk-text-muted)}' +
+    '#pg-salesdetail .sd-fact-v{font-size:14px;font-weight:600;color:var(--fk-text);margin-top:1px}' +
     '#pg-salesdetail .sd-kv{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--fk-border);font-size:13px}' +
     '#pg-salesdetail .sd-kv:last-child{border-bottom:none}' +
     '#pg-salesdetail .sd-kv-l{color:var(--fk-text-muted);flex-shrink:0}' +
@@ -1426,39 +1433,38 @@ function _renderSaleDetail(d, docs, amendments) {
   if (d.delivery_breach) banners += '<div style="margin-top:8px">' + NX.banner('Delivery date breach — approved' + (d.breach_months ? ' · ' + d.breach_months + ' month' + (d.breach_months !== 1 ? 's' : '') : '') + (d.breach_approved_by ? ' · by ' + d.breach_approved_by : '') + (d.breach_approval_ref ? ' · ref ' + d.breach_approval_ref : ''), 'warn') + '</div>';
   if (banners) banners = '<div style="margin-bottom:var(--fk-sp-4)">' + banners + '</div>';
 
-  // ── Hero (money picture) ──
+  // ── Identity header + hero (single money picture) ──
   const heroTip = 'Net = contract value (gross − discount). Balance = Net − Σ installments paid. Collected + Remaining = Net.';
   const subline = [d.unit_no ? 'Unit ' + esc(d.unit_no) : '', d.project_name ? esc(d.project_name) : '', d.agent_name ? 'Agent: ' + esc(d.agent_name) : ''].filter(Boolean).join('  ·  ');
-  const hero = NX.card(
-    `<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:var(--fk-sp-6);align-items:center">
-      <div style="min-width:0">
-        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px">
-          <span class="sd-mono" style="font-size:11px;color:var(--fk-primary);font-weight:600">${esc(d.sale_number || '—')}</span>
-          ${saleStBadge()}
-          ${d.co_buyer_name ? NX.badge('Joint owner', 'info') : ''}
-        </div>
-        <div style="font-size:20px;font-weight:var(--fk-fw-semibold);color:var(--fk-text);line-height:1.2">${esc(d.client_name || 'Unknown Client')}</div>
-        <div class="nx-kpi-label" style="text-transform:none;margin-top:5px">${subline || '—'}</div>
-        <div class="nx-kpi-label" style="display:flex;align-items:center;margin:16px 0 6px">Net contract value${NX.infoTip(heroTip)}</div>
-        <div style="font-size:25px;font-weight:var(--fk-fw-semibold);color:var(--fk-text);letter-spacing:-.01em">${fMF(d.net_amount)}</div>
-        <div style="margin-top:12px">${NX.journeybar({ height:10, segments:[{ value:totalPaid, tone:'primary', label:'Collected', amount:fMF(totalPaid) }, { value:remaining, tone:'muted', label:'Remaining', amount:fMF(remaining) }] })}</div>
+
+  const header = `<div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:var(--fk-sp-4)">
+    ${NX.ichip('file-text', '', { size:'lg' })}
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1 class="sd-title">${esc(d.client_name || 'Unknown Client')}</h1>
+        ${saleStBadge()}
+        ${d.co_buyer_name ? NX.badge('Joint owner', 'info') : ''}
       </div>
-      <div style="text-align:center;border-left:1px solid var(--fk-border);padding-left:var(--fk-sp-6)">
-        <div class="nx-kpi-label">Recovery</div>
-        <div style="font-size:42px;font-weight:var(--fk-fw-semibold);color:${recovPct >= 100 ? 'var(--fk-success)' : 'var(--fk-primary)'};line-height:1.05;margin:5px 0">${recovPct}%</div>
-        <div class="nx-kpi-label" style="text-transform:none">${fMF(totalPaid)} of ${fMF(d.net_amount)}</div>
-        <div class="nx-kpi-label" style="text-transform:none;margin-top:10px">Sale date · <b style="color:var(--fk-text)">${fD(d.sale_date)}</b></div>
+      <div class="sd-meta"><span class="sd-mono" style="color:var(--fk-primary);font-weight:600">${esc(d.sale_number || '—')}</span>${subline ? '  ·  ' + subline : ''}</div>
+    </div>
+  </div>`;
+
+  const fact = (l, v) => `<div><div class="sd-fact-l">${l}</div><div class="sd-fact-v">${v}</div></div>`;
+  const hero = NX.card(
+    `<div style="display:grid;grid-template-columns:1.55fr 1fr;gap:var(--fk-sp-6);align-items:center">
+      <div style="min-width:0">
+        <div class="nx-kpi-label" style="display:flex;align-items:center">Net contract value${NX.infoTip(heroTip)}</div>
+        <div class="sd-heronum" style="margin-top:6px">${fMF(d.net_amount)}</div>
+        <div class="sd-cap"><b style="color:var(--fk-success)">${fMF(totalPaid)}</b> collected  ·  <b style="color:var(--fk-text)">${fMF(remaining)}</b> remaining  ·  ${recovPct}% recovered</div>
+        <div style="margin-top:13px">${NX.journeybar({ height:10, segments:[{ value:totalPaid, tone:'primary', label:'Collected', amount:fMF(totalPaid) }, { value:remaining, tone:'muted', label:'Remaining', amount:fMF(remaining) }] })}</div>
+      </div>
+      <div style="border-left:1px solid var(--fk-border);padding-left:var(--fk-sp-6);display:grid;grid-template-columns:1fr 1fr;gap:14px 16px">
+        ${fact('Down payment', fMF(d.down_payment))}
+        ${fact('Total price', fMF(d.total_amount))}
+        ${fact('Discount', d.discount > 0 ? fMF(d.discount) : '—')}
+        ${fact('Sale date', fD(d.sale_date))}
       </div>
     </div>`, { class:'nx-rise' });
-
-  // ── KPI strip ──
-  const kpis = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--fk-sp-3);margin-top:var(--fk-sp-4)">'
-    + NX.kpi({ label:'Total', value:'PKR ' + cmp(d.total_amount), icon:'tag' })
-    + NX.kpi({ label:'Discount', value: d.discount > 0 ? '− PKR ' + cmp(d.discount) : '—', icon:'banknote', tone: d.discount > 0 ? 'danger' : '' })
-    + NX.kpi({ label:'Net', value:'PKR ' + cmp(d.net_amount), icon:'wallet', tone:'info' })
-    + NX.kpi({ label:'Collected', value:'PKR ' + cmp(totalPaid), icon:'hand-coins', tone:'success' })
-    + NX.kpi({ label:'Remaining', value:'PKR ' + cmp(remaining), icon:'trending-up', tone: remaining > 0 ? 'warning' : 'success' })
-    + '</div>';
 
   // ── Sale Info ──
   const saleInfo = NX.card(
@@ -1513,10 +1519,10 @@ function _renderSaleDetail(d, docs, amendments) {
   pg.innerHTML = `<div class="ani">
     ${_salDetailWarmCSS()}
     <div id="sd-form-nav"></div>
+    ${header}
     ${toolbar}
     ${banners}
     ${hero}
-    ${kpis}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-4);align-items:start;margin-top:var(--fk-sp-4)">
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${saleInfo}${cobuyer}${tax}${docsCard}</div>
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${schedCard}${ops}${amendCard}</div>
