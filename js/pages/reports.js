@@ -560,7 +560,10 @@ async function rRecoveryIQ(){
     '<div class="no-p" style="display:flex;gap:8px;align-items:center">' +
       NX.button('← Back',{variant:'ghost',size:'sm',onclick:"nav('reports')"}) +
       NX.button('Refresh',{variant:'ghost',size:'sm',onclick:"rRecoveryIQ()"}) +
-      '<div style="margin-left:auto" class="nx-kpi-label">as of '+esc(fd)+'</div>' +
+      '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">' +
+        '<span class="nx-kpi-label">as of '+esc(fd)+'</span>' +
+        NX.button('Print / PDF',{variant:'secondary',size:'sm',icon:'printer',onclick:"_riqPrint()"}) +
+      '</div>' +
     '</div>' +
     '<div><h1 class="nx-page-title" style="display:flex;align-items:center;gap:10px">'+NX.icon('radar',24)+' Recovery Intelligence</h1>' +
       '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Where your money is stuck, who to chase first, and what to do.</div></div>' +
@@ -773,11 +776,107 @@ function _riqRender(rows, trend, today, monthT, monthRows){
     sale_id:mr.sale_id||base.sale_id||'', client:base.client||mr.client_name||'—', unit:base.unit||mr.unit_no||'—', floor:base.floor||mr.floor_name||'',
     billed:Number(mr.due_period||0), mcoll:Number(mr.received_total||0) }); });
 
-  // expose the computed set so every figure's drill-down can rebuild its exact trail
-  window._riqStore = { recs, over, sorted, SG, AB, floors, top20idx, today, multi, mrecs, trend, runRate };
+  // expose the computed set so every figure's drill-down can rebuild its exact trail,
+  // plus a flat summary (pr) the print document reads.
+  window._riqStore = { recs, over, sorted, SG, AB, floors, top20idx, today, multi, mrecs, trend, runRate,
+    pr: {
+      totalArr, units:over.length, grade, agedPct, deadAmt, recoverable, runRate, periodTotal, monthsClear, dso,
+      netTotal, collectedTot, future, recArr, billed, collM, poolChg, collRate,
+      aging: AB.map(x=>({k:x.k,amt:x.amt,units:x.units,t:x.t})),
+      segs: SG.map(s=>({k:s.k,amt:s.amt,units:s.units,act:s.act,t:s.t})),
+      flrs: floors.slice(0,10).map(f=>({floor:f.floor,arr:f.arr,over:f.over,rate:f.net>0?Math.round(f.arr/f.net*100):0})),
+      top: sorted.slice(0,18).map(r=>({client:r.client,unit:r.unit,floor:r.floor,arrears:r.arrears,odd:r.odd,lp:r.lp,net:r.net,seg:_riqSeg(r)})),
+      neverP: neverP.slice(0,6), multiC: multi.slice(0,6), cliff: cliff.slice(0,6)
+    } };
 
   b.innerHTML = '<style>@media(max-width:860px){.riq-2col{grid-template-columns:1fr!important}}#riq-body [onclick]{transition:opacity .12s}#riq-body [onclick]:hover{opacity:.82}</style>' +
     '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+hero+funnel+aging+actionMap+floorCard+midGrid+topTable+watchlists+'</div>';
+}
+
+// ── Recovery Intelligence → sleek print / PDF document (bespoke, self-contained) ──
+function _riqPrint(){
+  const ST=window._riqStore; if(!ST||!ST.pr){ if(typeof toast==='function') toast('Open the report first','warn'); return; }
+  const P=ST.pr;
+  const TC={danger:'#dc2626',warning:'#d97706',success:'#16a34a',info:'#2563eb',muted:'#9ca3af',primary:'#4f46e5'};
+  const tc=t=>TC[t]||'#4f46e5';
+  const pct=v=>Math.round((v||0)*100);
+  const co=(window.S&&S.coName)||'Company';
+  const proj=(function(){ try{ const id=(typeof activeProjectId==='function'?activeProjectId():null); if(!id) return 'All Projects'; const p=((window._projectsCache||window._projects||[])).find(x=>x.id===id); return p?(p.name||p.project_name||'Project'):'All Projects'; }catch(e){ return 'All Projects'; } })();
+  const asOf=(typeof fD==='function'?fD(ST.today):ST.today);
+  const dpd=r=>r.lp?(typeof fD==='function'?fD(r.lp.toISOString().slice(0,10)):''):'never';
+
+  // funnel
+  const fseg=[{l:'Collected',v:P.collectedTot,t:'success'},{l:'Future (not yet due)',v:P.future,t:'info'},{l:'Overdue · recoverable',v:P.recArr,t:'warning'},{l:'Overdue · dead',v:P.deadAmt,t:'danger'}];
+  const ftot=fseg.reduce((s,x)=>s+Math.max(0,x.v),0)||1;
+  const funnel='<div class="bar">'+fseg.map(s=>s.v<=0?'':'<span style="width:'+(s.v/ftot*100).toFixed(2)+'%;background:'+tc(s.t)+'"></span>').join('')+'</div>'+
+    '<div class="lg">'+fseg.map(s=>'<span><i style="background:'+tc(s.t)+'"></i>'+s.l+' <b>'+_riqC(s.v)+'</b></span>').join('')+'</div>';
+  // aging
+  const maxA=Math.max(1,...P.aging.map(x=>x.amt));
+  const aging='<table class="tb"><thead><tr><th>Bucket</th><th></th><th class="n">Amount</th><th class="n">Units</th><th class="n">Share</th></tr></thead><tbody>'+
+    P.aging.map(x=>'<tr><td>'+esc(x.k)+'</td><td class="bc"><span style="width:'+Math.round(x.amt/maxA*100)+'%;background:'+tc(x.t)+'"></span></td><td class="n">'+_riqC(x.amt)+'</td><td class="n">'+x.units+'</td><td class="n">'+(P.totalArr>0?Math.round(x.amt/P.totalArr*100):0)+'%</td></tr>').join('')+'</tbody></table>';
+  // segments
+  const segs='<div class="sg">'+P.segs.map(s=>'<div class="sb" style="border-top:3px solid '+tc(s.t)+'"><div class="sl">'+esc(s.k)+'</div><div class="sa">'+_riqC(s.amt)+'</div><div class="ss">'+s.units+' units · '+(P.totalArr>0?Math.round(s.amt/P.totalArr*100):0)+'%</div><div class="sc">'+esc(s.act)+'</div></div>').join('')+'</div>';
+  // floors
+  const maxF=Math.max(1,...P.flrs.map(f=>f.arr));
+  const floors=P.flrs.length?('<table class="tb"><thead><tr><th>Floor</th><th></th><th class="n">Arrears</th><th class="n">Units · rate</th></tr></thead><tbody>'+
+    P.flrs.map(f=>'<tr><td>'+esc(f.floor)+'</td><td class="bc"><span style="width:'+Math.round(f.arr/maxF*100)+'%;background:'+tc(f.rate>=50?'danger':f.rate>=25?'warning':'info')+'"></span></td><td class="n">'+_riqC(f.arr)+'</td><td class="n">'+f.over+'u · '+f.rate+'%</td></tr>').join('')+'</tbody></table>'):'';
+  // momentum trend bars
+  const maxT=Math.max(1,...ST.trend.map(t=>t.amount));
+  const trend='<div class="tr">'+ST.trend.map(t=>'<div class="tc"><div class="tbr" style="height:'+Math.max(2,Math.round((t.amount||0)/maxT*48))+'px"></div><div class="tl">'+esc(t.mon)+'</div></div>').join('')+'</div>';
+  // top defaulters
+  let run=0; const top='<table class="tb td"><thead><tr><th class="n">#</th><th>Client / Unit</th><th class="n">Arrears</th><th class="n">Overdue</th><th>Last pay</th><th>Segment</th><th class="n">% price</th><th class="n">Cum%</th></tr></thead><tbody>'+
+    P.top.map((r,i)=>{ run+=r.arrears; return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(r.client)+'<div class="su">'+esc(r.unit)+(r.floor?' · '+esc(r.floor):'')+'</div></td><td class="n">'+_riqF(r.arrears)+'</td><td class="n">'+(r.odd||0)+'d</td><td>'+esc(dpd(r))+'</td><td><span class="tg" style="color:'+tc(r.seg.t)+';border-color:'+tc(r.seg.t)+'">'+esc(r.seg.k)+'</span></td><td class="n">'+(r.net>0?Math.round(r.arrears/r.net*100):0)+'%</td><td class="n">'+Math.round(run/P.totalArr*100)+'%</td></tr>'; }).join('')+'</tbody></table>';
+  // watchlists
+  const wl=(arr,fmt)=>arr.length?('<ul class="wlu">'+arr.map(fmt).join('')+'</ul>'):'<div class="mt">None</div>';
+  const wlItem=r=>'<li><span>'+esc(r.client)+'<i>'+esc(r.unit||'')+'</i></span><b>'+_riqC(r.arrears)+'</b></li>';
+  const watch='<div class="wg">'+
+    '<div><h4>Never paid a rupee</h4>'+wl(P.neverP,wlItem)+'</div>'+
+    '<div><h4>Multi-unit defaulters</h4>'+wl(P.multiC,c=>'<li><span>'+esc(c.client)+'<i>'+c.units+' overdue units</i></span><b>'+_riqC(c.arrears)+'</b></li>')+'</div>'+
+    '<div><h4>About to turn zombie</h4>'+wl(P.cliff,wlItem)+'</div>'+
+  '</div>';
+
+  const css='*{box-sizing:border-box}@page{size:A4 portrait;margin:12mm 11mm}'+
+    'html,body{background:#fff}body{font-family:"Inter",system-ui,Arial,sans-serif;color:#1f2330;font-size:11px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #4f46e5;padding-bottom:8px;margin-bottom:13px}'+
+    '.hd .co{font-size:12px;color:#6b7280;font-weight:600}.hd .ti{font-size:21px;font-weight:700;letter-spacing:-.3px;color:#111}'+
+    '.hd-r{text-align:right;font-size:10px;color:#6b7280;line-height:1.5}'+
+    '.vd{background:#f8f8fc;border:1px solid #ececf3;border-radius:8px;padding:12px 14px;margin-bottom:14px}'+
+    '.vt{display:inline-block;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px}'+
+    '.vb{font-size:25px;font-weight:700;margin:7px 0 2px}.vb span{font-size:12px;font-weight:500;color:#6b7280}'+
+    '.vn{font-size:11px;color:#4b5563;max-width:600px;margin-bottom:11px}'+
+    '.vs{display:flex;gap:28px;flex-wrap:wrap}.vs label{display:block;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;margin-bottom:1px}.vs b{font-size:14px}'+
+    '.se{margin-bottom:13px}.avd{page-break-inside:avoid}'+
+    '.se h3{font-size:12px;font-weight:700;color:#111;margin:0 0 7px;padding-bottom:3px;border-bottom:1px solid #ececf3}'+
+    '.nt{font-size:10px;color:#6b7280;margin-bottom:8px}'+
+    '.bar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#eef0f5}.bar span{display:block;height:100%}'+
+    '.lg{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:9px;font-size:10px;color:#4b5563}.lg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}.lg b{font-weight:700;color:#111}'+
+    '.tb{width:100%;border-collapse:collapse;font-size:10.5px}.tb td,.tb th{padding:4px 6px;border-bottom:1px solid #eee}'+
+    '.tb th{font-size:8.5px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;text-align:left;font-weight:600}'+
+    '.n{text-align:right;font-variant-numeric:tabular-nums}.bc{width:34%}.bc span{display:block;height:8px;border-radius:4px}'+
+    '.su{font-size:9px;color:#9ca3af}.tg{font-size:8.5px;border:1px solid;border-radius:20px;padding:1px 6px;font-weight:600;white-space:nowrap}'+
+    '.sg{display:flex;gap:8px}.sb{flex:1;border:1px solid #ececf3;border-radius:7px;padding:8px}'+
+    '.sl{font-size:10px;font-weight:700;color:#111}.sa{font-size:16px;font-weight:700;margin:2px 0}.ss{font-size:9px;color:#9ca3af;margin-bottom:5px}.sc{font-size:8.5px;color:#6b7280;border-top:1px solid #f0f0f5;padding-top:4px;line-height:1.35}'+
+    '.tr{display:flex;align-items:flex-end;gap:6px;height:62px;padding-top:6px}.tc{flex:1;text-align:center}.tbr{background:#4f46e5;border-radius:3px 3px 0 0;margin:0 auto;width:62%}.tl{font-size:8px;color:#9ca3af;margin-top:3px}'+
+    '.wg{display:flex;gap:14px}.wg>div{flex:1}.wg h4{font-size:10px;margin:0 0 5px;color:#374151}'+
+    '.wlu{list-style:none;margin:0;padding:0;font-size:9.5px}.wlu li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #f0f0f5;padding:3px 0}.wlu span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wlu i{font-style:normal;color:#9ca3af;display:block;font-size:8.5px}.wlu b{font-weight:700;white-space:nowrap}.mt{font-size:9px;color:#9ca3af}'+
+    '.ft{margin-top:15px;border-top:1px solid #ececf3;padding-top:6px;font-size:8px;color:#9ca3af;text-align:center}';
+
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery Intelligence — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
+    '<div class="hd"><div><div class="co">'+esc(co)+'</div><div class="ti">Recovery Intelligence</div></div><div class="hd-r"><div>'+esc(proj)+'</div><div>as of '+esc(asOf)+'</div></div></div>'+
+    '<div class="vd" style="border-left:4px solid '+tc(P.grade.t)+'"><span class="vt" style="background:'+tc(P.grade.t)+'">Recovery health · '+esc(P.grade.w)+'</span>'+
+      '<div class="vb">'+_riqC(P.totalArr)+' <span>overdue · '+P.units+' units</span></div>'+
+      '<div class="vn">'+(P.agedPct>=0.5?pct(P.agedPct)+'% of all overdue is 180+ days aged — a legacy-default problem, not this month’s slippage.':'Arrears are mostly recent — keep the collection pressure on.')+'</div>'+
+      '<div class="vs"><div><label>Dead</label><b style="color:'+TC.danger+'">'+_riqC(P.deadAmt)+'</b></div><div><label>Recoverable</label><b style="color:'+TC.success+'">'+_riqC(P.recoverable)+'</b></div><div><label>Run-rate / mo</label><b>'+_riqC(P.runRate)+'</b></div><div><label>Months to clear</label><b>'+(P.monthsClear!=null?P.monthsClear+' mo':'—')+'</b></div><div><label>Avg overdue age</label><b>'+Math.round(P.dso)+' d</b></div></div></div>'+
+    '<div class="se avd"><h3>The full money picture — recovery funnel</h3><div class="nt">Of '+_riqC(P.netTotal)+' contracted (net), '+pct(P.netTotal>0?P.collectedTot/P.netTotal:0)+'% is in the bank; the '+_riqC(P.recArr)+' overdue-recoverable is the real target.</div>'+funnel+'</div>'+
+    '<div class="se avd"><h3>Where the money is stuck — aging</h3>'+aging+'</div>'+
+    '<div class="se avd"><h3>The action map — what to do with each rupee</h3>'+segs+'</div>'+
+    '<div class="se avd"><h3>Momentum — last 10 months collected · operational receipts only</h3><div class="nt">'+_riqC(P.runRate)+' / month typical · '+_riqC(P.periodTotal)+' over 10 months · book '+(P.poolChg>0?'rotting':'healing')+' this month ('+_riqC(P.billed)+' billed vs '+_riqC(P.collM)+' collected)</div>'+trend+'</div>'+
+    (floors?'<div class="se avd"><h3>Risk by floor — where defaults cluster</h3>'+floors+'</div>':'')+
+    '<div class="se"><h3>Chase these first — top accounts by arrears</h3>'+top+'</div>'+
+    '<div class="se avd"><h3>Smart watchlists</h3>'+watch+'</div>'+
+    '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · Collections = operational receipts (opening-balance adjustments excluded)</div>'+
+  '</body></html>';
+  if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'Recovery Intelligence'); else window.print();
 }
 
 // ── Routing: RP → bespoke shell; others → NXReport factory ───────────────────
