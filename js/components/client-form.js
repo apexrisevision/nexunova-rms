@@ -255,7 +255,11 @@
     const overseas = document.getElementById('cfm-overseas')?.checked;
     const projId = _state.projectId || _val('cfm-project');
 
-    const fail = (m) => { if (err) err.textContent = m; return false; };
+    const fail = (m) => {
+      if (err) { err.textContent = m; try { err.scrollIntoView({ block: 'center' }); } catch (e) {} }
+      if (typeof toast === 'function') toast(m, 'warn');
+      return false;
+    };
     if (name.length < 2) return fail('Full name is required (min 2 characters).');
     if (!father) return fail('Father / Husband name is required.');
     if (!phone) return fail('Phone number is required.');

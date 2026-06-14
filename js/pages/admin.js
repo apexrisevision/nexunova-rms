@@ -500,7 +500,7 @@ async function submitChangePassword() {
 
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
 
-  const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.style.display = ''; } };
+  const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.style.display = ''; try { errEl.scrollIntoView({ block: 'center' }); } catch (e) {} } if (typeof toast === 'function') toast(msg, 'warn'); };
 
   if (!curPwd)             { showErr('Current password is required.'); return; }
   if (newPwd.length < 8)  { showErr('New password must be at least 8 characters.'); return; }
