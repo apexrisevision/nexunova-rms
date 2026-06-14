@@ -716,77 +716,95 @@ async function _dashStaff(pg, role) {
   const totalOverdue = sumT(queue);
   const chase  = queue.filter(r => r.tier === 'A' || r.tier === 'B').sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
 
+  const aitems = alerts.items || [];
+  const promisesDue  = aitems.filter(i => i.type === 'promise').length;
+  const remindersDue = aitems.filter(i => i.type === 'followup').length + aitems.filter(i => i.type === 'pdc').length;
+  const next = chase[0] || null;
+
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
-    ${_dashHeader()}
-    ${_dashOffHero(totalOverdue, queue.length, tierA, tierB, tierC, sumT)}
-    ${_dashOffChips(tierA.length, alerts, queue.length)}
-    ${(alerts.items && alerts.items.length) ? _dashOffActionQueue(alerts) : ''}
-    ${_dashOffChase(chase)}
+    ${_dashOffMission(chase.length, totalOverdue)}
+    ${_dashOffNext(next, chase.length)}
+    ${_dashOffSteps(chase.length, promisesDue, remindersDue, tierC.length)}
+    ${_dashOffTools()}
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
 }
 
-// HERO — "My recovery book": overdue total (officer-scoped) + urgency-tier journeybar.
-function _dashOffHero(totalOverdue, nAccts, tierA, tierB, tierC, sumT) {
-  const tip = 'Your overdue book — Σ overdue across the accounts in your assigned projects, split by urgency tier. Source: your recovery queue (get_recovery_queue).';
-  const seg = [
-    { value: sumT(tierA) || tierA.length, tone: 'danger',  label: 'Urgent today', amount: String(tierA.length) },
-    { value: sumT(tierB) || tierB.length, tone: 'warning', label: 'This week',     amount: String(tierB.length) },
-    { value: sumT(tierC) || tierC.length, tone: 'info',    label: 'Escalate',      amount: String(tierC.length) }
-  ].filter(s => s.value > 0);
-  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6)">
-    <div class="nx-kpi-label" style="display:flex;align-items:center">My recovery book${NX.infoTip(tip)}</div>
-    <div class="nx-hero-value" style="margin:8px 0 4px;cursor:pointer" title="Open Subah ki List" onclick="nav('queue')">${_dashCompact(totalOverdue)}</div>
-    <div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-4)">overdue across ${nAccts} account${nAccts !== 1 ? 's' : ''} in your projects · <strong style="color:var(--fk-danger)">${tierA.length}</strong> need action today</div>
-    ${seg.length ? NX.journeybar({ height: 12, segments: seg }) : ''}
+// MISSION — what's my job today, in plain language + a clear "start" button.
+function _dashOffMission(callList, totalOverdue) {
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const name = ((typeof S !== 'undefined' && S && (S.name || S.username)) || '').toString().split(' ')[0] || 'there';
+  const job = callList > 0
+    ? `Today you have <strong>${callList} account${callList !== 1 ? 's' : ''}</strong> to work — <strong>${_dashCompact(totalOverdue)}</strong> overdue.`
+    : `You're all caught up — no accounts need a call right now. Nice work.`;
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6);border-left:3px solid var(--fk-primary);background:linear-gradient(180deg,color-mix(in srgb,var(--fk-primary) 6%,transparent),transparent)">
+    <div class="nx-kpi-label" style="text-transform:none">${greet}, ${esc(name)} 👋</div>
+    <div style="font-size:20px;font-weight:600;letter-spacing:-.2px;margin:6px 0 4px">${job}</div>
+    <div class="nx-kpi-label" style="text-transform:none;max-width:660px">Your plan: ① call your list · ② check promises due · ③ send reminders · ④ escalate the stuck ones. Start at the top.</div>
+    ${callList > 0 ? `<div style="margin-top:var(--fk-sp-4)" class="no-p">${NX.button('Start working →', { variant: 'primary', onclick: "nav('queue')" })}</div>` : ''}
   </div>`;
 }
 
-// Three drill-able stat chips, each with a "why" tip.
-function _dashOffChips(urgentToday, alerts, nAccts) {
-  const chip = (label, val, tip, onclick) => `<div style="flex:1;padding:0 var(--fk-sp-4);${onclick ? 'cursor:pointer' : ''}" ${onclick ? `onclick="${onclick}"` : ''}>
-    <div class="nx-statchip-l" style="display:flex;align-items:center">${label}${NX.infoTip(tip)}</div>
-    <div class="nx-statchip-v" style="font-size:var(--fk-fs-kpi);margin-top:3px">${val}</div></div>`;
-  const div = '<div style="width:1px;align-self:stretch;background:var(--fk-border)"></div>';
-  return `<div class="nx-card" style="display:flex;align-items:center;padding:var(--fk-sp-4) var(--fk-sp-2)">
-    ${chip('Urgent today', urgentToday, 'Tier-A accounts — overdue and due action today. Click → Subah ki List.', "nav('queue')")}${div}
-    ${chip('My alerts', alerts.total || 0, 'Your follow-ups due + promises due/broken + PDC maturing/bounced. Click → Reminders.', "nav('reminders')")}${div}
-    ${chip('My accounts', nAccts, 'Overdue accounts across your assigned projects.')}</div>`;
+// START HERE — the single most-urgent account, with full context + the actions to work it.
+function _dashOffNext(r, total) {
+  if (!r) return NX.card(NX.empty({ icon: 'check-circle', tone: 'success', message: 'No calls pending — your list is clear for today. Use your tools below if you need them.' }), { header: { title: '① Start here', icon: 'phone-call' } });
+  const ph = (r.phone || '').replace(/[^0-9]/g, '');
+  const chips = (Array.isArray(r.reasons) ? r.reasons : []).slice(0, 3).map(rs => NX.badge(rs.label, (rs.tone && rs.tone !== 'muted') ? rs.tone : '')).join(' ');
+  const prop = (r.propensity && r.propensity.score != null) ? Number(r.propensity.score) : null;
+  const lastC = r.last_contact_date ? 'Last contacted ' + (typeof fD === 'function' ? fD(r.last_contact_date) : r.last_contact_date) : 'Not contacted yet';
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6);border-left:3px solid var(--fk-danger)">
+    <div class="nx-kpi-label" style="display:flex;align-items:center;gap:6px">① START HERE — your most urgent call${NX.infoTip('The #1 account on your call list by priority (oldest / biggest / broke a promise). Source: get_recovery_queue.')}</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:8px">
+      <div style="min-width:0">
+        <div style="font-size:19px;font-weight:600">${esc(r.client_name || r.client_code || '—')}</div>
+        <div class="nx-kpi-label" style="text-transform:none">${esc(r.unit_no || '')}${r.project_name ? ' · ' + esc(r.project_name) : ''} · ${lastC}</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chips}${prop != null ? `<span class="nx-badge nx-badge--${prop >= 60 ? 'success' : prop >= 30 ? 'warning' : 'danger'}"><span class="nx-dot"></span>${prop}% will pay</span>` : ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="nx-hero-value" style="font-size:24px;color:var(--fk-danger)">${_dashCompact(r.overdue_amt)}</div>
+        <div class="nx-kpi-label" style="text-transform:none">${Number(r.oldest_overdue_days || 0)} days overdue</div>
+      </div>
+    </div>
+    <div class="no-p" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:var(--fk-sp-4)">
+      ${ph ? `<a class="nx-btn nx-btn--primary nx-btn--sm" href="tel:${esc(r.phone)}">${NX.icon('phone', 14)} Call now</a>
+      <a class="nx-btn nx-btn--secondary nx-btn--sm" target="_blank" href="https://wa.me/${ph}">${NX.icon('message-circle', 14)} WhatsApp</a>` : ''}
+      ${r.unit_id ? NX.button('Log the outcome', { variant: 'secondary', size: 'sm', onclick: `openConModal('${r.unit_id}')` }) : ''}
+      ${r.sale_id ? NX.button('View account', { variant: 'ghost', size: 'sm', onclick: `openSaleDetail('${r.sale_id}')` }) : ''}
+    </div>
+    <div class="nx-kpi-label" style="text-transform:none;margin-top:10px">Account 1 of ${total} on your list — the rest are in your Subah ki List.</div>
+  </div>`;
 }
 
-// MY ACTION QUEUE — from get_recovery_alerts (officer-scoped): follow-ups, promises, PDC.
-function _dashOffActionQueue(alerts) {
-  const TONE = { danger: 'var(--fk-danger)', warning: 'var(--fk-warning)', info: 'var(--fk-info)' };
-  const rows = (alerts.items || []).slice(0, 6).map(it => {
-    const ph = (it.phone || '').replace(/[^0-9]/g, '');
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--fk-border)">
-      <span style="width:8px;height:8px;border-radius:50%;background:${TONE[it.sev] || TONE.info};flex-shrink:0"></span>
-      <div style="flex:1;min-width:0"><div style="font-size:13px">${esc(it.title)} <span class="nx-kpi-label" style="text-transform:none">· ${esc(it.name || '—')}${it.unit ? ' · ' + esc(it.unit) : ''}</span></div>
-        <div class="nx-kpi-label" style="text-transform:none">due ${esc(typeof fD === 'function' ? fD(it.date) : it.date)}${it.amount != null ? ' · ' + _dashCompact(it.amount) : ''}</div></div>
-      ${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" title="WhatsApp">${NX.icon('message-circle', 14)}</a>` : ''}
-      ${it.sale_id ? NX.button('Open', { variant: 'ghost', size: 'sm', onclick: `openSaleDetail('${it.sale_id}')` }) : ''}
-    </div>`;
-  }).join('');
-  return NX.card(rows, { header: { title: 'My action queue', icon: 'bell', tone: 'warning', sub: (alerts.total || 0) + ' due', actions: NX.infoTip('Your follow-ups due, promises due/broken, and PDC maturing/bounced — from get_recovery_alerts, scoped to your projects.') } });
+// YOUR DAY — STEP BY STEP: the four-step recovery sequence, each a count + a way in.
+function _dashOffSteps(callN, promN, remN, escN) {
+  const step = (n, label, desc, count, tone, go) => `<div class="nx-card" style="border-top:3px solid var(--fk-${tone});cursor:pointer" onclick="${go}">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="width:22px;height:22px;border-radius:50%;background:var(--fk-${tone});color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0">${n}</span><span class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">${label}</span></div>
+    <div style="font-size:24px;font-weight:600">${count}</div>
+    <div class="nx-kpi-label" style="text-transform:none;margin:2px 0 10px">${desc}</div>
+    <div class="no-p">${NX.button(count > 0 ? 'Open →' : 'View', { variant: count > 0 ? 'secondary' : 'ghost', size: 'sm', onclick: go })}</div>
+  </div>`;
+  return `<div>
+    <div class="nx-kpi-label" style="margin-bottom:8px">YOUR DAY — STEP BY STEP</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:var(--fk-sp-3)">
+      ${step(1, 'Call your list', 'accounts to call today', callN, 'danger', "nav('queue')")}
+      ${step(2, 'Check promises', 'promises due — paid or not?', promN, 'info', "nav('promises')")}
+      ${step(3, 'Send reminders', 'follow-ups / PDC to nudge', remN, 'warning', "nav('reminders')")}
+      ${step(4, 'Escalate stuck', 'dead accounts to escalate', escN, 'danger', "nav('escalations')")}
+    </div></div>`;
 }
 
-// CHASE FIRST — tier A/B from the queue, with WHY (reason chips) + propensity + contact.
-function _dashOffChase(chase) {
-  if (!chase.length) return NX.card(NX.empty({ icon: 'check-circle', tone: 'success', message: 'No accounts need a call right now — your call list is clear.' }), { header: { title: 'Chase first — who to call & why', icon: 'phone-call' } });
-  const rows = chase.slice(0, 8).map(r => {
-    const ph = (r.phone || '').replace(/[^0-9]/g, '');
-    const chips = (Array.isArray(r.reasons) ? r.reasons : []).slice(0, 3).map(rs => NX.badge(rs.label, (rs.tone && rs.tone !== 'muted') ? rs.tone : '')).join(' ');
-    const prop = (r.propensity && r.propensity.score != null) ? Number(r.propensity.score) : null;
-    return `<tr style="cursor:pointer" onclick="openSaleDetail('${esc(r.sale_id)}')">
-      <td><div style="font-weight:500">${esc(r.client_name || r.client_code || '—')}</div><div class="nx-kpi-label" style="text-transform:none">${esc(r.unit_no || '')}${r.project_name ? ' · ' + esc(r.project_name) : ''}</div></td>
-      <td>${chips || '<span class="nx-kpi-label">—</span>'}</td>
-      <td class="num" style="font-weight:600">${_dashCompact(r.overdue_amt)}</td>
-      <td class="num">${Number(r.oldest_overdue_days || 0)}d</td>
-      <td>${prop != null ? `<span class="nx-badge nx-badge--${prop >= 60 ? 'success' : prop >= 30 ? 'warning' : 'danger'}"><span class="nx-dot"></span>${prop}%</span>` : ''}</td>
-      <td class="no-p">${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:${esc(r.phone)}" onclick="event.stopPropagation()" title="Call">${NX.icon('phone', 13)}</a> <a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" onclick="event.stopPropagation()" title="WhatsApp">${NX.icon('message-circle', 13)}</a>` : '<span class="nx-kpi-label">—</span>'}</td>
-    </tr>`;
-  }).join('');
-  const tbl = `<div class="nx-table-wrap"><table class="nx-table nx-table--flush"><thead><tr><th>Client / Unit</th><th>Why</th><th class="num">Overdue</th><th class="num">Days</th><th>Will pay</th><th>Contact</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="padding:var(--fk-sp-3) var(--fk-sp-4);border-top:1px solid var(--fk-border)">${NX.button('Open full Subah ki List →', { variant: 'secondary', size: 'sm', onclick: "nav('queue')" })}</div>`;
-  return NX.card(tbl, { flush: true, header: { title: 'Chase first — who to call & why', icon: 'phone-call', tone: 'danger', sub: chase.length + ' on the call list', actions: NX.infoTip('Tier A/B accounts from your recovery queue, sorted by priority. "Why" = the reasons the engine flagged each account. "Will pay" = payment-propensity score. Source: get_recovery_queue.') } });
+// MY TOOLS — every recovery action in one place, so nothing is hunted for.
+function _dashOffTools() {
+  const tool = (label, icon, go) => `<button class="nx-btn nx-btn--secondary" style="justify-content:flex-start" onclick="${go}">${NX.icon(icon, 16)} ${label}</button>`;
+  return NX.card(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:var(--fk-sp-2)">
+    ${tool('Log a call', 'phone', "openConModal()")}
+    ${tool('Record a payment', 'hand-coins', "nav('addpayment')")}
+    ${tool('Subah ki List', 'sunrise', "nav('queue')")}
+    ${tool('Reminders', 'bell', "nav('reminders')")}
+    ${tool('Promises', 'handshake', "nav('promises')")}
+    ${tool('Field visits', 'map-pin', "nav('fieldvisits')")}
+    ${tool('Escalations', 'flag', "nav('escalations')")}
+    ${tool('Call logs', 'phone-call', "nav('contacts')")}
+  </div>`, { header: { title: 'My tools — everything you need', icon: 'grid', actions: NX.infoTip('Quick access to every recovery action. "Log a call" records the outcome (promise / no-answer / dispute) and sets your next follow-up — that keeps the recovery loop alive.') } });
 }
