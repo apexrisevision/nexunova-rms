@@ -593,7 +593,9 @@ async function _riqTrend(today, proj){
   const start=new Date(d.getFullYear(), d.getMonth()-9, 1);
   const fromISO=start.getFullYear()+'-'+pad(start.getMonth()+1)+'-01';
   let daily=[];
-  try{ const r=await supabase.rpc('get_daily_collections',{p_company_id:S.cid,p_project_id:proj||null,p_from:fromISO,p_to:today}); if(!r.error && Array.isArray(r.data)) daily=r.data; }catch(_){}
+  // get_daily_collections_real = operational receipts only (excludes migration
+  // 'adjustment'/opening-balance entries that otherwise spike the trend).
+  try{ const r=await supabase.rpc('get_daily_collections_real',{p_company_id:S.cid,p_project_id:proj||null,p_from:fromISO,p_to:today}); if(!r.error && Array.isArray(r.data)) daily=r.data; }catch(_){}
   const m={}; daily.forEach(x=>{ const k=String(x.day||'').slice(0,7); if(k.length===7){ m[k]=(m[k]||0)+Number(x.amount||0); } });
   const out=[]; for(let i=9;i>=0;i--){ const dt=new Date(d.getFullYear(), d.getMonth()-i, 1); const k=dt.getFullYear()+'-'+pad(dt.getMonth()+1); out.push({ mon:MON[dt.getMonth()], amount:m[k]||0, cur:i===0 }); }
   return out;
@@ -644,7 +646,9 @@ function _riqRender(rows, trend, today, monthT, monthRows){
   const netTotal=recs.reduce((s,r)=>s+r.net,0), collectedTot=recs.reduce((s,r)=>s+r.paid,0);
   const remaining=Math.max(0,netTotal-collectedTot), future=Math.max(0,remaining-totalArr), recArr=Math.max(0,totalArr-deadAmt);
   // THIS-MONTH FLOW — is the book healing or rotting?
-  const billed=Number(monthT&&monthT.due||0), collM=Number(monthT&&monthT.received_total||0);
+  // collected this month = real operational receipts (trend's current month), to match
+  // the trend; billed = installments due (unaffected by adjustments).
+  const billed=Number(monthT&&monthT.due||0), collM=(trend&&trend.length)?Number(trend[trend.length-1].amount||0):Number(monthT&&monthT.received_total||0);
   const poolChg=billed-collM, collRate= billed>0? collM/billed : (collM>0?1:0);
 
   // ── HERO ────────────────────────────────────────────────────────────────
@@ -715,13 +719,13 @@ function _riqRender(rows, trend, today, monthT, monthRows){
   const momentum = NX.card(
     '<div onclick="_riqDrill(\'trend\')" style="cursor:pointer" title="View the month-by-month trail">'+
     '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px"><span style="font-size:22px;font-weight:600">'+_riqC(runRate)+'</span><span class="nx-kpi-label">/ month typical (median, last 6 mo)</span>'+NX.badge(dir.w, dir.t,{dot:true})+'<span style="color:var(--fk-text-muted);display:inline-flex;margin-left:auto">'+NX.icon('chevron-right',15)+'</span></div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:8px">'+_riqC(periodTotal)+' collected across the last 10 months</div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:8px">'+_riqC(periodTotal)+' collected across the last 10 months · operational receipts only</div>'+
     NX.trendline({ series:tvals, tone:dir.t, maxWidth:460 })+
     '<div style="display:flex;justify-content:space-between;margin-top:4px">'+trend.map(t=>'<span class="nx-kpi-label" style="font-size:10px">'+t.mon+'</span>').join('')+'</div></div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px;line-height:1.45">At this pace, the <strong onclick="_riqDrill(\'recoverable\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(recoverable)+'</strong> recoverable would take <strong>'+(monthsClear!=null?monthsClear+' months':'—')+'</strong> to clear (dead arrears excluded).</div>'+
     '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--fk-border)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+NX.badge(poolChg>0?'Book rotting':'Book healing', poolChg>0?'danger':'success',{dot:true})+'<span class="nx-kpi-label" style="text-transform:none">this month</span></div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.45">Billed <strong onclick="_riqDrill(\'mbilled\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(billed)+'</strong>, collected <strong onclick="_riqDrill(\'mcollected\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(collM)+'</strong> ('+Math.round(collRate*100)+'%) → the arrears pool '+(poolChg>0?'<strong style="color:var(--fk-danger)">grew '+_riqC(poolChg)+'</strong>':'<strong style="color:var(--fk-success)">shrank '+_riqC(-poolChg)+'</strong>')+' this month.</div></div>',
-    { header:{ title:'Momentum — last 10 months collected', icon:'trending-up', actions:NX.infoTip('Monthly Σ from get_daily_collections. Run-rate = median of the last 6 months (drops one-off surge months). Months-to-clear = recoverable ÷ run-rate. Healing/rotting = this month’s collections vs this month’s new billing (get_recovery_position for the month).') } });
+    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.45">Billed <strong onclick="_riqDrill(\'mbilled\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(billed)+'</strong>, collected <strong onclick="_riqDrill(\'trend\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the month-by-month trail">'+_riqC(collM)+'</strong> ('+Math.round(collRate*100)+'%) → the arrears pool '+(poolChg>0?'<strong style="color:var(--fk-danger)">grew '+_riqC(poolChg)+'</strong>':'<strong style="color:var(--fk-success)">shrank '+_riqC(-poolChg)+'</strong>')+' this month.</div></div>',
+    { header:{ title:'Momentum — last 10 months collected', icon:'trending-up', actions:NX.infoTip('Operational receipts only — migration "adjustment"/opening-balance entries are excluded (they otherwise spike the trend, e.g. an imported lump). Monthly Σ from get_daily_collections_real. Run-rate = median of the last 6 months. Months-to-clear = recoverable ÷ run-rate.') } });
   const concentration = NX.card(
     '<div onclick="_riqDrill(\'concentration\')" title="View the full trail" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:22px;font-weight:600">Top '+top20idx+' units '+NX.icon('chevron-right',16)+'</div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin:2px 0 12px">carry <strong>half</strong> ('+_riqC(totalArr*0.5)+') of all arrears. The other half is spread across '+(over.length-top20idx)+' units.</div>'+
