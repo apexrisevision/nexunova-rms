@@ -50,3 +50,8 @@ It is **not broken code — it's a broken feedback loop + heavy fragmentation.**
 - ⏳ **DEFERRED (low-risk tech-debt, noted):** orphan `follow_up_reminders` table still written by Log-Call but unread (contact_logs.next_followup is the surfaced source now) — harmless dead weight, can be dropped later. Two promise-create RPCs (create_payment_promise / log_payment_promise) both work + attribute — redundant, can be unified later. The other reminder silos (reminder_logs SMS-dispatch · promise_reminders_log · payment_link_reminders) are distinct concerns, left as-is.
 
 Net: the recovery **loop is connected and there is one alert surface** — the two things that made the system unused. Remaining items are cleanup, not function.
+
+## STATUS — round 2 (officer-scoping + PDC alerts)
+- ✅ **Officer-scoping** (migrations `20260614_recovery_alerts_officer_scope` + `20260614_reminders_officer_scope` LIVE): both `get_recovery_alerts` and `get_reminders_page_data` are now caller-aware — admin/owner/super see the whole company; a scoped user sees only the projects assigned to them in `user_project_assignments`. No frontend change. Verified by impersonation: owner→all, officer(0 projects)→0, officer(assigned)→their project only.
+- ✅ **PDC alerts in the bell** (migration `20260614_recovery_alerts_add_pdc` LIVE): `get_recovery_alerts` now also surfaces bounced cheques (danger) and PDC overdue/maturing (≤3d). Verified — a bounced cheque shows as "Cheque bounced".
+- ⏳ **Remaining:** #3 auto-reminder dispatch (auto SMS/WhatsApp on due promise/follow-up — needs the comms pipeline + a scheduler; cron is postgres-locked so approach TBD); de-fragment cleanup; field-visits/campaigns deeper test.
