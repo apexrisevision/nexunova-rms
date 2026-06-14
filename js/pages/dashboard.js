@@ -689,73 +689,104 @@ async function _dashLoadPdcPipeline() {
    FK, and get_recovery_position exposes only an 'All Officers' aggregate.
    ════════════════════════════════════════════════════════════════════════ */
 async function _dashStaff(pg, role) {
-  const months = _dashMonths(1);
-  const [rp, rec, todaySnap] = await Promise.all([
-    _dashRP(months[0].from, months[0].to),
-    _dashReceivable().catch(() => ({ receivable: 0, contracted: 0, collected: 0 })),
-    _dashToday().catch(() => null)
-  ]);
-  const t  = rp.totals || {};
-  const rows = Array.isArray(rp.rows) ? rp.rows : [];
-  const overdueAmt = rows.reduce((s, r) => s + (Number(r.overdue_days) > 0 ? Number(r.closing || 0) : 0), 0);
-
-  const me   = S && (S.userId || '');
-  const logs = Array.isArray(window._contactLogsCache) ? window._contactLogsCache : [];
-  const mine = logs.filter(l => String(l.recovery_agent_id || l.created_by || '') === String(me));
-  const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
-  const followToday = mine.filter(l => String(l.next_followup_date || '').slice(0, 10) === today);
-
-  // "Clients you've worked, in arrears" — contact_logs proxy ∩ RP arrears (honest label).
-  const workedClientKeys = new Set(mine.map(l => String(l.client_id || l.client_code || l.sale_id || '')).filter(Boolean));
-  const workedArrears = rows.filter(r => Number(r.closing) > 0 &&
-    (workedClientKeys.has(String(r.sale_id)) || workedClientKeys.has(String(r.client_code)))).slice(0, 10);
+  pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6)">${_dashSkeleton()}</div>`;
+  let q = {}, alerts = { total: 0, items: [] };
+  try {
+    const proj = (typeof activeProjectId === 'function' ? activeProjectId() : null);
+    const [qr, ar] = await Promise.all([
+      supabase.rpc('get_recovery_queue', { p_company_id: S.cid, p_officer_id: null, p_project_id: proj, p_date: null, p_limit: 200 }),
+      supabase.rpc('get_recovery_alerts', { p_company_id: S.cid })
+    ]);
+    if (qr.error) throw qr.error;
+    q = qr.data || {};
+    alerts = (ar && !ar.error && ar.data) ? ar.data : { total: 0, items: [] };
+  } catch (e) {
+    pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">${_dashHeader()}${NX.card(NX.empty({ icon: 'alert-triangle', message: 'Could not load your recovery view — ' + esc(e.message || 'error') }))}</div>`;
+    return;
+  }
+  if (q.no_projects) {
+    pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">${_dashHeader()}${NX.card(NX.empty({ icon: 'user', tone: 'warning', message: 'You are not assigned to any project yet. Ask your admin to assign you so your recovery queue appears here.' }))}</div>`;
+    return;
+  }
+  const queue  = Array.isArray(q.queue) ? q.queue : [];
+  const sumT   = arr => arr.reduce((s, r) => s + Number(r.overdue_amt || 0), 0);
+  const tierA  = queue.filter(r => r.tier === 'A');
+  const tierB  = queue.filter(r => r.tier === 'B');
+  const tierC  = queue.filter(r => r.tier === 'C');
+  const totalOverdue = sumT(queue);
+  const chase  = queue.filter(r => r.tier === 'A' || r.tier === 'B').sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
     ${_dashHeader()}
-    ${_dashTodayCard(todaySnap)}
-    ${_dashHero(rec, overdueAmt)}
-    ${_dashStatChips(t)}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">
-      ${_dashStaffFollowups(followToday)}
-      ${_dashStaffWorked(workedArrears)}
-    </div>
-    ${_dashStaffRecoveries()}
+    ${_dashOffHero(totalOverdue, queue.length, tierA, tierB, tierC, sumT)}
+    ${_dashOffChips(tierA.length, alerts, queue.length)}
+    ${(alerts.items && alerts.items.length) ? _dashOffActionQueue(alerts) : ''}
+    ${_dashOffChase(chase)}
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
 }
 
-function _dashPanel(title, inner) {
-  return `<div class="nx-card">
-    <div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">${title}</div>${inner}</div>`;
+// HERO — "My recovery book": overdue total (officer-scoped) + urgency-tier journeybar.
+function _dashOffHero(totalOverdue, nAccts, tierA, tierB, tierC, sumT) {
+  const tip = 'Your overdue book — Σ overdue across the accounts in your assigned projects, split by urgency tier. Source: your recovery queue (get_recovery_queue).';
+  const seg = [
+    { value: sumT(tierA) || tierA.length, tone: 'danger',  label: 'Urgent today', amount: String(tierA.length) },
+    { value: sumT(tierB) || tierB.length, tone: 'warning', label: 'This week',     amount: String(tierB.length) },
+    { value: sumT(tierC) || tierC.length, tone: 'info',    label: 'Escalate',      amount: String(tierC.length) }
+  ].filter(s => s.value > 0);
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6)">
+    <div class="nx-kpi-label" style="display:flex;align-items:center">My recovery book${NX.infoTip(tip)}</div>
+    <div class="nx-hero-value" style="margin:8px 0 4px;cursor:pointer" title="Open Subah ki List" onclick="nav('queue')">${_dashCompact(totalOverdue)}</div>
+    <div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-4)">overdue across ${nAccts} account${nAccts !== 1 ? 's' : ''} in your projects · <strong style="color:var(--fk-danger)">${tierA.length}</strong> need action today</div>
+    ${seg.length ? NX.journeybar({ height: 12, segments: seg }) : ''}
+  </div>`;
 }
-function _dashStaffFollowups(list) {
-  if (!list.length) return _dashPanel('My follow-ups today',
-    NX.empty({ icon: 'check', message: 'No follow-ups scheduled for today.' }));
-  const items = list.slice(0, 8).map(l =>
-    `<tr style="cursor:pointer" onclick="nav('contacts')">
-       <td>${esc(l.client_name || l.client_code || '—')}</td>
-       <td>${esc(l.status_tag || l.call_status || '')}</td>
-       <td class="num">${l.promise_amount ? _dashExact(l.promise_amount) : ''}</td>
-     </tr>`).join('');
-  return _dashPanel('My follow-ups today',
-    `<table class="nx-table"><thead><tr><th>Client</th><th>Status</th><th class="num">Promise</th></tr></thead><tbody>${items}</tbody></table>`);
+
+// Three drill-able stat chips, each with a "why" tip.
+function _dashOffChips(urgentToday, alerts, nAccts) {
+  const chip = (label, val, tip, onclick) => `<div style="flex:1;padding:0 var(--fk-sp-4);${onclick ? 'cursor:pointer' : ''}" ${onclick ? `onclick="${onclick}"` : ''}>
+    <div class="nx-statchip-l" style="display:flex;align-items:center">${label}${NX.infoTip(tip)}</div>
+    <div class="nx-statchip-v" style="font-size:var(--fk-fs-kpi);margin-top:3px">${val}</div></div>`;
+  const div = '<div style="width:1px;align-self:stretch;background:var(--fk-border)"></div>';
+  return `<div class="nx-card" style="display:flex;align-items:center;padding:var(--fk-sp-4) var(--fk-sp-2)">
+    ${chip('Urgent today', urgentToday, 'Tier-A accounts — overdue and due action today. Click → Subah ki List.', "nav('queue')")}${div}
+    ${chip('My alerts', alerts.total || 0, 'Your follow-ups due + promises due/broken + PDC maturing/bounced. Click → Reminders.', "nav('reminders')")}${div}
+    ${chip('My accounts', nAccts, 'Overdue accounts across your assigned projects.')}</div>`;
 }
-function _dashStaffWorked(rowsArr) {
-  if (!rowsArr.length) return _dashPanel("Clients you've worked, in arrears",
-    NX.empty({ icon: 'inbox', message: 'No arrears among clients you have logged contact with.' }));
-  const items = rowsArr.map(r =>
-    `<tr style="cursor:pointer" onclick="nav('salesdetail','${esc(r.sale_id)}')">
-       <td>${esc(r.client_name || r.client_code || '—')}</td>
-       <td class="num">${_dashExact(r.closing)}</td>
-       <td><span class="nx-badge nx-badge--${_dashRiskTone(r.overdue_days)}"><span class="nx-dot"></span>${Number(r.overdue_days || 0)}d</span></td>
-     </tr>`).join('');
-  return _dashPanel("Clients you've worked, in arrears",
-    `<table class="nx-table"><thead><tr><th>Client</th><th class="num">Overdue</th><th>Days</th></tr></thead><tbody>${items}</tbody></table>`);
+
+// MY ACTION QUEUE — from get_recovery_alerts (officer-scoped): follow-ups, promises, PDC.
+function _dashOffActionQueue(alerts) {
+  const TONE = { danger: 'var(--fk-danger)', warning: 'var(--fk-warning)', info: 'var(--fk-info)' };
+  const rows = (alerts.items || []).slice(0, 6).map(it => {
+    const ph = (it.phone || '').replace(/[^0-9]/g, '');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--fk-border)">
+      <span style="width:8px;height:8px;border-radius:50%;background:${TONE[it.sev] || TONE.info};flex-shrink:0"></span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px">${esc(it.title)} <span class="nx-kpi-label" style="text-transform:none">· ${esc(it.name || '—')}${it.unit ? ' · ' + esc(it.unit) : ''}</span></div>
+        <div class="nx-kpi-label" style="text-transform:none">due ${esc(typeof fD === 'function' ? fD(it.date) : it.date)}${it.amount != null ? ' · ' + _dashCompact(it.amount) : ''}</div></div>
+      ${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" title="WhatsApp">${NX.icon('message-circle', 14)}</a>` : ''}
+      ${it.sale_id ? NX.button('Open', { variant: 'ghost', size: 'sm', onclick: `openSaleDetail('${it.sale_id}')` }) : ''}
+    </div>`;
+  }).join('');
+  return NX.card(rows, { header: { title: 'My action queue', icon: 'bell', tone: 'warning', sub: (alerts.total || 0) + ' due', actions: NX.infoTip('Your follow-ups due, promises due/broken, and PDC maturing/bounced — from get_recovery_alerts, scoped to your projects.') } });
 }
-function _dashStaffRecoveries() {
-  // Attribution gap (reported): payments aren't broken down per user by the
-  // recovery RPC (only an 'All Officers' aggregate), and there's no per-creator
-  // read RPC. We render the panel structurally rather than fabricate a number.
-  return _dashPanel('My recoveries this month',
-    NX.empty({ icon: 'info', message: 'Per-officer recovery totals aren’t available yet — payments are not attributed per user in the recovery data. Tracked for Phase 3.' }));
+
+// CHASE FIRST — tier A/B from the queue, with WHY (reason chips) + propensity + contact.
+function _dashOffChase(chase) {
+  if (!chase.length) return NX.card(NX.empty({ icon: 'check-circle', tone: 'success', message: 'No accounts need a call right now — your call list is clear.' }), { header: { title: 'Chase first — who to call & why', icon: 'phone-call' } });
+  const rows = chase.slice(0, 8).map(r => {
+    const ph = (r.phone || '').replace(/[^0-9]/g, '');
+    const chips = (Array.isArray(r.reasons) ? r.reasons : []).slice(0, 3).map(rs => NX.badge(rs.label, (rs.tone && rs.tone !== 'muted') ? rs.tone : '')).join(' ');
+    const prop = (r.propensity && r.propensity.score != null) ? Number(r.propensity.score) : null;
+    return `<tr style="cursor:pointer" onclick="openSaleDetail('${esc(r.sale_id)}')">
+      <td><div style="font-weight:500">${esc(r.client_name || r.client_code || '—')}</div><div class="nx-kpi-label" style="text-transform:none">${esc(r.unit_no || '')}${r.project_name ? ' · ' + esc(r.project_name) : ''}</div></td>
+      <td>${chips || '<span class="nx-kpi-label">—</span>'}</td>
+      <td class="num" style="font-weight:600">${_dashCompact(r.overdue_amt)}</td>
+      <td class="num">${Number(r.oldest_overdue_days || 0)}d</td>
+      <td>${prop != null ? `<span class="nx-badge nx-badge--${prop >= 60 ? 'success' : prop >= 30 ? 'warning' : 'danger'}"><span class="nx-dot"></span>${prop}%</span>` : ''}</td>
+      <td class="no-p">${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:${esc(r.phone)}" onclick="event.stopPropagation()" title="Call">${NX.icon('phone', 13)}</a> <a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" onclick="event.stopPropagation()" title="WhatsApp">${NX.icon('message-circle', 13)}</a>` : '<span class="nx-kpi-label">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  const tbl = `<div class="nx-table-wrap"><table class="nx-table nx-table--flush"><thead><tr><th>Client / Unit</th><th>Why</th><th class="num">Overdue</th><th class="num">Days</th><th>Will pay</th><th>Contact</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="padding:var(--fk-sp-3) var(--fk-sp-4);border-top:1px solid var(--fk-border)">${NX.button('Open full Subah ki List →', { variant: 'secondary', size: 'sm', onclick: "nav('queue')" })}</div>`;
+  return NX.card(tbl, { flush: true, header: { title: 'Chase first — who to call & why', icon: 'phone-call', tone: 'danger', sub: chase.length + ' on the call list', actions: NX.infoTip('Tier A/B accounts from your recovery queue, sorted by priority. "Why" = the reasons the engine flagged each account. "Will pay" = payment-propensity score. Source: get_recovery_queue.') } });
 }
