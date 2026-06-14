@@ -96,6 +96,8 @@
     // Super-admin console link — only for a verified super-admin session.
     var sa = document.getElementById('nx-tb-superadmin');
     if (sa) sa.style.display = _isSuperAdmin() ? '' : 'none';
+    // Recovery alerts bell — load the count + start the gentle poll (post-login).
+    if (global.NXBell) { try { global.NXBell.load(); global.NXBell.startPoll(); } catch (e) {} }
   }
 
   /* ── Menu open/close (used by + New and the company/super-admin popover) ─── */
