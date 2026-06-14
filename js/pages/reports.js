@@ -503,11 +503,19 @@ async function rRecoveryIQ(){
   '</div>';
   try {
     const proj = (typeof activeProjectId==='function'?activeProjectId():null);
-    const rpRes = await supabase.rpc('get_recovery_position',{ p_company_id:S.cid, p_project_id:proj, p_from_date:'2000-01-01', p_to_date:today });
+    const d=new Date(today+'T00:00:00'), pad=n=>String(n).padStart(2,'0');
+    const mStart=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-01';
+    const me=new Date(d.getFullYear(), d.getMonth()+1, 0);
+    const mEnd=me.getFullYear()+'-'+pad(me.getMonth()+1)+'-'+pad(me.getDate());
+    const [rpRes, mRes, trend] = await Promise.all([
+      supabase.rpc('get_recovery_position',{ p_company_id:S.cid, p_project_id:proj, p_from_date:'2000-01-01', p_to_date:today }),
+      supabase.rpc('get_recovery_position',{ p_company_id:S.cid, p_project_id:proj, p_from_date:mStart, p_to_date:mEnd }),
+      _riqTrend(today, proj)
+    ]);
     if (rpRes.error) throw rpRes.error;
     const rows = (rpRes.data && rpRes.data.rows) || [];
-    const trend = await _riqTrend(today, proj);
-    _riqRender(rows, trend, today);
+    const monthT = (mRes.data && mRes.data.totals) || {};
+    _riqRender(rows, trend, today, monthT);
   } catch(e){
     const b=document.getElementById('riq-body'); if(b) b.innerHTML = NX.empty({icon:'alert-triangle', message:'Could not load recovery intelligence. '+esc(e.message||'')});
   }
@@ -525,7 +533,7 @@ async function _riqTrend(today, proj){
   return out;
 }
 
-function _riqRender(rows, trend, today){
+function _riqRender(rows, trend, today, monthT){
   const b=document.getElementById('riq-body'); if(!b) return;
   const td0=new Date(today+'T00:00:00');
   const recs=rows.map(r=>{
@@ -564,6 +572,14 @@ function _riqRender(rows, trend, today){
   let cum=0, top20idx=0; for(let i=0;i<sorted.length;i++){ cum+=sorted[i].arrears; if(cum>=totalArr*0.5){ top20idx=i+1; break; } }
   // HEALTH grade
   const grade= agedPct>=0.7?{w:'Critical',t:'danger'}: agedPct>=0.5?{w:'Strained',t:'danger'}: agedPct>=0.3?{w:'Watch',t:'warning'}:{w:'Stable',t:'success'};
+  // DSO — weighted average age of an overdue rupee
+  const dso= totalArr>0? over.reduce((s,r)=>s+r.arrears*r.odd,0)/totalArr : 0;
+  // FUNNEL — the whole-book money picture
+  const netTotal=recs.reduce((s,r)=>s+r.net,0), collectedTot=recs.reduce((s,r)=>s+r.paid,0);
+  const remaining=Math.max(0,netTotal-collectedTot), future=Math.max(0,remaining-totalArr), recArr=Math.max(0,totalArr-deadAmt);
+  // THIS-MONTH FLOW — is the book healing or rotting?
+  const billed=Number(monthT&&monthT.due||0), collM=Number(monthT&&monthT.received_total||0);
+  const poolChg=billed-collM, collRate= billed>0? collM/billed : (collM>0?1:0);
 
   // ── HERO ────────────────────────────────────────────────────────────────
   const heroNarr = (agedPct>=0.5)
@@ -579,7 +595,20 @@ function _riqRender(rows, trend, today){
       '<div><div class="nx-kpi-label">Recoverable</div><div style="font-size:17px;font-weight:600;color:var(--fk-success)">'+_riqC(recoverable)+'</div></div>' +
       '<div><div class="nx-kpi-label">Run-rate / month</div><div style="font-size:17px;font-weight:600">'+_riqC(runRate)+'</div></div>' +
       '<div><div class="nx-kpi-label">Months to clear</div><div style="font-size:17px;font-weight:600">'+(monthsClear!=null?monthsClear+' mo':'—')+'</div></div>' +
+      '<div><div class="nx-kpi-label">Avg overdue age '+NX.infoTip('DSO — Σ(arrears × overdue_days) ÷ Σ arrears. The age of an average overdue rupee.')+'</div><div style="font-size:17px;font-weight:600">'+Math.round(dso)+' days</div></div>' +
     '</div></div>';
+
+  // ── RECOVERY FUNNEL — the whole-book money picture ───────────────────────
+  const funnelSegs=[
+    {value:collectedTot,tone:'success',label:'Collected',amount:_riqC(collectedTot)},
+    {value:future,tone:'info',label:'Future dues (not yet due)',amount:_riqC(future)},
+    {value:recArr,tone:'warning',label:'Overdue · recoverable',amount:_riqC(recArr)},
+    {value:deadAmt,tone:'danger',label:'Overdue · dead',amount:_riqC(deadAmt)}
+  ];
+  const funnel = NX.card(
+    '<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:10px;max-width:780px">Of <strong style="color:var(--fk-text)">'+_riqC(netTotal)+'</strong> contracted (net), <strong style="color:var(--fk-success)">'+(netTotal>0?Math.round(collectedTot/netTotal*100):0)+'%</strong> is in the bank. Of what is still owed, <strong style="color:var(--fk-text)">'+_riqC(future)+'</strong> is not yet due — the <strong style="color:var(--fk-warning)">'+_riqC(recArr)+'</strong> overdue-recoverable is the real target.</div>'+
+    NX.journeybar({ height:18, segments:funnelSegs }),
+    { header:{ title:'The full money picture — recovery funnel', icon:'filter', actions:NX.infoTip('Net contracted = Σ net_price · Collected = Σ paid_to_date · Future = remaining not yet billed · Overdue split into recoverable vs dead (never-paid + 365+d silent). Segments sum to net contracted.') } });
 
   // ── AGING ───────────────────────────────────────────────────────────────
   const agingBar = NX.journeybar({ height:16, segments: AB.filter(x=>x.amt>0).map(x=>({value:x.amt, tone:x.t, label:x.k, amount:_riqC(x.amt)})) });
@@ -600,14 +629,28 @@ function _riqRender(rows, trend, today){
   const actionMap = '<div><div class="nx-kpi-label" style="margin-bottom:8px;display:flex;align-items:center;gap:6px">THE ACTION MAP — what to do with each rupee '+NX.infoTip('Segments by payment behaviour: Never-paid (paid_to_date=0) · Zombie (no payment 365+ days) · Stalled (quiet 90–365 days) · Active (paid within 90 days). Mutually exclusive; sums to total arrears.')+'</div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--fk-sp-3)">'+segCards+'</div></div>';
 
+  // ── RISK BY FLOOR — structural concentration ─────────────────────────────
+  const byFloor={}; recs.forEach(r=>{ const k=r.floor||'—'; (byFloor[k]=byFloor[k]||{floor:k,net:0,arr:0,over:0}); byFloor[k].net+=r.net; if(r.arrears>0.5){ byFloor[k].arr+=r.arrears; byFloor[k].over++; } });
+  const floors=Object.values(byFloor).filter(f=>f.arr>0).sort((a,b)=>b.arr-a.arr);
+  const maxFloor=Math.max(1,...floors.map(f=>f.arr));
+  const floorRows=floors.slice(0,12).map(f=>{ const rate=f.net>0?Math.round(f.arr/f.net*100):0; const tone=rate>=50?'danger':rate>=25?'warning':'info';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--fk-border)">'+
+      '<span style="width:96px;font-size:13px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(f.floor)+'</span>'+
+      '<div style="flex:1;height:9px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden;min-width:60px"><div style="height:100%;width:'+Math.round(f.arr/maxFloor*100)+'%;background:var(--fk-'+tone+');border-radius:5px"></div></div>'+
+      '<span class="num" style="min-width:78px;text-align:right;font-weight:600">'+_riqC(f.arr)+'</span>'+
+      '<span class="nx-kpi-label" style="min-width:74px;text-align:right">'+f.over+'u · '+rate+'%</span></div>'; }).join('');
+  const floorCard = NX.card(floorRows, { header:{ title:'Risk by floor — where defaults cluster', icon:'building-2', actions:NX.infoTip('Per floor: bar length = Σ arrears; right column = overdue units · arrears as % of that floor’s net contracted value (its default rate). Colour by default rate: ≥50% red, ≥25% amber.') } });
+
   // ── MOMENTUM + CONCENTRATION (2-col) ─────────────────────────────────────
   const tvals=trend.map(t=>t.amount);
   const momentum = NX.card(
     '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-size:22px;font-weight:600">'+_riqC(runRate)+'</span><span class="nx-kpi-label">median monthly run-rate</span>'+NX.badge(dir.w, dir.t,{dot:true})+'</div>'+
     NX.trendline({ series:tvals, tone:dir.t, maxWidth:460 })+
     '<div style="display:flex;justify-content:space-between;margin-top:4px">'+trend.map(t=>'<span class="nx-kpi-label" style="font-size:10px">'+t.mon+'</span>').join('')+'</div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px;line-height:1.45">At this pace, the <strong>'+_riqC(recoverable)+'</strong> recoverable would take <strong>'+(monthsClear!=null?monthsClear+' months':'—')+'</strong> to clear (dead arrears excluded).</div>',
-    { header:{ title:'Momentum — last 10 months collected', icon:'trending-up', actions:NX.infoTip('Monthly Σ from get_daily_collections. Run-rate = median of the last 6 months (drops one-off surge months). Months-to-clear = recoverable ÷ run-rate.') } });
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px;line-height:1.45">At this pace, the <strong>'+_riqC(recoverable)+'</strong> recoverable would take <strong>'+(monthsClear!=null?monthsClear+' months':'—')+'</strong> to clear (dead arrears excluded).</div>'+
+    '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--fk-border)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+NX.badge(poolChg>0?'Book rotting':'Book healing', poolChg>0?'danger':'success',{dot:true})+'<span class="nx-kpi-label" style="text-transform:none">this month</span></div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.45">Billed <strong>'+_riqC(billed)+'</strong>, collected <strong>'+_riqC(collM)+'</strong> ('+Math.round(collRate*100)+'%) → the arrears pool '+(poolChg>0?'<strong style="color:var(--fk-danger)">grew '+_riqC(poolChg)+'</strong>':'<strong style="color:var(--fk-success)">shrank '+_riqC(-poolChg)+'</strong>')+' this month.</div></div>',
+    { header:{ title:'Momentum — last 10 months collected', icon:'trending-up', actions:NX.infoTip('Monthly Σ from get_daily_collections. Run-rate = median of the last 6 months (drops one-off surge months). Months-to-clear = recoverable ÷ run-rate. Healing/rotting = this month’s collections vs this month’s new billing (get_recovery_position for the month).') } });
   const concentration = NX.card(
     '<div style="font-size:22px;font-weight:600">Top '+top20idx+' units</div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin:2px 0 12px">carry <strong>half</strong> ('+_riqC(totalArr*0.5)+') of all arrears. The other half is spread across '+(over.length-top20idx)+' units.</div>'+
@@ -623,7 +666,7 @@ function _riqRender(rows, trend, today){
     const acts=(phone?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(r.phone)+'" title="Call">'+NX.icon('phone',13)+'</a> <a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/'+phone+'" title="WhatsApp">'+NX.icon('message-circle',13)+'</a>':'<span class="nx-kpi-label">—</span>');
     return [ String(i+1),
       '<div style="font-weight:500">'+esc(r.client)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(r.unit)+(r.floor?' · '+esc(r.floor):'')+'</div>',
-      '<span class="num" style="font-weight:600">'+_riqC(r.arrears)+'</span>',
+      '<span class="num" style="font-weight:600">'+_riqC(r.arrears)+'</span><div class="nx-kpi-label" style="text-transform:none">'+(r.net>0?Math.round(r.arrears/r.net*100):0)+'% of price</div>',
       '<span class="num">'+(r.odd||0)+'d</span>',
       r.lp?('<span class="num">'+(typeof fD==='function'?fD(r.lp.toISOString().slice(0,10)):'')+'</span>'):'<span class="nx-kpi-label">never</span>',
       NX.badge(sg.k,sg.t),
@@ -652,7 +695,7 @@ function _riqRender(rows, trend, today){
     '</div></div>';
 
   b.innerHTML = '<style>@media(max-width:860px){.riq-2col{grid-template-columns:1fr!important}}</style>' +
-    '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+hero+aging+actionMap+midGrid+topTable+watchlists+'</div>';
+    '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+hero+funnel+aging+actionMap+floorCard+midGrid+topTable+watchlists+'</div>';
 }
 
 // ── Routing: RP → bespoke shell; others → NXReport factory ───────────────────
