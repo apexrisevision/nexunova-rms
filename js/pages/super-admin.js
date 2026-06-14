@@ -921,6 +921,7 @@ const SA = (() => {
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
+          <button onclick="SA._recordPayment('${companyId}','${_esc(co.company_name||companyName)}', ${Number(sub.amount)||Number(plan.price)||0}, '${_esc(sub.billing_cycle||plan.billing_cycle||'monthly')}', '${_esc(sub.current_period_end||'')}')" style="background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:8px 18px;color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">Record Payment &amp; Extend</button>
           ${isSuspended
             ? `<button onclick="SA._suspendCo('${companyId}',false,'${_esc(companyName)}')" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:8px 18px;color:#4ade80;font-size:12px;font-weight:600;cursor:pointer">Unsuspend</button>`
             : `<button onclick="SA._suspendCo('${companyId}',true,'${_esc(companyName)}')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:8px 18px;color:#f87171;font-size:12px;font-weight:600;cursor:pointer">Suspend</button>`}
@@ -959,6 +960,81 @@ const SA = (() => {
     _loadCompanies();
   }
 
+  // ── Record Payment & Extend (manual / out-of-band renewals) ─────────────
+  function _recordPayment(companyId, companyName, amount, cycle, curEnd) {
+    const isYear = String(cycle || '').toLowerCase().startsWith('year');
+    let ov = document.getElementById('sa-pay-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'sa-pay-overlay';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:48px 16px';
+      ov.onclick = e => { if (e.target === ov) ov.remove(); };
+      document.body.appendChild(ov);
+    }
+    const fld = 'width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:white;font-size:13px;font-family:inherit;outline:none';
+    const lbl = 'display:block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.4);margin:0 0 6px;font-weight:600';
+    ov.innerHTML = `<div style="background:#14171d;border:1px solid rgba(99,102,241,0.3);border-radius:16px;padding:26px;width:460px;max-width:95vw;margin:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-weight:600;font-size:15px;color:white">Record Payment &amp; Extend</div>
+        <button onclick="SA._closeExtend()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:20px;cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:18px">${_esc(companyName)}${curEnd ? ' · current expiry ' + _date(curEnd) : ''}</div>
+      <input type="hidden" id="sa-pay-co" value="${_esc(companyId)}">
+      <input type="hidden" id="sa-pay-name" value="${_esc(companyName)}">
+      <div style="margin-bottom:14px"><label style="${lbl}">Billing cycle</label>
+        <select id="sa-pay-cycle" style="${fld}">
+          <option value="month" ${isYear?'':'selected'}>Monthly (+1 month)</option>
+          <option value="year" ${isYear?'selected':''}>Yearly (+1 year)</option>
+        </select></div>
+      <div style="margin-bottom:14px"><label style="${lbl}">Amount received (PKR)</label>
+        <input id="sa-pay-amount" type="number" min="0" step="1" value="${Number(amount)||0}" style="${fld}"></div>
+      <div style="margin-bottom:14px"><label style="${lbl}">Payment method</label>
+        <select id="sa-pay-method" style="${fld}">
+          <option value="bank_transfer">Bank transfer</option>
+          <option value="jazzcash">JazzCash</option>
+          <option value="easypaisa">EasyPaisa</option>
+          <option value="cash">Cash</option>
+          <option value="other">Other</option>
+        </select></div>
+      <div style="margin-bottom:14px"><label style="${lbl}">Bank / transaction reference</label>
+        <input id="sa-pay-ref" type="text" placeholder="e.g. bank TXN id / cheque no." style="${fld}"></div>
+      <div style="margin-bottom:18px"><label style="${lbl}">Note (optional)</label>
+        <input id="sa-pay-note" type="text" placeholder="Internal note" style="${fld}"></div>
+      <div id="sa-pay-msg" style="display:none;font-size:12px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="SA._closeExtend()" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:9px 18px;color:rgba(255,255,255,0.5);font-size:12px;cursor:pointer">Cancel</button>
+        <button id="sa-pay-submit" onclick="SA._submitExtend()" style="background:rgba(99,102,241,0.85);border:1px solid rgba(99,102,241,0.9);border-radius:8px;padding:9px 20px;color:white;font-size:12px;font-weight:600;cursor:pointer">Record &amp; Extend</button>
+      </div>
+    </div>`;
+  }
+  function _closeExtend() { document.getElementById('sa-pay-overlay')?.remove(); }
+  async function _submitExtend() {
+    const co     = document.getElementById('sa-pay-co').value;
+    const name   = document.getElementById('sa-pay-name').value;
+    const cycle  = document.getElementById('sa-pay-cycle').value;
+    const amount = Number(document.getElementById('sa-pay-amount').value) || 0;
+    const method = document.getElementById('sa-pay-method').value;
+    const ref    = document.getElementById('sa-pay-ref').value.trim() || null;
+    const note   = document.getElementById('sa-pay-note').value.trim() || null;
+    const msg = document.getElementById('sa-pay-msg');
+    const btn = document.getElementById('sa-pay-submit');
+    if (amount <= 0) { msg.style.display='block'; msg.style.color='#f87171'; msg.textContent='Enter the amount received.'; return; }
+    btn.disabled = true; btn.textContent = 'Recording…';
+    try {
+      const { data, error } = await supabase.rpc('admin_extend_subscription', {
+        p_company_id: co, p_cycle: cycle, p_amount: amount, p_method: method, p_reference: ref, p_note: note
+      });
+      if (error) throw error;
+      if (!data || !data.success) throw new Error((data && data.error) || 'Failed');
+      msg.style.display='block'; msg.style.color='#4ade80';
+      msg.textContent = 'Done — ' + name + ' extended to ' + _date(data.new_period_end) + ' (status active).';
+      setTimeout(() => { _closeExtend(); document.getElementById('sa-co-overlay')?.remove(); _loadCompanies(); _loadStats && _loadStats(); }, 1400);
+    } catch(e) {
+      msg.style.display='block'; msg.style.color='#f87171'; msg.textContent = 'Error: ' + (e.message || 'failed');
+      btn.disabled = false; btn.textContent = 'Record & Extend';
+    }
+  }
+
   function logout() {
     sessionStorage.removeItem('nxn_sess');
     window.location.href = window.location.pathname;
@@ -988,7 +1064,8 @@ const SA = (() => {
     _loadHealth, _loadAnnouncements, _loadTickets,
     _annOpenForm, _annCloseForm, _annSave, _annToggle, _annDelete,
     _ticketSetFilter, _ticketResolve, _ticketSetPriority,
-    _loadCompanyDetail, _toggleFlag, _suspendCo
+    _loadCompanyDetail, _toggleFlag, _suspendCo,
+    _recordPayment, _submitExtend, _closeExtend
   };
 })();
 
