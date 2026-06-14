@@ -513,16 +513,15 @@ function _riqDrillSpec(kind, ST){
 function _riqDrillTrend(ST){
   const tr=ST.trend||[]; if(!tr.length) return;
   const tot=tr.reduce((s,t)=>s+(t.amount||0),0), mx=Math.max(1,...tr.map(t=>t.amount||0));
-  const vals=tr.map(t=>t.amount).filter(v=>v>0).sort((a,b)=>a-b);
-  const med=vals.length?vals[Math.floor(vals.length/2)]:0;
+  const rr=Number(ST.runRate||0);
   const thCss='padding:8px 8px;border-bottom:1px solid var(--fk-border);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted)';
   const th='<tr><th style="'+thCss+';text-align:left">Month</th><th style="'+thCss+';text-align:left">Collected</th><th style="'+thCss+';text-align:right">Amount</th></tr>';
-  const body=tr.map(t=>{ const pct=Math.round((t.amount||0)/mx*100); const isMed=t.amount>0&&Math.abs((t.amount||0)-med)<1; const cs='padding:8px 8px;border-bottom:1px solid var(--fk-border)';
-    return '<tr><td style="'+cs+'">'+esc(t.mon)+(t.cur?' · so far':'')+(isMed?' <span class="nx-kpi-label" style="text-transform:none">· run-rate</span>':'')+'</td>'+
-      '<td style="'+cs+';width:55%"><div style="height:9px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--fk-'+(isMed?'primary':'info')+');border-radius:5px"></div></div></td>'+
+  const body=tr.map(t=>{ const pct=Math.round((t.amount||0)/mx*100); const isRR=t.amount>0&&Math.abs((t.amount||0)-rr)<1; const cs='padding:8px 8px;border-bottom:1px solid var(--fk-border)';
+    return '<tr><td style="'+cs+'">'+esc(t.mon)+(t.cur?' · so far':'')+(isRR?' <span class="nx-kpi-label" style="text-transform:none">· run-rate</span>':'')+'</td>'+
+      '<td style="'+cs+';width:55%"><div style="height:9px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--fk-'+(isRR?'primary':'info')+');border-radius:5px"></div></div></td>'+
       '<td style="'+cs+';text-align:right;font-weight:600" class="num">'+_riqF(t.amount||0)+'</td></tr>'; }).join('');
   const tableHTML='<div style="max-height:56vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead>'+th+'</thead><tbody>'+body+'</tbody></table></div>';
-  const footer='<div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:12px"><span class="nx-kpi-label" style="text-transform:none">Run-rate = median month = '+_riqF(med)+'</span><span style="font-weight:600">Σ 10 months: '+_riqF(tot)+'</span></div>';
+  const footer='<div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:12px"><span class="nx-kpi-label" style="text-transform:none">Run-rate = median of last 6 months = '+_riqF(rr)+'</span><span style="font-weight:600">Σ 10 months collected: '+_riqF(tot)+'</span></div>';
   let host=document.getElementById('riq-drill-host'); if(!host){ host=document.createElement('div'); host.id='riq-drill-host'; document.body.appendChild(host); }
   host.innerHTML=NX.modal({ title:'Collections — last 10 months  ·  '+_riqC(tot), size:'m', body:tableHTML, footer:footer, onClose:'_riqDrillClose()' });
   const ov=host.querySelector('.nx-modal-overlay'); if(ov) ov.addEventListener('click',e=>{ if(e.target===ov) _riqDrillClose(); });
@@ -712,9 +711,11 @@ function _riqRender(rows, trend, today, monthT, monthRows){
 
   // ── MOMENTUM + CONCENTRATION (2-col) ─────────────────────────────────────
   const tvals=trend.map(t=>t.amount);
+  const periodTotal=trend.reduce((s,t)=>s+(t.amount||0),0);
   const momentum = NX.card(
     '<div onclick="_riqDrill(\'trend\')" style="cursor:pointer" title="View the month-by-month trail">'+
-    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-size:22px;font-weight:600">'+_riqC(runRate)+'</span><span class="nx-kpi-label">median monthly run-rate</span>'+NX.badge(dir.w, dir.t,{dot:true})+'<span style="color:var(--fk-text-muted);display:inline-flex;margin-left:auto">'+NX.icon('chevron-right',15)+'</span></div>'+
+    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px"><span style="font-size:22px;font-weight:600">'+_riqC(runRate)+'</span><span class="nx-kpi-label">/ month typical (median, last 6 mo)</span>'+NX.badge(dir.w, dir.t,{dot:true})+'<span style="color:var(--fk-text-muted);display:inline-flex;margin-left:auto">'+NX.icon('chevron-right',15)+'</span></div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:8px">'+_riqC(periodTotal)+' collected across the last 10 months</div>'+
     NX.trendline({ series:tvals, tone:dir.t, maxWidth:460 })+
     '<div style="display:flex;justify-content:space-between;margin-top:4px">'+trend.map(t=>'<span class="nx-kpi-label" style="font-size:10px">'+t.mon+'</span>').join('')+'</div></div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px;line-height:1.45">At this pace, the <strong onclick="_riqDrill(\'recoverable\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(recoverable)+'</strong> recoverable would take <strong>'+(monthsClear!=null?monthsClear+' months':'—')+'</strong> to clear (dead arrears excluded).</div>'+
@@ -769,7 +770,7 @@ function _riqRender(rows, trend, today, monthT, monthRows){
     billed:Number(mr.due_period||0), mcoll:Number(mr.received_total||0) }); });
 
   // expose the computed set so every figure's drill-down can rebuild its exact trail
-  window._riqStore = { recs, over, sorted, SG, AB, floors, top20idx, today, multi, mrecs, trend };
+  window._riqStore = { recs, over, sorted, SG, AB, floors, top20idx, today, multi, mrecs, trend, runRate };
 
   b.innerHTML = '<style>@media(max-width:860px){.riq-2col{grid-template-columns:1fr!important}}#riq-body [onclick]{transition:opacity .12s}#riq-body [onclick]:hover{opacity:.82}</style>' +
     '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+hero+funnel+aging+actionMap+floorCard+midGrid+topTable+watchlists+'</div>';
