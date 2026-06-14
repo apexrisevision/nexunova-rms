@@ -892,7 +892,7 @@ async function _cnSave(logAnother) {
             notes:            `Promised during ${_cnState.channel} on ${_cnState.contactDate}`
           }
         });
-      } catch(e) { console.warn('[payment_promises insert]', e); }
+      } catch(e) { console.warn('[payment_promises insert]', e); if (typeof toast === 'function') toast('Call saved — but the promise-to-pay could not be recorded. Add it on the Promises page.', 'warn'); }
     }
 
     // ── 7. Insert follow_up_reminder (if applicable) ──────────────────────
@@ -913,7 +913,7 @@ async function _cnSave(logAnother) {
             created_by:     S.userId
           }
         });
-      } catch(e) { console.warn('[follow_up_reminders insert]', e); }
+      } catch(e) { console.warn('[follow_up_reminders insert]', e); if (typeof toast === 'function') toast('Call saved — but the follow-up reminder could not be set.', 'warn'); }
     }
 
     // ── 8. Done ───────────────────────────────────────────────────────────
