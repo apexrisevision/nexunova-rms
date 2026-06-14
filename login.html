@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" type="image/png" href="assets/nexunova-icon.png">
-<link rel="apple-touch-icon" href="assets/nexunova-icon.png">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png">
+<link rel="apple-touch-icon" href="assets/favicon-180.png">
 <script>
 (function(){var t=localStorage.getItem('rms.theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();
 </script>
@@ -66,7 +66,7 @@
      wins over legacy shell CSS without !important. Page-level nx- classes are additive. ── -->
 <link rel="stylesheet" href="css/foundation/components.css?v=20260614m1">
 <!-- ── SHELL CHROME (Nav phase) — thin utility topbar + "+ New"/menus + sidebar "More" tier. Loaded after components.css so it wins without !important. ── -->
-<link rel="stylesheet" href="css/foundation/shell.css?v=20260613ps">
+<link rel="stylesheet" href="css/foundation/shell.css?v=20260614rec">
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -1296,6 +1296,15 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
         <button id="tb-theme-btn" class="nx-tb-icon" title="Toggle theme (light / dark)" aria-label="Toggle theme">
           <svg id="tb-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         </button>
+
+        <!-- Recovery alerts bell (NXBell — js/recovery-bell.js) -->
+        <div class="nx-tb-bell-wrap" id="nx-tb-bell-wrap">
+          <button id="nx-tb-bell" class="nx-tb-icon" title="Recovery alerts" aria-label="Recovery alerts" onclick="NXBell.toggle(event)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span id="nx-tb-bell-badge" class="nx-tb-bell-badge" style="display:none">0</span>
+          </button>
+          <div class="nx-menu nx-tb-bell-menu" id="nx-tb-bell-menu" role="menu"></div>
+        </div>
 
         <span class="nx-tb-sep" aria-hidden="true"></span>
 
@@ -3271,7 +3280,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
 <script src="js/ui.js?v=20260614riq"></script>
-<script src="js/foundation/shell.js?v=20260613ps"></script>
+<script src="js/foundation/shell.js?v=20260614rec"></script>
+<script src="js/recovery-bell.js?v=20260614rec"></script>
 
 <!-- 5. Auth: login/logout -->
 <script src="js/auth.js?v=20260613ps"></script>
