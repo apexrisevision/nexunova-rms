@@ -40,6 +40,8 @@ async function _remLoad() {
   const pdcRows      = bundle?.pdcRows      || [];
   const recentLogs   = bundle?.recentLogs   || [];
   const salesArr     = bundle?.sales        || [];
+  const followups    = bundle?.followups    || [];   // call-follow-ups due (was a black hole)
+  const promises     = bundle?.promises     || [];   // payment promises due
 
   let salesMap = {};
   salesArr.forEach(s => { salesMap[s.id] = s; });
@@ -66,7 +68,28 @@ async function _remLoad() {
     };
   }
 
-  _remData = { installments, pdcRows, recentLogs, salesMap, clientInfo };
+  _remData = { installments, pdcRows, recentLogs, salesMap, clientInfo, followups, promises };
+}
+
+// One actionable "commitment" row — Call · WhatsApp · Log call. Used by the
+// Follow-ups-due and Promises-due sections (the recovery loop, now surfaced).
+function _remActRow(o) {
+  const ph = (o.phone || '').replace(/[^0-9]/g, '');
+  const overdue = o.date && o.date < td();
+  const dlabel = o.date ? (overdue ? 'Overdue · ' : 'Due ') + fD(o.date) : '';
+  const acts =
+    (ph ? '<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:' + NX.esc(o.phone) + '" title="Call">' + NX.icon('phone', 14) + '</a> ' +
+          '<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/' + ph + '" title="WhatsApp">' + NX.icon('message-circle', 14) + '</a> ' : '') +
+    (o.unitId ? NX.button('Log call', { variant:'secondary', size:'sm', onclick:"openConModal('" + o.unitId + "')" }) : '');
+  return '<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--fk-border)">' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + NX.esc(o.name || '—') + (o.unitNo ? ' <span class="nx-kpi-label" style="text-transform:none">· ' + NX.esc(o.unitNo) + '</span>' : '') + '</div>' +
+      '<div class="nx-kpi-label" style="text-transform:none">' + NX.esc(o.sub || '') + '</div>' +
+    '</div>' +
+    (dlabel ? '<div class="nx-kpi-label" style="white-space:nowrap;color:' + (overdue ? 'var(--fk-danger)' : 'var(--fk-text-muted)') + '">' + dlabel + '</div>' : '') +
+    (o.amount != null ? '<div class="num" style="font-weight:600;white-space:nowrap">' + fM(o.amount) + '</div>' : '') +
+    '<div class="no-p" style="display:flex;gap:5px;white-space:nowrap">' + acts + '</div>' +
+  '</div>';
 }
 
 // ── Render ────────────────────────────────────────────────────────
@@ -79,7 +102,26 @@ function _remRender() {
   const in7      = new Date(); in7.setDate(in7.getDate() + 7);
   const in7Str   = in7.toISOString().split('T')[0];
 
-  const { installments, pdcRows, recentLogs, clientInfo } = _remData;
+  const { installments, pdcRows, recentLogs, clientInfo, followups, promises } = _remData;
+
+  // ── Recovery loop: follow-ups due + promises due (top — officer's own commitments) ──
+  const fuRows = (followups || []).map(f => _remActRow({
+    name: f.client_name, unitId: f.unit_id, unitNo: (gunit(f.unit_id) || {}).unitNo || '',
+    phone: f.phone_used, date: f.next_followup_date,
+    sub: 'Follow-up' + (f.channel ? ' · ' + f.channel : '') + (f.remarks ? ' · ' + f.remarks : '')
+  }));
+  const prRows = (promises || []).map(p => _remActRow({
+    name: p.client_name, unitId: p.unit_id, unitNo: p.unit_no || '',
+    phone: p.phone, date: p.promise_date, amount: p.promised_amount,
+    sub: 'Promised to pay' + (p.notes ? ' · ' + p.notes : '')
+  }));
+  const loopHtml =
+    ((followups || []).length
+      ? NX.card(fuRows.join(''), { header:{ title:'Follow-ups due', icon:'phone-call', tone:'warning', sub:(followups.length) + ' commitment' + (followups.length !== 1 ? 's' : '') } })
+      : '') +
+    ((promises || []).length
+      ? NX.card(prRows.join(''), { header:{ title:'Promises due', icon:'handshake', tone:'info', sub:(promises.length) + ' promise' + (promises.length !== 1 ? 's' : '') + ' to follow up' }, class:'nx-mt-3' })
+      : '');
 
   // Categorise installments
   function band(i) {
@@ -135,6 +177,8 @@ function _remRender() {
   // ── KPI tiles ──
   const kpis =
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--fk-sp-2);margin-bottom:var(--fk-sp-4)">' +
+      NX.card(NX.kpi({ label:'Follow-ups due', value:(followups || []).length, dot:'warn' }), { compact:true }) +
+      NX.card(NX.kpi({ label:'Promises due',   value:(promises || []).length,  dot:'info' }), { compact:true }) +
       NX.card(NX.kpi({ label:'Overdue clients', value:overdueCount, delta:'PKR ' + fM(overdueAmt) + ' total', dot:'danger' }), { compact:true }) +
       NX.card(NX.kpi({ label:'Due today',     value:todayCnt, dot:'warn' }), { compact:true }) +
       NX.card(NX.kpi({ label:'Due this week', value:weekCnt,  dot:'info' }), { compact:true }) +
@@ -185,7 +229,9 @@ function _remRender() {
       ).join('');
 
   el.innerHTML =
-    kpis + filterBtns +
+    kpis +
+    (loopHtml ? '<div style="margin-bottom:var(--fk-sp-4)">' + loopHtml + '</div>' : '') +
+    filterBtns +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--fk-sp-2)">' +
       '<div class="nx-kpi-label" style="text-transform:none">Payment reminders</div>' +
       '<div class="nx-kpi-label">' + allVisible.length + ' client' + (allVisible.length !== 1 ? 's' : '') + '</div>' +
