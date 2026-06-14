@@ -610,15 +610,14 @@ function _riqRender(rows, trend, today, monthT){
     NX.journeybar({ height:18, segments:funnelSegs }),
     { header:{ title:'The full money picture — recovery funnel', icon:'filter', actions:NX.infoTip('Net contracted = Σ net_price · Collected = Σ paid_to_date · Future = remaining not yet billed · Overdue split into recoverable vs dead (never-paid + 365+d silent). Segments sum to net contracted.') } });
 
-  // ── AGING ───────────────────────────────────────────────────────────────
-  const agingBar = NX.journeybar({ height:16, segments: AB.filter(x=>x.amt>0).map(x=>({value:x.amt, tone:x.t, label:x.k, amount:_riqC(x.amt)})) });
-  const agingRows = AB.map(x=>'<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--fk-border)">'+
-    '<span style="width:8px;height:8px;border-radius:50%;background:var(--fk-'+x.t+');flex-shrink:0"></span>'+
-    '<span style="flex:1;font-size:13px">'+x.k+'</span>'+
-    '<span class="nx-kpi-label" style="text-transform:none">'+x.units+' units</span>'+
-    '<span class="num" style="font-weight:600;min-width:90px;text-align:right">'+_riqC(x.amt)+'</span>'+
-    '<span class="nx-kpi-label" style="min-width:42px;text-align:right">'+(totalArr>0?Math.round(x.amt/totalArr*100):0)+'%</span></div>').join('');
-  const aging = NX.card('<div style="margin-bottom:10px">'+agingBar+'</div>'+agingRows, { header:{ title:'Where the money is stuck — aging', icon:'layers', actions:NX.infoTip('Each overdue unit bucketed by overdue_days from get_recovery_position. Amount = Σ net recoverable (closing).') } });
+  // ── AGING — ranked rows with inline bars (no stacked pill bar) ───────────
+  const maxAge=Math.max(1,...AB.map(x=>x.amt));
+  const agingRows = AB.map(x=>'<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--fk-border)">'+
+    '<span style="width:96px;font-size:13px;flex-shrink:0">'+x.k+'</span>'+
+    '<div style="flex:1;height:9px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden;min-width:60px"><div style="height:100%;width:'+Math.round(x.amt/maxAge*100)+'%;background:var(--fk-'+x.t+');border-radius:5px"></div></div>'+
+    '<span class="num" style="font-weight:600;min-width:80px;text-align:right">'+_riqC(x.amt)+'</span>'+
+    '<span class="nx-kpi-label" style="min-width:74px;text-align:right">'+x.units+'u · '+(totalArr>0?Math.round(x.amt/totalArr*100):0)+'%</span></div>').join('');
+  const aging = NX.card(agingRows, { header:{ title:'Where the money is stuck — aging', icon:'layers', actions:NX.infoTip('Each overdue unit bucketed by overdue_days from get_recovery_position. Bar = Σ net recoverable (closing); right = units · share of total arrears.') } });
 
   // ── ACTION MAP (segments) ────────────────────────────────────────────────
   const segCards = SG.map(s=>'<div class="nx-card" style="border-top:3px solid var(--fk-'+s.t+')">'+
