@@ -896,11 +896,29 @@ async function cdInvitePortal(clientId) {
     });
     if (error) throw error;
     if (!data.success) throw new Error(data.error || 'Failed');
-    toast(`Portal invite sent to ${esc(data.email)} — Temp password: ${data.temp_password}`, 'ok');
-    // Reload documents tab to show updated portal status
+
+    // Build the no-password MAGIC LINK (share via WhatsApp / print). Same directory as the app.
+    const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+    const link = base + 'buyer-portal.html?t=' + encodeURIComponent(data.temp_token || '');
+
     const body = document.getElementById('cd-documents-body');
-    if (body) body.dataset.loaded = '';
-    _cdLoadDocuments(clientId);
+    if (body) {
+      const panel = document.createElement('div');
+      panel.className = 'card';
+      panel.style.cssText = 'margin-bottom:14px;border-color:rgba(34,197,94,.35)';
+      panel.innerHTML = `
+        <div class="cb" style="padding:14px 16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Portal access ready for ${esc(data.email)}</div>
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Share this link with the buyer (WhatsApp / SMS / print). It signs them straight in — no password needed — and is valid for 30 days.</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input class="inp" id="cd-magic-link" readonly value="${esc(link)}" style="flex:1;min-width:220px;font-size:12px;padding:8px 12px" onclick="this.select()">
+            <button class="btn btn-g btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('cd-magic-link').value).then(()=>toast('Link copied','ok'))">Copy link</button>
+          </div>
+          <div style="font-size:11px;color:var(--t3);margin-top:8px">Fallback sign-in: Company code <b>${esc(S.coCode || '')}</b> · ${esc(data.email)} · Temp password <b>${esc(data.temp_password)}</b></div>
+        </div>`;
+      body.prepend(panel);
+    }
+    toast('Portal access link ready — copy it to the buyer', 'ok');
   } catch(e) {
     toast('Invite failed: ' + (e.message || 'Unknown error'), 'err');
   }

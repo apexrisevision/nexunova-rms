@@ -1,1794 +1,398 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexunova — Buyer Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mera Hisaab — Buyer Portal</title>
+<link rel="icon" href="data:,">
+<!-- Buyer Portal · Mera Hisaab · build 2026-06-14 (warmth kit, session-gated) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.34.0/dist/umd/supabase.min.js"></script>
 <style>
-/* ══ RESET + BASE ══ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg:       #0a0f1e;
-  --bg2:      #0d1428;
-  --card:     #111827;
-  --border:   rgba(255,255,255,0.07);
-  --border2:  rgba(245,200,66,0.18);
-  --gold:     #f5c842;
-  --gold2:    #fde68a;
-  --gold-dim: rgba(245,200,66,0.12);
-  --text:     #e2e8f0;
-  --t2:       #94a3b8;
-  --t3:       #475569;
-  --green:    #10b981;
-  --green-bg: rgba(16,185,129,0.12);
-  --red:      #ef4444;
-  --red-bg:   rgba(239,68,68,0.12);
-  --amber:    #f59e0b;
-  --amber-bg: rgba(245,158,11,0.12);
-  --blue:     #3b82f6;
-  --mono:     'JetBrains Mono', monospace;
-  --font:     'Sora', sans-serif;
-  --rm:       12px;
-  --rs:       8px;
+/* ════ Foundation tokens (mirrors css/foundation/tokens.css — KIT.md law) ════ */
+:root{
+  --fk-font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --fk-primary:#4F46E5; --fk-primary-hover:#4338CA; --fk-primary-tint:rgba(79,70,229,.10);
+  --fk-info:#2563EB;
+  --fk-success:#16A34A; --fk-success-surface:rgba(22,163,74,.08); --fk-success-edge:rgba(22,163,74,.28);
+  --fk-warning:#D97706; --fk-warning-surface:rgba(217,119,6,.08); --fk-warning-edge:rgba(217,119,6,.30);
+  --fk-danger:#DC2626;  --fk-danger-surface:rgba(220,38,38,.08);  --fk-danger-edge:rgba(220,38,38,.28);
+  --fk-bg-page:#F1F5F9; --fk-bg-card:#FFFFFF; --fk-bg-subtle:#F8FAFC; --fk-subtle-hover:#EEF2F7;
+  --fk-border:#E2E8F0; --fk-text:#0F172A; --fk-text-muted:#64748B;
+  --fk-radius-control:8px; --fk-radius-card:12px;
+  --fk-shadow:0 1px 3px rgba(0,0,0,.06); --fk-shadow-raised:0 6px 20px rgba(15,23,42,.10);
+  --fk-muted-fill:#CBD5E1;
 }
-html, body {
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+html[data-theme="dark"]{
+  --fk-primary:#6366F1; --fk-primary-hover:#818CF8; --fk-primary-tint:rgba(99,102,241,.16);
+  --fk-success-surface:rgba(22,163,74,.16); --fk-warning-surface:rgba(217,119,6,.16); --fk-danger-surface:rgba(220,38,38,.16);
+  --fk-bg-page:#0B1120; --fk-bg-card:#111A2E; --fk-bg-subtle:#0F1B33; --fk-subtle-hover:#16243f;
+  --fk-border:#1E293B; --fk-text:#E5E7EB; --fk-text-muted:#94A3B8;
+  --fk-shadow:0 1px 3px rgba(0,0,0,.4); --fk-shadow-raised:0 8px 28px rgba(0,0,0,.55);
+  --fk-muted-fill:#334155;
 }
-a { color: var(--gold); text-decoration: none; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{background:var(--fk-bg-page);color:var(--fk-text);font-family:var(--fk-font);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+a{color:var(--fk-primary);text-decoration:none}
 
-/* ══ SCREENS ══ */
-.screen { display: none; min-height: 100vh; }
-.screen.active { display: flex; }
+/* ════ Screens ════ */
+.screen{display:none}
+.screen.active{display:block}
 
-/* ══ AUTH SCREENS ══ */
-.auth-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-  position: relative;
-  overflow: hidden;
-}
-.auth-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 0;
-}
-.auth-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  animation: orbFloat 18s ease-in-out infinite;
-}
-.auth-orb-1 {
-  width: 500px; height: 500px;
-  background: rgba(245,200,66,0.06);
-  top: -100px; left: -100px;
-  animation-delay: 0s;
-}
-.auth-orb-2 {
-  width: 350px; height: 350px;
-  background: rgba(59,130,246,0.06);
-  bottom: -60px; right: -60px;
-  animation-delay: -9s;
-}
-@keyframes orbFloat {
-  0%,100% { transform: translate(0,0) scale(1); }
-  33% { transform: translate(40px,-30px) scale(1.05); }
-  66% { transform: translate(-20px,40px) scale(0.96); }
-}
+/* ════ Auth ════ */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.auth-card{width:100%;max-width:400px;background:var(--fk-bg-card);border:1px solid var(--fk-border);
+  border-radius:var(--fk-radius-card);padding:28px 24px;box-shadow:var(--fk-shadow-raised)}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.brand-mark{width:36px;height:36px;border-radius:9px;background:var(--fk-primary-tint);
+  display:flex;align-items:center;justify-content:center;color:var(--fk-primary)}
+.brand-name{font-size:14px;font-weight:600;letter-spacing:-.2px}
+.brand-sub{font-size:11px;color:var(--fk-text-muted);letter-spacing:.4px;text-transform:uppercase}
+.auth-title{font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:4px}
+.auth-sub{font-size:13px;color:var(--fk-text-muted);margin-bottom:20px}
+.field{margin-bottom:14px}
+.label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--fk-text-muted);margin-bottom:6px}
+.input{width:100%;height:40px;padding:0 13px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);
+  border-radius:var(--fk-radius-control);color:var(--fk-text);font-size:14px;font-family:inherit;outline:none;
+  transition:border-color .15s,box-shadow .15s}
+.input:focus{border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 16px;
+  border-radius:var(--fk-radius-control);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
+  border:1px solid transparent;transition:background .15s,border-color .15s,transform .1s}
+.btn:active{transform:translateY(1px)}
+.btn--primary{background:var(--fk-primary);color:#fff;width:100%}
+.btn--primary:hover{background:var(--fk-primary-hover)}
+.btn--primary:disabled{opacity:.55;cursor:not-allowed}
+.btn--ghost{background:transparent;color:var(--fk-text-muted)}
+.btn--ghost:hover{background:var(--fk-subtle-hover);color:var(--fk-text)}
+.btn--sm{height:32px;padding:0 12px;font-size:13px}
+.banner{border-radius:var(--fk-radius-control);padding:10px 13px;font-size:13px;margin-bottom:14px;display:none}
+.banner.show{display:block}
+.banner--danger{background:var(--fk-danger-surface);border:1px solid var(--fk-danger-edge);color:var(--fk-danger)}
+.muted-note{font-size:12px;color:var(--fk-text-muted);text-align:center;margin-top:14px}
 
-.auth-card {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 420px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 40px 36px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
-  animation: cardIn 0.5s cubic-bezier(0.16,1,0.3,1) both;
-}
-@keyframes cardIn {
-  from { opacity:0; transform: translateY(24px); }
-  to   { opacity:1; transform: translateY(0); }
-}
+/* ════ App shell ════ */
+.topbar{position:sticky;top:0;z-index:50;height:56px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;background:var(--fk-bg-card);border-bottom:1px solid var(--fk-border)}
+.topbar .who{font-size:13px;color:var(--fk-text-muted);max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .who b{color:var(--fk-text);font-weight:600}
+.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);
+  color:var(--fk-text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:hover{background:var(--fk-subtle-hover);color:var(--fk-text)}
+.wrap{max-width:760px;margin:0 auto;padding:16px 14px 56px}
 
-.auth-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 28px;
-}
-.auth-logo-mark {
-  width: 38px; height: 38px;
-  background: var(--gold-dim);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-}
-.auth-logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
-.auth-logo-sub  { font-size: 10px; color: var(--gold); font-family: var(--mono); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
+/* ════ Cards / sections ════ */
+.card{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);
+  box-shadow:var(--fk-shadow);margin-bottom:14px;overflow:hidden}
+.ichip{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:var(--fk-primary-tint);color:var(--fk-primary)}
+.ichip--success{background:var(--fk-success-surface);color:var(--fk-success)}
+.ichip--warning{background:var(--fk-warning-surface);color:var(--fk-warning)}
+.card-bd{padding:16px}
 
-.auth-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.4px; margin-bottom: 6px; }
-.auth-sub   { font-size: 13px; color: var(--t2); margin-bottom: 28px; line-height: 1.6; }
+/* unit switcher */
+.switcher{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.switcher::-webkit-scrollbar{display:none}
+.switch-pill{flex-shrink:0;padding:8px 14px;border-radius:999px;border:1px solid var(--fk-border);
+  background:var(--fk-bg-card);font-size:13px;font-weight:600;color:var(--fk-text-muted);cursor:pointer;white-space:nowrap}
+.switch-pill.active{background:var(--fk-primary-tint);border-color:var(--fk-primary);color:var(--fk-primary)}
 
-.field { margin-bottom: 16px; }
-.field label { display: block; font-size: 11px; font-weight: 600; color: var(--t2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
-.field input {
-  width: 100%;
-  padding: 13px 16px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border);
-  border-radius: var(--rs);
-  color: var(--text);
-  font-size: 15px;
-  font-family: var(--mono);
-  letter-spacing: 1px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.field input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(245,200,66,0.12); }
-.field input::placeholder { color: var(--t3); letter-spacing: 0.5px; font-size: 13px; }
+/* hero summary */
+.hero-head{font-size:13px;color:var(--fk-text-muted)}
+.hero-unit{font-size:22px;font-weight:700;letter-spacing:-.5px;margin:2px 0 1px}
+.hero-proj{font-size:13px;color:var(--fk-text-muted);margin-bottom:16px}
+.journey{height:14px;border-radius:999px;background:var(--fk-muted-fill);overflow:hidden;display:flex}
+.journey .paid{height:100%;background:var(--fk-success);border-radius:999px 0 0 999px;transition:width .9s cubic-bezier(.16,1,.3,1)}
+.journey-legend{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--fk-text-muted)}
+.journey-legend .pc{font-weight:700;color:var(--fk-success)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.kpi{background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;padding:12px}
+.kpi-l{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--fk-text-muted);margin-bottom:5px}
+.kpi-v{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.kpi-v.green{color:var(--fk-success)} .kpi-v.red{color:var(--fk-danger)}
+.due-strip{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border-radius:10px;
+  background:var(--fk-warning-surface);border:1px solid var(--fk-warning-edge)}
+.due-strip .t{font-size:12px;color:var(--fk-text-muted)} .due-strip .t b{color:var(--fk-text)}
+.due-strip .amt{margin-left:auto;font-size:17px;font-weight:700;color:var(--fk-warning)}
 
-.btn-primary {
-  width: 100%;
-  padding: 14px;
-  background: var(--gold);
-  border: none;
-  border-radius: var(--rs);
-  color: #0a0f1e;
-  font-size: 14px;
-  font-weight: 700;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  letter-spacing: 0.2px;
-  margin-top: 20px;
-}
-.btn-primary:hover { background: var(--gold2); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,200,66,0.28); }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+/* tabs */
+.tabs{display:flex;gap:4px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;
+  padding:4px;margin-bottom:14px}
+.tab{flex:1;height:34px;border:none;background:transparent;border-radius:7px;font-size:13px;font-weight:600;
+  color:var(--fk-text-muted);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.tab.active{background:var(--fk-bg-card);color:var(--fk-primary);box-shadow:var(--fk-shadow)}
+.tab-chip{font-size:11px;background:var(--fk-primary-tint);color:var(--fk-primary);border-radius:999px;padding:1px 7px}
+.pane{display:none} .pane.active{display:block}
 
-.auth-err {
-  background: var(--red-bg);
-  border: 1px solid rgba(239,68,68,0.25);
-  border-radius: var(--rs);
-  padding: 11px 14px;
-  font-size: 13px;
-  color: #fca5a5;
-  margin-bottom: 16px;
-  display: none;
-  animation: slideDown 0.2s ease;
-}
-.auth-err.show { display: block; }
-@keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+/* tables / lists */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--fk-text-muted);padding:9px 12px;background:var(--fk-bg-subtle);border-bottom:1px solid var(--fk-border);white-space:nowrap}
+.tbl td{padding:11px 12px;font-size:13px;border-bottom:1px solid var(--fk-border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl-scroll{overflow-x:auto}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.badge--green{background:var(--fk-success-surface);border:1px solid var(--fk-success-edge);color:var(--fk-success)}
+.badge--amber{background:var(--fk-warning-surface);border:1px solid var(--fk-warning-edge);color:var(--fk-warning)}
+.badge--red{background:var(--fk-danger-surface);border:1px solid var(--fk-danger-edge);color:var(--fk-danger)}
+.badge--muted{background:var(--fk-bg-subtle);border:1px solid var(--fk-border);color:var(--fk-text-muted)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+tr.od td{background:var(--fk-danger-surface)}
 
-/* ══ PASSWORD TOGGLE ══ */
-.field-pw { position: relative; }
-.field-pw input { padding-right: 44px; }
-.pw-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--t3); cursor: pointer; padding: 4px; display: flex; align-items: center; }
-.pw-toggle:hover { color: var(--t2); }
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.info-grid .il{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--fk-text-muted);margin-bottom:3px}
+.info-grid .iv{font-size:14px;font-weight:600}
 
-/* ══ OTP BOXES (kept for possible future use) ══ */
-.otp-boxes { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
-.otp-box {
-  width: 52px; height: 58px;
-  background: rgba(255,255,255,0.04);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  text-align: center;
-  font-size: 22px;
-  font-weight: 600;
-  font-family: var(--mono);
-  color: var(--gold);
-  outline: none;
-  transition: all 0.18s;
-  caret-color: var(--gold);
-}
-.otp-box:focus { border-color: var(--gold); background: rgba(245,200,66,0.06); box-shadow: 0 0 0 3px rgba(245,200,66,0.15); transform: translateY(-2px); }
-.otp-box.filled { border-color: rgba(245,200,66,0.4); background: rgba(245,200,66,0.04); }
+.pay-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--fk-border)}
+.pay-row:last-child{border-bottom:none}
+.pay-ic{width:34px;height:34px;border-radius:9px;background:var(--fk-success-surface);color:var(--fk-success);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pay-main{flex:1;min-width:0}
+.pay-rcpt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pay-meta{font-size:11.5px;color:var(--fk-text-muted)}
+.pay-amt{font-size:14px;font-weight:700;color:var(--fk-success);white-space:nowrap}
 
-.masked-phone { font-size: 13px; color: var(--t2); text-align: center; margin-bottom: 4px; }
-.masked-phone span { color: var(--gold); font-family: var(--mono); font-weight: 600; }
+.empty{padding:34px 18px;text-align:center}
+.empty .ei{width:46px;height:46px;border-radius:12px;background:var(--fk-bg-subtle);color:var(--fk-text-muted);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.empty .et{font-size:13.5px;font-weight:600;margin-bottom:3px}
+.empty .es{font-size:12px;color:var(--fk-text-muted)}
 
-.resend-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; }
-.resend-timer { font-size: 12px; color: var(--t3); font-family: var(--mono); }
-#resend-btn {
-  font-size: 12px; color: var(--gold);
-  background: none; border: none; cursor: pointer;
-  font-family: var(--font); font-weight: 600; padding: 0;
-  transition: opacity 0.2s;
-}
-#resend-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.loading{padding:40px;text-align:center;color:var(--fk-text-muted);font-size:13px}
+.spin{width:28px;height:28px;border:3px solid var(--fk-border);border-top-color:var(--fk-primary);border-radius:50%;
+  animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-.back-link { text-align: center; margin-top: 14px; font-size: 12px; color: var(--t3); }
-.back-link button { background: none; border: none; color: var(--t2); cursor: pointer; font-family: var(--font); font-size: 12px; }
-.back-link button:hover { color: var(--text); }
-
-/* ══ LOADING OVERLAY ══ */
-#loading-overlay {
-  position: fixed; inset: 0;
-  background: rgba(10,15,30,0.75);
-  backdrop-filter: blur(4px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-#loading-overlay.show { display: flex; }
-.spinner {
-  width: 44px; height: 44px;
-  border: 3px solid rgba(245,200,66,0.15);
-  border-top-color: var(--gold);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ══ DASHBOARD ══ */
-#screen-dashboard { flex-direction: column; }
-
-.db-nav {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px; height: 60px;
-  background: rgba(13,20,40,0.95);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(20px);
-  position: sticky; top: 0; z-index: 100; flex-shrink: 0;
-}
-.db-nav-brand { display: flex; align-items: center; gap: 10px; }
-.db-nav-logo { width: 30px; height: 30px; background: var(--gold-dim); border: 1px solid var(--border2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-.db-nav-title { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
-.db-nav-tag { font-size: 10px; color: var(--gold); font-family: var(--mono); text-transform: uppercase; letter-spacing: 1px; background: var(--gold-dim); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border2); margin-left: 2px; }
-.logout-btn { background: transparent; border: 1px solid var(--border); border-radius: var(--rs); color: var(--t2); font-size: 12px; font-family: var(--font); padding: 7px 16px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
-.logout-btn:hover { border-color: var(--red); color: var(--red); }
-
-.db-body {
-  flex: 1; max-width: 1100px; width: 100%;
-  margin: 0 auto; padding: 28px 20px 60px;
-  animation: fadeUp 0.4s ease both;
-}
-@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-
-/* Welcome strip */
-.welcome-strip {
-  background: linear-gradient(135deg, rgba(245,200,66,0.08) 0%, rgba(245,200,66,0.03) 100%);
-  border: 1px solid var(--border2);
-  border-radius: var(--rm);
-  padding: 18px 24px; margin-bottom: 24px;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 12px;
-}
-.welcome-name { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
-.welcome-name span { color: var(--gold); }
-.welcome-cnic { font-size: 12px; color: var(--t2); font-family: var(--mono); background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; letter-spacing: 0.5px; }
-
-/* Summary cards */
-.summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-@media (max-width: 768px) { .summary-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 480px) { .summary-grid { grid-template-columns: 1fr; } }
-
-.sum-card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--rm); padding: 18px 20px;
-  transition: border-color 0.2s, transform 0.2s;
-  position: relative; overflow: hidden;
-}
-.sum-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: var(--rm) var(--rm) 0 0; }
-.sum-card.c-gold::before  { background: var(--gold); }
-.sum-card.c-green::before { background: var(--green); }
-.sum-card.c-red::before   { background: var(--red); }
-.sum-card.c-amber::before { background: var(--amber); }
-.sum-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.12); }
-
-.sum-icon  { font-size: 20px; margin-bottom: 10px; display: block; }
-.sum-label { font-size: 11px; color: var(--t2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; font-weight: 500; }
-.sum-val   { font-size: 20px; font-weight: 700; font-family: var(--mono); letter-spacing: -0.5px; line-height: 1; }
-.sum-val.v-gold  { color: var(--gold); }
-.sum-val.v-green { color: var(--green); }
-.sum-val.v-red   { color: var(--red); }
-.sum-val.v-text  { color: var(--text); }
-
-/* Alert */
-.next-install-alert {
-  background: var(--amber-bg); border: 1px solid rgba(245,158,11,0.25);
-  border-radius: var(--rm); padding: 14px 20px; margin-bottom: 20px;
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-}
-.alert-icon   { font-size: 22px; flex-shrink: 0; }
-.alert-title  { font-size: 13px; font-weight: 600; color: var(--amber); margin-bottom: 2px; }
-.alert-detail { font-size: 12px; color: var(--t2); }
-.alert-amount { font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--amber); flex-shrink: 0; }
-
-/* Two-col layout */
-.db-cols { display: grid; grid-template-columns: 1fr 340px; gap: 16px; margin-bottom: 16px; }
-@media (max-width: 900px) { .db-cols { grid-template-columns: 1fr; } }
-
-/* Cards */
-.db-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--rm); overflow: hidden; margin-bottom: 16px; }
-.db-card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-.db-card-title  { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.1px; }
-
-/* Unit grid */
-.unit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 20px; }
-.unit-field label { display: block; font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; font-weight: 500; }
-.unit-field .val  { font-size: 13px; font-weight: 600; color: var(--text); }
-.unit-field .val.mono { font-family: var(--mono); }
-
-/* Progress */
-.progress-wrap { padding: 20px; }
-.progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
-.progress-label span { font-size: 12px; color: var(--t2); }
-.progress-label strong { font-family: var(--mono); font-size: 13px; color: var(--green); font-weight: 600; }
-.progress-bar-track { height: 10px; background: rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; }
-.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--green), #34d399); border-radius: 20px; transition: width 1.2s cubic-bezier(0.16,1,0.3,1); width: 0%; }
-
-/* Table */
-.db-table-wrap { overflow-x: auto; }
-.db-table { width: 100%; border-collapse: collapse; min-width: 520px; }
-.db-table th { text-align: left; font-size: 10px; font-weight: 600; color: var(--t3); text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.db-table td { padding: 13px 16px; font-size: 13px; color: var(--t2); border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
-.db-table tr:last-child td { border-bottom: none; }
-.db-table td.mono { font-family: var(--mono); color: var(--text); }
-.db-table td.num  { font-family: var(--mono); text-align: right; color: var(--text); }
-
-/* Badges */
-.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; }
-.badge-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
-.badge-red   { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(239,68,68,0.2); }
-.badge-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
-.badge-blue  { background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.2); }
-
-/* Payment list */
-.payment-list { list-style: none; }
-.pay-item { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.15s; }
-.pay-item:last-child { border-bottom: none; }
-.pay-item:hover { background: rgba(255,255,255,0.02); }
-.pay-icon { width: 36px; height: 36px; background: var(--green-bg); border: 1px solid rgba(16,185,129,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-.pay-info { flex: 1; min-width: 0; }
-.pay-desc { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pay-meta { font-size: 11px; color: var(--t3); }
-.pay-amount { font-size: 14px; font-weight: 700; font-family: var(--mono); color: var(--green); flex-shrink: 0; white-space: nowrap; }
-
-/* Empty states */
-.empty-state { padding: 36px 20px; text-align: center; }
-.empty-icon  { font-size: 36px; margin-bottom: 12px; }
-.empty-title { font-size: 14px; font-weight: 600; color: var(--t2); margin-bottom: 4px; }
-.empty-sub   { font-size: 12px; color: var(--t3); }
-
-/* Responsive */
-@media (max-width: 600px) {
-  .auth-card { padding: 28px 20px; }
-  .otp-box { width: 44px; height: 52px; font-size: 18px; }
-  .otp-boxes { gap: 7px; }
-  .welcome-strip { padding: 14px 16px; }
-  .db-body { padding: 16px 12px 48px; }
-  .db-nav { padding: 0 14px; }
-  .db-nav-tag { display: none; }
-  .unit-grid { grid-template-columns: 1fr; }
-}
-/* ── HOVER FX SYSTEM — exact same as nexunova.com ── */
-.spn-spark{position:fixed;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:99999;animation:spnSparkFly 0.65s ease-out forwards}
-@keyframes spnSparkFly{0%{transform:translate(0,0) scale(1.3);opacity:1}100%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(0);opacity:0}}
-.spn-ripple{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.65) 0%,rgba(123,47,247,0.35) 40%,transparent 70%);pointer-events:none;z-index:99999;transform:scale(0);animation:spnRipplePop 0.65s cubic-bezier(0.22,1,0.36,1) forwards}
-@keyframes spnRipplePop{to{transform:scale(1);opacity:0}}
-
-/* ── PORTAL TABS ─────────────────────────────────────────────────── */
-.portal-tabs { display:flex; gap:4px; padding:0 0 16px; border-bottom:1px solid var(--border); margin-bottom:20px; overflow-x:auto; scrollbar-width:none; flex-shrink:0; }
-.portal-tabs::-webkit-scrollbar { display:none; }
-.portal-tab { display:flex; align-items:center; gap:6px; padding:8px 16px; background:transparent; border:1px solid transparent; border-radius:var(--rs); color:var(--t2); font-size:12px; font-weight:600; font-family:var(--font); cursor:pointer; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
-.portal-tab:hover { background:rgba(255,255,255,0.04); color:var(--text); border-color:var(--border); }
-.portal-tab.active { background:var(--gold-dim); border-color:var(--border2); color:var(--gold); }
-.portal-section { display:none; }
-.portal-section.active { display:block; }
-
-/* ── ACTION BUTTONS ──────────────────────────────────────────────── */
-.btn-action { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--rs); color:var(--t2); font-size:12px; font-weight:600; font-family:var(--font); cursor:pointer; transition:all 0.2s; }
-.btn-action:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); color:var(--text); }
-.btn-action.btn-gold  { color:var(--gold); border-color:var(--border2); background:var(--gold-dim); }
-.btn-action.btn-gold:hover  { background:rgba(245,200,66,0.2); }
-.btn-action.btn-green { color:var(--green); border-color:rgba(16,185,129,0.2); background:var(--green-bg); }
-.btn-action.btn-wa    { color:#25D366; border-color:rgba(37,211,102,0.2); background:rgba(37,211,102,0.06); }
-.btn-action.btn-wa:hover { background:rgba(37,211,102,0.14); border-color:rgba(37,211,102,0.4); color:#25D366; }
-
-/* ── POSSESSION BANNER ───────────────────────────────────────────── */
-.possession-banner { padding:14px 20px; margin-bottom:16px; border-radius:var(--rm); display:flex; align-items:center; gap:14px; }
-.possession-banner.completed { background:var(--green-bg); border:1px solid rgba(16,185,129,0.2); }
-.possession-banner.scheduled { background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); }
-.possession-banner.pending   { background:var(--amber-bg); border:1px solid rgba(245,158,11,0.2); }
-
-/* ── SUPPORT / COMPLAINT FORM ────────────────────────────────────── */
-.support-form { padding:20px; }
-.sf-field { margin-bottom:14px; }
-.sf-field label { display:block; font-size:11px; font-weight:600; color:var(--t2); text-transform:uppercase; letter-spacing:1px; margin-bottom:7px; }
-.sf-field input, .sf-field textarea { width:100%; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--rs); color:var(--text); font-size:13px; font-family:var(--font); outline:none; transition:border-color 0.2s,box-shadow 0.2s; resize:vertical; }
-.sf-field textarea { min-height:100px; }
-.sf-field input:focus, .sf-field textarea:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,200,66,0.12); }
-
-/* ── NOC CARD ────────────────────────────────────────────────────── */
-.noc-card { display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.03); transition:background 0.15s; }
-.noc-card:last-child { border-bottom:none; }
-.noc-card:hover { background:rgba(255,255,255,0.02); }
-.noc-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-.noc-icon.bank     { background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); }
-.noc-icon.transfer { background:var(--green-bg); border:1px solid rgba(16,185,129,0.2); }
-.noc-icon.general  { background:var(--amber-bg); border:1px solid rgba(245,158,11,0.2); }
-.noc-num  { font-size:13px; font-weight:600; color:var(--text); font-family:var(--mono); margin-bottom:2px; }
-.noc-meta { font-size:11px; color:var(--t3); }
-
-/* ── COMPLAINT ITEM ──────────────────────────────────────────────── */
-.complaint-item { padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.03); }
-.complaint-item:last-child { border-bottom:none; }
-.complaint-subject { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
-.complaint-body    { font-size:12px; color:var(--t2); margin-bottom:6px; line-height:1.5; }
-.complaint-response { background:var(--green-bg); border:1px solid rgba(16,185,129,0.15); border-radius:6px; padding:8px 12px; font-size:12px; color:var(--green); margin-top:8px; }
+@media(min-width:560px){ .wrap{padding:22px 18px 60px} }
+@media(max-width:420px){ .kpis{grid-template-columns:1fr} .info-grid{grid-template-columns:1fr} .hero-unit{font-size:20px} }
+@media(prefers-reduced-motion:reduce){ .journey .paid{transition:none} .spin{animation:none} }
 </style>
-<style id="nx-price-panel-css">
-#priceBackdrop{position:fixed;inset:0;z-index:8998;background:rgba(2,5,14,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .38s ease}
-#priceBackdrop.is-open{opacity:1;pointer-events:all}
-#priceTab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:9001;width:34px;padding:28px 0;border:0;border-radius:12px 0 0 12px;background:rgba(7,10,22,.9);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:'Inter',sans-serif;transition:width .28s cubic-bezier(.4,0,.2,1),background .22s ease,box-shadow .22s ease,transform .42s cubic-bezier(.32,.72,0,1),opacity .3s ease;box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}
-#priceTab::before{content:'';position:absolute;top:0;bottom:0;left:0;width:2px;border-radius:12px 0 0 12px;background:linear-gradient(180deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}
-#priceTab:hover{width:38px;background:rgba(10,14,30,.97);box-shadow:-6px 0 48px rgba(0,212,255,.3),-3px 0 18px rgba(123,47,247,.2),inset 1px 0 0 rgba(255,255,255,.1)}
-#nx-price-bar.is-open #priceTab{transform:translateY(-50%) translateX(100%);opacity:0;pointer-events:none;animation:none}
-.pt-icon{color:rgba(0,212,255,.65);display:flex;flex-shrink:0;transition:color .2s ease,transform .22s ease}
-.pt-icon svg{width:13px;height:13px}
-#priceTab:hover .pt-icon{color:#00D4FF;transform:scale(1.12)}
-.pt-label{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:.56rem;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:rgba(255,255,255,.55);transition:color .2s ease;white-space:nowrap;user-select:none}
-#priceTab:hover .pt-label{color:rgba(255,255,255,.88)}
-.pt-dot{width:5px;height:5px;border-radius:50%;background:#34d399;box-shadow:0 0 6px rgba(52,211,153,.85);flex-shrink:0;animation:ptPulse 2.2s ease-in-out infinite}
-@keyframes ptPulse{0%,100%{opacity:1;box-shadow:0 0 6px rgba(52,211,153,.85)}50%{opacity:.55;box-shadow:0 0 12px rgba(52,211,153,.4)}}
-#priceTab:hover .pt-dot{animation-duration:.75s;box-shadow:0 0 10px rgba(52,211,153,1),0 0 20px rgba(52,211,153,.5)}
-.pt-shimmer{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:10}
-.pt-shimmer::after{content:'';position:absolute;left:0;right:0;height:60%;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.14) 40%,rgba(255,255,255,.28) 50%,rgba(255,255,255,.14) 60%,transparent 100%);top:-60%}
-#priceTab:hover .pt-shimmer::after{animation:ptShimmer .65s cubic-bezier(.4,0,.2,1) forwards}
-@keyframes ptShimmer{from{top:-60%}to{top:160%}}
-.pt-peek{position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%) translateX(10px);background:rgba(6,9,20,.96);backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);border:1px solid rgba(0,212,255,.18);border-radius:10px;padding:9px 14px 9px 12px;white-space:nowrap;font-size:.74rem;font-weight:600;color:rgba(220,235,255,.8);letter-spacing:.1px;opacity:0;pointer-events:none;transition:opacity .28s ease,transform .32s cubic-bezier(.32,.72,0,1);box-shadow:0 8px 28px rgba(0,0,0,.48),0 0 0 1px rgba(255,255,255,.03),0 0 20px rgba(0,212,255,.08)}
-.pt-peek::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%) rotate(45deg);width:9px;height:9px;background:rgba(6,9,20,.96);border-right:1px solid rgba(0,212,255,.18);border-top:1px solid rgba(0,212,255,.18)}
-#priceTab:hover .pt-peek{opacity:1;transform:translateY(-50%) translateX(0)}
-#priceTab:hover::before{box-shadow:0 0 18px rgba(0,212,255,.85),0 0 36px rgba(123,47,247,.55),0 0 60px rgba(0,212,255,.2);animation:ptBorderPulse 1s ease-in-out infinite}
-@keyframes ptBorderPulse{0%,100%{opacity:1}50%{opacity:.7}}
-#nx-price-bar:not(.is-open) #priceTab{animation:tabBreathe 2.8s ease-in-out infinite}
-@keyframes tabBreathe{0%,100%{box-shadow:-4px 0 32px rgba(0,212,255,.2),-2px 0 12px rgba(123,47,247,.14),inset 1px 0 0 rgba(255,255,255,.05)}50%{box-shadow:-12px 0 64px rgba(0,212,255,.52),-6px 0 30px rgba(123,47,247,.38),inset 1px 0 0 rgba(255,255,255,.14),0 0 50px rgba(0,212,255,.12)}}
-#nx-price-bar:not(.is-open) #priceTab::before{animation:tabBorderBreath 2.8s ease-in-out infinite}
-@keyframes tabBorderBreath{0%,100%{box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(123,47,247,.35)}50%{box-shadow:0 0 26px rgba(0,212,255,1),0 0 55px rgba(123,47,247,.72),0 0 100px rgba(0,212,255,.22)}}
-#nx-price-bar:not(.is-open) #priceTab:hover,#nx-price-bar:not(.is-open) #priceTab:hover::before{animation:none}
-#priceDrawer{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100vw;z-index:9002;background:rgba(6,9,20,.98);backdrop-filter:blur(40px) saturate(1.9) brightness(1.04);-webkit-backdrop-filter:blur(40px) saturate(1.9) brightness(1.04);border-left:1px solid rgba(0,212,255,.12);box-shadow:-28px 0 90px rgba(0,0,0,.6),-4px 0 20px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .48s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;overflow:hidden;font-family:'Inter',sans-serif}
-#priceDrawer.is-open{transform:translateX(0)}
-#priceDrawer::before{content:'';display:block;height:2px;background:linear-gradient(90deg,#00D4FF 0%,#6366f1 50%,#a855f7 100%);flex-shrink:0;box-shadow:0 0 20px rgba(0,212,255,.55)}
-.pd-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;flex-shrink:0}
-.pd-title-wrap{display:flex;flex-direction:column;gap:4px}
-.pd-title{font-family:'Plus Jakarta Sans','Inter',sans-serif;font-size:1rem;font-weight:800;background:linear-gradient(135deg,#fff 10%,#00D4FF 55%,#a855f7 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
-.pd-sub{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.4px;color:rgba(0,212,255,.5)}
-.pd-close{width:32px;height:32px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.02);color:rgba(255,255,255,.4);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,border-color .18s ease,color .18s ease;flex-shrink:0;font-family:inherit}
-.pd-close:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff}
-.pd-divider{height:1px;background:rgba(255,255,255,.05);margin:0 22px;flex-shrink:0}
-.pd-body{flex:1;overflow-y:auto;padding:20px 22px 32px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;scrollbar-color:rgba(0,212,255,.18) transparent}
-.pd-body::-webkit-scrollbar{width:4px}
-.pd-body::-webkit-scrollbar-track{background:transparent}
-.pd-body::-webkit-scrollbar-thumb{background:rgba(0,212,255,.18);border-radius:2px}
-.pd-section{font-family:'JetBrains Mono',monospace;font-size:.57rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:-2px}
-.nx-sb-billing{position:relative;display:flex;align-items:center;height:34px;padding:3px;border-radius:100px;background:transparent;border:1px solid rgba(255,255,255,.08);width:100%}
-.nx-bill-opt{position:relative;z-index:2;appearance:none;background:transparent;border:0;padding:0 16px;height:100%;border-radius:100px;font-family:inherit;font-size:.72rem;font-weight:600;letter-spacing:.2px;color:rgba(240,244,255,.5);cursor:pointer;transition:color .2s ease;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;flex:1}
-.nx-bill-opt.is-active{color:#050709}
-.nx-bill-opt:hover:not(.is-active){color:rgba(240,244,255,.9)}
-.nx-bill-save{font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:.5px;padding:1px 5px;border-radius:100px;background:rgba(16,185,129,.18);color:#34d399;font-weight:700}
-.nx-bill-opt.is-active .nx-bill-save{background:rgba(5,7,9,.15);color:#047857}
-.nx-bill-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:100px;background:linear-gradient(135deg,#00D4FF,#7B2FF7);box-shadow:0 2px 12px rgba(0,212,255,.38);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:1}
-.nx-sb-billing[data-bill="yearly"] .nx-bill-thumb{transform:translateX(100%)}
-.nx-pills{display:flex;flex-direction:column;gap:7px;width:100%}
-.nx-pill{position:relative;width:100%}
-.nx-pill-btn{appearance:none;border:1px solid transparent;background:transparent;border-radius:12px;padding:11px 14px;font-size:.81rem;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;transition:transform .2s cubic-bezier(.4,0,.2,1),background .2s ease,border-color .2s ease,box-shadow .2s ease;text-decoration:none;letter-spacing:.08px}
-.nx-pill-btn:hover{transform:translateX(3px)}
-.nx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
-.nx-pill-price{display:inline-block;transition:opacity .18s ease,transform .18s ease}
-.nx-pill-price.is-flipping{opacity:0;transform:translateY(-3px)}
-.nx-pill-meta{margin-left:auto;font-size:.67rem;font-weight:500;opacity:.42;white-space:nowrap}
-.nx-pill-free .nx-pill-btn{color:#34d399;border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.06)}
-.nx-pill-free .nx-pill-dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.7)}
-.nx-pill-free .nx-pill-btn:hover{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.55);box-shadow:0 4px 18px rgba(16,185,129,.18)}
-.nx-pill-basic .nx-pill-btn{color:#60a5fa;border-color:rgba(96,165,250,.28);background:rgba(59,130,246,.06)}
-.nx-pill-basic .nx-pill-dot{background:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,.7)}
-.nx-pill-basic .nx-pill-btn:hover{background:rgba(59,130,246,.12);border-color:rgba(96,165,250,.55);box-shadow:0 4px 18px rgba(59,130,246,.18)}
-.nx-pill-pro .nx-pill-btn{color:#00D4FF;border-color:rgba(0,212,255,.32);background:rgba(0,212,255,.06)}
-.nx-pill-pro .nx-pill-dot{background:#00D4FF;box-shadow:0 0 8px rgba(0,212,255,.7)}
-.nx-pill-pro .nx-pill-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.55);box-shadow:0 4px 18px rgba(0,212,255,.18)}
-.nx-pill-ult .nx-pill-btn{color:#c084fc;border-color:rgba(192,132,252,.32);background:rgba(168,85,247,.06)}
-.nx-pill-ult .nx-pill-dot{background:#a855f7;box-shadow:0 0 8px rgba(168,85,247,.7)}
-.nx-pill-ult .nx-pill-btn:hover{background:rgba(168,85,247,.12);border-color:rgba(192,132,252,.55);box-shadow:0 4px 18px rgba(168,85,247,.18)}
-.nx-demos{display:flex;flex-direction:column;gap:7px}
-.nx-demo{display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:600;padding:11px 14px;border-radius:12px;border:1px solid;text-decoration:none;transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
-.nx-demo svg{width:11px;height:11px;flex-shrink:0}
-.nx-demo-rms{color:#00D4FF;border-color:rgba(0,212,255,.28);background:rgba(0,212,255,.04)}
-.nx-demo-rms:hover{background:rgba(0,212,255,.11);border-color:rgba(0,212,255,.55);box-shadow:0 4px 18px rgba(0,212,255,.16);transform:translateX(3px)}
-.nx-demo-crm{color:#c084fc;border-color:rgba(192,132,252,.28);background:rgba(168,85,247,.04)}
-.nx-demo-crm:hover{background:rgba(168,85,247,.11);border-color:rgba(192,132,252,.55);box-shadow:0 4px 18px rgba(168,85,247,.16);transform:translateX(3px)}
-.pd-cta{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#00D4FF 0%,#7B2FF7 100%);color:#050709;font-weight:800;font-size:.84rem;letter-spacing:.2px;padding:13px 20px;border-radius:12px;text-decoration:none;box-shadow:0 6px 24px rgba(0,212,255,.3),0 2px 8px rgba(123,47,247,.25);transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;font-family:inherit;border:0;cursor:pointer;width:100%;margin-top:4px}
-.pd-cta:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 10px 36px rgba(0,212,255,.4),0 4px 14px rgba(123,47,247,.35)}
-@media(max-width:640px){#priceDrawer{width:100vw;border-left:0}#priceTab{width:28px}}
-</style>
-<!-- ══ CRISP LIVE CHAT + AI BOT ══ -->
-<script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="032f6ce9-493a-4be9-8048-342e6102b364";(function(){var d=document;var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
 </head>
 <body>
 
-<!-- ══ LOADING OVERLAY ══ -->
-<div id="loading-overlay"><div class="spinner"></div></div>
-
-<!-- ══════════════════════
-     SCREEN 1 — LOGIN
-══════════════════════ -->
-<div id="screen-cnic" class="screen active">
+<!-- ════ LOGIN (fallback; magic link bypasses this) ════ -->
+<div id="screen-login" class="screen active">
   <div class="auth-wrap">
-    <div class="auth-bg">
-      <div class="auth-orb auth-orb-1"></div>
-      <div class="auth-orb auth-orb-2"></div>
-    </div>
     <div class="auth-card">
-      <div class="auth-logo">
-        <img src="Logo/Nexunova logos/NexuNova_Icon_256px.png" alt="Nexunova" style="width:38px;height:38px;object-fit:contain;flex-shrink:0;">
-        <div>
-          <div class="auth-logo-text">Nexunova RMS</div>
-          <div class="auth-logo-sub">Buyer Portal</div>
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/><path d="M9 21v-6h6v6"/></svg>
         </div>
+        <div><div class="brand-name">Mera Hisaab</div><div class="brand-sub">Buyer Portal</div></div>
       </div>
-      <div class="auth-title">Sign In to Your Account</div>
-      <div class="auth-sub">Enter your company code, email and password to access your property dashboard.</div>
-      <div class="auth-err" id="cnic-err"></div>
-      <div class="field">
-        <label>Company Code</label>
-        <input type="text" id="co-input" placeholder="e.g. ADMIN" maxlength="20" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')document.getElementById('email-input').focus()">
-      </div>
-      <div class="field">
-        <label>Email Address</label>
-        <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('pw-input').focus()">
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <div class="field-pw">
-          <input type="password" id="pw-input" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-          <button class="pw-toggle" type="button" onclick="togglePw()" tabindex="-1">
-            <svg id="pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <button class="btn-primary" onclick="doLogin()" id="login-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
-        Sign In
-      </button>
-      <div style="text-align:center;margin-top:16px">
-        <span style="font-size:12px;color:var(--t3)">Forgot password? Contact your company admin.</span>
-      </div>
-      <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--t3)">
-        Need help? <a href="mailto:support@nexunova.com">support@nexunova.com</a>
-      </div>
+      <div class="auth-title">Sign in</div>
+      <div class="auth-sub">Open the access link your developer shared, or sign in below.</div>
+      <div class="banner banner--danger" id="login-err"></div>
+      <div class="field"><label class="label">Company Code</label>
+        <input class="input" id="i-co" placeholder="e.g. 14groupofcompanies" autocomplete="off" style="text-transform:uppercase"></div>
+      <div class="field"><label class="label">Email</label>
+        <input class="input" id="i-email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field"><label class="label">Password</label>
+        <input class="input" id="i-pw" type="password" placeholder="Your password" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn--primary" id="login-btn" onclick="doLogin()">Sign in</button>
+      <div class="muted-note">Forgot your password? Contact your developer to re-send your access link.</div>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════
-     SCREEN 2 — FORGOT PASSWORD
-══════════════════════ -->
-<div id="screen-otp" class="screen">
-  <div class="auth-wrap">
-    <div class="auth-bg">
-      <div class="auth-orb auth-orb-1"></div>
-      <div class="auth-orb auth-orb-2"></div>
+<!-- ════ PORTAL ════ -->
+<div id="screen-app" class="screen">
+  <div class="topbar">
+    <div class="brand" style="margin:0;gap:8px">
+      <div class="brand-mark" style="width:30px;height:30px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/><path d="M9 21v-6h6v6"/></svg>
+      </div>
+      <div><div class="brand-name" style="font-size:13px">Mera Hisaab</div></div>
     </div>
-    <div class="auth-card">
-      <div class="auth-logo">
-        <img src="Logo/Nexunova logos/NexuNova_Icon_256px.png" alt="Nexunova" style="width:38px;height:38px;object-fit:contain;flex-shrink:0;">
-        <div>
-          <div class="auth-logo-text">Reset Password</div>
-          <div class="auth-logo-sub">Buyer Portal</div>
-        </div>
-      </div>
-      <div class="auth-title">Forgot Password?</div>
-      <div class="auth-sub">Enter your CNIC. We'll send a password reset link to your registered email.</div>
-      <div class="auth-err" id="otp-err"></div>
-      <div id="forgot-success" style="display:none;background:var(--green-bg);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--green);margin-bottom:16px;">
-        ✅ Reset link sent! Check your email inbox.
-      </div>
-      <div class="field">
-        <label>CNIC Number</label>
-        <input type="text" id="forgot-cnic-input" placeholder="XXXXX-XXXXXXX-X" maxlength="15" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')doForgotPassword()">
-      </div>
-      <button class="btn-primary" onclick="doForgotPassword()" id="forgot-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        Send Reset Link
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="who" id="who"></span>
+      <button class="icon-btn" title="Theme" onclick="toggleTheme()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
       </button>
-      <div class="back-link" style="margin-top:16px">
-        <button onclick="showScreen('screen-cnic')">← Back to Login</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════
-     SCREEN 3 — DASHBOARD
-══════════════════════ -->
-<div id="screen-dashboard" class="screen">
-  <nav class="db-nav">
-    <div class="db-nav-brand">
-      <img src="Logo/Nexunova logos/NexuNova_Icon_256px.png" alt="Nexunova" style="width:30px;height:30px;object-fit:contain;border-radius:6px;flex-shrink:0;">
-      <div class="db-nav-title">Nexunova RMS</div>
-      <div class="db-nav-tag">Buyer Portal</div>
-    </div>
-    <button class="logout-btn" onclick="doLogout()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-      Logout
-    </button>
-  </nav>
-  <div class="db-body" id="db-body"></div>
-</div>
-
-<script>
-// ══════════════════════════════════════════════════════════
-//  CONFIG
-// ══════════════════════════════════════════════════════════
-const SUPABASE_URL       = 'https://itqxljtfbrppntgyfush.supabase.co'
-const SUPABASE_ANON_KEY  = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG'
-
-// ══════════════════════════════════════════════════════════
-//  SUPABASE CLIENT
-// ══════════════════════════════════════════════════════════
-const { createClient } = window.supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// ══════════════════════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════════════════════
-let currentCnic  = '';
-let buyerData    = null;
-let portalState  = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
-
-// ══════════════════════════════════════════════════════════
-//  UTILITIES
-// ══════════════════════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-  document.getElementById(id).classList.add('active');
-}
-function setLoading(on) { document.getElementById('loading-overlay').classList.toggle('show', on); }
-function showError(elId, msg) { var el=document.getElementById(elId); if(!el) return; el.textContent=msg; el.classList.add('show'); }
-function clearError(elId) { var el=document.getElementById(elId); if(el){ el.textContent=''; el.classList.remove('show'); } }
-
-function fmtMoney(n) {
-  if(n===null||n===undefined||n==='') return '—';
-  // 'en-IN' grouping = PK lakh/crore convention (1,00,000 / 1,00,00,000) — master context §10.
-  return 'PKR ' + Number(n).toLocaleString('en-IN', {maximumFractionDigits:0});
-}
-function fmtDate(d) {
-  if(!d) return '—';
-  return new Date(d).toLocaleDateString('en-PK', {day:'numeric',month:'short',year:'numeric'});
-}
-function esc(s) {
-  if(!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Company code input: auto-uppercase
-(function() {
-  var ci = document.getElementById('co-input');
-  if(ci) ci.addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
-})();
-
-// ══════════════════════════════════════════════════════════
-//  PASSWORD TOGGLE
-// ══════════════════════════════════════════════════════════
-function togglePw() {
-  var inp = document.getElementById('pw-input');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-// ══════════════════════════════════════════════════════════
-//  LOGIN
-// ══════════════════════════════════════════════════════════
-async function doLogin() {
-  clearError('cnic-err');
-  var co    = (document.getElementById('co-input').value || '').trim().toUpperCase();
-  var email = (document.getElementById('email-input').value || '').trim().toLowerCase();
-  var pw    = document.getElementById('pw-input').value;
-
-  if(!co)    { showError('cnic-err','Please enter your company code.'); return; }
-  if(!email || !email.includes('@')) { showError('cnic-err','Please enter a valid email address.'); return; }
-  if(!pw)    { showError('cnic-err','Please enter your password.'); return; }
-
-  var btn = document.getElementById('login-btn');
-  btn.disabled = true;
-  setLoading(true);
-
-  try {
-    // Step 1: authenticate → get session token
-    var lr = await sb.rpc('portal_login', {
-      p_company_code: co,
-      p_email:        email,
-      p_password:     pw
-    });
-    if(lr.error) throw new Error(lr.error.message || 'Login failed');
-    var ld = lr.data;
-    if(!ld || !ld.success) { showError('cnic-err', ld && ld.error ? ld.error : 'Login failed'); return; }
-
-    // Step 2: load full client data using session token
-    var dr = await sb.rpc('get_portal_client_data', { p_session_token: ld.session_token });
-    if(dr.error) throw new Error(dr.error.message || 'Failed to load data');
-    var data = dr.data;
-    if(!data || !data.success) { showError('cnic-err', data && data.error ? data.error : 'Session error'); return; }
-
-    // Persist session for tab navigation
-    sessionStorage.setItem('rms.portal.token', ld.session_token);
-
-    buyerData = data;
-    portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
-    buildPortalLayout(data);
-    showScreen('screen-dashboard');
-    window.scrollTo(0,0);
-
-  } catch(e) {
-    showError('cnic-err', e.message || 'Login failed. Please check your details.');
-  } finally {
-    setLoading(false);
-    btn.disabled = false;
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-//  FORGOT PASSWORD
-// ══════════════════════════════════════════════════════════
-function showForgotScreen() {
-  clearError('otp-err');
-  document.getElementById('forgot-success').style.display = 'none';
-  document.getElementById('forgot-cnic-input').value = '';
-  showScreen('screen-otp');
-}
-
-async function doForgotPassword() {
-  clearError('otp-err');
-  document.getElementById('forgot-success').style.display = 'none';
-  var cnic  = document.getElementById('forgot-cnic-input').value.trim();
-  var clean = cnic.replace(/\D/g,'');
-
-  if(clean.length !== 13) { showError('otp-err','Please enter a valid 13-digit CNIC number.'); return; }
-
-  var btn = document.getElementById('forgot-btn');
-  btn.disabled = true;
-  setLoading(true);
-
-  try {
-    var res = await sb.functions.invoke('buyer-forgot-password', { body: { cnic: cnic } });
-    if(res.error) throw new Error(res.error.message || 'Network error');
-    var data = res.data;
-    if(data && data.error) { showError('otp-err', data.error); return; }
-    document.getElementById('forgot-success').style.display = 'block';
-
-  } catch(e) {
-    showError('otp-err', e.message || 'Failed. Please try again or contact support.');
-  } finally {
-    setLoading(false);
-    btn.disabled = false;
-  }
-}
-
-function doLogout() {
-  buyerData = null; currentCnic = '';
-  sessionStorage.removeItem('rms.portal.token');
-  portalState = { tab:'overview', nocLoaded:false, compLoaded:false, posLoaded:false, scheduleLoaded:false, receiptsLoaded:false };
-  var co = document.getElementById('co-input'); if(co) co.value='';
-  var em = document.getElementById('email-input'); if(em) em.value='';
-  var pw = document.getElementById('pw-input'); if(pw) pw.value='';
-  clearError('cnic-err');
-  document.getElementById('db-body').innerHTML='';
-  showScreen('screen-cnic');
-}
-
-// ══════════════════════════════════════════════════════════
-//  PORTAL LAYOUT (tabbed) — replaces single-page buildDashboard
-// ══════════════════════════════════════════════════════════
-function buildPortalLayout(d) {
-  var client=d.client, sale=d.sale, unit=d.unit, floor=d.floor,
-      unit_type=d.unit_type, installments=d.installments, payments=d.payments;
-  var today = new Date(); today.setHours(0,0,0,0);
-  var totalPaid    = payments.reduce(function(s,p){ return s+parseFloat(p.amount||0); }, 0);
-  var netAmount    = parseFloat(sale.net_amount || sale.total_amount || 0);
-  var remaining    = Math.max(0, netAmount - totalPaid);
-  var paidPct      = netAmount>0 ? Math.min(100,(totalPaid/netAmount)*100) : 0;
-  var overdueList  = installments.filter(function(i){ return i.status!=='paid' && new Date(i.due_date)<today; });
-  var nextInstall  = installments.find(function(i){ return i.status!=='paid' && new Date(i.due_date)>=today; });
-  var paidInstalls = installments.filter(function(i){ return i.status==='paid'; }).length;
-  var unitNo    = unit ? esc(unit.unit_no) : '—';
-  var floorName = floor ? esc(floor.name) : (unit&&unit.floor_label ? esc(unit.floor_label) : '—');
-  var typeName  = unit_type ? esc(unit_type.type_name) : '—';
-  var areaStr   = (unit&&unit.area) ? (unit.area+' '+(unit.area_unit||'Sqft')) : '—';
-  var totalDue  = installments.reduce(function(s,i){ return s+parseFloat(i.amount_due||0); }, 0);
-  d._c = { totalPaid:totalPaid, netAmount:netAmount, remaining:remaining, paidPct:paidPct, paidInstalls:paidInstalls, today:today };
-
-  var html = '';
-
-  // Welcome strip
-  html += '<div class="welcome-strip">';
-  html +=   '<div><div class="welcome-name">Welcome, <span>'+esc(client.full_name)+'</span></div>';
-  html +=   '<div style="font-size:12px;color:var(--t2);margin-top:4px">Buyer Portal &nbsp;·&nbsp; Unit '+unitNo+'</div></div>';
-  html +=   '<div class="welcome-cnic">CNIC: '+esc(client.cnic)+'</div>';
-  html += '</div>';
-
-  // Tab nav
-  html += '<div class="portal-tabs">';
-  html +=   '<button class="portal-tab" data-tab="overview"  onclick="switchTab(\'overview\')">🏠 Overview</button>';
-  html +=   '<button class="portal-tab" data-tab="schedule"  onclick="switchTab(\'schedule\')">📋 Schedule</button>';
-  html +=   '<button class="portal-tab" data-tab="payments"  onclick="switchTab(\'payments\')">💳 Payments</button>';
-  html +=   '<button class="portal-tab" data-tab="documents" onclick="switchTab(\'documents\')">📄 Documents</button>';
-  html +=   '<button class="portal-tab" data-tab="support"   onclick="switchTab(\'support\')">💬 Support</button>';
-  html += '</div>';
-
-  // ─── TAB: OVERVIEW ────────────────────────────────────────────────
-  html += '<div class="portal-section" id="tab-overview">';
-  html += '<div class="summary-grid">';
-  html += card('💰','Total Price',fmtMoney(netAmount),'c-gold','v-gold');
-  html += card('✅','Amount Paid',fmtMoney(totalPaid),'c-green','v-green');
-  html += card(remaining>0?'⚠️':'🎉','Remaining',fmtMoney(remaining),remaining>0?'c-red':'c-green',remaining>0?'v-red':'v-text');
-  html += '<div class="sum-card '+(overdueList.length>0?'c-red':'c-green')+'">';
-  html +=   '<span class="sum-icon">'+(overdueList.length>0?'🔴':'🟢')+'</span>';
-  html +=   '<div class="sum-label">Overdue</div>';
-  html +=   '<div class="sum-val '+(overdueList.length>0?'v-red':'v-text')+'" style="font-size:32px">'+overdueList.length+'</div>';
-  html += '</div></div>';
-  html += '<div id="possession-banner-area"></div>';
-  if(nextInstall) {
-    html += '<div class="next-install-alert">';
-    html +=   '<div class="alert-icon">📅</div>';
-    html +=   '<div style="flex:1"><div class="alert-title">Next Installment Due</div>';
-    html +=   '<div class="alert-detail">'+esc(nextInstall.installment_type||'Installment')+' #'+nextInstall.installment_number+' &nbsp;·&nbsp; Due: <strong>'+fmtDate(nextInstall.due_date)+'</strong></div></div>';
-    html +=   '<div class="alert-amount">'+fmtMoney(nextInstall.amount_due)+'</div>';
-    html += '</div>';
-  }
-  html += '<div class="db-cols">';
-  html += '<div class="db-card"><div class="db-card-header"><span>🏠</span><div class="db-card-title">Unit Information</div></div><div class="unit-grid">';
-  html += uField('Unit Number','<span class="mono">'+unitNo+'</span>');
-  html += uField('Floor',floorName);
-  html += uField('Unit Type',typeName);
-  html += uField('Area','<span class="mono">'+areaStr+'</span>');
-  html += uField('Sale Date',fmtDate(sale.sale_date));
-  html += uField('Status',badge(sale.status));
-  if(unit&&unit.bedrooms)  html += uField('Bedrooms','<span class="mono">'+unit.bedrooms+'</span>');
-  if(unit&&unit.bathrooms) html += uField('Bathrooms','<span class="mono">'+unit.bathrooms+'</span>');
-  if(unit&&unit.block)     html += uField('Block',esc(unit.block));
-  if(sale.sale_number)     html += uField('Sale No.','<span class="mono" style="font-size:12px">'+esc(sale.sale_number)+'</span>');
-  html += '</div></div>';
-  html += '<div class="db-card" style="display:flex;flex-direction:column"><div class="db-card-header"><span>📊</span><div class="db-card-title">Payment Progress</div></div>';
-  html += '<div class="progress-wrap" style="flex:1">';
-  html +=   '<div class="progress-label"><span>Recovery Progress</span><strong>'+paidPct.toFixed(1)+'%</strong></div>';
-  html +=   '<div class="progress-bar-track"><div class="progress-bar-fill" id="prog-bar"></div></div>';
-  html +=   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:18px">';
-  html +=     pItem('Total',fmtMoney(netAmount),'var(--gold)');
-  html +=     pItem('Paid',fmtMoney(totalPaid),'var(--green)');
-  html +=     pItem('Remaining',fmtMoney(remaining),remaining>0?'var(--red)':'var(--green)');
-  html +=   '</div>';
-  if(sale.installment_count) {
-    html += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-    html +=   pItem('Total Inst.',sale.installment_count,'var(--text)');
-    html +=   pItem('Paid Inst.',paidInstalls,'var(--green)');
-    html += '</div>';
-  }
-  html += '</div></div></div>'; // progress-wrap, db-card, db-cols
-  html += '</div>'; // tab-overview
-
-  // ─── TAB: SCHEDULE ─────────────────────────────────────────────────
-  html += '<div class="portal-section" id="tab-schedule">';
-  html += '<div class="db-card">';
-  html +=   '<div class="db-card-header"><span>📋</span><div class="db-card-title">Installment Schedule</div>';
-  html +=   '<span style="margin-left:auto;font-size:11px;color:var(--t3)">'+installments.length+' installments</span>';
-  html +=   '<button class="btn-action btn-gold" style="margin-left:12px" onclick="printSchedule()">⎙ Print</button></div>';
-  if(installments.length===0) {
-    html += '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No installments found</div><div class="empty-sub">Your schedule will appear here once created.</div></div>';
-  } else {
-    html += '<div class="db-table-wrap"><table class="db-table"><thead><tr>';
-    html +=   '<th>#</th><th>Type</th><th>Due Date</th><th style="text-align:right">Amount Due</th><th style="text-align:right">Paid</th><th>Status</th>';
-    html += '</tr></thead><tbody>';
-    installments.forEach(function(inst) {
-      var dueD=new Date(inst.due_date), cls, lbl;
-      if(inst.status==='paid')  { cls='badge-green'; lbl='Paid'; }
-      else if(dueD<today)       { cls='badge-red';   lbl='Overdue'; }
-      else                      { cls='badge-amber';  lbl='Pending'; }
-      html += '<tr><td class="mono">'+inst.installment_number+'</td><td>'+esc(inst.installment_type||'Regular')+'</td><td>'+fmtDate(inst.due_date)+'</td>';
-      html += '<td class="num">'+fmtMoney(inst.amount_due)+'</td>';
-      html += '<td class="num">'+(parseFloat(inst.amount_paid||0)>0?fmtMoney(inst.amount_paid):'<span style="color:var(--t3)">—</span>')+'</td>';
-      html += '<td><span class="badge '+cls+'">'+lbl+'</span></td></tr>';
-    });
-    html += '</tbody></table></div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid var(--border)">';
-    html +=   sItem('Total Scheduled',fmtMoney(totalDue),'var(--gold)',true);
-    html +=   sItem('Total Paid',fmtMoney(totalPaid),'var(--green)',true);
-    html +=   sItem('Remaining',fmtMoney(remaining),remaining>0?'var(--red)':'var(--green)',false);
-    html += '</div>';
-  }
-  html += '</div></div>'; // db-card, tab-schedule
-
-  // ─── TAB: PAYMENTS ─────────────────────────────────────────────────
-  html += '<div class="portal-section" id="tab-payments">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">';
-  html +=   '<div style="font-size:13px;color:var(--t2)">'+payments.length+' payment'+(payments.length!==1?'s':'')+' confirmed</div>';
-  html +=   '<button class="btn-action btn-gold" onclick="printAccountStatement()">⎙ Account Statement</button>';
-  html += '</div>';
-  html += '<div class="db-card">';
-  if(payments.length===0) {
-    html += '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No confirmed payments yet</div><div class="empty-sub">Your receipts will appear here after confirmation.</div></div>';
-  } else {
-    html += '<ul class="payment-list">';
-    payments.forEach(function(p,idx) {
-      var m=(p.payment_method||'').toLowerCase(), icon='💳';
-      if(m.includes('cash'))                                         icon='💵';
-      if(m.includes('bank')||m.includes('transfer'))                 icon='🏦';
-      if(m.includes('cheque')||m.includes('check'))                  icon='📝';
-      if(m.includes('online')||m.includes('easypaisa')||m.includes('jazzcash')||m.includes('raast')) icon='📱';
-      var meta=fmtDate(p.payment_date)+' &nbsp;·&nbsp; '+esc(p.payment_method);
-      if(p.reference_no) meta+=' &nbsp;·&nbsp; Ref: '+esc(p.reference_no);
-      if(p.bank_name)    meta+=' &nbsp;·&nbsp; '+esc(p.bank_name);
-      html += '<li class="pay-item">';
-      html +=   '<div class="pay-icon">'+icon+'</div>';
-      html +=   '<div class="pay-info"><div class="pay-desc">'+(p.payment_code?esc(p.payment_code):'Payment Receipt')+'</div><div class="pay-meta">'+meta+'</div></div>';
-      html +=   '<div style="display:flex;align-items:center;gap:10px">';
-      html +=     '<div class="pay-amount">+'+fmtMoney(p.amount)+'</div>';
-      html +=     '<button class="btn-action" style="padding:5px 10px;font-size:11px" onclick="printPaymentReceipt('+idx+')">⎙ Receipt</button>';
-      html +=   '</div></li>';
-    });
-    html += '</ul>';
-    html += '<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
-    html +=   '<span style="font-size:12px;color:var(--t3)">Total Confirmed</span>';
-    html +=   '<span style="font-size:16px;font-family:var(--mono);font-weight:700;color:var(--green)">'+fmtMoney(totalPaid)+'</span>';
-    html += '</div>';
-  }
-  html += '</div></div>'; // db-card, tab-payments
-
-  // ─── TAB: DOCUMENTS ────────────────────────────────────────────────
-  html += '<div class="portal-section" id="tab-documents">';
-  html += '<div class="db-card" style="margin-bottom:16px">';
-  html +=   '<div class="db-card-header"><span>📝</span><div class="db-card-title">Sale Agreement</div>';
-  html +=   '<button class="btn-action btn-gold" style="margin-left:auto" onclick="printSaleDetails()">⎙ Print Details</button></div>';
-  html +=   '<div class="unit-grid" style="padding:20px">';
-  if(sale.sale_number) html += uField('Sale No.','<span class="mono">'+esc(sale.sale_number)+'</span>');
-  html += uField('Sale Date',fmtDate(sale.sale_date));
-  html += uField('Unit','<span class="mono">'+unitNo+'</span>');
-  html += uField('Total Amount',fmtMoney(netAmount));
-  html += '</div></div>';
-  html += '<div class="db-card" style="margin-bottom:16px">';
-  html +=   '<div class="db-card-header"><span>📊</span><div class="db-card-title">Account Statement</div>';
-  html +=   '<button class="btn-action btn-gold" style="margin-left:auto" onclick="printAccountStatement()">⎙ Download PDF</button></div>';
-  html +=   '<div style="padding:14px 20px;font-size:13px;color:var(--t2)">Complete statement of your sale, installment schedule, and all payment records.</div>';
-  html += '</div>';
-  html += '<div class="db-card" id="noc-docs-card">';
-  html +=   '<div class="db-card-header"><span>✅</span><div class="db-card-title">NOC Documents</div></div>';
-  html +=   '<div id="noc-docs-content"><div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">';
-  html +=     '<div class="spinner" style="margin:0 auto 10px;width:28px;height:28px;border-width:2px"></div>Loading…';
-  html +=   '</div></div>';
-  html += '</div></div>'; // db-card, tab-documents
-
-  // ─── TAB: SUPPORT ──────────────────────────────────────────────────
-  html += '<div class="portal-section" id="tab-support">';
-  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
-  html +=   '<a href="mailto:support@nexunova.com" class="btn-action btn-wa" style="text-decoration:none">✉️ Email Support</a>';
-  html += '</div>';
-  html += '<div class="db-card" style="margin-bottom:16px">';
-  html +=   '<div class="db-card-header"><span>✉️</span><div class="db-card-title">Raise a Query or Complaint</div></div>';
-  html +=   '<div class="support-form">';
-  html +=     '<div id="complaint-err" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;font-size:13px;color:#fca5a5;margin-bottom:14px"></div>';
-  html +=     '<div id="complaint-ok"  style="display:none;background:var(--green-bg);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:14px">✅ Query submitted. We will respond within 48 hours.</div>';
-  html +=     '<div class="sf-field"><label>Subject</label><input type="text" id="complaint-subject" placeholder="e.g. Payment receipt not received"></div>';
-  html +=     '<div class="sf-field"><label>Message</label><textarea id="complaint-message" placeholder="Describe your query in detail…"></textarea></div>';
-  html +=     '<button class="btn-primary" style="width:auto;padding:11px 24px;margin-top:4px" onclick="submitComplaint()">Send Query</button>';
-  html +=   '</div>';
-  html += '</div>';
-  html += '<div class="db-card" id="complaints-card">';
-  html +=   '<div class="db-card-header"><span>📋</span><div class="db-card-title">My Queries &amp; Complaints</div></div>';
-  html +=   '<div id="complaints-content"><div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">';
-  html +=     '<div class="spinner" style="margin:0 auto 10px;width:28px;height:28px;border-width:2px"></div>Loading…';
-  html +=   '</div></div>';
-  html += '</div></div>'; // db-card, tab-support
-
-  document.getElementById('db-body').innerHTML = html;
-  switchTab('overview');
-
-  requestAnimationFrame(function() {
-    setTimeout(function() {
-      var bar = document.getElementById('prog-bar');
-      if(bar) bar.style.width = paidPct.toFixed(1)+'%';
-    }, 80);
-  });
-
-  loadPortalPossession();
-}
-
-// ── Tab switcher ────────────────────────────────────────────────────
-function switchTab(tabId) {
-  portalState.tab = tabId;
-  document.querySelectorAll('.portal-tab').forEach(function(btn) {
-    btn.classList.toggle('active', btn.getAttribute('data-tab')===tabId);
-  });
-  document.querySelectorAll('.portal-section').forEach(function(s) {
-    s.classList.remove('active');
-  });
-  var sec = document.getElementById('tab-'+tabId);
-  if(sec) sec.classList.add('active');
-  if(tabId==='documents' && !portalState.nocLoaded)      loadPortalNocs();
-  if(tabId==='support'   && !portalState.compLoaded)     loadPortalComplaints();
-  if(tabId==='schedule'  && !portalState.scheduleLoaded) loadPortalSchedule();
-  if(tabId==='payments'  && !portalState.receiptsLoaded) loadPortalReceipts();
-}
-
-// ── Lazy loaders for Schedule & Receipts (RPC-driven, Phase 4 Component 1) ───
-async function loadPortalSchedule() {
-  var d=buyerData;
-  if(!d||!d.client||!d.client.id||!d.unit||!d.unit.id) return;
-  var sec=document.getElementById('tab-schedule'); if(!sec) return;
-  try {
-    var res=await sb.rpc('get_buyer_payment_schedule',{
-      p_company_id:d.client.company_id, p_client_id:d.client.id, p_unit_id:d.unit.id
-    });
-    if(res.error) throw res.error;
-    var rows=Array.isArray(res.data)?res.data:[];
-    portalState.scheduleLoaded=true;
-    var html='<div class="db-card">'
-      +'<div class="db-card-header"><span>📋</span><div class="db-card-title">Installment Schedule</div>'
-      +'<button class="btn-action btn-gold" style="margin-left:auto" onclick="printSchedule()">⎙ Print Schedule</button></div>';
-    if(!rows.length){
-      html+='<div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">No installments on file yet.</div></div>';
-    } else {
-      var thStyle='text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px';
-      var thR=thStyle.replace('text-align:left','text-align:right');
-      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
-        +'<thead><tr>'
-        +'<th style="'+thStyle+'">#</th>'
-        +'<th style="'+thStyle+'">Due Date</th>'
-        +'<th style="'+thR+'">Amount Due</th>'
-        +'<th style="'+thR+'">Paid</th>'
-        +'<th style="'+thR+'">Balance</th>'
-        +'<th style="'+thStyle+'">Status</th>'
-        +'</tr></thead><tbody>';
-      rows.forEach(function(i){
-        var od=i.is_overdue===true;
-        var bal=parseFloat(i.balance||0);
-        var paid=parseFloat(i.amount_paid||0);
-        var statusLabel=i.status==='paid'?'Paid':(od?'Overdue':(bal>0?'Pending':'Cleared'));
-        var statusColor=i.status==='paid'?'#059669':(od?'#dc2626':'#d97706');
-        var rowBg=od?'background:rgba(239,68,68,0.06)':'';
-        var tdL='padding:10px 12px;border-bottom:1px solid var(--border)';
-        var tdR=tdL+';text-align:right;font-family:var(--mono);font-size:13px';
-        html+='<tr style="'+rowBg+'">'
-          +'<td style="'+tdL+';font-family:var(--mono);font-size:12px">'+esc(String(i.installment_number||''))+'</td>'
-          +'<td style="'+tdL+';font-size:13px;color:'+(od?'#dc2626':'var(--text)')+'">'+fmtDate(i.due_date)+'</td>'
-          +'<td style="'+tdR+'">'+fmtMoney(i.amount_due)+'</td>'
-          +'<td style="'+tdR+';color:'+(paid>0?'#059669':'var(--t3)')+'">'+(paid>0?fmtMoney(paid):'—')+'</td>'
-          +'<td style="'+tdR+';font-weight:'+(bal>0?'700':'400')+';color:'+(bal>0?(od?'#dc2626':'#d97706'):'var(--t3)')+'">'+(bal>0?fmtMoney(bal):'—')+'</td>'
-          +'<td style="'+tdL+';font-size:12px;font-weight:600;color:'+statusColor+'">'+statusLabel+'</td>'
-          +'</tr>';
-      });
-      html+='</tbody></table></div></div>';
-    }
-    sec.innerHTML=html;
-  } catch(e){ console.warn('[loadPortalSchedule]', e); }
-}
-
-async function loadPortalReceipts() {
-  var d=buyerData;
-  if(!d||!d.client||!d.client.id||!d.unit||!d.unit.id) return;
-  var sec=document.getElementById('tab-payments'); if(!sec) return;
-  try {
-    var res=await sb.rpc('get_buyer_receipts',{
-      p_company_id:d.client.company_id, p_client_id:d.client.id, p_unit_id:d.unit.id
-    });
-    if(res.error) throw res.error;
-    var rows=Array.isArray(res.data)?res.data:[];
-    portalState.receiptsLoaded=true;
-    var total=rows.reduce(function(s,r){ return s+parseFloat(r.amount||0); },0);
-    var html='<div class="db-card">'
-      +'<div class="db-card-header"><span>💳</span><div class="db-card-title">Payment Receipts</div></div>';
-    if(!rows.length){
-      html+='<div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">No confirmed receipts on file yet.</div></div>';
-    } else {
-      html+='<ul style="list-style:none;margin:0;padding:0">';
-      rows.forEach(function(r){
-        var m=(r.payment_mode||'').toLowerCase(),icon='💰';
-        if(m.includes('cash')) icon='💵';
-        else if(m.includes('cheque')||m.includes('pdc')) icon='📋';
-        else if(m.includes('bank')||m.includes('transfer')) icon='🏦';
-        else if(m.includes('online')||m.includes('easypaisa')||m.includes('jazzcash')||m.includes('raast')) icon='📱';
-        var meta=fmtDate(r.payment_date)+' &nbsp;·&nbsp; '+esc(r.payment_mode||'—');
-        if(r.cheque_number) meta+=' &nbsp;·&nbsp; Cheque #'+esc(r.cheque_number);
-        if(r.bank_name)     meta+=' &nbsp;·&nbsp; '+esc(r.bank_name);
-        if(r.status)        meta+=' &nbsp;·&nbsp; '+esc(r.status);
-        html+='<li class="pay-item">'
-          +'<div class="pay-icon">'+icon+'</div>'
-          +'<div class="pay-info"><div class="pay-desc">'+esc(r.receipt_number||'Payment Receipt')+'</div><div class="pay-meta">'+meta+'</div></div>'
-          +'<div class="pay-amount">+'+fmtMoney(r.amount)+'</div>'
-          +'</li>';
-      });
-      html+='</ul>'
-        +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
-        +'<span style="font-size:12px;color:var(--t3)">Total Confirmed</span>'
-        +'<span style="font-size:16px;font-family:var(--mono);font-weight:700;color:var(--green)">'+fmtMoney(total)+'</span>'
-        +'</div></div>';
-    }
-    sec.innerHTML=html;
-  } catch(e){ console.warn('[loadPortalReceipts]', e); }
-}
-
-// ── Lazy loaders ────────────────────────────────────────────────────
-async function loadPortalPossession() {
-  var d=buyerData;
-  if(!d||!d.client||!d.client.id||!d.unit||!d.unit.id) return;
-  try {
-    var res=await sb.rpc('get_buyer_possession_for_portal',{
-      p_client_id:d.client.id, p_unit_id:d.unit.id, p_company_id:d.client.company_id
-    });
-    if(res.error||!res.data) return;
-    var pos=res.data;
-    if(!pos||!pos.id) return;
-    var area=document.getElementById('possession-banner-area');
-    if(!area) return;
-    var sc=pos.status==='completed'?'completed':(pos.status==='scheduled'?'scheduled':'pending');
-    var ico=pos.status==='completed'?'🏠':(pos.status==='scheduled'?'📅':'⏳');
-    var lbl=pos.status==='completed'?'Possession Completed':(pos.status==='scheduled'?'Possession Scheduled':'Possession Pending');
-    var html='<div class="possession-banner '+sc+'">';
-    html+='<span style="font-size:24px">'+ico+'</span>';
-    html+='<div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:2px">'+lbl+'</div>';
-    if(pos.possession_date) html+='<div style="font-size:12px;opacity:0.8">Date: <strong>'+fmtDate(pos.possession_date)+'</strong></div>';
-    if(pos.remarks) html+='<div style="font-size:12px;opacity:0.7;margin-top:2px">'+esc(pos.remarks)+'</div>';
-    html+='</div></div>';
-    area.innerHTML=html;
-    portalState.posLoaded=true;
-  } catch(e) {}
-}
-
-async function loadPortalNocs() {
-  var d=buyerData, el=document.getElementById('noc-docs-content');
-  if(!el||!d||!d.client||!d.unit) return;
-  try {
-    var res=await sb.rpc('get_buyer_nocs_for_portal',{
-      p_client_id:d.client.id, p_unit_id:d.unit.id, p_company_id:d.client.company_id
-    });
-    portalState.nocLoaded=true;
-    if(res.error){ el.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Could not load NOC documents</div></div>'; return; }
-    var nocs=Array.isArray(res.data)?res.data:[];
-    if(nocs.length===0){ el.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">No approved NOCs yet</div><div class="empty-sub">Approved NOC documents will appear here.</div></div>'; return; }
-    var html='';
-    nocs.forEach(function(n){
-      var ic=n.noc_type==='bank'?'bank':(n.noc_type==='transfer'?'transfer':'general');
-      var em=n.noc_type==='bank'?'🏦':(n.noc_type==='transfer'?'🔄':'📄');
-      var tl=n.noc_type==='bank'?'Bank NOC':(n.noc_type==='transfer'?'Transfer NOC':'General NOC');
-      var v=n.valid_from&&n.valid_until?fmtDate(n.valid_from)+' — '+fmtDate(n.valid_until):(n.valid_from?'From '+fmtDate(n.valid_from):'');
-      html+='<div class="noc-card"><div class="noc-icon '+ic+'">'+em+'</div>';
-      html+='<div style="flex:1"><div class="noc-num">'+esc(n.noc_number||'—')+'</div>';
-      html+='<div class="noc-meta">'+tl+(v?' &nbsp;·&nbsp; Valid: '+v:'')+'</div></div>';
-      html+='<span class="badge badge-green">Approved</span></div>';
-    });
-    el.innerHTML=html;
-  } catch(e){ if(el) el.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Could not load NOC documents</div></div>'; }
-}
-
-async function loadPortalComplaints() {
-  var d=buyerData, el=document.getElementById('complaints-content');
-  if(!el||!d||!d.client) return;
-  try {
-    var res=await sb.rpc('get_buyer_complaints',{p_session_token: sessionStorage.getItem('rms.portal.token')});
-    portalState.compLoaded=true;
-    if(res.error){ el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Could not load queries</div></div>'; return; }
-    var items=Array.isArray(res.data)?res.data:[];
-    if(items.length===0){ el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">No queries yet</div><div class="empty-sub">Your submitted queries will appear here.</div></div>'; return; }
-    var sm={open:'badge-amber',in_progress:'badge-blue',resolved:'badge-green',closed:'badge-red'};
-    var html='';
-    items.forEach(function(c){
-      html+='<div class="complaint-item">';
-      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">';
-      html+='<div class="complaint-subject">'+esc(c.subject)+'</div>';
-      html+='<span class="badge '+(sm[c.status]||'badge-amber')+'">'+esc(c.status.replace('_',' '))+'</span></div>';
-      html+='<div class="complaint-body">'+esc(c.message)+'</div>';
-      html+='<div style="font-size:11px;color:var(--t3)">Submitted: '+fmtDate(c.created_at)+'</div>';
-      if(c.response) html+='<div class="complaint-response">💬 <strong>Response:</strong> '+esc(c.response)+(c.responded_at?' &nbsp;·&nbsp; '+fmtDate(c.responded_at):'')+'</div>';
-      html+='</div>';
-    });
-    el.innerHTML=html;
-  } catch(e){ if(el) el.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Could not load queries</div></div>'; }
-}
-
-async function submitComplaint() {
-  var sub=(document.getElementById('complaint-subject')||{}).value||'';
-  var msg=(document.getElementById('complaint-message')||{}).value||'';
-  var errEl=document.getElementById('complaint-err');
-  var okEl=document.getElementById('complaint-ok');
-  if(errEl) errEl.style.display='none';
-  if(okEl)  okEl.style.display='none';
-  if(sub.trim().length<3)  { if(errEl){errEl.textContent='Please enter a subject (min 3 chars).';errEl.style.display='block';} return; }
-  if(msg.trim().length<10) { if(errEl){errEl.textContent='Please enter a message (min 10 chars).';errEl.style.display='block';} return; }
-  var d=buyerData;
-  if(!d||!d.client) return;
-  try {
-    setLoading(true);
-    var res=await sb.rpc('submit_buyer_complaint',{
-      p_session_token: sessionStorage.getItem('rms.portal.token'),
-      p_subject:sub.trim(), p_message:msg.trim()
-    });
-    if(res.error||(res.data&&res.data.error)) {
-      if(errEl){errEl.textContent=(res.data&&res.data.error)||'Failed to submit. Please try again.';errEl.style.display='block';} return;
-    }
-    if(okEl) okEl.style.display='block';
-    document.getElementById('complaint-subject').value='';
-    document.getElementById('complaint-message').value='';
-    portalState.compLoaded=false;
-    loadPortalComplaints();
-  } catch(e){ if(errEl){errEl.textContent=e.message||'Failed to submit.';errEl.style.display='block';} }
-  finally { setLoading(false); }
-}
-
-// ── Print functions ─────────────────────────────────────────────────
-function _printWin(html) {
-  var w=window.open('','_blank','width=750,height=950');
-  w.document.write(html); w.document.close(); w.focus();
-  setTimeout(function(){ w.print(); }, 300);
-}
-
-function printPaymentReceipt(idx) {
-  var d=buyerData; if(!d) return;
-  var p=d.payments[idx]; if(!p) return;
-  var client=d.client, sale=d.sale, unit=d.unit;
-  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;padding:40px;color:#111}.hdr{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #f5c842}.hdr h1{font-size:22px;font-weight:800;color:#0a0f1e}.hdr p{font-size:12px;color:#555;margin-top:4px}.rno{background:#fff8e1;border:1px solid #f5c842;border-radius:8px;padding:10px 20px;text-align:center;margin-bottom:28px;font-size:15px;font-weight:700;letter-spacing:1px}table{width:100%;border-collapse:collapse;margin-bottom:20px}td{padding:8px 12px;border-bottom:1px solid #eee;font-size:13px}td:first-child{color:#555;width:40%}td:last-child{font-weight:600}.abox{background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:20px;text-align:center;margin:20px 0}.abox .lbl{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}.abox .val{font-size:28px;font-weight:800;color:#10b981}.ftr{margin-top:32px;padding-top:20px;border-top:1px solid #eee;font-size:11px;color:#888;text-align:center}';
-  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
-  h+='<div class="hdr"><h1>Nexunova RMS</h1><p>Official Payment Receipt</p></div>';
-  h+='<div class="rno">RECEIPT: '+esc(p.payment_code||'—')+'</div>';
-  h+='<table>';
-  h+='<tr><td>Client Name</td><td>'+esc(client.full_name)+'</td></tr>';
-  h+='<tr><td>CNIC</td><td>'+esc(client.cnic)+'</td></tr>';
-  if(unit) h+='<tr><td>Unit No.</td><td>'+esc(unit.unit_no)+'</td></tr>';
-  if(sale&&sale.sale_number) h+='<tr><td>Sale No.</td><td>'+esc(sale.sale_number)+'</td></tr>';
-  h+='<tr><td>Payment Date</td><td>'+fmtDate(p.payment_date)+'</td></tr>';
-  h+='<tr><td>Payment Method</td><td>'+esc(p.payment_method)+'</td></tr>';
-  if(p.reference_no) h+='<tr><td>Reference No.</td><td>'+esc(p.reference_no)+'</td></tr>';
-  if(p.bank_name)    h+='<tr><td>Bank</td><td>'+esc(p.bank_name)+'</td></tr>';
-  h+='</table>';
-  h+='<div class="abox"><div class="lbl">Amount Received</div><div class="val">'+fmtMoney(p.amount)+'</div></div>';
-  h+='<div class="ftr">Generated '+new Date().toLocaleDateString('en-PK')+' via Nexunova RMS Buyer Portal &nbsp;·&nbsp; nexunova.com</div>';
-  h+='</body></html>';
-  _printWin(h);
-}
-
-function printAccountStatement() {
-  var d=buyerData; if(!d) return;
-  var client=d.client, sale=d.sale, unit=d.unit, il=d.installments, py=d.payments, c=d._c||{};
-  var today=new Date(); today.setHours(0,0,0,0);
-  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:40px;color:#111}h1{font-size:20px;font-weight:800;color:#0a0f1e}h2{font-size:13px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #f5c842;padding-bottom:5px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px;padding-bottom:18px;border-bottom:2px solid #111}.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.kc{border:1px solid #ddd;border-radius:8px;padding:12px 16px}.kl{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}.kv{font-size:16px;font-weight:800}table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padding:6px 10px;background:#f9f9f9;border-bottom:2px solid #ddd;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:7px 10px;border-bottom:1px solid #f0f0f0}.ftr{margin-top:30px;padding-top:14px;border-top:1px solid #eee;font-size:10px;color:#999;text-align:center}';
-  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
-  h+='<div class="hdr"><div><h1>Account Statement</h1><p style="color:#555;font-size:12px;margin-top:4px">Nexunova RMS · Buyer Portal</p></div>';
-  h+='<div style="text-align:right;font-size:11px;color:#555"><div>Date: '+new Date().toLocaleDateString('en-PK')+'</div>';
-  if(sale&&sale.sale_number) h+='<div>Sale No: '+esc(sale.sale_number)+'</div>';
-  h+='</div></div>';
-  h+='<table style="margin-bottom:18px"><tr><td style="width:110px;color:#666">Client</td><td style="font-weight:600">'+esc(client.full_name)+'</td><td style="width:110px;color:#666">CNIC</td><td style="font-weight:600">'+esc(client.cnic)+'</td></tr>';
-  if(unit) h+='<tr><td style="color:#666">Unit</td><td style="font-weight:600">'+esc(unit.unit_no)+'</td><td style="color:#666">Sale Date</td><td style="font-weight:600">'+fmtDate(sale.sale_date)+'</td></tr>';
-  h+='</table>';
-  h+='<div class="kpi"><div class="kc"><div class="kl">Total Sale Value</div><div class="kv" style="color:#d97706">'+fmtMoney(c.netAmount||0)+'</div></div>';
-  h+='<div class="kc"><div class="kl">Total Paid</div><div class="kv" style="color:#059669">'+fmtMoney(c.totalPaid||0)+'</div></div>';
-  h+='<div class="kc"><div class="kl">Balance Due</div><div class="kv" style="color:'+(c.remaining>0?'#dc2626':'#059669')+'">'+fmtMoney(c.remaining||0)+'</div></div></div>';
-  h+='<h2>Installment Schedule</h2>';
-  h+='<table><thead><tr><th>#</th><th>Type</th><th>Due Date</th><th style="text-align:right">Amt Due</th><th style="text-align:right">Paid</th><th>Status</th></tr></thead><tbody>';
-  il.forEach(function(i){
-    var dd=new Date(i.due_date), lbl=i.status==='paid'?'Paid':(dd<today?'Overdue':'Pending');
-    var clr=i.status==='paid'?'#059669':(dd<today?'#dc2626':'#d97706');
-    h+='<tr><td>'+i.installment_number+'</td><td>'+esc(i.installment_type||'Regular')+'</td><td>'+fmtDate(i.due_date)+'</td>';
-    h+='<td style="text-align:right">'+fmtMoney(i.amount_due)+'</td><td style="text-align:right">'+(parseFloat(i.amount_paid||0)>0?fmtMoney(i.amount_paid):'—')+'</td>';
-    h+='<td style="color:'+clr+';font-weight:600">'+lbl+'</td></tr>';
-  });
-  h+='</tbody></table><h2>Payment History</h2>';
-  if(!py.length){ h+='<p style="color:#999;font-size:12px">No confirmed payments yet.</p>'; }
-  else {
-    h+='<table><thead><tr><th>Receipt No.</th><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
-    py.forEach(function(p){
-      h+='<tr><td>'+esc(p.payment_code||'—')+'</td><td>'+fmtDate(p.payment_date)+'</td><td>'+esc(p.payment_method)+'</td><td>'+esc(p.reference_no||'—')+'</td>';
-      h+='<td style="text-align:right;font-weight:600;color:#059669">'+fmtMoney(p.amount)+'</td></tr>';
-    });
-    h+='<tr style="background:#f9f9f9"><td colspan="4" style="font-weight:700">Total Confirmed</td><td style="text-align:right;font-weight:700;color:#059669">'+fmtMoney(c.totalPaid||0)+'</td></tr>';
-    h+='</tbody></table>';
-  }
-  h+='<div class="ftr">Generated '+new Date().toLocaleDateString('en-PK')+' via Nexunova RMS Buyer Portal · nexunova.com<br>Computer generated — no signature required.</div>';
-  h+='</body></html>';
-  _printWin(h);
-}
-
-function printSchedule() {
-  var d=buyerData; if(!d) return;
-  var client=d.client, sale=d.sale, unit=d.unit, il=d.installments, c=d._c||{};
-  var today=new Date(); today.setHours(0,0,0,0);
-  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:40px;color:#111}h1{font-size:18px;font-weight:800;color:#0a0f1e;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:18px}th{text-align:left;padding:7px 10px;background:#f9f9f9;border-bottom:2px solid #ddd;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:8px 10px;border-bottom:1px solid #f0f0f0}.ftr{margin-top:22px;font-size:10px;color:#999;text-align:center}';
-  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
-  h+='<h1>Installment Schedule</h1>';
-  h+='<div style="font-size:12px;color:#555;margin-top:4px;margin-bottom:14px">'+esc(client.full_name)+' &nbsp;·&nbsp; Unit: '+(unit?esc(unit.unit_no):'—')+(sale&&sale.sale_number?' &nbsp;·&nbsp; Sale: '+esc(sale.sale_number):'')+'</div>';
-  h+='<table><thead><tr><th>#</th><th>Type</th><th>Due Date</th><th style="text-align:right">Amt Due</th><th style="text-align:right">Paid</th><th>Status</th></tr></thead><tbody>';
-  il.forEach(function(i){
-    var dd=new Date(i.due_date), lbl=i.status==='paid'?'Paid':(dd<today?'Overdue':'Pending');
-    var clr=i.status==='paid'?'#059669':(dd<today?'#dc2626':'#d97706');
-    h+='<tr><td>'+i.installment_number+'</td><td>'+esc(i.installment_type||'Regular')+'</td><td>'+fmtDate(i.due_date)+'</td>';
-    h+='<td style="text-align:right">'+fmtMoney(i.amount_due)+'</td><td style="text-align:right">'+(parseFloat(i.amount_paid||0)>0?fmtMoney(i.amount_paid):'—')+'</td>';
-    h+='<td style="color:'+clr+';font-weight:600">'+lbl+'</td></tr>';
-  });
-  h+='</tbody></table>';
-  h+='<div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
-  h+='<div style="border:1px solid #ddd;border-radius:6px;padding:11px;text-align:center"><div style="font-size:10px;color:#666;margin-bottom:3px">TOTAL DUE</div><div style="font-weight:700;color:#d97706">'+fmtMoney(c.netAmount||0)+'</div></div>';
-  h+='<div style="border:1px solid #ddd;border-radius:6px;padding:11px;text-align:center"><div style="font-size:10px;color:#666;margin-bottom:3px">TOTAL PAID</div><div style="font-weight:700;color:#059669">'+fmtMoney(c.totalPaid||0)+'</div></div>';
-  h+='<div style="border:1px solid #ddd;border-radius:6px;padding:11px;text-align:center"><div style="font-size:10px;color:#666;margin-bottom:3px">REMAINING</div><div style="font-weight:700;color:'+(c.remaining>0?'#dc2626':'#059669')+'">'+fmtMoney(c.remaining||0)+'</div></div>';
-  h+='</div>';
-  h+='<div class="ftr">Generated '+new Date().toLocaleDateString('en-PK')+' via Nexunova RMS Buyer Portal · nexunova.com</div>';
-  h+='</body></html>';
-  _printWin(h);
-}
-
-function printSaleDetails() {
-  var d=buyerData; if(!d) return;
-  var client=d.client, sale=d.sale, unit=d.unit, floor=d.floor, ut=d.unit_type, c=d._c||{};
-  var unitNo=unit?esc(unit.unit_no):'—', floorName=floor?esc(floor.name):(unit&&unit.floor_label?esc(unit.floor_label):'—'), typeName=ut?esc(ut.type_name):'—';
-  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:40px;color:#111}h1{font-size:18px;font-weight:800;color:#0a0f1e;margin-bottom:4px}h2{font-size:13px;font-weight:700;margin:20px 0 8px;border-bottom:1.5px solid #f5c842;padding-bottom:5px}table{width:100%;border-collapse:collapse}td{padding:7px 12px;border-bottom:1px solid #eee;font-size:12px}td:first-child{color:#666;width:40%}td:last-child{font-weight:600}.ftr{margin-top:30px;padding-top:14px;border-top:1px solid #eee;font-size:10px;color:#999;text-align:center}';
-  var h='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>';
-  h+='<h1>Sale &amp; Unit Details</h1><p style="font-size:12px;color:#555;margin-top:4px;margin-bottom:18px">Nexunova RMS · Buyer Portal · '+new Date().toLocaleDateString('en-PK')+'</p>';
-  h+='<h2>Client</h2><table><tr><td>Full Name</td><td>'+esc(client.full_name)+'</td></tr><tr><td>CNIC</td><td>'+esc(client.cnic)+'</td></tr></table>';
-  h+='<h2>Unit Details</h2><table>';
-  h+='<tr><td>Unit No.</td><td>'+unitNo+'</td></tr>';
-  h+='<tr><td>Floor</td><td>'+floorName+'</td></tr>';
-  h+='<tr><td>Unit Type</td><td>'+typeName+'</td></tr>';
-  if(unit&&unit.area) h+='<tr><td>Area</td><td>'+unit.area+' '+(unit.area_unit||'Sqft')+'</td></tr>';
-  if(unit&&unit.block) h+='<tr><td>Block</td><td>'+esc(unit.block)+'</td></tr>';
-  h+='</table>';
-  h+='<h2>Sale Details</h2><table>';
-  if(sale.sale_number) h+='<tr><td>Sale No.</td><td>'+esc(sale.sale_number)+'</td></tr>';
-  h+='<tr><td>Sale Date</td><td>'+fmtDate(sale.sale_date)+'</td></tr>';
-  h+='<tr><td>Total Amount</td><td>'+fmtMoney(c.netAmount||0)+'</td></tr>';
-  h+='<tr><td>Amount Paid</td><td>'+fmtMoney(c.totalPaid||0)+'</td></tr>';
-  h+='<tr><td>Balance Due</td><td>'+fmtMoney(c.remaining||0)+'</td></tr>';
-  h+='<tr><td>Status</td><td>'+esc((sale.status||'active').charAt(0).toUpperCase()+(sale.status||'active').slice(1))+'</td></tr>';
-  h+='</table>';
-  h+='<div class="ftr">For reference only. Contact your sales office for official documentation.</div>';
-  h+='</body></html>';
-  _printWin(h);
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────
-function card(icon, label, val, cardCls, valCls) {
-  return '<div class="sum-card '+cardCls+'"><span class="sum-icon">'+icon+'</span><div class="sum-label">'+label+'</div><div class="sum-val '+valCls+'" style="font-size:16px">'+val+'</div></div>';
-}
-function uField(label, val) {
-  return '<div class="unit-field"><label>'+label+'</label><div class="val">'+val+'</div></div>';
-}
-function pItem(label, val, color) {
-  return '<div style="text-align:center"><div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">'+label+'</div><div style="font-size:13px;font-family:var(--mono);font-weight:600;color:'+color+'">'+val+'</div></div>';
-}
-function sItem(label, val, color, border) {
-  return '<div style="padding:14px 16px;text-align:center'+(border?';border-right:1px solid var(--border)':'')+'">'
-    +'<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+label+'</div>'
-    +'<div style="font-size:14px;font-family:var(--mono);font-weight:700;color:'+color+'">'+val+'</div></div>';
-}
-function badge(status) {
-  var map = { active:'badge-green', booked:'badge-amber', completed:'badge-blue', cancelled:'badge-red' };
-  var cls = map[status] || 'badge-amber';
-  var lbl = status ? status.charAt(0).toUpperCase()+status.slice(1) : '—';
-  return '<span class="badge '+cls+'">'+lbl+'</span>';
-}
-</script>
-
-<style>
-:root{--cyan:#00d4ff;--white:#e2e8f0;--white-muted:#94a3b8;--white-dim:#c4c9d9}
-body{padding-bottom:32px}
-footer.site-footer{position:fixed;left:0;right:0;bottom:0;z-index:90;background:transparent;backdrop-filter:blur(48px) saturate(1.8) brightness(1.1);-webkit-backdrop-filter:blur(48px) saturate(1.8) brightness(1.1);border:0;border-radius:26px 26px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,0.2),inset 0 1.5px 0 rgba(255,255,255,0.55),inset 0 0 0 1px rgba(255,255,255,0.08);padding:0 clamp(1rem,3.5vw,2.5rem) 1rem;max-height:56vh;overflow:hidden;transform:translateY(calc(100% - 32px));transition:transform .55s cubic-bezier(.32,.72,0,1),box-shadow .5s ease;will-change:transform}
-footer.site-footer::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;border-radius:inherit;background:radial-gradient(ellipse 65% 55% at 18% 110%,rgba(0,212,255,.065) 0%,transparent 65%),radial-gradient(ellipse 65% 55% at 82% 110%,rgba(123,47,247,.065) 0%,transparent 65%);opacity:0;transition:opacity .6s ease}
-footer.site-footer:hover::after,footer.site-footer.is-open::after{opacity:1}
-footer.site-footer::before{content:'';position:absolute;top:0;left:-40%;width:40%;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.6) 40%,rgba(255,255,255,1) 50%,rgba(255,255,255,.6) 60%,transparent 100%);animation:fEdgeTravel 4s linear infinite;pointer-events:none;z-index:99;border-radius:2px}
-@keyframes fEdgeTravel{0%{left:-40%}100%{left:100%}}
-footer.site-footer:hover::before,footer.site-footer.is-open::before{display:none}
-@media(hover:hover){footer.site-footer:hover{transform:translateY(0);max-height:80vh;background:transparent;backdrop-filter:blur(56px) saturate(2) brightness(1.15);-webkit-backdrop-filter:blur(56px) saturate(2) brightness(1.15);box-shadow:0 -20px 60px rgba(0,0,0,.22),inset 0 1.5px 0 rgba(255,255,255,.5),0 0 0 1px rgba(255,255,255,.1)}}
-footer.site-footer.is-open{transform:translateY(0);max-height:80vh;background:transparent;backdrop-filter:blur(56px) saturate(2) brightness(1.15);-webkit-backdrop-filter:blur(56px) saturate(2) brightness(1.15);box-shadow:0 -20px 60px rgba(0,0,0,.22),inset 0 1.5px 0 rgba(255,255,255,.5),0 0 0 1px rgba(255,255,255,.1)}
-.footer-peek{height:32px;width:100%;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(255,255,255,.018) 0%,transparent 100%);border:0;border-bottom:1px solid rgba(255,255,255,.028);cursor:pointer;padding:0 .25rem;position:sticky;top:0;z-index:6;overflow:hidden;transition:all .3s ease}
-footer.site-footer:hover .footer-peek,footer.site-footer.is-open .footer-peek{border-bottom-color:rgba(0,212,255,.08)}
-.footer-peek::after{content:'';position:absolute;top:0;left:-35%;width:35%;height:100%;background:linear-gradient(108deg,transparent 0%,rgba(0,212,255,.04) 35%,rgba(0,212,255,.14) 50%,rgba(0,212,255,.04) 65%,transparent 100%);animation:fPeekShimmer 9s ease-in-out infinite 1.5s;pointer-events:none}
-@keyframes fPeekShimmer{0%,18%{transform:translateX(0)}88%,100%{transform:translateX(460%)}}
-footer.site-footer:hover .footer-peek::after,footer.site-footer.is-open .footer-peek::after{display:none}
-.peek-left{display:flex;align-items:center;gap:.85rem;flex:1}.peek-live{display:flex;align-items:center;gap:.32rem;flex-shrink:0}
-.peek-live-dot{border-radius:50%;position:relative;animation:fLivePulse 2.8s ease-in-out infinite}
-.peek-live-dot::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid rgba(0,212,255,.55);animation:fDotHalo 2.8s ease-out infinite;pointer-events:none}
-.peek-live-dot:nth-child(2)::before{border-color:rgba(123,47,247,.5);animation-delay:.45s}.peek-live-dot:nth-child(3)::before{border-color:rgba(0,212,255,.35);animation-delay:.9s}
-@keyframes fDotHalo{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.8);opacity:0}}
-.peek-live-dot:nth-child(1){width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px rgba(0,212,255,.9)}
-.peek-live-dot:nth-child(2){width:5px;height:5px;background:rgba(123,47,247,.9);box-shadow:0 0 8px rgba(123,47,247,.75);animation-delay:.45s}
-.peek-live-dot:nth-child(3){width:4px;height:4px;background:rgba(0,212,255,.55);box-shadow:0 0 6px rgba(0,212,255,.5);animation-delay:.9s}
-@keyframes fLivePulse{0%,100%{opacity:.45;transform:scale(.82)}50%{opacity:1;transform:scale(1.12)}}
-.peek-center{display:flex;align-items:center;gap:.55rem;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;pointer-events:none}
-.peek-label{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:2.8px;text-transform:uppercase;color:rgba(240,244,255,.38);transition:color .35s ease;position:relative;z-index:1}
-.peek-sep{font-size:.55rem;color:rgba(0,212,255,.22)}
-footer.site-footer:hover .peek-label,footer.site-footer.is-open .peek-label{color:rgba(240,244,255,.68)}
-.peek-status{display:inline-flex;align-items:center;gap:.32rem;padding:3px 9px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.22);border-radius:100px;font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:1.4px;text-transform:uppercase;color:rgba(52,211,153,.75);flex-shrink:0;transition:all .35s ease}
-footer.site-footer:hover .peek-status,footer.site-footer.is-open .peek-status{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.35);color:rgba(52,211,153,.9)}
-.peek-status-dot{width:4px;height:4px;border-radius:50%;background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.85);animation:fStatusPulse 2.2s ease-in-out infinite}
-@keyframes fStatusPulse{0%,100%{opacity:.65}50%{opacity:1;box-shadow:0 0 10px rgba(16,185,129,1)}}
-.peek-right{display:flex;align-items:center;justify-content:flex-end;gap:.85rem;flex:1}
-.peek-chevron{position:relative;overflow:visible;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,212,255,.25);background:rgba(0,212,255,.05);color:var(--cyan);font-size:.6rem;line-height:1;transition:transform .48s cubic-bezier(.4,0,.2,1),background .32s ease,border-color .32s ease,box-shadow .32s ease;animation:fChevBob 2.6s ease-in-out infinite}
-.peek-chevron::before,.peek-chevron::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid rgba(0,212,255,.5);animation:fChevRing 2.8s ease-out infinite;pointer-events:none}
-.peek-chevron::after{border-color:rgba(123,47,247,.4);animation-delay:1.4s}
-@keyframes fChevRing{0%{transform:scale(.72);opacity:.9}100%{transform:scale(2.1);opacity:0}}
-@keyframes fChevBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-footer.site-footer:hover .peek-chevron,footer.site-footer.is-open .peek-chevron{animation:none;transform:rotate(180deg);background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.6);box-shadow:0 0 20px rgba(0,212,255,.5),0 0 40px rgba(0,212,255,.2),inset 0 0 10px rgba(0,212,255,.1)}
-footer.site-footer:hover .peek-chevron::before,footer.site-footer:hover .peek-chevron::after,footer.site-footer.is-open .peek-chevron::before,footer.site-footer.is-open .peek-chevron::after{animation:none;opacity:0}
-.footer-inner{max-width:1240px;margin:0 auto;padding-top:.2rem;position:relative;z-index:1}
-.footer-grid{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:1.25rem;padding-bottom:.85rem;border-bottom:1px solid rgba(255,255,255,.04)}
-.footer-brand,.footer-col{opacity:0;transform:translateY(14px);transition:opacity .42s ease,transform .42s cubic-bezier(.4,0,.2,1)}
-footer.site-footer:hover .footer-brand,footer.site-footer.is-open .footer-brand{opacity:1;transform:translateY(0);transition-delay:.06s}
-footer.site-footer:hover .footer-col:nth-child(2),footer.site-footer.is-open .footer-col:nth-child(2){opacity:1;transform:translateY(0);transition-delay:.13s}
-footer.site-footer:hover .footer-col:nth-child(3),footer.site-footer.is-open .footer-col:nth-child(3){opacity:1;transform:translateY(0);transition-delay:.2s}
-footer.site-footer:hover .footer-col:nth-child(4),footer.site-footer.is-open .footer-col:nth-child(4){opacity:1;transform:translateY(0);transition-delay:.27s}
-.footer-brand p{font-size:.79rem;color:var(--white-muted);line-height:1.65;max-width:285px;margin-top:.8rem}
-.footer-socials{display:flex;gap:.45rem;margin-top:1rem}
-.footer-social{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,.07);background:transparent;color:var(--white-muted);transition:all .25s cubic-bezier(.4,0,.2,1)}
-.footer-social:hover{border-color:rgba(0,212,255,.45);background:rgba(0,212,255,.09);color:var(--cyan);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,212,255,.22)}
-.footer-col{padding-top:1.4rem}
-.footer-col h5{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--white-dim);margin-bottom:.75rem;position:relative;display:inline-block;padding-bottom:.38rem}
-.footer-col h5::after{content:'';position:absolute;bottom:0;left:0;width:16px;height:1.5px;background:linear-gradient(90deg,var(--cyan),rgba(123,47,247,.85));border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1)}
-.footer-col:hover h5::after{width:100%}
-.footer-col ul{list-style:none}.footer-col li{margin-bottom:.25rem}
-.footer-col a{font-size:.78rem;color:var(--white-muted);display:inline-flex;align-items:center;position:relative;transition:color .22s ease,padding-left .22s ease;text-decoration:none}
-.footer-col a::before{content:'';position:absolute;left:0;top:50%;width:0;height:1.5px;background:linear-gradient(90deg,var(--cyan),rgba(123,47,247,.8));transform:translateY(-50%);border-radius:1px;transition:width .22s ease}
-.footer-col a:hover{color:var(--white);padding-left:12px}.footer-col a:hover::before{width:8px}
-.footer-offices{display:flex;flex-wrap:wrap;gap:.4rem;max-width:1240px;margin:0 auto;padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,.04);opacity:0;transform:translateY(10px);transition:opacity .42s ease .28s,transform .42s ease .28s}
-footer.site-footer:hover .footer-offices,footer.site-footer.is-open .footer-offices{opacity:1;transform:translateY(0)}
-.office-pill{display:inline-flex;align-items:center;gap:.52rem;padding:.44rem .95rem;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:100px;font-size:.72rem;cursor:default;position:relative;overflow:hidden;transition:transform .4s cubic-bezier(.4,0,.2,1),background .4s ease,border-color .4s ease,box-shadow .4s ease}
-.office-pill::after{content:'';position:absolute;inset:0;background:linear-gradient(108deg,transparent 30%,rgba(0,212,255,.14) 50%,transparent 70%);transform:translateX(-130%);transition:transform .7s ease;pointer-events:none}
-.office-pill:hover{transform:translateY(-3px) scale(1.025);background:rgba(0,212,255,.045);border-color:rgba(0,212,255,.3);box-shadow:0 10px 28px rgba(0,212,255,.13),0 0 0 1px rgba(0,212,255,.12)}
-.office-pill:hover::after{transform:translateX(200%)}
-.office-flag{font-size:1rem;line-height:1;flex-shrink:0}
-.office-city{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--white);letter-spacing:.25px}
-.office-meta{font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--cyan);padding:2px 7px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.18);border-radius:100px;flex-shrink:0}
-.office-addr{color:rgba(240,244,255,.52);font-size:.68rem;max-width:0;white-space:nowrap;overflow:hidden;opacity:0;margin-left:0;filter:blur(6px);transition:max-width .5s cubic-bezier(.4,0,.2,1),opacity .38s ease .06s,margin-left .5s cubic-bezier(.4,0,.2,1),filter .38s ease .06s}
-.office-pill:hover .office-addr{max-width:320px;opacity:.82;margin-left:.28rem;filter:blur(0)}
-.footer-bottom{max-width:1240px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;padding-top:.55rem;opacity:0;transition:opacity .4s ease .36s}
-footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-bottom{opacity:1}
-.footer-copy,.footer-by{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--white-muted);letter-spacing:.4px}
-.footer-by a{color:var(--cyan);font-weight:600;text-decoration:none}.footer-by a:hover{text-decoration:underline}
-@media(max-width:880px){.footer-grid{grid-template-columns:1fr 1fr}footer.site-footer{max-height:70vh}}
-@media(max-width:480px){.footer-grid{grid-template-columns:1fr}.footer-bottom{flex-direction:column;text-align:center}}
-
-.sb-peek{padding:11px 16px;font-size:.75rem}.sb-peek-cta-text::before{font-size:.9rem;margin-right:6px}.sb-expand{width:calc(100vw - 32px)}}
-</style>
-
-    </div>
-    <div class="sb-peek-center" aria-hidden="true"></div>
-    <div class="sb-peek-right">
-      <div class="sb-peek-cta" aria-hidden="true">
-        <span class="sb-peek-cta-text">See Plans</span>
-        <span class="sb-peek-chevron">&#9660;</span>
-      </div>
-    </div>
-  </button>
-  <div class="sb-expand">
-    <div class="sb-inner">
-      <div class="sb-billing" role="group" aria-label="Billing period">
-        <button type="button" class="sb-bill-opt is-active" data-bill="monthly" id="sbBillMonthly">Monthly</button>
-        <button type="button" class="sb-bill-opt" data-bill="yearly" id="sbBillYearly">Yearly <span class="sb-bill-save">-10%</span></button>
-        <span class="sb-bill-thumb" aria-hidden="true"></span>
-      </div>
-      <div class="sb-pills" id="sbPills" data-billing="monthly" role="group" aria-label="Pricing plans">
-        <div class="sb-pill sb-pill-free">
-          <a href="./signup.html?plan=free" data-plan="free" class="sb-pill-btn">
-            <span class="sb-pill-dot" aria-hidden="true"></span>
-            Free Trial
-          </a>
-        </div>
-        <div class="sb-pill sb-pill-basic">
-          <a href="./signup.html?plan=basic" data-plan="basic" class="sb-pill-btn">
-            <span class="sb-pill-dot" aria-hidden="true"></span>
-            Basic &middot; PKR <span class="sb-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo
-          </a>
-        </div>
-        <div class="sb-pill sb-pill-pro">
-          <a href="./signup.html?plan=pro" data-plan="pro" class="sb-pill-btn">
-            <span class="sb-pill-dot" aria-hidden="true"></span>
-            Pro &middot; PKR <span class="sb-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo
-          </a>
-        </div>
-        <div class="sb-pill sb-pill-ult">
-          <a href="./signup.html?plan=ultimate" data-plan="ultimate" class="sb-pill-btn">
-            <span class="sb-pill-dot" aria-hidden="true"></span>
-            Ultimate &middot; PKR <span class="sb-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo
-          </a>
-        </div>
-      </div>
-      <div class="sb-demos">
-        <a href="./login.html?demo=true" class="sb-demo sb-demo-rms" aria-label="Try RMS live demo">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span><span class="sb-demo-label-full">Demo </span>RMS</span>
-        </a>
-        <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="sb-demo sb-demo-crm" aria-label="Try Nexunova CRM live demo">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span><span class="sb-demo-label-full">Demo </span>CRM</span>
-        </a>
-      </div>
-      <button type="button" class="sb-mobile-toggle" id="sbMobileToggle" aria-label="Open menu" aria-expanded="false" aria-controls="sbDrawer">
-        <span></span><span></span><span></span>
+      <button class="icon-btn" title="Logout" onclick="doLogout()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
       </button>
     </div>
   </div>
-  <div class="sb-drawer" id="sbDrawer" role="region" aria-label="Plans &amp; demos">
-    <div class="sb-drawer-section">Pricing</div>
-    <a href="./signup.html?plan=free" data-plan="free" class="sb-drawer-pill free"><span>Free Trial</span><span class="sb-drawer-pill-meta">7 days &middot; 1 Project &middot; 10 Units</span></a>
-    <a href="./signup.html?plan=basic" data-plan="basic" class="sb-drawer-pill basic"><span>Basic</span><span class="sb-drawer-pill-meta">PKR <span class="sb-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo &middot; 1 Project</span></a>
-    <a href="./signup.html?plan=pro" data-plan="pro" class="sb-drawer-pill pro"><span>Pro</span><span class="sb-drawer-pill-meta">PKR <span class="sb-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo &middot; 3 Projects</span></a>
-    <a href="./signup.html?plan=ultimate" data-plan="ultimate" class="sb-drawer-pill ult"><span>Ultimate</span><span class="sb-drawer-pill-meta">PKR <span class="sb-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo &middot; White Label</span></a>
-    <div class="sb-drawer-section">Live Demos</div>
-    <a href="./login.html?demo=true" class="sb-drawer-pill"><span>&#9654; Demo RMS</span><span class="sb-drawer-pill-meta">Recovery Management</span></a>
-    <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="sb-drawer-pill"><span>&#9654; Demo Nexunova CRM</span><span class="sb-drawer-pill-meta">Field Sales Platform</span></a>
-  </div>
+  <div class="wrap" id="app-body"><div class="loading"><div class="spin"></div>Loading your account…</div></div>
 </div>
 
-<footer class="site-footer" id="siteFooter">
-  <button type="button" class="footer-peek" id="footerPeek" aria-label="Toggle footer" aria-expanded="false">
-    <div class="peek-left" aria-hidden="true">
-      <div class="peek-live">
-        <span class="peek-live-dot"></span>
-        <span class="peek-live-dot"></span>
-        <span class="peek-live-dot"></span>
-      </div>
-    </div>
-    <div class="peek-center">
-      <span class="peek-label">Offices</span>
-      <span class="peek-sep" aria-hidden="true">&middot;</span>
-      <span class="peek-label">Product</span>
-      <span class="peek-sep" aria-hidden="true">&middot;</span>
-      <span class="peek-label">Contact</span>
-      <div class="peek-status" role="status" aria-label="All systems operational">
-        <span class="peek-status-dot" aria-hidden="true"></span>
-        All Systems Live
-      </div>
-    </div>
-    <div class="peek-right" aria-hidden="true">
-      <span class="peek-chevron">&#9650;</span>
-    </div>
-  </button>
-  <div class="footer-inner">
-    <div class="footer-grid">
-      <div class="footer-brand">
-        <a href="#top" class="footer-brand-stage" aria-label="Back to top">
-          <div class="footer-brand-logo-wrap">
-            <img src="assets/nexunova-logo.png" alt="Nexunova — Enterprise Software Platform">
-          </div>
-          <div class="footer-brand-text">
-            <div class="footer-brand-name" aria-label="Nexunova"><span>N</span><span>e</span><span>x</span><span>u</span><span>n</span><span>o</span><span>v</span><span>a</span></div>
-            <p class="footer-brand-tag">Recovery Management System</p>
-            <span class="footer-brand-ver">v2.0 · Enterprise Edition</span>
-          </div>
-        </a>
-        <p>Asia's most advanced Recovery Management System. Built for real estate developers, builders, and housing societies across Pakistan and the Gulf.</p>
-        <div class="footer-socials">
-          <a href="https://www.nexunova.com/" target="_blank" rel="noopener" class="footer-social" aria-label="Nexunova website"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
-          <a href="mailto:info@nexunova.com" class="footer-social" aria-label="Email"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></a>
-          <a href="https://linkedin.com" target="_blank" rel="noopener" class="footer-social" aria-label="LinkedIn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
-        </div>
-      </div>
-      <div class="footer-col">
-        <h5>Product</h5>
-        <ul>
-          <li><a href="./index.html#features">Features</a></li>
-          <li><a href="./index.html#pricing">Pricing</a></li>
-          <li><a href="./signup.html">Start Free Trial</a></li>
-          <li><a href="./login.html">Sign In</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h5>Company</h5>
-        <ul>
-          <li><a href="https://www.nexunova.com/" target="_blank" rel="noopener">Nexunova.com</a></li>
-          <li><a href="https://crm.nexunova.com" target="_blank" rel="noopener">Nexunova CRM</a></li>
-          <li><a href="https://www.nexunova.com/#about" target="_blank" rel="noopener">About Us</a></li>
-          <li><a href="https://www.nexunova.com/#contact" target="_blank" rel="noopener">Contact Sales</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h5>Support</h5>
-        <ul>
-          <li><a href="mailto:support@nexunova.com">support@nexunova.com</a></li>
-          <li><a href="mailto:sales@nexunova.com">sales@nexunova.com</a></li>
-          <li><a href="mailto:billing@nexunova.com">billing@nexunova.com</a></li>
-          <li><a href="https://www.nexunova.com/#contact" target="_blank" rel="noopener">Book a Demo</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="footer-offices">
-      <div class="office-pill" tabindex="0">
-        <span class="office-flag" aria-hidden="true">&#127482;&#127480;</span>
-        <span class="office-city">New York</span>
-        <span class="office-meta">HQ</span>
-        <span class="office-addr">One World Trade Center, 22nd Floor, Lower Manhattan</span>
-      </div>
-      <div class="office-pill" tabindex="0">
-        <span class="office-flag" aria-hidden="true">&#127462;&#127466;</span>
-        <span class="office-city">Dubai</span>
-        <span class="office-meta" style="color:#fb923c;background:rgba(251,146,60,0.08);border-color:rgba(251,146,60,0.22)">MENA</span>
-        <span class="office-addr">Dubai World Trade Centre, Sheikh Zayed Road</span>
-      </div>
-      <div class="office-pill" tabindex="0">
-        <span class="office-flag" aria-hidden="true">&#127468;&#127463;</span>
-        <span class="office-city">London</span>
-        <span class="office-addr">30 St Mary Axe, EC3A 8EP</span>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <span class="footer-copy">&copy; 2026 Nexunova. All rights reserved.</span>
-      <span class="footer-by">Engineered for Pakistan &amp; the Gulf &middot; <a href="https://www.nexunova.com/">nexunova.com</a></span>
-    </div>
-  </div>
-</footer>
 <script>
-// ═══ FOOTER PEEK toggle ═══
-(function(){
-  var footerEl=document.getElementById('siteFooter');
-  var footerPeek=document.getElementById('footerPeek');
-  if(!footerEl||!footerPeek)return;
-  footerPeek.addEventListener('click',function(e){e.stopPropagation();var isOpen=footerEl.classList.toggle('is-open');footerPeek.setAttribute('aria-expanded',isOpen?'true':'false');});
-  document.addEventListener('click',function(e){if(!footerEl.classList.contains('is-open'))return;if(footerEl.contains(e.target))return;footerEl.classList.remove('is-open');footerPeek.setAttribute('aria-expanded','false');});
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&footerEl.classList.contains('is-open')){footerEl.classList.remove('is-open');footerPeek.setAttribute('aria-expanded','false');}});
-})();
+// ════════ CONFIG ════════
+const SUPABASE_URL='https://itqxljtfbrppntgyfush.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false}});
+const TOK_KEY='rms.portal.token';
 
+// ════════ HELPERS ════════
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pkr=n=>'PKR '+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});
+function fdate(d){ if(!d) return '—'; const x=new Date(d); if(isNaN(x)) return esc(d);
+  return x.toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'}); }
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function toggleTheme(){ const h=document.documentElement; const d=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme',d?'light':'dark'); try{localStorage.setItem('rms.portal.theme',d?'light':'dark')}catch(e){} }
+(function initTheme(){ let t; try{t=localStorage.getItem('rms.portal.theme')}catch(e){}
+  if(!t) t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  document.documentElement.setAttribute('data-theme',t); })();
 
-// ═══════════════════════════════════════════════════════════
-// ALL CTA BUTTONS — 3D tilt · glare · sparks · ring · ripple
-// ═══════════════════════════════════════════════════════════
-(function () {
-  var SEL = '.btn-primary,.sb-pill-btn';
-  var sparkColors = ['#00D4FF','#7B2FF7','#a855f7','#0EA5E9','#ffffff','#34d399'];
-  function fireSparks(x, y, n) {
-    for (var i = 0; i < (n || 8); i++) {
-      (function () {
-        var s = document.createElement('span');
-        s.className = 'spn-spark';
-        var a = Math.random() * Math.PI * 2;
-        var d = 14 + Math.random() * 26;
-        s.style.left = (x - 2.5) + 'px';
-        s.style.top  = (y - 2.5) + 'px';
-        s.style.setProperty('--tx', (Math.cos(a) * d) + 'px');
-        s.style.setProperty('--ty', (Math.sin(a) * d) + 'px');
-        var c = sparkColors[Math.floor(Math.random() * sparkColors.length)];
-        s.style.background = c;
-        s.style.boxShadow  = '0 0 8px ' + c + ',0 0 16px ' + c;
-        s.style.animationDelay = (Math.random() * 60) + 'ms';
-        document.body.appendChild(s);
-        s.addEventListener('animationend', function () { s.remove(); });
-      }());
-    }
+// ════════ STATE ════════
+let TOKEN=null, SALES=[], CUR=null, TAB='schedule';
+
+// ════════ AUTH ════════
+async function bootstrap(){
+  const params=new URLSearchParams(location.search);
+  const magic=params.get('t');
+  if(magic){
+    const {data,error}=await sb.rpc('portal_magic_login',{p_token:magic});
+    history.replaceState(null,'',location.pathname); // strip token from URL
+    if(!error && data && data.success){ TOKEN=data.session_token; sessionStorage.setItem(TOK_KEY,TOKEN); return openApp(); }
   }
-  document.querySelectorAll(SEL).forEach(function (btn) {
-    btn.style.position       = 'relative';
-    btn.style.overflow       = 'visible';
-    btn.style.transformStyle = 'preserve-3d';
-    var glare = document.createElement('span');
-    glare.style.cssText = 'position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:10;opacity:0;transition:opacity .18s ease;';
-    btn.appendChild(glare);
-    var ring = document.createElement('span');
-    ring.style.cssText =
-      'position:absolute;inset:-5px;border-radius:inherit;' +
-      'border:1.5px solid rgba(0,212,255,0.55);' +
-      'pointer-events:none;z-index:11;opacity:0;' +
-      'transform:scale(0.85);' +
-      'transition:opacity 0.28s ease,transform 0.40s cubic-bezier(0.32,0.72,0,1);' +
-      'box-shadow:0 0 16px rgba(0,212,255,0.42),inset 0 0 8px rgba(0,212,255,0.08);';
-    btn.appendChild(ring);
-    btn.addEventListener('mouseenter', function (e) {
-      fireSparks(e.clientX, e.clientY, 8);
-      ring.style.opacity   = '1';
-      ring.style.transform = 'scale(1.08)';
-    });
-    btn.addEventListener('mousemove', function (e) {
-      var r  = btn.getBoundingClientRect();
-      var x  = e.clientX - r.left;
-      var y  = e.clientY - r.top;
-      var nx = (x / r.width  - .5) * 2;
-      var ny = (y / r.height - .5) * 2;
-      btn.style.transition = 'transform .06s linear';
-      btn.style.transform  = 'perspective(400px) rotateX(' + (ny * -11) + 'deg) rotateY(' + (nx * 11) + 'deg) translate(' + (nx * 3.5) + 'px,' + (ny * 3.5) + 'px) scale(1.07)';
-      glare.style.opacity    = '1';
-      glare.style.background = 'radial-gradient(circle at ' + ((x/r.width)*100) + '% ' + ((y/r.height)*100) + '%,rgba(255,255,255,.26) 0%,rgba(255,255,255,.06) 40%,transparent 68%)';
-    });
-    btn.addEventListener('mouseleave', function () {
-      btn.style.transition = 'transform .5s cubic-bezier(.32,.72,0,1)';
-      btn.style.transform  = '';
-      glare.style.opacity  = '0';
-      ring.style.opacity   = '0';
-      ring.style.transform = 'scale(.85)';
-    });
-    btn.addEventListener('click', function (e) {
-      fireSparks(e.clientX, e.clientY, 12);
-      var size = 100;
-      var rpl  = document.createElement('span');
-      rpl.className   = 'spn-ripple';
-      rpl.style.width = rpl.style.height = size + 'px';
-      rpl.style.left  = (e.clientX - size / 2) + 'px';
-      rpl.style.top   = (e.clientY - size / 2) + 'px';
-      document.body.appendChild(rpl);
-      rpl.addEventListener('animationend', function () { rpl.remove(); });
-    });
-  });
-})();
-</script>
-<!-- NEXUNOVA PRICE PANEL -->
-<div id="nx-price-bar">
-  <button type="button" id="priceTab" aria-label="View pricing &amp; demos" aria-expanded="false" aria-controls="priceDrawer">
-    <span class="pt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3Z"/></svg></span>
-    <span class="pt-label" aria-hidden="true">PLANS</span>
-    <span class="pt-dot" aria-hidden="true"></span>
-    <span class="pt-shimmer" aria-hidden="true"></span>
-    <span class="pt-peek" aria-hidden="true">Plans &amp; Demos &rarr;</span>
-  </button>
-  <div id="priceBackdrop" aria-hidden="true"></div>
-  <div id="priceDrawer" role="dialog" aria-modal="true" aria-label="Pricing &amp; demos" aria-hidden="true">
-    <div class="pd-head">
-      <div class="pd-title-wrap">
-        <span class="pd-title">Pricing &amp; Live Demos</span>
-        <span class="pd-sub">7-day free trial &middot; No card required</span>
-      </div>
-      <button type="button" class="pd-close" id="priceClose" aria-label="Close">&#x2715;</button>
-    </div>
-    <div class="pd-divider"></div>
-    <div class="pd-body">
-      <span class="pd-section">Billing period</span>
-      <div class="nx-sb-billing" data-bill="monthly" role="group">
-        <button type="button" class="nx-bill-opt is-active" data-bill="monthly" id="nxBillMonthly" aria-pressed="true">Monthly</button>
-        <button type="button" class="nx-bill-opt" data-bill="yearly" id="nxBillYearly" aria-pressed="false">Yearly <span class="nx-bill-save">&#x2212;10%</span></button>
-        <span class="nx-bill-thumb" aria-hidden="true"></span>
-      </div>
-      <span class="pd-section">Choose a plan</span>
-      <div class="nx-pills" id="nxPills" data-billing="monthly" role="group">
-        <div class="nx-pill nx-pill-free"><a href="https://rms.nexunova.com/signup.html?plan=free" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Free Trial</span><span class="nx-pill-meta">7 days &middot; 1 Project</span></a></div>
-        <div class="nx-pill nx-pill-basic"><a href="https://rms.nexunova.com/signup.html?plan=basic" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Basic &middot; PKR <span class="nx-pill-price" data-monthly="10K" data-yearly="9K">10K</span>/mo</span><span class="nx-pill-meta">500 Units</span></a></div>
-        <div class="nx-pill nx-pill-pro"><a href="https://rms.nexunova.com/signup.html?plan=pro" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Pro &middot; PKR <span class="nx-pill-price" data-monthly="25K" data-yearly="22K">25K</span>/mo</span><span class="nx-pill-meta">3 Projects</span></a></div>
-        <div class="nx-pill nx-pill-ult"><a href="https://rms.nexunova.com/signup.html?plan=ultimate" target="_blank" rel="noopener" class="nx-pill-btn"><span class="nx-pill-dot" aria-hidden="true"></span><span>Ultimate &middot; PKR <span class="nx-pill-price" data-monthly="50K" data-yearly="45K">50K</span>/mo</span><span class="nx-pill-meta">White Label</span></a></div>
-      </div>
-      <span class="pd-section">Live demos</span>
-      <div class="nx-demos">
-        <a href="https://rms.nexunova.com/login.html?demo=true" target="_blank" rel="noopener" class="nx-demo nx-demo-rms"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Demo Nexunova RMS</span></a>
-        <a href="https://crm.nexunova.com/login?demo=true" target="_blank" rel="noopener" class="nx-demo nx-demo-crm"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Demo Nexunova CRM</span></a>
-      </div>
-      <a href="https://rms.nexunova.com/signup.html?plan=free" target="_blank" rel="noopener" class="pd-cta">Start Free Trial &rarr;</a>
-    </div>
-  </div>
-</div>
-<script>
-(function(){var b=document.getElementById('nx-price-bar'),t=document.getElementById('priceTab'),d=document.getElementById('priceDrawer'),c=document.getElementById('priceClose'),k=document.getElementById('priceBackdrop');if(!b||!t||!d)return;function o(){b.classList.add('is-open');d.classList.add('is-open');d.setAttribute('aria-hidden','false');t.setAttribute('aria-expanded','true');if(k)k.classList.add('is-open')}function cl(){b.classList.remove('is-open');d.classList.remove('is-open');d.setAttribute('aria-hidden','true');t.setAttribute('aria-expanded','false');if(k)k.classList.remove('is-open')}var isTouch=window.matchMedia('(hover: none)').matches,tm=null;if(!isTouch){t.addEventListener('mouseenter',function(){clearTimeout(tm);o()});t.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)});d.addEventListener('mouseenter',function(){clearTimeout(tm)});d.addEventListener('mouseleave',function(){tm=setTimeout(cl,300)})}else{t.addEventListener('click',o)}if(c)c.addEventListener('click',cl);if(k)k.addEventListener('click',cl);document.addEventListener('keydown',function(e){if(e.key==='Escape'&&b.classList.contains('is-open'))cl()});var bl=d.querySelector('.nx-sb-billing'),pl=document.getElementById('nxPills'),mb=document.getElementById('nxBillMonthly'),yb=document.getElementById('nxBillYearly');if(bl&&mb&&yb){function sb(m){bl.setAttribute('data-bill',m);mb.classList.toggle('is-active',m==='monthly');mb.setAttribute('aria-pressed',String(m==='monthly'));yb.classList.toggle('is-active',m==='yearly');yb.setAttribute('aria-pressed',String(m==='yearly'));if(pl)pl.setAttribute('data-billing',m);d.querySelectorAll('.nx-pill-price').forEach(function(s){s.classList.add('is-flipping');setTimeout(function(){s.textContent=s.getAttribute('data-'+m)||s.textContent;s.classList.remove('is-flipping')},110)})}mb.addEventListener('click',function(){sb('monthly')});yb.addEventListener('click',function(){sb('yearly')})}})();
-</script>
+  const saved=sessionStorage.getItem(TOK_KEY);
+  if(saved){ TOKEN=saved; return openApp(); }
+  showScreen('screen-login');
+}
+async function doLogin(){
+  const co=$('i-co').value.trim(), em=$('i-email').value.trim(), pw=$('i-pw').value;
+  const err=$('login-err'); err.classList.remove('show');
+  if(!co||!em||!pw){ err.textContent='Enter company code, email and password.'; err.classList.add('show'); return; }
+  const btn=$('login-btn'); btn.disabled=true; btn.textContent='Signing in…';
+  try{
+    const {data,error}=await sb.rpc('portal_login',{p_company_code:co,p_email:em,p_password:pw});
+    if(error) throw error;
+    if(!data||!data.success) throw new Error(data&&data.error?data.error:'Invalid login');
+    TOKEN=data.session_token; sessionStorage.setItem(TOK_KEY,TOKEN); openApp();
+  }catch(e){ err.textContent=e.message||'Sign in failed'; err.classList.add('show'); }
+  finally{ btn.disabled=false; btn.textContent='Sign in'; }
+}
+function doLogout(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; location.href=location.pathname; }
+function sessionGone(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; showScreen('screen-login');
+  const err=$('login-err'); err.textContent='Your session expired. Please open your access link again or sign in.'; err.classList.add('show'); }
 
-<style>
-.dl-bar{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:rgba(5,7,9,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(0,212,255,0.12);padding:10px 24px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:0.8rem;color:rgba(240,244,255,0.45);font-family:'Inter',sans-serif}
-.dl-bar svg{width:13px;height:13px;color:#00D4FF;flex-shrink:0}
-.dl-bar a{color:#00D4FF;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px}
-.dl-bar a:hover{text-decoration:underline}
-.dl-bar-x{background:none;border:none;color:rgba(240,244,255,0.25);cursor:pointer;font-size:1.1rem;line-height:1;padding:2px 6px;margin-left:6px;font-family:inherit}
-.dl-bar-x:hover{color:rgba(240,244,255,0.6)}
-</style>
-<div class="dl-bar" id="dlBar">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
-  Prefer a dedicated desktop experience?
-  <a href="./download.html">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Download Windows App
-  </a>
-  &mdash; free with any plan
-  <button class="dl-bar-x" onclick="document.getElementById('dlBar').remove()" aria-label="Dismiss">×</button>
-</div>
+// ════════ APP ════════
+async function openApp(){
+  showScreen('screen-app');
+  const {data,error}=await sb.rpc('get_portal_sales',{p_session_token:TOKEN});
+  if(error||!data||!data.success){ return sessionGone(); }
+  SALES=data.sales||[];
+  $('who').innerHTML='<b>'+esc(data.client&&data.client.full_name||'')+'</b>';
+  if(!SALES.length){
+    $('app-body').innerHTML='<div class="card"><div class="empty"><div class="ei">'
+      +'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg></div>'
+      +'<div class="et">No active unit found</div><div class="es">Your booking is not active yet. Please contact your developer.</div></div></div>';
+    return;
+  }
+  CUR=SALES[0].unit_id;
+  await renderUnit();
+}
+function switchUnit(uid){ CUR=uid; TAB='schedule'; renderUnit(); }
+function setTab(t){ TAB=t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active',p.dataset.pane===t)); }
+
+async function renderUnit(){
+  const body=$('app-body');
+  body.innerHTML='<div class="loading"><div class="spin"></div>Loading…</div>';
+  let summary={}, schedule=[], receipts=[];
+  try{
+    const [s,sc,r]=await Promise.all([
+      sb.rpc('get_buyer_sale_summary',{p_session_token:TOKEN,p_unit_id:CUR}),
+      sb.rpc('get_buyer_payment_schedule',{p_session_token:TOKEN,p_unit_id:CUR}),
+      sb.rpc('get_buyer_receipts',{p_session_token:TOKEN,p_unit_id:CUR})
+    ]);
+    if(s.error||sc.error||r.error){ const e=(s.error||sc.error||r.error); if(/JWT|expired|session/i.test(e.message||'')) return sessionGone(); throw e; }
+    summary=s.data||{}; schedule=sc.data||[]; receipts=r.data||[];
+    if(!summary||!summary.unit_number){ return sessionGone(); } // session invalid → empty {}
+  }catch(e){
+    body.innerHTML='<div class="card"><div class="empty"><div class="et">Could not load your account</div><div class="es">'+esc(e.message||'Error')+'</div></div></div>';
+    return;
+  }
+  const price=+summary.total_price||0, paid=+summary.total_paid||0, out=+summary.total_outstanding||0;
+  const pct=price>0?Math.min(100,Math.round(paid/price*100)):0;
+
+  // switcher (multi-unit)
+  const switcher=SALES.length>1 ? '<div class="switcher">'+SALES.map(x=>
+    '<button class="switch-pill'+(x.unit_id===CUR?' active':'')+'" onclick="switchUnit(\''+x.unit_id+'\')">Unit '+esc(x.unit_no||'—')+'</button>').join('')+'</div>' : '';
+
+  // hero + summary
+  const due = summary.next_due_date ? '<div class="due-strip"><div class="ichip ichip--warning">'
+      +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>'
+      +'<div class="t">Next installment due<br><b>'+fdate(summary.next_due_date)+'</b></div>'
+      +'<div class="amt num">'+pkr(summary.next_due_amount)+'</div></div>' : '';
+  const hero='<div class="card"><div class="card-bd">'
+    +'<div class="hero-head">Unit '+esc(summary.unit_number||'—')+'</div>'
+    +'<div class="hero-unit">'+pkr(paid)+' <span style="font-size:14px;color:var(--fk-text-muted);font-weight:500">of '+pkr(price)+' paid</span></div>'
+    +'<div class="hero-proj">'+esc(summary.project_name||'')+'</div>'
+    +'<div class="journey"><div class="paid" style="width:'+pct+'%"></div></div>'
+    +'<div class="journey-legend"><span class="pc">'+pct+'% paid</span><span>'+pkr(out)+' remaining</span></div>'
+    +'<div class="kpis">'
+      +'<div class="kpi"><div class="kpi-l">Contracted</div><div class="kpi-v num">'+pkr(price)+'</div></div>'
+      +'<div class="kpi"><div class="kpi-l">Paid</div><div class="kpi-v green num">'+pkr(paid)+'</div></div>'
+      +'<div class="kpi"><div class="kpi-l">Remaining</div><div class="kpi-v red num">'+pkr(out)+'</div></div>'
+    +'</div>'+due+'</div></div>';
+
+  // tabs
+  const tabs='<div class="tabs">'
+    +'<button class="tab active" data-tab="schedule" onclick="setTab(\'schedule\')">Schedule <span class="tab-chip">'+schedule.length+'</span></button>'
+    +'<button class="tab" data-tab="payments" onclick="setTab(\'payments\')">Payments <span class="tab-chip">'+receipts.length+'</span></button>'
+    +'<button class="tab" data-tab="unit" onclick="setTab(\'unit\')">Unit</button>'
+    +'</div>';
+
+  // schedule pane
+  const schRows=schedule.map(i=>{
+    const bal=+i.balance||0;
+    const st = bal<=0 ? '<span class="badge badge--green"><span class="dot"></span>Paid</span>'
+      : i.is_overdue ? '<span class="badge badge--red"><span class="dot"></span>Overdue</span>'
+      : (+i.amount_paid>0 ? '<span class="badge badge--amber"><span class="dot"></span>Partial</span>'
+      : '<span class="badge badge--muted"><span class="dot"></span>Upcoming</span>');
+    return '<tr'+(i.is_overdue?' class="od"':'')+'><td class="num">'+esc(i.installment_number)+'</td>'
+      +'<td>'+fdate(i.due_date)+'</td>'
+      +'<td class="r num">'+pkr(i.amount_due)+'</td>'
+      +'<td class="r num">'+pkr(i.amount_paid)+'</td>'
+      +'<td class="r num">'+pkr(bal)+'</td>'
+      +'<td class="r">'+st+'</td></tr>';
+  }).join('');
+  const schedulePane='<div class="pane active" data-pane="schedule"><div class="card" style="margin:0"><div class="tbl-scroll">'
+    +(schedule.length?('<table class="tbl"><thead><tr><th>#</th><th>Due date</th><th class="r">Amount</th><th class="r">Paid</th><th class="r">Balance</th><th class="r">Status</th></tr></thead><tbody>'+schRows+'</tbody></table>')
+      :'<div class="empty"><div class="et">No schedule yet</div><div class="es">Your installment plan will appear here.</div></div>')
+    +'</div></div></div>';
+
+  // payments pane — date + amount + mode only (no bank/cheque)
+  const payRows=receipts.map(p=>'<div class="pay-row"><div class="pay-ic">'
+      +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>'
+      +'<div class="pay-main"><div class="pay-rcpt">Receipt '+esc(p.receipt_number||'—')+'</div>'
+      +'<div class="pay-meta">'+fdate(p.payment_date)+' · '+esc((p.payment_mode||'').replace(/_/g,' '))+'</div></div>'
+      +'<div class="pay-amt num">'+pkr(p.amount)+'</div></div>').join('');
+  const paymentsPane='<div class="pane" data-pane="payments"><div class="card" style="margin:0">'
+    +(receipts.length?payRows:'<div class="empty"><div class="et">No payments recorded yet</div><div class="es">Your receipts will appear here as payments are received.</div></div>')
+    +'</div></div>';
+
+  // unit pane
+  const unitPane='<div class="pane" data-pane="unit"><div class="card" style="margin:0"><div class="card-bd"><div class="info-grid">'
+    +'<div><div class="il">Unit</div><div class="iv">'+esc(summary.unit_number||'—')+'</div></div>'
+    +'<div><div class="il">Project</div><div class="iv">'+esc(summary.project_name||'—')+'</div></div>'
+    +'<div><div class="il">Booking #</div><div class="iv">'+esc(summary.sale_number||'—')+'</div></div>'
+    +'<div><div class="il">Booking date</div><div class="iv">'+fdate(summary.booking_date)+'</div></div>'
+    +'<div><div class="il">Down payment</div><div class="iv num">'+pkr(summary.down_payment)+'</div></div>'
+    +'<div><div class="il">Total installments</div><div class="iv num">'+esc(summary.installment_count||'—')+'</div></div>'
+    +'<div><div class="il">Buyer</div><div class="iv">'+esc(summary.buyer_name||'—')+'</div></div>'
+    +'<div><div class="il">CNIC</div><div class="iv num">'+esc(summary.buyer_cnic||'—')+'</div></div>'
+    +'</div></div></div></div>';
+
+  body.innerHTML=switcher+hero+tabs+schedulePane+paymentsPane+unitPane;
+  setTab(TAB);
+}
+
+bootstrap();
+</script>
 </body>
 </html>
