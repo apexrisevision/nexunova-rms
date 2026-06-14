@@ -1,9 +1,22 @@
 (function() {
+  var _bgTries = 0;
   function initLoginBG() {
     var loginEl = document.getElementById('s-login');
     var canvas  = document.getElementById('lx-canvas');
-    if (!canvas || typeof THREE === 'undefined' || !loginEl) {
-      setTimeout(initLoginBG, 200); return;
+    var appEl   = document.getElementById('s-app');
+    // Skip the heavy 3D lib entirely for logged-in sessions and on small screens (perf Win #3).
+    if (appEl && appEl.classList.contains('on')) return;
+    if (window.innerWidth < 700) return;
+    if (!canvas || !loginEl) { if (++_bgTries < 25) setTimeout(initLoginBG, 200); return; }
+    // Only pull three.js once the login screen is the active screen.
+    if (!loginEl.classList.contains('on')) { if (++_bgTries < 25) setTimeout(initLoginBG, 200); return; }
+    // A stored session means auth is still validating and the app (not login) will take over —
+    // hold off so logged-in users never fetch three.js. init.js clears nxn_sess if it's stale.
+    var _sess = null; try { _sess = sessionStorage.getItem('nxn_sess'); } catch (e) {}
+    if (_sess) { if (++_bgTries < 25) setTimeout(initLoginBG, 200); return; }
+    if (typeof THREE === 'undefined') {
+      if (window.ensureThree) { window.ensureThree().then(initLoginBG).catch(function(){}); }
+      return;
     }
     var W = loginEl.offsetWidth  || window.innerWidth;
     var H = loginEl.offsetHeight || window.innerHeight;

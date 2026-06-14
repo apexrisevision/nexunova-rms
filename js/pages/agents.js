@@ -702,7 +702,8 @@ async function openAgentModal(agentId) {
 
   _afPopulateProjects('', isEdit);
 
-  setTimeout(() => {
+  // Lazy-load intl-tel-input on demand (perf Win #3), then wire the phone field.
+  (window.ensureIntlTel ? window.ensureIntlTel() : Promise.resolve()).catch(function(){}).then(() => {
     const phoneInp = document.getElementById('af-phone');
     if (!phoneInp) return;
     if (_agIti) { try { _agIti.destroy(); } catch(e) {} _agIti = null; }
@@ -713,7 +714,7 @@ async function openAgentModal(agentId) {
       });
       if (isEdit) { const a = _agCache.find(x => x.id === agentId); if (a?.phone) { try { _agIti.setNumber(a.phone); } catch(e) { phoneInp.value = a.phone; } } }
     } else if (isEdit) { const a = _agCache.find(x => x.id === agentId); if (a?.phone) phoneInp.value = a.phone; }
-  }, 80);
+  });
 }
 
 function closeAgentModal() { if (_agIti) { try { _agIti.destroy(); } catch(e) {} _agIti = null; } const h = document.getElementById('ag-modal-host'); if (h) h.innerHTML = ''; }

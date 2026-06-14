@@ -69,7 +69,7 @@ function manualBkp(){
   toast('Backup downloaded! Move it to Google Drive/OneDrive for cloud safety.','ok');
 }
 
-function bkpExcel(){
+async function bkpExcel(){ await window.ensureXLSX();
   if(typeof XLSX==='undefined'){toast('Excel library not loaded','warn');return;}
   var units=gunits();
   var rows=units.map(function(u){var pd=actualPaid(u),rm=actualPending(u);return {'Unit No':u.unitNo,'Floor':u.floorLabel||u.floor,'Type':u.type,'Area':u.area,'Status':u.status,'Customer':u.customerName||'','Phone':u.phone||'','Booking No':u.bookingNo||'','Total Price':u.totalPrice||0,'Paid':pd,'Pending':rm,'Recovery %':u.totalPrice?Math.round(pd/u.totalPrice*100):0,'Last Payment':u.lastPaymentDate||'','Sold By':u.soldBy||'','Remarks':u.remarks||''};});

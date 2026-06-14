@@ -118,8 +118,9 @@ function rstData(){const inp=document.createElement('input');inp.type='file';inp
 function rstSeed(){if(!confirm('Reset all data to original Excel import? All added payments and call logs will be lost.'))return;localStorage.removeItem(STORE);localStorage.removeItem(OLD_STORE);toast('Data reset','warn');setTimeout(()=>location.reload(),900);}
 
 // ══ EXCEL IMPORT ══════════════════════════════
-function readXL(inp){
+async function readXL(inp){
   const f=inp.files[0];if(!f)return;
+  try { if(window.ensureXLSX) await window.ensureXLSX(); } catch(e){}
   const reader=new FileReader();
   reader.onload=e=>{
     try{

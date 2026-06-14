@@ -1292,7 +1292,7 @@ function _rpPrint(){
 }
 
 // ── EXCEL — 10 visible columns + all splits, grand total, officer + statement ──
-function _rpExcel(){
+async function _rpExcel(){ await window.ensureXLSX();
   if(typeof XLSX==='undefined'){toast('Excel library not loaded','warn');return;}
   var D=window._rpData; if(!D||!D.res){toast('Run the report first, then export','warn');return;}
   var res=D.res, t=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];

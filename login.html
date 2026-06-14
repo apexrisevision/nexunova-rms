@@ -11,10 +11,16 @@
 <title>Nexunova RMS — Recovery Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.34.0/dist/umd/supabase.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/css/intlTelInput.css">
-<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/js/intlTelInput.min.js"></script>
+<script>
+/* On-demand vendor loader (perf Win #3): heavy single-use libs are injected only when
+   first needed — three.js (login bg), xlsx (Excel export), intl-tel-input (phone fields). */
+window._vload={};
+window.loadScript=function(src){return window._vload[src]||(window._vload[src]=new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=function(){delete window._vload[src];rej(new Error('load failed: '+src));};document.head.appendChild(s);}));};
+window.ensureXLSX=function(){return (typeof XLSX!=='undefined')?Promise.resolve():window.loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');};
+window.ensureThree=function(){return (typeof THREE!=='undefined')?Promise.resolve():window.loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');};
+window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();if(!document.getElementById('itel-css')){var l=document.createElement('link');l.id='itel-css';l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/css/intlTelInput.css';document.head.appendChild(l);}return window.loadScript('https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/js/intlTelInput.min.js');};
+</script>
 <style>#m-client .iti{width:100%}#m-client .iti__selected-dial-code{font-size:13px}
 #m-agent .iti{width:100%}#m-agent .iti__selected-dial-code{font-size:13px}</style>
 <!-- Phase 2: Inter ONLY (400/500/600/700) is the product typeface. JetBrains Mono is kept
@@ -3275,7 +3281,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
      Loaded before ui.js + page modules so NX.* / NXPrint.* are available everywhere. -->
 <script src="js/foundation/kit.js?v=20260613j"></script>
 <script src="js/foundation/print.js?v=20260612a"></script>
-<script src="js/foundation/report-page.js?v=20260613ps"></script>
+<script src="js/foundation/report-page.js?v=20260614w3"></script>
 <script src="js/components/client-form.js?v=20260614m2"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
@@ -3296,8 +3302,8 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/units.js?v=20260614uf"></script>
 <script src="js/pages/clients.js?v=20260614bp3"></script>
 <script src="js/pages/projects.js?v=20260613ps"></script>
-<script src="js/pages/agents.js?v=20260613ps"></script>
-<script src="js/pages/sales.js?v=20260614sd"></script>
+<script src="js/pages/agents.js?v=20260614w3"></script>
+<script src="js/pages/sales.js?v=20260614w3"></script>
 <script src="js/pages/recovery.js?v=20260614rec"></script>
 <script src="js/pages/payments.js?v=20260613ps"></script>
 <script src="js/pages/receipts.js?v=20260612b1"></script>
@@ -3322,13 +3328,13 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/approvals.js?v=20260613a"></script>
 <script src="js/pages/team.js?v=20260613ps"></script>
 <script src="js/pages/search.js?v=20260517a"></script>
-<script src="js/pages/reports.js?v=20260614riq11"></script>
+<script src="js/pages/reports.js?v=20260614w3"></script>
 <script src="js/pages/print.js?v=20260612b"></script>
 <script src="js/pages/documents.js?v=20260517d"></script>
 <script src="js/pages/transfers.js?v=20260613a"></script>
 <script src="js/pages/cancellation.js?v=20260613a"></script>
-<script src="js/pages/backup.js?v=20260612b2"></script>
-<script src="js/pages/admin.js?v=20260614m2"></script>
+<script src="js/pages/backup.js?v=20260614w3"></script>
+<script src="js/pages/admin.js?v=20260614w3"></script>
 <script src="js/pages/categories.js?v=20260613w2"></script>
 <script src="js/pages/users.js?v=20260614m1"></script>
 <script src="js/pages/payment-wall.js?v=20260522a"></script>
@@ -3371,15 +3377,14 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 8. App init + toast + populateLoginStats -->
 <script src="js/init.js?v=20260531e"></script>
 
-<!-- 9. External: XLSX for Excel export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- XLSX (Excel export) is now lazy-loaded on demand via window.ensureXLSX() — see head loader (perf Win #3). -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <!-- 10. Login animations (entrance, cursor, shimmer, counters) -->
 <script src="js/login-animations.js"></script>
 
 <!-- 11. Three.js particle background -->
-<script src="js/login-bg.js"></script>
+<script src="js/login-bg.js?v=20260614w3"></script>
 
 <!-- 12. Nexunova logo — Phase 2 F: the 144KB base64 + runtime canvas matte was baked
      offline into assets/img/nexunova-logo.png (transparent) and the 5 logo <img> now point

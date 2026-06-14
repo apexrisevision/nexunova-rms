@@ -296,8 +296,9 @@
   }
 
   // ── Excel (real numbers, totals row) ──────────────────────────────────────
-  function excel() {
+  async function excel() {
     const out = global._nxrLast; if (!out) { if (global.toast) toast('Run the report first', 'warn'); return; }
+    try { if (global.ensureXLSX) await global.ensureXLSX(); } catch (e) {}
     if (!global.XLSX) { if (global.toast) toast('Excel engine not loaded', 'err'); return; }
     const cols = out.columns || [];
     const f = out.filters || {};

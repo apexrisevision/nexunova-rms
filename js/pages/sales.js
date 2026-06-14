@@ -1240,7 +1240,7 @@ function printSalesList() {
 // ══ EXPORT SALES → EXCEL (SheetJS) ═════════════════════════════════════
 // Exports the currently-loaded/filtered sales list. Amounts are raw numbers
 // (so Excel can sum/sort); column headers carry the PKR unit.
-function exportSalesExcel() {
+async function exportSalesExcel() { await window.ensureXLSX();
   if (typeof XLSX === 'undefined') { toast('Excel library not loaded', 'warn'); return; }
   const sales = _salesCache || [];
   if (!sales.length) { toast('No sales to export', 'warn'); return; }
