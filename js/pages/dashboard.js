@@ -155,6 +155,7 @@ async function _dashAdmin(pg) {
     ${_dashHero(rec, overdueAmt, overdueSeries, monLabels)}
     ${_dashStatChips(t)}
     ${_dashPulse({ rps, months, t, rows, overdueAmt, dailyThis, dailyLast })}
+    ${_dashRecoveryIQ(rows)}
     <div class="nx-workgrid" style="display:grid;grid-template-columns:2fr 1fr;gap:var(--fk-sp-4);align-items:start">
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${_dashWhoLate(rows)}</div>
       <div style="display:flex;flex-direction:column;gap:var(--fk-sp-3);min-width:0">
@@ -168,6 +169,54 @@ async function _dashAdmin(pg) {
     </div>
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RECOVERY INTELLIGENCE band — the verdict (health grade) + behaviour split
+   (Dead/Stalled/Active) + who-to-chase, computed from the already-loaded
+   current-month RP rows (zero new RPC; month-rollforward closing == net
+   recoverable). Links to the full Recovery Intelligence page. Position-only
+   (no collection figures), so it stays consistent with the hero's overdue.
+   Hidden when the book has no overdue.
+   ════════════════════════════════════════════════════════════════════════ */
+function _dashRecoveryIQ(rows) {
+  const now = Date.now();
+  const over = (rows || []).map(r => {
+    const lp = r.last_payment_date ? new Date(String(r.last_payment_date) + 'T00:00:00').getTime() : null;
+    return { sale_id: r.sale_id, client: r.client_name || '—', unit: r.unit_no || '—', phone: r.phone || '',
+      arrears: Math.max(0, Number(r.closing || 0)), odd: Number(r.overdue_days || 0),
+      paid: Number(r.paid_to_date || 0), ds: lp ? Math.floor((now - lp) / 86400000) : null };
+  }).filter(r => r.odd > 0 && r.arrears > 0.5);
+  if (!over.length) return '';
+  const tot = over.reduce((s, r) => s + r.arrears, 0);
+  const aged = over.filter(r => r.odd > 180).reduce((s, r) => s + r.arrears, 0);
+  const agedPct = tot > 0 ? aged / tot : 0;
+  const grade = agedPct >= 0.7 ? { w: 'Critical', t: 'danger' } : agedPct >= 0.5 ? { w: 'Strained', t: 'danger' } : agedPct >= 0.3 ? { w: 'Watch', t: 'warning' } : { w: 'Stable', t: 'success' };
+  let dead = 0, stalled = 0, active = 0;
+  over.forEach(r => { const s = (r.paid <= 0.5 || r.ds == null || r.ds >= 365) ? 'dead' : (r.ds >= 90 ? 'stalled' : 'active'); if (s === 'dead') dead += r.arrears; else if (s === 'stalled') stalled += r.arrears; else active += r.arrears; });
+  const sTot = (dead + stalled + active) || 1;
+  const seg = (v, c) => v > 0 ? `<div style="width:${(v / sTot * 100).toFixed(1)}%;background:var(--fk-${c})"></div>` : '';
+  const lg = (c, l, v) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--fk-text-muted)"><i style="width:8px;height:8px;border-radius:2px;background:var(--fk-${c})"></i>${l} <b style="color:var(--fk-text)">${_dashCompact(v)}</b></span>`;
+  const top = over.slice().sort((a, b) => b.arrears - a.arrears).slice(0, 3);
+  const chase = r => { const ph = (r.phone || '').replace(/[^0-9]/g, '');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--fk-border)">
+      <div style="flex:1;min-width:0"><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.client)}</div><div class="nx-kpi-label" style="text-transform:none">${esc(r.unit)} · ${r.odd}d</div></div>
+      <div class="num" style="font-weight:600;font-size:12px;white-space:nowrap">${_dashCompact(r.arrears)}</div>
+      ${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" title="WhatsApp">${NX.icon('message-circle', 13)}</a>` : ''}</div>`; };
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:var(--fk-sp-4)">
+      ${NX.icon('radar', 18)}<span class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">Recovery Intelligence</span>${NX.badge(grade.w, grade.t, { dot: true })}
+      <a class="nx-btn nx-btn--ghost nx-btn--sm" style="margin-left:auto" onclick="nav('recoveryiq')">Open full intelligence ${NX.icon('arrow-right', 13)}</a></div>
+    <div class="nx-riq-grid" style="display:grid;grid-template-columns:0.9fr 1.3fr 1fr;gap:var(--fk-sp-5);align-items:start">
+      <div><div class="nx-hero-value" style="font-size:24px">${_dashCompact(tot)}</div>
+        <div class="nx-kpi-label" style="text-transform:none">overdue · ${over.length} units · ${Math.round(agedPct * 100)}% is 180+ days aged</div></div>
+      <div><div style="display:flex;height:9px;border-radius:5px;overflow:hidden;background:var(--fk-bg-subtle);margin-bottom:8px">${seg(dead, 'danger')}${seg(stalled, 'warning')}${seg(active, 'success')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 14px">${lg('danger', 'Dead', dead)}${lg('warning', 'Stalled', stalled)}${lg('success', 'Active', active)}</div>
+        ${stalled > 0 ? `<div class="nx-kpi-label" style="text-transform:none;margin-top:8px">Priority: ${_dashCompact(stalled)} stalled — re-engage before they turn dead.</div>` : ''}</div>
+      <div><div class="nx-kpi-label" style="margin-bottom:2px">Chase first</div>${top.map(chase).join('')}</div>
+    </div>
+    <style>@media(max-width:820px){.nx-riq-grid{grid-template-columns:1fr!important}}</style>
+  </div>`;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
