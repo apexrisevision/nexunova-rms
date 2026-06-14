@@ -45,7 +45,7 @@ async function _fcLoad() {
   }
 }
 
-function _fcRender() {
+async function _fcRender() {
   const body = document.getElementById('fc-body');
   if (!body || !_fcData) return;
   const d         = _fcData;
@@ -117,6 +117,7 @@ function _fcRender() {
     </div>
   `;
 
+  if (monthly.length && window.ensureChart) { try { await window.ensureChart(); } catch(e) {} }
   if (typeof Chart !== 'undefined' && monthly.length) {
     const ctx = document.getElementById('fc-chart');
     if (window._fcChart) { try { window._fcChart.destroy(); } catch(e) {} window._fcChart = null; }

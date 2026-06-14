@@ -1159,6 +1159,7 @@ async function _cdRenderHealthHistory(clientId) {
     return;
   }
 
+  try { if (window.ensureChart) await window.ensureChart(); } catch(e) {}
   if (typeof Chart === 'undefined') {
     wrap.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--t2)">' +
       series.map(p => `${fD(p.calculated_at)}: <b>${p.score}</b>`).join(' &nbsp;·&nbsp; ') + '</div>';

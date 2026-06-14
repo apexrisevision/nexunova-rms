@@ -895,7 +895,7 @@ async function _prmLoadAnalytics() {
   }
 }
 
-function _prmRenderAnalytics(d, conv) {
+async function _prmRenderAnalytics(d, conv) {
   const body = document.getElementById('m-prm-analytics-body');
   if (!body) return;
   const officers  = Array.isArray(d.officers)   ? d.officers   : [];
@@ -962,6 +962,7 @@ function _prmRenderAnalytics(d, conv) {
       { flush:true, header:{ icon:'alert-triangle', tone:'danger', title:'Top Broken Clients ('+topBroken.length+')' } })}
   `;
 
+  if (weekly.length && window.ensureChart) { try { await window.ensureChart(); } catch(e) {} }
   if (weekly.length && typeof Chart !== 'undefined') {
     const ctx = document.getElementById('prm-analytics-chart');
     if (_prmAnalyticsChart) { try { _prmAnalyticsChart.destroy(); } catch(e) {} _prmAnalyticsChart = null; }
