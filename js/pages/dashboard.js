@@ -198,24 +198,33 @@ function _dashRecoveryIQ(rows) {
   const seg = (v, c) => v > 0 ? `<div style="width:${(v / sTot * 100).toFixed(1)}%;background:var(--fk-${c})"></div>` : '';
   const lg = (c, l, v) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--fk-text-muted)"><i style="width:8px;height:8px;border-radius:2px;background:var(--fk-${c})"></i>${l} <b style="color:var(--fk-text)">${_dashCompact(v)}</b></span>`;
   const top = over.slice().sort((a, b) => b.arrears - a.arrears).slice(0, 3);
-  const chase = r => { const ph = (r.phone || '').replace(/[^0-9]/g, '');
-    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--fk-border)">
+  const chase = (r, i) => { const ph = (r.phone || '').replace(/[^0-9]/g, '');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;${i ? 'border-top:1px solid var(--fk-border)' : ''}">
       <div style="flex:1;min-width:0"><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.client)}</div><div class="nx-kpi-label" style="text-transform:none">${esc(r.unit)} · ${r.odd}d</div></div>
       <div class="num" style="font-weight:600;font-size:12px;white-space:nowrap">${_dashCompact(r.arrears)}</div>
-      ${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" title="WhatsApp">${NX.icon('message-circle', 13)}</a>` : ''}</div>`; };
+      ${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" title="WhatsApp">${NX.icon('message-circle', 13)}</a>` : '<span style="width:26px;flex-shrink:0"></span>'}</div>`; };
   return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:var(--fk-sp-4)">
       ${NX.icon('radar', 18)}<span class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">Recovery Intelligence</span>${NX.badge(grade.w, grade.t, { dot: true })}
       <a class="nx-btn nx-btn--ghost nx-btn--sm" style="margin-left:auto" onclick="nav('recoveryiq')">Open full intelligence ${NX.icon('arrow-right', 13)}</a></div>
-    <div class="nx-riq-grid" style="display:grid;grid-template-columns:0.9fr 1.3fr 1fr;gap:var(--fk-sp-5);align-items:start">
-      <div><div class="nx-hero-value" style="font-size:24px">${_dashCompact(tot)}</div>
-        <div class="nx-kpi-label" style="text-transform:none">overdue · ${over.length} units · ${Math.round(agedPct * 100)}% is 180+ days aged</div></div>
-      <div><div style="display:flex;height:9px;border-radius:5px;overflow:hidden;background:var(--fk-bg-subtle);margin-bottom:8px">${seg(dead, 'danger')}${seg(stalled, 'warning')}${seg(active, 'success')}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px 14px">${lg('danger', 'Dead', dead)}${lg('warning', 'Stalled', stalled)}${lg('success', 'Active', active)}</div>
-        ${stalled > 0 ? `<div class="nx-kpi-label" style="text-transform:none;margin-top:8px">Priority: ${_dashCompact(stalled)} stalled — re-engage before they turn dead.</div>` : ''}</div>
-      <div><div class="nx-kpi-label" style="margin-bottom:2px">Chase first</div>${top.map(chase).join('')}</div>
+    <div class="nx-riq-grid" style="display:grid;grid-template-columns:0.85fr 1.25fr 1fr;gap:var(--fk-sp-6);align-items:start">
+      <div>
+        <div class="nx-kpi-label" style="margin-bottom:7px">Overdue now</div>
+        <div class="nx-hero-value" style="font-size:24px;line-height:1.05">${_dashCompact(tot)}</div>
+        <div class="nx-kpi-label" style="text-transform:none;margin-top:5px">${over.length} units · ${Math.round(agedPct * 100)}% is 180+ days aged</div>
+      </div>
+      <div>
+        <div class="nx-kpi-label" style="margin-bottom:7px">By behaviour</div>
+        <div style="display:flex;height:9px;border-radius:5px;overflow:hidden;background:var(--fk-bg-subtle);margin-bottom:9px">${seg(dead, 'danger')}${seg(stalled, 'warning')}${seg(active, 'success')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 16px">${lg('danger', 'Dead', dead)}${lg('warning', 'Stalled', stalled)}${lg('success', 'Active', active)}</div>
+        ${stalled > 0 ? `<div class="nx-kpi-label" style="text-transform:none;margin-top:9px">Priority: ${_dashCompact(stalled)} stalled — re-engage before they turn dead.</div>` : ''}
+      </div>
+      <div>
+        <div class="nx-kpi-label" style="margin-bottom:3px">Chase first</div>
+        <div>${top.map(chase).join('')}</div>
+      </div>
     </div>
-    <style>@media(max-width:820px){.nx-riq-grid{grid-template-columns:1fr!important}}</style>
+    <style>@media(max-width:860px){.nx-riq-grid{grid-template-columns:1fr!important;gap:var(--fk-sp-4)!important}}</style>
   </div>`;
 }
 
