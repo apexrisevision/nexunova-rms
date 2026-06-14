@@ -55,3 +55,10 @@ Net: the recovery **loop is connected and there is one alert surface** — the t
 - ✅ **Officer-scoping** (migrations `20260614_recovery_alerts_officer_scope` + `20260614_reminders_officer_scope` LIVE): both `get_recovery_alerts` and `get_reminders_page_data` are now caller-aware — admin/owner/super see the whole company; a scoped user sees only the projects assigned to them in `user_project_assignments`. No frontend change. Verified by impersonation: owner→all, officer(0 projects)→0, officer(assigned)→their project only.
 - ✅ **PDC alerts in the bell** (migration `20260614_recovery_alerts_add_pdc` LIVE): `get_recovery_alerts` now also surfaces bounced cheques (danger) and PDC overdue/maturing (≤3d). Verified — a bounced cheque shows as "Cheque bounced".
 - ⏳ **Remaining:** #3 auto-reminder dispatch (auto SMS/WhatsApp on due promise/follow-up — needs the comms pipeline + a scheduler; cron is postgres-locked so approach TBD); de-fragment cleanup; field-visits/campaigns deeper test.
+
+## STATUS — round 3 (#3 dispatch · Option A)
+- ✅ **Officer-triggered tracked reminders** (`8887982`): each Follow-up-due / Promise-due row has a "Remind" button → WhatsApp pre-filled (context Roman-Urdu message) + tracked log (promises via `record_promise_reminder` → bumps count + `promise_reminders_log`; follow-ups via `create_reminder_log`). Verified ZZTEST.
+- ⛔ **True unattended auto-blast (cron → bulk WhatsApp): intentionally NOT shipped** — outward-facing sends to real clients must be an explicit owner opt-in (which clients / timing / opt-out / quota), not silent. Human-in-the-loop dispatch only.
+
+### Recovery audit — fully addressed
+P0 loop ✓ · P0 bell ✓ · officer-scoping ✓ · PDC alerts ✓ · tracked dispatch ✓ · silent-fail ✓ · escalation project_id ✓. Remaining = pure tech-debt (orphan follow_up_reminders write, 2nd redundant promise RPC) + optional true-auto-blast (owner opt-in) + deeper field-visits/campaigns test.
