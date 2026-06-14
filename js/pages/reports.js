@@ -505,12 +505,15 @@ function _riqDrillSpec(kind, ST){
   if(kind.indexOf('age:')===0){ const i=+kind.slice(4); return mk('Overdue · '+ST.AB[i].k, over.filter(ST.AB[i].f), r=>r.arrears); }
   if(kind.indexOf('floor:')===0){ const i=+kind.slice(6); const f=ST.floors[i]; return f?mk('Floor · '+f.floor, over.filter(r=>(r.floor||'—')===f.floor), r=>r.arrears):null; }
   if(kind==='concentration') return mk('Top '+ST.top20idx+' — half of all arrears', ST.sorted.slice(0,ST.top20idx), r=>r.arrears);
+  if(kind.indexOf('client:')===0){ const i=+kind.slice(7); const c=ST.multi[i]; return c?mk(c.client+' — overdue units', over.filter(r=>(r.code||r.client)===c.key), r=>r.arrears):null; }
+  if(kind==='mbilled')    return mk('Billed this month', (ST.mrecs||[]).filter(r=>r.billed>0), r=>r.billed);
+  if(kind==='mcollected') return mk('Collected this month', (ST.mrecs||[]).filter(r=>r.mcoll>0), r=>r.mcoll);
   return null;
 }
 function _riqDrill(kind){
   const ST=window._riqStore; if(!ST) return;
   const sp=_riqDrillSpec(kind, ST); if(!sp || !sp.items.length) return;
-  const valLabel = kind==='collected'?'Paid to date' : kind==='future'?'Future dues' : 'Arrears';
+  const valLabel = kind==='collected'?'Paid to date' : kind==='future'?'Future dues' : kind==='mbilled'?'Billed' : kind==='mcollected'?'Received' : 'Arrears';
   const tot=sp.items.reduce((s,r)=>s+r._v,0);
   const thCss='padding:8px 8px;position:sticky;top:0;background:var(--fk-surface);border-bottom:1px solid var(--fk-border);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted)';
   const th='<tr>'+['#','Client / Unit','>'+valLabel,'>Overdue','>Last pay','Segment','>% price'].map(h=>{const r=h[0]==='>';return '<th style="'+thCss+(r?';text-align:right':';text-align:left')+'">'+esc(r?h.slice(1):h)+'</th>';}).join('')+'</tr>';
@@ -560,7 +563,8 @@ async function rRecoveryIQ(){
     if (rpRes.error) throw rpRes.error;
     const rows = (rpRes.data && rpRes.data.rows) || [];
     const monthT = (mRes.data && mRes.data.totals) || {};
-    _riqRender(rows, trend, today, monthT);
+    const monthRows = (mRes.data && mRes.data.rows) || [];
+    _riqRender(rows, trend, today, monthT, monthRows);
   } catch(e){
     const b=document.getElementById('riq-body'); if(b) b.innerHTML = NX.empty({icon:'alert-triangle', message:'Could not load recovery intelligence. '+esc(e.message||'')});
   }
@@ -578,7 +582,7 @@ async function _riqTrend(today, proj){
   return out;
 }
 
-function _riqRender(rows, trend, today, monthT){
+function _riqRender(rows, trend, today, monthT, monthRows){
   const b=document.getElementById('riq-body'); if(!b) return;
   const td0=new Date(today+'T00:00:00');
   const recs=rows.map(r=>{
@@ -696,7 +700,7 @@ function _riqRender(rows, trend, today, monthT){
     '<div style="display:flex;justify-content:space-between;margin-top:4px">'+trend.map(t=>'<span class="nx-kpi-label" style="font-size:10px">'+t.mon+'</span>').join('')+'</div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px;line-height:1.45">At this pace, the <strong>'+_riqC(recoverable)+'</strong> recoverable would take <strong>'+(monthsClear!=null?monthsClear+' months':'—')+'</strong> to clear (dead arrears excluded).</div>'+
     '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--fk-border)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+NX.badge(poolChg>0?'Book rotting':'Book healing', poolChg>0?'danger':'success',{dot:true})+'<span class="nx-kpi-label" style="text-transform:none">this month</span></div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.45">Billed <strong>'+_riqC(billed)+'</strong>, collected <strong>'+_riqC(collM)+'</strong> ('+Math.round(collRate*100)+'%) → the arrears pool '+(poolChg>0?'<strong style="color:var(--fk-danger)">grew '+_riqC(poolChg)+'</strong>':'<strong style="color:var(--fk-success)">shrank '+_riqC(-poolChg)+'</strong>')+' this month.</div></div>',
+    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.45">Billed <strong onclick="_riqDrill(\'mbilled\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(billed)+'</strong>, collected <strong onclick="_riqDrill(\'mcollected\')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="View the full trail">'+_riqC(collM)+'</strong> ('+Math.round(collRate*100)+'%) → the arrears pool '+(poolChg>0?'<strong style="color:var(--fk-danger)">grew '+_riqC(poolChg)+'</strong>':'<strong style="color:var(--fk-success)">shrank '+_riqC(-poolChg)+'</strong>')+' this month.</div></div>',
     { header:{ title:'Momentum — last 10 months collected', icon:'trending-up', actions:NX.infoTip('Monthly Σ from get_daily_collections. Run-rate = median of the last 6 months (drops one-off surge months). Months-to-clear = recoverable ÷ run-rate. Healing/rotting = this month’s collections vs this month’s new billing (get_recovery_position for the month).') } });
   const concentration = NX.card(
     '<div onclick="_riqDrill(\'concentration\')" title="View the full trail" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:22px;font-weight:600">Top '+top20idx+' units '+NX.icon('chevron-right',16)+'</div>'+
@@ -708,41 +712,45 @@ function _riqRender(rows, trend, today, monthT){
 
   // ── TOP DEFAULTERS table ─────────────────────────────────────────────────
   let run=0;
-  const tdRows = sorted.slice(0,15).map((r,i)=>{ run+=r.arrears; const sg=segOf(r);
-    const phone=(r.phone||'').replace(/[^0-9]/g,'');
-    const acts='<a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="_riqOpenUnit(\''+(r.sale_id||'')+'\')" title="Open unit detail">'+NX.icon('arrow-up-right',13)+'</a>'+(phone?' <a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(r.phone)+'" title="Call">'+NX.icon('phone',13)+'</a> <a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/'+phone+'" title="WhatsApp">'+NX.icon('message-circle',13)+'</a>':'');
-    return [ String(i+1),
-      '<div style="font-weight:500">'+esc(r.client)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(r.unit)+(r.floor?' · '+esc(r.floor):'')+'</div>',
-      '<span class="num" style="font-weight:600">'+_riqC(r.arrears)+'</span><div class="nx-kpi-label" style="text-transform:none">'+(r.net>0?Math.round(r.arrears/r.net*100):0)+'% of price</div>',
-      '<span class="num">'+(r.odd||0)+'d</span>',
-      r.lp?('<span class="num">'+(typeof fD==='function'?fD(r.lp.toISOString().slice(0,10)):'')+'</span>'):'<span class="nx-kpi-label">never</span>',
-      NX.badge(sg.k,sg.t),
-      '<span class="num nx-kpi-label">'+Math.round(run/totalArr*100)+'%</span>',
-      acts ];
-  });
-  const topTable = NX.card('<div class="nx-table-wrap">'+NX.table({ flush:true,
-    cols:[{label:'#'},{label:'Client / Unit'},{label:'Arrears',num:true},{label:'Overdue',num:true},{label:'Last pay',num:true},{label:'Segment'},{label:'Cum %',num:true},{label:'Contact'}],
-    rows:tdRows })+'</div>',
-    { flush:true, header:{ title:'Chase these first — top 15 by arrears', icon:'list-ordered', actions:NX.infoTip('Sorted by net recoverable (closing) desc. Cum % = running share of total arrears. Last pay from last_payment_date.') } });
+  const tdTh='<tr>'+['#','Client / Unit','>Arrears','>Overdue','>Last pay','Segment','>Cum %','Contact'].map(h=>{const r=h[0]==='>';return '<th style="padding:8px 8px;border-bottom:1px solid var(--fk-border);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted)'+(r?';text-align:right':';text-align:left')+'">'+esc(r?h.slice(1):h)+'</th>';}).join('')+'</tr>';
+  const tdTr=sorted.slice(0,15).map((r,i)=>{ run+=r.arrears; const sg=segOf(r); const phone=(r.phone||'').replace(/[^0-9]/g,''); const cs='padding:9px 8px;border-bottom:1px solid var(--fk-border)';
+    const contact='<a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="event.stopPropagation();_riqOpenUnit(\''+(r.sale_id||'')+'\')" title="Open unit detail">'+NX.icon('arrow-up-right',13)+'</a>'+(phone?' <a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="event.stopPropagation()" href="tel:'+esc(r.phone)+'" title="Call">'+NX.icon('phone',13)+'</a> <a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="event.stopPropagation()" target="_blank" href="https://wa.me/'+phone+'" title="WhatsApp">'+NX.icon('message-circle',13)+'</a>':'');
+    return '<tr style="cursor:pointer" onclick="_riqOpenUnit(\''+(r.sale_id||'')+'\')" onmouseover="this.style.background=\'var(--fk-bg-subtle)\'" onmouseout="this.style.background=\'\'" title="Open this unit’s full detail">'+
+      '<td style="'+cs+'" class="num">'+(i+1)+'</td>'+
+      '<td style="'+cs+'"><div style="font-weight:500">'+esc(r.client)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(r.unit)+(r.floor?' · '+esc(r.floor):'')+'</div></td>'+
+      '<td style="'+cs+';text-align:right"><span class="num" style="font-weight:600">'+_riqC(r.arrears)+'</span><div class="nx-kpi-label" style="text-transform:none">'+(r.net>0?Math.round(r.arrears/r.net*100):0)+'% of price</div></td>'+
+      '<td style="'+cs+';text-align:right" class="num">'+(r.odd||0)+'d</td>'+
+      '<td style="'+cs+';text-align:right" class="num">'+(r.lp?(typeof fD==='function'?fD(r.lp.toISOString().slice(0,10)):''):'<span class="nx-kpi-label">never</span>')+'</td>'+
+      '<td style="'+cs+'">'+NX.badge(sg.k,sg.t)+'</td>'+
+      '<td style="'+cs+';text-align:right" class="num">'+Math.round(run/totalArr*100)+'%</td>'+
+      '<td style="'+cs+'">'+contact+'</td></tr>'; }).join('');
+  const topTable = NX.card('<div class="nx-table-wrap" style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead>'+tdTh+'</thead><tbody>'+tdTr+'</tbody></table></div>',
+    { flush:true, header:{ title:'Chase these first — top 15 by arrears', icon:'list-ordered', actions:NX.infoTip('Sorted by net recoverable (closing) desc. Cum % = running share of total arrears. Click any row to open that unit’s full detail.') } });
 
   // ── SMART WATCHLISTS ─────────────────────────────────────────────────────
-  const byClient={}; over.forEach(r=>{ const k=r.code||r.client; (byClient[k]=byClient[k]||{client:r.client,units:0,arrears:0,floor:'',unit:''}); byClient[k].units++; byClient[k].arrears+=r.arrears; });
+  const byClient={}; over.forEach(r=>{ const k=r.code||r.client; (byClient[k]=byClient[k]||{key:k,client:r.client,units:0,arrears:0}); byClient[k].units++; byClient[k].arrears+=r.arrears; });
   const multi=Object.values(byClient).filter(c=>c.units>1).sort((a,b)=>b.arrears-a.arrears);
   const neverP=over.filter(r=>r.paid<=0.5).sort((a,b)=>b.arrears-a.arrears);
   const token=over.filter(r=>r.daysSince!=null&&r.daysSince<90&&r.odd>180&&r.arrears>500000).sort((a,b)=>b.arrears-a.arrears);
   const cliff=over.filter(r=>r.daysSince!=null&&r.daysSince>=300&&r.daysSince<365).sort((a,b)=>b.arrears-a.arrears);
-  const wlRow=(name,sub,amt,saleId)=>'<div'+(saleId?' onclick="_riqOpenUnit(\''+saleId+'\')" title="Open unit detail" style="cursor:pointer;':' style="')+'display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--fk-border)"><div style="min-width:0"><div style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(sub)+'</div></div><div class="num" style="font-weight:600;white-space:nowrap">'+_riqC(amt)+'</div></div>';
+  const wlRow=(name,sub,amt,clickJs)=>'<div'+(clickJs?' onclick="'+clickJs+'" title="View the full detail" style="cursor:pointer;':' style="')+'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--fk-border)"><div style="min-width:0"><div style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(sub)+'</div></div><div style="display:flex;align-items:center;gap:5px;white-space:nowrap"><div class="num" style="font-weight:600">'+_riqC(amt)+'</div>'+(clickJs?'<span style="color:var(--fk-text-muted);display:inline-flex">'+NX.icon('chevron-right',13)+'</span>':'')+'</div></div>';
   const wl=(title,icon,note,items,empty)=>NX.card((items.length?items.join(''):'<div class="nx-kpi-label" style="text-transform:none;padding-top:6px">'+empty+'</div>'),
     { header:{ title:title, icon:icon, sub:items.length?undefined:undefined, actions:NX.infoTip(note) } });
   const watchlists='<div><div class="nx-kpi-label" style="margin-bottom:8px">SMART WATCHLISTS</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--fk-sp-3)">'+
-    wl('Never paid a rupee','ban','Booked but paid_to_date = 0 — pure exposure. Cancel or pursue.', neverP.slice(0,6).map(r=>wlRow(r.client, r.unit+(r.floor?' · '+r.floor:''), r.arrears, r.sale_id)), 'None — every buyer has paid something.') +
-    wl('Multi-unit defaulters','copy','One client, several overdue units — single point of concentrated risk.', multi.slice(0,6).map(c=>wlRow(c.client, c.units+' overdue units', c.arrears)), 'No client holds more than one overdue unit.') +
-    wl('Going backwards (token payers)','trending-down','Paid in the last 90 days yet 180+ days behind & ₨500K+ short — drip-paying, never catching up.', token.slice(0,6).map(r=>wlRow(r.client, r.unit+' · '+r.odd+'d behind', r.arrears, r.sale_id)), 'No active payer is falling badly behind.') +
-    wl('About to turn zombie','alarm-clock','Stalled 300–364 days — about to cross the 1-year cliff. Last window to re-engage.', cliff.slice(0,6).map(r=>wlRow(r.client, r.unit+' · '+r.daysSince+'d quiet', r.arrears, r.sale_id)), 'No account is near the 1-year cliff.') +
+    wl('Never paid a rupee','ban','Booked but paid_to_date = 0 — pure exposure. Cancel or pursue.', neverP.slice(0,6).map(r=>wlRow(r.client, r.unit+(r.floor?' · '+r.floor:''), r.arrears, r.sale_id?"_riqOpenUnit('"+r.sale_id+"')":'')), 'None — every buyer has paid something.') +
+    wl('Multi-unit defaulters','copy','One client, several overdue units — single point of concentrated risk.', multi.slice(0,6).map((c,i)=>wlRow(c.client, c.units+' overdue units', c.arrears, "_riqDrill('client:"+i+"')")), 'No client holds more than one overdue unit.') +
+    wl('Going backwards (token payers)','trending-down','Paid in the last 90 days yet 180+ days behind & ₨500K+ short — drip-paying, never catching up.', token.slice(0,6).map(r=>wlRow(r.client, r.unit+' · '+r.odd+'d behind', r.arrears, r.sale_id?"_riqOpenUnit('"+r.sale_id+"')":'')), 'No active payer is falling badly behind.') +
+    wl('About to turn zombie','alarm-clock','Stalled 300–364 days — about to cross the 1-year cliff. Last window to re-engage.', cliff.slice(0,6).map(r=>wlRow(r.client, r.unit+' · '+r.daysSince+'d quiet', r.arrears, r.sale_id?"_riqOpenUnit('"+r.sale_id+"')":'')), 'No account is near the 1-year cliff.') +
     '</div></div>';
 
+  // this-month per-unit rows (for the Momentum billed/collected drills), joined to recs
+  const recById={}; recs.forEach(r=>{ if(r.sale_id) recById[r.sale_id]=r; });
+  const mrecs=(monthRows||[]).map(mr=>{ const base=recById[mr.sale_id]||{}; return Object.assign({}, base, {
+    sale_id:mr.sale_id||base.sale_id||'', client:base.client||mr.client_name||'—', unit:base.unit||mr.unit_no||'—', floor:base.floor||mr.floor_name||'',
+    billed:Number(mr.due_period||0), mcoll:Number(mr.received_total||0) }); });
+
   // expose the computed set so every figure's drill-down can rebuild its exact trail
-  window._riqStore = { recs, over, sorted, SG, AB, floors, top20idx, today };
+  window._riqStore = { recs, over, sorted, SG, AB, floors, top20idx, today, multi, mrecs };
 
   b.innerHTML = '<style>@media(max-width:860px){.riq-2col{grid-template-columns:1fr!important}}#riq-body [onclick]{transition:opacity .12s}#riq-body [onclick]:hover{opacity:.82}</style>' +
     '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+hero+funnel+aging+actionMap+floorCard+midGrid+topTable+watchlists+'</div>';
