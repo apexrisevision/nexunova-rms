@@ -433,7 +433,11 @@ async function saveUserModal() {
   var passNewEl  = document.getElementById('um-pass');
   var pass = isEdit ? ((passEditEl && passEditEl.value) || null) : (passNewEl ? passNewEl.value : '');
 
-  var showErr = function(msg){ errEl.textContent = msg; errEl.style.display = ''; };
+  var showErr = function(msg){
+    errEl.textContent = msg; errEl.style.display = ''; errEl.style.color = 'var(--fk-danger)';
+    try { errEl.scrollIntoView({ block: 'center' }); } catch (e) {}
+    if (typeof toast === 'function') toast(msg, 'warn');
+  };
   errEl.style.display = 'none';
 
   if (!name) { showErr('Full name is required.'); return; }

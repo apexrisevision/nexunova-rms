@@ -192,7 +192,7 @@
   color: var(--fk-text-muted); border-radius: var(--fk-radius-control); cursor: pointer;
 }
 .nx-modal-close:hover{ background: var(--fk-bg-subtle); color: var(--fk-text); }
-.nx-modal-body{ padding: var(--fk-sp-4); overflow: auto; }
+.nx-modal-body{ padding: var(--fk-sp-4); overflow: auto; flex: 1 1 auto; min-height: 0; }
 .nx-modal-footer{
   display: flex; align-items: center; justify-content: flex-end; gap: var(--fk-sp-2);
   padding: var(--fk-sp-4); border-top: 1px solid var(--fk-border);

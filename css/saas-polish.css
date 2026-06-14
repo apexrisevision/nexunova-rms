@@ -555,12 +555,18 @@ hr {
 }
 
 /* ── Page wrapper fade-in ──────────────────────────────────────────────────── */
+/* Opacity-only — NO transform. A residual transform on .pg.on (even identity
+   translateY(0) from fill-mode:both) makes the page a containing block for
+   position:fixed children, so every in-page host-injected modal/drawer stops
+   anchoring to the viewport (mis-positioned / clipped, no scroll). This used to
+   be patched per-page (see #pg-units in inventory-drawer.css, the .mo pages in
+   visual-overhaul.css). Fixed globally here so it never recurs. */
 @keyframes nx-fadein {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .pg.on {
-  animation: nx-fadein 220ms cubic-bezier(0.22,1,0.36,1) both;
+  animation: nx-fadein 200ms ease both;
 }
 
 /* ── Skeleton shimmer ──────────────────────────────────────────────────────── */
