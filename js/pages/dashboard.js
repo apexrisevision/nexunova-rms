@@ -203,7 +203,7 @@ function _dashRecoveryIQ(rows) {
       <div style="flex:1;min-width:0"><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.client)}</div><div class="nx-kpi-label" style="text-transform:none">${esc(r.unit)} · ${r.odd}d</div></div>
       <div class="num" style="font-weight:600;font-size:12px;white-space:nowrap">${_dashCompact(r.arrears)}</div>
       ${ph ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/${ph}" title="WhatsApp">${NX.icon('message-circle', 13)}</a>` : '<span style="width:26px;flex-shrink:0"></span>'}</div>`; };
-  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5)">
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:var(--fk-sp-4)">
       ${NX.icon('radar', 18)}<span class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">Recovery Intelligence</span>${NX.badge(grade.w, grade.t, { dot: true })}
       <a class="nx-btn nx-btn--ghost nx-btn--sm" style="margin-left:auto" onclick="nav('recoveryiq')">Open full intelligence ${NX.icon('arrow-right', 13)}</a></div>
