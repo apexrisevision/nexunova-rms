@@ -738,7 +738,8 @@ function _dashOffMission(callN, totalOverdue, calledToday) {
   const name = ((typeof S !== 'undefined' && S && (S.name || S.username)) || '').toString().split(' ')[0] || 'there';
   if (callN === 0) return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5);border-left:3px solid var(--fk-success)">
     <div class="nx-kpi-label" style="text-transform:none">${greet}, ${esc(name)} 👋</div>
-    <div style="font-size:18px;font-weight:600;margin-top:3px;display:flex;align-items:center;gap:8px">${NX.icon('check-circle', 18)} All caught up — no calls pending today.</div></div>`;
+    <div style="font-size:18px;font-weight:600;margin-top:3px;display:flex;align-items:center;gap:8px">${NX.icon('check-circle', 18)} All caught up — no calls pending today.</div>
+    <div class="no-p" style="margin-top:12px"><a class="nx-btn nx-btn--secondary nx-btn--sm" onclick="nav('myrecovery')">${NX.icon('radar', 14)} Open my recovery report</a></div></div>`;
   const pct = Math.round(calledToday / callN * 100);
   return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5);border-left:3px solid var(--fk-primary)">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -747,6 +748,10 @@ function _dashOffMission(callN, totalOverdue, calledToday) {
       <div class="nx-kpi-label" style="text-transform:none;white-space:nowrap"><strong style="color:var(--fk-text)">${calledToday}</strong> of ${callN} contacted today</div>
     </div>
     <div style="margin-top:10px;height:7px;border-radius:4px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--fk-success);border-radius:4px;transition:width .4s"></div></div>
+    <div class="no-p" style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <a class="nx-btn nx-btn--secondary nx-btn--sm" onclick="nav('myrecovery')">${NX.icon('radar', 14)} Open my recovery report</a>
+      <span class="nx-kpi-label" style="text-transform:none">This month’s target, recovered, and who owes — all in one sheet.</span>
+    </div>
   </div>`;
 }
 
@@ -809,6 +814,7 @@ function _dashOffSteps(callN, promN, remN, escN) {
 function _dashOffTools() {
   const tool = (label, icon, go) => `<button class="nx-btn nx-btn--secondary" style="justify-content:flex-start" onclick="${go}">${NX.icon(icon, 16)} ${label}</button>`;
   return NX.card(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:var(--fk-sp-2)">
+    ${tool('My recovery report', 'radar', "nav('myrecovery')")}
     ${tool('Log a call', 'phone', "openConModal()")}
     ${tool('Record a payment', 'hand-coins', "nav('addpayment')")}
     ${tool('Subah ki List', 'sunrise', "nav('queue')")}
