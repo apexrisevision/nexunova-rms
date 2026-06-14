@@ -465,6 +465,7 @@ function rClientDetail() {
   act.push(NX.button('Record payment', { variant:'primary', size:'sm', onclick:"nav('addpayment')" }));
   act.push(NX.button('Client ledger', { variant:'secondary', size:'sm', onclick:"openLedgerReport('" + clientId + "')" }));
   act.push(NX.button('Log follow-up', { variant:'secondary', size:'sm', onclick:"_cdLogFollowUp()" }));
+  if (isA) act.push(NX.button('Mera Hisaab — Portal Link', { variant:'secondary', size:'sm', onclick:"cdPortalLink('" + clientId + "', '" + esc(c.email||'') + "')" }));
   if (isA && !hist) act.push(NX.button('Deactivate', { variant:'ghost', size:'sm', onclick:"setClientStatus('" + clientId + "','inactive')" }));
   if (isA && hist)  act.push(NX.button('Reactivate', { variant:'ghost', size:'sm', onclick:"setClientStatus('" + clientId + "','active')" }));
 
@@ -923,6 +924,43 @@ async function cdInvitePortal(clientId) {
     toast('Invite failed: ' + (e.message || 'Unknown error'), 'err');
   }
 }
+
+// ── Mera Hisaab — Portal Link (works for ANY client; reachable from the profile action bar) ──
+async function cdPortalLink(clientId, email){
+  email = (email || '').trim();
+  if (!email) email = (clientId || '').slice(0, 8) + '@portal.local';   // synthetic key when the client has no email on file
+  try {
+    const { data, error } = await supabase.rpc('admin_invite_portal_client', {
+      p_client_id: clientId, p_email: email, p_company_id: S.cid
+    });
+    if (error) throw error;
+    if (!data || !data.success) throw new Error(data && data.error ? data.error : 'Failed');
+    const base = location.origin + location.pathname.replace(/[^/]*$/, '');   // same directory as the app
+    const link = base + 'buyer-portal.html?t=' + encodeURIComponent(data.temp_token || '');
+    _cdShowPortalModal(link, data.email, data.temp_password);
+  } catch(e) {
+    toast('Could not create portal link: ' + (e.message || 'Unknown error'), 'err');
+  }
+}
+function _cdShowPortalModal(link, email, pw){
+  const body =
+    '<p style="font-size:13px;color:var(--fk-text-muted);margin:0 0 14px">Share this link with the client via WhatsApp or print. It signs them straight into their <b>Mera Hisaab</b> — view-only, no password needed, valid for 30 days.</p>' +
+    '<label class="nx-label">Magic link</label>' +
+    '<div style="display:flex;gap:8px;margin:6px 0 16px">' +
+      '<input class="nx-input" id="cd-portal-link" readonly value="' + esc(link) + '" onclick="this.select()" style="flex:1">' +
+      NX.button('Copy', { variant:'primary', size:'sm', onclick:"navigator.clipboard.writeText(document.getElementById('cd-portal-link').value).then(function(){toast('Link copied','ok')})" }) +
+    '</div>' +
+    '<div class="nx-card nx-card--compact" style="background:var(--fk-bg-subtle)">' +
+      '<div class="nx-kpi-label">Password fallback</div>' +
+      '<div style="font-size:13px;margin-top:6px">Company code <b>' + esc(S.coCode || '') + '</b> · ' + esc(email) + ' · Temp password <b class="nx-mono">' + esc(pw) + '</b></div>' +
+    '</div>';
+  document.body.insertAdjacentHTML('beforeend', NX.modal({
+    id: 'cd-portal-modal', title: 'Mera Hisaab — Portal Link', size: 'm',
+    onClose: '_cdClosePortalModal()', body: body,
+    footer: NX.button('Done', { variant: 'secondary', onclick: '_cdClosePortalModal()' })
+  }));
+}
+function _cdClosePortalModal(){ const m = document.getElementById('cd-portal-modal'); if (m) m.remove(); }
 
 async function _cdLoadHealth(clientId) {
   const body = document.getElementById('cd-health-body');
