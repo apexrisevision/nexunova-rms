@@ -13,12 +13,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.34.0/dist/umd/supabase.min.js"></script>
 <script>
-/* On-demand vendor loader (perf Win #3): heavy single-use libs are injected only when
-   first needed — three.js (login bg), xlsx (Excel export), intl-tel-input (phone fields). */
+/* On-demand vendor loader (perf Wins #3/#4): heavy single-use libs are injected only when
+   first needed — three.js (login bg), xlsx (Excel export), intl-tel-input (phone fields),
+   chart.js (Forecasting / Promises analytics / client Health chart). */
 window._vload={};
 window.loadScript=function(src){return window._vload[src]||(window._vload[src]=new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=function(){delete window._vload[src];rej(new Error('load failed: '+src));};document.head.appendChild(s);}));};
 window.ensureXLSX=function(){return (typeof XLSX!=='undefined')?Promise.resolve():window.loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');};
 window.ensureThree=function(){return (typeof THREE!=='undefined')?Promise.resolve():window.loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');};
+window.ensureChart=function(){return (typeof Chart!=='undefined')?Promise.resolve():window.loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');};
 window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();if(!document.getElementById('itel-css')){var l=document.createElement('link');l.id='itel-css';l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/css/intlTelInput.css';document.head.appendChild(l);}return window.loadScript('https://cdn.jsdelivr.net/npm/intl-tel-input@23.1.0/build/js/intlTelInput.min.js');};
 </script>
 <style>#m-client .iti{width:100%}#m-client .iti__selected-dial-code{font-size:13px}
@@ -3300,7 +3302,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 6. Page renderers -->
 <script src="js/pages/dashboard.js?v=20260614riq3"></script>
 <script src="js/pages/units.js?v=20260614uf"></script>
-<script src="js/pages/clients.js?v=20260614bp3"></script>
+<script src="js/pages/clients.js?v=20260614w4"></script>
 <script src="js/pages/projects.js?v=20260613ps"></script>
 <script src="js/pages/agents.js?v=20260614w3"></script>
 <script src="js/pages/sales.js?v=20260614w3"></script>
@@ -3318,11 +3320,11 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/ledger-unit.js?v=20260514e"></script>
 <script src="js/pages/ledger-agent.js?v=20260514e"></script>
 <script src="js/pages/ledger-project.js?v=20260514e"></script>
-<script src="js/pages/reminders.js?v=20260614rec2"></script>
+<script src="js/pages/reminders.js?v=20260614rec3"></script>
 <script src="js/pages/contacts.js?v=20260613a"></script>
 <script src="js/pages/health-center.js?v=20260604a"></script>
 <!-- radar.js retired (Phase 3A) → js/pages/archive/ -->
-<script src="js/pages/promises.js?v=20260614rec"></script>
+<script src="js/pages/promises.js?v=20260614w4"></script>
 <script src="js/pages/recovery-queue.js?v=20260614skl"></script>
 <script src="js/pages/audit.js?v=20260613e"></script>
 <script src="js/pages/approvals.js?v=20260613a"></script>
@@ -3350,7 +3352,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/legalcases.js?v=20260613a"></script>
 <script src="js/pages/agenttransactions.js?v=20260613b"></script>
 <script src="js/pages/campaigns.js?v=20260613a"></script>
-<script src="js/pages/forecasting.js?v=20260525a"></script>
+<script src="js/pages/forecasting.js?v=20260614w4"></script>
 <script src="js/pages/comms-center.js?v=20260528a"></script>
 <!-- executive.js retired (Phase 3A) → js/pages/archive/ -->
 <script src="js/pages/noc.js?v=20260613ps"></script>
@@ -3377,8 +3379,10 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- 8. App init + toast + populateLoginStats -->
 <script src="js/init.js?v=20260531e"></script>
 
-<!-- XLSX (Excel export) is now lazy-loaded on demand via window.ensureXLSX() — see head loader (perf Win #3). -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- XLSX + Chart.js are now lazy-loaded on demand via window.ensureXLSX() / window.ensureChart() — see head loader (perf Wins #3/#4). -->
+<!-- chart.js consumers: js/pages/forecasting.js, promises.js, clients.js (Health). Dashboard/NX viz are inline SVG. -->
+<!-- Only vendor lib still eager: supabase-js (core data layer). -->
+<!-- (formerly: chart.js@4.4.0/dist/chart.umd.min.js) -->
 
 <!-- 10. Login animations (entrance, cursor, shimmer, counters) -->
 <script src="js/login-animations.js"></script>

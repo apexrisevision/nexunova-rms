@@ -71,16 +71,26 @@ async function _remLoad() {
   _remData = { installments, pdcRows, recentLogs, salesMap, clientInfo, followups, promises };
 }
 
-// One actionable "commitment" row — Call · WhatsApp · Log call. Used by the
+// One actionable "commitment" row — Call · Remind (tracked) · Log call. Used by the
 // Follow-ups-due and Promises-due sections (the recovery loop, now surfaced).
 function _remActRow(o) {
   const ph = (o.phone || '').replace(/[^0-9]/g, '');
   const overdue = o.date && o.date < td();
   const dlabel = o.date ? (overdue ? 'Overdue · ' : 'Due ') + fD(o.date) : '';
+  // Pre-filled WhatsApp reminder (officer-triggered, tracked) — promises log via
+  // record_promise_reminder (bumps the promise's reminder count); follow-ups via reminder_logs.
+  const wph = '92' + (o.phone || '').replace(/^0/, '').replace(/[^0-9]/g, '');
+  const msg = o.kind === 'promise'
+    ? 'Assalam o Alaikum ' + (o.name || '') + ', aap ne unit ' + (o.unitNo || '') + ' ki PKR ' + Number(o.amount || 0).toLocaleString('en-PK') + ' payment ka wada kiya tha. Kindly aaj clear/confirm karein. Shukriya. Nexunova.'
+    : 'Assalam o Alaikum ' + (o.name || '') + ', unit ' + (o.unitNo || '') + ' ke silsile mein follow-up — kindly payment update dein ya rabta karein. Shukriya. Nexunova.';
+  const waHref = 'https://wa.me/' + wph + '?text=' + encodeURIComponent(msg);
+  const logJs = o.kind === 'promise'
+    ? "_remSendPromiseReminder('" + (o.id || '') + "')"
+    : "_remLog('" + (o.unitId || '') + "','" + (o.saleId || '') + "','" + NX.esc(o.name || '') + "','" + NX.esc(o.phone || '') + "'," + (o.amount || 0) + ",'whatsapp')";
   const acts =
     (ph ? '<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:' + NX.esc(o.phone) + '" title="Call">' + NX.icon('phone', 14) + '</a> ' +
-          '<a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/' + ph + '" title="WhatsApp">' + NX.icon('message-circle', 14) + '</a> ' : '') +
-    (o.unitId ? NX.button('Log call', { variant:'secondary', size:'sm', onclick:"openConModal('" + o.unitId + "')" }) : '');
+          '<a class="nx-btn nx-btn--secondary nx-btn--sm" target="_blank" href="' + waHref + '" onclick="' + logJs + '" title="Send a WhatsApp reminder (tracked)">' + NX.icon('message-circle', 14) + ' Remind</a> ' : '') +
+    (o.unitId ? NX.button('Log call', { variant:'ghost', size:'sm', onclick:"openConModal('" + o.unitId + "')" }) : '');
   return '<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--fk-border)">' +
     '<div style="flex:1;min-width:0">' +
       '<div style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + NX.esc(o.name || '—') + (o.unitNo ? ' <span class="nx-kpi-label" style="text-transform:none">· ' + NX.esc(o.unitNo) + '</span>' : '') + '</div>' +
@@ -106,12 +116,12 @@ function _remRender() {
 
   // ── Recovery loop: follow-ups due + promises due (top — officer's own commitments) ──
   const fuRows = (followups || []).map(f => _remActRow({
-    name: f.client_name, unitId: f.unit_id, unitNo: (gunit(f.unit_id) || {}).unitNo || '',
+    kind: 'followup', saleId: f.sale_id, name: f.client_name, unitId: f.unit_id, unitNo: (gunit(f.unit_id) || {}).unitNo || '',
     phone: f.phone_used, date: f.next_followup_date,
     sub: 'Follow-up' + (f.channel ? ' · ' + f.channel : '') + (f.remarks ? ' · ' + f.remarks : '')
   }));
   const prRows = (promises || []).map(p => _remActRow({
-    name: p.client_name, unitId: p.unit_id, unitNo: p.unit_no || '',
+    kind: 'promise', id: p.id, saleId: p.sale_id, name: p.client_name, unitId: p.unit_id, unitNo: p.unit_no || '',
     phone: p.phone, date: p.promise_date, amount: p.promised_amount,
     sub: 'Promised to pay' + (p.notes ? ' · ' + p.notes : '')
   }));
@@ -310,6 +320,14 @@ function _remEmailBody(r) {
 }
 
 // ── Log reminder ──────────────────────────────────────────────────
+
+// Promise reminder — bumps the promise's reminder count + logs to promise_reminders_log.
+async function _remSendPromiseReminder(id) {
+  try {
+    await supabase.rpc('record_promise_reminder', { p_promise_id: id, p_company_id: S.cid });
+    if (typeof toast === 'function') toast('Reminder sent & logged', 'ok');
+  } catch (e) { if (typeof toast === 'function') toast('Reminder opened — but the log failed.', 'warn'); }
+}
 
 async function _remLog(unitId, saleId, clientName, phone, amountDue, type) {
   try {
