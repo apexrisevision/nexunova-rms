@@ -937,19 +937,44 @@ async function cdPortalLink(clientId, email){
     if (!data || !data.success) throw new Error(data && data.error ? data.error : 'Failed');
     const base = location.origin + location.pathname.replace(/[^/]*$/, '');   // same directory as the app
     const link = base + 'buyer-portal.html?t=' + encodeURIComponent(data.temp_token || '');
-    _cdShowPortalModal(link, data.email, data.temp_password);
+    const cl = (typeof gclient === 'function') ? (gclient(clientId) || {}) : {};
+    _cdShowPortalModal(link, data.email, data.temp_password, cl.fullName || '', (cl.whatsapp || cl.phonePrimary || ''));
   } catch(e) {
     toast('Could not create portal link: ' + (e.message || 'Unknown error'), 'err');
   }
 }
-function _cdShowPortalModal(link, email, pw){
+// Normalise a PK number to wa.me form: digits only, strip leading 00/0, ensure 92 prefix.
+function _waNormalize(p){
+  let n = (p || '').replace(/[^0-9]/g, '');
+  if (!n) return '';
+  if (n.indexOf('00') === 0) n = n.slice(2);
+  if (n.indexOf('92') === 0) return n;
+  if (n.indexOf('0') === 0)  return '92' + n.slice(1);
+  return '92' + n;
+}
+function _cdShowPortalModal(link, email, pw, clientName, clientPhone){
+  const wa = _waNormalize(clientPhone);
+  // Pre-filled warm Roman-Urdu message sent from the STAFF member's OWN WhatsApp (wa.me), no Meta API.
+  const msg = 'Assalam o Alaikum ' + (clientName || '') + ', yeh aapka Mera Hisaab portal link hai — apna account, schedule aur payments dekhne ke liye: ' + link;
+  const waUrl = wa ? ('https://wa.me/' + wa + '?text=' + encodeURIComponent(msg)) : '';
+  const waBtn = wa
+    ? '<a class="nx-btn nx-btn--primary nx-btn--sm" target="_blank" rel="noopener" style="text-decoration:none" href="' + esc(waUrl) + '">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
+        '<span>Send via WhatsApp</span></a>'
+    : '';
   const body =
-    '<p style="font-size:13px;color:var(--fk-text-muted);margin:0 0 14px">Share this link with the client via WhatsApp or print. It signs them straight into their <b>Mera Hisaab</b> — view-only, no password needed, valid for 30 days.</p>' +
+    '<p style="font-size:13px;color:var(--fk-text-muted);margin:0 0 14px">Share this link with the client. It signs them straight into their <b>Mera Hisaab</b> — view-only, no password needed, valid for 30 days.</p>' +
     '<label class="nx-label">Magic link</label>' +
-    '<div style="display:flex;gap:8px;margin:6px 0 16px">' +
+    '<div style="display:flex;gap:8px;margin:6px 0 12px">' +
       '<input class="nx-input" id="cd-portal-link" readonly value="' + esc(link) + '" onclick="this.select()" style="flex:1">' +
-      NX.button('Copy', { variant:'primary', size:'sm', onclick:"navigator.clipboard.writeText(document.getElementById('cd-portal-link').value).then(function(){toast('Link copied','ok')})" }) +
     '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' +
+      waBtn +
+      NX.button('Copy link', { variant: wa ? 'secondary' : 'primary', size:'sm', onclick:"navigator.clipboard.writeText(document.getElementById('cd-portal-link').value).then(function(){toast('Link copied','ok')})" }) +
+    '</div>' +
+    (wa
+      ? '<p style="font-size:11.5px;color:var(--fk-text-muted);margin:0 0 14px">Opens WhatsApp on your device with the message pre-filled — sent from your own number. <b>Auto-send via WhatsApp will be available once the WhatsApp Business API is live.</b></p>'
+      : '<p style="font-size:11.5px;color:var(--fk-text-muted);margin:0 0 14px">No phone number on file for this client — copy the link to share it manually.</p>') +
     '<div class="nx-card nx-card--compact" style="background:var(--fk-bg-subtle)">' +
       '<div class="nx-kpi-label">Password fallback</div>' +
       '<div style="font-size:13px;margin-top:6px">Company code <b>' + esc(S.coCode || '') + '</b> · ' + esc(email) + ' · Temp password <b class="nx-mono">' + esc(pw) + '</b></div>' +
