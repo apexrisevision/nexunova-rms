@@ -459,6 +459,16 @@ function rReports() {
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
     ${NX.pageHeader('Reports', '', { icon:'bar-chart-3' })}
+    <div class="nx-card" style="cursor:pointer;border:1px solid var(--fk-primary);background:linear-gradient(180deg,color-mix(in srgb,var(--fk-primary) 7%,transparent),transparent)" onclick="nav('recoveryiq')">
+      <div style="display:flex;align-items:center;gap:var(--fk-sp-3)">
+        <div style="width:40px;height:40px;border-radius:10px;background:color-mix(in srgb,var(--fk-primary) 14%,transparent);display:grid;place-items:center;flex-shrink:0">${NX.icon('radar',22)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="nx-modal-title" style="display:flex;align-items:center;gap:8px;margin-bottom:3px">Recovery Intelligence ${NX.badge('Insight','info',{dot:true})}</div>
+          <div class="nx-kpi-label" style="text-transform:none">Where your money is stuck, who to chase first, and what to do — aging, behaviour segments, momentum & smart watchlists. Not a list — a briefing.</div>
+        </div>
+        <div style="color:var(--fk-primary);font-size:20px">→</div>
+      </div>
+    </div>
     ${groups.map(g => `<div>
       <div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">${g.title}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--fk-sp-3)">
@@ -467,6 +477,182 @@ function rReports() {
           <div class="nx-kpi-label" style="text-transform:none">${esc(m.desc)}</div></div>`; }).join('')}
       </div></div>`).join('')}
   </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RECOVERY INTELLIGENCE — an analyst briefing, not a register. Live from
+// get_recovery_position (epoch→today, FIFO/advance-aware closing + overdue_days +
+// last_payment_date) + monthly collection trend. Every number is real, formula-tipped.
+// ════════════════════════════════════════════════════════════════════════════
+function _riqC(n){ n=Number(n||0); var a=Math.abs(n), s=n<0?'-':''; if(a>=1e9)return s+'₨'+(a/1e9).toFixed(2)+'B'; if(a>=1e6)return s+'₨'+(a/1e6).toFixed(1)+'M'; if(a>=1e3)return s+'₨'+Math.round(a/1e3)+'K'; return s+'₨'+Math.round(a); }
+function _riqF(n){ return (typeof fM==='function')?fM(Number(n||0)):Number(n||0).toLocaleString('en-US'); }
+
+async function rRecoveryIQ(){
+  const pg = document.getElementById('pg-recoveryiq'); if(!pg) return;
+  const today = (typeof td==='function'?td():new Date().toISOString().slice(0,10));
+  const fd = (typeof fD==='function'?fD(today):today);
+  pg.innerHTML = '<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-5)">' +
+    '<div class="no-p" style="display:flex;gap:8px;align-items:center">' +
+      NX.button('← Back',{variant:'ghost',size:'sm',onclick:"nav('reports')"}) +
+      NX.button('Refresh',{variant:'ghost',size:'sm',onclick:"rRecoveryIQ()"}) +
+      '<div style="margin-left:auto" class="nx-kpi-label">as of '+esc(fd)+'</div>' +
+    '</div>' +
+    '<div><h1 class="nx-page-title" style="display:flex;align-items:center;gap:10px">'+NX.icon('radar',24)+' Recovery Intelligence</h1>' +
+      '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">Where your money is stuck, who to chase first, and what to do.</div></div>' +
+    '<div id="riq-body"><div class="nx-skel" style="height:140px"></div><div class="nx-skel" style="height:120px;margin-top:16px"></div><div class="nx-skel" style="height:200px;margin-top:16px"></div></div>' +
+  '</div>';
+  try {
+    const proj = (typeof activeProjectId==='function'?activeProjectId():null);
+    const rpRes = await supabase.rpc('get_recovery_position',{ p_company_id:S.cid, p_project_id:proj, p_from_date:'2000-01-01', p_to_date:today });
+    if (rpRes.error) throw rpRes.error;
+    const rows = (rpRes.data && rpRes.data.rows) || [];
+    const trend = await _riqTrend(today, proj);
+    _riqRender(rows, trend, today);
+  } catch(e){
+    const b=document.getElementById('riq-body'); if(b) b.innerHTML = NX.empty({icon:'alert-triangle', message:'Could not load recovery intelligence. '+esc(e.message||'')});
+  }
+}
+
+async function _riqTrend(today, proj){
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const d=new Date(today+'T00:00:00'), pad=n=>String(n).padStart(2,'0');
+  const start=new Date(d.getFullYear(), d.getMonth()-9, 1);
+  const fromISO=start.getFullYear()+'-'+pad(start.getMonth()+1)+'-01';
+  let daily=[];
+  try{ const r=await supabase.rpc('get_daily_collections',{p_company_id:S.cid,p_project_id:proj||null,p_from:fromISO,p_to:today}); if(!r.error && Array.isArray(r.data)) daily=r.data; }catch(_){}
+  const m={}; daily.forEach(x=>{ const k=String(x.day||'').slice(0,7); if(k.length===7){ m[k]=(m[k]||0)+Number(x.amount||0); } });
+  const out=[]; for(let i=9;i>=0;i--){ const dt=new Date(d.getFullYear(), d.getMonth()-i, 1); const k=dt.getFullYear()+'-'+pad(dt.getMonth()+1); out.push({ mon:MON[dt.getMonth()], amount:m[k]||0, cur:i===0 }); }
+  return out;
+}
+
+function _riqRender(rows, trend, today){
+  const b=document.getElementById('riq-body'); if(!b) return;
+  const td0=new Date(today+'T00:00:00');
+  const recs=rows.map(r=>{
+    const lp=r.last_payment_date?new Date(String(r.last_payment_date)+'T00:00:00'):null;
+    return { client:r.client_name||'—', code:r.client_code||'', unit:r.unit_no||'—', floor:r.floor_name||'', phone:r.phone||'',
+      arrears:Math.max(0,Number(r.closing||0)), odd:Number(r.overdue_days||0), paid:Number(r.paid_to_date||0), net:Number(r.net_price||0),
+      lp:lp, daysSince: lp?Math.floor((td0-lp)/86400000):null };
+  });
+  const over=recs.filter(r=>r.arrears>0.5);
+  const totalArr=over.reduce((s,r)=>s+r.arrears,0);
+  if(!over.length){ b.innerHTML=NX.empty({icon:'check-circle', message:'No overdue dues — nothing to recover right now. Clean book.'}); return; }
+
+  // segment classifier
+  const segOf=r=> r.paid<=0.5 ? {k:'Never paid',t:'danger'} : (r.daysSince==null||r.daysSince>=365)?{k:'Zombie',t:'danger'} : (r.daysSince>=90)?{k:'Stalled',t:'warning'}:{k:'Active',t:'success'};
+  // AGING buckets
+  const AB=[{k:'180+ days',t:'danger',f:r=>r.odd>180},{k:'91–180 days',t:'warning',f:r=>r.odd>90&&r.odd<=180},{k:'61–90 days',t:'warning',f:r=>r.odd>60&&r.odd<=90},{k:'31–60 days',t:'info',f:r=>r.odd>30&&r.odd<=60},{k:'1–30 days',t:'info',f:r=>r.odd>=1&&r.odd<=30}];
+  AB.forEach(x=>{ const g=over.filter(x.f); x.units=g.length; x.amt=g.reduce((s,r)=>s+r.arrears,0); });
+  const aged180=(AB[0].amt||0); const agedPct= totalArr>0? aged180/totalArr : 0;
+  // SEGMENTS
+  const SG=[
+    {k:'Dead — never paid',t:'danger',icon:'ban',act:'Cancel / legal — no recovery relationship exists.',f:r=>r.paid<=0.5},
+    {k:'Zombie — 365+ days silent',t:'danger',icon:'skull',act:'Escalate to legal / cancellation; stop expecting voluntary pay.',f:r=>r.paid>0.5&&(r.daysSince==null||r.daysSince>=365)},
+    {k:'Stalled — quiet 3–12 months',t:'warning',icon:'pause-circle',act:'PRIORITY — re-engage now before they turn zombie.',f:r=>r.paid>0.5&&r.daysSince!=null&&r.daysSince>=90&&r.daysSince<365},
+    {k:'Active — paying but behind',t:'success',icon:'activity',act:'Keep pressure; agree a structured catch-up plan.',f:r=>r.paid>0.5&&r.daysSince!=null&&r.daysSince<90}
+  ];
+  SG.forEach(s=>{ const g=over.filter(s.f); s.units=g.length; s.amt=g.reduce((a,r)=>a+r.arrears,0); });
+  const deadAmt=SG[0].amt+SG[1].amt, recoverable=totalArr-deadAmt;
+  // MOMENTUM
+  const last6=trend.slice(-6).map(t=>t.amount).filter(v=>v>0).sort((a,b)=>a-b);
+  const runRate= last6.length? last6[Math.floor(last6.length/2)] : 0;   // median of last 6 (drops the surge outlier)
+  const monthsClear= runRate>0? Math.ceil(recoverable/runRate) : null;
+  const recent3=trend.slice(-4,-1).reduce((s,t)=>s+t.amount,0), prior3=trend.slice(-7,-4).reduce((s,t)=>s+t.amount,0);
+  const dir= recent3>prior3*1.05?{t:'success',w:'rising'}: recent3<prior3*0.95?{t:'danger',w:'declining'}:{t:'warning',w:'flat'};
+  // CONCENTRATION
+  const sorted=over.slice().sort((a,b)=>b.arrears-a.arrears);
+  let cum=0, top20idx=0; for(let i=0;i<sorted.length;i++){ cum+=sorted[i].arrears; if(cum>=totalArr*0.5){ top20idx=i+1; break; } }
+  // HEALTH grade
+  const grade= agedPct>=0.7?{w:'Critical',t:'danger'}: agedPct>=0.5?{w:'Strained',t:'danger'}: agedPct>=0.3?{w:'Watch',t:'warning'}:{w:'Stable',t:'success'};
+
+  // ── HERO ────────────────────────────────────────────────────────────────
+  const heroNarr = (agedPct>=0.5)
+    ? 'This is a <strong>legacy-default problem, not this month’s slippage</strong> — '+Math.round(agedPct*100)+'% of all overdue is already 180+ days aged.'
+    : 'Arrears are mostly recent ('+Math.round((1-agedPct)*100)+'% under 180 days) — keep the collection pressure on to stop it ageing.';
+  const hero = '<div class="nx-card" style="border-left:3px solid var(--fk-'+grade.t+')">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+NX.badge('Recovery health · '+grade.w, grade.t,{dot:true})+
+      NX.infoTip('Grade by share of arrears aged 180+ days: <30% Stable · 30–50% Watch · 50–70% Strained · 70%+ Critical. Source: get_recovery_position overdue_days.')+'</div>' +
+    '<div style="font-size:30px;font-weight:600;letter-spacing:-.5px;line-height:1.1">'+_riqC(totalArr)+'<span style="font-size:15px;font-weight:500;color:var(--fk-text-muted)"> overdue · '+over.length+' units</span></div>' +
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;max-width:760px">'+heroNarr+'</div>' +
+    '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px">' +
+      '<div><div class="nx-kpi-label">Dead (unrecoverable)</div><div style="font-size:17px;font-weight:600;color:var(--fk-danger)">'+_riqC(deadAmt)+'</div></div>' +
+      '<div><div class="nx-kpi-label">Recoverable</div><div style="font-size:17px;font-weight:600;color:var(--fk-success)">'+_riqC(recoverable)+'</div></div>' +
+      '<div><div class="nx-kpi-label">Run-rate / month</div><div style="font-size:17px;font-weight:600">'+_riqC(runRate)+'</div></div>' +
+      '<div><div class="nx-kpi-label">Months to clear</div><div style="font-size:17px;font-weight:600">'+(monthsClear!=null?monthsClear+' mo':'—')+'</div></div>' +
+    '</div></div>';
+
+  // ── AGING ───────────────────────────────────────────────────────────────
+  const agingBar = NX.journeybar({ height:16, segments: AB.filter(x=>x.amt>0).map(x=>({value:x.amt, tone:x.t, label:x.k, amount:_riqC(x.amt)})) });
+  const agingRows = AB.map(x=>'<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--fk-border)">'+
+    '<span style="width:8px;height:8px;border-radius:50%;background:var(--fk-'+x.t+');flex-shrink:0"></span>'+
+    '<span style="flex:1;font-size:13px">'+x.k+'</span>'+
+    '<span class="nx-kpi-label" style="text-transform:none">'+x.units+' units</span>'+
+    '<span class="num" style="font-weight:600;min-width:90px;text-align:right">'+_riqC(x.amt)+'</span>'+
+    '<span class="nx-kpi-label" style="min-width:42px;text-align:right">'+(totalArr>0?Math.round(x.amt/totalArr*100):0)+'%</span></div>').join('');
+  const aging = NX.card('<div style="margin-bottom:10px">'+agingBar+'</div>'+agingRows, { header:{ title:'Where the money is stuck — aging', icon:'layers', actions:NX.infoTip('Each overdue unit bucketed by overdue_days from get_recovery_position. Amount = Σ net recoverable (closing).') } });
+
+  // ── ACTION MAP (segments) ────────────────────────────────────────────────
+  const segCards = SG.map(s=>'<div class="nx-card" style="border-top:3px solid var(--fk-'+s.t+')">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+NX.icon(s.icon,18)+'<div class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">'+s.k+'</div></div>'+
+    '<div style="font-size:22px;font-weight:600;letter-spacing:-.3px">'+_riqC(s.amt)+'</div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin:2px 0 10px">'+s.units+' units · '+(totalArr>0?Math.round(s.amt/totalArr*100):0)+'% of arrears</div>'+
+    '<div style="font-size:12.5px;line-height:1.45;color:var(--fk-text-muted);border-top:1px solid var(--fk-border);padding-top:8px">'+NX.icon('arrow-right',12)+' '+s.act+'</div></div>').join('');
+  const actionMap = '<div><div class="nx-kpi-label" style="margin-bottom:8px;display:flex;align-items:center;gap:6px">THE ACTION MAP — what to do with each rupee '+NX.infoTip('Segments by payment behaviour: Never-paid (paid_to_date=0) · Zombie (no payment 365+ days) · Stalled (quiet 90–365 days) · Active (paid within 90 days). Mutually exclusive; sums to total arrears.')+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--fk-sp-3)">'+segCards+'</div></div>';
+
+  // ── MOMENTUM + CONCENTRATION (2-col) ─────────────────────────────────────
+  const tvals=trend.map(t=>t.amount);
+  const momentum = NX.card(
+    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-size:22px;font-weight:600">'+_riqC(runRate)+'</span><span class="nx-kpi-label">median monthly run-rate</span>'+NX.badge(dir.w, dir.t,{dot:true})+'</div>'+
+    NX.trendline({ series:tvals, tone:dir.t, maxWidth:460 })+
+    '<div style="display:flex;justify-content:space-between;margin-top:4px">'+trend.map(t=>'<span class="nx-kpi-label" style="font-size:10px">'+t.mon+'</span>').join('')+'</div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px;line-height:1.45">At this pace, the <strong>'+_riqC(recoverable)+'</strong> recoverable would take <strong>'+(monthsClear!=null?monthsClear+' months':'—')+'</strong> to clear (dead arrears excluded).</div>',
+    { header:{ title:'Momentum — last 10 months collected', icon:'trending-up', actions:NX.infoTip('Monthly Σ from get_daily_collections. Run-rate = median of the last 6 months (drops one-off surge months). Months-to-clear = recoverable ÷ run-rate.') } });
+  const concentration = NX.card(
+    '<div style="font-size:22px;font-weight:600">Top '+top20idx+' units</div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin:2px 0 12px">carry <strong>half</strong> ('+_riqC(totalArr*0.5)+') of all arrears. The other half is spread across '+(over.length-top20idx)+' units.</div>'+
+    NX.stackbar({ width:240, height:10, segments:[{value:top20idx,tone:'danger'},{value:over.length-top20idx,tone:'muted'}] })+
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px">Concentration is your friend — fixing a handful of accounts moves the needle most.</div>',
+    { header:{ title:'Concentration — the vital few', icon:'target', actions:NX.infoTip('Units sorted by net recoverable (closing) desc; counts how few units make up the first 50% of total arrears (Pareto).') } });
+  const midGrid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-4)" class="riq-2col">'+momentum+concentration+'</div>';
+
+  // ── TOP DEFAULTERS table ─────────────────────────────────────────────────
+  let run=0;
+  const tdRows = sorted.slice(0,15).map((r,i)=>{ run+=r.arrears; const sg=segOf(r);
+    const phone=(r.phone||'').replace(/[^0-9]/g,'');
+    const acts=(phone?'<a class="nx-btn nx-btn--ghost nx-btn--sm" href="tel:'+esc(r.phone)+'" title="Call">'+NX.icon('phone',13)+'</a> <a class="nx-btn nx-btn--ghost nx-btn--sm" target="_blank" href="https://wa.me/'+phone+'" title="WhatsApp">'+NX.icon('message-circle',13)+'</a>':'<span class="nx-kpi-label">—</span>');
+    return [ String(i+1),
+      '<div style="font-weight:500">'+esc(r.client)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(r.unit)+(r.floor?' · '+esc(r.floor):'')+'</div>',
+      '<span class="num" style="font-weight:600">'+_riqC(r.arrears)+'</span>',
+      '<span class="num">'+(r.odd||0)+'d</span>',
+      r.lp?('<span class="num">'+(typeof fD==='function'?fD(r.lp.toISOString().slice(0,10)):'')+'</span>'):'<span class="nx-kpi-label">never</span>',
+      NX.badge(sg.k,sg.t),
+      '<span class="num nx-kpi-label">'+Math.round(run/totalArr*100)+'%</span>',
+      acts ];
+  });
+  const topTable = NX.card('<div class="nx-table-wrap">'+NX.table({ flush:true,
+    cols:[{label:'#'},{label:'Client / Unit'},{label:'Arrears',num:true},{label:'Overdue',num:true},{label:'Last pay',num:true},{label:'Segment'},{label:'Cum %',num:true},{label:'Contact'}],
+    rows:tdRows })+'</div>',
+    { flush:true, header:{ title:'Chase these first — top 15 by arrears', icon:'list-ordered', actions:NX.infoTip('Sorted by net recoverable (closing) desc. Cum % = running share of total arrears. Last pay from last_payment_date.') } });
+
+  // ── SMART WATCHLISTS ─────────────────────────────────────────────────────
+  const byClient={}; over.forEach(r=>{ const k=r.code||r.client; (byClient[k]=byClient[k]||{client:r.client,units:0,arrears:0,floor:'',unit:''}); byClient[k].units++; byClient[k].arrears+=r.arrears; });
+  const multi=Object.values(byClient).filter(c=>c.units>1).sort((a,b)=>b.arrears-a.arrears);
+  const neverP=over.filter(r=>r.paid<=0.5).sort((a,b)=>b.arrears-a.arrears);
+  const token=over.filter(r=>r.daysSince!=null&&r.daysSince<90&&r.odd>180&&r.arrears>500000).sort((a,b)=>b.arrears-a.arrears);
+  const cliff=over.filter(r=>r.daysSince!=null&&r.daysSince>=300&&r.daysSince<365).sort((a,b)=>b.arrears-a.arrears);
+  const wlRow=(name,sub,amt)=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--fk-border)"><div style="min-width:0"><div style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(sub)+'</div></div><div class="num" style="font-weight:600;white-space:nowrap">'+_riqC(amt)+'</div></div>';
+  const wl=(title,icon,note,items,empty)=>NX.card((items.length?items.join(''):'<div class="nx-kpi-label" style="text-transform:none;padding-top:6px">'+empty+'</div>'),
+    { header:{ title:title, icon:icon, sub:items.length?undefined:undefined, actions:NX.infoTip(note) } });
+  const watchlists='<div><div class="nx-kpi-label" style="margin-bottom:8px">SMART WATCHLISTS</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--fk-sp-3)">'+
+    wl('Never paid a rupee','ban','Booked but paid_to_date = 0 — pure exposure. Cancel or pursue.', neverP.slice(0,6).map(r=>wlRow(r.client, r.unit+(r.floor?' · '+r.floor:''), r.arrears)), 'None — every buyer has paid something.') +
+    wl('Multi-unit defaulters','copy','One client, several overdue units — single point of concentrated risk.', multi.slice(0,6).map(c=>wlRow(c.client, c.units+' overdue units', c.arrears)), 'No client holds more than one overdue unit.') +
+    wl('Going backwards (token payers)','trending-down','Paid in the last 90 days yet 180+ days behind & ₨500K+ short — drip-paying, never catching up.', token.slice(0,6).map(r=>wlRow(r.client, r.unit+' · '+r.odd+'d behind', r.arrears)), 'No active payer is falling badly behind.') +
+    wl('About to turn zombie','alarm-clock','Stalled 300–364 days — about to cross the 1-year cliff. Last window to re-engage.', cliff.slice(0,6).map(r=>wlRow(r.client, r.unit+' · '+r.daysSince+'d quiet', r.arrears)), 'No account is near the 1-year cliff.') +
+    '</div></div>';
+
+  b.innerHTML = '<style>@media(max-width:860px){.riq-2col{grid-template-columns:1fr!important}}</style>' +
+    '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+hero+aging+actionMap+midGrid+topTable+watchlists+'</div>';
 }
 
 // ── Routing: RP → bespoke shell; others → NXReport factory ───────────────────
