@@ -20,7 +20,7 @@ function _orInsights(rows, T){
   var ins=[];
   var pct = T.target>0 ? Math.round(T.recovered/T.target*100) : 0;
   ins.push({ic:'target', t:'primary', h:'This month',
-    x:'You have <b>'+_orF(T.target)+'</b> to recover. Collected so far: <b>'+_orF(T.recovered)+'</b> ('+pct+'%). Still outstanding: <b>'+_orF(T.remaining)+'</b>.'});
+    x:'Total to recover: <b>'+_orF(T.target)+'</b> — old baqaya <b>'+_orF(T.oldArrears)+'</b> + this month’s demand <b>'+_orF(T.dueMonth)+'</b>. Collected so far: <b>'+_orF(T.recovered)+'</b> ('+pct+'%). Current baqaya still due: <b>'+_orF(T.remaining)+'</b> (due to date, not till project end).'});
   var owe = rows.filter(function(r){return r._closing>0.5;}).sort(function(a,b){return b._closing-a._closing;});
   if(owe.length){ var t=owe[0];
     ins.push({ic:'alert-triangle', t:'danger', h:'Chase first',
@@ -45,10 +45,11 @@ function _orOpenUnit(saleId){ _orDrillClose(); if(saleId && saleId!=='null' && t
 function _orDrill(kind){
   var ST=window._orStore; if(!ST) return;
   var rows=ST.rows, spec={
-    target:   {title:'To recover this month', val:function(r){return r._open+r._due;}, lbl:'To recover'},
+    target:   {title:'Total to recover this month', val:function(r){return r._open+r._due;}, lbl:'To recover'},
+    demand:   {title:'This month’s demand',    val:function(r){return r._due;},        lbl:'Due this month'},
     recovered:{title:'Recovered so far',      val:function(r){return r._rec;},        lbl:'Recovered'},
-    remaining:{title:'Still to recover',      val:function(r){return r._closing;},    lbl:'Still owed'},
-    old:      {title:'Old baqaya (before this month)', val:function(r){return r._open;}, lbl:'Old arrears'}
+    remaining:{title:'Current baqaya — still due', val:function(r){return r._closing;}, lbl:'Current baqaya'},
+    old:      {title:'Old baqaya (before this month)', val:function(r){return r._open;}, lbl:'Old baqaya'}
   }[kind];
   if(!spec) return;
   var items=rows.map(function(r){ var o={r:r, v:spec.val(r)}; return o; }).filter(function(o){return o.v>0.5;}).sort(function(a,b){return b.v-a.v;});
@@ -84,7 +85,7 @@ function _orRenderTable(){
   rows.sort(function(a,b){return b._closing-a._closing;});
   if(!rows.length){ host.innerHTML=NX.empty({icon:'check-circle', message:'Nothing here — you are all caught up.'}); return; }
   var thCss='padding:9px 10px;position:sticky;top:0;background:var(--fk-surface);z-index:1;border-bottom:1px solid var(--fk-border);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted)';
-  var cols=['#','Client / Unit','>Old baqaya','>Due this month','>Recovered','>Still owed','Will pay','Last contact','Actions'];
+  var cols=['#','Client / Unit','>Old baqaya','>Due this month','>Recovered','>Current baqaya','Will pay','Last contact','Actions'];
   var th='<tr>'+cols.map(function(h){var r=h[0]==='>';return '<th style="'+thCss+(r?';text-align:right':';text-align:left')+'">'+esc(r?h.slice(1):h)+'</th>';}).join('')+'</tr>';
   var body=rows.map(function(r,i){ var cs='padding:9px 10px;border-bottom:1px solid var(--fk-border)';
     var ph=_orPhone(r.phone);
@@ -177,23 +178,34 @@ function _orRender(){
       '<span class="nx-kpi-label" style="text-transform:none;margin-left:auto">'+esc(ST.monLabel)+'</span></div>'+insHTML,
     {} );
 
-  // money picture — 4 clickable KPIs + progress
-  var kpi=function(label,val,kind,tone,tip){
-    return '<div class="nx-card" style="cursor:pointer;padding:var(--fk-sp-4);flex:1;min-width:150px" onclick="_orDrill(\''+kind+'\')" title="Click to see every account behind this figure">'+
-      '<div class="nx-kpi-label" style="display:flex;align-items:center;gap:5px">'+esc(label)+(tip?NX.infoTip(tip):'')+'</div>'+
-      '<div style="font-size:23px;font-weight:600;margin-top:4px;'+(tone?'color:var(--fk-'+tone+')':'')+'" class="num">'+_orF(val)+'</div>'+
-      '<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-primary);margin-top:2px">View accounts →</div></div>';
+  // money picture — admin-style rollforward. EVERY figure is due-to-date (the
+  // amount fallen due up to today) — never the full contract / project-end balance.
+  var fig=function(label,val,kind,tone,sub,big){
+    return '<div class="nx-card" style="cursor:pointer;padding:var(--fk-sp-4);flex:1;min-width:140px" onclick="_orDrill(\''+kind+'\')" title="Click to see every account behind this figure">'+
+      '<div class="nx-kpi-label">'+esc(label)+'</div>'+
+      '<div style="font-size:'+(big?'24px':'20px')+';font-weight:600;margin-top:3px;'+(tone?'color:var(--fk-'+tone+')':'')+'" class="num">'+_orF(val)+'</div>'+
+      '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px;color:var(--fk-primary)">'+esc(sub)+' →</div></div>';
   };
+  var conn=function(s){ return '<div style="display:flex;align-items:center;font-size:20px;font-weight:600;color:var(--fk-text-muted);padding:0 2px">'+s+'</div>'; };
   var bar='<div style="height:10px;border-radius:6px;background:var(--fk-bg-subtle);overflow:hidden;margin-top:4px"><div style="height:100%;width:'+Math.min(100,pct)+'%;background:var(--fk-success);border-radius:6px"></div></div>';
-  var money='<div style="display:flex;flex-direction:column;gap:var(--fk-sp-4)">'+
-    '<div style="display:flex;gap:var(--fk-sp-3);flex-wrap:wrap">'+
-      kpi('To recover this month','target'==='x'?0:T.target,'target',null,'Old baqaya + this month’s installments = everything collectable. Source: get_officer_recovery (opening + due_period).')+
-      kpi('Recovered so far',T.recovered,'recovered','success','Payments received this month for your accounts. Source: received_total.')+
-      kpi('Still to recover',T.remaining,'remaining','danger','What is still owed after this month’s collections. Source: closing.')+
-      kpi('Old baqaya',T.oldArrears,'old','warning','Outstanding carried in from before this month. Source: opening.')+
+  var note='<div class="nx-kpi-label" style="text-transform:none;display:flex;align-items:flex-start;gap:6px;margin-top:var(--fk-sp-4);line-height:1.5">'+NX.icon('info',13)+'<span>Every amount here is <b style="font-weight:600">due to date</b> — only installments that have fallen due up to today. Future installments (e.g. through 2030) are <b style="font-weight:600">not</b> counted.</span></div>';
+  var money=NX.card(
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-4)"><span style="font-weight:600;display:flex;align-items:center;gap:8px">'+NX.icon('target',16)+'This month — '+esc(ST.monLabel)+'</span><span class="nx-kpi-label" style="text-transform:none;margin-left:auto">as of '+esc(_orDate(ST.today))+'</span></div>'+
+    '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:stretch">'+
+      fig('Old baqaya',T.oldArrears,'old','warning','carried from before')+
+      conn('+')+
+      fig('This month’s demand',T.dueMonth,'demand','','due this month')+
+      conn('=')+
+      fig('Total to recover',T.target,'target','primary','target this month',true)+
     '</div>'+
-    '<div class="nx-card" style="padding:var(--fk-sp-4)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nx-kpi-label" style="text-transform:none">Progress this month</span><span style="font-weight:600">'+pct+'% · '+_orC(T.recovered)+' of '+_orC(T.target)+'</span></div>'+bar+'</div>'+
-  '</div>';
+    '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:stretch;margin-top:var(--fk-sp-3)">'+
+      fig('Recovered so far',T.recovered,'recovered','success','collected this month')+
+      conn('→')+
+      fig('Current baqaya — still due',T.remaining,'remaining','danger','outstanding to date (not till 2030)',true)+
+    '</div>'+
+    '<div style="margin-top:var(--fk-sp-4)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nx-kpi-label" style="text-transform:none">Progress this month</span><span style="font-weight:600">'+pct+'% recovered · '+_orC(T.recovered)+' of '+_orC(T.target)+'</span></div>'+bar+'</div>'+
+    note
+  ,{});
 
   // filter bar + working table
   var fbtn=function(f,lb){ return '<button data-f="'+f+'" class="nx-btn nx-btn--sm '+(f==='owe'?'nx-btn--secondary':'nx-btn--ghost')+'" onclick="_orSetFilter(\''+f+'\')">'+esc(lb)+'</button>'; };
@@ -235,12 +247,13 @@ function _orPrint(){
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Recovery — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
     '<div class="hd"><div><div class="co">'+esc(co)+(who?' · '+esc(who):'')+'</div><div class="ti">My Recovery</div></div>'+
       '<div class="hd-r"><div>'+esc(ST.monLabel)+'</div><div>as of '+esc(_orDate(ST.today))+'</div></div></div>'+
-    '<div class="kp"><div class="kc"><label>To recover</label><b>'+_orF(T.target)+'</b></div>'+
+    '<div class="kp"><div class="kc"><label>Old baqaya</label><b style="color:#d97706">'+_orF(T.oldArrears)+'</b></div>'+
+      '<div class="kc"><label>+ This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
+      '<div class="kc"><label>= Total to recover</label><b style="color:#4f46e5">'+_orF(T.target)+'</b></div>'+
       '<div class="kc"><label>Recovered</label><b style="color:#16a34a">'+_orF(T.recovered)+'</b></div>'+
-      '<div class="kc"><label>Still owed</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div>'+
-      '<div class="kc"><label>Old baqaya</label><b style="color:#d97706">'+_orF(T.oldArrears)+'</b></div></div>'+
-    '<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Progress this month — '+pct+'%</div><div class="pb"><span style="width:'+Math.min(100,pct)+'%"></span></div>'+
-    '<table class="tb"><thead><tr><th class="n">#</th><th>Client / Unit</th><th>Phone</th><th class="n">Old baqaya</th><th class="n">Due this mo</th><th class="n">Recovered</th><th class="n">Still owed</th><th>Will pay</th></tr></thead><tbody>'+rowsHTML+'</tbody></table>'+
+      '<div class="kc"><label>Current baqaya · due now</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div></div>'+
+    '<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Progress this month — '+pct+'% recovered · all amounts are due to date (future installments, e.g. through 2030, are not counted)</div><div class="pb"><span style="width:'+Math.min(100,pct)+'%"></span></div>'+
+    '<table class="tb"><thead><tr><th class="n">#</th><th>Client / Unit</th><th>Phone</th><th class="n">Old baqaya</th><th class="n">Due this mo</th><th class="n">Recovered</th><th class="n">Current baqaya</th><th>Will pay</th></tr></thead><tbody>'+rowsHTML+'</tbody></table>'+
     '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · Your assigned accounts only</div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'My Recovery'); else window.print();
