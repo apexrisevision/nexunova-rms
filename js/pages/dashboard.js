@@ -719,35 +719,41 @@ async function _dashStaff(pg, role) {
   const aitems = alerts.items || [];
   const promisesDue  = aitems.filter(i => i.type === 'promise').length;
   const remindersDue = aitems.filter(i => i.type === 'followup').length + aitems.filter(i => i.type === 'pdc').length;
-  const next = chase[0] || null;
+  const todayStr = (typeof td === 'function' ? td() : new Date().toISOString().slice(0, 10));
+  const calledToday = chase.filter(r => String(r.last_contact_date || '').slice(0, 10) === todayStr).length;
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
-    ${_dashOffMission(chase.length, totalOverdue)}
-    ${_dashOffNext(next, chase.length)}
+    ${_dashOffMission(chase.length, totalOverdue, calledToday)}
+    ${_dashOffNext(chase)}
     ${_dashOffSteps(chase.length, promisesDue, remindersDue, tierC.length)}
     ${_dashOffTools()}
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
 }
 
-// MISSION — what's my job today, in plain language + a clear "start" button.
-function _dashOffMission(callList, totalOverdue) {
+// MISSION — a slim orientation strip: greeting · today's job · progress so far.
+function _dashOffMission(callN, totalOverdue, calledToday) {
   const h = new Date().getHours();
   const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   const name = ((typeof S !== 'undefined' && S && (S.name || S.username)) || '').toString().split(' ')[0] || 'there';
-  const job = callList > 0
-    ? `Today you have <strong>${callList} account${callList !== 1 ? 's' : ''}</strong> to work — <strong>${_dashCompact(totalOverdue)}</strong> overdue.`
-    : `You're all caught up — no accounts need a call right now. Nice work.`;
-  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6);border-left:3px solid var(--fk-primary);background:linear-gradient(180deg,color-mix(in srgb,var(--fk-primary) 6%,transparent),transparent)">
+  if (callN === 0) return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5);border-left:3px solid var(--fk-success)">
     <div class="nx-kpi-label" style="text-transform:none">${greet}, ${esc(name)} 👋</div>
-    <div style="font-size:20px;font-weight:600;letter-spacing:-.2px;margin:6px 0 4px">${job}</div>
-    <div class="nx-kpi-label" style="text-transform:none;max-width:660px">Your plan: ① call your list · ② check promises due · ③ send reminders · ④ escalate the stuck ones. Start at the top.</div>
-    ${callList > 0 ? `<div style="margin-top:var(--fk-sp-4)" class="no-p">${NX.button('Start working →', { variant: 'primary', onclick: "nav('queue')" })}</div>` : ''}
+    <div style="font-size:18px;font-weight:600;margin-top:3px;display:flex;align-items:center;gap:8px">${NX.icon('check-circle', 18)} All caught up — no calls pending today.</div></div>`;
+  const pct = Math.round(calledToday / callN * 100);
+  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-5);border-left:3px solid var(--fk-primary)">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><div class="nx-kpi-label" style="text-transform:none">${greet}, ${esc(name)} 👋</div>
+        <div style="font-size:18px;font-weight:600;margin-top:2px"><strong>${callN}</strong> account${callN !== 1 ? 's' : ''} to call today · <strong>${_dashCompact(totalOverdue)}</strong> overdue</div></div>
+      <div class="nx-kpi-label" style="text-transform:none;white-space:nowrap"><strong style="color:var(--fk-text)">${calledToday}</strong> of ${callN} contacted today</div>
+    </div>
+    <div style="margin-top:10px;height:7px;border-radius:4px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--fk-success);border-radius:4px;transition:width .4s"></div></div>
   </div>`;
 }
 
-// START HERE — the single most-urgent account, with full context + the actions to work it.
-function _dashOffNext(r, total) {
+// START HERE — the single most-urgent account, full context + actions, then "up next".
+function _dashOffNext(chase) {
+  const r = chase[0];
+  const total = chase.length;
   if (!r) return NX.card(NX.empty({ icon: 'check-circle', tone: 'success', message: 'No calls pending — your list is clear for today. Use your tools below if you need them.' }), { header: { title: '① Start here', icon: 'phone-call' } });
   const ph = (r.phone || '').replace(/[^0-9]/g, '');
   const chips = (Array.isArray(r.reasons) ? r.reasons : []).slice(0, 3).map(rs => NX.badge(rs.label, (rs.tone && rs.tone !== 'muted') ? rs.tone : '')).join(' ');
@@ -772,17 +778,22 @@ function _dashOffNext(r, total) {
       ${r.unit_id ? NX.button('Log the outcome', { variant: 'secondary', size: 'sm', onclick: `openConModal('${r.unit_id}')` }) : ''}
       ${r.sale_id ? NX.button('View account', { variant: 'ghost', size: 'sm', onclick: `openSaleDetail('${r.sale_id}')` }) : ''}
     </div>
-    <div class="nx-kpi-label" style="text-transform:none;margin-top:10px">Account 1 of ${total} on your list — the rest are in your Subah ki List.</div>
+    ${total > 1 ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--fk-border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="nx-kpi-label">Up next</span>
+      ${chase.slice(1, 4).map(x => `<span class="nx-badge" style="cursor:pointer" onclick="openSaleDetail('${esc(x.sale_id)}')">${esc((x.client_name || x.client_code || '—').split(' ')[0])} · ${_dashCompact(x.overdue_amt)}</span>`).join('')}
+      ${total > 4 ? `<span class="nx-kpi-label" style="text-transform:none">+${total - 4} more</span>` : ''}
+      <a class="nx-btn nx-btn--ghost nx-btn--sm" style="margin-left:auto" onclick="nav('queue')">See all →</a>
+    </div>` : ''}
   </div>`;
 }
 
 // YOUR DAY — STEP BY STEP: the four-step recovery sequence, each a count + a way in.
 function _dashOffSteps(callN, promN, remN, escN) {
-  const step = (n, label, desc, count, tone, go) => `<div class="nx-card" style="border-top:3px solid var(--fk-${tone});cursor:pointer" onclick="${go}">
+  const step = (n, label, desc, count, tone, go) => `<div class="nx-card" style="border-top:3px solid var(--fk-${tone});cursor:pointer;${count > 0 ? '' : 'opacity:.72'}" onclick="${go}" onmouseover="this.style.background='var(--fk-bg-subtle)'" onmouseout="this.style.background=''">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="width:22px;height:22px;border-radius:50%;background:var(--fk-${tone});color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0">${n}</span><span class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">${label}</span></div>
     <div style="font-size:24px;font-weight:600">${count}</div>
-    <div class="nx-kpi-label" style="text-transform:none;margin:2px 0 10px">${desc}</div>
-    <div class="no-p">${NX.button(count > 0 ? 'Open →' : 'View', { variant: count > 0 ? 'secondary' : 'ghost', size: 'sm', onclick: go })}</div>
+    <div class="nx-kpi-label" style="text-transform:none;margin:2px 0 8px">${desc}</div>
+    <div style="color:var(--fk-primary);font-size:12px;font-weight:500">${count > 0 ? 'Open →' : 'View →'}</div>
   </div>`;
   return `<div>
     <div class="nx-kpi-label" style="margin-bottom:8px">YOUR DAY — STEP BY STEP</div>
