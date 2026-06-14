@@ -39,3 +39,14 @@ It is **not broken code — it's a broken feedback loop + heavy fragmentation.**
 **Phase 3 — de-fragment:** pick ONE promise-create path + ONE follow-up store; deprecate the orphans; fix the Log-Call silent-fails; add project_id to the `mark_promise_broken` escalation.
 
 > Verdict: the plumbing is all there. The win is **connection + one alert surface**, not more tools.
+
+---
+
+## STATUS — fixes shipped (2026-06-14)
+- ✅ **P0 loop closed** (`6c04646`, migration `20260614_reminders_followups_promises` LIVE): follow-ups due + promises due now surface as actionable cards on the Reminders page (was a black hole).
+- ✅ **P0 notification bell** (`eb31151`, migration `20260614_get_recovery_alerts` LIVE): topbar bell + badge + dropdown of live recovery alerts (promises overdue/due/broken · follow-ups overdue/due); click → unit, footer → Reminders.
+- ✅ **P2 silent-fail** (`924f1f2`): Log-Call now warns (toast) if a promise / follow-up insert fails.
+- ✅ **P2 attribution** (migration `20260614_mark_promise_broken_project_id` LIVE): auto-escalation from a broken promise now carries project_id.
+- ⏳ **DEFERRED (low-risk tech-debt, noted):** orphan `follow_up_reminders` table still written by Log-Call but unread (contact_logs.next_followup is the surfaced source now) — harmless dead weight, can be dropped later. Two promise-create RPCs (create_payment_promise / log_payment_promise) both work + attribute — redundant, can be unified later. The other reminder silos (reminder_logs SMS-dispatch · promise_reminders_log · payment_link_reminders) are distinct concerns, left as-is.
+
+Net: the recovery **loop is connected and there is one alert surface** — the two things that made the system unused. Remaining items are cleanup, not function.
