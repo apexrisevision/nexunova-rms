@@ -206,7 +206,7 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="auth-sub">Your office approves you before you can sign in.</div>
     <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
     <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="tel" placeholder="03xxxxxxxxx" autocomplete="off"><div class="hint">Format: 03xxxxxxxxx (or +92xxxxxxxxxx)</div></div>
-    <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" placeholder="xxxxx-xxxxxxx-x" autocomplete="off"><div class="hint">Format: xxxxx-xxxxxxx-x</div></div>
+    <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)" autocomplete="off"><div class="hint">Dashes are added automatically (xxxxx-xxxxxxx-x)</div></div>
     <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="reg-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
     <div class="err" id="reg-err"></div>
@@ -268,6 +268,14 @@ function toggleTheme(){ const h=document.documentElement; const d=h.getAttribute
 let _tt;
 function toast(msg,kind){ const b=$('toastbar'); b.textContent=msg; b.className='toastbar show '+(kind||'');
   clearTimeout(_tt); _tt=setTimeout(()=>b.classList.remove('show'),2600); }
+// CNIC auto-format: 5 digits, dash, 7 digits, dash, 1 digit (numeric keyboard has no dash key)
+function fmtCnic(v){
+  const d=String(v||'').replace(/\D/g,'').slice(0,13);
+  let out=d.slice(0,5);
+  if(d.length>=5) out=d.slice(0,5)+'-'+d.slice(5,12);
+  if(d.length>=12) out=d.slice(0,5)+'-'+d.slice(5,12)+'-'+d.slice(12,13);
+  return out;
+}
 
 // ════ state ════
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
