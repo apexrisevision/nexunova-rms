@@ -70,12 +70,13 @@ function _saBodyHtml() {
   // ── 1. The ONE shareable signup link ──
   const url = _saSignupUrl();
   const linkCard = NX.card(
-    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">Share this one link with your sales team. They self-register, then appear below for your approval. Rotate it to disable the old link.</div>
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">This link is <strong>permanent</strong> — share it once with your sales team and it keeps working. They self-register, then appear below for your approval.</div>
      <div style="display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
        <input class="nx-input" readonly value="${esc(url)}" onclick="this.select()" style="flex:1;min-width:240px;font-size:12px">
-       ${NX.button('Copy link', { variant: 'secondary', size: 'sm', icon: 'link', onclick: '_saCopyLink()' })}
+       ${NX.button('Copy link', { variant: 'primary', size: 'sm', icon: 'link', onclick: '_saCopyLink()' })}
        ${NX.button('Rotate', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: '_saRotate()' })}
-     </div>`,
+     </div>
+     <div style="font-size:11px;color:var(--fk-text-muted);margin-top:var(--fk-sp-2)">Only use <em>Rotate</em> if this link ever leaks — it replaces it with a new one and disables the old copies.</div>`,
     { header: { icon: 'link', tone: 'primary', title: 'Sales signup link' } });
 
   // ── 2. Pending registrations ──
