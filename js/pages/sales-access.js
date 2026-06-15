@@ -115,9 +115,10 @@ function _saBodyHtml() {
         `<span class="num">${r.active_reservations || 0}</span>`,
         r.last_login_at ? esc(fdateRsv(r.last_login_at)) : '<span style="color:var(--fk-text-muted)">Never</span>',
         r.status === 'active' ? NX.badge('Active', 'success', { dot: true }) : NX.badge('Inactive', 'muted'),
-        r.status === 'active'
-          ? NX.button('Deactivate', { variant: 'danger-soft', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` })
-          : NX.button('Reactivate', { variant: 'secondary', size: 'sm', icon: 'rotate-ccw', onclick: `_saReactivate('${r.id}','${esc(r.full_name)}')` })
+        (r.status === 'active'
+          ? NX.button('Deactivate', { variant: 'secondary', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` })
+          : NX.button('Reactivate', { variant: 'secondary', size: 'sm', icon: 'rotate-ccw', onclick: `_saReactivate('${r.id}','${esc(r.full_name)}')` }))
+        + ' ' + NX.button('Delete', { variant: 'danger-soft', size: 'sm', icon: 'trash-2', onclick: `_saDelete('${r.id}','${esc(r.full_name)}')` })
       ]),
       flush: true
     }), { header: { icon: 'users', tone: 'primary', title: 'Sales people' }, flush: true });
@@ -145,7 +146,7 @@ async function _saRotate() {
 // Approve → pick the project scope (the registrant did not choose one).
 function _saApproveOpen(id, name) {
   const projOpts = [{ value: '', label: 'All projects' }]
-    .concat((typeof gprojects === 'function' ? gprojects() : []).map(p => ({ value: p.id, label: p.project_name })));
+    .concat((typeof gprojects === 'function' ? gprojects() : []).map(p => ({ value: p.id, label: p.name || p.projectName || p.project_name || 'Project' })));
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     title: 'Approve ' + esc(name), size: 'm', onClose: '_saCloseModal()',
     body:
@@ -183,6 +184,15 @@ async function _saReject(id, name) {
     if (data && data.success) { if (typeof toast === 'function') toast('Registration rejected.', 'ok'); rSalesAccess(); }
     else if (typeof toast === 'function') toast('Could not reject.', 'err');
   } catch (e) { if (typeof toast === 'function') toast('Could not reject.', 'err'); }
+}
+
+async function _saDelete(id, name) {
+  if (!confirm('Delete ' + name + ' permanently? This removes their access for good and releases any active reservations they hold (those units return to Available).')) return;
+  try {
+    const { data } = await supabase.rpc('delete_sales_user', { p_id: id });
+    if (data && data.success) { if (typeof toast === 'function') toast('Sales person deleted.', 'ok'); rSalesAccess(); }
+    else if (typeof toast === 'function') toast((data && data.message) || 'Could not delete.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not delete.', 'err'); }
 }
 
 async function _saReactivate(id, name) {
