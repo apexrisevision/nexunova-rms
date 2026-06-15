@@ -85,10 +85,11 @@ function _saBodyHtml() {
       ? NX.banner(`You are at your plan limit (${_saLimit.current_count}/${_saLimit.max_allowed}). Deactivate an active sales person or upgrade before approving more.`, 'warn')
       : '';
     pendingCard = NX.card(cap + NX.table({
-      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Requested' }, { label: '' }],
+      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'CNIC' }, { label: 'Requested' }, { label: '' }],
       rows: pending.map(r => [
         `<b>${esc(r.full_name)}</b>`,
         esc(r.phone),
+        esc(r.cnic || '—'),
         esc(fdateRsv(r.created_at)),
         NX.button('Approve', { variant: 'primary', size: 'sm', onclick: `_saApproveOpen('${r.id}','${esc(r.full_name)}')` }) +
         ' ' + NX.button('Reject', { variant: 'danger-soft', size: 'sm', onclick: `_saReject('${r.id}','${esc(r.full_name)}')` })
@@ -114,7 +115,9 @@ function _saBodyHtml() {
         `<span class="num">${r.active_reservations || 0}</span>`,
         r.last_login_at ? esc(fdateRsv(r.last_login_at)) : '<span style="color:var(--fk-text-muted)">Never</span>',
         r.status === 'active' ? NX.badge('Active', 'success', { dot: true }) : NX.badge('Inactive', 'muted'),
-        r.status === 'active' ? NX.button('Deactivate', { variant: 'danger-soft', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` }) : ''
+        r.status === 'active'
+          ? NX.button('Deactivate', { variant: 'danger-soft', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` })
+          : NX.button('Reactivate', { variant: 'secondary', size: 'sm', icon: 'rotate-ccw', onclick: `_saReactivate('${r.id}','${esc(r.full_name)}')` })
       ]),
       flush: true
     }), { header: { icon: 'users', tone: 'primary', title: 'Sales people' }, flush: true });
@@ -180,6 +183,15 @@ async function _saReject(id, name) {
     if (data && data.success) { if (typeof toast === 'function') toast('Registration rejected.', 'ok'); rSalesAccess(); }
     else if (typeof toast === 'function') toast('Could not reject.', 'err');
   } catch (e) { if (typeof toast === 'function') toast('Could not reject.', 'err'); }
+}
+
+async function _saReactivate(id, name) {
+  if (!confirm('Reactivate ' + name + '? They can sign in and reserve again (uses one sales-access slot).')) return;
+  try {
+    const { data } = await supabase.rpc('reactivate_sales_user', { p_id: id });
+    if (data && data.success) { if (typeof toast === 'function') toast('Sales person reactivated.', 'ok'); rSalesAccess(); }
+    else if (typeof toast === 'function') toast((data && data.message) || 'Could not reactivate.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not reactivate.', 'err'); }
 }
 
 async function _saDeactivate(id, name) {

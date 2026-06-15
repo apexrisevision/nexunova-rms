@@ -56,6 +56,7 @@ a{color:var(--fk-primary);text-decoration:none}
 .field{margin-bottom:14px}
 .label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
   color:var(--fk-text-muted);margin-bottom:6px}
+.hint{font-size:11px;color:var(--fk-text-muted);margin-top:5px}
 .input{width:100%;height:40px;padding:0 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);
   background:var(--fk-bg-card);color:var(--fk-text);font-family:var(--fk-font);font-size:14px}
 .input:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
@@ -113,6 +114,7 @@ a{color:var(--fk-primary);text-decoration:none}
   align-items:center;justify-content:center;gap:3px}
 .unit .uno{font-size:14px;font-weight:600;letter-spacing:-.2px}
 .unit .ust{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--fk-text-muted)}
+.unit .uby{font-size:9.5px;color:var(--fk-text-muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
 .unit.avail{background:var(--fk-success-surface);border-color:var(--fk-success-edge);cursor:pointer}
 .unit.avail .ust{color:var(--fk-success)}
 .unit.avail:hover{box-shadow:var(--fk-shadow-raised);transform:translateY(-1px);transition:.15s}
@@ -179,12 +181,13 @@ a{color:var(--fk-primary);text-decoration:none}
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Availability &amp; Reservations</div></div>
     </div>
     <div class="auth-title">Sign in</div>
-    <div class="auth-sub">Sign in with your company code, phone and PIN. New here? Open the signup link your office shared to request access.</div>
-    <div class="field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
+    <div class="auth-sub">Enter your mobile and PIN to sign in. New here? Open the signup link your office shared to request access.</div>
+    <div class="field" id="co-field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
     <div class="field"><label class="label">Phone</label><input class="input" id="i-phone" inputmode="tel" autocomplete="off"></div>
     <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
     <div class="err" id="login-err"></div>
+    <div id="login-to-register" style="display:none;text-align:center;margin-top:14px"><a href="#" onclick="showScreen('screen-register');return false" style="font-size:13px">← Back to request access</a></div>
   </div></div>
 </div>
 
@@ -197,12 +200,13 @@ a{color:var(--fk-primary);text-decoration:none}
     </div>
     <div class="auth-title">Request sales access</div>
     <div class="auth-sub">Registering for <strong id="reg-co-name">your company</strong>. Your office approves you before you can sign in.</div>
-    <div class="field"><label class="label">Full name</label><input class="input" id="r-name" autocomplete="off"></div>
-    <div class="field"><label class="label">Phone</label><input class="input" id="r-phone" inputmode="tel" autocomplete="off"></div>
-    <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="r-pin" type="password" inputmode="numeric" autocomplete="off"></div>
+    <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
+    <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="tel" placeholder="03219694246" autocomplete="off"><div class="hint">Format: 03219694246 or +923219694246</div></div>
+    <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" placeholder="35201-1234567-1" autocomplete="off"><div class="hint">Format: 35201-1234567-1</div></div>
+    <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="reg-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
     <div class="err" id="reg-err"></div>
-    <div style="text-align:center;margin-top:14px"><a href="#" onclick="showScreen('screen-login');return false" style="font-size:13px">Already approved? Sign in</a></div>
+    <div style="text-align:center;margin-top:14px"><a href="#" onclick="goLogin();return false" style="font-size:13px">Already approved? Sign in</a></div>
   </div></div>
 </div>
 
@@ -262,7 +266,18 @@ function toast(msg,kind){ const b=$('toastbar'); b.textContent=msg; b.className=
   clearTimeout(_tt); _tt=setTimeout(()=>b.classList.remove('show'),2600); }
 
 // ════ state ════
-let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null;
+let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null;
+
+// When the company is known (arrived via the signup link, or remembered on this
+// device), don't ask for the company code at sign-in — prefill + hide that field.
+function _coRemembered(){ try{return localStorage.getItem('rms.sales.co')}catch(e){return null} }
+function applyLoginCompany(){
+  const co=SALES_CO||_coRemembered();
+  const f=$('co-field');
+  if(co){ if($('i-co')) $('i-co').value=co; if(f) f.style.display='none'; }
+  else if(f){ f.style.display='block'; }
+}
+function goLogin(){ applyLoginCompany(); showScreen('screen-login'); }
 
 // ════ auth ════
 async function bootstrap(){
@@ -271,6 +286,7 @@ async function bootstrap(){
   if(signup){ SIGNUP_TOKEN=signup; return showRegister(signup); }
   const saved=sessionStorage.getItem(TOK_KEY);
   if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ showScreen('screen-app'); setTab('board'); return; } sessionStorage.removeItem(TOK_KEY); }
+  applyLoginCompany();
   showScreen('screen-login');
 }
 async function showRegister(token){
@@ -281,30 +297,39 @@ async function showRegister(token){
     return;
   }
   $('reg-co-name').textContent=data.company_name||'your company';
+  // company is known from the link → no company code needed at sign-in
+  if(data.company_code){ SALES_CO=data.company_code; try{localStorage.setItem('rms.sales.co',data.company_code)}catch(e){} }
+  applyLoginCompany();
+  // they came via a signup link → offer a way back to register from the login screen
+  const back=$('login-to-register'); if(back) back.style.display='block';
   showScreen('screen-register');
 }
 async function doRegister(){
-  const name=$('r-name').value.trim(), ph=$('r-phone').value.trim(), pin=$('r-pin').value.trim();
+  const name=$('reg-name').value.trim(), ph=$('reg-phone').value.trim(), pin=$('reg-pin').value.trim(), cnic=$('reg-cnic').value.trim();
   const err=$('reg-err'); err.classList.remove('show');
-  if(!name||!ph||!pin){ err.textContent='Enter your name, phone and a PIN.'; err.classList.add('show'); return; }
+  if(!name||!ph||!cnic||!pin){ err.textContent='Enter your name, mobile, CNIC and a PIN.'; err.classList.add('show'); return; }
+  if(!/^[0-9+\-\s]{10,15}$/.test(ph)){ err.textContent='Enter a valid mobile number, e.g. 03219694246.'; err.classList.add('show'); return; }
+  if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ err.textContent='CNIC format: 35201-1234567-1'; err.classList.add('show'); return; }
   if(!/^[0-9]{4,6}$/.test(pin)){ err.textContent='PIN must be 4 to 6 digits.'; err.classList.add('show'); return; }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
-    const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_phone:ph,p_pin:pin});
+    const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_phone:ph,p_pin:pin,p_cnic:cnic});
     if(error) throw error;
     if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not register.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; return; }
     showScreen('screen-pending');
   }catch(e){ err.textContent='Could not register. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; }
 }
 async function doLogin(){
-  const co=$('i-co').value.trim(), ph=$('i-phone').value.trim(), pin=$('i-pin').value.trim();
+  const co=($('i-co').value||SALES_CO||_coRemembered()||'').trim(), ph=$('i-phone').value.trim(), pin=$('i-pin').value.trim();
   const err=$('login-err'); err.classList.remove('show');
-  if(!co||!ph||!pin){ err.textContent='Enter company code, phone and PIN.'; err.classList.add('show'); return; }
+  if(!co){ err.textContent='Enter your company code.'; err.classList.add('show'); return; }
+  if(!ph||!pin){ err.textContent='Enter your mobile and PIN.'; err.classList.add('show'); return; }
   const btn=$('login-btn'); btn.disabled=true; btn.textContent='Signing in…';
   try{
     const {data,error}=await sb.rpc('sales_login',{p_company_code:co,p_phone:ph,p_pin:pin});
     if(error) throw error;
-    if(!data||!data.success) throw new Error(data&&data.error?data.error:'Invalid login');
+    if(!data||!data.success){ err.textContent=(data&&data.message)||(data&&data.error)||'Sign in failed'; err.classList.add('show'); return; }
+    try{localStorage.setItem('rms.sales.co',co)}catch(e){}
     onLogin(data);
   }catch(e){ err.textContent=e.message||'Sign in failed'; err.classList.add('show'); }
   finally{ btn.disabled=false; btn.textContent='Sign in'; }
@@ -318,7 +343,7 @@ function onLogin(data){
   setTab('board');
 }
 function doLogout(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; location.href=location.pathname; }
-function sessionGone(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; showScreen('screen-login');
+function sessionGone(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
   const err=$('login-err'); err.textContent='Your session expired. Please sign in again.'; err.classList.add('show'); }
 
 // ════ tabs ════
@@ -377,8 +402,13 @@ function unitCell(u){
   else if(isReserved){ cls+=' reserved'; click='onclick="showReservedInfo(\''+esc(u.unit_no)+'\','+JSON.stringify(JSON.stringify(u.reservation||{})).replace(/"/g,'&quot;')+')"'; }
   else { cls+=' sold'; }
   const dotColor=isAvail?'var(--fk-success)':isReserved?'var(--fk-warning)':'var(--fk-muted-fill)';
+  // staff name on the card (never client): reserved -> reserver, sold -> agent/seller
+  let by='';
+  if(isReserved && u.reservation && u.reservation.reserved_by_name) by='by '+u.reservation.reserved_by_name;
+  else if(code==='SOLD' && u.sold_by) by='by '+u.sold_by;
   return '<div class="'+cls+'" '+click+'><span class="dot" style="background:'+dotColor+'"></span>'
-    +'<span class="uno">'+esc(u.unit_no)+'</span><span class="ust">'+esc(u.status_name||code||'—')+'</span></div>';
+    +'<span class="uno">'+esc(u.unit_no)+'</span><span class="ust">'+esc(u.status_name||code||'—')+'</span>'
+    +(by?'<span class="uby">'+esc(by)+'</span>':'')+'</div>';
 }
 function showReservedInfo(uno,resJson){
   let r={}; try{ r=JSON.parse(resJson); }catch(e){}
