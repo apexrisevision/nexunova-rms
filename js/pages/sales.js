@@ -2622,22 +2622,22 @@ async function printApplicationForm() {
     'body{font-family:"Segoe UI","Calibri","Helvetica Neue",Arial,sans-serif;color:#111;font-size:12px;-webkit-font-smoothing:antialiased}' +
     // the sheet fills the whole printable area so signatures sit at the bottom
     '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
-    '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px;margin:0 0 13px}' +
+    '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px 16px;margin:0 0 9px}' +
     '.af-gc{display:flex;align-items:center;gap:7px}' +
     '.af-gl{font-size:10px;color:#333;white-space:nowrap}' +
-    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 8px;font-size:12.5px;font-weight:bold;height:0.48in;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.af-sec{font-size:13px;font-weight:bold;letter-spacing:.4px;color:#15412e;border-bottom:1.5px solid #15412e;padding:0 0 3px;margin:20px 0 8px}' +
+    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 8px;font-size:12.5px;font-weight:bold;height:0.43in;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.af-sec{font-size:13px;font-weight:bold;letter-spacing:.4px;color:#15412e;border-bottom:1.5px solid #15412e;padding:0 0 3px;margin:12px 0 6px}' +
     'table.af{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:0}' +
     // uniform tall rows — every row (single + paired) the same height, no cramping
-    'table.af td{border:1px solid #9aa6ac;height:0.52in;vertical-align:middle}' +
+    'table.af td{border:1px solid #9aa6ac;height:0.45in;vertical-align:middle}' +
     'td.afl{background:#fff;font-size:10px;color:#222;font-weight:bold;padding:4px 8px;width:134px;white-space:nowrap}' +
     'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12.5px;font-weight:bold;padding:4px 9px;overflow:hidden}' +
     'td.afph{width:35mm;text-align:center;vertical-align:middle;background:#fff;padding:4px}' +
     'td.afph img{width:31mm;height:38mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
     '.af-ph-blank{width:31mm;height:38mm;border:1px dashed #888;display:flex;align-items:center;justify-content:center;font-size:8px;color:#999;margin:0 auto;text-align:center;text-transform:uppercase;letter-spacing:.4px}' +
-    '.af-decl-t{font-size:11.5px;font-weight:bold;margin:22px 0 4px}' +
-    '.af-decl{font-size:11px;line-height:1.7;text-align:justify}' +
-    '.af-sp{flex:1 1 auto;min-height:0.35in}' +            // absorbs any remainder; signatures sit at the bottom
+    '.af-decl-t{font-size:11.5px;font-weight:bold;margin:12px 0 4px}' +
+    '.af-decl{font-size:11px;line-height:1.5;text-align:justify}' +
+    '.af-sp{flex:1 1 auto;min-height:0.1in}' +            // absorbs any remainder; signatures sit at the bottom
     '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;page-break-inside:avoid}' +
     '.af-sig{font-size:11px;text-align:center;color:#222}' +
     '.af-sigline{border-bottom:1px solid #333;height:32px;margin-bottom:5px}';
