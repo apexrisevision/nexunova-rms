@@ -110,7 +110,17 @@ function _orRenderTable(){
       '<td style="'+cs+'">'+lc+'</td>'+
       '<td style="'+cs+'" onclick="event.stopPropagation()"><div style="display:flex;gap:3px">'+tel+wa+prom+log+escb+'</div></td></tr>';
   }).join('');
-  host.innerHTML='<div style="max-height:60vh;overflow:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius)"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead>'+th+'</thead><tbody>'+body+'</tbody></table></div>'+
+  var Z0=0,Z1=0,Z2=0,Z3=0,Z4=0; rows.forEach(function(r){ Z0+=r._open;Z1+=r._dueToDate;Z2+=r._rec;Z3+=r._advBf;Z4+=r._closing; });
+  var tcs='padding:9px 10px;border-top:2px solid var(--fk-border);background:var(--fk-bg-subtle);font-weight:700;position:sticky;bottom:0';
+  var totRow='<tr>'+
+    '<td style="'+tcs+'"></td><td style="'+tcs+'">TOTAL · '+rows.length+'</td>'+
+    '<td style="'+tcs+';text-align:right" class="num">'+_orF(Z0)+'</td>'+
+    '<td style="'+tcs+';text-align:right" class="num">'+_orF(Z1)+'</td>'+
+    '<td style="'+tcs+';text-align:right;color:var(--fk-success)" class="num">'+_orF(Z2)+'</td>'+
+    '<td style="'+tcs+';text-align:right;color:var(--fk-warning)" class="num">'+_orF(Z3)+'</td>'+
+    '<td style="'+tcs+';text-align:right;color:var(--fk-danger)" class="num">'+_orF(Z4)+'</td>'+
+    '<td style="'+tcs+'"></td><td style="'+tcs+'"></td><td style="'+tcs+'"></td></tr>';
+  host.innerHTML='<div style="max-height:60vh;overflow:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius)"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead>'+th+'</thead><tbody>'+body+totRow+'</tbody></table></div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+rows.length+' account'+(rows.length!==1?'s':'')+' shown · sorted by amount still owed · work each row right here →'+
       '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('phone',13)+'Call</span>·'+
       '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('message-circle',13)+'WhatsApp</span>·'+
@@ -189,50 +199,32 @@ function _orRender(){
   // money picture — the four figures the officer needs. "This month's demand" is the
   // FULL month's billing (matches the admin Recovery Intelligence); the arrears figures
   // are due-to-date — never the full contract / project-end (e.g. 2030) balance.
-  var fig=function(label,val,kind,tone,sub,big){
-    return '<div class="nx-card" style="cursor:pointer;padding:var(--fk-sp-4);flex:1;min-width:150px;'+(big?'border:1px solid var(--fk-danger)':'')+'" onclick="_orDrill(\''+kind+'\')" title="Click to see every account behind this figure">'+
-      '<div class="nx-kpi-label">'+esc(label)+'</div>'+
-      '<div style="font-size:'+(big?'25px':'21px')+';font-weight:600;margin-top:3px;'+(tone?'color:var(--fk-'+tone+')':'')+'" class="num">'+_orF(val)+'</div>'+
-      '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px"><span style="color:var(--fk-text-muted)">'+esc(sub)+'</span> · <span style="color:var(--fk-primary)">accounts →</span></div></div>';
-  };
-  var bar='<div style="height:10px;border-radius:6px;background:var(--fk-bg-subtle);overflow:hidden;margin-top:4px"><div style="height:100%;width:'+Math.min(100,pct)+'%;background:var(--fk-success);border-radius:6px"></div></div>';
-  var note='<div class="nx-kpi-label" style="text-transform:none;display:flex;align-items:flex-start;gap:6px;margin-top:var(--fk-sp-4);line-height:1.5">'+NX.icon('info',13)+'<span><b style="font-weight:600">Demand</b> = this month’s full billing (whole month). <b style="font-weight:600">Old arrears</b> &amp; <b style="font-weight:600">current remaining</b> are <b style="font-weight:600">due to date</b> — only what has fallen due up to today; future installments (e.g. through 2030) are <b style="font-weight:600">not</b> counted.</span></div>';
-  // transparent rollforward — exactly how "current remaining" is built, to the paisa:
-  // old arrears + due-to-date − received − advances already pre-paid = remaining.
-  var rfPart=function(lb,val,op,col){ return (op?'<span style="color:var(--fk-text-muted);font-weight:700;font-size:15px">'+op+'</span>':'')+'<span style="display:inline-flex;flex-direction:column;line-height:1.25"><span class="nx-kpi-label" style="text-transform:none">'+esc(lb)+'</span><b class="num"'+(col?' style="color:var(--fk-'+col+')"':'')+'>'+_orF(val)+'</b></span>'; };
-  var rf='<div style="margin-top:var(--fk-sp-4);padding:var(--fk-sp-3) var(--fk-sp-4);background:var(--fk-bg-subtle);border-radius:10px">'+
-    '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:8px;display:flex;align-items:center;gap:6px">'+NX.icon('calculator',13)+'How <b style="font-weight:600">&nbsp;current remaining&nbsp;</b> is built — up to today, no future installments</div>'+
-    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px">'+
-      rfPart('Old arrears',T.oldArrears,'')+
-      rfPart('Due to date',T.dueToDate,'+')+
-      rfPart('Received',T.recvApplied,'−','success')+
-      rfPart('Advance pre-paid',T.advBf,'−','warning')+
-      rfPart('Current remaining',T.remaining,'=','danger')+
+  // ── ONE merged, self-justifying report (no grid). The summary figures each
+  //    drill to their accounts; the rollforward ties them; and every figure here
+  //    equals a column TOTAL in the table below (switch the filter to "All
+  //    accounts" to see all of them reconcile on screen). ──
+  var rfPart=function(lb,val,op,col,kind){ return (op?'<span style="color:var(--fk-text-muted);font-weight:700;font-size:15px">'+op+'</span>':'')+'<span '+(kind?'onclick="_orDrill(\''+kind+'\')" title="See the accounts behind this figure" style="cursor:pointer;':'style="')+'display:inline-flex;flex-direction:column;line-height:1.3"><span class="nx-kpi-label" style="text-transform:none">'+esc(lb)+(kind?' <span style="color:var(--fk-primary)">→</span>':'')+'</span><b class="num" style="font-size:17px;'+(col?'color:var(--fk-'+col+')':'')+'">'+_orF(val)+'</b></span>'; };
+  var rf='<div style="padding:var(--fk-sp-3) var(--fk-sp-4);background:var(--fk-bg-subtle);border-radius:10px;margin-bottom:var(--fk-sp-3)">'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:8px;display:flex;align-items:center;gap:6px">'+NX.icon('calculator',13)+'Current remaining (to date — no future installments). Each figure = a column total in the table below.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px">'+
+      rfPart('Old arrears',T.oldArrears,'',null,'old')+
+      rfPart('Due to date',T.dueToDate,'+',null,null)+
+      rfPart('Received',T.recovered,'−','success','recovered')+
+      rfPart('Advance pre-paid',T.advBf,'−','warning',null)+
+      (T.advFut>0.5?rfPart('Advance for future',T.advFut,'+','info',null):'')+
+      rfPart('Current remaining',T.remaining,'=','danger','remaining')+
     '</div>'+
-    (T.advFut>0.5?'<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;color:var(--fk-text-muted)">Plus '+_orF(T.advFut)+' received this month as advance toward future installments — counted in “Recovered”, but it doesn’t reduce today’s remaining.</div>':'')+
+    (T.advFut>0.5?'<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;color:var(--fk-text-muted)">“Advance for future” = received this month but applied to a later installment, so it’s added back (it doesn’t reduce today’s remaining).</div>':'')+
   '</div>';
-  var money=NX.card(
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-4)"><span style="font-weight:600;display:flex;align-items:center;gap:8px">'+NX.icon('target',16)+'This month — '+esc(ST.monLabel)+'</span><span class="nx-kpi-label" style="text-transform:none;margin-left:auto">as of '+esc(_orDate(ST.today))+'</span></div>'+
-    '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:stretch">'+
-      fig('This month’s demand',T.dueMonth,'demand','','billed this month')+
-      fig('Recovered',T.recovered,'recovered','success','collected this month')+
-      fig('Old arrears',T.oldArrears,'old','warning','before this month')+
-      fig('Current remaining — to date',T.remaining,'remaining','danger','old arrears + due to date − received − advance',true)+
-    '</div>'+
-    rf+
-    '<div style="margin-top:var(--fk-sp-4)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nx-kpi-label" style="text-transform:none">Collected vs billed this month</span><span style="font-weight:600">'+pct+'% · '+_orC(T.recovered)+' of '+_orC(T.dueMonth)+' billed</span></div>'+bar+'</div>'+
-    note
-  ,{});
-
-  // filter bar + working table
-  var fbtn=function(f,lb){ return '<button data-f="'+f+'" class="nx-btn nx-btn--sm '+(f==='owe'?'nx-btn--secondary':'nx-btn--ghost')+'" onclick="_orSetFilter(\''+f+'\')">'+esc(lb)+'</button>'; };
+  var fbtn=function(f,lb){ return '<button data-f="'+f+'" class="nx-btn nx-btn--sm '+(f===(window._orFilter||'owe')?'nx-btn--secondary':'nx-btn--ghost')+'" onclick="_orSetFilter(\''+f+'\')">'+esc(lb)+'</button>'; };
   var filterbar='<div id="or-filterbar" style="display:flex;gap:6px;flex-wrap:wrap">'+
-    fbtn('owe','Everyone who owes')+fbtn('overdue','Overdue only')+fbtn('likely','Likely to pay')+fbtn('quiet','Gone quiet')+'</div>';
-  var tableCard=NX.card(
-    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:var(--fk-sp-4)"><span style="font-weight:600;display:flex;align-items:center;gap:8px">'+NX.icon('users',16)+'Who to call</span><div style="margin-left:auto">'+filterbar+'</div></div>'+
-    '<div id="or-table"></div>', {});
-
-  b.innerHTML=money+'<div style="height:16px"></div>'+tableCard;
+    fbtn('owe','Everyone who owes')+fbtn('all','All accounts')+fbtn('overdue','Overdue only')+fbtn('likely','Likely to pay')+fbtn('quiet','Gone quiet')+'</div>';
+  var head='<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:var(--fk-sp-3)">'+
+    '<span style="font-weight:600;font-size:16px;display:flex;align-items:center;gap:8px">'+NX.icon('users',18)+'Recovery report</span>'+
+    '<span class="nx-kpi-label" style="text-transform:none">'+esc(ST.monLabel)+' · as of '+esc(_orDate(ST.today))+(ST.scoped?' · your accounts':' · all accounts')+'</span>'+
+    '<span style="margin-left:auto">'+filterbar+'</span></div>';
+  var ctx='<div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-3)">This month billed <b>'+_orF(T.dueMonth)+'</b> (of which <b>'+_orF(T.dueToDate)+'</b> has fallen due so far) · recovered <b style="color:var(--fk-success)">'+_orF(T.recovered)+'</b> ('+pct+'%).</div>';
+  b.innerHTML=NX.card(head+rf+ctx+'<div id="or-table"></div>', {});
   _orRenderTable();
 }
 
