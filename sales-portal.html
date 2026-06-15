@@ -85,14 +85,7 @@ a{color:var(--fk-primary);text-decoration:none}
 .top .who b{font-size:14px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .who span{font-size:11px;color:var(--fk-text-muted)}
 .wrap{max-width:920px;margin:0 auto;padding:16px}
-/* App screen = fixed-height shell: top bar + tabs + board controls stay pinned, only the unit list scrolls */
-#screen-app.active{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
-#screen-app .top{position:static}
-#screen-app .wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-#app-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.board-head{flex:0 0 auto}
-.board-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:22px}
-.tabs{flex:0 0 auto;display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);
+.tabs{display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);
   border-radius:10px;padding:4px;margin-bottom:16px}
 .tab{flex:1;text-align:center;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;
   color:var(--fk-text-muted);cursor:pointer;border:1px solid transparent}
@@ -450,18 +443,18 @@ async function loadBoard(){
 }
 function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleString('en-US')+' '+((u.area_unit||'sqft')) : ''; }
 async function renderBoard(){
-  $('app-body').innerHTML='<div class="board-scroll"><div class="card"><div class="empty"><div class="et">Loading availability…</div></div></div></div>';
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading availability…</div></div></div>';
   const ok=await loadBoard(); if(!ok){ return sessionGone(); }
   const projects=BOARD.projects||[];
   if(!projects.length){
-    $('app-body').innerHTML='<div class="board-scroll"><div class="card"><div class="empty">'
+    $('app-body').innerHTML='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/></svg></div>'
-      +'<div class="et">No inventory in your scope</div><div class="es">Ask your office to assign you a project.</div></div></div></div>';
+      +'<div class="et">No inventory in your scope</div><div class="es">Ask your office to assign you a project.</div></div></div>';
     return;
   }
   if(BV.proj>=projects.length) BV.proj=0;
   const p=projects[BV.proj]; const c=p.counts||{};
-  let html='<div class="board-head">';
+  let html='';
   if(projects.length>1){
     html+='<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(pp.project_name)+'</div>').join('')+'</div>';
   }
@@ -472,7 +465,7 @@ async function renderBoard(){
   html+='<div class="kpis">'+kpi('Available',c.available,'green')+kpi('Reserved',c.reserved,'amber')+kpi('Sold',c.sold,'muted')+'</div>';
   html+='<div class="seg2">'+['all','available','reserved','sold'].map(f=>'<div class="o'+(BV.filter===f?' on':'')+'" data-f="'+f+'" onclick="_bvFilter(\''+f+'\')">'+(f==='all'?'All':f.charAt(0).toUpperCase()+f.slice(1))+'</div>').join('')+'</div>';
   html+='<input class="bsearch" id="bv-q" placeholder="Search unit no…" value="'+esc(BV.q)+'" oninput="_bvSearch(this.value)">';
-  html+='</div><div id="bv-body" class="board-scroll"></div>';
+  html+='<div id="bv-body"></div>';
   $('app-body').innerHTML=html;
   _bvRenderBody();
 }
@@ -480,9 +473,8 @@ function _bvMode(m){ BV.mode=m; BV.floor=null; renderBoard(); }
 function _bvProj(i){ BV.proj=i; BV.floor=null; BV.q=''; renderBoard(); }
 function _bvFilter(f){ BV.filter=f; document.querySelectorAll('#app-body .seg2 .o').forEach(o=>o.classList.toggle('on', o.dataset.f===f)); _bvRenderBody(); }
 function _bvSearch(v){ BV.q=v; _bvRenderBody(); }
-function _bvScrollTop(){ const b=$('bv-body'); if(b) b.scrollTop=0; }
-function _bvSetFloor(label){ BV.floor=label; _bvRenderBody(); _bvScrollTop(); }
-function _bvBack(){ BV.floor=null; _bvRenderBody(); _bvScrollTop(); }
+function _bvSetFloor(label){ BV.floor=label; _bvRenderBody(); try{$('app-body').scrollIntoView({block:'start'});}catch(e){} }
+function _bvBack(){ BV.floor=null; _bvRenderBody(); }
 function _bvFloorGroups(p){
   const f={};
   (p.units||[]).forEach(u=>{ const k=u.floor_label||'—'; if(!f[k]) f[k]={label:k,rank:(u.floor_rank==null?999:u.floor_rank),units:[]}; f[k].units.push(u); });
@@ -617,17 +609,17 @@ async function submitReserve(){
 
 // ════ my reservations ════
 async function renderMine(){
-  $('app-body').innerHTML='<div class="board-scroll"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const {data,error}=await sb.rpc('get_my_reservations',{p_session_token:TOKEN});
   if(error||!data||!data.success){ return sessionGone(); }
   const rows=data.reservations||[];
   if(!rows.length){
-    $('app-body').innerHTML='<div class="board-scroll"><div class="card"><div class="empty">'
+    $('app-body').innerHTML='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></div>'
-      +'<div class="et">No reservations yet</div><div class="es">Reserve an available unit from the board.</div></div></div></div>';
+      +'<div class="et">No reservations yet</div><div class="es">Reserve an available unit from the board.</div></div></div>';
     return;
   }
-  let html='<div class="board-scroll"><div class="card">';
+  let html='<div class="card">';
   rows.forEach(r=>{
     const cd=countdown(r.expiry_date);
     const st=r.status;
@@ -639,7 +631,7 @@ async function renderMine(){
       +(st==='active'?'<div style="margin-top:6px"><button class="btn btn-danger-soft btn-sm" onclick="cancelMine(\''+r.id+'\')">Release</button></div>':'')
       +'</div></div>';
   });
-  html+='</div></div>';
+  html+='</div>';
   $('app-body').innerHTML=html;
 }
 async function cancelMine(id){
