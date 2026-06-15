@@ -2619,7 +2619,7 @@ async function printApplicationForm() {
   const css =
     '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:Georgia,"Times New Roman",Cambria,serif;color:#111;font-size:14px;-webkit-font-smoothing:antialiased}' +
+    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#111;font-size:14.5px;-webkit-font-smoothing:antialiased}' +
     // content fills the printable area top→bottom (no big mid-page gap)
     '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
     '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px 16px;margin:0 0 12px}' +
