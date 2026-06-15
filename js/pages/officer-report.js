@@ -20,7 +20,7 @@ function _orInsights(rows, T){
   var ins=[];
   var pct = T.dueMonth>0 ? Math.round(T.recovered/T.dueMonth*100) : 0;
   ins.push({ic:'target', t:'primary', h:'This month', act:"_orDrill('remaining')", proof:'See every account that still owes',
-    x:'This month’s demand <b>'+_orF(T.dueMonth)+'</b> · recovered <b>'+_orF(T.recovered)+'</b> ('+pct+'% of billing). Old arrears <b>'+_orF(T.oldArrears)+'</b>. Current outstanding still due: <b>'+_orF(T.remaining)+'</b> (due to date — not till project end).'});
+    x:'This month’s demand <b>'+_orF(T.dueMonth)+'</b> · recovered <b>'+_orF(T.recovered)+'</b> ('+pct+'% of billing). Old arrears <b>'+_orF(T.oldArrears)+'</b>. Current remaining (to date): <b>'+_orF(T.remaining)+'</b> = old arrears + due to date − received − advance pre-paid; future installments not counted.'});
   var owe = rows.filter(function(r){return r._closing>0.5;}).sort(function(a,b){return b._closing-a._closing;});
   if(owe.length){ var t=owe[0];
     ins.push({ic:'alert-triangle', t:'danger', h:'Chase first', act:"_orOpenUnit('"+(t.sale_id||'')+"')", proof:'Open this account',
@@ -87,7 +87,7 @@ function _orRenderTable(){
   rows.sort(function(a,b){return b._closing-a._closing;});
   if(!rows.length){ host.innerHTML=NX.empty({icon:'check-circle', message:'Nothing here — you are all caught up.'}); return; }
   var thCss='padding:9px 10px;position:sticky;top:0;background:var(--fk-surface);z-index:1;border-bottom:1px solid var(--fk-border);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted)';
-  var cols=['#','Client / Unit','>Old arrears','>Due this month','>Recovered','>Current outstanding','Will pay','Last contact','Actions'];
+  var cols=['#','Client / Unit','>Old arrears','>Due to date','>Recovered','>Advance pre-paid','>Current remaining','Will pay','Last contact','Actions'];
   var th='<tr>'+cols.map(function(h){var r=h[0]==='>';return '<th style="'+thCss+(r?';text-align:right':';text-align:left')+'">'+esc(r?h.slice(1):h)+'</th>';}).join('')+'</tr>';
   var body=rows.map(function(r,i){ var cs='padding:9px 10px;border-bottom:1px solid var(--fk-border)';
     var ph=_orPhone(r.phone);
@@ -100,8 +100,9 @@ function _orRenderTable(){
       '<td style="'+cs+'" class="num">'+(i+1)+'</td>'+
       '<td style="'+cs+'"><div style="font-weight:500;white-space:nowrap">'+esc(r.client_name)+'</div><div class="nx-kpi-label" style="text-transform:none">'+esc(r.unit_no||'')+(r._odd>0?' · <span style="color:var(--fk-danger)">'+r._odd+'d overdue</span>':'')+'</div></td>'+
       '<td style="'+cs+';text-align:right" class="num">'+(r._open>0.5?_orF(r._open):'<span class="nx-kpi-label">—</span>')+'</td>'+
-      '<td style="'+cs+';text-align:right" class="num">'+(r._due>0.5?_orF(r._due):'<span class="nx-kpi-label">—</span>')+'</td>'+
+      '<td style="'+cs+';text-align:right" class="num">'+(r._dueToDate>0.5?_orF(r._dueToDate):'<span class="nx-kpi-label">—</span>')+'</td>'+
       '<td style="'+cs+';text-align:right" class="num">'+(r._rec>0.5?'<span style="color:var(--fk-success)">'+_orF(r._rec)+'</span>':'<span class="nx-kpi-label">—</span>')+'</td>'+
+      '<td style="'+cs+';text-align:right" class="num">'+(r._advBf>0.5?'<span style="color:var(--fk-warning)">'+_orF(r._advBf)+'</span>':'<span class="nx-kpi-label">—</span>')+'</td>'+
       '<td style="'+cs+';text-align:right;font-weight:600" class="num">'+_orF(r._closing)+'</td>'+
       '<td style="'+cs+'">'+prop+'</td>'+
       '<td style="'+cs+'">'+lc+'</td>'+
@@ -146,7 +147,7 @@ async function rMyRecovery(){
       var q=qmap[r.sale_id]||{};
       return Object.assign({}, r, {
         _open:Number(r.opening||0), _due:Number(r.due_full||r.due_period||0), _dueToDate:Number(r.due_period||0), _rec:Number(r.received_total||0),
-        _closing:Number(r.closing||0), _net:Number(r.net_price||0), _paid:Number(r.paid_to_date||0),
+        _closing:Number(r.closing||0), _advBf:Number(r.advance_bf||0), _recvApplied:Number(r.received_applied||0), _advFut:Number(r.r_advance||0), _net:Number(r.net_price||0), _paid:Number(r.paid_to_date||0),
         _odd:Number(r.overdue_days||0), _prop:(q.prop!=null?q.prop:null), _lastContact:q.lc||null, _act:q.act||null
       });
     });
@@ -157,6 +158,10 @@ async function rMyRecovery(){
       remaining:  rows.reduce(function(s,r){return s+r._closing;},0)
     };
     T.target=T.oldArrears+T.dueMonth;
+    T.dueToDate=rows.reduce(function(s,r){return s+r._dueToDate;},0);
+    T.advBf=rows.reduce(function(s,r){return s+r._advBf;},0);
+    T.recvApplied=rows.reduce(function(s,r){return s+r._recvApplied;},0);
+    T.advFut=rows.reduce(function(s,r){return s+r._advFut;},0);
     window._orStore={rows:rows, T:T, today:today, monLabel:monLabel, scoped:(resR.data&&resR.data.scoped)};
     _orRender();
   }catch(e){
@@ -195,15 +200,30 @@ function _orRender(){
       '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px"><span style="color:var(--fk-text-muted)">'+esc(sub)+'</span> · <span style="color:var(--fk-primary)">accounts →</span></div></div>';
   };
   var bar='<div style="height:10px;border-radius:6px;background:var(--fk-bg-subtle);overflow:hidden;margin-top:4px"><div style="height:100%;width:'+Math.min(100,pct)+'%;background:var(--fk-success);border-radius:6px"></div></div>';
-  var note='<div class="nx-kpi-label" style="text-transform:none;display:flex;align-items:flex-start;gap:6px;margin-top:var(--fk-sp-4);line-height:1.5">'+NX.icon('info',13)+'<span><b style="font-weight:600">Demand</b> = this month’s full billing (whole month). <b style="font-weight:600">Old arrears</b> &amp; <b style="font-weight:600">current outstanding</b> are <b style="font-weight:600">due to date</b> — only what has fallen due up to today; future installments (e.g. through 2030) are <b style="font-weight:600">not</b> counted.</span></div>';
+  var note='<div class="nx-kpi-label" style="text-transform:none;display:flex;align-items:flex-start;gap:6px;margin-top:var(--fk-sp-4);line-height:1.5">'+NX.icon('info',13)+'<span><b style="font-weight:600">Demand</b> = this month’s full billing (whole month). <b style="font-weight:600">Old arrears</b> &amp; <b style="font-weight:600">current remaining</b> are <b style="font-weight:600">due to date</b> — only what has fallen due up to today; future installments (e.g. through 2030) are <b style="font-weight:600">not</b> counted.</span></div>';
+  // transparent rollforward — exactly how "current remaining" is built, to the paisa:
+  // old arrears + due-to-date − received − advances already pre-paid = remaining.
+  var rfPart=function(lb,val,op,col){ return (op?'<span style="color:var(--fk-text-muted);font-weight:700;font-size:15px">'+op+'</span>':'')+'<span style="display:inline-flex;flex-direction:column;line-height:1.25"><span class="nx-kpi-label" style="text-transform:none">'+esc(lb)+'</span><b class="num"'+(col?' style="color:var(--fk-'+col+')"':'')+'>'+_orF(val)+'</b></span>'; };
+  var rf='<div style="margin-top:var(--fk-sp-4);padding:var(--fk-sp-3) var(--fk-sp-4);background:var(--fk-bg-subtle);border-radius:10px">'+
+    '<div class="nx-kpi-label" style="text-transform:none;margin-bottom:8px;display:flex;align-items:center;gap:6px">'+NX.icon('calculator',13)+'How <b style="font-weight:600">&nbsp;current remaining&nbsp;</b> is built — up to today, no future installments</div>'+
+    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px">'+
+      rfPart('Old arrears',T.oldArrears,'')+
+      rfPart('Due to date',T.dueToDate,'+')+
+      rfPart('Received',T.recvApplied,'−','success')+
+      rfPart('Advance pre-paid',T.advBf,'−','warning')+
+      rfPart('Current remaining',T.remaining,'=','danger')+
+    '</div>'+
+    (T.advFut>0.5?'<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;color:var(--fk-text-muted)">Plus '+_orF(T.advFut)+' received this month as advance toward future installments — counted in “Recovered”, but it doesn’t reduce today’s remaining.</div>':'')+
+  '</div>';
   var money=NX.card(
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-4)"><span style="font-weight:600;display:flex;align-items:center;gap:8px">'+NX.icon('target',16)+'This month — '+esc(ST.monLabel)+'</span><span class="nx-kpi-label" style="text-transform:none;margin-left:auto">as of '+esc(_orDate(ST.today))+'</span></div>'+
     '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:stretch">'+
       fig('This month’s demand',T.dueMonth,'demand','','billed this month')+
       fig('Recovered',T.recovered,'recovered','success','collected this month')+
       fig('Old arrears',T.oldArrears,'old','warning','before this month')+
-      fig('Current outstanding — still due',T.remaining,'remaining','danger','due to date · not till 2030',true)+
+      fig('Current remaining — to date',T.remaining,'remaining','danger','old arrears + due to date − received − advance',true)+
     '</div>'+
+    rf+
     '<div style="margin-top:var(--fk-sp-4)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nx-kpi-label" style="text-transform:none">Collected vs billed this month</span><span style="font-weight:600">'+pct+'% · '+_orC(T.recovered)+' of '+_orC(T.dueMonth)+' billed</span></div>'+bar+'</div>'+
     note
   ,{});
@@ -231,8 +251,9 @@ function _orPrint(){
     return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(r.client_name)+'<div class="su">'+esc(r.unit_no||'')+(r._odd>0?' · '+r._odd+'d overdue':'')+'</div></td>'+
       '<td>'+esc(r.phone||'—')+'</td>'+
       '<td class="n">'+(r._open>0.5?_orF(r._open):'—')+'</td>'+
-      '<td class="n">'+(r._due>0.5?_orF(r._due):'—')+'</td>'+
+      '<td class="n">'+(r._dueToDate>0.5?_orF(r._dueToDate):'—')+'</td>'+
       '<td class="n">'+(r._rec>0.5?_orF(r._rec):'—')+'</td>'+
+      '<td class="n">'+(r._advBf>0.5?_orF(r._advBf):'—')+'</td>'+
       '<td class="n"><b>'+_orF(r._closing)+'</b></td>'+
       '<td>'+(r._prop!=null?r._prop+'%':'—')+'</td></tr>';
   }).join('');
@@ -251,9 +272,10 @@ function _orPrint(){
     '<div class="kp"><div class="kc"><label>This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
       '<div class="kc"><label>Recovered</label><b style="color:#16a34a">'+_orF(T.recovered)+'</b></div>'+
       '<div class="kc"><label>Old arrears</label><b style="color:#d97706">'+_orF(T.oldArrears)+'</b></div>'+
-      '<div class="kc"><label>Current outstanding · due now</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div></div>'+
-    '<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Collected '+pct+'% of this month’s billing · demand = full month; outstanding = due to date (future installments, e.g. through 2030, are not counted)</div><div class="pb"><span style="width:'+Math.min(100,pct)+'%"></span></div>'+
-    '<table class="tb"><thead><tr><th class="n">#</th><th>Client / Unit</th><th>Phone</th><th class="n">Old arrears</th><th class="n">Due this mo</th><th class="n">Recovered</th><th class="n">Current outstanding</th><th>Will pay</th></tr></thead><tbody>'+rowsHTML+'</tbody></table>'+
+      '<div class="kc"><label>Current remaining · to date</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div></div>'+
+    '<div style="font-size:10px;color:#374151;margin-bottom:6px">Current remaining = old arrears '+_orF(T.oldArrears)+' + due to date '+_orF(T.dueToDate)+' − received '+_orF(T.recvApplied)+' − advance pre-paid '+_orF(T.advBf)+' = <b>'+_orF(T.remaining)+'</b></div>'+
+    '<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Collected '+pct+'% of this month’s billing · demand = full month; remaining = due to date (future installments, e.g. through 2030, are not counted)</div><div class="pb"><span style="width:'+Math.min(100,pct)+'%"></span></div>'+
+    '<table class="tb"><thead><tr><th class="n">#</th><th>Client / Unit</th><th>Phone</th><th class="n">Old arrears</th><th class="n">Due to date</th><th class="n">Recovered</th><th class="n">Advance pre-paid</th><th class="n">Current remaining</th><th>Will pay</th></tr></thead><tbody>'+rowsHTML+'</tbody></table>'+
     '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · Your assigned accounts only</div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'My Recovery'); else window.print();
