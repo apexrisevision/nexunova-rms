@@ -469,6 +469,16 @@ function rReports() {
         <div style="color:var(--fk-primary);font-size:20px">→</div>
       </div>
     </div>
+    <div class="nx-card" style="cursor:pointer;border:1px solid color-mix(in srgb,var(--fk-success) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fk-success) 7%,transparent),transparent)" onclick="nav('myrecovery')">
+      <div style="display:flex;align-items:center;gap:var(--fk-sp-3)">
+        <div style="width:40px;height:40px;border-radius:10px;background:color-mix(in srgb,var(--fk-success) 14%,transparent);display:grid;place-items:center;flex-shrink:0">${NX.icon('list-checks',22)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="nx-modal-title" style="display:flex;align-items:center;gap:8px;margin-bottom:3px">My Recovery — Work Sheet ${NX.badge('Print','success',{dot:true})}</div>
+          <div class="nx-kpi-label" style="text-transform:none">This month's demand, recovered, old arrears &amp; current remaining — client-wise. Print a field work sheet the recovery officer can act on at a glance: who to call, how much to collect, what to do.</div>
+        </div>
+        <div style="color:var(--fk-success);font-size:20px">→</div>
+      </div>
+    </div>
     ${groups.map(g => `<div>
       <div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">${g.title}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--fk-sp-3)">

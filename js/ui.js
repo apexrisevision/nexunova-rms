@@ -467,6 +467,7 @@ function buildSB(){
       // ── RECOVERY (the money area — 4 primaries + a long "More" tail) ──
       // Count chips killed except where they signal: PDC due ≤7d = warning.
       { label: 'Recovery', items: [
+        { id:'myrecovery', ic:'radar',         lb:'My Recovery' },
         { id:'queue',     ic:'sunrise',        lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
         { id:'recovery',  ic:'list-checks',    lb:'Payments', dot:(overdueN>0?'danger':null) },
         { id:'pdc',       ic:'calendar-clock', lb:'PDC', bdg:(window._pdcDueCount||null), bdgType:(window._pdcDueCount?'warn':null) },
