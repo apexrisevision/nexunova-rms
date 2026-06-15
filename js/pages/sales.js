@@ -2623,26 +2623,26 @@ async function printApplicationForm() {
     '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
     '.fg{min-width:0}' +
     '.fl{font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:1.3px;color:#9aa3ab;margin:0 0 3px}' +
-    '.fv{font-size:14px;color:#374151;border-bottom:1px solid #d3dae0;min-height:0.32in;padding:1px 1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.fv{font-size:14px;color:#374151;border-bottom:1px solid #d3dae0;min-height:0.26in;padding:1px 1px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.fv.em{color:#111827;font-weight:bold}' +
-    '.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px 24px}' +
-    '.g2{display:grid;grid-template-columns:1fr 1fr;gap:15px 30px}' +
-    '.sec{display:flex;align-items:center;gap:10px;margin:22px 0 15px}' +
+    '.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px}' +
+    '.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px}' +
+    '.sec{display:flex;align-items:center;gap:10px;margin:13px 0 9px}' +
     '.sec-b{width:13px;height:13px;background:#15412e;border-radius:3px;flex:none}' +
     '.sec-t{font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#15412e;white-space:nowrap}' +
     '.sec-r{flex:1;height:1px;background:#e0e5e9}' +
     '.cib{display:flex;gap:24px;align-items:flex-start}' +
-    '.cib-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:15px}' +
+    '.cib-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}' +
     '.photo{width:32mm;height:40mm;border:1px solid #cfd6dc;border-radius:5px;background:#fafbfc;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;text-align:center}' +
     '.photo img{width:100%;height:100%;object-fit:cover}' +
     '.photo span{font-size:8px;color:#aab2b9;text-transform:uppercase;letter-spacing:1px}' +
-    '.decl{margin-top:8px}' +
-    '.decl-t{font-size:10px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:#15412e;margin:0 0 6px}' +
-    '.decl-p{font-size:11.5px;line-height:1.7;color:#4b5563;text-align:justify}' +
-    '.sp{flex:1 1 auto;min-height:0.35in}' +
+    '.decl{margin-top:4px}' +
+    '.decl-t{font-size:10px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:#15412e;margin:0 0 5px}' +
+    '.decl-p{font-size:11.5px;line-height:1.5;color:#4b5563;text-align:justify}' +
+    '.sp{flex:0 0 auto;height:0.5in}' +
     '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:72px;page-break-inside:avoid}' +
     '.sig{text-align:center}' +
-    '.sig-l{border-bottom:1.3px solid #1f2937;height:40px}' +
+    '.sig-l{border-bottom:1.3px solid #1f2937;height:34px}' +
     '.sig-t{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#4b5563;margin-top:8px}';
 
   // ── Premium field helpers: tiny label + value on a hairline rule ──
@@ -2669,7 +2669,7 @@ async function printApplicationForm() {
   b += '<div class="photo">' + (c.client_photo_url ? '<img src="' + esc(c.client_photo_url) + '">' : '<span>Affix<br>Photograph</span>') + '</div>';
   b += '</div>';
 
-  b += '<div class="g2" style="margin-top:15px">' +
+  b += '<div class="g2" style="margin-top:10px">' +
     F('Phone (Office)', '') + F('Phone (Residence)', c.phone_secondary) +
     F('Mobile #', c.phone_primary, true) + F('Email', c.email) +
     F('Occupation', c.occupation) + F('Nationality', nat) +
