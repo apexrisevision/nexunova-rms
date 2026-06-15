@@ -94,7 +94,9 @@ function _orRenderTable(){
     var prop = r._prop!=null ? NX.badge((r._prop>=60?'Likely':r._prop>=35?'Maybe':'Hard')+' · '+r._prop+'%', r._prop>=60?'success':r._prop>=35?'warning':'danger') : '<span class="nx-kpi-label">—</span>';
     var tel = r.phone ? '<a class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Call '+esc(r.phone)+'" href="tel:'+esc(r.phone)+'" onclick="event.stopPropagation()">'+NX.icon('phone',15)+'</a>' : '';
     var wa  = ph ? '<a class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/'+ph+'" onclick="event.stopPropagation()">'+NX.icon('message-circle',15)+'</a>' : '';
-    var log = '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Log a call / promise" onclick="event.stopPropagation();if(typeof openConModal===\'function\')openConModal(\''+(r.unit_id||'')+'\')">'+NX.icon('check',15)+'</button>';
+    var prom = '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" style="color:var(--fk-primary)" title="Add a promise to pay" onclick="event.stopPropagation();if(typeof openConModal===\'function\')openConModal(\''+(r.unit_id||'')+'\',\'promise\')">'+NX.icon('handshake',15)+'</button>';
+    var log = '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Log the call &amp; update status" onclick="event.stopPropagation();if(typeof openConModal===\'function\')openConModal(\''+(r.unit_id||'')+'\')">'+NX.icon('check',15)+'</button>';
+    var escb = '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" style="color:var(--fk-danger)" title="Raise an alert / escalate" onclick="event.stopPropagation();if(typeof escOpenNew===\'function\')escOpenNew({clientId:\''+(r.client_id||'')+'\'})">'+NX.icon('alert-triangle',15)+'</button>';
     var lc = r._lastContact ? esc(_orDate(r._lastContact)) : (r.last_payment_date?'<span class="nx-kpi-label" style="text-transform:none">paid '+esc(_orDate(r.last_payment_date))+'</span>':'<span class="nx-kpi-label">no contact</span>');
     return '<tr style="cursor:pointer" onclick="_orOpenUnit(\''+(r.sale_id||'')+'\')" onmouseover="this.style.background=\'var(--fk-bg-subtle)\'" onmouseout="this.style.background=\'\'">'+
       '<td style="'+cs+'" class="num">'+(i+1)+'</td>'+
@@ -106,10 +108,16 @@ function _orRenderTable(){
       '<td style="'+cs+';text-align:right;font-weight:600" class="num">'+_orF(r._closing)+'</td>'+
       '<td style="'+cs+'">'+prop+'</td>'+
       '<td style="'+cs+'">'+lc+'</td>'+
-      '<td style="'+cs+'" onclick="event.stopPropagation()"><div style="display:flex;gap:4px">'+tel+wa+log+'</div></td></tr>';
+      '<td style="'+cs+'" onclick="event.stopPropagation()"><div style="display:flex;gap:3px">'+tel+wa+prom+log+escb+'</div></td></tr>';
   }).join('');
   host.innerHTML='<div style="max-height:60vh;overflow:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius)"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead>'+th+'</thead><tbody>'+body+'</tbody></table></div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;margin-top:8px">'+rows.length+' account'+(rows.length!==1?'s':'')+' shown · sorted by amount still owed · click a row to open the full unit, or use the icons to Call / WhatsApp / Log.</div>';
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+rows.length+' account'+(rows.length!==1?'s':'')+' shown · sorted by amount still owed · work each row right here →'+
+      '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('phone',13)+'Call</span>·'+
+      '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('message-circle',13)+'WhatsApp</span>·'+
+      '<span style="display:inline-flex;align-items:center;gap:3px;color:var(--fk-primary)">'+NX.icon('handshake',13)+'Promise</span>·'+
+      '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('check',13)+'Log &amp; status</span>·'+
+      '<span style="display:inline-flex;align-items:center;gap:3px;color:var(--fk-danger)">'+NX.icon('alert-triangle',13)+'Escalate</span>'+
+    '</div>';
 }
 
 async function rMyRecovery(){
