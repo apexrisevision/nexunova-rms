@@ -2591,7 +2591,7 @@ async function printApplicationForm() {
   // sit at the bottom — no awkward empty gap. Adjust _mTop / _mBot to a test print.
   const _pageH = size === 'A4' ? 11.69 : 14;
   const _pageW = size === 'A4' ? 8.27  : 8.5;
-  const _mTop  = size === 'A4' ? 2.0   : 2.4;   // pre-printed green header gap (pushed down so body clears the header band)
+  const _mTop  = size === 'A4' ? 2.5   : 3.0;   // pre-printed green header gap (pushed down so body clears the header band)
   const _mBot  = 0.5;                            // pre-printed footer gap (unchanged — signatures stay pinned just above it)
   const _mSide = 0.45;
   const AF = {
