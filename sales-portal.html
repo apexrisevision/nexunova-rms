@@ -128,6 +128,35 @@ a{color:var(--fk-primary);text-decoration:none}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 
+/* ════ smart board: project chips · filter · search · floor directory · drill-in ════ */
+.projchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.pchip{padding:7px 14px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);font-size:13px;font-weight:500;color:var(--fk-text-muted);cursor:pointer}
+.pchip.on{background:var(--fk-primary-tint);border-color:var(--fk-primary);color:var(--fk-primary);font-weight:600}
+.seg2{display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;padding:4px;margin-bottom:10px}
+.seg2 .o{flex:1;text-align:center;padding:8px 4px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--fk-text-muted);cursor:pointer}
+.seg2 .o.on{background:var(--fk-bg-card);color:var(--fk-primary);font-weight:600;box-shadow:var(--fk-shadow)}
+.bsearch{width:100%;height:42px;padding:0 14px;border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-card);
+  color:var(--fk-text);font-family:var(--fk-font);font-size:14px;margin-bottom:16px}
+.bsearch:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
+.floorcard{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--fk-bg-card);border:1px solid var(--fk-border);
+  border-radius:14px;margin-bottom:10px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .12s,box-shadow .12s}
+.floorcard:hover{transform:translateY(-1px);box-shadow:var(--fk-shadow-raised)}
+.floorcard:active{transform:translateY(0)}
+.fc-name{font-size:15px;font-weight:600;letter-spacing:-.2px;min-width:84px}
+.fc-bar{flex:1;height:9px;border-radius:6px;background:var(--fk-bg-subtle);overflow:hidden;display:flex}
+.fc-bar i{height:100%;display:block}
+.fc-stat{text-align:right;min-width:62px;line-height:1.05}
+.fc-stat b{font-size:19px;font-weight:700;display:block}
+.fc-stat b.green{color:var(--fk-success)} .fc-stat b.amber{color:var(--fk-warning)} .fc-stat b.muted{color:var(--fk-text-muted)}
+.fc-stat span{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--fk-text-muted)}
+.fc-chev{font-size:22px;color:var(--fk-text-muted);line-height:1}
+.fdetail-hd{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.backbtn{height:34px;padding:0 13px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);
+  color:var(--fk-text);font-size:13px;font-weight:500;cursor:pointer}
+.backbtn:hover{background:var(--fk-subtle-hover)}
+.fd-title{font-size:16px;font-weight:600;letter-spacing:-.2px}
+@media(max-width:560px){ .fc-name{min-width:66px;font-size:14px} .fc-stat{min-width:54px} }
+
 /* reservation list */
 .rrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--fk-border)}
 .rrow:last-child{border-bottom:none}
@@ -287,6 +316,8 @@ function fmtPhone(v){
 
 // ════ state ════
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
+// board view: which project, which floor is open (null=directory), status filter, search
+let BV={proj:0, floor:null, filter:'all', q:''};
 
 function _coRemembered(){ try{return localStorage.getItem('rms.sales.co')}catch(e){return null} }
 function _coNameRemembered(){ try{return localStorage.getItem('rms.sales.coName')}catch(e){return null} }
@@ -403,28 +434,71 @@ async function renderBoard(){
       +'<div class="et">No inventory in your scope</div><div class="es">Ask your office to assign you a project.</div></div></div>';
     return;
   }
+  if(BV.proj>=projects.length) BV.proj=0;
+  const p=projects[BV.proj]; const c=p.counts||{};
   let html='';
-  projects.forEach(p=>{
-    const c=p.counts||{};
-    html+='<div class="kpis">'
-      +kpi('Available',c.available,'green')+kpi('Reserved',c.reserved,'amber')+kpi('Sold',c.sold,'muted')+'</div>';
-    html+='<div class="legend">'
-      +'<span><i style="background:var(--fk-success)"></i>Available</span>'
-      +'<span><i style="background:var(--fk-warning)"></i>Reserved</span>'
-      +'<span><i style="background:var(--fk-muted-fill)"></i>Sold / other</span></div>';
-    html+='<div class="card"><div class="card-hd"><span class="ichip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></span><span class="proj-name">'+esc(p.project_name)+'</span></div>';
-    // group units by floor
-    const floors={};
-    (p.units||[]).forEach(u=>{ const k=u.floor_label||'—'; (floors[k]=floors[k]||[]).push(u); });
-    const keys=Object.keys(floors).sort((a,b)=>((floors[a][0].floor_rank??999)-(floors[b][0].floor_rank??999)));
-    keys.forEach(fl=>{
-      html+='<div class="floor"><div class="floor-lbl">'+esc(fl)+'</div><div class="units">';
-      floors[fl].forEach(u=>{ html+=unitCell(u); });
-      html+='</div></div>';
-    });
-    html+='</div>';
-  });
+  if(projects.length>1){
+    html+='<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(pp.project_name)+'</div>').join('')+'</div>';
+  }
+  html+='<div class="kpis">'+kpi('Available',c.available,'green')+kpi('Reserved',c.reserved,'amber')+kpi('Sold',c.sold,'muted')+'</div>';
+  html+='<div class="seg2">'+['all','available','reserved','sold'].map(f=>'<div class="o'+(BV.filter===f?' on':'')+'" data-f="'+f+'" onclick="_bvFilter(\''+f+'\')">'+(f==='all'?'All':f.charAt(0).toUpperCase()+f.slice(1))+'</div>').join('')+'</div>';
+  html+='<input class="bsearch" id="bv-q" placeholder="Search unit no…" value="'+esc(BV.q)+'" oninput="_bvSearch(this.value)">';
+  html+='<div id="bv-body"></div>';
   $('app-body').innerHTML=html;
+  _bvRenderBody();
+}
+function _bvProj(i){ BV.proj=i; BV.floor=null; BV.q=''; renderBoard(); }
+function _bvFilter(f){ BV.filter=f; document.querySelectorAll('#app-body .seg2 .o').forEach(o=>o.classList.toggle('on', o.dataset.f===f)); _bvRenderBody(); }
+function _bvSearch(v){ BV.q=v; _bvRenderBody(); }
+function _bvSetFloor(label){ BV.floor=label; _bvRenderBody(); try{$('app-body').scrollIntoView({block:'start'});}catch(e){} }
+function _bvBack(){ BV.floor=null; _bvRenderBody(); }
+function _bvFloorGroups(p){
+  const f={};
+  (p.units||[]).forEach(u=>{ const k=u.floor_label||'—'; if(!f[k]) f[k]={label:k,rank:(u.floor_rank==null?999:u.floor_rank),units:[]}; f[k].units.push(u); });
+  return Object.keys(f).map(k=>f[k]).sort((a,b)=>a.rank-b.rank);
+}
+function _bvCounts(units){ let a=0,r=0,s=0; units.forEach(u=>{const c=(u.status_code||'').toUpperCase(); if(u.is_available===true)a++; else if(c==='RESERVED')r++; else if(c==='SOLD')s++;}); return {a:a,r:r,s:s,total:units.length}; }
+function _bvMatch(u,f){ const c=(u.status_code||'').toUpperCase(); if(f==='available') return u.is_available===true; if(f==='reserved') return c==='RESERVED'; if(f==='sold') return c==='SOLD'; return true; }
+function _bvLegend(){ return '<div class="legend"><span><i style="background:var(--fk-success)"></i>Available</span><span><i style="background:var(--fk-warning)"></i>Reserved</span><span><i style="background:var(--fk-muted-fill)"></i>Sold / other</span></div>'; }
+function _bvRenderBody(){
+  const el=$('bv-body'); if(!el) return;
+  const p=(BOARD.projects||[])[BV.proj]; if(!p){ el.innerHTML=''; return; }
+  if(BV.q.trim()) el.innerHTML=_bvSearchResults(p);
+  else if(BV.floor==null) el.innerHTML=_bvDirectory(p);
+  else el.innerHTML=_bvDetail(p);
+}
+function _bvDirectory(p){
+  const groups=_bvFloorGroups(p);
+  if(!groups.length) return '<div class="empty" style="padding:24px"><div class="es">No units.</div></div>';
+  const key=(BV.filter==='reserved'?'r':BV.filter==='sold'?'s':'a');
+  const tone=(BV.filter==='sold'?'muted':BV.filter==='reserved'?'amber':'green');
+  const lbl=(BV.filter==='reserved'?'reserved':BV.filter==='sold'?'sold':'available');
+  return groups.map(g=>{
+    const c=_bvCounts(g.units); const t=c.total||1;
+    return '<div class="floorcard" data-fl="'+esc(g.label)+'" onclick="_bvSetFloor(this.dataset.fl)">'
+      +'<div class="fc-name">'+esc(g.label)+'</div>'
+      +'<div class="fc-bar"><i style="width:'+(c.a/t*100)+'%;background:var(--fk-success)"></i><i style="width:'+(c.r/t*100)+'%;background:var(--fk-warning)"></i><i style="width:'+(c.s/t*100)+'%;background:var(--fk-muted-fill)"></i></div>'
+      +'<div class="fc-stat"><b class="'+tone+'">'+c[key]+'</b><span>'+lbl+'</span></div>'
+      +'<div class="fc-chev">›</div></div>';
+  }).join('');
+}
+function _bvDetail(p){
+  const g=_bvFloorGroups(p).find(x=>x.label===BV.floor);
+  if(!g){ BV.floor=null; return _bvDirectory(p); }
+  let units=g.units;
+  if(BV.filter!=='all') units=units.filter(u=>_bvMatch(u,BV.filter));
+  const grid=units.length? '<div class="units">'+units.map(unitCell).join('')+'</div>'
+    : '<div class="empty" style="padding:24px"><div class="es">No '+esc(BV.filter)+' units on this floor.</div></div>';
+  return '<div class="fdetail-hd"><button class="backbtn" onclick="_bvBack()">‹ Floors</button><div class="fd-title">'+esc(g.label)+'</div></div>'+_bvLegend()+grid;
+}
+function _bvSearchResults(p){
+  const q=BV.q.trim().toLowerCase();
+  let units=(p.units||[]).filter(u=>String(u.unit_no||'').toLowerCase().includes(q));
+  if(BV.filter!=='all') units=units.filter(u=>_bvMatch(u,BV.filter));
+  const shown=units.slice(0,80);
+  return '<div class="fd-title" style="margin-bottom:12px">'+units.length+' result'+(units.length===1?'':'s')+'</div>'
+    +(shown.length? _bvLegend()+'<div class="units">'+shown.map(unitCell).join('')+'</div>'
+      : '<div class="empty" style="padding:24px"><div class="es">No matching units.</div></div>');
 }
 function kpi(label,val,cls){ return '<div class="kpi '+cls+'"><div class="kl">'+label+'</div><div class="kv num">'+(val==null?0:val)+'</div></div>'; }
 function unitCell(u){
