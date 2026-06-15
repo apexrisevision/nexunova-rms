@@ -2593,7 +2593,7 @@ async function printApplicationForm() {
   const _pageW = size === 'A4' ? 8.27  : 8.5;
   const _mTop  = size === 'A4' ? 2.5   : 3.0;   // pre-printed green header gap (pushed down so body clears the header band)
   const _mBot  = 0.4;                            // pre-printed footer gap (nudged down slightly for more body room)
-  const _mSide = 0.3;
+  const _mSide = 0.22;
   const AF = {
     pageW: _pageW + 'in', pageH: _pageH + 'in',
     marginTop: _mTop + 'in', marginBottom: _mBot + 'in', marginSide: _mSide + 'in',
@@ -2613,88 +2613,82 @@ async function printApplicationForm() {
   const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
   const nomPhoto = c.next_of_kin_photo_url || '';
 
-  // PREMIUM REDESIGN: refined underline fields (no heavy grey boxes), the sheet's
-  // dark-green brand accent (#15412e), generous whitespace + strong Times New Roman
-  // hierarchy. Empty fields render as clean ruled lines for handwriting.
+  // BOXED REDESIGN: every field outlined (border only, NO fill), bold + larger text,
+  // strong solid-green section bars, full-width — covers the page on one Legal sheet.
   const css =
     '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#1f2937;font-size:13px;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#111;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
     '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
-    '.fg{min-width:0}' +
-    '.fl{font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:1.3px;color:#9aa3ab;margin:0 0 3px}' +
-    '.fv{font-size:14px;color:#374151;border-bottom:1px solid #d3dae0;min-height:0.26in;padding:1px 1px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.fv.em{color:#111827;font-weight:bold}' +
-    '.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px}' +
-    '.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px}' +
-    '.sec{display:flex;align-items:center;gap:10px;margin:13px 0 9px}' +
-    '.sec-b{width:13px;height:13px;background:#15412e;border-radius:3px;flex:none}' +
-    '.sec-t{font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#15412e;white-space:nowrap}' +
-    '.sec-r{flex:1;height:1px;background:#e0e5e9}' +
-    '.cib{display:flex;gap:24px;align-items:flex-start}' +
-    '.cib-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}' +
-    '.photo{width:32mm;height:40mm;border:1px solid #cfd6dc;border-radius:5px;background:#fafbfc;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;text-align:center}' +
+    '.fb{border:1.4px solid #434a52;border-radius:3px;padding:4px 9px 5px;display:flex;flex-direction:column;justify-content:center;min-height:0.45in;overflow:hidden}' +
+    '.fb-l{font-size:8.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.8px;color:#5b6770;margin-bottom:2px;white-space:nowrap}' +
+    '.fb-v{font-size:15px;font-weight:bold;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px}' +
+    '.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}' +
+    '.g2{display:grid;grid-template-columns:1fr 1fr;gap:7px}' +
+    '.sec{background:#15412e;color:#fff;font-size:11.5px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;padding:5px 12px;border-radius:3px;margin:11px 0 7px}' +
+    '.cib{display:flex;gap:7px;align-items:stretch}' +
+    '.cib-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}' +
+    '.photo{width:33mm;border:1.4px solid #434a52;border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;text-align:center}' +
     '.photo img{width:100%;height:100%;object-fit:cover}' +
-    '.photo span{font-size:8px;color:#aab2b9;text-transform:uppercase;letter-spacing:1px}' +
-    '.decl{margin-top:4px}' +
-    '.decl-t{font-size:10px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:#15412e;margin:0 0 5px}' +
-    '.decl-p{font-size:11.5px;line-height:1.5;color:#4b5563;text-align:justify}' +
-    '.sp{flex:1 1 auto;min-height:0.85in}' +
-    '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:72px;page-break-inside:avoid}' +
-    '.sig{text-align:center}' +
-    '.sig-l{border-bottom:1.3px solid #1f2937;height:34px}' +
-    '.sig-t{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#4b5563;margin-top:8px}';
+    '.photo span{font-size:8.5px;font-weight:bold;color:#9aa3ab;text-transform:uppercase;letter-spacing:1px}' +
+    '.decl{border:1.4px solid #434a52;border-radius:3px;padding:8px 12px;margin-top:9px}' +
+    '.decl-t{font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#15412e;margin-bottom:5px}' +
+    '.decl-p{font-size:12px;font-weight:bold;line-height:1.5;color:#1f2937;text-align:justify}' +
+    '.sp{flex:1 1 auto;min-height:0.18in}' +
+    '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:14px;page-break-inside:avoid}' +
+    '.sig{border:1.4px solid #434a52;border-radius:3px;min-height:0.72in;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 10px}' +
+    '.sig-t{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#444;text-align:center;border-top:1px solid #b9c0c7;padding-top:5px}';
 
-  // ── Premium field helpers: tiny label + value on a hairline rule ──
-  const F  = (l, val, em) => '<div class="fg"><div class="fl">' + l + '</div><div class="fv' + (em ? ' em' : '') + '">' + v(val) + '</div></div>';
-  const Fm = (l, val)     => '<div class="fg"><div class="fl">' + l + '</div><div class="fv em">' + money(val) + '</div></div>';
+  // ── Boxed field helpers: outlined box (no fill), bold label + bold value ──
+  const F  = (l, val) => '<div class="fb"><div class="fb-l">' + l + '</div><div class="fb-v">' + v(val) + '</div></div>';
+  const Fm = (l, val) => '<div class="fb"><div class="fb-l">' + l + '</div><div class="fb-v">' + money(val) + '</div></div>';
 
   let b = '<div class="af-sheet">';
 
-  // top meta strip — key facts emphasised
+  // top meta — boxed
   b += '<div class="g3">' +
-    F('Booking No', d.sale_number, true) + F('MID #', c.client_code, true) + F('Date', saleDate, true) +
-    F('Unit Address', d.unit_no, true) + F('Floor', d.floor_label) + F('Category', d.unit_type) +
+    F('Booking No', d.sale_number) + F('MID #', c.client_code) + F('Date', saleDate) +
+    F('Unit Address', d.unit_no) + F('Floor', d.floor_label) + F('Category', d.unit_type) +
     F('Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '') + F('Type', '') + '<div></div>' +
   '</div>';
 
   // ── Client Information ──
-  b += '<div class="sec"><span class="sec-b"></span><span class="sec-t">Client Information</span><span class="sec-r"></span></div>';
+  b += '<div class="sec">Client Information</div>';
   b += '<div class="cib"><div class="cib-main">';
-  b += F('Name', c.full_name || d.client_name, true);
-  b += '<div class="g2">' + F('S / O', c.father_name) + F('C.N.I.C. #', c.cnic, true) + '</div>';
+  b += F('Name', c.full_name || d.client_name);
+  b += '<div class="g2">' + F('S / O', c.father_name) + F('C.N.I.C. #', c.cnic) + '</div>';
   b += F('Postal Address', c.address);
   b += F('Residential Address', c.address);
   b += '</div>';
   b += '<div class="photo">' + (c.client_photo_url ? '<img src="' + esc(c.client_photo_url) + '">' : '<span>Affix<br>Photograph</span>') + '</div>';
   b += '</div>';
 
-  b += '<div class="g2" style="margin-top:10px">' +
+  b += '<div class="g2" style="margin-top:7px">' +
     F('Phone (Office)', '') + F('Phone (Residence)', c.phone_secondary) +
-    F('Mobile #', c.phone_primary, true) + F('Email', c.email) +
+    F('Mobile #', c.phone_primary) + F('Email', c.email) +
     F('Occupation', c.occupation) + F('Nationality', nat) +
     Fm('Monthly Income', c.monthly_income) + F('NTN #', c.ntn) +
   '</div>';
 
   // ── Nominee Information ──
-  b += '<div class="sec"><span class="sec-b"></span><span class="sec-t">Nominee Information</span><span class="sec-r"></span></div>';
+  b += '<div class="sec">Nominee Information</div>';
   b += '<div class="cib"><div class="cib-main">';
-  b += F('Name', nomName, true);
+  b += F('Name', nomName);
   b += '<div class="g2">' + F('C.N.I.C No.', nomCnic) + F('Relation', nomRel) + '</div>';
   b += F('Address', '');
   b += '</div>';
-  b += '<div class="photo" style="height:34mm">' + (nomPhoto ? '<img src="' + esc(nomPhoto) + '">' : '<span>Photo /<br>Thumb</span>') + '</div>';
+  b += '<div class="photo" style="width:30mm">' + (nomPhoto ? '<img src="' + esc(nomPhoto) + '">' : '<span>Photo /<br>Thumb</span>') + '</div>';
   b += '</div>';
 
-  // ── Declaration ──
+  // ── Declaration (boxed) ──
   b += '<div class="decl"><div class="decl-t">Declaration</div>' +
     '<div class="decl-p">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time. I hereby solemnly declare that all the particulars furnished above are true and correct to the best of my knowledge and belief, and I fully understand that any incorrect information, or default in payment of any installment on the agreed schedule, shall render this booking liable to cancellation and forfeiture of the amounts paid, in accordance with the policy and sole discretion of the management.</div></div>';
 
-  // ── Signatures (anchored near the bottom) ──
+  // ── Signatures (boxed, anchored to the bottom) ──
   b += '<div class="sp"></div>';
   b += '<div class="sigs">' +
-    '<div class="sig"><div class="sig-l"></div><div class="sig-t">Signature of Applicant</div></div>' +
-    '<div class="sig"><div class="sig-l"></div><div class="sig-t">Authorized Signature</div></div>' +
+    '<div class="sig"><div class="sig-t">Signature of Applicant</div></div>' +
+    '<div class="sig"><div class="sig-t">Authorized Signature</div></div>' +
   '</div>';
   b += '</div>';   // close .af-sheet
 
