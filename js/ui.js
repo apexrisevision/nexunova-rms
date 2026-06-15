@@ -523,6 +523,7 @@ function buildSB(){
         { id:'clients', ic:'user-check', lb:'Clients' },
       ]},
       { label: 'Recovery', items: [
+        { id:'myrecovery',  ic:'radar',          lb:'My Recovery' },
         { id:'queue',       ic:'sunrise',        lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
         { id:'recovery',    ic:'list-checks',    lb:'Payments' },
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },

@@ -723,12 +723,55 @@ async function _dashStaff(pg, role) {
   const calledToday = chase.filter(r => String(r.last_contact_date || '').slice(0, 10) === todayStr).length;
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
+    ${_dashOffCoach()}
     ${_dashOffMission(chase.length, totalOverdue, calledToday)}
     ${_dashOffNext(chase)}
+    ${_dashOffAlerts(alerts, queue)}
     ${_dashOffSteps(chase.length, promisesDue, remindersDue, tierC.length)}
     ${_dashOffTools()}
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
+}
+
+// FIRST-RUN COACH — teaches the recovery loop (incl. where alerts live); dismissible.
+function _dashOffCoach() {
+  try { if (localStorage.getItem('rms.rec.coach') === 'done') return ''; } catch (e) {}
+  const step = (n, t) => `<div style="display:flex;gap:9px;align-items:flex-start"><span style="width:19px;height:19px;border-radius:50%;background:var(--fk-primary);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">${n}</span><span style="font-size:13px;line-height:1.45">${t}</span></div>`;
+  return `<div class="nx-card nx-rise" style="border-left:3px solid var(--fk-primary);padding:var(--fk-sp-5)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text);display:flex;align-items:center;gap:6px">${NX.icon('clock', 16)} How recovery works — your day in 5 steps</div>
+      ${NX.button('Got it', { variant: 'ghost', size: 'sm', onclick: "try{localStorage.setItem('rms.rec.coach','done')}catch(e){}; if(typeof rDash==='function')rDash();" })}
+    </div>
+    <div style="display:grid;gap:9px;margin-top:11px">
+      ${step(1, '<strong>Call</strong> the red account in “① Start here” — that’s your most urgent.')}
+      ${step(2, '<strong>Log the outcome</strong> of every call — answered, no-answer, or dispute.')}
+      ${step(3, 'If they promise to pay, <strong>set the promise date</strong> while you log it.')}
+      ${step(4, 'We <strong>remind you</strong> when a promise or follow-up is due — watch the <strong>bell at the top-right</strong> and the <strong>“Needs attention”</strong> panel below.')}
+      ${step(5, 'If a promise <strong>breaks</strong> or an account goes cold, <strong>escalate</strong> it.')}
+    </div>
+  </div>`;
+}
+
+// NEEDS ATTENTION — surfaces the bell's alerts inline + accounts gone cold (never empty when work exists).
+function _dashOffAlerts(alerts, queue) {
+  const items = (alerts && Array.isArray(alerts.items)) ? alerts.items : [];
+  const cutoff = Date.now() - 14 * 864e5;
+  const stale = (Array.isArray(queue) ? queue : []).filter(r => { const d = r.last_contact_date ? Date.parse(r.last_contact_date) : 0; return !d || d < cutoff; });
+  if (!items.length && !stale.length) return '';
+  const sev = t => t === 'danger' ? 'var(--fk-danger)' : t === 'warning' ? 'var(--fk-warning)' : 'var(--fk-info)';
+  let rows = items.slice(0, 6).map(it => {
+    const sub = (it.unit ? esc(it.unit) + ' · ' : '') + (it.amount != null ? _dashCompact(it.amount) + ' · ' : '') + 'due ' + (it.date ? (typeof fD === 'function' ? fD(it.date) : it.date) : '—');
+    return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--fk-border)">
+      <span style="width:8px;height:8px;border-radius:50%;background:${sev(it.sev)};flex-shrink:0"></span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${esc(it.title)} — ${esc(it.name || '—')}</div><div class="nx-kpi-label" style="text-transform:none">${sub}</div></div>
+    </div>`;
+  }).join('');
+  if (stale.length) rows += `<div style="display:flex;gap:10px;align-items:center;padding:9px 0">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--fk-warning);flex-shrink:0"></span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${stale.length} account${stale.length !== 1 ? 's' : ''} not contacted in 14+ days</div><div class="nx-kpi-label" style="text-transform:none">Reach out before they age past the 90-day cutoff.</div></div>
+      <a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav('queue')">Open list →</a>
+    </div>`;
+  return NX.card(rows, { header: { title: 'Needs attention', icon: 'alert-triangle', tone: 'warning', actions: (items.length ? `<a class="nx-btn nx-btn--ghost nx-btn--sm" onclick="nav('reminders')">Reminders →</a>` : '') } });
 }
 
 // MISSION — a slim orientation strip: greeting · today's job · progress so far.
@@ -761,6 +804,7 @@ function _dashOffNext(chase) {
   const total = chase.length;
   if (!r) return NX.card(NX.empty({ icon: 'check-circle', tone: 'success', message: 'No calls pending — your list is clear for today. Use your tools below if you need them.' }), { header: { title: '① Start here', icon: 'phone-call' } });
   const ph = (r.phone || '').replace(/[^0-9]/g, '');
+  const hasPhone = ph.length >= 7;
   const chips = (Array.isArray(r.reasons) ? r.reasons : []).slice(0, 3).map(rs => NX.badge(rs.label, (rs.tone && rs.tone !== 'muted') ? rs.tone : '')).join(' ');
   const prop = (r.propensity && r.propensity.score != null) ? Number(r.propensity.score) : null;
   const lastC = r.last_contact_date ? 'Last contacted ' + (typeof fD === 'function' ? fD(r.last_contact_date) : r.last_contact_date) : 'Not contacted yet';
@@ -778,8 +822,10 @@ function _dashOffNext(chase) {
       </div>
     </div>
     <div class="no-p" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:var(--fk-sp-4)">
-      ${ph ? `<a class="nx-btn nx-btn--primary nx-btn--sm" href="tel:${esc(r.phone)}">${NX.icon('phone', 14)} Call now</a>
-      <a class="nx-btn nx-btn--secondary nx-btn--sm" target="_blank" href="https://wa.me/${ph}">${NX.icon('message-circle', 14)} WhatsApp</a>` : ''}
+      ${hasPhone ? `<a class="nx-btn nx-btn--primary nx-btn--sm" href="tel:${esc(r.phone)}">${NX.icon('phone', 14)} Call now</a>
+      <a class="nx-btn nx-btn--secondary nx-btn--sm" target="_blank" href="https://wa.me/${ph}">${NX.icon('message-circle', 14)} WhatsApp</a>`
+      : `<span class="nx-badge nx-badge--warning"><span class="nx-dot"></span>No phone on file</span>
+      ${r.unit_id ? NX.button('Plan a field visit', { variant: 'secondary', size: 'sm', icon: 'map-pin', onclick: "nav('fieldvisits')" }) : ''}`}
       ${r.unit_id ? NX.button('Log the outcome', { variant: 'secondary', size: 'sm', onclick: `openConModal('${r.unit_id}')` }) : ''}
       ${r.sale_id ? NX.button('View account', { variant: 'ghost', size: 'sm', onclick: `openSaleDetail('${r.sale_id}')` }) : ''}
     </div>
