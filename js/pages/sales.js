@@ -2639,7 +2639,7 @@ async function printApplicationForm() {
     '.decl{margin-top:4px}' +
     '.decl-t{font-size:10px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:#15412e;margin:0 0 5px}' +
     '.decl-p{font-size:11.5px;line-height:1.5;color:#4b5563;text-align:justify}' +
-    '.sp{flex:0 0 auto;height:0.5in}' +
+    '.sp{flex:1 1 auto;min-height:0.85in}' +
     '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:72px;page-break-inside:avoid}' +
     '.sig{text-align:center}' +
     '.sig-l{border-bottom:1.3px solid #1f2937;height:34px}' +
@@ -2688,7 +2688,7 @@ async function printApplicationForm() {
 
   // ── Declaration ──
   b += '<div class="decl"><div class="decl-t">Declaration</div>' +
-    '<div class="decl-p">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time.</div></div>';
+    '<div class="decl-p">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time. I hereby solemnly declare that all the particulars furnished above are true and correct to the best of my knowledge and belief, and I fully understand that any incorrect information, or default in payment of any installment on the agreed schedule, shall render this booking liable to cancellation and forfeiture of the amounts paid, in accordance with the policy and sole discretion of the management.</div></div>';
 
   // ── Signatures (anchored near the bottom) ──
   b += '<div class="sp"></div>';
