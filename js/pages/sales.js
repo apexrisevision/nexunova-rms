@@ -2593,7 +2593,7 @@ async function printApplicationForm() {
   const _pageW = size === 'A4' ? 8.27  : 8.5;
   const _mTop  = size === 'A4' ? 2.5   : 3.0;   // pre-printed green header gap (pushed down so body clears the header band)
   const _mBot  = 0.5;                            // pre-printed footer gap (unchanged — signatures stay pinned just above it)
-  const _mSide = 0.45;
+  const _mSide = 0.3;
   const AF = {
     pageW: _pageW + 'in', pageH: _pageH + 'in',
     marginTop: _mTop + 'in', marginBottom: _mBot + 'in', marginSide: _mSide + 'in',
@@ -2619,27 +2619,27 @@ async function printApplicationForm() {
   const css =
     '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:"Segoe UI","Calibri","Helvetica Neue",Arial,sans-serif;color:#111;font-size:13.5px;-webkit-font-smoothing:antialiased}' +
+    'body{font-family:Georgia,"Times New Roman",Cambria,serif;color:#111;font-size:14px;-webkit-font-smoothing:antialiased}' +
     // content fills the printable area top→bottom (no big mid-page gap)
     '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
     '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px 16px;margin:0 0 12px}' +
     '.af-gc{display:flex;align-items:center;gap:7px}' +
-    '.af-gl{font-size:11px;color:#333;white-space:nowrap}' +
-    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 9px;font-size:14px;font-weight:bold;height:0.50in;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.af-sec{font-size:15px;font-weight:bold;letter-spacing:.4px;color:#15412e;border-bottom:1.5px solid #15412e;padding:0 0 4px;margin:14px 0 7px}' +
+    '.af-gl{font-size:12px;color:#333;white-space:nowrap}' +
+    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 9px;font-size:15px;font-weight:bold;height:0.44in;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.af-sec{font-size:16.5px;font-weight:bold;letter-spacing:.3px;color:#15412e;border-bottom:1.5px solid #15412e;padding:0 0 4px;margin:13px 0 7px}' +
     'table.af{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:0}' +
     // uniform tall rows — every row (single + paired) the same height, no cramping
-    'table.af td{border:1px solid #9aa6ac;height:0.56in;vertical-align:middle}' +
-    'td.afl{background:#fff;font-size:11.5px;color:#222;font-weight:bold;padding:4px 9px;width:140px;white-space:nowrap}' +
-    'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:14px;font-weight:bold;padding:4px 10px;overflow:hidden}' +
+    'table.af td{border:1px solid #9aa6ac;height:0.44in;vertical-align:middle}' +
+    'td.afl{background:#fff;font-size:12.5px;color:#222;font-weight:bold;padding:4px 9px;width:152px;white-space:nowrap}' +
+    'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:15px;font-weight:bold;padding:4px 10px;overflow:hidden}' +
     'td.afph{width:35mm;text-align:center;vertical-align:middle;background:#fff;padding:4px}' +
     'td.afph img{width:31mm;height:38mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
     '.af-ph-blank{width:31mm;height:38mm;border:1px dashed #888;display:flex;align-items:center;justify-content:center;font-size:8px;color:#999;margin:0 auto;text-align:center;text-transform:uppercase;letter-spacing:.4px}' +
-    '.af-decl-t{font-size:13px;font-weight:bold;margin:14px 0 5px}' +
-    '.af-decl{font-size:13px;line-height:1.55;text-align:justify}' +
+    '.af-decl-t{font-size:14px;font-weight:bold;margin:13px 0 5px}' +
+    '.af-decl{font-size:13.5px;line-height:1.5;text-align:justify}' +
     '.af-sp{flex:0 0 auto;height:0.28in}' +               // small fixed gap — declaration sits close to signatures
     '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;page-break-inside:avoid}' +
-    '.af-sig{font-size:13px;text-align:center;color:#222}' +
+    '.af-sig{font-size:13.5px;text-align:center;color:#222}' +
     '.af-sigline{border-bottom:1px solid #333;height:36px;margin-bottom:6px}';
 
   // ── Top row grid: 3 columns, inline label + filled value box ──
