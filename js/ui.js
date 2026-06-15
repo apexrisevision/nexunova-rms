@@ -423,7 +423,7 @@ function buildSB(){
     : 0;
   const totalU    = units.length;
   // Inbox/queue badge means "things to act on TODAY" (Tier-A from the recovery queue),
-  // falling back to the raw overdue-unit count until the Subah ki List has loaded once.
+  // falling back to the raw overdue-unit count until the Morning List has loaded once.
   const alrt      = (typeof window._tierACount==='number') ? window._tierACount : overdueN;
 
   // Each group: { label: string|null, items: [{id, ic, lb, bdg, bdgType}] }
@@ -465,7 +465,7 @@ function buildSB(){
       // ── RECOVERY (the money area — 4 primaries + a long "More" tail) ──
       // Count chips killed except where they signal: PDC due ≤7d = warning.
       { label: 'Recovery', items: [
-        { id:'queue',     ic:'sunrise',        lb:'Subah ki List', dot:(window._tierACount>0?'danger':null) },
+        { id:'queue',     ic:'sunrise',        lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
         { id:'recovery',  ic:'list-checks',    lb:'Payments', dot:(overdueN>0?'danger':null) },
         { id:'pdc',       ic:'calendar-clock', lb:'PDC', bdg:(window._pdcDueCount||null), bdgType:(window._pdcDueCount?'warn':null) },
         { id:'promises',  ic:'handshake',      lb:'Follow-ups' },
@@ -521,7 +521,7 @@ function buildSB(){
         { id:'clients', ic:'user-check', lb:'Clients' },
       ]},
       { label: 'Recovery', items: [
-        { id:'queue',       ic:'sunrise',        lb:'Subah ki List', dot:(window._tierACount>0?'danger':null) },
+        { id:'queue',       ic:'sunrise',        lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
         { id:'recovery',    ic:'list-checks',    lb:'Payments' },
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
         { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
@@ -839,7 +839,7 @@ function nav(pg,x){
     if(moreTail&&moreTail.dataset.gid&&typeof toggleNavMore==='function') toggleNavMore(moreTail.dataset.gid);
   }
   document.querySelector('.sb')?.setAttribute('data-pg', pg);
-  const ts={dashboard:'Dashboard',queue:'Subah ki List',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',recoveryiq:'Recovery Intelligence',myrecovery:'My Recovery',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',team:'Team Performance',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
+  const ts={dashboard:'Dashboard',queue:'Morning List',addunit:'Add Inventory',newsale:'New Sale',editsale:'Edit Sale',projects:'Projects',projectdetail:'Project Detail',units:'Inventory',unitdetail:'Unit Detail',clients:'All Clients',clientdetail:'Client Detail',agents:'Sales Agents',agentdetail:'Agent Detail',sales:'Sales',salesdetail:'Sale Detail',recovery:'Payments',addpayment:'Add Payment',receipts:'Receipt Vouchers',pdc:'PDC Register',cancelledunits:'Cancelled Units Ledger',transferunits:'Transferred Units Ledger',officerledger:'Officer Ledger',receivingledger:'Receiving Ledger',ledgers:'Ledgers','ledger-client':'Client Ledger','ledger-unit':'Unit Ledger','ledger-agent':'Agent Ledger','ledger-project':'Project Ledger',commissions:'Pay Commission',reminders:'Reminders',contacts:'Call Logs',search:'Find Unit',reports:'Reports & Export',recoveryiq:'Recovery Intelligence',myrecovery:'My Recovery',documents:'Documents & Print',backup:'Data Backup',admin:'Admin Panel',approvals:'Approvals',team:'Team Performance',categories:'Categories',users:'User Management',healthcenter:'Client Health Center',paylinks:'Payment Links','paylink-detail':'Payment Link Detail','payment-methods':'Payment Methods',unitchain:'Ownership Chain',unittransfer:'Transfer Unit',unitcancel:'Cancel Unit',banks:'Banks Master',blacklist:'Blacklist Register',payables:'Payables',receivables:'Additional Receivables',escalations:'Escalation Register',legalcases:'Legal Cases',agenttransactions:'Agent Transactions',campaigns:'Recovery Campaigns',forecasting:'Recovery Forecasting',commscenter:'Communications Center',executive:'Executive Dashboard',noc:'NOC Management',fieldvisits:'Field Visits'};
   const tbTitle=document.getElementById('tb-t');
   if(tbTitle)tbTitle.textContent=ts[pg]||pg;
   if(typeof atbSyncCurrent==='function')atbSyncCurrent(pg);

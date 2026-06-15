@@ -16,7 +16,7 @@ async function rQueue() {
   const pg = document.getElementById('pg-queue');
   if (!pg) return;
   pg.innerHTML = `<div class="ani">
-    ${NX.pageHeader('Subah ki List',
+    ${NX.pageHeader('Morning List',
        NX.button('Refresh', { variant:'ghost', size:'sm', icon:'refresh-cw', onclick:'_sklLoad()' }),
        { icon:'sunrise', tone:'primary', sub:'Who to call today — and why' })}
     <div id="skl-body"><div style="padding:48px;text-align:center;color:var(--fk-text-muted);font-size:13px">Loading your queue…</div></div>

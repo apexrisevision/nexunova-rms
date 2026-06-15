@@ -429,7 +429,7 @@ function _dashTodayCard(today) {
     line('Received today', `<span class="nx-statchip-v">${_dashCompact(today.received)}</span>`, '') +
     line('Promises due', `<span class="nx-statchip-v" title="${esc(names)}">${today.promises}</span>`, '', true);
   return NX.card(`<div style="margin-top:var(--fk-sp-1)">${body}</div>`,
-    { class: 'nx-rise', header: { icon: 'sunrise', tone: '', title: 'Aaj ka din', sub: 'Today at a glance', actions: NX.infoTip(tip) } });
+    { class: 'nx-rise', header: { icon: 'sunrise', tone: '', title: 'Today', sub: 'Today at a glance', actions: NX.infoTip(tip) } });
 }
 
 // b. AGING DONUT — closing split by overdue age; click → Aging report
@@ -817,7 +817,7 @@ function _dashOffTools() {
     ${tool('My recovery report', 'radar', "nav('myrecovery')")}
     ${tool('Log a call', 'phone', "openConModal()")}
     ${tool('Record a payment', 'hand-coins', "nav('addpayment')")}
-    ${tool('Subah ki List', 'sunrise', "nav('queue')")}
+    ${tool('Morning List', 'sunrise', "nav('queue')")}
     ${tool('Reminders', 'bell', "nav('reminders')")}
     ${tool('Promises', 'handshake', "nav('promises')")}
     ${tool('Field visits', 'map-pin', "nav('fieldvisits')")}
