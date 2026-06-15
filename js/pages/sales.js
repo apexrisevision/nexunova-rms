@@ -2592,7 +2592,7 @@ async function printApplicationForm() {
   const _pageH = size === 'A4' ? 11.69 : 14;
   const _pageW = size === 'A4' ? 8.27  : 8.5;
   const _mTop  = size === 'A4' ? 2.5   : 3.0;   // pre-printed green header gap (pushed down so body clears the header band)
-  const _mBot  = 0.5;                            // pre-printed footer gap (unchanged — signatures stay pinned just above it)
+  const _mBot  = 0.4;                            // pre-printed footer gap (nudged down slightly for more body room)
   const _mSide = 0.3;
   const AF = {
     pageW: _pageW + 'in', pageH: _pageH + 'in',
@@ -2613,84 +2613,89 @@ async function printApplicationForm() {
   const nomRel   = c.next_of_kin_relation || d.nominee_relation || '';
   const nomPhoto = c.next_of_kin_photo_url || '';
 
-  // Layout mirrors the physical KHUSHAL BAGH HEIGHTS form: sans-serif, a 3-column
-  // top grid with inline labels + filled value boxes, then label/value field
-  // tables (single-value rows w/ photo, then 2-up paired rows), grey input boxes.
+  // PREMIUM REDESIGN: refined underline fields (no heavy grey boxes), the sheet's
+  // dark-green brand accent (#15412e), generous whitespace + strong Times New Roman
+  // hierarchy. Empty fields render as clean ruled lines for handwriting.
   const css =
     '@page{size:' + AF.pageW + ' ' + AF.pageH + ';margin:' + AF.marginTop + ' ' + AF.marginSide + ' ' + AF.marginBottom + ' ' + AF.marginSide + '}' +
     '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#111;font-size:14.5px;-webkit-font-smoothing:antialiased}' +
-    // content fills the printable area top→bottom (no big mid-page gap)
+    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#1f2937;font-size:13px;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
     '.af-sheet{display:flex;flex-direction:column;min-height:' + AF.bodyH + '}' +
-    '.af-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px 16px;margin:0 0 12px}' +
-    '.af-gc{display:flex;align-items:center;gap:7px}' +
-    '.af-gl{font-size:12px;color:#333;white-space:nowrap}' +
-    '.af-gb{flex:1;min-width:0;background:#e9eef1;border:1px solid #aeb9bf;border-radius:2px;padding:4px 9px;font-size:15px;font-weight:bold;height:0.44in;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.af-sec{font-size:16.5px;font-weight:bold;letter-spacing:.3px;color:#15412e;border-bottom:1.5px solid #15412e;padding:0 0 4px;margin:13px 0 7px}' +
-    'table.af{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:0}' +
-    // uniform tall rows — every row (single + paired) the same height, no cramping
-    'table.af td{border:1px solid #9aa6ac;height:0.44in;vertical-align:middle}' +
-    'td.afl{background:#fff;font-size:12.5px;color:#222;font-weight:bold;padding:4px 9px;width:152px;white-space:nowrap}' +
-    'td.afv{background:#e9eef1;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:15px;font-weight:bold;padding:4px 10px;overflow:hidden}' +
-    'td.afph{width:35mm;text-align:center;vertical-align:middle;background:#fff;padding:4px}' +
-    'td.afph img{width:31mm;height:38mm;object-fit:cover;border:1px solid #333;display:block;margin:0 auto}' +
-    '.af-ph-blank{width:31mm;height:38mm;border:1px dashed #888;display:flex;align-items:center;justify-content:center;font-size:8px;color:#999;margin:0 auto;text-align:center;text-transform:uppercase;letter-spacing:.4px}' +
-    '.af-decl-t{font-size:14px;font-weight:bold;margin:13px 0 5px}' +
-    '.af-decl{font-size:13.5px;line-height:1.5;text-align:justify}' +
-    '.af-sp{flex:0 0 auto;height:0.28in}' +               // small fixed gap — declaration sits close to signatures
-    '.af-sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;page-break-inside:avoid}' +
-    '.af-sig{font-size:13.5px;text-align:center;color:#222}' +
-    '.af-sigline{border-bottom:1px solid #333;height:36px;margin-bottom:6px}';
+    '.fg{min-width:0}' +
+    '.fl{font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:1.3px;color:#9aa3ab;margin:0 0 3px}' +
+    '.fv{font-size:14px;color:#374151;border-bottom:1px solid #d3dae0;min-height:0.32in;padding:1px 1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.fv.em{color:#111827;font-weight:bold}' +
+    '.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px 24px}' +
+    '.g2{display:grid;grid-template-columns:1fr 1fr;gap:15px 30px}' +
+    '.sec{display:flex;align-items:center;gap:10px;margin:22px 0 15px}' +
+    '.sec-b{width:13px;height:13px;background:#15412e;border-radius:3px;flex:none}' +
+    '.sec-t{font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#15412e;white-space:nowrap}' +
+    '.sec-r{flex:1;height:1px;background:#e0e5e9}' +
+    '.cib{display:flex;gap:24px;align-items:flex-start}' +
+    '.cib-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:15px}' +
+    '.photo{width:32mm;height:40mm;border:1px solid #cfd6dc;border-radius:5px;background:#fafbfc;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;text-align:center}' +
+    '.photo img{width:100%;height:100%;object-fit:cover}' +
+    '.photo span{font-size:8px;color:#aab2b9;text-transform:uppercase;letter-spacing:1px}' +
+    '.decl{margin-top:8px}' +
+    '.decl-t{font-size:10px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:#15412e;margin:0 0 6px}' +
+    '.decl-p{font-size:11.5px;line-height:1.7;color:#4b5563;text-align:justify}' +
+    '.sp{flex:1 1 auto;min-height:0.35in}' +
+    '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:72px;page-break-inside:avoid}' +
+    '.sig{text-align:center}' +
+    '.sig-l{border-bottom:1.3px solid #1f2937;height:40px}' +
+    '.sig-t{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#4b5563;margin-top:8px}';
 
-  // ── Top row grid: 3 columns, inline label + filled value box ──
-  const gc = (l, val) => '<div class="af-gc"><span class="af-gl">' + l + '</span><span class="af-gb">' + v(val) + '</span></div>';
-  let b = '<div class="af-sheet"><div class="af-grid">' +
-    gc('Booking No', d.sale_number) + gc('MID #', c.client_code) + gc('Date', saleDate) +
-    gc('Unit Address', d.unit_no) + gc('Floor', d.floor_label) + gc('Categorie', d.unit_type) +
-    gc('Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '') +
-    gc('Type', '') + '<div></div>' +
+  // ── Premium field helpers: tiny label + value on a hairline rule ──
+  const F  = (l, val, em) => '<div class="fg"><div class="fl">' + l + '</div><div class="fv' + (em ? ' em' : '') + '">' + v(val) + '</div></div>';
+  const Fm = (l, val)     => '<div class="fg"><div class="fl">' + l + '</div><div class="fv em">' + money(val) + '</div></div>';
+
+  let b = '<div class="af-sheet">';
+
+  // top meta strip — key facts emphasised
+  b += '<div class="g3">' +
+    F('Booking No', d.sale_number, true) + F('MID #', c.client_code, true) + F('Date', saleDate, true) +
+    F('Unit Address', d.unit_no, true) + F('Floor', d.floor_label) + F('Category', d.unit_type) +
+    F('Size', d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US') + ' Sqft' : '') + F('Type', '') + '<div></div>' +
   '</div>';
 
-  // ── Client Information: top block (single-value rows + photo) ──
-  const cPhoto = c.client_photo_url
-    ? '<td class="afph" rowspan="5"><img src="' + esc(c.client_photo_url) + '"></td>'
-    : '<td class="afph" rowspan="5"><div class="af-ph-blank">Affix<br>Photograph</div></td>';
-  b += '<div class="af-sec">Client Information</div>';
-  b += '<table class="af">';
-  b += '<tr><td class="afl">Name</td><td class="afv">' + v(c.full_name || d.client_name) + '</td>' + cPhoto + '</tr>';
-  b += '<tr><td class="afl">S / O</td><td class="afv">' + v(c.father_name) + '</td></tr>';
-  b += '<tr><td class="afl">C.N.I.C. #</td><td class="afv">' + v(c.cnic) + '</td></tr>';
-  b += '<tr><td class="afl">Postal Address</td><td class="afv">' + addr + '</td></tr>';
-  b += '<tr><td class="afl">Residential Address</td><td class="afv">' + addr + '</td></tr>';
-  b += '</table>';
-  // ── Client Information: 2-up paired rows ──
-  b += '<table class="af">';
-  b += '<tr><td class="afl">Phone Off.</td><td class="afv">&nbsp;</td><td class="afl">Phone Res #</td><td class="afv">' + v(c.phone_secondary) + '</td></tr>';
-  b += '<tr><td class="afl">Mobile #</td><td class="afv">' + v(c.phone_primary) + '</td><td class="afl">Email Id</td><td class="afv">' + v(c.email) + '</td></tr>';
-  b += '<tr><td class="afl">Occupation</td><td class="afv">' + v(c.occupation) + '</td><td class="afl">Nationality</td><td class="afv">' + v(nat) + '</td></tr>';
-  b += '<tr><td class="afl">Monthly Income</td><td class="afv">' + money(c.monthly_income) + '</td><td class="afl">NTN #</td><td class="afv">' + v(c.ntn) + '</td></tr>';
-  b += '</table>';
+  // ── Client Information ──
+  b += '<div class="sec"><span class="sec-b"></span><span class="sec-t">Client Information</span><span class="sec-r"></span></div>';
+  b += '<div class="cib"><div class="cib-main">';
+  b += F('Name', c.full_name || d.client_name, true);
+  b += '<div class="g2">' + F('S / O', c.father_name) + F('C.N.I.C. #', c.cnic, true) + '</div>';
+  b += F('Postal Address', c.address);
+  b += F('Residential Address', c.address);
+  b += '</div>';
+  b += '<div class="photo">' + (c.client_photo_url ? '<img src="' + esc(c.client_photo_url) + '">' : '<span>Affix<br>Photograph</span>') + '</div>';
+  b += '</div>';
 
-  // ── Nominee Information (thumb / photo box on the right) ──
-  const nThumb = nomPhoto
-    ? '<td class="afph" rowspan="4"><img src="' + esc(nomPhoto) + '"></td>'
-    : '<td class="afph" rowspan="4"><div class="af-ph-blank">Photo /<br>Thumb</div></td>';
-  b += '<div class="af-sec">Nominee Information</div>';
-  b += '<table class="af">';
-  b += '<tr><td class="afl">Name</td><td class="afv">' + v(nomName) + '</td>' + nThumb + '</tr>';
-  b += '<tr><td class="afl">C.N.I.C No.</td><td class="afv">' + v(nomCnic) + '</td></tr>';
-  b += '<tr><td class="afl">Relation</td><td class="afv">' + v(nomRel) + '</td></tr>';
-  b += '<tr><td class="afl">Address</td><td class="afv">&nbsp;</td></tr>';
-  b += '</table>';
+  b += '<div class="g2" style="margin-top:15px">' +
+    F('Phone (Office)', '') + F('Phone (Residence)', c.phone_secondary) +
+    F('Mobile #', c.phone_primary, true) + F('Email', c.email) +
+    F('Occupation', c.occupation) + F('Nationality', nat) +
+    Fm('Monthly Income', c.monthly_income) + F('NTN #', c.ntn) +
+  '</div>';
 
-  // ── Declaration + two signature lines ──
-  b += '<div class="af-decl-t">Declaration</div>';
-  b += '<div class="af-decl">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time.</div>';
-  b += '<div class="af-sp"></div>';
-  b += '<div class="af-sigs">' +
-       '<div class="af-sig"><div class="af-sigline"></div>Signature of Applicant</div>' +
-       '<div class="af-sig"><div class="af-sigline"></div>Authorized Signature</div>' +
-       '</div>';
+  // ── Nominee Information ──
+  b += '<div class="sec"><span class="sec-b"></span><span class="sec-t">Nominee Information</span><span class="sec-r"></span></div>';
+  b += '<div class="cib"><div class="cib-main">';
+  b += F('Name', nomName, true);
+  b += '<div class="g2">' + F('C.N.I.C No.', nomCnic) + F('Relation', nomRel) + '</div>';
+  b += F('Address', '');
+  b += '</div>';
+  b += '<div class="photo" style="height:34mm">' + (nomPhoto ? '<img src="' + esc(nomPhoto) + '">' : '<span>Photo /<br>Thumb</span>') + '</div>';
+  b += '</div>';
+
+  // ── Declaration ──
+  b += '<div class="decl"><div class="decl-t">Declaration</div>' +
+    '<div class="decl-p">I further agree to pay all the dues (down-payment and installments) and abide by all the existing rules and regulations, agreed with the terms and conditions prescribed by the management of the project from time to time.</div></div>';
+
+  // ── Signatures (anchored near the bottom) ──
+  b += '<div class="sp"></div>';
+  b += '<div class="sigs">' +
+    '<div class="sig"><div class="sig-l"></div><div class="sig-t">Signature of Applicant</div></div>' +
+    '<div class="sig"><div class="sig-l"></div><div class="sig-t">Authorized Signature</div></div>' +
+  '</div>';
   b += '</div>';   // close .af-sheet
 
   const docHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Application Form — ' +
