@@ -7,6 +7,7 @@
    The per-plan limit (15/25/50) is wired in Phase 3.
    ════════════════════════════════════════════════════════════════════════ */
 let _saRows = [];
+let _saLimit = null;
 
 async function rSalesAccess() {
   const pg = document.getElementById('pg-salesaccess');
@@ -15,7 +16,7 @@ async function rSalesAccess() {
   if (!cid) { nav('dashboard'); return; }
 
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6)">
-    ${NX.pageHeader('Sales Access', NX.button('Add sales person', { variant: 'primary', icon: 'user-plus', onclick: '_saOpenAdd()' }), { icon: 'id-card' })}
+    ${NX.pageHeader('Sales Access', '', { icon: 'id-card' })}
     <div id="sa-body">${NX.card(NX.empty({ icon: 'loader', message: 'Loading…' }))}</div>
   </div>`;
 
@@ -30,23 +31,55 @@ async function rSalesAccess() {
     return;
   }
   _saRows = res.sales_users || [];
+  _saLimit = res.limit || null;
   _saRender();
 }
 
-function _saRender() {
-  const body = document.getElementById('sa-body');
-  if (!body) return;
-  const rows = _saRows;
-  const activeN = rows.filter(r => r.is_active).length;
+// Usage badge "X / max" + cap-aware Add button (disabled at the limit).
+function _saAtCap() { return _saLimit && _saLimit.can_add === false; }
+function _saUsageBadge() {
+  if (!_saLimit) return '';
+  const cur = _saLimit.current_count, max = _saLimit.max_allowed;
+  const tone = _saAtCap() ? 'danger' : (max && cur >= max - 2 ? 'warning' : 'success');
+  return NX.badge(`Sales access: ${cur} / ${max}`, tone);
+}
+function _saAddButton() {
+  return _saAtCap()
+    ? NX.button(`Add sales person (${_saLimit.current_count}/${_saLimit.max_allowed})`, { variant: 'secondary', icon: 'user-plus', disabled: true })
+    : NX.button('Add sales person', { variant: 'primary', icon: 'user-plus', onclick: '_saOpenAdd()' });
+}
 
-  const intro = NX.banner('Sales people log in to the field app (the Availability Board) — they are not RMS users and use no paid user seat.', 'info');
+function _saRender() {
+  const pg = document.getElementById('pg-salesaccess');
+  // Rebuild the header so the usage badge + cap-aware Add button reflect live counts.
+  const header = NX.pageHeader('Sales Access',
+    `<span style="margin-right:var(--fk-sp-3)">${_saUsageBadge()}</span>` + _saAddButton(),
+    { icon: 'id-card' });
+  if (pg) {
+    const shell = pg.querySelector('.nx');
+    if (shell) {
+      const bodyHtml = _saBodyHtml();
+      shell.innerHTML = header + `<div id="sa-body">${bodyHtml}</div>`;
+      return;
+    }
+  }
+  const body = document.getElementById('sa-body');
+  if (body) body.innerHTML = _saBodyHtml();
+}
+
+function _saBodyHtml() {
+  const rows = _saRows;
+  const planName = _saLimit && _saLimit.plan_name ? ` on your ${_saLimit.plan_name} plan` : '';
+  const intro = _saAtCap()
+    ? NX.banner(`You have used all ${_saLimit.max_allowed} sales-access slots${planName}. Deactivate an unused sales person to free a slot, or upgrade your plan to add more.`, 'warn')
+    : NX.banner('Sales people log in to the field app (the Availability Board) — they are not RMS users and use no paid user seat.', 'info');
 
   let table;
   if (!rows.length) {
     table = NX.empty({
       icon: 'id-card',
       message: 'No sales people yet. Add one to give them field access to the Availability Board and reservations.',
-      action: NX.button('Add sales person', { variant: 'primary', icon: 'user-plus', onclick: '_saOpenAdd()' })
+      action: _saAddButton()
     });
   } else {
     table = NX.table({
@@ -63,7 +96,7 @@ function _saRender() {
       flush: true
     });
   }
-  body.innerHTML = `<div style="margin-bottom:var(--fk-sp-3)">${intro}</div>` + NX.card(table, { flush: true });
+  return `<div style="margin-bottom:var(--fk-sp-3)">${intro}</div>` + NX.card(table, { flush: true });
 }
 
 function _saOpenAdd() {
@@ -96,7 +129,8 @@ async function _saSubmit() {
     const { data } = await supabase.rpc('create_sales_user',
       { p_company_id: cid, p_project_id: proj || null, p_name: name.trim(), p_phone: phone.trim() });
     if (!data || !data.success) {
-      if (err) { err.textContent = 'Could not create: ' + ((data && data.error) || 'error'); err.style.display = 'block'; }
+      const msg = (data && data.message) || ('Could not create: ' + ((data && data.error) || 'error'));
+      if (err) { err.textContent = msg; err.style.display = 'block'; }
       return;
     }
     _saCloseModal();
