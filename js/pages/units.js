@@ -497,8 +497,24 @@ function rUD(unitId) {
         ${info('Outstanding', fM(u.pendingAmount))}
       </div>
       <div style="margin-top:var(--fk-sp-3)">
-        <a class="nx-btn nx-btn--secondary nx-btn--sm" onclick="nav('reports'); if(typeof openRptViewer==='function') setTimeout(function(){openRptViewer('unit_statement');},300)">View Unit Statement</a>
+        <a class="nx-btn nx-btn--secondary nx-btn--sm" onclick="_uOpenStatement('${u.id}')">View Unit Statement</a>
       </div>
     </div>` : `<div class="nx-card">${NX.empty({ icon: 'inbox', message: 'This unit is not sold yet.', action: NX.button('Create sale', { variant: 'primary', onclick: "nav('newsale')" }) })}</div>`}
   </div>`;
+}
+
+// View Unit Statement from a unit's detail — for EVERY role. NXReport renders into
+// #pg-reports, but nav('reports') is blocked for recovery/finance and would bounce to the
+// dashboard. Viewing a unit's OWN statement from its detail is a permitted unit action, so
+// activate the reports container directly and pre-select this unit (also nicer than the
+// old generic picker).
+function _uOpenStatement(unitId) {
+  try {
+    document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
+    const rp = document.getElementById('pg-reports'); if (rp) rp.classList.add('on');
+    document.querySelector('.pw')?.classList.remove('rpt-mode');
+    if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
+    if (typeof openRptViewer === 'function') openRptViewer('unit_statement');
+    if (window.NXReport && unitId) { try { NXReport._set('unitId', unitId); } catch (e) {} }
+  } catch (e) { if (typeof openRptViewer === 'function') openRptViewer('unit_statement'); }
 }
