@@ -97,8 +97,11 @@ function _rsvRender() {
           ? `${NX.badge(cd.label, cd.tone)}`
           : `<span style="color:var(--fk-text-muted)">${esc(fdateRsv(r.expiry_date))}</span>`;
         const action = r.status === 'active'
-          ? NX.button('Release', { variant: 'danger-soft', size: 'sm', onclick: `_rsvCancel('${r.id}')` })
-          : '';
+          ? NX.button('Convert to Sale', { variant: 'primary', size: 'sm', onclick: `_rsvConvert('${r.id}')` }) +
+            ' ' + NX.button('Release', { variant: 'danger-soft', size: 'sm', onclick: `_rsvCancel('${r.id}')` })
+          : (r.status === 'converted' && r.converted_sale_id
+              ? NX.button('View sale', { variant: 'ghost', size: 'sm', onclick: `openSaleDetail('${r.converted_sale_id}')` })
+              : '');
         return [
           `<b>${esc(r.unit_no || '—')}</b>`,
           esc(r.project_name || '—'),
@@ -122,6 +125,30 @@ function pkrFmt(n) { return 'PKR ' + Number(n || 0).toLocaleString('en-US', { ma
 function fdateRsv(d) { if (!d) return '—'; const x = new Date(d); return isNaN(x) ? String(d) : x.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
 function _rsvSetStatus(s) { _rsvStatus = s; _rsvRender(); }
+
+// Convert (admin only) — validate server-side, then open the EXISTING New Sale
+// flow prefilled. The token is passed as CONTEXT only; it is NOT posted as a
+// payment. On a successful sale, sales.js calls mark_reservation_converted.
+async function _rsvConvert(id) {
+  try {
+    const { data } = await supabase.rpc('convert_reservation_prefill', { p_reservation_id: id });
+    if (!data || !data.success) {
+      const msg = (data && (data.message || data.error)) || 'Could not start conversion.';
+      if (typeof toast === 'function') toast(msg, 'err');
+      rReservations();
+      return;
+    }
+    const r = data.reservation;
+    window._nsConvert = {
+      reservationId: r.reservation_id, unitId: r.unit_id, projectId: r.project_id,
+      clientId: r.client_id, clientName: r.client_name, clientPhone: r.client_phone,
+      tokenReceived: r.token_received, tokenAmount: r.token_amount
+    };
+    nav('newsale');
+  } catch (e) {
+    if (typeof toast === 'function') toast('Could not start conversion.', 'err');
+  }
+}
 
 async function _rsvCancel(id) {
   if (!confirm('Release this reservation? The unit returns to Available immediately.')) return;

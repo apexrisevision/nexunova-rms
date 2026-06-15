@@ -361,6 +361,20 @@ async function rNewSale() {
     if (u && u.isAvailable !== false) { _nsPickUnit(u, true); }
   }
 
+  // Convert a reservation → New Sale (admin, Phase 2): preselect the RESERVED unit
+  // (bypassing the "available only" guard) + prefill the client + carry token CONTEXT.
+  // The token is NOT posted as a payment; the admin records the real deal below.
+  if (window._nsConvert) {
+    const cv = window._nsConvert; window._nsConvert = null;
+    const u = (window._unitsCache || []).find(x => x.id === cv.unitId);
+    if (u) _nsPickUnit(u, true);
+    if (cv.clientId) {
+      const c = (window._clientsCache || []).find(x => x.id === cv.clientId);
+      if (c) _ns.client = { id: c.id, full_name: c.fullName, cnic: c.cnic, projectId: c.projectId, isNew: false };
+    }
+    _ns.convert = cv;
+  }
+
   _nsRender();
 }
 
@@ -369,7 +383,8 @@ function _nsRender() {
   if (!pg || !_ns) return;
   pg.innerHTML = `<div class="nx-page">
     <div class="no-p" style="margin-bottom:var(--fk-sp-3)">${NX.button('← Back to Sales', { variant:'ghost', size:'sm', onclick:"nav('sales')" })}</div>
-    <div class="nx-page-header"><h1 class="nx-page-title">New Sale</h1></div>
+    <div class="nx-page-header"><h1 class="nx-page-title">${_ns.convert ? 'Convert Reservation → Sale' : 'New Sale'}</h1></div>
+    ${_ns.convert ? `<div class="nx-banner nx-banner--info" style="margin:var(--fk-sp-3) 0">${NX.icon('bookmark-check',16)}<span>Converting the reservation for <strong>${esc(_ns.convert.clientName||'')}</strong>${_ns.convert.clientPhone?` · ${esc(_ns.convert.clientPhone)}`:''}${_ns.convert.tokenReceived?` · token PKR ${Number(_ns.convert.tokenAmount||0).toLocaleString('en-US')} recorded by the sales person (context only — not posted as a payment)`:''}. Record the actual deal and payments below as normal.</span></div>` : ''}
     ${_nsStepper()}
     <div id="ns-body" style="margin-top:var(--fk-sp-4)"></div>
   </div>`;
@@ -865,6 +880,13 @@ async function _nsCreate() {
       if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
       toast('Sale submitted for Admin approval', 'ok');
       _ns = null; nav('sales'); return;
+    }
+
+    // Reservation conversion (Phase 2): the sale exists now → flip the reservation to
+    // 'converted'. The token was CONTEXT only — no payment was posted by this flow.
+    // (Server guard: mark_reservation_converted rejects a non-active reservation.)
+    if (_ns.convert && _ns.convert.reservationId && data.sale_id) {
+      try { await supabase.rpc('mark_reservation_converted', { p_reservation_id: _ns.convert.reservationId, p_sale_id: data.sale_id }); } catch (e) { /* sale already created; reservation flip is best-effort */ }
     }
 
     // Optional booking extras (FIELD_CENSUS B2). create_sale_with_schedule's contract does NOT
