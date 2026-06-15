@@ -1,0 +1,36 @@
+cleaned prior zztest3 (if any)
+  shot zz3_01_signup_step1_light.png
+  shot zz3_02_otp_overlay_dark.png
+PROOF wrong_otp_rejected = {"error":"invalid_otp","message":"Incorrect code.","attempts_left":4}
+PROOF missing_otp_signup_blocked = "email_not_verified"
+real_verify = {"verified":true}
+  shot zz3_03_signup_result_dark.png
+  shot zz3_03b_signup_result_light.png
+signup_result = {"u":"zztest3","body":"Your trial is ready\n✓\nYour email is verified and your account is ready. Sign in with the username below and the password you just set — no email link needed.\nTHIS IS YOUR USERNAME — SAVE IT\nzztest3\nCopy\nGo to Sign In"}
+  shot zz3_04_login_prefilled_light.png
+after_login = {"app":true,"ob":true}
+  shot zz3_05_wizard_launch_dark.png
+wiz_at 1
+  shot zz3_06_wiz_project_light.png
+wiz_at 2
+  shot zz3_07_wiz_floors_dark.png
+wiz_at 3
+  shot zz3_08_wiz_types_dark.png
+wiz_at 4
+  shot zz3_09_wiz_units_dark.png
+wiz_at 5
+  shot zz3_10_wiz_done_dark.png
+wiz_err = ""
+onboarding_complete_after_wizard = [{"onboarding_complete":true}]
+  shot zz3_11_adduser_modal_dark.png
+  shot zz3_11b_adduser_modal_light.png
+  shot zz3_12_users_after_add_dark.png
+created_user = [{"username":"jamal","email":"jamal.zztest3@users.internal","needs_password_reset":true,"linked":true}]
+forced_change_overlay = true
+  shot zz3_13_forced_change_dark.png
+staff_logged_in_after_change = true
+onscreen_temp_pw_modal = true
+  shot zz3_14_onscreen_temppw_dark.png
+  shot zz3_15_after_deactivate_dark.png
+AUDIT_ROWS = [{"action":"UPDATE","reason":"user_inactive","changed_by_name":"Owner Three","changed_by_role":"owner","changed_fields":["status","updated_at"]},{"action":"UPDATE","reason":"password_reset","changed_by_name":"Owner Three","changed_by_role":"owner","changed_fields":["needs_password_reset","password_hash","session_version","updated_at"]},{"action":"UPDATE","reason":null,"changed_by_name":"system","changed_by_role":"unknown","changed_fields":["last_login_at","updated_at"]},{"action":"UPDATE","reason":null,"changed_by_name":"Jamal Khan","changed_by_role":"recovery","changed_fields":["needs_password_reset","password_changed_at","password_expires_at","password_hash","session_version","updated_at"]},{"action":"UPDATE","reason":null,"changed_by_name":"system","changed_by_role":"unknown","changed_fields":["last_login_at","updated_at"]},{"action":"UPDATE","reason":"user_created","changed_by_name":"Owner Three","changed_by_role":"owner","changed_fields":["auth_migration_completed_at","auth_provider","auth_user_id"]},{"action":"INSERT","reason":"user_created","changed_by_name":"Owner Three","changed_by_role":"owner","changed_fields":null},{"action":"UPDATE","reason":null,"changed_by_name":"system","changed_by_role":"unknown","changed_fields":["last_login_at","updated_at"]}]
+CONSOLE_ERRS 3 Failed to load resource: the server responded with a status of 403 () | Failed to load resource: the server responded with a status of 403 () | Failed to load resource: the server responded with a status of 403 ()

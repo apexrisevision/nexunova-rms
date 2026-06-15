@@ -1,0 +1,21 @@
+const puppeteer=require('puppeteer-core');const http=require('http');const path=require('path');const fs=require('fs');
+const ROOT=path.resolve(__dirname,'..');const PORT=4738;const BASE=`http://127.0.0.1:${PORT}`;
+const CHROME='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.woff2':'font/woff2','.ico':'image/x-icon'};
+const ZCODE='zztestinternalsafeto',ZPW='ZzTest!2026',SALE='53d5e7b5-cf79-49bb-a1f7-da81d992f3aa';
+function serve(){return new Promise(res=>{const srv=http.createServer((q,p)=>{const u=decodeURIComponent(q.url.split('?')[0]);let f=path.join(ROOT,u==='/'?'login.html':u);if(!f.startsWith(ROOT)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){p.writeHead(404);return p.end();}p.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(p);}).listen(PORT,'127.0.0.1',()=>res(srv));});}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{const srv=await serve();
+  const b=await puppeteer.launch({executablePath:CHROME,headless:'new',args:['--no-sandbox','--window-size=1500,1750']});
+  const page=await b.newPage();await page.setViewport({width:1440,height:1680});
+  const errs=[];page.on('console',m=>{if(m.type()==='error')errs.push(m.text().slice(0,160));});
+  page.on('dialog',async d=>{try{await d.accept();}catch(e){}});
+  await page.goto(BASE+'/login.html',{waitUntil:'networkidle2'});await sleep(900);
+  await page.evaluate((c,p)=>{const u=document.getElementById('li-u'),q=document.getElementById('li-p');u.removeAttribute('readonly');q.removeAttribute('readonly');u.value=c;q.value=p;window._loginReadyAt=0;},ZCODE,ZPW);
+  await page.evaluate(()=>doLogin());await sleep(7000);
+  await page.evaluate((id)=>{var o=document.getElementById('s-onboarding');if(o)o.classList.remove('on'); if(typeof openSaleDetail==='function')openSaleDetail(id);},SALE);
+  await sleep(5000);
+  console.log('ERRORS:',JSON.stringify(errs.slice(0,8)));
+  await page.screenshot({path:path.join(__dirname,'saledetail.png'),fullPage:true});
+  await b.close();srv.close();
+})().catch(e=>{console.error(e.message);process.exit(1);});

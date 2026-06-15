@@ -1,0 +1,381 @@
+// ════════════════════════════════════════════════════════════════════════════
+// RECOVERY POSITION — period ROLLFORWARD statement (rebuilt 2026-06-11)
+// Backend: get_recovery_position(company, project, from, to) → { period, rows, totals, officer_summary }
+//   FIFO by sale_id + payment_date (payments.installment_id is NULL by design).
+//   Per row: opening(dp/arrears), due_period, received(r_dp/r_old/r_cur/r_advance),
+//   advance_bf, closing(dp/old/current), paid_pct, overdue_days, expand fields.
+// UI: 5 KPI cards · 10-col table · row expand · filters · sort · Closing DESC.
+// Design: Inter, CSS vars, indigo #4F46E5, Lucide icons, light/dark via tokens.
+// ════════════════════════════════════════════════════════════════════════════
+
+// First day of current month, ISO (local) — default FROM bound.
+function _rpMonthStart(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+
+// Project + FROM/TO controls (drives the RPC; filters below are client-side).
+function _rpControlsBar(){
+  var projs=(typeof gprojects==='function'?gprojects():[]).slice()
+    .sort(function(a,b){return String(a.name||a.projectName||'').localeCompare(String(b.name||b.projectName||''));});
+  var opts='<option value="">All Projects</option>'+projs.map(function(p){
+    return '<option value="'+p.id+'">'+esc(p.name||p.projectName||'Project')+'</option>';}).join('');
+  var c='font:500 12px/1 inherit;padding:6px 10px;border-radius:7px;border:1px solid var(--line);background:var(--canvas);color:var(--text)';
+  return '<div class="rpt-fbar">'
+    +'<span class="rpt-stabs-lbl">Project</span>'
+    +'<select id="rp-proj" style="'+c+'" onchange="runRpt()">'+opts+'</select>'
+    +'<span class="rpt-stabs-lbl" style="margin-left:12px">From</span>'
+    +'<input type="date" id="rp-from" value="'+_rpMonthStart()+'" style="'+c+'" onchange="runRpt()">'
+    +'<span class="rpt-stabs-lbl" style="margin-left:8px">To</span>'
+    +'<input type="date" id="rp-to" value="'+td()+'" style="'+c+'" onchange="runRpt()">'
+  +'</div>';
+}
+function _rpDaysAgo(lastISO,asofISO){
+  if(!lastISO)return null;
+  try{var a=new Date(asofISO+'T00:00:00'),l=new Date(lastISO+'T00:00:00');return Math.round((a-l)/86400000);}catch(e){return null;}
+}
+function _rpAsofLbl(asofISO){try{var d=new Date(asofISO+'T00:00:00');var p=function(n){return String(n).padStart(2,'0');};return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear();}catch(e){return asofISO;}}
+
+function _rpEmpty(t,s){
+  return '<div class="rp2-empty"><svg width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="opacity:.5;margin-bottom:8px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><div style="font-size:13px;font-weight:500;color:var(--text)">'+esc(t)+'</div>'+(s?'<div style="font-size:12px;margin-top:3px">'+esc(s)+'</div>':'')+'</div>';
+}
+
+async function _rpRun(){
+  var ct=document.getElementById('r-ct');if(!ct)return;
+  var gid=_rptGenId;
+  var proj=(document.getElementById('rp-proj')||{}).value||'';
+  var from=(document.getElementById('rp-from')||{}).value||_rpMonthStart();
+  var to  =(document.getElementById('rp-to')||{}).value||td();
+  ct.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3);font-size:13px"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="animation:rops-spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading recovery position…</div>';
+  var res=null,err=null;
+  try{ var r=await supabase.rpc('get_recovery_position',{p_company_id:S.cid,p_project_id:proj||null,p_from_date:from,p_to_date:to}); err=r.error; res=r.data; }
+  catch(e){ err=e; }
+  if(_rptGenId!==gid)return;
+  if(err){
+    if(typeof toast==='function')toast('Could not load Recovery Position: '+(err.message||err),'err');
+    ct.innerHTML='<div class="rp2">'+_rpEmpty('Could not load report',(err&&err.message)||String(err))+'</div>';
+    window._rpData=null; return;
+  }
+  res=res||{};
+  var projName=proj?(((typeof gproject==='function'?gproject(proj):null)||{}).name||''):'';
+  window._rpData={res:res,from:from,to:to,projName:projName,fromLbl:_rpAsofLbl(from),toLbl:_rpAsofLbl(to),periodLbl:_rpAsofLbl(from)+' to '+_rpAsofLbl(to)};
+  ct.innerHTML=_rpRender(res,from,to,projName);
+}
+
+// Scoped, token-driven stylesheet (light/dark via CSS vars). Injected once.
+function _rpInjectStyle(){
+  if(document.getElementById('rp2-style'))return;
+  var s=document.createElement('style');s.id='rp2-style';
+  s.textContent=[
+   '.rp2{--rp-ind:#4F46E5;--rp-red:#DC2626;--rp-amb:#D97706;--rp-grn:#059669;color:var(--text);font-variant-numeric:tabular-nums}',
+   '.rp2 .rp2-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:2px 0 14px;flex-wrap:wrap}',
+   '.rp2 .rp2-head .ttl{font-size:15px;font-weight:600;letter-spacing:-.2px}',
+   '.rp2 .rp2-head .meta{font-size:11.5px;color:var(--t3);text-align:right;line-height:1.6}',
+   '.rp2 .rp2-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 16px}',
+   '@media(max-width:980px){.rp2 .rp2-kpis{grid-template-columns:repeat(2,1fr)}}',
+   '.rp2 .kpi{border:1px solid var(--line);border-radius:12px;background:var(--card,#fff);padding:13px 15px;position:relative}',
+   '.rp2 .kpi .k-l{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);font-weight:500}',
+   '.rp2 .kpi .k-v{font-size:21px;font-weight:600;margin-top:5px;letter-spacing:-.3px;line-height:1.1}',
+   '.rp2 .kpi .k-s{font-size:10.5px;color:var(--t3);margin-top:7px;line-height:1.55}',
+   '.rp2 .kpi .k-s b{font-weight:600;color:var(--t2)}',
+   '.rp2 .kpi .k-ic{position:absolute;top:13px;right:13px;color:var(--t4);opacity:.45}',
+   '.rp2 .kpi.is-close{border-color:var(--rp-ind)}',
+   '.rp2 .kpi.is-close .k-v{color:var(--rp-ind)}',
+   '.rp2 .rp2-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}',
+   '.rp2 .rp2-bar select,.rp2 .rp2-bar input{height:32px;border:1px solid var(--line);border-radius:8px;background:var(--canvas,var(--bg));color:var(--text);font:500 12px/1 inherit;padding:0 10px}',
+   '.rp2 .rp2-bar .rp2-search{min-width:210px}',
+   '.rp2 .rp2-bar .sp{flex:1}',
+   '.rp2 .rp2-count{font-size:11.5px;color:var(--t3)}',
+   '.rp2 .rp2-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:62vh;background:var(--card,#fff)}',
+   '.rp2 table.rp2-t{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;min-width:880px}',
+   '.rp2 .rp2-t thead th{position:sticky;top:0;z-index:2;background:var(--card,#fff);color:var(--t3);font-weight:500;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;text-align:right;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}',
+   '.rp2 .rp2-t thead th.l{text-align:left}',
+   '.rp2 .rp2-t thead th.act{color:var(--rp-ind)}',
+   '.rp2 .rp2-t thead th .ar{font-size:9px;margin-left:3px}',
+   '.rp2 .rp2-t tbody td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}',
+   '.rp2 .rp2-t tbody td.l{text-align:left}',
+   '.rp2 .rp2-t tbody tr.dat{cursor:pointer}',
+   '.rp2 .rp2-t tbody tr.dat:hover td,.rp2 .rp2-t tbody tr.dat.open td{background:var(--hover,#f6f7f9)}',
+   '.rp2 .cc{font-size:10.5px;color:var(--t3)}',
+   '.rp2 .cn{font-weight:500}',
+   '.rp2 .un{font-weight:500}.rp2 .uf{font-size:10.5px;color:var(--t3)}',
+   '.rp2 .chev{display:inline-flex;color:var(--t4);transition:transform .15s;vertical-align:-2px;margin-right:4px}',
+   '.rp2 tr.dat.open .chev{transform:rotate(90deg)}',
+   '.rp2 .pb{display:inline-flex;align-items:center;gap:7px;justify-content:flex-end}',
+   '.rp2 .pb .track{width:46px;height:5px;border-radius:3px;background:var(--line);overflow:hidden}',
+   '.rp2 .pb .fill{height:100%;background:var(--rp-ind);border-radius:3px}',
+   '.rp2 .pb .pn{font-size:11px;color:var(--t2);min-width:36px;text-align:right}',
+   '.rp2 .rk{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500}',
+   '.rp2 .rk .dot{width:8px;height:8px;border-radius:50%}',
+   '.rp2 .rk.red{color:var(--rp-red)}.rp2 .rk.red .dot{background:var(--rp-red)}',
+   '.rp2 .rk.amb{color:var(--rp-amb)}.rp2 .rk.amb .dot{background:var(--rp-amb)}',
+   '.rp2 .rk.grn{color:var(--rp-grn)}.rp2 .rk.grn .dot{background:var(--rp-grn)}',
+   '.rp2 tr.exp td{padding:0;border-bottom:1px solid var(--line);background:var(--bg,#fafbfc)}',
+   '.rp2 .xp{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 26px;padding:14px 18px 16px}',
+   '@media(max-width:820px){.rp2 .xp{grid-template-columns:repeat(2,1fr)}}',
+   '.rp2 .xg h6{margin:0 0 5px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);font-weight:500}',
+   '.rp2 .xr{display:flex;justify-content:space-between;gap:14px;font-size:12px;padding:2.5px 0}',
+   '.rp2 .xr .l{color:var(--t3)}',
+   '.rp2 .rp2-t tfoot td{position:sticky;bottom:0;background:var(--card,#fff);border-top:2px solid var(--line);font-weight:600;text-align:right;padding:11px 12px;font-size:12.5px}',
+   '.rp2 .rp2-t tfoot td.l{text-align:left;color:var(--t2);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px}',
+   '.rp2 .rp2-foot{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}',
+   '@media(max-width:820px){.rp2 .rp2-foot{grid-template-columns:1fr}}',
+   '.rp2 .rp2-card{border:1px solid var(--line);border-radius:12px;background:var(--card,#fff);padding:14px 16px}',
+   '.rp2 .rp2-card h5{margin:0 0 10px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);font-weight:500}',
+   '.rp2 .idr{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--line)}',
+   '.rp2 .idr:last-child{border-bottom:0}',
+   '.rp2 .idr.tot{font-weight:600;color:var(--rp-ind);border-bottom:0;border-top:2px solid var(--line);margin-top:3px;padding-top:8px}',
+   '.rp2 .offt{width:100%;border-collapse:collapse;font-size:12.5px}',
+   '.rp2 .offt th,.rp2 .offt td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right}',
+   '.rp2 .offt th:first-child,.rp2 .offt td:first-child{text-align:left}',
+   '.rp2 .offt th{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);font-weight:500}',
+   '.rp2 .offt tr.tot td{font-weight:600;border-bottom:0}',
+   '.rp2 .rp2-empty{text-align:center;padding:48px 0;color:var(--t3)}'
+  ].join('');
+  document.head.appendChild(s);
+}
+
+var RP2_HEAD=[
+  {l:'S#',cls:'l',sort:null},
+  {l:'Client',cls:'l',sort:'client'},
+  {l:'Unit',cls:'l',sort:'unit'},
+  {l:'Net Price',sort:'net_price'},
+  {l:'Opening',sort:'opening'},
+  {l:'Due',sort:'due_period'},
+  {l:'Recovered',sort:'received_total'},
+  {l:'Closing',sort:'closing'},
+  {l:'Paid %',sort:'paid_pct'},
+  {l:'Risk',sort:'overdue_days'}
+];
+function _rpNum(v){return fM(Number(v||0));}
+function _rp2RiskLevel(d){ if(d==null)return 'grn'; if(d>90)return 'red'; if(d>=1)return 'amb'; return 'grn'; }
+function _rp2RiskBadge(d){
+  var lv=_rp2RiskLevel(d);
+  var lbl=(lv==='grn')?(d?(d+'d'):'Current'):(d+'d overdue');
+  return '<span class="rk '+lv+'"><span class="dot"></span>'+lbl+'</span>';
+}
+function _rp2Bar(p){
+  var v=Math.max(0,Math.min(100,Number(p||0)));
+  return '<span class="pb"><span class="track"><span class="fill" style="width:'+v+'%"></span></span><span class="pn">'+(Number(p||0).toFixed(1))+'%</span></span>';
+}
+var _RP2_CHEV='<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+function _rp2Header(t,from,to,projName){
+  return '<div class="rp2-head"><div class="ttl">Recovery Position — Grand Summary</div>'
+    +'<div class="meta">'+esc(projName||'All Projects')+' &middot; '+_rpAsofLbl(from)+' → '+_rpAsofLbl(to)
+    +'<br>'+(Number(t.row_count||0))+' active sales &middot; Generated '+_rpAsofLbl(td())+'</div></div>';
+}
+function _rp2KPIs(t){
+  var ic=function(p){return '<span class="k-ic"><svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">'+p+'</svg></span>';};
+  var kpi=function(cls,lbl,val,sub,icon){return '<div class="kpi'+(cls?' '+cls:'')+'">'+(icon?ic(icon):'')+'<div class="k-l">'+lbl+'</div><div class="k-v">'+val+'</div>'+(sub?'<div class="k-s">'+sub+'</div>':'')+'</div>';};
+  var pct=(t.recovery_pct!=null?Number(t.recovery_pct).toFixed(1):'0.0');
+  return '<div class="rp2-kpis">'
+    +kpi('','Opening Balance',_rpNum(t.opening),'DP <b>'+_rpNum(t.opening_dp)+'</b> &middot; Arrears <b>'+_rpNum(t.opening_arrears)+'</b>','<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>')
+    +kpi('','+ Due This Period',_rpNum(t.due),'installments due in range','<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')
+    +kpi('','− Recovered',_rpNum(t.received_total),'DP <b>'+_rpNum(t.r_dp)+'</b> &middot; Old <b>'+_rpNum(t.r_old)+'</b> &middot; Curr <b>'+_rpNum(t.r_cur)+'</b>','<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    +kpi('is-close','= Closing Balance',_rpNum(t.closing),'DP <b>'+_rpNum(t.closing_dp)+'</b> &middot; Old <b>'+_rpNum(t.closing_old)+'</b> &middot; Curr <b>'+_rpNum(t.closing_current)+'</b>','<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>')
+    +kpi('','Recovery %',pct+'%','Received ÷ (Opening + Due)','<path d="M3 3v18h18"/><path d="M19 9l-5 5-4-4-3 3"/>')
+  +'</div>';
+}
+function _rp2FilterBar(rows){
+  var fl={},ty={};
+  rows.forEach(function(r){ if(r.floor_name)fl[r.floor_name]=1; if(r.unit_type)ty[r.unit_type]=1; });
+  var opt=function(o){return '<option value="'+esc(o)+'">'+esc(o)+'</option>';};
+  var floors=Object.keys(fl).sort();
+  var types=Object.keys(ty).sort();
+  return '<div class="rp2-bar">'
+    +'<select id="rp2-floor" onchange="_rp2Filter()"><option value="">All Floors</option>'+floors.map(opt).join('')+'</select>'
+    +'<select id="rp2-type" onchange="_rp2Filter()"><option value="">All Types</option>'+types.map(opt).join('')+'</select>'
+    +'<select id="rp2-risk" onchange="_rp2Filter()"><option value="">All Risk</option><option value="red">Critical (&gt;90d)</option><option value="amb">Overdue (1–90d)</option><option value="grn">Current</option></select>'
+    +'<input id="rp2-q" class="rp2-search" type="text" placeholder="Search client / unit…" oninput="_rp2Filter()">'
+    +'<span class="sp"></span><span class="rp2-count" id="rp2-count"></span>'
+  +'</div>';
+}
+function _rp2_view(){
+  var st=window._rp2, f=st.filt, rows=st.rows.slice();
+  rows=rows.filter(function(r){
+    if(f.floor && String(r.floor_name||'')!==f.floor)return false;
+    if(f.type && String(r.unit_type||'')!==f.type)return false;
+    if(f.risk && _rp2RiskLevel(r.overdue_days)!==f.risk)return false;
+    if(f.q){var hay=((r.client_name||'')+' '+(r.client_code||'')+' '+(r.unit_no||'')).toLowerCase();if(hay.indexOf(f.q)<0)return false;}
+    return true;
+  });
+  var k=st.sort.key,dir=st.sort.dir;
+  rows.sort(function(a,b){
+    if(k==='client')return String(a.client_name||'').localeCompare(String(b.client_name||''))*dir;
+    if(k==='unit')return String(a.unit_no||'').localeCompare(String(b.unit_no||''))*dir;
+    var va=Number(a[k]||0),vb=Number(b[k]||0);return (va===vb?0:(va<vb?-1:1))*dir;
+  });
+  return rows;
+}
+function _rp2TableHTML(){
+  var st=window._rp2, view=_rp2_view();
+  var head='<thead><tr>'+RP2_HEAD.map(function(h){
+    var act=(st.sort.key===h.sort);
+    var ar=act?('<span class="ar">'+(st.sort.dir<0?'▼':'▲')+'</span>'):'';
+    return '<th class="'+(h.cls||'')+(act?' act':'')+'"'+(h.sort?(' onclick="_rp2Sort(\''+h.sort+'\')"'):' style="cursor:default"')+'>'+h.l+ar+'</th>';
+  }).join('')+'</tr></thead>';
+  var body=view.map(function(r,i){
+    return '<tr class="dat" onclick="_rp2Toggle('+i+')">'
+      +'<td class="l">'+_RP2_CHEV+(i+1)+'</td>'
+      +'<td class="l"><div class="cn">'+esc(r.client_name||'—')+'</div><div class="cc">'+esc(r.client_code||'')+'</div></td>'
+      +'<td class="l"><span class="un">'+esc(r.unit_no||'—')+'</span> <span class="uf">'+esc(r.floor_name||'')+'</span></td>'
+      +'<td>'+_rpNum(r.net_price)+'</td>'
+      +'<td>'+_rpNum(r.opening)+'</td>'
+      +'<td>'+_rpNum(r.due_period)+'</td>'
+      +'<td>'+_rpNum(r.received_total)+'</td>'
+      +'<td>'+_rpNum(r.closing)+'</td>'
+      +'<td>'+_rp2Bar(r.paid_pct)+'</td>'
+      +'<td>'+_rp2RiskBadge(r.overdue_days)+'</td>'
+    +'</tr>'
+    +'<tr class="exp" id="rp2x-'+i+'" style="display:none"><td colspan="10">'+_rp2Expand(r)+'</td></tr>';
+  }).join('');
+  var sum=function(k){return view.reduce(function(s,r){return s+Number(r[k]||0);},0);};
+  var foot='<tfoot><tr>'
+    +'<td class="l" colspan="3">Grand Total · '+view.length+' sales</td>'
+    +'<td>'+_rpNum(sum('net_price'))+'</td>'
+    +'<td>'+_rpNum(sum('opening'))+'</td>'
+    +'<td>'+_rpNum(sum('due_period'))+'</td>'
+    +'<td>'+_rpNum(sum('received_total'))+'</td>'
+    +'<td>'+_rpNum(sum('closing'))+'</td>'
+    +'<td></td><td></td></tr></tfoot>';
+  return '<div class="rp2-wrap"><table class="rp2-t">'+head+'<tbody>'+body+'</tbody>'+foot+'</table></div>';
+}
+function _rp2Expand(r){
+  var xr=function(l,v){return '<div class="xr"><span class="l">'+l+'</span><span class="v">'+v+'</span></div>';};
+  var lp=r.last_payment_date?(_rpAsofLbl(r.last_payment_date)+' · '+_rpNum(r.last_payment_amount)):'No payments';
+  return '<div class="xp">'
+    +'<div class="xg"><h6>Opening Split</h6>'+xr('DP Remaining',_rpNum(r.opening_dp))+xr('Inst. Arrears',_rpNum(r.opening_arrears))+xr('Opening Total',_rpNum(r.opening))+'</div>'
+    +'<div class="xg"><h6>Received This Period</h6>'+xr('vs DP',_rpNum(r.r_dp))+xr('vs Old',_rpNum(r.r_old))+xr('vs Current',_rpNum(r.r_cur))+xr('Advance',_rpNum(r.r_advance))+xr('Advance B/F adj.',_rpNum(r.advance_bf))+'</div>'
+    +'<div class="xg"><h6>Closing Split</h6>'+xr('DP',_rpNum(r.closing_dp))+xr('Old',_rpNum(r.closing_old))+xr('Current',_rpNum(r.closing_current))+xr('Closing Total',_rpNum(r.closing))+'</div>'
+    +'<div class="xg"><h6>Account</h6>'+xr('Last Payment',lp)+xr('Phone',esc(r.phone||'—'))+xr('Reg. Date',r.reg_date?_rpAsofLbl(r.reg_date):'—')+xr('Area / Rate',(r.area!=null?Number(r.area).toLocaleString('en-US'):'—')+' / '+(r.unit_rate!=null?Number(r.unit_rate).toLocaleString('en-US'):'—'))+xr('Discount',_rpNum(r.discount))+'</div>'
+  +'</div>';
+}
+function _rp2Foot(t,officers,from,to){
+  var idr=function(l,v,c){return '<div class="idr'+(c?' '+c:'')+'"><span class="l">'+l+'</span><span class="v">'+v+'</span></div>';};
+  var stmt='<div class="rp2-card"><h5>Rollforward Statement · '+_rpAsofLbl(from)+' → '+_rpAsofLbl(to)+'</h5>'
+    +idr('Opening Balance',_rpNum(t.opening))
+    +idr('+ Due This Period',_rpNum(t.due))
+    +idr('− Recovered (applied)',_rpNum(t.received_applied))
+    +idr('− Advance B/F Adjusted',_rpNum(t.advance_bf))
+    +idr('= Closing Balance',_rpNum(t.closing),'tot')
+  +'</div>';
+  var oRows=(officers||[]).map(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);
+    return '<tr><td>'+esc(o.officer_name||'—')+'</td><td>'+_rpNum(d)+'</td><td>'+_rpNum(c)+'</td><td>'+_rpNum(d+c)+'</td></tr>';}).join('');
+  var od=(officers||[]).reduce(function(s,o){return s+Number(o.dead_recovery_total||0);},0);
+  var oc=(officers||[]).reduce(function(s,o){return s+Number(o.current_recovery_total||0);},0);
+  var off='<div class="rp2-card"><h5>Officer Recovery · period receipts</h5>'
+    +(officers&&officers.length
+      ?'<table class="offt"><thead><tr><th>Officer</th><th>Dead (&gt;90d)</th><th>Current</th><th>Total</th></tr></thead><tbody>'+oRows
+       +'<tr class="tot"><td>Total</td><td>'+_rpNum(od)+'</td><td>'+_rpNum(oc)+'</td><td>'+_rpNum(od+oc)+'</td></tr></tbody></table>'
+      :'<div style="font-size:12px;color:var(--t3)">No period receipts.</div>')
+  +'</div>';
+  return '<div class="rp2-foot">'+stmt+off+'</div>';
+}
+
+function _rpRender(res,from,to,projName){
+  var rows=Array.isArray(res.rows)?res.rows:[];
+  var totals=res.totals||{};
+  var officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
+  _rpInjectStyle();
+  window._rp2={rows:rows,totals:totals,officers:officers,from:from,to:to,projName:projName,
+    sort:{key:'closing',dir:-1},filt:{floor:'',type:'',risk:'',q:''}};
+  if(!rows.length)
+    return '<div class="rp2">'+_rp2Header(totals,from,to,projName)+_rpEmpty('No active sales for this selection','Try a different project or date range.')+'</div>';
+  return '<div class="rp2">'
+    +_rp2Header(totals,from,to,projName)
+    +_rp2KPIs(totals)
+    +_rp2FilterBar(rows)
+    +'<div id="rp2-tablehost">'+_rp2TableHTML()+'</div>'
+    +_rp2Foot(totals,officers,from,to)
+  +'</div>';
+}
+
+// ── client-side handlers ──
+function _rp2Repaint(){
+  var host=document.getElementById('rp2-tablehost'); if(host)host.innerHTML=_rp2TableHTML();
+  var c=document.getElementById('rp2-count'); if(c){var n=_rp2_view().length;c.textContent=n+' of '+window._rp2.rows.length+' shown';}
+}
+window._rp2Sort=function(k){var st=window._rp2;if(!st)return;if(st.sort.key===k)st.sort.dir*=-1;else{st.sort.key=k;st.sort.dir=(k==='client'||k==='unit')?1:-1;}_rp2Repaint();};
+window._rp2Filter=function(){var st=window._rp2;if(!st)return;st.filt={floor:(document.getElementById('rp2-floor')||{}).value||'',type:(document.getElementById('rp2-type')||{}).value||'',risk:(document.getElementById('rp2-risk')||{}).value||'',q:(((document.getElementById('rp2-q')||{}).value)||'').toLowerCase().trim()};_rp2Repaint();};
+window._rp2Toggle=function(i){var row=document.getElementById('rp2x-'+i);if(!row)return;var open=row.style.display==='none';row.style.display=open?'':'none';if(row.previousElementSibling)row.previousElementSibling.classList.toggle('open',open);};
+
+// ── PRINT (A4 landscape, Crystal letterhead + rollforward statement) ──
+function _rpPrint(){
+  var D=window._rpData; if(!D||!D.res){toast('Run the report first, then print','warn');return;}
+  var res=D.res, rows=Array.isArray(res.rows)?res.rows:[], t=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
+  var pnum=function(v){return fM(Number(v||0));};
+  var head='<tr><th>S#</th><th>Client</th><th>Unit</th><th class="num">Net Price</th><th class="num">Opening</th><th class="num">Due</th><th class="num">Recovered</th><th class="num">Closing</th><th class="num">Paid %</th><th class="num">Overdue</th></tr>';
+  var body=rows.map(function(r,i){
+    var lv=_rp2RiskLevel(r.overdue_days);
+    return '<tr'+(lv==='red'?' class="rp-late"':'')+'><td>'+(i+1)+'</td><td class="cname">'+esc((r.client_code?r.client_code+' · ':'')+(r.client_name||''))+'</td><td>'+esc((r.unit_no||'')+(r.floor_name?' · '+r.floor_name:''))+'</td>'
+      +'<td class="num">'+pnum(r.net_price)+'</td><td class="num">'+pnum(r.opening)+'</td><td class="num">'+pnum(r.due_period)+'</td><td class="num">'+pnum(r.received_total)+'</td><td class="num">'+pnum(r.closing)+'</td><td class="num">'+Number(r.paid_pct||0).toFixed(1)+'%</td><td class="num">'+(r.overdue_days==null?'—':r.overdue_days+'d')+'</td></tr>';
+  }).join('');
+  var grand='<tr class="rp-grand"><td colspan="3">GRAND TOTAL · '+rows.length+' sales</td><td class="num">'+pnum(t.net_price)+'</td><td class="num">'+pnum(t.opening)+'</td><td class="num">'+pnum(t.due)+'</td><td class="num">'+pnum(t.received_total)+'</td><td class="num">'+pnum(t.closing)+'</td><td class="num"></td><td class="num"></td></tr>';
+  var infoRow=function(l,v){return '<div class="rp-info-row"><span class="lbl">'+l+' :</span> <span class="val">'+v+'</span></div>';};
+  var infoBox='<div class="rp-infobox">'+infoRow('Company',esc(S?S.coName||'—':'—'))+infoRow('Project',esc(D.projName||'All Projects'))+infoRow('Period',esc(D.periodLbl||''))+infoRow('Generated',esc(_rpAsofLbl(td())))+infoRow('Active Sales',String(rows.length))+infoRow('Recovery %',(t.recovery_pct!=null?Number(t.recovery_pct).toFixed(1):'0.0')+'%')+'</div>';
+  var sR=function(l,v,b){return '<div class="rp-sum-row"><span class="lbl">'+l+'</span><span class="val"'+(b?' style="color:#4F46E5"':'')+'>'+v+'</span></div>';};
+  var summaryBox='<div class="rp-summary"><h4>Rollforward Statement</h4>'+sR('Opening Balance',pnum(t.opening))+sR('+ Due This Period',pnum(t.due))+sR('− Recovered (applied)',pnum(t.received_applied))+sR('− Advance B/F Adjusted',pnum(t.advance_bf))+sR('= Closing Balance',pnum(t.closing),1)+'</div>';
+  var od=officers.reduce(function(s,o){return s+Number(o.dead_recovery_total||0);},0),oc=officers.reduce(function(s,o){return s+Number(o.current_recovery_total||0);},0);
+  var offRows=officers.map(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);return '<tr><td class="cname">'+esc(o.officer_name||'—')+'</td><td class="num">'+pnum(d)+'</td><td class="num">'+pnum(c)+'</td><td class="num">'+pnum(d+c)+'</td></tr>';}).join('');
+  var extra='body{font-family:"Times New Roman",Georgia,serif;color:#1a1a1a}'
+    +'.rp-doc-title{text-align:center;font-weight:700;font-size:14px;text-decoration:underline;margin:4px 0 10px}'
+    +'.rp-infobox{border:1px solid #333;border-radius:3px;padding:8px 12px;margin:0 0 10px;display:grid;grid-template-columns:1fr 1fr;gap:2px 24px}'
+    +'.rp-info-row{font-size:10px}.rp-info-row .lbl{font-weight:700;display:inline-block;min-width:88px}.rp-info-row .val{font-weight:600}'
+    +'.rp-tbl{font-size:9px;border-collapse:collapse;table-layout:fixed;width:100%;font-variant-numeric:tabular-nums;background:#fff}'
+    +'.rp-tbl th,.rp-tbl td{border:1px solid #333;padding:3px 5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'
+    +'.rp-tbl thead th{background:#fff;font-weight:700;text-align:left;border-bottom:2.5px double #333;white-space:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.rp-tbl th.num,.rp-tbl td.num{text-align:right}.rp-tbl td.cname{font-weight:700}'
+    +'.rp-grand td{background:#cfcfcf;font-weight:700;border-top:3px double #333;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.rp-late td{background:#fbeaea;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.rp-off-tbl{border-collapse:collapse;max-width:460px;font-size:9.5px;background:#fff;margin-top:6px}'
+    +'.rp-off-tbl th,.rp-off-tbl td{border:1px solid #333;padding:3px 7px}.rp-off-tbl thead th{background:#E8E8E8;font-weight:700;text-align:left}.rp-off-tbl th.num,.rp-off-tbl td.num{text-align:right}'
+    +'.rp-summary{border:1px solid #333;border-radius:5px;padding:8px 12px;max-width:360px;margin-top:12px}'
+    +'.rp-summary h4{font-size:11px;font-weight:700;text-decoration:underline;text-align:center;margin:0 0 6px}'
+    +'.rp-sum-row{display:flex;justify-content:space-between;gap:14px;padding:2px 0;border-bottom:1px dotted #aaa;font-size:10px}'
+    +'.rp-sum-row .lbl{font-weight:700}.rp-sum-row .val{font-weight:700}';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery Position (Grand Summary)</title><style>'+_pCSS('A4 landscape')+extra+'</style></head><body>'
+    +_lh('Recovery Position (Grand Summary)', D.projName||'All Projects')
+    +'<div class="body"><div class="rp-doc-title">Recovery Position — Grand Summary</div>'+infoBox
+    +'<table class="rp-tbl"><thead>'+head+'</thead><tbody>'+(rows.length?body+grand:'<tr><td colspan="10" style="text-align:center;padding:20px;color:#888">No active sales</td></tr>')+'</tbody></table>'
+    +'<div class="sec-title">Officer Recovery Summary — '+esc(D.periodLbl||'')+'</div>'
+    +'<table class="rp-off-tbl">'+(officers.length?('<thead><tr><th>Officer</th><th class="num">Dead (&gt;90d)</th><th class="num">Current</th><th class="num">Total</th></tr></thead><tbody>'+offRows+'<tr><td>TOTAL</td><td class="num">'+pnum(od)+'</td><td class="num">'+pnum(oc)+'</td><td class="num">'+pnum(od+oc)+'</td></tr></tbody>'):'<tbody><tr><td style="padding:8px;color:#888">No period receipts.</td></tr></tbody>')+'</table>'
+    +summaryBox+_sigBlock()+'</div></body></html>';
+  _printHTML(html,'Recovery Position (Grand Summary)');
+}
+
+// ── EXCEL — 10 visible columns + all splits, grand total, officer + statement ──
+function _rpExcel(){
+  if(typeof XLSX==='undefined'){toast('Excel library not loaded','warn');return;}
+  var D=window._rpData; if(!D||!D.res){toast('Run the report first, then export','warn');return;}
+  var res=D.res, t=res.totals||{}, officers=Array.isArray(res.officer_summary)?res.officer_summary:[];
+  var rows=(window._rp2&&window._rp2.rows)?_rp2_view():(Array.isArray(res.rows)?res.rows:[]);
+  var hdr=['S#','Client Code','Client Name','Unit','Floor','Net Price','Opening','Opening DP','Opening Arrears','Due','Recovered','vs DP','vs Old','vs Current','Advance','Advance B/F','Closing','Closing DP','Closing Old','Closing Current','Paid %','Overdue Days'];
+  var aoa=[];
+  aoa.push(['Recovery Position — Grand Summary (Rollforward)']);
+  aoa.push(['Company',S?S.coName||'':'','Project',D.projName||'All Projects','Period',D.periodLbl||'']);
+  aoa.push([]); aoa.push(hdr);
+  rows.forEach(function(r,i){aoa.push([i+1,r.client_code||'',r.client_name||'',r.unit_no||'',r.floor_name||'',
+    Number(r.net_price||0),Number(r.opening||0),Number(r.opening_dp||0),Number(r.opening_arrears||0),Number(r.due_period||0),
+    Number(r.received_total||0),Number(r.r_dp||0),Number(r.r_old||0),Number(r.r_cur||0),Number(r.r_advance||0),Number(r.advance_bf||0),
+    Number(r.closing||0),Number(r.closing_dp||0),Number(r.closing_old||0),Number(r.closing_current||0),
+    Number(r.paid_pct||0),(r.overdue_days==null?'':Number(r.overdue_days))]);});
+  aoa.push(['','','GRAND TOTAL','','',Number(t.net_price||0),Number(t.opening||0),Number(t.opening_dp||0),Number(t.opening_arrears||0),Number(t.due||0),
+    Number(t.received_total||0),Number(t.r_dp||0),Number(t.r_old||0),Number(t.r_cur||0),Number(t.r_advance||0),Number(t.advance_bf||0),
+    Number(t.closing||0),Number(t.closing_dp||0),Number(t.closing_old||0),Number(t.closing_current||0),'','']);
+  aoa.push([]); aoa.push(['Rollforward Statement']);
+  aoa.push(['Opening Balance',Number(t.opening||0)]);
+  aoa.push(['+ Due This Period',Number(t.due||0)]);
+  aoa.push(['- Recovered (applied)',Number(t.received_applied||0)]);
+  aoa.push(['- Advance B/F Adjusted',Number(t.advance_bf||0)]);
+  aoa.push(['= Closing Balance',Number(t.closing||0)]);
+  aoa.push(['Recovery %',(t.recovery_pct!=null?Number(t.recovery_pct):0)]);
+  aoa.push([]); aoa.push(['Officer Recovery Summary — '+(D.periodLbl||'')]);
+  aoa.push(['Officer','Dead Recovery (>90d)','Current Recovery','Total']);
+  var od=0,oc=0; officers.forEach(function(o){var d=Number(o.dead_recovery_total||0),c=Number(o.current_recovery_total||0);od+=d;oc+=c;aoa.push([o.officer_name||'—',d,c,d+c]);});
+  aoa.push(['TOTAL',od,oc,od+oc]);
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  if(typeof xlsxWesternNumFmt==='function')xlsxWesternNumFmt(ws);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Recovery Position');
+  var fname='Nexunova_RecoveryPosition_'+(D.from||td())+'_'+(D.to||td())+'.xlsx';
+  XLSX.writeFile(wb,fname);
+  if(typeof toast==='function')toast('Exported: '+fname,'ok');
+}

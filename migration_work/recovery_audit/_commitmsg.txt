@@ -1,0 +1,28 @@
+Recovery module: turn disconnected pages into a living system
+
+Fixes the blockers from RECOVERY_MODULE_AUDIT.md so a recovery officer can
+actually work — and every action attributes on the Team Performance scoreboard.
+Verified end-to-end on a scratch tenant: 6/6 loop actions succeed and attribute
+(the audit was 2 pass / 4 fail).
+
+Migration 20260614_recovery_module_fixes.sql (additive; no table/credential DDL):
+- create_app_user / update_app_user gain p_project_ids -> write user_project_assignments
+- list_app_users returns each user's assigned projects (All for admin)
+- log_field_visit / create_escalation now store project_id
+- log_payment_promise stamps logged_by = caller UUID (server-owned) + project_id,
+  and attributes its side contact_log to the officer
+- mark_promise_kept derives the project when the promise project_id is NULL
+  (officers could previously mark broken but never kept)
+
+JS:
+- users.js: project picker in the Add/Edit modal; assigned projects shown in the list
+- ui.js: recovery sidebar == reachable pages (no advertised nav item bounces);
+  Follow-ups/Field Visits/Escalations/Campaigns/Legal added to allow.recovery
+- helpers.js: map those pages to the recovery module for hasPermission
+- fieldvisits.js / escalations.js: call the (p_company_id, p_data jsonb) contract
+  with officer attribution; escalations read normalized to the DB shape
+- recovery.js: unassigned officer gets a clear empty-state, not a dead queue
+- promises.js: Logged By is now auto/read-only
+- login.html: cache-bust touched JS
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

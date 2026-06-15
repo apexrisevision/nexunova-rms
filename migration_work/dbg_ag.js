@@ -1,0 +1,23 @@
+const puppeteer=require('puppeteer-core');const http=require('http'),path=require('path'),fs=require('fs');
+const ROOT=path.resolve(__dirname,'..');const PORT=4734;const BASE=`http://127.0.0.1:${PORT}`;
+const CHROME='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.woff2':'font/woff2','.ico':'image/x-icon'};
+const ZCODE='zztestinternalsafeto',ZPW='ZzTest!2026';
+function serve(){return new Promise(res=>{const srv=http.createServer((rq,rp)=>{const p=decodeURIComponent(rq.url.split('?')[0]);let f=path.join(ROOT,p==='/'?'login.html':p);if(!f.startsWith(ROOT)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){rp.writeHead(404);return rp.end();}rp.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(rp);}).listen(PORT,'127.0.0.1',()=>res(srv));});}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{const srv=await serve();const b=await puppeteer.launch({executablePath:CHROME,headless:'new',args:['--no-sandbox']});const page=await b.newPage();await page.setViewport({width:1366,height:768});
+const errs=[];page.on('console',m=>{if(m.type()==='error')errs.push(m.text().slice(0,160));});page.on('dialog',async d=>{try{await d.accept()}catch(e){}});
+await page.goto(BASE+'/login.html',{waitUntil:'networkidle2'});await sleep(900);
+await page.evaluate((c,p)=>{const u=document.getElementById('li-u'),q=document.getElementById('li-p');u.removeAttribute('readonly');q.removeAttribute('readonly');u.value=c;q.value=p;window._loginReadyAt=0;},ZCODE,ZPW);
+await page.evaluate(()=>doLogin());await sleep(6500);
+await page.evaluate(()=>{document.getElementById('s-onboarding')?.classList.remove('on');});
+await page.evaluate(()=>nav('agents'));await sleep(2200);
+const pc=await page.evaluate(()=>({ projCache:(typeof gprojects==='function'?gprojects():[]).length, hasAccess: typeof hasProjectAccess }));
+await page.evaluate(()=>openAgentModal(null));await sleep(900);
+const f=await page.evaluate(()=>{const sel=document.getElementById('af-project'); return { projOpts: sel?sel.options.length:'NO-SEL', projVal: sel?sel.value:'NO-SEL', disabled: sel?sel.disabled:null }; });
+console.log('PRECHECK', JSON.stringify(pc), 'FORM', JSON.stringify(f));
+await page.evaluate(()=>{document.getElementById('af-name').value='DBG Agent';document.getElementById('af-phone').value='03001234567';document.getElementById('af-commission').value='3';});
+await page.evaluate(()=>saveAgentForm());await sleep(2500);
+const after=await page.evaluate(()=>({ projErr:(document.getElementById('e-af-project')||{}).textContent, nameErr:(document.getElementById('e-af-name')||{}).textContent, phoneErr:(document.getElementById('e-af-phone')||{}).textContent, modalOpen:!!document.querySelector('#m-agent.nx-modal-overlay') }));
+console.log('AFTER_SAVE', JSON.stringify(after), 'ERRS', errs.slice(0,6).join(' | '));
+await b.close();srv.close();})().catch(e=>{console.error('FATAL',e.message);process.exit(1);});

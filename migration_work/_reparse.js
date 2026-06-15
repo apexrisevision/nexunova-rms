@@ -1,0 +1,20 @@
+const XLSX=require('xlsx');
+const wb=XLSX.readFile('../14 data/Awami Availibility List.xlsx');
+console.log('SHEETS:',wb.SheetNames);
+const ws=wb.Sheets['Awami']||wb.Sheets[wb.SheetNames[0]];
+const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+console.log('total rows:',rows.length);
+console.log('HEADER row(s):');
+rows.slice(0,5).forEach((r,i)=>console.log(' ',i,JSON.stringify(r)));
+const data=rows.filter(r=>typeof r[0]==='number'&&String(r[1]||'').trim()!=='');
+console.log('VALID DATA ROWS:',data.length);
+const types={},floors={},statuses={},remarks={};
+data.forEach(r=>{
+  const t=String(r[2]||'').trim()||'(blank)';types[t]=(types[t]||0)+1;
+  const pfx=String(r[1]).split('-')[0].toUpperCase();floors[pfx]=(floors[pfx]||0)+1;
+  const rem=String(r[6]||'').trim();if(rem)remarks[rem]=(remarks[rem]||0)+1;
+});
+console.log('TYPES:',JSON.stringify(types));
+console.log('FLOOR PREFIXES:',JSON.stringify(floors));
+console.log('REMARKS values (non-blank):',JSON.stringify(remarks));
+console.log('SAMPLE rows 4-7:');data.slice(0,4).forEach(r=>console.log(' ',JSON.stringify(r)));

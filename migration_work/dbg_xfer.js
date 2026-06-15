@@ -1,0 +1,35 @@
+const puppeteer=require('puppeteer-core');const http=require('http'),path=require('path'),fs=require('fs');
+const ROOT=path.resolve(__dirname,'..');const PORT=4743;const BASE=`http://127.0.0.1:${PORT}`;
+const CHROME='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.woff2':'font/woff2','.ico':'image/x-icon'};
+const ZCODE='zztestinternalsafeto',ZPW='ZzTest!2026';
+const U_XFER='5e5a16c1-b595-41d2-8807-cade9938f5e4';
+function serve(){return new Promise(res=>{const srv=http.createServer((rq,rp)=>{const p=decodeURIComponent(rq.url.split('?')[0]);let f=path.join(ROOT,p==='/'?'login.html':p);if(!f.startsWith(ROOT)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){rp.writeHead(404);return rp.end();}rp.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(rp);}).listen(PORT,'127.0.0.1',()=>res(srv));});}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{const srv=await serve();const b=await puppeteer.launch({executablePath:CHROME,headless:'new',args:['--no-sandbox']});const page=await b.newPage();await page.setViewport({width:1366,height:900});
+page.on('dialog',async d=>{try{await d.accept()}catch(e){}});
+await page.goto(BASE+'/login.html',{waitUntil:'networkidle2'});await sleep(900);
+await page.evaluate((c,p)=>{const u=document.getElementById('li-u'),q=document.getElementById('li-p');u.removeAttribute('readonly');q.removeAttribute('readonly');u.value=c;q.value=p;window._loginReadyAt=0;},ZCODE,ZPW);
+await page.evaluate(()=>doLogin());await sleep(6500);
+await page.evaluate(()=>{document.getElementById('s-onboarding')?.classList.remove('on');});
+await page.evaluate(()=>nav('units'));await sleep(2500);
+await page.evaluate(()=>{window.__toasts=[];const o=window.toast;window.toast=function(m,t){window.__toasts.push((t||'')+': '+m);if(o)return o.apply(this,arguments);};});
+await page.evaluate((uid)=>rUnitTransfer(uid),U_XFER);await sleep(3200);
+const loaded=await page.evaluate(()=>({unit_sel:(document.getElementById('tx-unit')||{}).value, has_nc:!!document.getElementById('tx-nc-name'), has_reason:!!document.getElementById('tx-reason')}));
+console.log('LOADED',JSON.stringify(loaded));
+await page.evaluate(()=>{
+  const setI=(id,v,ev)=>{const e=document.getElementById(id);if(!e)return;e.value=v;e.dispatchEvent(new Event(ev||'input',{bubbles:true}));};
+  if(typeof _txSetNewClientMode==='function')_txSetNewClientMode(true);
+  setI('tx-nc-name','ZZ New Owner'); setI('tx-nc-cnic','42101-9999999-1'); setI('tx-nc-phone','03001112222');
+  setI('tx-date','2026-06-13'); setI('tx-reason','Investor exit','change');
+  setI('tx-close-note','Buyer settled directly; original payments retained as deemed received from continuing owner.');
+  setI('tx-area','1000'); setI('tx-rate','5000');
+});await sleep(400);
+await page.evaluate(()=>{const e=document.getElementById('tx-down');e.value='5000000';e.dispatchEvent(new Event('input',{bubbles:true}));});await sleep(300);
+const pre=await page.evaluate(()=>({down:(document.getElementById('tx-down')||{}).value, net:(document.getElementById('tx-net')||{}).value}));
+console.log('PRE_SUBMIT',JSON.stringify(pre));
+await page.evaluate(()=>{const c=document.getElementById('tx-confirm');if(c)c.checked=true;});
+await page.evaluate(()=>_txSubmit());await sleep(4500);
+const after=await page.evaluate(()=>({toasts:window.__toasts, success:!!document.querySelector('#pg-unittransfer .rops-success-screen, #pg-unittransfer .rops-success-title')}));
+console.log('AFTER',JSON.stringify(after));
+await b.close();srv.close();})().catch(e=>{console.error('FATAL',e.message);process.exit(1);});
