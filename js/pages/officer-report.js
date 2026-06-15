@@ -183,20 +183,8 @@ function _orRender(){
   if(!ST.rows.length){ b.innerHTML=NX.empty({icon:'inbox', message:'No accounts are assigned to you yet. Ask your admin to assign your project(s), then refresh.'}); return; }
   var pct=T.dueMonth>0?Math.round(T.recovered/T.dueMonth*100):0;
 
-  // AI brief — every insight is clickable to its PROOF (the exact accounts behind it).
-  var ins=_orInsights(ST.rows, T);
-  var insHTML=ins.map(function(o){
-    var clickable=!!o.act;
-    return '<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--fk-border);'+(clickable?'cursor:pointer':'')+'"'+(clickable?' onclick="'+o.act+'" onmouseover="this.style.background=\'var(--fk-bg-subtle)\'" onmouseout="this.style.background=\'\'"':'')+'>'+
-      '<div class="nx-ichip nx-ichip--'+o.t+'" style="flex-shrink:0">'+NX.icon(o.ic,15)+'</div>'+
-      '<div style="min-width:0;flex:1"><div class="nx-kpi-label" style="text-transform:uppercase">'+esc(o.h)+'</div><div style="font-size:13px;line-height:1.5;margin-top:1px">'+o.x+'</div>'+
-        (clickable?'<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-primary);margin-top:3px">'+esc(o.proof||'See the accounts')+' →</div>':'')+'</div></div>';
-  }).join('');
-  var aiCard=NX.card(
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">'+NX.icon('zap',16)+'<span style="font-weight:600">Your brief</span>'+NX.badge('AI','primary')+
-      NX.infoTip('Every line is computed live from your accounts (get_officer_recovery + propensity). Click any line to see the exact accounts that prove it.')+
-      '<span class="nx-kpi-label" style="text-transform:none;margin-left:auto">'+esc(ST.monLabel)+'</span></div>'+insHTML,
-    {} );
+  // (Owner: this page is a DEDICATED report — only the figures + rollforward + the
+  // client working table. The old "Your brief (AI)" card was removed.)
 
   // money picture — the four figures the officer needs. "This month's demand" is the
   // FULL month's billing (matches the admin Recovery Intelligence); the arrears figures
@@ -244,7 +232,7 @@ function _orRender(){
     '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:var(--fk-sp-4)"><span style="font-weight:600;display:flex;align-items:center;gap:8px">'+NX.icon('users',16)+'Who to call</span><div style="margin-left:auto">'+filterbar+'</div></div>'+
     '<div id="or-table"></div>', {});
 
-  b.innerHTML=aiCard+'<div style="height:16px"></div>'+money+'<div style="height:16px"></div>'+tableCard;
+  b.innerHTML=money+'<div style="height:16px"></div>'+tableCard;
   _orRenderTable();
 }
 
