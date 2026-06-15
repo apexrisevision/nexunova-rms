@@ -186,7 +186,7 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="auth-title">Sign in</div>
     <div class="auth-sub">Enter your mobile and PIN to sign in.</div>
     <div class="field" id="co-field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
-    <div class="field"><label class="label">Mobile number</label><input class="input" id="i-phone" inputmode="tel" placeholder="03xxxxxxxxx" autocomplete="off"></div>
+    <div class="field"><label class="label">Mobile number</label><input class="input" id="i-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"></div>
     <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
     <div class="err" id="login-err"></div>
@@ -205,7 +205,7 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="auth-title">Request sales access</div>
     <div class="auth-sub">Your office approves you before you can sign in.</div>
     <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
-    <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="tel" placeholder="03xxxxxxxxx" autocomplete="off"><div class="hint">Format: 03xxxxxxxxx (or +92xxxxxxxxxx)</div></div>
+    <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"><div class="hint">Enter your number without the 0 — e.g. +923123456789</div></div>
     <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)" autocomplete="off"><div class="hint">Dashes are added automatically (xxxxx-xxxxxxx-x)</div></div>
     <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="reg-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
@@ -276,6 +276,14 @@ function fmtCnic(v){
   if(d.length>=12) out=d.slice(0,5)+'-'+d.slice(5,12)+'-'+d.slice(12,13);
   return out;
 }
+// Mobile: always +92, then the 10-digit number WITHOUT the leading 0 (numeric keyboard has no +).
+function fmtPhone(v){
+  let d=String(v||'').replace(/\D/g,'');
+  if(d.indexOf('92')===0) d=d.slice(2);   // drop the country code if it's there
+  d=d.replace(/^0+/,'');                    // "enter without 0"
+  d=d.slice(0,10);                          // 10-digit subscriber number
+  return '+92'+d;
+}
 
 // ════ state ════
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
@@ -332,7 +340,7 @@ async function doRegister(){
   const name=$('reg-name').value.trim(), ph=$('reg-phone').value.trim(), pin=$('reg-pin').value.trim(), cnic=$('reg-cnic').value.trim();
   const err=$('reg-err'); err.classList.remove('show');
   if(!name||!ph||!cnic||!pin){ err.textContent='Enter your name, mobile, CNIC and a PIN.'; err.classList.add('show'); return; }
-  if(!/^[0-9+\-\s]{10,15}$/.test(ph)){ err.textContent='Enter a valid mobile number, e.g. 03xxxxxxxxx.'; err.classList.add('show'); return; }
+  if(!/^\+92\d{10}$/.test(ph)){ err.textContent='Enter your mobile without the 0, e.g. +923123456789.'; err.classList.add('show'); return; }
   if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ err.textContent='CNIC format: xxxxx-xxxxxxx-x'; err.classList.add('show'); return; }
   if(!/^[0-9]{4,6}$/.test(pin)){ err.textContent='PIN must be 4 to 6 digits.'; err.classList.add('show'); return; }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
@@ -347,7 +355,8 @@ async function doLogin(){
   const co=($('i-co').value||SALES_CO||_coRemembered()||'').trim(), ph=$('i-phone').value.trim(), pin=$('i-pin').value.trim();
   const err=$('login-err'); err.classList.remove('show');
   if(!co){ err.textContent='Enter your company code.'; err.classList.add('show'); return; }
-  if(!ph||!pin){ err.textContent='Enter your mobile and PIN.'; err.classList.add('show'); return; }
+  if(!/^\+92\d{10}$/.test(ph)){ err.textContent='Enter your mobile, e.g. +923123456789.'; err.classList.add('show'); return; }
+  if(!pin){ err.textContent='Enter your PIN.'; err.classList.add('show'); return; }
   const btn=$('login-btn'); btn.disabled=true; btn.textContent='Signing in…';
   try{
     const {data,error}=await sb.rpc('sales_login',{p_company_code:co,p_phone:ph,p_pin:pin});
