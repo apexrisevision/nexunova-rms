@@ -18,23 +18,23 @@ function _orDate(iso){ if(!iso) return ''; try{ return (typeof fD==='function')?
 // officer exactly where to point their day. Every number traces to the rows. ──
 function _orInsights(rows, T){
   var ins=[];
-  var pct = T.target>0 ? Math.round(T.recovered/T.target*100) : 0;
-  ins.push({ic:'target', t:'primary', h:'This month',
-    x:'Total to recover: <b>'+_orF(T.target)+'</b> — old baqaya <b>'+_orF(T.oldArrears)+'</b> + this month’s demand <b>'+_orF(T.dueMonth)+'</b>. Collected so far: <b>'+_orF(T.recovered)+'</b> ('+pct+'%). Current baqaya still due: <b>'+_orF(T.remaining)+'</b> (due to date, not till project end).'});
+  var pct = T.dueMonth>0 ? Math.round(T.recovered/T.dueMonth*100) : 0;
+  ins.push({ic:'target', t:'primary', h:'This month', act:"_orDrill('remaining')", proof:'See every account that still owes',
+    x:'This month’s demand <b>'+_orF(T.dueMonth)+'</b> · recovered <b>'+_orF(T.recovered)+'</b> ('+pct+'% of billing). Old baqaya <b>'+_orF(T.oldArrears)+'</b>. Current baqaya still due: <b>'+_orF(T.remaining)+'</b> (due to date — not till project end).'});
   var owe = rows.filter(function(r){return r._closing>0.5;}).sort(function(a,b){return b._closing-a._closing;});
   if(owe.length){ var t=owe[0];
-    ins.push({ic:'alert-triangle', t:'danger', h:'Chase first',
+    ins.push({ic:'alert-triangle', t:'danger', h:'Chase first', act:"_orOpenUnit('"+(t.sale_id||'')+"')", proof:'Open this account',
       x:'<b>'+esc(t.client_name)+'</b> ('+esc(t.unit_no)+') owes the most — <b>'+_orF(t._closing)+'</b>'+(t._odd>0?' · '+t._odd+' days overdue':'')+'. Start your calls here.'}); }
   var likely = owe.filter(function(r){return r._prop>=60;});
   if(likely.length){ var lsum=likely.reduce(function(s,r){return s+r._closing;},0);
-    ins.push({ic:'phone', t:'success', h:'Quick wins',
+    ins.push({ic:'phone', t:'success', h:'Quick wins', act:"_orDrill('likely')", proof:'See the '+likely.length+' likely payer'+(likely.length>1?'s':''),
       x:'<b>'+likely.length+'</b> account'+(likely.length>1?'s are':' is')+' likely to pay if called today ('+_orF(lsum)+'). These are your easiest collections.'}); }
   var quiet = owe.filter(function(r){ return (r._odd>=90) || (r._paid<=0.5 && r._closing>0.5); });
   if(quiet.length){ var qsum=quiet.reduce(function(s,r){return s+r._closing;},0);
-    ins.push({ic:'clock', t:'warning', h:'Going quiet',
+    ins.push({ic:'clock', t:'warning', h:'Going quiet', act:"_orDrill('quiet')", proof:'See the '+quiet.length+' cold account'+(quiet.length>1?'s':''),
       x:'<b>'+quiet.length+'</b> account'+(quiet.length>1?'s have':' has')+' gone cold (90+ days or never paid) — <b>'+_orF(qsum)+'</b>. Plan a field visit or escalate.'}); }
   if(T.oldArrears>0.5){
-    ins.push({ic:'layers', t:'muted', h:'Old baqaya',
+    ins.push({ic:'layers', t:'muted', h:'Old baqaya', act:"_orDrill('old')", proof:'See old-baqaya accounts',
       x:'<b>'+_orF(T.oldArrears)+'</b> is carried over from before this month. Clearing this backlog is your single biggest lever.'}); }
   return ins;
 }
@@ -46,13 +46,15 @@ function _orDrill(kind){
   var ST=window._orStore; if(!ST) return;
   var rows=ST.rows, spec={
     target:   {title:'Total to recover this month', val:function(r){return r._open+r._due;}, lbl:'To recover'},
-    demand:   {title:'This month’s demand',    val:function(r){return r._due;},        lbl:'Due this month'},
-    recovered:{title:'Recovered so far',      val:function(r){return r._rec;},        lbl:'Recovered'},
-    remaining:{title:'Current baqaya — still due', val:function(r){return r._closing;}, lbl:'Current baqaya'},
-    old:      {title:'Old baqaya (before this month)', val:function(r){return r._open;}, lbl:'Old baqaya'}
+    demand:   {title:'This month’s demand (full month billing)', val:function(r){return r._due;}, lbl:'Due this month'},
+    recovered:{title:'Recovered this month',  val:function(r){return r._rec;},        lbl:'Recovered'},
+    remaining:{title:'Current baqaya — still due (due to date)', val:function(r){return r._closing;}, lbl:'Current baqaya'},
+    old:      {title:'Old baqaya (before this month)', val:function(r){return r._open;}, lbl:'Old baqaya'},
+    likely:   {title:'Quick wins — likely to pay (≥60%)', val:function(r){return r._closing;}, lbl:'Current baqaya', filt:function(r){return r._prop>=60 && r._closing>0.5;}},
+    quiet:    {title:'Gone quiet — 90+ days or never paid', val:function(r){return r._closing;}, lbl:'Current baqaya', filt:function(r){return ((r._odd>=90)||(r._paid<=0.5)) && r._closing>0.5;}}
   }[kind];
   if(!spec) return;
-  var items=rows.map(function(r){ var o={r:r, v:spec.val(r)}; return o; }).filter(function(o){return o.v>0.5;}).sort(function(a,b){return b.v-a.v;});
+  var items=rows.filter(spec.filt||function(){return true;}).map(function(r){ var o={r:r, v:spec.val(r)}; return o; }).filter(function(o){return o.v>0.5;}).sort(function(a,b){return b.v-a.v;});
   if(!items.length) return;
   var tot=items.reduce(function(s,o){return s+o.v;},0);
   var thCss='padding:8px 8px;position:sticky;top:0;background:var(--fk-surface);border-bottom:1px solid var(--fk-border);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted)';
@@ -114,6 +116,8 @@ async function rMyRecovery(){
   var today=(typeof td==='function'?td():new Date().toISOString().slice(0,10));
   var d=new Date(today+'T00:00:00'), pad=function(n){return String(n).padStart(2,'0');};
   var mStart=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-01';
+  var meDate=new Date(d.getFullYear(), d.getMonth()+1, 0);
+  var mEnd=meDate.getFullYear()+'-'+pad(meDate.getMonth()+1)+'-'+pad(meDate.getDate());
   var monLabel=['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]+' '+d.getFullYear();
   window._orFilter='owe';
   pg.innerHTML='<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+
@@ -131,7 +135,7 @@ async function rMyRecovery(){
   '</div>';
   try{
     var qP = supabase.rpc('get_recovery_queue',{p_company_id:S.cid,p_officer_id:null,p_project_id:(typeof activeProjectId==='function'?activeProjectId():null),p_date:null,p_limit:1000});
-    var rP = supabase.rpc('get_officer_recovery',{p_company_id:S.cid,p_from:mStart,p_to:today});
+    var rP = supabase.rpc('get_officer_recovery',{p_company_id:S.cid,p_from:mStart,p_to:today,p_month_end:mEnd});
     var resR = await rP; if(resR.error) throw resR.error;
     var resQ = await qP;
     var rawRows=(resR.data && resR.data.rows)||[];
@@ -141,7 +145,7 @@ async function rMyRecovery(){
     var rows=rawRows.map(function(r){
       var q=qmap[r.sale_id]||{};
       return Object.assign({}, r, {
-        _open:Number(r.opening||0), _due:Number(r.due_period||0), _rec:Number(r.received_total||0),
+        _open:Number(r.opening||0), _due:Number(r.due_full||r.due_period||0), _dueToDate:Number(r.due_period||0), _rec:Number(r.received_total||0),
         _closing:Number(r.closing||0), _net:Number(r.net_price||0), _paid:Number(r.paid_to_date||0),
         _odd:Number(r.overdue_days||0), _prop:(q.prop!=null?q.prop:null), _lastContact:q.lc||null, _act:q.act||null
       });
@@ -164,46 +168,43 @@ function _orRender(){
   var ST=window._orStore; if(!ST) return; var b=document.getElementById('or-body'); if(!b) return;
   var T=ST.rows.length?ST.T:{target:0,recovered:0,remaining:0,oldArrears:0,dueMonth:0};
   if(!ST.rows.length){ b.innerHTML=NX.empty({icon:'inbox', message:'No accounts are assigned to you yet. Ask your admin to assign your project(s), then refresh.'}); return; }
-  var pct=T.target>0?Math.round(T.recovered/T.target*100):0;
+  var pct=T.dueMonth>0?Math.round(T.recovered/T.dueMonth*100):0;
 
-  // AI brief
+  // AI brief — every insight is clickable to its PROOF (the exact accounts behind it).
   var ins=_orInsights(ST.rows, T);
   var insHTML=ins.map(function(o){
-    return '<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--fk-border)">'+
+    var clickable=!!o.act;
+    return '<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--fk-border);'+(clickable?'cursor:pointer':'')+'"'+(clickable?' onclick="'+o.act+'" onmouseover="this.style.background=\'var(--fk-bg-subtle)\'" onmouseout="this.style.background=\'\'"':'')+'>'+
       '<div class="nx-ichip nx-ichip--'+o.t+'" style="flex-shrink:0">'+NX.icon(o.ic,15)+'</div>'+
-      '<div style="min-width:0"><div class="nx-kpi-label" style="text-transform:uppercase">'+esc(o.h)+'</div><div style="font-size:13px;line-height:1.5;margin-top:1px">'+o.x+'</div></div></div>';
+      '<div style="min-width:0;flex:1"><div class="nx-kpi-label" style="text-transform:uppercase">'+esc(o.h)+'</div><div style="font-size:13px;line-height:1.5;margin-top:1px">'+o.x+'</div>'+
+        (clickable?'<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-primary);margin-top:3px">'+esc(o.proof||'See the accounts')+' →</div>':'')+'</div></div>';
   }).join('');
   var aiCard=NX.card(
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">'+NX.icon('zap',16)+'<span style="font-weight:600">Your brief</span>'+NX.badge('AI','primary')+
+      NX.infoTip('Every line is computed live from your accounts (get_officer_recovery + propensity). Click any line to see the exact accounts that prove it.')+
       '<span class="nx-kpi-label" style="text-transform:none;margin-left:auto">'+esc(ST.monLabel)+'</span></div>'+insHTML,
     {} );
 
-  // money picture — admin-style rollforward. EVERY figure is due-to-date (the
-  // amount fallen due up to today) — never the full contract / project-end balance.
+  // money picture — the four figures the officer needs. "This month's demand" is the
+  // FULL month's billing (matches the admin Recovery Intelligence); the baqaya figures
+  // are due-to-date — never the full contract / project-end (e.g. 2030) balance.
   var fig=function(label,val,kind,tone,sub,big){
-    return '<div class="nx-card" style="cursor:pointer;padding:var(--fk-sp-4);flex:1;min-width:140px" onclick="_orDrill(\''+kind+'\')" title="Click to see every account behind this figure">'+
+    return '<div class="nx-card" style="cursor:pointer;padding:var(--fk-sp-4);flex:1;min-width:150px;'+(big?'border:1px solid var(--fk-danger)':'')+'" onclick="_orDrill(\''+kind+'\')" title="Click to see every account behind this figure">'+
       '<div class="nx-kpi-label">'+esc(label)+'</div>'+
-      '<div style="font-size:'+(big?'24px':'20px')+';font-weight:600;margin-top:3px;'+(tone?'color:var(--fk-'+tone+')':'')+'" class="num">'+_orF(val)+'</div>'+
-      '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px;color:var(--fk-primary)">'+esc(sub)+' →</div></div>';
+      '<div style="font-size:'+(big?'25px':'21px')+';font-weight:600;margin-top:3px;'+(tone?'color:var(--fk-'+tone+')':'')+'" class="num">'+_orF(val)+'</div>'+
+      '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px"><span style="color:var(--fk-text-muted)">'+esc(sub)+'</span> · <span style="color:var(--fk-primary)">accounts →</span></div></div>';
   };
-  var conn=function(s){ return '<div style="display:flex;align-items:center;font-size:20px;font-weight:600;color:var(--fk-text-muted);padding:0 2px">'+s+'</div>'; };
   var bar='<div style="height:10px;border-radius:6px;background:var(--fk-bg-subtle);overflow:hidden;margin-top:4px"><div style="height:100%;width:'+Math.min(100,pct)+'%;background:var(--fk-success);border-radius:6px"></div></div>';
-  var note='<div class="nx-kpi-label" style="text-transform:none;display:flex;align-items:flex-start;gap:6px;margin-top:var(--fk-sp-4);line-height:1.5">'+NX.icon('info',13)+'<span>Every amount here is <b style="font-weight:600">due to date</b> — only installments that have fallen due up to today. Future installments (e.g. through 2030) are <b style="font-weight:600">not</b> counted.</span></div>';
+  var note='<div class="nx-kpi-label" style="text-transform:none;display:flex;align-items:flex-start;gap:6px;margin-top:var(--fk-sp-4);line-height:1.5">'+NX.icon('info',13)+'<span><b style="font-weight:600">Demand</b> = this month’s full billing (whole month). <b style="font-weight:600">Old baqaya</b> &amp; <b style="font-weight:600">current baqaya</b> are <b style="font-weight:600">due to date</b> — only what has fallen due up to today; future installments (e.g. through 2030) are <b style="font-weight:600">not</b> counted.</span></div>';
   var money=NX.card(
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-4)"><span style="font-weight:600;display:flex;align-items:center;gap:8px">'+NX.icon('target',16)+'This month — '+esc(ST.monLabel)+'</span><span class="nx-kpi-label" style="text-transform:none;margin-left:auto">as of '+esc(_orDate(ST.today))+'</span></div>'+
     '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:stretch">'+
-      fig('Old baqaya',T.oldArrears,'old','warning','carried from before')+
-      conn('+')+
-      fig('This month’s demand',T.dueMonth,'demand','','due this month')+
-      conn('=')+
-      fig('Total to recover',T.target,'target','primary','target this month',true)+
+      fig('This month’s demand',T.dueMonth,'demand','','billed this month')+
+      fig('Recovered',T.recovered,'recovered','success','collected this month')+
+      fig('Old baqaya',T.oldArrears,'old','warning','before this month')+
+      fig('Current baqaya — still due',T.remaining,'remaining','danger','due to date · not till 2030',true)+
     '</div>'+
-    '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:stretch;margin-top:var(--fk-sp-3)">'+
-      fig('Recovered so far',T.recovered,'recovered','success','collected this month')+
-      conn('→')+
-      fig('Current baqaya — still due',T.remaining,'remaining','danger','outstanding to date (not till 2030)',true)+
-    '</div>'+
-    '<div style="margin-top:var(--fk-sp-4)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nx-kpi-label" style="text-transform:none">Progress this month</span><span style="font-weight:600">'+pct+'% recovered · '+_orC(T.recovered)+' of '+_orC(T.target)+'</span></div>'+bar+'</div>'+
+    '<div style="margin-top:var(--fk-sp-4)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nx-kpi-label" style="text-transform:none">Collected vs billed this month</span><span style="font-weight:600">'+pct+'% · '+_orC(T.recovered)+' of '+_orC(T.dueMonth)+' billed</span></div>'+bar+'</div>'+
     note
   ,{});
 
@@ -224,7 +225,7 @@ function _orPrint(){
   var ST=window._orStore; if(!ST||!ST.rows.length){ if(typeof toast==='function') toast('Open the report first','warn'); return; }
   var T=ST.T, co=(typeof S!=='undefined'&&S&&S.coName)||'Company';
   var who=(typeof S!=='undefined'&&S&&(S.name||S.username))||'';
-  var pct=T.target>0?Math.round(T.recovered/T.target*100):0;
+  var pct=T.dueMonth>0?Math.round(T.recovered/T.dueMonth*100):0;
   var owe=ST.rows.filter(function(r){return r._closing>0.5;}).sort(function(a,b){return b._closing-a._closing;});
   var rowsHTML=owe.map(function(r,i){
     return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(r.client_name)+'<div class="su">'+esc(r.unit_no||'')+(r._odd>0?' · '+r._odd+'d overdue':'')+'</div></td>'+
@@ -247,12 +248,11 @@ function _orPrint(){
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Recovery — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
     '<div class="hd"><div><div class="co">'+esc(co)+(who?' · '+esc(who):'')+'</div><div class="ti">My Recovery</div></div>'+
       '<div class="hd-r"><div>'+esc(ST.monLabel)+'</div><div>as of '+esc(_orDate(ST.today))+'</div></div></div>'+
-    '<div class="kp"><div class="kc"><label>Old baqaya</label><b style="color:#d97706">'+_orF(T.oldArrears)+'</b></div>'+
-      '<div class="kc"><label>+ This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
-      '<div class="kc"><label>= Total to recover</label><b style="color:#4f46e5">'+_orF(T.target)+'</b></div>'+
+    '<div class="kp"><div class="kc"><label>This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
       '<div class="kc"><label>Recovered</label><b style="color:#16a34a">'+_orF(T.recovered)+'</b></div>'+
+      '<div class="kc"><label>Old baqaya</label><b style="color:#d97706">'+_orF(T.oldArrears)+'</b></div>'+
       '<div class="kc"><label>Current baqaya · due now</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div></div>'+
-    '<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Progress this month — '+pct+'% recovered · all amounts are due to date (future installments, e.g. through 2030, are not counted)</div><div class="pb"><span style="width:'+Math.min(100,pct)+'%"></span></div>'+
+    '<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Collected '+pct+'% of this month’s billing · demand = full month; baqaya = due to date (future installments, e.g. through 2030, are not counted)</div><div class="pb"><span style="width:'+Math.min(100,pct)+'%"></span></div>'+
     '<table class="tb"><thead><tr><th class="n">#</th><th>Client / Unit</th><th>Phone</th><th class="n">Old baqaya</th><th class="n">Due this mo</th><th class="n">Recovered</th><th class="n">Current baqaya</th><th>Will pay</th></tr></thead><tbody>'+rowsHTML+'</tbody></table>'+
     '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · Your assigned accounts only</div>'+
   '</body></html>';
