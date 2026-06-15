@@ -155,6 +155,10 @@ a{color:var(--fk-primary);text-decoration:none}
   color:var(--fk-text);font-size:13px;font-weight:500;cursor:pointer}
 .backbtn:hover{background:var(--fk-subtle-hover)}
 .fd-title{font-size:16px;font-weight:600;letter-spacing:-.2px}
+.modeseg{display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:12px;padding:5px;margin-bottom:14px}
+.modeseg .m{flex:1;text-align:center;padding:11px 6px;border-radius:9px;font-size:14px;font-weight:600;color:var(--fk-text-muted);cursor:pointer;transition:background .12s}
+.modeseg .m.on{background:var(--fk-primary);color:#fff;box-shadow:var(--fk-shadow)}
+.unit .uar{font-size:9.5px;color:var(--fk-text-muted);font-variant-numeric:tabular-nums;line-height:1.25}
 @media(max-width:560px){ .fc-name{min-width:66px;font-size:14px} .fc-stat{min-width:54px} }
 
 /* reservation list */
@@ -316,8 +320,9 @@ function fmtPhone(v){
 
 // ════ state ════
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
-// board view: which project, which floor is open (null=directory), status filter, search
-let BV={proj:0, floor:null, filter:'all', q:''};
+// board view: mode (detailed=expanded all floors [default] | floors=summary directory),
+// which project, which floor is open (floors mode), status filter, search
+let BV={proj:0, floor:null, filter:'all', q:'', mode:'detailed'};
 
 function _coRemembered(){ try{return localStorage.getItem('rms.sales.co')}catch(e){return null} }
 function _coNameRemembered(){ try{return localStorage.getItem('rms.sales.coName')}catch(e){return null} }
@@ -344,13 +349,25 @@ function setCompanyContext(data){
 }
 function goLogin(){ applyLoginCompany(); showScreen('screen-login'); }
 
+// ════ session: persists across refreshes; signs out only after 30 min idle ════
+const IDLE_MS=30*60*1000;
+const ACT_KEY='rms.sales.active';
+function _saveSession(tok){ try{ localStorage.setItem(TOK_KEY,tok); localStorage.setItem(ACT_KEY,String(Date.now())); }catch(e){} }
+function _touch(){ try{ if(localStorage.getItem(TOK_KEY)) localStorage.setItem(ACT_KEY,String(Date.now())); }catch(e){} }
+function _clearSession(){ try{ localStorage.removeItem(TOK_KEY); localStorage.removeItem(ACT_KEY); }catch(e){} }
+function _validSession(){ try{ const t=localStorage.getItem(TOK_KEY); const a=Number(localStorage.getItem(ACT_KEY)||0);
+  if(t && (Date.now()-a)<IDLE_MS) return t; }catch(e){} return null; }
+let _idleTimer=null;
+function _startIdleWatch(){ if(_idleTimer) return; _idleTimer=setInterval(()=>{ if(TOKEN && !_validSession()) doLogout(); },60000); }
+
 // ════ auth ════
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
   const signup=params.get('signup');
+  // restore an active session FIRST so refreshing the link does not log anyone out
+  const saved=_validSession();
+  if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ _touch(); _startIdleWatch(); showScreen('screen-app'); setTab('board'); return; } _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
-  const saved=sessionStorage.getItem(TOK_KEY);
-  if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ showScreen('screen-app'); setTab('board'); return; } sessionStorage.removeItem(TOK_KEY); }
   setCompanyContext(null);
   showScreen('screen-login');
 }
@@ -399,7 +416,7 @@ async function doLogin(){
   finally{ btn.disabled=false; btn.textContent='Sign in'; }
 }
 function onLogin(data){
-  TOKEN=data.session_token; sessionStorage.setItem(TOK_KEY,TOKEN);
+  TOKEN=data.session_token; _saveSession(TOKEN); _startIdleWatch();
   ME=data;
   try{ if(data.company_name)localStorage.setItem('rms.sales.coName',data.company_name); }catch(e){}
   $('who-name').textContent=data.sales_user_name||'Sales';
@@ -407,8 +424,8 @@ function onLogin(data){
   showScreen('screen-app');
   setTab('board');
 }
-function doLogout(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; location.href=location.pathname; }
-function sessionGone(){ sessionStorage.removeItem(TOK_KEY); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
+function doLogout(){ _clearSession(); TOKEN=null; location.href=location.pathname; }
+function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
   const err=$('login-err'); err.textContent='Your session expired. Please sign in again.'; err.classList.add('show'); }
 
 // ════ tabs ════
@@ -422,8 +439,9 @@ function setTab(t){ TAB=t;
 async function loadBoard(){
   const {data,error}=await sb.rpc('get_availability_board',{p_session_token:TOKEN,p_project_id:null});
   if(error||!data||!data.success){ return false; }
-  BOARD=data; if(ME){ /* keep */ } return true;
+  BOARD=data; _touch(); return true;
 }
+function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleString('en-US')+' '+((u.area_unit||'sqft')) : ''; }
 async function renderBoard(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading availability…</div></div></div>';
   const ok=await loadBoard(); if(!ok){ return sessionGone(); }
@@ -440,6 +458,10 @@ async function renderBoard(){
   if(projects.length>1){
     html+='<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(pp.project_name)+'</div>').join('')+'</div>';
   }
+  // prominent view toggle: Detailed (default) vs Floor wise (summary)
+  html+='<div class="modeseg">'
+    +'<div class="m'+(BV.mode!=='floors'?' on':'')+'" onclick="_bvMode(\'detailed\')">Detailed view</div>'
+    +'<div class="m'+(BV.mode==='floors'?' on':'')+'" onclick="_bvMode(\'floors\')">Floor wise</div></div>';
   html+='<div class="kpis">'+kpi('Available',c.available,'green')+kpi('Reserved',c.reserved,'amber')+kpi('Sold',c.sold,'muted')+'</div>';
   html+='<div class="seg2">'+['all','available','reserved','sold'].map(f=>'<div class="o'+(BV.filter===f?' on':'')+'" data-f="'+f+'" onclick="_bvFilter(\''+f+'\')">'+(f==='all'?'All':f.charAt(0).toUpperCase()+f.slice(1))+'</div>').join('')+'</div>';
   html+='<input class="bsearch" id="bv-q" placeholder="Search unit no…" value="'+esc(BV.q)+'" oninput="_bvSearch(this.value)">';
@@ -447,6 +469,7 @@ async function renderBoard(){
   $('app-body').innerHTML=html;
   _bvRenderBody();
 }
+function _bvMode(m){ BV.mode=m; BV.floor=null; renderBoard(); }
 function _bvProj(i){ BV.proj=i; BV.floor=null; BV.q=''; renderBoard(); }
 function _bvFilter(f){ BV.filter=f; document.querySelectorAll('#app-body .seg2 .o').forEach(o=>o.classList.toggle('on', o.dataset.f===f)); _bvRenderBody(); }
 function _bvSearch(v){ BV.q=v; _bvRenderBody(); }
@@ -464,8 +487,21 @@ function _bvRenderBody(){
   const el=$('bv-body'); if(!el) return;
   const p=(BOARD.projects||[])[BV.proj]; if(!p){ el.innerHTML=''; return; }
   if(BV.q.trim()) el.innerHTML=_bvSearchResults(p);
-  else if(BV.floor==null) el.innerHTML=_bvDirectory(p);
-  else el.innerHTML=_bvDetail(p);
+  else if(BV.mode==='floors') el.innerHTML=(BV.floor==null?_bvDirectory(p):_bvDetail(p));
+  else el.innerHTML=_bvExpanded(p);
+}
+// Detailed (default): every floor expanded, in building order, honoring the status filter.
+function _bvExpanded(p){
+  const groups=_bvFloorGroups(p);
+  let body='';
+  groups.forEach(g=>{
+    let units=g.units;
+    if(BV.filter!=='all') units=units.filter(u=>_bvMatch(u,BV.filter));
+    if(!units.length) return;
+    body+='<div class="floor"><div class="floor-lbl">'+esc(g.label)+'</div><div class="units">'+units.map(unitCell).join('')+'</div></div>';
+  });
+  if(!body) return '<div class="empty" style="padding:24px"><div class="es">No '+esc(BV.filter)+' units.</div></div>';
+  return _bvLegend()+body;
 }
 function _bvDirectory(p){
   const groups=_bvFloorGroups(p);
@@ -505,8 +541,9 @@ function unitCell(u){
   const code=(u.status_code||'').toUpperCase();
   const isAvail=u.is_available===true;
   const isReserved=code==='RESERVED';
+  const ar=_areaTxt(u);
   let cls='unit', click='';
-  if(isAvail){ cls+=' avail'; click='onclick="openReserve(\''+u.unit_id+'\',\''+esc(u.unit_no)+'\')"'; }
+  if(isAvail){ cls+=' avail'; click='onclick="openReserve(\''+u.unit_id+'\',\''+esc(u.unit_no)+'\','+(Number(u.area)||0)+',\''+esc(u.area_unit||'sqft')+'\')"'; }
   else if(isReserved){ cls+=' reserved'; click='onclick="showReservedInfo(\''+esc(u.unit_no)+'\','+JSON.stringify(JSON.stringify(u.reservation||{})).replace(/"/g,'&quot;')+')"'; }
   else { cls+=' sold'; }
   const dotColor=isAvail?'var(--fk-success)':isReserved?'var(--fk-warning)':'var(--fk-muted-fill)';
@@ -516,6 +553,7 @@ function unitCell(u){
   else if(code==='SOLD' && u.sold_by) by='by '+u.sold_by;
   return '<div class="'+cls+'" '+click+'><span class="dot" style="background:'+dotColor+'"></span>'
     +'<span class="uno">'+esc(u.unit_no)+'</span><span class="ust">'+esc(u.status_name||code||'—')+'</span>'
+    +(ar?'<span class="uar">'+esc(ar)+'</span>':'')
     +(by?'<span class="uby">'+esc(by)+'</span>':'')+'</div>';
 }
 function showReservedInfo(uno,resJson){
@@ -531,10 +569,12 @@ function showReservedInfo(uno,resJson){
 }
 
 // ════ reserve ════
-function openReserve(unitId,unitNo){
+function openReserve(unitId,unitNo,area,areaUnit){
   RESERVE_UNIT={id:unitId,no:unitNo}; RESERVE_DAYS=7; RESERVE_TOKEN=false;
+  const arTxt=(Number(area)>0)? (Number(area).toLocaleString('en-US')+' '+(areaUnit||'sqft')) : '';
   openModal('Reserve unit '+esc(unitNo),
-    '<div class="field"><label class="label">Client name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="r-name"></div>'
+    (arTxt?'<div class="note" style="margin-top:0;margin-bottom:14px;display:flex;justify-content:space-between"><span>Unit '+esc(unitNo)+'</span><span><b>'+esc(arTxt)+'</b></span></div>':'')
+    +'<div class="field"><label class="label">Client name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="r-name"></div>'
     +'<div class="field"><label class="label">Client phone</label><input class="input" id="r-phone" inputmode="tel"></div>'
     +'<div class="field"><label class="label">Hold for</label><div class="seg" id="r-days">'
        +'<div class="so" data-d="3" onclick="setDays(3)">3 days</div><div class="so on" data-d="7" onclick="setDays(7)">7 days</div></div></div>'
@@ -613,6 +653,8 @@ function openModal(title,body,foot){
 }
 function closeModal(){ $('modal-host').innerHTML=''; }
 
+// any interaction counts as activity → keeps the 30-min session alive
+['click','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,_touch,{passive:true}));
 bootstrap();
 </script>
 </body>
