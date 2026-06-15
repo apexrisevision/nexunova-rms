@@ -690,6 +690,8 @@ async function _dashLoadPdcPipeline() {
    ════════════════════════════════════════════════════════════════════════ */
 async function _dashStaff(pg, role) {
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6)">${_dashSkeleton()}</div>`;
+  // Recovery officers: the dashboard IS their working recovery report (live figures + table).
+  if (role === 'recovery' || role === 'recovery_officer') { return _dashRecoveryReport(pg); }
   let q = {}, alerts = { total: 0, items: [] };
   try {
     const proj = (typeof activeProjectId === 'function' ? activeProjectId() : null);
@@ -731,6 +733,35 @@ async function _dashStaff(pg, role) {
     ${_dashOffTools()}
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
+}
+
+/* Recovery officer's home = the live My Recovery report mounted right on the dashboard
+   (up-to-date figures + the working client table with Call/Promise/Log/Escalate). No
+   coach/mission/steps clutter — one report, work straight from here. */
+async function _dashRecoveryReport(pg) {
+  const today = (typeof td === 'function' ? td() : new Date().toISOString().slice(0, 10));
+  const monLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const who = (S && (S.name || S.username)) || '';
+  const hr = new Date().getHours();
+  const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  window._orFilter = 'owe';
+  pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-4);display:flex;flex-direction:column;gap:var(--fk-sp-3)">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div>
+        <h1 class="nx-page-title" style="margin:0">${greet}${who ? ', ' + esc(String(who).split(' ')[0]) : ''}</h1>
+        <div class="nx-kpi-label" style="text-transform:none;margin-top:2px">Your recovery report · ${esc(monLabel)} · as of ${esc(typeof _orDate === 'function' ? _orDate(today) : today)}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        ${NX.button('Record Payment', { variant: 'primary', size: 'sm', icon: 'plus', onclick: "nav('addpayment')" })}
+        ${NX.button('Refresh', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: 'rDash()' })}
+        ${NX.button('Print / PDF', { variant: 'secondary', size: 'sm', icon: 'printer', onclick: '_orPrint()' })}
+      </div>
+    </div>
+    <div id="or-body"><div class="nx-skel" style="height:120px"></div><div class="nx-skel" style="height:240px;margin-top:16px"></div></div>
+  </div>`;
+  window._orRoot = document.getElementById('or-body');
+  if (typeof _orLoad === 'function') { await _orLoad(); }
+  else { const b = document.getElementById('or-body'); if (b) b.innerHTML = NX.empty({ icon: 'alert-triangle', message: 'Recovery report module not loaded.' }); }
 }
 
 // FIRST-RUN COACH — teaches the recovery loop (incl. where alerts live); dismissible.
