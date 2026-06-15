@@ -247,14 +247,16 @@ function _orPrint(){
   var who=(typeof S!=='undefined'&&S&&(S.name||S.username))||'';
   var pct=T.dueMonth>0?Math.round(T.recovered/T.dueMonth*100):0;
   var owe=ST.rows.filter(function(r){return r._closing>0.5;}).sort(function(a,b){return b._closing-a._closing;});
-  var totCollect=owe.reduce(function(s,r){return s+r._closing;},0);
-  // one explicit instruction per client so the officer knows exactly what to do
+  // computed action per client (not a blank — a suggestion the officer can act on)
   var _act=function(r){
-    if(!_orPhone(r.phone)) return ['No phone — field visit','vis'];
+    if(!_orPhone(r.phone)) return ['No phone — visit','vis'];
     if(r._odd>=90)         return ['Urgent — escalate','urg'];
-    if(r._prop!=null && r._prop>=60) return ['Call — likely to pay','easy'];
+    if(r._prop!=null && r._prop>=60) return ['Likely — call & collect','easy'];
     return ['Call & follow up','call'];
   };
+  // column subtotals over the listed (owing) accounts
+  var S0=0,S1=0,S2=0,S3=0,S4=0;
+  owe.forEach(function(r){ S0+=r._open; S1+=r._dueToDate; S2+=r._rec; S3+=r._advBf; S4+=r._closing; });
   var rowsHTML=owe.map(function(r,i){
     var a=_act(r);
     return '<tr>'+
@@ -262,43 +264,45 @@ function _orPrint(){
       '<td><div class="cn">'+esc(r.client_name)+'</div><div class="su">'+esc(r.unit_no||'')+' · '+esc(r.phone||'no phone')+'</div></td>'+
       '<td class="n">'+(r._odd>0?'<span class="'+(r._odd>=90?'od':'')+'">'+r._odd+'d</span>':'—')+'</td>'+
       '<td class="n old">'+(r._open>0.5?_orF(r._open):'—')+'</td>'+
+      '<td class="n">'+(r._dueToDate>0.5?_orF(r._dueToDate):'—')+'</td>'+
+      '<td class="n grn">'+(r._rec>0.5?_orF(r._rec):'—')+'</td>'+
+      '<td class="n amb">'+(r._advBf>0.5?_orF(r._advBf):'—')+'</td>'+
       '<td class="n big">'+_orF(r._closing)+'</td>'+
       '<td class="n">'+(r._prop!=null?r._prop+'%':'—')+'</td>'+
       '<td><span class="act act-'+a[1]+'">'+esc(a[0])+'</span></td>'+
-      '<td class="w c">☐</td>'+
-      '<td class="w"></td>'+
-      '<td class="w"></td>'+
-      '<td class="w wide"></td>'+
       '</tr>';
   }).join('');
+  var totalRow='<tr class="tot"><td></td><td>TOTAL · '+owe.length+' accounts with a balance</td><td></td>'+
+    '<td class="n">'+_orF(S0)+'</td><td class="n">'+_orF(S1)+'</td><td class="n grn">'+_orF(S2)+'</td>'+
+    '<td class="n amb">'+_orF(S3)+'</td><td class="n big">'+_orF(S4)+'</td><td></td><td></td></tr>';
   var css='*{box-sizing:border-box}@page{size:A4 landscape;margin:9mm}html,body{background:#fff}'+
     'body{font-family:"Inter",system-ui,Arial,sans-serif;color:#1f2330;font-size:10px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #4f46e5;padding-bottom:7px;margin-bottom:9px}'+
     '.hd .co{font-size:11px;color:#6b7280;font-weight:600}.hd .ti{font-size:19px;font-weight:800;letter-spacing:-.3px;color:#111}.hd-r{text-align:right;font-size:10px;color:#6b7280;line-height:1.5}'+
-    '.inst{background:#eef2ff;border:1px solid #c7d2fe;border-radius:7px;padding:7px 11px;font-size:10.5px;color:#3730a3;margin-bottom:9px;line-height:1.45}'+
-    '.sum{display:flex;gap:8px;margin-bottom:10px}.sc{flex:1;border:1px solid #ececf3;border-radius:7px;padding:7px 11px}.sc label{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af}.sc b{font-size:15px}'+
+    '.sum{display:flex;gap:8px;margin-bottom:8px}.sc{flex:1;border:1px solid #ececf3;border-radius:7px;padding:7px 11px}.sc label{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af}.sc b{font-size:15px}'+
+    '.rf{background:#f7f7fb;border:1px solid #ececf3;border-radius:7px;padding:7px 11px;font-size:10.5px;color:#374151;margin-bottom:10px;line-height:1.5}'+
     'table.tb{width:100%;border-collapse:collapse;font-size:9.5px;table-layout:fixed}.tb td,.tb th{padding:5px 6px;border:1px solid #e6e6ee;vertical-align:top;overflow:hidden}.tb th{font-size:8px;text-transform:uppercase;letter-spacing:.03em;color:#475569;text-align:left;font-weight:700;background:#f5f6fb}'+
-    '.tb tr{page-break-inside:avoid}.n{text-align:right;font-variant-numeric:tabular-nums}.rk{font-weight:700;color:#94a3b8;width:24px}.cn{font-weight:700;font-size:10.5px}.su{font-size:8.5px;color:#94a3b8}.old{color:#b45309}'+
-    '.big{font-weight:800;font-size:12.5px;color:#dc2626}.od{color:#dc2626;font-weight:700}'+
+    '.tb tr{page-break-inside:avoid}.n{text-align:right;font-variant-numeric:tabular-nums}.rk{font-weight:700;color:#94a3b8}.cn{font-weight:700;font-size:10.5px}.su{font-size:8.5px;color:#94a3b8}.old{color:#b45309}.grn{color:#16a34a}.amb{color:#b45309}'+
+    '.big{font-weight:800;font-size:11.5px;color:#dc2626}.od{color:#dc2626;font-weight:700}'+
     '.act{display:inline-block;padding:2px 6px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.4}'+
     '.act-urg{background:#fee2e2;color:#b91c1c}.act-vis{background:#fef3c7;color:#92400e}.act-easy{background:#dcfce7;color:#166534}.act-call{background:#eef2ff;color:#3730a3}'+
-    '.w{background:#fff}.w.c{text-align:center;font-size:13px;color:#cbd5e1;width:34px}'+
+    '.tot td{background:#eef0f6;font-weight:800;border-top:2px solid #cbd5e1}'+
     '.ft{margin-top:10px;border-top:1px solid #ececf3;padding-top:6px;font-size:8px;color:#9ca3af;text-align:center}'+
-    'col.c1{width:26px}col.c3{width:48px}col.c4{width:78px}col.c5{width:92px}col.c6{width:46px}col.c7{width:96px}col.c8{width:40px}col.c9{width:74px}col.c10{width:78px}';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery Work Sheet — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
-    '<div class="hd"><div><div class="co">'+esc(co)+(who?' · Officer: '+esc(who):'')+'</div><div class="ti">Recovery Work Sheet</div></div>'+
+    'col.c1{width:24px}col.c3{width:44px}col.c4{width:82px}col.c5{width:82px}col.c6{width:82px}col.c7{width:86px}col.c8{width:90px}col.c9{width:42px}col.c10{width:104px}';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Recovery — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
+    '<div class="hd"><div><div class="co">'+esc(co)+(who?' · Officer: '+esc(who):'')+'</div><div class="ti">My Recovery — Report</div></div>'+
       '<div class="hd-r"><div>'+esc(ST.monLabel)+'</div><div>as of '+esc(_orDate(ST.today))+'</div></div></div>'+
-    '<div class="inst"><b>Your job today:</b> Call these clients top to bottom (biggest amount first). <b>“To collect now”</b> is how much to recover from that client right now. Tick <b>Spoke?</b> after you talk, and write their <b>promise date</b> &amp; <b>amount</b>. Anything 90+ days overdue → escalate / field visit.</div>'+
     '<div class="sum">'+
-      '<div class="sc"><label>Accounts to chase</label><b>'+owe.length+'</b></div>'+
-      '<div class="sc"><label>Total to collect now</label><b style="color:#dc2626">'+_orF(totCollect)+'</b></div>'+
       '<div class="sc"><label>This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
-      '<div class="sc"><label>Collected this month</label><b style="color:#16a34a">'+_orF(T.recovered)+' ('+pct+'%)</b></div>'+
+      '<div class="sc"><label>Recovered this month</label><b style="color:#16a34a">'+_orF(T.recovered)+' ('+pct+'%)</b></div>'+
+      '<div class="sc"><label>Old arrears</label><b style="color:#b45309">'+_orF(T.oldArrears)+'</b></div>'+
+      '<div class="sc"><label>Current remaining · to date</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div>'+
     '</div>'+
-    '<table class="tb"><colgroup><col class="c1"><col><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9"><col class="c10"><col></colgroup>'+
-    '<thead><tr><th class="n">#</th><th>Client / Unit / Phone</th><th class="n">Overdue</th><th class="n">Old arrears</th><th class="n">To collect now</th><th>Will pay</th><th>What to do</th><th>Spoke?</th><th>Promise date</th><th>Amount got</th><th>Notes</th></tr></thead>'+
-    '<tbody>'+rowsHTML+'</tbody></table>'+
-    '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · Your assigned accounts only · Current remaining (to date) = '+_orF(T.remaining)+'</div>'+
+    '<div class="rf"><b>Current remaining</b> = Old arrears '+_orF(T.oldArrears)+' + Due to date '+_orF(T.dueToDate)+' − Received '+_orF(T.recvApplied)+' − Advance pre-paid '+_orF(T.advBf)+' = <b style="color:#dc2626">'+_orF(T.remaining)+'</b>  ·  sorted by biggest balance first · future installments (e.g. through 2030) are not counted.</div>'+
+    '<table class="tb"><colgroup><col class="c1"><col><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9"><col class="c10"></colgroup>'+
+    '<thead><tr><th class="n">#</th><th>Client / Unit / Phone</th><th class="n">Overdue</th><th class="n">Old arrears</th><th class="n">Due to date</th><th class="n">Recovered</th><th class="n">Advance pre-paid</th><th class="n">Current remaining</th><th>Will pay</th><th>What to do</th></tr></thead>'+
+    '<tbody>'+rowsHTML+totalRow+'</tbody></table>'+
+    '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · '+(ST.scoped?'Your assigned accounts only':'All accounts')+'</div>'+
   '</body></html>';
-  if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'Recovery Work Sheet'); else window.print();
+  if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'My Recovery — Report'); else window.print();
 }
