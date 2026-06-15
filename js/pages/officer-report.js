@@ -120,7 +120,7 @@ function _orRenderTable(){
     '<td style="'+tcs+';text-align:right;color:var(--fk-warning)" class="num">'+_orF(Z3)+'</td>'+
     '<td style="'+tcs+';text-align:right;color:var(--fk-danger)" class="num">'+_orF(Z4)+'</td>'+
     '<td style="'+tcs+'"></td><td style="'+tcs+'"></td><td style="'+tcs+'"></td></tr>';
-  host.innerHTML='<div style="max-height:60vh;overflow:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius)"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead>'+th+'</thead><tbody>'+body+totRow+'</tbody></table></div>'+
+  host.innerHTML='<div style="max-height:62vh;overflow:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius)"><table style="width:100%;min-width:1180px;border-collapse:collapse;font-size:12.5px"><thead>'+th+'</thead><tbody>'+body+totRow+'</tbody></table></div>'+
     '<div class="nx-kpi-label" style="text-transform:none;margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+rows.length+' account'+(rows.length!==1?'s':'')+' shown · sorted by amount still owed · work each row right here →'+
       '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('phone',13)+'Call</span>·'+
       '<span style="display:inline-flex;align-items:center;gap:3px">'+NX.icon('message-circle',13)+'WhatsApp</span>·'+
@@ -139,18 +139,16 @@ async function rMyRecovery(){
   var mEnd=meDate.getFullYear()+'-'+pad(meDate.getMonth()+1)+'-'+pad(meDate.getDate());
   var monLabel=['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]+' '+d.getFullYear();
   window._orFilter='owe';
-  pg.innerHTML='<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-5)">'+
-    '<div class="no-p" style="display:flex;gap:8px;align-items:center">'+
-      NX.button('← Dashboard',{variant:'ghost',size:'sm',onclick:"nav('dashboard')"})+
-      NX.button('Refresh',{variant:'ghost',size:'sm',onclick:"rMyRecovery()"})+
-      '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'+
-        '<span class="nx-kpi-label">'+esc(monLabel)+' · as of '+esc(_orDate(today))+'</span>'+
+  pg.innerHTML='<div class="nx" style="padding:var(--fk-sp-4);display:flex;flex-direction:column;gap:var(--fk-sp-3)">'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+      '<h1 class="nx-page-title" style="display:flex;align-items:center;gap:8px;margin:0">'+NX.icon('radar',22)+' My Recovery</h1>'+
+      '<span class="nx-kpi-label" style="text-transform:none">'+esc(monLabel)+' · as of '+esc(_orDate(today))+'</span>'+
+      '<div style="margin-left:auto;display:flex;gap:8px">'+
+        NX.button('Refresh',{variant:'ghost',size:'sm',icon:'refresh-cw',onclick:"rMyRecovery()"})+
         NX.button('Print / PDF',{variant:'secondary',size:'sm',icon:'printer',onclick:"_orPrint()"})+
       '</div>'+
     '</div>'+
-    '<div><h1 class="nx-page-title" style="display:flex;align-items:center;gap:10px">'+NX.icon('radar',24)+' My Recovery</h1>'+
-      '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">What to collect this month, who owes how much, and who to call — start at the top and work down.</div></div>'+
-    '<div id="or-body"><div class="nx-skel" style="height:120px"></div><div class="nx-skel" style="height:110px;margin-top:16px"></div><div class="nx-skel" style="height:240px;margin-top:16px"></div></div>'+
+    '<div id="or-body"><div class="nx-skel" style="height:120px"></div><div class="nx-skel" style="height:240px;margin-top:16px"></div></div>'+
   '</div>';
   try{
     var qP = supabase.rpc('get_recovery_queue',{p_company_id:S.cid,p_officer_id:null,p_project_id:(typeof activeProjectId==='function'?activeProjectId():null),p_date:null,p_limit:1000});
@@ -219,12 +217,11 @@ function _orRender(){
   var fbtn=function(f,lb){ return '<button data-f="'+f+'" class="nx-btn nx-btn--sm '+(f===(window._orFilter||'owe')?'nx-btn--secondary':'nx-btn--ghost')+'" onclick="_orSetFilter(\''+f+'\')">'+esc(lb)+'</button>'; };
   var filterbar='<div id="or-filterbar" style="display:flex;gap:6px;flex-wrap:wrap">'+
     fbtn('owe','Everyone who owes')+fbtn('all','All accounts')+fbtn('overdue','Overdue only')+fbtn('likely','Likely to pay')+fbtn('quiet','Gone quiet')+'</div>';
-  var head='<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:var(--fk-sp-3)">'+
-    '<span style="font-weight:600;font-size:16px;display:flex;align-items:center;gap:8px">'+NX.icon('users',18)+'Recovery report</span>'+
-    '<span class="nx-kpi-label" style="text-transform:none">'+esc(ST.monLabel)+' · as of '+esc(_orDate(ST.today))+(ST.scoped?' · your accounts':' · all accounts')+'</span>'+
+  var ctx='<div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-3)">This month billed <b>'+_orF(T.dueMonth)+'</b> (of which <b>'+_orF(T.dueToDate)+'</b> due so far) · recovered <b style="color:var(--fk-success)">'+_orF(T.recovered)+'</b> ('+pct+'%).</div>';
+  var filterRow='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:var(--fk-sp-3)">'+
+    '<span style="font-weight:600;display:flex;align-items:center;gap:6px">'+NX.icon('users',16)+'Accounts'+(ST.scoped?' · yours only':'')+'</span>'+
     '<span style="margin-left:auto">'+filterbar+'</span></div>';
-  var ctx='<div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-3)">This month billed <b>'+_orF(T.dueMonth)+'</b> (of which <b>'+_orF(T.dueToDate)+'</b> has fallen due so far) · recovered <b style="color:var(--fk-success)">'+_orF(T.recovered)+'</b> ('+pct+'%).</div>';
-  b.innerHTML=NX.card(head+rf+ctx+'<div id="or-table"></div>', {});
+  b.innerHTML=NX.card(rf+ctx+filterRow+'<div id="or-table"></div>', {});
   _orRenderTable();
 }
 
@@ -263,34 +260,39 @@ function _orPrint(){
   var totalRow='<tr class="tot"><td></td><td>TOTAL · '+owe.length+' accounts with a balance</td><td></td>'+
     '<td class="n">'+_orF(S0)+'</td><td class="n">'+_orF(S1)+'</td><td class="n grn">'+_orF(S2)+'</td>'+
     '<td class="n amb">'+_orF(S3)+'</td><td class="n big">'+_orF(S4)+'</td><td></td><td></td></tr>';
-  var css='*{box-sizing:border-box}@page{size:A4 landscape;margin:9mm}html,body{background:#fff}'+
-    'body{font-family:"Inter",system-ui,Arial,sans-serif;color:#1f2330;font-size:10px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #4f46e5;padding-bottom:7px;margin-bottom:9px}'+
-    '.hd .co{font-size:11px;color:#6b7280;font-weight:600}.hd .ti{font-size:19px;font-weight:800;letter-spacing:-.3px;color:#111}.hd-r{text-align:right;font-size:10px;color:#6b7280;line-height:1.5}'+
-    '.sum{display:flex;gap:8px;margin-bottom:8px}.sc{flex:1;border:1px solid #ececf3;border-radius:7px;padding:7px 11px}.sc label{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af}.sc b{font-size:15px}'+
-    '.rf{background:#f7f7fb;border:1px solid #ececf3;border-radius:7px;padding:7px 11px;font-size:10.5px;color:#374151;margin-bottom:10px;line-height:1.5}'+
-    'table.tb{width:100%;border-collapse:collapse;font-size:9.5px;table-layout:fixed}.tb td,.tb th{padding:5px 6px;border:1px solid #e6e6ee;vertical-align:top;overflow:hidden}.tb th{font-size:8px;text-transform:uppercase;letter-spacing:.03em;color:#475569;text-align:left;font-weight:700;background:#f5f6fb}'+
-    '.tb tr{page-break-inside:avoid}.n{text-align:right;font-variant-numeric:tabular-nums}.rk{font-weight:700;color:#94a3b8}.cn{font-weight:700;font-size:10.5px}.su{font-size:8.5px;color:#94a3b8}.old{color:#b45309}.grn{color:#16a34a}.amb{color:#b45309}'+
-    '.big{font-weight:800;font-size:11.5px;color:#dc2626}.od{color:#dc2626;font-weight:700}'+
-    '.act{display:inline-block;padding:2px 6px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.4}'+
-    '.act-urg{background:#fee2e2;color:#b91c1c}.act-vis{background:#fef3c7;color:#92400e}.act-easy{background:#dcfce7;color:#166534}.act-call{background:#eef2ff;color:#3730a3}'+
-    '.tot td{background:#eef0f6;font-weight:800;border-top:2px solid #cbd5e1}'+
-    '.ft{margin-top:10px;border-top:1px solid #ececf3;padding-top:6px;font-size:8px;color:#9ca3af;text-align:center}'+
-    'col.c1{width:24px}col.c3{width:44px}col.c4{width:82px}col.c5{width:82px}col.c6{width:82px}col.c7{width:86px}col.c8{width:90px}col.c9{width:42px}col.c10{width:104px}';
+  var css='*{box-sizing:border-box}@page{size:A4 landscape;margin:10mm}html,body{background:#fff}'+
+    'body{font-family:"Inter",-apple-system,system-ui,Arial,sans-serif;color:#1e2433;font-size:10px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.hb{background:linear-gradient(100deg,#4f46e5,#6366f1);color:#fff;border-radius:11px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}'+
+    '.hb .co{font-size:10.5px;opacity:.85;font-weight:600;letter-spacing:.03em;text-transform:uppercase}.hb .ti{font-size:22px;font-weight:800;letter-spacing:-.4px;margin-top:3px}'+
+    '.hb-r{text-align:right;font-size:10px;opacity:.92;line-height:1.7}.hb-r b{font-size:13px;font-weight:700}'+
+    '.sum{display:flex;gap:11px;margin-bottom:12px}.sc{flex:1;border:1px solid #ecedf5;border-radius:10px;padding:10px 14px;background:#fcfcff}'+
+    '.sc label{display:block;font-size:7.5px;text-transform:uppercase;letter-spacing:.06em;color:#9aa0b4;margin-bottom:4px}.sc b{font-size:17px;font-weight:800;letter-spacing:-.3px}.sc.dn{border-color:#fecaca;background:#fff6f6}'+
+    '.rf{background:#f6f7fb;border:1px solid #eceef5;border-radius:10px;padding:10px 15px;font-size:10.5px;color:#3a4054;margin-bottom:13px;font-variant-numeric:tabular-nums}.rf b{font-weight:700}'+
+    'table.tb{width:100%;border-collapse:collapse;font-size:9.5px;table-layout:fixed}'+
+    '.tb th{font-size:7.5px;text-transform:uppercase;letter-spacing:.05em;color:#8990a6;text-align:left;font-weight:700;padding:7px 8px;border-bottom:1.5px solid #e3e5ef}'+
+    '.tb td{padding:6px 8px;border-bottom:1px solid #f1f2f7;vertical-align:top;overflow:hidden}.tb tbody tr:nth-child(even) td{background:#fbfbfe}.tb tr{page-break-inside:avoid}'+
+    '.n{text-align:right;font-variant-numeric:tabular-nums}.rk{font-weight:700;color:#aab0c4}.cn{font-weight:700;font-size:10px;color:#1e2433}.su{font-size:8px;color:#a0a5b8;margin-top:1px}'+
+    '.old{color:#b45309}.grn{color:#16a34a}.amb{color:#b45309}.big{font-weight:800;font-size:11px;color:#dc2626}.od{color:#dc2626;font-weight:700}'+
+    '.act{display:inline-block;padding:2px 8px;border-radius:20px;font-size:8px;font-weight:700;line-height:1.5}'+
+    '.act-urg{background:#fee2e2;color:#b91c1c}.act-vis{background:#fef3c7;color:#92400e}.act-easy{background:#dcfce7;color:#166534}.act-call{background:#eef2ff;color:#4338ca}'+
+    '.tot td{background:#f3f4fa;font-weight:800;border-top:2px solid #c7cadb;border-bottom:none;padding:8px}'+
+    '.ft{margin-top:13px;border-top:1px solid #eceef5;padding-top:8px;font-size:8px;color:#aab0c4;display:flex;justify-content:space-between}'+
+    'col.c1{width:22px}col.c3{width:46px}col.c4{width:84px}col.c5{width:84px}col.c6{width:84px}col.c7{width:90px}col.c8{width:92px}col.c9{width:42px}col.c10{width:106px}';
+  var rfEq='Old arrears '+_orF(T.oldArrears)+' + Due to date '+_orF(T.dueToDate)+' − Received '+_orF(T.recovered)+' − Advance pre-paid '+_orF(T.advBf)+(T.advFut>0.5?' + Advance for future '+_orF(T.advFut):'')+' = <b style="color:#dc2626">'+_orF(T.remaining)+'</b>';
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Recovery — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
-    '<div class="hd"><div><div class="co">'+esc(co)+(who?' · Officer: '+esc(who):'')+'</div><div class="ti">My Recovery — Report</div></div>'+
-      '<div class="hd-r"><div>'+esc(ST.monLabel)+'</div><div>as of '+esc(_orDate(ST.today))+'</div></div></div>'+
+    '<div class="hb"><div><div class="co">'+esc(co)+(who?' · Officer: '+esc(who):'')+'</div><div class="ti">Recovery Report</div></div>'+
+      '<div class="hb-r"><b>'+esc(ST.monLabel)+'</b><br>as of '+esc(_orDate(ST.today))+'</div></div>'+
     '<div class="sum">'+
       '<div class="sc"><label>This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
-      '<div class="sc"><label>Recovered this month</label><b style="color:#16a34a">'+_orF(T.recovered)+' ('+pct+'%)</b></div>'+
+      '<div class="sc"><label>Recovered this month ('+pct+'%)</label><b style="color:#16a34a">'+_orF(T.recovered)+'</b></div>'+
       '<div class="sc"><label>Old arrears</label><b style="color:#b45309">'+_orF(T.oldArrears)+'</b></div>'+
-      '<div class="sc"><label>Current remaining · to date</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div>'+
+      '<div class="sc dn"><label>Current remaining · to date</label><b style="color:#dc2626">'+_orF(T.remaining)+'</b></div>'+
     '</div>'+
-    '<div class="rf"><b>Current remaining</b> = Old arrears '+_orF(T.oldArrears)+' + Due to date '+_orF(T.dueToDate)+' − Received '+_orF(T.recvApplied)+' − Advance pre-paid '+_orF(T.advBf)+' = <b style="color:#dc2626">'+_orF(T.remaining)+'</b>  ·  sorted by biggest balance first · future installments (e.g. through 2030) are not counted.</div>'+
+    '<div class="rf"><b>Current remaining</b> = '+rfEq+'  ·  sorted by biggest balance first · future installments (e.g. through 2030) are not counted.</div>'+
     '<table class="tb"><colgroup><col class="c1"><col><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9"><col class="c10"></colgroup>'+
     '<thead><tr><th class="n">#</th><th>Client / Unit / Phone</th><th class="n">Overdue</th><th class="n">Old arrears</th><th class="n">Due to date</th><th class="n">Recovered</th><th class="n">Advance pre-paid</th><th class="n">Current remaining</th><th>Will pay</th><th>What to do</th></tr></thead>'+
     '<tbody>'+rowsHTML+totalRow+'</tbody></table>'+
-    '<div class="ft">Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS · '+(ST.scoped?'Your assigned accounts only':'All accounts')+'</div>'+
+    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>Nexunova RMS · '+(ST.scoped?'Your assigned accounts only':'All accounts')+'</span></div>'+
   '</body></html>';
-  if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'My Recovery — Report'); else window.print();
+  if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'Recovery Report'); else window.print();
 }
