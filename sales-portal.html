@@ -53,6 +53,8 @@ a{color:var(--fk-primary);text-decoration:none}
 .brand-sub{font-size:11px;color:var(--fk-text-muted);letter-spacing:.4px;text-transform:uppercase}
 .auth-title{font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:4px}
 .auth-sub{font-size:13px;color:var(--fk-text-muted);margin-bottom:20px}
+.co-name{font-size:19px;font-weight:600;color:var(--fk-primary);letter-spacing:-.2px;margin:2px 0 16px;
+  padding-bottom:14px;border-bottom:1px solid var(--fk-border)}
 .field{margin-bottom:14px}
 .label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
   color:var(--fk-text-muted);margin-bottom:6px}
@@ -180,14 +182,15 @@ a{color:var(--fk-primary);text-decoration:none}
       <div class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Availability &amp; Reservations</div></div>
     </div>
+    <div class="co-name" id="login-co" style="display:none"></div>
     <div class="auth-title">Sign in</div>
-    <div class="auth-sub">Enter your mobile and PIN to sign in. New here? Open the signup link your office shared to request access.</div>
+    <div class="auth-sub">Enter your mobile and PIN to sign in.</div>
     <div class="field" id="co-field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
-    <div class="field"><label class="label">Phone</label><input class="input" id="i-phone" inputmode="tel" autocomplete="off"></div>
+    <div class="field"><label class="label">Mobile number</label><input class="input" id="i-phone" inputmode="tel" placeholder="03xxxxxxxxx" autocomplete="off"></div>
     <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
     <div class="err" id="login-err"></div>
-    <div id="login-to-register" style="display:none;text-align:center;margin-top:14px"><a href="#" onclick="showScreen('screen-register');return false" style="font-size:13px">← Back to request access</a></div>
+    <div id="login-to-register" style="display:none;text-align:center;margin-top:16px;font-size:13px;color:var(--fk-text-muted)">New here? <a href="#" onclick="showScreen('screen-register');return false">Request access / Sign up</a></div>
   </div></div>
 </div>
 
@@ -198,11 +201,12 @@ a{color:var(--fk-primary);text-decoration:none}
       <div class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Request access</div></div>
     </div>
+    <div class="co-name" id="reg-co" style="display:none"></div>
     <div class="auth-title">Request sales access</div>
-    <div class="auth-sub">Registering for <strong id="reg-co-name">your company</strong>. Your office approves you before you can sign in.</div>
+    <div class="auth-sub">Your office approves you before you can sign in.</div>
     <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
-    <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="tel" placeholder="03219694246" autocomplete="off"><div class="hint">Format: 03219694246 or +923219694246</div></div>
-    <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" placeholder="35201-1234567-1" autocomplete="off"><div class="hint">Format: 35201-1234567-1</div></div>
+    <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="tel" placeholder="03xxxxxxxxx" autocomplete="off"><div class="hint">Format: 03xxxxxxxxx (or +92xxxxxxxxxx)</div></div>
+    <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" placeholder="xxxxx-xxxxxxx-x" autocomplete="off"><div class="hint">Format: xxxxx-xxxxxxx-x</div></div>
     <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="reg-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
     <div class="err" id="reg-err"></div>
@@ -215,7 +219,7 @@ a{color:var(--fk-primary);text-decoration:none}
   <div class="auth-wrap"><div class="auth-card" style="text-align:center">
     <div class="brand-mark" style="margin:0 auto 14px;width:48px;height:48px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
     <div class="auth-title">Request sent</div>
-    <div class="auth-sub">Your request was sent to your office for approval. Once approved, sign in with your company code, phone and the PIN you just chose.</div>
+    <div class="auth-sub">Your request was sent to your office for approval. Once approved, sign in with your mobile and the PIN you just chose.</div>
     <button class="btn btn-secondary btn-full" onclick="showScreen('screen-login')">Go to sign in</button>
   </div></div>
 </div>
@@ -266,16 +270,30 @@ function toast(msg,kind){ const b=$('toastbar'); b.textContent=msg; b.className=
   clearTimeout(_tt); _tt=setTimeout(()=>b.classList.remove('show'),2600); }
 
 // ════ state ════
-let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null;
+let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
 
-// When the company is known (arrived via the signup link, or remembered on this
-// device), don't ask for the company code at sign-in — prefill + hide that field.
 function _coRemembered(){ try{return localStorage.getItem('rms.sales.co')}catch(e){return null} }
+function _coNameRemembered(){ try{return localStorage.getItem('rms.sales.coName')}catch(e){return null} }
+// Known company (from the signup link, or remembered on this device): show its
+// name prominently and skip the company-code field at sign-in.
+function showCompanyName(){
+  const nm=SALES_CO_NAME||_coNameRemembered();
+  ['login-co','reg-co'].forEach(id=>{ const el=$(id); if(el){ if(nm){ el.textContent=nm; el.style.display='block'; } else el.style.display='none'; } });
+}
 function applyLoginCompany(){
   const co=SALES_CO||_coRemembered();
   const f=$('co-field');
   if(co){ if($('i-co')) $('i-co').value=co; if(f) f.style.display='none'; }
   else if(f){ f.style.display='block'; }
+}
+function setCompanyContext(data){
+  if(data){
+    if(data.company_code) SALES_CO=data.company_code;
+    if(data.company_name) SALES_CO_NAME=data.company_name;
+    try{ if(data.company_code)localStorage.setItem('rms.sales.co',data.company_code);
+         if(data.company_name)localStorage.setItem('rms.sales.coName',data.company_name); }catch(e){}
+  }
+  showCompanyName(); applyLoginCompany();
 }
 function goLogin(){ applyLoginCompany(); showScreen('screen-login'); }
 
@@ -283,33 +301,31 @@ function goLogin(){ applyLoginCompany(); showScreen('screen-login'); }
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
   const signup=params.get('signup');
-  if(signup){ SIGNUP_TOKEN=signup; return showRegister(signup); }
+  if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   const saved=sessionStorage.getItem(TOK_KEY);
   if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ showScreen('screen-app'); setTab('board'); return; } sessionStorage.removeItem(TOK_KEY); }
-  applyLoginCompany();
+  setCompanyContext(null);
   showScreen('screen-login');
 }
-async function showRegister(token){
+// Opening the signup link lands on SIGN IN by default; "Request access" is offered below.
+async function openSignupLink(token){
   const {data}=await sb.rpc('get_sales_signup_company',{p_signup_token:token});
   if(!data||!data.success){
-    showScreen('screen-login');
+    setCompanyContext(null); showScreen('screen-login');
     const err=$('login-err'); err.textContent='This signup link is invalid or has been disabled. Ask your office for the current link.'; err.classList.add('show');
+    const r=$('login-to-register'); if(r) r.style.display='none';
     return;
   }
-  $('reg-co-name').textContent=data.company_name||'your company';
-  // company is known from the link → no company code needed at sign-in
-  if(data.company_code){ SALES_CO=data.company_code; try{localStorage.setItem('rms.sales.co',data.company_code)}catch(e){} }
-  applyLoginCompany();
-  // they came via a signup link → offer a way back to register from the login screen
-  const back=$('login-to-register'); if(back) back.style.display='block';
-  showScreen('screen-register');
+  setCompanyContext(data);
+  const r=$('login-to-register'); if(r) r.style.display='block';
+  showScreen('screen-login');
 }
 async function doRegister(){
   const name=$('reg-name').value.trim(), ph=$('reg-phone').value.trim(), pin=$('reg-pin').value.trim(), cnic=$('reg-cnic').value.trim();
   const err=$('reg-err'); err.classList.remove('show');
   if(!name||!ph||!cnic||!pin){ err.textContent='Enter your name, mobile, CNIC and a PIN.'; err.classList.add('show'); return; }
-  if(!/^[0-9+\-\s]{10,15}$/.test(ph)){ err.textContent='Enter a valid mobile number, e.g. 03219694246.'; err.classList.add('show'); return; }
-  if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ err.textContent='CNIC format: 35201-1234567-1'; err.classList.add('show'); return; }
+  if(!/^[0-9+\-\s]{10,15}$/.test(ph)){ err.textContent='Enter a valid mobile number, e.g. 03xxxxxxxxx.'; err.classList.add('show'); return; }
+  if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ err.textContent='CNIC format: xxxxx-xxxxxxx-x'; err.classList.add('show'); return; }
   if(!/^[0-9]{4,6}$/.test(pin)){ err.textContent='PIN must be 4 to 6 digits.'; err.classList.add('show'); return; }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
@@ -337,6 +353,7 @@ async function doLogin(){
 function onLogin(data){
   TOKEN=data.session_token; sessionStorage.setItem(TOK_KEY,TOKEN);
   ME=data;
+  try{ if(data.company_name)localStorage.setItem('rms.sales.coName',data.company_name); }catch(e){}
   $('who-name').textContent=data.sales_user_name||'Sales';
   $('who-co').textContent=data.company_name||'';
   showScreen('screen-app');
