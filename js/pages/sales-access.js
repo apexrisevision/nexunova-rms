@@ -1,13 +1,16 @@
 /* ════════════════════════════════════════════════════════════════════════
    Sales Access — admin manages light "sales person" logins (NOT app_users,
-   no paid seat consumed). Phase 1 of the Availability & Reservation module.
-   RPCs: list_sales_users_admin, create_sales_user, deactivate_sales_user.
-   A sales person reserves only in their assigned project (Decision A) and
-   logs into the standalone sales-portal.html — never the RMS shell.
-   The per-plan limit (15/25/50) is wired in Phase 3.
+   no paid seat consumed). Availability & Reservation module.
+   ONE flow: the admin shares the company signup link → a sales person
+   self-registers (pending) → the admin Approves (sets project scope, the
+   plan limit is enforced here) or Rejects → the person signs in with phone+PIN.
+   RPCs: list_sales_users_admin, admin_approve_sales_user, admin_reject_sales_user,
+         rotate_sales_signup_token, deactivate_sales_user.
    ════════════════════════════════════════════════════════════════════════ */
 let _saRows = [];
 let _saLimit = null;
+let _saSignupToken = null;
+let _saCompanyCode = null;
 
 async function rSalesAccess() {
   const pg = document.getElementById('pg-salesaccess');
@@ -32,10 +35,11 @@ async function rSalesAccess() {
   }
   _saRows = res.sales_users || [];
   _saLimit = res.limit || null;
+  _saSignupToken = res.signup_token || null;
+  _saCompanyCode = res.company_code || null;
   _saRender();
 }
 
-// Usage badge "X / max" + cap-aware Add button (disabled at the limit).
 function _saAtCap() { return _saLimit && _saLimit.can_add === false; }
 function _saUsageBadge() {
   if (!_saLimit) return '';
@@ -43,123 +47,139 @@ function _saUsageBadge() {
   const tone = _saAtCap() ? 'danger' : (max && cur >= max - 2 ? 'warning' : 'success');
   return NX.badge(`Sales access: ${cur} / ${max}`, tone);
 }
-function _saAddButton() {
-  return _saAtCap()
-    ? NX.button(`Add sales person (${_saLimit.current_count}/${_saLimit.max_allowed})`, { variant: 'secondary', icon: 'user-plus', disabled: true })
-    : NX.button('Add sales person', { variant: 'primary', icon: 'user-plus', onclick: '_saOpenAdd()' });
+function _saSignupUrl() {
+  if (!_saSignupToken) return '';
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'sales-portal.html';
+  return base + '?signup=' + encodeURIComponent(_saSignupToken);
 }
 
 function _saRender() {
   const pg = document.getElementById('pg-salesaccess');
-  // Rebuild the header so the usage badge + cap-aware Add button reflect live counts.
   const header = NX.pageHeader('Sales Access',
-    `<span style="margin-right:var(--fk-sp-3)">${_saUsageBadge()}</span>` + _saAddButton(),
-    { icon: 'id-card' });
-  if (pg) {
-    const shell = pg.querySelector('.nx');
-    if (shell) {
-      const bodyHtml = _saBodyHtml();
-      shell.innerHTML = header + `<div id="sa-body">${bodyHtml}</div>`;
-      return;
-    }
-  }
+    `<span>${_saUsageBadge()}</span>`, { icon: 'id-card' });
+  const shell = pg && pg.querySelector('.nx');
+  if (shell) { shell.innerHTML = header + `<div id="sa-body">${_saBodyHtml()}</div>`; return; }
   const body = document.getElementById('sa-body');
   if (body) body.innerHTML = _saBodyHtml();
 }
 
 function _saBodyHtml() {
-  const rows = _saRows;
-  const planName = _saLimit && _saLimit.plan_name ? ` on your ${_saLimit.plan_name} plan` : '';
-  const intro = _saAtCap()
-    ? NX.banner(`You have used all ${_saLimit.max_allowed} sales-access slots${planName}. Deactivate an unused sales person to free a slot, or upgrade your plan to add more.`, 'warn')
-    : NX.banner('Sales people log in to the field app (the Availability Board) — they are not RMS users and use no paid user seat.', 'info');
+  const pending = _saRows.filter(r => r.status === 'pending');
+  const people = _saRows.filter(r => r.status !== 'pending');
 
-  let table;
-  if (!rows.length) {
-    table = NX.empty({
+  // ── 1. The ONE shareable signup link ──
+  const url = _saSignupUrl();
+  const linkCard = NX.card(
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">Share this one link with your sales team. They self-register, then appear below for your approval. Rotate it to disable the old link.</div>
+     <div style="display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
+       <input class="nx-input" readonly value="${esc(url)}" onclick="this.select()" style="flex:1;min-width:240px;font-size:12px">
+       ${NX.button('Copy link', { variant: 'secondary', size: 'sm', icon: 'link', onclick: '_saCopyLink()' })}
+       ${NX.button('Rotate', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: '_saRotate()' })}
+     </div>`,
+    { header: { icon: 'link', tone: 'primary', title: 'Sales signup link' } });
+
+  // ── 2. Pending registrations ──
+  let pendingCard = '';
+  if (pending.length) {
+    const cap = _saAtCap()
+      ? NX.banner(`You are at your plan limit (${_saLimit.current_count}/${_saLimit.max_allowed}). Deactivate an active sales person or upgrade before approving more.`, 'warn')
+      : '';
+    pendingCard = NX.card(cap + NX.table({
+      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Requested' }, { label: '' }],
+      rows: pending.map(r => [
+        `<b>${esc(r.full_name)}</b>`,
+        esc(r.phone),
+        esc(fdateRsv(r.created_at)),
+        NX.button('Approve', { variant: 'primary', size: 'sm', onclick: `_saApproveOpen('${r.id}','${esc(r.full_name)}')` }) +
+        ' ' + NX.button('Reject', { variant: 'danger-soft', size: 'sm', onclick: `_saReject('${r.id}','${esc(r.full_name)}')` })
+      ]),
+      flush: true
+    }), { header: { icon: 'user-plus', tone: 'warning', title: 'Pending registrations', sub: pending.length + ' awaiting approval' }, flush: true });
+  }
+
+  // ── 3. Approved sales people ──
+  let peopleCard;
+  if (!people.length) {
+    peopleCard = NX.card(NX.empty({
       icon: 'id-card',
-      message: 'No sales people yet. Add one to give them field access to the Availability Board and reservations.',
-      action: _saAddButton()
-    });
+      message: 'No sales people yet. Share the signup link above — registrations will appear here for approval.'
+    }));
   } else {
-    table = NX.table({
+    peopleCard = NX.card(NX.table({
       cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Project scope' }, { label: 'Active reservations', num: true }, { label: 'Last login' }, { label: 'Status' }, { label: '' }],
-      rows: rows.map(r => [
+      rows: people.map(r => [
         `<b>${esc(r.full_name)}</b>`,
         esc(r.phone),
         r.project_id ? esc(r.project_name || 'Assigned project') : '<span style="color:var(--fk-text-muted)">All projects</span>',
         `<span class="num">${r.active_reservations || 0}</span>`,
         r.last_login_at ? esc(fdateRsv(r.last_login_at)) : '<span style="color:var(--fk-text-muted)">Never</span>',
-        r.is_active ? NX.badge('Active', 'success', { dot: true }) : NX.badge('Inactive', 'muted'),
-        r.is_active ? NX.button('Deactivate', { variant: 'danger-soft', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` }) : ''
+        r.status === 'active' ? NX.badge('Active', 'success', { dot: true }) : NX.badge('Inactive', 'muted'),
+        r.status === 'active' ? NX.button('Deactivate', { variant: 'danger-soft', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` }) : ''
       ]),
       flush: true
-    });
+    }), { header: { icon: 'users', tone: 'primary', title: 'Sales people' }, flush: true });
   }
-  return `<div style="margin-bottom:var(--fk-sp-3)">${intro}</div>` + NX.card(table, { flush: true });
+
+  return linkCard + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
+         `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>`;
 }
 
-function _saOpenAdd() {
+function _saCopyLink() {
+  const url = _saSignupUrl();
+  if (navigator.clipboard) navigator.clipboard.writeText(url);
+  if (typeof toast === 'function') toast('Signup link copied', 'ok');
+}
+
+async function _saRotate() {
+  if (!confirm('Rotate the signup link? The current link stops working immediately and you must reshare the new one.')) return;
+  try {
+    const { data } = await supabase.rpc('rotate_sales_signup_token', { p_company_id: S.cid });
+    if (data && data.success) { if (typeof toast === 'function') toast('New signup link generated.', 'ok'); rSalesAccess(); }
+    else if (typeof toast === 'function') toast('Could not rotate the link.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not rotate the link.', 'err'); }
+}
+
+// Approve → pick the project scope (the registrant did not choose one).
+function _saApproveOpen(id, name) {
   const projOpts = [{ value: '', label: 'All projects' }]
     .concat((typeof gprojects === 'function' ? gprojects() : []).map(p => ({ value: p.id, label: p.project_name })));
   document.body.insertAdjacentHTML('beforeend', NX.modal({
-    title: 'Add sales person', size: 'm', onClose: '_saCloseModal()',
+    title: 'Approve ' + esc(name), size: 'm', onClose: '_saCloseModal()',
     body:
-      NX.field({ label: 'Full name', name: 'sa-name', required: true }) +
-      NX.field({ label: 'Phone (login handle)', name: 'sa-phone', required: true }) +
-      NX.field({ label: 'Project scope', name: 'sa-project', el: 'select', options: projOpts, value: projOpts[1] ? projOpts[1].value : '' }) +
-      `<div class="nx-error" id="sa-err" style="display:none"></div>`,
+      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Approving lets this person sign in and reserve. Set the project they can work in.</div>` +
+      NX.field({ label: 'Project scope', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[1] ? projOpts[1].value : '' }) +
+      `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`,
     footer: NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' }) +
-            NX.button('Create access', { variant: 'primary', onclick: '_saSubmit()' })
+            NX.button('Approve access', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` })
   }));
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
 
-async function _saSubmit() {
-  const cid = S && S.cid;
-  const name = (document.getElementById('sa-name') || {}).value || '';
-  const phone = (document.getElementById('sa-phone') || {}).value || '';
-  const proj = (document.getElementById('sa-project') || {}).value || '';
-  const err = document.getElementById('sa-err');
-  if (!name.trim() || !phone.trim()) {
-    if (err) { err.textContent = 'Name and phone are required.'; err.style.display = 'block'; }
-    return;
-  }
+async function _saApproveSubmit(id) {
+  const proj = (document.getElementById('sa-approve-project') || {}).value || '';
+  const err = document.getElementById('sa-approve-err');
   try {
-    const { data } = await supabase.rpc('create_sales_user',
-      { p_company_id: cid, p_project_id: proj || null, p_name: name.trim(), p_phone: phone.trim() });
+    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj || null });
     if (!data || !data.success) {
-      const msg = (data && data.message) || ('Could not create: ' + ((data && data.error) || 'error'));
+      const msg = (data && data.message) || 'Could not approve.';
       if (err) { err.textContent = msg; err.style.display = 'block'; }
       return;
     }
     _saCloseModal();
-    _saShowCredentials(name.trim(), phone.trim(), data);
+    if (typeof toast === 'function') toast('Sales person approved — they can sign in now.', 'ok');
     rSalesAccess();
   } catch (e) {
-    if (err) { err.textContent = 'Could not create the sales person.'; err.style.display = 'block'; }
+    if (err) { err.textContent = 'Could not approve.'; err.style.display = 'block'; }
   }
 }
 
-function _saShowCredentials(name, phone, data) {
-  const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'sales-portal.html';
-  const magic = base + '?t=' + encodeURIComponent(data.temp_token);
-  document.body.insertAdjacentHTML('beforeend', NX.modal({
-    title: 'Access created for ' + esc(name), size: 'm', onClose: '_saCloseModal()',
-    body:
-      NX.banner('Share these with the sales person. The PIN is shown once — copy it now.', 'warn') +
-      `<div class="nx-card nx-card--compact" style="margin-top:var(--fk-sp-3)">
-        <div style="display:grid;gap:var(--fk-sp-2);font-size:13px">
-          <div><span style="color:var(--fk-text-muted)">Company code</span><br><b class="num">${esc(data.company_code || '')}</b></div>
-          <div><span style="color:var(--fk-text-muted)">Phone</span><br><b class="num">${esc(phone)}</b></div>
-          <div><span style="color:var(--fk-text-muted)">Temporary PIN</span><br><b class="num" style="font-size:18px;letter-spacing:2px">${esc(data.temp_pin || '')}</b></div>
-          <div><span style="color:var(--fk-text-muted)">Magic link (no PIN needed)</span><br>
-            <input class="nx-input" readonly value="${esc(magic)}" onclick="this.select()" style="font-size:12px"></div>
-        </div>
-      </div>`,
-    footer: NX.button('Copy link', { variant: 'secondary', onclick: `navigator.clipboard&&navigator.clipboard.writeText('${magic}');typeof toast==='function'&&toast('Link copied','ok')` }) +
-            NX.button('Done', { variant: 'primary', onclick: '_saCloseModal()' })
-  }));
+async function _saReject(id, name) {
+  if (!confirm('Reject ' + name + "'s request? Their registration is removed (they can request again later).")) return;
+  try {
+    const { data } = await supabase.rpc('admin_reject_sales_user', { p_id: id });
+    if (data && data.success) { if (typeof toast === 'function') toast('Registration rejected.', 'ok'); rSalesAccess(); }
+    else if (typeof toast === 'function') toast('Could not reject.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not reject.', 'err'); }
 }
 
 async function _saDeactivate(id, name) {

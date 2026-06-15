@@ -179,12 +179,40 @@ a{color:var(--fk-primary);text-decoration:none}
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Availability &amp; Reservations</div></div>
     </div>
     <div class="auth-title">Sign in</div>
-    <div class="auth-sub">Use the access link from your office, or sign in with your phone and PIN.</div>
+    <div class="auth-sub">Sign in with your company code, phone and PIN. New here? Open the signup link your office shared to request access.</div>
     <div class="field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
     <div class="field"><label class="label">Phone</label><input class="input" id="i-phone" inputmode="tel" autocomplete="off"></div>
     <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
     <div class="err" id="login-err"></div>
+  </div></div>
+</div>
+
+<!-- ════════ REGISTER (opened via ?signup=<token>) ════════ -->
+<div id="screen-register" class="screen">
+  <div class="auth-wrap"><div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
+      <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Request access</div></div>
+    </div>
+    <div class="auth-title">Request sales access</div>
+    <div class="auth-sub">Registering for <strong id="reg-co-name">your company</strong>. Your office approves you before you can sign in.</div>
+    <div class="field"><label class="label">Full name</label><input class="input" id="r-name" autocomplete="off"></div>
+    <div class="field"><label class="label">Phone</label><input class="input" id="r-phone" inputmode="tel" autocomplete="off"></div>
+    <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="r-pin" type="password" inputmode="numeric" autocomplete="off"></div>
+    <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
+    <div class="err" id="reg-err"></div>
+    <div style="text-align:center;margin-top:14px"><a href="#" onclick="showScreen('screen-login');return false" style="font-size:13px">Already approved? Sign in</a></div>
+  </div></div>
+</div>
+
+<!-- ════════ PENDING (after a successful register) ════════ -->
+<div id="screen-pending" class="screen">
+  <div class="auth-wrap"><div class="auth-card" style="text-align:center">
+    <div class="brand-mark" style="margin:0 auto 14px;width:48px;height:48px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    <div class="auth-title">Request sent</div>
+    <div class="auth-sub">Your request was sent to your office for approval. Once approved, sign in with your company code, phone and the PIN you just chose.</div>
+    <button class="btn btn-secondary btn-full" onclick="showScreen('screen-login')">Go to sign in</button>
   </div></div>
 </div>
 
@@ -234,22 +262,39 @@ function toast(msg,kind){ const b=$('toastbar'); b.textContent=msg; b.className=
   clearTimeout(_tt); _tt=setTimeout(()=>b.classList.remove('show'),2600); }
 
 // ════ state ════
-let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false;
+let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null;
 
 // ════ auth ════
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
-  const magic=params.get('t');
-  if(magic){
-    const {data,error}=await sb.rpc('sales_magic_login',{p_token:magic});
-    history.replaceState(null,'',location.pathname);
-    if(!error && data && data.success){ return onLogin(data); }
-    $('login-err').textContent='Your access link is invalid or expired. Ask your office to re-send it.';
-    $('login-err').classList.add('show');
-  }
+  const signup=params.get('signup');
+  if(signup){ SIGNUP_TOKEN=signup; return showRegister(signup); }
   const saved=sessionStorage.getItem(TOK_KEY);
-  if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ showScreen('screen-app'); return; } sessionStorage.removeItem(TOK_KEY); }
+  if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ showScreen('screen-app'); setTab('board'); return; } sessionStorage.removeItem(TOK_KEY); }
   showScreen('screen-login');
+}
+async function showRegister(token){
+  const {data}=await sb.rpc('get_sales_signup_company',{p_signup_token:token});
+  if(!data||!data.success){
+    showScreen('screen-login');
+    const err=$('login-err'); err.textContent='This signup link is invalid or has been disabled. Ask your office for the current link.'; err.classList.add('show');
+    return;
+  }
+  $('reg-co-name').textContent=data.company_name||'your company';
+  showScreen('screen-register');
+}
+async function doRegister(){
+  const name=$('r-name').value.trim(), ph=$('r-phone').value.trim(), pin=$('r-pin').value.trim();
+  const err=$('reg-err'); err.classList.remove('show');
+  if(!name||!ph||!pin){ err.textContent='Enter your name, phone and a PIN.'; err.classList.add('show'); return; }
+  if(!/^[0-9]{4,6}$/.test(pin)){ err.textContent='PIN must be 4 to 6 digits.'; err.classList.add('show'); return; }
+  const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
+  try{
+    const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_phone:ph,p_pin:pin});
+    if(error) throw error;
+    if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not register.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; return; }
+    showScreen('screen-pending');
+  }catch(e){ err.textContent='Could not register. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; }
 }
 async function doLogin(){
   const co=$('i-co').value.trim(), ph=$('i-phone').value.trim(), pin=$('i-pin').value.trim();
@@ -312,7 +357,7 @@ async function renderBoard(){
     // group units by floor
     const floors={};
     (p.units||[]).forEach(u=>{ const k=u.floor_label||'—'; (floors[k]=floors[k]||[]).push(u); });
-    const keys=Object.keys(floors).sort((a,b)=>(floors[b][0].floor_no||0)-(floors[a][0].floor_no||0));
+    const keys=Object.keys(floors).sort((a,b)=>((floors[a][0].floor_rank??999)-(floors[b][0].floor_rank??999)));
     keys.forEach(fl=>{
       html+='<div class="floor"><div class="floor-lbl">'+esc(fl)+'</div><div class="units">';
       floors[fl].forEach(u=>{ html+=unitCell(u); });
@@ -341,8 +386,8 @@ function showReservedInfo(uno,resJson){
   openModal('Unit '+esc(uno)+' — Reserved',
     '<div style="font-size:14px;line-height:1.8">'
     +'<div><span style="color:var(--fk-text-muted)">Reserved by</span> <b>'+esc(r.reserved_by_name||'—')+'</b></div>'
-    +'<div><span style="color:var(--fk-text-muted)">Client</span> <b>'+esc(r.client_name||'—')+'</b></div>'
     +'<div><span style="color:var(--fk-text-muted)">Expires</span> <span class="badge '+cd.c+'">'+cd.t+'</span></div>'
+    +'<div class="note" style="margin-top:8px">This unit is held by another sales person. Client details are private.</div>'
     +'</div>',
     '<button class="btn btn-secondary" onclick="closeModal()">Close</button>');
 }
