@@ -306,11 +306,47 @@ html[data-theme="dark"] #s-app .sb{ box-shadow: 1px 0 0 var(--fk-border), 6px 0 
 [data-theme="light"] #s-app .sb{ background: #FAFBFC !important; }
 /* (dark sidebar #0F172A already separates from page #0B1120; border + edge above) */
 
-/* ── 3c. GROUP HEADER — label left (11px uppercase muted), chevron right edge ── */
+/* ── 3c. GROUP HEADER — BUTTON-SHAPED, collapsible (2026-06-16) ── */
 #s-app .sb .nav-grp-hd{ display: flex; align-items: center; }
 #s-app .sb .nav-grp-lbl{ flex: 1; text-align: left; }
 #s-app .sb .nav-grp-chev{ margin-left: auto; color: var(--fk-text-muted); transition: transform 160ms ease; }
 #s-app .sb .nav-group.collapsed .nav-grp-chev{ transform: rotate(-90deg); }
+
+/* Each group header reads as a real button; collapsed by default (un-expanded).
+   Loaded last → wins over sidebar-premium/saas-polish; !important for safety. */
+html[data-theme] #s-app .sb .nav-grp-hd{
+  width: 100% !important;
+  padding: 9px 12px !important;
+  margin: 0 0 5px !important;
+  background: var(--fk-bg-subtle) !important;
+  border: 1px solid var(--fk-border) !important;
+  border-radius: var(--fk-radius-control) !important;
+  color: var(--fk-text) !important;
+  cursor: pointer !important;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+}
+html[data-theme] #s-app .sb .nav-grp-hd:hover{
+  background: var(--fk-subtle-hover) !important;
+  border-color: var(--fk-primary) !important;
+}
+html[data-theme] #s-app .sb .nav-grp-hd:active{ transform: scale(0.99) !important; }
+html[data-theme] #s-app .sb .nav-grp-lbl{
+  font-weight: var(--fk-fw-semibold) !important;
+  color: var(--fk-text) !important;
+  -webkit-text-fill-color: var(--fk-text) !important;
+}
+/* Expanded group → button looks pressed/active (indigo). */
+html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd{
+  background: var(--fk-primary-surface) !important;
+  border-color: var(--fk-primary) !important;
+}
+html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-lbl{
+  color: var(--fk-primary) !important;
+  -webkit-text-fill-color: var(--fk-primary) !important;
+}
+html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-chev{
+  color: var(--fk-primary) !important;
+}
 
 /* ── 3d. SIDEBAR FOOTER — collapse control only ── */
 #s-app .sb .sb-foot{ margin-top: auto; padding: var(--fk-sp-2) var(--fk-sp-3); border-top: 1px solid var(--fk-border); }

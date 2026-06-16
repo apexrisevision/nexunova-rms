@@ -479,9 +479,11 @@ function buildSB(){
       ]},
       // ── 5 · Reports & Ledgers ──
       { label: 'Reports & Ledgers', items: [
-        { id:'reports',  ic:'bar-chart-3', lb:'Reports' },
-        { id:'ledgers',  ic:'book-open',   lb:'Ledgers' },
-        { id:'receipts', ic:'receipt',     lb:'Receipt Vouchers' },
+        { id:'reports',       ic:'bar-chart-3',    lb:'Reports' },
+        { id:'ledgers',       ic:'book-open',      lb:'Ledgers' },
+        { id:'receipts',      ic:'receipt',        lb:'Receipt Vouchers' },
+        { id:'doc-schedule',  ic:'calendar-clock', lb:'Payment Schedule', action:"nav('documents','schedule')" },
+        { id:'doc-unitreport',ic:'file-text',      lb:'Unit Report',      action:"nav('documents','unit-report')" },
       ]},
       // ── 6 · Team & Approvals ──
       { label: 'Team & Approvals', items: [
@@ -637,7 +639,9 @@ function buildSB(){
       g.items.forEach(function(x){ html += _mkNi(x, false, null); });
     } else {
       const gid     = g.label.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-      const isCol   = (gid in grpStates) ? !!grpStates[gid] : !!g.defaultCollapsed;
+      // Button-shaped groups (2026-06-16): collapsed by DEFAULT — every group
+      // starts as a closed button; user taps to expand. Stored toggles win.
+      const isCol   = (gid in grpStates) ? !!grpStates[gid] : true;
       // Label LEFT (11px uppercase muted), chevron on the RIGHT edge. No count
       // chip — menu-entry counts carry zero signal (Nav-phase verdict).
       const chevron = '<svg class="nav-grp-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
@@ -712,16 +716,15 @@ function _mkNi(x, isSub, grpLabel){
 }
 
 // ── GROUP COLLAPSE STATE ──────────────────────────
-// Key VERSIONED for the Nav-phase richness restructure (2026-06-12): bumped from
-// 'rms.sidebar.groups.v2' → 'nx.sb.groups.v3' so every existing user's old
-// collapsed states are abandoned ONCE. Absence of stored state ⇒ each group's
-// defaultCollapsed applies ⇒ Inventory/Sales/Recovery/Reports/Inbox expanded,
-// only ADMIN (+ the per-group "More" tails) start collapsed.
+// Key VERSIONED. Bumped to v4 (2026-06-16) for the button-shaped groups +
+// collapsed-by-default change, so every existing user's old expand states are
+// abandoned ONCE → all groups start as closed buttons (absence of stored state
+// ⇒ collapsed; see buildSB isCol). Stored toggles still win thereafter.
 function _getGroupStates(){
-  try{return JSON.parse(localStorage.getItem('nx.sb.groups.v3')||'{}');}catch(e){return{};}
+  try{return JSON.parse(localStorage.getItem('nx.sb.groups.v4')||'{}');}catch(e){return{};}
 }
 function setCollapsedGroup(gid,collapsed){
-  try{var s=_getGroupStates();s[gid]=collapsed;localStorage.setItem('nx.sb.groups.v3',JSON.stringify(s));}catch(e){}
+  try{var s=_getGroupStates();s[gid]=collapsed;localStorage.setItem('nx.sb.groups.v4',JSON.stringify(s));}catch(e){}
 }
 function toggleNavGroup(gid){
   var grp=document.querySelector('.nav-group[data-gid="'+gid+'"]');

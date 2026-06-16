@@ -38,6 +38,7 @@ const _DOC_TYPES = [
     color: '#7C3AED',
     bg:    'rgba(124,58,237,0.08)',
     scope: 'unit-any',
+    hideInHub: true,   // moved to the "Reports & Ledgers" sidebar group (2026-06-16)
   },
   {
     id:    'schedule',
@@ -47,6 +48,7 @@ const _DOC_TYPES = [
     color: '#059669',
     bg:    'rgba(5,150,105,0.08)',
     scope: 'unit-sold',
+    hideInHub: true,   // moved to the "Reports & Ledgers" sidebar group (2026-06-16)
   },
   {
     id:    'inventory',
@@ -62,7 +64,7 @@ const _DOC_TYPES = [
 let _docActive = null;   // currently selected doc type id
 let _docSearch = '';     // search input value
 
-function rDocs() {
+function rDocs(preselect) {
   const el = document.getElementById('pg-documents');
   if (!el) return;
   _docActive = null;
@@ -77,9 +79,9 @@ function rDocs() {
       </div>
     </div>
 
-    <!-- Document type cards -->
+    <!-- Document type cards (hideInHub types live in the Reports & Ledgers sidebar group) -->
     <div class="doc-grid" id="doc-card-grid">
-      ${_DOC_TYPES.map(d => `
+      ${_DOC_TYPES.filter(d => !d.hideInHub).map(d => `
       <div class="doc-card" id="doc-card-${d.id}" onclick="_docSelect('${d.id}')"
            style="--doc-color:${d.color};--doc-bg:${d.bg}">
         <div class="doc-card-icon">${d.icon}</div>
@@ -94,6 +96,10 @@ function rDocs() {
       <div id="doc-panel-inner"></div>
     </div>
   </div>`;
+
+  // Deep-link: nav('documents','schedule'|'unit-report') opens that picker directly
+  // (these types were moved out of the hub grid into Reports & Ledgers).
+  if (preselect && _DOC_TYPES.some(d => d.id === preselect)) _docSelect(preselect);
 }
 
 function _docSelect(id) {
