@@ -412,7 +412,7 @@ async function printSaleAgreement(unitId){
 function _stmtFmtPKR(n){ return 'PKR ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
 function _stmtFmtDate(s){ if(!s) return '—'; var d=new Date(String(s).slice(0,10)+'T00:00:00'); return isNaN(d.getTime())?String(s):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
 
-async function _stmtData(clientRef){
+async function _stmtData(clientRef, unitId){
   var todayISO = new Date().toISOString().slice(0,10);
   var clientsC = window._clientsCache || [];
   var client = clientsC.find(function(c){return c.id===clientRef;})
@@ -420,9 +420,14 @@ async function _stmtData(clientRef){
   var clientId   = client ? client.id : null;
   var clientName = (client && (client.fullName||client.name)) || clientRef;
 
+  // Match by clientId when known (name-match only as a last resort) so two
+  // different clients sharing a name never get merged.
   var units = (typeof gunits==='function'?gunits():[]).filter(function(u){
-    return u.saleId && ((clientId && u.clientId===clientId) || u.customerName===clientName);
+    if(!u.saleId) return false;
+    return clientId ? (u.clientId===clientId) : (u.customerName===clientName);
   });
+  // When opened for a specific unit (the on-screen list), scope to just that unit.
+  if(unitId) units = units.filter(function(u){ return u.id===unitId; });
   if(!units.length) return null;
 
   var sales;
@@ -543,9 +548,9 @@ function _stmtBody(data){
     + clientLine + summary + unitSections;
 }
 
-async function printClientStatement(clientRef){
+async function printClientStatement(clientRef, unitId){
   var data;
-  try { data = await _stmtData(clientRef); }
+  try { data = await _stmtData(clientRef, unitId); }
   catch(e){ toast('Could not load statement: '+(e.message||e),'err'); return; }
   if(!data){ toast('No sales found for this client','warn'); return; }
   var w = _pw('Account Statement - '+data.clientName, _pCSS('A4'), 'A4');

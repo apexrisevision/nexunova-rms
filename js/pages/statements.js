@@ -92,11 +92,12 @@ async function _stmtOpen(unitId, rowEl){
   var u=_stmtSoldUnits().find(function(x){ return x.id===unitId; });
   var ref = u ? (u.clientId || u.customerName) : null;
   window._stmtCurRef = ref;
+  window._stmtCurUnit = unitId;   // scope the statement (and its Print) to just this unit
   if(!ref){ det.innerHTML='<div class="stmt-empty">No client linked to this unit.</div>'; return; }
 
   det.innerHTML='<div class="stmt-empty">Loading statement…</div>';
   try {
-    var data = await _stmtData(ref);
+    var data = await _stmtData(ref, unitId);
     if(!data){ det.innerHTML='<div class="stmt-empty">No statement found for this client.</div>'; return; }
     det.innerHTML =
       '<div class="stmt-actions">' + NX.button('Print', { variant:'primary', icon:'printer', onclick:'_stmtPrint()' }) + '</div>'
@@ -107,5 +108,5 @@ async function _stmtOpen(unitId, rowEl){
 }
 
 function _stmtPrint(){
-  if(window._stmtCurRef && typeof printClientStatement==='function') printClientStatement(window._stmtCurRef);
+  if(window._stmtCurRef && typeof printClientStatement==='function') printClientStatement(window._stmtCurRef, window._stmtCurUnit);
 }
