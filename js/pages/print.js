@@ -406,17 +406,14 @@ async function printSaleAgreement(unitId){
 }
 
 // ══ 3. CLIENT ACCOUNT STATEMENT ══════════════════
-// ══ ACCOUNT STATEMENT — complete one-print client grand summary ════════════
-// Supabase-sourced (truth, not the stale localStorage cache). Per unit/sale:
-// header (sale date · rate/sqft · total rate · nominee …), full date-wise schedule
-// with running balance, date-wise receivings, and till-date + to-end outstanding.
-// Topped by a client grand summary across all units. clientRef = client id OR name.
-async function printClientStatement(clientRef){
-  const fmtPKR  = function(n){ return 'PKR ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); };
-  const fmtDate = function(s){ if(!s) return '—'; var d=new Date(String(s).slice(0,10)+'T00:00:00'); return isNaN(d.getTime())?String(s):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); };
-  const todayISO = new Date().toISOString().slice(0,10);
+// ══ ACCOUNT STATEMENT — Supabase-sourced DR/CR ledger, shared by the on-screen
+// page (js/pages/statements.js) and print. _stmtData fetches+computes; _stmtBody
+// renders the inner HTML; printClientStatement wraps it for print. clientRef = id or name.
+function _stmtFmtPKR(n){ return 'PKR ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function _stmtFmtDate(s){ if(!s) return '—'; var d=new Date(String(s).slice(0,10)+'T00:00:00'); return isNaN(d.getTime())?String(s):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
 
-  // ── resolve client + their sold units ──
+async function _stmtData(clientRef){
+  var todayISO = new Date().toISOString().slice(0,10);
   var clientsC = window._clientsCache || [];
   var client = clientsC.find(function(c){return c.id===clientRef;})
             || clientsC.find(function(c){return (c.fullName||c.name)===clientRef;}) || null;
@@ -426,9 +423,8 @@ async function printClientStatement(clientRef){
   var units = (typeof gunits==='function'?gunits():[]).filter(function(u){
     return u.saleId && ((clientId && u.clientId===clientId) || u.customerName===clientName);
   });
-  if(!units.length){ toast('No sales found for this client','warn'); return; }
+  if(!units.length) return null;
 
-  // ── pull schedule + receivings per sale (Supabase) ──
   var sales;
   try {
     sales = await Promise.all(units.map(async function(u){
@@ -440,32 +436,35 @@ async function printClientStatement(clientRef){
         var d    = (res[0].data && res[0].data.sale) ? res[0].data.sale : {};
         var inst = (res[0].data && Array.isArray(res[0].data.installments)) ? res[0].data.installments.slice() : [];
         inst.sort(function(a,b){ return (a.installment_number||0)-(b.installment_number||0) || String(a.due_date).localeCompare(String(b.due_date)); });
-        // scope receipts to THIS (active) sale — a resale unit can carry an old
-        // cancelled sale's payments, which must not appear on the current statement.
+        // scope receipts to THIS active sale (a resale unit can carry an old sale's payments)
         var pays = (Array.isArray(res[1].data) ? res[1].data : [])
           .filter(function(p){ return String(p.sale_id) === String(u.saleId); });
         pays.sort(function(a,b){ return String(a.payment_date).localeCompare(String(b.payment_date)); });
-        return { u:u, d:d, inst:inst, pays:pays };
-      } catch(e){ return { u:u, d:{}, inst:[], pays:[] }; }
+        var net  = Number(d.net_amount || u.totalPrice || 0);
+        var recv = pays.reduce(function(s,p){ return s+Number(p.amount||0); }, 0);
+        var dueTillToday = inst.filter(function(r){ return String(r.due_date||'').slice(0,10) <= todayISO; })
+                               .reduce(function(s,r){ return s+Number(r.amount_due||0); }, 0);
+        return { u:u, d:d, inst:inst, pays:pays, net:net, recv:recv, curBal:(dueTillToday-recv), endBal:(net-recv) };
+      } catch(e){ return { u:u, d:{}, inst:[], pays:[], net:0, recv:0, curBal:0, endBal:0 }; }
     }));
-  } catch(e){ toast('Could not load statement: '+(e.message||e),'err'); return; }
+  } catch(e){ return null; }
 
-  var w = _pw('Account Statement - '+clientName, _pCSS('A4'), 'A4');
-  if(!w) return;
+  var gNet=0, gRecv=0, gCur=0, gEnd=0;
+  sales.forEach(function(s){ gNet+=s.net; gRecv+=s.recv; gCur+=s.curBal; gEnd+=s.endBal; });
+  return {
+    clientName: clientName,
+    clientPhone: units[0].phone || (client&&client.phonePrimary) || '—',
+    firstNom: (sales.find(function(x){return x.d && x.d.nominee_name;})||{d:{}}).d.nominee_name,
+    units: units, sales: sales, gNet:gNet, gRecv:gRecv, gCur:gCur, gEnd:gEnd, todayISO: todayISO
+  };
+}
 
-  // ── render per-unit sections, accumulate grand totals ──
-  var gNet=0, gRecv=0, gCur=0, gEnd=0, unitSections='';
-  sales.forEach(function(sx){
-    var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u;
-    var net  = Number(d.net_amount || u.totalPrice || 0);
-    var recv = pays.reduce(function(s,p){ return s+Number(p.amount||0); }, 0);
-    // current receivable = demands due up to today − received (the ledger balance as of today)
-    var dueTillToday = inst.filter(function(r){ return String(r.due_date||'').slice(0,10) <= todayISO; })
-                           .reduce(function(s,r){ return s+Number(r.amount_due||0); }, 0);
-    var curBal = dueTillToday - recv;   // current receivable (today) — negative = advance
-    var endBal = net - recv;            // receivable at end of schedule
-    gNet+=net; gRecv+=recv; gCur+=curBal; gEnd+=endBal;
-
+// Inner statement HTML (no letterhead) — used on-screen and inside the print body.
+function _stmtBody(data){
+  var fmtPKR=_stmtFmtPKR, fmtDate=_stmtFmtDate, todayISO=data.todayISO;
+  var unitSections='';
+  data.sales.forEach(function(sx){
+    var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u, net=sx.net, recv=sx.recv, curBal=sx.curBal, endBal=sx.endBal;
     var ig = function(l,v){ return '<div class="ig-item"><span class="ig-lbl">'+l+'</span><span class="ig-val">'+v+'</span></div>'; };
     unitSections += '<div class="sec-title no-break">Unit '+esc(d.unit_no||u.unitNo||'—')+(d.project_name?' &mdash; '+esc(d.project_name):'')+'</div>';
     unitSections += '<div class="info-grid info-grid-2">';
@@ -481,16 +480,11 @@ async function printClientStatement(clientRef){
     if(d.co_buyer_name) unitSections += ig('Co-buyer', esc(d.co_buyer_name));
     unitSections += ig('Sale Person', esc(d.agent_name||u.soldBy||'—'));
     unitSections += ig('Status', esc(d.status||u.status||'—'));
-    // key balances live UP HERE in the panel (not inside the statement)
     unitSections += ig('Total Received', '<b style="color:#16a34a">'+fmtPKR(recv)+'</b>');
     unitSections += ig('Current Receivable', '<b style="color:'+(curBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(curBal)+'</b>');
     unitSections += ig('Receivable (To End)', '<b style="color:'+(endBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(endBal)+'</b>');
     unitSections += '</div>';
 
-    // ── DR/CR ledger, one continuous flow: every demand (DR · receivable) + every
-    //    receipt (CR · received), date-wise, with a running Balance that rolls right
-    //    to the END of schedule. No separator row — the current-date balance is just
-    //    underlined on its own cell. Σ DR = price, Σ CR = received.
     var events = [];
     inst.forEach(function(r){
       var lbl = (r.installment_type==='down_payment') ? 'Down Payment'
@@ -504,7 +498,6 @@ async function printClientStatement(clientRef){
       events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), dr:0, cr:Number(p.amount||0) });
     });
     events.sort(function(a,b){ return a.date<b.date?-1 : a.date>b.date?1 : a.o-b.o; });
-    // last row dated on/before today → its Balance gets the small underline
     var todayIdx = -1;
     events.forEach(function(e,i){ if(e.date <= todayISO) todayIdx = i; });
 
@@ -528,34 +521,36 @@ async function printClientStatement(clientRef){
     unitSections += '</tbody></table>';
   });
 
-  // ── client header (always) + grand financial summary (only when >1 unit; a
-  //    single unit's section already carries the same figures, so no duplicate) ──
-  var firstNom = (sales.find(function(x){return x.d && x.d.nominee_name;})||{d:{}}).d.nominee_name;
-  var clientPhone = units[0].phone || (client&&client.phonePrimary) || '—';
   var clientLine = '<div style="display:flex;flex-wrap:wrap;gap:20px;font-size:11px;color:#444;margin:-2px 0 12px">'
-    + '<span>Client: <b style="color:#1E2D47">'+esc(clientName)+'</b></span>'
-    + '<span>Phone: <b style="color:#1E2D47">'+esc(clientPhone)+'</b></span>'
-    + '<span>Nominee: <b style="color:#1E2D47">'+(firstNom?esc(firstNom):'—')+'</b></span>'
-    + (units.length>1?'<span>Units: <b style="color:#1E2D47">'+units.length+'</b></span>':'')
+    + '<span>Client: <b style="color:#1E2D47">'+esc(data.clientName)+'</b></span>'
+    + '<span>Phone: <b style="color:#1E2D47">'+esc(data.clientPhone)+'</b></span>'
+    + '<span>Nominee: <b style="color:#1E2D47">'+(data.firstNom?esc(data.firstNom):'—')+'</b></span>'
+    + (data.units.length>1?'<span>Units: <b style="color:#1E2D47">'+data.units.length+'</b></span>':'')
     + '</div>';
   var sc = function(l,v,c){ return '<div style="border:1px solid #dde;border-radius:4px;padding:10px"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">'+l+'</div><div style="font-size:12px;font-weight:700;color:'+(c||'#1E2D47')+';margin-top:2px">'+v+'</div></div>'; };
-  var summary = (units.length>1) ? ('<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'
-    + sc('Total Portfolio (Net)', fmtPKR(gNet))
-    + sc('Total Received', fmtPKR(gRecv), '#16a34a')
-    + sc('Current Receivable', fmtPKR(gCur), gCur>0?'#dc2626':'#15803d')
-    + sc('Receivable · To End', fmtPKR(gEnd), gEnd>0?'#dc2626':'#15803d')
+  var summary = (data.units.length>1) ? ('<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'
+    + sc('Total Portfolio (Net)', fmtPKR(data.gNet))
+    + sc('Total Received', fmtPKR(data.gRecv), '#16a34a')
+    + sc('Current Receivable', fmtPKR(data.gCur), data.gCur>0?'#dc2626':'#15803d')
+    + sc('Receivable · To End', fmtPKR(data.gEnd), data.gEnd>0?'#dc2626':'#15803d')
     + '</div>') : '';
 
-  var h = _lh('ACCOUNT STATEMENT', clientName);
-  h += '<div class="body">';
-  h += '<div class="doc-title">Account Statement &mdash; '+esc(clientName)+'</div>';
-  h += '<div style="font-size:10px;color:#666;margin:-6px 0 8px">Statement as of '+fmtDate(todayISO)+'</div>';
-  h += clientLine;
-  h += summary;
-  h += unitSections;
-  h += (typeof _footer==='function' ? _footer() : '');
-  h += '</div>';
+  return '<div class="doc-title">Account Statement &mdash; '+esc(data.clientName)+'</div>'
+    + '<div style="font-size:10px;color:#666;margin:-6px 0 8px">Statement as of '+fmtDate(todayISO)+'</div>'
+    + clientLine + summary + unitSections;
+}
 
+async function printClientStatement(clientRef){
+  var data;
+  try { data = await _stmtData(clientRef); }
+  catch(e){ toast('Could not load statement: '+(e.message||e),'err'); return; }
+  if(!data){ toast('No sales found for this client','warn'); return; }
+  var w = _pw('Account Statement - '+data.clientName, _pCSS('A4'), 'A4');
+  if(!w) return;
+  var h = _lh('ACCOUNT STATEMENT', data.clientName) + '<div class="body">'
+        + _stmtBody(data)
+        + (typeof _footer==='function' ? _footer() : '')
+        + '</div>';
   w.document.write(h);
   _pclose(w);
 }

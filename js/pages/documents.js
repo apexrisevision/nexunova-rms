@@ -20,6 +20,7 @@ const _DOC_TYPES = [
     color: '#0891B2',
     bg:    'rgba(8,145,178,0.08)',
     scope: 'client',
+    hideInHub: true,   // moved to Reports & Ledgers → Account Statements (on-screen page)
   },
   {
     id:    'demand',
