@@ -444,7 +444,10 @@ async function _stmtData(clientRef){
         var recv = pays.reduce(function(s,p){ return s+Number(p.amount||0); }, 0);
         var dueTillToday = inst.filter(function(r){ return String(r.due_date||'').slice(0,10) <= todayISO; })
                                .reduce(function(s,r){ return s+Number(r.amount_due||0); }, 0);
-        return { u:u, d:d, inst:inst, pays:pays, net:net, recv:recv, curBal:(dueTillToday-recv), endBal:(net-recv) };
+        // down payment = the schedule's down-payment installments (sales.down_payment col is often 0)
+        var dp = inst.filter(function(r){ return r.installment_type==='down_payment'; })
+                     .reduce(function(s,r){ return s+Number(r.amount_due||0); }, 0) || Number(d.down_payment||0);
+        return { u:u, d:d, inst:inst, pays:pays, net:net, recv:recv, downPayment:dp, curBal:(dueTillToday-recv), endBal:(net-recv) };
       } catch(e){ return { u:u, d:{}, inst:[], pays:[], net:0, recv:0, curBal:0, endBal:0 }; }
     }));
   } catch(e){ return null; }
@@ -464,7 +467,7 @@ function _stmtBody(data){
   var fmtPKR=_stmtFmtPKR, fmtDate=_stmtFmtDate, todayISO=data.todayISO;
   var unitSections='';
   data.sales.forEach(function(sx){
-    var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u, net=sx.net, recv=sx.recv, curBal=sx.curBal, endBal=sx.endBal;
+    var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u, net=sx.net, recv=sx.recv, curBal=sx.curBal, endBal=sx.endBal, dp=sx.downPayment;
     var ig = function(l,v){ return '<div class="ig-item"><span class="ig-lbl">'+l+'</span><span class="ig-val">'+v+'</span></div>'; };
     unitSections += '<div class="sec-title no-break">Unit '+esc(d.unit_no||u.unitNo||'—')+(d.project_name?' &mdash; '+esc(d.project_name):'')+'</div>';
     unitSections += '<div class="info-grid info-grid-2">';
@@ -475,7 +478,7 @@ function _stmtBody(data){
     unitSections += ig('Total Price', fmtPKR(d.total_amount||net));
     if(Number(d.discount)>0) unitSections += ig('Discount', '&minus; '+fmtPKR(d.discount));
     unitSections += ig('Net Payable (Total Rate)', '<b>'+fmtPKR(net)+'</b>');
-    unitSections += ig('Down Payment', fmtPKR(d.down_payment));
+    unitSections += ig('Down Payment', fmtPKR(dp));
     unitSections += ig('Nominee', d.nominee_name?(esc(d.nominee_name)+(d.nominee_relation?' ('+esc(d.nominee_relation)+')':'')):'—');
     if(d.co_buyer_name) unitSections += ig('Co-buyer', esc(d.co_buyer_name));
     unitSections += ig('Sale Person', esc(d.agent_name||u.soldBy||'—'));
