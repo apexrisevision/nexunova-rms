@@ -1,0 +1,14 @@
+Fix: re-login after logout no longer hangs on "Signing in..." (auth-lock deadlock)
+
+supabase-js 2.34.0 guards every auth op behind a single Web Lock acquired with
+an infinite timeout (_acquireLock(-1, ...)). doLogout()'s fire-and-forget
+signOut() could hold that lock without releasing, so the next signInWithPassword()
+waited on it forever — only a full page refresh (which tears down the JS context
+and its Web Locks) freed it.
+
+Override the client's auth `lock` with an in-memory promise-chain mutex that still
+serialises auth ops (cross-tab/refresh token races stay safe) but caps the wait
+for a predecessor at 8s, so a stuck/abandoned op can never deadlock the next
+login. Bumped js/supabase.js cache token in login.html.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
