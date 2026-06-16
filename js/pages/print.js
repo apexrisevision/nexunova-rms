@@ -475,54 +475,53 @@ async function printClientStatement(clientRef){
     unitSections += ig('Down Payment', fmtPKR(d.down_payment));
     unitSections += ig('Nominee', d.nominee_name?(esc(d.nominee_name)+(d.nominee_relation?' ('+esc(d.nominee_relation)+')':'')):'—');
     if(d.co_buyer_name) unitSections += ig('Co-buyer', esc(d.co_buyer_name));
-    unitSections += ig('Agent', esc(d.agent_name||u.soldBy||'—'));
+    unitSections += ig('Sale Person', esc(d.agent_name||u.soldBy||'—'));
     unitSections += ig('Status', esc(d.status||u.status||'—'));
-    // financials folded into the grid (no separate callout → received shown once here)
-    unitSections += ig('Total Received', '<b style="color:#16a34a">'+fmtPKR(recv)+'</b>');
-    unitSections += ig('Outstanding · Till Date', '<b style="color:'+(arrears>0?'#dc2626':'#16a34a')+'">'+fmtPKR(arrears)+'</b>');
-    unitSections += ig('Outstanding · To End', '<b style="color:'+(endOut>0?'#dc2626':'#16a34a')+'">'+fmtPKR(endOut)+'</b>');
     unitSections += '</div>';
 
-    // date-wise schedule — amounts DUE only (the plan; money received lives in Receivings)
-    if(inst.length){
-      unitSections += '<div class="sec-title no-break">Payment Schedule &mdash; Amounts Due ('+inst.length+' installments)</div>';
-      unitSections += '<table><thead><tr><th>#</th><th>Due Date</th><th>Type</th><th style="text-align:right">Amount Due</th><th style="text-align:right">Cumulative Due</th><th>Status</th></tr></thead><tbody>';
-      var cumDue=0;
-      inst.forEach(function(r,i){
-        var due=Number(r.amount_due||0);
-        cumDue += due;
-        var st=(r.status||'').toLowerCase();
-        var stc = st==='paid'?'#15803d':st==='overdue'?'#dc2626':st==='partial'?'#d97706':'#6b7280';
-        unitSections += '<tr><td style="text-align:center">'+(r.installment_number||i+1)+'</td>'
-          + '<td>'+fmtDate(r.due_date)+'</td>'
-          + '<td style="text-transform:capitalize">'+esc((r.installment_type||'installment').replace(/_/g,' '))+'</td>'
-          + '<td style="text-align:right">'+fmtPKR(due)+'</td>'
-          + '<td style="text-align:right;color:#666">'+fmtPKR(cumDue)+'</td>'
-          + '<td style="color:'+stc+';font-weight:600;text-transform:capitalize">'+esc(r.status||'pending')+'</td></tr>';
-      });
-      unitSections += '<tr style="background:#f3f4f6;font-weight:700"><td colspan="3">Total Scheduled</td>'
-        + '<td style="text-align:right">'+fmtPKR(net)+'</td>'
-        + '<td style="text-align:right">'+fmtPKR(cumDue)+'</td><td></td></tr>';
-      unitSections += '</tbody></table>';
-    }
+    // ── ONE combined date-wise ledger: schedule demands + receipts, rolling balance ──
+    // Every installment due and every payment, sorted by date; Balance rolls over so
+    // the row at "as of today" shows receivable-till-date + total received, and the
+    // closing row shows the receivable at end of schedule.
+    var events = [];
+    inst.forEach(function(r){
+      var lbl = (r.installment_type==='down_payment') ? 'Down Payment'
+              : (r.installment_number ? ('Installment #'+r.installment_number) : 'Installment');
+      events.push({ date:String(r.due_date||'').slice(0,10), o:0, label:lbl, ref:'—', due:Number(r.amount_due||0), rcv:0 });
+    });
+    pays.forEach(function(p){
+      var m=(p.payment_method||'').toLowerCase();
+      var mlbl = m.indexOf('cash')>=0 ? 'Cash' : ((m.indexOf('cheque')>=0||m.indexOf('chq')>=0) ? 'Cheque' : 'Bank');
+      var txn = p.reference_no || p.payment_code || '';
+      events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), due:0, rcv:Number(p.amount||0) });
+    });
+    events.sort(function(a,b){ return a.date<b.date?-1 : a.date>b.date?1 : a.o-b.o; });
 
-    // date-wise receivings — the ONLY place actual money received is listed
-    if(pays.length){
-      unitSections += '<div class="sec-title no-break">Receivings &mdash; Payments Received ('+pays.length+' payments)</div>';
-      unitSections += '<table><thead><tr><th>Date</th><th style="text-align:right">Amount</th><th style="text-align:right">Cumulative</th><th>Method</th><th>Receipt No</th><th>Notes</th></tr></thead><tbody>';
-      var cum=0;
-      pays.forEach(function(p){
-        cum += Number(p.amount||0);
-        unitSections += '<tr><td>'+fmtDate(p.payment_date)+'</td>'
-          + '<td style="text-align:right;color:#16a34a;font-weight:700">'+fmtPKR(p.amount)+'</td>'
-          + '<td style="text-align:right;color:#666">'+fmtPKR(cum)+'</td>'
-          + '<td style="text-transform:capitalize">'+esc((p.payment_method||'—').replace(/_/g,' '))+'</td>'
-          + '<td style="font-family:monospace;font-size:9px">'+esc(p.payment_code||p.reference_no||'—')+'</td>'
-          + '<td style="color:#666;font-size:9px">'+(p.notes?esc(p.notes):'—')+'</td></tr>';
-      });
-      unitSections += '<tr style="background:#f3f4f6;font-weight:700"><td>Total Received</td><td style="text-align:right;color:#16a34a">'+fmtPKR(recv)+'</td><td colspan="4"></td></tr>';
-      unitSections += '</tbody></table>';
+    var balCell = function(b){ return '<td style="text-align:right;font-weight:700;color:'+(b>0.5?'#dc2626':(b<-0.5?'#15803d':'#1E2D47'))+'">'+fmtPKR(b)+'</td>'; };
+    unitSections += '<div class="sec-title no-break">Account Ledger &mdash; Schedule &amp; Receipts (running balance)</div>';
+    unitSections += '<table><thead><tr><th>Date</th><th>Particulars</th><th>Reference</th><th style="text-align:right">Receivable</th><th style="text-align:right">Received</th><th style="text-align:right">Balance</th></tr></thead><tbody>';
+    var bal=0, cumRcv=0, asOf=false;
+    events.forEach(function(e){
+      if(!asOf && e.date > todayISO){
+        unitSections += '<tr style="background:#fef3c7;font-weight:700"><td colspan="3">&#9656; As of '+fmtDate(todayISO)+' &mdash; Received: '+fmtPKR(cumRcv)+'</td><td style="text-align:right;font-size:9px;color:#666">Receivable till date &#8594;</td><td></td>'+balCell(bal)+'</tr>';
+        asOf=true;
+      }
+      bal += e.due - e.rcv; cumRcv += e.rcv;
+      unitSections += '<tr><td>'+fmtDate(e.date)+'</td>'
+        + '<td>'+esc(e.label)+'</td>'
+        + '<td style="font-size:9px;color:#666">'+esc(e.ref)+'</td>'
+        + '<td style="text-align:right">'+(e.due?fmtPKR(e.due):'')+'</td>'
+        + '<td style="text-align:right;color:#16a34a'+(e.rcv?';font-weight:700':'')+'">'+(e.rcv?fmtPKR(e.rcv):'')+'</td>'
+        + balCell(bal)+'</tr>';
+    });
+    if(!asOf){
+      unitSections += '<tr style="background:#fef3c7;font-weight:700"><td colspan="3">&#9656; As of '+fmtDate(todayISO)+' &mdash; Received: '+fmtPKR(cumRcv)+'</td><td style="text-align:right;font-size:9px;color:#666">Receivable till date &#8594;</td><td></td>'+balCell(bal)+'</tr>';
     }
+    unitSections += '<tr style="background:#e5e7eb;font-weight:700"><td colspan="3">Closing &mdash; End of Schedule</td>'
+      + '<td style="text-align:right">'+fmtPKR(net)+'</td>'
+      + '<td style="text-align:right;color:#16a34a">'+fmtPKR(cumRcv)+'</td>'
+      + balCell(bal)+'</tr>';
+    unitSections += '</tbody></table>';
   });
 
   // ── client header (always) + grand financial summary (only when >1 unit; a
