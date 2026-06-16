@@ -1,0 +1,9 @@
+Availability board: show per-sqft rate + total price on cards & reserve form
+
+- Migration 20260616_board_unit_rate.sql: get_availability_board now returns
+  base_price per unit (additive; privacy/floor-sort/area preserved). LIVE on prod.
+- sales-portal.html: unit card shows "area @ rate" + compact total (Lakh/Cr);
+  reserve modal gains a summary box (Unit/Area/Rate/Total). Per-sqft derived
+  client-side as base_price/area; hides gracefully when area/price missing.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
