@@ -50,12 +50,11 @@ function _ldgulRender(d, ctx, fromDate, toDate) {
 
   // Extra client info strip (screen only)
   const clientBand = info.client_name ? `
-  <div class="no-print" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;
-       padding:8px 14px;margin-bottom:10px;font-size:12px;color:#374151;font-family:'Inter',sans-serif;
-       display:flex;flex-wrap:wrap;gap:16px">
-    ${info.client_name  ? `<span>Client: <strong>${esc(info.client_name)}</strong></span>` : ''}
-    ${info.sale_number  ? `<span>Sale: <strong>${esc(info.sale_number)}</strong></span>` : ''}
-    ${info.sale_status  ? `<span>Status: <strong>${esc(info.sale_status)}</strong></span>` : ''}
+  <div class="no-print nx-card nx-card--compact" style="margin-bottom:var(--fk-sp-3);
+       display:flex;flex-wrap:wrap;gap:var(--fk-sp-4);font-size:var(--fk-fs-label);color:var(--fk-text-muted)">
+    ${info.client_name  ? `<span>Client: <strong style="color:var(--fk-text)">${esc(info.client_name)}</strong></span>` : ''}
+    ${info.sale_number  ? `<span>Sale: <strong style="color:var(--fk-text)">${esc(info.sale_number)}</strong></span>` : ''}
+    ${info.sale_status  ? `<span>Status: <strong style="color:var(--fk-text)">${esc(info.sale_status)}</strong></span>` : ''}
   </div>` : '';
 
   const hdr   = _ldgCrystalHdr({ entityName, entityCode, project, fromDate, toDate });

@@ -3,30 +3,35 @@
 // Cached set of unit IDs that have at least one active sale (for unit ledger search)
 let _soldUnitIds = null;
 
-const _lhIc=(p,s=28)=>`<svg width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${p}</svg>`;
+// Ledger hub tiles — nx- kit, theme-aware, indigo brand + quiet semantic tints.
+// icon = NX kit glyph (must exist in kit _ICONS); tone = '' (indigo) | info | warning | danger | success.
 const _LHUB = [
-  { type:'client',   ic:_lhIc('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),                                                                    name:'Client Ledger',            desc:'Payment history & balance per client',        search:true,  navId:null,             bg:'#fdf8f2', bgHover:'#f5eddf' },
-  { type:'unit',     ic:_lhIc('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),                                                    name:'Unit Ledger',              desc:'Sale & payment history per unit',             search:true,  navId:null,             bg:'#f9f9f7', bgHover:'#efefea' },
-  { type:'agent',    ic:_lhIc('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), name:'Agent Ledger',             desc:'Commission & sales history per agent',        search:true,  navId:null,             bg:'#fef9f2', bgHover:'#f5ecda' },
-  { type:'project',  ic:_lhIc('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>'), name:'Project Ledger',            desc:'Collection ledger per project',               search:true,  navId:null,             bg:'#fafaf5', bgHover:'#f0f0e6' },
-  { type:'pdc',      ic:_lhIc('<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>'),                                                                  name:'PDC Register',             desc:'Post-dated cheque tracking & status',         search:false, navId:'pdc',            bg:'#fdf5ec', bgHover:'#f5e8d4' },
-  { type:'cancelled',ic:_lhIc('<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>'),                                                                        name:'Cancelled Units Ledger',   desc:'Cancelled bookings & refund records',         search:false, navId:'cancelledunits', bg:'#f8f8f5', bgHover:'#eeeeea' },
-  { type:'transfer', ic:_lhIc('<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),                             name:'Transferred Units Ledger', desc:'Ownership transfer history log',              search:false, navId:'transferunits',  bg:'#fdfdf5', bgHover:'#f5f5e2' },
-  { type:'officer',  ic:_lhIc('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),                                                                                                  name:'Recovery Officer Ledger',  desc:'Collection performance by officer',           search:false, navId:'officerledger',  bg:'#fff9f0', bgHover:'#f5ecdb' },
-  { type:'receiving',ic:_lhIc('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),                                                    name:'Receiving Ledger',         desc:'All receipts and inflows log',                search:false, navId:'receivingledger',bg:'#f5f5f0', bgHover:'#eaeae2' },
+  { type:'client',   icon:'users',            tone:'',        name:'Client Ledger',            desc:'Payment history & balance per client', search:true,  navId:null },
+  { type:'unit',     icon:'home',             tone:'info',    name:'Unit Ledger',              desc:'Sale & payment history per unit',      search:true,  navId:null },
+  { type:'agent',    icon:'id-card',          tone:'',        name:'Agent Ledger',             desc:'Commission & sales history per agent', search:true,  navId:null },
+  { type:'project',  icon:'building-2',       tone:'info',    name:'Project Ledger',           desc:'Collection ledger per project',        search:true,  navId:null },
+  // PDC / Cancelled / Transferred tiles removed — already reachable from the sidebar
+  // (PDC) and the "Transfer & Cancel" group (Transferred/Cancelled Units).
+  { type:'officer',  icon:'shield',           tone:'success', name:'Recovery Officer Ledger',  desc:'Collection performance by officer',    search:false, navId:'officerledger' },
+  { type:'receiving',icon:'hand-coins',       tone:'success', name:'Receiving Ledger',         desc:'All receipts and inflows log',         search:false, navId:'receivingledger' },
 ];
 
-const _LHUB_BASE_SHARED = [
-  'position:relative',
-  'border:1px solid rgba(0,0,0,0.08)',
-  'border-radius:12px',
-  'box-shadow:0 4px 6px rgba(0,0,0,0.07),0 1px 3px rgba(0,0,0,0.06)',
-  'transform:translateY(0)',
-  'transition:all 0.25s ease',
-  'overflow:hidden',
-  'cursor:pointer',
-  "font-family:'Inter',sans-serif",
-].join(';');
+// Scoped CSS for the hub grid + inline search results (re-injected per render with
+// the page innerHTML, so it never accumulates). Pure semantic vars → theme-aware.
+function _lhubScopedCss() {
+  return `<style>
+    #pg-ledgers .ldg-hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(264px,1fr));gap:var(--fk-sp-3)}
+    #pg-ledgers .ldg-tile{cursor:pointer}
+    #pg-ledgers .ldg-tile .nx-card{height:100%}
+    #pg-ledgers .ldg-res-row{padding:9px 13px;cursor:pointer;border-bottom:1px solid var(--fk-border);transition:background .14s ease}
+    #pg-ledgers .ldg-res-row:last-child{border-bottom:0}
+    #pg-ledgers .ldg-res-row:hover{background:var(--fk-bg-subtle)}
+    #pg-ledgers .ldg-res-lbl{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text);line-height:1.3}
+    #pg-ledgers .ldg-res-sub{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:1px}
+    #pg-ledgers .ldg-open{font-size:var(--fk-fs-label);color:var(--fk-primary);font-weight:var(--fk-fw-semibold)}
+    #pg-ledgers .ldg-hint{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
+  </style>`;
+}
 
 function rLedgers() {
   const pg = document.getElementById('pg-ledgers');
@@ -38,69 +43,41 @@ function rLedgers() {
       .catch(() => {});
   }
 
-  pg.innerHTML = `<div class="ani">
-    <div class="ph no-p">
-      <div>
-        <h2 style="font-family:'Plus Jakarta Sans','Inter',sans-serif">Ledgers</h2>
-        <p style="font-family:'Inter',sans-serif">Central access to all financial and operational ledgers</p>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">
-      ${_LHUB.map((c, i) => _lhubCard(c, i)).join('')}
-    </div>
-  </div>`;
+  pg.innerHTML =
+    '<div class="ani">' +
+      NX.pageHeader('Ledgers', '', { icon:'wallet', sub:'Central access to all financial & operational ledgers' }) +
+      _lhubScopedCss() +
+      '<div class="ldg-hub-grid">' + _LHUB.map(_lhubCard).join('') + '</div>' +
+    '</div>';
 }
 
-function _lhubCard(c, i) {
-  const clickFn  = c.search ? `_lhubToggle('${c.type}')` : `nav('${c.navId}')`;
-  const hoverIn  = `this.style.boxShadow='0 20px 40px rgba(0,0,0,0.12),0 8px 16px rgba(0,0,0,0.08)';this.style.transform='translateY(-4px)';this.style.background='${c.bgHover}';this.querySelector('.lhub-bar').style.width='100%'`;
-  const hoverOut = `this.style.boxShadow='0 4px 6px rgba(0,0,0,0.07),0 1px 3px rgba(0,0,0,0.06)';this.style.transform='translateY(0)';this.style.background='${c.bg}';this.querySelector('.lhub-bar').style.width='0'`;
-  const baseStyle = `${_LHUB_BASE_SHARED};background:${c.bg}`;
+function _lhubCard(c) {
+  const clickFn = c.search ? `_lhubToggle('${c.type}')` : `nav('${c.navId}')`;
 
   const searchArea = c.search ? `
-    <div id="lhub-${c.type}-area" style="display:none;margin-top:4px" onclick="event.stopPropagation()">
-      <div style="position:relative;margin-bottom:6px">
-        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;display:flex"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-        <input id="lhub-${c.type}-q"
-          placeholder="${_lhubPlaceholder(c.type)}"
-          oninput="_lhubSearch('${c.type}',this.value)"
-          autocomplete="off"
-          style="width:100%;padding:9px 12px 9px 36px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);outline:none;transition:border-color 0.2s ease"
-          onfocus="this.style.borderColor='#2563eb'"
-          onblur="this.style.borderColor='var(--border)'">
-      </div>
+    <div id="lhub-${c.type}-area" style="display:none;margin-top:var(--fk-sp-2)" onclick="event.stopPropagation()">
+      <input id="lhub-${c.type}-q" class="nx-input"
+        placeholder="${_lhubPlaceholder(c.type)}"
+        oninput="_lhubSearch('${c.type}',this.value)"
+        autocomplete="off" style="margin-bottom:6px">
       <div id="lhub-${c.type}-results"
-        style="display:none;max-height:200px;overflow-y:auto;border-radius:8px;
-               border:1px solid var(--border);background:var(--bg-card);overflow:hidden"></div>
+        style="display:none;max-height:210px;overflow-y:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle)"></div>
     </div>` : '';
 
   const footer = c.search
-    ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-         <span style="font-size:11px;color:var(--text-muted);font-family:'Inter',sans-serif">Click to search</span>
-         <span id="lhub-${c.type}-arrow" style="font-size:12px;color:#2563eb;font-weight:600;font-family:'Inter',sans-serif">Open →</span>
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--fk-sp-3)">
+         <span class="ldg-hint">Click to search</span>
+         <span id="lhub-${c.type}-arrow" class="ldg-open">Open →</span>
        </div>`
-    : `<div style="display:flex;justify-content:flex-end;margin-top:12px">
-         <span style="font-size:12px;color:#2563eb;font-weight:600;font-family:'Inter',sans-serif">Open →</span>
+    : `<div style="display:flex;justify-content:flex-end;margin-top:var(--fk-sp-3)">
+         <span class="ldg-open">Open →</span>
        </div>`;
 
-  return `
-  <div style="${baseStyle}"
-       onmouseenter="${hoverIn}"
-       onmouseleave="${hoverOut}"
-       onclick="${clickFn}">
-    <div class="lhub-bar" style="position:absolute;top:0;left:0;height:3px;width:0;background:#2563eb;transition:width 0.3s ease;z-index:1"></div>
-    <div style="padding:18px">
-      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:4px">
-        <span style="line-height:1;flex-shrink:0;color:var(--brand,#2563eb)">${c.ic}</span>
-        <div style="min-width:0">
-          <div style="font-size:14px;font-weight:700;color:#111827;font-family:'Inter',sans-serif;line-height:1.3;margin-bottom:3px">${c.name}</div>
-          <div style="font-size:12px;color:#6B7280;font-family:'Inter',sans-serif;line-height:1.4">${c.desc}</div>
-        </div>
-      </div>
-      ${searchArea}
-      ${footer}
-    </div>
-  </div>`;
+  const inner = NX.card(searchArea + footer, {
+    hover: true,
+    header: { icon: c.icon, tone: c.tone, title: c.name, sub: c.desc },
+  });
+  return `<div class="ldg-tile" onclick="${clickFn}">${inner}</div>`;
 }
 
 function _lhubPlaceholder(type) {
@@ -149,7 +126,7 @@ function _lhubSearch(type, q) {
           _soldUnitIds = data || [];
           _lhubSearch('unit', document.getElementById('lhub-unit-q')?.value || '');
         });
-      resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted);font-family:'Inter',sans-serif;text-align:center">Loading…</div>`;
+      resEl.innerHTML = `<div style="padding:12px 16px;font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-align:center">Loading…</div>`;
       resEl.style.display = '';
       return;
     }
@@ -181,15 +158,12 @@ function _lhubSearch(type, q) {
   }
 
   if (!items.length) {
-    resEl.innerHTML = `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted);font-family:'Inter',sans-serif;text-align:center">No results found</div>`;
+    resEl.innerHTML = `<div style="padding:12px 16px;font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-align:center">No results found</div>`;
   } else {
     resEl.innerHTML = items.map(it => `
-      <div onclick="_lhubOpen('${type}','${it.id}')"
-        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-family:'Inter',sans-serif;transition:background 0.15s ease"
-        onmouseenter="this.style.background='rgba(37,99,235,0.08)'"
-        onmouseleave="this.style.background=''">
-        <div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.3">${esc(it.label)}</div>
-        ${it.sub ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${esc(it.sub)}</div>` : ''}
+      <div class="ldg-res-row" onclick="_lhubOpen('${type}','${it.id}')">
+        <div class="ldg-res-lbl">${esc(it.label)}</div>
+        ${it.sub ? `<div class="ldg-res-sub">${esc(it.sub)}</div>` : ''}
       </div>`
     ).join('');
   }
@@ -318,14 +292,11 @@ ${el.innerHTML}
 // Navigation bar strip (hidden on print)
 function _ldgNavBar(title) {
   const co = esc(S?.coName || '');
-  return `
-  <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;
-       margin-bottom:10px;padding:8px 16px;background:#f8fafc;border:1px solid rgba(0,0,0,0.08);
-       border-radius:8px;font-family:'Inter',sans-serif">
-    <button class="btn btn-gh" onclick="navBack()" style="font-size:12px;padding:5px 12px">← Back</button>
-    <span style="font-size:13px;font-weight:600;color:#374151">${co}${co ? ' — ' : ''}${esc(title)}</span>
-    <button class="btn btn-gh" onclick="_ldgPrint()" style="font-size:12px;padding:5px 12px;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> Print</button>
-  </div>`;
+  return '<div class="no-print nx-card nx-card--compact" style="display:flex;align-items:center;justify-content:space-between;gap:var(--fk-sp-3);margin-bottom:var(--fk-sp-3)">' +
+    NX.button('Back', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'navBack()' }) +
+    '<span style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text);text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + co + (co ? ' — ' : '') + esc(title) + '</span>' +
+    NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'_ldgPrint()' }) +
+  '</div>';
 }
 
 // Legacy alias kept so old code doesn't break
@@ -336,26 +307,16 @@ function _ldgFilterRow(prefix, onRunFn, extraHtml, dfl) {
   const fy   = _ldgFiscalYear();
   const from = (dfl && dfl.from) || fy.from;
   const to   = (dfl && dfl.to)   || fy.to;
-  return `
-  <div class="no-print card" style="margin-bottom:14px">
-    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:4px 0">
-      <div>
-        <label class="lb">From Date</label>
-        <input id="${prefix}-from" class="inp" type="date" value="${from}" min="2000-01-01" max="2099-12-31" style="width:148px">
-      </div>
-      <div>
-        <label class="lb">To Date</label>
-        <input id="${prefix}-to" class="inp" type="date" value="${to}" min="2000-01-01" max="2099-12-31" style="width:148px">
-      </div>
-      ${extraHtml || ''}
-      <button onclick="${onRunFn}()"
-        style="height:36px;padding:0 20px;background:#2563eb;color:#fff;border:none;
-               border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;
-               font-family:'Inter',sans-serif;align-self:flex-end;white-space:nowrap">
-        ▶ Run Report
-      </button>
-    </div>
-  </div>`;
+  return '<div class="no-print nx-card" style="margin-bottom:var(--fk-sp-3)">' +
+    '<div style="display:flex;flex-wrap:wrap;gap:var(--fk-sp-3);align-items:flex-end">' +
+      '<div class="nx-field" style="margin-bottom:0"><label class="nx-label">From date</label>' +
+        '<input id="' + prefix + '-from" class="nx-input" type="date" value="' + from + '" min="2000-01-01" max="2099-12-31" style="width:160px"></div>' +
+      '<div class="nx-field" style="margin-bottom:0"><label class="nx-label">To date</label>' +
+        '<input id="' + prefix + '-to" class="nx-input" type="date" value="' + to + '" min="2000-01-01" max="2099-12-31" style="width:160px"></div>' +
+      (extraHtml || '') +
+      NX.button('Run report', { variant:'primary', icon:'arrow-right', onclick: onRunFn + '()' }) +
+    '</div>' +
+  '</div>';
 }
 
 function _ldgValidateDates(fromVal, toVal, bodyEl) {
@@ -371,28 +332,15 @@ function _ldgValidateDates(fromVal, toVal, bodyEl) {
 }
 
 function _ldgEmpty() {
-  return `
-  <div class="card" style="text-align:center;padding:64px 24px">
-    <div style="margin-bottom:14px;display:flex;justify-content:center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
-    <div style="font-size:15px;font-weight:600;color:#374151;font-family:'Inter',sans-serif">
-      Select a date range and click <strong>▶ Run Report</strong>
-    </div>
-    <div style="font-size:13px;color:#9CA3AF;margin-top:6px;font-family:'Inter',sans-serif">The ledger will appear here</div>
-  </div>`;
+  return NX.card(NX.empty({ icon:'file-text', message:'Select a date range and click “Run report” — the ledger will appear here.' }));
 }
 
 function _ldgLoading() {
-  return `
-  <div class="card" style="text-align:center;padding:64px 24px">
-    <div style="font-size:13px;color:var(--t3);font-family:'Inter',sans-serif">Generating report…</div>
-  </div>`;
+  return NX.card(NX.empty({ icon:'clock', message:'Generating report…' }));
 }
 
 function _ldgErr(msg) {
-  return `
-  <div class="card" style="text-align:center;padding:40px 24px">
-    <div style="font-size:13px;color:var(--err,#dc2626);font-family:'Inter',sans-serif">${esc(String(msg))}</div>
-  </div>`;
+  return NX.card(NX.banner(String(msg), 'danger'));
 }
 
 // Ledger type label from the active page id (shared header is type-agnostic).
@@ -435,18 +383,9 @@ function _ldgCrystalHdr(params) {
 
 // Print button shown inside rendered report (hidden on actual print)
 function _ldgPrintBtn() {
-  return `
-  <div class="no-print" style="display:flex;justify-content:flex-end;margin-bottom:10px">
-    <button onclick="_ldgPrint()"
-      style="display:flex;align-items:center;gap:7px;padding:8px 20px;background:#1d4ed8;
-             color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;
-             cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.2px;
-             box-shadow:0 2px 8px rgba(29,78,216,0.35)"
-      onmouseenter="this.style.background='#1e40af'"
-      onmouseleave="this.style.background='#1d4ed8'">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>&nbsp;Print Report
-    </button>
-  </div>`;
+  return '<div class="no-print" style="display:flex;justify-content:flex-end;margin-bottom:var(--fk-sp-3)">' +
+    NX.button('Print report', { variant:'primary', icon:'printer', onclick:'_ldgPrint()' }) +
+  '</div>';
 }
 
 // ── SAIF-style Crystal Report table ─────────────────────────

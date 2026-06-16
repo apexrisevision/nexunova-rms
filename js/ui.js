@@ -445,8 +445,8 @@ function buildSB(){
       { label: null, items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
       ]},
-      // ── 1 · Inventory, Clients, Sales & Receipts ──
-      { label: 'Inventory, Clients, Sales & Receipts', items: [
+      // ── 1 · Sales & Money (Inventory · Clients · Sales · Payments) ──
+      { label: 'Sales & Money', items: [
         { id:'units',       ic:'home',              lb:'Units' },
         { id:'clients',     ic:'user-check',        lb:'Clients' },
         { id:'sales',       ic:'file-text',         lb:'Sales' },
@@ -456,24 +456,24 @@ function buildSB(){
         { id:'recovery',    ic:'list-checks',       lb:'Payments', dot:(overdueN>0?'danger':null) },
         { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
       ]},
-      // ── 2 · Sale Agents & Reservations ──
-      { label: 'Sale Agents & Reservations', items: [
+      // ── 2 · Agents & Bookings ──
+      { label: 'Agents & Bookings', items: [
         { id:'salesaccess',       ic:'id-card',        lb:'Sales Access' },
         { id:'reservations',      ic:'bookmark-check', lb:'Reservations' },
         { id:'agents',            ic:'users',          lb:'Sales Agents' },
         { id:'commissions',       ic:'trending-up',    lb:'Commissions' },
         { id:'agenttransactions', ic:'trending-up',    lb:'Agent Transactions' },
       ]},
-      // ── 3 · Recovery & Follow-ups ──
-      { label: 'Recovery & Follow-ups', items: [
+      // ── 3 · Recovery ──
+      { label: 'Recovery', items: [
         { id:'myrecovery',  ic:'radar',     lb:'My Recovery' },
         { id:'queue',       ic:'sunrise',   lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
         { id:'promises',    ic:'handshake', lb:'Follow-ups' },
         { id:'reminders',   ic:'bell',      lb:'Reminders' },
         { id:'forecasting', ic:'trending-up', lb:'Forecasting' },
       ]},
-      // ── 4 · Transfer & Cancel Units ──
-      { label: 'Transfer & Cancel Units', items: [
+      // ── 4 · Transfer & Cancel ──
+      { label: 'Transfer & Cancel', items: [
         { id:'transferunits',  ic:'repeat', lb:'Transferred Units' },
         { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units' },
       ]},
@@ -483,8 +483,8 @@ function buildSB(){
         { id:'ledgers',  ic:'book-open',   lb:'Ledgers' },
         { id:'receipts', ic:'receipt',     lb:'Receipt Vouchers' },
       ]},
-      // ── 6 · Teams & Approvals ──
-      { label: 'Teams & Approvals', items: [
+      // ── 6 · Team & Approvals ──
+      { label: 'Team & Approvals', items: [
         { id:'contacts',  ic:'inbox',      lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
         { id:'approvals', ic:'file-check', lb:'Approvals', dot:(window._approvalsPending>0?'danger':null) },
         { id:'team',      ic:'users',      lb:'Team' },
@@ -496,8 +496,8 @@ function buildSB(){
         { id:'escalations', ic:'alert-triangle',  lb:'Escalations' },
         { id:'noc',         ic:'file-check',      lb:'NOC Management' },
       ]},
-      // ── 8 · Project Setup & Settings ──
-      { label: 'Project Setup & Settings', defaultCollapsed: true, items: [
+      // ── 8 · Setup & Settings ──
+      { label: 'Setup & Settings', defaultCollapsed: true, items: [
         { id:'projects',        ic:'building-2',     lb:'Projects' },
         { id:'categories',      ic:'layers',         lb:'Types & Floors' },
         { id:'banks',           ic:'banknote',       lb:'Banks' },
