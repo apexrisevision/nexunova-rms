@@ -633,6 +633,13 @@ function buildSB(){
 
   // ── Build HTML ──
   const grpStates = _getGroupStates();
+  // Leading glyph per group → headers read as real buttons (covers every role's vocab).
+  const _GRP_IC = {
+    'Sales & Money':'banknote', 'Agents & Bookings':'users', 'Recovery':'radar',
+    'Transfer & Cancel':'repeat', 'Reports & Ledgers':'bar-chart-3', 'Team & Approvals':'shield',
+    'Documents':'printer', 'Setup & Settings':'settings',
+    'Inventory':'home', 'Sales':'file-text', 'Reports':'bar-chart-3', 'Inbox':'inbox', 'My Modules':'layout-grid'
+  };
   let html = '';
   navGroups.forEach(function(g){
     if(!g.label){
@@ -645,8 +652,10 @@ function buildSB(){
       // Label LEFT (11px uppercase muted), chevron on the RIGHT edge. No count
       // chip — menu-entry counts carry zero signal (Nav-phase verdict).
       const chevron = '<svg class="nav-grp-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      const gicon = _GRP_IC[g.label];
       html += '<div class="nav-group'+(isCol?' collapsed':'')+'" data-gid="'+gid+'">';
       html += '<button class="nav-grp-hd" onclick="toggleNavGroup(\''+gid+'\')">'
+            + (gicon ? '<span class="nav-grp-ic">'+_sbi(gicon,17)+'</span>' : '')
             + '<span class="nav-grp-lbl">'+g.label+'</span>'
             + chevron
             + '</button>';
