@@ -440,7 +440,10 @@ async function printClientStatement(clientRef){
         var d    = (res[0].data && res[0].data.sale) ? res[0].data.sale : {};
         var inst = (res[0].data && Array.isArray(res[0].data.installments)) ? res[0].data.installments.slice() : [];
         inst.sort(function(a,b){ return (a.installment_number||0)-(b.installment_number||0) || String(a.due_date).localeCompare(String(b.due_date)); });
-        var pays = Array.isArray(res[1].data) ? res[1].data.slice() : [];
+        // scope receipts to THIS (active) sale — a resale unit can carry an old
+        // cancelled sale's payments, which must not appear on the current statement.
+        var pays = (Array.isArray(res[1].data) ? res[1].data : [])
+          .filter(function(p){ return String(p.sale_id) === String(u.saleId); });
         pays.sort(function(a,b){ return String(a.payment_date).localeCompare(String(b.payment_date)); });
         return { u:u, d:d, inst:inst, pays:pays };
       } catch(e){ return { u:u, d:{}, inst:[], pays:[] }; }
