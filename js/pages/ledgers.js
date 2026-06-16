@@ -3,169 +3,194 @@
 // Cached set of unit IDs that have at least one active sale (for unit ledger search)
 let _soldUnitIds = null;
 
-// Ledger hub tiles — nx- kit, theme-aware, indigo brand + quiet semantic tints.
-// icon = NX kit glyph (must exist in kit _ICONS); tone = '' (indigo) | info | warning | danger | success.
+// Ledger hub — unified search + grouped list (redesigned 2026-06-16).
+// One search box queries ALL account dimensions at once (or one, when a list row
+// narrows the scope); registers open directly. nx- kit, fully theme-aware.
+// group: 'account' (needs an entity → searchable) | 'register' (opens directly).
+// PDC / Cancelled / Transferred removed — reachable from sidebar + Transfer & Cancel.
 const _LHUB = [
-  { type:'client',   icon:'users',            tone:'',        name:'Client Ledger',            desc:'Payment history & balance per client', search:true,  navId:null },
-  { type:'unit',     icon:'home',             tone:'info',    name:'Unit Ledger',              desc:'Sale & payment history per unit',      search:true,  navId:null },
-  { type:'agent',    icon:'id-card',          tone:'',        name:'Agent Ledger',             desc:'Commission & sales history per agent', search:true,  navId:null },
-  { type:'project',  icon:'building-2',       tone:'info',    name:'Project Ledger',           desc:'Collection ledger per project',        search:true,  navId:null },
-  // PDC / Cancelled / Transferred tiles removed — already reachable from the sidebar
-  // (PDC) and the "Transfer & Cancel" group (Transferred/Cancelled Units).
-  { type:'officer',  icon:'shield',           tone:'success', name:'Recovery Officer Ledger',  desc:'Collection performance by officer',    search:false, navId:'officerledger' },
-  { type:'receiving',icon:'hand-coins',       tone:'success', name:'Receiving Ledger',         desc:'All receipts and inflows log',         search:false, navId:'receivingledger' },
+  { type:'client',   group:'account',  icon:'users',      tone:'',        name:'Client Ledger',           desc:'Payment history & balance per client' },
+  { type:'unit',     group:'account',  icon:'home',       tone:'info',    name:'Unit Ledger',             desc:'Sale & payment history per unit' },
+  { type:'agent',    group:'account',  icon:'id-card',    tone:'',        name:'Agent Ledger',            desc:'Commission & sales history per agent' },
+  { type:'project',  group:'account',  icon:'building-2', tone:'info',    name:'Project Ledger',          desc:'Collection ledger per project' },
+  { type:'officer',  group:'register', icon:'shield',     tone:'success', name:'Recovery Officer Ledger', desc:'Collection performance by officer', navId:'officerledger' },
+  { type:'receiving',group:'register', icon:'hand-coins', tone:'success', name:'Receiving Ledger',        desc:'All receipts and inflows log',      navId:'receivingledger' },
 ];
 
-// Scoped CSS for the hub grid + inline search results (re-injected per render with
-// the page innerHTML, so it never accumulates). Pure semantic vars → theme-aware.
-function _lhubScopedCss() {
+// Active search scope: 'all' or one account type (set by tapping a list row).
+let _ldgFilter = 'all';
+const _LDG_TYPE_LABEL = { client:'Client', unit:'Unit', agent:'Agent', project:'Project' };
+
+function _ldgUniPlaceholder() {
+  return {
+    all:     'Search any client, unit, agent or project…',
+    client:  'Search clients by name, code or phone…',
+    unit:    'Search units by number or project…',
+    agent:   'Search agents by name or code…',
+    project: 'Search projects by name…',
+  }[_ldgFilter] || 'Search…';
+}
+
+// Scoped CSS (re-injected per render with the page innerHTML, so it never
+// accumulates). Pure semantic --fk tokens → dark/light aware automatically.
+function _ldgHubCss() {
   return `<style>
-    #pg-ledgers .ldg-hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(264px,1fr));gap:var(--fk-sp-3)}
-    #pg-ledgers .ldg-tile{cursor:pointer}
-    #pg-ledgers .ldg-tile .nx-card{height:100%}
-    #pg-ledgers .ldg-res-row{padding:9px 13px;cursor:pointer;border-bottom:1px solid var(--fk-border);transition:background .14s ease}
+    #pg-ledgers .ldg-search-wrap{position:relative}
+    #pg-ledgers .ldg-search-ic{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--fk-text-muted);display:flex;pointer-events:none}
+    #pg-ledgers .ldg-search-inp{width:100%;padding:14px 16px 14px 46px;font-size:var(--fk-fs-title);font-weight:var(--fk-fw-medium);background:var(--fk-bg-subtle);border:1.5px solid var(--fk-border);border-radius:var(--fk-radius-control);color:var(--fk-text);outline:none;transition:border-color .15s,box-shadow .15s}
+    #pg-ledgers .ldg-search-inp::placeholder{color:var(--fk-text-muted);font-weight:var(--fk-fw-regular)}
+    #pg-ledgers .ldg-search-inp:focus{border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
+    #pg-ledgers .ldg-results{margin-top:var(--fk-sp-3);max-height:340px;overflow-y:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-card)}
+    #pg-ledgers .ldg-res-row{display:flex;align-items:center;gap:11px;padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--fk-border);transition:background .14s}
     #pg-ledgers .ldg-res-row:last-child{border-bottom:0}
-    #pg-ledgers .ldg-res-row:hover{background:var(--fk-bg-subtle)}
-    #pg-ledgers .ldg-res-lbl{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text);line-height:1.3}
+    #pg-ledgers .ldg-res-row:hover{background:var(--fk-subtle-hover)}
+    #pg-ledgers .ldg-res-main{flex:1;min-width:0}
+    #pg-ledgers .ldg-res-lbl{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #pg-ledgers .ldg-res-sub{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:1px}
-    #pg-ledgers .ldg-open{font-size:var(--fk-fs-label);color:var(--fk-primary);font-weight:var(--fk-fw-semibold)}
-    #pg-ledgers .ldg-hint{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
+    #pg-ledgers .ldg-res-tag{font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:var(--fk-fw-bold);color:var(--fk-primary);background:var(--fk-primary-surface);padding:3px 8px;border-radius:999px;flex-shrink:0}
+    #pg-ledgers .ldg-res-msg{padding:16px;text-align:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
+    #pg-ledgers .ldg-sec-lbl{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:var(--fk-tracking-label);font-weight:var(--fk-fw-bold);color:var(--fk-text-muted);margin:var(--fk-sp-6) 0 var(--fk-sp-2)}
+    #pg-ledgers .ldg-list{display:flex;flex-direction:column;gap:var(--fk-sp-2)}
+    #pg-ledgers .ldg-row{display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-left:3px solid transparent;border-radius:var(--fk-radius-control);cursor:pointer;transition:border-color .15s,background .15s,transform .12s}
+    #pg-ledgers .ldg-row:hover{border-color:var(--fk-primary);background:var(--fk-subtle-hover);transform:translateY(-1px)}
+    #pg-ledgers .ldg-row.is-active{border-left-color:var(--fk-primary);background:var(--fk-primary-surface)}
+    #pg-ledgers .ldg-row-txt{flex:1;min-width:0}
+    #pg-ledgers .ldg-row-name{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text)}
+    #pg-ledgers .ldg-row-desc{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:1px}
+    #pg-ledgers .ldg-row-chev{color:var(--fk-text-muted);display:flex;flex-shrink:0}
   </style>`;
 }
 
 function rLedgers() {
   const pg = document.getElementById('pg-ledgers');
   if (!pg) return;
+  _ldgFilter = 'all';
 
   if (!(_agCache && _agCache.length)) {
     supabase.rpc('list_agents', { p_company_id: S?.cid, p_sort: 'name' })
       .then(({ data }) => { if (Array.isArray(data)) _agCache = data; })
       .catch(() => {});
   }
+  // Warm the sold-unit cache so the first unified search resolves instantly.
+  if (_soldUnitIds === null) {
+    _soldUnitIds = [];
+    supabase.rpc('list_sold_unit_ids', { p_company_id: S?.cid })
+      .then(({ data }) => { _soldUnitIds = data || []; })
+      .catch(() => {});
+  }
+
+  const account  = _LHUB.filter(c => c.group === 'account').map(_ldgRow).join('');
+  const register = _LHUB.filter(c => c.group === 'register').map(_ldgRow).join('');
+
+  const hero = NX.card(
+    '<div class="ldg-search-wrap">' +
+      '<span class="ldg-search-ic">' + NX.icon('search', 18) + '</span>' +
+      '<input id="ldg-uni-q" class="ldg-search-inp" autocomplete="off" placeholder="' + _ldgUniPlaceholder() + '" oninput="_ldgRunSearch(this.value)">' +
+    '</div>' +
+    '<div id="ldg-uni-results" class="ldg-results" style="display:none"></div>',
+    { class:'ldg-hero' });
 
   pg.innerHTML =
     '<div class="ani">' +
-      NX.pageHeader('Ledgers', '', { icon:'wallet', sub:'Central access to all financial & operational ledgers' }) +
-      _lhubScopedCss() +
-      '<div class="ldg-hub-grid">' + _LHUB.map(_lhubCard).join('') + '</div>' +
+      NX.pageHeader('Ledgers', '', { icon:'wallet', sub:'Search any account, or open a register' }) +
+      _ldgHubCss() +
+      hero +
+      '<div class="ldg-sec-lbl">Account ledgers</div>' +
+      '<div class="ldg-list">' + account + '</div>' +
+      '<div class="ldg-sec-lbl">Registers</div>' +
+      '<div class="ldg-list">' + register + '</div>' +
     '</div>';
 }
 
-function _lhubCard(c) {
-  const clickFn = c.search ? `_lhubToggle('${c.type}')` : `nav('${c.navId}')`;
+function _ldgRow(c) {
+  const onclick = c.group === 'register' ? `nav('${c.navId}')` : `_ldgPick('${c.type}')`;
+  const data    = c.group === 'account' ? ` data-ltype="${c.type}"` : '';
+  return '<div class="ldg-row"' + data + ' onclick="' + onclick + '">' +
+    NX.ichip(c.icon, c.tone, {}) +
+    '<div class="ldg-row-txt"><div class="ldg-row-name">' + esc(c.name) + '</div>' +
+      '<div class="ldg-row-desc">' + esc(c.desc) + '</div></div>' +
+    '<span class="ldg-row-chev">' + NX.icon('chevron-right', 16) + '</span>' +
+  '</div>';
+}
 
-  const searchArea = c.search ? `
-    <div id="lhub-${c.type}-area" style="display:none;margin-top:var(--fk-sp-2)" onclick="event.stopPropagation()">
-      <input id="lhub-${c.type}-q" class="nx-input"
-        placeholder="${_lhubPlaceholder(c.type)}"
-        oninput="_lhubSearch('${c.type}',this.value)"
-        autocomplete="off" style="margin-bottom:6px">
-      <div id="lhub-${c.type}-results"
-        style="display:none;max-height:210px;overflow-y:auto;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle)"></div>
-    </div>` : '';
-
-  const footer = c.search
-    ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--fk-sp-3)">
-         <span class="ldg-hint">Click to search</span>
-         <span id="lhub-${c.type}-arrow" class="ldg-open">Open →</span>
-       </div>`
-    : `<div style="display:flex;justify-content:flex-end;margin-top:var(--fk-sp-3)">
-         <span class="ldg-open">Open →</span>
-       </div>`;
-
-  const inner = NX.card(searchArea + footer, {
-    hover: true,
-    header: { icon: c.icon, tone: c.tone, title: c.name, sub: c.desc },
+// Tapping an account row narrows the unified search to that dimension (tap again → all).
+function _ldgPick(type) {
+  _ldgFilter = (_ldgFilter === type) ? 'all' : type;
+  document.querySelectorAll('#pg-ledgers .ldg-row[data-ltype]').forEach(function (r) {
+    r.classList.toggle('is-active', r.getAttribute('data-ltype') === _ldgFilter);
   });
-  return `<div class="ldg-tile" onclick="${clickFn}">${inner}</div>`;
+  const inp = document.getElementById('ldg-uni-q');
+  if (inp) { inp.placeholder = _ldgUniPlaceholder(); inp.focus(); _ldgRunSearch(inp.value); }
 }
 
-function _lhubPlaceholder(type) {
-  return { client:'Search by name, code or phone…', unit:'Search by unit no or project…', agent:'Search by name or code…', project:'Search project…' }[type] || 'Search…';
-}
-
-function _lhubToggle(type) {
-  const area  = document.getElementById('lhub-' + type + '-area');
-  const arrow = document.getElementById('lhub-' + type + '-arrow');
-  const res   = document.getElementById('lhub-' + type + '-results');
-  const inp   = document.getElementById('lhub-' + type + '-q');
-  if (!area) return;
-  const open = area.style.display !== 'none';
-  if (open) {
-    area.style.display = 'none';
-    if (arrow) arrow.textContent = 'Open →';
-    if (inp)   inp.value = '';
-    if (res)   { res.innerHTML = ''; res.style.display = 'none'; }
-  } else {
-    area.style.display = '';
-    if (arrow) arrow.textContent = '↑ Close';
-    if (inp)   { inp.focus(); _lhubSearch(type, ''); }
-  }
-}
-
-function _lhubSearch(type, q) {
-  const resEl = document.getElementById('lhub-' + type + '-results');
-  if (!resEl) return;
-  const term = (q || '').toLowerCase().trim();
-  let items = [];
-
+// Gather matches for one dimension → [{type,id,label,sub}]
+function _ldgGather(type, term) {
   if (type === 'client') {
-    const all = gclients();
-    items = (term
-      ? all.filter(c => (c.fullName||'').toLowerCase().includes(term) || (c.clientCode||'').toLowerCase().includes(term) || (c.phonePrimary||'').includes(term))
-      : all
-    ).slice(0, 20).map(c => ({ id:c.id, label:c.fullName||'Unnamed', sub:c.clientCode||'' }));
-
-  } else if (type === 'unit') {
-    // If sold-unit cache not yet loaded, fetch it then re-run search
-    if (_soldUnitIds === null) {
-      _soldUnitIds = [];  // prevent concurrent fetches
-      supabase
-        .rpc('list_sold_unit_ids', { p_company_id: S?.cid })
-        .then(({ data }) => {
-          _soldUnitIds = data || [];
-          _lhubSearch('unit', document.getElementById('lhub-unit-q')?.value || '');
-        });
-      resEl.innerHTML = `<div style="padding:12px 16px;font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-align:center">Loading…</div>`;
-      resEl.style.display = '';
-      return;
-    }
-    const all = gunits().filter(u => _soldUnitIds.includes(u.id)), projs = gprojects();
-    items = (term
-      ? all.filter(u => {
-          const pn = (projs.find(p => p.id === u.projectId)?.projectName || projs.find(p => p.id === u.projectId)?.name || '').toLowerCase();
-          return (u.unitNo||'').toLowerCase().includes(term) || pn.includes(term);
-        })
-      : all
-    ).slice(0, 20).map(u => {
-      const prj = projs.find(p => p.id === u.projectId);
-      return { id:u.id, label:u.unitNo||u.id, sub:prj?.projectName||prj?.name||'' };
-    });
-
-  } else if (type === 'agent') {
-    const all = _agCache || [];
-    items = (term
-      ? all.filter(a => (a.full_name||'').toLowerCase().includes(term) || (a.agent_code||'').toLowerCase().includes(term))
-      : all
-    ).slice(0, 20).map(a => ({ id:a.id, label:a.full_name||'Unnamed', sub:a.agent_code||'' }));
-
-  } else if (type === 'project') {
-    const all = gprojects();
-    items = (term
-      ? all.filter(p => (p.projectName||p.name||'').toLowerCase().includes(term))
-      : all
-    ).slice(0, 20).map(p => ({ id:p.id, label:p.projectName||p.name||'Unnamed', sub:'' }));
+    return gclients()
+      .filter(c => !term || (c.fullName||'').toLowerCase().includes(term) || (c.clientCode||'').toLowerCase().includes(term) || (c.phonePrimary||'').includes(term))
+      .map(c => ({ type, id:c.id, label:c.fullName||'Unnamed', sub:c.clientCode||'' }));
   }
+  if (type === 'unit') {
+    const projs = gprojects();
+    return gunits().filter(u => (_soldUnitIds || []).includes(u.id))
+      .filter(u => {
+        if (!term) return true;
+        const pn = (projs.find(p => p.id === u.projectId)?.projectName || projs.find(p => p.id === u.projectId)?.name || '').toLowerCase();
+        return (u.unitNo||'').toLowerCase().includes(term) || pn.includes(term);
+      })
+      .map(u => {
+        const prj = projs.find(p => p.id === u.projectId);
+        return { type, id:u.id, label:u.unitNo||u.id, sub:prj?.projectName||prj?.name||'' };
+      });
+  }
+  if (type === 'agent') {
+    return (_agCache || [])
+      .filter(a => !term || (a.full_name||'').toLowerCase().includes(term) || (a.agent_code||'').toLowerCase().includes(term))
+      .map(a => ({ type, id:a.id, label:a.full_name||'Unnamed', sub:a.agent_code||'' }));
+  }
+  if (type === 'project') {
+    return gprojects()
+      .filter(p => !term || (p.projectName||p.name||'').toLowerCase().includes(term))
+      .map(p => ({ type, id:p.id, label:p.projectName||p.name||'Unnamed', sub:'' }));
+  }
+  return [];
+}
+
+// Unified search — queries every active dimension and drops mixed, tagged results.
+function _ldgRunSearch(q) {
+  const resEl = document.getElementById('ldg-uni-results');
+  if (!resEl) return;
+  const term  = (q || '').toLowerCase().trim();
+  const types = _ldgFilter === 'all' ? ['client','unit','agent','project'] : [_ldgFilter];
+
+  // Empty query → keep the panel quiet (don't dump the whole book).
+  if (!term) { resEl.style.display = 'none'; resEl.innerHTML = ''; return; }
+
+  // Lazily load the sold-unit cache if a unit search needs it.
+  if (types.includes('unit') && _soldUnitIds === null) {
+    _soldUnitIds = [];
+    supabase.rpc('list_sold_unit_ids', { p_company_id: S?.cid })
+      .then(({ data }) => { _soldUnitIds = data || []; _ldgRunSearch(document.getElementById('ldg-uni-q')?.value || ''); });
+    resEl.innerHTML = '<div class="ldg-res-msg">Loading…</div>';
+    resEl.style.display = '';
+    return;
+  }
+
+  // Fairly capped per dimension, then overall.
+  let items = [];
+  types.forEach(t => { items = items.concat(_ldgGather(t, term).slice(0, 12)); });
+  items = items.slice(0, 30);
 
   if (!items.length) {
-    resEl.innerHTML = `<div style="padding:12px 16px;font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-align:center">No results found</div>`;
+    resEl.innerHTML = '<div class="ldg-res-msg">No matches for “' + esc(q) + '”</div>';
   } else {
-    resEl.innerHTML = items.map(it => `
-      <div class="ldg-res-row" onclick="_lhubOpen('${type}','${it.id}')">
-        <div class="ldg-res-lbl">${esc(it.label)}</div>
-        ${it.sub ? `<div class="ldg-res-sub">${esc(it.sub)}</div>` : ''}
-      </div>`
-    ).join('');
+    resEl.innerHTML = items.map(function (it) {
+      return '<div class="ldg-res-row" onclick="_lhubOpen(\'' + it.type + '\',\'' + it.id + '\')">' +
+        '<div class="ldg-res-main"><div class="ldg-res-lbl">' + esc(it.label) + '</div>' +
+          (it.sub ? '<div class="ldg-res-sub">' + esc(it.sub) + '</div>' : '') + '</div>' +
+        '<span class="ldg-res-tag">' + esc(_LDG_TYPE_LABEL[it.type] || it.type) + '</span>' +
+      '</div>';
+    }).join('');
   }
   resEl.style.display = '';
 }
