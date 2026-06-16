@@ -11,7 +11,12 @@
 <title>Nexunova RMS — Recovery Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.34.0/dist/umd/supabase.min.js"></script>
+<!-- supabase-js 2.34.0 — vendored locally (2026-06-16). The jsDelivr UMD path
+     (dist/umd/supabase.min.js) does not exist in this package and began 301-looping
+     (ERR_TOO_MANY_REDIRECTS) → window.supabase undefined → login "Connection error".
+     Self-hosted to remove the CDN single-point-of-failure. Keep version pinned to
+     2.34.0 (auth-lock override in js/supabase.js is tuned to it). -->
+<script src="js/vendor/supabase-js-2.34.0.umd.js?v=20260616"></script>
 <script>
 /* On-demand vendor loader (perf Wins #3/#4): heavy single-use libs are injected only when
    first needed — three.js (login bg), xlsx (Excel export), intl-tel-input (phone fields),
