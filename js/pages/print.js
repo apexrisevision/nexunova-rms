@@ -406,92 +406,155 @@ async function printSaleAgreement(unitId){
 }
 
 // ══ 3. CLIENT ACCOUNT STATEMENT ══════════════════
-async function printClientStatement(clientName){
-  var units=gunits().filter(function(u){return u.customerName===clientName;});
-  if(!units.length){toast('No units found for this client','warn');return;}
-  if(typeof _ensureUnitPaymentsLoaded==='function')
-    await Promise.all(units.map(function(u){return _ensureUnitPaymentsLoaded(u.id);}));
-  var allRecs=[],allCons=[];
-  units.forEach(function(u){allRecs=allRecs.concat(grecs(u.id));allCons=allCons.concat(gcons(u.id));});
-  allRecs.sort(function(a,b){return b.date.localeCompare(a.date);});
-  allCons.sort(function(a,b){return b.contact_date.localeCompare(a.contact_date);});
-  var totPrice=units.reduce(function(s,u){return s+Number(u.totalPrice||0);},0);
-  var totPaid=units.reduce(function(s,u){return s+actualPaid(u);},0);
-  var totPend=units.reduce(function(s,u){return s+actualPending(u);},0);
-  var w=_pw('Statement - '+clientName,_pCSS('A4'),'A4');
-  if(!w)return;
+// ══ ACCOUNT STATEMENT — complete one-print client grand summary ════════════
+// Supabase-sourced (truth, not the stale localStorage cache). Per unit/sale:
+// header (sale date · rate/sqft · total rate · nominee …), full date-wise schedule
+// with running balance, date-wise receivings, and till-date + to-end outstanding.
+// Topped by a client grand summary across all units. clientRef = client id OR name.
+async function printClientStatement(clientRef){
+  const fmtPKR  = function(n){ return 'PKR ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); };
+  const fmtDate = function(s){ if(!s) return '—'; var d=new Date(String(s).slice(0,10)+'T00:00:00'); return isNaN(d.getTime())?String(s):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); };
+  const todayISO = new Date().toISOString().slice(0,10);
 
-  var h=_lh('ACCOUNT STATEMENT');
-  h+='<div class="body">';
-  h+='<div class="doc-title">Account Statement &mdash; '+esc(clientName)+'</div>';
+  // ── resolve client + their sold units ──
+  var clientsC = window._clientsCache || [];
+  var client = clientsC.find(function(c){return c.id===clientRef;})
+            || clientsC.find(function(c){return (c.fullName||c.name)===clientRef;}) || null;
+  var clientId   = client ? client.id : null;
+  var clientName = (client && (client.fullName||client.name)) || clientRef;
 
-  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">';
-  var cards=[
-    {l:'Client Name',v:clientName,c:'#1E2D47'},
-    {l:'Phone',v:units[0].phone||'—',c:'#1E2D47'},
-    {l:'Total Units',v:units.length,c:'#1E2D47'},
-    {l:'Total Portfolio',v:'PKR '+totPrice.toLocaleString('en-US'),c:'#1E2D47'},
-    {l:'Amount Paid',v:'PKR '+totPaid.toLocaleString('en-US'),c:'#16a34a'},
-    {l:'Balance Pending',v:'PKR '+totPend.toLocaleString('en-US'),c:totPend>0?'#dc2626':'#16a34a'}
-  ];
-  cards.forEach(function(c){
-    h+='<div style="border:1px solid #dde;border-radius:4px;padding:10px">';
-    h+='<div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">'+c.l+'</div>';
-    h+='<div style="font-size:12px;font-weight:700;color:'+c.c+';margin-top:2px">'+esc(String(c.v))+'</div></div>';
+  var units = (typeof gunits==='function'?gunits():[]).filter(function(u){
+    return u.saleId && ((clientId && u.clientId===clientId) || u.customerName===clientName);
   });
-  h+='</div>';
+  if(!units.length){ toast('No sales found for this client','warn'); return; }
 
-  h+='<div class="sec-title">Units &amp; Financial Summary</div>';
-  h+='<table><thead><tr><th>Unit No</th><th>Floor</th><th>Type</th><th>Status</th><th>Total Price</th><th>Paid</th><th>Balance</th><th>Recovery</th><th>Sold By</th></tr></thead><tbody>';
-  units.forEach(function(u){
-    var pd=actualPaid(u),rm=actualPending(u),p2=u.totalPrice?Math.round(pd/u.totalPrice*100):0;
-    h+='<tr>';
-    h+='<td style="font-weight:700">'+esc(u.unitNo)+'</td>';
-    h+='<td>'+esc(u.floorLabel||u.floor)+'</td>';
-    h+='<td>'+esc(u.type)+'</td>';
-    h+='<td>'+esc(u.status)+'</td>';
-    h+='<td>PKR '+Number(u.totalPrice).toLocaleString('en-US')+'</td>';
-    h+='<td style="color:#16a34a;font-weight:700">PKR '+pd.toLocaleString('en-US')+'</td>';
-    h+='<td style="color:'+(rm>0?'#dc2626':'#16a34a')+';font-weight:700">PKR '+rm.toLocaleString('en-US')+'</td>';
-    h+='<td>'+p2+'%</td>';
-    h+='<td style="font-size:10px">'+esc(u.soldBy||'—')+'</td></tr>';
+  // ── pull schedule + receivings per sale (Supabase) ──
+  var sales;
+  try {
+    sales = await Promise.all(units.map(async function(u){
+      try {
+        var res = await Promise.all([
+          supabase.rpc('get_sale_detail',       { p_sale_id: u.saleId, p_company_id: S.cid }),
+          supabase.rpc('get_payments_for_unit',  { p_unit_id: u.id,     p_company_id: S.cid })
+        ]);
+        var d    = (res[0].data && res[0].data.sale) ? res[0].data.sale : {};
+        var inst = (res[0].data && Array.isArray(res[0].data.installments)) ? res[0].data.installments.slice() : [];
+        inst.sort(function(a,b){ return (a.installment_number||0)-(b.installment_number||0) || String(a.due_date).localeCompare(String(b.due_date)); });
+        var pays = Array.isArray(res[1].data) ? res[1].data.slice() : [];
+        pays.sort(function(a,b){ return String(a.payment_date).localeCompare(String(b.payment_date)); });
+        return { u:u, d:d, inst:inst, pays:pays };
+      } catch(e){ return { u:u, d:{}, inst:[], pays:[] }; }
+    }));
+  } catch(e){ toast('Could not load statement: '+(e.message||e),'err'); return; }
+
+  var w = _pw('Account Statement - '+clientName, _pCSS('A4'), 'A4');
+  if(!w) return;
+
+  // ── render per-unit sections, accumulate grand totals ──
+  var gNet=0, gRecv=0, gArr=0, gEnd=0, unitSections='';
+  sales.forEach(function(sx){
+    var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u;
+    var net  = Number(d.net_amount || u.totalPrice || 0);
+    var recv = pays.reduce(function(s,p){ return s+Number(p.amount||0); }, 0);
+    var arrears = inst.filter(function(r){ return String(r.due_date) <= todayISO; })
+                      .reduce(function(s,r){ return s+Number(r.outstanding||0); }, 0);
+    var endOut  = inst.reduce(function(s,r){ return s+Number(r.outstanding||0); }, 0);
+    if(!inst.length) endOut = Math.max(0, net - recv);   // fallback if schedule missing
+    gNet+=net; gRecv+=recv; gArr+=arrears; gEnd+=endOut;
+
+    var ig = function(l,v){ return '<div class="ig-item"><span class="ig-lbl">'+l+'</span><span class="ig-val">'+v+'</span></div>'; };
+    unitSections += '<div class="sec-title no-break">Unit '+esc(d.unit_no||u.unitNo||'—')+(d.project_name?' &mdash; '+esc(d.project_name):'')+'</div>';
+    unitSections += '<div class="info-grid info-grid-2">';
+    unitSections += ig('Sale No', esc(d.sale_number||'—'));
+    unitSections += ig('Sale Date', fmtDate(d.sale_date));
+    unitSections += ig('Area', (d.area_sqft?Number(d.area_sqft).toLocaleString('en-US'):'—')+' sq ft');
+    unitSections += ig('Rate / sq ft', d.price_per_sqft?fmtPKR(d.price_per_sqft):'—');
+    unitSections += ig('Total Price', fmtPKR(d.total_amount||net));
+    if(Number(d.discount)>0) unitSections += ig('Discount', '&minus; '+fmtPKR(d.discount));
+    unitSections += ig('Net Payable (Total Rate)', '<b>'+fmtPKR(net)+'</b>');
+    unitSections += ig('Down Payment', fmtPKR(d.down_payment));
+    unitSections += ig('Nominee', d.nominee_name?(esc(d.nominee_name)+(d.nominee_relation?' ('+esc(d.nominee_relation)+')':'')):'—');
+    if(d.co_buyer_name) unitSections += ig('Co-buyer', esc(d.co_buyer_name));
+    unitSections += ig('Agent', esc(d.agent_name||u.soldBy||'—'));
+    unitSections += ig('Status', esc(d.status||u.status||'—'));
+    unitSections += '</div>';
+
+    // financial callout — total rate · received · outstanding (till date / to end)
+    var fc = function(l,v,c){ return '<div style="border:1px solid #dde;border-radius:4px;padding:8px"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">'+l+'</div><div style="font-size:12px;font-weight:700;color:'+(c||'#1E2D47')+';margin-top:2px">'+v+'</div></div>'; };
+    unitSections += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 12px">'
+      + fc('Total Rate', fmtPKR(net))
+      + fc('Total Received', fmtPKR(recv), '#16a34a')
+      + fc('Outstanding · Till Date', fmtPKR(arrears), arrears>0?'#dc2626':'#16a34a')
+      + fc('Outstanding · To End', fmtPKR(endOut), endOut>0?'#dc2626':'#16a34a')
+      + '</div>';
+
+    // date-wise schedule with running balance
+    if(inst.length){
+      unitSections += '<div class="sec-title no-break">Payment Schedule ('+inst.length+' installments)</div>';
+      unitSections += '<table><thead><tr><th>#</th><th>Due Date</th><th>Type</th><th style="text-align:right">Amount Due</th><th style="text-align:right">Received</th><th style="text-align:right">Balance</th><th>Status</th></tr></thead><tbody>';
+      var runBal=0;
+      inst.forEach(function(r,i){
+        var due=Number(r.amount_due||0), paid=Number(r.amount_paid||0);
+        runBal += due - paid;
+        var st=(r.status||'').toLowerCase();
+        var stc = st==='paid'?'#15803d':st==='overdue'?'#dc2626':st==='partial'?'#d97706':'#6b7280';
+        unitSections += '<tr><td style="text-align:center">'+(r.installment_number||i+1)+'</td>'
+          + '<td>'+fmtDate(r.due_date)+'</td>'
+          + '<td style="text-transform:capitalize">'+esc((r.installment_type||'installment').replace(/_/g,' '))+'</td>'
+          + '<td style="text-align:right">'+fmtPKR(due)+'</td>'
+          + '<td style="text-align:right;color:#16a34a">'+fmtPKR(paid)+'</td>'
+          + '<td style="text-align:right;font-weight:700">'+fmtPKR(runBal)+'</td>'
+          + '<td style="color:'+stc+';font-weight:600;text-transform:capitalize">'+esc(r.status||'pending')+'</td></tr>';
+      });
+      unitSections += '<tr style="background:#f3f4f6;font-weight:700"><td colspan="3">Total</td>'
+        + '<td style="text-align:right">'+fmtPKR(net)+'</td>'
+        + '<td style="text-align:right;color:#16a34a">'+fmtPKR(recv)+'</td>'
+        + '<td style="text-align:right;color:'+(endOut>0?'#dc2626':'#15803d')+'">'+fmtPKR(endOut)+'</td><td></td></tr>';
+      unitSections += '</tbody></table>';
+    }
+
+    // date-wise receivings
+    if(pays.length){
+      unitSections += '<div class="sec-title no-break">Receivings ('+pays.length+' payments)</div>';
+      unitSections += '<table><thead><tr><th>Date</th><th style="text-align:right">Amount</th><th style="text-align:right">Cumulative</th><th>Method</th><th>Receipt No</th><th>Notes</th></tr></thead><tbody>';
+      var cum=0;
+      pays.forEach(function(p){
+        cum += Number(p.amount||0);
+        unitSections += '<tr><td>'+fmtDate(p.payment_date)+'</td>'
+          + '<td style="text-align:right;color:#16a34a;font-weight:700">'+fmtPKR(p.amount)+'</td>'
+          + '<td style="text-align:right;color:#666">'+fmtPKR(cum)+'</td>'
+          + '<td style="text-transform:capitalize">'+esc((p.payment_method||'—').replace(/_/g,' '))+'</td>'
+          + '<td style="font-family:monospace;font-size:9px">'+esc(p.payment_code||p.reference_no||'—')+'</td>'
+          + '<td style="color:#666;font-size:9px">'+(p.notes?esc(p.notes):'—')+'</td></tr>';
+      });
+      unitSections += '<tr style="background:#f3f4f6;font-weight:700"><td>Total Received</td><td style="text-align:right;color:#16a34a">'+fmtPKR(recv)+'</td><td colspan="4"></td></tr>';
+      unitSections += '</tbody></table>';
+    }
   });
-  h+='</tbody></table>';
 
-  if(allRecs.length){
-    h+='<div class="sec-title no-break">Payment History ('+allRecs.length+' transactions)</div>';
-    h+='<table><thead><tr><th>Date</th><th>Unit</th><th>Amount</th><th>Type</th><th>Receipt No</th><th>Notes</th><th>By</th></tr></thead><tbody>';
-    allRecs.forEach(function(r){
-      var u=gunit(r.uid);
-      h+='<tr><td>'+fD(r.date)+'</td>';
-      h+='<td style="font-weight:700">'+esc(u?u.unitNo:'?')+'</td>';
-      h+='<td style="font-weight:700;color:#16a34a">PKR '+Number(r.amt).toLocaleString('en-US')+'</td>';
-      h+='<td>'+esc(r.ptype||'—')+'</td>';
-      h+='<td style="font-family:monospace;font-size:9px">'+(r.rcpt||'—')+'</td>';
-      h+='<td style="color:#666">'+(r.notes?esc(r.notes):'—')+'</td>';
-      h+='<td>'+esc(gunm(r.by))+'</td></tr>';
-    });
-    h+='</tbody></table>';
-  }
+  // ── client grand summary (top) ──
+  var firstNom = (sales.find(function(x){return x.d && x.d.nominee_name;})||{d:{}}).d.nominee_name;
+  var sc = function(l,v,c){ return '<div style="border:1px solid #dde;border-radius:4px;padding:10px"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">'+l+'</div><div style="font-size:12px;font-weight:700;color:'+(c||'#1E2D47')+';margin-top:2px">'+v+'</div></div>'; };
+  var summary = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">'
+    + sc('Client', esc(clientName))
+    + sc('Nominee', firstNom?esc(firstNom):'—')
+    + sc('Phone', esc(units[0].phone || (client&&client.phonePrimary) || '—'))
+    + sc('Total Units', units.length)
+    + sc('Total Portfolio (Net)', fmtPKR(gNet))
+    + sc('Total Received', fmtPKR(gRecv), '#16a34a')
+    + sc('Outstanding · Till Date', fmtPKR(gArr), gArr>0?'#dc2626':'#16a34a')
+    + sc('Outstanding · To End', fmtPKR(gEnd), gEnd>0?'#dc2626':'#16a34a')
+    + sc('Collected', (gNet?Math.round(gRecv/gNet*100):0)+'%')
+    + '</div>';
 
-  if(allCons.length){
-    h+='<div class="sec-title no-break">Contact History ('+allCons.length+' logs)</div>';
-    h+='<table><thead><tr><th>Date</th><th>Unit</th><th>Type</th><th>Response</th><th>Notes</th><th>Follow-up</th><th>By</th></tr></thead><tbody>';
-    allCons.forEach(function(c){
-      var u=gunit(c.unit_id);
-      h+='<tr><td>'+fD(c.contact_date)+'</td>';
-      h+='<td>'+esc(u?u.unitNo:'?')+'</td>';
-      h+='<td>'+esc(c.channel||'—')+'</td>';
-      h+='<td>'+esc(c.response_received||'—')+'</td>';
-      h+='<td style="color:#666">'+(c.remarks?esc(c.remarks):'—')+'</td>';
-      h+='<td>'+(c.next_followup_date?fD(c.next_followup_date):'—')+'</td>';
-      h+='<td>'+esc(gunm(c.agent_id))+'</td></tr>';
-    });
-    h+='</tbody></table>';
-  }
-
-  h+='<div class="footer-bar">Generated by '+esc(S?S.name||'System':'System')+' &mdash; '+esc((window._cobranding||{}).company_name||S?.coName||'Nexunova')+' &mdash; '+new Date().toLocaleString('en-GB')+'</div>';
-  h+='</div>';
+  var h = _lh('ACCOUNT STATEMENT', clientName);
+  h += '<div class="body">';
+  h += '<div class="doc-title">Account Statement &mdash; '+esc(clientName)+'</div>';
+  h += '<div style="font-size:10px;color:#666;margin:-6px 0 12px">Statement as of '+fmtDate(todayISO)+'</div>';
+  h += summary;
+  h += unitSections;
+  h += (typeof _footer==='function' ? _footer() : '');
+  h += '</div>';
 
   w.document.write(h);
   _pclose(w);
