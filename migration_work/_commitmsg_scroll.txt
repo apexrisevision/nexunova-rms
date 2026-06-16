@@ -1,0 +1,8 @@
+sales-portal: lock background scroll when a modal is open (no scroll bleed)
+
+Reserve/info sheets are short, so the modal itself rarely scrolls — the gesture
+was bleeding through to the availability board behind it. Now openModal locks
+the page (saves scrollY, position:fixed body) and closeModal restores it; the
+modal gets overscroll-behavior:contain so boundary scrolls don't chain either.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
