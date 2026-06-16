@@ -477,45 +477,38 @@ async function printClientStatement(clientRef){
     if(d.co_buyer_name) unitSections += ig('Co-buyer', esc(d.co_buyer_name));
     unitSections += ig('Agent', esc(d.agent_name||u.soldBy||'—'));
     unitSections += ig('Status', esc(d.status||u.status||'—'));
+    // financials folded into the grid (no separate callout → received shown once here)
+    unitSections += ig('Total Received', '<b style="color:#16a34a">'+fmtPKR(recv)+'</b>');
+    unitSections += ig('Outstanding · Till Date', '<b style="color:'+(arrears>0?'#dc2626':'#16a34a')+'">'+fmtPKR(arrears)+'</b>');
+    unitSections += ig('Outstanding · To End', '<b style="color:'+(endOut>0?'#dc2626':'#16a34a')+'">'+fmtPKR(endOut)+'</b>');
     unitSections += '</div>';
 
-    // financial callout — total rate · received · outstanding (till date / to end)
-    var fc = function(l,v,c){ return '<div style="border:1px solid #dde;border-radius:4px;padding:8px"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">'+l+'</div><div style="font-size:12px;font-weight:700;color:'+(c||'#1E2D47')+';margin-top:2px">'+v+'</div></div>'; };
-    unitSections += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 12px">'
-      + fc('Total Rate', fmtPKR(net))
-      + fc('Total Received', fmtPKR(recv), '#16a34a')
-      + fc('Outstanding · Till Date', fmtPKR(arrears), arrears>0?'#dc2626':'#16a34a')
-      + fc('Outstanding · To End', fmtPKR(endOut), endOut>0?'#dc2626':'#16a34a')
-      + '</div>';
-
-    // date-wise schedule with running balance
+    // date-wise schedule — amounts DUE only (the plan; money received lives in Receivings)
     if(inst.length){
-      unitSections += '<div class="sec-title no-break">Payment Schedule ('+inst.length+' installments)</div>';
-      unitSections += '<table><thead><tr><th>#</th><th>Due Date</th><th>Type</th><th style="text-align:right">Amount Due</th><th style="text-align:right">Received</th><th style="text-align:right">Balance</th><th>Status</th></tr></thead><tbody>';
-      var runBal=0;
+      unitSections += '<div class="sec-title no-break">Payment Schedule &mdash; Amounts Due ('+inst.length+' installments)</div>';
+      unitSections += '<table><thead><tr><th>#</th><th>Due Date</th><th>Type</th><th style="text-align:right">Amount Due</th><th style="text-align:right">Cumulative Due</th><th>Status</th></tr></thead><tbody>';
+      var cumDue=0;
       inst.forEach(function(r,i){
-        var due=Number(r.amount_due||0), paid=Number(r.amount_paid||0);
-        runBal += due - paid;
+        var due=Number(r.amount_due||0);
+        cumDue += due;
         var st=(r.status||'').toLowerCase();
         var stc = st==='paid'?'#15803d':st==='overdue'?'#dc2626':st==='partial'?'#d97706':'#6b7280';
         unitSections += '<tr><td style="text-align:center">'+(r.installment_number||i+1)+'</td>'
           + '<td>'+fmtDate(r.due_date)+'</td>'
           + '<td style="text-transform:capitalize">'+esc((r.installment_type||'installment').replace(/_/g,' '))+'</td>'
           + '<td style="text-align:right">'+fmtPKR(due)+'</td>'
-          + '<td style="text-align:right;color:#16a34a">'+fmtPKR(paid)+'</td>'
-          + '<td style="text-align:right;font-weight:700">'+fmtPKR(runBal)+'</td>'
+          + '<td style="text-align:right;color:#666">'+fmtPKR(cumDue)+'</td>'
           + '<td style="color:'+stc+';font-weight:600;text-transform:capitalize">'+esc(r.status||'pending')+'</td></tr>';
       });
-      unitSections += '<tr style="background:#f3f4f6;font-weight:700"><td colspan="3">Total</td>'
+      unitSections += '<tr style="background:#f3f4f6;font-weight:700"><td colspan="3">Total Scheduled</td>'
         + '<td style="text-align:right">'+fmtPKR(net)+'</td>'
-        + '<td style="text-align:right;color:#16a34a">'+fmtPKR(recv)+'</td>'
-        + '<td style="text-align:right;color:'+(endOut>0?'#dc2626':'#15803d')+'">'+fmtPKR(endOut)+'</td><td></td></tr>';
+        + '<td style="text-align:right">'+fmtPKR(cumDue)+'</td><td></td></tr>';
       unitSections += '</tbody></table>';
     }
 
-    // date-wise receivings
+    // date-wise receivings — the ONLY place actual money received is listed
     if(pays.length){
-      unitSections += '<div class="sec-title no-break">Receivings ('+pays.length+' payments)</div>';
+      unitSections += '<div class="sec-title no-break">Receivings &mdash; Payments Received ('+pays.length+' payments)</div>';
       unitSections += '<table><thead><tr><th>Date</th><th style="text-align:right">Amount</th><th style="text-align:right">Cumulative</th><th>Method</th><th>Receipt No</th><th>Notes</th></tr></thead><tbody>';
       var cum=0;
       pays.forEach(function(p){
@@ -532,25 +525,29 @@ async function printClientStatement(clientRef){
     }
   });
 
-  // ── client grand summary (top) ──
+  // ── client header (always) + grand financial summary (only when >1 unit; a
+  //    single unit's section already carries the same figures, so no duplicate) ──
   var firstNom = (sales.find(function(x){return x.d && x.d.nominee_name;})||{d:{}}).d.nominee_name;
+  var clientPhone = units[0].phone || (client&&client.phonePrimary) || '—';
+  var clientLine = '<div style="display:flex;flex-wrap:wrap;gap:20px;font-size:11px;color:#444;margin:-2px 0 12px">'
+    + '<span>Client: <b style="color:#1E2D47">'+esc(clientName)+'</b></span>'
+    + '<span>Phone: <b style="color:#1E2D47">'+esc(clientPhone)+'</b></span>'
+    + '<span>Nominee: <b style="color:#1E2D47">'+(firstNom?esc(firstNom):'—')+'</b></span>'
+    + (units.length>1?'<span>Units: <b style="color:#1E2D47">'+units.length+'</b></span>':'')
+    + '</div>';
   var sc = function(l,v,c){ return '<div style="border:1px solid #dde;border-radius:4px;padding:10px"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#888">'+l+'</div><div style="font-size:12px;font-weight:700;color:'+(c||'#1E2D47')+';margin-top:2px">'+v+'</div></div>'; };
-  var summary = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">'
-    + sc('Client', esc(clientName))
-    + sc('Nominee', firstNom?esc(firstNom):'—')
-    + sc('Phone', esc(units[0].phone || (client&&client.phonePrimary) || '—'))
-    + sc('Total Units', units.length)
+  var summary = (units.length>1) ? ('<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'
     + sc('Total Portfolio (Net)', fmtPKR(gNet))
     + sc('Total Received', fmtPKR(gRecv), '#16a34a')
     + sc('Outstanding · Till Date', fmtPKR(gArr), gArr>0?'#dc2626':'#16a34a')
     + sc('Outstanding · To End', fmtPKR(gEnd), gEnd>0?'#dc2626':'#16a34a')
-    + sc('Collected', (gNet?Math.round(gRecv/gNet*100):0)+'%')
-    + '</div>';
+    + '</div>') : '';
 
   var h = _lh('ACCOUNT STATEMENT', clientName);
   h += '<div class="body">';
   h += '<div class="doc-title">Account Statement &mdash; '+esc(clientName)+'</div>';
-  h += '<div style="font-size:10px;color:#666;margin:-6px 0 12px">Statement as of '+fmtDate(todayISO)+'</div>';
+  h += '<div style="font-size:10px;color:#666;margin:-6px 0 8px">Statement as of '+fmtDate(todayISO)+'</div>';
+  h += clientLine;
   h += summary;
   h += unitSections;
   h += (typeof _footer==='function' ? _footer() : '');
