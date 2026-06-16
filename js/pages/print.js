@@ -484,9 +484,10 @@ async function printClientStatement(clientRef){
     unitSections += ig('Receivable (To End)', '<b style="color:'+(endBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(endBal)+'</b>');
     unitSections += '</div>';
 
-    // ── DR/CR ledger: every demand (DR · receivable) + every receipt (CR · received),
-    //    date-wise. No running balance column (that lives in the top panel); the
-    //    current-date balance is just an underlined marker. Σ DR = price, Σ CR = received.
+    // ── DR/CR ledger, one continuous flow: every demand (DR · receivable) + every
+    //    receipt (CR · received), date-wise, with a running Balance that rolls right
+    //    to the END of schedule. No separator row — the current-date balance is just
+    //    underlined on its own cell. Σ DR = price, Σ CR = received.
     var events = [];
     inst.forEach(function(r){
       var lbl = (r.installment_type==='down_payment') ? 'Down Payment'
@@ -500,24 +501,27 @@ async function printClientStatement(clientRef){
       events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), dr:0, cr:Number(p.amount||0) });
     });
     events.sort(function(a,b){ return a.date<b.date?-1 : a.date>b.date?1 : a.o-b.o; });
+    // last row dated on/before today → its Balance gets the small underline
+    var todayIdx = -1;
+    events.forEach(function(e,i){ if(e.date <= todayISO) todayIdx = i; });
 
-    var marker = '<tr><td colspan="5" style="text-align:right;border-top:1px dashed #aaa;border-bottom:1.5px solid #333;padding:6px 8px"><i style="color:#555">Receivable balance as of '+fmtDate(todayISO)+':</i> &nbsp;<u style="font-weight:700;color:'+(curBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(curBal)+'</u></td></tr>';
     unitSections += '<div class="sec-title no-break">Account Ledger</div>';
-    unitSections += '<table><thead><tr><th>Date</th><th>Particulars</th><th>Reference</th><th style="text-align:right">DR &middot; Receivable</th><th style="text-align:right">CR &middot; Received</th></tr></thead><tbody>';
-    var sumDR=0, sumCR=0, marked=false;
-    events.forEach(function(e){
-      if(!marked && e.date > todayISO){ unitSections += marker; marked=true; }
-      sumDR += e.dr; sumCR += e.cr;
+    unitSections += '<table><thead><tr><th>Date</th><th>Particulars</th><th>Reference</th><th style="text-align:right">DR &middot; Receivable</th><th style="text-align:right">CR &middot; Received</th><th style="text-align:right">Balance</th></tr></thead><tbody>';
+    var sumDR=0, sumCR=0, bal=0;
+    events.forEach(function(e,i){
+      sumDR += e.dr; sumCR += e.cr; bal += e.dr - e.cr;
+      var balStyle = 'text-align:right;font-weight:700;color:'+(bal>0.5?'#dc2626':(bal<-0.5?'#15803d':'#1E2D47'))+(i===todayIdx?';text-decoration:underline':'');
       unitSections += '<tr><td>'+fmtDate(e.date)+'</td>'
         + '<td>'+esc(e.label)+'</td>'
         + '<td style="font-size:9px;color:#666">'+esc(e.ref)+'</td>'
         + '<td style="text-align:right">'+(e.dr?fmtPKR(e.dr):'')+'</td>'
-        + '<td style="text-align:right;color:#16a34a'+(e.cr?';font-weight:700':'')+'">'+(e.cr?fmtPKR(e.cr):'')+'</td></tr>';
+        + '<td style="text-align:right;color:#16a34a'+(e.cr?';font-weight:700':'')+'">'+(e.cr?fmtPKR(e.cr):'')+'</td>'
+        + '<td style="'+balStyle+'"'+(i===todayIdx?' title="Balance as of today"':'')+'>'+fmtPKR(bal)+'</td></tr>';
     });
-    if(!marked){ unitSections += marker; }
     unitSections += '<tr style="border-top:2px double #333;font-weight:700;background:#f3f4f6"><td colspan="3" style="text-align:right">Total</td>'
       + '<td style="text-align:right">'+fmtPKR(sumDR)+'</td>'
-      + '<td style="text-align:right;color:#16a34a">'+fmtPKR(sumCR)+'</td></tr>';
+      + '<td style="text-align:right;color:#16a34a">'+fmtPKR(sumCR)+'</td>'
+      + '<td style="text-align:right">'+fmtPKR(bal)+'</td></tr>';
     unitSections += '</tbody></table>';
   });
 
