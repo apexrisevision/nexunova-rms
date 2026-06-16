@@ -11,13 +11,12 @@ const _ADM_TABS = [
   { k:'security',  label:'Security', icon:'shield' },
   { k:'approvals', label:'Approvals', icon:'check-circle' },
   { k:'plan',      label:'Plan & usage', icon:'credit-card' },
-  { k:'import',    label:'Import',   icon:'upload' },
 ];
 
 function rAdmin(){
   if(S.role!=='admin' && S.role!=='owner'){nav('dashboard');return;}
   // Reset to Settings if _at is unset or points at a removed/redirect-only tab.
-  if(!_at || ['users','audit','data','log'].includes(_at)) _at='settings';
+  if(!_at || ['users','audit','data','log','import'].includes(_at)) _at='settings';
 
   document.getElementById('pg-admin').innerHTML =
     '<div class="ani">' +
@@ -37,46 +36,9 @@ function setAT(t){
 }
 function rAT(){
   const ct=document.getElementById('a-ct');if(!ct)return;
-  const db=gdb();
   if(_at==='users'){
     nav('users');
     return;
-  } else if(_at==='import'){
-    const body =
-      '<p style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);margin:0 0 var(--fk-sp-4);line-height:1.6">Import your Excel recovery sheet. Units, clients, prices, and pending amounts are read automatically. <b style="color:var(--fk-text)">Existing unit data will be replaced.</b></p>' +
-      '<div class="iz" onclick="document.getElementById(\'xl-f\').click()" ondragover="event.preventDefault();this.classList.add(\'dg\')" ondragleave="this.classList.remove(\'dg\')" ondrop="hDrop(event)" style="border:1.5px dashed var(--fk-border);border-radius:var(--fk-radius-card);padding:28px;text-align:center;cursor:pointer">' +
-        '<div style="display:flex;justify-content:center;margin-bottom:8px">' + NX.ichip('upload','',{size:'lg'}) + '</div>' +
-        '<div style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text)">Click to select Excel file (.xlsx)</div>' +
-        '<div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:2px">Or drag and drop your Nexunova Recovery Sheet</div>' +
-      '</div>' +
-      '<input id="xl-f" type="file" accept=".xlsx,.xls" style="display:none" onchange="readXL(this)">' +
-      '<div id="xl-prv" style="margin-top:14px"></div>' +
-      '<div id="xl-act" style="margin-top:12px;display:none">' + NX.button('Import & replace unit data', { variant:'primary', icon:'check', onclick:'doImport()' }) + '</div>' +
-      '<div style="margin-top:16px">' + NX.banner('Already imported: ' + (db.units[S.cid]?.length||0) + ' units loaded from Excel. Import again only if data has changed.', 'info') + '</div>';
-    ct.innerHTML = NX.card(body, { header:{ icon:'upload', title:'Import Excel', sub:'Bulk import units & clients' } });
-  } else if(_at==='data'){
-    ct.innerHTML=`<div class="card"><div class="cb" style="display:flex;flex-direction:column;gap:10px;max-width:320px">
-      <p style="font-size:12px;color:var(--t3)">Backup and restore all system data</p>
-      <button class="btn btn-d" onclick="bkpData()">⬇ Download Backup File</button>
-      <button class="btn btn-gh" onclick="rstData()">⬆ Restore from Backup</button>
-      <button class="btn btn-r" style="margin-top:6px" onclick="rstSeed()">Reset to Original Excel Data</button>
-    </div></div>`;
-  } else if(_at==='log'){
-    // Task 5: Activity Log viewer
-    const logs=(db.log||[]).slice(0,100);
-    const typeClr={rec:'var(--ok)',con:'var(--info)',sell:'var(--brand)','del-rec':'var(--err)'};
-    ct.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700">Last ${logs.length} activities</div>
-      ${S.role==='admin'?`<button class="btn btn-r btn-sm" onclick="clearLog()">Clear Log</button>`:''}
-    </div>
-    <div class="card"><div class="tw"><table class="t"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>
-    ${!logs.length?'<tr><td colspan="4" style="text-align:center;color:var(--t3);padding:24px">No activity recorded yet</td></tr>':
-      logs.map(l=>{
-        const clr=typeClr[l.type]||'var(--t3)';
-        const ts=l.time?new Date(l.time).toLocaleString('en-PK',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
-        return `<tr style="border-left:3px solid ${clr}"><td style="font-size:11px;color:var(--t3);white-space:nowrap">${ts}</td><td style="font-size:12px;font-weight:600">${esc(l.user||'?')}</td><td><span class="badge" style="background:${clr}22;color:${clr}">${l.type||'?'}</span></td><td style="font-size:12px;color:var(--t2);max-width:300px;word-break:break-word">${esc(l.msg||'—')}</td></tr>`;
-      }).join('')}
-    </tbody></table></div></div>`;
   } else if(_at==='profile'){
     if(typeof rBranding==='function') rBranding(ct);
     else _adminLoadProfile(ct);
@@ -98,10 +60,6 @@ function rAT(){
     return;
   }
 }
-function clearLog(){
-  if(!confirm('Clear all activity logs? This cannot be undone.'))return;
-  const db=gdb();db.log=[];sdb(db);toast('Activity log cleared','ok');rAT();
-}
 async function saveSettings(){
   if (typeof demoGuard === 'function' && demoGuard('Save Settings')) return;
   const od=parseInt(document.getElementById('set-od')?.value)||30;
@@ -112,64 +70,6 @@ async function saveSettings(){
     await supabase.rpc('save_company_targets', { p_company_id: S.cid, p_monthly: mtgt, p_annual: atgt });
   } catch(e) { console.warn('save_company_targets:', e.message); }
   toast('Settings saved','ok');
-}
-function bkpData(){const db=gdb();const j=JSON.stringify({data:db,at:new Date().toISOString(),v:'v5'});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));a.download=`Nexunova_backup_${td()}.json`;a.click();toast('Backup downloaded','ok');}
-function rstData(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const bk=JSON.parse(ev.target.result);const d=bk.data||bk;if(!d.users)throw new Error();localStorage.setItem(STORE,JSON.stringify(d));toast('Data restored!','ok');setTimeout(()=>location.reload(),900);}catch{toast('Invalid backup file','err');}};r.readAsText(f);};document.body.appendChild(inp);inp.click();document.body.removeChild(inp);}
-function rstSeed(){if(!confirm('Reset all data to original Excel import? All added payments and call logs will be lost.'))return;localStorage.removeItem(STORE);localStorage.removeItem(OLD_STORE);toast('Data reset','warn');setTimeout(()=>location.reload(),900);}
-
-// ══ EXCEL IMPORT ══════════════════════════════
-async function readXL(inp){
-  const f=inp.files[0];if(!f)return;
-  try { if(window.ensureXLSX) await window.ensureXLSX(); } catch(e){}
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      if(typeof XLSX==='undefined'){toast('SheetJS not loaded — use online','warn');return;}
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      let hr=-1;
-      for(let i=0;i<raw.length;i++){const r=raw[i].map(v=>String(v).toUpperCase());if(r.some(v=>v.includes('UNIT #')||v.includes('CLIENT NAME'))){hr=i;break;}}
-      if(hr<0){toast('Cannot find data in file','err');return;}
-      const hdrs=raw[hr];
-      const getv=(names)=>{for(const nm of names){const idx=hdrs.findIndex(h=>String(h).toUpperCase().includes(nm.toUpperCase()));if(idx>=0&&raw[0][idx]!==undefined&&raw[0][idx]!=='')return undefined;}};
-      const get=(r,names)=>{for(const nm of names){const idx=hdrs.findIndex(h=>String(h).toUpperCase().includes(nm.toUpperCase()));if(idx>=0&&r[idx]!==undefined&&String(r[idx])!=='')return r[idx];}return '';};
-      const fl_map={'G':'Ground Floor','UG':'Lower Ground','1':'1st Floor','2':'2nd Floor','3':'3rd Floor','4':'4th Floor','5':'5th Floor','6':'6th Floor','7':'7th Floor','8':'8th Floor','9':'9th Floor'};
-      const tp_map={'SHOP':'Shop','1 BED':'1 Bed','2 BED':'2 Bed','3 BED':'3 Bed','PARK 2 BED':'Park 2 Bed','PARK 3 BED':'Park 3 Bed'};
-      const units=[];
-      for(let i=hr+1;i<raw.length;i++){
-        const r=raw[i];
-        const unitNo=String(get(r,['UNIT #','UNIT#'])||'').trim();
-        const floor=String(get(r,['FLOOR'])||'').trim();
-        if(!unitNo||!floor||unitNo==='D'||floor==='D')continue;
-        const client=String(get(r,['CLIENT NAME'])||'').trim();
-        const price=parseFloat(get(r,['FINAL PRICE'])||0)||0;
-        const pendency=parseFloat(get(r,['PENDENCY AMOUNT','PENDENCY AFTER'])||0)||0;
-        const type=String(get(r,['TYPE'])||'').trim();
-        const area=parseFloat(get(r,['AREA'])||0)||0;
-        const booking=String(get(r,['BOOKING #','BOOKING#'])||'').trim();
-        const phone=String(get(r,['CONTACT #','CONTACT#'])||'').trim();
-        const sp=String(get(r,['C/O','SALE PERSON','SOLD BY'])||'').trim();
-        const remarks=String(get(r,['REMARKS'])||'').trim();
-        const hasC=!!(client&&client!=='0'&&price>0);
-        let status='Available';
-        if(hasC){if(remarks.toUpperCase().includes('ADJUSTMENT'))status='Adjustment';else if(remarks.toUpperCase().includes('CASH DEAL')||remarks.toUpperCase().includes('FULLY PAID'))status='CashSale';else status='Installment';}
-        units.push({id:'ui'+uid(),unitNo,floor,floorLabel:fl_map[floor]||floor,type:tp_map[type.toUpperCase()]||type,area,bookingNo:booking!=='nan'?booking:'',status,customerName:hasC?client:'',phone:phone!=='nan'&&phone!=='0'?phone:'',totalPrice:hasC?price:0,totalPaid:hasC?Math.max(0,price-Math.max(0,pendency)):0,pendingAmount:hasC?Math.max(0,pendency):0,soldBy:sp!=='nan'?sp:'',remarks:remarks!=='nan'?remarks:'',receiptNo:'',lastPaymentDate:'',soldDate:'',companyId:S.cid});
-      }
-      _xlrows=units;
-      const sold=units.filter(u=>u.status!=='Available').length;
-      const prv=document.getElementById('xl-prv');if(prv)prv.innerHTML=`<div style="background:var(--ok-bg);border-radius:var(--rs);padding:12px;font-size:13px;color:var(--ok)"><b>${units.length} units</b> found — ${sold} sold, ${units.length-sold} available</div>`;
-      const act=document.getElementById('xl-act');if(act)act.style.display='block';
-    }catch(err){toast('Error: '+err.message,'err');}
-  };
-  reader.readAsArrayBuffer(f);
-}
-function hDrop(e){e.preventDefault();document.querySelector('.iz')?.classList.remove('dg');const f=e.dataTransfer.files[0];if(f){const fi={files:[f]};readXL(fi);}}
-function doImport(){
-  if(!_xlrows.length){toast('No data to import','warn');return;}
-  if(!confirm(`Import ${_xlrows.length} units? This replaces existing unit data.`))return;
-  const db=gdb();const cnt=_xlrows.length;db.units[S.cid]=_xlrows;sdb(db);_xlrows=[];
-  toast(`${cnt} units imported successfully!`,'ok');nav('dashboard');
 }
 
 // ══ LOGO UPLOAD ═══════════════════════════════
@@ -428,42 +328,6 @@ async function _adminSubmitUpgrade() {
     if (err) err.textContent = e.message;
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Send Request'; }
-  }
-}
-
-// ── Supabase Audit Trail ──────────────────────────────────────────
-
-async function _adminLoadAudit(ct) {
-  ct.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:16px 0">⏳ Loading audit trail…</div>';
-  try {
-    const { data: feed } = await supabase.rpc('get_admin_audit_feed', { p_company_id: S.cid, p_limit: 80 });
-    const entries = [
-      ...((feed?.transfers)||[]).map(r  => ({ts:r.created_at, icon:'', type:'Transfer',  desc:`Unit ${r.units?.unit_no||'—'} — ${r.from_owner} → ${r.to_owner}`, by:r.created_by})),
-      ...((feed?.reminders)||[]).map(r => ({ts:r.sent_at,    icon:'', type:'Reminder',  desc:`${(r.reminder_type||'').toUpperCase()} to ${r.client_name||'—'} · PKR ${fM(r.amount_due||0)}`, by:r.sent_by})),
-      ...((feed?.possessions)||[]).map(r => ({ts:r.updated_at, icon:'', type:'Possession',desc:`Unit ${r.units?.unit_no||'—'} — ${r.status} · ${r.client_name||'—'}`, by:r.created_by})),
-    ].sort((a,b) => (b.ts||'').localeCompare(a.ts||'')).slice(0, 80);
-
-    const typeColor = {'Transfer':'#6C63FF','Reminder':'#f59e0b','Possession':'#22c55e'};
-    const rows = entries.length === 0
-      ? '<tr><td colspan="4" style="text-align:center;color:var(--t3);padding:28px">No Supabase events found yet</td></tr>'
-      : entries.map(e => {
-          const ts  = e.ts ? new Date(e.ts).toLocaleString('en-PK',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-          const col = typeColor[e.type] || 'var(--t3)';
-          return `<tr><td style="font-size:11px;color:var(--t3);white-space:nowrap">${ts}</td>
-            <td><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:${col}18;color:${col}">${e.type}</span></td>
-            <td style="font-size:12px;color:var(--t2);max-width:300px;word-break:break-word">${esc(e.desc)}</td>
-            <td style="font-size:11px;color:var(--t3)">${esc(e.by||'—')}</td></tr>`;
-        }).join('');
-    ct.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:12px;color:var(--t3)">Last ${entries.length} events · Transfers, Reminders, Possessions</div>
-      <button class="btn btn-gh btn-sm" onclick="_adminLoadAudit(document.getElementById('a-ct'))">↺ Refresh</button>
-    </div>
-    <div class="card"><div class="tw"><table class="t">
-      <thead><tr><th>Time</th><th>Type</th><th>Details</th><th>By</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div></div>`;
-  } catch (e) {
-    ct.innerHTML = `<div style="color:var(--err);font-size:12px">Could not load audit trail: ${esc(e.message)}</div>`;
   }
 }
 

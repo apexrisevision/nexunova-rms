@@ -445,67 +445,67 @@ function buildSB(){
       { label: null, items: [
         { id:'dashboard', ic:'layout-grid', lb:'Dashboard' },
       ]},
-      // ── INVENTORY (expanded by default; secondary items behind "More") ──
-      { label: 'Inventory', items: [
-        { id:'units',          ic:'home',       lb:'Units' },
-        { id:'projects',       ic:'building-2', lb:'Projects' },
-        { id:'noc',            ic:'file-check', lb:'NOC Management',    more:true },
-        { id:'transferunits',  ic:'repeat',     lb:'Transferred Units', more:true },
-        { id:'cancelledunits', ic:'tag',        lb:'Cancelled Units',   more:true },
+      // ── 1 · Inventory, Clients, Sales & Receipts ──
+      { label: 'Inventory, Clients, Sales & Receipts', items: [
+        { id:'units',       ic:'home',              lb:'Units' },
+        { id:'clients',     ic:'user-check',        lb:'Clients' },
+        { id:'sales',       ic:'file-text',         lb:'Sales' },
+        { id:'addpayment',  ic:'banknote',          lb:'Record Payment' },
+        { id:'pdc',         ic:'calendar-clock',    lb:'PDC', bdg:(window._pdcDueCount||null), bdgType:(window._pdcDueCount?'warn':null) },
+        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
+        { id:'recovery',    ic:'list-checks',       lb:'Payments', dot:(overdueN>0?'danger':null) },
+        { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
       ]},
-      // ── SALES ──
-      { label: 'Sales', items: [
-        { id:'sales',             ic:'file-text',   lb:'Sales' },
-        { id:'clients',           ic:'user-check',  lb:'Clients' },
-        { id:'agents',            ic:'users',       lb:'Sales Agents',       more:true },
-        { id:'commissions',       ic:'trending-up', lb:'Commissions',        more:true },
-        { id:'agenttransactions', ic:'trending-up', lb:'Agent Transactions', more:true },
+      // ── 2 · Sale Agents & Reservations ──
+      { label: 'Sale Agents & Reservations', items: [
+        { id:'salesaccess',       ic:'id-card',        lb:'Sales Access' },
         { id:'reservations',      ic:'bookmark-check', lb:'Reservations' },
-        { id:'salesaccess',       ic:'id-card',     lb:'Sales Access',       more:true },
-        // Client Health + Blacklist live as tabs inside Clients (routes redirect).
+        { id:'agents',            ic:'users',          lb:'Sales Agents' },
+        { id:'commissions',       ic:'trending-up',    lb:'Commissions' },
+        { id:'agenttransactions', ic:'trending-up',    lb:'Agent Transactions' },
       ]},
-      // ── RECOVERY (the money area — 4 primaries + a long "More" tail) ──
-      // Count chips killed except where they signal: PDC due ≤7d = warning.
-      { label: 'Recovery', items: [
-        { id:'myrecovery', ic:'radar',         lb:'My Recovery' },
-        { id:'queue',     ic:'sunrise',        lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
-        { id:'recovery',  ic:'list-checks',    lb:'Payments', dot:(overdueN>0?'danger':null) },
-        { id:'pdc',       ic:'calendar-clock', lb:'PDC', bdg:(window._pdcDueCount||null), bdgType:(window._pdcDueCount?'warn':null) },
-        { id:'promises',  ic:'handshake',      lb:'Follow-ups' },
-        { id:'reminders', ic:'bell',           lb:'Reminders' },
-        { id:'campaigns',   ic:'megaphone',         lb:'Campaigns',             more:true },
-        { id:'fieldvisits', ic:'map-pin',           lb:'Field Visits',          more:true },
-        { id:'escalations', ic:'alert-triangle',    lb:'Escalations',           more:true },
-        { id:'legalcases',  ic:'scale',             lb:'Legal Cases',           more:true },
-        { id:'receipts',    ic:'receipt',           lb:'Receipt Vouchers',      more:true },
-        { id:'ledgers',     ic:'book-open',         lb:'Ledgers',               more:true },
-        { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables',more:true },
-        { id:'payables',    ic:'arrow-down-circle', lb:'Payables',              more:true },
-        { id:'paylinks',    ic:'link',              lb:'Payment Links',         more:true },
+      // ── 3 · Recovery & Follow-ups ──
+      { label: 'Recovery & Follow-ups', items: [
+        { id:'myrecovery',  ic:'radar',     lb:'My Recovery' },
+        { id:'queue',       ic:'sunrise',   lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
+        { id:'promises',    ic:'handshake', lb:'Follow-ups' },
+        { id:'reminders',   ic:'bell',      lb:'Reminders' },
+        { id:'forecasting', ic:'trending-up', lb:'Forecasting' },
       ]},
-      // ── REPORTS ──
-      { label: 'Reports', items: [
-        { id:'reports',     ic:'bar-chart-3',    lb:'Reports' },
-        { id:'documents',   ic:'printer',        lb:'Documents' },
-        { id:'forecasting', ic:'trending-up',    lb:'Forecasting',  more:true },
-        { id:'commscenter', ic:'message-square', lb:'Comms Center', more:true },
+      // ── 4 · Transfer & Cancel Units ──
+      { label: 'Transfer & Cancel Units', items: [
+        { id:'transferunits',  ic:'repeat', lb:'Transferred Units' },
+        { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units' },
       ]},
-      // ── INBOX / APPROVALS — the one place a count is signal (unread = danger) ──
-      { label: 'Inbox', items: [
+      // ── 5 · Reports & Ledgers ──
+      { label: 'Reports & Ledgers', items: [
+        { id:'reports',  ic:'bar-chart-3', lb:'Reports' },
+        { id:'ledgers',  ic:'book-open',   lb:'Ledgers' },
+        { id:'receipts', ic:'receipt',     lb:'Receipt Vouchers' },
+      ]},
+      // ── 6 · Teams & Approvals ──
+      { label: 'Teams & Approvals', items: [
         { id:'contacts',  ic:'inbox',      lb:'Inbox', bdg:alrt, bdgType:alrt?'alert':null },
         { id:'approvals', ic:'file-check', lb:'Approvals', dot:(window._approvalsPending>0?'danger':null) },
+        { id:'team',      ic:'users',      lb:'Team' },
+        { id:'users',     ic:'shield',     lb:'Users & Roles' },
       ]},
-      // ── ADMIN (5 primaries + a "More" tail) ──
-      { label: 'Admin', defaultCollapsed: true, items: [
-        { id:'categories',     ic:'layers',      lb:'Types & Floors' },
-        { id:'banks',          ic:'banknote',    lb:'Banks' },
-        { id:'users',          ic:'shield',      lb:'Users & Roles' },
-        { id:'admin',          ic:'settings',    lb:'Settings' },
-        { id:'setup-wizard',   ic:'wand-2',      lb:'Setup Wizard', action:"if(typeof OB!=='undefined'&&S&&S.cid){OB.show(S.cid);}else if(typeof toast==='function'){toast('Setup wizard not available','err');}" },
-        { id:'payment-methods',ic:'credit-card', lb:'Payment Methods', more:true },
-        { id:'team',           ic:'users',       lb:'Team',            more:true },
-        { id:'backup',         ic:'database',    lb:'Backup',          more:true },
-        { id:'audit',          ic:'history',     lb:'Audit Trail',     more:true },
+      // ── 7 · Documents ──
+      { label: 'Documents', items: [
+        { id:'documents',   ic:'printer',         lb:'Documents' },
+        { id:'escalations', ic:'alert-triangle',  lb:'Escalations' },
+        { id:'noc',         ic:'file-check',      lb:'NOC Management' },
+      ]},
+      // ── 8 · Project Setup & Settings ──
+      { label: 'Project Setup & Settings', defaultCollapsed: true, items: [
+        { id:'projects',        ic:'building-2',     lb:'Projects' },
+        { id:'categories',      ic:'layers',         lb:'Types & Floors' },
+        { id:'banks',           ic:'banknote',       lb:'Banks' },
+        { id:'payment-methods', ic:'credit-card',    lb:'Payment Methods' },
+        { id:'audit',           ic:'history',        lb:'Audit Trail' },
+        { id:'paylinks',        ic:'link',           lb:'Payment Links' },
+        { id:'commscenter',     ic:'message-square', lb:'Comms Center' },
+        { id:'admin',           ic:'settings',       lb:'Settings' },
       ]},
     ];
   } else if(isR){
@@ -530,9 +530,7 @@ function buildSB(){
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
         { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
         { id:'reminders',   ic:'bell',           lb:'Reminders' },
-        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits' },
         { id:'escalations', ic:'alert-triangle', lb:'Escalations',      more:true },
-        { id:'campaigns',   ic:'megaphone',      lb:'Campaigns',        more:true },
         { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers', more:true },
         { id:'ledgers',     ic:'book-open',      lb:'Ledgers',          more:true },
         { id:'paylinks',    ic:'link',           lb:'Payment Links',    more:true },
@@ -589,8 +587,6 @@ function buildSB(){
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
         { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
         { id:'reminders',   ic:'bell',           lb:'Reminders' },
-        { id:'campaigns',   ic:'megaphone',      lb:'Campaigns',        more:true },
-        { id:'fieldvisits', ic:'map-pin',        lb:'Field Visits',     more:true },
         { id:'receipts',    ic:'receipt',        lb:'Receipt Vouchers', more:true },
         { id:'ledgers',     ic:'book-open',      lb:'Ledgers',          more:true },
       ]},
