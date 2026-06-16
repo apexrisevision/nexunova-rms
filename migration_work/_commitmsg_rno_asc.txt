@@ -1,0 +1,9 @@
+Receipts: search/show physical Receipt # (R#); date sort -> ascending (oldest first)
+
+- receipts.js: new 'Receipt #' column (reference_no = the physical receipt-book
+  number) and the Voucher search box now matches R# too (relabelled
+  'Voucher / Receipt #'); cache token bumped.
+- Flipped all date-ordered list/report RPCs from newest-first to ASCENDING per
+  owner preference (starting date on top, latest at bottom).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

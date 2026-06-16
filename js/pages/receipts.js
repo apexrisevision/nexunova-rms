@@ -37,8 +37,8 @@ function rReceipts() {
     '<div id="rv-list-view">' +
       NX.card(
         '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:flex-end">' +
-          '<div class="nx-field" style="margin:0;min-width:150px"><label class="nx-label">Voucher no</label>' +
-            '<input class="nx-input" type="text" placeholder="PRV-2526-…" oninput="_rvFilter.voucherNo=this.value;clearTimeout(_rvSearchTimer);_rvSearchTimer=setTimeout(_rvApplyFilter,220)"></div>' +
+          '<div class="nx-field" style="margin:0;min-width:170px"><label class="nx-label">Voucher / Receipt #</label>' +
+            '<input class="nx-input" type="text" placeholder="PRV-2526-… or R# 1907" oninput="_rvFilter.voucherNo=this.value;clearTimeout(_rvSearchTimer);_rvSearchTimer=setTimeout(_rvApplyFilter,220)"></div>' +
           '<div class="nx-field" style="margin:0;min-width:150px"><label class="nx-label">Client name</label>' +
             '<input class="nx-input" type="text" placeholder="Search client…" oninput="_rvFilter.client=this.value;clearTimeout(_rvSearchTimer);_rvSearchTimer=setTimeout(_rvApplyFilter,220)"></div>' +
           '<div class="nx-field" style="margin:0"><label class="nx-label">From</label>' +
@@ -95,7 +95,8 @@ function _rvApplyFilter() {
   const st =  _rvFilter.status;
 
   _rvFiltered = _rvList.filter(r => {
-    if (vn && !(r.voucher_code || r.payment_code || '').toLowerCase().includes(vn)) return false;
+    // match system voucher code OR the physical receipt/book number (R#) stored in reference_no
+    if (vn && !((r.voucher_code || '') + ' ' + (r.payment_code || '') + ' ' + (r.reference_no || '')).toLowerCase().includes(vn)) return false;
     if (cl) {
       const cn = (gclient(r.client_id)?.fullName || gclient(r.client_id)?.name || '').toLowerCase();
       if (!cn.includes(cl)) return false;
@@ -140,6 +141,7 @@ function _rvRender() {
     const strike = cancelled ? 'text-decoration:line-through;color:var(--fk-text-muted)' : '';
     return '<tr style="cursor:pointer' + (cancelled ? ';opacity:.6' : '') + '" onclick="_rvShowDetail(\'' + r.id + '\')">' +
       '<td><span class="num" style="' + (cancelled ? strike : 'color:var(--fk-primary)') + '">' + NX.esc(code) + '</span></td>' +
+      '<td><span class="num">' + NX.esc(r.reference_no || '—') + '</span></td>' +
       '<td>' + fD(r.payment_date) + '</td>' +
       '<td>' + NX.esc(cName) + '</td>' +
       '<td><span style="color:var(--fk-text-muted)">' + NX.esc(unitLbl) + '</span></td>' +
@@ -160,7 +162,7 @@ function _rvRender() {
 
   tbl.innerHTML = NX.card(
     '<table class="nx-table nx-table--flush"><thead><tr>' +
-      '<th>Voucher no</th><th>Date</th><th>Client</th><th>Project / Unit</th><th class="num">Amount</th><th>Mode</th><th>Status</th>' +
+      '<th>Voucher no</th><th>Receipt #</th><th>Date</th><th>Client</th><th>Project / Unit</th><th class="num">Amount</th><th>Mode</th><th>Status</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table>' + pager, { flush:true });
 }
 
