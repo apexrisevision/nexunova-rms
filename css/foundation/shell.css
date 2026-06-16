@@ -359,6 +359,16 @@ html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-lb
   -webkit-text-fill-color: var(--fk-primary) !important;
 }
 
+/* expanded group → faint shaded well behind its items, with a soft left accent,
+   so the items clearly read as belonging INSIDE this button. */
+html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-body{
+  background: var(--fk-bg-subtle) !important;
+  border-left: 2px solid var(--fk-primary) !important;
+  border-radius: 0 8px 8px 0 !important;
+  margin: 2px 0 8px 8px !important;
+  padding: 5px 6px 5px 8px !important;
+}
+
 /* ── 3d. SIDEBAR FOOTER — collapse control only ── */
 #s-app .sb .sb-foot{ margin-top: auto; padding: var(--fk-sp-2) var(--fk-sp-3); border-top: 1px solid var(--fk-border); }
 #s-app .sb .sb-foot-collapse{
