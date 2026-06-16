@@ -306,45 +306,34 @@ html[data-theme="dark"] #s-app .sb{ box-shadow: 1px 0 0 var(--fk-border), 6px 0 
 [data-theme="light"] #s-app .sb{ background: #FAFBFC !important; }
 /* (dark sidebar #0F172A already separates from page #0B1120; border + edge above) */
 
-/* ── 3c. GROUP HEADER — 3D RAISED BUTTON, collapsible (2026-06-16) ──
-   Real depth: top sheen + solid bottom "edge" (the button's thickness) + drop
-   shadow; presses DOWN on click/expand. Loaded last → wins; !important safety. */
-#s-app .sb .nav-group{ margin-bottom: 9px; }
+/* ── 3c. GROUP HEADER — simple, clean button (2026-06-16) ──
+   Flat row: leading icon + label + chevron. Light hover; indigo when expanded.
+   No 3D, no borders. Collapsed by default. Loaded last → wins (!important). */
+#s-app .sb .nav-group{ margin-bottom: 2px; }
 html[data-theme] #s-app .sb .nav-grp-hd{
   display: flex !important; align-items: center !important; gap: 10px !important;
   width: 100% !important;
-  height: 42px !important;
-  padding: 0 12px !important;
-  border: 1px solid var(--fk-border) !important;
-  border-radius: 11px !important;
+  height: 36px !important;
+  padding: 0 10px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 8px !important;
   color: var(--fk-text) !important;
   cursor: pointer !important;
-  /* sheen overlay (white top → dark bottom) painted over the surface */
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.05)),
-    var(--fk-bg-card) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.18),
-    0 3px 0 var(--fk-border),
-    0 5px 9px rgba(0,0,0,0.14) !important;
-  transform: translateY(0) !important;
-  transition: transform 110ms ease, box-shadow 110ms ease, background 140ms ease !important;
+  transition: background 130ms ease !important;
 }
-/* leading icon chip — slightly inset 3D well */
 html[data-theme] #s-app .sb .nav-grp-ic{
   display: inline-flex !important; align-items: center; justify-content: center;
-  width: 27px !important; height: 27px !important; flex-shrink: 0;
-  border-radius: 8px !important;
+  width: 18px !important; height: 18px !important; flex-shrink: 0;
+  background: transparent !important; box-shadow: none !important;
   color: var(--fk-text-muted) !important;
-  background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(255,255,255,0.06)), var(--fk-bg-subtle) !important;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.12) !important;
-  transition: color 140ms ease, background 140ms ease !important;
+  transition: color 130ms ease !important;
 }
 html[data-theme] #s-app .sb .nav-grp-ic svg{ width: 16px; height: 16px; }
 html[data-theme] #s-app .sb .nav-grp-lbl{
   flex: 1; text-align: left;
   font-size: var(--fk-fs-body) !important;
-  font-weight: var(--fk-fw-semibold) !important;
+  font-weight: var(--fk-fw-medium) !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
   color: var(--fk-text) !important;
@@ -353,56 +342,22 @@ html[data-theme] #s-app .sb .nav-grp-lbl{
 html[data-theme] #s-app .sb .nav-grp-chev{
   margin-left: auto; flex-shrink: 0;
   color: var(--fk-text-muted) !important;
-  transition: transform 180ms ease, color 140ms ease;
+  transition: transform 160ms ease !important;
 }
 #s-app .sb .nav-group.collapsed .nav-grp-chev{ transform: rotate(-90deg); }
 
-/* hover — lifts a hair, edge + drop shadow grow, icon warms to indigo */
-html[data-theme] #s-app .sb .nav-grp-hd:hover{
-  transform: translateY(-1px) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.22),
-    0 4px 0 var(--fk-border),
-    0 7px 12px rgba(0,0,0,0.18) !important;
-}
-html[data-theme] #s-app .sb .nav-grp-hd:hover .nav-grp-ic{
-  background: var(--fk-primary-tint) !important;
+/* hover — light surface */
+html[data-theme] #s-app .sb .nav-grp-hd:hover{ background: var(--fk-bg-subtle) !important; }
+
+/* expanded — just an indigo tint of text + icon (clean, no fills) */
+html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-ic,
+html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-chev{
   color: var(--fk-primary) !important;
 }
-/* press — button pushes DOWN, thickness collapses */
-html[data-theme] #s-app .sb .nav-grp-hd:active{
-  transform: translateY(3px) !important;
-  box-shadow:
-    inset 0 1px 2px rgba(0,0,0,0.12),
-    0 1px 0 var(--fk-border),
-    0 1px 2px rgba(0,0,0,0.12) !important;
-}
-
-/* expanded — solid indigo 3D key, slightly pressed-in */
-html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd{
-  border-color: var(--fk-primary) !important;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.22), rgba(0,0,0,0.10)),
-    var(--fk-primary) !important;
-  transform: translateY(1px) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.30),
-    0 2px 0 rgba(0,0,0,0.22),
-    0 4px 8px rgba(0,0,0,0.20) !important;
-}
-html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-ic{
-  background: rgba(255,255,255,0.20) !important;
-  color: #fff !important;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.18) !important;
-}
 html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-lbl{
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+  color: var(--fk-primary) !important;
+  -webkit-text-fill-color: var(--fk-primary) !important;
 }
-html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-chev{
-  color: rgba(255,255,255,0.85) !important;
-}
-html[data-theme] #s-app .sb .nav-grp-body{ padding-left: 4px !important; }
 
 /* ── 3d. SIDEBAR FOOTER — collapse control only ── */
 #s-app .sb .sb-foot{ margin-top: auto; padding: var(--fk-sp-2) var(--fk-sp-3); border-top: 1px solid var(--fk-border); }
