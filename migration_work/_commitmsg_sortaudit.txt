@@ -1,0 +1,13 @@
+Reports/lists date-wise sort audit: add ORDER BY to all RPCs that lacked it
+
+Audited every list_*/get_*register/ledger/report RPC. Most already ordered;
+these 10 returned heap order (and some dropped recent rows under LIMIT):
+  newest-first: list_sales_filtered, list_sales_for_report, list_sales_by_agent,
+    list_sales_by_client(_all), list_payments_with_sales_unit,
+    list_agent_commissions_with_agent, list_possessions_filtered
+  chronological: list_payments_for_sale (statement), list_installments_filtered (schedule)
+Inner subquery + jsonb_agg both ordered so LIMIT keeps the right rows. Shapes/
+filters/security gates unchanged. Verified on Fourteen Group. Follows the
+Receipt Vouchers fix (list_payments_filtered).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
