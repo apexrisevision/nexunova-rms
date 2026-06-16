@@ -1,0 +1,9 @@
+Receipt Vouchers: sort date-wise (newest first) — RPC had no ORDER BY
+
+list_payments_filtered returned heap order, so Receipt Vouchers and the
+Receipts report appeared randomly sorted; the LIMIT could also silently drop
+the most recent vouchers. Added ORDER BY payment_date DESC, created_at DESC,
+id DESC in both the inner (LIMIT-bearing) subquery and jsonb_agg. Verified on
+Fourteen Group: output now strictly date-descending.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
