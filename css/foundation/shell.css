@@ -306,36 +306,45 @@ html[data-theme="dark"] #s-app .sb{ box-shadow: 1px 0 0 var(--fk-border), 6px 0 
 [data-theme="light"] #s-app .sb{ background: #FAFBFC !important; }
 /* (dark sidebar #0F172A already separates from page #0B1120; border + edge above) */
 
-/* ── 3c. GROUP HEADER — refined icon-led button, collapsible (2026-06-16) ──
-   Soft, borderless pills with a leading glyph; collapsed by default. Loaded last
-   → wins over sidebar-premium/saas-polish (!important for safety). */
-#s-app .sb .nav-group{ margin-bottom: 3px; }
+/* ── 3c. GROUP HEADER — 3D RAISED BUTTON, collapsible (2026-06-16) ──
+   Real depth: top sheen + solid bottom "edge" (the button's thickness) + drop
+   shadow; presses DOWN on click/expand. Loaded last → wins; !important safety. */
+#s-app .sb .nav-group{ margin-bottom: 9px; }
 html[data-theme] #s-app .sb .nav-grp-hd{
   display: flex !important; align-items: center !important; gap: 10px !important;
   width: 100% !important;
-  height: 38px !important;
-  padding: 0 10px !important;
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 9px !important;
+  height: 42px !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--fk-border) !important;
+  border-radius: 11px !important;
   color: var(--fk-text) !important;
   cursor: pointer !important;
-  transition: background 140ms ease, box-shadow 140ms ease !important;
+  /* sheen overlay (white top → dark bottom) painted over the surface */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.05)),
+    var(--fk-bg-card) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    0 3px 0 var(--fk-border),
+    0 5px 9px rgba(0,0,0,0.14) !important;
+  transform: translateY(0) !important;
+  transition: transform 110ms ease, box-shadow 110ms ease, background 140ms ease !important;
 }
-/* leading icon chip */
+/* leading icon chip — slightly inset 3D well */
 html[data-theme] #s-app .sb .nav-grp-ic{
   display: inline-flex !important; align-items: center; justify-content: center;
-  width: 26px !important; height: 26px !important; flex-shrink: 0;
-  border-radius: 7px !important;
+  width: 27px !important; height: 27px !important; flex-shrink: 0;
+  border-radius: 8px !important;
   color: var(--fk-text-muted) !important;
-  background: var(--fk-bg-subtle) !important;
+  background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(255,255,255,0.06)), var(--fk-bg-subtle) !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.12) !important;
   transition: color 140ms ease, background 140ms ease !important;
 }
 html[data-theme] #s-app .sb .nav-grp-ic svg{ width: 16px; height: 16px; }
 html[data-theme] #s-app .sb .nav-grp-lbl{
   flex: 1; text-align: left;
   font-size: var(--fk-fs-body) !important;
-  font-weight: var(--fk-fw-medium) !important;
+  font-weight: var(--fk-fw-semibold) !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
   color: var(--fk-text) !important;
@@ -348,34 +357,51 @@ html[data-theme] #s-app .sb .nav-grp-chev{
 }
 #s-app .sb .nav-group.collapsed .nav-grp-chev{ transform: rotate(-90deg); }
 
-/* hover — soft surface + the icon chip warms to indigo */
+/* hover — lifts a hair, edge + drop shadow grow, icon warms to indigo */
 html[data-theme] #s-app .sb .nav-grp-hd:hover{
-  background: var(--fk-bg-subtle) !important;
-  box-shadow: var(--fk-shadow) !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    0 4px 0 var(--fk-border),
+    0 7px 12px rgba(0,0,0,0.18) !important;
 }
 html[data-theme] #s-app .sb .nav-grp-hd:hover .nav-grp-ic{
   background: var(--fk-primary-tint) !important;
   color: var(--fk-primary) !important;
 }
-html[data-theme] #s-app .sb .nav-grp-hd:active{ transform: scale(0.985) !important; }
+/* press — button pushes DOWN, thickness collapses */
+html[data-theme] #s-app .sb .nav-grp-hd:active{
+  transform: translateY(3px) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0,0,0,0.12),
+    0 1px 0 var(--fk-border),
+    0 1px 2px rgba(0,0,0,0.12) !important;
+}
 
-/* expanded — calm indigo wash + indigo icon, label, chevron */
+/* expanded — solid indigo 3D key, slightly pressed-in */
 html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd{
-  background: var(--fk-primary-surface) !important;
+  border-color: var(--fk-primary) !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.22), rgba(0,0,0,0.10)),
+    var(--fk-primary) !important;
+  transform: translateY(1px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.30),
+    0 2px 0 rgba(0,0,0,0.22),
+    0 4px 8px rgba(0,0,0,0.20) !important;
 }
 html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-ic{
-  background: var(--fk-primary) !important;
-  color: var(--fk-primary-fg, #fff) !important;
+  background: rgba(255,255,255,0.20) !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.18) !important;
 }
 html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-lbl{
-  font-weight: var(--fk-fw-semibold) !important;
-  color: var(--fk-primary) !important;
-  -webkit-text-fill-color: var(--fk-primary) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
 }
 html[data-theme] #s-app .sb .nav-group:not(.collapsed) > .nav-grp-hd .nav-grp-chev{
-  color: var(--fk-primary) !important;
+  color: rgba(255,255,255,0.85) !important;
 }
-/* a touch more indent on items so they sit under the icon-led header */
 html[data-theme] #s-app .sb .nav-grp-body{ padding-left: 4px !important; }
 
 /* ── 3d. SIDEBAR FOOTER — collapse control only ── */
