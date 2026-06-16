@@ -451,16 +451,17 @@ async function printClientStatement(clientRef){
   if(!w) return;
 
   // ── render per-unit sections, accumulate grand totals ──
-  var gNet=0, gRecv=0, gArr=0, gEnd=0, unitSections='';
+  var gNet=0, gRecv=0, gCur=0, gEnd=0, unitSections='';
   sales.forEach(function(sx){
     var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u;
     var net  = Number(d.net_amount || u.totalPrice || 0);
     var recv = pays.reduce(function(s,p){ return s+Number(p.amount||0); }, 0);
-    var arrears = inst.filter(function(r){ return String(r.due_date) <= todayISO; })
-                      .reduce(function(s,r){ return s+Number(r.outstanding||0); }, 0);
-    var endOut  = inst.reduce(function(s,r){ return s+Number(r.outstanding||0); }, 0);
-    if(!inst.length) endOut = Math.max(0, net - recv);   // fallback if schedule missing
-    gNet+=net; gRecv+=recv; gArr+=arrears; gEnd+=endOut;
+    // current receivable = demands due up to today − received (the ledger balance as of today)
+    var dueTillToday = inst.filter(function(r){ return String(r.due_date||'').slice(0,10) <= todayISO; })
+                           .reduce(function(s,r){ return s+Number(r.amount_due||0); }, 0);
+    var curBal = dueTillToday - recv;   // current receivable (today) — negative = advance
+    var endBal = net - recv;            // receivable at end of schedule
+    gNet+=net; gRecv+=recv; gCur+=curBal; gEnd+=endBal;
 
     var ig = function(l,v){ return '<div class="ig-item"><span class="ig-lbl">'+l+'</span><span class="ig-val">'+v+'</span></div>'; };
     unitSections += '<div class="sec-title no-break">Unit '+esc(d.unit_no||u.unitNo||'—')+(d.project_name?' &mdash; '+esc(d.project_name):'')+'</div>';
@@ -477,50 +478,46 @@ async function printClientStatement(clientRef){
     if(d.co_buyer_name) unitSections += ig('Co-buyer', esc(d.co_buyer_name));
     unitSections += ig('Sale Person', esc(d.agent_name||u.soldBy||'—'));
     unitSections += ig('Status', esc(d.status||u.status||'—'));
+    // key balances live UP HERE in the panel (not inside the statement)
+    unitSections += ig('Total Received', '<b style="color:#16a34a">'+fmtPKR(recv)+'</b>');
+    unitSections += ig('Current Receivable', '<b style="color:'+(curBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(curBal)+'</b>');
+    unitSections += ig('Receivable (To End)', '<b style="color:'+(endBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(endBal)+'</b>');
     unitSections += '</div>';
 
-    // ── ONE combined date-wise ledger: schedule demands + receipts, rolling balance ──
-    // Every installment due and every payment, sorted by date; Balance rolls over so
-    // the row at "as of today" shows receivable-till-date + total received, and the
-    // closing row shows the receivable at end of schedule.
+    // ── DR/CR ledger: every demand (DR · receivable) + every receipt (CR · received),
+    //    date-wise. No running balance column (that lives in the top panel); the
+    //    current-date balance is just an underlined marker. Σ DR = price, Σ CR = received.
     var events = [];
     inst.forEach(function(r){
       var lbl = (r.installment_type==='down_payment') ? 'Down Payment'
               : (r.installment_number ? ('Installment #'+r.installment_number) : 'Installment');
-      events.push({ date:String(r.due_date||'').slice(0,10), o:0, label:lbl, ref:'—', due:Number(r.amount_due||0), rcv:0 });
+      events.push({ date:String(r.due_date||'').slice(0,10), o:0, label:lbl, ref:'—', dr:Number(r.amount_due||0), cr:0 });
     });
     pays.forEach(function(p){
       var m=(p.payment_method||'').toLowerCase();
       var mlbl = m.indexOf('cash')>=0 ? 'Cash' : ((m.indexOf('cheque')>=0||m.indexOf('chq')>=0) ? 'Cheque' : 'Bank');
       var txn = p.reference_no || p.payment_code || '';
-      events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), due:0, rcv:Number(p.amount||0) });
+      events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), dr:0, cr:Number(p.amount||0) });
     });
     events.sort(function(a,b){ return a.date<b.date?-1 : a.date>b.date?1 : a.o-b.o; });
 
-    var balCell = function(b){ return '<td style="text-align:right;font-weight:700;color:'+(b>0.5?'#dc2626':(b<-0.5?'#15803d':'#1E2D47'))+'">'+fmtPKR(b)+'</td>'; };
-    unitSections += '<div class="sec-title no-break">Account Ledger &mdash; Schedule &amp; Receipts (running balance)</div>';
-    unitSections += '<table><thead><tr><th>Date</th><th>Particulars</th><th>Reference</th><th style="text-align:right">Receivable</th><th style="text-align:right">Received</th><th style="text-align:right">Balance</th></tr></thead><tbody>';
-    var bal=0, cumRcv=0, asOf=false;
+    var marker = '<tr><td colspan="5" style="text-align:right;border-top:1px dashed #aaa;border-bottom:1.5px solid #333;padding:6px 8px"><i style="color:#555">Receivable balance as of '+fmtDate(todayISO)+':</i> &nbsp;<u style="font-weight:700;color:'+(curBal>0?'#dc2626':'#15803d')+'">'+fmtPKR(curBal)+'</u></td></tr>';
+    unitSections += '<div class="sec-title no-break">Account Ledger</div>';
+    unitSections += '<table><thead><tr><th>Date</th><th>Particulars</th><th>Reference</th><th style="text-align:right">DR &middot; Receivable</th><th style="text-align:right">CR &middot; Received</th></tr></thead><tbody>';
+    var sumDR=0, sumCR=0, marked=false;
     events.forEach(function(e){
-      if(!asOf && e.date > todayISO){
-        unitSections += '<tr style="background:#fef3c7;font-weight:700"><td colspan="3">&#9656; As of '+fmtDate(todayISO)+' &mdash; Received: '+fmtPKR(cumRcv)+'</td><td style="text-align:right;font-size:9px;color:#666">Receivable till date &#8594;</td><td></td>'+balCell(bal)+'</tr>';
-        asOf=true;
-      }
-      bal += e.due - e.rcv; cumRcv += e.rcv;
+      if(!marked && e.date > todayISO){ unitSections += marker; marked=true; }
+      sumDR += e.dr; sumCR += e.cr;
       unitSections += '<tr><td>'+fmtDate(e.date)+'</td>'
         + '<td>'+esc(e.label)+'</td>'
         + '<td style="font-size:9px;color:#666">'+esc(e.ref)+'</td>'
-        + '<td style="text-align:right">'+(e.due?fmtPKR(e.due):'')+'</td>'
-        + '<td style="text-align:right;color:#16a34a'+(e.rcv?';font-weight:700':'')+'">'+(e.rcv?fmtPKR(e.rcv):'')+'</td>'
-        + balCell(bal)+'</tr>';
+        + '<td style="text-align:right">'+(e.dr?fmtPKR(e.dr):'')+'</td>'
+        + '<td style="text-align:right;color:#16a34a'+(e.cr?';font-weight:700':'')+'">'+(e.cr?fmtPKR(e.cr):'')+'</td></tr>';
     });
-    if(!asOf){
-      unitSections += '<tr style="background:#fef3c7;font-weight:700"><td colspan="3">&#9656; As of '+fmtDate(todayISO)+' &mdash; Received: '+fmtPKR(cumRcv)+'</td><td style="text-align:right;font-size:9px;color:#666">Receivable till date &#8594;</td><td></td>'+balCell(bal)+'</tr>';
-    }
-    unitSections += '<tr style="background:#e5e7eb;font-weight:700"><td colspan="3">Closing &mdash; End of Schedule</td>'
-      + '<td style="text-align:right">'+fmtPKR(net)+'</td>'
-      + '<td style="text-align:right;color:#16a34a">'+fmtPKR(cumRcv)+'</td>'
-      + balCell(bal)+'</tr>';
+    if(!marked){ unitSections += marker; }
+    unitSections += '<tr style="border-top:2px double #333;font-weight:700;background:#f3f4f6"><td colspan="3" style="text-align:right">Total</td>'
+      + '<td style="text-align:right">'+fmtPKR(sumDR)+'</td>'
+      + '<td style="text-align:right;color:#16a34a">'+fmtPKR(sumCR)+'</td></tr>';
     unitSections += '</tbody></table>';
   });
 
@@ -538,8 +535,8 @@ async function printClientStatement(clientRef){
   var summary = (units.length>1) ? ('<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'
     + sc('Total Portfolio (Net)', fmtPKR(gNet))
     + sc('Total Received', fmtPKR(gRecv), '#16a34a')
-    + sc('Outstanding · Till Date', fmtPKR(gArr), gArr>0?'#dc2626':'#16a34a')
-    + sc('Outstanding · To End', fmtPKR(gEnd), gEnd>0?'#dc2626':'#16a34a')
+    + sc('Current Receivable', fmtPKR(gCur), gCur>0?'#dc2626':'#15803d')
+    + sc('Receivable · To End', fmtPKR(gEnd), gEnd>0?'#dc2626':'#15803d')
     + '</div>') : '';
 
   var h = _lh('ACCOUNT STATEMENT', clientName);
