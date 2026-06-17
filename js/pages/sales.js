@@ -1597,7 +1597,7 @@ function _renderSaleDetail(d, docs, amendments, client) {
     + (isA ? opRow('Allotment Letter', 'Confirms unit allotment', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' })) : '')
     + (isA ? opRow('Possession Letter', 'Unit handover document', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' })) : '')
     + (isA ? opDivider + opRow('Log Amendment', 'Record a price or schedule change', NX.button('Log', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleAmendmentModal('${d.id}')` })) : '')
-    + (isA && d.status !== 'cancelled' ? opRow('<span style="color:var(--fk-danger)">Cancel Sale</span>', 'Mark as cancelled — requires a reason', NX.button('Cancel', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`openCancelSaleModal('${d.id}')` })) : '')
+    + (isA && d.status !== 'cancelled' ? opRow('<span style="color:var(--fk-danger)">Cancel Unit</span>', 'Full cancellation — reverses the unit, agent commission &amp; logs the refund', NX.button('Cancel Unit', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`nav('unitcancel','${d.unit_id}')` })) : '')
     + (isA && d.status === 'cancelled' ? '<div class="sd-ops-row" style="color:var(--fk-text-muted);font-style:italic;font-size:12px">This sale has been cancelled.</div>' : ''),
     { header:{ icon:'printer', title:'Documents, Letters & Operations' } });
 
