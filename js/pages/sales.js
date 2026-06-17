@@ -1322,7 +1322,39 @@ function _salDetailWarmCSS() {
     '#pg-salesdetail .sd-ops-row:last-child{border-bottom:none}' +
     '#pg-salesdetail .sd-ops-t{font-size:13px;font-weight:500;color:var(--fk-text)}' +
     '#pg-salesdetail .sd-ops-s{font-size:11.5px;color:var(--fk-text-muted);margin-top:2px}' +
+    // ── responsive info columns (full-width tables sit below) ──
+    '#pg-salesdetail .sd-cols{display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-4);align-items:start}' +
+    '#pg-salesdetail .sd-col{display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0}' +
+    '@media(max-width:900px){#pg-salesdetail .sd-cols{grid-template-columns:1fr}}' +
+    // ── embedded Account Statement "paper" (mirrors #pg-statements .stmt-paper) ──
+    '#pg-salesdetail .sd-stmt-paper{background:#fff;color:#1a1a1a;border:1px solid var(--fk-border);border-radius:8px;padding:18px 20px;overflow-x:auto}' +
+    '#pg-salesdetail .sd-stmt-paper .doc-title{font-size:16px;font-weight:700;color:#1E2D47;margin-bottom:6px;border-bottom:2px solid #1E2D47;padding-bottom:5px}' +
+    '#pg-salesdetail .sd-stmt-paper .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#1E2D47;margin:16px 0 6px;border-bottom:1px solid #ddd;padding-bottom:3px}' +
+    '#pg-salesdetail .sd-stmt-paper .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 22px;margin-bottom:6px}' +
+    '#pg-salesdetail .sd-stmt-paper .ig-item{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:4px 0;border-bottom:1px dotted #e5e7eb}' +
+    '#pg-salesdetail .sd-stmt-paper .ig-lbl{color:#666}' +
+    '#pg-salesdetail .sd-stmt-paper .ig-val{font-weight:600;color:#1a1a1a;text-align:right}' +
+    '#pg-salesdetail .sd-stmt-paper table{width:100%;border-collapse:collapse;margin:4px 0 10px;font-size:11.5px;font-variant-numeric:tabular-nums}' +
+    '#pg-salesdetail .sd-stmt-paper th{background:#f3f4f6;text-align:left;padding:7px 9px;border-bottom:2px solid #ccc;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#444}' +
+    '#pg-salesdetail .sd-stmt-paper td{padding:6px 9px;border-bottom:1px solid #eee;vertical-align:top}' +
   '</style>';
+}
+
+// Fill the embedded Account Statement card (DR/CR ledger) for this unit.
+// Reuses _stmtData/_stmtBody from print.js so screen + print stay identical.
+async function _salLoadStatement(ref, unitId) {
+  const host = document.getElementById('sd-stmt-body');
+  if (!host) return;
+  const msg = t => `<div style="padding:22px;text-align:center;color:var(--fk-text-muted);font-size:13px">${t}</div>`;
+  if (!ref) { host.innerHTML = msg('No client linked to this sale.'); return; }
+  if (typeof _stmtData !== 'function' || typeof _stmtBody !== 'function') { host.innerHTML = msg('Statement view unavailable.'); return; }
+  try {
+    const data = await _stmtData(ref, unitId);
+    if (!data) { host.innerHTML = msg('No statement data for this unit yet.'); return; }
+    host.innerHTML = '<div class="sd-stmt-paper">' + _stmtBody(data) + '</div>';
+  } catch (e) {
+    host.innerHTML = msg('Could not load statement: ' + esc(e.message || String(e)));
+  }
 }
 
 async function rSaleDetail() {
@@ -1361,7 +1393,6 @@ function _renderSaleDetail(d, docs, amendments) {
   const isA = S.role === 'admin' || S.role === 'owner';
   const isR = S.role === 'recovery' || S.role === 'recovery_officer';
   const inst = rawInst;
-  const today = td();
 
   // Balance derives from Σ installments paid (sales.remaining_amount is inconsistent
   // across the imported-KBH vs 5-step cohorts — see binding note #1).
@@ -1370,34 +1401,31 @@ function _renderSaleDetail(d, docs, amendments) {
   const recovPct  = Number(d.net_amount) > 0 ? Math.min(100, Math.round(totalPaid / Number(d.net_amount) * 100)) : 0;
   const cmp = n => { n = Number(n || 0); const a = Math.abs(n), s = n < 0 ? '-' : ''; if (a >= 1e9) return s + (a / 1e9).toFixed(2) + 'B'; if (a >= 1e6) return s + (a / 1e6).toFixed(2) + 'M'; if (a >= 1e3) return s + Math.round(a / 1e3) + 'K'; return s + Math.round(a); };
   const kv = (l, v) => v ? `<div class="sd-kv"><span class="sd-kv-l">${l}</span><span class="sd-kv-r">${v}</span></div>` : '';
-  const stBadge = s => { const m = { paid:['Paid','success'], overdue:['Overdue','danger'], pending:['Pending','warning'], partial:['Partial','info'], cancelled:['Cancelled',''] }; const x = m[s] || [String(s || '—'), '']; return NX.badge(x[0], x[1]); };
   const saleStBadge = () => { const m = { active:['Active','success'], cancelled:['Cancelled','danger'], completed:['Completed','info'], transferred:['Transferred','warning'] }; const x = m[d.status] || [String(d.status || '—'), '']; return NX.badge(x[0], x[1]); };
 
-  // ── Schedule table rows ──
+  // ── Schedule table rows — the PURE contractual schedule fixed at sale time.
+  // No receivings / paid / overdue here — that picture lives in the Account
+  // Statement (DR/CR ledger) card below. This is strictly the agreed plan.
   let runTotal = 0;
   const pendingInstOpts = rawInst.filter(r => r.installment_number > 0 && r.status !== 'paid')
     .map(r => `<option value="${inst.indexOf(r)}">${_ordinal(r.installment_number)} Installment · PKR ${fM(r.amount_due)} · Due ${fD(r.due_date)}</option>`).join('');
   const schedRows = inst.map((ins, idx) => {
     runTotal += Number(ins.amount_due || 0);
-    const isOverdue = ins.status !== 'paid' && ins.due_date < today;
-    const ds = isOverdue && ins.status === 'pending' ? 'overdue' : ins.status;
     const isBooking = ins.installment_type === 'down_payment' || ins.installment_number === 0;
     const instN = Number(ins.installment_number || 0);
-    const demandBtn = !isBooking && ins.status !== 'paid' ? `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Demand notice" onclick="printDemandNotice(${idx})">${NX.icon('megaphone', 13)}</button>` : '';
+    const demandBtn = !isBooking ? `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Demand notice" onclick="printDemandNotice(${idx})">${NX.icon('megaphone', 13)}</button>` : '';
     const editBtn = isA && ins.id ? `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Edit installment" onclick="openInstEditModal('${ins.id}')">${NX.icon('pencil', 13)}</button>` : '';
     return [
       `<span style="color:var(--fk-text-muted)">${isBooking ? '—' : instN}</span>`,
       `<span style="font-weight:${isBooking ? 600 : 400};color:${isBooking ? 'var(--fk-primary)' : 'var(--fk-text)'}">${esc(ins.notes || (isBooking ? 'BOOKING' : _ordinal(instN) + ' Installment'))}</span>`,
       fD(ins.due_date),
       fMF(ins.amount_due),
-      ins.amount_paid > 0 ? `<span style="color:var(--fk-success)">${fMF(ins.amount_paid)}</span>` : '<span style="color:var(--fk-text-muted)">—</span>',
       `<span style="color:var(--fk-text-muted)">${fMF(runTotal)}</span>`,
-      stBadge(ds),
       `<span style="display:inline-flex;gap:4px;justify-content:flex-end;white-space:nowrap">${demandBtn}${editBtn}</span>`
     ];
   });
   const schedInner = inst.length
-    ? NX.table({ cols: [{ label:'#', width:'34px' }, { label:'Installment' }, { label:'Due' }, { label:'Amount', num:true }, { label:'Paid', num:true }, { label:'Cumulative', num:true }, { label:'Status' }, { label:'', width:'72px' }], rows: schedRows, flush: true })
+    ? NX.table({ cols: [{ label:'#', width:'40px' }, { label:'Particulars' }, { label:'Due Date' }, { label:'Amount', num:true }, { label:'Cumulative', num:true }, { label:'', width:'84px' }], rows: schedRows, flush: true })
     : NX.empty({ icon:'calendar', message:'No installments on this sale.' });
 
   const aTypeLbl = t => ({ price_change:'Price Change', schedule_change:'Schedule Change', discount_change:'Discount Change', agent_change:'Agent Change', other:'Other' }[t] || t || '—');
@@ -1519,7 +1547,13 @@ function _renderSaleDetail(d, docs, amendments) {
 
   const docsCard = NX.card(docsInner, { header:{ icon:'file-text', title:'Documents', sub: docs.length + ' file' + (docs.length !== 1 ? 's' : '') } });
 
-  const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
+  const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: 'Fixed at sale · ' + inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
+
+  // ── Account Statement (DR/CR ledger) — embedded per-unit, async-filled.
+  // This is the receivings-vs-dues picture; the schedule above stays pure.
+  const stmtCard = NX.card(
+    '<div id="sd-stmt-body"><div style="padding:22px;text-align:center;color:var(--fk-text-muted);font-size:13px">Loading account statement…</div></div>',
+    { header:{ icon:'wallet', title:'Account Statement', sub:'Schedule vs receivings — DR / CR ledger', actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:`printClientStatement('${d.client_id}','${d.unit_id}')` }) } });
 
   // ── Documents, Letters & Operations — ONE home for everything printable ──
   // (was split between a top toolbar and an admin-only card → consolidated here).
@@ -1548,12 +1582,16 @@ function _renderSaleDetail(d, docs, amendments) {
     ${toolbar}
     ${banners}
     ${hero}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-4);align-items:start;margin-top:var(--fk-sp-4)">
-      <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${saleInfo}${cobuyer}${tax}${docsCard}</div>
-      <div style="display:flex;flex-direction:column;gap:var(--fk-sp-4);min-width:0">${schedCard}${ops}${amendCard}</div>
+    <div class="sd-cols" style="margin-top:var(--fk-sp-4)">
+      <div class="sd-col">${saleInfo}${cobuyer}${tax}</div>
+      <div class="sd-col">${ops}${docsCard}</div>
     </div>
+    <div style="margin-top:var(--fk-sp-4)">${schedCard}</div>
+    <div style="margin-top:var(--fk-sp-4)">${stmtCard}</div>
+    <div style="margin-top:var(--fk-sp-4)">${amendCard}</div>
   </div>`;
   if (typeof NX.animateCounts === 'function') NX.animateCounts(pg);
+  _salLoadStatement(d.client_id, d.unit_id);
 
   // Mount the reusable form-nav bar (unchanged): all active sales (light projection).
   if (typeof mountFormNav === 'function') {
