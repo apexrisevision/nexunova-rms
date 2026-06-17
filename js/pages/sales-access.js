@@ -110,7 +110,7 @@ function _saBodyHtml() {
     peopleCard = NX.card(NX.table({
       cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Project scope' }, { label: 'Active reservations', num: true }, { label: 'Last login' }, { label: 'Status' }, { label: '' }],
       rows: people.map(r => [
-        `<b>${esc(r.full_name)}</b>`,
+        `<b>${esc(r.full_name)}</b>` + (r.agent_code ? `<div style="font-size:11px;color:var(--fk-text-muted)">Agent ${esc(r.agent_code)}</div>` : ''),
         esc(r.phone),
         r.project_id ? esc(r.project_name || 'Assigned project') : '<span style="color:var(--fk-text-muted)">All projects</span>',
         `<span class="num">${r.active_reservations || 0}</span>`,
@@ -144,37 +144,44 @@ async function _saRotate() {
   } catch (e) { if (typeof toast === 'function') toast('Could not rotate the link.', 'err'); }
 }
 
-// Approve → pick the project scope (the registrant did not choose one).
+// Approve → register them as a Sale Agent: pick their home project + commission.
 function _saApproveOpen(id, name) {
-  const projOpts = [{ value: '', label: 'All projects' }]
-    .concat((typeof gprojects === 'function' ? gprojects() : []).map(p => ({ value: p.id, label: p.name || p.projectName || p.project_name || 'Project' })));
+  const projOpts = (typeof gprojects === 'function' ? gprojects() : [])
+    .map(p => ({ value: p.id, label: p.name || p.projectName || p.project_name || 'Project' }));
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     title: 'Approve ' + esc(name), size: 'm', onClose: '_saCloseModal()',
     body:
-      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Approving lets this person sign in and reserve. Set the project they can work in.</div>` +
-      NX.field({ label: 'Project scope', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[1] ? projOpts[1].value : '' }) +
+      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Approving registers this person as a <b>Sale Agent</b> (they get an agent ID) and lets them sign in and reserve. Set their project and commission.</div>` +
+      (projOpts.length
+        ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
+        : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`) +
+      NX.field({ label: 'Commission %', name: 'sa-approve-comm', el: 'input', type: 'number', value: '2', attrs: 'min="0" max="100" step="0.01"' }) +
       `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`,
     footer: NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' }) +
-            NX.button('Approve access', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` })
+            (projOpts.length ? NX.button('Approve &amp; register agent', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '')
   }));
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
 
 async function _saApproveSubmit(id) {
   const proj = (document.getElementById('sa-approve-project') || {}).value || '';
+  const commRaw = (document.getElementById('sa-approve-comm') || {}).value;
+  const comm = commRaw === '' || commRaw == null ? 2 : parseFloat(commRaw);
   const err = document.getElementById('sa-approve-err');
+  const showErr = (m) => { if (err) { err.textContent = m; err.style.display = 'block'; } };
+  if (!proj) { showErr('Pick a project — it becomes their reserve scope and agent home project.'); return; }
+  if (isNaN(comm) || comm < 0 || comm > 100) { showErr('Commission must be between 0 and 100.'); return; }
   try {
-    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj || null });
+    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj, p_commission_percent: comm });
     if (!data || !data.success) {
-      const msg = (data && data.message) || 'Could not approve.';
-      if (err) { err.textContent = msg; err.style.display = 'block'; }
+      showErr((data && data.message) || 'Could not approve.');
       return;
     }
     _saCloseModal();
-    if (typeof toast === 'function') toast('Sales person approved — they can sign in now.', 'ok');
+    if (typeof toast === 'function') toast('Approved — registered as Sale Agent ' + (data.agent_code || '') + '.', 'ok');
     rSalesAccess();
   } catch (e) {
-    if (err) { err.textContent = 'Could not approve.'; err.style.display = 'block'; }
+    showErr('Could not approve.');
   }
 }
 
