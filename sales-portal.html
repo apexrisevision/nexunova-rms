@@ -208,6 +208,7 @@ a{color:var(--fk-primary);text-decoration:none}
 .badge.amber{background:var(--fk-warning-surface);border-color:var(--fk-warning-edge);color:var(--fk-warning)}
 .badge.red{background:var(--fk-danger-surface);border-color:var(--fk-danger-edge);color:var(--fk-danger)}
 .badge.muted{background:var(--fk-bg-subtle);border-color:var(--fk-border);color:var(--fk-text-muted)}
+.badge.fuchsia{background:rgba(217,70,239,.12);border-color:rgba(217,70,239,.35);color:#c026d3}
 
 /* empty */
 .empty{text-align:center;padding:40px 16px;color:var(--fk-text-muted)}
@@ -778,28 +779,46 @@ async function submitReserve(){
 }
 
 // ════ my reservations ════
+let MINE_ROWS=[];
 async function renderMine(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  const {data,error}=await sb.rpc('get_my_reservations',{p_session_token:TOKEN});
-  if(error||!data||!data.success){ return sessionGone(); }
-  const rows=data.reservations||[];
-  if(!rows.length){
+  const [rRes,rSub]=await Promise.all([
+    sb.rpc('get_my_reservations',{p_session_token:TOKEN}),
+    sb.rpc('get_my_submissions',{p_session_token:TOKEN})
+  ]);
+  if(rRes.error||!rRes.data||!rRes.data.success){ return sessionGone(); }
+  MINE_ROWS=rRes.data.reservations||[];
+  const subs=(rSub.data&&rSub.data.submissions)||[];
+  const subBy={};
+  subs.forEach(s=>{ if(!s.reservation_id) return;
+    if(!subBy[s.reservation_id] || s.status==='pending') subBy[s.reservation_id]=s; });
+  if(!MINE_ROWS.length){
     $('app-body').innerHTML='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></div>'
       +'<div class="et">No reservations yet</div><div class="es">Reserve an available unit from the board.</div></div></div>';
     return;
   }
   let html='<div class="card">';
-  rows.forEach(r=>{
+  MINE_ROWS.forEach(r=>{
     const cd=countdown(r.expiry_date);
     const st=r.status;
-    const stBadge=st==='active'?'<span class="badge '+cd.c+'">'+cd.t+'</span>'
-      :'<span class="badge '+(st==='converted'?'green':st==='expired'?'red':'muted')+'">'+st.charAt(0).toUpperCase()+st.slice(1)+'</span>';
+    const sub=subBy[r.id];
+    let right;
+    if(st==='active' && sub && sub.status==='pending'){
+      right='<span class="badge fuchsia">Under sale review</span>'
+        +'<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="withdrawSub(\''+sub.id+'\')">Withdraw</button></div>';
+    } else if(st==='active'){
+      const rej=(sub&&sub.status==='rejected')?'<div class="note" style="color:var(--fk-danger);margin-top:6px;text-align:right">Rejected: '+esc(sub.reject_reason||'see office')+'</div>':'';
+      right='<span class="badge '+cd.c+'">'+cd.t+'</span>'
+        +'<div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end">'
+        +'<button class="btn btn-primary btn-sm" onclick="openSale(\''+r.id+'\')">Mark Sold</button>'
+        +'<button class="btn btn-danger-soft btn-sm" onclick="cancelMine(\''+r.id+'\')">Release</button></div>'+rej;
+    } else {
+      right='<span class="badge '+(st==='converted'?'green':st==='expired'?'red':'muted')+'">'+st.charAt(0).toUpperCase()+st.slice(1)+'</span>';
+    }
     html+='<div class="rrow"><div class="ri"><b>'+esc(r.unit_no||'—')+'</b>'
       +'<div>'+esc(r.project_name||'')+' · '+esc(r.client_name||'')+(r.token_received?' · token '+pkr(r.token_amount):'')+'</div></div>'
-      +'<div style="text-align:right">'+stBadge
-      +(st==='active'?'<div style="margin-top:6px"><button class="btn btn-danger-soft btn-sm" onclick="cancelMine(\''+r.id+'\')">Release</button></div>':'')
-      +'</div></div>';
+      +'<div style="text-align:right">'+right+'</div></div>';
   });
   html+='</div>';
   $('app-body').innerHTML=html;
@@ -811,6 +830,104 @@ async function cancelMine(id){
     if(data&&data.success){ toast('Reservation released.','ok'); renderMine(); }
     else toast('Could not release.','err');
   }catch(e){ toast('Could not release.','err'); }
+}
+
+// ════ mark sold → submit sale for approval ════
+let SALE_CTX=null, SALE_SCHED=[];
+function _snum(id){ const el=$(id); return Number((el&&el.value||'0').replace(/[^0-9.]/g,''))||0; }
+function openSale(reservationId){
+  const r=(MINE_ROWS||[]).find(x=>x.id===reservationId); if(!r) return;
+  SALE_CTX={reservationId:reservationId, unitNo:r.unit_no}; SALE_SCHED=[];
+  const nm=new Date(); nm.setMonth(nm.getMonth()+1); const nextMonth=nm.toISOString().slice(0,10);
+  const body=
+    '<div class="ressum"><div class="rs-r"><span>Unit</span><b>'+esc(r.unit_no||'')+'</b></div>'
+      +'<div class="rs-r"><span>Project</span><b>'+esc(r.project_name||'')+'</b></div></div>'
+    +'<div class="sec-head">Client details</div>'
+    +'<div class="field"><label class="label">Full name *</label><input class="input" id="s-cname" value="'+esc(r.client_name||'')+'"></div>'
+    +'<div class="field"><label class="label">Father / Husband name *</label><input class="input" id="s-cfather"></div>'
+    +'<div class="field"><label class="label">CNIC *</label><input class="input" id="s-ccnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)"></div>'
+    +'<div class="field"><label class="label">Phone *</label><input class="input" id="s-cphone" inputmode="tel" value="'+esc(r.client_phone||'')+'"></div>'
+    +'<div class="field"><label class="label">Address</label><input class="input" id="s-caddress"></div>'
+    +'<div class="field"><label class="label">Email <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="s-cemail" type="email"></div>'
+    +'<div class="sec-head">Nominee <span>· optional</span></div>'
+    +'<div class="field"><label class="label">Nominee name</label><input class="input" id="s-nname"></div>'
+    +'<div class="field"><label class="label">Nominee CNIC</label><input class="input" id="s-ncnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)"></div>'
+    +'<div class="field"><label class="label">Nominee phone</label><input class="input" id="s-nphone" inputmode="tel"></div>'
+    +'<div class="sec-head">Sale &amp; price</div>'
+    +'<div class="field"><label class="label">Area (sqft) *</label><input class="input num" id="s-area" inputmode="decimal" oninput="saleRecalc()"></div>'
+    +'<div class="field"><label class="label">Rate per sqft (PKR) *</label><input class="input num" id="s-rate" inputmode="numeric" oninput="saleRecalc()"></div>'
+    +'<div class="field"><label class="label">Discount (PKR)</label><input class="input num" id="s-disc" inputmode="numeric" value="0" oninput="saleRecalc()"></div>'
+    +'<div class="ressum"><div class="rs-r"><span>Gross</span><b id="s-gross">₨0</b></div><div class="rs-r"><span>Net price</span><b id="s-net">₨0</b></div></div>'
+    +'<div class="sec-head">Payment schedule</div>'
+    +'<div class="field"><label class="label">Down payment (PKR)</label><input class="input num" id="s-dp" inputmode="numeric" value="0" oninput="saleRecalc()"></div>'
+    +'<div class="field"><label class="label">Monthly installments (count)</label><input class="input num" id="s-months" inputmode="numeric" value="12"></div>'
+    +'<div class="field"><label class="label">First installment date</label><input class="input" id="s-first" type="date" value="'+nextMonth+'"></div>'
+    +'<button class="btn btn-secondary btn-full" type="button" onclick="genSchedule()">Generate schedule</button>'
+    +'<div id="s-sched" style="margin-top:10px"></div>'
+    +'<div class="err" id="s-err"></div>';
+  openModal('Mark Unit '+esc(r.unit_no||'')+' sold', body,
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="s-go" onclick="submitSale()">Submit for approval</button>');
+}
+function saleRecalc(){
+  const gross=_snum('s-area')*_snum('s-rate'), net=Math.max(0,gross-_snum('s-disc'));
+  if($('s-gross')) $('s-gross').textContent=pkrFull(gross);
+  if($('s-net'))   $('s-net').textContent=pkrFull(net);
+}
+function genSchedule(){
+  const net=Math.max(0,_snum('s-area')*_snum('s-rate')-_snum('s-disc'));
+  const dp=_snum('s-dp'), months=Math.max(0,Math.floor(_snum('s-months'))), first=$('s-first').value;
+  const err=$('s-err'); err.classList.remove('show');
+  if(net<=0){ err.textContent='Enter area and rate first.'; err.classList.add('show'); return; }
+  if(months>0 && !first){ err.textContent='Pick the first installment date.'; err.classList.add('show'); return; }
+  SALE_SCHED=[];
+  if(dp>0) SALE_SCHED.push({installment_number:0,installment_type:'down_payment',due_date:(first||new Date().toISOString().slice(0,10)),amount_due:dp,notes:'Down payment'});
+  const remaining=Math.max(0,net-dp);
+  if(months>0){
+    const per=Math.round(remaining/months); let d=new Date(first);
+    for(let i=1;i<=months;i++){
+      const amt = i===months ? Math.max(0, remaining-per*(months-1)) : per;
+      SALE_SCHED.push({installment_number:i,installment_type:'installment',due_date:d.toISOString().slice(0,10),amount_due:amt,notes:'Installment '+i});
+      d=new Date(d); d.setMonth(d.getMonth()+1);
+    }
+  }
+  if(!SALE_SCHED.length){ err.textContent='Add a down payment or installments.'; err.classList.add('show'); return; }
+  const sum=SALE_SCHED.reduce((a,s)=>a+Number(s.amount_due||0),0);
+  let h='<div class="card" style="padding:0;margin:0">';
+  SALE_SCHED.forEach(s=>{ h+='<div class="rrow"><div class="ri"><b>'+(s.installment_type==='down_payment'?'Down payment':esc(s.notes))+'</b><div>'+fdate(s.due_date)+'</div></div><div style="text-align:right"><b>'+pkrFull(s.amount_due)+'</b></div></div>'; });
+  h+='</div><div class="note" style="margin-top:6px">Schedule total: <b>'+pkrFull(sum)+'</b> · Net price: <b>'+pkrFull(net)+'</b></div>';
+  $('s-sched').innerHTML=h;
+}
+async function submitSale(){
+  if(!SALE_CTX) return;
+  const err=$('s-err'); err.classList.remove('show');
+  const bad=m=>{ err.textContent=m; err.classList.add('show'); };
+  const cname=($('s-cname').value||'').trim(), cfather=($('s-cfather').value||'').trim();
+  const ccnic=($('s-ccnic').value||'').trim(), cphone=($('s-cphone').value||'').trim();
+  if(!cname) return bad('Client full name is required.');
+  if(!cfather) return bad('Father / Husband name is required.');
+  if(ccnic && !/^\d{5}-\d{7}-\d$/.test(ccnic)) return bad('Client CNIC format: xxxxx-xxxxxxx-x');
+  if(!cphone) return bad('Client phone is required.');
+  if(_snum('s-area')<=0||_snum('s-rate')<=0) return bad('Enter area and rate per sqft.');
+  if(!SALE_SCHED.length) return bad('Generate the payment schedule first.');
+  const client={ full_name:cname, father_name:cfather, cnic:ccnic||null, phone_primary:cphone,
+    address:($('s-caddress').value||'').trim()||null, email:($('s-cemail').value||'').trim()||null,
+    next_of_kin_name:($('s-nname').value||'').trim()||null, next_of_kin_cnic:($('s-ncnic').value||'').trim()||null,
+    next_of_kin_phone:($('s-nphone').value||'').trim()||null, overseas_local:'local' };
+  const sale={ area_sqft:_snum('s-area'), price_per_sqft:_snum('s-rate'), discount:_snum('s-disc'),
+    down_payment:_snum('s-dp'), sale_date:new Date().toISOString().slice(0,10) };
+  const go=$('s-go'); go.disabled=true; go.textContent='Submitting…';
+  try{
+    const {data,error}=await sb.rpc('submit_sale',{p_session_token:TOKEN,p_reservation_id:SALE_CTX.reservationId,p_client:client,p_sale:sale,p_schedule:SALE_SCHED});
+    if(error) throw error;
+    if(!data||!data.success){ bad((data&&data.message)||(data&&data.error)||'Could not submit.'); go.disabled=false; go.textContent='Submit for approval'; return; }
+    closeModal(); toast('Sale submitted for approval.','ok'); renderMine();
+  }catch(e){ bad('Could not submit this sale.'); go.disabled=false; go.textContent='Submit for approval'; }
+}
+async function withdrawSub(id){
+  if(!confirm('Withdraw this submitted sale? The unit returns to Reserved and you can submit again.')) return;
+  try{ const {data}=await sb.rpc('cancel_my_submission',{p_session_token:TOKEN,p_id:id});
+    if(data&&data.success){ toast('Submission withdrawn.','ok'); renderMine(); } else toast('Could not withdraw.','err'); }
+  catch(e){ toast('Could not withdraw.','err'); }
 }
 
 // ════ modal ════
