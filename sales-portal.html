@@ -480,7 +480,7 @@ async function _capPut(blob,key,ext){
   if(prev){ prev.classList.add('busy'); prev.textContent='…'; }
   try{
     const path='sales-signup/'+SIGNUP_TOKEN+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+(ext||'jpg');
-    const up=await sb.storage.from('rms-documents').upload(path,blob,{upsert:true,contentType:blob.type||'image/jpeg'});
+    const up=await sb.storage.from('rms-documents').upload(path,blob,{upsert:false,contentType:blob.type||'image/jpeg'});
     if(up.error) throw up.error;
     _capDone(key, sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl);
   }catch(e){
