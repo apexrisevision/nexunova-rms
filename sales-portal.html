@@ -48,7 +48,15 @@ a{color:var(--fk-primary);text-decoration:none}
 
 /* ════ Auth — NexuAttend-style premium light hero ════ */
 .auth-hero,.auth-card{--ease:cubic-bezier(.2,.7,.3,1)}
-.auth-bg{position:fixed;inset:0;z-index:0;background:#EEF1FB}
+/* premium soft-aurora backdrop EVERYWHERE (so mobile gets the look too, not a flat card) */
+.auth-bg{position:fixed;inset:0;z-index:0;overflow:hidden;
+  background:radial-gradient(70% 55% at 88% 4%, rgba(124,58,237,.16), transparent 60%),
+            radial-gradient(62% 50% at 10% 100%, rgba(6,182,212,.14), transparent 60%),
+            radial-gradient(85% 48% at 50% -4%, rgba(37,99,235,.11), transparent 55%),
+            linear-gradient(160deg,#EEF2FF 0%,#E6ECFF 42%,#E7DEFB 100%)}
+.auth-bg::before,.auth-bg::after{content:"";position:absolute;border-radius:50%;filter:blur(64px);pointer-events:none}
+.auth-bg::before{width:60vw;height:60vw;max-width:460px;max-height:460px;right:-14vw;top:-10vh;background:radial-gradient(circle,rgba(124,58,237,.22),transparent 70%);animation:auroraDrift2 30s ease-in-out infinite}
+.auth-bg::after{width:64vw;height:64vw;max-width:520px;max-height:520px;left:-16vw;bottom:-12vh;background:radial-gradient(circle,rgba(37,99,235,.18),transparent 70%);animation:auroraDrift3 34s ease-in-out infinite}
 .auth-grid{display:none}
 
 /* LEFT — light premium marketing hero (desktop) */
