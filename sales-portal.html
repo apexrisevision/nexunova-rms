@@ -401,7 +401,7 @@ function fmtPhone(v){
 }
 
 // ════ state ════
-let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
+let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, UPLOAD_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
 // board view: mode (detailed=expanded all floors [default] | floors=summary directory),
 // which project, which floor is open (floors mode), status filter, search
 let BV={proj:0, floor:null, filter:'all', q:'', mode:'detailed'};
@@ -436,7 +436,7 @@ const IDLE_MS=30*60*1000;
 const ACT_KEY='rms.sales.active';
 function _saveSession(tok){ try{ localStorage.setItem(TOK_KEY,tok); localStorage.setItem(ACT_KEY,String(Date.now())); }catch(e){} }
 function _touch(){ try{ if(localStorage.getItem(TOK_KEY)) localStorage.setItem(ACT_KEY,String(Date.now())); }catch(e){} }
-function _clearSession(){ try{ localStorage.removeItem(TOK_KEY); localStorage.removeItem(ACT_KEY); }catch(e){} }
+function _clearSession(){ try{ localStorage.removeItem(TOK_KEY); localStorage.removeItem(ACT_KEY); localStorage.removeItem('rms.sales.uptok'); }catch(e){} }
 function _validSession(){ try{ const t=localStorage.getItem(TOK_KEY); const a=Number(localStorage.getItem(ACT_KEY)||0);
   if(t && (Date.now()-a)<IDLE_MS) return t; }catch(e){} return null; }
 let _idleTimer=null;
@@ -448,7 +448,7 @@ async function bootstrap(){
   const signup=params.get('signup');
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
-  if(saved){ TOKEN=saved; const ok=await loadBoard(); if(ok){ _touch(); _startIdleWatch(); showScreen('screen-app'); setTab('board'); return; } _clearSession(); }
+  if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){} const ok=await loadBoard(); if(ok){ _touch(); _startIdleWatch(); showScreen('screen-app'); setTab('board'); return; } _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   setCompanyContext(null);
   showScreen('screen-login');
@@ -469,6 +469,17 @@ async function openSignupLink(token){
 // ── signup photo / CNIC capture (guided camera or browse) ──
 const CAP={photo:null,cf:null,cb:null};
 const CAMS={stream:null,key:null,kind:null};
+// the active error box (sale modal if open, else the signup form)
+function _capErr(){ return $('s-err')||$('reg-err'); }
+function _capShowErr(m){ const e=_capErr(); if(e){ e.textContent=m; e.classList.add('show'); } }
+// a reusable capture slot: 📷 guided Camera + 📁 Browse + preview. kind: 'face'|'card'
+function capSlot(key,label,kind){
+  return '<div class="field"><label class="label">'+esc(label)+'</label>'
+    +'<div class="cap" id="cap-'+key+'"><div class="cap-prev" id="cap-'+key+'-prev">'+(kind==='face'?'Photo':'Doc')+'</div><div class="cap-btns">'
+    +'<button type="button" class="cap-btn" onclick="capCamera(\''+key+'\',\''+kind+'\')">📷 Camera</button>'
+    +'<label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,\''+key+'\')"></label>'
+    +'</div></div></div>';
+}
 
 function _capDone(key,url){
   CAP[key]=url;
@@ -476,25 +487,25 @@ function _capDone(key,url){
   const wrap=$('cap-'+key); if(wrap) wrap.querySelectorAll('.cap-btn').forEach(b=>b.classList.add('done'));
 }
 async function _capPut(blob,key,ext){
-  if(!SIGNUP_TOKEN) return;
-  const prev=$('cap-'+key+'-prev'), er=$('reg-err');
+  const tok=SIGNUP_TOKEN||UPLOAD_TOKEN;
+  if(!tok){ _capShowErr('Upload not available — please sign in again.'); return; }
+  const prev=$('cap-'+key+'-prev');
   if(prev){ prev.classList.add('busy'); prev.textContent='…'; }
   try{
-    const path='sales-signup/'+SIGNUP_TOKEN+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+(ext||'jpg');
+    const path='sales-signup/'+tok+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+(ext||'jpg');
     const up=await sb.storage.from('rms-documents').upload(path,blob,{upsert:false,contentType:blob.type||'image/jpeg'});
     if(up.error) throw up.error;
     _capDone(key, sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl);
   }catch(e){
     if(prev){ prev.classList.remove('busy'); prev.textContent='!'; }
-    er.textContent='Could not upload image. Try again or use Browse.'; er.classList.add('show');
+    _capShowErr('Could not upload image. Try again or use Browse.');
   }
 }
 async function capUpload(input,key){
   const file=input.files&&input.files[0]; input.value='';
   if(!file) return;
-  const er=$('reg-err');
-  if(file.type&&!file.type.startsWith('image/')){ er.textContent='Please choose an image.'; er.classList.add('show'); return; }
-  if(file.size>8*1024*1024){ er.textContent='Image too large (max 8 MB).'; er.classList.add('show'); return; }
+  if(file.type&&!file.type.startsWith('image/')){ _capShowErr('Please choose an image.'); return; }
+  if(file.size>8*1024*1024){ _capShowErr('Image too large (max 8 MB).'); return; }
   await _capPut(file,key,(file.name.split('.').pop()||'jpg').toLowerCase());
 }
 
@@ -513,7 +524,7 @@ async function capCamera(key,kind){
     video.srcObject=CAMS.stream;
   }catch(e){
     capCloseCam();
-    const er=$('reg-err'); er.textContent='Camera unavailable — use Browse to pick a photo.'; er.classList.add('show');
+    _capShowErr('Camera unavailable — use Browse to pick a photo.');
   }
 }
 function capCloseCam(){ if(CAMS.stream){ CAMS.stream.getTracks().forEach(t=>t.stop()); CAMS.stream=null; } const cam=$('cam'); if(cam) cam.classList.remove('on'); const v=$('cam-video'); if(v) v.srcObject=null; }
@@ -576,6 +587,7 @@ async function doLogin(){
 function onLogin(data){
   TOKEN=data.session_token; _saveSession(TOKEN); _startIdleWatch();
   ME=data;
+  UPLOAD_TOKEN=data.upload_token||null; try{ localStorage.setItem('rms.sales.uptok',UPLOAD_TOKEN||''); }catch(e){}
   try{ if(data.company_name)localStorage.setItem('rms.sales.coName',data.company_name); }catch(e){}
   $('who-name').textContent=data.sales_user_name||'Sales';
   $('who-co').textContent=data.company_name||'';
@@ -838,6 +850,7 @@ function _snum(id){ const el=$(id); return Number((el&&el.value||'0').replace(/[
 function openSale(reservationId){
   const r=(MINE_ROWS||[]).find(x=>x.id===reservationId); if(!r) return;
   SALE_CTX={reservationId:reservationId, unitNo:r.unit_no}; SALE_SCHED=[];
+  CAP.cphoto=null; CAP.ccf=null; CAP.ccb=null; CAP.nphoto=null;
   const nm=new Date(); nm.setMonth(nm.getMonth()+1); const nextMonth=nm.toISOString().slice(0,10);
   const body=
     '<div class="ressum"><div class="rs-r"><span>Unit</span><b>'+esc(r.unit_no||'')+'</b></div>'
@@ -849,10 +862,15 @@ function openSale(reservationId){
     +'<div class="field"><label class="label">Phone *</label><input class="input" id="s-cphone" inputmode="tel" value="'+esc(r.client_phone||'')+'"></div>'
     +'<div class="field"><label class="label">Address</label><input class="input" id="s-caddress"></div>'
     +'<div class="field"><label class="label">Email <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="s-cemail" type="email"></div>'
+    +'<div class="sec-head">Client documents (KYC) <span>· optional</span></div>'
+    +capSlot('cphoto','Client photo','face')
+    +capSlot('ccf','Client CNIC — front','card')
+    +capSlot('ccb','Client CNIC — back','card')
     +'<div class="sec-head">Nominee <span>· optional</span></div>'
     +'<div class="field"><label class="label">Nominee name</label><input class="input" id="s-nname"></div>'
     +'<div class="field"><label class="label">Nominee CNIC</label><input class="input" id="s-ncnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)"></div>'
     +'<div class="field"><label class="label">Nominee phone</label><input class="input" id="s-nphone" inputmode="tel"></div>'
+    +capSlot('nphoto','Nominee photo','face')
     +'<div class="sec-head">Sale &amp; price</div>'
     +'<div class="field"><label class="label">Area (sqft) *</label><input class="input num" id="s-area" inputmode="decimal" oninput="saleRecalc()"></div>'
     +'<div class="field"><label class="label">Rate per sqft (PKR) *</label><input class="input num" id="s-rate" inputmode="numeric" oninput="saleRecalc()"></div>'
@@ -912,7 +930,9 @@ async function submitSale(){
   const client={ full_name:cname, father_name:cfather, cnic:ccnic||null, phone_primary:cphone,
     address:($('s-caddress').value||'').trim()||null, email:($('s-cemail').value||'').trim()||null,
     next_of_kin_name:($('s-nname').value||'').trim()||null, next_of_kin_cnic:($('s-ncnic').value||'').trim()||null,
-    next_of_kin_phone:($('s-nphone').value||'').trim()||null, overseas_local:'local' };
+    next_of_kin_phone:($('s-nphone').value||'').trim()||null, overseas_local:'local',
+    client_photo_url:CAP.cphoto||null, cnic_front_url:CAP.ccf||null, cnic_back_url:CAP.ccb||null,
+    next_of_kin_photo_url:CAP.nphoto||null };
   const sale={ area_sqft:_snum('s-area'), price_per_sqft:_snum('s-rate'), discount:_snum('s-disc'),
     down_payment:_snum('s-dp'), sale_date:new Date().toISOString().slice(0,10) };
   const go=$('s-go'); go.disabled=true; go.textContent='Submitting…';

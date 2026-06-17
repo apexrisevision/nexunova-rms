@@ -81,6 +81,16 @@ function _subRow(label, val) {
   return `<div><div class="nx-kpi-label" style="text-transform:none">${label}</div><div style="font-size:13.5px;font-weight:600;color:var(--fk-text);word-break:break-word">${val ? esc(val) : '<span style=\"font-weight:400;color:var(--fk-text-muted)\">—</span>'}</div></div>`;
 }
 
+// A framed client/KYC document — full image (contain). kind: 'card' | 'photo'.
+function _subDoc(url, label, kind) {
+  if (!url) return '';
+  const ar = kind === 'photo' ? '3 / 4' : '1.585 / 1';
+  return `<div><div style="font-size:11px;font-weight:600;color:var(--fk-text-muted);margin-bottom:5px">${esc(label)}</div>
+    <a href="${esc(url)}" target="_blank" rel="noopener" style="display:block;text-decoration:none">
+      <div style="aspect-ratio:${ar};background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;overflow:hidden;display:grid;place-items:center">
+        <img src="${esc(url)}" style="width:100%;height:100%;object-fit:contain"></div></a></div>`;
+}
+
 function _subReviewOpen(id) {
   const r = _subRows.find(x => x.id === id);
   if (!r) return;
@@ -96,6 +106,17 @@ function _subReviewOpen(id) {
       <span>A client with this CNIC/phone already exists: <b>${esc(r.dup_client_name || '')}</b> ${r.dup_client_code ? '(' + esc(r.dup_client_code) + ')' : ''}. Link the sale to this existing client instead of creating a duplicate.</span>
     </label>`;
   }
+
+  // client KYC documents (shown if the agent captured any)
+  const hasDocs = c.client_photo_url || c.cnic_front_url || c.cnic_back_url || c.next_of_kin_photo_url;
+  const docsHtml = hasDocs
+    ? `<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Client documents (KYC) — click to enlarge</div>
+       <div class="nx-grid-2" style="gap:12px">${_subDoc(c.cnic_front_url, 'CNIC — front', 'card')}${_subDoc(c.cnic_back_url, 'CNIC — back', 'card')}</div>
+       <div style="display:flex;gap:12px;margin-top:12px">
+         ${c.client_photo_url ? '<div style="max-width:130px">' + _subDoc(c.client_photo_url, 'Client photo', 'photo') + '</div>' : ''}
+         ${c.next_of_kin_photo_url ? '<div style="max-width:130px">' + _subDoc(c.next_of_kin_photo_url, 'Nominee photo', 'photo') + '</div>' : ''}
+       </div>`
+    : '';
 
   // schedule rows
   const schRows = sch.map(s => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--fk-border);font-size:12.5px">
@@ -123,6 +144,7 @@ function _subReviewOpen(id) {
      </div>
      ${(c.next_of_kin_name || c.next_of_kin_cnic || c.next_of_kin_phone) ? `<div style="margin-top:var(--fk-sp-3)" class="nx-grid-2">${_subRow('Nominee', c.next_of_kin_name)}${_subRow('Nominee CNIC', c.next_of_kin_cnic)}</div>` : ''}
      ${dup}
+     ${docsHtml}
      <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Sale &amp; price</div>
      <div class="nx-grid-2" style="gap:var(--fk-sp-3) var(--fk-sp-4)">
        ${_subRow('Area (sqft)', sl.area_sqft)}
