@@ -185,12 +185,20 @@ a{color:var(--fk-primary);text-decoration:none}
     font-family:'Plus Jakarta Sans','Inter',sans-serif}
   .auth-hero .hero-fx,.auth-hero .auth-feats,.auth-hero .hero-foot,.auth-hero .hero-copy{display:none}
   .auth-hero{padding:6px 18px 0;text-align:center;overflow-x:hidden}
-  .auth-hero .hero-3d{position:relative;left:auto;bottom:auto;width:100%;max-width:418px;height:auto;aspect-ratio:3/2;margin:0 auto -12%}
-  .auth-hero .hero-3d img{width:100%;height:100%;transform:none;animation:none;filter:drop-shadow(0 20px 30px rgba(15,23,42,.2))}
+  .auth-hero .hero-3d{position:relative;left:auto;bottom:auto;width:min(62vw,240px);height:auto;aspect-ratio:3/2;margin:0 auto -10%}
+  .auth-hero .hero-3d img{width:100%;height:100%;transform:none;animation:none;filter:drop-shadow(0 16px 24px rgba(15,23,42,.2))}
   .auth-hero .hero-wordmark{position:relative;left:auto;bottom:auto;width:100%;max-width:418px;margin:0 auto;text-align:center}
-  .auth-hero .hero-wordmark .hw{font-size:2.9rem;letter-spacing:.15em;text-indent:.15em}
-  .auth-hero .hero-wordmark .hwt{font-size:.7rem;margin-top:7px;letter-spacing:.34em;text-indent:.34em}
-  .auth-wrap{min-height:auto;padding:6px 18px 30px}
+  .auth-hero .hero-wordmark .hw{font-size:2rem;letter-spacing:.14em;text-indent:.14em}
+  .auth-hero .hero-wordmark .hwt{font-size:.6rem;margin-top:5px;letter-spacing:.32em;text-indent:.32em}
+  .auth-wrap{min-height:auto;padding:2px 16px 16px}
+  .auth-card{padding:22px 22px;border-radius:22px}
+  .auth-card .brand{margin-bottom:14px}
+  .auth-card .auth-title{font-size:1.4rem}
+  .auth-card .auth-sub{margin-bottom:16px}
+  .auth-card .field{margin-bottom:11px}
+  .auth-card .input{height:44px}
+  .auth-card .btn{height:46px}
+  .auth-card .trust{margin-top:13px}
 }
 /* never show the auth backdrop/hero once inside the app */
 body:has(#screen-app.active) .auth-hero,
