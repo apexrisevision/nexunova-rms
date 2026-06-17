@@ -232,6 +232,7 @@ function hasPermission(perm){
     promises:'contacts',
     fieldvisits:'recovery', escalations:'recovery', campaigns:'recovery', legalcases:'recovery',
     myrecovery:'recovery',
+    agentrecovery:'reports',
     officerledger:'reports', receivingledger:'reports',
     audit:'reports',
   };

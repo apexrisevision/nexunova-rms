@@ -479,6 +479,16 @@ function rReports() {
         <div style="color:var(--fk-success);font-size:20px">→</div>
       </div>
     </div>
+    <div class="nx-card" style="cursor:pointer;border:1px solid color-mix(in srgb,var(--fk-warning) 50%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fk-warning) 7%,transparent),transparent)" onclick="nav('agentrecovery')">
+      <div style="display:flex;align-items:center;gap:var(--fk-sp-3)">
+        <div style="width:40px;height:40px;border-radius:10px;background:color-mix(in srgb,var(--fk-warning) 16%,transparent);display:grid;place-items:center;flex-shrink:0">${NX.icon('user-check',22)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="nx-modal-title" style="display:flex;align-items:center;gap:8px;margin-bottom:3px">Agent Recovery Book ${NX.badge('Sale agent','warning',{dot:true})}</div>
+          <div class="nx-kpi-label" style="text-transform:none">Sale-agent-wise outstanding: which units each agent sold and how much each of their clients still owes &mdash; so every agent recovers from their own clients. Overdue-led, drill per agent, assign the existing book, print.</div>
+        </div>
+        <div style="color:var(--fk-warning);font-size:20px">&rarr;</div>
+      </div>
+    </div>
     ${groups.map(g => `<div>
       <div class="nx-kpi-label" style="margin-bottom:var(--fk-sp-3)">${g.title}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--fk-sp-3)">

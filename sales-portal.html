@@ -342,6 +342,7 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="tabs">
       <div class="tab on" id="tab-board" onclick="setTab('board')">Availability Board</div>
       <div class="tab" id="tab-mine" onclick="setTab('mine')">My Reservations</div>
+      <div class="tab" id="tab-recovery" onclick="setTab('recovery')">My Recovery</div>
     </div>
     <div id="app-body"></div>
   </div>
@@ -602,7 +603,8 @@ function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showSc
 function setTab(t){ TAB=t;
   $('tab-board').classList.toggle('on',t==='board');
   $('tab-mine').classList.toggle('on',t==='mine');
-  if(t==='board') renderBoard(); else renderMine();
+  $('tab-recovery').classList.toggle('on',t==='recovery');
+  if(t==='board') renderBoard(); else if(t==='recovery') renderRecovery(); else renderMine();
 }
 
 // ════ board ════
@@ -842,6 +844,55 @@ async function cancelMine(id){
     if(data&&data.success){ toast('Reservation released.','ok'); renderMine(); }
     else toast('Could not release.','err');
   }catch(e){ toast('Could not release.','err'); }
+}
+
+// ════ my recovery (agent-wise outstanding) ════
+function _waDigits(p){ let d=String(p||'').replace(/[^0-9]/g,''); if(d.length===11&&d[0]==='0') d='92'+d.slice(1); if(d.length===10) d='92'+d; return d; }
+function _recWaText(r,co){ const amt=pkrFull((r.overdue>0.5?r.overdue:r.total_remaining)||0);
+  return 'Assalam-o-Alaikum '+(r.client_name||'')+' Sahab,\n\nAap ke unit '+(r.unit_no||'')+' par '+amt+' baqaya hai. Baraye meherbani jald se jald adaigi karwa dein taake aap ka account clear rahe.\n\nShukria'+(co?'\n'+co:''); }
+async function renderRecovery(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your recovery book…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_my_outstanding',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  if(data.no_agent){
+    $('app-body').innerHTML='<div class="card"><div class="empty">'
+      +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>'
+      +'<div class="et">Recovery book not ready yet</div><div class="es">'+esc(data.message||'Once your office links your agent profile, your clients and their outstanding appear here.')+'</div></div></div>';
+    return;
+  }
+  const rows=(data.rows||[]).slice().sort((a,b)=>(Number(b.overdue||0)-Number(a.overdue||0))||(Number(b.total_remaining||0)-Number(a.total_remaining||0)));
+  const T=data.totals||{};
+  const co=(typeof SALES_CO_NAME!=='undefined'&&SALES_CO_NAME)||_coNameRemembered()||'';
+  if(!rows.length){
+    $('app-body').innerHTML='<div class="card"><div class="empty">'
+      +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>'
+      +'<div class="et">No clients on your book yet</div><div class="es">Sales you close will appear here so you can follow up on their payments.</div></div></div>';
+    return;
+  }
+  let html='<div class="kpis">'
+    +'<div class="kpi red"><div class="kl">Overdue now</div><div class="kv num">'+pkrShort(T.overdue||0)+'</div></div>'
+    +'<div class="kpi amber"><div class="kl">Total remaining</div><div class="kv num">'+pkrShort(T.total_remaining||0)+'</div></div>'
+    +'<div class="kpi green"><div class="kl">Received</div><div class="kv num">'+pkrShort(T.received||0)+'</div></div></div>';
+  html+='<div class="note" style="margin:8px 2px 12px">'+(T.clients_in_arrears||0)+' of '+(T.clients||rows.length)+' client(s) overdue · tap a client to call or send a reminder.</div>';
+  html+='<div class="card" style="padding:0">';
+  rows.forEach(r=>{
+    const od=Number(r.overdue||0), wa=_waDigits(r.phone);
+    const odd=Number(r.overdue_days||0);
+    const amtLine=od>0.5
+      ? '<b style="color:var(--fk-danger)">'+pkrFull(od)+'</b> <span class="es">overdue</span>'
+      : '<b>'+pkrFull(r.total_remaining||0)+'</b> <span class="es">remaining</span>';
+    const tel=r.phone?'<a class="btn btn-ghost btn-sm" href="tel:'+esc(r.phone)+'">Call</a>':'';
+    const waBtn=wa?'<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="https://wa.me/'+wa+'?text='+encodeURIComponent(_recWaText(r,co))+'">WhatsApp</a>':'';
+    html+='<div class="rrow"><div class="ri" style="min-width:0">'
+      +'<b>'+esc(r.client_name||'')+'</b>'
+      +'<div>'+esc(r.unit_no||'')+(r.floor_name?' · '+esc(r.floor_name):'')+(r.phone?' · '+esc(r.phone):'')+(odd>0?' · <span style="color:var(--fk-danger)">'+odd+'d overdue</span>':'')+'</div>'
+      +'<div style="margin-top:3px">'+amtLine+' · <span class="es">'+(r.paid_pct||0)+'% paid'+(r.last_payment_date?' · last '+fdate(r.last_payment_date):'')+'</span></div></div>'
+      +'<div style="text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end">'+waBtn+tel+'</div></div>';
+  });
+  html+='</div>';
+  $('app-body').innerHTML=html;
 }
 
 // ════ mark sold → submit sale for approval ════
