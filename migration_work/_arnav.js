@@ -1,0 +1,20 @@
+const puppeteer=require('puppeteer-core');const http=require('http');const path=require('path');const fs=require('fs');
+const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';const ROOT=path.resolve(__dirname,'..');const PORT=4933;const BASE=`http://127.0.0.1:${PORT}`;
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml'};
+const ZCODE='zztestinternalsafeto',ZPW='ZzTest!2026';const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function serve(){return new Promise(res=>{const s=http.createServer((q,p)=>{let f=path.join(ROOT,decodeURIComponent(q.url.split('?')[0])==='/'?'login.html':decodeURIComponent(q.url.split('?')[0]));if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){p.writeHead(404);return p.end();}p.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'text/plain'});fs.createReadStream(f).pipe(p);}).listen(PORT,'127.0.0.1',()=>res(s));});}
+(async()=>{const srv=await serve();const b=await puppeteer.launch({executablePath:CHROME,headless:'new',args:['--no-sandbox']});
+const errs=[];const p=await b.newPage();p.on('pageerror',e=>errs.push(e.message));
+await p.goto(BASE+'/login.html',{waitUntil:'networkidle2'});await sleep(900);
+await p.evaluate((c,q)=>{const u=document.getElementById('li-u'),w=document.getElementById('li-p');u.removeAttribute('readonly');w.removeAttribute('readonly');u.value=c;w.value=q;window._loginReadyAt=0;},ZCODE,ZPW);
+await p.evaluate(()=>doLogin());await sleep(6500);
+await p.evaluate(()=>{document.getElementById('s-onboarding')?.classList.remove('on');});
+const inSidebar=await p.evaluate(()=>{const a=[...document.querySelectorAll('.sb [data-id], .sb a, .sb .ni, .sb [onclick]')].map(e=>e.textContent.trim());return a.some(t=>/Agent Recovery Book/i.test(t));});
+const clicked=await p.evaluate(()=>{const el=[...document.querySelectorAll('.sb *')].find(e=>/^Agent Recovery Book$/i.test(e.textContent.trim())&&e.children.length<=1);if(el){el.click();return true;}return false;});
+await sleep(3500);
+const active=await p.evaluate(()=>document.querySelector('.pg.on')?.id||'(none)');
+await b.close();srv.close();
+console.log('sidebar shows item   :',inSidebar);
+console.log('click routed to page :',active,'(want pg-agentrecovery)');
+console.log('JS errors            :',errs.length);errs.slice(0,5).forEach(e=>console.log('  '+e));
+})().catch(e=>{console.error(e);process.exit(1)});

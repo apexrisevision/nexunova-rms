@@ -461,6 +461,7 @@ function buildSB(){
         { id:'salesaccess',       ic:'id-card',        lb:'Sales Access' },
         { id:'reservations',      ic:'bookmark-check', lb:'Reservations' },
         { id:'salesubmissions',   ic:'file-check',     lb:'Sale Approvals' },
+        { id:'agentrecovery',     ic:'user-check',     lb:'Agent Recovery Book' },
         { id:'agents',            ic:'users',          lb:'Sales Agents' },
         { id:'commissions',       ic:'trending-up',    lb:'Commissions' },
         { id:'agenttransactions', ic:'trending-up',    lb:'Agent Transactions' },
