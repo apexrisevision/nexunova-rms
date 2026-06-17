@@ -129,6 +129,30 @@ and **Browse (file)** — today every uploader is browse-only (no camera afforda
 - sales_register signature gains `p_profile_photo_url/p_cnic_front_url/p_cnic_back_url`
   (DEFAULT NULL) when the signup form is built (Phase 2).
 
+## Mandatory field sets (derived from the live RMS forms) + KYC [owner 2026-06-17]
+**Sale Agent (signup must collect the full profile — admin only adds commission% +
+project at approval):** full_name*, phone*, CNIC* (identity/login); email, address;
+bank_name / bank_account_no / bank_account_title (commission payout); KYC docs —
+profile photo*, CNIC front*, CNIC back* (*=required). Source: `create_agent` +
+agents.js form. Admin-managed (NOT self-signup): commission%, project, territory,
+targets, parent agent, contract, status.
+**Client (Mark-Sold step 1) — mandatory:** full_name, father/husband name,
+phone_primary, CNIC (or passport if overseas), project. Optional: address/city/country,
+2nd phone, whatsapp, email, category, reference_by, lead_source, occupation,
+company_name, monthly_income, NTN, notes, CNIC front/back, bank (name/title/no/IBAN),
+nominee (name/relation/phone/CNIC/photo), client photo. Source: `client-form.js` +
+`create_client(p_data jsonb)`.
+**Sale (Mark-Sold step 2) — mandatory:** unit_id, area_sqft, price_per_sqft, discount,
+down_payment; schedule = installments[] of {installment_number, installment_type
+(down_payment|installment), due_date, amount_due, notes}. Optional: co_buyer
+(name/cnic/share%), nominee (name/cnic), booking_date. Server derives gross=price*area,
+net=gross-discount; restriction rules (min DP%, max disc%, rate floor) already fire in
+`create_sale_with_schedule(p_sale jsonb, p_installments jsonb)`.
+**KYC:** signup REQUIRES photo + CNIC front + back + CNIC# (server-enforced
+`kyc_required`); `sales_users.kyc_status` = pending→ admin reviews the docs in the
+approve dialog → approval sets `verified` (human verification = the KYC gate).
+Client KYC mirrors this in the Mark-Sold/approval flow (P3).
+
 ## Reuse (no parallel paths)
 - `create_sale_with_schedule` — the ONE sale path (admin already uses it).
 - `create_client` / client-core updaters — the ONE client path.

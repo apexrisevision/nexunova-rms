@@ -63,6 +63,8 @@ a{color:var(--fk-primary);text-decoration:none}
 .input{width:100%;height:40px;padding:0 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);
   background:var(--fk-bg-card);color:var(--fk-text);font-family:var(--fk-font);font-size:14px}
 .input:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
+.sec-head{font-size:12px;font-weight:700;color:var(--fk-text);margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--fk-border)}
+.sec-head span{font-weight:400;color:var(--fk-text-muted)}
 /* ── photo / CNIC capture widget (camera + browse) ── */
 .cap{display:flex;align-items:center;gap:12px;border:1px dashed var(--fk-border);border-radius:var(--fk-radius-control);
   padding:10px;background:var(--fk-bg-subtle)}
@@ -257,11 +259,20 @@ a{color:var(--fk-primary);text-decoration:none}
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Request access</div></div>
     </div>
     <div class="co-name" id="reg-co" style="display:none"></div>
-    <div class="auth-title">Request sales access</div>
-    <div class="auth-sub">Your office approves you before you can sign in.</div>
+    <div class="auth-title">Register as a Sale Agent</div>
+    <div class="auth-sub">Complete your profile &amp; verification. Your office approves you before you can sign in.</div>
     <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
     <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"><div class="hint">Enter your number without the 0 — e.g. +923123456789</div></div>
     <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)" autocomplete="off"><div class="hint">Dashes are added automatically (xxxxx-xxxxxxx-x)</div></div>
+    <div class="field"><label class="label">Email <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-email" type="email" placeholder="you@business.com" autocomplete="off"></div>
+    <div class="field"><label class="label">Address <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-address" placeholder="Home or office address" autocomplete="off"></div>
+
+    <div class="sec-head">Bank details <span>· for commission payout</span></div>
+    <div class="field"><label class="label">Bank name <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-bank-name" placeholder="e.g. Meezan Bank" autocomplete="off"></div>
+    <div class="field"><label class="label">Account number <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-bank-acct" placeholder="Account / IBAN" autocomplete="off"></div>
+    <div class="field"><label class="label">Account title <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-bank-title" placeholder="As per bank records" autocomplete="off"></div>
+
+    <div class="sec-head">Verification (KYC) <span>· photo &amp; CNIC required</span></div>
     <div class="field"><label class="label">Your photo</label>
       <div class="cap" id="cap-photo"><div class="cap-prev" id="cap-photo-prev">Photo</div><div class="cap-btns">
         <label class="cap-btn" id="cap-photo-cam">📷 Take photo<input type="file" accept="image/*" capture="user" onchange="capUpload(this,'photo')"></label>
@@ -462,10 +473,16 @@ async function doRegister(){
   if(!/^\+92\d{10}$/.test(ph)){ err.textContent='Enter your mobile without the 0, e.g. +923123456789.'; err.classList.add('show'); return; }
   if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ err.textContent='CNIC format: xxxxx-xxxxxxx-x'; err.classList.add('show'); return; }
   if(!/^[0-9]{4,6}$/.test(pin)){ err.textContent='PIN must be 4 to 6 digits.'; err.classList.add('show'); return; }
+  if(!CAP.photo||!CAP.cf||!CAP.cb){ err.textContent='Add your photo and both sides of your CNIC to complete verification.'; err.classList.add('show'); return; }
+  const email=$('reg-email').value.trim(), address=$('reg-address').value.trim();
+  const bankName=$('reg-bank-name').value.trim(), bankAcct=$('reg-bank-acct').value.trim(), bankTitle=$('reg-bank-title').value.trim();
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent='Enter a valid email or leave it blank.'; err.classList.add('show'); return; }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
     const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_phone:ph,p_pin:pin,p_cnic:cnic,
-      p_profile_photo_url:CAP.photo,p_cnic_front_url:CAP.cf,p_cnic_back_url:CAP.cb});
+      p_profile_photo_url:CAP.photo,p_cnic_front_url:CAP.cf,p_cnic_back_url:CAP.cb,
+      p_email:email||null,p_address:address||null,
+      p_bank_name:bankName||null,p_bank_account_no:bankAcct||null,p_bank_account_title:bankTitle||null});
     if(error) throw error;
     if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not register.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; return; }
     showScreen('screen-pending');

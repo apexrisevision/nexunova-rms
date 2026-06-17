@@ -144,14 +144,34 @@ async function _saRotate() {
   } catch (e) { if (typeof toast === 'function') toast('Could not rotate the link.', 'err'); }
 }
 
-// Approve → register them as a Sale Agent: pick their home project + commission.
+// A KYC document thumbnail (click to open full size in a new tab).
+function _saKycDoc(url, label) {
+  if (url) return `<a href="${esc(url)}" target="_blank" rel="noopener" title="${esc(label)} — click to enlarge"
+    style="flex:1;min-width:0;text-decoration:none"><div style="height:74px;border-radius:8px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle)"><img src="${esc(url)}" style="width:100%;height:100%;object-fit:cover"></div>
+    <div style="font-size:10.5px;color:var(--fk-text-muted);text-align:center;margin-top:3px">${esc(label)}</div></a>`;
+  return `<div style="flex:1;min-width:0"><div style="height:74px;border-radius:8px;border:1px dashed var(--fk-border);display:grid;place-items:center;font-size:11px;color:var(--fk-text-muted)">Missing</div>
+    <div style="font-size:10.5px;color:var(--fk-text-muted);text-align:center;margin-top:3px">${esc(label)}</div></div>`;
+}
+
+// Approve → register them as a Sale Agent: verify KYC, pick home project + commission.
 function _saApproveOpen(id, name) {
+  const r = (_saRows || []).find(x => x.id === id) || {};
   const projOpts = (typeof gprojects === 'function' ? gprojects() : [])
     .map(p => ({ value: p.id, label: p.name || p.projectName || p.project_name || 'Project' }));
+  const payout = (r.bank_name || r.bank_account_no)
+    ? `<br><span style="color:var(--fk-text-muted)">Payout:</span> ${esc(r.bank_name || '')} ${esc(r.bank_account_no || '')}${r.bank_account_title ? ' (' + esc(r.bank_account_title) + ')' : ''}`
+    : '';
+  const kycPanel =
+    `<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin-bottom:var(--fk-sp-2)">Identity &amp; KYC — verify before approving</div>
+     <div style="display:flex;gap:8px;margin-bottom:var(--fk-sp-2)">
+       ${_saKycDoc(r.profile_photo_url, 'Photo')}${_saKycDoc(r.cnic_front_url, 'CNIC front')}${_saKycDoc(r.cnic_back_url, 'CNIC back')}
+     </div>
+     <div style="font-size:12.5px;margin-bottom:var(--fk-sp-3)"><span style="color:var(--fk-text-muted)">CNIC</span> <b>${esc(r.cnic || '—')}</b> · ${esc(r.phone || '')}${r.email ? ' · ' + esc(r.email) : ''}${payout}</div>`;
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     title: 'Approve ' + esc(name), size: 'm', onClose: '_saCloseModal()',
     body:
-      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Approving registers this person as a <b>Sale Agent</b> (they get an agent ID) and lets them sign in and reserve. Set their project and commission.</div>` +
+      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Approving registers this person as a <b>Sale Agent</b> (they get an agent ID), marks their KYC verified, and lets them sign in and reserve. Set their project and commission.</div>` +
+      kycPanel +
       (projOpts.length
         ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
         : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`) +
