@@ -1375,7 +1375,13 @@ async function rSaleDetail() {
     const d = { ...detailRes.data.sale, installments: detailRes.data.installments || [] };
     const docs = docsAmendsRes.data?.documents || [];
     const amendments = docsAmendsRes.data?.amendments || [];
-    _renderSaleDetail(d, docs, amendments);
+    // full client row (to_jsonb surfaces all doc URLs incl. nominee CNIC images)
+    let client = null;
+    if (d.client_id) {
+      try { const r = await supabase.rpc('get_client_by_id', { p_id: d.client_id, p_company_id: S.cid });
+            if (!r.error && r.data) client = r.data; } catch (e) { /* blank docs card */ }
+    }
+    _renderSaleDetail(d, docs, amendments, client);
   } catch(e) {
     pg.innerHTML = `<div class="ani">
       <div style="margin-bottom:12px"><button class="bk" onclick="nav('sales')">← Back to Sales</button></div>
@@ -1384,7 +1390,7 @@ async function rSaleDetail() {
   }
 }
 
-function _renderSaleDetail(d, docs, amendments) {
+function _renderSaleDetail(d, docs, amendments, client) {
   docs = docs || [];
   amendments = amendments || [];
   const rawInst = Array.isArray(d.installments) ? d.installments : [];
@@ -1547,6 +1553,28 @@ function _renderSaleDetail(d, docs, amendments) {
 
   const docsCard = NX.card(docsInner, { header:{ icon:'file-text', title:'Documents', sub: docs.length + ' file' + (docs.length !== 1 ? 's' : '') } });
 
+  // ── Client & Nominee Documents (KYC images saved with the client) ──
+  const kycCard = (() => {
+    const cl = client || {};
+    const items = [
+      ['Client photo',         cl.client_photo_url,            'photo'],
+      ['Client CNIC — front',  cl.cnic_front_url,              'card'],
+      ['Client CNIC — back',   cl.cnic_back_url,               'card'],
+      ['Nominee photo',        cl.next_of_kin_photo_url,       'photo'],
+      ['Nominee CNIC — front', cl.next_of_kin_cnic_front_url,  'card'],
+      ['Nominee CNIC — back',  cl.next_of_kin_cnic_back_url,   'card'],
+    ].filter(x => x[1]);
+    if (!items.length) return '';
+    const doc = (label, url, kind) => {
+      const ar = kind === 'photo' ? '3 / 4' : '1.585 / 1';
+      return `<div><div style="font-size:11px;font-weight:600;color:var(--fk-text-muted);margin-bottom:5px">${label}</div>
+        <a href="${esc(url)}" target="_blank" rel="noopener" style="display:block;text-decoration:none"><div style="aspect-ratio:${ar};background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;overflow:hidden;display:grid;place-items:center"><img src="${esc(url)}" style="width:100%;height:100%;object-fit:contain"></div></a></div>`;
+    };
+    return NX.card(
+      `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">${items.map(x => doc(x[0], x[1], x[2])).join('')}</div>`,
+      { header:{ icon:'id-card', title:'Client & Nominee Documents', sub: items.length + ' file' + (items.length !== 1 ? 's' : '') } });
+  })();
+
   const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: 'Fixed at sale · ' + inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
 
   // ── Account Statement (DR/CR ledger) — embedded per-unit, async-filled.
@@ -1586,6 +1614,7 @@ function _renderSaleDetail(d, docs, amendments) {
       <div class="sd-col">${saleInfo}${cobuyer}${tax}</div>
       <div class="sd-col">${ops}${docsCard}</div>
     </div>
+    ${kycCard ? `<div style="margin-top:var(--fk-sp-4)">${kycCard}</div>` : ''}
     <div style="margin-top:var(--fk-sp-4)">${schedCard}</div>
     <div style="margin-top:var(--fk-sp-4)">${stmtCard}</div>
     <div style="margin-top:var(--fk-sp-4)">${amendCard}</div>
