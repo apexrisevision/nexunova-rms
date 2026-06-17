@@ -1532,6 +1532,9 @@ function _renderSaleDetail(d, docs, amendments, client) {
     + kv('Price / sq ft', fMF(d.price_per_sqft))
     + kv('Area', d.area_sqft ? fM(d.area_sqft) + ' sq ft' : '')
     + kv('Installments', d.installment_count ? d.installment_count + ' installments' : '')
+    + kv('Sales agent / dealer', d.agent_name ? esc(d.agent_name) : '')
+    + kv('Commission %', d.commission_rate ? Number(d.commission_rate) + '%  ·  est. ' + fMF(Math.round(Number(d.net_amount || 0) * Number(d.commission_rate) / 100)) : '')
+    + kv('Commission note', d.commission_notes ? esc(d.commission_notes) : '')
     + (d.discount > 0 && d.discount_approved_by ? kv('Discount approved by', esc(d.discount_approved_by)) : '')
     + (d.discount > 0 && d.discount_notes ? kv('Discount notes', esc(d.discount_notes)) : '')
     + kv('Notes', d.notes ? esc(d.notes) : ''),
@@ -1789,6 +1792,12 @@ async function rEditSale() {
               <label class="fl">Agent Commission % <span style="opacity:.45;font-size:10px">(optional — on net amount)</span></label>
               <input id="ef-comm-pct" class="inp-light" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.5" value="${d.commission_rate != null ? fmtV(d.commission_rate) : ''}">
               <div id="ef-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px">${d.commission_rate ? 'Est. commission: PKR ' + Math.round(Number(d.net_amount||0)*Number(d.commission_rate)/100).toLocaleString('en-US') : ''}</div>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="fr" style="grid-column:1 / -1">
+              <label class="fl">Commission Note <span style="opacity:.45;font-size:10px">(splits, vouchers, discount or pending notes)</span></label>
+              <textarea id="ef-comm-notes" class="inp-light" rows="2" placeholder="e.g. Zubair 3% & Syed Yousaf 2%">${d.commission_notes != null ? esc(d.commission_notes) : ''}</textarea>
             </div>
           </div>
         </div>
@@ -2249,6 +2258,7 @@ async function saveEditSale() {
       // discount excluded (handled by request_discount_change above)
       down_payment:         down,
       commission_rate:      isNaN(efCommPct2) ? null : efCommPct2,
+      commission_notes:     document.getElementById('ef-comm-notes')?.value.trim()         || null,
       notes:                document.getElementById('ef-notes').value.trim()              || null,
       co_buyer_name:        document.getElementById('ef-cobuyer-name').value.trim()       || null,
       co_buyer_cnic:        document.getElementById('ef-cobuyer-cnic').value.trim()       || null,
@@ -2294,6 +2304,7 @@ async function saveEditSale() {
     discount:             discount,
     down_payment:         down,
     commission_rate:      isNaN(efCommPct) ? null : efCommPct,
+    commission_notes:     document.getElementById('ef-comm-notes')?.value.trim()         || null,
     notes:                document.getElementById('ef-notes').value.trim()              || null,
     co_buyer_name:        document.getElementById('ef-cobuyer-name').value.trim()       || null,
     co_buyer_cnic:        document.getElementById('ef-cobuyer-cnic').value.trim()       || null,

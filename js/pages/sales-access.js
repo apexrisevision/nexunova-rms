@@ -157,7 +157,7 @@ function _saKycDoc(url, label, kind) {
 
 // Full application preview + decision — shows everything the registrant submitted,
 // the KYC docs, the agent code that will be issued, then Approve / Reject.
-function _saReviewOpen(id) {
+async function _saReviewOpen(id) {
   const r = (_saRows || []).find(x => x.id === id) || {};
   const projOpts = (typeof gprojects === 'function' ? gprojects() : [])
     .map(p => ({ value: p.id, label: p.name || p.projectName || p.project_name || 'Project' }));
@@ -171,6 +171,25 @@ function _saReviewOpen(id) {
   const yr = new Date().getFullYear();
   const payout = (r.bank_name || r.bank_account_no)
     ? `<div style="margin-top:var(--fk-sp-3)">${fld('Bank / payout', [r.bank_name, r.bank_account_no, r.bank_account_title].filter(Boolean).join(' · '))}</div>` : '';
+
+  // duplicate-agent guard: auto-matches + manual search of ALL agents
+  let _matches = [], _allAgents = [];
+  try { const { data: mm } = await supabase.rpc('find_agent_matches_for_signup', { p_id: id });
+        _matches = (mm && mm.matches) || []; } catch (e) { _matches = []; }
+  try { const { data: ag } = await supabase.rpc('list_agents', { p_company_id: S.cid, p_search: null, p_status: 'active', p_sort: 'name' });
+        _allAgents = (ag && (ag.agents || ag)) || []; } catch (e) { _allAgents = []; }
+  const _matchIds = new Set(_matches.map(m => m.id));
+  const _otherOpts = _allAgents.filter(a => !_matchIds.has(a.id))
+    .map(a => `<option value="${a.id}">${esc(a.full_name || '?')}${a.agent_code ? ' — ' + esc(a.agent_code) : ''}</option>`).join('');
+  const matchesHtml =
+    `<div style="margin:var(--fk-sp-3) 0;padding:10px 12px;border:1px solid ${_matches.length ? 'var(--fk-warning-edge)' : 'var(--fk-border)'};background:${_matches.length ? 'var(--fk-warning-surface)' : 'var(--fk-bg-subtle)'};border-radius:var(--fk-radius-control)">
+       <div style="font-size:12.5px;font-weight:700;color:var(--fk-text);margin-bottom:4px">${_matches.length ? '⚠ ' + _matches.length + ' possible existing sub-agent' + (_matches.length > 1 ? 's' : '') + ' found — Merge or Save new?' : 'Merge with an existing sub-agent, or save new?'}</div>
+       <div style="font-size:12px;color:var(--fk-text-muted);margin-bottom:8px"><b>Merge</b> = no duplicate; this signup joins the existing sub-agent and fills their blank CNIC / phone / KYC. <b>Save new</b> = a brand-new sub-agent. Different spelling? Use the search to find the right person.</div>
+       <label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:5px 0;cursor:pointer"><input type="radio" name="sa-link" value="" checked onchange="_saToggleOther()"> <b>Save as a new sub-agent</b></label>
+       ${_matches.map(a => `<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:5px 0;cursor:pointer"><input type="radio" name="sa-link" value="${a.id}" style="margin-top:3px" onchange="_saToggleOther()"> <span><b>Merge</b> with <b>${esc(a.full_name)}</b> <span style="color:var(--fk-text-muted)">(${esc(a.agent_code || '')} · matched on ${esc(a.match_on)}${a.cnic ? ' · CNIC ' + esc(a.cnic) : ''})</span></span></label>`).join('')}
+       <label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:5px 0;cursor:pointer"><input type="radio" name="sa-link" value="__other__" onchange="_saToggleOther()"> <b>Merge</b> with another existing sub-agent (search)</label>
+       <select id="sa-link-other" class="nx-select" disabled style="margin-top:4px;opacity:.5"><option value="">— pick a sub-agent —</option>${_otherOpts}</select>
+     </div>`;
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     id: 'sa-review-modal', title: 'Review registration', size: 'l', onClose: '_saCloseModal()',
     body:
@@ -197,39 +216,55 @@ function _saReviewOpen(id) {
        </div>
        <div style="max-width:160px">${_saKycDoc(r.profile_photo_url, 'Photo', 'photo')}</div>
        <div style="margin-top:var(--fk-sp-4);padding:10px 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);font-size:12.5px;color:var(--fk-text-muted)">
-         On <b style="color:var(--fk-text)">Approve</b>, a Sale Agent profile is created (code <b style="color:var(--fk-text)">AGT-${yr}-####</b>), KYC is marked verified, and they can sign in &amp; reserve.
+         On <b style="color:var(--fk-text)">Approve</b>, choose below to <b style="color:var(--fk-text)">Merge</b> with an existing sub-agent or <b style="color:var(--fk-text)">Save as new</b> (code <b style="color:var(--fk-text)">AGT-${yr}-####</b>). KYC is marked verified and they can sign in &amp; reserve.
        </div>
        <div style="border-top:1px solid var(--fk-border);margin:var(--fk-sp-4) 0 var(--fk-sp-3)"></div>
        <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin-bottom:var(--fk-sp-2)">Approval</div>` +
+      matchesHtml +
       (projOpts.length
         ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
         : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`) +
-      NX.field({ label: 'Commission %', name: 'sa-approve-comm', el: 'input', type: 'number', value: '2', attrs: 'min="0" max="100" step="0.01"' }) +
+      NX.field({ label: 'Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' }) +
       `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`,
     footer:
       NX.button('Reject', { variant: 'danger-soft', onclick: `_saReject('${id}','${esc(r.full_name || '')}')` }) +
       NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' }) +
-      (projOpts.length ? NX.button('Approve &amp; register agent', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '')
+      (projOpts.length ? NX.button('Approve', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '')
   }));
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
 
+function _saToggleOther() {
+  const sel = document.getElementById('sa-link-other');
+  if (!sel) return;
+  const isOther = (document.querySelector('input[name="sa-link"]:checked') || {}).value === '__other__';
+  sel.disabled = !isOther;
+  sel.style.opacity = isOther ? '1' : '.5';
+  if (isOther) sel.focus();
+}
+
 async function _saApproveSubmit(id) {
   const proj = (document.getElementById('sa-approve-project') || {}).value || '';
   const commRaw = (document.getElementById('sa-approve-comm') || {}).value;
-  const comm = commRaw === '' || commRaw == null ? 2 : parseFloat(commRaw);
+  const comm = commRaw === '' || commRaw == null ? null : parseFloat(commRaw);
   const err = document.getElementById('sa-approve-err');
   const showErr = (m) => { if (err) { err.textContent = m; err.style.display = 'block'; } };
   if (!proj) { showErr('Pick a project — it becomes their reserve scope and agent home project.'); return; }
-  if (isNaN(comm) || comm < 0 || comm > 100) { showErr('Commission must be between 0 and 100.'); return; }
+  if (comm != null && (isNaN(comm) || comm < 0 || comm > 100)) { showErr('Commission must be between 0 and 100.'); return; }
+  const _linkSel = (document.querySelector('input[name="sa-link"]:checked') || {}).value || '';
+  let linkId = _linkSel || null;
+  if (_linkSel === '__other__') {
+    linkId = (document.getElementById('sa-link-other') || {}).value || null;
+    if (!linkId) { showErr('Pick the existing agent to link to, or choose "Create new agent".'); return; }
+  }
   try {
-    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj, p_commission_percent: comm });
+    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj, p_commission_percent: comm, p_link_agent_id: linkId });
     if (!data || !data.success) {
       showErr((data && data.message) || 'Could not approve.');
       return;
     }
     _saCloseModal();
-    if (typeof toast === 'function') toast('Approved — registered as Sale Agent ' + (data.agent_code || '') + '.', 'ok');
+    if (typeof toast === 'function') toast((data.linked ? 'Approved — merged into existing sub-agent ' : 'Approved — saved as new Sale Agent ') + (data.agent_code || '') + '.', 'ok');
     rSalesAccess();
   } catch (e) {
     showErr('Could not approve.');

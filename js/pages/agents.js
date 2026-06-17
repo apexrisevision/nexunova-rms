@@ -412,6 +412,7 @@ function _renderAgentDetail(a, sales, ext, commPays, subAgents, parentAgent) {
   const opsBody = canEdit ? `
     <div class="agd-op"><div><div class="agd-op-t">Edit agent profile</div><div class="agd-op-s">Contact info, commission rate, bank details</div></div>${NX.button('Edit',{variant:'secondary',size:'sm',icon:'pencil',onclick:`openAgentModal('${a.id}')`})}</div>
     <div class="agd-op"><div><div class="agd-op-t">Pay commission</div><div class="agd-op-s">Record a disbursement · Pending <strong style="color:var(--fk-warning)">PKR ${fM(commPending)}</strong></div></div>${NX.button('Pay',{variant:'primary',size:'sm',icon:'hand-coins',onclick:`openCommPayModal('${a.id}','${esc(a.full_name)}',${commPending})`})}</div>
+    <div class="agd-op"><div><div class="agd-op-t">Merge into another agent</div><div class="agd-op-s">Same person, two records? Move all sales, commission &amp; login to the keeper, then remove this duplicate</div></div>${NX.button('Merge',{variant:'secondary',size:'sm',icon:'git-merge',onclick:`openMergeAgentModal('${a.id}','${esc(a.full_name)}')`})}</div>
     ${a.status==='active'
       ? `<div class="agd-op"><div><div class="agd-op-t">Deactivate agent</div><div class="agd-op-s">Remove from active duty — sales history preserved</div></div>${NX.button('Deactivate',{variant:'danger-soft',size:'sm',onclick:`deactivateAgent('${a.id}')`})}</div>`
       : `<div class="agd-op"><div><div class="agd-op-t">Reactivate agent</div><div class="agd-op-s">Restore this agent to active status</div></div>${NX.button('Reactivate',{variant:'secondary',size:'sm',onclick:`reactivateAgent('${a.id}')`})}</div>`}
@@ -989,6 +990,47 @@ async function deleteAgentConfirm(id) {
     toast('Agent deleted', 'ok'); nav('agents');
   }
   _loadAgentList();
+}
+
+// ── Merge duplicate agent into a keeper ──────────────────────────────
+function openMergeAgentModal(sourceId, sourceName) {
+  if (!_canEditAgent()) { toast('You do not have permission to merge agents', 'warn'); return; }
+  const opts = (_agCache || [])
+    .filter(a => a.id !== sourceId)
+    .map(a => `<option value="${a.id}">${esc(a.full_name || '?')}${a.agent_code ? ' — ' + esc(a.agent_code) : ''}${Number(a.total_sales_count) ? ' · ' + a.total_sales_count + ' sales' : ''}</option>`)
+    .join('');
+  const body =
+    `<div style="font-size:13px;color:var(--fk-text);margin-bottom:var(--fk-sp-3)">
+       Merge <b>${esc(sourceName)}</b> into the agent you pick below. All of <b>${esc(sourceName)}</b>'s sales,
+       commissions, transactions and sign-in will move to the keeper, then <b>${esc(sourceName)}</b> will be removed.
+       This cannot be undone.
+     </div>
+     <label class="nx-label">Keep this agent (merge target)</label>
+     <select id="merge-target" class="nx-select"><option value="">— pick the agent to keep —</option>${opts}</select>
+     <div class="nx-error" id="merge-err" style="display:none;margin-top:var(--fk-sp-2)"></div>`;
+  _agModalHost().innerHTML = NX.modal({
+    id: 'm-merge', title: 'Merge agent', size: 'm', onClose: 'closeAgentModal()',
+    body,
+    footer: NX.button('Cancel', { variant:'secondary', onclick:'closeAgentModal()' }) +
+            NX.button('Merge & remove duplicate', { variant:'danger-soft', attrs:'id="merge-go-btn"', onclick:`doMergeAgent('${sourceId}','${esc(sourceName)}')` })
+  });
+}
+
+async function doMergeAgent(sourceId, sourceName) {
+  const targetId = (document.getElementById('merge-target') || {}).value || '';
+  const err = document.getElementById('merge-err');
+  const showErr = (m) => { if (err) { err.textContent = m; err.style.display = 'block'; } };
+  if (!targetId) { showErr('Pick the agent to keep.'); return; }
+  if (targetId === sourceId) { showErr('Pick a different agent.'); return; }
+  const btn = document.getElementById('merge-go-btn'); if (btn) btn.setAttribute('disabled','disabled');
+  try {
+    const { data, error } = await supabase.rpc('merge_agents', { p_source: sourceId, p_target: targetId });
+    if (error) throw error;
+    if (!data || !data.success) { if (btn) btn.removeAttribute('disabled'); showErr((data && data.message) || 'Could not merge.'); return; }
+    closeAgentModal();
+    toast(`Merged "${data.source_name}" into "${data.target_name}" — ${data.moved_sales} sale${data.moved_sales === 1 ? '' : 's'} moved.`, 'ok');
+    _agId = targetId; nav('agentdetail'); _loadAgentList();
+  } catch (e) { if (btn) btn.removeAttribute('disabled'); showErr('Could not merge this agent.'); }
 }
 
 // ── Pay Commission page (tabbed: Payouts | Structures) ───────────────

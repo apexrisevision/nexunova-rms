@@ -145,7 +145,7 @@ function _subReviewOpen(id) {
        ${_subRow('Address', c.address)}
        ${_subRow('Email', c.email)}
      </div>
-     ${(c.next_of_kin_name || c.next_of_kin_cnic || c.next_of_kin_phone) ? `<div style="margin-top:var(--fk-sp-3)" class="nx-grid-2">${_subRow('Nominee', c.next_of_kin_name)}${_subRow('Nominee CNIC', c.next_of_kin_cnic)}</div>` : ''}
+     ${(c.next_of_kin_name || c.next_of_kin_cnic || c.next_of_kin_phone || c.next_of_kin_relation) ? `<div style="margin-top:var(--fk-sp-3)" class="nx-grid-2">${_subRow('Nominee', c.next_of_kin_name)}${_subRow('Nominee relation', c.next_of_kin_relation)}${_subRow('Nominee CNIC', c.next_of_kin_cnic)}${_subRow('Nominee phone', c.next_of_kin_phone)}</div>` : ''}
      ${dup}
      ${docsHtml}
      <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Sale &amp; price</div>
@@ -156,6 +156,12 @@ function _subReviewOpen(id) {
        ${_subRow('Down payment', _subMoney(sl.down_payment || 0))}
      </div>
      <div style="display:flex;justify-content:space-between;margin-top:var(--fk-sp-3);padding:10px 12px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:14px"><span>Net price</span><b>${_subMoney(r.net_amount)}</b></div>
+     <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Agent commission</div>
+     ${pending
+        ? `<div class="nx-field"><label class="nx-label" style="text-transform:none">Commission % <span style="font-weight:400;color:var(--fk-text-muted)">· agent proposed ${sl.commission_rate != null ? esc(String(sl.commission_rate)) + '%' : '—'} · edit to confirm / override</span></label>
+             <input class="nx-input" id="sub-comm" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.5" value="${sl.commission_rate != null ? esc(String(sl.commission_rate)) : ''}" oninput="_subCommEst(${Number(r.net_amount) || 0})">
+             <div id="sub-comm-est" style="font-size:11px;color:var(--fk-success,#16a34a);margin-top:4px">${sl.commission_rate ? 'Est. commission: ' + _subMoney(Math.round((Number(r.net_amount) || 0) * Number(sl.commission_rate) / 100)) : 'Leave blank for no commission on this sale.'}</div></div>`
+        : `<div style="display:flex;justify-content:space-between;padding:10px 12px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:13px"><span>Commission</span><b>${sl.commission_rate != null ? esc(String(sl.commission_rate)) + '%' + (sl.commission_rate ? ' · ' + _subMoney(Math.round((Number(r.net_amount) || 0) * Number(sl.commission_rate) / 100)) : '') : '—'}</b></div>`}
      <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Payment schedule (${sch.length})</div>
      <div>${schRows || '<span style="color:var(--fk-text-muted);font-size:12.5px">No schedule</span>'}</div>
      <div style="display:flex;justify-content:space-between;margin-top:var(--fk-sp-2);font-size:12.5px${mismatch ? ';color:var(--fk-danger)' : ''}"><span>Schedule total</span><b>${_subMoney(r.schedule_total)}${mismatch ? ' ⚠ ≠ net' : ''}</b></div>
@@ -172,17 +178,36 @@ function _subReviewOpen(id) {
   }));
 }
 
+function _subCommEst(net) {
+  const el = document.getElementById('sub-comm');
+  const out = document.getElementById('sub-comm-est');
+  if (!el || !out) return;
+  const raw = (el.value || '').trim();
+  const v = raw === '' ? null : parseFloat(raw);
+  if (v == null || isNaN(v) || v <= 0) { out.textContent = 'Leave blank for no commission on this sale.'; return; }
+  out.textContent = 'Est. commission: ' + _subMoney(Math.round((Number(net) || 0) * v / 100));
+}
+
 async function _subApprove(id) {
   const err = document.getElementById('sub-err');
   const showErr = (m) => { if (err) { err.textContent = m; err.style.display = 'block'; } };
   const linkEl = document.getElementById('sub-link-dup');
   const r = _subRows.find(x => x.id === id) || {};
   const linkId = (linkEl && linkEl.checked && r.dup_client_id) ? r.dup_client_id : null;
+  // commission: admin-confirmed/overridden per-sale rate (blank = none on this sale)
+  const commEl = document.getElementById('sub-comm');
+  let overrides = null;
+  if (commEl) {
+    const raw = (commEl.value || '').trim();
+    const comm = raw === '' ? null : parseFloat(raw);
+    if (comm != null && (isNaN(comm) || comm < 0 || comm > 100)) { showErr('Commission % must be between 0 and 100.'); return; }
+    overrides = { commission_rate: comm };
+  }
   const btns = document.querySelectorAll('.nx-modal-overlay .nx-btn');
   btns.forEach(b => b.setAttribute('disabled', 'disabled'));
   try {
     const { data } = await supabase.rpc('approve_sale_submission',
-      { p_id: id, p_overrides: null, p_client_id_to_link: linkId });
+      { p_id: id, p_overrides: overrides, p_client_id_to_link: linkId });
     if (!data || !data.success) {
       btns.forEach(b => b.removeAttribute('disabled'));
       showErr((data && data.message) || 'Could not approve this sale.');

@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- supabase-js 2.34.0 vendored locally — jsDelivr .min.js path 301-loops (see login.html). -->
 <script src="js/vendor/supabase-js-2.34.0.umd.js?v=20260616"></script>
 <style>
@@ -36,6 +37,8 @@ html[data-theme="dark"]{
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
+.screen:not(#screen-app){overflow-x:hidden}
+.auth-card,.auth-card *{min-width:0}
 body{background:var(--fk-bg-page);color:var(--fk-text);font-family:var(--fk-font);
   font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
@@ -43,19 +46,133 @@ a{color:var(--fk-primary);text-decoration:none}
 .screen{display:none}
 .screen.active{display:block}
 
-/* ════ Auth ════ */
-.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
-.auth-card{width:100%;max-width:400px;background:var(--fk-bg-card);border:1px solid var(--fk-border);
-  border-radius:var(--fk-radius-card);padding:28px 24px;box-shadow:var(--fk-shadow-raised)}
-.brand{display:flex;align-items:center;gap:10px;margin-bottom:20px}
-.brand-mark{width:38px;height:38px;border-radius:10px;background:var(--fk-primary-tint);
-  display:flex;align-items:center;justify-content:center;color:var(--fk-primary)}
-.brand-name{font-size:14px;font-weight:600;letter-spacing:-.2px}
-.brand-sub{font-size:11px;color:var(--fk-text-muted);letter-spacing:.4px;text-transform:uppercase}
-.auth-title{font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:4px}
-.auth-sub{font-size:13px;color:var(--fk-text-muted);margin-bottom:20px}
-.co-name{font-size:19px;font-weight:600;color:var(--fk-primary);letter-spacing:-.2px;margin:2px 0 16px;
-  padding-bottom:14px;border-bottom:1px solid var(--fk-border)}
+/* ════ Auth — NexuAttend-style premium light hero ════ */
+.auth-hero,.auth-card{--ease:cubic-bezier(.2,.7,.3,1)}
+.auth-bg{position:fixed;inset:0;z-index:0;background:#EEF1FB}
+.auth-grid{display:none}
+
+/* LEFT — light premium marketing hero (desktop) */
+.auth-hero{display:none}
+@media(min-width:980px){
+  .auth-hero{display:block;position:fixed;left:0;top:0;bottom:0;width:58%;z-index:1;overflow:hidden;color:#101A33;padding:48px;
+    font-family:'Plus Jakarta Sans','Inter',sans-serif;
+    background:radial-gradient(75% 70% at 86% 16%, rgba(124,58,237,.20), transparent 60%),
+              radial-gradient(60% 60% at 70% 64%, rgba(99,102,241,.14), transparent 60%),
+              radial-gradient(60% 60% at 10% 6%, rgba(37,99,235,.10), transparent 60%),
+              linear-gradient(145deg,#EEF2FF 0%,#E6ECFF 36%,#DCE6FF 62%,#E7DEFB 100%)}
+  .auth-wrap{margin-left:58%}
+}
+/* aurora glows + arcs */
+.hero-fx{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.aurora{position:absolute;border-radius:50%;filter:blur(70px)}
+.aurora-1{width:560px;height:560px;left:-140px;top:-120px;background:radial-gradient(circle,rgba(37,99,235,.28),transparent 70%);animation:auroraDrift1 26s ease-in-out infinite}
+.aurora-2{width:520px;height:520px;right:-120px;top:6%;background:radial-gradient(circle,rgba(124,58,237,.24),transparent 70%);animation:auroraDrift2 32s ease-in-out infinite}
+.aurora-3{width:600px;height:600px;left:18%;bottom:-260px;background:radial-gradient(circle,rgba(6,182,212,.22),transparent 70%);animation:auroraDrift3 29s ease-in-out infinite}
+.bg-arc{position:absolute;border-radius:50%;border:1px solid rgba(99,102,241,.12)}
+.arc-1{width:920px;height:920px;right:-300px;top:-380px}
+.arc-2{width:1240px;height:1240px;right:-360px;top:-470px;border-color:rgba(124,58,237,.09)}
+.sparkles{position:absolute;inset:0}
+.sparkles i{position:absolute;opacity:0;animation:twinkle ease-in-out infinite}
+.sparkles i.sp{width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.9),0 0 10px rgba(124,58,237,.5)}
+.sparkles i.glint{width:16px;height:16px;background:transparent;box-shadow:none}
+.sparkles i.glint::before,.sparkles i.glint::after{content:"";position:absolute;inset:0;margin:auto}
+.sparkles i.glint::before{width:1.5px;height:16px;background:linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.95),rgba(255,255,255,0))}
+.sparkles i.glint::after{width:16px;height:1.5px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.95),rgba(255,255,255,0))}
+.sparkles i:nth-child(1){left:22%;top:14%;animation-duration:5s;animation-delay:0s}
+.sparkles i:nth-child(2){left:38%;top:9%;animation-duration:6s;animation-delay:1.4s}
+.sparkles i:nth-child(3){left:54%;top:18%;animation-duration:4.5s;animation-delay:.6s}
+.sparkles i:nth-child(4){left:68%;top:11%;animation-duration:6.5s;animation-delay:2.2s}
+.sparkles i:nth-child(5){left:80%;top:22%;animation-duration:5.2s;animation-delay:3s}
+.sparkles i:nth-child(6){left:31%;top:30%;animation-duration:5.8s;animation-delay:1s}
+.sparkles i:nth-child(7){left:63%;top:33%;animation-duration:4.8s;animation-delay:2.6s}
+.sparkles i:nth-child(8){left:88%;top:40%;animation-duration:6.2s;animation-delay:.3s}
+.sparkles i:nth-child(9){left:75%;top:52%;animation-duration:5.5s;animation-delay:1.8s}
+.sparkles i:nth-child(10){left:46%;top:13%;animation-duration:7s;animation-delay:.8s}
+.sparkles i:nth-child(11){left:70%;top:26%;animation-duration:8s;animation-delay:2.4s}
+.sparkles i:nth-child(12){left:84%;top:46%;animation-duration:7.5s;animation-delay:1.2s}
+.sparkles i:nth-child(13){left:58%;top:8%;animation-duration:8.5s;animation-delay:3.4s}
+/* headline */
+.hero-copy{position:relative;z-index:2;max-width:440px}
+.hero-copy .eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#2563EB}
+.hero-copy h1{color:#101A33;font-size:3rem;line-height:1.04;letter-spacing:-.035em;margin-top:12px;font-weight:700}
+.hero-copy h1 .grad{background:linear-gradient(100deg,#2563EB 0%,#06B6D4 46%,#7C3AED 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-copy p{margin-top:16px;color:#4C5A7D;font-size:.95rem;font-weight:500;line-height:1.45;max-width:360px}
+/* giant glossy 3D logo */
+.hero-3d{position:absolute;z-index:1;left:-2%;bottom:19%;width:500px;height:340px;pointer-events:none}
+.hero-3d img{width:500px;height:334px;object-fit:contain;mix-blend-mode:multiply;transform:perspective(1400px) rotateY(20deg) rotateZ(-9deg);transform-origin:50% 70%;filter:drop-shadow(0 24px 28px rgba(15,23,42,.14));animation:floatY 7s ease-in-out infinite}
+.hero-wordmark{position:absolute;z-index:2;left:-2%;bottom:20%;width:500px;text-align:center;pointer-events:none}
+.hero-wordmark .hw{display:block;font-size:2.5rem;font-weight:800;line-height:1;letter-spacing:.22em;text-indent:.22em;background:linear-gradient(100deg,#38BDF8,#2563EB 34%,#6D28D9 68%,#9333EA);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-wordmark .hwt{display:block;margin-top:11px;font-size:.6rem;font-weight:600;letter-spacing:.42em;text-indent:.42em;text-transform:uppercase;color:#8693B5}
+/* floating glass feature cards */
+.auth-feats{position:absolute;z-index:3;left:55%;top:50%;transform:translateY(-50%);width:288px;display:flex;flex-direction:column;gap:12px}
+.feat{position:relative;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:16px;transform:perspective(1100px) rotateY(-11deg) rotateX(2deg);transform-origin:100% 50%;transition:transform .34s var(--ease)}
+.feat::before{content:"";position:absolute;inset:0;z-index:0;border-radius:16px;background:rgba(255,255,255,.86);border:1px solid rgba(255,255,255,.95);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 14px 32px rgba(30,41,90,.10);transition:box-shadow .28s var(--ease),background .28s var(--ease)}
+.feat>*{position:relative;z-index:1}
+.feat:hover{transform:perspective(1100px) rotateY(0) translateY(-6px) scale(1.025);z-index:4}
+.feat:hover::before{background:rgba(255,255,255,.98);box-shadow:0 1px 0 #fff inset,0 28px 56px rgba(30,41,90,.22)}
+.feat .fi{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;background:linear-gradient(150deg,#fff,#EEF3FF);border:1px solid rgba(37,99,235,.14);box-shadow:0 6px 14px rgba(37,99,235,.12);transition:.3s var(--ease)}
+.feat .fi svg{width:18px;height:18px;transition:color .3s var(--ease)}
+.feat:nth-child(1) .fi svg{color:#2563EB}.feat:nth-child(2) .fi svg{color:#7C3AED}.feat:nth-child(3) .fi svg{color:#0D9488}
+.feat:hover .fi{border-color:transparent;transform:scale(1.06)}
+.feat:hover .fi svg{color:#fff}
+.feat:nth-child(1):hover .fi{background:linear-gradient(140deg,#2563EB,#06B6D4);box-shadow:0 10px 22px rgba(37,99,235,.38)}
+.feat:nth-child(2):hover .fi{background:linear-gradient(140deg,#7C3AED,#4F46E5);box-shadow:0 10px 22px rgba(124,58,237,.38)}
+.feat:nth-child(3):hover .fi{background:linear-gradient(140deg,#0D9488,#06B6D4);box-shadow:0 10px 22px rgba(13,148,136,.38)}
+.feat .ft{display:flex;flex-direction:column;min-width:0}
+.feat .ft-h{font-size:.8125rem;font-weight:600;color:#101A33;line-height:1.3;letter-spacing:-.01em}
+.feat .ft-s{font-size:.6875rem;color:#8693B5;margin-top:2px;line-height:1.4}
+.feat .ft-d{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease),margin-top .4s var(--ease)}
+.feat .ft-d>span{overflow:hidden;display:block;font-size:.6875rem;line-height:1.5;color:#4C5A7D;opacity:0;transform:translateY(4px);transition:opacity .34s var(--ease),transform .34s var(--ease)}
+.feat:hover .ft-d{grid-template-rows:1fr;margin-top:7px}
+.feat:hover .ft-d>span{opacity:1;transform:none;transition-delay:.08s}
+/* hero footer */
+.hero-foot{position:absolute;z-index:2;left:48px;bottom:32px;display:flex;flex-direction:column;gap:2px}
+.hero-foot .t{font-size:.75rem;font-weight:600;color:#4C5A7D}
+.hero-foot .c{font-size:.6875rem;color:#8693B5}
+@keyframes auroraDrift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(42px,30px) scale(1.08)}}
+@keyframes auroraDrift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-38px,26px) scale(1.1)}}
+@keyframes auroraDrift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(32px,-36px) scale(1.06)}}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.6)}50%{opacity:.9;transform:scale(1)}}
+@keyframes floatY{0%,100%{transform:perspective(1400px) rotateY(20deg) rotateZ(-9deg) translateY(0)}50%{transform:perspective(1400px) rotateY(20deg) rotateZ(-9deg) translateY(-12px)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:none}}
+
+/* RIGHT — floating white sign-in card */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 28px;position:relative;z-index:2}
+/* the card is ALWAYS a light island (crisp on any device theme) */
+.auth-card{
+  --fk-bg-card:#FFFFFF; --fk-bg-subtle:#F6F8FE; --fk-subtle-hover:#EDF1FB;
+  --fk-border:#E4E9F4; --fk-text:#101A33; --fk-text-muted:#4C5A7D; --fk-muted-fill:#AAB6D2;
+  --fk-primary:#2563EB; --fk-primary-tint:rgba(37,99,235,.10);
+  --fk-success:#0D9488; --fk-success-surface:rgba(13,148,136,.10); --fk-success-edge:rgba(13,148,136,.30);
+  --fk-danger:#DC2626;
+  font-family:'Plus Jakarta Sans','Inter',sans-serif;
+  width:100%;max-width:418px;background:#fff;color:var(--fk-text);
+  border:1px solid rgba(15,23,42,.06);border-radius:28px;padding:40px;
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 30px 70px rgba(2,6,23,.16),0 4px 14px rgba(2,6,23,.06);
+  animation:cardIn .6s var(--ease) both}
+.brand{display:flex;align-items:center;gap:11px;margin-bottom:22px}
+.brand-mark{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,#2563EB,#4F46E5);box-shadow:0 8px 20px rgba(37,99,235,.32)}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.brand-sub{font-size:10.5px;color:var(--fk-text-muted);letter-spacing:.5px;text-transform:uppercase}
+.auth-title{font-size:1.55rem;font-weight:700;letter-spacing:-.03em;margin-bottom:5px}
+.auth-sub{font-size:.875rem;color:var(--fk-text-muted);margin-bottom:24px;line-height:1.5;font-weight:500}
+.co-name{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700;color:var(--fk-primary);letter-spacing:-.2px;margin:0 0 18px;padding:11px 14px;background:var(--fk-primary-tint);border:1px solid rgba(37,99,235,.18);border-radius:12px}
+.co-name::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--fk-success);flex:none;box-shadow:0 0 0 3px var(--fk-success-surface)}
+/* auth-scoped polish (bigger touch targets, gradient primary) */
+.auth-card .input{height:46px;border-radius:11px;font-size:15px}
+.auth-card .input:focus{border-color:var(--fk-primary);box-shadow:0 0 0 3px rgba(37,99,235,.16),0 6px 18px rgba(37,99,235,.12)}
+.auth-card .btn{height:48px;border-radius:13px;font-size:15px}
+.auth-card .btn-primary{background:linear-gradient(135deg,#2563EB 0%,#4F46E5 100%);box-shadow:0 8px 20px rgba(37,99,235,.28)}
+.auth-card .btn-primary:hover{background:linear-gradient(135deg,#1D4ED8 0%,#4338CA 100%);box-shadow:0 12px 30px rgba(79,70,229,.42);transform:translateY(-2px)}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.trust .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--fk-text-muted);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:999px;padding:5px 11px}
+.trust .pill svg{color:var(--fk-success)}
+.auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--fk-text-muted)}
+.auth-switch a{font-weight:600}
+.ok-burst{width:84px;height:84px;border-radius:50%;margin:4px auto 18px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#22C55E,#16A34A);box-shadow:0 16px 38px -10px rgba(22,163,74,.6);animation:okpop .5s cubic-bezier(.2,1.3,.5,1)}
+@keyframes okpop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1)}}
+/* app screen sits above the fixed auth backdrop */
+#screen-app{position:relative;z-index:10;background:var(--fk-bg-page);min-height:100vh}
 .field{margin-bottom:14px}
 .label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
   color:var(--fk-text-muted);margin-bottom:6px}
@@ -65,18 +182,35 @@ a{color:var(--fk-primary);text-decoration:none}
 .input:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
 .sec-head{font-size:12px;font-weight:700;color:var(--fk-text);margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--fk-border)}
 .sec-head span{font-weight:400;color:var(--fk-text-muted)}
-/* ── photo / CNIC capture widget (camera + browse) ── */
-.cap{display:flex;align-items:center;gap:12px;border:1px dashed var(--fk-border);border-radius:var(--fk-radius-control);
-  padding:10px;background:var(--fk-bg-subtle)}
-.cap-prev{width:54px;height:54px;flex:none;border-radius:8px;overflow:hidden;background:var(--fk-bg-card);
-  border:1px solid var(--fk-border);display:flex;align-items:center;justify-content:center;color:var(--fk-muted-fill);font-size:11px;text-align:center}
-.cap-prev img{width:100%;height:100%;object-fit:cover}
+/* ── KYC capture tiles (camera + browse) — premium card style ── */
+.kyc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:560px){.kyc-grid{grid-template-columns:1fr 1fr}}
+.kyc-tile{display:flex;flex-direction:column}
+.kyc-tile .kyc-cap-label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--fk-text-muted);margin-bottom:7px}
+.cap{display:flex;flex-direction:column;gap:9px;border:1px solid var(--fk-border);border-radius:14px;
+  padding:9px;background:var(--fk-bg-subtle);transition:border-color .15s,box-shadow .15s}
+.cap:has(.cap-btn.done){border-color:var(--fk-success-edge);background:var(--fk-success-surface)}
+.cap-prev{position:relative;width:100%;border-radius:11px;overflow:hidden;background:var(--fk-bg-card);
+  border:1.5px dashed var(--fk-border);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;color:var(--fk-muted-fill);font-size:11.5px;font-weight:600;text-align:center;aspect-ratio:1.586/1}
+.cap--face .cap-prev{aspect-ratio:3/4}
+.cap-prev svg{width:26px;height:26px;opacity:.7}
+.cap-prev img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cap-prev.busy{color:var(--fk-text-muted)}
-.cap-btns{display:flex;gap:8px;flex-wrap:wrap;flex:1}
-.cap-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;cursor:pointer;
-  border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-card);
-  color:var(--fk-text);font-size:13px;font-weight:600}
-.cap-btn:hover{background:var(--fk-subtle-hover)}
+.cap-prev.busy::after{content:"Uploading…";position:absolute;inset:0;display:grid;place-items:center;
+  background:rgba(255,255,255,.7);color:var(--fk-text);font-weight:600;font-size:12px}
+.cap:has(.cap-btn.done) .cap-prev{border-style:solid;border-color:var(--fk-success-edge)}
+.cap:has(.cap-btn.done) .cap-prev::after{content:"";position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:50%;
+  background:var(--fk-success) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/14px no-repeat;
+  box-shadow:0 2px 6px rgba(22,163,74,.45)}
+.cap-btns{display:flex;flex-direction:column;gap:7px}
+.cap-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 8px;cursor:pointer;
+  border:1px solid var(--fk-border);border-radius:9px;background:var(--fk-bg-card);
+  color:var(--fk-text);font-size:12.5px;font-weight:600;transition:background .15s,border-color .15s}
+.cap-btn svg{width:15px;height:15px;flex:none}
+.cap-btn:hover{background:var(--fk-subtle-hover);border-color:var(--fk-muted-fill)}
+.cap-btn.is-cam{background:var(--fk-primary-tint);border-color:rgba(79,70,229,.2);color:var(--fk-primary)}
+.cap-btn.is-cam:hover{background:rgba(79,70,229,.16)}
 .cap-btn.done{border-color:var(--fk-success-edge);background:var(--fk-success-surface);color:var(--fk-success)}
 .cap-btn input{display:none}
 /* ── guided in-app camera (CNIC-sized / face frame) ── */
@@ -246,22 +380,75 @@ a{color:var(--fk-primary);text-decoration:none}
 </head>
 <body>
 
+<!-- ════════ PREMIUM BACKDROP + BRAND HERO (auth screens) ════════ -->
+<div class="auth-bg"></div>
+<div class="auth-grid"></div>
+<aside class="auth-hero">
+  <!-- decorative atmosphere: aurora glows · arcs · sparkles -->
+  <div class="hero-fx" aria-hidden="true">
+    <span class="aurora aurora-1"></span><span class="aurora aurora-2"></span><span class="aurora aurora-3"></span>
+    <span class="bg-arc arc-1"></span><span class="bg-arc arc-2"></span>
+    <span class="sparkles">
+      <i class="sp"></i><i class="sp"></i><i class="sp"></i><i class="sp"></i>
+      <i class="sp"></i><i class="sp"></i><i class="sp"></i><i class="sp"></i>
+      <i class="sp"></i><i class="sp glint"></i><i class="sp glint"></i><i class="sp glint"></i><i class="sp glint"></i>
+    </span>
+  </div>
+
+  <!-- headline (top-left) -->
+  <div class="hero-copy">
+    <span class="eyebrow">Sales &amp; Reservations</span>
+    <h1>Your sales desk,<br><span class="grad">in your pocket.</span></h1>
+    <p>Reserve units, mark them sold, and follow your recovery — accurate, automatic, effortless.</p>
+  </div>
+
+  <!-- giant glossy 3D logo (reuses the brand 3D render) -->
+  <div class="hero-3d" aria-hidden="true"><img src="assets/nexunova-3d.png" alt=""></div>
+  <div class="hero-wordmark" aria-hidden="true">
+    <span class="hw">NEXUNOVA</span>
+    <span class="hwt">Innovate · Automate · Elevate</span>
+  </div>
+
+  <!-- floating glass feature cards -->
+  <div class="auth-feats">
+    <div class="feat">
+      <span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+      <div class="ft"><span class="ft-h">Instant reservations</span><span class="ft-s">Hold units in real time</span><span class="ft-d"><span>Lock a unit the moment a client commits — a live anti-double-book guard keeps it yours.</span></span></div>
+    </div>
+    <div class="feat">
+      <span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+      <div class="ft"><span class="ft-h">Mark sold, get approved</span><span class="ft-s">From booking to office sign-off</span><span class="ft-d"><span>Build the full sale — client, schedule, payments — and submit it to your office in one tap.</span></span></div>
+    </div>
+    <div class="feat">
+      <span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+      <div class="ft"><span class="ft-h">Your recovery, live</span><span class="ft-s">Sales, commission &amp; receivables</span><span class="ft-d"><span>Track every unit you sold, what's collected and what's due — your whole book, always current.</span></span></div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div class="hero-foot"><span class="t">Secure. Reliable. Built for scale.</span><span class="c">© 2026 NexuNova · Sales Portal</span></div>
+</aside>
+
 <!-- ════════ LOGIN ════════ -->
 <div id="screen-login" class="screen active">
   <div class="auth-wrap"><div class="auth-card">
     <div class="brand">
-      <div class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
+      <div class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Availability &amp; Reservations</div></div>
     </div>
     <div class="co-name" id="login-co" style="display:none"></div>
-    <div class="auth-title">Sign in</div>
-    <div class="auth-sub">Enter your mobile and PIN to sign in.</div>
+    <div class="auth-title">Welcome back</div>
+    <div class="auth-sub">Sign in with your mobile number and PIN.</div>
     <div class="field" id="co-field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
     <div class="field"><label class="label">Mobile number</label><input class="input" id="i-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"></div>
     <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
     <div class="err" id="login-err"></div>
-    <div id="login-to-register" style="display:none;text-align:center;margin-top:16px;font-size:13px;color:var(--fk-text-muted)">New here? <a href="#" onclick="showScreen('screen-register');return false">Request access / Sign up</a></div>
+    <div class="trust">
+      <span class="pill"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secure PIN sign-in</span>
+      <span class="pill"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Office-approved</span>
+    </div>
+    <div id="login-to-register" style="display:none" class="auth-switch">New here? <a href="#" onclick="showScreen('screen-register');return false">Request access</a></div>
   </div></div>
 </div>
 
@@ -273,8 +460,8 @@ a{color:var(--fk-primary);text-decoration:none}
       <div><div class="brand-name">Sales Portal</div><div class="brand-sub">Request access</div></div>
     </div>
     <div class="co-name" id="reg-co" style="display:none"></div>
-    <div class="auth-title">Register as a Sale Agent</div>
-    <div class="auth-sub">Complete your profile &amp; verification. Your office approves you before you can sign in.</div>
+    <div class="auth-title">Create your account</div>
+    <div class="auth-sub">Add your details &amp; verification. Your office approves you, then you can sign in.</div>
     <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
     <div class="field"><label class="label">Father / Husband name</label><input class="input" id="reg-father" autocomplete="off"></div>
     <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"><div class="hint">Enter your number without the 0 — e.g. +923123456789</div></div>
@@ -283,35 +470,57 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="field"><label class="label">Email <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-email" type="email" placeholder="you@business.com" autocomplete="off"></div>
 
     <div class="sec-head">Verification (KYC) <span>· photo &amp; CNIC required</span></div>
-    <div class="field"><label class="label">Your photo</label>
-      <div class="cap" id="cap-photo"><div class="cap-prev" id="cap-photo-prev">Photo</div><div class="cap-btns">
-        <button type="button" class="cap-btn" onclick="capCamera('photo','face')">📷 Camera</button>
-        <label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'photo')"></label>
-      </div></div></div>
-    <div class="field"><label class="label">CNIC — front</label>
-      <div class="cap" id="cap-cf"><div class="cap-prev" id="cap-cf-prev">Front</div><div class="cap-btns">
-        <button type="button" class="cap-btn" onclick="capCamera('cf','card')">📷 Camera</button>
-        <label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cf')"></label>
-      </div></div></div>
-    <div class="field"><label class="label">CNIC — back</label>
-      <div class="cap" id="cap-cb"><div class="cap-prev" id="cap-cb-prev">Back</div><div class="cap-btns">
-        <button type="button" class="cap-btn" onclick="capCamera('cb','card')">📷 Camera</button>
-        <label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cb')"></label>
-      </div></div></div>
-    <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="reg-pin" type="password" inputmode="numeric" autocomplete="off"></div>
+    <div style="font-size:12px;color:var(--fk-text-muted);margin:-4px 0 12px;line-height:1.5">Snap a clear photo of yourself and both sides of your CNIC. Tap <b style="color:var(--fk-primary)">Camera</b> to capture with the guided frame, or <b>Browse</b> a saved image.</div>
+    <div class="kyc-grid">
+      <div class="kyc-tile">
+        <div class="kyc-cap-label">Your photo</div>
+        <div class="cap cap--face" id="cap-photo">
+          <div class="cap-prev" id="cap-photo-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span>Selfie</span></div>
+          <div class="cap-btns">
+            <button type="button" class="cap-btn is-cam" onclick="capCamera('photo','face')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Camera</button>
+            <label class="cap-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'photo')"></label>
+          </div>
+        </div>
+      </div>
+      <div class="kyc-tile">
+        <div class="kyc-cap-label">CNIC — front</div>
+        <div class="cap cap--card" id="cap-cf">
+          <div class="cap-prev" id="cap-cf-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/></svg><span>Front side</span></div>
+          <div class="cap-btns">
+            <button type="button" class="cap-btn is-cam" onclick="capCamera('cf','card')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Camera</button>
+            <label class="cap-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cf')"></label>
+          </div>
+        </div>
+      </div>
+      <div class="kyc-tile">
+        <div class="kyc-cap-label">CNIC — back</div>
+        <div class="cap cap--card" id="cap-cb">
+          <div class="cap-prev" id="cap-cb-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="10" x2="18" y2="10"/><line x1="6" y1="14" x2="14" y2="14"/></svg><span>Back side</span></div>
+          <div class="cap-btns">
+            <button type="button" class="cap-btn is-cam" onclick="capCamera('cb','card')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Camera</button>
+            <label class="cap-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cb')"></label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label class="label">Choose a 6-digit PIN</label><input class="input" id="reg-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"><div class="note" style="font-size:11px;color:var(--fk-text-muted);margin-top:4px">6 digits. Avoid easy ones like 123456 or 111111.</div></div>
     <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
     <div class="err" id="reg-err"></div>
-    <div style="text-align:center;margin-top:14px"><a href="#" onclick="goLogin();return false" style="font-size:13px">Already approved? Sign in</a></div>
+    <div class="trust">
+      <span class="pill"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Your data is kept private</span>
+    </div>
+    <div class="auth-switch">Already approved? <a href="#" onclick="goLogin();return false">Sign in</a></div>
   </div></div>
 </div>
 
 <!-- ════════ PENDING (after a successful register) ════════ -->
 <div id="screen-pending" class="screen">
   <div class="auth-wrap"><div class="auth-card" style="text-align:center">
-    <div class="brand-mark" style="margin:0 auto 14px;width:48px;height:48px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-    <div class="auth-title">Request sent</div>
-    <div class="auth-sub">Your request was sent to your office for approval. Once approved, sign in with your mobile and the PIN you just chose.</div>
-    <button class="btn btn-secondary btn-full" onclick="showScreen('screen-login')">Go to sign in</button>
+    <div class="ok-burst"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <div class="auth-title">You're all set</div>
+    <div class="auth-sub">Your request has been sent to your office for approval. Once approved, sign in with your mobile number and the PIN you just chose.</div>
+    <button class="btn btn-primary btn-full" onclick="showScreen('screen-login')">Go to sign in</button>
+    <div class="hint" style="margin-top:14px;color:var(--fk-text-muted)">You'll be able to reserve units and submit sales the moment you're approved.</div>
   </div></div>
 </div>
 
@@ -475,10 +684,15 @@ function _capErr(){ return $('s-err')||$('reg-err'); }
 function _capShowErr(m){ const e=_capErr(); if(e){ e.textContent=m; e.classList.add('show'); } }
 // a reusable capture slot: 📷 guided Camera + 📁 Browse + preview. kind: 'face'|'card'
 function capSlot(key,label,kind){
-  return '<div class="field"><label class="label">'+esc(label)+'</label>'
-    +'<div class="cap" id="cap-'+key+'"><div class="cap-prev" id="cap-'+key+'-prev">'+(kind==='face'?'Photo':'Doc')+'</div><div class="cap-btns">'
-    +'<button type="button" class="cap-btn" onclick="capCamera(\''+key+'\',\''+kind+'\')">📷 Camera</button>'
-    +'<label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,\''+key+'\')"></label>'
+  var ph=(kind==='face'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span>Photo</span>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/></svg><span>Document</span>');
+  var camIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+  var upIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+  return '<div class="kyc-tile" style="margin-bottom:14px"><div class="kyc-cap-label">'+esc(label)+'</div>'
+    +'<div class="cap '+(kind==='face'?'cap--face':'cap--card')+'" id="cap-'+key+'"><div class="cap-prev" id="cap-'+key+'-prev">'+ph+'</div><div class="cap-btns">'
+    +'<button type="button" class="cap-btn is-cam" onclick="capCamera(\''+key+'\',\''+kind+'\')">'+camIco+'Camera</button>'
+    +'<label class="cap-btn">'+upIco+'Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,\''+key+'\')"></label>'
     +'</div></div></div>';
 }
 
@@ -557,7 +771,8 @@ async function doRegister(){
   if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ return bad('CNIC format: xxxxx-xxxxxxx-x'); }
   if(!address){ return bad('Enter your address.'); }
   if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ return bad('Enter a valid email or leave it blank.'); }
-  if(!/^[0-9]{4,6}$/.test(pin)){ return bad('PIN must be 4 to 6 digits.'); }
+  if(!/^[0-9]{6}$/.test(pin)){ return bad('PIN must be exactly 6 digits.'); }
+  if(/^(\d)\1{5}$/.test(pin) || ['123456','654321','123123','121212','112233','786786','098765','456789'].includes(pin)){ return bad('That PIN is too easy to guess. Choose a less obvious 6-digit PIN.'); }
   if(!CAP.photo||!CAP.cf||!CAP.cb){ return bad('Add your photo and both sides of your CNIC to complete verification.'); }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
@@ -921,6 +1136,7 @@ function openSale(reservationId){
     +capSlot('ccb','Client CNIC — back','card')
     +'<div class="sec-head">Nominee <span>· optional</span></div>'
     +'<div class="field"><label class="label">Nominee name</label><input class="input" id="s-nname"></div>'
+    +'<div class="field"><label class="label">Nominee relation</label><input class="input" id="s-nrelation" placeholder="e.g. Son, Wife, Brother"></div>'
     +'<div class="field"><label class="label">Nominee CNIC</label><input class="input" id="s-ncnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)"></div>'
     +'<div class="field"><label class="label">Nominee phone</label><input class="input" id="s-nphone" inputmode="tel"></div>'
     +capSlot('nphoto','Nominee photo','face')
@@ -930,7 +1146,8 @@ function openSale(reservationId){
     +'<div class="field"><label class="label">Area ('+esc(uUnit)+') <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· from inventory</span></label><input class="input num" id="s-area" inputmode="decimal" value="'+(uArea||'')+'"'+(uArea>0?' readonly style="opacity:.75"':'')+' oninput="saleRecalc()"></div>'
     +'<div class="field"><label class="label">Rate per '+esc(uUnit)+' (PKR) *</label><input class="input num" id="s-rate" inputmode="numeric" value="'+(uRate||'')+'" oninput="saleRecalc()"></div>'
     +'<div class="field"><label class="label">Discount (PKR)</label><input class="input num" id="s-disc" inputmode="numeric" value="0" oninput="saleRecalc()"></div>'
-    +'<div class="ressum"><div class="rs-r"><span>Gross</span><b id="s-gross">₨0</b></div><div class="rs-r"><span>Net price</span><b id="s-net">₨0</b></div></div>'
+    +'<div class="field"><label class="label">Your commission % <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· proposed, office confirms</span></label><input class="input num" id="s-comm" inputmode="decimal" placeholder="e.g. 2.5" oninput="saleRecalc()"></div>'
+    +'<div class="ressum"><div class="rs-r"><span>Gross</span><b id="s-gross">₨0</b></div><div class="rs-r"><span>Net price</span><b id="s-net">₨0</b></div><div class="rs-r" id="s-comm-row" style="display:none"><span>Est. commission</span><b id="s-comm-est">₨0</b></div></div>'
     +'<div class="sec-head">Payment schedule</div>'
     +'<div class="field"><label class="label">Down payment (PKR)</label><input class="input num" id="s-dp" inputmode="numeric" value="0" oninput="saleRecalc()"></div>'
     +'<div class="field"><label class="label">Monthly installments (count)</label><input class="input num" id="s-months" inputmode="numeric" value="12"></div>'
@@ -946,6 +1163,13 @@ function saleRecalc(){
   const gross=_snum('s-area')*_snum('s-rate'), net=Math.max(0,gross-_snum('s-disc'));
   if($('s-gross')) $('s-gross').textContent=pkrFull(gross);
   if($('s-net'))   $('s-net').textContent=pkrFull(net);
+  const commRaw=($('s-comm')&&$('s-comm').value||'').trim();
+  const comm=commRaw===''?null:(parseFloat(commRaw)||null);
+  const row=$('s-comm-row');
+  if(row){
+    if(comm!=null&&comm>0){ row.style.display=''; if($('s-comm-est')) $('s-comm-est').textContent=pkrFull(Math.round(net*comm/100)); }
+    else row.style.display='none';
+  }
 }
 function genSchedule(){
   const net=Math.max(0,_snum('s-area')*_snum('s-rate')-_snum('s-disc'));
@@ -988,11 +1212,15 @@ async function submitSale(){
   const client={ full_name:cname, father_name:cfather, cnic:ccnic||null, phone_primary:cphone,
     address:($('s-caddress').value||'').trim()||null, email:($('s-cemail').value||'').trim()||null,
     next_of_kin_name:($('s-nname').value||'').trim()||null, next_of_kin_cnic:($('s-ncnic').value||'').trim()||null,
+    next_of_kin_relation:($('s-nrelation').value||'').trim()||null,
     next_of_kin_phone:($('s-nphone').value||'').trim()||null, overseas_local:'local',
     client_photo_url:CAP.cphoto||null, cnic_front_url:CAP.ccf||null, cnic_back_url:CAP.ccb||null,
     next_of_kin_photo_url:CAP.nphoto||null, next_of_kin_cnic_front_url:CAP.ncf||null, next_of_kin_cnic_back_url:CAP.ncb||null };
+  const commRaw=($('s-comm').value||'').trim();
+  const commRate=commRaw===''?null:(parseFloat(commRaw)||null);
+  if(commRate!=null&&(commRate<0||commRate>100)) return bad('Commission % must be between 0 and 100.');
   const sale={ area_sqft:_snum('s-area'), price_per_sqft:_snum('s-rate'), discount:_snum('s-disc'),
-    down_payment:_snum('s-dp'), sale_date:new Date().toISOString().slice(0,10) };
+    down_payment:_snum('s-dp'), sale_date:new Date().toISOString().slice(0,10), commission_rate:commRate };
   const go=$('s-go'); go.disabled=true; go.textContent='Submitting…';
   try{
     const {data,error}=await sb.rpc('submit_sale',{p_session_token:TOKEN,p_reservation_id:SALE_CTX.reservationId,p_client:client,p_sale:sale,p_schedule:SALE_SCHED});
