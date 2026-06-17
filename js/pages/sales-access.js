@@ -143,13 +143,16 @@ async function _saRotate() {
   } catch (e) { if (typeof toast === 'function') toast('Could not rotate the link.', 'err'); }
 }
 
-// A KYC document thumbnail (click to open full size in a new tab).
-function _saKycDoc(url, label) {
-  if (url) return `<a href="${esc(url)}" target="_blank" rel="noopener" title="${esc(label)} — click to enlarge"
-    style="flex:1;min-width:0;text-decoration:none"><div style="height:74px;border-radius:8px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle)"><img src="${esc(url)}" style="width:100%;height:100%;object-fit:cover"></div>
-    <div style="font-size:10.5px;color:var(--fk-text-muted);text-align:center;margin-top:3px">${esc(label)}</div></a>`;
-  return `<div style="flex:1;min-width:0"><div style="height:74px;border-radius:8px;border:1px dashed var(--fk-border);display:grid;place-items:center;font-size:11px;color:var(--fk-text-muted)">Missing</div>
-    <div style="font-size:10.5px;color:var(--fk-text-muted);text-align:center;margin-top:3px">${esc(label)}</div></div>`;
+// A framed KYC document — full image (contain) inside an aspect-ratio frame so
+// the whole CNIC / photo is visible. kind: 'card' (CNIC, landscape) | 'photo'.
+function _saKycDoc(url, label, kind) {
+  const ar = kind === 'photo' ? '3 / 4' : '1.585 / 1';
+  const frame = url
+    ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="${esc(label)} — click to enlarge" style="display:block;text-decoration:none">
+         <div style="aspect-ratio:${ar};background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;overflow:hidden;display:grid;place-items:center">
+           <img src="${esc(url)}" style="width:100%;height:100%;object-fit:contain"></div></a>`
+    : `<div style="aspect-ratio:${ar};border:1px dashed var(--fk-border);border-radius:10px;display:grid;place-items:center;font-size:11px;color:var(--fk-text-muted)">No image</div>`;
+  return `<div><div style="font-size:11px;font-weight:600;color:var(--fk-text-muted);margin-bottom:5px">${esc(label)}</div>${frame}</div>`;
 }
 
 // Full application preview + decision — shows everything the registrant submitted,
@@ -188,9 +191,11 @@ function _saReviewOpen(id) {
        <div style="margin-top:var(--fk-sp-3)">${fld('Address', r.address)}</div>
        ${payout}
        <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Identity documents (KYC) — click to enlarge</div>
-       <div style="display:flex;gap:8px">
-         ${_saKycDoc(r.profile_photo_url, 'Photo')}${_saKycDoc(r.cnic_front_url, 'CNIC front')}${_saKycDoc(r.cnic_back_url, 'CNIC back')}
+       <div class="nx-grid-2" style="gap:12px;margin-bottom:12px">
+         ${_saKycDoc(r.cnic_front_url, 'CNIC — front', 'card')}
+         ${_saKycDoc(r.cnic_back_url, 'CNIC — back', 'card')}
        </div>
+       <div style="max-width:160px">${_saKycDoc(r.profile_photo_url, 'Photo', 'photo')}</div>
        <div style="margin-top:var(--fk-sp-4);padding:10px 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);font-size:12.5px;color:var(--fk-text-muted)">
          On <b style="color:var(--fk-text)">Approve</b>, a Sale Agent profile is created (code <b style="color:var(--fk-text)">AGT-${yr}-####</b>), KYC is marked verified, and they can sign in &amp; reserve.
        </div>
