@@ -181,16 +181,16 @@ a{color:var(--fk-primary);text-decoration:none}
 /* ── MOBILE (<980px): hero collapses to a compact brand header above the card ── */
 @media(max-width:979px){
   /* fixed brand header height = logo + wordmark area */
-  :root{--heroH:calc(clamp(150px,26vh,290px) + 48px)}
+  :root{--heroH:calc(clamp(185px,33vh,350px) + 52px)}
   /* logo + wordmark are FIXED behind (z1); the background is fixed too (z0) */
   .auth-hero{display:flex;flex-direction:column;justify-content:center;position:fixed;top:0;left:0;right:0;height:var(--heroH);z-index:1;
     padding:6px 18px 0;text-align:center;background:transparent;box-shadow:none;border-radius:0;color:#101A33;overflow:hidden;
     font-family:'Plus Jakarta Sans','Inter',sans-serif}
   .auth-hero .hero-fx,.auth-hero .auth-feats,.auth-hero .hero-foot,.auth-hero .hero-copy{display:none}
   .auth-hero .hero-3d{position:relative;left:auto;bottom:auto;width:auto;height:auto;aspect-ratio:auto;margin:0 auto -7%;display:flex;justify-content:center}
-  .auth-hero .hero-3d img{width:auto;height:clamp(150px,26vh,290px);max-width:94vw;transform:none;animation:none;mix-blend-mode:normal;filter:drop-shadow(0 16px 26px rgba(15,23,42,.2))}
+  .auth-hero .hero-3d img{width:auto;height:clamp(185px,33vh,350px);max-width:96vw;transform:none;animation:none;mix-blend-mode:normal;filter:drop-shadow(0 16px 26px rgba(15,23,42,.2))}
   .auth-hero .hero-wordmark{position:relative;left:auto;bottom:auto;width:100%;max-width:418px;margin:0 auto;text-align:center}
-  .auth-hero .hero-wordmark .hw{font-size:2.2rem;letter-spacing:.14em;text-indent:.14em}
+  .auth-hero .hero-wordmark .hw{font-size:2.5rem;letter-spacing:.14em;text-indent:.14em}
   .auth-hero .hero-wordmark .hwt{font-size:.62rem;margin-top:5px;letter-spacing:.32em;text-indent:.32em}
   /* the card scrolls OVER the fixed logo (z5 > hero z1); starts below it via top padding */
   .auth-wrap{position:relative;z-index:5;min-height:auto;display:block;padding:var(--heroH) 16px 26px}
