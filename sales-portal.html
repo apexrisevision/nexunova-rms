@@ -903,7 +903,9 @@ function genSchedule(){
   if(net<=0){ err.textContent='Enter area and rate first.'; err.classList.add('show'); return; }
   if(months>0 && !first){ err.textContent='Pick the first installment date.'; err.classList.add('show'); return; }
   SALE_SCHED=[];
-  if(dp>0) SALE_SCHED.push({installment_number:0,installment_type:'down_payment',due_date:(first||new Date().toISOString().slice(0,10)),amount_due:dp,notes:'Down payment'});
+  // the booking / down payment is due on the BOOKING date (today), not the first installment month
+  const today=new Date().toISOString().slice(0,10);
+  if(dp>0) SALE_SCHED.push({installment_number:0,installment_type:'down_payment',due_date:today,amount_due:dp,notes:'Down payment'});
   const remaining=Math.max(0,net-dp);
   if(months>0){
     const per=Math.round(remaining/months); let d=new Date(first);
