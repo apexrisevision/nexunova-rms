@@ -1575,7 +1575,7 @@ function _renderSaleDetail(d, docs, amendments, client) {
       { header:{ icon:'id-card', title:'Client & Nominee Documents', sub: items.length + ' file' + (items.length !== 1 ? 's' : '') } });
   })();
 
-  const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: 'Fixed at sale · ' + inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
+  const schedCard = NX.card(schedInner, { flush: true, header:{ icon:'calendar', title:'Payment Schedule', sub: 'Fixed at sale · ' + inst.length + ' row' + (inst.length !== 1 ? 's' : ''), actions: ((isA && d.status !== 'cancelled') ? NX.button('Edit Schedule', { variant:'secondary', size:'sm', icon:'pencil', onclick:'openScheduleEditor()' }) : '') + NX.button('Print', { variant:'ghost', size:'sm', icon:'printer', onclick:'_salPrintScheduleFromDetail()' }) } });
 
   // ── Account Statement (DR/CR ledger) — embedded per-unit, async-filled.
   // This is the receivings-vs-dues picture; the schedule above stays pure.
@@ -3077,4 +3077,155 @@ async function saveInstEdit() {
   cm('m-inst-edit');
   toast('Installment updated');
   rSaleDetail();
+}
+
+// ══ SCHEDULE EDITOR — adjust/insert/delete lines, balance to net ═══════════
+// Never wipes the schedule: edit amounts/dates, insert a line anywhere, delete
+// an unpaid line. A live Difference (net − scheduled) must reach zero to save,
+// so the admin decides exactly where to put any change. Paid lines are protected.
+let _seRows = null, _seNet = 0;
+
+function openScheduleEditor() {
+  const d = _salCurrentDetail;
+  if (!d) { toast('No sale loaded', 'warn'); return; }
+  _seNet = Number(d.net_amount || 0);
+  _seRows = (d.installments || []).map(i => ({
+    id: i.id || null,
+    installment_number: Number(i.installment_number || 0),
+    installment_type: i.installment_type || (Number(i.installment_number || 0) === 0 ? 'down_payment' : 'installment'),
+    due_date: i.due_date ? String(i.due_date).slice(0, 10) : '',
+    amount_due: Number(i.amount_due || 0),
+    amount_paid: Number(i.amount_paid || 0),
+    notes: i.notes || '',
+    _new: false, _deleted: false
+  }));
+  document.body.insertAdjacentHTML('beforeend', NX.modal({
+    id: 'se-modal', title: 'Edit Schedule', size: 'l', onClose: '_seClose()',
+    body: `<div style="font-size:12.5px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">Change amounts/dates, insert a line anywhere, or delete an unpaid line. The schedule must equal the net price before you can save — the difference is shown below, so you decide exactly where to adjust it.</div>
+      <div id="se-tbl"></div>
+      <div style="margin-top:var(--fk-sp-2)">${NX.button('+ Add line', { variant: 'secondary', size: 'sm', onclick: '_seInsert(-1)' })}</div>
+      <div id="se-bar"></div>
+      <div class="nx-error" id="se-err" style="display:none;margin-top:var(--fk-sp-2)"></div>`,
+    footer: NX.button('Cancel', { variant: 'ghost', onclick: '_seClose()' }) +
+            NX.button('Save schedule', { variant: 'primary', attrs: 'id="se-save"', onclick: '_seSave()' })
+  }));
+  _seRender();
+}
+function _seClose() { document.getElementById('se-modal')?.closest('.nx-modal-overlay')?.remove(); }
+
+function _seVisible() { return _seRows.filter(r => !r._deleted); }
+function _seTotal() { return _seVisible().reduce((s, r) => s + Number(r.amount_due || 0), 0); }
+function _seDiff() { return Math.round(_seNet - _seTotal()); }
+
+function _seRender() {
+  const rows = _seRows.map((r, idx) => {
+    if (r._deleted) return '';
+    const paid = Number(r.amount_paid || 0);
+    const isBooking = r.installment_type === 'down_payment' || r.installment_number === 0;
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--fk-text-muted);font-size:12px">${isBooking ? 'Booking' : '#' + r.installment_number}</td>
+      <td><input type="date" class="nx-input" style="font-size:12px;padding:4px 6px" value="${esc(r.due_date)}" onchange="_seSet(${idx},'due_date',this.value)"></td>
+      <td><input type="number" class="nx-input" style="font-size:12px;text-align:right;padding:4px 6px" value="${r.amount_due}" oninput="_seSet(${idx},'amount_due',this.value)"></td>
+      <td style="text-align:right;color:var(--fk-text-muted);font-size:11px;white-space:nowrap">${paid > 0 ? 'paid ' + fMF(paid) : ''}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Insert line below" onclick="_seInsert(${idx})">${NX.icon('plus', 13)}</button>
+        ${paid > 0 ? '' : `<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="Delete line" onclick="_seDelete(${idx})">${NX.icon('trash-2', 13)}</button>`}
+      </td></tr>`;
+  }).join('');
+  const tbl = document.getElementById('se-tbl');
+  if (tbl) tbl.innerHTML = `<table class="nx-table" style="width:100%"><thead><tr><th>#</th><th>Due date</th><th style="text-align:right">Amount</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  _seRecalc();
+}
+
+function _seRecalc() {
+  const diff = _seDiff();
+  const balanced = Math.abs(diff) < 1;
+  const bar = document.getElementById('se-bar');
+  if (bar) {
+    const col = balanced ? 'var(--fk-success)' : 'var(--fk-danger)';
+    bar.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:var(--fk-sp-3);padding:10px 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);font-size:13px">
+        <span>Net price <b>${fMF(_seNet)}</b> · Scheduled <b>${fMF(_seTotal())}</b></span>
+        <span style="color:${col};font-weight:700">${balanced ? '✓ Balanced' : 'Difference: ' + fMF(diff) + (diff > 0 ? ' (add this)' : ' (remove this)')}</span>
+      </div>${balanced ? '' : `<div style="font-size:12px;color:var(--fk-text-muted);margin-top:6px">Where to adjust this? Click <b>+ Add line</b> (a new line is prefilled with ${fMF(diff > 0 ? diff : 0)}) or change any line's amount until the difference is zero.</div>`}`;
+  }
+  const save = document.getElementById('se-save');
+  if (save) { if (balanced) save.removeAttribute('disabled'); else save.setAttribute('disabled', 'disabled'); }
+}
+
+function _seSet(idx, key, val) {
+  if (!_seRows[idx]) return;
+  if (key === 'amount_due') {
+    let n = Number(String(val).replace(/[^0-9.]/g, '')) || 0;
+    const paid = Number(_seRows[idx].amount_paid || 0);
+    if (n < paid) n = paid;   // never below what's already paid
+    _seRows[idx].amount_due = n;
+  } else { _seRows[idx][key] = val; }
+  _seRecalc();
+}
+
+function _seInsert(afterIdx) {
+  const diff = _seDiff();
+  const ref = _seRows[afterIdx] || _seVisible()[_seVisible().length - 1];
+  let dd = '';
+  if (ref && ref.due_date) { const dt = new Date(ref.due_date); dt.setMonth(dt.getMonth() + 1); dd = dt.toISOString().slice(0, 10); }
+  const newRow = { id: null, installment_number: 0, installment_type: 'installment',
+    due_date: dd, amount_due: Math.max(0, diff > 0 ? diff : 0), amount_paid: 0, notes: 'Installment', _new: true, _deleted: false };
+  const pos = afterIdx < 0 ? _seRows.length : afterIdx + 1;
+  _seRows.splice(pos, 0, newRow);
+  _seRender();
+}
+
+function _seDelete(idx) {
+  if (!_seRows[idx]) return;
+  if (Number(_seRows[idx].amount_paid || 0) > 0) { toast('Cannot delete a paid installment', 'warn'); return; }
+  if (_seRows[idx]._new) _seRows.splice(idx, 1); else _seRows[idx]._deleted = true;
+  _seRender();
+}
+
+async function _seSave() {
+  const err = document.getElementById('se-err');
+  const show = (m) => { if (err) { err.textContent = m; err.style.display = 'block'; } };
+  if (err) err.style.display = 'none';
+  const vis = _seVisible();
+  for (const r of vis) {
+    if (!r.due_date) return show('Every line needs a due date.');
+    if (Number(r.amount_due || 0) <= 0) return show('Every line needs an amount greater than zero.');
+  }
+  if (Math.abs(_seDiff()) >= 1) return show('Schedule must equal the net price first — adjust the difference to zero.');
+
+  // renumber by due-date (booking → 0, then 1..N) so order stays correct
+  const ordered = vis.slice().sort((a, b) => {
+    const ab = (a.installment_type === 'down_payment') ? 0 : 1, bb = (b.installment_type === 'down_payment') ? 0 : 1;
+    if (ab !== bb) return ab - bb;
+    return String(a.due_date).localeCompare(String(b.due_date));
+  });
+  let n = 0;
+  ordered.forEach(r => { if (r.installment_type === 'down_payment') r.installment_number = 0; else { n++; r.installment_number = n; } });
+
+  const payload = [];
+  _seRows.forEach(r => {
+    if (r._deleted && r.id) { payload.push({ id: r.id, _deleted: true }); return; }
+    if (r._deleted) return;
+    if (r._new) payload.push({ _new: true, installment_number: r.installment_number, installment_type: r.installment_type, due_date: r.due_date, amount_due: r.amount_due, notes: r.notes || null });
+    else if (r.id) payload.push({ id: r.id, installment_number: r.installment_number, installment_type: r.installment_type, due_date: r.due_date, amount_due: r.amount_due, notes: r.notes || null });
+  });
+
+  const isAdmin = !!(S && (S.role === 'owner' || S.role === 'admin'));
+  let reason = null;
+  if (!isAdmin && typeof _salMakerCommentPrompt === 'function') {
+    reason = await _salMakerCommentPrompt('Approval Required', 'Editing the schedule requires Admin approval. Enter a reason.');
+    if (!reason) return;
+  }
+  const save = document.getElementById('se-save');
+  if (save) { save.setAttribute('disabled', 'disabled'); save.textContent = 'Saving…'; }
+  try {
+    const res = await supabase.rpc('edit_installment_schedule', { p_sale_id: _salCurrentDetail.id, p_company_id: S.cid, p_schedule: payload, p_reason: reason });
+    if (res.data?.status === 'pending_approval') {
+      _seClose(); toast('Schedule change submitted for Admin approval', 'ok');
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      return;
+    }
+    if (res.error || res.data?.success === false) { show(res.error?.message || (res.data?.errors?.[0]) || 'Save failed'); if (save) { save.removeAttribute('disabled'); save.textContent = 'Save schedule'; } return; }
+    _seClose(); toast('Schedule updated'); rSaleDetail();
+  } catch (e) { show('Save failed: ' + (e.message || e)); if (save) { save.removeAttribute('disabled'); save.textContent = 'Save schedule'; } }
 }
