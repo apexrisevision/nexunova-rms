@@ -177,6 +177,23 @@ a{color:var(--fk-primary);text-decoration:none}
 .trust .pill svg{color:var(--fk-success)}
 .auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--fk-text-muted)}
 .auth-switch a{font-weight:600}
+
+/* ── MOBILE (<980px): hero collapses to a compact brand header above the card ── */
+@media(max-width:979px){
+  .auth-hero{display:block;position:relative;z-index:2;width:100%;height:auto;
+    padding:34px 20px 4px;text-align:center;background:transparent;box-shadow:none;border-radius:0;color:#101A33;
+    font-family:'Plus Jakarta Sans','Inter',sans-serif}
+  .auth-hero .hero-fx,.auth-hero .auth-feats,.auth-hero .hero-foot,.auth-hero .hero-copy{display:none}
+  .auth-hero .hero-3d{position:relative;left:auto;bottom:auto;width:150px;height:108px;margin:0 auto}
+  .auth-hero .hero-3d img{width:150px;height:100px;transform:none;animation:none;filter:drop-shadow(0 14px 20px rgba(15,23,42,.16))}
+  .auth-hero .hero-wordmark{position:relative;left:auto;bottom:auto;width:auto;margin-top:8px}
+  .auth-hero .hero-wordmark .hw{font-size:1.6rem;letter-spacing:.2em;text-indent:.2em}
+  .auth-hero .hero-wordmark .hwt{font-size:.55rem;margin-top:7px}
+  .auth-wrap{min-height:auto;padding:14px 18px 36px}
+}
+/* never show the auth backdrop/hero once inside the app */
+body:has(#screen-app.active) .auth-hero,
+body:has(#screen-app.active) .auth-bg{display:none}
 .ok-burst{width:84px;height:84px;border-radius:50%;margin:4px auto 18px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#22C55E,#16A34A);box-shadow:0 16px 38px -10px rgba(22,163,74,.6);animation:okpop .5s cubic-bezier(.2,1.3,.5,1)}
 @keyframes okpop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1)}}
 /* app screen sits above the fixed auth backdrop */
