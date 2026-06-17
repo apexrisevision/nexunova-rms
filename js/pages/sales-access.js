@@ -92,8 +92,7 @@ function _saBodyHtml() {
         esc(r.phone),
         esc(r.cnic || '—'),
         esc(fdateRsv(r.created_at)),
-        NX.button('Approve', { variant: 'primary', size: 'sm', onclick: `_saApproveOpen('${r.id}','${esc(r.full_name)}')` }) +
-        ' ' + NX.button('Reject', { variant: 'danger-soft', size: 'sm', onclick: `_saReject('${r.id}','${esc(r.full_name)}')` })
+        NX.button('Review & decide', { variant: 'primary', size: 'sm', icon: 'eye', onclick: `_saReviewOpen('${r.id}')` })
       ]),
       flush: true
     }), { header: { icon: 'user-plus', tone: 'warning', title: 'Pending registrations', sub: pending.length + ' awaiting approval' }, flush: true });
@@ -153,32 +152,59 @@ function _saKycDoc(url, label) {
     <div style="font-size:10.5px;color:var(--fk-text-muted);text-align:center;margin-top:3px">${esc(label)}</div></div>`;
 }
 
-// Approve → register them as a Sale Agent: verify KYC, pick home project + commission.
-function _saApproveOpen(id, name) {
+// Full application preview + decision — shows everything the registrant submitted,
+// the KYC docs, the agent code that will be issued, then Approve / Reject.
+function _saReviewOpen(id) {
   const r = (_saRows || []).find(x => x.id === id) || {};
   const projOpts = (typeof gprojects === 'function' ? gprojects() : [])
     .map(p => ({ value: p.id, label: p.name || p.projectName || p.project_name || 'Project' }));
+  const initials = ((r.full_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
+  const avatar = r.profile_photo_url
+    ? `<img src="${esc(r.profile_photo_url)}" style="width:100%;height:100%;object-fit:cover">`
+    : esc(initials);
+  const kyc = r.kyc_status || 'pending';
+  const dash = '<span style="font-weight:400;color:var(--fk-text-muted)">—</span>';
+  const fld = (label, val) => `<div><div class="nx-kpi-label" style="text-transform:none">${label}</div><div style="font-size:13.5px;font-weight:600;color:var(--fk-text);word-break:break-word">${val ? esc(val) : dash}</div></div>`;
+  const yr = new Date().getFullYear();
   const payout = (r.bank_name || r.bank_account_no)
-    ? `<br><span style="color:var(--fk-text-muted)">Payout:</span> ${esc(r.bank_name || '')} ${esc(r.bank_account_no || '')}${r.bank_account_title ? ' (' + esc(r.bank_account_title) + ')' : ''}`
-    : '';
-  const kycPanel =
-    `<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin-bottom:var(--fk-sp-2)">Identity &amp; KYC — verify before approving</div>
-     <div style="display:flex;gap:8px;margin-bottom:var(--fk-sp-2)">
-       ${_saKycDoc(r.profile_photo_url, 'Photo')}${_saKycDoc(r.cnic_front_url, 'CNIC front')}${_saKycDoc(r.cnic_back_url, 'CNIC back')}
-     </div>
-     <div style="font-size:12.5px;margin-bottom:var(--fk-sp-3)"><span style="color:var(--fk-text-muted)">CNIC</span> <b>${esc(r.cnic || '—')}</b> · ${esc(r.phone || '')}${r.email ? ' · ' + esc(r.email) : ''}${payout}</div>`;
+    ? `<div style="margin-top:var(--fk-sp-3)">${fld('Bank / payout', [r.bank_name, r.bank_account_no, r.bank_account_title].filter(Boolean).join(' · '))}</div>` : '';
   document.body.insertAdjacentHTML('beforeend', NX.modal({
-    title: 'Approve ' + esc(name), size: 'm', onClose: '_saCloseModal()',
+    id: 'sa-review-modal', title: 'Review registration', size: 'l', onClose: '_saCloseModal()',
     body:
-      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Approving registers this person as a <b>Sale Agent</b> (they get an agent ID), marks their KYC verified, and lets them sign in and reserve. Set their project and commission.</div>` +
-      kycPanel +
+      `<div style="display:flex;gap:14px;align-items:center;margin-bottom:var(--fk-sp-3)">
+         <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex:none;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:22px;font-weight:700;color:var(--fk-text-muted)">${avatar}</div>
+         <div style="min-width:0">
+           <div style="font-size:17px;font-weight:700;color:var(--fk-text)">${esc(r.full_name || '—')}</div>
+           <div style="font-size:12px;color:var(--fk-text-muted);margin:2px 0 6px">Requested ${esc(fdateRsv(r.created_at))}</div>
+           ${NX.badge('KYC ' + kyc, kyc === 'verified' ? 'success' : 'warning', { dot: true })}
+         </div>
+       </div>
+       <div class="nx-grid-2" style="gap:var(--fk-sp-3) var(--fk-sp-4)">
+         ${fld('Father / Husband name', r.father_name)}
+         ${fld('Mobile', r.phone)}
+         ${fld('CNIC', r.cnic)}
+         ${fld('Email', r.email)}
+       </div>
+       <div style="margin-top:var(--fk-sp-3)">${fld('Address', r.address)}</div>
+       ${payout}
+       <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Identity documents (KYC) — click to enlarge</div>
+       <div style="display:flex;gap:8px">
+         ${_saKycDoc(r.profile_photo_url, 'Photo')}${_saKycDoc(r.cnic_front_url, 'CNIC front')}${_saKycDoc(r.cnic_back_url, 'CNIC back')}
+       </div>
+       <div style="margin-top:var(--fk-sp-4);padding:10px 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);font-size:12.5px;color:var(--fk-text-muted)">
+         On <b style="color:var(--fk-text)">Approve</b>, a Sale Agent profile is created (code <b style="color:var(--fk-text)">AGT-${yr}-####</b>), KYC is marked verified, and they can sign in &amp; reserve.
+       </div>
+       <div style="border-top:1px solid var(--fk-border);margin:var(--fk-sp-4) 0 var(--fk-sp-3)"></div>
+       <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin-bottom:var(--fk-sp-2)">Approval</div>` +
       (projOpts.length
         ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
         : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`) +
       NX.field({ label: 'Commission %', name: 'sa-approve-comm', el: 'input', type: 'number', value: '2', attrs: 'min="0" max="100" step="0.01"' }) +
       `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`,
-    footer: NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' }) +
-            (projOpts.length ? NX.button('Approve &amp; register agent', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '')
+    footer:
+      NX.button('Reject', { variant: 'danger-soft', onclick: `_saReject('${id}','${esc(r.full_name || '')}')` }) +
+      NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' }) +
+      (projOpts.length ? NX.button('Approve &amp; register agent', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '')
   }));
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
@@ -207,6 +233,7 @@ async function _saApproveSubmit(id) {
 
 async function _saReject(id, name) {
   if (!confirm('Reject ' + name + "'s request? Their registration is removed (they can request again later).")) return;
+  _saCloseModal();
   try {
     const { data } = await supabase.rpc('admin_reject_sales_user', { p_id: id });
     if (data && data.success) { if (typeof toast === 'function') toast('Registration rejected.', 'ok'); rSalesAccess(); }
