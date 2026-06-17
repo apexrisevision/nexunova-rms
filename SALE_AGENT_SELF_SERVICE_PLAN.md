@@ -131,11 +131,16 @@ and **Browse (file)** — today every uploader is browse-only (no camera afforda
 
 ## Mandatory field sets (derived from the live RMS forms) + KYC [owner 2026-06-17]
 **Sale Agent (signup must collect the full profile — admin only adds commission% +
-project at approval):** full_name*, phone*, CNIC* (identity/login); email, address;
-bank_name / bank_account_no / bank_account_title (commission payout); KYC docs —
-profile photo*, CNIC front*, CNIC back* (*=required). Source: `create_agent` +
-agents.js form. Admin-managed (NOT self-signup): commission%, project, territory,
-targets, parent agent, contract, status.
+project at approval):** full_name*, father_name*, phone*, CNIC#*, address* (identity);
+email (optional); KYC docs — profile photo*, CNIC front*, CNIC back* (*=required, all
+server-enforced; process blocks without them). Bank details were DROPPED from signup
+(owner 2026-06-17) — admin can add payout later in the agent module. Source:
+`create_agent` + agents.js form. Admin-managed (NOT self-signup): commission%, project,
+territory, targets, parent agent, contract, status.
+**Guided KYC capture:** the portal camera is NOT the raw full-frame camera — it shows a
+CNIC-sized box (landscape 1.585) / face box (portrait) overlay via getUserMedia; the
+capture is cropped to that frame so the doc/face fills it cleanly. Browse is the
+fallback. (sales-portal.html `.cam*` CSS + `capCamera/capShoot/capCloseCam` JS.)
 **Client (Mark-Sold step 1) — mandatory:** full_name, father/husband name,
 phone_primary, CNIC (or passport if overseas), project. Optional: address/city/country,
 2nd phone, whatsapp, email, category, reference_by, lead_source, occupation,

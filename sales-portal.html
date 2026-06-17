@@ -79,6 +79,19 @@ a{color:var(--fk-primary);text-decoration:none}
 .cap-btn:hover{background:var(--fk-subtle-hover)}
 .cap-btn.done{border-color:var(--fk-success-edge);background:var(--fk-success-surface);color:var(--fk-success)}
 .cap-btn input{display:none}
+/* ── guided in-app camera (CNIC-sized / face frame) ── */
+.cam{position:fixed;inset:0;z-index:9999;background:#000;display:none;flex-direction:column}
+.cam.on{display:flex}
+.cam-stage{position:relative;flex:1;overflow:hidden}
+.cam-video{width:100%;height:100%;object-fit:cover;background:#000}
+.cam-mask{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.cam-frame{box-shadow:0 0 0 100vmax rgba(0,0,0,.55);border:2px solid #fff;border-radius:10px;outline:2px dashed rgba(255,255,255,.55);outline-offset:-8px}
+.cam-hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 3px rgba(0,0,0,.7);padding:0 20px}
+.cam-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:#000;color:#fff}
+.cam-shoot{width:60px;height:60px;border-radius:50%;border:4px solid #fff;background:var(--fk-primary);cursor:pointer;flex:none}
+.cam-shoot:active{transform:scale(.94)}
+.cam-x{background:none;border:none;color:#fff;font-size:15px;font-weight:600;cursor:pointer;padding:8px}
+.cam-err{color:#fff;font-size:13px;text-align:center;padding:24px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 16px;
   border:1px solid transparent;border-radius:var(--fk-radius-control);font-family:var(--fk-font);
   font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,box-shadow .15s,transform .05s}
@@ -262,30 +275,26 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="auth-title">Register as a Sale Agent</div>
     <div class="auth-sub">Complete your profile &amp; verification. Your office approves you before you can sign in.</div>
     <div class="field"><label class="label">Full name</label><input class="input" id="reg-name" autocomplete="off"></div>
+    <div class="field"><label class="label">Father / Husband name</label><input class="input" id="reg-father" autocomplete="off"></div>
     <div class="field"><label class="label">Mobile number</label><input class="input" id="reg-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"><div class="hint">Enter your number without the 0 — e.g. +923123456789</div></div>
     <div class="field"><label class="label">CNIC</label><input class="input" id="reg-cnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)" autocomplete="off"><div class="hint">Dashes are added automatically (xxxxx-xxxxxxx-x)</div></div>
+    <div class="field"><label class="label">Address</label><input class="input" id="reg-address" placeholder="Home or office address" autocomplete="off"></div>
     <div class="field"><label class="label">Email <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-email" type="email" placeholder="you@business.com" autocomplete="off"></div>
-    <div class="field"><label class="label">Address <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-address" placeholder="Home or office address" autocomplete="off"></div>
-
-    <div class="sec-head">Bank details <span>· for commission payout</span></div>
-    <div class="field"><label class="label">Bank name <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-bank-name" placeholder="e.g. Meezan Bank" autocomplete="off"></div>
-    <div class="field"><label class="label">Account number <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-bank-acct" placeholder="Account / IBAN" autocomplete="off"></div>
-    <div class="field"><label class="label">Account title <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· optional</span></label><input class="input" id="reg-bank-title" placeholder="As per bank records" autocomplete="off"></div>
 
     <div class="sec-head">Verification (KYC) <span>· photo &amp; CNIC required</span></div>
     <div class="field"><label class="label">Your photo</label>
       <div class="cap" id="cap-photo"><div class="cap-prev" id="cap-photo-prev">Photo</div><div class="cap-btns">
-        <label class="cap-btn" id="cap-photo-cam">📷 Take photo<input type="file" accept="image/*" capture="user" onchange="capUpload(this,'photo')"></label>
-        <label class="cap-btn" id="cap-photo-br">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'photo')"></label>
+        <button type="button" class="cap-btn" onclick="capCamera('photo','face')">📷 Camera</button>
+        <label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'photo')"></label>
       </div></div></div>
     <div class="field"><label class="label">CNIC — front</label>
       <div class="cap" id="cap-cf"><div class="cap-prev" id="cap-cf-prev">Front</div><div class="cap-btns">
-        <label class="cap-btn">📷 Take photo<input type="file" accept="image/*" capture="environment" onchange="capUpload(this,'cf')"></label>
+        <button type="button" class="cap-btn" onclick="capCamera('cf','card')">📷 Camera</button>
         <label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cf')"></label>
       </div></div></div>
     <div class="field"><label class="label">CNIC — back</label>
       <div class="cap" id="cap-cb"><div class="cap-prev" id="cap-cb-prev">Back</div><div class="cap-btns">
-        <label class="cap-btn">📷 Take photo<input type="file" accept="image/*" capture="environment" onchange="capUpload(this,'cb')"></label>
+        <button type="button" class="cap-btn" onclick="capCamera('cb','card')">📷 Camera</button>
         <label class="cap-btn">📁 Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cb')"></label>
       </div></div></div>
     <div class="field"><label class="label">Choose a PIN (4–6 digits)</label><input class="input" id="reg-pin" type="password" inputmode="numeric" autocomplete="off"></div>
@@ -303,6 +312,21 @@ a{color:var(--fk-primary);text-decoration:none}
     <div class="auth-sub">Your request was sent to your office for approval. Once approved, sign in with your mobile and the PIN you just chose.</div>
     <button class="btn btn-secondary btn-full" onclick="showScreen('screen-login')">Go to sign in</button>
   </div></div>
+</div>
+
+<!-- ════════ GUIDED CAMERA (CNIC / face) ════════ -->
+<div id="cam" class="cam">
+  <div class="cam-stage">
+    <video id="cam-video" class="cam-video" autoplay playsinline muted></video>
+    <div class="cam-mask"><div id="cam-frame" class="cam-frame"></div></div>
+    <div id="cam-hint" class="cam-hint"></div>
+  </div>
+  <div id="cam-err" class="cam-err" style="display:none"></div>
+  <div class="cam-bar">
+    <button type="button" class="cam-x" onclick="capCloseCam()">Cancel</button>
+    <button type="button" id="cam-shoot" class="cam-shoot" onclick="capShoot()" aria-label="Capture"></button>
+    <span style="width:60px"></span>
+  </div>
 </div>
 
 <!-- ════════ APP ════════ -->
@@ -441,48 +465,92 @@ async function openSignupLink(token){
   const r=$('login-to-register'); if(r) r.style.display='block';
   showScreen('screen-login');
 }
-// ── signup photo / CNIC capture (camera or browse) ──
+// ── signup photo / CNIC capture (guided camera or browse) ──
 const CAP={photo:null,cf:null,cb:null};
+const CAMS={stream:null,key:null,kind:null};
+
+function _capDone(key,url){
+  CAP[key]=url;
+  const prev=$('cap-'+key+'-prev'); if(prev){ prev.classList.remove('busy'); prev.innerHTML='<img src="'+url+'" alt="">'; }
+  const wrap=$('cap-'+key); if(wrap) wrap.querySelectorAll('.cap-btn').forEach(b=>b.classList.add('done'));
+}
+async function _capPut(blob,key,ext){
+  if(!SIGNUP_TOKEN) return;
+  const prev=$('cap-'+key+'-prev'), er=$('reg-err');
+  if(prev){ prev.classList.add('busy'); prev.textContent='…'; }
+  try{
+    const path='sales-signup/'+SIGNUP_TOKEN+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+(ext||'jpg');
+    const up=await sb.storage.from('rms-documents').upload(path,blob,{upsert:true,contentType:blob.type||'image/jpeg'});
+    if(up.error) throw up.error;
+    _capDone(key, sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl);
+  }catch(e){
+    if(prev){ prev.classList.remove('busy'); prev.textContent='!'; }
+    er.textContent='Could not upload image. Try again or use Browse.'; er.classList.add('show');
+  }
+}
 async function capUpload(input,key){
   const file=input.files&&input.files[0]; input.value='';
   if(!file) return;
-  if(!SIGNUP_TOKEN) return;
-  const prev=$('cap-'+key+'-prev'); const er=$('reg-err');
+  const er=$('reg-err');
   if(file.type&&!file.type.startsWith('image/')){ er.textContent='Please choose an image.'; er.classList.add('show'); return; }
   if(file.size>8*1024*1024){ er.textContent='Image too large (max 8 MB).'; er.classList.add('show'); return; }
-  if(prev){ prev.classList.add('busy'); prev.textContent='…'; }
+  await _capPut(file,key,(file.name.split('.').pop()||'jpg').toLowerCase());
+}
+
+// Guided camera — kind:'card' (CNIC, landscape 1.585) | 'face' (portrait).
+async function capCamera(key,kind){
+  CAMS.key=key; CAMS.kind=kind;
+  const cam=$('cam'), video=$('cam-video'), frame=$('cam-frame'), hint=$('cam-hint');
+  const vw=Math.min(window.innerWidth,520);
+  let fw,fh;
+  if(kind==='card'){ fw=vw-40; fh=fw/1.585; hint.textContent='Fit your CNIC inside the box — fill it edge to edge — then tap the button.'; }
+  else { fh=Math.min(window.innerHeight*0.5,380); fw=fh*0.78; hint.textContent='Center your face inside the box, then tap the button.'; }
+  frame.style.width=Math.round(fw)+'px'; frame.style.height=Math.round(fh)+'px';
+  cam.classList.add('on');
   try{
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
-    const path='sales-signup/'+SIGNUP_TOKEN+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+ext;
-    const up=await sb.storage.from('rms-documents').upload(path,file,{upsert:true,contentType:file.type||'image/jpeg'});
-    if(up.error) throw up.error;
-    const url=sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
-    CAP[key]=url;
-    if(prev){ prev.classList.remove('busy'); prev.innerHTML='<img src="'+url+'" alt="">'; }
-    const wrap=$('cap-'+key); if(wrap) wrap.querySelectorAll('.cap-btn').forEach(b=>b.classList.add('done'));
+    CAMS.stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal: kind==='face'?'user':'environment' }, width:{ideal:1920}, height:{ideal:1080} }, audio:false });
+    video.srcObject=CAMS.stream;
   }catch(e){
-    if(prev){ prev.classList.remove('busy'); prev.textContent='!'; }
-    er.textContent='Could not upload image. Try again or skip it for now.'; er.classList.add('show');
+    capCloseCam();
+    const er=$('reg-err'); er.textContent='Camera unavailable — use Browse to pick a photo.'; er.classList.add('show');
   }
+}
+function capCloseCam(){ if(CAMS.stream){ CAMS.stream.getTracks().forEach(t=>t.stop()); CAMS.stream=null; } const cam=$('cam'); if(cam) cam.classList.remove('on'); const v=$('cam-video'); if(v) v.srcObject=null; }
+function capShoot(){
+  const video=$('cam-video'), frame=$('cam-frame');
+  if(!video||!video.videoWidth) return;
+  const vw=video.videoWidth, vh=video.videoHeight, stage=video.getBoundingClientRect();
+  const scale=Math.max(stage.width/vw, stage.height/vh);   // object-fit:cover
+  const offX=(vw*scale-stage.width)/2, offY=(vh*scale-stage.height)/2;
+  const fr=frame.getBoundingClientRect();
+  const sx=(offX+(fr.left-stage.left))/scale, sy=(offY+(fr.top-stage.top))/scale;
+  const sw=fr.width/scale, sh=fr.height/scale;
+  const outW=CAMS.kind==='card'?1024:768, outH=Math.round(outW*(sh/sw));
+  const cv=document.createElement('canvas'); cv.width=outW; cv.height=outH;
+  cv.getContext('2d').drawImage(video,sx,sy,sw,sh,0,0,outW,outH);
+  const key=CAMS.key; capCloseCam();
+  cv.toBlob(b=>{ if(b) _capPut(b,key,'jpg'); },'image/jpeg',0.9);
 }
 
 async function doRegister(){
-  const name=$('reg-name').value.trim(), ph=$('reg-phone').value.trim(), pin=$('reg-pin').value.trim(), cnic=$('reg-cnic').value.trim();
-  const err=$('reg-err'); err.classList.remove('show');
-  if(!name||!ph||!cnic||!pin){ err.textContent='Enter your name, mobile, CNIC and a PIN.'; err.classList.add('show'); return; }
-  if(!/^\+92\d{10}$/.test(ph)){ err.textContent='Enter your mobile without the 0, e.g. +923123456789.'; err.classList.add('show'); return; }
-  if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ err.textContent='CNIC format: xxxxx-xxxxxxx-x'; err.classList.add('show'); return; }
-  if(!/^[0-9]{4,6}$/.test(pin)){ err.textContent='PIN must be 4 to 6 digits.'; err.classList.add('show'); return; }
-  if(!CAP.photo||!CAP.cf||!CAP.cb){ err.textContent='Add your photo and both sides of your CNIC to complete verification.'; err.classList.add('show'); return; }
+  const name=$('reg-name').value.trim(), father=$('reg-father').value.trim(), ph=$('reg-phone').value.trim();
+  const pin=$('reg-pin').value.trim(), cnic=$('reg-cnic').value.trim();
   const email=$('reg-email').value.trim(), address=$('reg-address').value.trim();
-  const bankName=$('reg-bank-name').value.trim(), bankAcct=$('reg-bank-acct').value.trim(), bankTitle=$('reg-bank-title').value.trim();
-  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent='Enter a valid email or leave it blank.'; err.classList.add('show'); return; }
+  const err=$('reg-err'); err.classList.remove('show');
+  const bad=(m)=>{ err.textContent=m; err.classList.add('show'); };
+  if(!name){ return bad('Enter your full name.'); }
+  if(!father){ return bad('Enter your father / husband name.'); }
+  if(!ph||!/^\+92\d{10}$/.test(ph)){ return bad('Enter your mobile without the 0, e.g. +923123456789.'); }
+  if(!/^\d{5}-\d{7}-\d$/.test(cnic)){ return bad('CNIC format: xxxxx-xxxxxxx-x'); }
+  if(!address){ return bad('Enter your address.'); }
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ return bad('Enter a valid email or leave it blank.'); }
+  if(!/^[0-9]{4,6}$/.test(pin)){ return bad('PIN must be 4 to 6 digits.'); }
+  if(!CAP.photo||!CAP.cf||!CAP.cb){ return bad('Add your photo and both sides of your CNIC to complete verification.'); }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
-    const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_phone:ph,p_pin:pin,p_cnic:cnic,
+    const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_father_name:father,p_phone:ph,p_pin:pin,p_cnic:cnic,
       p_profile_photo_url:CAP.photo,p_cnic_front_url:CAP.cf,p_cnic_back_url:CAP.cb,
-      p_email:email||null,p_address:address||null,
-      p_bank_name:bankName||null,p_bank_account_no:bankAcct||null,p_bank_account_title:bankTitle||null});
+      p_email:email||null,p_address:address||null});
     if(error) throw error;
     if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not register.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; return; }
     showScreen('screen-pending');
