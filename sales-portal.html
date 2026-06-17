@@ -852,6 +852,8 @@ function openSale(reservationId){
   SALE_CTX={reservationId:reservationId, unitNo:r.unit_no}; SALE_SCHED=[];
   CAP.cphoto=null; CAP.ccf=null; CAP.ccb=null; CAP.nphoto=null;
   const nm=new Date(); nm.setMonth(nm.getMonth()+1); const nextMonth=nm.toISOString().slice(0,10);
+  const uArea=Number(r.area)||0, uUnit=r.area_unit||'sqft';
+  const uRate=(uArea>0 && Number(r.base_price)>0) ? Math.round(Number(r.base_price)/uArea) : '';
   const body=
     '<div class="ressum"><div class="rs-r"><span>Unit</span><b>'+esc(r.unit_no||'')+'</b></div>'
       +'<div class="rs-r"><span>Project</span><b>'+esc(r.project_name||'')+'</b></div></div>'
@@ -872,8 +874,8 @@ function openSale(reservationId){
     +'<div class="field"><label class="label">Nominee phone</label><input class="input" id="s-nphone" inputmode="tel"></div>'
     +capSlot('nphoto','Nominee photo','face')
     +'<div class="sec-head">Sale &amp; price</div>'
-    +'<div class="field"><label class="label">Area (sqft) *</label><input class="input num" id="s-area" inputmode="decimal" oninput="saleRecalc()"></div>'
-    +'<div class="field"><label class="label">Rate per sqft (PKR) *</label><input class="input num" id="s-rate" inputmode="numeric" oninput="saleRecalc()"></div>'
+    +'<div class="field"><label class="label">Area ('+esc(uUnit)+') <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· from inventory</span></label><input class="input num" id="s-area" inputmode="decimal" value="'+(uArea||'')+'"'+(uArea>0?' readonly style="opacity:.75"':'')+' oninput="saleRecalc()"></div>'
+    +'<div class="field"><label class="label">Rate per '+esc(uUnit)+' (PKR) *</label><input class="input num" id="s-rate" inputmode="numeric" value="'+(uRate||'')+'" oninput="saleRecalc()"></div>'
     +'<div class="field"><label class="label">Discount (PKR)</label><input class="input num" id="s-disc" inputmode="numeric" value="0" oninput="saleRecalc()"></div>'
     +'<div class="ressum"><div class="rs-r"><span>Gross</span><b id="s-gross">₨0</b></div><div class="rs-r"><span>Net price</span><b id="s-net">₨0</b></div></div>'
     +'<div class="sec-head">Payment schedule</div>'
@@ -885,6 +887,7 @@ function openSale(reservationId){
     +'<div class="err" id="s-err"></div>';
   openModal('Mark Unit '+esc(r.unit_no||'')+' sold', body,
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="s-go" onclick="submitSale()">Submit for approval</button>');
+  saleRecalc();
 }
 function saleRecalc(){
   const gross=_snum('s-area')*_snum('s-rate'), net=Math.max(0,gross-_snum('s-disc'));
