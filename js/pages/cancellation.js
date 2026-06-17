@@ -104,8 +104,6 @@ function _cxRender(elParam) {
         <div class="rops-main">
           ${_cxSecUnitHTML()}
           ${_cxSecReasonHTML()}
-          ${_cxSecFinancialHTML()}
-          ${_cxSecRefundHTML()}
           ${_cxSecReviewHTML()}
         </div>
         <aside class="rops-aside">
@@ -639,10 +637,10 @@ function _cxSecReviewHTML() {
     <section class="rops-sec" id="cx-sec-review">
       <div class="rops-sec-hd">
         <div class="rops-sec-hd-l">
-          <div class="rops-sec-num">5</div>
+          <div class="rops-sec-num">3</div>
           <div>
             <h3 class="rops-sec-title">Review & Confirm</h3>
-            <div class="rops-sec-desc">After confirming: sale is voided, unit returns to inventory, voucher generated.</div>
+            <div class="rops-sec-desc">After confirming: the sale is voided, the unit returns to inventory, and the agent's commission is reversed.</div>
           </div>
         </div>
       </div>
@@ -650,6 +648,10 @@ function _cxSecReviewHTML() {
         <div class="rops-alert is-warn">
           ${_cxIco('warn')}
           <div>This action cannot be undone from the UI. The unit will be flagged internally as <strong>ex-cancelled</strong> when it goes back to inventory — clients will never see this tag.</div>
+        </div>
+        <div class="rops-alert" style="background:var(--fk-bg-subtle);border:1px solid var(--fk-border);margin-top:10px">
+          ${_cxIco('warn')}
+          <div><strong>Refunds &amp; financial settlement are handled in QuickBooks.</strong> RMS only records the cancellation — it does not move money.</div>
         </div>
         <div class="rops-confirm is-danger">
           <input type="checkbox" id="cx-confirm">
@@ -669,10 +671,6 @@ function _cxSummaryHTML() {
     <div class="rops-sum" id="cx-summary">
       <div class="rops-sum-hd"><h4 class="rops-sum-title">Cancellation Summary</h4></div>
       <div class="rops-sum-bd" id="cx-sum-bd">${_cxSumBodyHTML()}</div>
-      <div class="rops-sum-hero" id="cx-sum-hero">
-        <span class="rops-sum-hero-lbl">Net Refund</span>
-        <span class="rops-sum-hero-val pos" id="cx-sum-net">PKR 0</span>
-      </div>
     </div>`;
 }
 
@@ -683,10 +681,7 @@ function _cxSumBodyHTML() {
   return `
     <div class="rops-sum-row"><span class="l">Unit</span><span class="r">${u ? esc(u.unitNo) : '—'}</span></div>
     <div class="rops-sum-row"><span class="l">Buyer</span><span class="r">${c ? esc((c.full_name || '').split(' ')[0] || '—') : '—'}</span></div>
-    <div class="rops-sum-row"><span class="l">Type</span><span class="r">${d.cancellationType === 'company_shortage' ? 'Company' : 'Client'}</span></div>
-    <div class="rops-sum-row"><span class="l">Total Paid</span><span class="r">PKR ${fmtPK(d.totalPaid)}</span></div>
-    <div class="rops-sum-row"><span class="l">Deductions</span><span class="r">PKR ${fmtPK(d.totalPaid - d.netRefund)}</span></div>
-    <div class="rops-sum-row"><span class="l">Method</span><span class="r">${_cxRefundLabel()}</span></div>`;
+    <div class="rops-sum-row"><span class="l">Type</span><span class="r">${d.cancellationType === 'company_shortage' ? 'Company' : 'Client'}</span></div>`;
 }
 
 function _cxRefundLabel() {
@@ -727,13 +722,6 @@ function _cxValidate() {
   if (!d.detailedReason || d.detailedReason.length < minLen) {
     return fail(`Detailed reason must be at least ${minLen} characters.`);
   }
-  const ded = d.bookingForfeiture + d.cancellationCharges + d.processingFee + d.otherDeductions;
-  if (ded > d.totalPaid) return fail('Deductions exceed total paid amount.');
-  if (!d.refundMethod) return fail('Please select a refund method.');
-  if (d.refundMethod === 'immediate' && d.refundPaymentMode === 'bank' && !d.refundBankId) return fail('Please select the company bank.');
-  if (d.refundMethod === 'payable' && !d.expectedRefundDate) return fail('Expected payment date is required for deferred refund.');
-  if (d.refundMethod === 'adjustment' && !d.refundNotes?.trim()) return fail('Adjustment note is required.');
-  if (d.refundMethod === 'no_refund' && !d.refundNotes?.trim()) return fail('Justification required for full forfeiture.');
   if (!document.getElementById('cx-confirm')?.checked) return fail('Please tick the confirmation checkbox.');
 
   return true;
@@ -758,21 +746,21 @@ async function _cxSubmit() {
       p_cancellation_type: d.cancellationType,
       p_reason_category:   d.reasonCategory,
       p_detailed_reason:   d.detailedReason,
-      p_total_paid:        d.totalPaid,
-      p_booking_forfeiture: d.bookingForfeiture,
-      p_cancellation_charges: d.cancellationCharges,
+      p_total_paid:        0,
+      p_booking_forfeiture: 0,
+      p_cancellation_charges: 0,
       p_late_penalty:      0,
-      p_processing_fee:    d.processingFee,
-      p_other_deductions:  d.otherDeductions,
-      p_other_deductions_note: d.otherDeductionsNote || null,
-      p_net_refund:        d.netRefund,
-      p_refund_method:     d.refundMethod || null,
-      p_refund_payment_mode: d.refundPaymentMode || null,
-      p_refund_bank_id:    d.refundBankId || null,
-      p_refund_reference:  d.refundReference || null,
-      p_refund_date:       d.refundDate || null,
-      p_expected_refund_date: d.expectedRefundDate || null,
-      p_refund_notes:      d.refundNotes || null,
+      p_processing_fee:    0,
+      p_other_deductions:  0,
+      p_other_deductions_note: null,
+      p_net_refund:        0,
+      p_refund_method:     null,
+      p_refund_payment_mode: null,
+      p_refund_bank_id:    null,
+      p_refund_reference:  null,
+      p_refund_date:       null,
+      p_expected_refund_date: null,
+      p_refund_notes:      null,
       p_commission_action: 'no_clawback',
       p_client_flag:       'none',
       p_initiated_by:      S.uname || S.email || null,
