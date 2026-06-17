@@ -612,10 +612,15 @@ function _agFormBody(isEdit) {
     `<div class="ag-photo-wrap">
       <img id="af-photo-preview" src="data:," alt="" class="ag-photo-prev" style="display:none">
       <label class="ag-up" style="flex:1">${NX.icon('image',15)}<span>Profile photo</span><input id="af-photo-file" type="file" accept="image/jpeg,image/png" style="display:none" onchange="_agPreviewPhoto(this)"></label>
+      <label class="ag-up" style="flex:none">📷<span>Camera</span><input id="af-photo-cam" type="file" accept="image/jpeg,image/png" capture="user" style="display:none" onchange="_agPreviewPhoto(this)"></label>
     </div>` +
     `<div class="nx-grid-2" style="margin-top:10px">
-      <label class="ag-up">${NX.icon('image',15)}<span id="af-cnic-front-lbl">CNIC front</span><input id="af-cnic-front-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-front-lbl').textContent=this.files[0]?.name||'CNIC front'"></label>
-      <label class="ag-up">${NX.icon('image',15)}<span id="af-cnic-back-lbl">CNIC back</span><input id="af-cnic-back-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-back-lbl').textContent=this.files[0]?.name||'CNIC back'"></label>
+      <label class="ag-up">${NX.icon('image',15)}<span id="af-cnic-front-lbl">CNIC front · Browse</span><input id="af-cnic-front-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-front-lbl').textContent=this.files[0]?.name||'CNIC front · Browse'"></label>
+      <label class="ag-up">📷<span id="af-cnic-front-cam-lbl">CNIC front · Camera</span><input id="af-cnic-front-cam" type="file" accept="image/jpeg,image/png" capture="environment" style="display:none" onchange="document.getElementById('af-cnic-front-cam-lbl').textContent=this.files[0]?.name||'CNIC front · Camera'"></label>
+    </div>` +
+    `<div class="nx-grid-2" style="margin-top:10px">
+      <label class="ag-up">${NX.icon('image',15)}<span id="af-cnic-back-lbl">CNIC back · Browse</span><input id="af-cnic-back-file" type="file" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="document.getElementById('af-cnic-back-lbl').textContent=this.files[0]?.name||'CNIC back · Browse'"></label>
+      <label class="ag-up">📷<span id="af-cnic-back-cam-lbl">CNIC back · Camera</span><input id="af-cnic-back-cam" type="file" accept="image/jpeg,image/png" capture="environment" style="display:none" onchange="document.getElementById('af-cnic-back-cam-lbl').textContent=this.files[0]?.name||'CNIC back · Camera'"></label>
     </div>` +
 
     _agSub('banknote', 'Commission & bank') +
@@ -795,10 +800,10 @@ async function saveAgentForm() {
     const existingId = document.getElementById('af-agent-id')?.value?.trim() || '';
     const isEdit     = !!existingId;
 
-    // Handle file uploads
-    const photoFile    = document.getElementById('af-photo-file')?.files?.[0];
-    const cnicFFile    = document.getElementById('af-cnic-front-file')?.files?.[0];
-    const cnicBFile    = document.getElementById('af-cnic-back-file')?.files?.[0];
+    // Handle file uploads (browse OR camera input)
+    const photoFile    = document.getElementById('af-photo-file')?.files?.[0]       || document.getElementById('af-photo-cam')?.files?.[0];
+    const cnicFFile    = document.getElementById('af-cnic-front-file')?.files?.[0]   || document.getElementById('af-cnic-front-cam')?.files?.[0];
+    const cnicBFile    = document.getElementById('af-cnic-back-file')?.files?.[0]    || document.getElementById('af-cnic-back-cam')?.files?.[0];
 
     const agentIdForUpload = existingId || 'temp-' + Date.now();
     let profilePhotoUrl = null, cnicFrontUrl = null, cnicBackUrl = null;

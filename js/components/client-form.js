@@ -28,8 +28,12 @@
       <label class="nx-label">${esc(label)}</label>
       <div id="cfm-${idk}-prev" style="height:88px;border-radius:var(--fk-radius-control);overflow:hidden;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:11px;color:var(--fk-text-muted)">${url ? '<img src="' + esc(url) + '" style="width:100%;height:100%;object-fit:cover">' : 'No image'}</div>
       <input type="file" id="cfm-${idk}-file" accept="image/jpeg,image/png" style="display:none" onchange="ClientForm._photo(this,'${which}')">
+      <input type="file" id="cfm-${idk}-cam" accept="image/jpeg,image/png" capture="environment" style="display:none" onchange="ClientForm._photo(this,'${which}')">
       <input type="hidden" id="cfm-${which}_url" value="${esc(url || '')}">
-      ${NX.button('Upload', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-' + idk + '-btn" style="margin-top:6px"', onclick: "document.getElementById('cfm-" + idk + "-file').click()" })}
+      <div style="display:flex;gap:6px;margin-top:6px">
+        ${NX.button('📷 Camera', { variant: 'secondary', size: 'sm', onclick: "document.getElementById('cfm-" + idk + "-cam').click()" })}
+        ${NX.button('Browse', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-' + idk + '-btn"', onclick: "document.getElementById('cfm-" + idk + "-file').click()" })}
+      </div>
     </div>`;
   }
 
@@ -75,8 +79,12 @@
         <div id="cfm-photo-prev" style="width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:18px;font-weight:600;color:var(--fk-text-muted)">${photoInner}</div>
         <div>
           <input type="file" id="cfm-photo-file" accept="image/jpeg,image/png" style="display:none" onchange="ClientForm._photo(this)">
+          <input type="file" id="cfm-photo-cam" accept="image/jpeg,image/png" capture="user" style="display:none" onchange="ClientForm._photo(this)">
           <input type="hidden" id="cfm-photo_url" value="${esc(c?.clientPhotoUrl || '')}">
-          ${NX.button('Upload photo', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-photo-btn"', onclick: "document.getElementById('cfm-photo-file').click()" })}
+          <div style="display:flex;gap:6px">
+            ${NX.button('📷 Camera', { variant: 'secondary', size: 'sm', onclick: "document.getElementById('cfm-photo-cam').click()" })}
+            ${NX.button('Browse', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-photo-btn"', onclick: "document.getElementById('cfm-photo-file').click()" })}
+          </div>
           <div class="nx-kpi-label" style="text-transform:none;margin-top:4px">JPG or PNG · auto-resized to 512px</div>
         </div>
       </div>
@@ -146,8 +154,12 @@
             <div id="cfm-kin-photo-prev" style="width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);display:grid;place-items:center;font-size:18px;font-weight:600;color:var(--fk-text-muted)">${c?.nextOfKinPhotoUrl ? `<img src="${esc(c.nextOfKinPhotoUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='N'">` : 'N'}</div>
             <div>
               <input type="file" id="cfm-kin-photo-file" accept="image/jpeg,image/png" style="display:none" onchange="ClientForm._photo(this,'nominee')">
+              <input type="file" id="cfm-kin-photo-cam" accept="image/jpeg,image/png" capture="user" style="display:none" onchange="ClientForm._photo(this,'nominee')">
               <input type="hidden" id="cfm-kin_photo_url" value="${esc(c?.nextOfKinPhotoUrl || '')}">
-              ${NX.button('Upload nominee photo', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-kin-photo-btn"', onclick: "document.getElementById('cfm-kin-photo-file').click()" })}
+              <div style="display:flex;gap:6px">
+                ${NX.button('📷 Camera', { variant: 'secondary', size: 'sm', onclick: "document.getElementById('cfm-kin-photo-cam').click()" })}
+                ${NX.button('Browse', { variant: 'secondary', size: 'sm', attrs: 'id="cfm-kin-photo-btn"', onclick: "document.getElementById('cfm-kin-photo-file').click()" })}
+              </div>
               <div class="nx-kpi-label" style="text-transform:none;margin-top:4px">JPG or PNG · auto-resized to 512px</div>
             </div>
           </div>
