@@ -163,6 +163,10 @@
               <div class="nx-kpi-label" style="text-transform:none;margin-top:4px">JPG or PNG · auto-resized to 512px</div>
             </div>
           </div>
+          <div class="nx-grid-2" style="margin-top:var(--fk-sp-2)">
+            ${_docUpload('Nominee CNIC front', 'kincnicf', 'next_of_kin_cnic_front', c?.nextOfKinCnicFrontUrl)}
+            ${_docUpload('Nominee CNIC back', 'kincnicb', 'next_of_kin_cnic_back', c?.nextOfKinCnicBackUrl)}
+          </div>
         </div>
       </details>
       <div id="cfm-error" class="nx-error" style="margin-top:var(--fk-sp-2)"></div>`;
@@ -213,9 +217,11 @@
       nominee:    { btn: 'cfm-kin-photo-btn', hidden: 'cfm-kin_photo_url',  prev: 'cfm-kin-photo-prev', label: 'Upload nominee photo' },
       cnic_front: { btn: 'cfm-cnicf-btn',     hidden: 'cfm-cnic_front_url', prev: 'cfm-cnicf-prev',     label: 'Upload' },
       cnic_back:  { btn: 'cfm-cnicb-btn',     hidden: 'cfm-cnic_back_url',  prev: 'cfm-cnicb-prev',     label: 'Upload' },
+      next_of_kin_cnic_front: { btn: 'cfm-kincnicf-btn', hidden: 'cfm-next_of_kin_cnic_front_url', prev: 'cfm-kincnicf-prev', label: 'Browse' },
+      next_of_kin_cnic_back:  { btn: 'cfm-kincnicb-btn', hidden: 'cfm-next_of_kin_cnic_back_url',  prev: 'cfm-kincnicb-prev', label: 'Browse' },
     };
     const ids = TARGETS[which] || { btn: 'cfm-photo-btn', hidden: 'cfm-photo_url', prev: 'cfm-photo-prev', label: 'Upload photo' };
-    const _docName = { nominee: 'Nominee photo', cnic_front: 'CNIC front', cnic_back: 'CNIC back' }[which] || 'Photo';
+    const _docName = { nominee: 'Nominee photo', cnic_front: 'CNIC front', cnic_back: 'CNIC back', next_of_kin_cnic_front: 'Nominee CNIC front', next_of_kin_cnic_back: 'Nominee CNIC back' }[which] || 'Photo';
     const btn = document.getElementById(ids.btn);
     const setLabel = t => { if (btn) { const s = btn.querySelector('span'); if (s) s.textContent = t; } };
     if (btn) btn.disabled = true; setLabel('Uploading…');
@@ -303,6 +309,8 @@
       next_of_kin_phone: _val('cfm-kin_phone') || null,
       next_of_kin_cnic: kinCnic || null,
       next_of_kin_photo_url: _val('cfm-kin_photo_url') || null,
+      next_of_kin_cnic_front_url: _val('cfm-next_of_kin_cnic_front_url') || null,
+      next_of_kin_cnic_back_url: _val('cfm-next_of_kin_cnic_back_url') || null,
       client_photo_url: _val('cfm-photo_url') || null
     };
 

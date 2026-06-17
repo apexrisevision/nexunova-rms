@@ -850,7 +850,7 @@ function _snum(id){ const el=$(id); return Number((el&&el.value||'0').replace(/[
 function openSale(reservationId){
   const r=(MINE_ROWS||[]).find(x=>x.id===reservationId); if(!r) return;
   SALE_CTX={reservationId:reservationId, unitNo:r.unit_no}; SALE_SCHED=[];
-  CAP.cphoto=null; CAP.ccf=null; CAP.ccb=null; CAP.nphoto=null;
+  CAP.cphoto=null; CAP.ccf=null; CAP.ccb=null; CAP.nphoto=null; CAP.ncf=null; CAP.ncb=null;
   const nm=new Date(); nm.setMonth(nm.getMonth()+1); const nextMonth=nm.toISOString().slice(0,10);
   const uArea=Number(r.area)||0, uUnit=r.area_unit||'sqft';
   const uRate=(uArea>0 && Number(r.base_price)>0) ? Math.round(Number(r.base_price)/uArea) : '';
@@ -873,6 +873,8 @@ function openSale(reservationId){
     +'<div class="field"><label class="label">Nominee CNIC</label><input class="input" id="s-ncnic" inputmode="numeric" maxlength="15" placeholder="xxxxx-xxxxxxx-x" oninput="this.value=fmtCnic(this.value)"></div>'
     +'<div class="field"><label class="label">Nominee phone</label><input class="input" id="s-nphone" inputmode="tel"></div>'
     +capSlot('nphoto','Nominee photo','face')
+    +capSlot('ncf','Nominee CNIC — front','card')
+    +capSlot('ncb','Nominee CNIC — back','card')
     +'<div class="sec-head">Sale &amp; price</div>'
     +'<div class="field"><label class="label">Area ('+esc(uUnit)+') <span style="text-transform:none;font-weight:400;color:var(--fk-text-muted)">· from inventory</span></label><input class="input num" id="s-area" inputmode="decimal" value="'+(uArea||'')+'"'+(uArea>0?' readonly style="opacity:.75"':'')+' oninput="saleRecalc()"></div>'
     +'<div class="field"><label class="label">Rate per '+esc(uUnit)+' (PKR) *</label><input class="input num" id="s-rate" inputmode="numeric" value="'+(uRate||'')+'" oninput="saleRecalc()"></div>'
@@ -935,7 +937,7 @@ async function submitSale(){
     next_of_kin_name:($('s-nname').value||'').trim()||null, next_of_kin_cnic:($('s-ncnic').value||'').trim()||null,
     next_of_kin_phone:($('s-nphone').value||'').trim()||null, overseas_local:'local',
     client_photo_url:CAP.cphoto||null, cnic_front_url:CAP.ccf||null, cnic_back_url:CAP.ccb||null,
-    next_of_kin_photo_url:CAP.nphoto||null };
+    next_of_kin_photo_url:CAP.nphoto||null, next_of_kin_cnic_front_url:CAP.ncf||null, next_of_kin_cnic_back_url:CAP.ncb||null };
   const sale={ area_sqft:_snum('s-area'), price_per_sqft:_snum('s-rate'), discount:_snum('s-disc'),
     down_payment:_snum('s-dp'), sale_date:new Date().toISOString().slice(0,10) };
   const go=$('s-go'); go.disabled=true; go.textContent='Submitting…';

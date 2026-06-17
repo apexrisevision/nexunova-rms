@@ -108,14 +108,17 @@ function _subReviewOpen(id) {
   }
 
   // client KYC documents (shown if the agent captured any)
-  const hasDocs = c.client_photo_url || c.cnic_front_url || c.cnic_back_url || c.next_of_kin_photo_url;
+  const hasDocs = c.client_photo_url || c.cnic_front_url || c.cnic_back_url
+    || c.next_of_kin_photo_url || c.next_of_kin_cnic_front_url || c.next_of_kin_cnic_back_url;
+  const hasNomineeCnic = c.next_of_kin_cnic_front_url || c.next_of_kin_cnic_back_url;
   const docsHtml = hasDocs
     ? `<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Client documents (KYC) — click to enlarge</div>
        <div class="nx-grid-2" style="gap:12px">${_subDoc(c.cnic_front_url, 'CNIC — front', 'card')}${_subDoc(c.cnic_back_url, 'CNIC — back', 'card')}</div>
        <div style="display:flex;gap:12px;margin-top:12px">
          ${c.client_photo_url ? '<div style="max-width:130px">' + _subDoc(c.client_photo_url, 'Client photo', 'photo') + '</div>' : ''}
          ${c.next_of_kin_photo_url ? '<div style="max-width:130px">' + _subDoc(c.next_of_kin_photo_url, 'Nominee photo', 'photo') + '</div>' : ''}
-       </div>`
+       </div>
+       ${hasNomineeCnic ? '<div class="nx-grid-2" style="gap:12px;margin-top:12px">' + _subDoc(c.next_of_kin_cnic_front_url, 'Nominee CNIC — front', 'card') + _subDoc(c.next_of_kin_cnic_back_url, 'Nominee CNIC — back', 'card') + '</div>' : ''}`
     : '';
 
   // schedule rows
