@@ -221,34 +221,33 @@ body:has(#screen-app.active) .auth-bg{display:none}
 .sec-head{font-size:12px;font-weight:700;color:var(--fk-text);margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--fk-border)}
 .sec-head span{font-weight:400;color:var(--fk-text-muted)}
 /* ── KYC capture tiles (camera + browse) — premium card style ── */
-.kyc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-@media(max-width:560px){.kyc-grid{grid-template-columns:1fr 1fr}}
-.kyc-tile{display:flex;flex-direction:column}
-.kyc-tile .kyc-cap-label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--fk-text-muted);margin-bottom:7px}
-.cap{display:flex;flex-direction:column;gap:9px;border:1px solid var(--fk-border);border-radius:14px;
-  padding:9px;background:var(--fk-bg-subtle);transition:border-color .15s,box-shadow .15s}
+/* KYC = a clean vertical list; each item is a row: thumb · label · camera/browse */
+.kyc-grid{display:flex;flex-direction:column;gap:10px}
+.cap{display:flex;align-items:center;gap:12px;border:1px solid var(--fk-border);border-radius:14px;
+  padding:10px;background:var(--fk-bg-subtle);transition:border-color .15s,background .15s}
 .cap:has(.cap-btn.done){border-color:var(--fk-success-edge);background:var(--fk-success-surface)}
-.cap-prev{position:relative;width:100%;border-radius:11px;overflow:hidden;background:var(--fk-bg-card);
-  border:1.5px dashed var(--fk-border);display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:6px;color:var(--fk-muted-fill);font-size:11.5px;font-weight:600;text-align:center;aspect-ratio:1.586/1}
-.cap--face .cap-prev{aspect-ratio:3/4}
-.cap-prev svg{width:26px;height:26px;opacity:.7}
+.cap-prev{position:relative;width:60px;height:60px;flex:none;border-radius:11px;overflow:hidden;background:var(--fk-bg-card);
+  border:1.5px dashed var(--fk-border);display:flex;align-items:center;justify-content:center;color:var(--fk-muted-fill)}
+.cap-prev svg{width:24px;height:24px;opacity:.7}
 .cap-prev img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.cap-prev.busy{color:var(--fk-text-muted)}
-.cap-prev.busy::after{content:"Uploading…";position:absolute;inset:0;display:grid;place-items:center;
-  background:rgba(255,255,255,.7);color:var(--fk-text);font-weight:600;font-size:12px}
+.cap-prev.busy::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.7) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232563EB' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M21 12a9 9 0 1 1-6.2-8.5'/%3E%3C/svg%3E") center/20px no-repeat;animation:spin .7s linear infinite}
 .cap:has(.cap-btn.done) .cap-prev{border-style:solid;border-color:var(--fk-success-edge)}
-.cap:has(.cap-btn.done) .cap-prev::after{content:"";position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:50%;
-  background:var(--fk-success) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/14px no-repeat;
-  box-shadow:0 2px 6px rgba(22,163,74,.45)}
-.cap-btns{display:flex;flex-direction:column;gap:7px}
-.cap-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 8px;cursor:pointer;
-  border:1px solid var(--fk-border);border-radius:9px;background:var(--fk-bg-card);
-  color:var(--fk-text);font-size:12.5px;font-weight:600;transition:background .15s,border-color .15s}
-.cap-btn svg{width:15px;height:15px;flex:none}
+.cap:has(.cap-btn.done) .cap-prev::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;
+  background:var(--fk-success) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/13px no-repeat;
+  box-shadow:0 2px 6px rgba(13,148,136,.45)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cap-meta{flex:1;min-width:0}
+.cap-meta .t{font-size:13.5px;font-weight:700;color:var(--fk-text);letter-spacing:-.01em}
+.cap-meta .s{font-size:11.5px;color:var(--fk-text-muted);margin-top:2px}
+.cap:has(.cap-btn.done) .cap-meta .s{color:var(--fk-success);font-weight:600}
+.cap-btns{flex:none;display:flex;gap:7px}
+.cap-btn{width:42px;height:42px;flex:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card);color:var(--fk-text);transition:background .15s,border-color .15s,transform .05s}
+.cap-btn:active{transform:translateY(1px)}
+.cap-btn svg{width:18px;height:18px;flex:none}
 .cap-btn:hover{background:var(--fk-subtle-hover);border-color:var(--fk-muted-fill)}
-.cap-btn.is-cam{background:var(--fk-primary-tint);border-color:rgba(79,70,229,.2);color:var(--fk-primary)}
-.cap-btn.is-cam:hover{background:rgba(79,70,229,.16)}
+.cap-btn.is-cam{background:var(--fk-primary-tint);border-color:rgba(37,99,235,.22);color:var(--fk-primary)}
+.cap-btn.is-cam:hover{background:rgba(37,99,235,.16)}
 .cap-btn.done{border-color:var(--fk-success-edge);background:var(--fk-success-surface);color:var(--fk-success)}
 .cap-btn input{display:none}
 /* ── guided in-app camera (CNIC-sized / face frame) ── */
@@ -510,34 +509,28 @@ body:has(#screen-app.active) .auth-bg{display:none}
     <div class="sec-head">Verification (KYC) <span>· photo &amp; CNIC required</span></div>
     <div style="font-size:12px;color:var(--fk-text-muted);margin:-4px 0 12px;line-height:1.5">Snap a clear photo of yourself and both sides of your CNIC. Tap <b style="color:var(--fk-primary)">Camera</b> to capture with the guided frame, or <b>Browse</b> a saved image.</div>
     <div class="kyc-grid">
-      <div class="kyc-tile">
-        <div class="kyc-cap-label">Your photo</div>
-        <div class="cap cap--face" id="cap-photo">
-          <div class="cap-prev" id="cap-photo-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span>Selfie</span></div>
-          <div class="cap-btns">
-            <button type="button" class="cap-btn is-cam" onclick="capCamera('photo','face')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Camera</button>
-            <label class="cap-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'photo')"></label>
-          </div>
+      <div class="cap" id="cap-photo">
+        <div class="cap-prev" id="cap-photo-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></div>
+        <div class="cap-meta"><div class="t">Your photo</div><div class="s">A clear selfie</div></div>
+        <div class="cap-btns">
+          <button type="button" class="cap-btn is-cam" onclick="capCamera('photo','face')" aria-label="Take photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+          <label class="cap-btn" aria-label="Browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'photo')"></label>
         </div>
       </div>
-      <div class="kyc-tile">
-        <div class="kyc-cap-label">CNIC — front</div>
-        <div class="cap cap--card" id="cap-cf">
-          <div class="cap-prev" id="cap-cf-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/></svg><span>Front side</span></div>
-          <div class="cap-btns">
-            <button type="button" class="cap-btn is-cam" onclick="capCamera('cf','card')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Camera</button>
-            <label class="cap-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cf')"></label>
-          </div>
+      <div class="cap" id="cap-cf">
+        <div class="cap-prev" id="cap-cf-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/></svg></div>
+        <div class="cap-meta"><div class="t">CNIC — front</div><div class="s">Front side, all corners visible</div></div>
+        <div class="cap-btns">
+          <button type="button" class="cap-btn is-cam" onclick="capCamera('cf','card')" aria-label="Take photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+          <label class="cap-btn" aria-label="Browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cf')"></label>
         </div>
       </div>
-      <div class="kyc-tile">
-        <div class="kyc-cap-label">CNIC — back</div>
-        <div class="cap cap--card" id="cap-cb">
-          <div class="cap-prev" id="cap-cb-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="10" x2="18" y2="10"/><line x1="6" y1="14" x2="14" y2="14"/></svg><span>Back side</span></div>
-          <div class="cap-btns">
-            <button type="button" class="cap-btn is-cam" onclick="capCamera('cb','card')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Camera</button>
-            <label class="cap-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cb')"></label>
-          </div>
+      <div class="cap" id="cap-cb">
+        <div class="cap-prev" id="cap-cb-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="10" x2="18" y2="10"/><line x1="6" y1="14" x2="14" y2="14"/></svg></div>
+        <div class="cap-meta"><div class="t">CNIC — back</div><div class="s">Back side, all corners visible</div></div>
+        <div class="cap-btns">
+          <button type="button" class="cap-btn is-cam" onclick="capCamera('cb','card')" aria-label="Take photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+          <label class="cap-btn" aria-label="Browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,'cb')"></label>
         </div>
       </div>
     </div>
@@ -723,15 +716,16 @@ function _capShowErr(m){ const e=_capErr(); if(e){ e.textContent=m; e.classList.
 // a reusable capture slot: 📷 guided Camera + 📁 Browse + preview. kind: 'face'|'card'
 function capSlot(key,label,kind){
   var ph=(kind==='face'
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span>Photo</span>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/></svg><span>Document</span>');
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/></svg>');
+  var sub=(kind==='face'?'A clear selfie':'All corners visible');
   var camIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
   var upIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-  return '<div class="kyc-tile" style="margin-bottom:14px"><div class="kyc-cap-label">'+esc(label)+'</div>'
-    +'<div class="cap '+(kind==='face'?'cap--face':'cap--card')+'" id="cap-'+key+'"><div class="cap-prev" id="cap-'+key+'-prev">'+ph+'</div><div class="cap-btns">'
-    +'<button type="button" class="cap-btn is-cam" onclick="capCamera(\''+key+'\',\''+kind+'\')">'+camIco+'Camera</button>'
-    +'<label class="cap-btn">'+upIco+'Browse<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,\''+key+'\')"></label>'
-    +'</div></div></div>';
+  return '<div class="cap" id="cap-'+key+'" style="margin-bottom:10px"><div class="cap-prev" id="cap-'+key+'-prev">'+ph+'</div>'
+    +'<div class="cap-meta"><div class="t">'+esc(label)+'</div><div class="s">'+sub+'</div></div><div class="cap-btns">'
+    +'<button type="button" class="cap-btn is-cam" onclick="capCamera(\''+key+'\',\''+kind+'\')" aria-label="Take photo">'+camIco+'</button>'
+    +'<label class="cap-btn" aria-label="Browse">'+upIco+'<input type="file" accept="image/jpeg,image/png" onchange="capUpload(this,\''+key+'\')"></label>'
+    +'</div></div>';
 }
 
 function _capDone(key,url){
