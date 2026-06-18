@@ -456,16 +456,19 @@ function buildSB(){
         { id:'recovery',    ic:'list-checks',       lb:'Payments', dot:(overdueN>0?'danger':null) },
         { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
       ]},
-      // ── 2 · Dealers & Bookings ──
-      { label: 'Dealers & Bookings', items: [
-        { id:'agents',            ic:'users',          lb:'Dealers' },
-        { id:'agenttransactions', ic:'trending-up',    lb:'Dealer Transactions' },
-        { id:'salesaccess',       ic:'id-card',        lb:'Portal Access' },
-        { id:'salesubmissions',   ic:'file-check',     lb:'Booking Submissions' },
-        { id:'reservations',      ic:'bookmark-check', lb:'Reservations' },
-        { id:'agentrecovery',     ic:'user-check',     lb:'Dealer Recovery' },
-        { id:'commissions',       ic:'trending-up',    lb:'Commissions' },
-        { id:'dealeragreement',   ic:'file-check',     lb:'Dealer Agreement' },
+      // ── 2 · Online Portal (everything for the self-service sales portal) ──
+      { label: 'Online Portal', items: [
+        { id:'salesaccess',     ic:'id-card',        lb:'Portal Access' },
+        { id:'salesubmissions', ic:'file-check',     lb:'Booking Submissions' },
+        { id:'reservations',    ic:'bookmark-check', lb:'Reservations' },
+        { id:'dealeragreement', ic:'file-check',     lb:'Dealer Agreement' },
+      ]},
+      // ── 3 · Dealers (agent master · money · recovery) ──
+      { label: 'Dealers', items: [
+        { id:'agents',            ic:'users',       lb:'Dealers' },
+        { id:'agenttransactions', ic:'trending-up', lb:'Dealer Transactions' },
+        { id:'commissions',       ic:'trending-up', lb:'Commissions' },
+        { id:'agentrecovery',     ic:'user-check',  lb:'Dealer Recovery' },
       ]},
       // ── 3 · Recovery ──
       { label: 'Recovery', items: [
