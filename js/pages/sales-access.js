@@ -49,12 +49,18 @@ function _saUsageBadge() {
   const tone = _saAtCap() ? 'danger' : (max && cur >= max - 2 ? 'warning' : 'success');
   return NX.badge(`Sales access: ${cur} / ${max}`, tone);
 }
+function _saPortalBase() { return location.origin + location.pathname.replace(/[^/]*$/, '') + 'sales-portal.html'; }
 function _saSignupUrl() {
-  // In an umbrella, everyone uses the ONE group link (dealers sell across all members).
+  // Primary link: in an umbrella, the group link (sells across all members); else the company link.
   const tok = (_saUmbrella && _saUmbrella.signup_token) ? _saUmbrella.signup_token : _saSignupToken;
-  if (!tok) return '';
-  const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'sales-portal.html';
-  return base + '?signup=' + encodeURIComponent(tok);
+  return tok ? _saPortalBase() + '?signup=' + encodeURIComponent(tok) : '';
+}
+function _saCompanyUrl() {  // this-company-only link (single project)
+  return _saSignupToken ? _saPortalBase() + '?signup=' + encodeURIComponent(_saSignupToken) : '';
+}
+function _saCopyCompanyLink() {
+  const u = _saCompanyUrl(); if (navigator.clipboard) navigator.clipboard.writeText(u);
+  if (typeof toast === 'function') toast('Single-project link copied', 'ok');
 }
 
 function _saRender() {
@@ -89,7 +95,13 @@ function _saBodyHtml() {
        ${NX.button('Copy link', { variant: 'primary', size: 'sm', icon: 'link', onclick: '_saCopyLink()' })}
        ${umb ? '' : NX.button('Rotate', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: '_saRotate()' })}
      </div>
-     ${umb ? '' : `<div style="font-size:11px;color:var(--fk-text-muted);margin-top:var(--fk-sp-2)">Only use <em>Rotate</em> if this link ever leaks — it replaces it with a new one and disables the old copies.</div>`}`,
+     ${umb ? '' : `<div style="font-size:11px;color:var(--fk-text-muted);margin-top:var(--fk-sp-2)">Only use <em>Rotate</em> if this link ever leaks — it replaces it with a new one and disables the old copies.</div>`}
+     ${umb ? `<div style="margin-top:14px;border-top:1px dashed var(--fk-border);padding-top:12px">
+       <div style="font-size:12.5px;color:var(--fk-text-muted);margin-bottom:6px"><strong>Single-project link</strong> — a dealer who signs up with this one sells <strong>only this company's project</strong> (not the whole umbrella). Use it for project-specific dealers.</div>
+       <div style="display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
+         <input class="nx-input" readonly value="${esc(_saCompanyUrl())}" onclick="this.select()" style="flex:1;min-width:240px;font-size:12px">
+         ${NX.button('Copy', { variant: 'secondary', size: 'sm', icon: 'link', onclick: '_saCopyCompanyLink()' })}
+       </div></div>` : ''}`,
     { header: { icon: 'link', tone: 'primary', title: umb ? 'Umbrella signup link' : 'Sales signup link' } });
 
   // ── 2. Pending registrations ──
