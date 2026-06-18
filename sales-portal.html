@@ -285,12 +285,22 @@ body:has(#screen-app.active) .auth-bg{display:none}
 .top .who{flex:1;min-width:0}
 .top .who b{font-size:14px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .who span{font-size:11px;color:var(--fk-text-muted)}
-.wrap{max-width:920px;margin:0 auto;padding:16px}
-.tabs{display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);
-  border-radius:10px;padding:4px;margin-bottom:16px}
-.tab{flex:1;text-align:center;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:500;
-  color:var(--fk-text-muted);cursor:pointer;border:1px solid transparent}
-.tab.on{background:var(--fk-bg-card);color:var(--fk-primary);font-weight:600;box-shadow:var(--fk-shadow);border-color:var(--fk-border)}
+.wrap{max-width:920px;margin:0 auto;padding:16px;padding-bottom:92px}
+/* bottom tab bar (mobile-first) */
+.btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
+  background:var(--fk-bg-card);border-top:1px solid var(--fk-border);box-shadow:0 -4px 18px rgba(15,23,42,.06);
+  padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+.btab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;background:none;border:0;
+  cursor:pointer;color:var(--fk-text-muted);font-size:10.5px;font-weight:600;font-family:inherit;transition:color .12s,transform .08s}
+.btab svg{width:22px;height:22px;stroke-width:1.8}
+.btab.on{color:var(--fk-primary)}
+.btab:active{transform:scale(.93)}
+/* home dashboard */
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.hstat{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:16px;padding:15px;cursor:pointer;transition:transform .08s,box-shadow .12s}
+.hstat:active{transform:scale(.98)}
+.hstat .hl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--fk-text-muted)}
+.hstat .hv{font-size:25px;font-weight:800;margin-top:7px;line-height:1.1}
 
 /* KPI chips */
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
@@ -610,14 +620,15 @@ body:has(#screen-app.active) .auth-bg{display:none}
     <div class="icon-btn" onclick="doLogout()" title="Sign out"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></div>
   </div>
   <div class="wrap">
-    <div class="tabs">
-      <div class="tab on" id="tab-board" onclick="setTab('board')">Availability Board</div>
-      <div class="tab" id="tab-mine" onclick="setTab('mine')">My Reservations</div>
-      <div class="tab" id="tab-recovery" onclick="setTab('recovery')">My Recovery</div>
-      <div class="tab" id="tab-rank" onclick="setTab('rank')">Leaderboard</div>
-    </div>
     <div id="app-body"></div>
   </div>
+  <nav class="btabs">
+    <button class="btab on" id="btab-home" onclick="setTab('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
+    <button class="btab" id="btab-board" onclick="setTab('board')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h4a1 1 0 0 1 1 1v11"/></svg><span>Board</span></button>
+    <button class="btab" id="btab-mine" onclick="setTab('mine')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg><span>Mine</span></button>
+    <button class="btab" id="btab-rank" onclick="setTab('rank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg><span>Rank</span></button>
+    <button class="btab" id="btab-recovery" onclick="setTab('recovery')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><path d="M15 9a6 6 0 1 1-6 6"/></svg><span>Recovery</span></button>
+  </nav>
 </div>
 
 <div id="modal-host"></div>
@@ -893,7 +904,7 @@ function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showSc
 
 // ════ agreement gate (initial signing / amendments / hold) ════
 let AGREE_GATE=null;
-function _showApp(){ showScreen('screen-app'); setTab('board'); }
+function _showApp(){ showScreen('screen-app'); setTab('home'); }
 async function enterApp(){
   let d;
   try{ const r=await sb.rpc('get_agreement_for_session',{p_session_token:TOKEN}); d=r.data; }
@@ -951,11 +962,47 @@ async function doDeclineAgreement(){
 
 // ════ tabs ════
 function setTab(t){ TAB=t;
-  $('tab-board').classList.toggle('on',t==='board');
-  $('tab-mine').classList.toggle('on',t==='mine');
-  $('tab-recovery').classList.toggle('on',t==='recovery');
-  $('tab-rank').classList.toggle('on',t==='rank');
-  if(t==='board') renderBoard(); else if(t==='recovery') renderRecovery(); else if(t==='rank') renderLeaderboard(); else renderMine();
+  ['home','board','mine','rank','recovery'].forEach(k=>{ const el=$('btab-'+k); if(el) el.classList.toggle('on',t===k); });
+  if(t==='home') renderHome();
+  else if(t==='board') renderBoard();
+  else if(t==='recovery') renderRecovery();
+  else if(t==='rank') renderLeaderboard();
+  else renderMine();
+}
+
+// ════ home dashboard (day at a glance + shortcuts) ════
+function _hStat(label,value,tone,onclick){
+  return `<div class="hstat" onclick="${onclick}"><div class="hl">${esc(label)}</div><div class="hv" style="color:var(--fk-${tone})">${esc(String(value))}</div></div>`;
+}
+async function renderHome(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your dashboard…</div></div></div>';
+  let resv=0, pend=0, rank='—', outstanding=0, who='';
+  try{
+    const [r1,r2,r3,r4]=await Promise.all([
+      sb.rpc('get_my_reservations',{p_session_token:TOKEN}),
+      sb.rpc('get_my_submissions',{p_session_token:TOKEN}),
+      sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN}),
+      sb.rpc('get_my_outstanding',{p_session_token:TOKEN})
+    ]);
+    if(r1.data&&r1.data.success===false&&r1.data.error==='session_expired') return sessionGone();
+    const rv=(r1.data&&r1.data.reservations)||[]; resv=rv.filter(x=>x.status==='active').length;
+    const sm=(r2.data&&r2.data.submissions)||[]; pend=sm.filter(x=>x.status==='pending').length;
+    if(r3.data&&r3.data.success){ who=r3.data.my_name||who;
+      const rows=(r3.data.rows||[]).slice().sort((a,b)=>(Number(b.units_all||0)-Number(a.units_all||0)));
+      const i=rows.findIndex(x=>x.agent_id===r3.data.my_agent_id); if(i>=0) rank='#'+(i+1); }
+    if(r4.data&&r4.data.success&&!r4.data.no_agent){ const T=r4.data.totals||{}; outstanding=Number(T.overdue||T.total_remaining||0); }
+  }catch(e){ return sessionGone(); }
+  _touch();
+  who=who||(ME&&ME.sales_user_name)||'';
+  let html=`<div style="margin:2px 2px 16px"><div style="font-size:21px;font-weight:800">Salaam${who?', '+esc(String(who).split(' ')[0]):''} 👋</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:2px">Here's your day at a glance.</div></div>`;
+  html+='<div class="hgrid">'
+    + _hStat('Active reservations', resv, 'primary', "setTab('mine')")
+    + _hStat('Pending approvals', pend, 'warning', "setTab('mine')")
+    + _hStat('My rank', rank, 'success', "setTab('rank')")
+    + _hStat('My outstanding', outstanding?pkrShort(outstanding):'—', 'danger', "setTab('recovery')")
+    + '</div>';
+  html+=`<button class="btn btn-primary btn-full" onclick="setTab('board')">Browse units &amp; sell →</button>`;
+  $('app-body').innerHTML=html;
 }
 
 // ════ board ════
