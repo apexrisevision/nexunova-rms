@@ -388,6 +388,25 @@ body:has(#screen-app.active) .auth-bg{display:none}
 .empty .et{font-size:14px;font-weight:600;color:var(--fk-text)}
 .empty .es{font-size:13px;margin-top:4px}
 
+/* leaderboard */
+.lbtabs{display:flex;gap:6px;margin:0 0 12px}
+.lbtab{flex:1;text-align:center;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);color:var(--fk-text-muted);cursor:pointer}
+.lbtab.on{background:var(--fk-primary);color:#fff;border-color:var(--fk-primary)}
+.lbme{background:var(--fk-primary-tint);color:var(--fk-primary);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px;text-align:center}
+.lbrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--fk-border);cursor:pointer}
+.lbrow:last-child{border-bottom:none}
+.lbrow.me{background:var(--fk-primary-tint)}
+.lbrank{width:34px;height:34px;flex:0 0 auto;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+.lbrow.top .lbrank{font-size:19px;background:transparent}
+.lbinfo{flex:1;min-width:0}
+.lbinfo b{font-size:14px;font-weight:600}
+.lbinfo .es{font-size:12px;color:var(--fk-text-muted)}
+.lbcount{font-size:22px;font-weight:800;color:var(--fk-primary);min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+.youtag{display:inline-block;font-size:9px;font-weight:800;background:var(--fk-primary);color:#fff;border-radius:5px;padding:1px 5px;vertical-align:middle;margin-left:4px;letter-spacing:.04em}
+.lbunits{background:var(--fk-bg-subtle);padding:4px 14px 10px}
+.lbu{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:12.5px;border-bottom:1px dashed var(--fk-border)}
+.lbu:last-child{border-bottom:none}
+
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
 .overlay.center{align-items:center;padding:16px}
@@ -535,6 +554,13 @@ body:has(#screen-app.active) .auth-bg{display:none}
       </div>
     </div>
     <div class="field"><label class="label">Choose a 6-digit PIN</label><input class="input" id="reg-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"><div class="note" style="font-size:11px;color:var(--fk-text-muted);margin-top:4px">6 digits. Avoid easy ones like 123456 or 111111.</div></div>
+    <div class="sec-head">Sale Agent Agreement <span>· please read &amp; sign</span></div>
+    <div id="reg-agreement" style="max-height:210px;overflow:auto;border:1px solid var(--fk-border);border-radius:10px;padding:12px 14px;background:var(--fk-bg-subtle);font-size:12.5px;line-height:1.55;color:var(--fk-text)">Loading agreement…</div>
+    <label style="display:flex;gap:9px;align-items:flex-start;margin:12px 2px 8px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="reg-agree" style="margin-top:2px;width:16px;height:16px;flex:0 0 auto">
+      <span>I have read and agree to the Sale Agent Agreement above, and I confirm that the information I have provided is true.</span>
+    </label>
+    <div class="field"><label class="label">Type your full name to sign</label><input class="input" id="reg-sign" autocomplete="off" placeholder="Your full name as signature"></div>
     <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Request access</button>
     <div class="err" id="reg-err"></div>
     <div class="trust">
@@ -553,6 +579,11 @@ body:has(#screen-app.active) .auth-bg{display:none}
     <button class="btn btn-primary btn-full" onclick="showScreen('screen-login')">Go to sign in</button>
     <div class="hint" style="margin-top:14px;color:var(--fk-text-muted)">You'll be able to reserve units and submit sales the moment you're approved.</div>
   </div></div>
+</div>
+
+<!-- ════════ AGREEMENT GATE (initial / amendment / hold) ════════ -->
+<div id="screen-agreement" class="screen">
+  <div id="agree-body"></div>
 </div>
 
 <!-- ════════ GUIDED CAMERA (CNIC / face) ════════ -->
@@ -583,6 +614,7 @@ body:has(#screen-app.active) .auth-bg{display:none}
       <div class="tab on" id="tab-board" onclick="setTab('board')">Availability Board</div>
       <div class="tab" id="tab-mine" onclick="setTab('mine')">My Reservations</div>
       <div class="tab" id="tab-recovery" onclick="setTab('recovery')">My Recovery</div>
+      <div class="tab" id="tab-rank" onclick="setTab('rank')">Leaderboard</div>
     </div>
     <div id="app-body"></div>
   </div>
@@ -689,7 +721,7 @@ async function bootstrap(){
   const signup=params.get('signup');
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
-  if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){} const ok=await loadBoard(); if(ok){ _touch(); _startIdleWatch(); showScreen('screen-app'); setTab('board'); return; } _clearSession(); }
+  if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){} const ok=await loadBoard(); if(ok){ _touch(); _startIdleWatch(); await enterApp(); return; } _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   setCompanyContext(null);
   showScreen('screen-login');
@@ -706,6 +738,17 @@ async function openSignupLink(token){
   setCompanyContext(data);
   const r=$('login-to-register'); if(r) r.style.display='block';
   showScreen('screen-login');
+  loadSignupAgreement(token);
+}
+// Render the company's agreement clauses into the signup form.
+async function loadSignupAgreement(token){
+  const box=$('reg-agreement'); if(!box) return;
+  try{
+    const {data}=await sb.rpc('get_signup_agreement',{p_signup_token:token});
+    const clauses=(data&&data.clauses)||[];
+    if(!clauses.length){ box.innerHTML='<span style="color:var(--fk-text-muted)">No agreement is configured. You may continue.</span>'; return; }
+    box.innerHTML=clauses.map((c,i)=>'<div style="margin-bottom:11px"><div style="font-weight:700;font-size:12.5px;margin-bottom:2px">'+(i+1)+'. '+esc(c.title)+'</div><div style="color:var(--fk-text-muted)">'+esc(c.body)+'</div></div>').join('');
+  }catch(e){ box.innerHTML='<span style="color:var(--fk-text-muted)">Could not load the agreement. Please retry.</span>'; }
 }
 // ── signup photo / CNIC capture (guided camera or browse) ──
 const CAP={photo:null,cf:null,cb:null};
@@ -806,11 +849,14 @@ async function doRegister(){
   if(!/^[0-9]{6}$/.test(pin)){ return bad('PIN must be exactly 6 digits.'); }
   if(/^(\d)\1{5}$/.test(pin) || ['123456','654321','123123','121212','112233','786786','098765','456789'].includes(pin)){ return bad('That PIN is too easy to guess. Choose a less obvious 6-digit PIN.'); }
   if(!CAP.photo||!CAP.cf||!CAP.cb){ return bad('Add your photo and both sides of your CNIC to complete verification.'); }
+  const sign=$('reg-sign').value.trim();
+  if(!$('reg-agree').checked){ return bad('Please read and tick "I agree" to accept the Sale Agent Agreement.'); }
+  if(!sign){ return bad('Type your full name in the signature box to sign the agreement.'); }
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
     const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_father_name:father,p_phone:ph,p_pin:pin,p_cnic:cnic,
       p_profile_photo_url:CAP.photo,p_cnic_front_url:CAP.cf,p_cnic_back_url:CAP.cb,
-      p_email:email||null,p_address:address||null});
+      p_email:email||null,p_address:address||null,p_signature_name:sign});
     if(error) throw error;
     if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not register.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; return; }
     showScreen('screen-pending');
@@ -839,19 +885,77 @@ function onLogin(data){
   try{ if(data.company_name)localStorage.setItem('rms.sales.coName',data.company_name); }catch(e){}
   $('who-name').textContent=data.sales_user_name||'Sales';
   $('who-co').textContent=data.company_name||'';
-  showScreen('screen-app');
-  setTab('board');
+  enterApp();
 }
 function doLogout(){ _clearSession(); TOKEN=null; location.href=location.pathname; }
 function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
   const err=$('login-err'); err.textContent='Your session expired. Please sign in again.'; err.classList.add('show'); }
+
+// ════ agreement gate (initial signing / amendments / hold) ════
+let AGREE_GATE=null;
+function _showApp(){ showScreen('screen-app'); setTab('board'); }
+async function enterApp(){
+  let d;
+  try{ const r=await sb.rpc('get_agreement_for_session',{p_session_token:TOKEN}); d=r.data; }
+  catch(e){ return _showApp(); }  // fail-open: never lock an agent out on an infra error
+  if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone(); return _showApp(); }
+  if(d.hold) return renderHoldBlocked(d);
+  if(d.pending&&d.pending.length) return renderAgreementGate(d);
+  _showApp();
+}
+function renderHoldBlocked(d){
+  $('agree-body').innerHTML='<div class="auth-wrap"><div class="auth-card" style="text-align:center">'
+    +'<div class="auth-title">Access on hold</div>'
+    +'<div class="auth-sub">You did not accept the updated terms, so your access has been paused. Please contact your office to restore your access.</div>'
+    +'<button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="doLogout()">Sign out</button>'
+    +'</div></div>';
+  showScreen('screen-agreement');
+}
+function renderAgreementGate(d){
+  AGREE_GATE=d;
+  const pending=d.pending||[], initial=!!d.is_initial, hold=!!d.hold;
+  const clauses=pending.map(c=>'<div style="margin-bottom:12px"><div style="font-weight:700;font-size:13px;margin-bottom:2px">'+esc(c.title)+'</div><div style="font-size:12.5px;color:var(--fk-text-muted);line-height:1.55">'+esc(c.body)+'</div></div>').join('');
+  const title = hold ? 'Your access is on hold' : (initial ? 'Sale Agent Agreement' : 'Updated terms — please review');
+  const intro = hold ? 'You did not accept the updated terms, so your access is paused. Review and agree below to continue, or contact your office.'
+    : (initial ? 'Please read and accept the Sale Agent Agreement to continue.' : 'Your office has updated the following term(s). Please review and agree to continue.');
+  const signRow = initial ? '<div class="field"><label class="label">Type your full name to sign</label><input class="input" id="agree-sign" autocomplete="off" placeholder="Your full name as signature"></div>' : '';
+  $('agree-body').innerHTML='<div class="auth-wrap"><div class="auth-card">'
+    +'<div class="auth-title">'+esc(title)+'</div>'
+    +'<div class="auth-sub">'+esc(intro)+'</div>'
+    +'<div style="max-height:44vh;overflow:auto;border:1px solid var(--fk-border);border-radius:10px;padding:12px 14px;background:var(--fk-bg-subtle);margin:6px 0 12px">'+clauses+'</div>'
+    +signRow
+    +'<label style="display:flex;gap:9px;align-items:flex-start;margin:4px 2px 12px;font-size:13px;cursor:pointer"><input type="checkbox" id="agree-chk" style="margin-top:2px;width:16px;height:16px;flex:0 0 auto"><span>I have read and agree to the term(s) above.</span></label>'
+    +'<button class="btn btn-primary btn-full" id="agree-btn" onclick="doAcceptAgreement()">I Agree</button>'
+    +'<button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="doDeclineAgreement()">Not agree — contact your office</button>'
+    +'<div class="err" id="agree-err"></div>'
+    +'<div class="auth-switch" style="margin-top:10px">Wrong account? <a href="#" onclick="doLogout();return false">Sign out</a></div>'
+    +'</div></div>';
+  showScreen('screen-agreement');
+}
+async function doAcceptAgreement(){
+  const err=$('agree-err'); err.classList.remove('show');
+  if(!$('agree-chk').checked){ err.textContent='Please tick "I agree" to continue.'; err.classList.add('show'); return; }
+  const signEl=$('agree-sign'), sign=signEl?signEl.value.trim():'';
+  if(signEl && !sign){ err.textContent='Type your full name to sign.'; err.classList.add('show'); return; }
+  const btn=$('agree-btn'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    const {data}=await sb.rpc('accept_agreement',{p_session_token:TOKEN,p_signature_name:sign||null});
+    if(!data||!data.success) throw new Error('failed');
+    _touch(); _showApp();
+  }catch(e){ err.textContent='Could not save. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='I Agree'; }
+}
+async function doDeclineAgreement(){
+  try{ await sb.rpc('decline_agreement',{p_session_token:TOKEN}); }catch(e){}
+  renderHoldBlocked(AGREE_GATE);
+}
 
 // ════ tabs ════
 function setTab(t){ TAB=t;
   $('tab-board').classList.toggle('on',t==='board');
   $('tab-mine').classList.toggle('on',t==='mine');
   $('tab-recovery').classList.toggle('on',t==='recovery');
-  if(t==='board') renderBoard(); else if(t==='recovery') renderRecovery(); else renderMine();
+  $('tab-rank').classList.toggle('on',t==='rank');
+  if(t==='board') renderBoard(); else if(t==='recovery') renderRecovery(); else if(t==='rank') renderLeaderboard(); else renderMine();
 }
 
 // ════ board ════
@@ -1137,6 +1241,56 @@ async function renderRecovery(){
       +'<div>'+esc(r.unit_no||'')+(r.floor_name?' · '+esc(r.floor_name):'')+(r.phone?' · '+esc(r.phone):'')+(odd>0?' · <span style="color:var(--fk-danger)">'+odd+'d overdue</span>':'')+'</div>'
       +'<div style="margin-top:3px">'+amtLine+' · <span class="es">'+(r.paid_pct||0)+'% paid'+(r.last_payment_date?' · last '+fdate(r.last_payment_date):'')+'</span></div></div>'
       +'<div style="text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end">'+waBtn+tel+'</div></div>';
+  });
+  html+='</div>';
+  $('app-body').innerHTML=html;
+}
+
+// ════ leaderboard — who sold how many units (everyone sees everyone) ════
+let LB_DATA=null, LB_PERIOD='all';
+function setLbPeriod(p){ LB_PERIOD=p; renderLeaderboardBody(); }
+function lbToggleUnits(i){ const el=$('lb-u-'+i); if(el){ el.style.display=(el.style.display==='block')?'none':'block'; } }
+async function renderLeaderboard(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading leaderboard…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  LB_DATA=data; _touch(); renderLeaderboardBody();
+}
+function renderLeaderboardBody(){
+  const data=LB_DATA; if(!data) return;
+  const key=LB_PERIOD==='month'?'units_month':'units_all';
+  const monthPfx=new Date().toISOString().slice(0,7);
+  const rows=(data.rows||[]).slice().sort((a,b)=>(Number(b[key]||0)-Number(a[key]||0))||(Number(b.units_all||0)-Number(a.units_all||0)));
+  const active=rows.filter(r=>Number(r[key]||0)>0);
+  const myId=data.my_agent_id;
+  const pill=(p,lb)=>'<button class="lbtab'+(LB_PERIOD===p?' on':'')+'" onclick="setLbPeriod(\''+p+'\')">'+esc(lb)+'</button>';
+  let html='<div class="lbtabs">'+pill('all','All-time')+pill('month',data.month_label||'This Month')+'</div>';
+  if(!active.length){
+    html+='<div class="card"><div class="empty">'
+      +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg></div>'
+      +'<div class="et">No sales '+(LB_PERIOD==='month'?'this month yet':'recorded yet')+'</div>'
+      +'<div class="es">As units are sold they show up here — and the race begins!</div></div></div>';
+    $('app-body').innerHTML=html; return;
+  }
+  if(myId){ const mi=active.findIndex(r=>r.agent_id===myId);
+    if(mi>=0){ const c=Number(active[mi][key]||0); html+='<div class="lbme">You are <b>#'+(mi+1)+'</b> of '+active.length+' · <b>'+c+'</b> unit'+(c===1?'':'s')+' sold</div>'; }
+    else { html+='<div class="lbme">No sales in this view yet — close one to enter the board! 🚀</div>'; }
+  }
+  html+='<div class="card" style="padding:0">';
+  active.forEach((r,i)=>{
+    const rank=i+1, cnt=Number(r[key]||0), mine=(myId&&r.agent_id===myId);
+    const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':('#'+rank);
+    const list=(LB_PERIOD==='month')?(r.units||[]).filter(u=>String(u.sale_date||'').slice(0,7)===monthPfx):(r.units||[]);
+    const sub=list.map(u=>'<div class="lbu"><span>'+esc(u.unit_no||'')+(u.project_name?' · <span class="es">'+esc(u.project_name)+'</span>':'')+(u.client_name?' · '+esc(u.client_name):'')+'</span><span class="es">'+fdate(u.sale_date)+'</span></div>').join('')
+      || '<div class="lbu"><span class="es">No units in this period</span></div>';
+    html+='<div class="lbrow'+(mine?' me':'')+(rank<=3?' top':'')+'" onclick="lbToggleUnits('+i+')">'
+      +'<div class="lbrank">'+medal+'</div>'
+      +'<div class="lbinfo"><b>'+esc(r.agent_name||'')+(mine?' <span class="youtag">YOU</span>':'')+'</b>'
+      +'<div class="es">'+cnt+' unit'+(cnt===1?'':'s')+' · tap to see which</div></div>'
+      +'<div class="lbcount num">'+cnt+'</div></div>'
+      +'<div class="lbunits" id="lb-u-'+i+'" style="display:none">'+sub+'</div>';
   });
   html+='</div>';
   $('app-body').innerHTML=html;
