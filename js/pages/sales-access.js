@@ -11,6 +11,7 @@ let _saRows = [];
 let _saLimit = null;
 let _saSignupToken = null;
 let _saCompanyCode = null;
+let _saUmbrella = null;
 
 async function rSalesAccess() {
   const pg = document.getElementById('pg-salesaccess');
@@ -37,6 +38,7 @@ async function rSalesAccess() {
   _saLimit = res.limit || null;
   _saSignupToken = res.signup_token || null;
   _saCompanyCode = res.company_code || null;
+  _saUmbrella = res.umbrella || null;
   _saRender();
 }
 
@@ -48,9 +50,11 @@ function _saUsageBadge() {
   return NX.badge(`Sales access: ${cur} / ${max}`, tone);
 }
 function _saSignupUrl() {
-  if (!_saSignupToken) return '';
+  // In an umbrella, everyone uses the ONE group link (dealers sell across all members).
+  const tok = (_saUmbrella && _saUmbrella.signup_token) ? _saUmbrella.signup_token : _saSignupToken;
+  if (!tok) return '';
   const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'sales-portal.html';
-  return base + '?signup=' + encodeURIComponent(_saSignupToken);
+  return base + '?signup=' + encodeURIComponent(tok);
 }
 
 function _saRender() {
@@ -67,17 +71,26 @@ function _saBodyHtml() {
   const pending = _saRows.filter(r => r.status === 'pending');
   const people = _saRows.filter(r => r.status !== 'pending');
 
-  // ── 1. The ONE shareable signup link ──
+  // ── 1. The ONE shareable signup link (umbrella-aware) ──
   const url = _saSignupUrl();
+  const umb = _saUmbrella;
+  const isHome = !umb || umb.is_home;
+  const desc = umb
+    ? `One link for the whole <strong>${esc(umb.group_name)}</strong> umbrella — a dealer who signs up here can sell units across <strong>all member companies</strong> (${esc(umb.members || '')}). They are approved in <strong>${esc(umb.home_company_name)}</strong>.`
+    : `This link is <strong>permanent</strong> — share it once with your sales team and it keeps working. They self-register, then appear below for your approval.`;
+  const homeNote = (umb && !isHome)
+    ? NX.banner(`Sub-dealers for this umbrella are approved in <strong>${esc(umb.home_company_name)}</strong> — open <em>Online Portal → Portal Access</em> there to review &amp; approve. (This page only shows dealers homed to this company.)`, 'info')
+    : '';
   const linkCard = NX.card(
-    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">This link is <strong>permanent</strong> — share it once with your sales team and it keeps working. They self-register, then appear below for your approval.</div>
+    homeNote +
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">${desc}</div>
      <div style="display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
        <input class="nx-input" readonly value="${esc(url)}" onclick="this.select()" style="flex:1;min-width:240px;font-size:12px">
        ${NX.button('Copy link', { variant: 'primary', size: 'sm', icon: 'link', onclick: '_saCopyLink()' })}
-       ${NX.button('Rotate', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: '_saRotate()' })}
+       ${umb ? '' : NX.button('Rotate', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: '_saRotate()' })}
      </div>
-     <div style="font-size:11px;color:var(--fk-text-muted);margin-top:var(--fk-sp-2)">Only use <em>Rotate</em> if this link ever leaks — it replaces it with a new one and disables the old copies.</div>`,
-    { header: { icon: 'link', tone: 'primary', title: 'Sales signup link' } });
+     ${umb ? '' : `<div style="font-size:11px;color:var(--fk-text-muted);margin-top:var(--fk-sp-2)">Only use <em>Rotate</em> if this link ever leaks — it replaces it with a new one and disables the old copies.</div>`}`,
+    { header: { icon: 'link', tone: 'primary', title: umb ? 'Umbrella signup link' : 'Sales signup link' } });
 
   // ── 2. Pending registrations ──
   let pendingCard = '';
