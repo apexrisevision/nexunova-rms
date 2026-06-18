@@ -191,6 +191,21 @@ async function _saReviewOpen(id) {
        <label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:5px 0;cursor:pointer"><input type="radio" name="sa-link" value="__other__" onchange="_saToggleOther()"> <b>Merge</b> with another existing sub-agent (search)</label>
        <select id="sa-link-other" class="nx-select" disabled style="margin-top:4px;opacity:.5"><option value="">— pick a sub-agent —</option>${_otherOpts}</select>
      </div>`;
+
+  // Umbrella? then approval becomes a per-member-company merge chooser (registers in all).
+  let _umb = null;
+  try { const { data } = await supabase.rpc('get_umbrella_approval_context', { p_sales_user_id: id });
+        if (data && data.success && data.umbrella) _umb = data; } catch (e) {}
+  const _projField = projOpts.length
+    ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
+    : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`;
+  const _commField = NX.field({ label: 'Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' });
+  const _errDiv = `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`;
+  const approvalHtml = _umb ? _saUmbrellaHtml(_umb) : (matchesHtml + _projField + _commField + _errDiv);
+  const approveBtn = _umb
+    ? NX.button('Approve &amp; register in all', { variant: 'primary', onclick: `_saApproveGrouped('${id}')` })
+    : (projOpts.length ? NX.button('Approve', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '');
+
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     id: 'sa-review-modal', title: 'Review registration', size: 'l', onClose: '_saCloseModal()',
     body:
@@ -226,17 +241,53 @@ async function _saReviewOpen(id) {
        </div>
        <div style="border-top:1px solid var(--fk-border);margin:var(--fk-sp-4) 0 var(--fk-sp-3)"></div>
        <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin-bottom:var(--fk-sp-2)">Approval</div>` +
-      matchesHtml +
-      (projOpts.length
-        ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
-        : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`) +
-      NX.field({ label: 'Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' }) +
-      `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`,
+      approvalHtml,
     footer:
       NX.button('Reject', { variant: 'danger-soft', onclick: `_saReject('${id}','${esc(r.full_name || '')}')` }) +
       NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' }) +
-      (projOpts.length ? NX.button('Approve', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '')
+      approveBtn
   }));
+}
+
+// ── Umbrella approval: one merge-or-new chooser per member company ──
+function _saUmbrellaHtml(umb) {
+  window._saUmbMembers = umb.members || [];
+  const sec = (m) => {
+    const matches = m.matches || [], agents = m.agents || [];
+    const matchIds = new Set(matches.map(x => x.id));
+    const otherOpts = agents.filter(a => !matchIds.has(a.id))
+      .map(a => `<option value="${a.id}">${esc(a.full_name || '?')}${a.agent_code ? ' — ' + esc(a.agent_code) : ''}</option>`).join('');
+    const cid = m.company_id;
+    return `<div style="margin:var(--fk-sp-3) 0;padding:10px 12px;border:1px solid ${matches.length ? 'var(--fk-warning-edge)' : 'var(--fk-border)'};background:${matches.length ? 'var(--fk-warning-surface)' : 'var(--fk-bg-subtle)'};border-radius:var(--fk-radius-control)">
+       <div style="font-weight:700;font-size:13px;margin-bottom:4px">${esc(m.company_name)} <span style="font-weight:400;color:var(--fk-text-muted)">· ${esc(m.project_name || 'project')}</span></div>
+       <label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 0;cursor:pointer"><input type="radio" name="sa-link-${cid}" value="" checked onchange="_saUmbToggle('${cid}')"> <b>Save as a new sub-dealer</b></label>
+       ${matches.map(a => `<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:4px 0;cursor:pointer"><input type="radio" name="sa-link-${cid}" value="${a.id}" style="margin-top:3px" onchange="_saUmbToggle('${cid}')"> <span><b>Merge</b> with <b>${esc(a.full_name)}</b> <span style="color:var(--fk-text-muted)">(${esc(a.agent_code || '')} · matched on ${esc(a.match_on)})</span></span></label>`).join('')}
+       <label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 0;cursor:pointer"><input type="radio" name="sa-link-${cid}" value="__other__" onchange="_saUmbToggle('${cid}')"> <b>Merge</b> with another sub-dealer (search)</label>
+       <select id="sa-other-${cid}" class="nx-select" disabled style="margin-top:4px;opacity:.5"><option value="">— pick a sub-dealer —</option>${otherOpts}</select>
+     </div>`;
+  };
+  return `<div style="font-size:12px;color:var(--fk-text-muted);margin-bottom:6px">This dealer will be registered in <b>all member companies</b>. For each, Merge with an existing sub-dealer (names need not match — use search) or Save as new.</div>`
+    + (umb.members || []).map(sec).join('')
+    + `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`;
+}
+function _saUmbToggle(cid) {
+  const sel = document.getElementById('sa-other-' + cid); if (!sel) return;
+  const v = (document.querySelector('input[name="sa-link-' + cid + '"]:checked') || {}).value;
+  const other = (v === '__other__'); sel.disabled = !other; sel.style.opacity = other ? '1' : '.5';
+}
+async function _saApproveGrouped(id) {
+  const members = window._saUmbMembers || [];
+  const assignments = members.map(m => {
+    const cid = m.company_id;
+    let v = (document.querySelector('input[name="sa-link-' + cid + '"]:checked') || {}).value || '';
+    if (v === '__other__') v = (document.getElementById('sa-other-' + cid) || {}).value || '';
+    return { company_id: cid, project_id: m.project_id || null, link_agent_id: v || null, commission_percent: null };
+  });
+  try {
+    const { data } = await supabase.rpc('admin_approve_sales_user_grouped', { p_id: id, p_assignments: assignments });
+    if (!data || !data.success) { if (typeof toast === 'function') toast((data && data.message) || 'Approval failed', 'err'); return; }
+    _saCloseModal(); if (typeof toast === 'function') toast('Approved — registered in all member companies', 'ok'); rSalesAccess();
+  } catch (e) { if (typeof toast === 'function') toast('Approval failed', 'err'); }
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
 
