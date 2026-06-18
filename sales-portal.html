@@ -1026,7 +1026,9 @@ async function renderBoard(){
   const p=projects[BV.proj]; const c=p.counts||{};
   let html='';
   if(projects.length>1){
-    html+='<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(pp.project_name)+'</div>').join('')+'</div>';
+    // In an umbrella, each chip is a company (KBH / Awami / FMH); else the project name.
+    html+=(BOARD.grouped?'<div class="es" style="margin:0 2px 6px;color:var(--fk-text-muted);font-size:12px">Choose a company / project:</div>':'')
+      +'<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(BOARD.grouped?(pp.company_name||pp.project_name):pp.project_name)+'</div>').join('')+'</div>';
   }
   // prominent view toggle: Detailed (default) vs Floor wise (summary)
   html+='<div class="modeseg">'
