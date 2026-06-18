@@ -115,7 +115,8 @@ function _saBodyHtml() {
         `<span class="num">${r.active_reservations || 0}</span>`,
         r.last_login_at ? esc(fdateRsv(r.last_login_at)) : '<span style="color:var(--fk-text-muted)">Never</span>',
         r.status === 'active' ? NX.badge('Active', 'success', { dot: true }) : NX.badge('Inactive', 'muted'),
-        (r.status === 'active'
+        NX.button('Documents', { variant: 'ghost', size: 'sm', icon: 'file-text', onclick: `_saDocsOpen('${r.id}')` })
+        + ' ' + (r.status === 'active'
           ? NX.button('Deactivate', { variant: 'secondary', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` })
           : NX.button('Reactivate', { variant: 'secondary', size: 'sm', icon: 'rotate-ccw', onclick: `_saReactivate('${r.id}','${esc(r.full_name)}')` }))
         + ' ' + NX.button('Delete', { variant: 'danger-soft', size: 'sm', icon: 'trash-2', onclick: `_saDelete('${r.id}','${esc(r.full_name)}')` })
@@ -215,6 +216,11 @@ async function _saReviewOpen(id) {
          ${_saKycDoc(r.cnic_back_url, 'CNIC — back', 'card')}
        </div>
        <div style="max-width:160px">${_saKycDoc(r.profile_photo_url, 'Photo', 'photo')}</div>
+       <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:var(--fk-sp-4) 0 var(--fk-sp-2)">Signed agreement</div>
+       <div style="padding:10px 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+         <div style="flex:1;min-width:180px;font-size:12.5px;color:var(--fk-text-muted)">Digitally signed at signup — view the full clauses, signature and date.</div>
+         ${NX.button('View signed agreement', { variant: 'secondary', size: 'sm', icon: 'file-text', onclick: `_daViewRecord('${r.id}')` })}
+       </div>
        <div style="margin-top:var(--fk-sp-4);padding:10px 12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);font-size:12.5px;color:var(--fk-text-muted)">
          On <b style="color:var(--fk-text)">Approve</b>, choose below to <b style="color:var(--fk-text)">Merge</b> with an existing sub-agent or <b style="color:var(--fk-text)">Save as new</b> (code <b style="color:var(--fk-text)">AGT-${yr}-####</b>). KYC is marked verified and they can sign in &amp; reserve.
        </div>
@@ -233,6 +239,27 @@ async function _saReviewOpen(id) {
   }));
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
+
+// Documents view for an approved dealer — KYC images + the digitally signed agreement.
+function _saDocsOpen(id) {
+  const r = (_saRows || []).find(x => x.id === id) || {};
+  document.body.insertAdjacentHTML('beforeend', NX.modal({
+    id: 'sa-docs-modal', title: 'Documents — ' + esc(r.full_name || ''), size: 'l', onClose: '_saCloseModal()',
+    body:
+      `<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:0 0 var(--fk-sp-2)">Identity documents (KYC) — click to enlarge</div>
+       <div class="nx-grid-2" style="gap:12px;margin-bottom:12px">
+         ${_saKycDoc(r.cnic_front_url, 'CNIC — front', 'card')}
+         ${_saKycDoc(r.cnic_back_url, 'CNIC — back', 'card')}
+       </div>
+       <div style="max-width:160px;margin-bottom:var(--fk-sp-4)">${_saKycDoc(r.profile_photo_url, 'Photo', 'photo')}</div>
+       <div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text);margin:0 0 var(--fk-sp-2)">Signed agreement</div>
+       <div style="padding:12px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);background:var(--fk-bg-subtle);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+         <div style="flex:1;min-width:180px;font-size:13px;color:var(--fk-text-muted)">The dealer's digitally signed Sale Agent Agreement — full clauses, signature and date.</div>
+         ${NX.button('View signed agreement', { variant: 'secondary', size: 'sm', icon: 'file-text', onclick: `_daViewRecord('${id}')` })}
+       </div>`,
+    footer: NX.button('Close', { variant: 'ghost', onclick: '_saCloseModal()' })
+  }));
+}
 
 function _saToggleOther() {
   const sel = document.getElementById('sa-link-other');
