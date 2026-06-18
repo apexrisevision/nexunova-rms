@@ -20,14 +20,14 @@ function rBackup(){
 
   // Download card — the calm primary action
   var dlCard=NX.card(
-    '<div class="nx-kpi-label" style="text-transform:none;font-size:var(--fk-fs-title);color:var(--fk-text);margin-bottom:4px">Download backup</div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.6;margin-bottom:var(--fk-sp-3)">Save your complete data as a JSON file, then keep it in Google Drive, OneDrive or a USB drive.</div>'+
-    NX.banner('Tip: save the file inside your Google Drive / OneDrive folder so it auto-syncs to the cloud.','info')+
+    '<div class="nx-kpi-label" style="text-transform:none;font-size:var(--fk-fs-title);color:var(--fk-text);margin-bottom:4px">Download your data</div>'+
+    '<div class="nx-kpi-label" style="text-transform:none;line-height:1.6;margin-bottom:var(--fk-sp-3)">Export a readable Excel snapshot of your live company data — projects, units, clients, sales, payments, installments and agents, each on its own sheet.</div>'+
+    NX.banner('Tip: keep the file in your Google Drive / OneDrive folder so it auto-syncs to the cloud.','info')+
     '<div style="display:flex;flex-direction:column;gap:var(--fk-sp-2);margin-top:var(--fk-sp-3)">'+
-      NX.button('Download full backup (.json)', {variant:'primary', onclick:'manualBkp()', attrs:'style="width:100%"'})+
-      NX.button('Download as Excel (.xlsx)',    {variant:'secondary', onclick:'bkpExcel()', attrs:'style="width:100%"'})+
+      NX.button('Download as Excel (.xlsx)',    {variant:'primary', onclick:'bkpExcel()', attrs:'style="width:100%"'})+
+      NX.button('Download local cache (.json)', {variant:'secondary', onclick:'manualBkp()', attrs:'style="width:100%"'})+
     '</div>'+
-    '<div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3)">Last manual backup: <b style="color:var(--fk-text)">'+esc(lastStr)+'</b></div>');
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3)">Last local cache backup: <b style="color:var(--fk-text)">'+esc(lastStr)+'</b></div>');
 
   // Restore card — destructive, clearly flagged
   var rsCard=NX.card(
@@ -52,7 +52,7 @@ function rBackup(){
 
   document.getElementById('pg-backup').innerHTML=
     NX.pageHeader('Data backup & restore')+
-    NX.banner('Your server data is automatically backed up by the platform. These exports contain local app data for your own offline copy.','info')+
+    NX.banner('Your live server database is backed up automatically every day by the platform. The Excel export below is your own readable offline copy.','info')+
     '<div style="height:var(--fk-sp-3)"></div>'+
     kpis+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3);margin-bottom:var(--fk-sp-3)">'+dlCard+rsCard+'</div>'+
@@ -69,21 +69,51 @@ function manualBkp(){
   toast('Backup downloaded! Move it to Google Drive/OneDrive for cloud safety.','ok');
 }
 
-async function bkpExcel(){ await window.ensureXLSX();
+// Real, LIVE bulk export — pulls the tenant's full business data straight from
+// Supabase (export_company_data RPC) and writes a multi-sheet workbook. This
+// replaced the old localStorage dump (which only saw the vestigial local cache).
+async function bkpExcel(){
+  await window.ensureXLSX();
   if(typeof XLSX==='undefined'){toast('Excel library not loaded','warn');return;}
-  var units=gunits();
-  var rows=units.map(function(u){var pd=actualPaid(u),rm=actualPending(u);return {'Unit No':u.unitNo,'Floor':u.floorLabel||u.floor,'Type':u.type,'Area':u.area,'Status':u.status,'Customer':u.customerName||'','Phone':u.phone||'','Booking No':u.bookingNo||'','Total Price':u.totalPrice||0,'Paid':pd,'Pending':rm,'Recovery %':u.totalPrice?Math.round(pd/u.totalPrice*100):0,'Last Payment':u.lastPaymentDate||'','Sold By':u.soldBy||'','Remarks':u.remarks||''};});
+  if(!window.S||!S.cid){toast('No company in session','warn');return;}
+  toast('Preparing export — fetching live data…','info');
+  try{
+    var res=await supabase.rpc('export_company_data',{p_company_id:S.cid});
+    if(res.error) throw res.error;
+    var d=res.data; if(!d){toast('No data returned','warn');return;}
+    var total=buildCompanyWorkbook(d, true);
+    toast('Exported '+total+' records to Excel','ok');
+  }catch(ex){ toast('Export failed: '+(ex.message||ex),'err'); }
+}
+
+// Shared workbook builder. `download`=true writes the file immediately and
+// returns the record count; otherwise returns {wb,total} for the caller (used
+// by the super-admin all-tenant export which merges many companies).
+function buildCompanyWorkbook(d, download){
+  var coName=(d.meta&&d.meta.company&&d.meta.company.name)||'Company';
   var wb=XLSX.utils.book_new();
-  var ws=XLSX.utils.json_to_sheet(rows);
-  xlsxWesternNumFmt(ws);
-  XLSX.utils.book_append_sheet(wb,ws,'Units');
-  var recs=grecs().sort(function(a,b){return b.date.localeCompare(a.date);});
-  var rrows=recs.map(function(r){var u=gunit(r.uid);return {'Date':r.date,'Unit':u?u.unitNo:'?','Client':u?u.customerName||'':'','Amount':r.amt,'Type':r.ptype,'Receipt':r.rcpt||'','Notes':r.notes||'','By':gunm(r.by)};});
-  var ws2=XLSX.utils.json_to_sheet(rrows);
-  xlsxWesternNumFmt(ws2);
-  XLSX.utils.book_append_sheet(wb,ws2,'Payments');
-  XLSX.writeFile(wb,'Nexunova_DataExport_'+td()+'.xlsx');
-  toast('Excel export downloaded','ok');
+  var sheets=[['Projects',d.projects],['Units',d.units],['Clients',d.clients],
+              ['Sales',d.sales],['Payments',d.payments],['Installments',d.installments],['Agents',d.agents]];
+  var total=0;
+  sheets.forEach(function(pair){
+    var name=pair[0], rows=pair[1]||[]; total+=rows.length;
+    var ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'(no records)':''}]);
+    if(typeof xlsxWesternNumFmt==='function'&&rows.length) xlsxWesternNumFmt(ws);
+    XLSX.utils.book_append_sheet(wb,ws,name);
+  });
+  var meta=[{Field:'Company',Value:coName},{Field:'Exported at',Value:new Date().toLocaleString('en-PK')},
+    {Field:'Projects',Value:(d.projects||[]).length},{Field:'Units',Value:(d.units||[]).length},
+    {Field:'Clients',Value:(d.clients||[]).length},{Field:'Sales',Value:(d.sales||[]).length},
+    {Field:'Payments',Value:(d.payments||[]).length},{Field:'Installments',Value:(d.installments||[]).length},
+    {Field:'Agents',Value:(d.agents||[]).length}];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(meta),'Summary');
+  wb.SheetNames.unshift(wb.SheetNames.pop()); // Summary to front
+  if(download){
+    var safe=coName.replace(/[^a-z0-9]+/ig,'_').slice(0,40);
+    XLSX.writeFile(wb,'Nexunova_'+safe+'_'+td()+'.xlsx');
+    return total;
+  }
+  return {wb:wb,total:total};
 }
 
 function triggerBkpFile(){

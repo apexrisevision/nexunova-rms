@@ -434,8 +434,9 @@ const SA = (() => {
 
       ct.innerHTML = `
         <div class="sa-card">
-          <div class="sa-card-hd">
+          <div class="sa-card-hd" style="display:flex;align-items:center;justify-content:space-between">
             <div class="sa-card-title">All Companies (${data.length})</div>
+            <button id="sa-export-all" onclick="SA._exportAllTenants()" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);border-radius:8px;color:#6ee7b7;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">&#10515; Export all tenants (Excel)</button>
           </div>
           <div class="sa-card-bd">
             <table class="sa-tbl">
@@ -1058,8 +1059,54 @@ const SA = (() => {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── All-tenant Excel export (platform-owner backup) ─────────────────────
+  // Loops every company and merges their core entities into one workbook, with
+  // a leading "Company" column on each sheet. A portable, human-readable
+  // snapshot of the entire platform. (Machine backup = nightly pg_dump.)
+  async function _exportAllTenants(){
+    var btn=document.getElementById('sa-export-all');
+    try{
+      if(window.ensureXLSX) await window.ensureXLSX();
+      if(typeof XLSX==='undefined'){ alert('Excel library not loaded'); return; }
+      if(btn){ btn.disabled=true; btn.textContent='Exporting…'; }
+      var co=await supabase.rpc('get_companies_admin');
+      if(co.error) throw co.error;
+      var companies=co.data||[];
+      var entities=['projects','units','clients','sales','payments','installments','agents'];
+      var titles={projects:'Projects',units:'Units',clients:'Clients',sales:'Sales',payments:'Payments',installments:'Installments',agents:'Agents'};
+      var buckets={}; entities.forEach(function(e){buckets[e]=[];});
+      var summary=[];
+      for(var i=0;i<companies.length;i++){
+        var c=companies[i];
+        if(btn) btn.textContent='Exporting '+(i+1)+'/'+companies.length+'…';
+        var r=await supabase.rpc('export_company_data',{p_company_id:c.id});
+        if(r.error){ console.warn('export failed for',c.company_name,r.error); continue; }
+        var d=r.data||{};
+        var coName=(d.meta&&d.meta.company&&d.meta.company.name)||c.company_name||'—';
+        var cnt={};
+        entities.forEach(function(e){
+          var rows=d[e]||[]; cnt[e]=rows.length;
+          rows.forEach(function(row){ buckets[e].push(Object.assign({Company:coName},row)); });
+        });
+        summary.push({Company:coName,Code:c.company_code||'',Projects:cnt.projects,Units:cnt.units,
+          Clients:cnt.clients,Sales:cnt.sales,Payments:cnt.payments,Installments:cnt.installments,Agents:cnt.agents});
+      }
+      var wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(summary.length?summary:[{'(no companies)':''}]),'Summary');
+      entities.forEach(function(e){
+        var rows=buckets[e];
+        var ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'(no records)':''}]);
+        if(typeof xlsxWesternNumFmt==='function'&&rows.length) xlsxWesternNumFmt(ws);
+        XLSX.utils.book_append_sheet(wb,ws,titles[e]);
+      });
+      var dt=(typeof td==='function'?td():new Date().toISOString().slice(0,10));
+      XLSX.writeFile(wb,'Nexunova_ALL_TENANTS_'+dt+'.xlsx');
+    }catch(ex){ alert('Export failed: '+(ex.message||ex)); }
+    finally{ if(btn){ btn.disabled=false; btn.innerHTML='&#10515; Export all tenants (Excel)'; } }
+  }
+
   return {
-    init, switchTab, toggleProof, verify, logout,
+    init, switchTab, toggleProof, verify, logout, _exportAllTenants,
     _loadPending, _loadHistory, _verifyPassword,
     _loadHealth, _loadAnnouncements, _loadTickets,
     _annOpenForm, _annCloseForm, _annSave, _annToggle, _annDelete,

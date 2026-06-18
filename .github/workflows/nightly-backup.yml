@@ -1,0 +1,79 @@
+name: Nightly DB backup (off-platform)
+
+# WHY: Supabase already takes daily *physical* backups, but those live inside the
+# Supabase account and cannot be downloaded. This workflow takes an independent
+# *logical* pg_dump of the whole public schema (ALL tenants — they share one DB,
+# scoped by company_id), encrypts it, and stores it as a GitHub Release asset so
+# a copy survives even if the Supabase project/account is ever lost.
+#
+# REQUIRED REPO SECRETS (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL        — the *Session pooler* connection string (port 5432),
+#                            copy from Supabase Dashboard → Project Settings →
+#                            Database → Connection string → "Session pooler".
+#                            Looks like:
+#                            postgresql://postgres.itqxljtfbrppntgyfush:PASSWORD@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres
+#   BACKUP_GPG_PASSPHRASE  — any strong passphrase; needed to DECRYPT the dump.
+#                            Store it somewhere safe (password manager) — without
+#                            it the backups cannot be restored.
+#
+# RESTORE: see docs/BACKUP.md
+
+on:
+  schedule:
+    - cron: '0 19 * * *'      # 19:00 UTC daily (~midnight PKT)
+  workflow_dispatch:           # allow manual run from the Actions tab
+
+permissions:
+  contents: write              # needed to publish the Release asset
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Dump public schema (all tenants) + encrypt
+        env:
+          PGCONN: ${{ secrets.SUPABASE_DB_URL }}
+          GPG_PASS: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y-%m-%d)
+          FILE="nexunova_${STAMP}.dump"
+          # -Fc custom format (compressed, selective restore); public schema holds
+          # all tenant business data. auth/storage logins are also covered by
+          # Supabase's own daily backups.
+          pg_dump "$PGCONN" -Fc --schema=public --no-owner --no-privileges -f "$FILE"
+          ls -lh "$FILE"
+          gpg --batch --yes --passphrase "$GPG_PASS" --symmetric --cipher-algo AES256 -o "${FILE}.gpg" "$FILE"
+          rm -f "$FILE"
+          echo "ASSET=${FILE}.gpg" >> "$GITHUB_ENV"
+          echo "TAG=backup-${STAMP}" >> "$GITHUB_ENV"
+
+      - name: Publish encrypted dump as a Release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" "$ASSET" \
+            --title "DB backup $TAG" \
+            --notes "Automated encrypted pg_dump (public schema, all tenants). Decrypt with BACKUP_GPG_PASSPHRASE — see docs/BACKUP.md." \
+            || gh release upload "$TAG" "$ASSET" --clobber
+
+      - name: Prune old backups (keep last 30)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release list --limit 200 \
+            | awk '/^backup-/ {print $1}' \
+            | sort -r | tail -n +31 \
+            | while read -r tag; do
+                echo "Deleting old backup $tag"
+                gh release delete "$tag" --cleanup-tag --yes || true
+              done
