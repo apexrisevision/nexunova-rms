@@ -11,6 +11,8 @@ let _rvSaleMap  = {};
 let _rvDetail   = null;
 let _rvFilter   = { voucherNo:'', client:'', fr:'', to:'', mode:'All', amount:'', status:'All' };
 let _rvSearchTimer = null;
+let _rvEntry = null;          // CRV/BRV entry state: { unitId, summary }
+let _rvEntrySearchTimer = null;
 
 const _RV_MODE_LBL = { cash:'Cash', bank_transfer:'Bank Transfer', bank:'Bank', cheque:'Cheque / PDC', adjustment:'Adjustment', online:'Online', other:'Other' };
 
@@ -33,7 +35,9 @@ function rReceipts() {
   ].map(o => '<option value="' + o.value + '"' + (_rvFilter.status === o.value ? ' selected' : '') + '>' + o.label + '</option>').join('');
 
   el.innerHTML =
-    NX.pageHeader('Receipt vouchers') +
+    NX.pageHeader('Receipt vouchers',
+      NX.button('New CRV / BRV', { variant:'primary', size:'sm', icon:'plus', onclick:'_rvNewVoucher()' })) +
+    '<div id="rv-entry-view" style="display:none"></div>' +
     '<div id="rv-list-view">' +
       NX.card(
         '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:flex-end">' +
@@ -181,6 +185,7 @@ function _rvShowDetail(paymentId) {
   _rvDetail = r;
 
   document.getElementById('rv-list-view').style.display   = 'none';
+  const _ev = document.getElementById('rv-entry-view'); if (_ev) _ev.style.display = 'none';
   document.getElementById('rv-detail-view').style.display = 'block';
 
   const cancelled = r.status === 'cancelled';
@@ -266,9 +271,190 @@ function _rvShowDetail(paymentId) {
 }
 
 function _rvBackToList() {
-  _rvDetail = null;
+  _rvDetail = null; _rvEntry = null;
   document.getElementById('rv-list-view').style.display   = 'block';
   document.getElementById('rv-detail-view').style.display = 'none';
+  const _ev = document.getElementById('rv-entry-view'); if (_ev) _ev.style.display = 'none';
+}
+
+// ══ CRV / BRV — voucher-first entry (no need to drill into a client first) ══
+const _RVE_MODES = [
+  { value:'cash',          label:'Cash Receipt (CRV)' },
+  { value:'bank_transfer', label:'Bank Receipt (BRV)' },
+  { value:'cheque',        label:'Cheque / PDC' }
+];
+function _rvToday(){ return (typeof td === 'function') ? td() : new Date().toISOString().slice(0,10); }
+
+function _rvNewVoucher() {
+  _rvEntry = { unitId:null, summary:null };
+  document.getElementById('rv-list-view').style.display   = 'none';
+  document.getElementById('rv-detail-view').style.display = 'none';
+  const v = document.getElementById('rv-entry-view');
+  v.style.display = 'block';
+  v.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-3)">' +
+      NX.button('Back to list', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'_rvBackToList()' }) +
+      '<span style="font-weight:600;color:var(--fk-text)">New Receipt Voucher</span>' +
+    '</div>' +
+    NX.card(
+      '<div class="nx-field" style="margin-bottom:0"><label class="nx-label">1 — Find the account (client / unit / project / booking #)</label>' +
+        '<input class="nx-input" id="rve-q" autocomplete="off" placeholder="Search client, unit no or project…" ' +
+        'oninput="clearTimeout(_rvEntrySearchTimer);_rvEntrySearchTimer=setTimeout(()=>_rvEntryRenderAccounts(this.value),180)"></div>' +
+      '<div id="rve-results" style="margin-top:var(--fk-sp-2);max-height:240px;overflow:auto"></div>',
+      { compact:true }) +
+    '<div id="rve-form" style="display:none;margin-top:var(--fk-sp-3)"></div>';
+  _rvEntryRenderAccounts('');
+  document.getElementById('rve-q')?.focus();
+}
+
+function _rvEntryRenderAccounts(q) {
+  const wrap = document.getElementById('rve-results'); if (!wrap) return;
+  const query = (q || '').trim().toLowerCase();
+  const projName = id => { const p = (typeof gproject==='function') ? gproject(id) : null; return p ? (p.name||p.projectName||'') : ''; };
+  const rows = (typeof gunits === 'function' ? gunits() : (window._unitsCache || []))
+    .filter(u => u.isAvailable === false)
+    .filter(u => !query
+      || (u.customerName||'').toLowerCase().includes(query)
+      || (u.unitNo||'').toLowerCase().includes(query)
+      || projName(u.projectId).toLowerCase().includes(query))
+    .sort((a,b) => Number(b.pendingAmount||0) - Number(a.pendingAmount||0))
+    .slice(0, 50)
+    .map(u => {
+      const pend = Number(u.pendingAmount||0);
+      const sel = _rvEntry && _rvEntry.unitId === u.id;
+      return '<tr style="cursor:pointer'+(sel?';background:var(--fk-primary-surface,#eef2ff)':'')+'" onclick="_rvEntryPick(\''+u.id+'\')">' +
+        '<td>'+NX.esc(u.customerName||'—')+'</td>' +
+        '<td>'+NX.esc(u.unitNo||'—')+(projName(u.projectId)?' · <span style="color:var(--fk-text-muted)">'+NX.esc(projName(u.projectId))+'</span>':'')+'</td>' +
+        '<td class="num" style="text-align:right">'+(pend<=0?NX.badge('Paid','success'):('PKR '+fM(pend)))+'</td></tr>';
+    }).join('');
+  wrap.innerHTML = rows
+    ? '<table class="nx-table nx-table--flush"><thead><tr><th>Client</th><th>Unit / Project</th><th class="num">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div style="padding:14px;text-align:center;color:var(--fk-text-muted);font-size:13px">No matching sold units.</div>';
+}
+
+async function _rvEntryPick(unitId) {
+  _rvEntry.unitId = unitId;
+  _rvEntryRenderAccounts(document.getElementById('rve-q')?.value || '');
+  const form = document.getElementById('rve-form');
+  form.style.display = 'block';
+  form.innerHTML = NX.card(NX.empty({ icon:'info', message:'Loading sale…' }));
+  try {
+    const { data, error } = await supabase.rpc('get_unit_payment_summary', { p_unit_id: unitId, p_company_id: S.cid });
+    if (error) throw error;
+    if (!data || !data.success) throw new Error(data?.error || 'No sale found for this unit');
+    _rvEntry.summary = data;
+    form.innerHTML = _rvEntryFormHtml(data);
+    _rvEntryModeChange();
+    document.getElementById('rve-amount')?.focus();
+    form.scrollIntoView({ behavior:'smooth', block:'start' });
+  } catch (e) {
+    form.innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Failed to load sale — ' + (e.message || 'error') }));
+  }
+}
+
+function _rvEntryFormHtml(data) {
+  const s    = data.sale || {};
+  const inst = Array.isArray(data.installments) ? data.installments : [];
+  const net  = Number(s.net_amount || 0);
+  const paid = inst.reduce((a,r)=>a+Number(r.amount_paid||0), 0);
+  const out  = inst.reduce((a,r)=>a+Number(r.outstanding||0), 0);
+  const today = _rvToday();
+  const ctx =
+    '<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:var(--fk-sp-3);padding-bottom:var(--fk-sp-3);border-bottom:1px solid var(--fk-border)">' +
+      '<div><div style="font-size:14px;font-weight:600;color:var(--fk-text)">'+NX.esc(s.client_name||'—')+'</div>' +
+        '<div style="font-size:11px;color:var(--fk-text-muted);margin-top:2px">Unit '+NX.esc(s.unit_no||'—')+(s.project_name?' · '+NX.esc(s.project_name):'')+(s.sale_number?' · '+NX.esc(s.sale_number):'')+'</div></div>' +
+      '<div style="text-align:right"><div class="nx-kpi-label">Balance</div><div class="num" style="font-size:18px;color:'+(out>0?'var(--fk-danger)':'var(--fk-success)')+'">PKR '+fM(out)+'</div></div>' +
+    '</div>';
+  const form =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">' +
+      NX.field({ label:'Voucher type', name:'rve-mode', el:'select', value:'cash', options:_RVE_MODES, attrs:'onchange="_rvEntryModeChange()"' }) +
+      NX.field({ label:'Amount (PKR)', name:'rve-amount', type:'number', required:true, attrs:'min="1" step="0.01" class="nx-input num"' }) +
+      NX.field({ label:'Date', name:'rve-date', type:'date', value:today, required:true }) +
+      NX.field({ label:'Reference / Txn no', name:'rve-ref', placeholder:'Bank / transaction reference (optional)' }) +
+    '</div>' +
+    '<div id="rve-bankbox" style="display:none;margin-top:var(--fk-sp-3)">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--fk-sp-3)">' +
+        NX.field({ label:'Bank', name:'rve-bank' }) +
+        NX.field({ label:'Cheque no', name:'rve-chqno' }) +
+        NX.field({ label:'Cheque date', name:'rve-chqdate', type:'date', value:today, attrs:'onchange="_rvEntryModeChange()"' }) +
+      '</div>' +
+      '<div id="rve-pdc-note" style="margin-top:var(--fk-sp-2)"></div>' +
+    '</div>' +
+    '<div style="margin-top:var(--fk-sp-3)">' + NX.field({ label:'Notes', name:'rve-notes', el:'textarea', placeholder:'Optional' }) + '</div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:var(--fk-sp-2);margin-top:var(--fk-sp-4)">' +
+      NX.button('Save voucher', { variant:'primary', icon:'check', attrs:'id="rve-save"', onclick:'_rvEntrySave()' }) +
+    '</div>';
+  return NX.card(ctx + form);
+}
+
+// Bank/cheque fields visibility + PDC detection
+function _rvEntryModeChange() {
+  const mode = document.getElementById('rve-mode')?.value;
+  const box  = document.getElementById('rve-bankbox');
+  const chqOnly = (mode === 'cheque');
+  const showBank = (mode === 'bank_transfer' || mode === 'cheque');
+  if (box) box.style.display = showBank ? 'block' : 'none';
+  // hide cheque-only fields when plain bank transfer
+  ['rve-chqno','rve-chqdate'].forEach(id => { const f = document.getElementById(id); if (f) f.closest('.nx-field').style.display = chqOnly ? '' : 'none'; });
+  const today = _rvToday();
+  const chqDate = document.getElementById('rve-chqdate')?.value;
+  const isPDC = chqOnly && chqDate && chqDate > today;
+  const note = document.getElementById('rve-pdc-note');
+  if (note) note.innerHTML = isPDC
+    ? NX.banner('Cheque date is in the future — this is a post-dated cheque. It goes to the PDC register, not booked as a payment yet.', 'warn')
+    : '';
+  const save = document.getElementById('rve-save');
+  if (save) { const sp = save.querySelector('span'); if (sp) sp.textContent = isPDC ? 'Add to PDC register' : 'Save voucher'; }
+}
+
+async function _rvEntrySave() {
+  const s = _rvEntry?.summary?.sale;
+  if (!s?.sale_id) { toast('No account selected', 'warn'); return; }
+  const mode   = document.getElementById('rve-mode')?.value;
+  const amount = parseFloat(document.getElementById('rve-amount')?.value || '0');
+  const date   = document.getElementById('rve-date')?.value;
+  const ref    = (document.getElementById('rve-ref')?.value || '').trim();
+  const bank   = (document.getElementById('rve-bank')?.value || '').trim();
+  const chqNo  = (document.getElementById('rve-chqno')?.value || '').trim();
+  const chqDt  = document.getElementById('rve-chqdate')?.value;
+  const notes  = (document.getElementById('rve-notes')?.value || '').trim();
+  const today  = _rvToday();
+  if (!(amount > 0)) { toast('Enter a positive amount', 'warn'); return; }
+  if (!date)         { toast('Enter the date', 'warn'); return; }
+  if (mode === 'cheque' && (!chqNo || !chqDt)) { toast('Cheque needs a number and a date', 'warn'); return; }
+  const isPDC = mode === 'cheque' && chqDt > today;
+  const btn = document.getElementById('rve-save');
+  if (btn) { btn.disabled = true; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Saving…'; }
+  try {
+    if (isPDC) {
+      const { data, error } = await supabase.rpc('create_pdc_cheque', {
+        p_company_id: S.cid,
+        p_data: { sale_id:s.sale_id, client_id:s.client_id||null, cheque_no:chqNo, bank_name:bank||null,
+          amount, cheque_date:chqDt, received_date:today, status:'pending', notes:notes||null,
+          created_by: S.userId || S.name || 'system' }
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to add PDC');
+      toast('Added to PDC register', 'ok');
+      _rvBackToList(); await _rvLoadAndRender();
+      return;
+    }
+    const { data, error } = await supabase.rpc('record_payment_simple', {
+      p_company_id: S.cid, p_sale_id: s.sale_id, p_amount: amount, p_payment_date: date,
+      p_payment_method: mode, p_reference_no: ref || (mode==='cheque' ? chqNo : null) || null,
+      p_bank_name: bank || null, p_notes: notes || null, p_created_by: S.userId || null,
+      p_cheque_date: mode === 'cheque' ? chqDt : null, p_bank_id: null
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || data?.message || 'Payment failed');
+    toast('Receipt voucher saved', 'ok');
+    const newId = data.payment_id || null;
+    await _rvLoadAndRender();
+    if (newId) _rvShowDetail(newId); else _rvBackToList();
+  } catch (e) {
+    if (btn) { btn.disabled = false; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Save voucher'; }
+    toast('Could not save — ' + (e.message || 'error'), 'err');
+  }
 }
 
 // Flip through receipts one-by-one (within the current filtered list)
