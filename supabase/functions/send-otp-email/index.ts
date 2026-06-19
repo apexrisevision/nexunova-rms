@@ -169,6 +169,37 @@ function subscriptionExpiredHtml(
 </div>`.trim();
 }
 
+function subdealerWelcomeHtml(fullName: string, companyName: string, portalUrl: string): string {
+  return `
+<div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:12px;">
+  <div style="margin-bottom:20px;">
+    <div style="font-size:20px;font-weight:700;color:#f8fafc;margin:0 0 4px;">Nexunova RMS</div>
+    <div style="font-size:12px;color:#6366f1;letter-spacing:1px;text-transform:uppercase;">Welcome Aboard</div>
+  </div>
+  <p style="font-size:15px;color:#f8fafc;line-height:1.6;margin:0 0 12px;">Welcome, <strong>${fullName}</strong> 👋</p>
+  <p style="font-size:14px;color:#cbd5e1;line-height:1.6;">
+    Thank you for registering as a sub-dealer with <strong style="color:#f8fafc;">${companyName}</strong>.
+    Your account has been created and is now <strong style="color:#f8fafc;">under review</strong> — once your office approves it,
+    you'll be able to sign in to your sales portal and get started.
+  </p>
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px 20px;margin:20px 0;">
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">From your portal you can:</div>
+    <div style="font-size:14px;color:#e2e8f0;line-height:1.9;">
+      📋 &nbsp;Browse live unit availability<br>
+      🔖 &nbsp;Reserve units for your clients<br>
+      🤝 &nbsp;Submit sales &amp; track approvals<br>
+      🏆 &nbsp;See the leaderboard &amp; your recovery<br>
+      📣 &nbsp;Receive company updates
+    </div>
+  </div>
+  <a href="${portalUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;margin:8px 0 20px;">Open your portal →</a>
+  <p style="font-size:12px;color:#475569;line-height:1.6;">
+    Sign in with the mobile number and PIN you set at signup. Questions? Contact your office or
+    <a href="mailto:support@nexunova.com" style="color:#6366f1;">support@nexunova.com</a>
+  </p>
+</div>`.trim();
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -184,7 +215,7 @@ Deno.serve(async (req) => {
 
   const { email, otp, purpose, company_name, subuser_name, subuser_email,
           temp_password, full_name, days_left, expiry_date, amount, currency,
-          plan_name, login_url } = body;
+          plan_name, login_url, portal_url } = body;
 
   if (!email || !purpose) {
     return Response.json({ error: "email and purpose required" }, { status: 400, headers: CORS });
@@ -235,6 +266,15 @@ Deno.serve(async (req) => {
       html    = subscriptionExpiredHtml(
         full_name ?? "there", company_name ?? "your company", plan_name ?? "your",
         amount ?? "", currency ?? "PKR", login_url ?? "https://rms.nexunova.com/login.html"
+      );
+      break;
+
+    case "subdealer_welcome":
+      subject = `Welcome to ${company_name ?? "Nexunova RMS"} 🎉`;
+      html    = subdealerWelcomeHtml(
+        full_name ?? "there",
+        company_name ?? "your company",
+        portal_url ?? "https://rms.nexunova.com/sales-portal.html"
       );
       break;
 
