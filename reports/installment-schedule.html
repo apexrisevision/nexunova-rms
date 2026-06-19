@@ -215,6 +215,16 @@ async function load(){
   if(!sd || !sd.success || !sd.sale){ showError(sd && sd.error ? 'Sale: '+sd.error : 'Sale record not found.'); return; }
   const sale = sd.sale;
 
+  // payments received for THIS sale → linked "Payments Received" section
+  let payments = [];
+  if(sale.unit_id){
+    try{
+      const pr = await sb.rpc('get_payments_for_unit', { p_unit_id: sale.unit_id, p_company_id: cid });
+      payments = (pr.data||[]).filter(x => x.sale_id === saleId)
+        .sort((a,b)=> new Date(a.payment_date)-new Date(b.payment_date));
+    }catch(e){ payments = []; }
+  }
+
   // get_company_branding returns a single JSON OBJECT (not an array) — read .data directly.
   const b = brandRes.data || {};
   const color1 = b.doc_brand_color || '#1e2d47';
@@ -256,6 +266,25 @@ async function load(){
   }).join('');
 
   const totalScheduled = schedule.reduce((s,r)=>s+Number(r.amount_due||0),0);
+
+  // Payments Received — each links to its Receipt Voucher (360° view)
+  const _mlbl = m => ({cash:'Cash',cheque:'Cheque',pdc:'Pay Order / PDC',bank_transfer:'Bank Transfer',online:'Online',adjustment:'Adjustment'}[m]||m||'—');
+  const paymentsSection = payments.length ? `
+      <div class="tbl-wrap" style="margin-top:18px">
+        <div style="font-size:12px;font-weight:700;color:${color1};margin:0 0 6px">Payments Received</div>
+        <table class="sched-tbl">
+          <thead><tr><th>Receipt #</th><th>Date</th><th>Method</th><th class="right">Amount (PKR)</th></tr></thead>
+          <tbody>
+            ${payments.map(p=>`<tr class="paid">
+              <td><a href="payment-receipt.html?id=${encodeURIComponent(p.id)}&cid=${encodeURIComponent(cid)}" target="_blank" rel="noopener" style="color:#4338ca;font-family:monospace;text-decoration:none" title="Open receipt">${p.voucher_code||p.payment_code||'—'} &#8599;</a></td>
+              <td>${fmtDate(p.payment_date)}</td>
+              <td>${_mlbl(String(p.payment_method||'').toLowerCase())}</td>
+              <td class="right">${fmtPKR(p.amount)}</td>
+            </tr>`).join('')}
+            <tr class="totals-row"><td colspan="3">TOTAL RECEIVED</td><td class="right">${fmtPKR(payments.reduce((s,p)=>s+Number(p.amount||0),0))}</td></tr>
+          </tbody>
+        </table>
+      </div>` : '';
 
   const projectName = sale.project_name || sale.unit_no || sale.sale_number || 'Project';
 
@@ -371,6 +400,8 @@ async function load(){
           </tbody>
         </table>
       </div>
+
+      ${paymentsSection}
 
       <div class="sig-row">
         <div>

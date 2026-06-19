@@ -1,0 +1,10 @@
+-- Expose payment id / voucher so ledger, account statement & schedule reports can
+-- link each "Payment Received" row to its Receipt Voucher (payment-receipt.html).
+-- Applied live via MCP 2026-06-19.
+--
+-- 1) get_client_ledger: + payment_id (p.id on CR rows, NULL on DR rows)
+-- 2) get_payments_for_unit: + voucher_code (the official Receipt #)
+-- Full updated bodies are LIVE in the DB (see 20260619_ledger_payment_links applied
+-- via apply_migration). DB is source of truth; key changes:
+--   get_client_ledger CR subquery  ... , p.id AS payment_id   (DR adds NULL::uuid AS payment_id)
+--   get_payments_for_unit jsonb     ... 'voucher_code', p.voucher_code, ...

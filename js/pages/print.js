@@ -470,6 +470,9 @@ async function _stmtData(clientRef, unitId){
 // Inner statement HTML (no letterhead) — used on-screen and inside the print body.
 function _stmtBody(data){
   var fmtPKR=_stmtFmtPKR, fmtDate=_stmtFmtDate, todayISO=data.todayISO;
+  // absolute URL to the receipt voucher (this body is written into an about:blank print window)
+  var _rcptBase = location.origin + location.pathname.replace(/[^/]*$/, '') + 'reports/payment-receipt.html';
+  var _cid = (typeof S!=='undefined' && S && S.cid) ? S.cid : '';
   var unitSections='';
   data.sales.forEach(function(sx){
     var d=sx.d, inst=sx.inst, pays=sx.pays, u=sx.u, net=sx.net, recv=sx.recv, curBal=sx.curBal, endBal=sx.endBal, dp=sx.downPayment;
@@ -503,7 +506,7 @@ function _stmtBody(data){
       var m=(p.payment_method||'').toLowerCase();
       var mlbl = m.indexOf('cash')>=0 ? 'Cash' : ((m.indexOf('cheque')>=0||m.indexOf('chq')>=0) ? 'Cheque' : 'Bank');
       var txn = p.reference_no || p.payment_code || '';
-      events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), dr:0, cr:Number(p.amount||0) });
+      events.push({ date:String(p.payment_date||'').slice(0,10), o:1, label:'Payment Received', ref:(mlbl+(txn?(' · '+txn):'')), dr:0, cr:Number(p.amount||0), pid:p.id });
     });
     events.sort(function(a,b){ return a.date<b.date?-1 : a.date>b.date?1 : a.o-b.o; });
     var todayIdx = -1;
@@ -515,8 +518,11 @@ function _stmtBody(data){
     events.forEach(function(e,i){
       sumDR += e.dr; sumCR += e.cr; bal += e.dr - e.cr;
       var balStyle = 'text-align:right;font-weight:700;color:'+(bal>0.5?'#dc2626':(bal<-0.5?'#15803d':'#1E2D47'))+(i===todayIdx?';text-decoration:underline':'');
+      var partCell = e.pid
+        ? '<a href="'+_rcptBase+'?id='+encodeURIComponent(e.pid)+'&cid='+encodeURIComponent(_cid)+'" target="_blank" rel="noopener" style="color:#4338ca;text-decoration:none" title="Open receipt">'+esc(e.label)+' ↗</a>'
+        : esc(e.label);
       unitSections += '<tr><td>'+fmtDate(e.date)+'</td>'
-        + '<td>'+esc(e.label)+'</td>'
+        + '<td>'+partCell+'</td>'
         + '<td style="font-size:9px;color:#666">'+esc(e.ref)+'</td>'
         + '<td style="text-align:right">'+(e.dr?fmtPKR(e.dr):'')+'</td>'
         + '<td style="text-align:right;color:#16a34a'+(e.cr?';font-weight:700':'')+'">'+(e.cr?fmtPKR(e.cr):'')+'</td>'
