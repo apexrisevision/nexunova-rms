@@ -12,6 +12,8 @@ let _saLimit = null;
 let _saSignupToken = null;
 let _saCompanyCode = null;
 let _saUmbrella = null;
+let _saAnns = [];
+let _saAnnIsHome = false;
 
 async function rSalesAccess() {
   const pg = document.getElementById('pg-salesaccess');
@@ -39,6 +41,13 @@ async function rSalesAccess() {
   _saSignupToken = res.signup_token || null;
   _saCompanyCode = res.company_code || null;
   _saUmbrella = res.umbrella || null;
+
+  try {
+    const { data: ad } = await supabase.rpc('list_sales_announcements_admin', { p_company_id: cid });
+    if (ad && ad.success) { _saAnns = ad.announcements || []; _saAnnIsHome = !!ad.is_group_home; }
+    else { _saAnns = []; _saAnnIsHome = false; }
+  } catch (e) { _saAnns = []; _saAnnIsHome = false; }
+
   _saRender();
 }
 
@@ -151,7 +160,82 @@ function _saBodyHtml() {
   }
 
   return linkCard + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
-         `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>`;
+         `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
+         `<div style="margin-top:var(--fk-sp-3)">${_saAnnCardHtml()}</div>`;
+}
+
+// ── Dealer Updates: admin posts dated notices (rate revisions etc.) that land in
+//    every sub-dealer's portal "Updates" inbox as a permanent record. ──
+function _saAnnCardHtml() {
+  const reach = _saUmbrella
+    ? (_saAnnIsHome
+        ? `Posts here reach <strong>all umbrella sub-dealers</strong> across ${esc(_saUmbrella.members || 'all member companies')}.`
+        : `Posts here reach only <strong>your company's</strong> sub-dealers. Umbrella-wide updates are posted from <strong>${esc(_saUmbrella.home_company_name)}</strong>.`)
+    : `Posts here reach <strong>all your sub-dealers</strong> in their portal.`;
+  const compose = NX.button('New update', { variant: 'primary', size: 'sm', icon: 'plus', onclick: '_saAnnOpen()' });
+
+  let inner;
+  if (!_saAnns.length) {
+    inner = NX.empty({ icon: 'megaphone', message: 'No updates posted yet. Use “New update” to send a notice (e.g. a rate revision) to your sub-dealers — it stays in their inbox as a dated record.' });
+  } else {
+    inner = NX.table({
+      cols: [{ label: 'Date' }, { label: 'Title' }, { label: 'Reach' }, { label: '' }],
+      rows: _saAnns.map(a => [
+        esc(fdateRsv(a.created_at)),
+        `<b>${esc(a.title)}</b>${a.is_important ? ' ' + NX.badge('Important', 'warning') : ''}`
+          + `<div style="font-size:11.5px;color:var(--fk-text-muted);max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.body)}</div>`,
+        a.group_id ? NX.badge('Umbrella-wide', 'primary') : NX.badge('This company', 'muted'),
+        NX.button('Edit', { variant: 'ghost', size: 'sm', icon: 'pencil', onclick: `_saAnnOpen('${a.id}')` })
+          + ' ' + NX.button('Delete', { variant: 'danger-soft', size: 'sm', icon: 'trash-2', onclick: `_saAnnDelete('${a.id}')` })
+      ]),
+      flush: true
+    });
+  }
+  return NX.card(
+    `<div style="font-size:12.5px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">${reach} Sub-dealers can read these but cannot delete them.</div>` + inner,
+    { header: { icon: 'megaphone', tone: 'primary', title: 'Dealer Updates', sub: _saAnns.length ? _saAnns.length + ' posted' : '', actions: compose }, flush: true });
+}
+
+function _saAnnOpen(id) {
+  const a = id ? (_saAnns.find(x => x.id === id) || {}) : {};
+  document.body.insertAdjacentHTML('beforeend', NX.modal({
+    id: 'sa-ann-modal', title: id ? 'Edit update' : 'New update', size: 'm', onClose: '_saCloseModal()',
+    body:
+      NX.field({ label: 'Title', name: 'ann-title', el: 'input', value: a.title || '', attrs: 'placeholder="e.g. Rate revision — June 2026" maxlength="160"' })
+      + NX.field({ label: 'Message', name: 'ann-body', el: 'textarea', value: a.body || '', attrs: 'rows="6" placeholder="Write the notice your sub-dealers should see…"' })
+      + `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:var(--fk-sp-2);cursor:pointer"><input type="checkbox" id="ann-important"${a.is_important ? ' checked' : ''}> Mark as <b>important</b> (highlighted on the dealer's home)</label>`
+      + `<div class="nx-error" id="ann-err" style="display:none"></div>`,
+    footer:
+      NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' })
+      + NX.button(id ? 'Save changes' : 'Post update', { variant: 'primary', onclick: `_saAnnSave(${id ? `'${id}'` : ''})` })
+  }));
+}
+
+async function _saAnnSave(id) {
+  const title = (document.getElementById('ann-title') || {}).value || '';
+  const body = (document.getElementById('ann-body') || {}).value || '';
+  const important = !!(document.getElementById('ann-important') || {}).checked;
+  const err = document.getElementById('ann-err');
+  if (!title.trim() || !body.trim()) { if (err) { err.style.display = 'block'; err.textContent = 'Title and message are required.'; } return; }
+  try {
+    const { data } = id
+      ? await supabase.rpc('update_sales_announcement', { p_id: id, p_title: title, p_body: body, p_important: important })
+      : await supabase.rpc('create_sales_announcement', { p_company_id: S.cid, p_title: title, p_body: body, p_important: important });
+    if (!data || !data.success) { if (err) { err.style.display = 'block'; err.textContent = (data && data.message) || 'Could not save. Admin access required.'; } return; }
+    _saCloseModal();
+    if (typeof toast === 'function') toast(id ? 'Update saved' : 'Update posted to your sub-dealers', 'ok');
+    rSalesAccess();
+  } catch (e) { if (err) { err.style.display = 'block'; err.textContent = 'Could not save.'; } }
+}
+
+async function _saAnnDelete(id) {
+  if (!confirm('Delete this update? Sub-dealers will no longer see it in their inbox.')) return;
+  try {
+    const { data } = await supabase.rpc('delete_sales_announcement', { p_id: id });
+    if (!data || !data.success) { if (typeof toast === 'function') toast('Could not delete', 'err'); return; }
+    if (typeof toast === 'function') toast('Update deleted', 'ok');
+    rSalesAccess();
+  } catch (e) { if (typeof toast === 'function') toast('Could not delete', 'err'); }
 }
 
 function _saCopyLink() {
