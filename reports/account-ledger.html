@@ -220,7 +220,11 @@ async function loadReport(){
           </td>
           <td>${esc(r.description||'—')}${r.sale_number ? `<div class="desc-sale">${esc(r.sale_number)}</div>` : ''}</td>
           <td class="r" style="color:#dc2626;font-weight:${isDR?'700':'400'}">${isDR ? fmt(r.debit) : '—'}</td>
-          <td class="r" style="color:#16a34a;font-weight:${!isDR?'700':'400'}">${!isDR ? fmt(r.credit) : '—'}</td>
+          <td class="r" style="color:#16a34a;font-weight:${!isDR?'700':'400'}">${!isDR
+              ? (r.payment_id
+                  ? `<a href="payment-receipt.html?id=${encodeURIComponent(r.payment_id)}&cid=${encodeURIComponent(cid)}" target="_blank" rel="noopener" style="color:#16a34a;text-decoration:none" title="Open receipt">${fmt(r.credit)}</a>`
+                  : fmt(r.credit))
+              : '—'}</td>
           <td class="r" style="font-weight:700;color:${runBalColor}">${fmt(abs(r.running_balance))}${r.running_balance>0?' Dr':' Cr'}</td>
         </tr>`;
       });

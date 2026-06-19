@@ -279,7 +279,7 @@ async function load(){
               <td><a href="payment-receipt.html?id=${encodeURIComponent(p.id)}&cid=${encodeURIComponent(cid)}" target="_blank" rel="noopener" style="color:#4338ca;font-family:monospace;text-decoration:none" title="Open receipt">${p.voucher_code||p.payment_code||'—'} &#8599;</a></td>
               <td>${fmtDate(p.payment_date)}</td>
               <td>${_mlbl(String(p.payment_method||'').toLowerCase())}</td>
-              <td class="right">${fmtPKR(p.amount)}</td>
+              <td class="right"><a href="payment-receipt.html?id=${encodeURIComponent(p.id)}&cid=${encodeURIComponent(cid)}" target="_blank" rel="noopener" style="color:#15803d;text-decoration:none" title="Open receipt">${fmtPKR(p.amount)}</a></td>
             </tr>`).join('')}
             <tr class="totals-row"><td colspan="3">TOTAL RECEIVED</td><td class="right">${fmtPKR(payments.reduce((s,p)=>s+Number(p.amount||0),0))}</td></tr>
           </tbody>

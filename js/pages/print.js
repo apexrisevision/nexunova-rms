@@ -518,14 +518,18 @@ function _stmtBody(data){
     events.forEach(function(e,i){
       sumDR += e.dr; sumCR += e.cr; bal += e.dr - e.cr;
       var balStyle = 'text-align:right;font-weight:700;color:'+(bal>0.5?'#dc2626':(bal<-0.5?'#15803d':'#1E2D47'))+(i===todayIdx?';text-decoration:underline':'');
-      var partCell = e.pid
-        ? '<a href="'+_rcptBase+'?id='+encodeURIComponent(e.pid)+'&cid='+encodeURIComponent(_cid)+'" target="_blank" rel="noopener" style="color:#4338ca;text-decoration:none" title="Open receipt">'+esc(e.label)+' ↗</a>'
+      var _rh = e.pid ? (_rcptBase+'?id='+encodeURIComponent(e.pid)+'&cid='+encodeURIComponent(_cid)) : '';
+      var partCell = _rh
+        ? '<a href="'+_rh+'" target="_blank" rel="noopener" style="color:#4338ca;text-decoration:none" title="Open receipt">'+esc(e.label)+' ↗</a>'
         : esc(e.label);
+      var crCell = (e.cr ? (_rh
+        ? '<a href="'+_rh+'" target="_blank" rel="noopener" style="color:#16a34a;text-decoration:none" title="Open receipt">'+fmtPKR(e.cr)+'</a>'
+        : fmtPKR(e.cr)) : '');
       unitSections += '<tr><td>'+fmtDate(e.date)+'</td>'
         + '<td>'+partCell+'</td>'
         + '<td style="font-size:9px;color:#666">'+esc(e.ref)+'</td>'
         + '<td style="text-align:right">'+(e.dr?fmtPKR(e.dr):'')+'</td>'
-        + '<td style="text-align:right;color:#16a34a'+(e.cr?';font-weight:700':'')+'">'+(e.cr?fmtPKR(e.cr):'')+'</td>'
+        + '<td style="text-align:right;color:#16a34a'+(e.cr?';font-weight:700':'')+'">'+crCell+'</td>'
         + '<td style="'+balStyle+'"'+(i===todayIdx?' title="Balance as of today"':'')+'>'+fmtPKR(bal)+'</td></tr>';
     });
     unitSections += '<tr style="border-top:2px double #333;font-weight:700;background:#f3f4f6"><td colspan="3" style="text-align:right">Total</td>'
