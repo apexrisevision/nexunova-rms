@@ -15,13 +15,15 @@ let _rvEntry = null;          // CRV/BRV entry state: { unitId, summary }
 let _rvEntrySearchTimer = null;
 let _rvView = 'voucher';      // 'voucher' (default single-window) | 'entry' | 'list'
 let _rvAccTimer = null;
+let _rvPendingReceive = null; // a unit id passed from a "Receive" button → auto-open its entry
 
 const _RV_MODE_LBL = { cash:'Cash', bank_transfer:'Bank Transfer', bank:'Bank', cheque:'Cheque / PDC', adjustment:'Adjustment', online:'Online', other:'Other' };
 
-function rReceipts() {
+function rReceipts(receiveUnitId) {
   const el = document.getElementById('pg-receipts');
   if (!el) return;
   _rvList = []; _rvFiltered = []; _rvPage = 0; _rvDetail = null; _rvSaleMap = {};
+  _rvPendingReceive = (receiveUnitId && typeof receiveUnitId === 'string') ? receiveUnitId : null;
 
   const { from: _dfl_fr, to: _dfl_to } = _ldgFiscalYear();
   if (!_rvFilter.fr) _rvFilter.fr = _dfl_fr;
@@ -79,8 +81,7 @@ function rReceipts() {
             NX.button('Reset', { variant:'ghost', size:'sm', onclick:"_rvFilter={voucherNo:'',client:'',fr:'',to:'',mode:'All',amount:'',status:'All'};rReceipts()" }) + '</div>' +
         '</div>', { compact:true }) +
       '<div id="rv-tbl" style="margin-top:var(--fk-sp-3)"></div>' +
-    '</div>' +
-    '<div id="rv-detail-view" style="display:none"></div>';
+    '</div>';
 
   _rvLoadAndRender();
 }
@@ -107,7 +108,8 @@ async function _rvLoadAndRender() {
 
     _rvPage = 0;
     _rvApplyFilter();
-    if (_rvView === 'voucher') _rvOpenLast();
+    if (_rvPendingReceive) { const u = _rvPendingReceive; _rvPendingReceive = null; _rvNewVoucher(); _rvEntryPick(u); }
+    else if (_rvView === 'voucher') _rvOpenLast();
   } catch(e) {
     if (tbl) tbl.innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Could not load receipts — ' + (e.message || 'error') }));
   }

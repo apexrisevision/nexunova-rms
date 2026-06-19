@@ -813,6 +813,9 @@ function nav(pg,x){
   if(pg==='recovery-dashboard'||pg==='executive'||pg==='radar') pg='dashboard';
   // Phase 3C: the standalone Add-Unit page is retired — quick-add / full modal live on the Units page.
   if(pg==='addunit') pg='units';
+  // Record Payment is unified into the Receipt Vouchers cockpit (one receiving module).
+  // A unit id (from "Receive" buttons) is preserved in x and opens that account's entry.
+  if(pg==='addpayment') pg='receipts';
   // ── Permission guard ──
   if(S&&S.role!=='admin'&&S.role!=='owner'){
     const r=effectiveRole();
@@ -822,7 +825,7 @@ function nav(pg,x){
       // Role-based baseline allow-list (backward-compatible for existing users)
       const allow={
         recovery:['dashboard','recovery-dashboard','queue','units','unitdetail','addunit','search','clients','clientdetail','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','reminders','contacts','promises','fieldvisits','escalations','campaigns','sales','salesdetail','newsale','editsale','paylinks','paylink-detail','myrecovery'],
-        accounts:['dashboard','recovery','addpayment','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail','agentrecovery'],
+        accounts:['dashboard','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail','agentrecovery'],
       };
       // For manager/staff: rely entirely on hasPermission()
       // For recovery/accounts: must be in baseline list AND pass hasPermission()
