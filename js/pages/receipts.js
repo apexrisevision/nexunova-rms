@@ -13,6 +13,8 @@ let _rvFilter   = { voucherNo:'', client:'', fr:'', to:'', mode:'All', amount:''
 let _rvSearchTimer = null;
 let _rvEntry = null;          // CRV/BRV entry state: { unitId, summary }
 let _rvEntrySearchTimer = null;
+let _rvView = 'voucher';      // 'voucher' (default single-window) | 'entry' | 'list'
+let _rvAccTimer = null;
 
 const _RV_MODE_LBL = { cash:'Cash', bank_transfer:'Bank Transfer', bank:'Bank', cheque:'Cheque / PDC', adjustment:'Adjustment', online:'Online', other:'Other' };
 
@@ -34,11 +36,28 @@ function rReceipts() {
     { value:'All', label:'All' }, { value:'active', label:'Active' }, { value:'cancelled', label:'Cancelled' }
   ].map(o => '<option value="' + o.value + '"' + (_rvFilter.status === o.value ? ' selected' : '') + '>' + o.label + '</option>').join('');
 
+  _rvView = 'voucher';
   el.innerHTML =
-    NX.pageHeader('Receipt vouchers',
-      NX.button('New CRV / BRV', { variant:'primary', size:'sm', icon:'plus', onclick:'_rvNewVoucher()' })) +
-    '<div id="rv-entry-view" style="display:none"></div>' +
-    '<div id="rv-list-view">' +
+    '<style>' +
+      '.rv-acc-drop{position:absolute;left:0;right:0;top:100%;z-index:30;margin-top:4px;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.12);max-height:320px;overflow:auto;display:none}' +
+      '.rv-acc-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--fk-border)}' +
+      '.rv-acc-item:last-child{border-bottom:0}' +
+      '.rv-acc-item:hover{background:var(--fk-bg-subtle)}' +
+    '</style>' +
+    NX.pageHeader('Receipt Vouchers',
+      NX.button('Browse all', { variant:'ghost', size:'sm', icon:'list', onclick:'_rvShowListView()' })) +
+    // ── always-on top bar: search a client / unit and start a receiving ──
+    NX.card(
+      '<div class="nx-field" style="margin:0"><label class="nx-label">Receive from — search client or unit no</label>' +
+        '<div style="position:relative">' +
+          '<input class="nx-input" id="rv-acc-q" autocomplete="off" placeholder="Type client name or unit no, then pick…" ' +
+            'oninput="clearTimeout(_rvAccTimer);_rvAccTimer=setTimeout(()=>_rvAccSearch(this.value),160)">' +
+          '<div id="rv-acc-results" class="rv-acc-drop"></div>' +
+        '</div>' +
+      '</div>', { compact:true }) +
+    '<div id="rv-detail-view" style="margin-top:var(--fk-sp-3)"></div>' +
+    '<div id="rv-entry-view" style="display:none;margin-top:var(--fk-sp-3)"></div>' +
+    '<div id="rv-list-view" style="display:none;margin-top:var(--fk-sp-3)">' +
       NX.card(
         '<div style="display:flex;gap:var(--fk-sp-2);flex-wrap:wrap;align-items:flex-end">' +
           '<div class="nx-field" style="margin:0;min-width:170px"><label class="nx-label">Voucher / Receipt #</label>' +
@@ -87,6 +106,7 @@ async function _rvLoadAndRender() {
 
     _rvPage = 0;
     _rvApplyFilter();
+    if (_rvView === 'voucher') _rvOpenLast();
   } catch(e) {
     if (tbl) tbl.innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Could not load receipts — ' + (e.message || 'error') }));
   }
@@ -110,6 +130,11 @@ function _rvApplyFilter() {
     if (st === 'cancelled' && r.status !== 'cancelled') return false;
     return true;
   });
+
+  // chronological order → index 0 = First (oldest), last = Last (newest entry)
+  _rvFiltered.sort((a, b) =>
+    String(a.payment_date||'').localeCompare(String(b.payment_date||'')) ||
+    String(a.created_at||'').localeCompare(String(b.created_at||'')));
 
   _rvPage = 0;
   _rvRender();
@@ -184,6 +209,7 @@ function _rvShowDetail(paymentId) {
   if (!r) return;
   _rvDetail = r;
 
+  _rvView = 'voucher';
   document.getElementById('rv-list-view').style.display   = 'none';
   const _ev = document.getElementById('rv-entry-view'); if (_ev) _ev.style.display = 'none';
   document.getElementById('rv-detail-view').style.display = 'block';
@@ -208,7 +234,7 @@ function _rvShowDetail(paymentId) {
   const total = navList.length;
   const actions =
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:var(--fk-sp-3);flex-wrap:wrap">' +
-      NX.button('Back to list', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'_rvBackToList()' }) +
+      NX.button('All vouchers', { variant:'ghost', size:'sm', icon:'list', onclick:'_rvShowListView()' }) +
       '<span style="width:1px;height:20px;background:var(--fk-border);margin:0 4px"></span>' +
       NX.button('First', { variant:'secondary', size:'sm', disabled: pos<=0, onclick:"_rvNavTo('first')" }) +
       NX.button('Prev',  { variant:'secondary', size:'sm', disabled: pos<=0, onclick:"_rvNavTo('prev')" }) +
@@ -270,14 +296,9 @@ function _rvShowDetail(paymentId) {
   document.getElementById('rv-detail-view').innerHTML = actions + receipt;
 }
 
-function _rvBackToList() {
-  _rvDetail = null; _rvEntry = null;
-  document.getElementById('rv-list-view').style.display   = 'block';
-  document.getElementById('rv-detail-view').style.display = 'none';
-  const _ev = document.getElementById('rv-entry-view'); if (_ev) _ev.style.display = 'none';
-}
+// Kept for ESC/back compatibility → returns to the default voucher window.
+function _rvBackToList() { _rvEntry = null; _rvOpenLast(); }
 
-// ══ CRV / BRV — voucher-first entry (no need to drill into a client first) ══
 const _RVE_MODES = [
   { value:'cash',          label:'Cash Receipt (CRV)' },
   { value:'bank_transfer', label:'Bank Receipt (BRV)' },
@@ -285,70 +306,75 @@ const _RVE_MODES = [
 ];
 function _rvToday(){ return (typeof td === 'function') ? td() : new Date().toISOString().slice(0,10); }
 
-function _rvNewVoucher() {
-  _rvEntry = { unitId:null, summary:null };
-  document.getElementById('rv-list-view').style.display   = 'none';
-  document.getElementById('rv-detail-view').style.display = 'none';
-  const v = document.getElementById('rv-entry-view');
-  v.style.display = 'block';
-  v.innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-3)">' +
-      NX.button('Back to list', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'_rvBackToList()' }) +
-      '<span style="font-weight:600;color:var(--fk-text)">New Receipt Voucher</span>' +
-    '</div>' +
-    NX.card(
-      '<div class="nx-field" style="margin-bottom:0"><label class="nx-label">1 — Find the account (client / unit / project / booking #)</label>' +
-        '<input class="nx-input" id="rve-q" autocomplete="off" placeholder="Search client, unit no or project…" ' +
-        'oninput="clearTimeout(_rvEntrySearchTimer);_rvEntrySearchTimer=setTimeout(()=>_rvEntryRenderAccounts(this.value),180)"></div>' +
-      '<div id="rve-results" style="margin-top:var(--fk-sp-2);max-height:240px;overflow:auto"></div>',
-      { compact:true }) +
-    '<div id="rve-form" style="display:none;margin-top:var(--fk-sp-3)"></div>';
-  _rvEntryRenderAccounts('');
-  document.getElementById('rve-q')?.focus();
+// ── default window: the LAST (most recent) voucher + First/Back/Next/Last ──
+function _rvOpenLast() {
+  _rvView = 'voucher';
+  document.getElementById('rv-list-view').style.display  = 'none';
+  document.getElementById('rv-entry-view').style.display = 'none';
+  const dv = document.getElementById('rv-detail-view'); dv.style.display = 'block';
+  if (_rvFiltered.length) _rvShowDetail(_rvFiltered[_rvFiltered.length - 1].id);  // last = newest
+  else dv.innerHTML = NX.card(NX.empty({ icon:'inbox', message:'No vouchers yet. Search a client or unit above to record the first receiving.' }));
 }
 
-function _rvEntryRenderAccounts(q) {
-  const wrap = document.getElementById('rve-results'); if (!wrap) return;
+// ── secondary: full searchable list/table of all vouchers ──
+function _rvShowListView() {
+  _rvView = 'list';
+  document.getElementById('rv-detail-view').style.display = 'none';
+  document.getElementById('rv-entry-view').style.display  = 'none';
+  document.getElementById('rv-list-view').style.display   = 'block';
+  _rvRender();
+}
+
+// ── top-bar account search → dropdown of sold units to receive from ──
+function _rvAccSearch(q) {
+  const wrap = document.getElementById('rv-acc-results'); if (!wrap) return;
   const query = (q || '').trim().toLowerCase();
+  if (!query) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
   const projName = id => { const p = (typeof gproject==='function') ? gproject(id) : null; return p ? (p.name||p.projectName||'') : ''; };
   const rows = (typeof gunits === 'function' ? gunits() : (window._unitsCache || []))
     .filter(u => u.isAvailable === false)
-    .filter(u => !query
-      || (u.customerName||'').toLowerCase().includes(query)
+    .filter(u => (u.customerName||'').toLowerCase().includes(query)
       || (u.unitNo||'').toLowerCase().includes(query)
       || projName(u.projectId).toLowerCase().includes(query))
     .sort((a,b) => Number(b.pendingAmount||0) - Number(a.pendingAmount||0))
-    .slice(0, 50)
+    .slice(0, 8)
     .map(u => {
       const pend = Number(u.pendingAmount||0);
-      const sel = _rvEntry && _rvEntry.unitId === u.id;
-      return '<tr style="cursor:pointer'+(sel?';background:var(--fk-primary-surface,#eef2ff)':'')+'" onclick="_rvEntryPick(\''+u.id+'\')">' +
-        '<td>'+NX.esc(u.customerName||'—')+'</td>' +
-        '<td>'+NX.esc(u.unitNo||'—')+(projName(u.projectId)?' · <span style="color:var(--fk-text-muted)">'+NX.esc(projName(u.projectId))+'</span>':'')+'</td>' +
-        '<td class="num" style="text-align:right">'+(pend<=0?NX.badge('Paid','success'):('PKR '+fM(pend)))+'</td></tr>';
+      return '<div class="rv-acc-item" onclick="_rvReceiveFrom(\''+u.id+'\')">' +
+        '<div style="min-width:0"><div style="font-weight:600;color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+NX.esc(u.customerName||'—')+'</div>' +
+        '<div style="font-size:11px;color:var(--fk-text-muted)">Unit '+NX.esc(u.unitNo||'—')+(projName(u.projectId)?' · '+NX.esc(projName(u.projectId)):'')+'</div></div>' +
+        '<div class="num" style="font-size:12px;white-space:nowrap;color:'+(pend>0?'var(--fk-danger)':'var(--fk-success)')+'">'+(pend>0?('PKR '+fM(pend)):'Paid')+'</div>' +
+      '</div>';
     }).join('');
-  wrap.innerHTML = rows
-    ? '<table class="nx-table nx-table--flush"><thead><tr><th>Client</th><th>Unit / Project</th><th class="num">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table>'
-    : '<div style="padding:14px;text-align:center;color:var(--fk-text-muted);font-size:13px">No matching sold units.</div>';
+  wrap.innerHTML = rows || '<div class="rv-acc-item" style="justify-content:center;color:var(--fk-text-muted)">No matching sold units</div>';
+  wrap.style.display = 'block';
 }
 
-async function _rvEntryPick(unitId) {
-  _rvEntry.unitId = unitId;
-  _rvEntryRenderAccounts(document.getElementById('rve-q')?.value || '');
-  const form = document.getElementById('rve-form');
-  form.style.display = 'block';
-  form.innerHTML = NX.card(NX.empty({ icon:'info', message:'Loading sale…' }));
+// ── pick an account from the top bar → render the new-receiving form ──
+async function _rvReceiveFrom(unitId) {
+  _rvEntry = { unitId, summary:null };
+  _rvView = 'entry';
+  const res = document.getElementById('rv-acc-results'); if (res) { res.innerHTML = ''; res.style.display = 'none'; }
+  const q = document.getElementById('rv-acc-q'); if (q) q.value = '';
+  document.getElementById('rv-detail-view').style.display = 'none';
+  document.getElementById('rv-list-view').style.display   = 'none';
+  const ev = document.getElementById('rv-entry-view'); ev.style.display = 'block';
+  const hdr =
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-3)">' +
+      NX.button('Cancel', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'_rvOpenLast()' }) +
+      '<span style="font-weight:600;color:var(--fk-text)">New Receipt Voucher</span>' +
+    '</div>';
+  ev.innerHTML = hdr + NX.card(NX.empty({ icon:'info', message:'Loading account…' }));
   try {
     const { data, error } = await supabase.rpc('get_unit_payment_summary', { p_unit_id: unitId, p_company_id: S.cid });
     if (error) throw error;
     if (!data || !data.success) throw new Error(data?.error || 'No sale found for this unit');
     _rvEntry.summary = data;
-    form.innerHTML = _rvEntryFormHtml(data);
+    ev.innerHTML = hdr + _rvEntryFormHtml(data);
     _rvEntryModeChange();
     document.getElementById('rve-amount')?.focus();
-    form.scrollIntoView({ behavior:'smooth', block:'start' });
   } catch (e) {
-    form.innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Failed to load sale — ' + (e.message || 'error') }));
+    ev.innerHTML = hdr + NX.card(NX.empty({ icon:'alert-triangle', message:'Failed to load account — ' + (e.message || 'error') }));
   }
 }
 
