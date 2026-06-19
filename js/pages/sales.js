@@ -186,6 +186,12 @@ function _salFiltered() {
       if (!hay.includes(q)) return false;
     }
     return true;
+  })
+  // newest sale on top → date desc, then most-recently-created on top
+  .sort((a, b) => {
+    const da = String(a.sale_date || ''), db = String(b.sale_date || '');
+    if (da !== db) return db.localeCompare(da);
+    return String(b.created_at || b.sale_number || '').localeCompare(String(a.created_at || a.sale_number || ''));
   });
 }
 
