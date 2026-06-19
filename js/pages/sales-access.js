@@ -15,6 +15,44 @@ let _saUmbrella = null;
 let _saAnns = [];
 let _saAnnIsHome = false;
 
+// ── Portal role taxonomy (Phase 0: data/tagging only; gated behaviour later) ──
+const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director' };
+const _SA_ROLE_TONE = { sale_rep: 'muted', marketing_manager: 'primary', admin: 'warning', cfo: 'success', director: 'primary' };
+function _saRoleLabel(r) { return _SA_ROLE_LABELS[r] || 'Sale Representative'; }
+function _saRoleOptions() { return Object.keys(_SA_ROLE_LABELS).map(v => ({ value: v, label: _SA_ROLE_LABELS[v] })); }
+function _saRoleField(name, value) {
+  return NX.field({
+    label: 'Portal role <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· what this member logs in as</span>',
+    name, el: 'select', options: _saRoleOptions(), value: value || 'sale_rep'
+  });
+}
+
+// ── Online Portal: one tab housing all self-module admin as sub-tabs ──
+// (reuses the existing page render fns; each draws into its own #pg-* pane.)
+const _OP_TABS = [
+  { id: 'salesaccess',     lb: 'Portal Access',       fn: 'rSalesAccess' },
+  { id: 'salesubmissions', lb: 'Booking Submissions', fn: 'rSaleSubmissions' },
+  { id: 'reservations',    lb: 'Reservations',        fn: 'rReservations' },
+  { id: 'dealeragreement', lb: 'Dealer Agreement',    fn: 'rDealerAgreement' },
+];
+let _opActive = 'salesaccess';
+function rOnlinePortal(sub) {
+  sub = (typeof sub === 'string' ? sub : null) || window._opPendingSub || _opActive;
+  window._opPendingSub = null;
+  if (_OP_TABS.some(t => t.id === sub)) _opActive = sub;
+  const nav = document.getElementById('op-subnav');
+  if (nav) {
+    nav.innerHTML = '<div style="display:flex;gap:6px;overflow-x:auto;padding:14px var(--fk-sp-6) 0">'
+      + _OP_TABS.map(t => {
+        const on = t.id === _opActive;
+        return `<button onclick="rOnlinePortal('${t.id}')" style="flex:0 0 auto;border:1px solid var(--fk-border);background:${on ? 'var(--fk-primary)' : 'transparent'};color:${on ? '#fff' : 'var(--fk-text)'};border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">${esc(t.lb)}</button>`;
+      }).join('') + '</div>';
+  }
+  _OP_TABS.forEach(t => { const el = document.getElementById('pg-' + t.id); if (el) el.style.display = (t.id === _opActive ? '' : 'none'); });
+  const active = _OP_TABS.find(t => t.id === _opActive);
+  if (active && typeof window[active.fn] === 'function') window[active.fn]();
+}
+
 async function rSalesAccess() {
   const pg = document.getElementById('pg-salesaccess');
   if (!pg) return;
@@ -141,15 +179,18 @@ function _saBodyHtml() {
     }));
   } else {
     peopleCard = NX.card(NX.table({
-      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Project scope' }, { label: 'Active reservations', num: true }, { label: 'Last login' }, { label: 'Status' }, { label: '' }],
+      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Role' }, { label: 'Project scope' }, { label: 'Active reservations', num: true }, { label: 'Last login' }, { label: 'Status' }, { label: '' }],
       rows: people.map(r => [
         `<b>${esc(r.full_name)}</b>` + (r.agent_code ? `<div style="font-size:11px;color:var(--fk-text-muted)">Agent ${esc(r.agent_code)}</div>` : ''),
         esc(r.phone),
+        NX.badge(_saRoleLabel(r.role), _SA_ROLE_TONE[r.role] || 'muted')
+          + (r.parent_name ? `<div style="font-size:11px;color:var(--fk-text-muted)">under ${esc(r.parent_name)}</div>` : ''),
         r.project_id ? esc(r.project_name || 'Assigned project') : '<span style="color:var(--fk-text-muted)">All projects</span>',
         `<span class="num">${r.active_reservations || 0}</span>`,
         r.last_login_at ? esc(fdateRsv(r.last_login_at)) : '<span style="color:var(--fk-text-muted)">Never</span>',
         r.status === 'active' ? NX.badge('Active', 'success', { dot: true }) : NX.badge('Inactive', 'muted'),
-        NX.button('Documents', { variant: 'ghost', size: 'sm', icon: 'file-text', onclick: `_saDocsOpen('${r.id}')` })
+        NX.button('Role', { variant: 'ghost', size: 'sm', icon: 'shield', onclick: `_saRoleOpen('${r.id}')` })
+        + ' ' + NX.button('Documents', { variant: 'ghost', size: 'sm', icon: 'file-text', onclick: `_saDocsOpen('${r.id}')` })
         + ' ' + (r.status === 'active'
           ? NX.button('Deactivate', { variant: 'secondary', size: 'sm', onclick: `_saDeactivate('${r.id}','${esc(r.full_name)}')` })
           : NX.button('Reactivate', { variant: 'secondary', size: 'sm', icon: 'rotate-ccw', onclick: `_saReactivate('${r.id}','${esc(r.full_name)}')` }))
@@ -351,7 +392,8 @@ async function _saReviewOpen(id) {
     : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`;
   const _commField = NX.field({ label: 'Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' });
   const _errDiv = `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`;
-  const approvalHtml = _umb ? _saUmbrellaHtml(_umb) : (matchesHtml + _projField + _commField + _errDiv);
+  const _roleField = _saRoleField('sa-approve-role', 'sale_rep');
+  const approvalHtml = _roleField + (_umb ? _saUmbrellaHtml(_umb) : (matchesHtml + _projField + _commField + _errDiv));
   const approveBtn = _umb
     ? NX.button('Approve &amp; register in all', { variant: 'primary', onclick: `_saApproveGrouped('${id}')` })
     : (projOpts.length ? NX.button('Approve', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '');
@@ -433,13 +475,47 @@ async function _saApproveGrouped(id) {
     if (v === '__other__') v = (document.getElementById('sa-other-' + cid) || {}).value || '';
     return { company_id: cid, project_id: m.project_id || null, link_agent_id: v || null, commission_percent: null };
   });
+  const role = (document.getElementById('sa-approve-role') || {}).value || 'sale_rep';
   try {
-    const { data } = await supabase.rpc('admin_approve_sales_user_grouped', { p_id: id, p_assignments: assignments });
+    const { data } = await supabase.rpc('admin_approve_sales_user_grouped', { p_id: id, p_assignments: assignments, p_role: role });
     if (!data || !data.success) { if (typeof toast === 'function') toast((data && data.message) || 'Approval failed', 'err'); return; }
     _saCloseModal(); if (typeof toast === 'function') toast('Approved — registered in all member companies', 'ok'); rSalesAccess();
   } catch (e) { if (typeof toast === 'function') toast('Approval failed', 'err'); }
 }
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
+
+// ── Change a member's portal role (+ optional team head) — set_sales_user_role ──
+function _saRoleOpen(id) {
+  const r = (_saRows || []).find(x => x.id === id) || {};
+  const parentOpts = [{ value: '', label: '— none —' }].concat(
+    (_saRows || []).filter(x => x.id !== id && x.status !== 'pending')
+      .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
+  );
+  document.body.insertAdjacentHTML('beforeend', NX.modal({
+    id: 'sa-role-modal', title: 'Portal role — ' + esc(r.full_name || ''), size: 's', onClose: '_saCloseModal()',
+    body:
+      _saRoleField('sa-role-sel', r.role || 'sale_rep')
+      + NX.field({ label: 'Team head <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — who this member reports to</span>', name: 'sa-role-parent', el: 'select', options: parentOpts, value: r.parent_sales_user_id || '' })
+      + `<div style="font-size:11.5px;color:var(--fk-text-muted);margin-top:6px">Role decides what this person logs into in the portal. (Role-specific screens roll out next — tagging it now keeps everyone classified.)</div>`
+      + `<div class="nx-error" id="sa-role-err" style="display:none"></div>`,
+    footer:
+      NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' })
+      + NX.button('Save role', { variant: 'primary', onclick: `_saRoleSave('${id}')` })
+  }));
+}
+
+async function _saRoleSave(id) {
+  const role = (document.getElementById('sa-role-sel') || {}).value || 'sale_rep';
+  const parent = (document.getElementById('sa-role-parent') || {}).value || null;
+  const err = document.getElementById('sa-role-err');
+  try {
+    const { data } = await supabase.rpc('set_sales_user_role', { p_id: id, p_role: role, p_parent_sales_user_id: parent });
+    if (!data || !data.success) { if (err) { err.style.display = 'block'; err.textContent = (data && data.message) || 'Could not update role (admin access required).'; } return; }
+    _saCloseModal();
+    if (typeof toast === 'function') toast('Role updated to ' + _saRoleLabel(role), 'ok');
+    rSalesAccess();
+  } catch (e) { if (err) { err.style.display = 'block'; err.textContent = 'Could not update role.'; } }
+}
 
 // Documents view for an approved dealer — KYC images + the digitally signed agreement.
 function _saDocsOpen(id) {
@@ -485,8 +561,9 @@ async function _saApproveSubmit(id) {
     linkId = (document.getElementById('sa-link-other') || {}).value || null;
     if (!linkId) { showErr('Pick the existing agent to link to, or choose "Create new agent".'); return; }
   }
+  const role = (document.getElementById('sa-approve-role') || {}).value || 'sale_rep';
   try {
-    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj, p_commission_percent: comm, p_link_agent_id: linkId });
+    const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj, p_commission_percent: comm, p_link_agent_id: linkId, p_role: role });
     if (!data || !data.success) {
       showErr((data && data.message) || 'Could not approve.');
       return;
