@@ -41,50 +41,38 @@ body.lang-ur .page{direction:rtl;text-align:right}
 .gold-bar{height:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
 /* ── Body ── */
-.body{padding:22px 24px 20px}
+.body{padding:24px 26px 22px}
 
-/* ── Receipt meta row ── */
-.top-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-.rcpt-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:3px}
-.rcpt-no{font-size:17px;font-weight:800;font-family:monospace;color:#111827;letter-spacing:.5px}
-.rcpt-date{font-size:12px;font-weight:600;color:#374151;text-align:right}
+/* ── Voucher title ── */
+.vtitle{text-align:center;font-size:17px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#111827;border:2px solid #111827;border-radius:6px;padding:7px 0;margin:0 auto 20px;max-width:280px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.vcancel{text-align:center;color:#dc2626;font-weight:800;letter-spacing:3px;text-transform:uppercase;font-size:13px;border:2px dashed #dc2626;border-radius:6px;padding:6px;margin-bottom:16px}
 
-/* ── Amount hero ── */
-.amt-hero{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1.5px solid #86efac;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.amt-hero-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#16a34a;margin-bottom:6px}
-.amt-hero-val{font-size:32px;font-weight:800;color:#15803d;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1}
-.amt-hero-curr{font-size:14px;font-weight:700;margin-right:3px;vertical-align:middle}
-.amt-hero-words{font-size:11px;color:#166534;font-style:italic;margin-top:7px}
+/* ── Voucher field grid (FMH receipt-voucher style: labelled boxes) ── */
+.vgrid2{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:-1px}
+.vgrid1{display:grid;grid-template-columns:1fr;margin-bottom:-1px}
+.vcell{border:1px solid #cbd5e1;padding:7px 12px;min-height:46px;margin-right:-1px}
+.vlabel{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;margin-bottom:3px}
+.vval{font-size:13px;font-weight:600;color:#111827;word-break:break-word;line-height:1.35}
+.vmono{font-family:monospace;letter-spacing:.5px}
 
-/* ── Two-col info grid ── */
-.info-cols{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:18px}
-.info-col-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-bottom:1.5px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.info-col-body{padding:4px 14px 10px}
-.info-divider{border-left:1.5px solid #e5e7eb}
-.info-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #f3f4f6}
-.info-row:last-child{border-bottom:none}
-.info-k{font-size:10px;color:#6b7280;font-weight:500;white-space:nowrap}
-.info-v{font-size:10px;color:#111827;font-weight:600;text-align:right;max-width:55%;word-break:break-word}
+/* ── Amount band ── */
+.vamtgrid{display:grid;grid-template-columns:200px 1fr;gap:0;margin:14px 0 -1px}
+.vamtcell{border:1.5px solid #111827;padding:8px 12px;margin-right:-1.5px;background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.vamt{font-size:24px;font-weight:800;color:#15803d;font-variant-numeric:tabular-nums;line-height:1.1}
+.vwords{font-size:12.5px;font-weight:600;color:#166534;font-style:italic;line-height:1.4;padding-top:4px}
 
-/* ── Account summary ── */
-.acct-box{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:20px}
-.acct-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;margin-bottom:10px}
-.acct-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px}
-.acct-k{color:#6b7280;font-weight:500}
-.acct-v{font-weight:700}
-.prog-bg{height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:8px 0 3px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.prog-fill{height:100%;border-radius:99px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.prog-pct{font-size:9px;font-weight:700;text-align:right}
+/* ── Optional compact account line ── */
+.vacct{display:flex;gap:18px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px;font-size:10.5px;color:#475569}
+.vacct b{color:#111827;font-weight:700}
 
 /* ── Signatures ── */
-.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb}
-.sig-box{padding-top:28px;border-top:1.5px solid #374151}
-.sig-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af}
-.sig-name{font-size:11px;font-weight:700;color:#111827;margin-top:4px;min-height:16px}
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:42px}
+.sig-box{padding-top:6px;border-top:1.5px solid #374151}
+.sig-lbl{font-size:10px;font-weight:700;color:#111827}
 .sig-role{font-size:9px;color:#9ca3af;margin-top:2px}
 
 /* ── Footer ── */
-.doc-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
+.doc-footer{margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9ca3af}
 
 /* ── Fixed print footer (repeats on every printed page) ── */
 .print-footer{display:none}
@@ -100,7 +88,7 @@ body.lang-ur .page{direction:rtl;text-align:right}
   .toolbar{display:none!important}
   .page-wrap{padding:0}
   .page{width:100%;box-shadow:none;border-radius:0}
-  .lh,.gold-bar,.amt-hero,.prog-bg,.prog-fill,.info-col-hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .lh,.gold-bar,.vtitle,.vamtcell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-footer{display:block;position:fixed;bottom:0;left:0;right:0;font-size:8px;line-height:1.5;color:#6b7280;text-align:center;padding:4px 0;border-top:1px solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
@@ -192,11 +180,21 @@ async function loadReport(){
     const outstanding = Math.max(0, netAmt - totalPaid);
     const pct         = netAmt > 0 ? Math.min(100, Math.round(totalPaid / netAmt * 100)) : 0;
     const amt         = Number(p.amount || 0);
-    const rcptNo      = p.payment_code || p.voucher_code || ('RCP-' + paymentId.slice(-8).toUpperCase());
-    const progColor   = pct>=100?'#16a34a':pct>=60?'#22c55e':pct>=30?'#f59e0b':'#ef4444';
+    // Owner-chosen official Receipt # = system voucher code (PRV-25xx-#####)
+    const rcptNo      = p.voucher_code || p.payment_code || ('RCP-' + paymentId.slice(-8).toUpperCase());
+    const cancelled   = p.status === 'cancelled';
 
-    const methodMap   = {cash:'Cash',cheque:'Cheque',pdc:'Post-Dated Cheque',bank_transfer:'Bank Transfer',online:'Online / Mobile',other:'Other'};
+    const methodMap   = {cash:'Cash',cheque:'Cheque',pdc:'Pay Order / PDC',bank_transfer:'Bank Transfer',online:'Online / Mobile',adjustment:'Adjustment',other:'Other'};
     const methodLabel = methodMap[p.payment_method] || p.payment_method || '—';
+    // "By Cash / Pay Order / Cheque No" value
+    let byLine = methodLabel;
+    if (p.reference_no) byLine += ' — ' + p.reference_no;
+    if (p.bank_name)    byLine += ' (' + p.bank_name + ')';
+    if (p.cheque_date)  byLine += ' · ' + fmtD(p.cheque_date);
+    // "Amount of" — what this payment is for
+    const catMap   = {regular:'Installment', booking:'Booking', down_payment:'Down Payment', token:'Token', advance:'Advance', adjustment:'Adjustment'};
+    const amountOf = catMap[p.payment_category] || (p.payment_category ? p.payment_category : 'Installment');
+    const unitAddr = [s.unit_no, s.project_name].filter(Boolean).join(' · ') || '—';
 
     const logoHtml = br.logo_url
       ? `<img class="lh-logo" src="${esc(br.logo_url)}" alt="${esc(coName)}">`
@@ -226,84 +224,53 @@ async function loadReport(){
 
     <div class="body">
 
-      <div class="top-meta">
-        <div>
-          <div class="rcpt-label">Receipt Number</div>
-          <div class="rcpt-no">${esc(rcptNo)}</div>
-        </div>
-        <div>
-          <div class="rcpt-label" style="text-align:right">Payment Date</div>
-          <div class="rcpt-date">${fmtD(p.payment_date)}</div>
-        </div>
+      <div class="vtitle">Receipt Voucher</div>
+      ${cancelled ? '<div class="vcancel">Cancelled</div>' : ''}
+
+      <div class="vgrid2">
+        <div class="vcell"><div class="vlabel">Receipt #</div><div class="vval vmono">${esc(rcptNo)}</div></div>
+        <div class="vcell"><div class="vlabel">Date</div><div class="vval">${fmtD(p.payment_date)}</div></div>
+      </div>
+      <div class="vgrid2">
+        <div class="vcell"><div class="vlabel">Booking No.</div><div class="vval">${esc(s.sale_number||'—')}</div></div>
+        <div class="vcell"><div class="vlabel">Name</div><div class="vval">${esc(s.client_name||'—')}</div></div>
+      </div>
+      <div class="vgrid2">
+        <div class="vcell"><div class="vlabel">By Cash / Pay Order / Cheque No.</div><div class="vval">${esc(byLine)}</div></div>
+        <div class="vcell"><div class="vlabel">Amount of</div><div class="vval">${esc(amountOf)}</div></div>
       </div>
 
-      <div class="amt-hero">
-        <div class="amt-hero-lbl">Amount Received</div>
-        <div class="amt-hero-val"><span class="amt-hero-curr">PKR</span>${fmt(amt)}</div>
-        <div class="amt-hero-words">${amtWords(amt)}</div>
+      <div class="vamtgrid">
+        <div class="vamtcell"><div class="vlabel">Rs.</div><div class="vamt">${fmt(amt)}/-</div></div>
+        <div class="vamtcell"><div class="vlabel">Rs. In Words</div><div class="vwords">${amtWords(amt)}</div></div>
       </div>
 
-      <div class="info-cols">
-        <div>
-          <div class="info-col-hd" style="background:${primary};color:#fff">Client &amp; Property</div>
-          <div class="info-col-body">
-            <div class="info-row"><span class="info-k">Client Name</span><span class="info-v">${esc(s.client_name||'—')}</span></div>
-            <div class="info-row"><span class="info-k">Unit No</span><span class="info-v">${esc(s.unit_no||'—')}</span></div>
-            <div class="info-row"><span class="info-k">Project</span><span class="info-v">${esc(s.project_name||'—')}</span></div>
-            <div class="info-row"><span class="info-k">Floor / Type</span><span class="info-v">${esc([s.floor_label,s.unit_type].filter(Boolean).join(' · ')||'—')}</span></div>
-            <div class="info-row"><span class="info-k">Sale No</span><span class="info-v" style="font-family:monospace;font-size:9px">${esc(s.sale_number||'—')}</span></div>
-          </div>
-        </div>
-        <div class="info-divider">
-          <div class="info-col-hd" style="background:${primary};color:#fff">Payment Details</div>
-          <div class="info-col-body">
-            <div class="info-row"><span class="info-k">Method</span><span class="info-v">${esc(methodLabel)}</span></div>
-            ${p.bank_name    ? `<div class="info-row"><span class="info-k">Bank</span><span class="info-v">${esc(p.bank_name)}</span></div>` : ''}
-            ${p.reference_no ? `<div class="info-row"><span class="info-k">Reference No</span><span class="info-v" style="font-family:monospace;font-size:9px">${esc(p.reference_no)}</span></div>` : ''}
-            ${p.cheque_date  ? `<div class="info-row"><span class="info-k">Cheque Date</span><span class="info-v">${fmtD(p.cheque_date)}</span></div>` : ''}
-            <div class="info-row"><span class="info-k">Recorded By</span><span class="info-v">${esc(p.created_by||'System')}</span></div>
-            ${p.notes        ? `<div class="info-row"><span class="info-k">Notes</span><span class="info-v">${esc(p.notes)}</span></div>` : ''}
-          </div>
-        </div>
+      <div class="vgrid2">
+        <div class="vcell"><div class="vlabel">Remarks</div><div class="vval">${esc(p.notes||'—')}</div></div>
+        <div class="vcell"><div class="vlabel">Unit Address</div><div class="vval">${esc(unitAddr)}</div></div>
       </div>
 
       ${netAmt > 0 ? `
-      <div class="acct-box">
-        <div class="acct-hd">Account Summary</div>
-        <div class="acct-row">
-          <span class="acct-k">Total Sale Price</span>
-          <span class="acct-v">PKR ${fmt(netAmt)}</span>
-        </div>
-        <div class="acct-row">
-          <span class="acct-k">Total Paid to Date</span>
-          <span class="acct-v" style="color:#16a34a">PKR ${fmt(totalPaid)}</span>
-        </div>
-        <div class="acct-row">
-          <span class="acct-k">Outstanding Balance</span>
-          <span class="acct-v" style="color:${outstanding>0?'#dc2626':'#16a34a'}">PKR ${fmt(outstanding)}</span>
-        </div>
-        <div class="prog-bg">
-          <div class="prog-fill" style="width:${pct}%;background:${progColor}"></div>
-        </div>
-        <div class="prog-pct" style="color:${progColor}">${pct}% Recovered</div>
+      <div class="vacct">
+        <span>Total: <b>PKR ${fmt(netAmt)}</b></span>
+        <span>Paid to date: <b style="color:#16a34a">PKR ${fmt(totalPaid)}</b></span>
+        <span>Outstanding: <b style="color:${outstanding>0?'#dc2626':'#16a34a'}">PKR ${fmt(outstanding)}</b></span>
       </div>` : ''}
 
       <div class="sig-section">
         <div class="sig-box">
-          <div class="sig-lbl">Client Signature &amp; Date</div>
-          <div class="sig-name">${esc(s.client_name||'____________________________')}</div>
-          <div class="sig-role">Client / Buyer</div>
+          <div class="sig-lbl">User${p.created_by ? ' — ' + esc(p.created_by) : ''}</div>
+          <div class="sig-role">Received / Recorded by</div>
         </div>
         <div class="sig-box">
-          <div class="sig-lbl">Authorized Signatory &amp; Stamp</div>
-          <div class="sig-name">${esc(br.signature_name||coName)}</div>
-          <div class="sig-role">${esc(br.signature_title||'Authorized Signatory')}</div>
+          <div class="sig-lbl">${esc(br.signature_name||'Accountant')}</div>
+          <div class="sig-role">${esc(br.signature_title||'Accountant')} — Signature &amp; Stamp</div>
         </div>
       </div>
 
       <div class="doc-footer">
         <span>
-          ${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || 'Computer-generated document. Nexunova RMS.'}
+          ${[br.address_full, br.business_phone, br.ntn_number ? 'NTN: '+br.ntn_number : '', br.footer_text].filter(Boolean).map(esc).join(' · ') || 'Computer-generated receipt. Nexunova RMS.'}
         </span>
         <span>Printed: ${new Date().toLocaleString('en-IN')}</span>
       </div>

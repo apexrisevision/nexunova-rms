@@ -162,7 +162,7 @@ function _rvRender() {
 
   tbl.innerHTML = NX.card(
     '<table class="nx-table nx-table--flush"><thead><tr>' +
-      '<th>Voucher no</th><th>Receipt #</th><th>Date</th><th>Client</th><th>Project / Unit</th><th class="num">Amount</th><th>Mode</th><th>Status</th>' +
+      '<th>Receipt #</th><th>Book #</th><th>Date</th><th>Client</th><th>Project / Unit</th><th class="num">Amount</th><th>Mode</th><th>Status</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table>' + pager, { flush:true });
 }
 
@@ -197,13 +197,22 @@ function _rvShowDetail(paymentId) {
   const detailItem = (label, value, valStyle) =>
     '<div><div class="nx-kpi-label">' + label + '</div><div style="font-size:var(--fk-fs-body);color:var(--fk-text)' + (valStyle ? ';' + valStyle : '') + '">' + value + '</div></div>';
 
+  // position within the current (filtered) list → flip through receipts one-by-one
+  const navList = _rvFiltered.length ? _rvFiltered : _rvList;
+  const pos = navList.findIndex(x => x.id === r.id);
+  const total = navList.length;
   const actions =
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-3)">' +
-      NX.button('Back to list', { variant:'ghost', size:'sm', onclick:'_rvBackToList()' }) +
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:var(--fk-sp-3);flex-wrap:wrap">' +
+      NX.button('Back to list', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'_rvBackToList()' }) +
+      '<span style="width:1px;height:20px;background:var(--fk-border);margin:0 4px"></span>' +
+      NX.button('First', { variant:'secondary', size:'sm', disabled: pos<=0, onclick:"_rvNavTo('first')" }) +
+      NX.button('Prev',  { variant:'secondary', size:'sm', disabled: pos<=0, onclick:"_rvNavTo('prev')" }) +
+      '<span class="nx-kpi-label" style="white-space:nowrap;min-width:64px;text-align:center">' + (total ? (pos+1) + ' of ' + total : '—') + '</span>' +
+      NX.button('Next', { variant:'secondary', size:'sm', disabled: pos<0 || pos>=total-1, onclick:"_rvNavTo('next')" }) +
+      NX.button('Last', { variant:'secondary', size:'sm', disabled: pos<0 || pos>=total-1, onclick:"_rvNavTo('last')" }) +
       '<span style="flex:1"></span>' +
       (!cancelled ? NX.button('Cancel voucher', { variant:'danger', size:'sm', onclick:"_rvCancelFromDetail('" + r.id + "','" + esc(code) + "'," + r.amount + ")" }) : '') +
-      NX.button('A4 Receipt', { variant:'secondary', size:'sm', onclick:"openReceiptReport('" + r.id + "')" }) +
-      NX.button('Print', { variant:'ghost', size:'sm', onclick:'window.print()' }) +
+      NX.button('Print Receipt', { variant:'primary', size:'sm', icon:'printer', onclick:"openReceiptReport('" + r.id + "')" }) +
     '</div>';
 
   const receipt =
@@ -260,6 +269,20 @@ function _rvBackToList() {
   _rvDetail = null;
   document.getElementById('rv-list-view').style.display   = 'block';
   document.getElementById('rv-detail-view').style.display = 'none';
+}
+
+// Flip through receipts one-by-one (within the current filtered list)
+function _rvNavTo(dir) {
+  if (!_rvDetail) return;
+  const list = _rvFiltered.length ? _rvFiltered : _rvList;
+  let i = list.findIndex(x => x.id === _rvDetail.id);
+  if (i < 0) return;
+  if      (dir === 'first') i = 0;
+  else if (dir === 'last')  i = list.length - 1;
+  else if (dir === 'prev')  i = Math.max(0, i - 1);
+  else if (dir === 'next')  i = Math.min(list.length - 1, i + 1);
+  _rvShowDetail(list[i].id);
+  document.getElementById('rv-detail-view')?.scrollIntoView({ block: 'start' });
 }
 
 async function _rvCancelFromDetail(paymentId, code, amount) {
