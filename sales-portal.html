@@ -335,7 +335,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .sb-user-meta span{display:block;font-size:11px;color:var(--fk-text-muted)}
 .appmain{flex:1;min-width:0;display:flex;flex-direction:column}
 .appbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:6px;height:58px;padding:0 18px;background:var(--fk-bar);-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);border-bottom:1px solid var(--fk-border)}
-.appbar-title{font-size:14px;font-weight:700;color:var(--fk-text);letter-spacing:-.02em}
+.appbar-title{font-size:14px;font-weight:700;color:var(--fk-text);letter-spacing:-.02em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
 .appbar-btn{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;background:transparent;color:var(--fk-text-muted);border-radius:8px;cursor:pointer;transition:background .12s,color .12s}
 .appbar-btn:hover{background:var(--fk-bg-subtle);color:var(--fk-text)}
 .appbar-btn svg{width:19px;height:19px}
