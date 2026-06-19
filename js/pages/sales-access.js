@@ -183,6 +183,7 @@ function _saAnnCardHtml() {
       rows: _saAnns.map(a => [
         esc(fdateRsv(a.created_at)),
         `<b>${esc(a.title)}</b>${a.is_important ? ' ' + NX.badge('Important', 'warning') : ''}`
+          + ((a.attachments && a.attachments.length) ? ` <span style="font-size:11px;color:var(--fk-text-muted)">📎 ${a.attachments.length}</span>` : '')
           + `<div style="font-size:11.5px;color:var(--fk-text-muted);max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.body)}</div>`,
         a.group_id ? NX.badge('Umbrella-wide', 'primary') : NX.badge('This company', 'muted'),
         NX.button('Edit', { variant: 'ghost', size: 'sm', icon: 'pencil', onclick: `_saAnnOpen('${a.id}')` })
@@ -196,19 +197,58 @@ function _saAnnCardHtml() {
     { header: { icon: 'megaphone', tone: 'primary', title: 'Dealer Updates', sub: _saAnns.length ? _saAnns.length + ' posted' : '', actions: compose }, flush: true });
 }
 
+let _saAnnFiles = [];   // [{url,name,type}] attachments being composed
 function _saAnnOpen(id) {
   const a = id ? (_saAnns.find(x => x.id === id) || {}) : {};
+  _saAnnFiles = Array.isArray(a.attachments) ? a.attachments.slice() : [];
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     id: 'sa-ann-modal', title: id ? 'Edit update' : 'New update', size: 'm', onClose: '_saCloseModal()',
     body:
       NX.field({ label: 'Title', name: 'ann-title', el: 'input', value: a.title || '', attrs: 'placeholder="e.g. Rate revision — June 2026" maxlength="160"' })
       + NX.field({ label: 'Message', name: 'ann-body', el: 'textarea', value: a.body || '', attrs: 'rows="6" placeholder="Write the notice your sub-dealers should see…"' })
+      + `<div class="nx-field"><label class="nx-label">Attachments <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· images or PDF, optional</span></label>
+           <div id="ann-attach-prev" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+           <input type="file" id="ann-attach-file" accept="image/*,application/pdf" multiple style="display:none" onchange="_saAnnPick(this)">
+           ${NX.button('Attach files', { variant: 'secondary', size: 'sm', icon: 'image', onclick: "document.getElementById('ann-attach-file').click()" })}
+         </div>`
       + `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:var(--fk-sp-2);cursor:pointer"><input type="checkbox" id="ann-important"${a.is_important ? ' checked' : ''}> Mark as <b>important</b> (highlighted on the dealer's home)</label>`
       + `<div class="nx-error" id="ann-err" style="display:none"></div>`,
     footer:
       NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' })
       + NX.button(id ? 'Save changes' : 'Post update', { variant: 'primary', onclick: `_saAnnSave(${id ? `'${id}'` : ''})` })
   }));
+  _saAnnRenderAttach();
+}
+
+function _saAnnRenderAttach() {
+  const box = document.getElementById('ann-attach-prev'); if (!box) return;
+  if (!_saAnnFiles.length) { box.innerHTML = ''; return; }
+  box.innerHTML = _saAnnFiles.map((f, i) => {
+    const isImg = (f.type || '').startsWith('image/');
+    const thumb = isImg
+      ? `<img src="${esc(f.url)}" style="width:100%;height:100%;object-fit:cover">`
+      : `<div style="display:grid;place-items:center;height:100%;font-size:10px;font-weight:700;color:var(--fk-text-muted)">PDF</div>`;
+    return `<div style="position:relative;width:62px;height:62px;border:1px solid var(--fk-border);border-radius:8px;overflow:hidden;background:var(--fk-bg-subtle)" title="${esc(f.name || '')}">
+        ${thumb}
+        <button type="button" onclick="_saAnnRmAttach(${i})" style="position:absolute;top:1px;right:1px;width:18px;height:18px;border:0;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:18px;cursor:pointer">×</button>
+      </div>`;
+  }).join('');
+}
+function _saAnnRmAttach(i) { _saAnnFiles.splice(i, 1); _saAnnRenderAttach(); }
+async function _saAnnPick(input) {
+  const files = Array.from(input.files || []); input.value = '';
+  for (const file of files) {
+    if (typeof toast === 'function') toast('Uploading ' + file.name + '…', 'info');
+    try {
+      const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
+      const path = (S && S.cid ? S.cid : 'shared') + '/announcements/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+      const res = await supabase.storage.from('rms-documents').upload(path, file, { upsert: true, contentType: file.type || undefined });
+      if (res.error) throw res.error;
+      const url = supabase.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
+      _saAnnFiles.push({ url, name: file.name, type: file.type || '' });
+      _saAnnRenderAttach();
+    } catch (e) { if (typeof toast === 'function') toast('Upload failed: ' + (e.message || e), 'err'); }
+  }
 }
 
 async function _saAnnSave(id) {
@@ -217,10 +257,11 @@ async function _saAnnSave(id) {
   const important = !!(document.getElementById('ann-important') || {}).checked;
   const err = document.getElementById('ann-err');
   if (!title.trim() || !body.trim()) { if (err) { err.style.display = 'block'; err.textContent = 'Title and message are required.'; } return; }
+  const attachments = _saAnnFiles.slice();
   try {
     const { data } = id
-      ? await supabase.rpc('update_sales_announcement', { p_id: id, p_title: title, p_body: body, p_important: important })
-      : await supabase.rpc('create_sales_announcement', { p_company_id: S.cid, p_title: title, p_body: body, p_important: important });
+      ? await supabase.rpc('update_sales_announcement', { p_id: id, p_title: title, p_body: body, p_important: important, p_attachments: attachments })
+      : await supabase.rpc('create_sales_announcement', { p_company_id: S.cid, p_title: title, p_body: body, p_important: important, p_attachments: attachments });
     if (!data || !data.success) { if (err) { err.style.display = 'block'; err.textContent = (data && data.message) || 'Could not save. Admin access required.'; } return; }
     _saCloseModal();
     if (typeof toast === 'function') toast(id ? 'Update saved' : 'Update posted to your sub-dealers', 'ok');
