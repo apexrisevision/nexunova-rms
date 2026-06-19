@@ -899,6 +899,13 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
     <nav class="sb-nav">
       <a class="ni" data-tab="home" onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span></a>
       <a class="ni" data-tab="leads" data-lead onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
+      <div class="ni-grp" data-grp="manage" data-mgr style="display:none">
+        <div class="ni-grp-hd" onclick="toggleGroup('manage')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">Management</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="ni-sub">
+          <a class="ni-child" data-tab="team" onclick="setTab('team')"><span class="ni-lb">My Team</span></a>
+          <a class="ni-child" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
+        </div>
+      </div>
       <div class="ni-grp" data-grp="sales">
         <div class="ni-grp-hd" onclick="toggleGroup('sales')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h4a1 1 0 0 1 1 1v11"/></svg></span><span class="ni-lb">Sale / Reservation</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
         <div class="ni-sub">
@@ -1220,6 +1227,8 @@ let AGREE_GATE=null;
 function _applyLeadAccess(){
   const noLeads = ME && (ME.role==='admin'||ME.role==='cfo');   // CFO/Admin don't handle leads
   document.querySelectorAll('.ni[data-lead]').forEach(t=>{ t.style.display = noLeads ? 'none' : ''; });
+  const isMgr = ME && ME.role==='marketing_manager';            // Manager-only sections (Team + Distribute). Director ≠ Manager.
+  document.querySelectorAll('[data-mgr]').forEach(t=>{ t.style.display = isMgr ? '' : 'none'; });
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); }
 async function enterApp(){
@@ -1284,7 +1293,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile'};
+const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='home') renderHome();
@@ -1298,6 +1307,8 @@ function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(N
   else if(t==='rank') renderLeaderboard();
   else if(t==='updates'){ ANN.open=null; renderUpdates(); }
   else if(t==='mine') renderMine();
+  else if(t==='team') renderTeam();
+  else if(t==='distribute') renderDistribute();
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
   document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="'+t+'"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
@@ -2038,9 +2049,78 @@ async function openAssign(id){
 }
 async function _assignTo(leadId,toId){
   try{ const {data}=await sb.rpc('assign_lead',{p_session_token:TOKEN,p_lead_id:leadId,p_to_id:toId});
-    if(data&&data.success){ closeModal(); toast('Handed to '+(data.to_name||'team'),'ok'); renderLeadDetail(leadId); }
+    if(data&&data.success){ closeModal(); toast('Handed to '+(data.to_name||'team'),'ok');
+      if(TAB==='distribute') renderDistribute(); else if(TAB==='team') renderTeam(); else renderLeadDetail(leadId); }
     else toast((data&&data.message)||'Could not assign','err');
   }catch(e){ toast('Could not assign','err'); }
+}
+function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div></div>'; }
+// ════ Manager — My Team (roster + per-agent numbers) ════
+async function renderTeam(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_my_team',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  _touch();
+  const team=data.team||[], T=data.totals||{};
+  const kpi=(label,val,onclick)=>`<div class="dkpi" onclick="${onclick||''}"><div class="dkpi-l">${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
+  let html=_pageHead('My Team','Your sub-agents and their numbers.');
+  html+='<div class="dgrid">'
+    + kpi('Agents', data.count, "")
+    + kpi('Team sales', pkrShort(T.sales_value)||'₨0', "")
+    + kpi('To collect', pkrShort(T.outstanding)||'₨0', "")
+    + kpi('Open pipeline', T.pipeline||0, "")
+    + '</div>';
+  if(!team.length){ html+=_emptyCard('No sub-agents under you yet','Your office places agents under you — then they appear here with their numbers.'); }
+  else { html+='<div class="dsec">Agents</div>'+team.map(_teamRow).join(''); }
+  $('app-body').innerHTML=html;
+}
+function _teamRow(a){
+  const wa=_waNum(a.phone);
+  return `<div class="card listc" style="padding:12px 13px;margin-bottom:9px">
+    <div style="display:flex;align-items:center;gap:11px">
+      ${_avatar(a.name)}
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))} · ${a.conversion}% conv.</div></div>
+      <div style="text-align:right"><div style="font-weight:700;font-size:14px">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-hairline);font-size:11px;color:var(--fk-text-muted)">
+      <span>Pipeline <b style="color:var(--fk-text)">${a.pipeline}</b></span>
+      <span>Won <b style="color:var(--fk-text)">${a.won}</b></span>
+      <span>Due <b style="color:var(--fk-text)">${esc(pkrShort(a.outstanding)||'₨0')}</b></span>
+      ${a.phone?`<span style="display:flex;gap:6px"><a class="btn btn-sm" href="tel:${esc(a.phone)}" style="text-decoration:none">Call</a>${wa?`<a class="btn btn-sm" href="https://wa.me/${wa}" target="_blank" rel="noopener" style="text-decoration:none">WA</a>`:''}</span>`:''}
+    </div>
+  </div>`;
+}
+// ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
+async function renderDistribute(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  let rU,rL;
+  try{ [rU,rL]=await Promise.all([sb.rpc('get_assignable_users',{p_session_token:TOKEN}), sb.rpc('list_my_leads',{p_session_token:TOKEN})]); }
+  catch(e){ return sessionGone(); }
+  if(rL.data&&rL.data.success===false&&rL.data.error==='session_expired') return sessionGone();
+  _touch();
+  const cfg=(rU.data)||{};
+  let html=_pageHead('Distribute leads','Hand your leads to your sub-agents.');
+  if(!cfg.success||!cfg.can_assign){ html+=_emptyCard('Distribution not available','Your role can’t hand leads down.'); $('app-body').innerHTML=html; return; }
+  const team=cfg.users||[];
+  const leads=(((rL.data)&&rL.data.leads)||[]).filter(l=>l.is_mine && l.status!=='won' && l.status!=='lost');
+  if(team.length){
+    html+=`<div class="dsec">Your ${esc(cfg.assigns_to_label||'team')}</div><div class="card" style="padding:2px 14px">`;
+    html+=team.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span>${esc(u.name)}${u.mine?'':' <span style="color:var(--fk-text-muted);font-size:11px">· other team</span>'}</span><b class="num">${u.open_leads} open</b></div>`).join('');
+    html+='</div>';
+  }
+  html+=`<div class="dsec">Leads to assign <span class="nb">${leads.length}</span></div>`;
+  if(!leads.length){ html+=_emptyCard('All caught up','None of your leads are waiting to be handed down.'); }
+  else { html+=leads.map(_distRow).join(''); }
+  $('app-body').innerHTML=html;
+}
+function _distRow(l){
+  return `<div class="card listc" style="padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:11px">
+    ${_avatar(l.name,38)}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</div></div>
+    <button class="btn btn-primary btn-sm" onclick="openAssign('${l.id}')">Assign</button>
+  </div>`;
 }
 
 // ════ More (overflow hub — leaderboard · recovery · updates · account) ════
