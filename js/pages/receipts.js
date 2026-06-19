@@ -45,7 +45,8 @@ function rReceipts() {
       '.rv-acc-item:hover{background:var(--fk-bg-subtle)}' +
     '</style>' +
     NX.pageHeader('Receipt Vouchers',
-      NX.button('Browse all', { variant:'ghost', size:'sm', icon:'list', onclick:'_rvShowListView()' })) +
+      NX.button('Add Voucher', { variant:'primary', size:'sm', icon:'plus', onclick:'_rvNewVoucher()' }) +
+      ' ' + NX.button('Browse all', { variant:'ghost', size:'sm', icon:'list', onclick:'_rvShowListView()' })) +
     // ── always-on top bar: search a client / unit and start a receiving ──
     NX.card(
       '<div class="nx-field" style="margin:0"><label class="nx-label">Receive from — search client or unit no</label>' +
@@ -242,8 +243,9 @@ function _rvShowDetail(paymentId) {
       NX.button('Next', { variant:'secondary', size:'sm', disabled: pos<0 || pos>=total-1, onclick:"_rvNavTo('next')" }) +
       NX.button('Last', { variant:'secondary', size:'sm', disabled: pos<0 || pos>=total-1, onclick:"_rvNavTo('last')" }) +
       '<span style="flex:1"></span>' +
+      NX.button('Add Voucher', { variant:'primary', size:'sm', icon:'plus', onclick:'_rvNewVoucher()' }) +
       (!cancelled ? NX.button('Cancel voucher', { variant:'danger', size:'sm', onclick:"_rvCancelFromDetail('" + r.id + "','" + esc(code) + "'," + r.amount + ")" }) : '') +
-      NX.button('Print Receipt', { variant:'primary', size:'sm', icon:'printer', onclick:"openReceiptReport('" + r.id + "')" }) +
+      NX.button('Print Receipt', { variant:'secondary', size:'sm', icon:'printer', onclick:"openReceiptReport('" + r.id + "')" }) +
     '</div>';
 
   const receipt =
@@ -350,32 +352,81 @@ function _rvAccSearch(q) {
   wrap.style.display = 'block';
 }
 
-// ── pick an account from the top bar → render the new-receiving form ──
-async function _rvReceiveFrom(unitId) {
-  _rvEntry = { unitId, summary:null };
+// ── Add Voucher: open the new-receiving view (inline account search → form) ──
+function _rvNewVoucher() {
+  _rvEntry = { unitId:null, summary:null };
   _rvView = 'entry';
-  const res = document.getElementById('rv-acc-results'); if (res) { res.innerHTML = ''; res.style.display = 'none'; }
-  const q = document.getElementById('rv-acc-q'); if (q) q.value = '';
   document.getElementById('rv-detail-view').style.display = 'none';
   document.getElementById('rv-list-view').style.display   = 'none';
   const ev = document.getElementById('rv-entry-view'); ev.style.display = 'block';
-  const hdr =
+  ev.innerHTML =
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-3)">' +
       NX.button('Cancel', { variant:'ghost', size:'sm', icon:'arrow-left', onclick:'_rvOpenLast()' }) +
       '<span style="font-weight:600;color:var(--fk-text)">New Receipt Voucher</span>' +
-    '</div>';
-  ev.innerHTML = hdr + NX.card(NX.empty({ icon:'info', message:'Loading account…' }));
+    '</div>' +
+    NX.card(
+      '<div class="nx-field" style="margin-bottom:0"><label class="nx-label">1 — Find the account (client / unit / project)</label>' +
+        '<input class="nx-input" id="rve-q" autocomplete="off" placeholder="Search client name or unit no…" ' +
+        'oninput="clearTimeout(_rvEntrySearchTimer);_rvEntrySearchTimer=setTimeout(()=>_rvEntryRenderAccounts(this.value),160)"></div>' +
+      '<div id="rve-results" style="margin-top:var(--fk-sp-2);max-height:260px;overflow:auto"></div>',
+      { compact:true }) +
+    '<div id="rve-form" style="display:none;margin-top:var(--fk-sp-3)"></div>';
+  _rvEntryRenderAccounts('');
+  document.getElementById('rve-q')?.focus();
+}
+
+function _rvEntryRenderAccounts(q) {
+  const wrap = document.getElementById('rve-results'); if (!wrap) return;
+  const query = (q || '').trim().toLowerCase();
+  const projName = id => { const p = (typeof gproject==='function') ? gproject(id) : null; return p ? (p.name||p.projectName||'') : ''; };
+  const rows = (typeof gunits === 'function' ? gunits() : (window._unitsCache || []))
+    .filter(u => u.isAvailable === false)
+    .filter(u => !query
+      || (u.customerName||'').toLowerCase().includes(query)
+      || (u.unitNo||'').toLowerCase().includes(query)
+      || projName(u.projectId).toLowerCase().includes(query))
+    .sort((a,b) => Number(b.pendingAmount||0) - Number(a.pendingAmount||0))
+    .slice(0, 50)
+    .map(u => {
+      const pend = Number(u.pendingAmount||0);
+      const sel = _rvEntry && _rvEntry.unitId === u.id;
+      return '<tr style="cursor:pointer'+(sel?';background:var(--fk-primary-surface,#eef2ff)':'')+'" onclick="_rvEntryPick(\''+u.id+'\')">' +
+        '<td>'+NX.esc(u.customerName||'—')+'</td>' +
+        '<td>'+NX.esc(u.unitNo||'—')+(projName(u.projectId)?' · <span style="color:var(--fk-text-muted)">'+NX.esc(projName(u.projectId))+'</span>':'')+'</td>' +
+        '<td class="num" style="text-align:right">'+(pend<=0?NX.badge('Paid','success'):('PKR '+fM(pend)))+'</td></tr>';
+    }).join('');
+  wrap.innerHTML = rows
+    ? '<table class="nx-table nx-table--flush"><thead><tr><th>Client</th><th>Unit / Project</th><th class="num">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div style="padding:14px;text-align:center;color:var(--fk-text-muted);font-size:13px">No matching sold units.</div>';
+}
+
+async function _rvEntryPick(unitId) {
+  if (!document.getElementById('rve-form')) _rvNewVoucher();   // ensure the entry view exists
+  _rvEntry.unitId = unitId;
+  _rvEntryRenderAccounts(document.getElementById('rve-q')?.value || '');
+  const form = document.getElementById('rve-form');
+  form.style.display = 'block';
+  form.innerHTML = NX.card(NX.empty({ icon:'info', message:'Loading account…' }));
   try {
     const { data, error } = await supabase.rpc('get_unit_payment_summary', { p_unit_id: unitId, p_company_id: S.cid });
     if (error) throw error;
     if (!data || !data.success) throw new Error(data?.error || 'No sale found for this unit');
     _rvEntry.summary = data;
-    ev.innerHTML = hdr + _rvEntryFormHtml(data);
+    form.innerHTML = _rvEntryFormHtml(data);
     _rvEntryModeChange();
     document.getElementById('rve-amount')?.focus();
+    form.scrollIntoView({ behavior:'smooth', block:'start' });
   } catch (e) {
-    ev.innerHTML = hdr + NX.card(NX.empty({ icon:'alert-triangle', message:'Failed to load account — ' + (e.message || 'error') }));
+    form.innerHTML = NX.card(NX.empty({ icon:'alert-triangle', message:'Failed to load account — ' + (e.message || 'error') }));
   }
+}
+
+// top-bar shortcut: pick an account from the search dropdown → straight to its form
+function _rvReceiveFrom(unitId) {
+  const res = document.getElementById('rv-acc-results'); if (res) { res.innerHTML = ''; res.style.display = 'none'; }
+  const q = document.getElementById('rv-acc-q'); if (q) q.value = '';
+  _rvNewVoucher();
+  _rvEntryPick(unitId);
 }
 
 function _rvEntryFormHtml(data) {
