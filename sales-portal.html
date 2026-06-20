@@ -2983,10 +2983,11 @@ async function renderTeamRecovery(){
   const team=(data.team||[]).slice().sort((a,b)=>Number(b.outstanding||0)-Number(a.outstanding||0));
   const T=data.totals||{};
   const withDue=team.filter(a=>Number(a.outstanding||0)>0);
-  let html=_pageHead('Team Recovery','Outstanding to collect across your team.');
-  html+=`<div class="herometric"><div class="hm-eyebrow">Team outstanding</div><div class="hm-big">${pkrShort(T.outstanding)||'₨0'}</div><div class="hm-sub">${team.length} agent${team.length==1?'':'s'} · ${withDue.length} with dues</div></div>`;
+  let html='<div class="nx-dash">'+_pageHead('Team Recovery','Outstanding to collect across your team.');
+  html+=`<div class="herometric"><div class="hm-eyebrow">Team outstanding</div><div class="hm-big" style="font-variant-numeric:tabular-nums">${pkrShort(T.outstanding)||'₨0'}</div><div class="hm-sub">${team.length} agent${team.length==1?'':'s'} · ${withDue.length} with dues</div></div>`;
   if(!withDue.length){ html+=_emptyCard('All clear','No outstanding across your team right now.'); }
   else { html+='<div class="dsec">By agent</div><div class="lgroup">'+withDue.map(_recAgentRow).join('')+'</div>'; }
+  html+='</div>';
   $('app-body').innerHTML=html;
 }
 function _recAgentRow(a){
@@ -3012,11 +3013,14 @@ async function renderTargets(){
   _touch(); TARGETS_DATA=data;
   const agents=data.agents||[], T=data.totals||{};
   const pctU=T.target_units>0?Math.round(T.actual_units*100/T.target_units):0;
-  let html=_pageHead('Targets','Set and track monthly goals for your team.');
-  html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn btn-sm" onclick="_targetShift(-1)">‹</button><div style="flex:1;text-align:center;font-weight:700;font-size:14px">${esc(_periodLabel(TARGET_PERIOD))}</div><button class="btn btn-sm" onclick="_targetShift(1)">›</button></div>`;
-  html+=`<div class="herometric"><div class="hm-eyebrow">Team — units sold vs target</div><div class="hm-big">${T.actual_units||0} <span style="font-size:18px;color:var(--fk-text-muted);font-weight:600">/ ${T.target_units||0}</span></div>${_progBar(pctU)}<div class="hm-sub" style="margin-top:8px">Value ${pkrShort(T.actual_value)||'₨0'} / ${pkrShort(T.target_value)||'₨0'}</div></div>`;
+  const chL='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+  const chR='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+  let html='<div class="nx-dash">'+_pageHead('Targets','Set and track monthly goals for your team.');
+  html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--fk-sp-3)"><button class="btn btn-sm" onclick="_targetShift(-1)" aria-label="Previous month" style="padding:0 9px">${chL}</button><div style="flex:1;text-align:center;font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title)">${esc(_periodLabel(TARGET_PERIOD))}</div><button class="btn btn-sm" onclick="_targetShift(1)" aria-label="Next month" style="padding:0 9px">${chR}</button></div>`;
+  html+=`<div class="herometric"><div class="hm-eyebrow">Team — units sold vs target</div><div class="hm-big" style="font-variant-numeric:tabular-nums">${T.actual_units||0} <span style="font-size:var(--fk-fs-page);color:var(--fk-text-muted);font-weight:var(--fk-fw-semibold)">/ ${T.target_units||0}</span></div>${_progBar(pctU)}<div class="hm-sub" style="margin-top:8px">Value ${pkrShort(T.actual_value)||'₨0'} / ${pkrShort(T.target_value)||'₨0'}</div></div>`;
   if(!agents.length){ html+=_emptyCard('No team yet','Add team members first, then set their targets.'); }
   else { html+='<div class="dsec">Per agent</div><div class="lgroup">'+agents.map(_targetRow).join('')+'</div>'; }
+  html+='</div>';
   $('app-body').innerHTML=html;
 }
 function _targetRow(a){
@@ -3559,26 +3563,32 @@ async function renderMemberPerf(){
   _touch();
   const L=d.leads||{}, A=d.activity||{}, S=d.sales||{};
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Performance';
-  let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
-  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' · whole team':''}</div></div></div>`;
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
+  const numv=(to,fmt,suf)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>${suf||''}`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  let html='<div class="nx-dash"><button class="backbtn" onclick="_orgBack()" style="margin-bottom:var(--fk-sp-3)">‹ Org Map</button>';
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:var(--fk-sp-3)">${_avatarC(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-title);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' · whole team':''}</div></div></div>`;
   if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
   html+=_seg([['month','This month'],['last','Last month'],['all','All time']], MEMBER_PERIOD, '_setMemPeriod');
   html+='<div class="dgrid">'
-    +`<div class="dkpi"><div class="dkpi-l">Leads</div><div class="dkpi-v">${L.total||0}</div></div>`
-    +`<div class="dkpi"><div class="dkpi-l">Conversion</div><div class="dkpi-v">${d.conversion||0}%</div></div>`
-    +`<div class="dkpi"><div class="dkpi-l">Sales</div><div class="dkpi-v">${S.count||0}</div></div>`
-    +`<div class="dkpi"><div class="dkpi-l">Sales value</div><div class="dkpi-v" style="font-size:16px">${pkrShort(S.value)||'₨0'}</div></div>`
-    +'</div>';
-  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Pipeline funnel</div><div class="card" style="padding:14px 14px 4px">`;
-  const stages=[['new','New','var(--fk-primary)'],['contacted','Contacted','var(--fk-warning)'],['visit','Visit','var(--fk-warning)'],['negotiation','Negotiation','var(--fk-success)'],['won','Won','var(--fk-success)'],['lost','Lost','var(--fk-danger)']];
+    + kpi('Leads', numv(L.total,'int'), 'indigo', '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')
+    + kpi('Conversion', numv(d.conversion,'int','%'), 'emerald', '<path d="M20 6 9 17l-5-5"/>')
+    + kpi('Sales', numv(S.count,'int'), 'amber', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
+    + kpi('Sales value', numv(S.value,'pkr'), 'violet', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    + '</div>';
+  html+='<div class="dsec">Pipeline funnel</div><div class="card pf-card">';
+  const stages=[['new','New'],['contacted','Contacted'],['visit','Visit'],['negotiation','Negotiation'],['won','Won'],['lost','Lost']];
   const mx=Math.max(1,Number(L.total||1));
-  stages.forEach(([k,lb,col])=>{ const v=Number(L[k]||0),pct=Math.round(v/mx*100); html+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:600">${lb}</span><b>${v}</b></div><div style="height:8px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px"></div></div></div>`; });
+  stages.forEach(([k,lb])=>{ const v=Number(L[k]||0),pct=Math.round(v/mx*100); html+=`<div class="pf-row"><div class="pf-head"><span class="pf-lb">${lb}</span><b class="pf-n">${v}</b></div><div class="pf-track"><i style="width:${pct}%;background:${_leadColor(k)}"></i></div></div>`; });
   html+='</div>';
-  const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><b>${esc(String(v))}</b></div>`;
-  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Activity & money</div><div class="card" style="padding:4px 14px">`
-    +fld('Calls',A.call||0)+fld('WhatsApp',A.whatsapp||0)+fld('Visits',A.visit||0)+fld('Meetings',A.meeting||0)
-    +fld('Outstanding', pkrShort(d.outstanding)||'₨0')+'</div>';
+  const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:var(--fk-fs-body)"><span style="color:var(--fk-text-muted)">${esc(l)}</span><b style="font-variant-numeric:tabular-nums">${esc(String(v))}</b></div>`;
+  html+='<div class="dsec">Activity</div><div class="card" style="padding:4px 14px">'
+    +fld('Calls',A.call||0)+fld('WhatsApp',A.whatsapp||0)+fld('Visits',A.visit||0)+fld('Meetings',A.meeting||0)+'</div>';
+  html+='<div class="dsec">Money</div><div class="card" style="padding:4px 14px">'+fld('Outstanding', pkrShort(d.outstanding)||'₨0')+'</div>';
+  html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 async function renderMemberLeads(){
   const id=ORG_VIEW.member, node=_orgFind(id), head=node&&Number(node.reports||0)>0;
@@ -3588,18 +3598,21 @@ async function renderMemberLeads(){
   _touch();
   const leads=d.leads||[];
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Leads';
-  let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
-  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Leads</div></div></div>`;
+  let html='<div class="nx-dash"><button class="backbtn" onclick="_orgBack()" style="margin-bottom:var(--fk-sp-3)">‹ Org Map</button>';
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:var(--fk-sp-3)">${_avatarC(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-title);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Leads</div></div></div>`;
   if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
-  if(!leads.length){ html+=_emptyCard('No leads','No leads in this view yet.'); $('app-body').innerHTML=html; return; }
+  if(!leads.length){ html+=_emptyCard('No leads','No leads in this view yet.'); html+='</div>'; $('app-body').innerHTML=html; return; }
+  const PT={new:['var(--fk-primary-surface)','var(--fk-primary)'],contacted:['var(--fk-warning-surface)','var(--fk-warning)'],visit:['var(--fk-info-surface)','var(--fk-info)'],negotiation:['var(--nx-violet-soft)','var(--nx-violet)'],won:['var(--fk-success-surface)','var(--fk-success)'],lost:['var(--fk-bg-subtle)','var(--fk-text-muted)']};
+  const statusPill=(s)=>{ const t=PT[s]||PT.lost; return `<span class="spill" style="background:${t[0]};border-color:transparent;color:${t[1]};white-space:nowrap">${esc(_leadStageLabel(s)||(s||'').replace(/_/g,' '))}</span>`; };
   html+=`<div class="dsec">Leads <span class="nb">${leads.length}</span></div><div class="lgroup">`;
   leads.forEach(l=>{
     html+=`<div class="lrow"><div class="lrow-top">
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name||'Lead')}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.phone||'')}${l.owner_name?' · '+esc(l.owner_name):''}${l.source?' · '+esc(l.source):''}</div></div>
-      <span style="font-size:11px;font-weight:700;color:var(--fk-text-muted);text-transform:capitalize">${esc((l.status||'').replace(/_/g,' '))}</span>
+      ${_avatarC(l.name||'Lead',36)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name||'Lead')}</div><div class="lr-sub"><span>${esc(l.phone||'')}${l.owner_name?' · '+esc(l.owner_name):''}${l.source?' · '+esc(l.source):''}</span></div></div>
+      ${statusPill(l.status)}
     </div></div>`;
   });
-  html+='</div>';
+  html+='</div></div>';
   $('app-body').innerHTML=html;
 }
 function _perfRange(p){
