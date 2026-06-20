@@ -2775,21 +2775,22 @@ async function _renderAgentLoc(id){
   el.innerHTML=`<div class="dsec">Location</div><div class="card">${_mapEmbed(d.lat,d.lng)}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><div style="font-size:13px"><div style="font-weight:600">${esc(d.label||'Location')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Updated ${d.at?esc(_agoTxt(d.at)):'—'}</div></div><a class="btn btn-sm" href="${_mapLink(d.lat,d.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div></div>`;
 }
 // ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
-let _gmapsLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_KEY=null, LIVE_FILTER='all';
-// Google rejects a bad key / disallowed referrer via this global — show a clear message
-window.gm_authFailure=function(){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Google rejected the Maps key</div><div class="es">In Google Cloud → this API key → add <b>rms.nexunova.com/*</b> to website restrictions, and make sure <b>Maps JavaScript API</b> + billing are enabled.</div></div>'; };
-function _loadGMaps(key){
-  if(window.google && window.google.maps) return Promise.resolve();
-  if(_gmapsLoading) return _gmapsLoading;
-  _gmapsLoading=new Promise((res,rej)=>{
-    window.__gmapsReady=function(){ res(); };
+let _leafLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_FILTER='all';
+// Leaflet + OpenStreetMap — free, no API key, no billing.
+function _loadLeaflet(){
+  if(window.L && window.L.map) return Promise.resolve();
+  if(_leafLoading) return _leafLoading;
+  _leafLoading=new Promise((res,rej)=>{
+    if(!document.getElementById('leaflet-css')){
+      const lk=document.createElement('link'); lk.id='leaflet-css'; lk.rel='stylesheet';
+      lk.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(lk);
+    }
     const s=document.createElement('script');
-    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&callback=__gmapsReady';
-    s.async=true;
-    s.onerror=()=>{ _gmapsLoading=null; rej(new Error('load failed')); };
+    s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.async=true; s.onload=()=>res(); s.onerror=()=>{ _leafLoading=null; rej(new Error('load failed')); };
     document.head.appendChild(s);
   });
-  return _gmapsLoading;
+  return _leafLoading;
 }
 function _staleness(at){ if(!at) return 'old'; const m=Math.floor((Date.now()-new Date(at).getTime())/60000); return m<30?'fresh':(m<120?'stale':'old'); }
 const _STALE_COL={fresh:'#16A34A',stale:'#D97706',old:'#94A3B8'};
@@ -2813,54 +2814,39 @@ async function renderLiveMap(){
   catch(e){ return sessionGone(); }
   if(!data||!data.success){ return sessionGone(); }
   _touch();
-  LIVE_PINS=data.pins||[]; LIVE_KEY=data.maps_api_key||null;
-  const isDir=ME&&ME.role==='director';
-  let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
-  if(!LIVE_KEY){
-    html+=_liveListHtml();
-    html+=`<div class="dsec">Interactive map (optional)</div>`;
-    html+=_emptyCard('Add a Google Maps key for the live map', isDir?'The list above already works. For an interactive map with pins, add a Google Maps key below.':'Ask your director to add a Google Maps key for the interactive map.');
-    if(isDir){
-      html+=`<div class="card"><div class="field"><label class="label">Google Maps API key</label><input class="input" id="mapskey" placeholder="AIza…" autocomplete="off"></div><button class="btn btn-primary btn-full" onclick="_saveMapsKey()">Save key</button><div style="font-size:12px;color:var(--fk-text-muted);margin-top:8px">Google Cloud → enable <b>Maps JavaScript API</b> + <b>billing</b> on the key's project, then create/use the key.</div></div>`;
-    }
-    $('app-body').innerHTML=html; return;
-  }
+  LIVE_PINS=data.pins||[];
   const counts={all:LIVE_PINS.length,fresh:0,stale:0,old:0};
   LIVE_PINS.forEach(p=>{ counts[_staleness(p.at)]++; });
+  let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
   const seg=(k,lb)=>{ const on=LIVE_FILTER===k; return `<button onclick="LIVE_FILTER='${k}';_liveRenderMarkers(true)" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">${lb} ${counts[k]||0}</button>`; };
   html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${seg('all','All')}${seg('fresh','Active')}${seg('stale','Inactive')}${seg('old','Offline')}</div>`;
-  html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle)"></div>`;
+  html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
   html+=_liveListHtml();
   $('app-body').innerHTML=html;
-  try{ await _loadGMaps(LIVE_KEY); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Failed to load Google Maps</div><div class="es">Check the API key / billing in Google Cloud.</div></div>'; return; }
+  try{ await _loadLeaflet(); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Map could not load</div><div class="es">Check your internet connection and try again.</div></div>'; return; }
   _liveInitMap();
 }
 function _liveInitMap(){
-  const el=$('livemap-canvas'); if(!el||!window.google||!window.google.maps) return;
-  _liveMap=new google.maps.Map(el,{center:{lat:30.3753,lng:69.3451},zoom:6,streetViewControl:false,mapTypeControl:false,fullscreenControl:true});
+  const el=$('livemap-canvas'); if(!el||!window.L) return;
+  if(_liveMap){ try{ _liveMap.remove(); }catch(e){} _liveMap=null; }
+  el.innerHTML='';
+  _liveMap=L.map(el,{zoomControl:true}).setView([30.3753,69.3451],6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_liveMap);
+  setTimeout(()=>{ try{ _liveMap.invalidateSize(); }catch(e){} },200);
   _liveRenderMarkers(true);
 }
 function _liveRenderMarkers(fit){
-  if(!_liveMap||!window.google) return;
-  _liveMarkers.forEach(m=>m.setMap(null)); _liveMarkers=[];
+  if(!_liveMap||!window.L) return;
+  _liveMarkers.forEach(m=>{ try{ _liveMap.removeLayer(m); }catch(e){} }); _liveMarkers=[];
   const pins=LIVE_PINS.filter(p=>LIVE_FILTER==='all'||_staleness(p.at)===LIVE_FILTER);
-  const bounds=new google.maps.LatLngBounds();
+  const latlngs=[];
   pins.forEach(p=>{
-    const st=_staleness(p.at), pos={lat:Number(p.lat),lng:Number(p.lng)};
-    const mk=new google.maps.Marker({position:pos,map:_liveMap,title:p.name,
-      icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:_STALE_COL[st],fillOpacity:st==='old'?0.5:1,strokeColor:'#fff',strokeWeight:2.5},
-      label:{text:((p.name||'?')[0]||'?').toUpperCase(),color:'#fff',fontSize:'11px',fontWeight:'700'}});
-    const iw=new google.maps.InfoWindow({content:`<div style="font-family:Inter,sans-serif;min-width:150px"><b>${esc(p.name||'')}</b><div style="font-size:12px;color:#666">${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}</div>${p.label?`<div style="font-size:12px;color:#666">${esc(p.label)}</div>`:''}</div>`});
-    mk.addListener('click',()=>iw.open(_liveMap,mk));
-    _liveMarkers.push(mk); bounds.extend(pos);
+    const st=_staleness(p.at), ll=[Number(p.lat),Number(p.lng)];
+    const mk=L.circleMarker(ll,{radius:9,fillColor:_STALE_COL[st],fillOpacity:st==='old'?0.5:1,color:'#fff',weight:2.5}).addTo(_liveMap);
+    mk.bindPopup('<div style="font-family:Inter,sans-serif;min-width:140px"><b>'+esc(p.name||'')+'</b><br><span style="font-size:12px;color:#666">'+esc(_portalRoleLabel(p.role))+' · '+(p.at?esc(_agoTxt(p.at)):'—')+'</span>'+(p.label?'<br><span style="font-size:12px;color:#666">'+esc(p.label)+'</span>':'')+'</div>');
+    _liveMarkers.push(mk); latlngs.push(ll);
   });
-  if(fit && pins.length){ _liveMap.fitBounds(bounds,60); if(pins.length===1) _liveMap.setZoom(14); }
-}
-async function _saveMapsKey(){
-  const k=(($('mapskey')||{}).value||'').trim(); if(!k){ toast('Enter the key','err'); return; }
-  try{ const {data}=await sb.rpc('save_maps_key',{p_session_token:TOKEN,p_key:k});
-    if(data&&data.success){ toast('Saved','ok'); renderLiveMap(); } else toast((data&&data.message)||'Could not save','err');
-  }catch(e){ toast('Could not save','err'); }
+  if(fit && latlngs.length){ if(latlngs.length===1) _liveMap.setView(latlngs[0],14); else _liveMap.fitBounds(latlngs,{padding:[40,40]}); }
 }
 // ── live location sending (so members appear on their upline's map) ──
 let _liveLocTimer=null;
