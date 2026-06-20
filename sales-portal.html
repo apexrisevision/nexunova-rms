@@ -1260,6 +1260,10 @@ function _applyLeadAccess(){
   document.querySelectorAll('.ni[data-lead]').forEach(t=>{ t.style.display = noLeads ? 'none' : ''; });
   const isMgr = ME && ME.role==='marketing_manager';            // Manager-only sections (Team + Distribute). Director ≠ Manager.
   document.querySelectorAll('[data-mgr]').forEach(t=>{ t.style.display = isMgr ? '' : 'none'; });
+  // sub-dealers are receive-only: their lead view is "Received Leads" (manager assigns; they don't create)
+  const recvOnly = ME && ME.role==='sale_rep';
+  TAB_TITLES.leads = recvOnly ? 'Received Leads' : 'Leads';
+  document.querySelectorAll('.ni[data-lead] .ni-lb').forEach(e=>{ e.textContent = recvOnly ? 'Received Leads' : 'Leads'; });
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); }
 async function enterApp(){
@@ -1582,8 +1586,14 @@ function _leadsRender(){
   const counts={}; scoped.forEach(l=>{ counts[l.status]=(counts[l.status]||0)+1; });
   const total=scoped.length;
   _leadsBadgeSet(Number(counts['new']||0));
-  let html=_pageHead('Leads','Your prospects — capture, follow up, and move them to sale.');
-  html+=`<button class="btn btn-primary btn-full" onclick="_leadFormOpen()">+ Add lead</button>`;
+  const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
+  let html;
+  if(canCreate){
+    html=_pageHead('Leads','Your prospects — capture, follow up, and move them to sale.');
+    html+=`<button class="btn btn-primary btn-full" onclick="_leadFormOpen()">+ Add lead</button>`;
+  } else {
+    html=_pageHead('Received Leads','Leads your manager has assigned to you — call, follow up, and close.');
+  }
   if(isMgr){
     const seg=(k,lb)=>{ const on=LEADV.scope===k;
       return `<button onclick="LEADV.scope='${k}';_leadsRender()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${esc(lb)}</button>`; };
@@ -1608,7 +1618,10 @@ function _leadListRender(){
   if(q) rows=rows.filter(l=>((l.name||'').toLowerCase().includes(q))||((l.phone||'').replace(/\s/g,'').includes(q)));
   const el=$('lead-list'); if(!el) return;
   if(!rows.length){
-    el.innerHTML='<div class="card"><div class="empty"><div class="et">No leads'+(q?' match your search':(LEADV.filter==='all'?' yet':' in this stage'))+'</div>'+(q?'':'<div class="es">Tap “Add lead” to capture your first prospect.</div>')+'</div></div>';
+    const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
+    const es = q ? '' : (canCreate ? '<div class="es">Tap “Add lead” to capture your first prospect.</div>'
+                                   : '<div class="es">Your manager will assign leads to you here.</div>');
+    el.innerHTML='<div class="card"><div class="empty"><div class="et">No leads'+(q?' match your search':(LEADV.filter==='all'?' yet':' in this stage'))+'</div>'+es+'</div></div>';
   } else {
     el.innerHTML='<div class="lgroup">'+rows.map(_leadCard).join('')+'</div>';
   }
