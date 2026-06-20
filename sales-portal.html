@@ -4070,30 +4070,55 @@ async function renderMine(){
       +'<div class="et">No reservations yet</div><div class="es">Reserve an available unit from the board.</div></div></div>';
     return;
   }
-  let html=_pageHead('My Reservations','Your held units & sale submissions.')+'<div class="card">';
-  MINE_ROWS.forEach(r=>{
-    const cd=countdown(r.expiry_date);
-    const st=r.status;
-    const sub=subBy[r.id];
-    let right;
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const TONE={success:['var(--fk-success-surface)','var(--fk-success)'],warning:['var(--fk-warning-surface)','var(--fk-warning)'],danger:['var(--fk-danger-surface)','var(--fk-danger)'],primary:['var(--fk-primary-surface)','var(--fk-primary)'],muted:['var(--fk-bg-subtle)','var(--fk-text-muted)']};
+  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)'};
+  const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const BM='m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z';
+  const pill=(tone,label)=>`<span class="spill" style="background:${TONE[tone][0]};border-color:transparent;color:${TONE[tone][1]};white-space:nowrap">${esc(label)}</span>`;
+  const tile=(tone,iconPath)=>`<span style="width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:${TONE[tone][0]};color:${TONE[tone][1]}">${ic(iconPath)}</span>`;
+  const nActive=MINE_ROWS.filter(r=>r.status==='active').length;
+  const nReview=MINE_ROWS.filter(r=>r.status==='active'&&subBy[r.id]&&subBy[r.id].status==='pending').length;
+  const nConv=MINE_ROWS.filter(r=>r.status==='converted').length;
+  const _mineRow=(r)=>{
+    const cd=countdown(r.expiry_date), st=r.status, sub=subBy[r.id];
+    const cdTone={green:'success',amber:'warning',red:'danger'}[cd.c]||'muted';
+    let tone,label,tip='',actions='';
     if(st==='active' && sub && sub.status==='pending'){
-      right='<span class="badge fuchsia">Under sale review</span>'
-        +'<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="withdrawSub(\''+sub.id+'\')">Withdraw</button></div>';
+      tone='warning'; label='Under review';
+      tip=`<span style="color:${TONE.warning[1]};font-variant-numeric:tabular-nums">${esc(cd.t)}</span>`;
+      actions=`<button class="btn btn-sm" onclick="withdrawSub('${sub.id}')">Withdraw</button>`;
     } else if(st==='active'){
-      const rej=(sub&&sub.status==='rejected')?'<div class="note" style="color:var(--fk-danger);margin-top:6px;text-align:right">Rejected: '+esc(sub.reject_reason||'see office')+'</div>':'';
-      right='<span class="badge '+cd.c+'">'+cd.t+'</span>'
-        +'<div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end">'
-        +'<button class="btn btn-primary btn-sm" onclick="openSale(\''+r.id+'\')">Mark Sold</button>'
-        +'<button class="btn btn-danger-soft btn-sm" onclick="cancelMine(\''+r.id+'\')">Release</button></div>'+rej;
-    } else {
-      right='<span class="badge '+(st==='converted'?'green':st==='expired'?'red':'muted')+'">'+st.charAt(0).toUpperCase()+st.slice(1)+'</span>';
-    }
-    html+='<div class="rrow"><div class="ri"><b>'+esc(r.unit_no||'—')+'</b>'
-      +'<div>'+esc(r.project_name||'')+' · '+esc(r.client_name||'')+(r.token_received?' · token '+pkr(r.token_amount):'')+'</div></div>'
-      +'<div style="text-align:right">'+right+'</div></div>';
-  });
+      tone='success'; label='Active';
+      tip=`<span style="color:${TONE[cdTone][1]};font-variant-numeric:tabular-nums">${esc(cd.t)}</span>`;
+      actions=`<button class="btn btn-sm btn-primary" onclick="openSale('${r.id}')">Mark Sold</button><button class="btn btn-sm btn-danger-soft" onclick="cancelMine('${r.id}')">Release</button>`;
+    } else if(st==='converted'){ tone='primary'; label='Sold'; }
+    else if(st==='expired'){ tone='muted'; label='Expired'; }
+    else if(st==='cancelled'){ tone='danger'; label='Cancelled'; }
+    else { tone='muted'; label=st.charAt(0).toUpperCase()+st.slice(1); }
+    const rej=(sub&&sub.status==='rejected')?`<div style="font-size:var(--fk-fs-label);color:var(--fk-danger);margin-top:6px">Rejected: ${esc(sub.reject_reason||'see office')}</div>`:'';
+    const sub2=`${esc(r.project_name||'')}${r.client_name?' · '+esc(r.client_name):''}${r.token_received?' · token <span style="font-variant-numeric:tabular-nums">'+esc(pkr(r.token_amount))+'</span>':''}`;
+    const foot=(tip||actions||rej)?`<div class="lrow-foot"><span style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">${tip}</span><span style="display:flex;gap:6px;flex:none">${actions}</span></div>${rej}`:'';
+    return `<div class="lrow"><div class="lrow-top">
+      ${tile(tone,BM)}
+      <div style="flex:1;min-width:0"><div class="lr-name">Unit ${esc(r.unit_no||'—')}</div><div class="lr-sub"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub2}</span></div></div>
+      ${pill(tone,label)}
+    </div>${foot}</div>`;
+  };
+  const activeRows=MINE_ROWS.filter(r=>r.status==='active');
+  const closedRows=MINE_ROWS.filter(r=>r.status!=='active');
+  let html='<div class="nx-dash">'+_pageHead('My Reservations','Your held units & sale submissions.');
+  html+='<div class="dgrid">'
+    + kpi('Active', nActive, 'indigo', BM)
+    + kpi('Under review', nReview, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
+    + kpi('Converted', nConv, 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + '</div>';
+  if(activeRows.length){ html+='<div class="dsec">Held units <span class="nb">'+activeRows.length+'</span></div><div class="lgroup">'+activeRows.map(_mineRow).join('')+'</div>'; }
+  if(closedRows.length){ html+='<div class="dsec">Past reservations</div><div class="lgroup">'+closedRows.map(_mineRow).join('')+'</div>'; }
   html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 async function cancelMine(id){
   if(!confirm('Release this reservation? The unit returns to Available.')) return;
