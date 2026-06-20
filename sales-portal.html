@@ -2051,7 +2051,8 @@ async function _leadStage(id,status){
         LEADCOUNTS[old]=Math.max(0,Number(LEADCOUNTS[old]||0)-1); LEADCOUNTS[status]=Number(LEADCOUNTS[status]||0)+1; }
       toast('Moved to '+_leadStageLabel(status),'ok'); _leadsRender(); }
     else if(data&&data.error==='session_expired') sessionGone();
-    else toast('Could not update','err');
+    else if(data&&data.error==='link_required'){ _leadsRender(); _leadWonBlock(id); }      // can't win without a reservation/sale
+    else { toast((data&&data.message)||'Could not update','err'); _leadsRender(); }          // terminal_locked / bad_transition → revert pill
   }catch(e){ toast('Could not update','err'); }
 }
 function _leadFormOpen(){
@@ -2348,12 +2349,18 @@ async function _leadLostSave(id){
     if(data&&data.success){ closeModal(); toast('Marked lost','ok'); renderLeadDetail(id); } else toast('Could not update','err');
   }catch(e){ toast('Could not update','err'); }
 }
-function _leadWon(id){ closeModal(); _leadDetailStage(id,'won'); setTimeout(()=>toast('Deal won','ok'),300); }
+function _leadWon(id){ closeModal(); _leadDetailStage(id,'won'); }   // _leadDetailStage handles success toast + link guard
 function _leadBook(id){
-  const l=(LEAD_DETAIL&&LEAD_DETAIL.lead)||{};
+  const l=(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.id===id)?LEAD_DETAIL.lead:((LEADS||[]).find(x=>x.id===id)||{});
   BOOK_LEAD={id:id, name:l.name||'', phone:l.phone||''};
   closeModal(); closeLead(); setTab('board');
   if(typeof toast==='function') toast('Pick a unit to book for '+(l.name||'this client'),'ok');
+}
+// 'Won' is blocked until a reservation/sale is linked — guide the user to reserve (which links + wins automatically)
+function _leadWonBlock(id){
+  openModal('Link a reservation first',
+    `<div style="font-size:var(--fk-fs-body);color:var(--fk-text);line-height:1.55">A lead can only be marked <b>Won</b> once it’s linked to a reservation or sale. Reserve a unit for this client — that links it and marks the deal won automatically.</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leadBook('${id}')">Reserve a unit</button>`);
 }
 function _bookingCard(b){
   const wrap=(border,bg,step,stepColor,title,text,btn)=>`<div class="l360-guide" style="${border?'border-color:'+border+';':''}${bg?'background:'+bg+';':''}"><div class="lg-step"${stepColor?` style="color:${stepColor}"`:''}>${step}</div><div class="lg-title">${title}</div><div class="lg-text">${text}</div>${btn||''}</div>`;
@@ -2550,7 +2557,8 @@ async function _leadDetailStage(id,status){
   if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.id===id&&LEAD_DETAIL.lead.status===status) return; // already there, no spam
   try{ const {data}=await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:id,p_status:status});
     if(data&&data.success){ toast('Moved to '+_leadStageLabel(status),'ok'); renderLeadDetail(id); }
-    else toast('Could not update','err');
+    else if(data&&data.error==='link_required') _leadWonBlock(id);
+    else toast((data&&data.message)||'Could not update','err');
   }catch(e){ toast('Could not update','err'); }
 }
 async function _leadSetFollowup(id,val){
