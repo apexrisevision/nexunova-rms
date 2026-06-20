@@ -2775,15 +2775,17 @@ async function _renderAgentLoc(id){
   el.innerHTML=`<div class="dsec">Location</div><div class="card">${_mapEmbed(d.lat,d.lng)}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><div style="font-size:13px"><div style="font-weight:600">${esc(d.label||'Location')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Updated ${d.at?esc(_agoTxt(d.at)):'—'}</div></div><a class="btn btn-sm" href="${_mapLink(d.lat,d.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div></div>`;
 }
 // ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
-let _gmapsLoaded=false, _gmapsLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_KEY=null, LIVE_FILTER='all';
+let _gmapsLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_KEY=null, LIVE_FILTER='all';
+// Google rejects a bad key / disallowed referrer via this global — show a clear message
+window.gm_authFailure=function(){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Google rejected the Maps key</div><div class="es">In Google Cloud → this API key → add <b>rms.nexunova.com/*</b> to website restrictions, and make sure <b>Maps JavaScript API</b> + billing are enabled.</div></div>'; };
 function _loadGMaps(key){
-  if(_gmapsLoaded && window.google && window.google.maps) return Promise.resolve();
+  if(window.google && window.google.maps) return Promise.resolve();
   if(_gmapsLoading) return _gmapsLoading;
   _gmapsLoading=new Promise((res,rej)=>{
+    window.__gmapsReady=function(){ res(); };
     const s=document.createElement('script');
-    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&loading=async';
-    s.async=true; s.defer=true;
-    s.onload=()=>{ _gmapsLoaded=true; res(); };
+    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&callback=__gmapsReady';
+    s.async=true;
     s.onerror=()=>{ _gmapsLoading=null; rej(new Error('load failed')); };
     document.head.appendChild(s);
   });
