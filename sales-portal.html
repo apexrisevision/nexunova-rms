@@ -507,12 +507,12 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 
 /* building-stack board */
 .proj-name{font-size:13px;font-weight:600;letter-spacing:-.2px}
-.floor{margin-bottom:14px}
-.floor-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--fk-text-muted);margin-bottom:7px}
-.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
-.unit{border:1px solid var(--fk-border);border-radius:10px;padding:10px 8px;text-align:center;
-  background:var(--fk-bg-subtle);position:relative;min-height:62px;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:3px}
+.floor{margin-bottom:12px}
+.floor-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--fk-text-muted);margin-bottom:6px}
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:7px}
+.unit{border:1px solid var(--fk-border);border-radius:9px;padding:8px 7px;text-align:center;
+  background:var(--fk-bg-subtle);position:relative;min-height:56px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px}
 .unit .uno{font-size:14px;font-weight:600;letter-spacing:-.2px}
 .unit .ust{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--fk-text-muted)}
 .unit .uby{font-size:11px;color:var(--fk-text-muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
@@ -537,10 +537,10 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .bsearch{width:100%;height:42px;padding:0 14px;border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-card);
   color:var(--fk-text);font-family:var(--fk-font);font-size:14px;margin-bottom:16px}
 .bsearch:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
-.floorcard{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--fk-bg-card);border:1px solid var(--fk-border);
-  border-radius:var(--fk-radius-card);margin-bottom:10px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .12s,box-shadow .12s}
-.floorcard:hover{transform:translateY(-1px);box-shadow:var(--fk-shadow-raised)}
-.floorcard:active{transform:translateY(0)}
+.floorcard{display:flex;align-items:center;gap:14px;padding:11px 14px;border-bottom:1px solid var(--fk-hairline);cursor:pointer;transition:background .12s}
+.floorcard:last-child{border-bottom:0}
+.floorcard:hover{background:var(--fk-bg-subtle)}
+.floorcard:active{background:var(--fk-subtle-hover)}
 .fc-name{font-size:14px;font-weight:600;letter-spacing:-.2px;min-width:84px}
 .fc-bar{flex:1;height:9px;border-radius:6px;background:var(--fk-bg-subtle);overflow:hidden;display:flex}
 .fc-bar i{height:100%;display:block}
@@ -722,7 +722,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   color:var(--fk-bg-card);padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--fk-shadow-raised);opacity:0;pointer-events:none;transition:opacity .2s}
 .toastbar.show{opacity:1}
 .toastbar.err{background:var(--fk-danger)} .toastbar.ok{background:var(--fk-success)}
-@media(max-width:560px){ .kpis{grid-template-columns:repeat(3,1fr)} .units{grid-template-columns:repeat(auto-fill,minmax(74px,1fr))} }
+@media(max-width:560px){ .kpis{grid-template-columns:repeat(3,1fr)} .units{grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:6px} }
 </style>
 </head>
 <body>
@@ -2494,14 +2494,14 @@ function _bvDirectory(p){
   const key=(BV.filter==='reserved'?'r':BV.filter==='sold'?'s':'a');
   const tone=(BV.filter==='sold'?'muted':BV.filter==='reserved'?'amber':'green');
   const lbl=(BV.filter==='reserved'?'reserved':BV.filter==='sold'?'sold':'available');
-  return groups.map(g=>{
+  return '<div class="lgroup">'+groups.map(g=>{
     const c=_bvCounts(g.units); const t=c.total||1;
     return '<div class="floorcard" data-fl="'+esc(g.label)+'" onclick="_bvSetFloor(this.dataset.fl)">'
       +'<div class="fc-name">'+esc(g.label)+'</div>'
       +'<div class="fc-bar"><i style="width:'+(c.a/t*100)+'%;background:var(--fk-success)"></i><i style="width:'+(c.r/t*100)+'%;background:var(--fk-warning)"></i><i style="width:'+(c.s/t*100)+'%;background:var(--fk-muted-fill)"></i></div>'
       +'<div class="fc-stat"><b class="'+tone+'">'+c[key]+'</b><span>'+lbl+'</span></div>'
       +'<div class="fc-chev">›</div></div>';
-  }).join('');
+  }).join('')+'</div>';
 }
 function _bvDetail(p){
   const g=_bvFloorGroups(p).find(x=>x.label===BV.floor);
