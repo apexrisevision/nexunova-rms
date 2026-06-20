@@ -9,30 +9,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Design tokens: SINGLE SOURCE — shared with the admin app (no inline duplicate). -->
+<link rel="stylesheet" href="css/foundation/tokens.css">
 <!-- supabase-js 2.34.0 vendored locally — jsDelivr .min.js path 301-loops (see login.html). -->
 <script src="js/vendor/supabase-js-2.34.0.umd.js?v=20260616"></script>
 <style>
-/* ════ Foundation tokens (mirrors css/foundation/tokens.css — KIT.md law) ════ */
-:root{
-  --fk-font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  --fk-primary:#4F46E5; --fk-primary-hover:#4338CA; --fk-primary-tint:rgba(79,70,229,.10);
-  --fk-info:#2563EB;
-  --fk-success:#16A34A; --fk-success-surface:rgba(22,163,74,.08); --fk-success-edge:rgba(22,163,74,.28);
-  --fk-warning:#D97706; --fk-warning-surface:rgba(217,119,6,.08); --fk-warning-edge:rgba(217,119,6,.30);
-  --fk-danger:#DC2626;  --fk-danger-surface:rgba(220,38,38,.08);  --fk-danger-edge:rgba(220,38,38,.28);
-  --fk-bg-page:#F1F5F9; --fk-bg-card:#FFFFFF; --fk-bg-subtle:#F8FAFC; --fk-subtle-hover:#EEF2F7;
-  --fk-border:#E2E8F0; --fk-text:#0F172A; --fk-text-muted:#64748B;
-  --fk-radius-control:8px; --fk-radius-card:12px;
-  --fk-shadow:0 1px 3px rgba(0,0,0,.06); --fk-shadow-raised:0 6px 20px rgba(15,23,42,.10);
-  --fk-muted-fill:#CBD5E1;
-}
+/* ════ Design tokens — SINGLE SOURCE: css/foundation/tokens.css (linked in <head>).
+   The inline token duplicate was removed on 2026-06-20 (token unification).
+   Only the buyer-portal-local dark tuning below is kept ON PURPOSE. ════ */
 html[data-theme="dark"]{
-  --fk-primary:#6366F1; --fk-primary-hover:#818CF8; --fk-primary-tint:rgba(99,102,241,.16);
-  --fk-success-surface:rgba(22,163,74,.16); --fk-warning-surface:rgba(217,119,6,.16); --fk-danger-surface:rgba(220,38,38,.16);
-  --fk-bg-page:#0B1120; --fk-bg-card:#111A2E; --fk-bg-subtle:#0F1B33; --fk-subtle-hover:#16243f;
-  --fk-border:#1E293B; --fk-text:#E5E7EB; --fk-text-muted:#94A3B8;
-  --fk-shadow:0 1px 3px rgba(0,0,0,.4); --fk-shadow-raised:0 8px 28px rgba(0,0,0,.55);
-  --fk-muted-fill:#334155;
+  /* INTENTIONAL buyer-portal dark tuning — NOT a token duplicate.
+     tokens.css dark keeps brand + shadow fixed; the portal needs a lifted indigo
+     and visible card float on dark backgrounds. Do NOT delete this as "drift". */
+  --fk-primary:#6366F1;
+  --fk-primary-hover:#818CF8;
+  --fk-primary-tint:rgba(99,102,241,.16);
+  --fk-shadow:0 1px 3px rgba(0,0,0,.4);
+  --fk-shadow-raised:0 8px 28px rgba(0,0,0,.55);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
