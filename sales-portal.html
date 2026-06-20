@@ -2442,6 +2442,7 @@ function renderAgent(){
     html+=`<div class="dsec">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuckA.length}</span></div>`;
     html+='<div class="lgroup">'+stuckA.slice(0,5).map(_stuckRow).join('')+'</div>';
   }
+  html+='<div id="agent-loc"></div>';
   if(leads.length){
     html+=`<div class="dsec">Lead pipeline <span class="nb">${leads.length}</span></div>`;
     const chips=LEAD_STAGES.map(([k,lb])=>{ const n=sc[k]||0; return n?`<span class="spill" style="background:${_leadColor(k)};border-color:transparent;color:#fff">${esc(lb)} ${n}</span>`:''; }).filter(Boolean).join('');
@@ -2451,6 +2452,7 @@ function renderAgent(){
     html+=_emptyCard('No leads in the pipeline','This agent has no active leads yet.');
   }
   $('app-body').innerHTML=html;
+  _renderAgentLoc(TEAM_AGENT);
 }
 function _agentLeadRow(l){
   const pill=`<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff;background:${_leadColor(l.status)};white-space:nowrap">${esc(_leadStageLabel(l.status))}</span>`;
@@ -2726,12 +2728,49 @@ async function renderProfile(){
   html+=`<div class="card" style="padding:4px 14px">`+fld('Phone',p.phone)+fld('CNIC',p.cnic)+fld('Father / Husband',p.father_name)+fld('Email',p.email)+fld('Address',p.address)+`</div>`;
   html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Bank — for payouts</div>`;
   html+=`<div class="card" style="padding:4px 14px">`+fld('Bank',p.bank_name)+fld('Account #',p.bank_account_no)+fld('Title',p.bank_account_title)+`</div>`;
+  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">My location</div><div id="loc-card"></div>`;
   html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="_profileEdit()">Edit bank details</button>`;
   html+=`<button class="btn btn-full" onclick="_changePin()">Change PIN</button>`;
   html+=`<div style="height:16px"></div>`;
   html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="toggleTheme()">Switch light / dark</button>`;
   html+=`<button class="btn btn-full btn-danger-soft" onclick="doLogout()">Sign out</button>`;
   $('app-body').innerHTML=html;
+  _renderMyLocCard();
+}
+// ── Member location (map via Google output=embed — no API key) ──
+function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:180px;border:0;border-radius:10px;display:block"></iframe>`; }
+function _mapLink(lat,lng){ return `https://www.google.com/maps?q=${lat},${lng}`; }
+async function _renderMyLocCard(){
+  const el=$('loc-card'); if(!el) return;
+  let d=null; try{ const r=await sb.rpc('get_my_location',{p_session_token:TOKEN}); d=r.data; }catch(e){}
+  const has=!!(d&&d.success&&d.lat!=null&&d.lng!=null);
+  let h='<div class="card">';
+  if(has){
+    h+=_mapEmbed(d.lat,d.lng);
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><div style="font-size:13px;min-width:0"><div style="font-weight:600">${esc(d.label||'My location')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Updated ${d.at?esc(_agoTxt(d.at)):'—'}</div></div><a class="btn btn-sm" href="${_mapLink(d.lat,d.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div>`;
+  } else {
+    h+=`<div style="font-size:13px;color:var(--fk-text-muted)">Set your location so your manager can see where you are.</div>`;
+  }
+  h+=`<input class="input" id="loc-label" placeholder="Area / label (optional)" value="${has?esc(d.label||''):''}" style="margin-top:10px">`;
+  h+=`<button class="btn btn-primary btn-full" style="margin-top:8px" onclick="_captureMyLocation()">${has?'Update my location':'Use my current location'}</button>`;
+  el.innerHTML=h+'</div>';
+}
+function _captureMyLocation(){
+  if(!navigator.geolocation){ toast('GPS not available on this device','err'); return; }
+  toast('Getting your location…','ok');
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=+pos.coords.latitude.toFixed(6), lng=+pos.coords.longitude.toFixed(6);
+    const label=(($('loc-label')||{}).value||'').trim();
+    try{ const {data}=await sb.rpc('update_my_location',{p_session_token:TOKEN,p_lat:lat,p_lng:lng,p_label:label});
+      if(data&&data.success){ toast('Location saved','ok'); _renderMyLocCard(); } else toast('Could not save','err');
+    }catch(e){ toast('Could not save','err'); }
+  }, err=>{ toast(err&&err.code===1?'Location permission denied — allow it in your browser':'Could not get location','err'); }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});
+}
+async function _renderAgentLoc(id){
+  const el=$('agent-loc'); if(!el) return;
+  let d=null; try{ const r=await sb.rpc('get_member_location',{p_session_token:TOKEN,p_member:id}); d=r.data; }catch(e){}
+  if(!(d&&d.success&&d.lat!=null&&d.lng!=null)){ el.innerHTML=''; return; }
+  el.innerHTML=`<div class="dsec">Location</div><div class="card">${_mapEmbed(d.lat,d.lng)}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><div style="font-size:13px"><div style="font-weight:600">${esc(d.label||'Location')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Updated ${d.at?esc(_agoTxt(d.at)):'—'}</div></div><a class="btn btn-sm" href="${_mapLink(d.lat,d.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div></div>`;
 }
 function _profileEdit(){
   const p=PROFILE||{};
