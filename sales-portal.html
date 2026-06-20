@@ -1322,6 +1322,25 @@ function _validSession(){ try{ const t=localStorage.getItem(TOK_KEY); const a=Nu
   if(t && (Date.now()-a)<IDLE_MS) return t; }catch(e){} return null; }
 let _idleTimer=null;
 function _startIdleWatch(){ if(_idleTimer) return; _idleTimer=setInterval(()=>{ if(TOKEN && !_validSession()) doLogout(); },60000); }
+// live role/hierarchy refresh — so a role change reflects without re-login (debounced; only re-applies on real change)
+let _profWatch=false, _lastProfChk=0;
+async function _refreshProfile(){
+  if(!TOKEN || document.hidden) return;
+  const now=Date.now(); if(now-_lastProfChk<60000) return; _lastProfChk=now;   // ≤1 check/min
+  try{ const {data}=await sb.rpc('get_my_profile',{p_session_token:TOKEN});
+    if(!data||!data.success || !ME) return;
+    const p=data.profile||{};
+    const roleChanged = ME.role!==undefined && p.role!==ME.role;
+    const parentChanged = ME.parent_sales_user_id!==undefined && (p.parent_sales_user_id||null)!==(ME.parent_sales_user_id||null);
+    ME.role=p.role; ME.parent_sales_user_id=(p.parent_sales_user_id||null);
+    if(roleChanged){ _applyLeadAccess(); _syncNav(); setTab('home'); toast('Your access was updated','ok'); }
+    else if(parentChanged){ try{ setTab(TAB||'home'); }catch(e){} }
+  }catch(e){}
+}
+function _startProfileWatch(){ if(_profWatch) return; _profWatch=true;
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) _refreshProfile(); });
+  setInterval(()=>{ if(!document.hidden) _refreshProfile(); }, 180000);   // every 3 min while active
+}
 
 // ════ auth ════
 async function bootstrap(){
@@ -1523,12 +1542,12 @@ function _applyLeadAccess(){
   show('.ni-grp[data-grp="sales"]', !isExec);
   show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
 }
-function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} }
+function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
     try{ const r=await sb.rpc('get_my_profile',{p_session_token:TOKEN});
-      if(r.data&&r.data.success){ const p=r.data.profile||{}; ME=Object.assign({},ME||{},{sales_user_name:p.full_name,role:p.role,company_name:p.company_name}); }
+      if(r.data&&r.data.success){ const p=r.data.profile||{}; ME=Object.assign({},ME||{},{sales_user_name:p.full_name,role:p.role,parent_sales_user_id:(p.parent_sales_user_id||null),company_name:p.company_name}); }
     }catch(e){}
   }
   let d;
@@ -1751,7 +1770,43 @@ function _trend(pct){
   return `<span class="trendchip ${cls}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ar}</svg>${Math.abs(pct)}%</span>`;
 }
 function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span class="ei">${li(icon,18,1.75)}</span><div style="min-width:0"><div class="et">${esc(title)}</div><div class="es">${esc(sub)}</div></div></div>`; }
+// Exec (admin/cfo) read-only org snapshot — real org totals + top performers (get_org_overview)
+async function renderExecHome(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  let d;
+  try{ const r=await sb.rpc('get_org_overview',{p_session_token:TOKEN}); d=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone();
+    $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Overview','Organisation snapshot.')+_emptyCard('Not available','This overview is for executives.')+'</div>'; return; }
+  _touch();
+  const nm=(ME&&ME.sales_user_name)||'', _fn=nm?esc(String(nm).split(' ')[0]):'';
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
+  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  let html='<div class="nx-dash">';
+  html+=`<div class="nx-rise" style="margin:0 2px var(--fk-sp-3)"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Organisation snapshot · read-only.</div></div>`;
+  html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
+    + kpi('Org sales', numv(Number(d.sales_value)||0,'pkr'), 'indigo', '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>')
+    + kpi('To collect', numv(Number(d.to_collect)||0,'pkr'), 'amber', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')
+    + kpi('Open pipeline', numv(Number(d.pipeline)||0,'int'), 'violet', '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')
+    + kpi('Team size', numv(Number(d.members)||0,'int'), 'emerald', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
+    + '</div>';
+  const top=d.top||[];
+  html+='<div class="dsec">Top performers</div>';
+  if(!top.length){ html+=_emptyCard('No sales yet','Sales by your team will rank here.'); }
+  else { html+='<div class="lgroup">'+top.map((t,i)=>`<div class="lrow"><div class="lrow-top">
+      <span style="width:22px;flex:none;text-align:center;font-weight:var(--fk-fw-bold);color:var(--fk-text-muted);font-variant-numeric:tabular-nums">${i+1}</span>
+      ${_avatarC(t.name,36)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(t.name||'—')}</div><div class="tm-sub">${esc(_portalRoleLabel(t.role))} · ${Number(t.count)||0} sale${Number(t.count)===1?'':'s'}</div></div>
+      <div style="text-align:right;flex:none;font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-body);font-variant-numeric:tabular-nums">${esc(pkrShort(t.value)||'₨0')}</div>
+    </div></div>`).join('')+'</div>'; }
+  html+='</div>';
+  $('app-body').innerHTML=html;
+  _runCountUps();
+}
 async function renderHome(){
+  if(ME && (ME.role==='admin'||ME.role==='cfo')) return renderExecHome();                        // exec — read-only org snapshot
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
