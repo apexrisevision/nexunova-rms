@@ -569,6 +569,24 @@ body{background:var(--nx-page)}
 .ms-empty-s{font-size:var(--fk-fs-body);color:var(--fk-text-muted)}
 .ms-empty-cta{width:auto;margin-top:var(--fk-sp-3);gap:5px}
 .ms-empty-cta svg{width:16px;height:16px}
+
+/* ════ Performance — funnel + activity (dashboard card family) ════ */
+.nx-dash .card{box-shadow:var(--nx-card-sh);border-radius:var(--nx-radius)}
+.pf-card{padding:var(--fk-sp-3) var(--fk-sp-3) var(--fk-sp-1)}
+.pf-row{margin-bottom:var(--fk-sp-3)}
+.pf-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--fk-sp-1)}
+.pf-lb{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-medium);color:var(--fk-text)}
+.pf-n{font-size:var(--fk-fs-title);font-weight:var(--fk-fw-semibold);color:var(--fk-text);font-variant-numeric:tabular-nums}
+.pf-track{height:8px;border-radius:var(--fk-radius-pill);background:var(--fk-bg-subtle);overflow:hidden}
+.pf-track>i{display:block;height:100%;border-radius:var(--fk-radius-pill);transition:width .3s ease}
+.act-card{padding:0 var(--fk-sp-3)}
+.act-row{display:flex;align-items:center;gap:var(--fk-sp-3);padding:var(--fk-sp-2) 0;border-bottom:1px solid var(--fk-hairline)}
+.act-row:last-child{border-bottom:0}
+.act-ic{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+.act-ic svg{width:15px;height:15px}
+.act-lb{flex:1;font-size:var(--fk-fs-body);color:var(--fk-text);min-width:0}
+.act-n{font-size:var(--fk-fs-title);font-weight:var(--fk-fw-semibold);color:var(--fk-text);font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.pf-track>i{transition:none}}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -3357,38 +3375,45 @@ async function renderPerformance(){
   const L=data.leads||{}, A=data.activities||{};
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><b>${esc(String(v))}</b></div>`;
-  let html=_pageHead(mgr?'Team Performance':'My Performance', mgr?'Your team’s funnel, activity & results.':'Your funnel, activity & results.');
-  const seg=(k,lb)=>{ const on=PERF_PERIOD===k;
-    return `<button onclick="PERF_PERIOD='${k}';renderPerformance()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${lb}</button>`; };
-  html+=`<div style="display:flex;gap:6px;margin-bottom:14px">${seg('month','This month')}${seg('last','Last month')}${seg('all','All time')}</div>`;
-  html+='<div class="kgrid">'
-    +_kpic('indigo', ic('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),'Leads', L.total||0, "")
-    +_kpic('green', ic('<path d="M20 6 9 17l-5-5"/>'),'Conversion', (data.conversion||0)+'%', "")
-    +_kpic('amber', ic('<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>'),'Sales', (data.sales&&data.sales.count)||0, "")
-    +_kpic('indigo', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),'Sales value', pkrShort((data.sales&&data.sales.value)||0)||'₨0', "")
-    +'</div>';
-  html+=`<div style="font-weight:700;font-size:14px;margin:6px 2px 10px">Pipeline funnel</div><div class="card" style="padding:14px 14px 4px">`;
-  const stages=[['new','New','var(--fk-primary)'],['contacted','Contacted','var(--fk-warning)'],['visit','Visit','var(--fk-warning)'],['negotiation','Negotiation','var(--fk-success)'],['won','Won','var(--fk-success)'],['lost','Lost','var(--fk-danger)']];
+  let html='<div class="nx-dash">'+_pageHead(mgr?'Team Performance':'My Performance', mgr?'Your team’s funnel, activity & results.':'Your funnel, activity & results.');
+  html+=_seg([['month','This month'],['last','Last month'],['all','All time']], PERF_PERIOD, '_perfSetPeriod');
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
+  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
+    + kpi('Leads', numv(Number(L.total)||0,'int'), 'indigo', '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')
+    + kpi('Conversion', numv(Number(data.conversion)||0,'int')+'%', 'emerald', '<path d="M20 6 9 17l-5-5"/>')
+    + kpi('Sales', numv(Number(data.sales&&data.sales.count)||0,'int'), 'amber', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
+    + kpi('Sales value', numv(Number(data.sales&&data.sales.value)||0,'pkr'), 'violet', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    + '</div>';
+  // pipeline funnel — slim, status-coloured bars
+  html+='<div class="dsec">Pipeline funnel</div><div class="card pf-card">';
+  const stages=[['new','New'],['contacted','Contacted'],['visit','Visit'],['negotiation','Negotiation'],['won','Won'],['lost','Lost']];
   const max=Math.max(1, Number(L.total||1));
-  stages.forEach(([k,lb,col])=>{ const n=Number(L[k]||0); const pct=Math.round(n/max*100);
-    html+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:600">${lb}</span><b>${n}</b></div><div style="height:8px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px;transition:width .3s"></div></div></div>`; });
+  stages.forEach(([k,lb])=>{ const n=Number(L[k]||0), pct=Math.round(n/max*100);
+    html+=`<div class="pf-row"><div class="pf-head"><span class="pf-lb">${lb}</span><b class="pf-n">${n}</b></div><div class="pf-track"><i style="width:${pct}%;background:${_leadColor(k)}"></i></div></div>`; });
   html+='</div>';
-  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Activity</div><div class="card" style="padding:4px 14px">`
-    +fld('Calls',A.call||0)+fld('WhatsApp',A.whatsapp||0)+fld('Visits',A.visit||0)+fld('Meetings',A.meeting||0)+'</div>';
+  // activity — icon rows
+  const actRow=(ip,lb,n)=>`<div class="act-row"><span class="act-ic">${ic(ip)}</span><span class="act-lb">${esc(lb)}</span><b class="act-n">${Number(n)||0}</b></div>`;
+  html+='<div class="dsec">Activity</div><div class="card act-card">'
+    +actRow('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>','Calls',A.call)
+    +actRow('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>','WhatsApp',A.whatsapp)
+    +actRow('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>','Visits',A.visit)
+    +actRow('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>','Meetings',A.meeting)
+    +'</div>';
   const lr=data.lost_reasons||[];
-  if(lr.length){
-    html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Why leads were lost</div><div class="card" style="padding:4px 14px">`+lr.map(r=>fld(r.reason,r.n)).join('')+'</div>';
-  }
-  if(mgr && perAgent.length){
-    html+=`<div style="font-weight:700;font-size:14px;margin:16px 2px 8px">By agent</div><div class="lgroup">`+perAgent.map(_perfAgentRow).join('')+'</div>';
-  }
+  if(lr.length){ html+='<div class="dsec">Why leads were lost</div><div class="card act-card">'+lr.map(r=>`<div class="act-row"><span class="act-lb">${esc(r.reason)}</span><b class="act-n">${Number(r.n)||0}</b></div>`).join('')+'</div>'; }
+  if(mgr && perAgent.length){ html+='<div class="dsec">By agent</div><div class="lgroup">'+perAgent.map(_perfAgentRow).join('')+'</div>'; }
+  html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
+function _perfSetPeriod(k){ PERF_PERIOD=k; renderPerformance(); }
 function _perfAgentRow(a){
   return `<div class="lrow"><div class="lrow-top" onclick="openAgent('${a.id}')" style="cursor:pointer">
-    ${_avatar(a.name,34)}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.new_leads||0} new · ${(a.calls||0)+(a.whatsapp||0)} contacts · ${a.visits||0} visit${a.visits==1?'':'s'}</div></div>
-    <div style="text-align:right"><div style="font-weight:700;font-size:14px">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
+    ${_avatarC(a.name,40)}
+    <div style="flex:1;min-width:0"><div class="lr-name">${esc(a.name)}</div><div class="lr-sub"><span>${a.new_leads||0} new · ${(a.calls||0)+(a.whatsapp||0)} contacts · ${a.visits||0} visit${a.visits==1?'':'s'}</span></div></div>
+    <div style="text-align:right"><div style="font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
   </div></div>`;
 }
 // ════ My Clients — everyone the agent has sold to ════
