@@ -2068,7 +2068,7 @@ function _leadsRender(){
   const title=canCreate?'Leads':'Received Leads';
   const subt=canCreate?'Your prospects — capture, follow up, and move them to sale.':'Leads your manager assigned to you — call, follow up, and close.';
   let html='<div class="nx-leads">';
-  html+=`<div class="lead-head"><div style="min-width:0"><div class="lead-h1">${title}</div><div class="lead-hsub">${subt}</div></div>${canCreate?`<button class="btn btn-primary lead-add" onclick="_leadFormOpen()">${plus} Add lead</button>`:''}</div>`;
+  html+=`<div class="lead-head"><div style="min-width:0"><div class="lead-h1">${title}</div><div class="lead-hsub">${subt}</div></div>${canCreate?`<div style="display:flex;gap:8px;flex:none"><button class="btn lead-add" onclick="_leadImportOpen()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Import</button><button class="btn btn-primary lead-add" onclick="_leadFormOpen()">${plus} Add lead</button></div>`:''}</div>`;
   if(isMgr) html+=_seg([['mine','Mine'],['all','My team']], LEADV.scope, '_leadSetScope');
   if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
@@ -2160,6 +2160,99 @@ function _dupOwnedDialog(d){
   openModal('Client already in your pipeline',
     `<div style="font-size:var(--fk-fs-body);color:var(--fk-text);line-height:1.55">A lead with this phone already exists${d.owner_name?` — held by <b>${esc(d.owner_name)}</b>`:''} (status <b>${esc(_leadStageLabel(d.status)||d.status||'—')}</b>). Open it instead of creating a duplicate.</div>`,
     `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="closeModal();openLead('${d.lead_id}')">Open existing lead</button>`);
+}
+
+// ════ Bulk lead import (CSV) — server import_leads reuses create_lead validation ════
+let IMPORT_ROWS=[];
+const _IMP_ALIASES={
+  name:['name','client','client name','clientname','full name','fullname','customer','lead','lead name','leadname'],
+  phone:['phone','mobile','contact','contact no','contact number','cell','cellphone','number','phone number','phoneno','mobile number','mobileno','whatsapp','whatsapp no'],
+  source:['source','lead source','channel','origin'],
+  interest:['interest','interested','interested in','unit','requirement','property','looking for'],
+  budget:['budget','price','amount','range'],
+  notes:['notes','note','remarks','remark','comment','comments','detail','details','description'] };
+function _normPhoneJS(p){ let x=String(p||'').replace(/\D/g,''); if(!x)return ''; if(x.slice(0,2)==='92')return x; if(x[0]==='0')return '92'+x.slice(1); if(x.length===10)return '92'+x; return x; }
+function _csvParse(text){ const rows=[]; let i=0,f='',row=[],q=false; text=String(text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  while(i<text.length){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else { if(c==='"')q=true; else if(c===','){row.push(f);f='';} else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';} else f+=c; }
+    i++; }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+function _impSrcOpts(){ const srcs=(LEADCFG&&LEADCFG.sources&&LEADCFG.sources.length)?LEADCFG.sources:[{value:'manual',label:'Manual'},{value:'walkin',label:'Walk-in'}];
+  return srcs.map(s=>`<option value="${esc(s.value)}">${esc(s.label)}</option>`).join(''); }
+function _leadImportOpen(){
+  IMPORT_ROWS=[];
+  const up='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>';
+  openModal('Import leads',
+    `<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.55;margin-bottom:10px">Paste CSV or choose a .csv file. The first row must be column headers. We recognise <b>name</b> (required), phone, source, interest, budget and notes — plus common aliases (mobile/contact → phone, client → name).</div>
+     <label class="btn btn-full" style="cursor:pointer;margin-bottom:10px;justify-content:center">${up}&nbsp; Choose CSV file<input type="file" accept=".csv,text/csv" style="display:none" onchange="_impFile(this)"></label>
+     <textarea class="input" id="imp-csv" rows="7" placeholder="name,phone,source,interest,budget,notes&#10;Ali Khan,03001234567,walkin,2 bed,8000000,referred by Usman" style="font-size:12px"></textarea>
+     <div class="field" style="margin-top:10px"><label class="label">Default source (used when a row leaves it blank)</label><select class="input" id="imp-src">${_impSrcOpts()}</select></div>
+     <div id="imp-err" style="display:none;color:var(--fk-danger);font-size:13px;margin-top:6px"></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leadImportPreview()">Preview</button>`);
+}
+function _impFile(input){ const f=input.files&&input.files[0]; if(!f)return; const r=new FileReader(); r.onload=e=>{ const ta=$('imp-csv'); if(ta) ta.value=e.target.result||''; }; r.readAsText(f); }
+function _leadImportPreview(){
+  const raw=($('imp-csv')||{}).value||''; const err=$('imp-err'); const defSrc=($('imp-src')||{}).value||'manual';
+  const grid=_csvParse(raw);
+  if(grid.length<2){ if(err){err.style.display='block';err.textContent='Add a header row plus at least one data row.';} return; }
+  const headers=grid[0].map(h=>String(h||'').trim());
+  const map={}; headers.forEach((h,idx)=>{ const k=h.toLowerCase(); for(const fld in _IMP_ALIASES){ if(_IMP_ALIASES[fld].indexOf(k)>=0){ if(map[fld]===undefined) map[fld]=idx; break; } } });
+  if(map.name===undefined){ if(err){err.style.display='block';err.innerHTML='Couldn’t find a <b>name</b> column. Rename your name/client column header to “name”.';} return; }
+  const get=(r,fld)=> map[fld]!==undefined ? String(r[map[fld]]||'').trim() : '';
+  IMPORT_ROWS=[]; const seen={};
+  for(let i=1;i<grid.length;i++){ const r=grid[i];
+    const row={ name:get(r,'name'), phone:get(r,'phone'), source:get(r,'source')||defSrc, interest:get(r,'interest'), budget:get(r,'budget'), notes:get(r,'notes') };
+    let st='ok', why='Will import';
+    if(!row.name){ st='invalid'; why='Missing name'; }
+    else if(row.phone){ const n=_normPhoneJS(row.phone); if(n){ if(seen[n]){ st='dup'; why='Duplicate within this file'; } else seen[n]=1; } }
+    row._st=st; row._why=why; IMPORT_ROWS.push(row);
+  }
+  if(IMPORT_ROWS.length>500){ if(err){err.style.display='block';err.textContent='Too many rows ('+IMPORT_ROWS.length+'). The limit is 500 per import — split the file.';} return; }
+  const fldLbl={name:'Name',phone:'Phone',source:'Source',interest:'Interest',budget:'Budget',notes:'Notes'};
+  const mapChips=Object.keys(fldLbl).map(f=> map[f]!==undefined
+    ? `<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">${fldLbl[f]} ← ${esc(headers[map[f]])}</span>`
+    : `<span class="spill" style="color:var(--fk-text-muted)">${fldLbl[f]} — not mapped</span>`).join('');
+  const dot=s=> s==='invalid'?'var(--fk-danger)':(s==='dup'?'var(--fk-warning)':'var(--fk-success)');
+  const head=`<tr style="text-align:left;color:var(--fk-text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em"><th style="padding:6px 8px">#</th><th style="padding:6px 8px">Name</th><th style="padding:6px 8px">Phone</th><th style="padding:6px 8px">Source</th><th style="padding:6px 8px">Status</th></tr>`;
+  const body=IMPORT_ROWS.slice(0,50).map((r,i)=>`<tr style="border-top:1px solid var(--fk-hairline)">
+     <td style="padding:6px 8px;color:var(--fk-text-muted);font-variant-numeric:tabular-nums">${i+1}</td>
+     <td style="padding:6px 8px">${esc(r.name||'—')}</td>
+     <td style="padding:6px 8px;font-variant-numeric:tabular-nums">${esc(r.phone||'—')}</td>
+     <td style="padding:6px 8px">${esc(r.source||'—')}</td>
+     <td style="padding:6px 8px"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot(r._st)};margin-right:6px"></span>${esc(r._why)}</td></tr>`).join('');
+  const willImport=IMPORT_ROWS.filter(r=>r._st!=='invalid').length;
+  const more=IMPORT_ROWS.length>50?`<div style="font-size:12px;color:var(--fk-text-muted);margin-top:8px">Showing first 50 of ${IMPORT_ROWS.length} rows.</div>`:'';
+  openModal('Import preview',
+    `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${mapChips}</div>
+     <div style="overflow:auto;max-height:46vh;border:1px solid var(--fk-border);border-radius:var(--fk-radius-card)"><table style="width:100%;border-collapse:collapse;font-size:13px">${head}${body}</table></div>${more}
+     <div style="font-size:12px;color:var(--fk-text-muted);margin-top:10px">Final duplicate &amp; permission checks run on the server, so counts may shift slightly after import.</div>`,
+    `<button class="btn" onclick="_leadImportOpen()">Back</button><button class="btn btn-primary" onclick="_leadImportRun()">Import ${willImport} lead${willImport===1?'':'s'}</button>`);
+}
+async function _leadImportRun(){
+  if(!IMPORT_ROWS.length){ closeModal(); return; }
+  const defSrc=(IMPORT_ROWS[0]&&IMPORT_ROWS[0].source)||'manual';
+  const rows=IMPORT_ROWS.map(r=>({name:r.name,phone:r.phone,source:r.source,interest:r.interest,budget:r.budget,notes:r.notes}));
+  openModal('Importing…',`<div class="empty"><div class="et">Importing ${rows.length} row${rows.length===1?'':'s'}…</div></div>`,'');
+  let data;
+  try{ const r=await sb.rpc('import_leads',{p_session_token:TOKEN,p_rows:rows,p_default_source:defSrc}); data=r.data; }
+  catch(e){ return openModal('Import failed','<div style="color:var(--fk-danger);font-size:13px">Could not reach the server. Please try again.</div>','<button class="btn btn-primary" onclick="closeModal()">Close</button>'); }
+  if(!data||!data.success){ if(data&&data.error==='session_expired'){ closeModal(); return sessionGone(); }
+    return openModal('Import failed',`<div style="color:var(--fk-danger);font-size:13px">${esc((data&&data.message)||'Import could not run.')}</div>`,'<button class="btn btn-primary" onclick="closeModal()">Close</button>'); }
+  const skipped=(data.results||[]).filter(x=>x.status!=='imported');
+  const skList=skipped.length? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;font-size:13px">Skipped rows (${skipped.length})</summary>
+     <div style="overflow:auto;max-height:36vh;margin-top:8px">${skipped.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-top:1px solid var(--fk-hairline);font-size:13px"><span>#${x.row} ${esc(x.name||'—')}</span><span style="color:var(--fk-text-muted)">${esc(x.reason||x.status)}</span></div>`).join('')}</div></details>`:'';
+  const stat=(n,lbl,col)=>`<div style="flex:1;text-align:center;padding:10px 6px;border-radius:var(--fk-radius-card);background:${col}"><div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:11px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${lbl}</div></div>`;
+  openModal('Import complete',
+    `<div style="display:flex;gap:8px;margin-bottom:4px">
+       ${stat(data.imported,'Imported','var(--fk-success-surface)')}
+       ${stat(data.skipped_duplicate,'Duplicates','var(--fk-warning-surface)')}
+       ${stat(data.skipped_invalid,'Invalid','var(--fk-danger-surface)')}
+     </div>${skList}`,
+    `<button class="btn btn-primary" onclick="closeModal();renderLeads()">Done</button>`);
+  IMPORT_ROWS=[];
 }
 // ════ LEAD WIZARD — one simple step at a time (default lead experience) ════
 let WIZ={id:null,step:1,lead:null,acts:null};
