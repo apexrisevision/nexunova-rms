@@ -27,6 +27,9 @@ html[data-theme="dark"]{
   --fk-shadow:0 1px 2px rgba(0,0,0,.4);
   --fk-shadow-raised:0 10px 28px rgba(0,0,0,.55);
 }
+/* Module-local champagne GOLD — rare flourish ONLY (not in tokens.css): hero top-strip + sidebar brand hairline. */
+:root{ --gold:#B8923D; --gold-soft:#F6EEDC; }
+html[data-theme="dark"]{ --gold:#D4AF5A; --gold-soft:#2A2415; }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
 .screen:not(#screen-app){overflow-x:hidden}
@@ -380,6 +383,39 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .dkpi-v{font-size:20px;font-weight:700;color:var(--fk-text);margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .dsec{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);font-weight:600;margin:18px 2px 8px;display:flex;align-items:center;gap:8px}
 .dsec .nb{background:var(--fk-primary);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:0 7px;line-height:18px}
+/* ════ PREMIUM UPGRADE (module-local) — depth · motion · micro-dataviz. Energy lives INSIDE cards; page stays calm. ════ */
+/* DEPTH — hero is the most-elevated layer + the ONE primary gold moment (2px top-strip) */
+.herometric{box-shadow:var(--fk-shadow-raised);position:relative;overflow:hidden}
+.herometric::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold)}
+/* KPI cards — one family, equal height, sparkline pinned to the base */
+.dkpi{display:flex;flex-direction:column;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.dkpi:hover{transform:translateY(-2px);box-shadow:var(--fk-shadow-raised);border-color:color-mix(in srgb,var(--fk-primary) 26%,var(--fk-border))}
+.dkpi-v{font-size:var(--fk-fs-kpi)}
+.dkpi-spark{margin-top:auto;padding-top:var(--fk-sp-3);line-height:0}
+.dkpi-spark svg{display:block;width:100%;height:var(--fk-sp-6)}
+.dkpi-vrow{display:flex;align-items:baseline;justify-content:space-between;gap:var(--fk-sp-2)}
+/* trend chip (Lucide arrows, token colours) — renders only when a real delta exists */
+.trendchip{display:inline-flex;align-items:center;gap:2px;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-bold);font-variant-numeric:tabular-nums;padding:0 var(--fk-sp-2);border-radius:var(--fk-radius-pill);line-height:1.55}
+.trendchip svg{width:1em;height:1em;stroke-width:2.4}
+.trendchip.up{background:var(--fk-success-surface);color:var(--fk-success)}
+.trendchip.dn{background:var(--fk-danger-surface);color:var(--fk-danger)}
+/* MOTION — staggered fade-in-up of cards on load (once, subtle) */
+@keyframes nxRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.nx-rise{animation:nxRise .42s cubic-bezier(.2,.7,.3,1) both}
+/* ALIVE empty state — zero/empty feels intentional, not broken */
+.nx-emptymini{display:flex;align-items:center;gap:var(--fk-sp-3);padding:var(--fk-sp-4);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow)}
+.nx-emptymini .ei{width:var(--fk-h-btn);height:var(--fk-h-btn);flex:none;border-radius:var(--fk-radius-control);display:grid;place-items:center;background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+.nx-emptymini .et{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text)}
+.nx-emptymini .es{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:1px}
+/* SIDEBAR — 2nd gold moment (brand hairline) + 3px indigo active bar */
+.sb-brand{border-bottom-color:var(--gold)}
+.ni.on,.ni-child.on{box-shadow:inset 3px 0 0 var(--fk-primary)}
+/* MOTION restraint — honour reduced-motion everywhere */
+@media(prefers-reduced-motion:reduce){
+  .nx-rise{animation:none}
+  .dkpi{transition:none}
+  .dkpi:hover{transform:none}
+}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -1439,6 +1475,37 @@ function _newLeadRow(l){
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.phone?esc(l.phone)+' · ':''}${_srcLabel(l.source)}${(!l.is_mine&&l.owner_name)?' · '+esc(l.owner_name):''}</div></div>
     <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap;font-size:13px">Start →</span></div></div>`;
 }
+// ── premium dashboard helpers: count-up · sparkline · trend · alive-empty (visual only) ──
+function _reduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches); }
+function _countUp(el){
+  const to=Number(el.getAttribute('data-to')); if(!isFinite(to)) return;
+  const fmt=el.getAttribute('data-fmt')||'int';
+  const fin = fmt==='pkr' ? (pkrShort(to)||'₨0') : Math.round(to).toLocaleString('en-US');
+  if(_reduceMotion() || to<=0){ el.textContent=fin; return; }
+  const f=v=> fmt==='pkr' ? '₨'+Math.round(v).toLocaleString('en-US') : Math.round(v).toLocaleString('en-US');
+  const dur=600, t0=performance.now();
+  requestAnimationFrame(function frame(t){ const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
+    el.textContent=f(to*e); if(p<1) requestAnimationFrame(frame); else el.textContent=fin; });
+}
+function _runCountUps(){ document.querySelectorAll('#app-body [data-countup]').forEach(_countUp); }
+// faint baseline when there's no/flat series (honest "ready" state); a real indigo trend line when a series is given
+function _spark(series){
+  const w=100,h=24,col='var(--fk-primary)';
+  const real = series && series.length>1 && Math.max.apply(null,series)!==Math.min.apply(null,series);
+  let d;
+  if(real){ const mn=Math.min.apply(null,series),mx=Math.max.apply(null,series),rg=(mx-mn)||1,n=series.length;
+    d='M'+series.map((v,i)=>(i/(n-1)*w).toFixed(1)+' '+(h-2-((v-mn)/rg)*(h-4)).toFixed(1)).join(' L'); }
+  else { d='M0 '+(h-3)+' L'+w+' '+(h-3); }
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">`
+    +`<path d="${d} L${w} ${h} L0 ${h} Z" fill="${col}" opacity="${real?0.08:0.04}"/>`
+    +`<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="${real?0.9:0.3}"/></svg>`;
+}
+function _trend(pct){ if(pct==null||!isFinite(pct)||pct===0) return '';
+  const up=pct>0;
+  const ar=up?'<path d="M7 17 17 7"/><path d="M7 7h10v10"/>':'<path d="M7 7l10 10"/><path d="M17 7v10H7"/>';
+  return `<span class="trendchip ${up?'up':'dn'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ar}</svg>${Math.abs(pct)}%</span>`;
+}
+function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span class="ei">${li(icon,18,1.75)}</span><div style="min-width:0"><div class="et">${esc(title)}</div><div class="es">${esc(sub)}</div></div></div>`; }
 async function renderHome(){
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
@@ -1470,10 +1537,11 @@ async function renderHome(){
   const _fn=nm?esc(String(nm).split(' ')[0]):'';
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
-  let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Here is your desk for today.</div></div>`;
-  html+=`<div class="herometric">
+  let _d=0; const _dl=()=>`animation-delay:${(_d++)*40}ms`;
+  let html=`<div class="nx-rise" style="${_dl()};margin:0 2px 14px"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Here is your desk for today.</div></div>`;
+  html+=`<div class="herometric nx-rise" style="${_dl()}">
     <div class="hm-eyebrow">This month</div>
-    <div class="hm-big">${pkrShort(sVal)||'₨0'}</div>
+    <div class="hm-big" data-countup data-to="${sVal}" data-fmt="pkr">${pkrShort(sVal)||'₨0'}</div>
     <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed · ${conv}% conversion</div>
     <div class="hm-foot">
       <div class="hm-stat"><span>Pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
@@ -1481,23 +1549,29 @@ async function renderHome(){
       <div class="hm-stat"><span>To collect</span><b>${outstanding?pkrShort(outstanding):'₨0'}</b></div>
     </div>
   </div>`;
-  const kpi=(label,val,chip,onclick)=>`<div class="dkpi" onclick="${onclick}"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
+  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
+  const kpi=(label,valHtml,chip,onclick)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(label)}</div><div class="dkpi-v">${valHtml}</div><div class="dkpi-spark">${_spark()}</div></div>`;
   html+='<div class="dgrid">'
-    + kpi('Active reservations', resvActive, ic('<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>'), "setTab('mine')")
-    + kpi('Pending approvals', pend, ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('mine')")
-    + kpi('My rank', rank, ic('<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>'), "setTab('rank')")
-    + kpi('To collect', outstanding?pkrShort(outstanding):'₨0', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), "setTab('recovery')")
+    + kpi('Active reservations', numv(resvActive,'int'), ic('<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>'), "setTab('mine')")
+    + kpi('Pending approvals', numv(pend,'int'), ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('mine')")
+    + kpi('My rank', esc(String(rank)), ic('<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>'), "setTab('rank')")
+    + kpi('To collect', numv(outstanding,'pkr'), ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), "setTab('recovery')")
     + '</div>';
   if(_canLeads && fuRows.length){
-    html+=`<div class="dsec">Follow up today <span class="nb">${fuRows.length}</span></div>`;
-    html+='<div class="lgroup">'+fuRows.slice(0,6).map(_fuRow).join('')+'</div>';
+    html+=`<div class="dsec nx-rise" style="${_dl()}">Follow up today <span class="nb">${fuRows.length}</span></div>`;
+    html+=`<div class="lgroup nx-rise" style="${_dl()}">`+fuRows.slice(0,6).map(_fuRow).join('')+'</div>';
   }
   if(_canLeads && newLeads.length){
-    html+=`<div class="dsec">New leads <span class="nb">${newLeads.length}</span></div>`;
-    html+='<div class="lgroup">'+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
+    html+=`<div class="dsec nx-rise" style="${_dl()}">New leads <span class="nb">${newLeads.length}</span></div>`;
+    html+=`<div class="lgroup nx-rise" style="${_dl()}">`+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
     if(newLeads.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('leads')">View all leads</button>`;
   }
+  if(_canLeads && !fuRows.length && !newLeads.length){
+    html+=`<div class="dsec nx-rise" style="${_dl()}">Today</div>`;
+    html+=`<div class="nx-rise" style="${_dl()}">`+_emptyMini('check',"You're all caught up","No follow-ups or new leads today — fresh leads will land here automatically.")+`</div>`;
+  }
   $('app-body').innerHTML=html;
+  _runCountUps();
   _annUpdateBadge();
 }
 
