@@ -1575,10 +1575,19 @@ async function renderLeads(){
   }
   _leadsRender();
 }
+function _leadBase(){
+  const isMgr=!!(LEADCFG&&LEADCFG.can_assign);
+  let base=(isMgr&&LEADV.scope==='mine')?LEADS.filter(l=>l.is_mine):LEADS;
+  const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
+  if(!isMgr && canCreate && LEADV.own && LEADV.own!=='all'){
+    base=base.filter(l=> LEADV.own==='mine' ? !!l.created_by_me : !l.created_by_me);   // received = not self-created
+  }
+  return base;
+}
 function _leadsRender(){
   const isMgr=!!(LEADCFG&&LEADCFG.can_assign);
   if(!LEADV.scope) LEADV.scope='all';
-  const scoped=(isMgr&&LEADV.scope==='mine')?LEADS.filter(l=>l.is_mine):LEADS;
+  const scoped=_leadBase();
   const counts={}; scoped.forEach(l=>{ counts[l.status]=(counts[l.status]||0)+1; });
   const total=scoped.length;
   _leadsBadgeSet(Number(counts['new']||0));
@@ -1595,6 +1604,12 @@ function _leadsRender(){
       return `<button onclick="LEADV.scope='${k}';_leadsRender()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${esc(lb)}</button>`; };
     html+=`<div style="display:flex;gap:6px;margin-top:12px">${seg('mine','Mine')}${seg('all','My team')}</div>`;
   }
+  if(!isMgr && canCreate){
+    if(!LEADV.own) LEADV.own='all';
+    const oseg=(k,lb)=>{ const on=LEADV.own===k;
+      return `<button onclick="LEADV.own='${k}';_leadsRender()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${esc(lb)}</button>`; };
+    html+=`<div style="display:flex;gap:6px;margin-top:12px">${oseg('all','All')}${oseg('received','Received')}${oseg('mine','Added by me')}</div>`;
+  }
   html+=`<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()" style="margin-top:12px">`;
   const chip=(k,lb,n)=>{ const on=LEADV.filter===k;
     return `<button onclick="_leadFilter('${k}')" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s">${esc(lb)} <b style="opacity:.85">${n}</b></button>`; };
@@ -1607,16 +1622,17 @@ function _leadsRender(){
   _leadListRender();
 }
 function _leadListRender(){
-  const isMgr=!!(LEADCFG&&LEADCFG.can_assign);
-  const scoped=(isMgr&&LEADV.scope==='mine')?LEADS.filter(l=>l.is_mine):LEADS;
-  let rows=scoped.filter(l=>LEADV.filter==='all'||l.status===LEADV.filter);
+  let rows=_leadBase().filter(l=>LEADV.filter==='all'||l.status===LEADV.filter);
   const q=(LEADV.q||'').trim().toLowerCase();
   if(q) rows=rows.filter(l=>((l.name||'').toLowerCase().includes(q))||((l.phone||'').replace(/\s/g,'').includes(q)));
   const el=$('lead-list'); if(!el) return;
   if(!rows.length){
     const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
-    const es = q ? '' : (canCreate ? '<div class="es">Tap “Add lead” to capture your first prospect.</div>'
-                                   : '<div class="es">Your manager will assign leads to you here.</div>');
+    const es = q ? ''
+      : (LEADV.own==='received') ? '<div class="es">No leads assigned to you yet — your manager will assign leads here.</div>'
+      : (LEADV.own==='mine') ? '<div class="es">You haven’t added any leads yet — tap “Add lead”.</div>'
+      : canCreate ? '<div class="es">Tap “Add lead” to capture your first prospect.</div>'
+      : '<div class="es">Your manager will assign leads to you here.</div>';
     el.innerHTML='<div class="card"><div class="empty"><div class="et">No leads'+(q?' match your search':(LEADV.filter==='all'?' yet':' in this stage'))+'</div>'+es+'</div></div>';
   } else {
     el.innerHTML='<div class="lgroup">'+rows.map(_leadCard).join('')+'</div>';
