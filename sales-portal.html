@@ -533,6 +533,33 @@ body{background:var(--nx-page)}
 /* list rows — denser but still tappable (~56px: 40px avatar + 8px×2) */
 .nx-dash .lrow{padding:var(--fk-sp-2) var(--fk-sp-3)}
 .nx-dash .lr-empty{padding:var(--fk-sp-4)}
+
+/* ════ Leads view — same card language as the dashboard (slate page is global) ════ */
+.nx-leads .lgroup{box-shadow:var(--nx-card-sh);border-radius:var(--nx-radius)}
+.nx-leads .lrow{padding:var(--fk-sp-2) var(--fk-sp-3)}
+.lead-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--fk-sp-3);margin:0 2px var(--fk-sp-3)}
+.lead-h1{font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.02em;color:var(--fk-text)}
+.lead-hsub{color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)}
+.lead-add{flex:none;width:auto;gap:5px}
+.lead-add svg{width:16px;height:16px}
+.lead-search{position:relative;margin-top:var(--fk-sp-3)}
+.lead-search>svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--fk-text-muted);pointer-events:none}
+.lead-search .input{padding-left:40px}
+.lead-chips{display:flex;gap:var(--fk-sp-2);overflow-x:auto;margin:var(--fk-sp-3) 0;padding-bottom:2px}
+.lead-chip{flex:0 0 auto;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text-muted);border-radius:var(--fk-radius-pill);padding:6px 12px;font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);cursor:pointer;white-space:nowrap;transition:background .16s ease,color .16s ease,border-color .16s ease}
+.lead-chip:hover{border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
+.lead-chip.on{background:var(--fk-primary-tint);color:var(--fk-primary);border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
+.lead-chip b{font-weight:var(--fk-fw-bold);font-variant-numeric:tabular-nums}
+.lead-row{transition:background .16s ease,box-shadow .16s ease}
+.lead-row:hover{background:var(--fk-bg-subtle);box-shadow:inset 3px 0 0 var(--lc,var(--fk-primary))}
+.lead-main{display:flex;align-items:center;gap:var(--fk-sp-3);flex:1;min-width:0;cursor:pointer}
+.lead-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:var(--fk-sp-1)}
+.lead-date{font-size:var(--fk-fs-label);color:var(--fk-text-muted);font-variant-numeric:tabular-nums}
+/* status pill = the single status control (tap opens the native select) */
+.lead-stat{position:relative;display:inline-flex;align-items:center;gap:2px;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-bold);padding:3px 8px;border-radius:var(--fk-radius-pill);white-space:nowrap;cursor:pointer}
+.lead-stat svg{width:1em;height:1em;stroke-width:2.4;opacity:.7}
+.lead-stat .lead-stat-x{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none}
+@media(prefers-reduced-motion:reduce){ .lead-row,.lead-chip{transition:none} }
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -1863,7 +1890,7 @@ async function renderManagerHome(){
 let LEADS=[], LEADCOUNTS={}, LEADV={filter:'all'};
 const LEAD_STAGES=[['new','New'],['contacted','Contacted'],['visit','Visit'],['negotiation','Negotiation'],['won','Won'],['lost','Lost']];
 const LEAD_SOURCES=['Walk-in','Call','Referral','Online','Banner','Other'];
-const _LEAD_TONE={new:'var(--fk-primary)',contacted:'var(--fk-warning)',visit:'var(--fk-warning)',negotiation:'var(--fk-success)',won:'var(--fk-success)',lost:'var(--fk-danger)'};
+const _LEAD_TONE={new:'var(--fk-primary)',contacted:'var(--fk-warning)',visit:'var(--fk-info)',negotiation:'var(--nx-violet)',won:'var(--fk-success)',lost:'var(--fk-danger)'};
 function _leadStageLabel(s){ const f=LEAD_STAGES.find(x=>x[0]===s); return f?f[1]:s; }
 function _leadColor(s){ return _LEAD_TONE[s]||'var(--fk-text-muted)'; }
 const LEAD_KINDS=[['note','Note'],['call','Call'],['whatsapp','WhatsApp'],['visit','Visit'],['meeting','Meeting']];
@@ -1911,35 +1938,23 @@ function _leadsRender(){
   const total=scoped.length;
   _leadsBadgeSet(Number(counts['new']||0));
   const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
-  let html;
-  if(canCreate){
-    html=_pageHead('Leads','Your prospects — capture, follow up, and move them to sale.');
-    html+=`<button class="btn btn-primary btn-full" onclick="_leadFormOpen()">+ Add lead</button>`;
-  } else {
-    html=_pageHead('Received Leads','Leads your manager has assigned to you — call, follow up, and close.');
-  }
-  if(isMgr){
-    const seg=(k,lb)=>{ const on=LEADV.scope===k;
-      return `<button onclick="LEADV.scope='${k}';_leadsRender()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${esc(lb)}</button>`; };
-    html+=`<div style="display:flex;gap:6px;margin-top:12px">${seg('mine','Mine')}${seg('all','My team')}</div>`;
-  }
-  if(!isMgr && canCreate){
-    if(!LEADV.own) LEADV.own='all';
-    const oseg=(k,lb)=>{ const on=LEADV.own===k;
-      return `<button onclick="LEADV.own='${k}';_leadsRender()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${esc(lb)}</button>`; };
-    html+=`<div style="display:flex;gap:6px;margin-top:12px">${oseg('all','All')}${oseg('received','Received')}${oseg('mine','Added by me')}</div>`;
-  }
-  html+=`<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()" style="margin-top:12px">`;
-  const chip=(k,lb,n)=>{ const on=LEADV.filter===k;
-    return `<button onclick="_leadFilter('${k}')" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s">${esc(lb)} <b style="opacity:.85">${n}</b></button>`; };
-  html+='<div style="display:flex;gap:7px;overflow-x:auto;margin:12px 0;padding-bottom:2px">';
-  html+=chip('all','All',total);
-  LEAD_STAGES.forEach(([k,lb])=>{ html+=chip(k,lb,Number(counts[k]||0)); });
-  html+='</div>';
-  html+='<div id="lead-list"></div>';
+  const plus='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+  const title=canCreate?'Leads':'Received Leads';
+  const subt=canCreate?'Your prospects — capture, follow up, and move them to sale.':'Leads your manager assigned to you — call, follow up, and close.';
+  let html='<div class="nx-leads">';
+  html+=`<div class="lead-head"><div style="min-width:0"><div class="lead-h1">${title}</div><div class="lead-hsub">${subt}</div></div>${canCreate?`<button class="btn btn-primary lead-add" onclick="_leadFormOpen()">${plus} Add lead</button>`:''}</div>`;
+  if(isMgr) html+=_seg([['mine','Mine'],['all','My team']], LEADV.scope, '_leadSetScope');
+  if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
+  const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+  html+=`<div class="lead-search">${srch}<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()"></div>`;
+  const chip=(k,lb,n)=>`<button onclick="_leadFilter('${k}')" class="lead-chip${LEADV.filter===k?' on':''}">${esc(lb)} <b>${n}</b></button>`;
+  html+='<div class="lead-chips">'+chip('all','All',total)+LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')+'</div>';
+  html+='<div id="lead-list"></div></div>';
   $('app-body').innerHTML=html;
   _leadListRender();
 }
+function _leadSetScope(k){ LEADV.scope=k; _leadsRender(); }
+function _leadSetOwn(k){ LEADV.own=k; _leadsRender(); }
 function _leadListRender(){
   let rows=_leadBase().filter(l=>LEADV.filter==='all'||l.status===LEADV.filter);
   const q=(LEADV.q||'').trim().toLowerCase();
@@ -1958,21 +1973,19 @@ function _leadListRender(){
   }
 }
 function _leadCard(l){
+  const col=_leadColor(l.status), lbl=_leadStageLabel(l.status);
   const opts=LEAD_STAGES.map(([k,lb])=>`<option value="${k}"${l.status===k?' selected':''}>${esc(lb)}</option>`).join('');
-  const pill=`<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff;background:${_leadColor(l.status)};white-space:nowrap">${esc(_leadStageLabel(l.status))}</span>`;
+  const caret='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  const stat=`<span class="lead-stat" style="background:color-mix(in srgb,${col} 14%,var(--fk-bg-card));color:${col}">${esc(lbl)}${caret}<select class="lead-stat-x" onchange="_leadStage('${l.id}',this.value)" title="Change status">${opts}</select></span>`;
   const meta=[l.interest?esc(l.interest):'', l.budget?pkrShort(l.budget):'', l.source?esc(l.source):''].filter(Boolean).join(' · ');
   const sub=[l.phone?esc(l.phone):'', meta].filter(Boolean).join(' · ')+((!l.is_mine&&l.owner_name)?' · → '+esc(l.owner_name):'');
-  return `<div class="lrow">
-    <div class="lrow-top" onclick="openLead('${l.id}')" style="cursor:pointer">
-      ${_avatar(l.name,34)}
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>${pill}</div>
-        ${sub?`<div style="color:var(--fk-text-muted);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div>`:''}
+  return `<div class="lrow lead-row" style="--lc:${col}">
+    <div class="lrow-top">
+      <div class="lead-main" onclick="openLead('${l.id}')">
+        ${_avatarC(l.name,40)}
+        <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name)}</div>${sub?`<div class="lr-sub"><span>${sub}</span></div>`:''}</div>
       </div>
-    </div>
-    <div class="lrow-foot">
-      <select class="input" onchange="_leadStage('${l.id}',this.value)" style="width:auto;height:auto;padding:6px 8px;font-size:13px">${opts}</select>
-      <span style="color:var(--fk-text-muted);font-size:11px">${esc(fdateShort(l.created_at))}</span>
+      <div class="lead-right">${stat}<span class="lead-date">${esc(fdateShort(l.created_at))}</span></div>
     </div>
   </div>`;
 }
