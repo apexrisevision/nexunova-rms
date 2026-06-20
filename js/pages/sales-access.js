@@ -20,11 +20,17 @@ const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'M
 const _SA_ROLE_TONE = { sale_rep: 'muted', marketing_manager: 'primary', admin: 'warning', cfo: 'success', director: 'primary', lead_entry: 'info' };
 function _saRoleLabel(r) { return _SA_ROLE_LABELS[r] || 'Sale Representative'; }
 function _saRoleOptions() { return Object.keys(_SA_ROLE_LABELS).map(v => ({ value: v, label: _SA_ROLE_LABELS[v] })); }
+// NX.field HTML-escapes its label, so styled "· hint" markup shows as raw text.
+// _saFieldH renders the label as the intended HTML (admin-app local; kit untouched).
+function _saFieldH(htmlLabel, opts) {
+  opts = Object.assign({}, opts || {}); opts.label = '';
+  var f = NX.field(opts);
+  var lbl = '<label class="nx-label"' + (opts.name ? ' for="' + esc(opts.name) + '"' : '') + '>' + htmlLabel + '</label>';
+  return f.replace('<div class="nx-field">', '<div class="nx-field">' + lbl);
+}
 function _saRoleField(name, value) {
-  return NX.field({
-    label: 'Portal role <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· what this member logs in as</span>',
-    name, el: 'select', options: _saRoleOptions(), value: value || 'sale_rep'
-  });
+  return _saFieldH('Portal role <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· what this member logs in as</span>',
+    { name: name, el: 'select', options: _saRoleOptions(), value: value || 'sale_rep' });
 }
 
 // ── Online Portal: one tab housing all self-module admin as sub-tabs ──
@@ -388,17 +394,17 @@ async function _saReviewOpen(id) {
   try { const { data } = await supabase.rpc('get_umbrella_approval_context', { p_sales_user_id: id });
         if (data && data.success && data.umbrella) _umb = data; } catch (e) {}
   const _projField = projOpts.length
-    ? NX.field({ label: 'Project (reserve scope &amp; agent home)', name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
+    ? _saFieldH('Project (reserve scope &amp; agent home)', { name: 'sa-approve-project', el: 'select', options: projOpts, value: projOpts[0].value })
     : `<div class="nx-error" style="display:block">No projects exist yet — create a project first, then approve.</div>`;
-  const _commField = NX.field({ label: 'Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' });
+  const _commField = _saFieldH('Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', { name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' });
   const _errDiv = `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`;
   const _roleField = _saRoleField('sa-approve-role', 'sale_rep');
   // "Reports to" — every member must answer to someone; only a director can have no head.
   const _seniorOpts = [{ value: '', label: '— select team head —' }].concat(
-    (_saRows || []).filter(x => x.status !== 'pending' && (x.role === 'marketing_manager' || x.role === 'director'))
+    (_saRows || []).filter(x => x.status === 'active' && (x.role === 'marketing_manager' || x.role === 'director'))
       .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
   );
-  const _parentField = NX.field({ label: 'Reports to <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· required — who this member answers to (only a Director can skip)</span>', name: 'sa-approve-parent', el: 'select', options: _seniorOpts, value: '' });
+  const _parentField = _saFieldH('Reports to <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· required — who this member answers to (only a Director can skip)</span>', { name: 'sa-approve-parent', el: 'select', options: _seniorOpts, value: '' });
   const approvalHtml = _roleField + _parentField + (_umb ? _saUmbrellaHtml(_umb) : (matchesHtml + _projField + _commField + _errDiv));
   const approveBtn = _umb
     ? NX.button('Approve &amp; register in all', { variant: 'primary', onclick: `_saApproveGrouped('${id}')` })
@@ -506,7 +512,7 @@ function _saRoleOpen(id) {
   const _SA_RANK = { lead_entry: 1, sale_rep: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
   const _myRank = _SA_RANK[r.role || 'sale_rep'] || 1;
   const parentOpts = [{ value: '', label: '— none —' }].concat(
-    (_saRows || []).filter(x => x.id !== id && x.status !== 'pending'
+    (_saRows || []).filter(x => x.id !== id && x.status === 'active'
         && (x.role === 'marketing_manager' || x.role === 'director')
         && (_SA_RANK[x.role] || 0) > _myRank)
       .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
@@ -515,7 +521,7 @@ function _saRoleOpen(id) {
     id: 'sa-role-modal', title: 'Portal role — ' + esc(r.full_name || ''), size: 's', onClose: '_saCloseModal()',
     body:
       _saRoleField('sa-role-sel', r.role || 'sale_rep')
-      + NX.field({ label: 'Team head <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — who this member reports to</span>', name: 'sa-role-parent', el: 'select', options: parentOpts, value: r.parent_sales_user_id || '' })
+      + _saFieldH('Team head <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· required for non-directors — who this member reports to</span>', { name: 'sa-role-parent', el: 'select', options: parentOpts, value: r.parent_sales_user_id || '' })
       + `<div style="font-size:11.5px;color:var(--fk-text-muted);margin-top:6px">Role decides what this person logs into in the portal. (Role-specific screens roll out next — tagging it now keeps everyone classified.)</div>`
       + `<div class="nx-error" id="sa-role-err" style="display:none"></div>`,
     footer:
