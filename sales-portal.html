@@ -920,6 +920,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
           <a class="ni-child" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
           <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
+          <a class="ni-child" data-tab="livemap" onclick="setTab('livemap')"><span class="ni-lb">Live Map</span></a>
           <a class="ni-child" data-tab="teamperf" onclick="setTab('teamperf')"><span class="ni-lb">Team Performance</span></a>
           <a class="ni-child" data-tab="fbsettings" data-dir onclick="setTab('fbsettings')"><span class="ni-lb">Facebook Leads</span></a>
         </div>
@@ -1291,7 +1292,7 @@ function _applyLeadAccess(){
   show('.ni-grp[data-grp="sales"]', !isExec);
   show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
 }
-function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); }
+function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); try{ _startLiveLocation(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -1354,7 +1355,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='home') renderHome();
@@ -1373,6 +1374,7 @@ function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(N
   else if(t==='targets') renderTargets();
   else if(t==='teamrecovery') renderTeamRecovery();
   else if(t==='teamperf') renderPerformance();
+  else if(t==='livemap') renderLiveMap();
   else if(t==='fbsettings') renderFbSettings();
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
@@ -2771,6 +2773,91 @@ async function _renderAgentLoc(id){
   let d=null; try{ const r=await sb.rpc('get_member_location',{p_session_token:TOKEN,p_member:id}); d=r.data; }catch(e){}
   if(!(d&&d.success&&d.lat!=null&&d.lng!=null)){ el.innerHTML=''; return; }
   el.innerHTML=`<div class="dsec">Location</div><div class="card">${_mapEmbed(d.lat,d.lng)}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><div style="font-size:13px"><div style="font-weight:600">${esc(d.label||'Location')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Updated ${d.at?esc(_agoTxt(d.at)):'—'}</div></div><a class="btn btn-sm" href="${_mapLink(d.lat,d.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div></div>`;
+}
+// ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
+let _gmapsLoaded=false, _gmapsLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_KEY=null, LIVE_FILTER='all';
+function _loadGMaps(key){
+  if(_gmapsLoaded && window.google && window.google.maps) return Promise.resolve();
+  if(_gmapsLoading) return _gmapsLoading;
+  _gmapsLoading=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&loading=async';
+    s.async=true; s.defer=true;
+    s.onload=()=>{ _gmapsLoaded=true; res(); };
+    s.onerror=()=>{ _gmapsLoading=null; rej(new Error('load failed')); };
+    document.head.appendChild(s);
+  });
+  return _gmapsLoading;
+}
+function _staleness(at){ if(!at) return 'old'; const m=Math.floor((Date.now()-new Date(at).getTime())/60000); return m<30?'fresh':(m<120?'stale':'old'); }
+const _STALE_COL={fresh:'#16A34A',stale:'#D97706',old:'#94A3B8'};
+async function renderLiveMap(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading live map…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_team_locations',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  _touch();
+  LIVE_PINS=data.pins||[]; LIVE_KEY=data.maps_api_key||null;
+  const isDir=ME&&ME.role==='director';
+  let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
+  if(!LIVE_KEY){
+    html+=_emptyCard('Map setup required', isDir?'Add your Google Maps API key below to enable the live team map.':'Ask your director to add the Google Maps API key.');
+    if(isDir){
+      html+=`<div class="card"><div class="field"><label class="label">Google Maps API key</label><input class="input" id="mapskey" placeholder="AIza…" autocomplete="off"></div><button class="btn btn-primary btn-full" onclick="_saveMapsKey()">Save key</button><div style="font-size:12px;color:var(--fk-text-muted);margin-top:8px">Google Cloud → enable <b>Maps JavaScript API</b> → create an API key (restrict it to your domain).</div></div>`;
+    }
+    $('app-body').innerHTML=html; return;
+  }
+  const counts={all:LIVE_PINS.length,fresh:0,stale:0,old:0};
+  LIVE_PINS.forEach(p=>{ counts[_staleness(p.at)]++; });
+  const seg=(k,lb)=>{ const on=LIVE_FILTER===k; return `<button onclick="LIVE_FILTER='${k}';_liveRenderMarkers(true)" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">${lb} ${counts[k]||0}</button>`; };
+  html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${seg('all','All')}${seg('fresh','Active')}${seg('stale','Inactive')}${seg('old','Offline')}</div>`;
+  html+=`<div id="livemap-canvas" style="width:100%;height:62vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle)"></div>`;
+  if(!LIVE_PINS.length) html+=`<div class="empty" style="padding:20px"><div class="es">No team locations yet — members appear here once they share their location (Profile → “Use my current location”, or just by opening the app).</div></div>`;
+  $('app-body').innerHTML=html;
+  try{ await _loadGMaps(LIVE_KEY); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Failed to load Google Maps</div><div class="es">Check the API key / billing in Google Cloud.</div></div>'; return; }
+  _liveInitMap();
+}
+function _liveInitMap(){
+  const el=$('livemap-canvas'); if(!el||!window.google||!window.google.maps) return;
+  _liveMap=new google.maps.Map(el,{center:{lat:30.3753,lng:69.3451},zoom:6,streetViewControl:false,mapTypeControl:false,fullscreenControl:true});
+  _liveRenderMarkers(true);
+}
+function _liveRenderMarkers(fit){
+  if(!_liveMap||!window.google) return;
+  _liveMarkers.forEach(m=>m.setMap(null)); _liveMarkers=[];
+  const pins=LIVE_PINS.filter(p=>LIVE_FILTER==='all'||_staleness(p.at)===LIVE_FILTER);
+  const bounds=new google.maps.LatLngBounds();
+  pins.forEach(p=>{
+    const st=_staleness(p.at), pos={lat:Number(p.lat),lng:Number(p.lng)};
+    const mk=new google.maps.Marker({position:pos,map:_liveMap,title:p.name,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:_STALE_COL[st],fillOpacity:st==='old'?0.5:1,strokeColor:'#fff',strokeWeight:2.5},
+      label:{text:((p.name||'?')[0]||'?').toUpperCase(),color:'#fff',fontSize:'11px',fontWeight:'700'}});
+    const iw=new google.maps.InfoWindow({content:`<div style="font-family:Inter,sans-serif;min-width:150px"><b>${esc(p.name||'')}</b><div style="font-size:12px;color:#666">${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}</div>${p.label?`<div style="font-size:12px;color:#666">${esc(p.label)}</div>`:''}</div>`});
+    mk.addListener('click',()=>iw.open(_liveMap,mk));
+    _liveMarkers.push(mk); bounds.extend(pos);
+  });
+  if(fit && pins.length){ _liveMap.fitBounds(bounds,60); if(pins.length===1) _liveMap.setZoom(14); }
+}
+async function _saveMapsKey(){
+  const k=(($('mapskey')||{}).value||'').trim(); if(!k){ toast('Enter the key','err'); return; }
+  try{ const {data}=await sb.rpc('save_maps_key',{p_session_token:TOKEN,p_key:k});
+    if(data&&data.success){ toast('Saved','ok'); renderLiveMap(); } else toast((data&&data.message)||'Could not save','err');
+  }catch(e){ toast('Could not save','err'); }
+}
+// ── live location sending (so members appear on their upline's map) ──
+let _liveLocTimer=null;
+function _sendLiveLocation(){
+  if(!navigator.geolocation || !TOKEN) return;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=+pos.coords.latitude.toFixed(6), lng=+pos.coords.longitude.toFixed(6);
+    try{ sb.rpc('update_my_location',{p_session_token:TOKEN,p_lat:lat,p_lng:lng}).then(()=>{},()=>{}); }catch(e){}
+  }, ()=>{}, {enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+}
+function _startLiveLocation(){
+  if(_liveLocTimer || !navigator.geolocation) return;
+  _sendLiveLocation();
+  _liveLocTimer=setInterval(_sendLiveLocation, 5*60*1000);
 }
 function _profileEdit(){
   const p=PROFILE||{};
