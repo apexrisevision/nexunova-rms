@@ -3055,7 +3055,7 @@ async function renderMemberPerf(){
   const L=d.leads||{}, A=d.activity||{}, S=d.sales||{};
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Performance';
   let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
-  html+=`<div style="font-size:18px;font-weight:700;margin:0 2px 2px">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted);margin:0 2px 12px">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' (whole team)':''}</div>`;
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' · whole team':''}</div></div></div>`;
   if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
   html+=_seg([['month','This month'],['last','Last month'],['all','All time']], MEMBER_PERIOD, '_setMemPeriod');
   html+='<div class="dgrid">'
@@ -3084,7 +3084,7 @@ async function renderMemberLeads(){
   const leads=d.leads||[];
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Leads';
   let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
-  html+=`<div style="font-size:18px;font-weight:700;margin:0 2px 2px">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted);margin:0 2px 12px">${esc(_portalRoleLabel(d.role))} · Leads</div>`;
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Leads</div></div></div>`;
   if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
   if(!leads.length){ html+=_emptyCard('No leads','No leads in this view yet.'); $('app-body').innerHTML=html; return; }
   html+=`<div class="dsec">Leads <span class="nb">${leads.length}</span></div><div class="lgroup">`;
