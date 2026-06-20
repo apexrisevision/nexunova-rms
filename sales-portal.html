@@ -2086,16 +2086,25 @@ function _leadFormOpen(){
     '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leadSave()">Save lead</button>'
   );
 }
-async function _leadSave(){
+async function _leadSave(force){
   const name=($('ld-name')||{}).value||''; const err=$('ld-err');
   if(!name.trim()){ if(err){err.style.display='block';err.textContent='Name is required.';} return; }
   const payload={ name:name.trim(), phone:($('ld-phone')||{}).value||'', source:($('ld-source')||{}).value||'Other',
     interest:($('ld-interest')||{}).value||'', budget:(($('ld-budget')||{}).value||'').replace(/[^0-9.]/g,''), notes:($('ld-notes')||{}).value||'' };
-  try{ const {data}=await sb.rpc('create_lead',{p_session_token:TOKEN,p_payload:payload});
+  try{ const {data}=await sb.rpc('create_lead',{p_session_token:TOKEN,p_payload:payload,p_force:!!force});
     if(data&&data.success){ closeModal(); toast('Lead added','ok'); renderLeads(); }
     else if(data&&data.error==='session_expired'){ closeModal(); sessionGone(); }
+    else if(data&&data.error==='duplicate_owned'){ closeModal(); _dupOwnedDialog(data); }            // it's in their visibility → offer to open it
+    else if(data&&data.error==='duplicate_elsewhere'){ if(err){ err.style.display='block';            // cross-team → soft, no details; manager/director may force
+        err.innerHTML=esc(data.message||'A lead with this phone already exists in the organization.')
+          + (data.can_force?` <button type="button" onclick="_leadSave(true)" style="margin-left:6px;background:none;border:0;color:var(--fk-primary);font-weight:700;font-family:inherit;cursor:pointer;text-decoration:underline">Create anyway</button>`:''); } }
     else { if(err){err.style.display='block';err.textContent=(data&&data.message)||'Could not save.';} }
   }catch(e){ if(err){err.style.display='block';err.textContent='Could not save.';} }
+}
+function _dupOwnedDialog(d){
+  openModal('Client already in your pipeline',
+    `<div style="font-size:var(--fk-fs-body);color:var(--fk-text);line-height:1.55">A lead with this phone already exists${d.owner_name?` — held by <b>${esc(d.owner_name)}</b>`:''} (status <b>${esc(_leadStageLabel(d.status)||d.status||'—')}</b>). Open it instead of creating a duplicate.</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="closeModal();openLead('${d.lead_id}')">Open existing lead</button>`);
 }
 // ════ LEAD WIZARD — one simple step at a time (default lead experience) ════
 let WIZ={id:null,step:1,lead:null,acts:null};
