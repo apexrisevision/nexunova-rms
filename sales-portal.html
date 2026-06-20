@@ -2821,10 +2821,22 @@ async function renderLiveMap(){
   const seg=(k,lb)=>{ const on=LIVE_FILTER===k; return `<button onclick="LIVE_FILTER='${k}';_liveRenderMarkers(true)" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">${lb} ${counts[k]||0}</button>`; };
   html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${seg('all','All')}${seg('fresh','Active')}${seg('stale','Inactive')}${seg('old','Offline')}</div>`;
   html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
-  html+=_liveListHtml();
+  html+='<div id="live-list">'+_liveListHtml()+'</div>';
   $('app-body').innerHTML=html;
   try{ await _loadLeaflet(); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Map could not load</div><div class="es">Check your internet connection and try again.</div></div>'; return; }
   _liveInitMap();
+  _liveAutoRefresh();
+}
+let _liveRefreshTimer=null;
+function _liveUpdateList(){ const el=$('live-list'); if(el) el.innerHTML=_liveListHtml(); }
+function _liveAutoRefresh(){
+  if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; }
+  _liveRefreshTimer=setInterval(async ()=>{
+    if(TAB!=='livemap'){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; return; }   // self-clear on leaving
+    try{ const {data}=await sb.rpc('get_team_locations',{p_session_token:TOKEN});
+      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); }
+    }catch(e){}
+  }, 30000);
 }
 function _liveInitMap(){
   const el=$('livemap-canvas'); if(!el||!window.L) return;
@@ -2848,19 +2860,27 @@ function _liveRenderMarkers(fit){
   });
   if(fit && latlngs.length){ if(latlngs.length===1) _liveMap.setView(latlngs[0],14); else _liveMap.fitBounds(latlngs,{padding:[40,40]}); }
 }
-// ── live location sending (so members appear on their upline's map) ──
-let _liveLocTimer=null;
+// ── live location sending (member's app pushes GPS while open + online) ──
+let _liveLocTimer=null, _liveLocWatch=null;
 function _sendLiveLocation(){
   if(!navigator.geolocation || !TOKEN) return;
   navigator.geolocation.getCurrentPosition(pos=>{
     const lat=+pos.coords.latitude.toFixed(6), lng=+pos.coords.longitude.toFixed(6);
     try{ sb.rpc('update_my_location',{p_session_token:TOKEN,p_lat:lat,p_lng:lng}).then(()=>{},()=>{}); }catch(e){}
-  }, ()=>{}, {enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+  }, ()=>{}, {enableHighAccuracy:true,timeout:20000,maximumAge:30000});
 }
 function _startLiveLocation(){
-  if(_liveLocTimer || !navigator.geolocation) return;
+  if(!navigator.geolocation) return;
   _sendLiveLocation();
-  _liveLocTimer=setInterval(_sendLiveLocation, 5*60*1000);
+  // periodic ping keeps "last seen" fresh (Active) while the app is open
+  if(!_liveLocTimer) _liveLocTimer=setInterval(_sendLiveLocation, 60*1000);   // every 60s
+  // watch reacts to actual movement (throttled inside _sendLiveLocation’s freshness)
+  if(_liveLocWatch==null){
+    try{ _liveLocWatch=navigator.geolocation.watchPosition(pos=>{
+      const lat=+pos.coords.latitude.toFixed(6), lng=+pos.coords.longitude.toFixed(6);
+      try{ sb.rpc('update_my_location',{p_session_token:TOKEN,p_lat:lat,p_lng:lng}).then(()=>{},()=>{}); }catch(e){}
+    }, ()=>{}, {enableHighAccuracy:true,maximumAge:30000,timeout:60000}); }catch(e){}
+  }
 }
 function _profileEdit(){
   const p=PROFILE||{};
