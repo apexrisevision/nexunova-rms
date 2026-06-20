@@ -16,8 +16,8 @@ let _saAnns = [];
 let _saAnnIsHome = false;
 
 // ── Portal role taxonomy (Phase 0: data/tagging only; gated behaviour later) ──
-const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director' };
-const _SA_ROLE_TONE = { sale_rep: 'muted', marketing_manager: 'primary', admin: 'warning', cfo: 'success', director: 'primary' };
+const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director', lead_entry: 'Lead Entry' };
+const _SA_ROLE_TONE = { sale_rep: 'muted', marketing_manager: 'primary', admin: 'warning', cfo: 'success', director: 'primary', lead_entry: 'info' };
 function _saRoleLabel(r) { return _SA_ROLE_LABELS[r] || 'Sale Representative'; }
 function _saRoleOptions() { return Object.keys(_SA_ROLE_LABELS).map(v => ({ value: v, label: _SA_ROLE_LABELS[v] })); }
 function _saRoleField(name, value) {
@@ -503,7 +503,7 @@ function _saRoleOpen(id) {
   const r = (_saRows || []).find(x => x.id === id) || {};
   // "Reports to" = hierarchy-aware: show only seniors ABOVE this member's role level.
   // rep → managers + directors · manager/cfo/admin → directors only · director → none.
-  const _SA_RANK = { sale_rep: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
+  const _SA_RANK = { lead_entry: 1, sale_rep: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
   const _myRank = _SA_RANK[r.role || 'sale_rep'] || 1;
   const parentOpts = [{ value: '', label: '— none —' }].concat(
     (_saRows || []).filter(x => x.id !== id && x.status !== 'pending'
