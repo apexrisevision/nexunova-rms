@@ -587,6 +587,14 @@ body{background:var(--nx-page)}
 .act-lb{flex:1;font-size:var(--fk-fs-body);color:var(--fk-text);min-width:0}
 .act-n{font-size:var(--fk-fs-title);font-weight:var(--fk-fw-semibold);color:var(--fk-text);font-variant-numeric:tabular-nums}
 @media(prefers-reduced-motion:reduce){.pf-track>i{transition:none}}
+
+/* ════ My Team — dashboard card family + clean manager/report hierarchy ════ */
+.nx-dash .torg{box-shadow:var(--nx-card-sh);border-radius:var(--nx-radius)}
+.nx-dash .tnode{padding-bottom:var(--fk-sp-2)}
+.trow .lr-name{font-size:var(--fk-fs-title)}
+.tsub{font-size:var(--fk-fs-body);color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.trow.mgr{background:var(--fk-bg-subtle)}
+.trow.mgr:hover{background:var(--fk-subtle-hover)}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -2582,17 +2590,22 @@ function _findTeamNode(id){
 function _renderTeamTree(){
   const team=TEAM_DATA||[], T=TEAM_TOTALS||{};
   const t=$('appbar-title'); if(t) t.textContent=TAB_TITLES['team']||'My Team';
-  const kpi=(label,val)=>`<div class="dkpi"><div class="dkpi-l">${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
-  let html=_pageHead('My Team','Your team — tap a manager to expand their members.');
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
+  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  let html='<div class="nx-dash">'+_pageHead('My Team','Your team — tap a manager to expand their members.');
   html+='<div class="dgrid">'
-    + kpi('Members', team.length)
-    + kpi('Team sales', pkrShort(T.sales_value)||'₨0')
-    + kpi('To collect', pkrShort(T.outstanding)||'₨0')
-    + kpi('Open pipeline', T.pipeline||0)
+    + kpi('Members', numv(team.length,'int'), 'indigo', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
+    + kpi('Team sales', numv(Number(T.sales_value)||0,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    + kpi('To collect', numv(Number(T.outstanding)||0,'pkr'), 'amber', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')
+    + kpi('Open pipeline', numv(Number(T.pipeline)||0,'int'), 'violet', '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')
     + '</div>';
   if(!team.length){ html+=_emptyCard('No team yet','Your office places members under you — then they appear here with their numbers.'); }
   else { html+='<div class="torg">'+team.map(_treeNode).join('')+'</div>'; }
+  html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 function _treeNode(n){
   const head=Number(n.reports||0)>0, open=!!TEAM_OPEN[n.id], st=TEAM_STATS[n.id]||{};
@@ -2602,17 +2615,17 @@ function _treeNode(n){
   const sub = head
     ? `${esc(_portalRoleLabel(n.role))} · ${n.reports} report${n.reports==1?'':'s'}`
     : `${esc(_portalRoleLabel(n.role))} · ${n.conversion}% conv.${st.stuck?` · <span style="color:var(--fk-danger);font-weight:700">${st.stuck} stuck</span>`:''}`;
-  let h=`<div class="tnode"><div class="trow" onclick="${head?`_treeToggle('${n.id}')`:`openAgent('${n.id}')`}">
+  let h=`<div class="tnode"><div class="trow${head?' mgr':''}" onclick="${head?`_treeToggle('${n.id}')`:`openAgent('${n.id}')`}">
     ${chev}
-    ${_avatar(n.name,32)}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${sub}</div></div>
-    <div style="text-align:right"><div style="font-weight:700;font-size:13px">${esc(pkrShort(n.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${head?(n.pipeline+' open'):(n.sales_count+' sale'+(n.sales_count==1?'':'s'))}</div></div>
+    ${_avatarC(n.name,head?36:32)}
+    <div style="flex:1;min-width:0"><div class="lr-name">${esc(n.name)}</div><div class="tsub">${sub}</div></div>
+    <div style="text-align:right;flex:none"><div style="font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-body);font-variant-numeric:tabular-nums">${esc(pkrShort(n.sales_value)||'₨0')}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">${head?(n.pipeline+' open'):(n.sales_count+' sale'+(n.sales_count==1?'':'s'))}</div></div>
   </div>`;
   if(head && open){
     const kids=TEAM_KIDS[n.id];
     h+='<div class="tkids">';
-    if(kids===undefined) h+='<div style="padding:8px 10px;color:var(--fk-text-muted);font-size:13px">Loading…</div>';
-    else if(!kids.length) h+='<div style="padding:8px 10px;color:var(--fk-text-muted);font-size:13px">No members under this manager yet.</div>';
+    if(kids===undefined) h+='<div class="tsub" style="padding:8px 10px">Loading…</div>';
+    else if(!kids.length) h+='<div class="tsub" style="padding:8px 10px">No members under this manager yet.</div>';
     else h+=kids.map(_treeNode).join('');
     h+='</div>';
   }
