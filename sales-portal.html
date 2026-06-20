@@ -2870,11 +2870,8 @@ async function renderLiveMap(){
   if(!data||!data.success){ return sessionGone(); }
   _touch();
   LIVE_PINS=data.pins||[];
-  const counts={all:LIVE_PINS.length,fresh:0,stale:0,old:0};
-  LIVE_PINS.forEach(p=>{ counts[_staleness(p.at)]++; });
   let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
-  const seg=(k,lb)=>{ const on=LIVE_FILTER===k; return `<button onclick="LIVE_FILTER='${k}';_liveRenderMarkers(true)" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">${lb} ${counts[k]||0}</button>`; };
-  html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${seg('all','All')}${seg('fresh','Active')}${seg('stale','Inactive')}${seg('old','Offline')}</div>`;
+  html+='<div id="live-filter">'+_liveFilterBar()+'</div>';
   html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
   html+='<div id="live-list">'+_liveListHtml()+'</div>';
   $('app-body').innerHTML=html;
@@ -2883,6 +2880,11 @@ async function renderLiveMap(){
   _liveAutoRefresh();
 }
 let _liveRefreshTimer=null;
+function _liveFilterBar(){
+  const c={all:LIVE_PINS.length,fresh:0,stale:0,old:0}; LIVE_PINS.forEach(p=>{ c[_staleness(p.at)]++; });
+  return _seg([['all','All '+c.all],['fresh','Active '+c.fresh],['stale','Inactive '+c.stale],['old','Offline '+c.old]], LIVE_FILTER, '_setLiveFilter');
+}
+function _setLiveFilter(k){ LIVE_FILTER=k; const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); _liveRenderMarkers(true); }
 function _liveUpdateList(){ const el=$('live-list'); if(el) el.innerHTML=_liveListHtml(); }
 function _liveAutoRefresh(){
   if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; }
@@ -2890,7 +2892,7 @@ function _liveAutoRefresh(){
     if(TAB!=='livemap'){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; return; }   // self-clear on leaving
     if(TRAIL_MEMBER) return;   // paused while viewing a member's trail
     try{ const {data}=await sb.rpc('get_team_locations',{p_session_token:TOKEN});
-      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); }
+      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); }
     }catch(e){}
   }, 30000);
 }
@@ -3034,9 +3036,12 @@ function _orgContact(id){
   if(wa) b+=`<a class="btn btn-full" style="text-decoration:none" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>`;
   openModal(esc(n.name), b);
 }
-function _orgScopeSeg(cur,fn){
-  const seg=(k,lb)=>`<button onclick="${fn}('${k}')" style="flex:1;border:1px solid ${cur===k?'transparent':'var(--fk-border)'};background:${cur===k?'var(--fk-primary)':'var(--fk-bg-card)'};color:${cur===k?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${lb}</button>`;
-  return `<div style="display:flex;gap:6px;margin-bottom:8px">${seg('self','Personal')}${seg('team','Whole team')}</div>`;
+// premium iOS-style segmented control — track + raised active segment (kit-consistent)
+function _seg(items, cur, onfn){
+  return '<div style="display:flex;gap:3px;padding:3px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:11px;margin-bottom:12px">'
+    + items.map(it=>{ const on=String(cur)===String(it[0]);
+        return `<button onclick="${onfn}('${it[0]}')" style="flex:1;border:0;background:${on?'var(--fk-bg-card)':'transparent'};color:${on?'var(--fk-primary)':'var(--fk-text-muted)'};border-radius:8px;padding:8px 6px;font-size:12.5px;font-weight:${on?'700':'600'};font-family:inherit;cursor:pointer;box-shadow:${on?'var(--fk-shadow)':'none'};transition:background .15s,color .15s">${it[1]}</button>`;
+      }).join('') + '</div>';
 }
 function _setMemScope(s){ MEMBER_SCOPE=s; if(ORG_VIEW&&ORG_VIEW.view==='leads') renderMemberLeads(); else renderMemberPerf(); }
 function _setMemPeriod(p){ MEMBER_PERIOD=p; renderMemberPerf(); }
@@ -3051,9 +3056,8 @@ async function renderMemberPerf(){
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Performance';
   let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
   html+=`<div style="font-size:18px;font-weight:700;margin:0 2px 2px">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted);margin:0 2px 12px">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' (whole team)':''}</div>`;
-  if(head) html+=_orgScopeSeg(MEMBER_SCOPE,'_setMemScope');
-  const pseg=(k,lb)=>`<button onclick="_setMemPeriod('${k}')" style="flex:1;border:1px solid ${MEMBER_PERIOD===k?'transparent':'var(--fk-border)'};background:${MEMBER_PERIOD===k?'var(--fk-primary)':'var(--fk-bg-card)'};color:${MEMBER_PERIOD===k?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${lb}</button>`;
-  html+=`<div style="display:flex;gap:6px;margin-bottom:14px">${pseg('month','This month')}${pseg('last','Last month')}${pseg('all','All time')}</div>`;
+  if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
+  html+=_seg([['month','This month'],['last','Last month'],['all','All time']], MEMBER_PERIOD, '_setMemPeriod');
   html+='<div class="dgrid">'
     +`<div class="dkpi"><div class="dkpi-l">Leads</div><div class="dkpi-v">${L.total||0}</div></div>`
     +`<div class="dkpi"><div class="dkpi-l">Conversion</div><div class="dkpi-v">${d.conversion||0}%</div></div>`
@@ -3081,7 +3085,7 @@ async function renderMemberLeads(){
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Leads';
   let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
   html+=`<div style="font-size:18px;font-weight:700;margin:0 2px 2px">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted);margin:0 2px 12px">${esc(_portalRoleLabel(d.role))} · Leads</div>`;
-  if(head) html+=_orgScopeSeg(MEMBER_SCOPE,'_setMemScope');
+  if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
   if(!leads.length){ html+=_emptyCard('No leads','No leads in this view yet.'); $('app-body').innerHTML=html; return; }
   html+=`<div class="dsec">Leads <span class="nb">${leads.length}</span></div><div class="lgroup">`;
   leads.forEach(l=>{
