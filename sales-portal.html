@@ -1413,6 +1413,7 @@ function goBack(){
   if(TAB==='board'&&BV.floor){ _bvBack(); _syncNav(); return; }      // 3) floor drill → board
   if(TAB==='leads'&&LEAD_OPEN){ closeLead(); _syncNav(); return; }    // 4) lead detail → leads list
   if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4b) agent detail → team tree
+  if(TAB==='livemap'&&TRAIL_MEMBER){ TRAIL_MEMBER=null; renderLiveMap(); return; }   // 4c) footstep trail → live map
   let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 5) previous section
   if(prev){ setTab(prev,true); return; }
   if(TAB!=='home'){ setTab('home',true); return; }                   // 6) fall back to dashboard
@@ -2776,6 +2777,55 @@ async function _renderAgentLoc(id){
 }
 // ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
 let _leafLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_FILTER='all';
+let TRAIL_MEMBER=null, TRAIL_DAY=null, TRAIL_DATA=null, _trailMap=null;
+function _todayPKT(){ return new Date(Date.now()+5*3600000).toISOString().slice(0,10); }
+function _trailDayLabel(day){ if(day===_todayPKT()) return 'Today'; const d=new Date(Date.now()+5*3600000-86400000).toISOString().slice(0,10); if(day===d) return 'Yesterday'; const a=day.split('-').map(Number); return new Date(a[0],a[1]-1,a[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+function _openTrail(id){ TRAIL_MEMBER=id; TRAIL_DAY=null; renderTrail(); }
+function _trailShift(n){
+  const base=(TRAIL_DATA&&TRAIL_DATA.day)||_todayPKT(); const a=base.split('-').map(Number);
+  const nd=new Date(Date.UTC(a[0],a[1]-1,a[2]+n)).toISOString().slice(0,10);
+  if(nd>_todayPKT()) return; TRAIL_DAY=nd; renderTrail();
+}
+async function renderTrail(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading footsteps…</div></div></div>';
+  let d;
+  try{ const r=await sb.rpc('get_member_trail',{p_session_token:TOKEN,p_member:TRAIL_MEMBER,p_day:TRAIL_DAY}); d=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!d||!d.success){ toast('Could not load trail','err'); TRAIL_MEMBER=null; return renderLiveMap(); }
+  _touch(); TRAIL_DATA=d;
+  const t=$('appbar-title'); if(t) t.textContent=d.name||'Footsteps';
+  const pts=d.points||[], online=!!d.online;
+  const statusTxt= online ? ('🟢 Online now'+(d.cur_label?' · '+esc(d.cur_label):''))
+    : (d.last_at ? ('Offline · last seen '+esc(_agoTxt(d.last_at))+(d.cur_label?' · '+esc(d.cur_label):'')) : 'No location on this day');
+  let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ Live Map</button>`;
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name||'')}</div><div style="font-size:12px;font-weight:600;color:${online?'var(--fk-success)':'var(--fk-text-muted)'}">${statusTxt}</div></div></div>`;
+  html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button class="btn btn-sm" onclick="_trailShift(-1)">‹</button><div style="flex:1;text-align:center;font-weight:700;font-size:14px">${esc(_trailDayLabel(d.day))}</div><button class="btn btn-sm" ${d.day>=_todayPKT()?'disabled':''} onclick="_trailShift(1)">›</button></div>`;
+  html+=`<div id="trail-canvas" style="width:100%;height:50vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
+  html+=`<div class="dgrid" style="margin-top:10px">`
+    + `<div class="dkpi"><div class="dkpi-l">Points</div><div class="dkpi-v">${d.count||0}</div></div>`
+    + `<div class="dkpi"><div class="dkpi-l">First seen</div><div class="dkpi-v" style="font-size:16px">${d.first_at?esc(_timeOf(d.first_at)):'—'}</div></div>`
+    + `<div class="dkpi"><div class="dkpi-l">Last seen</div><div class="dkpi-v" style="font-size:16px">${d.last_at?esc(_timeOf(d.last_at)):'—'}</div></div>`
+    + `</div>`;
+  if(!pts.length) html+=_emptyCard('No footsteps','This member shared no location on '+esc(_trailDayLabel(d.day))+'.');
+  $('app-body').innerHTML=html;
+  if(pts.length){ try{ await _loadLeaflet(); _trailInitMap(); }catch(e){} }
+}
+function _trailInitMap(){
+  const el=$('trail-canvas'); if(!el||!window.L||!TRAIL_DATA) return;
+  if(_trailMap){ try{ _trailMap.remove(); }catch(e){} _trailMap=null; }
+  el.innerHTML='';
+  const raw=TRAIL_DATA.points||[], pts=raw.map(p=>[Number(p.lat),Number(p.lng)]);
+  _trailMap=L.map(el).setView(pts[0]||[30.3753,69.3451], pts.length?13:6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_trailMap);
+  if(pts.length){
+    L.polyline(pts,{color:'#4F46E5',weight:4,opacity:0.85}).addTo(_trailMap);
+    raw.forEach(p=>{ L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#4F46E5',fillOpacity:0.6,weight:0}).addTo(_trailMap).bindPopup(esc(_timeOf(p.at))); });
+    const s=raw[0], e=raw[raw.length-1];
+    L.circleMarker([s.lat,s.lng],{radius:7,fillColor:'#16A34A',fillOpacity:1,color:'#fff',weight:2}).addTo(_trailMap).bindPopup('Start · '+esc(_timeOf(s.at)));
+    L.circleMarker([e.lat,e.lng],{radius:9,fillColor:'#DC2626',fillOpacity:1,color:'#fff',weight:2.5}).addTo(_trailMap).bindPopup('Latest · '+esc(_timeOf(e.at)));
+    setTimeout(()=>{ try{ _trailMap.invalidateSize(); _trailMap.fitBounds(pts,{padding:[40,40]}); }catch(e){} },150);
+  }
+}
 // Leaflet + OpenStreetMap — free, no API key, no billing.
 function _loadLeaflet(){
   if(window.L && window.L.map) return Promise.resolve();
@@ -2799,15 +2849,17 @@ function _liveListHtml(){
   const dotCol={fresh:'var(--fk-success)',stale:'var(--fk-warning)',old:'var(--fk-muted-fill)'};
   return '<div class="dsec">Team members <span class="nb">'+LIVE_PINS.length+'</span></div><div class="lgroup">'+LIVE_PINS.map(p=>{
     const st=_staleness(p.at);
-    return `<div class="lrow"><div class="lrow-top">
+    return `<div class="lrow tap" onclick="_openTrail('${p.id}')"><div class="lrow-top">
       <span title="${st}" style="width:10px;height:10px;flex:none;border-radius:50%;background:${dotCol[st]}"></span>
       ${_avatar(p.name,34)}
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}${p.label?' · '+esc(p.label):''}</div></div>
-      <a class="btn btn-sm" href="${_mapLink(p.lat,p.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Map</a>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.is_me?' <span style="font-size:10px;color:var(--fk-primary);font-weight:700">YOU</span>':''}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}${p.label?' · '+esc(p.label):''}</div></div>
+      <a class="btn btn-sm" href="${_mapLink(p.lat,p.lng)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none">Open</a>
+      <span style="color:var(--fk-text-muted);opacity:.5;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
     </div></div>`;
   }).join('')+'</div>';
 }
 async function renderLiveMap(){
+  TRAIL_MEMBER=null;
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading live map…</div></div></div>';
   let data;
   try{ const r=await sb.rpc('get_team_locations',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
@@ -2833,6 +2885,7 @@ function _liveAutoRefresh(){
   if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; }
   _liveRefreshTimer=setInterval(async ()=>{
     if(TAB!=='livemap'){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; return; }   // self-clear on leaving
+    if(TRAIL_MEMBER) return;   // paused while viewing a member's trail
     try{ const {data}=await sb.rpc('get_team_locations',{p_session_token:TOKEN});
       if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); }
     }catch(e){}
