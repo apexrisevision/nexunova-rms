@@ -4209,35 +4209,47 @@ function renderLeaderboardBody(){
   const rows=(data.rows||[]).slice().sort((a,b)=>(Number(b[key]||0)-Number(a[key]||0))||(Number(b.units_all||0)-Number(a.units_all||0)));
   const active=rows.filter(r=>Number(r[key]||0)>0);
   const myId=data.my_agent_id;
-  const pill=(p,lb)=>'<button class="lbtab'+(LB_PERIOD===p?' on':'')+'" onclick="setLbPeriod(\''+p+'\')">'+esc(lb)+'</button>';
-  let html=_pageHead('Leaderboard','Your rank among the team.')+'<div class="lbtabs">'+pill('all','All-time')+pill('month',data.month_label||'This Month')+'</div>';
+  const mi=myId?active.findIndex(r=>r.agent_id===myId):-1;
+  let html='<div class="nx-dash">'+_pageHead('Leaderboard','Your rank among the team.');
+  html+=_seg([['all','All-time'],['month',data.month_label||'This month']], LB_PERIOD, 'setLbPeriod');
   if(!active.length){
     html+='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg></div>'
       +'<div class="et">No sales '+(LB_PERIOD==='month'?'this month yet':'recorded yet')+'</div>'
-      +'<div class="es">As units are sold they show up here — and the race begins!</div></div></div>';
+      +'<div class="es">As units are sold they show up here — and the race begins!</div></div></div></div>';
     $('app-body').innerHTML=html; return;
   }
-  if(myId){ const mi=active.findIndex(r=>r.agent_id===myId);
-    if(mi>=0){ const c=Number(active[mi][key]||0); html+='<div class="lbme">You are <b>#'+(mi+1)+'</b> of '+active.length+' · <b>'+c+'</b> unit'+(c===1?'':'s')+' sold</div>'; }
-    else { html+='<div class="lbme">No sales in this view yet — close one to enter the board!</div>'; }
-  }
-  html+='<div class="card" style="padding:0">';
+  // compact dashboard KPI cards
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',violet:'var(--nx-violet)'};
+  const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  html+='<div class="dgrid">'
+    + kpi('My rank', (mi>=0?'#'+(mi+1):'—'), 'indigo', '<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>')
+    + kpi('My units', numv(mi>=0?Number(active[mi][key]||0):0), 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>')
+    + kpi('Sale persons', numv(active.length), 'violet', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
+    + '</div>';
+  html+='<div class="dsec">Rankings <span class="nb">'+active.length+'</span></div>';
+  html+='<div class="lgroup">';
   active.forEach((r,i)=>{
     const rank=i+1, cnt=Number(r[key]||0), mine=(myId&&r.agent_id===myId);
-    const medal=rank<=3?`<span style="color:${rank===1?'#D4AF37':rank===2?'#9AA3B2':'#C08457'}">${li('award',24,2)}</span>`:('#'+rank);
+    let rankCell;
+    if(rank===1) rankCell=`<span style="color:var(--gold);width:26px;flex:none;display:grid;place-items:center">${li('award',22,2.2)}</span>`;
+    else if(rank<=3) rankCell=`<span style="color:var(--fk-text-muted);width:26px;flex:none;display:grid;place-items:center">${li('award',20,2)}</span>`;
+    else rankCell=`<span style="width:26px;flex:none;text-align:center;font-weight:var(--fk-fw-bold);color:var(--fk-text-muted);font-variant-numeric:tabular-nums">${rank}</span>`;
     const list=(LB_PERIOD==='month')?(r.units||[]).filter(u=>String(u.sale_date||'').slice(0,7)===monthPfx):(r.units||[]);
-    const sub=list.map(u=>'<div class="lbu"><span>'+esc(u.unit_no||'')+(u.project_name?' · <span class="es">'+esc(u.project_name)+'</span>':'')+(u.client_name?' · '+esc(u.client_name):'')+'</span><span class="es">'+fdate(u.sale_date)+'</span></div>').join('')
-      || '<div class="lbu"><span class="es">No units in this period</span></div>';
-    html+='<div class="lbrow'+(mine?' me':'')+(rank<=3?' top':'')+'" onclick="lbToggleUnits('+i+')">'
-      +'<div class="lbrank">'+medal+'</div>'
-      +'<div class="lbinfo"><b>'+esc(r.agent_name||'')+(mine?' <span class="youtag">YOU</span>':'')+'</b>'
-      +'<div class="es">'+cnt+' unit'+(cnt===1?'':'s')+' · tap to see which</div></div>'
-      +'<div class="lbcount num">'+cnt+'</div></div>'
-      +'<div class="lbunits" id="lb-u-'+i+'" style="display:none">'+sub+'</div>';
+    const sub=list.length? list.map(u=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--fk-hairline);font-size:var(--fk-fs-body)"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.unit_no||'')}${u.project_name?' · <span style="color:var(--fk-text-muted)">'+esc(u.project_name)+'</span>':''}${u.client_name?' · '+esc(u.client_name):''}</span><span style="color:var(--fk-text-muted);white-space:nowrap;font-variant-numeric:tabular-nums">${esc(fdate(u.sale_date))}</span></div>`).join('')
+      : `<div style="padding:6px 0;color:var(--fk-text-muted);font-size:var(--fk-fs-body)">No units in this period</div>`;
+    html+=`<div class="lrow tap${mine?' sel':''}" onclick="lbToggleUnits(${i})"><div class="lrow-top">
+      ${rankCell}
+      ${_avatarC(r.agent_name,36)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.agent_name||'')}${mine?' <span class="spill" style="background:var(--fk-primary-tint);border-color:transparent;color:var(--fk-primary);padding:0 7px">You</span>':''}</div><div class="lr-sub"><span>${cnt} unit${cnt===1?'':'s'} · tap to see which</span></div></div>
+      <div style="text-align:right;flex:none"><div style="font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums">${cnt}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">units</div></div>
+    </div><div class="lbunits" id="lb-u-${i}" style="display:none;margin-top:var(--fk-sp-2)">${sub}</div></div>`;
   });
-  html+='</div>';
+  html+='</div></div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 
 // ════ mark sold → submit sale for approval ════
