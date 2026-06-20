@@ -510,6 +510,16 @@ body{background:var(--nx-page)}
 /* section empty state — centered, same card family */
 .lr-empty{display:flex;flex-direction:column;align-items:center;gap:var(--fk-sp-2);text-align:center;padding:var(--fk-sp-6) var(--fk-sp-4);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--nx-radius);box-shadow:var(--nx-card-sh);color:var(--fk-text-muted);font-size:var(--fk-fs-body)}
 .lr-empty svg{opacity:.7}
+
+/* ════ Hero compaction — remove dead vertical space (fonts/content unchanged) ════ */
+.nx-dash .herometric{padding:var(--fk-sp-3) var(--fk-sp-4)}
+.nx-dash .hm-big{margin-top:var(--fk-sp-1)}
+.nx-dash .hm-sub{margin-top:var(--fk-sp-1)}
+.nx-dash .hm-area{margin-top:var(--fk-sp-2)}
+.nx-dash .hm-area svg{height:var(--fk-sp-3)}        /* slim strip, not a tall empty band (was ~48px) */
+.nx-dash .hm-conv{margin-top:var(--fk-sp-2)}
+.nx-dash .hm-foot{margin-top:var(--fk-sp-2);padding-top:var(--fk-sp-2)}
+.nx-dash .hm-vs{margin-top:var(--fk-sp-2)}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
