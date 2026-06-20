@@ -359,7 +359,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   .appbody{padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 }
 /* home — flat "money picture" hero + nav list (kit: no gradients, radius ≤12, Inter, indigo) */
-.herometric{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:18px}
+.herometric{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:16px}
 .hm-eyebrow{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--fk-text-muted)}
 .hm-big{font-size:30px;font-weight:700;letter-spacing:-.01em;margin-top:7px;line-height:1.05;color:var(--fk-text);font-variant-numeric:tabular-nums}
 .hm-sub{color:var(--fk-text-muted);font-size:13px;margin-top:6px;font-weight:500}
@@ -388,14 +388,14 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .navrow .nr-ch{color:var(--fk-text-muted);opacity:.5;display:grid;place-items:center}
 .navrow .nr-ch svg{width:16px;height:16px;stroke-width:2}
 /* dashboard KPI grid */
-.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:12px}
-.dkpi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:14px 16px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-top:10px}
+.dkpi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:12px 14px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .dkpi:hover{box-shadow:var(--fk-shadow-raised);border-color:color-mix(in srgb,var(--fk-primary) 28%,var(--fk-border))}
 .dkpi-l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted);display:flex;align-items:center;gap:7px}
 .dkpi-l .dch{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--fk-primary-chip);color:var(--fk-primary)}
 .dkpi-l .dch svg{width:14px;height:14px}
-.dkpi-v{font-size:22px;font-weight:700;color:var(--fk-text);margin-top:9px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-.dsec{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);font-weight:600;margin:22px 2px 9px;display:flex;align-items:center;gap:8px}
+.dkpi-v{font-size:20px;font-weight:700;color:var(--fk-text);margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.dsec{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);font-weight:600;margin:18px 2px 8px;display:flex;align-items:center;gap:8px}
 .dsec .nb{background:var(--fk-primary);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:0 7px;line-height:18px}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
@@ -491,6 +491,15 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   padding:16px;box-shadow:var(--fk-shadow);margin-bottom:12px;transition:box-shadow .18s,transform .12s,border-color .18s}
 .card.listc:hover{box-shadow:var(--fk-shadow-raised)}
 .card.listc:active{transform:scale(.994)}
+/* cohesive list — rows grouped in ONE card w/ hairline dividers (denser + sleeker than floating cards) */
+.lgroup{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);overflow:hidden;margin-bottom:12px}
+.lrow{padding:10px 13px;border-bottom:1px solid var(--fk-hairline);transition:background .12s}
+.lrow:last-child{border-bottom:0}
+.lrow.tap{cursor:pointer}
+.lrow.tap:hover{background:var(--fk-bg-subtle)}
+.lrow.tap:active{background:var(--fk-subtle-hover)}
+.lrow-top{display:flex;align-items:center;gap:11px}
+.lrow-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px}
 .card-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .ichip{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
   background:var(--fk-primary-tint);color:var(--fk-primary)}
@@ -1389,18 +1398,18 @@ function _avatar(name,sz){
 function _fuRow(l){
   const od=l.bucket==='overdue';
   const tag=`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:#fff;background:${od?'var(--fk-danger)':'var(--fk-warning)'};white-space:nowrap">${od?'Overdue':'Today'}</span>`;
-  return `<div class="card listc" style="padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:11px;cursor:pointer" onclick="gotoLead('${l.id}')">
-    ${_avatar(l.name,38)}
+  return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
+    ${_avatar(l.name,34)}
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>${l.phone?`<div style="font-size:13px;color:var(--fk-text-muted)">${esc(l.phone)}</div>`:''}${(!l.is_mine&&l.owner_name)?`<div style="font-size:11px;color:var(--fk-primary)">→ ${esc(l.owner_name)}</div>`:''}</div>
-    ${tag}</div>`;
+    ${tag}</div></div>`;
 }
 function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
 function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
 function _newLeadRow(l){
-  return `<div class="card listc" style="padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:11px;cursor:pointer" onclick="gotoLead('${l.id}')">
-    ${_avatar(l.name,38)}
+  return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
+    ${_avatar(l.name,34)}
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.phone?esc(l.phone)+' · ':''}${_srcLabel(l.source)}${(!l.is_mine&&l.owner_name)?' · '+esc(l.owner_name):''}</div></div>
-    <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap;font-size:13px">Start →</span></div>`;
+    <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap;font-size:13px">Start →</span></div></div>`;
 }
 async function renderHome(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
@@ -1432,7 +1441,7 @@ async function renderHome(){
   const _fn=nm?esc(String(nm).split(' ')[0]):'';
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
-  let html=`<div style="margin:0 2px 14px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Here is your desk for today.</div></div>`;
+  let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Here is your desk for today.</div></div>`;
   html+=`<div class="herometric">
     <div class="hm-eyebrow">This month</div>
     <div class="hm-big">${pkrShort(sVal)||'₨0'}</div>
@@ -1452,11 +1461,11 @@ async function renderHome(){
     + '</div>';
   if(_canLeads && fuRows.length){
     html+=`<div class="dsec">Follow up today <span class="nb">${fuRows.length}</span></div>`;
-    html+=fuRows.slice(0,6).map(_fuRow).join('');
+    html+='<div class="lgroup">'+fuRows.slice(0,6).map(_fuRow).join('')+'</div>';
   }
   if(_canLeads && newLeads.length){
     html+=`<div class="dsec">New leads <span class="nb">${newLeads.length}</span></div>`;
-    html+=newLeads.slice(0,5).map(_newLeadRow).join('');
+    html+='<div class="lgroup">'+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
     if(newLeads.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('leads')">View all leads</button>`;
   }
   $('app-body').innerHTML=html;
@@ -1533,7 +1542,7 @@ function _leadListRender(){
   if(!rows.length){
     el.innerHTML='<div class="card"><div class="empty"><div class="et">No leads'+(q?' match your search':(LEADV.filter==='all'?' yet':' in this stage'))+'</div>'+(q?'':'<div class="es">Tap “Add lead” to capture your first prospect.</div>')+'</div></div>';
   } else {
-    el.innerHTML=rows.map(_leadCard).join('');
+    el.innerHTML='<div class="lgroup">'+rows.map(_leadCard).join('')+'</div>';
   }
 }
 function _leadCard(l){
@@ -1541,15 +1550,15 @@ function _leadCard(l){
   const pill=`<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff;background:${_leadColor(l.status)};white-space:nowrap">${esc(_leadStageLabel(l.status))}</span>`;
   const meta=[l.interest?esc(l.interest):'', l.budget?pkrShort(l.budget):'', l.source?esc(l.source):''].filter(Boolean).join(' · ');
   const sub=[l.phone?esc(l.phone):'', meta].filter(Boolean).join(' · ')+((!l.is_mine&&l.owner_name)?' · → '+esc(l.owner_name):'');
-  return `<div class="card listc" style="padding:12px 13px;margin-bottom:9px">
-    <div onclick="openLead('${l.id}')" style="cursor:pointer;display:flex;gap:11px;align-items:center">
-      ${_avatar(l.name)}
+  return `<div class="lrow">
+    <div class="lrow-top" onclick="openLead('${l.id}')" style="cursor:pointer">
+      ${_avatar(l.name,34)}
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>${pill}</div>
         ${sub?`<div style="color:var(--fk-text-muted);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div>`:''}
       </div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-hairline);gap:8px">
+    <div class="lrow-foot">
       <select class="input" onchange="_leadStage('${l.id}',this.value)" style="width:auto;height:auto;padding:6px 8px;font-size:13px">${opts}</select>
       <span style="color:var(--fk-text-muted);font-size:11px">${esc(fdateShort(l.created_at))}</span>
     </div>
@@ -2092,18 +2101,18 @@ async function renderTeam(){
     + kpi('Open pipeline', T.pipeline||0, "")
     + '</div>';
   if(!team.length){ html+=_emptyCard('No sub-agents under you yet','Your office places agents under you — then they appear here with their numbers.'); }
-  else { html+='<div class="dsec">Agents</div>'+team.map(_teamRow).join(''); }
+  else { html+='<div class="dsec">Agents</div><div class="lgroup">'+team.map(_teamRow).join('')+'</div>'; }
   $('app-body').innerHTML=html;
 }
 function _teamRow(a){
   const wa=_waNum(a.phone);
-  return `<div class="card listc" style="padding:12px 13px;margin-bottom:9px">
-    <div style="display:flex;align-items:center;gap:11px">
-      ${_avatar(a.name)}
+  return `<div class="lrow">
+    <div class="lrow-top">
+      ${_avatar(a.name,34)}
       <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))} · ${a.conversion}% conv.</div></div>
       <div style="text-align:right"><div style="font-weight:700;font-size:14px">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-hairline);font-size:11px;color:var(--fk-text-muted)">
+    <div class="lrow-foot" style="font-size:11px;color:var(--fk-text-muted)">
       <span>Pipeline <b style="color:var(--fk-text)">${a.pipeline}</b></span>
       <span>Won <b style="color:var(--fk-text)">${a.won}</b></span>
       <span>Due <b style="color:var(--fk-text)">${esc(pkrShort(a.outstanding)||'₨0')}</b></span>
@@ -2131,15 +2140,15 @@ async function renderDistribute(){
   }
   html+=`<div class="dsec">Leads to assign <span class="nb">${leads.length}</span></div>`;
   if(!leads.length){ html+=_emptyCard('All caught up','None of your leads are waiting to be handed down.'); }
-  else { html+=leads.map(_distRow).join(''); }
+  else { html+='<div class="lgroup">'+leads.map(_distRow).join('')+'</div>'; }
   $('app-body').innerHTML=html;
 }
 function _distRow(l){
-  return `<div class="card listc" style="padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:11px">
-    ${_avatar(l.name,38)}
+  return `<div class="lrow"><div class="lrow-top">
+    ${_avatar(l.name,34)}
     <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</div></div>
     <button class="btn btn-primary btn-sm" onclick="openAssign('${l.id}')">Assign</button>
-  </div>`;
+  </div></div>`;
 }
 
 // ════ More (overflow hub — leaderboard · recovery · updates · account) ════
@@ -2287,18 +2296,18 @@ async function renderClients(){
     +_kpic('red', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),'Total remaining', pkrShort(totRem)||'₨0', "")
     +'</div>';
   if(!cl.length){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div></div></div>'; }
-  else { html+=cl.map(_clientRow).join(''); }
+  else { html+='<div class="lgroup">'+cl.map(_clientRow).join('')+'</div>'; }
   $('app-body').innerHTML=html;
 }
 function _clientRow(c){
   const wa=_waNum(c.phone); const rem=Number(c.total_remaining||0);
-  return `<div class="card listc" style="padding:12px 13px;margin-bottom:9px">
-    <div style="display:flex;align-items:center;gap:11px">
-      ${_avatar(c.name)}
+  return `<div class="lrow">
+    <div class="lrow-top">
+      ${_avatar(c.name,34)}
       <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name||'Client')}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.sales_count} unit${c.sales_count==1?'':'s'}${c.units?' · '+esc(c.units):''}</div></div>
       ${rem>0?`<span class="spill" style="background:var(--fk-danger-surface);border-color:transparent;color:var(--fk-danger);white-space:nowrap">${esc(pkrShort(rem))} due</span>`:`<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">Clear</span>`}
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-hairline);gap:8px">
+    <div class="lrow-foot">
       <span style="font-size:13px;color:var(--fk-text-muted)">Value <b style="color:var(--fk-text)">${esc(pkrShort(c.total_net)||'—')}</b></span>
       ${c.phone?`<span style="display:flex;gap:6px"><a class="btn btn-sm" href="tel:${esc(c.phone)}" style="text-decoration:none">Call</a>${wa?`<a class="btn btn-sm" href="https://wa.me/${wa}" target="_blank" rel="noopener" style="text-decoration:none">WhatsApp</a>`:''}</span>`:''}
     </div>
@@ -2321,17 +2330,17 @@ async function renderMySales(){
     +_kpic('indigo', ic('<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>'),'Total value', pkrShort(data.total)||'₨0', "")
     +'</div>';
   if(!sales.length){ html+='<div class="card"><div class="empty"><div class="et">No sales yet</div><div class="es">Book a unit from a won lead or the Board.</div></div></div>'; }
-  else { html+=sales.map(_saleRow).join(''); }
+  else { html+='<div class="lgroup">'+sales.map(_saleRow).join('')+'</div>'; }
   $('app-body').innerHTML=html;
 }
 function _saleRow(s){
-  return `<div class="card listc" style="padding:12px 13px;margin-bottom:9px">
-    <div style="display:flex;align-items:center;gap:11px">
-      ${_avatar(s.client_name)}
+  return `<div class="lrow">
+    <div class="lrow-top">
+      ${_avatar(s.client_name,34)}
       <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.client_name||'Client')}</div><div style="font-size:13px;color:var(--fk-text-muted)">Unit ${esc(s.unit_no||'—')}${s.sale_number?' · '+esc(s.sale_number):''}</div></div>
       <span class="spill" style="white-space:nowrap">${esc(s.status||'—')}</span>
     </div>
-    <div style="display:flex;justify-content:space-between;gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-hairline);font-size:13px">
+    <div class="lrow-foot" style="font-size:13px">
       <span style="color:var(--fk-text-muted)">Value <b style="color:var(--fk-text)">${esc(pkrShort(s.net_amount)||'—')}</b></span>
       <span style="color:var(--fk-text-muted)">Remaining <b style="color:var(--fk-text)">${esc(pkrShort(s.remaining_amount)||'₨0')}</b></span>
     </div>
