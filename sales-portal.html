@@ -3825,27 +3825,37 @@ async function renderBoard(){
   if(BV.proj>=projects.length) BV.proj=0;
   const p=projects[BV.proj]; const c=p.counts||{};
   BOARD_PROJ=p.project_name||p.company_name||'';
-  let html=_pageHead('Availability','Tap an available unit to reserve & sell.');
-  if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:12px;border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:13px;font-weight:700">${li('tag',13,2)} Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
+  let html='<div class="nx-dash">'+_pageHead('Availability','Reserve and sell available units across your projects.');
+  if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:var(--fk-sp-3);border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-bold)">${li('tag',13,2)} Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
   if(projects.length>1){
     // Each chip is the PROJECT (e.g. KHUSHAL BAGH HEIGHTS / Awami Market); in an umbrella these span member companies.
-    html+=(BOARD.grouped?'<div class="es" style="margin:0 2px 6px;color:var(--fk-text-muted);font-size:13px">Choose a project:</div>':'')
+    html+=(BOARD.grouped?'<div class="es" style="margin:0 2px 6px;color:var(--fk-text-muted);font-size:var(--fk-fs-body)">Choose a project</div>':'')
       +'<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(pp.project_name||pp.company_name)+'</div>').join('')+'</div>';
   }
-  // prominent view toggle: Detailed (default) vs Floor wise (summary)
-  html+='<div class="modeseg">'
-    +'<div class="m'+(BV.mode!=='floors'?' on':'')+'" onclick="_bvMode(\'detailed\')">Detailed view</div>'
-    +'<div class="m'+(BV.mode==='floors'?' on':'')+'" onclick="_bvMode(\'floors\')">Floor wise</div></div>';
-  html+='<div class="kpis">'+kpi('Available',c.available,'green')+kpi('Reserved',c.reserved,'amber')+kpi('Sold',c.sold,'muted')+'</div>';
-  html+='<div class="seg2">'+['all','available','reserved','sold'].map(f=>'<div class="o'+(BV.filter===f?' on':'')+'" data-f="'+f+'" onclick="_bvFilter(\''+f+'\')">'+(f==='all'?'All':f.charAt(0).toUpperCase()+f.slice(1))+'</div>').join('')+'</div>';
-  html+='<input class="bsearch" id="bv-q" placeholder="Search unit no…" value="'+esc(BV.q)+'" oninput="_bvSearch(this.value)">';
-  html+='<div id="bv-body"></div>';
+  // compact dashboard KPI cards (icon tile + label + value + slim sparkline + trend)
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
+  const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  html+='<div class="dgrid">'
+    + kpi('Available', c.available, 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/>')
+    + kpi('Reserved', c.reserved, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
+    + kpi('Sold', c.sold, 'violet', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + '</div>';
+  // view mode + status filter → the light segmented control (same as Leads / Performance)
+  html+=_seg([['detailed','Detailed view'],['floors','Floor wise']], (BV.mode==='floors'?'floors':'detailed'), '_bvMode');
+  html+='<div id="bv-filter">'+_seg([['all','All'],['available','Available'],['reserved','Reserved'],['sold','Sold']], BV.filter, '_bvFilter')+'</div>';
+  // search — matches the Leads search (Lucide icon + tokened input)
+  const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+  html+=`<div class="lead-search" style="margin-bottom:var(--fk-sp-3)">${srch}<input class="input" id="bv-q" placeholder="Search unit no…" value="${esc(BV.q)}" oninput="_bvSearch(this.value)"></div>`;
+  html+='<div id="bv-body"></div></div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
   _bvRenderBody();
 }
 function _bvMode(m){ BV.mode=m; BV.floor=null; renderBoard(); }
 function _bvProj(i){ BV.proj=i; BV.floor=null; BV.q=''; renderBoard(); }
-function _bvFilter(f){ BV.filter=f; document.querySelectorAll('#app-body .seg2 .o').forEach(o=>o.classList.toggle('on', o.dataset.f===f)); _bvRenderBody(); }
+function _bvFilter(f){ BV.filter=f; const fb=$('bv-filter'); if(fb) fb.innerHTML=_seg([['all','All'],['available','Available'],['reserved','Reserved'],['sold','Sold']], BV.filter, '_bvFilter'); _bvRenderBody(); }
 function _bvSearch(v){ BV.q=v; _bvRenderBody(); }
 function _bvSetFloor(label){ BV.floor=label; _bvRenderBody(); _syncNav(); try{$('app-body').scrollIntoView({block:'start'});}catch(e){} }
 function _bvBack(){ BV.floor=null; _bvRenderBody(); _syncNav(); }
