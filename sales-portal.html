@@ -9,40 +9,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Design tokens: SINGLE SOURCE — shared with the admin app (no inline duplicate). -->
+<link rel="stylesheet" href="css/foundation/tokens.css">
 <!-- supabase-js 2.34.0 vendored locally — jsDelivr .min.js path 301-loops (see login.html). -->
 <script src="js/vendor/supabase-js-2.34.0.umd.js?v=20260616"></script>
 <style>
-/* ════ Foundation tokens (mirrors css/foundation/tokens.css — KIT.md law) ════ */
-:root{
-  /* aligned to the RMS foundation kit (Inter · indigo-only · radius 8/12 · one shadow · no gradients) */
-  --fk-font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  --fk-primary:#4F46E5; --fk-primary-hover:#4338CA; --fk-primary-tint:rgba(79,70,229,.10);
-  --fk-accent:#4F46E5; --fk-accent-tint:rgba(79,70,229,.10);
-  --fk-info:#2563EB;
-  --fk-success:#16A34A; --fk-success-surface:rgba(22,163,74,.09); --fk-success-edge:rgba(22,163,74,.26);
-  --fk-warning:#D97706; --fk-warning-surface:rgba(217,119,6,.10); --fk-warning-edge:rgba(217,119,6,.30);
-  --fk-danger:#DC2626;  --fk-danger-surface:rgba(220,38,38,.09);  --fk-danger-edge:rgba(220,38,38,.26);
-  --fk-primary-chip:color-mix(in srgb,var(--fk-primary) 12%,var(--fk-bg-card));
-  --fk-success-chip:color-mix(in srgb,var(--fk-success) 12%,var(--fk-bg-card));
-  --fk-warning-chip:color-mix(in srgb,var(--fk-warning) 14%,var(--fk-bg-card));
-  --fk-danger-chip:color-mix(in srgb,var(--fk-danger) 12%,var(--fk-bg-card));
-  --fk-bg-page:#F1F5F9; --fk-bg-card:#FFFFFF; --fk-bg-subtle:#F8FAFC; --fk-subtle-hover:#EFF2F7;
-  --fk-border:#E2E8F0; --fk-hairline:#EEF1F5; --fk-text:#0F172A; --fk-text-muted:#64748B;
-  --fk-bar:rgba(255,255,255,.80);
-  --fk-radius-control:8px; --fk-radius-card:12px; --fk-radius-pill:999px;
-  --fk-shadow:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.06);
-  --fk-shadow-raised:0 1px 3px rgba(0,0,0,.08),0 6px 16px rgba(0,0,0,.10);
-  --fk-muted-fill:#C5CBDA;
-}
+/* ════ Design tokens — SINGLE SOURCE: css/foundation/tokens.css (linked in <head>).
+   The inline token duplicate was removed on 2026-06-20 (token unification).
+   Only the portal-local dark tuning below is kept ON PURPOSE. ════ */
 html[data-theme="dark"]{
-  --fk-primary:#818CF8; --fk-primary-hover:#959AFF; --fk-primary-tint:rgba(129,140,248,.16);
-  --fk-accent:#818CF8; --fk-accent-tint:rgba(129,140,248,.16);
-  --fk-success-surface:rgba(22,163,74,.18); --fk-warning-surface:rgba(217,119,6,.18); --fk-danger-surface:rgba(220,38,38,.18);
-  --fk-bg-page:#0B1120; --fk-bg-card:#111A2E; --fk-bg-subtle:#0F1B33; --fk-subtle-hover:#1A2540;
-  --fk-border:#1E293B; --fk-hairline:#172033; --fk-text:#E5E7EB; --fk-text-muted:#94A3B8;
-  --fk-bar:rgba(15,23,42,.72);
-  --fk-shadow:0 1px 2px rgba(0,0,0,.4); --fk-shadow-raised:0 10px 28px rgba(0,0,0,.55);
-  --fk-muted-fill:#2C3547;
+  /* INTENTIONAL portal-local dark tuning — NOT a token duplicate.
+     tokens.css dark keeps brand + shadow fixed; the portal wants a lifted indigo
+     and visible card float on dark backgrounds. Do NOT delete this as "drift". */
+  --fk-primary:#818CF8;
+  --fk-primary-hover:#959AFF;
+  --fk-primary-tint:rgba(129,140,248,.16);
+  --fk-shadow:0 1px 2px rgba(0,0,0,.4);
+  --fk-shadow-raised:0 10px 28px rgba(0,0,0,.55);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
@@ -359,9 +342,9 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   .appbody{padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 }
 /* home — flat "money picture" hero + nav list (kit: no gradients, radius ≤12, Inter, indigo) */
-.herometric{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:16px}
+.herometric{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:var(--fk-sp-4)}
 .hm-eyebrow{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--fk-text-muted)}
-.hm-big{font-size:30px;font-weight:700;letter-spacing:-.01em;margin-top:7px;line-height:1.05;color:var(--fk-text);font-variant-numeric:tabular-nums}
+.hm-big{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;margin-top:7px;line-height:1.05;color:var(--fk-text);font-variant-numeric:tabular-nums}
 .hm-sub{color:var(--fk-text-muted);font-size:13px;margin-top:6px;font-weight:500}
 .hm-foot{display:flex;align-items:stretch;margin-top:16px;padding-top:14px;border-top:1px solid var(--fk-border)}
 .hm-stat{flex:1}
@@ -389,10 +372,10 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .navrow .nr-ch svg{width:16px;height:16px;stroke-width:2}
 /* dashboard KPI grid */
 .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-top:10px}
-.dkpi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:12px 14px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.dkpi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:var(--fk-sp-4);min-height:calc(var(--fk-sp-6) * 3.5);cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .dkpi:hover{box-shadow:var(--fk-shadow-raised);border-color:color-mix(in srgb,var(--fk-primary) 28%,var(--fk-border))}
 .dkpi-l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted);display:flex;align-items:center;gap:7px}
-.dkpi-l .dch{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--fk-primary-chip);color:var(--fk-primary)}
+.dkpi-l .dch{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--fk-accent-tint);color:var(--fk-accent)}
 .dkpi-l .dch svg{width:14px;height:14px}
 .dkpi-v{font-size:20px;font-weight:700;color:var(--fk-text);margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .dsec{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);font-weight:600;margin:18px 2px 8px;display:flex;align-items:center;gap:8px}

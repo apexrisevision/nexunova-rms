@@ -116,6 +116,13 @@ html[data-theme="light"]{
   --fk-modal-s: 480px;
   --fk-modal-m: 640px;
   --fk-modal-l: 880px;
+
+  /* ── ADDED 2026-06-20 for sales-portal token unification (ADDITIVE — no existing token changed) ── */
+  --fk-accent:       #4F46E5;               /* brand-accent mirror used by the portal */
+  --fk-accent-tint:  rgba(79,70,229,0.10);
+  --fk-hairline:     #EEF1F5;               /* faint row divider (lighter than --fk-border) */
+  --fk-bar:          rgba(255,255,255,0.80);/* translucent app-bar / tab-bar background */
+  --fk-radius-pill:  999px;
 }
 
 /* ── SURFACES (dark) — only the surface ramp flips; brand/status are fixed ── */
@@ -128,6 +135,12 @@ html[data-theme="dark"]{
   --fk-text:       #E5E7EB;
   --fk-text-muted: #94A3B8;
   --fk-primary-fg: #818CF8;  /* lighter indigo reads better on dark */
+
+  /* ── ADDED 2026-06-20 for sales-portal token unification (ADDITIVE — no existing token changed) ── */
+  --fk-accent:      #818CF8;
+  --fk-accent-tint: rgba(129,140,248,0.16);
+  --fk-hairline:    #172033;
+  --fk-bar:         rgba(15,23,42,0.72);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
