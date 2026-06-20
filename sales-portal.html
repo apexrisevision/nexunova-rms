@@ -446,6 +446,42 @@ body{background:var(--nx-page)}
 .ni.on,.ni-child.on{box-shadow:inset 3px 0 0 var(--fk-primary)}
 /* MOTION restraint — honour reduced-motion */
 @media(prefers-reduced-motion:reduce){ .nx-rise{animation:none} .dkpi{transition:none} .nx-dash .dkpi:hover{transform:none} }
+
+/* ════ DASHBOARD REFINEMENT — reference-quality polish ════ */
+/* KPI internal order: [tile + LABEL] · trend  →  VALUE  →  sparkline (tile small, inline w/ label) */
+.kpi-head{display:flex;align-items:center;gap:var(--fk-sp-2);min-width:0}
+.kpitile{width:24px;height:24px;border-radius:7px}
+.kpitile svg{width:14px;height:14px}
+.kpi-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-val{margin-top:var(--fk-sp-2)}
+.kpi-spark svg{height:calc(var(--fk-sp-6) + var(--fk-sp-3))}
+/* HERO fill — area placeholder · labelled GOLD conversion bar · vs-last-month */
+.hm-area{margin-top:var(--fk-sp-3);line-height:0}
+.hm-area svg{display:block;width:100%;height:calc(var(--fk-sp-6) * 2)}
+.hm-conv{margin-top:var(--fk-sp-4)}
+.hm-conv-top{display:flex;justify-content:space-between;align-items:baseline;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:var(--fk-fw-semibold);color:var(--fk-text-muted);margin-bottom:var(--fk-sp-1)}
+.hm-conv-top b{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-bold);color:var(--fk-text);font-variant-numeric:tabular-nums}
+.hm-prog>i{background:var(--gold)}            /* sanctioned hero gold moment (conversion fill) */
+.hm-vs{margin-top:var(--fk-sp-4);font-size:var(--fk-fs-label);color:var(--fk-text-muted);display:flex;align-items:center;gap:var(--fk-sp-2)}
+/* list rows — real ghost "Start" button · clean status pill · hover left-accent */
+.lr-btn{flex:none;display:inline-flex;align-items:center;gap:3px;height:var(--fk-h-btn-sm);padding:0 var(--fk-sp-3);border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-primary);border-radius:var(--fk-radius-control);font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);white-space:nowrap;transition:background .16s ease,border-color .16s ease}
+.lr-btn svg{width:1em;height:1em;stroke-width:2.2}
+.lrow.tap:hover .lr-btn{background:var(--fk-primary-tint);border-color:transparent}
+.lr-pill{flex:none;display:inline-flex;align-items:center;gap:3px;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-bold);padding:2px var(--fk-sp-2);border-radius:var(--fk-radius-pill);white-space:nowrap}
+.lr-pill svg{width:1em;height:1em;stroke-width:2.2}
+.lr-pill.wn{background:var(--fk-warning-surface);color:var(--fk-warning)}
+.lr-pill.dn{background:var(--fk-danger-surface);color:var(--fk-danger)}
+.nx-dash .lrow.tap:hover{box-shadow:inset 3px 0 0 var(--fk-primary)}
+/* section header dot + breathing rhythm */
+.nx-dash .dsec::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--fk-primary);flex:none}
+.nx-dash .dgrid{margin-top:var(--fk-sp-4)}
+.nx-dash .dsec{margin-top:var(--fk-sp-6)}
+/* SIDEBAR premium — group breathing room + hover indent */
+.ni-grp{margin-top:var(--fk-sp-3)}
+.ni,.ni-child{transition:background .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease}
+.ni:hover,.ni-child:hover{transform:translateX(2px)}
+.sb-user{transition:background .16s ease}
+@media(prefers-reduced-motion:reduce){ .ni:hover,.ni-child:hover{transform:none} }
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -1490,7 +1526,8 @@ function _avatar(name,sz){
 }
 function _fuRow(l){
   const od=l.bucket==='overdue';
-  const tag=`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:#fff;background:${od?'var(--fk-danger)':'var(--fk-warning)'};white-space:nowrap">${od?'Overdue':'Today'}</span>`;
+  const clk='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  const tag=`<span class="lr-pill ${od?'dn':'wn'}">${clk}${od?'Overdue':'Today'}</span>`;
   return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
     ${_avatar(l.name,34)}
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>${l.phone?`<div style="font-size:13px;color:var(--fk-text-muted)">${esc(l.phone)}</div>`:''}${(!l.is_mine&&l.owner_name)?`<div style="font-size:11px;color:var(--fk-primary)">→ ${esc(l.owner_name)}</div>`:''}</div>
@@ -1503,7 +1540,7 @@ function _newLeadRow(l){
   return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
     ${_avatar(l.name,34)}
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.phone?esc(l.phone)+' · ':''}${_srcLabel(l.source)}${(!l.is_mine&&l.owner_name)?' · '+esc(l.owner_name):''}</div></div>
-    <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap;font-size:13px">Start →</span></div></div>`;
+    <span class="lr-btn">Start <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div></div>`;
 }
 // ── premium dashboard helpers: count-up · sparkline · trend · alive-empty (visual only) ──
 function _reduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches); }
@@ -1518,17 +1555,22 @@ function _countUp(el){
     el.textContent=f(to*e); if(p<1) requestAnimationFrame(frame); else el.textContent=fin; });
 }
 function _runCountUps(){ document.querySelectorAll('#app-body [data-countup]').forEach(_countUp); }
-// VISIBLE sparkline — real series → indigo/accent trend; no series → a gentle illustrative curve (low-opacity), never empty
+// HONEST sparkline — a real curved trend ONLY when a non-zero series exists; otherwise a FLAT
+// faint baseline (never a rising curve over zero data — the line must not contradict the number).
 let _sparkSeed=0;
 function _spark(accent, series){
   const w=100,h=32,col=accent||'var(--fk-primary)',id='nxspk'+(_sparkSeed++);
-  const real = series && series.length>1 && Math.max.apply(null,series)!==Math.min.apply(null,series);
-  let vals;
-  if(real){ vals=series; }
-  else { const s=_sparkSeed*1.7; vals=[]; for(let i=0;i<9;i++) vals.push(6+Math.sin(i*0.8+s)*1.7+i*0.35); }
-  const mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),rg=(mx-mn)||1,n=vals.length;
-  const d='M'+vals.map((v,i)=>((i/(n-1))*w).toFixed(1)+' '+(h-3-((v-mn)/rg)*(h-10)).toFixed(1)).join(' L');
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity="${real?'.24':'.18'}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${w} ${h} L0 ${h} Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" opacity="${real?'.95':'.42'}"/></svg>`;
+  const real = series && series.length>1 && Math.max.apply(null,series)!==Math.min.apply(null,series) && Math.max.apply(null,series)>0;
+  let d, lineOp, fillOp;
+  if(real){
+    const mn=Math.min.apply(null,series),mx=Math.max.apply(null,series),rg=(mx-mn)||1,n=series.length;
+    d='M'+series.map((v,i)=>((i/(n-1))*w).toFixed(1)+' '+(h-3-((v-mn)/rg)*(h-10)).toFixed(1)).join(' L');
+    lineOp='.95'; fillOp='.22';
+  } else {
+    d='M0 '+(h-4)+' L'+w+' '+(h-4);   // flat baseline — zero looks like zero
+    lineOp='.25'; fillOp='0';
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity="${fillOp}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${w} ${h} L0 ${h} Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" opacity="${lineOp}"/></svg>`;
 }
 function _trend(pct){
   pct=(pct==null||!isFinite(pct))?0:pct;
@@ -1575,17 +1617,19 @@ async function renderHome(){
   html+=`<div class="herometric nx-rise" style="${_dl()}">
     <div class="hm-eyebrow">This month</div>
     <div class="hm-big" data-countup data-to="${sVal}" data-fmt="pkr">${pkrShort(sVal)||'₨0'}</div>
-    <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed · ${conv}% conversion</div>
-    <div class="hm-prog" title="${conv}% conversion"><i style="width:${_convW}%"></i></div>
+    <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed</div>
+    <div class="hm-area">${_spark('var(--fk-primary)')}</div>
+    <div class="hm-conv"><div class="hm-conv-top"><span>Conversion</span><b>${conv}%</b></div><div class="hm-prog" title="${conv}% conversion"><i style="width:${_convW}%"></i></div></div>
     <div class="hm-foot">
       <div class="hm-stat"><span><span class="hs-ic">${ic('<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')}</span>Pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
       <div class="hm-divv"></div>
       <div class="hm-stat"><span><span class="hs-ic">${ic('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')}</span>To collect</span><b>${outstanding?pkrShort(outstanding):'₨0'}</b></div>
     </div>
+    <div class="hm-vs">${_trend(0)}<span>vs last month</span></div>
   </div>`;
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
   const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',violet:'var(--nx-violet)',emerald:'var(--fk-success)'};
-  const kpi=(label,valHtml,accent,iconPath,onclick,trendPct)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="kpi-top"><span class="kpitile ${accent}">${ic(iconPath)}</span>${_trend(trendPct)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-lbl">${esc(label)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath,onclick,trendPct)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(trendPct)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
     + kpi('Active reservations', numv(resvActive,'int'), 'indigo', '<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>', "setTab('mine')", 0)
     + kpi('Pending approvals', numv(pend,'int'), 'amber', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "setTab('mine')", 0)
