@@ -487,8 +487,9 @@ function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove()
 // ── Change a member's portal role (+ optional team head) — set_sales_user_role ──
 function _saRoleOpen(id) {
   const r = (_saRows || []).find(x => x.id === id) || {};
+  // "Reports to" = senior roles only (managers + directors) — a member never reports to a sale rep.
   const parentOpts = [{ value: '', label: '— none —' }].concat(
-    (_saRows || []).filter(x => x.id !== id && x.status !== 'pending')
+    (_saRows || []).filter(x => x.id !== id && x.status !== 'pending' && (x.role === 'marketing_manager' || x.role === 'director'))
       .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
   );
   document.body.insertAdjacentHTML('beforeend', NX.modal({
