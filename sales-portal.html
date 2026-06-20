@@ -1405,6 +1405,7 @@ function _fuRow(l){
 }
 function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
 function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
+function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
 function _newLeadRow(l){
   return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
     ${_avatar(l.name,34)}
@@ -1412,6 +1413,7 @@ function _newLeadRow(l){
     <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap;font-size:13px">Start →</span></div></div>`;
 }
 async function renderHome(){
+  if(ME && ME.role==='marketing_manager') return renderManagerHome();   // managers get a team-focused desk
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
   let perf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, rank='—';
@@ -1467,6 +1469,68 @@ async function renderHome(){
     html+=`<div class="dsec">New leads <span class="nb">${newLeads.length}</span></div>`;
     html+='<div class="lgroup">'+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
     if(newLeads.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('leads')">View all leads</button>`;
+  }
+  $('app-body').innerHTML=html;
+  _annUpdateBadge();
+}
+
+// ════ Manager dashboard — team-focused desk (replaces the rep home for marketing_manager) ════
+async function renderManagerHome(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
+  let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0;
+  try{
+    const [rT,rP,rF,rL]=await Promise.all([
+      sb.rpc('get_my_team',{p_session_token:TOKEN}),
+      sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
+      sb.rpc('get_my_followups',{p_session_token:TOKEN}),
+      sb.rpc('list_my_leads',{p_session_token:TOKEN})
+    ]);
+    if(rT.data&&rT.data.error==='session_expired') return sessionGone();
+    if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; }
+    if(rP.data&&rP.data.success) perf=rP.data;
+    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); }
+    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; myNew=ls.filter(x=>x.is_mine&&x.status!=='won'&&x.status!=='lost'); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
+  }catch(e){ return sessionGone(); }
+  await loadAnnouncements();
+  _touch();
+  const nm=(ME&&ME.sales_user_name)||''; const _fn=nm?esc(String(nm).split(' ')[0]):'';
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
+  _leadsBadgeSet(newCnt); _distBadgeSet(myNew.length);
+  let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Manager · ${team.length} agent${team.length==1?'':'s'} in your team.</div></div>`;
+  html+=`<div class="herometric">
+    <div class="hm-eyebrow">Team sales · this month</div>
+    <div class="hm-big">${pkrShort(sVal)||'₨0'}</div>
+    <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed · ${conv}% conversion</div>
+    <div class="hm-foot">
+      <div class="hm-stat"><span>Open pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
+      <div class="hm-divv"></div>
+      <div class="hm-stat"><span>Team to collect</span><b>${T.outstanding?pkrShort(T.outstanding):'₨0'}</b></div>
+    </div>
+  </div>`;
+  const kpi=(label,val,chip,onclick)=>`<div class="dkpi" onclick="${onclick}"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
+  html+='<div class="dgrid">'
+    + kpi('Team agents', team.length, ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), "setTab('team')")
+    + kpi('To distribute', myNew.length, ic('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'), "setTab('distribute')")
+    + kpi('Open pipeline', pipeline, ic('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'), "setTab('leads')")
+    + kpi('Team to collect', T.outstanding?pkrShort(T.outstanding):'₨0', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), "setTab('team')")
+    + '</div>';
+  if(myNew.length){
+    html+=`<div class="dsec">Leads to distribute <span class="nb">${myNew.length}</span></div>`;
+    html+='<div class="lgroup">'+myNew.slice(0,5).map(_distRow).join('')+'</div>';
+    if(myNew.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('distribute')">Distribute all</button>`;
+  }
+  if(fuRows.length){
+    html+=`<div class="dsec">Team follow-ups due <span class="nb">${fuRows.length}</span></div>`;
+    html+='<div class="lgroup">'+fuRows.slice(0,6).map(_fuRow).join('')+'</div>';
+  }
+  if(team.length){
+    const top=team.slice().sort((a,b)=>Number(b.sales_value||0)-Number(a.sales_value||0)).slice(0,5);
+    html+=`<div class="dsec">Your team <span class="nb">${team.length}</span></div>`;
+    html+='<div class="lgroup">'+top.map(_teamRow).join('')+'</div>';
+    if(team.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('team')">View full team</button>`;
+  } else {
+    html+=_emptyCard('No agents under you yet','Your office places sub-agents under you — then their numbers appear here.');
   }
   $('app-body').innerHTML=html;
   _annUpdateBadge();
@@ -2133,6 +2197,7 @@ async function renderDistribute(){
   if(!cfg.success||!cfg.can_assign){ html+=_emptyCard('Distribution not available','Your role can’t hand leads down.'); $('app-body').innerHTML=html; return; }
   const team=cfg.users||[];
   const leads=(((rL.data)&&rL.data.leads)||[]).filter(l=>l.is_mine && l.status!=='won' && l.status!=='lost');
+  _distBadgeSet(leads.length);
   if(team.length){
     html+=`<div class="dsec">Your ${esc(cfg.assigns_to_label||'team')}</div><div class="card" style="padding:2px 14px">`;
     html+=team.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span>${esc(u.name)}${u.mine?'':' <span style="color:var(--fk-text-muted);font-size:11px">· other team</span>'}</span><b class="num">${u.open_leads} open</b></div>`).join('');
