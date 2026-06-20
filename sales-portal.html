@@ -234,7 +234,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 /* ── KYC capture tiles (camera + browse) — premium card style ── */
 /* KYC = a clean vertical list; each item is a row: thumb · label · camera/browse */
 .kyc-grid{display:flex;flex-direction:column;gap:10px}
-.cap{display:flex;align-items:center;gap:12px;border:1px solid var(--fk-border);border-radius:14px;
+.cap{display:flex;align-items:center;gap:12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);
   padding:10px;background:var(--fk-bg-subtle);transition:border-color .15s,background .15s}
 .cap:has(.cap-btn.done){border-color:var(--fk-success-edge);background:var(--fk-success-surface)}
 .cap-prev{position:relative;width:60px;height:60px;flex:none;border-radius:11px;overflow:hidden;background:var(--fk-bg-card);
@@ -417,7 +417,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   border:1.5px solid var(--fk-bg-card);display:none}
 .btab-badge.show{display:block}
 /* updates / announcements — email-style inbox */
-.inbox{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;overflow:hidden}
+.inbox{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);overflow:hidden}
 .inrow{display:flex;align-items:center;gap:10px;padding:12px 13px;border-bottom:1px solid var(--fk-border);cursor:pointer;transition:background .1s}
 .inrow:last-child{border-bottom:0}
 .inrow:active{background:var(--fk-bg-subtle)}
@@ -435,7 +435,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .annpill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;text-transform:uppercase;letter-spacing:.3px;vertical-align:middle}
 .annpill.imp{background:var(--fk-warning-surface,#fef3c7);color:var(--fk-warning,#b45309)}
 /* updates — opened message (email detail) */
-.anddet{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;padding:16px 16px 20px}
+.anddet{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);padding:16px 16px 20px}
 .andback{display:inline-flex;align-items:center;gap:4px;background:none;border:0;color:var(--fk-primary);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;padding:0;margin-bottom:14px}
 .andback svg{width:17px;height:17px}
 .andsubj{font-size:18px;font-weight:700;color:var(--fk-text);line-height:1.3}
@@ -449,7 +449,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .andatt-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-subtle);color:var(--fk-text);font-size:13px;font-weight:600;text-decoration:none}
 .andatt-chip svg{width:18px;height:18px;flex:none;color:var(--fk-text-muted)}
 /* home: latest-update highlight */
-.annhi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:16px;padding:14px 15px;margin-bottom:16px;cursor:pointer;transition:transform .08s,box-shadow .12s}
+.annhi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);padding:14px 15px;margin-bottom:16px;cursor:pointer;transition:transform .08s,box-shadow .12s}
 .annhi:active{transform:scale(.99)}
 .annhi.imp{border-color:var(--fk-warning,#d97706)}
 .annhi-top{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--fk-primary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
@@ -464,15 +464,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .hstat .hl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--fk-text-muted)}
 .hstat .hv{font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:8px;line-height:1.05}
 
-/* premium home: compact gradient hero + sleek icon KPI cards */
-.hero{position:relative;overflow:hidden;border-radius:16px;padding:15px 16px;margin-bottom:14px;color:#fff;
-  background:linear-gradient(135deg,#4F46E5 0%,#6D28D9 54%,#7C3AED 100%);
-  box-shadow:0 10px 26px -14px rgba(79,70,229,.6)}
-.hero::before{content:"";position:absolute;width:200px;height:200px;border-radius:50%;right:-70px;top:-80px;
-  background:radial-gradient(circle,rgba(255,255,255,.20),transparent 70%)}
-.hero-eyebrow{position:relative;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.82}
-.hero-h{position:relative;font-size:18px;font-weight:700;letter-spacing:-.02em;margin-top:4px;line-height:1.1}
-.hero-sub{position:relative;font-size:13px;opacity:.88;margin-top:4px;font-weight:500}
+/* sleek icon KPI cards (used by Performance / Clients / My Sales) */
 .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
 .kpic{display:flex;align-items:center;gap:11px;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);padding:19px 14px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .14s,box-shadow .18s,border-color .18s}
 .kpic:hover{transform:translateY(-2px);box-shadow:var(--fk-shadow-raised)}
@@ -537,7 +529,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   color:var(--fk-text);font-family:var(--fk-font);font-size:14px;margin-bottom:16px}
 .bsearch:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
 .floorcard{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--fk-bg-card);border:1px solid var(--fk-border);
-  border-radius:14px;margin-bottom:10px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .12s,box-shadow .12s}
+  border-radius:var(--fk-radius-card);margin-bottom:10px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .12s,box-shadow .12s}
 .floorcard:hover{transform:translateY(-1px);box-shadow:var(--fk-shadow-raised)}
 .floorcard:active{transform:translateY(0)}
 .fc-name{font-size:14px;font-weight:600;letter-spacing:-.2px;min-width:84px}
@@ -580,7 +572,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 
 /* empty */
 .empty{text-align:center;padding:44px 16px;color:var(--fk-text-muted)}
-.empty .ei{width:52px;height:52px;border-radius:15px;background:var(--fk-primary-tint);color:var(--fk-primary);
+.empty .ei{width:52px;height:52px;border-radius:14px;background:var(--fk-primary-tint);color:var(--fk-primary);
   display:flex;align-items:center;justify-content:center;margin:0 auto 13px;box-shadow:inset 0 0 0 1px var(--fk-primary-tint)}
 .empty .et{font-size:14px;font-weight:600;color:var(--fk-text)}
 .empty .es{font-size:13px;margin-top:4px}
@@ -614,10 +606,10 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .hbadge{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
 .spill{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);color:var(--fk-text-muted)}
 .l360-actions{display:flex;gap:8px;margin-bottom:12px}
-.l360-act{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border:1px solid var(--fk-border);border-radius:13px;background:var(--fk-bg-card);color:var(--fk-text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .1s,box-shadow .15s}
+.l360-act{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);background:var(--fk-bg-card);color:var(--fk-text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .1s,box-shadow .15s}
 .l360-act:active{transform:translateY(1px)}
 .l360-act svg{width:20px;height:20px;color:var(--fk-primary)}
-.l360-guide{background:linear-gradient(135deg,var(--fk-primary-tint),transparent 80%);border:1.5px solid var(--fk-primary);border-radius:15px;padding:15px 16px;margin-bottom:14px}
+.l360-guide{background:var(--fk-primary-tint);border:1px solid color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border));border-radius:var(--fk-radius-card);padding:15px 16px;margin-bottom:14px}
 .l360-guide .lg-step{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-primary)}
 .l360-guide .lg-title{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-top:5px;line-height:1.2}
 .l360-guide .lg-text{font-size:13px;color:var(--fk-text-muted);margin-top:5px;line-height:1.4}
@@ -628,7 +620,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .gw-opt:hover{box-shadow:var(--fk-shadow-raised)}
 .gw-opt span{font-size:18px;width:24px;text-align:center;flex:none}
 .gw-cancel{display:block;width:100%;text-align:center;background:none;border:0;color:var(--fk-text-muted);font-size:13px;font-weight:700;padding:11px 0 2px;cursor:pointer;font-family:inherit;margin-top:8px}
-.l360-nba{display:flex;align-items:center;gap:10px;background:var(--fk-primary-tint);border:1px solid var(--fk-primary);border-radius:13px;padding:11px 13px;margin-bottom:12px}
+.l360-nba{display:flex;align-items:center;gap:10px;background:var(--fk-primary-tint);border:1px solid color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border));border-radius:var(--fk-radius-card);padding:11px 13px;margin-bottom:12px}
 .l360-nba .x{flex:1;font-size:13px;font-weight:600;color:var(--fk-text);line-height:1.3}
 .l360-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .l360-stat{background:var(--fk-bg-subtle);border:1px solid var(--fk-hairline);border-radius:11px;padding:10px 12px}
@@ -661,15 +653,15 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .wz-prog i.on{background:var(--fk-primary);width:24px;border-radius:4px}
 .wz-q{font-size:22px;font-weight:700;letter-spacing:-.025em;text-align:center;margin:4px 10px}
 .wz-sub{font-size:13px;color:var(--fk-text-muted);text-align:center;margin:6px 10px 20px;line-height:1.4}
-.wz-card{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:16px;box-shadow:var(--fk-shadow);padding:18px;margin-bottom:16px;text-align:center}
+.wz-card{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:18px;margin-bottom:16px;text-align:center}
 .wz-name{font-size:20px;font-weight:700;letter-spacing:-.02em}
 .wz-phone{font-size:18px;font-weight:700;color:var(--fk-primary);margin:9px 0 4px;font-variant-numeric:tabular-nums}
 .wz-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:11px}
-.wz-opt{display:flex;align-items:center;gap:13px;width:100%;padding:16px;border:1px solid var(--fk-border);border-radius:14px;background:var(--fk-bg-card);box-shadow:var(--fk-shadow);font-size:14px;font-weight:700;color:var(--fk-text);cursor:pointer;margin-bottom:10px;font-family:inherit;text-align:left;transition:transform .08s,box-shadow .15s}
+.wz-opt{display:flex;align-items:center;gap:13px;width:100%;padding:16px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);background:var(--fk-bg-card);box-shadow:var(--fk-shadow);font-size:14px;font-weight:700;color:var(--fk-text);cursor:pointer;margin-bottom:10px;font-family:inherit;text-align:left;transition:transform .08s,box-shadow .15s}
 .wz-opt:active{transform:scale(.985)}
 .wz-opt:hover{box-shadow:var(--fk-shadow-raised)}
 .wz-opt .em{font-size:22px;width:30px;text-align:center;flex:none}
-.wz-big{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:17px;border-radius:14px;font-size:16px;font-weight:700;margin-bottom:10px;border:0;cursor:pointer;font-family:inherit;color:#fff}
+.wz-big{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:17px;border-radius:var(--fk-radius-card);font-size:16px;font-weight:700;margin-bottom:10px;border:0;cursor:pointer;font-family:inherit;color:#fff}
 .wz-big svg{width:20px;height:20px}
 .wz-big.call{background:var(--fk-success);box-shadow:0 10px 22px -10px var(--fk-success)}
 .wz-big.wa{background:#25D366}
@@ -700,7 +692,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .overlay{position:fixed;inset:0;background:rgba(8,12,24,.46);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;animation:ovfade .2s ease}
 @keyframes ovfade{from{opacity:0}to{opacity:1}}
 .modal{width:100%;max-width:460px;background:var(--fk-bg-card);border:1px solid var(--fk-border);
-  border-radius:18px;box-shadow:0 18px 54px rgba(8,12,24,.32);max-height:86vh;overflow:auto;
+  border-radius:16px;box-shadow:0 18px 54px rgba(8,12,24,.32);max-height:86vh;overflow:auto;
   overscroll-behavior:contain;-webkit-overflow-scrolling:touch;animation:modalpop .22s cubic-bezier(.2,.7,.3,1)}
 @keyframes modalpop{from{transform:scale(.97);opacity:.5}to{transform:scale(1);opacity:1}}
 .modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--fk-border);position:sticky;top:0;background:var(--fk-bg-card)}
@@ -966,6 +958,33 @@ const pkr=n=>'PKR '+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0
 const pkrFull=n=>'₨'+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});
 // compact PKR using local Lakh/Crore convention (e.g. 8,711,867 -> '₨87.12 L')
 function pkrShort(n){ n=Number(n||0); if(!n) return ''; return '₨'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
+/* ── Lucide line-icons (kit law: no emoji in UI chrome) — single source of truth ── */
+const _LIP={
+  smile:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+  home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  hourglass:'<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
+  phoneOff:'<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.42 19.42 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  message:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+  fileText:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  send:'<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  tag:'<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>',
+  flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  snow:'<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>',
+  circle:'<circle cx="12" cy="12" r="10"/>',
+  compass:'<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  paperclip:'<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  award:'<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>'
+};
+function li(n,sz,sw){ sz=sz||16; return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw||1.9}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex:none">${_LIP[n]||''}</svg>`; }
 // per-area rate from total price ÷ area (rounded), e.g. '₨24,900/sqft'
 function rateTxt(price,area,unit){ price=Number(price||0); area=Number(area||0);
   if(!price||!area) return ''; return '₨'+Math.round(price/area).toLocaleString('en-US')+'/'+(unit||'sqft'); }
@@ -1493,7 +1512,7 @@ function _leadsRender(){
       return `<button onclick="LEADV.scope='${k}';_leadsRender()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${esc(lb)}</button>`; };
     html+=`<div style="display:flex;gap:6px;margin-top:12px">${seg('mine','Mine')}${seg('all','My team')}</div>`;
   }
-  html+=`<input class="input" id="lead-q" placeholder="🔍 Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()" style="margin-top:12px">`;
+  html+=`<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()" style="margin-top:12px">`;
   const chip=(k,lb,n)=>{ const on=LEADV.filter===k;
     return `<button onclick="_leadFilter('${k}')" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s">${esc(lb)} <b style="opacity:.85">${n}</b></button>`; };
   html+='<div style="display:flex;gap:7px;overflow-x:auto;margin:12px 0;padding-bottom:2px">';
@@ -1594,11 +1613,11 @@ function _wizRender(){
   const phoneSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
   if(WIZ.step===1){
     const fresh=Number(l.contact_count||0)===0;
-    h+=`<div class="wz-q">${fresh?'New lead — say hello 👋':'Work this lead'}</div><div class="wz-sub">Step 1 of 3 — contact this person.</div>`;
+    h+=`<div class="wz-q">${fresh?'New lead — say hello':'Work this lead'}</div><div class="wz-sub">Step 1 of 3 — contact this person.</div>`;
     h+=`<div class="wz-card"><div class="wz-name">${esc(l.name)}</div>`;
     h+= l.phone?`<div class="wz-phone">${esc(l.phone)}</div>`:`<div style="color:var(--fk-text-muted);font-size:13px;margin-top:8px">No phone number on file</div>`;
     h+=`<div class="wz-chips"><span class="spill">${_srcLabel(l.source)}</span>${l.interest?`<span class="spill">${esc(l.interest)}</span>`:''}${l.budget?`<span class="spill">${esc(pkrShort(l.budget))}</span>`:''}<span class="spill" style="background:${_leadColor(l.status)};border-color:transparent;color:#fff">${esc(_leadStageLabel(l.status))}</span></div>`;
-    h+= l.assigned_from?`<div style="font-size:13px;color:var(--fk-text-muted);margin-top:11px">📥 Assigned to you by <b style="color:var(--fk-text)">${esc(l.assigned_from)}</b></div>`:'';
+    h+= l.assigned_from?`<div style="font-size:13px;color:var(--fk-text-muted);margin-top:11px">${li('inbox',14,2)} Assigned to you by <b style="color:var(--fk-text)">${esc(l.assigned_from)}</b></div>`:'';
     h+='</div>';
     if(l.is_mine){
       if(l.phone) h+=`<button class="wz-big call" onclick="_wizCall()">${phoneSvg} Call now</button>`;
@@ -1610,33 +1629,33 @@ function _wizRender(){
   else if(WIZ.step===2){
     h+=`<div class="wz-q">How did it go?</div><div class="wz-sub">Step 2 of 3 — tap what happened.</div>`;
     const opt=(em,label,key)=>`<button class="wz-opt" onclick="_wizOutcome('${key}')"><span class="em">${em}</span>${label}</button>`;
-    h+=opt('😊','Interested',  'interested');
-    h+=opt('🏠','Wants a site visit','visit');
-    h+=opt('⏳','Call again later','later');
-    h+=opt('📵','No answer','noanswer');
-    h+=opt('❌','Not interested','lost');
+    h+=opt(li('smile',22),'Interested',  'interested');
+    h+=opt(li('home',22),'Wants a site visit','visit');
+    h+=opt(li('hourglass',22),'Call again later','later');
+    h+=opt(li('phoneOff',22),'No answer','noanswer');
+    h+=opt(li('x',22),'Not interested','lost');
     h+=`<textarea class="input" id="wz-note" rows="2" placeholder="Add a note (optional)" style="margin-top:4px"></textarea>`;
     h+=`<button class="wz-link" onclick="WIZ.step=1;_wizRender()">← Back</button>`;
   }
   else if(WIZ.step===3){
     h+=`<div class="wz-q">When to contact again?</div><div class="wz-sub">Step 3 of 3 — set a reminder so you don't forget.</div>`;
-    h+=`<button class="wz-opt" onclick="_wizFollow(1)"><span class="em">⏰</span>Tomorrow</button>`;
-    h+=`<button class="wz-opt" onclick="_wizFollow(3)"><span class="em">⏰</span>In 3 days</button>`;
-    h+=`<button class="wz-opt" onclick="_wizFollow(7)"><span class="em">⏰</span>Next week</button>`;
-    h+=`<button class="wz-opt" onclick="_wizPickDate()"><span class="em">📅</span>Pick a date</button>`;
+    h+=`<button class="wz-opt" onclick="_wizFollow(1)"><span class="em">${li('clock',22)}</span>Tomorrow</button>`;
+    h+=`<button class="wz-opt" onclick="_wizFollow(3)"><span class="em">${li('clock',22)}</span>In 3 days</button>`;
+    h+=`<button class="wz-opt" onclick="_wizFollow(7)"><span class="em">${li('clock',22)}</span>Next week</button>`;
+    h+=`<button class="wz-opt" onclick="_wizPickDate()"><span class="em">${li('calendar',22)}</span>Pick a date</button>`;
     h+=`<input type="date" id="wz-date" style="display:none" onchange="_wizFollowDate(this.value)">`;
     h+=`<button class="wz-link" onclick="_wizDone('Saved.')">Skip — no reminder</button>`;
   }
   else if(WIZ.step==='lost'){
     h+=`<div class="wz-q">Why is it lost?</div><div class="wz-sub">Quick reason for the record.</div>`;
     ['Price too high','Bought elsewhere','Not interested','No response','Location','Just browsing','Other'].forEach(r=>{
-      h+=`<button class="wz-opt" onclick="_wizLost('${r.replace(/'/g,"\\'")}')"><span class="em">❌</span>${esc(r)}</button>`;
+      h+=`<button class="wz-opt" onclick="_wizLost('${r.replace(/'/g,"\\'")}')"><span class="em">${li('x',22)}</span>${esc(r)}</button>`;
     });
     h+=`<button class="wz-link" onclick="WIZ.step=2;_wizRender()">← Back</button>`;
   }
   else if(WIZ.step===4){
     h+=`<div class="wz-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>`;
-    h+=`<div class="wz-q">All done! 🎉</div><div class="wz-sub">${esc(WIZ.doneMsg||'Saved to this lead.')}</div>`;
+    h+=`<div class="wz-q">All done!</div><div class="wz-sub">${esc(WIZ.doneMsg||'Saved to this lead.')}</div>`;
     h+=`<button class="wz-big" style="background:var(--fk-primary)" onclick="closeLead()">Back to my leads</button>`;
     h+=`<button class="wz-link" onclick="_wizFull()">View full details &amp; trail</button>`;
   }
@@ -1685,9 +1704,9 @@ async function renderLeadDetail(id){
   const hb=_leadHealth(l);
   const stagePill=`<span class="spill" style="background:${_leadColor(l.status)};border-color:transparent;color:#fff">${esc(_leadStageLabel(l.status))}</span>`;
   // ── hero: name + health, source/stage/context tags ──
-  let html=`<div class="l360-hero"><div class="l360-top"><div class="l360-name">${esc(l.name)}</div><span class="hbadge" style="background:${hb.bg};color:${hb.fg}">${hb.emoji} ${hb.label}</span></div>
-    ${l.phone?`<a href="tel:${esc(l.phone)}" style="display:inline-block;font-size:16px;font-weight:700;color:var(--fk-primary);margin-top:8px;text-decoration:none;font-variant-numeric:tabular-nums">📞 ${esc(l.phone)}</a>`:'<div style="font-size:13px;color:var(--fk-text-muted);margin-top:8px">No phone number</div>'}
-    <div class="l360-tags"><span class="spill">${_srcLabel(l.source)}</span>${stagePill}${l.interest?`<span class="spill">${esc(l.interest)}</span>`:''}${l.budget?`<span class="spill">${esc(pkrShort(l.budget))}</span>`:''}${(!l.is_mine&&l.owner_name)?`<span class="spill">Held by ${esc(l.owner_name)}</span>`:''}${(l.is_mine&&l.assigned_from)?`<span class="spill">From ${esc(l.assigned_from)}</span>`:''}${(l.booking&&l.booking.unit_no)?`<span class="spill" style="background:var(--fk-primary-tint);border-color:transparent;color:var(--fk-primary)">🏷️ Unit ${esc(l.booking.unit_no)}</span>`:''}</div></div>`;
+  let html=`<div class="l360-hero"><div class="l360-top"><div class="l360-name">${esc(l.name)}</div><span class="hbadge" style="background:${hb.bg};color:${hb.fg}">${hb.ic} ${hb.label}</span></div>
+    ${l.phone?`<a href="tel:${esc(l.phone)}" style="display:inline-block;font-size:16px;font-weight:700;color:var(--fk-primary);margin-top:8px;text-decoration:none;font-variant-numeric:tabular-nums">${li('phone',16,2)} ${esc(l.phone)}</a>`:'<div style="font-size:13px;color:var(--fk-text-muted);margin-top:8px">No phone number</div>'}
+    <div class="l360-tags"><span class="spill">${_srcLabel(l.source)}</span>${stagePill}${l.interest?`<span class="spill">${esc(l.interest)}</span>`:''}${l.budget?`<span class="spill">${esc(pkrShort(l.budget))}</span>`:''}${(!l.is_mine&&l.owner_name)?`<span class="spill">Held by ${esc(l.owner_name)}</span>`:''}${(l.is_mine&&l.assigned_from)?`<span class="spill">From ${esc(l.assigned_from)}</span>`:''}${(l.booking&&l.booking.unit_no)?`<span class="spill" style="background:var(--fk-primary-tint);border-color:transparent;color:var(--fk-primary)">${li('tag',12,2)} Unit ${esc(l.booking.unit_no)}</span>`:''}</div></div>`;
   // ── journey progress bar (where this lead is) ──
   html+=_leadJourney(l);
   // ── guided step panel (wizard-style, on top of the full page) ──
@@ -1697,7 +1716,7 @@ async function renderLeadDetail(id){
     else { const g=_leadGuide(l);
       let _gb=g.cta?`<button class="btn btn-primary btn-full" style="margin-top:11px" onclick="${g.cta.action}">${esc(g.cta.label)}</button>`:'';
       if(g.cta2) _gb+=`<button class="btn btn-full" style="margin-top:8px" onclick="${g.cta2.action}">${esc(g.cta2.label)}</button>`;
-      html+=`<div class="l360-guide"><div class="lg-step">👉 What to do now</div><div class="lg-title">${esc(g.title)}</div><div class="lg-text">${esc(g.text)}</div>${_gb}</div>`;
+      html+=`<div class="l360-guide"><div class="lg-step">${li('compass',12,2)} What to do now</div><div class="lg-title">${esc(g.title)}</div><div class="lg-text">${esc(g.text)}</div>${_gb}</div>`;
     }
   }
   // ── one-tap action bar (auto-logs the contact) ──
@@ -1725,8 +1744,8 @@ async function renderLeadDetail(id){
   // ── stage stepper + follow-up + lost ──
   if(l.is_mine){
     const fuVal=l.next_follow_up_at?new Date(l.next_follow_up_at).toISOString().slice(0,10):'';
-    html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">⏰ When to contact next?</div><input type="date" id="l360-fu" class="input" value="${fuVal}" onchange="_leadSetFollowup('${l.id}',this.value)"><div style="font-size:11px;color:var(--fk-text-muted);margin-top:7px">Sets a reminder — this lead pops up on your Home “Follow up today” on that date.</div></div>`;
-    html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">💬 Add a comment</div><textarea class="input" id="l360-cmt" rows="2" placeholder="What happened with this lead?"></textarea><button class="btn btn-primary btn-full" style="margin-top:8px" onclick="_leadQuickNote('${l.id}')">Add to trail</button></div>`;
+    html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">${li('clock',14,2)} When to contact next?</div><input type="date" id="l360-fu" class="input" value="${fuVal}" onchange="_leadSetFollowup('${l.id}',this.value)"><div style="font-size:11px;color:var(--fk-text-muted);margin-top:7px">Sets a reminder — this lead pops up on your Home “Follow up today” on that date.</div></div>`;
+    html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">${li('message',14,2)} Add a comment</div><textarea class="input" id="l360-cmt" rows="2" placeholder="What happened with this lead?"></textarea><button class="btn btn-primary btn-full" style="margin-top:8px" onclick="_leadQuickNote('${l.id}')">Add to trail</button></div>`;
     html+=`<button class="btn btn-full" style="margin-bottom:10px" onclick="_leadActions('${l.id}')">More actions ⋯</button>`;
   }
   // ── hand down ──
@@ -1740,14 +1759,14 @@ async function renderLeadDetail(id){
 }
 function _startToday(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
 function _leadHealth(l){
-  if(l.status==='won') return {label:'Won',emoji:'✅',bg:'var(--fk-success-surface)',fg:'var(--fk-success)'};
-  if(l.status==='lost') return {label:'Lost',emoji:'⚪',bg:'var(--fk-bg-subtle)',fg:'var(--fk-text-muted)'};
+  if(l.status==='won') return {label:'Won',ic:li('check',13,2.2),bg:'var(--fk-success-surface)',fg:'var(--fk-success)'};
+  if(l.status==='lost') return {label:'Lost',ic:li('circle',13,2),bg:'var(--fk-bg-subtle)',fg:'var(--fk-text-muted)'};
   const days=l.last_activity_at?(Date.now()-new Date(l.last_activity_at))/86400000:999;
   const fuOverdue=l.next_follow_up_at&&new Date(l.next_follow_up_at)<_startToday();
   const adv=(l.status==='visit'||l.status==='negotiation');
-  if(fuOverdue||days>=7||(Number(l.contact_count||0)===0&&days>2)) return {label:'Cold',emoji:'❄️',bg:'var(--fk-danger-surface)',fg:'var(--fk-danger)'};
-  if(adv&&days<3) return {label:'Hot',emoji:'🔥',bg:'var(--fk-success-surface)',fg:'var(--fk-success)'};
-  return {label:'Warm',emoji:'🌤',bg:'var(--fk-warning-surface)',fg:'var(--fk-warning)'};
+  if(fuOverdue||days>=7||(Number(l.contact_count||0)===0&&days>2)) return {label:'Cold',ic:li('snow',13,2),bg:'var(--fk-danger-surface)',fg:'var(--fk-danger)'};
+  if(adv&&days<3) return {label:'Hot',ic:li('flame',13,2),bg:'var(--fk-success-surface)',fg:'var(--fk-success)'};
+  return {label:'Warm',ic:li('sun',13,2),bg:'var(--fk-warning-surface)',fg:'var(--fk-warning)'};
 }
 function _agoTxt(d){ const ms=Date.now()-new Date(d); if(ms<0)return'—'; const m=Math.floor(ms/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
 function _fuText(l){ if(!l.next_follow_up_at) return {t:'Not set',warn:false}; const fd=new Date(l.next_follow_up_at); fd.setHours(0,0,0,0); const today=_startToday();
@@ -1783,14 +1802,14 @@ async function _leadLogModal(id){
 // ── all lead actions (lifecycle order) ──
 function _leadActions(id){
   const l=(LEAD_DETAIL&&LEAD_DETAIL.lead)||{};
-  const row=(emoji,label,onclick,danger)=>`<div onclick="${onclick}" style="display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--fk-hairline);cursor:pointer"><span style="font-size:18px;width:24px;text-align:center">${emoji}</span><span style="font-size:14px;font-weight:600;color:${danger?'var(--fk-danger)':'var(--fk-text)'}">${esc(label)}</span></div>`;
+  const row=(icon,label,onclick,danger)=>`<div onclick="${onclick}" style="display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--fk-hairline);cursor:pointer"><span style="width:24px;text-align:center;color:${danger?'var(--fk-danger)':'var(--fk-text-muted)'}">${icon}</span><span style="font-size:14px;font-weight:600;color:${danger?'var(--fk-danger)':'var(--fk-text)'}">${esc(label)}</span></div>`;
   let body='';
-  body+=row('✏️','Edit details',`_leadEdit('${id}')`);
-  body+=row('📝','Log call / note / visit',`closeModal();_leadNote('${id}')`);
-  body+=row('🏠','Schedule site visit',`_leadScheduleVisit('${id}')`);
-  if(LEADCFG&&LEADCFG.can_assign&&l.is_mine) body+=row('👤','Hand to '+(LEADCFG.assigns_to_label||'team'),`closeModal();openAssign('${id}')`);
-  if(l.status!=='won') body+=row('✅','Mark as Won',`_leadWon('${id}')`);
-  if(l.status!=='lost') body+=row('❌','Mark as Lost',`_leadLostReason('${id}')`,true);
+  body+=row(li('edit',18,2),'Edit details',`_leadEdit('${id}')`);
+  body+=row(li('fileText',18,2),'Log call / note / visit',`closeModal();_leadNote('${id}')`);
+  body+=row(li('home',18,2),'Schedule site visit',`_leadScheduleVisit('${id}')`);
+  if(LEADCFG&&LEADCFG.can_assign&&l.is_mine) body+=row(li('user',18,2),'Hand to '+(LEADCFG.assigns_to_label||'team'),`closeModal();openAssign('${id}')`);
+  if(l.status!=='won') body+=row(li('check',18,2.2),'Mark as Won',`_leadWon('${id}')`);
+  if(l.status!=='lost') body+=row(li('x',18,2.2),'Mark as Lost',`_leadLostReason('${id}')`,true);
   openModal('Lead actions', `<div style="margin:-4px 0">${body}</div>`, '<button class="btn btn-full" onclick="closeModal()">Close</button>');
 }
 function _leadEdit(id){
@@ -1836,7 +1855,7 @@ async function _leadLostSave(id){
     if(data&&data.success){ closeModal(); toast('Marked lost','ok'); renderLeadDetail(id); } else toast('Could not update','err');
   }catch(e){ toast('Could not update','err'); }
 }
-function _leadWon(id){ closeModal(); _leadDetailStage(id,'won'); setTimeout(()=>toast('Deal won 🎉','ok'),300); }
+function _leadWon(id){ closeModal(); _leadDetailStage(id,'won'); setTimeout(()=>toast('Deal won','ok'),300); }
 function _leadBook(id){
   const l=(LEAD_DETAIL&&LEAD_DETAIL.lead)||{};
   BOOK_LEAD={id:id, name:l.name||'', phone:l.phone||''};
@@ -1846,11 +1865,11 @@ function _leadBook(id){
 function _bookingCard(b){
   const wrap=(border,bg,step,stepColor,title,text,btn)=>`<div class="l360-guide" style="${border?'border-color:'+border+';':''}${bg?'background:'+bg+';':''}"><div class="lg-step"${stepColor?` style="color:${stepColor}"`:''}>${step}</div><div class="lg-title">${title}</div><div class="lg-text">${text}</div>${btn||''}</div>`;
   const convBtn=`<button class="btn btn-primary btn-full" style="margin-top:11px" onclick="_leadConvertSale('${b.reservation_id}')">Convert to sale →</button>`;
-  if(b.sale_id) return wrap('var(--fk-success)','linear-gradient(135deg,var(--fk-success-surface),transparent 80%)','✅ SOLD','var(--fk-success)',`Sale ${esc(b.sale_number||'created')}`,`Unit ${esc(b.unit_no||'')} · ${esc(b.sale_status||'booked')}`,'');
-  if(b.submission_status==='pending') return wrap('','','📤 SALE SUBMITTED','',`Under office review`,`Unit ${esc(b.unit_no||'')} — your office is approving the sale.`,'');
-  if(b.submission_status==='rejected') return wrap('var(--fk-danger)','','❌ SALE REJECTED','var(--fk-danger)','Resubmit the sale',`Unit ${esc(b.unit_no||'')}.`,convBtn);
-  if(b.reservation_status==='active') return wrap('','','🏷️ UNIT BOOKED','',`Unit ${esc(b.unit_no||'')} held`,`Now turn this booking into a sale.`,convBtn);
-  return wrap('','','🏷️ BOOKING','',`Reservation ${esc(b.reservation_status||'ended')}`,`Unit ${esc(b.unit_no||'')} is no longer held — book again from the Board.`,'');
+  if(b.sale_id) return wrap('var(--fk-success-edge)','var(--fk-success-surface)',li('check',12,2.2)+' SOLD','var(--fk-success)',`Sale ${esc(b.sale_number||'created')}`,`Unit ${esc(b.unit_no||'')} · ${esc(b.sale_status||'booked')}`,'');
+  if(b.submission_status==='pending') return wrap('','',li('send',12,2)+' SALE SUBMITTED','',`Under office review`,`Unit ${esc(b.unit_no||'')} — your office is approving the sale.`,'');
+  if(b.submission_status==='rejected') return wrap('var(--fk-danger)','',li('x',12,2.2)+' SALE REJECTED','var(--fk-danger)','Resubmit the sale',`Unit ${esc(b.unit_no||'')}.`,convBtn);
+  if(b.reservation_status==='active') return wrap('','',li('tag',12,2)+' UNIT BOOKED','',`Unit ${esc(b.unit_no||'')} held`,`Now turn this booking into a sale.`,convBtn);
+  return wrap('','',li('tag',12,2)+' BOOKING','',`Reservation ${esc(b.reservation_status||'ended')}`,`Unit ${esc(b.unit_no||'')} is no longer held — book again from the Board.`,'');
 }
 async function _leadConvertSale(rid){
   try{ const {data}=await sb.rpc('get_my_reservations',{p_session_token:TOKEN}); if(data&&data.success) MINE_ROWS=data.reservations||[]; }catch(e){}
@@ -1868,11 +1887,11 @@ function _leadJourney(l){
     h+=`<div class="jstep ${cls}"${l.is_mine?` onclick="_leadDetailStage('${l.id}','${k}')" style="cursor:pointer"`:''}><div class="jdot">${cls==='done'?chk:''}</div><div class="jlabel">${esc(lb)}</div></div>`;
   });
   h+='</div>';
-  if(lost) h+=`<div style="text-align:center;font-size:13px;font-weight:700;color:var(--fk-danger);margin:-6px 0 14px">❌ Lead closed (Lost)</div>`;
+  if(lost) h+=`<div style="text-align:center;font-size:13px;font-weight:700;color:var(--fk-danger);margin:-6px 0 14px">${li('x',13,2.2)} Lead closed (Lost)</div>`;
   return h;
 }
 function _leadGuide(l){
-  if(l.status==='won') return {title:'Deal won 🎉',text:'Now reserve the unit on the Board to record the sale.',cta:{label:'Go to Board',action:"closeLead();setTab('board')"}};
+  if(l.status==='won') return {title:'Deal won',text:'Now reserve the unit on the Board to record the sale.',cta:{label:'Go to Board',action:"closeLead();setTab('board')"}};
   if(l.status==='lost') return {title:'Lead closed (Lost)',text:'The reason is saved in the trail below. Tap a stage above to reopen.',cta:null};
   if(Number(l.contact_count||0)===0) return {title:'New lead — first contact',text:'Reach out, then we’ll walk you through what happened.',cta:{label:'Contact this lead',action:`_gwStart('${l.id}')`},cta2:{label:'Add reminder',action:'_focusFu()'}};
   if(l.status==='new'||l.status==='contacted') return {title:'Stay in touch',text:'Contact them to keep the deal moving — we’ll guide you step by step.',cta:{label:'Contact this lead',action:`_gwStart('${l.id}')`},cta2:{label:'Add reminder',action:'_focusFu()'}};
@@ -1907,26 +1926,26 @@ function _gwPanel(){
   }
   if(GW.step===1){
     h+=`<div class="lg-title">How did you contact this lead?</div><div class="gw-opts">`;
-    h+=opt('📞','Called','_gwMethod(\'call\')');
-    h+=opt('💬','WhatsApp','_gwMethod(\'whatsapp\')');
-    h+=opt('🤝','Met in person','_gwMethod(\'inperson\')');
-    h+=opt('📵','No answer','_gwMethod(\'noanswer\')');
-    h+=opt('✏️','Other (type it)','_gwOther()');
+    h+=opt(li('phone',20,2),'Called','_gwMethod(\'call\')');
+    h+=opt(li('message',20,2),'WhatsApp','_gwMethod(\'whatsapp\')');
+    h+=opt(li('user',20,2),'Met in person','_gwMethod(\'inperson\')');
+    h+=opt(li('phoneOff',20,2),'No answer','_gwMethod(\'noanswer\')');
+    h+=opt(li('edit',20,2),'Other (type it)','_gwOther()');
     h+='</div>';
   } else if(GW.step===2){
     h+=`<div class="lg-title">What did the lead say?</div><div class="gw-opts">`;
-    h+=opt('😊','Interested','_gwSaid(\'interested\')');
-    h+=opt('🏠','Wants a site visit','_gwSaid(\'visit\')');
-    h+=opt('⏳','Call again later','_gwSaid(\'later\')');
-    h+=opt('❌','Not interested','_gwSaid(\'lost\')');
-    h+=opt('✏️','Other (type it)','_gwOther()');
+    h+=opt(li('smile',20,2),'Interested','_gwSaid(\'interested\')');
+    h+=opt(li('home',20,2),'Wants a site visit','_gwSaid(\'visit\')');
+    h+=opt(li('hourglass',20,2),'Call again later','_gwSaid(\'later\')');
+    h+=opt(li('x',20,2),'Not interested','_gwSaid(\'lost\')');
+    h+=opt(li('edit',20,2),'Other (type it)','_gwOther()');
     h+='</div>';
   } else if(GW.step===3){
     h+=`<div class="lg-title">When to contact again?</div><div class="gw-opts">`;
-    h+=opt('⏰','Tomorrow','_gwWhen(1)');
-    h+=opt('⏰','In 3 days','_gwWhen(3)');
-    h+=opt('⏰','Next week','_gwWhen(7)');
-    h+=opt('📅','Pick a date','_gwPick()');
+    h+=opt(li('clock',20,2),'Tomorrow','_gwWhen(1)');
+    h+=opt(li('clock',20,2),'In 3 days','_gwWhen(3)');
+    h+=opt(li('clock',20,2),'Next week','_gwWhen(7)');
+    h+=opt(li('calendar',20,2),'Pick a date','_gwPick()');
     h+=`<input type="date" id="gw-date" style="display:none" onchange="_gwWhenDate(this.value)">`;
     h+='</div>';
     h+=`<button class="btn btn-full btn-sm" style="margin-top:9px" onclick="_gwFinish('Contact saved.')">Skip — no reminder</button>`;
@@ -1996,7 +2015,7 @@ function _leadTrail(l,acts){
     else if(a.kind==='meeting'){cls='contact';icon=I.users;label='Meeting';}
     else if(a.kind==='assigned'){cls='assign';icon=I.arrow;label='Handed down';}
     else if(a.kind==='stage'){ const won=/\bwon\b/i.test(a.body||''),lost=/\blost\b/i.test(a.body||'');
-      cls=won?'won':(lost?'lost':'stage'); icon=won?I.check:I.flag; label=won?'Deal won 🎉':(lost?'Lead closed':'Stage updated'); }
+      cls=won?'won':(lost?'lost':'stage'); icon=won?I.check:I.flag; label=won?'Deal won':(lost?'Lead closed':'Stage updated'); }
     t+=node(cls,icon,label,a.body?esc(a.body):'', fdate(a.created_at)+(_timeOf(a.created_at)?' · '+_timeOf(a.created_at):''));
   });
   t+='</div>';
@@ -2364,7 +2383,7 @@ async function renderUpdates(){
       <span class="indot"></span>
       <div class="inmain">
         <div class="intop"><div class="insubj">${esc(a.title)}</div><div class="indate">${esc(fdateShort(a.created_at))}</div></div>
-        <div class="insnip">${a.is_important?'<span class="instar">★ </span>':''}${(a.attachments&&a.attachments.length)?'📎 ':''}${_annSnippet(a.body)}</div>
+        <div class="insnip">${a.is_important?'<span class="instar">★ </span>':''}${(a.attachments&&a.attachments.length)?li('paperclip',12,2)+' ':''}${_annSnippet(a.body)}</div>
       </div>
       <svg class="inchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
     </div>`;
@@ -2409,7 +2428,7 @@ async function renderBoard(){
   const p=projects[BV.proj]; const c=p.counts||{};
   BOARD_PROJ=p.project_name||p.company_name||'';
   let html=_pageHead('Availability','Tap an available unit to reserve & sell.');
-  if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:12px;border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:13px;font-weight:700">🏷️ Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
+  if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:12px;border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:13px;font-weight:700">${li('tag',13,2)} Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
   if(projects.length>1){
     // Each chip is the PROJECT (e.g. KHUSHAL BAGH HEIGHTS / Awami Market); in an umbrella these span member companies.
     html+=(BOARD.grouped?'<div class="es" style="margin:0 2px 6px;color:var(--fk-text-muted);font-size:13px">Choose a project:</div>':'')
@@ -2545,7 +2564,7 @@ function openReserve(unitId,unitNo,area,areaUnit,price){
     +'</div>';
   openModal('Reserve unit '+esc(unitNo),
     summary
-    +'<button class="btn btn-full" style="margin-bottom:14px" onclick="openShareUnit()">📤 Share with client (WhatsApp)</button>'
+    +'<button class="btn btn-full" style="margin-bottom:14px" onclick="openShareUnit()">'+li('send',16,2)+' Share with client (WhatsApp)</button>'
     +'<div class="field"><label class="label">Client name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="r-name"></div>'
     +'<div class="field"><label class="label">Client phone</label><input class="input" id="r-phone" inputmode="tel"></div>'
     +'<div class="field"><label class="label">Hold for</label><div class="seg" id="r-days">'
@@ -2756,12 +2775,12 @@ function renderLeaderboardBody(){
   }
   if(myId){ const mi=active.findIndex(r=>r.agent_id===myId);
     if(mi>=0){ const c=Number(active[mi][key]||0); html+='<div class="lbme">You are <b>#'+(mi+1)+'</b> of '+active.length+' · <b>'+c+'</b> unit'+(c===1?'':'s')+' sold</div>'; }
-    else { html+='<div class="lbme">No sales in this view yet — close one to enter the board! 🚀</div>'; }
+    else { html+='<div class="lbme">No sales in this view yet — close one to enter the board!</div>'; }
   }
   html+='<div class="card" style="padding:0">';
   active.forEach((r,i)=>{
     const rank=i+1, cnt=Number(r[key]||0), mine=(myId&&r.agent_id===myId);
-    const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':('#'+rank);
+    const medal=rank<=3?`<span style="color:${rank===1?'#D4AF37':rank===2?'#9AA3B2':'#C08457'}">${li('award',24,2)}</span>`:('#'+rank);
     const list=(LB_PERIOD==='month')?(r.units||[]).filter(u=>String(u.sale_date||'').slice(0,7)===monthPfx):(r.units||[]);
     const sub=list.map(u=>'<div class="lbu"><span>'+esc(u.unit_no||'')+(u.project_name?' · <span class="es">'+esc(u.project_name)+'</span>':'')+(u.client_name?' · '+esc(u.client_name):'')+'</span><span class="es">'+fdate(u.sale_date)+'</span></div>').join('')
       || '<div class="lbu"><span class="es">No units in this period</span></div>';
