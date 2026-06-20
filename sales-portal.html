@@ -920,7 +920,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
           <a class="ni-child" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
           <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
-          <a class="ni-child" data-tab="livemap" onclick="setTab('livemap')"><span class="ni-lb">Live Map</span></a>
+          <a class="ni-child" data-tab="livemap" data-dir onclick="setTab('livemap')"><span class="ni-lb">Live Map</span></a>
           <a class="ni-child" data-tab="teamperf" onclick="setTab('teamperf')"><span class="ni-lb">Team Performance</span></a>
           <a class="ni-child" data-tab="fbsettings" data-dir onclick="setTab('fbsettings')"><span class="ni-lb">Facebook Leads</span></a>
         </div>
@@ -2445,7 +2445,7 @@ function renderAgent(){
     html+=`<div class="dsec">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuckA.length}</span></div>`;
     html+='<div class="lgroup">'+stuckA.slice(0,5).map(_stuckRow).join('')+'</div>';
   }
-  html+='<div id="agent-loc"></div>';
+  if(ME&&ME.role==='director') html+='<div id="agent-loc"></div>';
   if(leads.length){
     html+=`<div class="dsec">Lead pipeline <span class="nb">${leads.length}</span></div>`;
     const chips=LEAD_STAGES.map(([k,lb])=>{ const n=sc[k]||0; return n?`<span class="spill" style="background:${_leadColor(k)};border-color:transparent;color:#fff">${esc(lb)} ${n}</span>`:''; }).filter(Boolean).join('');
@@ -2455,7 +2455,7 @@ function renderAgent(){
     html+=_emptyCard('No leads in the pipeline','This agent has no active leads yet.');
   }
   $('app-body').innerHTML=html;
-  _renderAgentLoc(TEAM_AGENT);
+  if(ME&&ME.role==='director') _renderAgentLoc(TEAM_AGENT);
 }
 function _agentLeadRow(l){
   const pill=`<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff;background:${_leadColor(l.status)};white-space:nowrap">${esc(_leadStageLabel(l.status))}</span>`;
@@ -2731,14 +2731,14 @@ async function renderProfile(){
   html+=`<div class="card" style="padding:4px 14px">`+fld('Phone',p.phone)+fld('CNIC',p.cnic)+fld('Father / Husband',p.father_name)+fld('Email',p.email)+fld('Address',p.address)+`</div>`;
   html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Bank — for payouts</div>`;
   html+=`<div class="card" style="padding:4px 14px">`+fld('Bank',p.bank_name)+fld('Account #',p.bank_account_no)+fld('Title',p.bank_account_title)+`</div>`;
-  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">My location</div><div id="loc-card"></div>`;
+  if(ME&&ME.role==='director') html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">My location</div><div id="loc-card"></div>`;
   html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="_profileEdit()">Edit bank details</button>`;
   html+=`<button class="btn btn-full" onclick="_changePin()">Change PIN</button>`;
   html+=`<div style="height:16px"></div>`;
   html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="toggleTheme()">Switch light / dark</button>`;
   html+=`<button class="btn btn-full btn-danger-soft" onclick="doLogout()">Sign out</button>`;
   $('app-body').innerHTML=html;
-  _renderMyLocCard();
+  if(ME&&ME.role==='director') _renderMyLocCard();
 }
 // ── Member location (map via Google output=embed — no API key) ──
 function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:180px;border:0;border-radius:10px;display:block"></iframe>`; }
