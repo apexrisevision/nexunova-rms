@@ -614,6 +614,19 @@ body{background:var(--nx-page)}
 .tm-act a svg{width:15px;height:15px}
 @media(max-width:640px){ .tm-stats{display:none} }
 @media(prefers-reduced-motion:reduce){ .tm-row{transition:none} }
+
+/* ════ Lead interaction logger + timeline extras + follow-up badge ════ */
+.lglog-h{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-bold);color:var(--fk-text);margin-bottom:var(--fk-sp-2);display:flex;align-items:center;gap:6px}
+.lglog-lb{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.05em;font-weight:var(--fk-fw-semibold);color:var(--fk-text-muted);margin:var(--fk-sp-2) 0 5px}
+.lgchips{display:flex;flex-wrap:wrap;gap:6px}
+.lgchip{flex:0 0 auto;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text-muted);border-radius:var(--fk-radius-pill);padding:5px 11px;font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);font-family:inherit;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.lgchip:hover{border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
+.lgchip.on{background:var(--fk-primary-tint);color:var(--fk-primary);border-color:color-mix(in srgb,var(--fk-primary) 35%,var(--fk-border))}
+.tout{display:inline-flex;align-items:center;font-size:10px;font-weight:var(--fk-fw-bold);text-transform:uppercase;letter-spacing:.04em;color:var(--fk-text-muted);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:var(--fk-radius-pill);padding:0 6px;margin-left:6px;vertical-align:1px}
+.tnext{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:var(--fk-fs-body);color:var(--fk-primary);background:var(--fk-primary-tint);border-radius:8px;padding:5px 8px}
+.tnext svg{width:13px;height:13px;flex:none}
+.ni-bdg.bdg-danger{background:var(--fk-danger);color:#fff}
+.ni-bdg.bdg-amber{background:var(--fk-warning);color:#fff}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -1128,7 +1141,7 @@ body{background:var(--nx-page)}
   <aside class="sb" id="sb">
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
     <nav class="sb-nav">
-      <a class="ni" data-tab="home" onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span></a>
+      <a class="ni" data-tab="home" onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <a class="ni" data-tab="leads" data-lead onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
       <div class="ni-grp" data-grp="manage" data-mgr style="display:none">
         <div class="ni-grp-hd" onclick="toggleGroup('manage')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">Management</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
@@ -1510,7 +1523,7 @@ function _applyLeadAccess(){
   show('.ni-grp[data-grp="sales"]', !isExec);
   show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
 }
-function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); try{ _startLiveLocation(); }catch(e){} }
+function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -1668,6 +1681,10 @@ function _fuRow(l){
 function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
 function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
 function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
+function _fuBadgeSet(overdue,today){ const b=$('nav-badge-followups'); if(!b) return; const od=Number(overdue||0),td=Number(today||0),n=od+td;
+  b.classList.remove('bdg-danger','bdg-amber');
+  if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); b.classList.add(od>0?'bdg-danger':'bdg-amber'); } else b.classList.remove('show'); }
+async function _refreshFuBadge(){ try{ const {data}=await sb.rpc('get_my_followups',{p_session_token:TOKEN}); if(data&&data.success) _fuBadgeSet(data.overdue,data.today); }catch(e){} }
 // name-derived soft avatar (dashboard list sections only — does not touch the shared _avatar)
 function _avatarC(name,sz){
   const cols=['var(--fk-primary)','var(--nx-violet)','var(--fk-success)','var(--fk-info)','var(--fk-warning)','var(--fk-danger)'];
@@ -1753,7 +1770,7 @@ async function renderHome(){
     if(rP.data&&rP.data.success===false&&rP.data.error==='session_expired') return sessionGone();
     if(rP.data&&rP.data.success) perf=rP.data;
     if(rO.data&&rO.data.success&&!rO.data.no_agent){ const T=rO.data.totals||{}; outstanding=Number(T.overdue||T.total_remaining||0); }
-    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); }
+    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
     if(rR.data&&rR.data.success){ resvActive=(rR.data.reservations||[]).filter(x=>x.status==='active').length; }
     if(rS.data&&rS.data.success){ pend=((rS.data.submissions)||[]).filter(x=>x.status==='pending').length; }
     if(rB.data&&rB.data.success){ const rows=(rB.data.rows||[]).slice().sort((a,b)=>(Number(b.units_all||0)-Number(a.units_all||0))); const i=rows.findIndex(x=>x.agent_id===rB.data.my_agent_id); if(i>=0) rank='#'+(i+1); }
@@ -1875,7 +1892,7 @@ async function renderManagerHome(){
     if(rT.data&&rT.data.error==='session_expired') return sessionGone();
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
     if(rP.data&&rP.data.success) perf=rP.data;
-    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); }
+    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
     if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(x=>x.is_mine&&x.status!=='won'&&x.status!=='lost'); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
     TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
     if(rG.data&&rG.data.success) targets=rG.data;
@@ -2181,14 +2198,18 @@ function _wizFull(){ renderLeadDetail(WIZ.id); }
 // ── full details (360) — opened from the wizard's "View full details" ──
 async function renderLeadDetail(id){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  let d;
-  try{ const {data}=await sb.rpc('get_lead',{p_session_token:TOKEN,p_id:id});
+  let d, acts;
+  try{ const [rg,ri]=await Promise.all([
+        sb.rpc('get_lead',{p_session_token:TOKEN,p_id:id}),
+        sb.rpc('get_lead_interactions',{p_session_token:TOKEN,p_lead_id:id})]);
+    const data=rg.data;
     if(data&&data.error==='session_expired') return sessionGone();
     if(!data||!data.success){ toast('Lead not found','err'); return closeLead(); }
     d=data; LEAD_DETAIL=data;
+    acts = (ri.data&&ri.data.success&&Array.isArray(ri.data.rows)) ? ri.data.rows.slice().reverse() : (d.activities||[]);  // newest-first → oldest-first for the trail
   }catch(e){ return sessionGone(); }
   _touch();
-  const l=d.lead, acts=d.activities||[];
+  const l=d.lead;
   const wa=_waNum(l.phone);
   const hb=_leadHealth(l);
   const stagePill=`<span class="spill" style="background:${_leadColor(l.status)};border-color:transparent;color:#fff">${esc(_leadStageLabel(l.status))}</span>`;
@@ -2239,7 +2260,20 @@ async function renderLeadDetail(id){
   if(l.is_mine){
     const fuVal=l.next_follow_up_at?new Date(l.next_follow_up_at).toISOString().slice(0,10):'';
     html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">${li('clock',14,2)} When to contact next?</div><input type="date" id="l360-fu" class="input" value="${fuVal}" onchange="_leadSetFollowup('${l.id}',this.value)"><div style="font-size:11px;color:var(--fk-text-muted);margin-top:7px">Sets a reminder — this lead pops up on your Home “Follow up today” on that date.</div></div>`;
-    html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">${li('message',14,2)} Add a comment</div><textarea class="input" id="l360-cmt" rows="2" placeholder="What happened with this lead?"></textarea><button class="btn btn-primary btn-full" style="margin-top:8px" onclick="_leadQuickNote('${l.id}')">Add to trail</button></div>`;
+    LOGV={channel:'call',outcome:null};
+    const _lgChip=(g,k,lb,on)=>`<button class="lgchip${on?' on':''}" data-v="${k}" onclick="_logPick(this,'${g}')">${lb}</button>`;
+    html+=`<div class="card lglog" style="padding:12px 14px;margin-bottom:10px">
+      <div class="lglog-h">${li('message',14,2)} Log a call or note</div>
+      <div class="lglog-lb">Channel</div>
+      <div class="lgchips" id="lg-ch">${[['call','Call'],['whatsapp','WhatsApp'],['visit','Visit'],['meeting','Meeting'],['note','Note']].map(c=>_lgChip('ch',c[0],c[1],c[0]==='call')).join('')}</div>
+      <div class="lglog-lb">Outcome</div>
+      <div class="lgchips" id="lg-out">${[['connected','Connected'],['no-answer','No answer'],['interested','Interested'],['not-interested','Not interested'],['callback','Call back']].map(c=>_lgChip('out',c[0],c[1],false)).join('')}</div>
+      <textarea class="input" id="lg-note" rows="2" placeholder="What happened?" style="margin-top:8px"></textarea>
+      <input class="input" id="lg-nextstep" placeholder="Next step (optional) — e.g. send brochure" style="margin-top:8px">
+      <div class="lglog-lb">Next follow-up (optional)</div>
+      <input type="date" id="lg-next" class="input">
+      <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="_leadLog('${l.id}')">Log interaction</button>
+    </div>`;
     html+=`<button class="btn btn-full" style="margin-bottom:10px" onclick="_leadActions('${l.id}')">More actions ⋯</button>`;
   }
   // ── hand down ──
@@ -2503,6 +2537,20 @@ async function _mgrPullback(id){
 }
 function _srcLabel(s){ return ({facebook:'Facebook',manual:'Manual',walkin:'Walk-in',assigned:'Assigned',online:'Online',referral:'Referral',call:'Call',banner:'Banner',other:'Other'})[String(s||'').toLowerCase()]||esc(s||'—'); }
 function _timeOf(d){ const x=new Date(d); return isNaN(x)?'':x.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
+let LOGV={channel:'call',outcome:null};
+function _logPick(el,g){ el.parentElement.querySelectorAll('.lgchip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); if(g==='ch') LOGV.channel=el.getAttribute('data-v'); else LOGV.outcome=el.getAttribute('data-v'); }
+function _outLabel(o){ return ({connected:'Connected','no-answer':'No answer',interested:'Interested','not-interested':'Not interested',callback:'Call back'})[o]||o; }
+async function _leadLog(id){
+  const note=(($('lg-note')||{}).value||'').trim();
+  const nstep=(($('lg-nextstep')||{}).value||'').trim();
+  const nx=(($('lg-next')||{}).value||'');
+  const nextDate = nx ? new Date(nx+'T09:00:00').toISOString() : null;
+  try{ const {data}=await sb.rpc('log_lead_interaction',{p_session_token:TOKEN,p_lead_id:id,p_channel:LOGV.channel||'note',p_outcome:LOGV.outcome,p_note:note||null,p_next_step:nstep||null,p_next_step_date:nextDate});
+    if(data&&data.success){ toast('Logged','ok'); _refreshFuBadge(); renderLeadDetail(id); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else toast((data&&data.message)||'Could not log','err');
+  }catch(e){ toast('Could not log','err'); }
+}
 function _leadTrail(l,acts){
   const age=Math.max(0,Math.floor((Date.now()-new Date(l.created_at))/86400000));
   let html='<div class="tsum">'
@@ -2529,7 +2577,10 @@ function _leadTrail(l,acts){
     else if(a.kind==='assigned'){cls='assign';icon=I.arrow;label='Handed down';}
     else if(a.kind==='stage'){ const won=/\bwon\b/i.test(a.body||''),lost=/\blost\b/i.test(a.body||'');
       cls=won?'won':(lost?'lost':'stage'); icon=won?I.check:I.flag; label=won?'Deal won':(lost?'Lead closed':'Stage updated'); }
-    t+=node(cls,icon,label,a.body?esc(a.body):'', fdate(a.created_at)+(_timeOf(a.created_at)?' · '+_timeOf(a.created_at):''));
+    let _lab=label; if(a.outcome) _lab+=' <span class="tout">'+esc(_outLabel(a.outcome))+'</span>';
+    let _bd=a.body?esc(a.body):'';
+    if(a.next_step) _bd+='<div class="tnext">'+svg(I.arrow)+'<b>Next:</b> '+esc(a.next_step)+'</div>';
+    t+=node(cls,icon,_lab,_bd, fdate(a.created_at)+(_timeOf(a.created_at)?' · '+_timeOf(a.created_at):''));
   });
   t+='</div>';
   return html+t;
@@ -2564,7 +2615,7 @@ async function _leadDetailStage(id,status){
 async function _leadSetFollowup(id,val){
   const when=val?new Date(val+'T09:00:00').toISOString():null;
   try{ const {data}=await sb.rpc('set_lead_followup',{p_session_token:TOKEN,p_id:id,p_when:when});
-    if(data&&data.success) toast(when?'Follow-up set':'Follow-up cleared','ok'); else toast('Could not set','err');
+    if(data&&data.success){ toast(when?'Follow-up set':'Follow-up cleared','ok'); _refreshFuBadge(); } else toast('Could not set','err');
   }catch(e){ toast('Could not set','err'); }
 }
 async function openAssign(id){
