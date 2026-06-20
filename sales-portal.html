@@ -910,6 +910,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
           <a class="ni-child" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
           <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
+          <a class="ni-child" data-tab="teamperf" onclick="setTab('teamperf')"><span class="ni-lb">Team Performance</span></a>
         </div>
       </div>
       <div class="ni-grp" data-grp="sales">
@@ -1258,10 +1259,24 @@ function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showSc
 // ════ agreement gate (initial signing / amendments / hold) ════
 let AGREE_GATE=null;
 function _applyLeadAccess(){
-  const noLeads = ME && (ME.role==='admin'||ME.role==='cfo');   // CFO/Admin don't handle leads
-  document.querySelectorAll('.ni[data-lead]').forEach(t=>{ t.style.display = noLeads ? 'none' : ''; });
-  const isMgr = ME && ME.role==='marketing_manager';            // Manager-only sections (Team + Distribute). Director ≠ Manager.
-  document.querySelectorAll('[data-mgr]').forEach(t=>{ t.style.display = isMgr ? '' : 'none'; });
+  const role = (ME && ME.role) || 'sale_rep';
+  const isExec = (role==='admin'||role==='cfo');                 // exec — minimal portal (mainly use main RMS app)
+  const isMgr  = (role==='marketing_manager');                   // manager — oversight (director handled later)
+  const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
+
+  // Leads — everyone except exec
+  show('.ni[data-lead]', !isExec);
+  // Management group — managers only
+  show('[data-mgr]', isMgr);
+
+  // Manager = oversight: hide personal record tabs (empty / covered by team views)
+  show('.ni-grp[data-grp="money"]', !isMgr && !isExec);                                    // Clients + personal Recovery → Team Recovery covers managers
+  show('.ni-grp[data-grp="sales"] .ni-child[data-tab="mysales"]', !isMgr && !isExec);       // personal closed deals
+  show('.ni-grp[data-grp="insights"] .ni-child[data-tab="performance"]', !isMgr && !isExec); // managers get Team Performance under Management
+
+  // Exec (cfo/admin) = minimal: only Dashboard · Updates · Profile
+  show('.ni-grp[data-grp="sales"]', !isExec);
+  show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); }
 async function enterApp(){
@@ -1326,7 +1341,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery'};
+const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='home') renderHome();
@@ -1344,6 +1359,7 @@ function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(N
   else if(t==='distribute') renderDistribute();
   else if(t==='targets') renderTargets();
   else if(t==='teamrecovery') renderTeamRecovery();
+  else if(t==='teamperf') renderPerformance();
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
   document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="'+t+'"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
