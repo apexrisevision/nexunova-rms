@@ -500,6 +500,9 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .lrow.tap:active{background:var(--fk-subtle-hover)}
 .lrow-top{display:flex;align-items:center;gap:11px}
 .lrow-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px}
+.lrow.sel{background:var(--fk-primary-tint)}
+.dck{width:22px;height:22px;flex:none;border:2px solid var(--fk-muted-fill);border-radius:7px;display:grid;place-items:center;color:transparent;transition:background .12s,border-color .12s}
+.lrow.sel .dck{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff}
 .card-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .ichip{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
   background:var(--fk-primary-tint);color:var(--fk-primary)}
@@ -2247,6 +2250,7 @@ function _agentLeadRow(l){
     ${pill}</div></div>`;
 }
 // ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
+let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null};
 async function renderDistribute(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   let rU,rL;
@@ -2255,20 +2259,81 @@ async function renderDistribute(){
   if(rL.data&&rL.data.success===false&&rL.data.error==='session_expired') return sessionGone();
   _touch();
   const cfg=(rU.data)||{};
-  let html=_pageHead('Distribute leads','Hand your leads to your sub-agents.');
-  if(!cfg.success||!cfg.can_assign){ html+=_emptyCard('Distribution not available','Your role can’t hand leads down.'); $('app-body').innerHTML=html; return; }
-  const team=cfg.users||[];
-  const leads=(((rL.data)&&rL.data.leads)||[]).filter(l=>l.is_mine && l.status!=='won' && l.status!=='lost');
-  _distBadgeSet(leads.length);
-  if(team.length){
-    html+=`<div class="dsec">Your ${esc(cfg.assigns_to_label||'team')}</div><div class="card" style="padding:2px 14px">`;
-    html+=team.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span>${esc(u.name)}${u.mine?'':' <span style="color:var(--fk-text-muted);font-size:11px">· other team</span>'}</span><b class="num">${u.open_leads} open</b></div>`).join('');
-    html+='</div>';
-  }
+  if(!cfg.success||!cfg.can_assign){ $('app-body').innerHTML=_pageHead('Distribute leads','Hand your leads to your sub-agents.')+_emptyCard('Distribution not available','Your role can’t hand leads down.'); return; }
+  DISTV.reps=cfg.users||[]; DISTV.label=cfg.assigns_to_label||'team';
+  DISTV.leads=(((rL.data)&&rL.data.leads)||[]).filter(l=>l.is_mine && l.status!=='won' && l.status!=='lost');
+  DISTV.sel=DISTV.sel.filter(id=>DISTV.leads.some(l=>l.id===id));   // drop ids that are no longer assignable
+  _distBadgeSet(DISTV.leads.length);
+  _distRender();
+}
+function _distRender(){
+  const reps=DISTV.reps, leads=DISTV.leads, sel=DISTV.sel;
+  let html=_pageHead('Distribute leads','Select leads and assign them to your '+esc(DISTV.label)+' — one by one or auto-balanced.');
+  if(!reps.length){ html+=_emptyCard('No '+esc(DISTV.label)+' yet','Add one in Portal Access first, then you can distribute leads.'); $('app-body').innerHTML=html; return; }
+  // team load snapshot
+  html+='<div class="dsec">Team load</div><div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px">'
+    + reps.map(u=>`<span class="spill">${esc(u.name)} · <b>${u.open_leads}</b> open</span>`).join('')
+    + '</div>';
+  // action toolbar
+  const n=sel.length, all=leads.length>0 && n===leads.length;
+  html+=`<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <button class="btn btn-sm" ${leads.length?'':'disabled'} onclick="_distToggleAll()">${all?'Clear':'Select all'}</button>
+    <span style="font-size:13px;color:var(--fk-text-muted);flex:1;min-width:60px">${n} selected</span>
+    <button class="btn btn-sm btn-primary" ${n?'':'disabled'} onclick="_distAssignPick()">Assign to ${esc(DISTV.label)}</button>
+    <button class="btn btn-sm" ${n?'':'disabled'} onclick="_distAuto()">Auto-balance</button>
+  </div>`;
   html+=`<div class="dsec">Leads to assign <span class="nb">${leads.length}</span></div>`;
   if(!leads.length){ html+=_emptyCard('All caught up','None of your leads are waiting to be handed down.'); }
-  else { html+='<div class="lgroup">'+leads.map(_distRow).join('')+'</div>'; }
+  else html+='<div class="lgroup">'+leads.map(_distSelRow).join('')+'</div>';
   $('app-body').innerHTML=html;
+}
+function _distSelRow(l){
+  const on=DISTV.sel.includes(l.id);
+  return `<div class="lrow tap${on?' sel':''}" onclick="_distToggle('${l.id}')"><div class="lrow-top">
+    <span class="dck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+    ${_avatar(l.name,34)}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</div></div>
+  </div></div>`;
+}
+function _distToggle(id){ const i=DISTV.sel.indexOf(id); if(i>=0) DISTV.sel.splice(i,1); else DISTV.sel.push(id); _distRender(); }
+function _distToggleAll(){ DISTV.sel=(DISTV.sel.length===DISTV.leads.length)?[]:DISTV.leads.map(l=>l.id); _distRender(); }
+function _distAssignPick(){
+  if(!DISTV.sel.length) return;
+  const body=DISTV.reps.map(u=>`<div class="lrow tap" onclick="_distBulkAssign('${u.id}')"><div class="lrow-top">
+     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${esc(u.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${u.open_leads} open${u.mine?' · your team':''}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap">Assign →</span></div></div>`).join('');
+  openModal('Assign '+DISTV.sel.length+' lead'+(DISTV.sel.length==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+}
+async function _distBulkAssign(toId){
+  const ids=DISTV.sel.slice(); if(!ids.length) return;
+  closeModal();
+  try{ const {data}=await sb.rpc('assign_leads_bulk',{p_session_token:TOKEN,p_lead_ids:ids,p_to_id:toId});
+    if(data&&data.success){ toast((data.assigned||0)+' lead'+((data.assigned==1)?'':'s')+' → '+(data.to_name||'team'),'ok'); DISTV.sel=[]; renderDistribute(); }
+    else toast((data&&data.message)||'Could not assign','err');
+  }catch(e){ toast('Could not assign','err'); }
+}
+function _distAuto(){
+  const ids=DISTV.sel.slice(), reps=DISTV.reps.slice();
+  if(!ids.length||!reps.length) return;
+  // load-balance: each lead goes to the rep with the lowest projected open load
+  const load={}, plan={}; reps.forEach(u=>{ load[u.id]=Number(u.open_leads||0); });
+  ids.forEach(lid=>{ let best=reps[0]; reps.forEach(u=>{ if(load[u.id]<load[best.id]) best=u; }); (plan[best.id]=plan[best.id]||[]).push(lid); load[best.id]++; });
+  DISTV.plan=plan;
+  const preview=reps.filter(u=>plan[u.id]).map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--fk-hairline);font-size:14px"><span>${esc(u.name)} <span style="color:var(--fk-text-muted);font-size:11px">· ${u.open_leads} now</span></span><b style="color:var(--fk-primary)">+${plan[u.id].length}</b></div>`).join('');
+  openModal('Auto-balance '+ids.length+' lead'+(ids.length==1?'':'s'),
+    '<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:10px">Split across your '+esc(DISTV.label)+', evening out current load:</div><div class="card" style="padding:2px 14px;margin:0">'+preview+'</div>',
+    '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_distAutoRun()">Distribute</button>');
+}
+async function _distAutoRun(){
+  const plan=DISTV.plan||{}; closeModal();
+  let total=0, fail=0, groups=Object.keys(plan).length;
+  for(const repId of Object.keys(plan)){
+    try{ const {data}=await sb.rpc('assign_leads_bulk',{p_session_token:TOKEN,p_lead_ids:plan[repId],p_to_id:repId});
+      if(data&&data.success) total+=Number(data.assigned||0); else fail++;
+    }catch(e){ fail++; }
+  }
+  toast('Distributed '+total+' lead'+(total==1?'':'s')+' across '+groups+' '+DISTV.label+(fail?(' · '+fail+' failed'):''), fail?'err':'ok');
+  DISTV.sel=[]; DISTV.plan=null; renderDistribute();
 }
 function _distRow(l){
   return `<div class="lrow"><div class="lrow-top">
