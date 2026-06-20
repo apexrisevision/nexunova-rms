@@ -920,6 +920,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
           <a class="ni-child" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
           <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
+          <a class="ni-child" data-tab="org" data-dir onclick="setTab('org')"><span class="ni-lb">Org Map</span></a>
           <a class="ni-child" data-tab="livemap" data-dir onclick="setTab('livemap')"><span class="ni-lb">Live Map</span></a>
           <a class="ni-child" data-tab="teamperf" onclick="setTab('teamperf')"><span class="ni-lb">Team Performance</span></a>
           <a class="ni-child" data-tab="fbsettings" data-dir onclick="setTab('fbsettings')"><span class="ni-lb">Facebook Leads</span></a>
@@ -1355,7 +1356,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Org Map',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='home') renderHome();
@@ -1375,6 +1376,7 @@ function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(N
   else if(t==='teamrecovery') renderTeamRecovery();
   else if(t==='teamperf') renderPerformance();
   else if(t==='livemap') renderLiveMap();
+  else if(t==='org') renderOrg();
   else if(t==='fbsettings') renderFbSettings();
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
@@ -1413,7 +1415,8 @@ function goBack(){
   if(TAB==='board'&&BV.floor){ _bvBack(); _syncNav(); return; }      // 3) floor drill → board
   if(TAB==='leads'&&LEAD_OPEN){ closeLead(); _syncNav(); return; }    // 4) lead detail → leads list
   if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4b) agent detail → team tree
-  if(TAB==='livemap'&&TRAIL_MEMBER){ TRAIL_MEMBER=null; renderLiveMap(); return; }   // 4c) footstep trail → live map
+  if(TRAIL_MEMBER){ TRAIL_MEMBER=null; if(TRAIL_FROM==='org'){ ORG_VIEW=null; _renderOrgTree(); } else { renderLiveMap(); } return; }   // 4c) footstep trail → its origin
+  if(TAB==='org'&&ORG_VIEW){ _orgBack(); return; }                    // 4d) member perf/leads → org map
   let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 5) previous section
   if(prev){ setTab(prev,true); return; }
   if(TAB!=='home'){ setTab('home',true); return; }                   // 6) fall back to dashboard
@@ -2777,7 +2780,7 @@ async function _renderAgentLoc(id){
 }
 // ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
 let _leafLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_FILTER='all';
-let TRAIL_MEMBER=null, TRAIL_DAY=null, TRAIL_DATA=null, _trailMap=null;
+let TRAIL_MEMBER=null, TRAIL_DAY=null, TRAIL_DATA=null, _trailMap=null, TRAIL_FROM='livemap';
 function _todayPKT(){ return new Date(Date.now()+5*3600000).toISOString().slice(0,10); }
 function _trailDayLabel(day){ if(day===_todayPKT()) return 'Today'; const d=new Date(Date.now()+5*3600000-86400000).toISOString().slice(0,10); if(day===d) return 'Yesterday'; const a=day.split('-').map(Number); return new Date(a[0],a[1]-1,a[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
 function _openTrail(id){ TRAIL_MEMBER=id; TRAIL_DAY=null; renderTrail(); }
@@ -2797,7 +2800,7 @@ async function renderTrail(){
   const pts=d.points||[], online=!!d.online;
   const statusTxt= online ? ('🟢 Online now'+(d.cur_label?' · '+esc(d.cur_label):''))
     : (d.last_at ? ('Offline · last seen '+esc(_agoTxt(d.last_at))+(d.cur_label?' · '+esc(d.cur_label):'')) : 'No location on this day');
-  let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ Live Map</button>`;
+  let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ ${TRAIL_FROM==='org'?'Org Map':'Live Map'}</button>`;
   html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name||'')}</div><div style="font-size:12px;font-weight:600;color:${online?'var(--fk-success)':'var(--fk-text-muted)'}">${statusTxt}</div></div></div>`;
   html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button class="btn btn-sm" onclick="_trailShift(-1)">‹</button><div style="flex:1;text-align:center;font-weight:700;font-size:14px">${esc(_trailDayLabel(d.day))}</div><button class="btn btn-sm" ${d.day>=_todayPKT()?'disabled':''} onclick="_trailShift(1)">›</button></div>`;
   html+=`<div id="trail-canvas" style="width:100%;height:50vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
@@ -2970,6 +2973,126 @@ async function _changePinSave(){
 }
 // ════ My Performance — funnel · conversion · activity · lost-reasons · sales ════
 let PERF_PERIOD='month';
+// ── Org Command (director-only): full hierarchy → tap anyone → menu of views ──
+let ORG_DATA=null, ORG_VIEW=null, MEMBER_SCOPE='self', MEMBER_PERIOD='month';
+async function renderOrg(){
+  TRAIL_MEMBER=null; ORG_VIEW=null;
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading organisation…</div></div></div>';
+  let d; try{ const r=await sb.rpc('get_org_tree',{p_session_token:TOKEN}); d=r.data; }catch(e){ return sessionGone(); }
+  if(!d||!d.success){ return sessionGone(); }
+  _touch(); ORG_DATA=d; _renderOrgTree();
+}
+function _orgChildren(pid){ return (ORG_DATA.nodes||[]).filter(n=>String(n.parent_id)===String(pid)); }
+function _orgFind(id){ return (ORG_DATA.nodes||[]).find(n=>String(n.id)===String(id)); }
+function _orgNode(n){
+  const kids=_orgChildren(n.id), head=Number(n.reports||0)>0;
+  const dot=n.online?'var(--fk-success)':(n.has_loc?'var(--fk-warning)':'var(--fk-muted-fill)');
+  let h=`<div class="tnode"><div class="trow" onclick="_orgMenu('${n.id}')">
+    <span class="tchev leaf"></span>
+    <span style="position:relative;flex:none">${_avatar(n.name,32)}<span style="position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;border:2px solid var(--fk-bg-card);background:${dot}"></span></span>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(n.role))}${head?' · '+n.reports+' report'+(n.reports==1?'':'s'):''}</div></div>
+    <span style="color:var(--fk-text-muted);opacity:.55;display:grid;place-items:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></span>
+  </div>`;
+  if(kids.length){ h+='<div class="tkids">'+kids.map(_orgNode).join('')+'</div>'; }
+  return h+'</div>';
+}
+function _renderOrgTree(){
+  const root=ORG_DATA.root;
+  const t=$('appbar-title'); if(t) t.textContent='Org Map';
+  let html=_pageHead('Org Map','Your whole organisation — tap anyone to see their performance, location or leads.');
+  html+='<div class="torg"><div class="tnode"><div class="trow" style="background:var(--fk-primary-tint);border-color:var(--fk-primary)">'
+    +`<span class="tchev leaf"></span>${_avatar(root.name,34)}`
+    +`<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${esc(root.name)}</div><div style="font-size:11px;color:var(--fk-primary);font-weight:600">${esc(_portalRoleLabel(root.role))} · you</div></div>`
+    +'</div>';
+  const kids=_orgChildren(root.id);
+  html+= kids.length ? '<div class="tkids">'+kids.map(_orgNode).join('')+'</div>'
+                     : '<div class="tkids"><div style="padding:10px;color:var(--fk-text-muted);font-size:13px">No team under you yet.</div></div>';
+  html+='</div></div>';
+  $('app-body').innerHTML=html;
+}
+function _orgMenu(id){
+  const n=_orgFind(id); if(!n) return;
+  const head=Number(n.reports||0)>0;
+  const opt=(ic,lb,fn)=>`<button class="btn btn-full" style="justify-content:flex-start;gap:10px;margin-bottom:8px" onclick="closeModal();${fn}">${li(ic,18,2)}<span>${lb}</span></button>`;
+  let b=`<div style="font-size:13px;color:var(--fk-text-muted);margin:-4px 0 12px">${esc(_portalRoleLabel(n.role))}${head?' · '+n.reports+' reports':''}</div>`;
+  b+=opt('award','Performance',`_orgOpen('${id}','perf')`);
+  b+=opt('inbox','Leads',`_orgOpen('${id}','leads')`);
+  b+=opt('compass','Live location & footsteps',`_orgOpen('${id}','trail')`);
+  if(n.phone) b+=opt('phone','Call / WhatsApp',`_orgContact('${id}')`);
+  openModal(esc(n.name), b);
+}
+function _orgOpen(id,view){
+  ORG_VIEW={member:id,view:view}; MEMBER_SCOPE='self'; MEMBER_PERIOD='month';
+  if(view==='perf') renderMemberPerf();
+  else if(view==='leads') renderMemberLeads();
+  else if(view==='trail'){ TRAIL_FROM='org'; TRAIL_MEMBER=id; TRAIL_DAY=null; renderTrail(); }
+}
+function _orgBack(){ ORG_VIEW=null; _renderOrgTree(); }
+function _orgContact(id){
+  const n=_orgFind(id); if(!n||!n.phone) return; const wa=_waNum(n.phone);
+  let b=`<a class="btn btn-full btn-primary" style="margin-bottom:8px;text-decoration:none" href="tel:${esc(n.phone)}">${li('phone',18,2)} Call ${esc(n.phone)}</a>`;
+  if(wa) b+=`<a class="btn btn-full" style="text-decoration:none" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>`;
+  openModal(esc(n.name), b);
+}
+function _orgScopeSeg(cur,fn){
+  const seg=(k,lb)=>`<button onclick="${fn}('${k}')" style="flex:1;border:1px solid ${cur===k?'transparent':'var(--fk-border)'};background:${cur===k?'var(--fk-primary)':'var(--fk-bg-card)'};color:${cur===k?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${lb}</button>`;
+  return `<div style="display:flex;gap:6px;margin-bottom:8px">${seg('self','Personal')}${seg('team','Whole team')}</div>`;
+}
+function _setMemScope(s){ MEMBER_SCOPE=s; if(ORG_VIEW&&ORG_VIEW.view==='leads') renderMemberLeads(); else renderMemberPerf(); }
+function _setMemPeriod(p){ MEMBER_PERIOD=p; renderMemberPerf(); }
+async function renderMemberPerf(){
+  const id=ORG_VIEW.member, node=_orgFind(id), head=node&&Number(node.reports||0)>0;
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  const [from,to]=_perfRange(MEMBER_PERIOD);
+  let d; try{ const r=await sb.rpc('get_member_performance',{p_session_token:TOKEN,p_member:id,p_from:from,p_to:to,p_scope:head?MEMBER_SCOPE:'self'}); d=r.data; }catch(e){ return sessionGone(); }
+  if(!d||!d.success){ toast('Could not load','err'); return _orgBack(); }
+  _touch();
+  const L=d.leads||{}, A=d.activity||{}, S=d.sales||{};
+  const t=$('appbar-title'); if(t) t.textContent=d.name||'Performance';
+  let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
+  html+=`<div style="font-size:18px;font-weight:700;margin:0 2px 2px">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted);margin:0 2px 12px">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' (whole team)':''}</div>`;
+  if(head) html+=_orgScopeSeg(MEMBER_SCOPE,'_setMemScope');
+  const pseg=(k,lb)=>`<button onclick="_setMemPeriod('${k}')" style="flex:1;border:1px solid ${MEMBER_PERIOD===k?'transparent':'var(--fk-border)'};background:${MEMBER_PERIOD===k?'var(--fk-primary)':'var(--fk-bg-card)'};color:${MEMBER_PERIOD===k?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${lb}</button>`;
+  html+=`<div style="display:flex;gap:6px;margin-bottom:14px">${pseg('month','This month')}${pseg('last','Last month')}${pseg('all','All time')}</div>`;
+  html+='<div class="dgrid">'
+    +`<div class="dkpi"><div class="dkpi-l">Leads</div><div class="dkpi-v">${L.total||0}</div></div>`
+    +`<div class="dkpi"><div class="dkpi-l">Conversion</div><div class="dkpi-v">${d.conversion||0}%</div></div>`
+    +`<div class="dkpi"><div class="dkpi-l">Sales</div><div class="dkpi-v">${S.count||0}</div></div>`
+    +`<div class="dkpi"><div class="dkpi-l">Sales value</div><div class="dkpi-v" style="font-size:16px">${pkrShort(S.value)||'₨0'}</div></div>`
+    +'</div>';
+  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Pipeline funnel</div><div class="card" style="padding:14px 14px 4px">`;
+  const stages=[['new','New','var(--fk-primary)'],['contacted','Contacted','var(--fk-warning)'],['visit','Visit','var(--fk-warning)'],['negotiation','Negotiation','var(--fk-success)'],['won','Won','var(--fk-success)'],['lost','Lost','var(--fk-danger)']];
+  const mx=Math.max(1,Number(L.total||1));
+  stages.forEach(([k,lb,col])=>{ const v=Number(L[k]||0),pct=Math.round(v/mx*100); html+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:600">${lb}</span><b>${v}</b></div><div style="height:8px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px"></div></div></div>`; });
+  html+='</div>';
+  const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><b>${esc(String(v))}</b></div>`;
+  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Activity & money</div><div class="card" style="padding:4px 14px">`
+    +fld('Calls',A.call||0)+fld('WhatsApp',A.whatsapp||0)+fld('Visits',A.visit||0)+fld('Meetings',A.meeting||0)
+    +fld('Outstanding', pkrShort(d.outstanding)||'₨0')+'</div>';
+  $('app-body').innerHTML=html;
+}
+async function renderMemberLeads(){
+  const id=ORG_VIEW.member, node=_orgFind(id), head=node&&Number(node.reports||0)>0;
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  let d; try{ const r=await sb.rpc('get_member_leads',{p_session_token:TOKEN,p_member:id,p_scope:head?MEMBER_SCOPE:'self'}); d=r.data; }catch(e){ return sessionGone(); }
+  if(!d||!d.success){ toast('Could not load','err'); return _orgBack(); }
+  _touch();
+  const leads=d.leads||[];
+  const t=$('appbar-title'); if(t) t.textContent=d.name||'Leads';
+  let html=`<button class="backbtn" onclick="_orgBack()" style="margin-bottom:12px">‹ Org Map</button>`;
+  html+=`<div style="font-size:18px;font-weight:700;margin:0 2px 2px">${esc(d.name)}</div><div style="font-size:12px;color:var(--fk-text-muted);margin:0 2px 12px">${esc(_portalRoleLabel(d.role))} · Leads</div>`;
+  if(head) html+=_orgScopeSeg(MEMBER_SCOPE,'_setMemScope');
+  if(!leads.length){ html+=_emptyCard('No leads','No leads in this view yet.'); $('app-body').innerHTML=html; return; }
+  html+=`<div class="dsec">Leads <span class="nb">${leads.length}</span></div><div class="lgroup">`;
+  leads.forEach(l=>{
+    html+=`<div class="lrow"><div class="lrow-top">
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name||'Lead')}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.phone||'')}${l.owner_name?' · '+esc(l.owner_name):''}${l.source?' · '+esc(l.source):''}</div></div>
+      <span style="font-size:11px;font-weight:700;color:var(--fk-text-muted);text-transform:capitalize">${esc((l.status||'').replace(/_/g,' '))}</span>
+    </div></div>`;
+  });
+  html+='</div>';
+  $('app-body').innerHTML=html;
+}
 function _perfRange(p){
   const now=new Date(), pad=n=>String(n).padStart(2,'0'), iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
   if(p==='month'){ return [iso(new Date(now.getFullYear(),now.getMonth(),1)), iso(now)]; }
