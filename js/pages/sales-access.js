@@ -487,13 +487,14 @@ function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove()
 // ── Change a member's portal role (+ optional team head) — set_sales_user_role ──
 function _saRoleOpen(id) {
   const r = (_saRows || []).find(x => x.id === id) || {};
-  // "Reports to" = senior roles only (managers + directors), AND only those not already
-  // placed under someone (top-level seniors) — a member never reports to a sale rep, and
-  // already-assigned people are kept out of the list.
+  // "Reports to" = hierarchy-aware: show only seniors ABOVE this member's role level.
+  // rep → managers + directors · manager/cfo/admin → directors only · director → none.
+  const _SA_RANK = { sale_rep: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
+  const _myRank = _SA_RANK[r.role || 'sale_rep'] || 1;
   const parentOpts = [{ value: '', label: '— none —' }].concat(
     (_saRows || []).filter(x => x.id !== id && x.status !== 'pending'
         && (x.role === 'marketing_manager' || x.role === 'director')
-        && !x.parent_sales_user_id)
+        && (_SA_RANK[x.role] || 0) > _myRank)
       .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
   );
   document.body.insertAdjacentHTML('beforeend', NX.modal({
