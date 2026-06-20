@@ -1286,7 +1286,7 @@ function _applyLeadAccess(){
 
   // Manager = oversight: hide personal record tabs (empty / covered by team views)
   show('.ni-grp[data-grp="money"]', !isMgr && !isExec);                                    // Clients + personal Recovery → Team Recovery covers managers
-  show('.ni-grp[data-grp="sales"] .ni-child[data-tab="mysales"]', !isMgr && !isExec);       // personal closed deals
+  show('.ni-grp[data-grp="sales"] .ni-child[data-tab="mysales"]', !isExec);                 // personal closed deals — managers/directors sell too
   show('.ni-grp[data-grp="insights"] .ni-child[data-tab="performance"]', !isMgr && !isExec); // managers get Team Performance under Management
 
   // Exec (cfo/admin) = minimal: only Dashboard · Updates · Profile
