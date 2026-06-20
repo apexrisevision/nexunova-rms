@@ -560,6 +560,15 @@ body{background:var(--nx-page)}
 .lead-stat svg{width:1em;height:1em;stroke-width:2.4;opacity:.7}
 .lead-stat .lead-stat-x{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none}
 @media(prefers-reduced-motion:reduce){ .lead-row,.lead-chip{transition:none} }
+
+/* ════ My Sales — premium, actionable empty state (dashboard card family) ════ */
+.ms-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--fk-sp-2);padding:var(--fk-sp-6) var(--fk-sp-4);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--nx-radius);box-shadow:var(--nx-card-sh);margin-top:var(--fk-sp-4)}
+.ms-empty-ic{width:48px;height:48px;flex:none;border-radius:var(--nx-radius);display:grid;place-items:center;background:var(--fk-primary-chip);color:var(--fk-primary);margin-bottom:var(--fk-sp-1)}
+.ms-empty-ic svg{width:24px;height:24px}
+.ms-empty-t{font-size:var(--fk-fs-title);font-weight:var(--fk-fw-semibold);color:var(--fk-text)}
+.ms-empty-s{font-size:var(--fk-fs-body);color:var(--fk-text-muted)}
+.ms-empty-cta{width:auto;margin-top:var(--fk-sp-3);gap:5px}
+.ms-empty-cta svg{width:16px;height:16px}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -3425,23 +3434,29 @@ async function renderMySales(){
   catch(e){ return sessionGone(); }
   if(!data||!data.success){ return sessionGone(); }
   _touch();
-  let html=_pageHead('My Sales','Deals you have closed.');
-  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No sales linked yet</div><div class="es">Once your office links your agent profile and approves a sale, it appears here.</div></div></div>'; $('app-body').innerHTML=html; return; }
+  let html='<div class="nx-dash">'+_pageHead('My Sales','Deals you have closed.');
+  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No sales linked yet</div><div class="es">Once your office links your agent profile and approves a sale, it appears here.</div></div></div></div>'; $('app-body').innerHTML=html; return; }
   const sales=data.sales||[];
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  html+='<div class="kgrid">'
-    +_kpic('green', ic('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>'),'Sales closed', data.count, "")
-    +_kpic('indigo', ic('<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>'),'Total value', pkrShort(data.total)||'₨0', "")
-    +'</div>';
-  if(!sales.length){ html+='<div class="card"><div class="empty"><div class="et">No sales yet</div><div class="es">Book a unit from a won lead or the Board.</div></div></div>'; }
-  else { html+='<div class="lgroup">'+sales.map(_saleRow).join('')+'</div>'; }
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)'};
+  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  html+='<div class="dgrid">'
+    + kpi('Sales closed', numv(Number(data.count)||0,'int'), 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + kpi('Total value', numv(Number(data.total)||0,'pkr'), 'indigo', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
+    + '</div>';
+  if(!sales.length){
+    html+=`<div class="ms-empty"><span class="ms-empty-ic">${ic('<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>')}</span><div class="ms-empty-t">No sales yet</div><div class="ms-empty-s">Book a unit from a won lead or the Board.</div><button class="btn btn-primary ms-empty-cta" onclick="setTab('board')">${ic('<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h4a1 1 0 0 1 1 1v11"/>')} Sell a unit</button></div>`;
+  } else { html+='<div class="lgroup">'+sales.map(_saleRow).join('')+'</div>'; }
+  html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 function _saleRow(s){
   return `<div class="lrow">
     <div class="lrow-top">
-      ${_avatar(s.client_name,34)}
-      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.client_name||'Client')}</div><div style="font-size:13px;color:var(--fk-text-muted)">Unit ${esc(s.unit_no||'—')}${s.sale_number?' · '+esc(s.sale_number):''}</div></div>
+      ${_avatarC(s.client_name,40)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(s.client_name||'Client')}</div><div class="lr-sub"><span>Unit ${esc(s.unit_no||'—')}${s.sale_number?' · '+esc(s.sale_number):''}</span></div></div>
       <span class="spill" style="white-space:nowrap">${esc(s.status||'—')}</span>
     </div>
     <div class="lrow-foot" style="font-size:13px">
