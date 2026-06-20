@@ -482,6 +482,34 @@ body{background:var(--nx-page)}
 .ni:hover,.ni-child:hover{transform:translateX(2px)}
 .sb-user{transition:background .16s ease}
 @media(prefers-reduced-motion:reduce){ .ni:hover,.ni-child:hover{transform:none} }
+
+/* ════ Dashboard list sections — Follow-up (amber) / New-leads (indigo) ════ */
+.nx-dash .dsec.amber::before{background:var(--fk-warning)}
+.dsec-all{margin-left:auto;display:inline-flex;align-items:center;gap:2px;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-semibold);text-transform:none;letter-spacing:0;color:var(--fk-text-muted);cursor:pointer;transition:color .16s ease}
+.dsec-all:hover{color:var(--fk-primary)}
+.dsec-all svg{width:1em;height:1em;stroke-width:2.2}
+/* name-derived avatar */
+.lr-av{flex:none;border-radius:50%;display:grid;place-items:center;font-size:var(--fk-fs-title);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em}
+/* row body */
+.lr-name{font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-title);color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr-sub{display:flex;align-items:center;gap:var(--fk-sp-2);font-size:var(--fk-fs-body);color:var(--fk-text-muted);min-width:0;margin-top:2px}
+.lr-sub>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr-chip{flex:none;display:inline-flex;align-items:center;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-semibold);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);padding:0 var(--fk-sp-2);border-radius:var(--fk-radius-pill);line-height:1.7}
+/* right side: status + actions */
+.lr-right{flex:none;display:flex;align-items:center;gap:var(--fk-sp-2)}
+.lr-ico{flex:none;display:grid;place-items:center;width:var(--fk-h-btn-sm);height:var(--fk-h-btn-sm);border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-primary);border-radius:var(--fk-radius-control);text-decoration:none;transition:background .16s ease,border-color .16s ease}
+.lr-ico:hover{background:var(--fk-primary-tint);border-color:transparent}
+.lr-ico svg{width:16px;height:16px;stroke-width:2}
+/* New-leads CTA = filled primary */
+.lr-btn.pri{background:var(--fk-primary);border-color:transparent;color:#fff}
+.lrow.tap:hover .lr-btn.pri{background:var(--fk-primary-hover)}
+/* distinct hover left-accents per section (2px, animated) */
+.nx-dash .lgroup.fu .lrow.tap:hover{box-shadow:inset 2px 0 0 var(--fk-warning)}
+.nx-dash .lgroup.nl .lrow.tap:hover{box-shadow:inset 2px 0 0 var(--fk-primary)}
+.nx-dash .lrow-top{align-items:center}
+/* section empty state — centered, same card family */
+.lr-empty{display:flex;flex-direction:column;align-items:center;gap:var(--fk-sp-2);text-align:center;padding:var(--fk-sp-6) var(--fk-sp-4);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--nx-radius);box-shadow:var(--nx-card-sh);color:var(--fk-text-muted);font-size:var(--fk-fs-body)}
+.lr-empty svg{opacity:.7}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -1536,11 +1564,34 @@ function _fuRow(l){
 function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
 function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
 function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
-function _newLeadRow(l){
+// name-derived soft avatar (dashboard list sections only — does not touch the shared _avatar)
+function _avatarC(name,sz){
+  const cols=['var(--fk-primary)','var(--nx-violet)','var(--fk-success)','var(--fk-info)','var(--fk-warning)','var(--fk-danger)'];
+  const s=String(name||'?'); let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+  const c=cols[h%cols.length];
+  const ini=((s.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join(''))||'•').toUpperCase();
+  return `<span class="lr-av" style="width:${sz}px;height:${sz}px;background:color-mix(in srgb,${c} 16%,var(--fk-bg-card));color:${c}">${esc(ini)}</span>`;
+}
+function _emptyRow(icon,text){ return `<div class="lr-empty">${li(icon,22,1.75)}<span>${esc(text)}</span></div>`; }
+// Follow-up card (renderHome only — distinct from the shared _fuRow used on the manager desk)
+function _fuCard(l){
+  const od=l.bucket==='overdue';
+  const clk='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  const tag=`<span class="lr-pill ${od?'dn':'wn'}">${clk}${od?'Overdue':'Today'}</span>`;
+  const call=l.phone?`<a class="lr-ico" href="tel:${esc(l.phone)}" onclick="event.stopPropagation()" title="Call ${esc(l.phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:'';
   return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
-    ${_avatar(l.name,34)}
-    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.phone?esc(l.phone)+' · ':''}${_srcLabel(l.source)}${(!l.is_mine&&l.owner_name)?' · '+esc(l.owner_name):''}</div></div>
-    <span class="lr-btn">Start <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div></div>`;
+    ${_avatarC(l.name,40)}
+    <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name)}</div>${l.phone?`<div class="lr-sub"><span>${esc(l.phone)}</span></div>`:''}${(!l.is_mine&&l.owner_name)?`<div style="font-size:var(--fk-fs-label);color:var(--fk-primary);margin-top:1px">→ ${esc(l.owner_name)}</div>`:''}</div>
+    <div class="lr-right">${tag}${call}</div>
+  </div></div>`;
+}
+function _newLeadRow(l){
+  const chev='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+  return `<div class="lrow tap" onclick="gotoLead('${l.id}')"><div class="lrow-top">
+    ${_avatarC(l.name,40)}
+    <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name)}</div><div class="lr-sub">${l.phone?`<span>${esc(l.phone)}</span>`:''}${l.source?`<span class="lr-chip">${_srcLabel(l.source)}</span>`:''}${(!l.is_mine&&l.owner_name)?`<span>${esc(l.owner_name)}</span>`:''}</div></div>
+    <span class="lr-btn pri">Start ${chev}</span>
+  </div></div>`;
 }
 // ── premium dashboard helpers: count-up · sparkline · trend · alive-empty (visual only) ──
 function _reduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches); }
@@ -1636,18 +1687,21 @@ async function renderHome(){
     + kpi('My rank', esc(String(rank)), 'violet', '<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>', "setTab('rank')", 0)
     + kpi('To collect', numv(outstanding,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', "setTab('recovery')", 0)
     + '</div>';
-  if(_canLeads && fuRows.length){
-    html+=`<div class="dsec nx-rise" style="${_dl()}">Follow up today <span class="nb">${fuRows.length}</span></div>`;
-    html+=`<div class="lgroup nx-rise" style="${_dl()}">`+fuRows.slice(0,6).map(_fuRow).join('')+'</div>';
-  }
-  if(_canLeads && newLeads.length){
-    html+=`<div class="dsec nx-rise" style="${_dl()}">New leads <span class="nb">${newLeads.length}</span></div>`;
-    html+=`<div class="lgroup nx-rise" style="${_dl()}">`+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
-    if(newLeads.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('leads')">View all leads</button>`;
-  }
-  if(_canLeads && !fuRows.length && !newLeads.length){
-    html+=`<div class="dsec nx-rise" style="${_dl()}">Today</div>`;
-    html+=`<div class="nx-rise" style="${_dl()}">`+_emptyMini('check',"You're all caught up","No follow-ups or new leads today — fresh leads will land here automatically.")+`</div>`;
+  if(_canLeads){
+    const _vall=`<a class="dsec-all" onclick="setTab('leads')">View all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>`;
+    // Follow up today — amber accent (urgency)
+    html+=`<div class="dsec amber nx-rise" style="${_dl()}">Follow up today <span class="nb">${fuRows.length}</span>${_vall}</div>`;
+    html+= fuRows.length
+      ? `<div class="lgroup fu nx-rise" style="${_dl()}">`+fuRows.slice(0,6).map(_fuCard).join('')+'</div>'
+      : `<div class="nx-rise" style="${_dl()}">`+_emptyRow('check',"No follow-ups today — you're all caught up")+'</div>';
+    // New leads — indigo accent (fresh / action)
+    html+=`<div class="dsec nx-rise" style="${_dl()}">New leads <span class="nb">${newLeads.length}</span>${_vall}</div>`;
+    if(newLeads.length){
+      html+=`<div class="lgroup nl nx-rise" style="${_dl()}">`+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
+      if(newLeads.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('leads')">View all leads</button>`;
+    } else {
+      html+=`<div class="nx-rise" style="${_dl()}">`+_emptyRow('inbox',"No new leads right now — fresh leads will land here")+'</div>';
+    }
   }
   html+='</div>';
   $('app-body').innerHTML=html;
