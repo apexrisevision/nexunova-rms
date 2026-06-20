@@ -1261,7 +1261,7 @@ let AGREE_GATE=null;
 function _applyLeadAccess(){
   const role = (ME && ME.role) || 'sale_rep';
   const isExec = (role==='admin'||role==='cfo');                 // exec — minimal portal (mainly use main RMS app)
-  const isMgr  = (role==='marketing_manager');                   // manager — oversight (director handled later)
+  const isMgr  = (role==='marketing_manager'||role==='director'); // manager OR director — team oversight shell
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
 
   // Leads — everyone except exec
@@ -1396,7 +1396,7 @@ function goBack(){
   if(TAB==='updates'&&ANN.open){ _annBack(); return; }               // 2) updates message → inbox
   if(TAB==='board'&&BV.floor){ _bvBack(); _syncNav(); return; }      // 3) floor drill → board
   if(TAB==='leads'&&LEAD_OPEN){ closeLead(); _syncNav(); return; }    // 4) lead detail → leads list
-  if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4b) agent detail → team list
+  if(TAB==='team'&&(TEAM_AGENT||TEAM_TRAIL.length)){ _teamBack(); return; }   // 4b) agent detail / drilled sub-team → back up
   let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 5) previous section
   if(prev){ setTab(prev,true); return; }
   if(TAB!=='home'){ setTab('home',true); return; }                   // 6) fall back to dashboard
@@ -1437,7 +1437,7 @@ function _newLeadRow(l){
     <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap;font-size:13px">Start →</span></div></div>`;
 }
 async function renderHome(){
-  if(ME && ME.role==='marketing_manager') return renderManagerHome();   // managers get a team-focused desk
+  if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
   let perf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, rank='—';
@@ -1545,6 +1545,7 @@ function _teamActRow(a){
 }
 // ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
 async function renderManagerHome(){
+  TEAM_AGENT=null; TEAM_TRAIL=[];
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
   let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null;
   try{
@@ -1571,7 +1572,8 @@ async function renderManagerHome(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
   _leadsBadgeSet(newCnt); _distBadgeSet(myNew.length);
-  let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Manager · ${team.length} agent${team.length==1?'':'s'} in your team.</div></div>`;
+  const isDir=ME&&ME.role==='director'; const roleLbl=isDir?'Director':'Manager'; const unit=isDir?'manager':'agent';
+  let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
   html+=`<div class="herometric">
     <div class="hm-eyebrow">Team sales · this month</div>
     <div class="hm-big">${pkrShort(sVal)||'₨0'}</div>
@@ -1584,7 +1586,7 @@ async function renderManagerHome(){
   </div>`;
   const kpi=(label,val,chip,onclick)=>`<div class="dkpi" onclick="${onclick}"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
   html+='<div class="dgrid">'
-    + kpi('Team agents', team.length, ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), "setTab('team')")
+    + kpi(isDir?'Managers':'Team agents', team.length, ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), "setTab('team')")
     + kpi('To distribute', myNew.length, ic('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'), "setTab('distribute')")
     + kpi('Follow-ups due', fuRows.length, ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('leads')")
     + kpi('Stuck leads', stuck.length, ic('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'), "setTab('home')")
@@ -2278,9 +2280,9 @@ async function _assignTo(leadId,toId){
 }
 function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div></div>'; }
 // ════ Manager — My Team (roster + per-agent numbers) ════
-let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[];
+let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[], TEAM_TRAIL=[];
 async function renderTeam(){
-  TEAM_AGENT=null;
+  TEAM_AGENT=null; TEAM_TRAIL=[];
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team…</div></div></div>';
   let data, leadsR;
   try{
@@ -2299,26 +2301,41 @@ async function renderTeam(){
 }
 function _renderTeamList(){
   const team=TEAM_DATA||[], T=TEAM_TOTALS||{};
+  const drilled=TEAM_TRAIL.length>0, cur=drilled?TEAM_TRAIL[TEAM_TRAIL.length-1]:null;
+  const t=$('appbar-title'); if(t) t.textContent=drilled?cur.name:(TAB_TITLES['team']||'My Team');
   const kpi=(label,val,onclick)=>`<div class="dkpi" onclick="${onclick||''}"><div class="dkpi-l">${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
-  let html=_pageHead('My Team','Your sub-agents and their numbers — tap an agent for detail.');
+  let html='';
+  if(drilled){
+    html+=`<button class="backbtn" onclick="goBack()" style="margin-bottom:10px">‹ Back</button>`;
+    html+=_pageHead(esc(cur.name)+' — team','Their members and rolled-up numbers — tap to drill in.');
+  } else {
+    html+=_pageHead('My Team','Your team and their numbers — tap a member to drill in.');
+  }
   html+='<div class="dgrid">'
-    + kpi('Agents', team.length, "")
+    + kpi('Members', team.length, "")
     + kpi('Team sales', pkrShort(T.sales_value)||'₨0', "")
     + kpi('To collect', pkrShort(T.outstanding)||'₨0', "")
     + kpi('Open pipeline', T.pipeline||0, "")
     + '</div>';
-  if(!team.length){ html+=_emptyCard('No sub-agents under you yet','Your office places agents under you — then they appear here with their numbers.'); }
-  else { html+='<div class="dsec">Agents</div><div class="lgroup">'+team.map(_teamRow).join('')+'</div>'; }
+  if(!team.length){ html+=_emptyCard('No members under '+(drilled?esc(cur.name):'you')+' yet','Your office places members under them — then they appear here with their numbers.'); }
+  else { html+='<div class="dsec">'+(drilled?'Members':'Team')+'</div><div class="lgroup">'+team.map(_teamRow).join('')+'</div>'; }
   $('app-body').innerHTML=html;
 }
 function _teamRow(a){
   const wa=_waNum(a.phone);
+  const isHead=Number(a.reports||0)>0;   // has a sub-team (e.g. a manager under a director)
   const st=TEAM_STATS[a.id]||{}; const idle=st.last?_daysSince(st.last):999;
   const dot=idle<_IDLE_DAYS?'var(--fk-success)':(idle<14?'var(--fk-warning)':'var(--fk-muted-fill)');
+  const avatar = isHead
+    ? `<div style="flex:none">${_avatar(a.name,34)}</div>`
+    : `<div style="position:relative;flex:none">${_avatar(a.name,34)}<span title="${idle<999?'active '+idle+'d ago':'no activity'}" style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid var(--fk-bg-card);background:${dot}"></span></div>`;
+  const sub = isHead
+    ? `${esc(_portalRoleLabel(a.role))} · ${a.reports} report${a.reports==1?'':'s'} · ${a.conversion}% conv.`
+    : `${esc(_portalRoleLabel(a.role))} · ${a.conversion}% conv.${st.stuck?` · <span style="color:var(--fk-danger);font-weight:700">${st.stuck} stuck</span>`:''}`;
   return `<div class="lrow">
-    <div class="lrow-top" onclick="openAgent('${a.id}')" style="cursor:pointer">
-      <div style="position:relative;flex:none">${_avatar(a.name,34)}<span title="${idle<999?'active '+idle+'d ago':'no activity'}" style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid var(--fk-bg-card);background:${dot}"></span></div>
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))} · ${a.conversion}% conv.${st.stuck?` · <span style="color:var(--fk-danger);font-weight:700">${st.stuck} stuck</span>`:''}</div></div>
+    <div class="lrow-top" onclick="_teamTap('${a.id}')" style="cursor:pointer">
+      ${avatar}
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${sub}</div></div>
       <div style="text-align:right"><div style="font-weight:700;font-size:14px">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
       <span style="color:var(--fk-text-muted);opacity:.45;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
     </div>
@@ -2330,14 +2347,39 @@ function _teamRow(a){
     </div>
   </div>`;
 }
-// ── Agent drill-down (tap an agent in My Team → their numbers + pipeline) ──
-function openAgent(id){
-  TAB='team'; TEAM_AGENT=id;
+// ── Team navigation: tap a member → drill into their sub-team, or open a leaf agent ──
+function _teamSelectTab(){
+  TAB='team';
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')==='team'));
   document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="team"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
+}
+function _teamTap(id){
+  const node=(TEAM_DATA||[]).find(x=>String(x.id)===String(id));
+  if(node && Number(node.reports||0)>0){ TEAM_TRAIL.push({id:node.id,name:node.name}); _loadTeamLevel(node.id); }
+  else openAgent(id);
+}
+async function _loadTeamLevel(headId){
+  _teamSelectTab(); closeSidebar();
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_my_team',{p_session_token:TOKEN,p_head:headId}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  _touch();
+  TEAM_DATA=data.team||[]; TEAM_TOTALS=data.totals||{};
+  _buildTeamStats();
+  _renderTeamList(); window.scrollTo(0,0); _syncNav();
+}
+// ── Agent drill-down (leaf: tap a rep → their numbers + pipeline) ──
+function openAgent(id){
+  _teamSelectTab(); TEAM_AGENT=id;
   closeSidebar(); renderAgent(); window.scrollTo(0,0); _syncNav();
 }
-function _teamBack(){ TEAM_AGENT=null; const t=$('appbar-title'); if(t) t.textContent=TAB_TITLES['team']||'My Team'; _renderTeamList(); _syncNav(); }
+function _teamBack(){
+  if(TEAM_AGENT){ TEAM_AGENT=null; _renderTeamList(); _syncNav(); return; }
+  if(TEAM_TRAIL.length){ TEAM_TRAIL.pop(); _loadTeamLevel(TEAM_TRAIL.length?TEAM_TRAIL[TEAM_TRAIL.length-1].id:null); return; }
+  const t=$('appbar-title'); if(t) t.textContent=TAB_TITLES['team']||'My Team'; _renderTeamList(); _syncNav();
+}
 function renderAgent(){
   const a=(TEAM_DATA||[]).find(x=>String(x.id)===String(TEAM_AGENT));
   if(!a) return _teamBack();
