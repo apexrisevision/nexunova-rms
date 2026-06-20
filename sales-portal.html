@@ -908,6 +908,8 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
         <div class="ni-sub">
           <a class="ni-child" data-tab="team" onclick="setTab('team')"><span class="ni-lb">My Team</span></a>
           <a class="ni-child" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
+          <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
+          <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
         </div>
       </div>
       <div class="ni-grp" data-grp="sales">
@@ -1324,7 +1326,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads'};
+const TAB_TITLES={home:'Dashboard',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='home') renderHome();
@@ -1340,6 +1342,8 @@ function setTab(t,_back){ if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(N
   else if(t==='mine') renderMine();
   else if(t==='team') renderTeam();
   else if(t==='distribute') renderDistribute();
+  else if(t==='targets') renderTargets();
+  else if(t==='teamrecovery') renderTeamRecovery();
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
   document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="'+t+'"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
@@ -1526,14 +1530,15 @@ function _teamActRow(a){
 // ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
 async function renderManagerHome(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
-  let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0;
+  let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null;
   try{
-    const [rT,rP,rF,rL,rA]=await Promise.all([
+    const [rT,rP,rF,rL,rA,rG]=await Promise.all([
       sb.rpc('get_my_team',{p_session_token:TOKEN}),
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
       sb.rpc('get_my_followups',{p_session_token:TOKEN}),
       sb.rpc('list_my_leads',{p_session_token:TOKEN}),
-      sb.rpc('get_team_activity',{p_session_token:TOKEN,p_limit:12})
+      sb.rpc('get_team_activity',{p_session_token:TOKEN,p_limit:12}),
+      sb.rpc('get_team_targets',{p_session_token:TOKEN,p_period:_curPeriod()})
     ]);
     if(rT.data&&rT.data.error==='session_expired') return sessionGone();
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
@@ -1541,6 +1546,7 @@ async function renderManagerHome(){
     if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); }
     if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(x=>x.is_mine&&x.status!=='won'&&x.status!=='lost'); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
     TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
+    if(rG.data&&rG.data.success) targets=rG.data;
   }catch(e){ return sessionGone(); }
   await loadAnnouncements();
   _touch(); _buildTeamStats();
@@ -1567,6 +1573,11 @@ async function renderManagerHome(){
     + kpi('Follow-ups due', fuRows.length, ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('leads')")
     + kpi('Stuck leads', stuck.length, ic('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'), "setTab('home')")
     + '</div>';
+  if(targets && targets.totals && Number(targets.totals.target_units)>0){
+    const tt=targets.totals, pct=Math.round(Number(tt.actual_units)*100/Number(tt.target_units));
+    html+=`<div class="dsec">This month's target</div>`;
+    html+=`<div class="card listc" onclick="setTab('targets')" style="cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:15px;font-weight:700">${tt.actual_units} <span style="color:var(--fk-text-muted);font-weight:600">/ ${tt.target_units} units</span></div><div style="font-size:12px;font-weight:700;color:${pct>=100?'var(--fk-success)':'var(--fk-text-muted)'}">${pct}%</div></div>${_progBar(pct)}</div>`;
+  }
   if(myNew.length){
     html+=`<div class="dsec">Leads to distribute <span class="nb">${myNew.length}</span></div>`;
     html+='<div class="lgroup">'+myNew.slice(0,5).map(_distRow).join('')+'</div>';
@@ -1889,6 +1900,11 @@ async function renderLeadDetail(id){
   } else if(l.phone){
     html+=`<div style="display:flex;gap:8px;margin-bottom:12px"><a class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none" href="tel:${esc(l.phone)}">Call</a>${wa?`<a class="btn" style="flex:1;text-align:center;text-decoration:none" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div>`;
   }
+  // ── manager controls on a team lead (coaching note / pull back) ──
+  if(LEADCFG&&LEADCFG.can_assign&&!l.is_mine){
+    html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:7px">${li('message',14,2)} Note for ${esc(l.owner_name||'agent')}</div><textarea class="input" id="mgr-note" rows="2" placeholder="Leave an instruction or coaching note…"></textarea><button class="btn btn-primary btn-full" style="margin-top:8px" onclick="_mgrNote('${l.id}')">Post note</button></div>`;
+    html+=`<button class="btn btn-full btn-danger-soft" style="margin-bottom:12px" onclick="_mgrPullback('${l.id}')">Pull back to me</button>`;
+  }
   // (guided "what to do now" is shown above the action bar)
   // ── vital stats ──
   const age=Math.max(0,Math.floor((Date.now()-new Date(l.created_at))/86400000));
@@ -2146,6 +2162,19 @@ async function _leadQuickNote(id){
     if(data&&data.success){ toast('Added to trail','ok'); renderLeadDetail(id); } else toast('Could not add','err');
   }catch(e){ toast('Could not add','err'); }
 }
+async function _mgrNote(id){
+  const t=(($('mgr-note')||{}).value||'').trim(); if(!t){ toast('Write a note first','err'); return; }
+  try{ const {data}=await sb.rpc('add_team_note',{p_session_token:TOKEN,p_lead_id:id,p_body:t});
+    if(data&&data.success){ toast('Note posted for the agent','ok'); renderLeadDetail(id); }
+    else toast((data&&data.message)||'Could not post','err');
+  }catch(e){ toast('Could not post','err'); }
+}
+async function _mgrPullback(id){
+  try{ const {data}=await sb.rpc('pullback_lead',{p_session_token:TOKEN,p_lead_id:id});
+    if(data&&data.success){ toast('Lead pulled back to you','ok'); renderLeadDetail(id); }
+    else toast((data&&data.message)||'Could not pull back','err');
+  }catch(e){ toast('Could not pull back','err'); }
+}
 function _srcLabel(s){ return ({facebook:'Facebook',manual:'Manual',walkin:'Walk-in',assigned:'Assigned',online:'Online',referral:'Referral',call:'Call',banner:'Banner',other:'Other'})[String(s||'').toLowerCase()]||esc(s||'—'); }
 function _timeOf(d){ const x=new Date(d); return isNaN(x)?'':x.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
 function _leadTrail(l,acts){
@@ -2340,6 +2369,78 @@ function _agentLeadRow(l){
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.phone?esc(l.phone)+' · ':''}${_srcLabel(l.source)}</div></div>
     ${pill}</div></div>`;
 }
+// ════ Manager — Team Recovery (per-agent outstanding) ════
+async function renderTeamRecovery(){
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading team recovery…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_my_team',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  _touch();
+  const team=(data.team||[]).slice().sort((a,b)=>Number(b.outstanding||0)-Number(a.outstanding||0));
+  const T=data.totals||{};
+  const withDue=team.filter(a=>Number(a.outstanding||0)>0);
+  let html=_pageHead('Team Recovery','Outstanding to collect across your team.');
+  html+=`<div class="herometric"><div class="hm-eyebrow">Team outstanding</div><div class="hm-big">${pkrShort(T.outstanding)||'₨0'}</div><div class="hm-sub">${team.length} agent${team.length==1?'':'s'} · ${withDue.length} with dues</div></div>`;
+  if(!withDue.length){ html+=_emptyCard('All clear','No outstanding across your team right now.'); }
+  else { html+='<div class="dsec">By agent</div><div class="lgroup">'+withDue.map(_recAgentRow).join('')+'</div>'; }
+  $('app-body').innerHTML=html;
+}
+function _recAgentRow(a){
+  return `<div class="lrow"><div class="lrow-top" onclick="openAgent('${a.id}')" style="cursor:pointer">
+    ${_avatar(a.name,34)}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
+    <div style="text-align:right"><div style="font-weight:700;font-size:14px;color:var(--fk-danger)">${esc(pkrShort(a.outstanding)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">due</div></div>
+  </div></div>`;
+}
+// ════ Manager — Targets (set + track monthly team/per-agent goals) ════
+let TARGET_PERIOD=null, TARGETS_DATA=null;
+function _curPeriod(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function _periodShift(p,n){ const a=p.split('-').map(Number); const d=new Date(a[0],a[1]-1+n,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function _periodLabel(p){ const a=p.split('-').map(Number); return new Date(a[0],a[1]-1,1).toLocaleString('en-US',{month:'long',year:'numeric'}); }
+function _progBar(pct){ pct=Math.max(0,Math.min(100,pct)); const col=pct>=100?'var(--fk-success)':(pct>=50?'var(--fk-primary)':'var(--fk-warning)'); return `<div style="height:8px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden;margin-top:10px"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px;transition:width .3s"></div></div>`; }
+async function renderTargets(){
+  if(!TARGET_PERIOD) TARGET_PERIOD=_curPeriod();
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading targets…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_team_targets',{p_session_token:TOKEN,p_period:TARGET_PERIOD}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ return sessionGone(); }
+  _touch(); TARGETS_DATA=data;
+  const agents=data.agents||[], T=data.totals||{};
+  const pctU=T.target_units>0?Math.round(T.actual_units*100/T.target_units):0;
+  let html=_pageHead('Targets','Set and track monthly goals for your team.');
+  html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn btn-sm" onclick="_targetShift(-1)">‹</button><div style="flex:1;text-align:center;font-weight:700;font-size:14px">${esc(_periodLabel(TARGET_PERIOD))}</div><button class="btn btn-sm" onclick="_targetShift(1)">›</button></div>`;
+  html+=`<div class="herometric"><div class="hm-eyebrow">Team — units sold vs target</div><div class="hm-big">${T.actual_units||0} <span style="font-size:18px;color:var(--fk-text-muted);font-weight:600">/ ${T.target_units||0}</span></div>${_progBar(pctU)}<div class="hm-sub" style="margin-top:8px">Value ${pkrShort(T.actual_value)||'₨0'} / ${pkrShort(T.target_value)||'₨0'}</div></div>`;
+  if(!agents.length){ html+=_emptyCard('No team yet','Add team members first, then set their targets.'); }
+  else { html+='<div class="dsec">Per agent</div><div class="lgroup">'+agents.map(_targetRow).join('')+'</div>'; }
+  $('app-body').innerHTML=html;
+}
+function _targetRow(a){
+  const pct=a.target_units>0?Math.round(a.actual_units*100/a.target_units):0; const has=a.target_units||a.target_value;
+  return `<div class="lrow"><div class="lrow-top">
+    ${_avatar(a.name,34)}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.actual_units||0} / ${a.target_units||0} unit${a.target_units==1?'':'s'}${a.target_value>0?' · '+pkrShort(a.actual_value)+' / '+pkrShort(a.target_value):''}</div></div>
+    <button class="btn btn-sm" onclick="_setTargetOpen('${a.id}')">${has?'Edit':'Set'}</button>
+  </div>${a.target_units>0?`<div style="padding:0 1px;margin-top:4px">${_progBar(pct)}</div>`:''}</div>`;
+}
+function _setTargetOpen(id){
+  const a=((TARGETS_DATA&&TARGETS_DATA.agents)||[]).find(x=>x.id===id); if(!a) return;
+  openModal('Target — '+esc(a.name),
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:12px">${esc(_periodLabel(TARGET_PERIOD))} monthly target</div>
+     <div class="field"><label class="label">Units (sales)</label><input class="input" id="tg-units" inputmode="numeric" value="${a.target_units||''}"></div>
+     <div class="field"><label class="label">Value (₨, optional)</label><input class="input" id="tg-value" inputmode="numeric" value="${a.target_value||''}"></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_setTargetSave('${id}')">Save</button>`);
+}
+async function _setTargetSave(id){
+  const u=parseInt((($('tg-units')||{}).value||'0'),10)||0;
+  const v=parseFloat(((($('tg-value')||{}).value||'0')).replace(/[^0-9.]/g,''))||0;
+  try{ const {data}=await sb.rpc('set_agent_target',{p_session_token:TOKEN,p_agent_id:id,p_period:TARGET_PERIOD,p_units:u,p_value:v});
+    if(data&&data.success){ closeModal(); toast('Target saved','ok'); renderTargets(); }
+    else toast((data&&data.message)||'Could not save','err');
+  }catch(e){ toast('Could not save','err'); }
+}
+function _targetShift(n){ TARGET_PERIOD=_periodShift(TARGET_PERIOD,n); renderTargets(); }
 // ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
 let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null};
 async function renderDistribute(){
@@ -2529,15 +2630,22 @@ function _perfRange(p){
 async function renderPerformance(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const [from,to]=_perfRange(PERF_PERIOD);
-  let data;
-  try{ const r=await sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:from,p_to:to}); if(r.error) throw r.error; data=r.data; }
+  const mgr = ME && (ME.role==='marketing_manager'||ME.role==='director');
+  let data, perAgent=[];
+  try{
+    const calls=[ sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:from,p_to:to}) ];
+    if(mgr) calls.push(sb.rpc('get_team_performance',{p_session_token:TOKEN,p_from:from,p_to:to}));
+    const res=await Promise.all(calls);
+    if(res[0].error) throw res[0].error; data=res[0].data;
+    if(mgr && res[1] && res[1].data && res[1].data.success) perAgent=res[1].data.agents||[];
+  }
   catch(e){ return sessionGone(); }
   if(!data||!data.success){ return sessionGone(); }
   _touch();
   const L=data.leads||{}, A=data.activities||{};
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><b>${esc(String(v))}</b></div>`;
-  let html=_pageHead('My Performance','Your funnel, activity & results.');
+  let html=_pageHead(mgr?'Team Performance':'My Performance', mgr?'Your team’s funnel, activity & results.':'Your funnel, activity & results.');
   const seg=(k,lb)=>{ const on=PERF_PERIOD===k;
     return `<button onclick="PERF_PERIOD='${k}';renderPerformance()" style="flex:1;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">${lb}</button>`; };
   html+=`<div style="display:flex;gap:6px;margin-bottom:14px">${seg('month','This month')}${seg('last','Last month')}${seg('all','All time')}</div>`;
@@ -2559,7 +2667,17 @@ async function renderPerformance(){
   if(lr.length){
     html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Why leads were lost</div><div class="card" style="padding:4px 14px">`+lr.map(r=>fld(r.reason,r.n)).join('')+'</div>';
   }
+  if(mgr && perAgent.length){
+    html+=`<div style="font-weight:700;font-size:14px;margin:16px 2px 8px">By agent</div><div class="lgroup">`+perAgent.map(_perfAgentRow).join('')+'</div>';
+  }
   $('app-body').innerHTML=html;
+}
+function _perfAgentRow(a){
+  return `<div class="lrow"><div class="lrow-top" onclick="openAgent('${a.id}')" style="cursor:pointer">
+    ${_avatar(a.name,34)}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.new_leads||0} new · ${(a.calls||0)+(a.whatsapp||0)} contacts · ${a.visits||0} visit${a.visits==1?'':'s'}</div></div>
+    <div style="text-align:right"><div style="font-weight:700;font-size:14px">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
+  </div></div>`;
 }
 // ════ My Clients — everyone the agent has sold to ════
 async function renderClients(){
