@@ -503,6 +503,16 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .lrow.sel{background:var(--fk-primary-tint)}
 .dck{width:22px;height:22px;flex:none;border:2px solid var(--fk-muted-fill);border-radius:7px;display:grid;place-items:center;color:transparent;transition:background .12s,border-color .12s}
 .lrow.sel .dck{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff}
+/* org tree — director → manager → reps, inline expandable hierarchy */
+.torg{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:6px;margin-bottom:12px}
+.trow{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;cursor:pointer;transition:background .12s}
+.trow:hover{background:var(--fk-bg-subtle)}
+.trow:active{background:var(--fk-subtle-hover)}
+.tchev{width:18px;height:18px;flex:none;display:grid;place-items:center;color:var(--fk-text-muted);transition:transform .2s}
+.tchev.open{transform:rotate(90deg)}
+.tchev svg{width:15px;height:15px}
+.tchev.leaf{visibility:hidden}
+.tkids{margin-left:17px;padding-left:8px;border-left:2px solid var(--fk-hairline)}
 .card-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .ichip{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
   background:var(--fk-primary-tint);color:var(--fk-primary)}
@@ -1396,7 +1406,7 @@ function goBack(){
   if(TAB==='updates'&&ANN.open){ _annBack(); return; }               // 2) updates message → inbox
   if(TAB==='board'&&BV.floor){ _bvBack(); _syncNav(); return; }      // 3) floor drill → board
   if(TAB==='leads'&&LEAD_OPEN){ closeLead(); _syncNav(); return; }    // 4) lead detail → leads list
-  if(TAB==='team'&&(TEAM_AGENT||TEAM_TRAIL.length)){ _teamBack(); return; }   // 4b) agent detail / drilled sub-team → back up
+  if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4b) agent detail → team tree
   let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 5) previous section
   if(prev){ setTab(prev,true); return; }
   if(TAB!=='home'){ setTab('home',true); return; }                   // 6) fall back to dashboard
@@ -1545,7 +1555,7 @@ function _teamActRow(a){
 }
 // ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
 async function renderManagerHome(){
-  TEAM_AGENT=null; TEAM_TRAIL=[];
+  TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
   let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null;
   try{
@@ -2280,9 +2290,9 @@ async function _assignTo(leadId,toId){
 }
 function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div></div>'; }
 // ════ Manager — My Team (roster + per-agent numbers) ════
-let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[], TEAM_TRAIL=[];
+let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[], TEAM_OPEN={}, TEAM_KIDS={};
 async function renderTeam(){
-  TEAM_AGENT=null; TEAM_TRAIL=[];
+  TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team…</div></div></div>';
   let data, leadsR;
   try{
@@ -2297,29 +2307,62 @@ async function renderTeam(){
   TEAM_DATA=data.team||[]; TEAM_TOTALS=data.totals||{};
   TEAM_LEADS=(leadsR&&leadsR.success&&leadsR.leads)||[];
   _buildTeamStats();
-  _renderTeamList();
+  _renderTeamTree();
 }
-function _renderTeamList(){
+function _findTeamNode(id){
+  let n=(TEAM_DATA||[]).find(x=>String(x.id)===String(id));
+  if(n) return n;
+  for(const k in TEAM_KIDS){ const f=(TEAM_KIDS[k]||[]).find(x=>String(x.id)===String(id)); if(f) return f; }
+  return null;
+}
+function _renderTeamTree(){
   const team=TEAM_DATA||[], T=TEAM_TOTALS||{};
-  const drilled=TEAM_TRAIL.length>0, cur=drilled?TEAM_TRAIL[TEAM_TRAIL.length-1]:null;
-  const t=$('appbar-title'); if(t) t.textContent=drilled?cur.name:(TAB_TITLES['team']||'My Team');
-  const kpi=(label,val,onclick)=>`<div class="dkpi" onclick="${onclick||''}"><div class="dkpi-l">${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
-  let html='';
-  if(drilled){
-    html+=`<button class="backbtn" onclick="goBack()" style="margin-bottom:10px">‹ Back</button>`;
-    html+=_pageHead(esc(cur.name)+' — team','Their members and rolled-up numbers — tap to drill in.');
-  } else {
-    html+=_pageHead('My Team','Your team and their numbers — tap a member to drill in.');
-  }
+  const t=$('appbar-title'); if(t) t.textContent=TAB_TITLES['team']||'My Team';
+  const kpi=(label,val)=>`<div class="dkpi"><div class="dkpi-l">${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
+  let html=_pageHead('My Team','Your team — tap a manager to expand their members.');
   html+='<div class="dgrid">'
-    + kpi('Members', team.length, "")
-    + kpi('Team sales', pkrShort(T.sales_value)||'₨0', "")
-    + kpi('To collect', pkrShort(T.outstanding)||'₨0', "")
-    + kpi('Open pipeline', T.pipeline||0, "")
+    + kpi('Members', team.length)
+    + kpi('Team sales', pkrShort(T.sales_value)||'₨0')
+    + kpi('To collect', pkrShort(T.outstanding)||'₨0')
+    + kpi('Open pipeline', T.pipeline||0)
     + '</div>';
-  if(!team.length){ html+=_emptyCard('No members under '+(drilled?esc(cur.name):'you')+' yet','Your office places members under them — then they appear here with their numbers.'); }
-  else { html+='<div class="dsec">'+(drilled?'Members':'Team')+'</div><div class="lgroup">'+team.map(_teamRow).join('')+'</div>'; }
+  if(!team.length){ html+=_emptyCard('No team yet','Your office places members under you — then they appear here with their numbers.'); }
+  else { html+='<div class="torg">'+team.map(_treeNode).join('')+'</div>'; }
   $('app-body').innerHTML=html;
+}
+function _treeNode(n){
+  const head=Number(n.reports||0)>0, open=!!TEAM_OPEN[n.id], st=TEAM_STATS[n.id]||{};
+  const chev = head
+    ? `<span class="tchev${open?' open':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>`
+    : `<span class="tchev leaf"></span>`;
+  const sub = head
+    ? `${esc(_portalRoleLabel(n.role))} · ${n.reports} report${n.reports==1?'':'s'}`
+    : `${esc(_portalRoleLabel(n.role))} · ${n.conversion}% conv.${st.stuck?` · <span style="color:var(--fk-danger);font-weight:700">${st.stuck} stuck</span>`:''}`;
+  let h=`<div class="tnode"><div class="trow" onclick="${head?`_treeToggle('${n.id}')`:`openAgent('${n.id}')`}">
+    ${chev}
+    ${_avatar(n.name,32)}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${sub}</div></div>
+    <div style="text-align:right"><div style="font-weight:700;font-size:13px">${esc(pkrShort(n.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${head?(n.pipeline+' open'):(n.sales_count+' sale'+(n.sales_count==1?'':'s'))}</div></div>
+  </div>`;
+  if(head && open){
+    const kids=TEAM_KIDS[n.id];
+    h+='<div class="tkids">';
+    if(kids===undefined) h+='<div style="padding:8px 10px;color:var(--fk-text-muted);font-size:13px">Loading…</div>';
+    else if(!kids.length) h+='<div style="padding:8px 10px;color:var(--fk-text-muted);font-size:13px">No members under this manager yet.</div>';
+    else h+=kids.map(_treeNode).join('');
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+async function _treeToggle(id){
+  if(TEAM_OPEN[id]){ TEAM_OPEN[id]=false; _renderTeamTree(); return; }
+  TEAM_OPEN[id]=true;
+  if(TEAM_KIDS[id]===undefined){
+    _renderTeamTree();   // show "Loading…" under the node
+    try{ const {data}=await sb.rpc('get_my_team',{p_session_token:TOKEN,p_head:id}); TEAM_KIDS[id]=(data&&data.success&&data.team)||[]; }
+    catch(e){ TEAM_KIDS[id]=[]; }
+  }
+  _renderTeamTree();
 }
 function _teamRow(a){
   const wa=_waNum(a.phone);
@@ -2347,41 +2390,26 @@ function _teamRow(a){
     </div>
   </div>`;
 }
-// ── Team navigation: tap a member → drill into their sub-team, or open a leaf agent ──
+// ── Team navigation ──
 function _teamSelectTab(){
   TAB='team';
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')==='team'));
   document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="team"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
 }
+// dashboard "Your team" tap: a manager → open the team tree; a rep → their detail
 function _teamTap(id){
   const node=(TEAM_DATA||[]).find(x=>String(x.id)===String(id));
-  if(node && Number(node.reports||0)>0){ TEAM_TRAIL.push({id:node.id,name:node.name}); _loadTeamLevel(node.id); }
+  if(node && Number(node.reports||0)>0){ if(TAB!=='team') setTab('team'); else _renderTeamTree(); }
   else openAgent(id);
 }
-async function _loadTeamLevel(headId){
-  _teamSelectTab(); closeSidebar();
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  let data;
-  try{ const r=await sb.rpc('get_my_team',{p_session_token:TOKEN,p_head:headId}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
-  _touch();
-  TEAM_DATA=data.team||[]; TEAM_TOTALS=data.totals||{};
-  _buildTeamStats();
-  _renderTeamList(); window.scrollTo(0,0); _syncNav();
-}
-// ── Agent drill-down (leaf: tap a rep → their numbers + pipeline) ──
+// leaf agent detail (tap a rep in the tree)
 function openAgent(id){
   _teamSelectTab(); TEAM_AGENT=id;
   closeSidebar(); renderAgent(); window.scrollTo(0,0); _syncNav();
 }
-function _teamBack(){
-  if(TEAM_AGENT){ TEAM_AGENT=null; _renderTeamList(); _syncNav(); return; }
-  if(TEAM_TRAIL.length){ TEAM_TRAIL.pop(); _loadTeamLevel(TEAM_TRAIL.length?TEAM_TRAIL[TEAM_TRAIL.length-1].id:null); return; }
-  const t=$('appbar-title'); if(t) t.textContent=TAB_TITLES['team']||'My Team'; _renderTeamList(); _syncNav();
-}
+function _teamBack(){ TEAM_AGENT=null; _renderTeamTree(); _syncNav(); }
 function renderAgent(){
-  const a=(TEAM_DATA||[]).find(x=>String(x.id)===String(TEAM_AGENT));
+  const a=_findTeamNode(TEAM_AGENT);
   if(!a) return _teamBack();
   const t=$('appbar-title'); if(t) t.textContent=a.name;
   const wa=_waNum(a.phone);
