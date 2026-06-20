@@ -393,7 +393,13 @@ async function _saReviewOpen(id) {
   const _commField = NX.field({ label: 'Default commission % <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· optional — each sale sets its own rate; this only pre-fills</span>', name: 'sa-approve-comm', el: 'input', type: 'number', value: '', attrs: 'min="0" max="100" step="0.01" placeholder="leave blank — set per sale"' });
   const _errDiv = `<div class="nx-error" id="sa-approve-err" style="display:none"></div>`;
   const _roleField = _saRoleField('sa-approve-role', 'sale_rep');
-  const approvalHtml = _roleField + (_umb ? _saUmbrellaHtml(_umb) : (matchesHtml + _projField + _commField + _errDiv));
+  // "Reports to" — every member must answer to someone; only a director can have no head.
+  const _seniorOpts = [{ value: '', label: '— select team head —' }].concat(
+    (_saRows || []).filter(x => x.status !== 'pending' && (x.role === 'marketing_manager' || x.role === 'director'))
+      .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
+  );
+  const _parentField = NX.field({ label: 'Reports to <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· required — who this member answers to (only a Director can skip)</span>', name: 'sa-approve-parent', el: 'select', options: _seniorOpts, value: '' });
+  const approvalHtml = _roleField + _parentField + (_umb ? _saUmbrellaHtml(_umb) : (matchesHtml + _projField + _commField + _errDiv));
   const approveBtn = _umb
     ? NX.button('Approve &amp; register in all', { variant: 'primary', onclick: `_saApproveGrouped('${id}')` })
     : (projOpts.length ? NX.button('Approve', { variant: 'primary', onclick: `_saApproveSubmit('${id}')` }) : '');
@@ -476,9 +482,17 @@ async function _saApproveGrouped(id) {
     return { company_id: cid, project_id: m.project_id || null, link_agent_id: v || null, commission_percent: null };
   });
   const role = (document.getElementById('sa-approve-role') || {}).value || 'sale_rep';
+  const parent = (document.getElementById('sa-approve-parent') || {}).value || null;
+  if (role !== 'director' && !parent) {
+    const e = document.getElementById('sa-approve-err');
+    if (e) { e.textContent = 'Select who this member reports to — only a Director can have no team head.'; e.style.display = 'block'; }
+    else if (typeof toast === 'function') toast('Select who this member reports to.', 'err');
+    return;
+  }
   try {
     const { data } = await supabase.rpc('admin_approve_sales_user_grouped', { p_id: id, p_assignments: assignments, p_role: role });
     if (!data || !data.success) { if (typeof toast === 'function') toast((data && data.message) || 'Approval failed', 'err'); return; }
+    try { await supabase.rpc('set_sales_user_role', { p_id: id, p_role: role, p_parent_sales_user_id: parent }); } catch (e) {}
     _saCloseModal(); if (typeof toast === 'function') toast('Approved — registered in all member companies', 'ok'); rSalesAccess();
   } catch (e) { if (typeof toast === 'function') toast('Approval failed', 'err'); }
 }
@@ -514,6 +528,11 @@ async function _saRoleSave(id) {
   const role = (document.getElementById('sa-role-sel') || {}).value || 'sale_rep';
   const parent = (document.getElementById('sa-role-parent') || {}).value || null;
   const err = document.getElementById('sa-role-err');
+  // Every member must answer to someone — only a director can have no team head.
+  if (role !== 'director' && !parent) {
+    if (err) { err.style.display = 'block'; err.textContent = 'Select who this member reports to — only a director can have no team head.'; }
+    return;
+  }
   try {
     const { data } = await supabase.rpc('set_sales_user_role', { p_id: id, p_role: role, p_parent_sales_user_id: parent });
     if (!data || !data.success) { if (err) { err.style.display = 'block'; err.textContent = (data && data.message) || 'Could not update role (admin access required).'; } return; }
@@ -568,12 +587,16 @@ async function _saApproveSubmit(id) {
     if (!linkId) { showErr('Pick the existing agent to link to, or choose "Create new agent".'); return; }
   }
   const role = (document.getElementById('sa-approve-role') || {}).value || 'sale_rep';
+  const parent = (document.getElementById('sa-approve-parent') || {}).value || null;
+  if (role !== 'director' && !parent) { showErr('Select who this member reports to — only a Director can have no team head.'); return; }
   try {
     const { data } = await supabase.rpc('admin_approve_sales_user', { p_id: id, p_project_id: proj, p_commission_percent: comm, p_link_agent_id: linkId, p_role: role });
     if (!data || !data.success) {
       showErr((data && data.message) || 'Could not approve.');
       return;
     }
+    // stamp role + team head (answerable-to) on the approved member
+    try { await supabase.rpc('set_sales_user_role', { p_id: id, p_role: role, p_parent_sales_user_id: parent }); } catch (e) {}
     _saCloseModal();
     if (typeof toast === 'function') toast((data.linked ? 'Approved — merged into existing sub-agent ' : 'Approved — saved as new Sale Agent ') + (data.agent_code || '') + '.', 'ok');
     rSalesAccess();
