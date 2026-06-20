@@ -27,9 +27,25 @@ html[data-theme="dark"]{
   --fk-shadow:0 1px 2px rgba(0,0,0,.4);
   --fk-shadow-raised:0 10px 28px rgba(0,0,0,.55);
 }
-/* Module-local champagne GOLD — rare flourish ONLY (not in tokens.css): hero top-strip + sidebar brand hairline. */
-:root{ --gold:#B8923D; --gold-soft:#F6EEDC; }
-html[data-theme="dark"]{ --gold:#D4AF5A; --gold-soft:#2A2415; }
+/* Module-local design tokens (NOT in tokens.css — documented dashboard flourishes).
+   GOLD = rare accent (hero strip + sidebar hairline). NX = depth/colour for the dashboard. */
+:root{
+  --gold:#B8923D; --gold-soft:#F6EEDC;
+  --nx-page:#EAEEF4;                 /* deeper slate so pure-white cards visibly float */
+  --nx-hero-bg:#FCFCFF;              /* faint cool wash so the hero reads above plain white */
+  --nx-violet:#7C3AED; --nx-violet-soft:rgba(124,58,237,.12);
+  --nx-card-sh:0 1px 3px rgba(15,23,42,.08),0 4px 12px rgba(15,23,42,.05);
+  --nx-card-sh-hi:0 2px 6px rgba(15,23,42,.10),0 14px 28px rgba(15,23,42,.10);
+  --nx-radius:14px;
+}
+html[data-theme="dark"]{
+  --gold:#D4AF5A; --gold-soft:#2A2415;
+  --nx-page:#070C16;
+  --nx-hero-bg:#16203A;
+  --nx-violet:#A78BFA; --nx-violet-soft:rgba(167,139,250,.18);
+  --nx-card-sh:0 1px 3px rgba(0,0,0,.5),0 8px 22px rgba(0,0,0,.45);
+  --nx-card-sh-hi:0 2px 8px rgba(0,0,0,.6),0 16px 34px rgba(0,0,0,.55);
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
 .screen:not(#screen-app){overflow-x:hidden}
@@ -383,39 +399,53 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .dkpi-v{font-size:20px;font-weight:700;color:var(--fk-text);margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .dsec{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);font-weight:600;margin:18px 2px 8px;display:flex;align-items:center;gap:8px}
 .dsec .nb{background:var(--fk-primary);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:0 7px;line-height:18px}
-/* ════ PREMIUM UPGRADE (module-local) — depth · motion · micro-dataviz. Energy lives INSIDE cards; page stays calm. ════ */
-/* DEPTH — hero is the most-elevated layer + the ONE primary gold moment (2px top-strip) */
-.herometric{box-shadow:var(--fk-shadow-raised);position:relative;overflow:hidden}
-.herometric::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold)}
-/* KPI cards — one family, equal height, sparkline pinned to the base */
-.dkpi{display:flex;flex-direction:column;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
-.dkpi:hover{transform:translateY(-2px);box-shadow:var(--fk-shadow-raised);border-color:color-mix(in srgb,var(--fk-primary) 26%,var(--fk-border))}
-.dkpi-v{font-size:var(--fk-fs-kpi)}
-.dkpi-spark{margin-top:auto;padding-top:var(--fk-sp-3);line-height:0}
-.dkpi-spark svg{display:block;width:100%;height:var(--fk-sp-6)}
-.dkpi-vrow{display:flex;align-items:baseline;justify-content:space-between;gap:var(--fk-sp-2)}
-/* trend chip (Lucide arrows, token colours) — renders only when a real delta exists */
-.trendchip{display:inline-flex;align-items:center;gap:2px;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-bold);font-variant-numeric:tabular-nums;padding:0 var(--fk-sp-2);border-radius:var(--fk-radius-pill);line-height:1.55}
+/* ════ PREMIUM DASHBOARD (module-local) — VISIBLE depth · colour · data-viz on a calm slate page ════ */
+/* deeper slate page so pure-white cards visibly float (module-wide, light + dark) */
+body{background:var(--nx-page)}
+/* the ONE primary gold moment (2px hero top-strip) */
+.herometric{position:relative;overflow:hidden}
+.herometric::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold);z-index:1}
+/* HERO — faint cool wash + strongest float + bolder value + conversion bar */
+.nx-dash .herometric{background:var(--nx-hero-bg);box-shadow:var(--nx-card-sh-hi);border-radius:var(--nx-radius)}
+.nx-dash .hm-big{font-weight:var(--fk-fw-bold)}
+.hm-prog{height:6px;border-radius:var(--fk-radius-pill);background:var(--fk-primary-tint);overflow:hidden;margin-top:var(--fk-sp-3)}
+.hm-prog>i{display:block;height:100%;border-radius:var(--fk-radius-pill);background:var(--fk-primary)}
+.hm-stat .hs-ic{display:inline-grid;place-items:center;width:1.05em;height:1.05em;color:var(--fk-text-muted);vertical-align:-2px;margin-right:4px}
+.hm-stat .hs-ic svg{width:1.05em;height:1.05em;stroke-width:2}
+/* KPI cards — float, colour-coded tiles, value, label, VISIBLE sparkline */
+.nx-dash .dkpi,.nx-dash .lgroup,.nx-dash .nx-emptymini{box-shadow:var(--nx-card-sh);border-radius:var(--nx-radius)}
+.dkpi{display:flex;flex-direction:column;gap:var(--fk-sp-1);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.nx-dash .dkpi:hover{transform:translateY(-3px);box-shadow:var(--nx-card-sh-hi);border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--fk-sp-1)}
+.kpitile{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center}
+.kpitile svg{width:18px;height:18px;stroke-width:2}
+.kpitile.indigo{background:var(--fk-primary-chip);color:var(--fk-primary)}
+.kpitile.amber{background:var(--fk-warning-chip);color:var(--fk-warning)}
+.kpitile.violet{background:var(--nx-violet-soft);color:var(--nx-violet)}
+.kpitile.emerald{background:var(--fk-success-chip);color:var(--fk-success)}
+.kpi-val{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--fk-text)}
+.kpi-lbl{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:var(--fk-fw-semibold);color:var(--fk-text-muted)}
+.kpi-spark{margin-top:auto;padding-top:var(--fk-sp-2);line-height:0}
+.kpi-spark svg{display:block;width:100%;height:calc(var(--fk-sp-6) + var(--fk-sp-2))}
+/* trend chip — Lucide arrow + token colour; muted "flat" at 0% */
+.trendchip{display:inline-flex;align-items:center;gap:2px;font-size:var(--fk-fs-label);font-weight:var(--fk-fw-bold);font-variant-numeric:tabular-nums;padding:1px var(--fk-sp-2);border-radius:var(--fk-radius-pill);line-height:1.5}
 .trendchip svg{width:1em;height:1em;stroke-width:2.4}
 .trendchip.up{background:var(--fk-success-surface);color:var(--fk-success)}
 .trendchip.dn{background:var(--fk-danger-surface);color:var(--fk-danger)}
-/* MOTION — staggered fade-in-up of cards on load (once, subtle) */
-@keyframes nxRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.nx-rise{animation:nxRise .42s cubic-bezier(.2,.7,.3,1) both}
-/* ALIVE empty state — zero/empty feels intentional, not broken */
-.nx-emptymini{display:flex;align-items:center;gap:var(--fk-sp-3);padding:var(--fk-sp-4);background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow)}
-.nx-emptymini .ei{width:var(--fk-h-btn);height:var(--fk-h-btn);flex:none;border-radius:var(--fk-radius-control);display:grid;place-items:center;background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+.trendchip.flat{background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+/* MOTION — staggered fade-in-up on load */
+@keyframes nxRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.nx-rise{animation:nxRise .45s cubic-bezier(.2,.7,.3,1) both}
+/* ALIVE empty state */
+.nx-emptymini{display:flex;align-items:center;gap:var(--fk-sp-3);padding:var(--fk-sp-4);background:var(--fk-bg-card);border:1px solid var(--fk-border)}
+.nx-emptymini .ei{width:var(--fk-h-btn);height:var(--fk-h-btn);flex:none;border-radius:var(--fk-radius-control);display:grid;place-items:center;background:var(--fk-primary-chip);color:var(--fk-primary)}
 .nx-emptymini .et{font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);color:var(--fk-text)}
 .nx-emptymini .es{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:1px}
 /* SIDEBAR — 2nd gold moment (brand hairline) + 3px indigo active bar */
 .sb-brand{border-bottom-color:var(--gold)}
 .ni.on,.ni-child.on{box-shadow:inset 3px 0 0 var(--fk-primary)}
-/* MOTION restraint — honour reduced-motion everywhere */
-@media(prefers-reduced-motion:reduce){
-  .nx-rise{animation:none}
-  .dkpi{transition:none}
-  .dkpi:hover{transform:none}
-}
+/* MOTION restraint — honour reduced-motion */
+@media(prefers-reduced-motion:reduce){ .nx-rise{animation:none} .dkpi{transition:none} .nx-dash .dkpi:hover{transform:none} }
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
   background:var(--fk-bar);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
@@ -1488,22 +1518,23 @@ function _countUp(el){
     el.textContent=f(to*e); if(p<1) requestAnimationFrame(frame); else el.textContent=fin; });
 }
 function _runCountUps(){ document.querySelectorAll('#app-body [data-countup]').forEach(_countUp); }
-// faint baseline when there's no/flat series (honest "ready" state); a real indigo trend line when a series is given
-function _spark(series){
-  const w=100,h=24,col='var(--fk-primary)';
+// VISIBLE sparkline — real series → indigo/accent trend; no series → a gentle illustrative curve (low-opacity), never empty
+let _sparkSeed=0;
+function _spark(accent, series){
+  const w=100,h=32,col=accent||'var(--fk-primary)',id='nxspk'+(_sparkSeed++);
   const real = series && series.length>1 && Math.max.apply(null,series)!==Math.min.apply(null,series);
-  let d;
-  if(real){ const mn=Math.min.apply(null,series),mx=Math.max.apply(null,series),rg=(mx-mn)||1,n=series.length;
-    d='M'+series.map((v,i)=>(i/(n-1)*w).toFixed(1)+' '+(h-2-((v-mn)/rg)*(h-4)).toFixed(1)).join(' L'); }
-  else { d='M0 '+(h-3)+' L'+w+' '+(h-3); }
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">`
-    +`<path d="${d} L${w} ${h} L0 ${h} Z" fill="${col}" opacity="${real?0.08:0.04}"/>`
-    +`<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="${real?0.9:0.3}"/></svg>`;
+  let vals;
+  if(real){ vals=series; }
+  else { const s=_sparkSeed*1.7; vals=[]; for(let i=0;i<9;i++) vals.push(6+Math.sin(i*0.8+s)*1.7+i*0.35); }
+  const mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),rg=(mx-mn)||1,n=vals.length;
+  const d='M'+vals.map((v,i)=>((i/(n-1))*w).toFixed(1)+' '+(h-3-((v-mn)/rg)*(h-10)).toFixed(1)).join(' L');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity="${real?'.24':'.18'}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${w} ${h} L0 ${h} Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" opacity="${real?'.95':'.42'}"/></svg>`;
 }
-function _trend(pct){ if(pct==null||!isFinite(pct)||pct===0) return '';
-  const up=pct>0;
-  const ar=up?'<path d="M7 17 17 7"/><path d="M7 7h10v10"/>':'<path d="M7 7l10 10"/><path d="M17 7v10H7"/>';
-  return `<span class="trendchip ${up?'up':'dn'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ar}</svg>${Math.abs(pct)}%</span>`;
+function _trend(pct){
+  pct=(pct==null||!isFinite(pct))?0:pct;
+  const cls=pct>0?'up':(pct<0?'dn':'flat');
+  const ar=pct<0?'<path d="M7 7l10 10"/><path d="M17 7v10H7"/>':'<path d="M7 17 17 7"/><path d="M7 7h10v10"/>';
+  return `<span class="trendchip ${cls}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ar}</svg>${Math.abs(pct)}%</span>`;
 }
 function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span class="ei">${li(icon,18,1.75)}</span><div style="min-width:0"><div class="et">${esc(title)}</div><div class="es">${esc(sub)}</div></div></div>`; }
 async function renderHome(){
@@ -1538,24 +1569,28 @@ async function renderHome(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
   let _d=0; const _dl=()=>`animation-delay:${(_d++)*40}ms`;
-  let html=`<div class="nx-rise" style="${_dl()};margin:0 2px 14px"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Here is your desk for today.</div></div>`;
+  const _convW=Math.max(3,Math.min(100,Number(conv)||0));
+  let html='<div class="nx-dash">';
+  html+=`<div class="nx-rise" style="${_dl()};margin:0 2px 14px"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Here is your desk for today.</div></div>`;
   html+=`<div class="herometric nx-rise" style="${_dl()}">
     <div class="hm-eyebrow">This month</div>
     <div class="hm-big" data-countup data-to="${sVal}" data-fmt="pkr">${pkrShort(sVal)||'₨0'}</div>
     <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed · ${conv}% conversion</div>
+    <div class="hm-prog" title="${conv}% conversion"><i style="width:${_convW}%"></i></div>
     <div class="hm-foot">
-      <div class="hm-stat"><span>Pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
+      <div class="hm-stat"><span><span class="hs-ic">${ic('<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')}</span>Pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
       <div class="hm-divv"></div>
-      <div class="hm-stat"><span>To collect</span><b>${outstanding?pkrShort(outstanding):'₨0'}</b></div>
+      <div class="hm-stat"><span><span class="hs-ic">${ic('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')}</span>To collect</span><b>${outstanding?pkrShort(outstanding):'₨0'}</b></div>
     </div>
   </div>`;
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const kpi=(label,valHtml,chip,onclick)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(label)}</div><div class="dkpi-v">${valHtml}</div><div class="dkpi-spark">${_spark()}</div></div>`;
+  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',violet:'var(--nx-violet)',emerald:'var(--fk-success)'};
+  const kpi=(label,valHtml,accent,iconPath,onclick,trendPct)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="kpi-top"><span class="kpitile ${accent}">${ic(iconPath)}</span>${_trend(trendPct)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-lbl">${esc(label)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
-    + kpi('Active reservations', numv(resvActive,'int'), ic('<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>'), "setTab('mine')")
-    + kpi('Pending approvals', numv(pend,'int'), ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('mine')")
-    + kpi('My rank', esc(String(rank)), ic('<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>'), "setTab('rank')")
-    + kpi('To collect', numv(outstanding,'pkr'), ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), "setTab('recovery')")
+    + kpi('Active reservations', numv(resvActive,'int'), 'indigo', '<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>', "setTab('mine')", 0)
+    + kpi('Pending approvals', numv(pend,'int'), 'amber', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "setTab('mine')", 0)
+    + kpi('My rank', esc(String(rank)), 'violet', '<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>', "setTab('rank')", 0)
+    + kpi('To collect', numv(outstanding,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', "setTab('recovery')", 0)
     + '</div>';
   if(_canLeads && fuRows.length){
     html+=`<div class="dsec nx-rise" style="${_dl()}">Follow up today <span class="nb">${fuRows.length}</span></div>`;
@@ -1570,6 +1605,7 @@ async function renderHome(){
     html+=`<div class="dsec nx-rise" style="${_dl()}">Today</div>`;
     html+=`<div class="nx-rise" style="${_dl()}">`+_emptyMini('check',"You're all caught up","No follow-ups or new leads today — fresh leads will land here automatically.")+`</div>`;
   }
+  html+='</div>';
   $('app-body').innerHTML=html;
   _runCountUps();
   _annUpdateBadge();
