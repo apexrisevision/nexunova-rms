@@ -2928,20 +2928,24 @@ function renderAgent(){
   const idle=lastAct?_daysSince(lastAct):999;
   const stuckA=leads.filter(l=>l.status!=='won'&&l.status!=='lost'&&_daysSince(l.last_activity_at)>=_STUCK_DAYS);
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ My Team</button>`;
-  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-    ${_avatar(a.name,46)}
-    <div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:13px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))}${a.phone?' · '+esc(a.phone):''}</div><div style="font-size:12px;margin-top:3px;font-weight:600;color:${idle>=_IDLE_DAYS?'var(--fk-danger)':'var(--fk-success)'}">${lastAct?'Active '+_agoTxt(lastAct):'No activity yet'}${stuckA.length?' · '+stuckA.length+' stuck':''}</div></div>
+  const PH='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+  const WA='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>';
+  let html='<div class="nx-dash"><button class="backbtn" onclick="goBack()" style="margin-bottom:var(--fk-sp-3)">‹ My Team</button>';
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:var(--fk-sp-3)">
+    ${_avatarC(a.name,46)}
+    <div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-bold);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(a.role))}${a.phone?' · '+esc(a.phone):''}</div><div style="font-size:var(--fk-fs-label);margin-top:3px;font-weight:var(--fk-fw-semibold);color:${idle>=_IDLE_DAYS?'var(--fk-danger)':'var(--fk-success)'}">${lastAct?'Active '+_agoTxt(lastAct):'No activity yet'}${stuckA.length?' · '+stuckA.length+' stuck':''}</div></div>
+    ${a.phone?`<div style="display:flex;gap:6px;flex:none"><a class="btn btn-sm" href="tel:${esc(a.phone)}" title="Call" aria-label="Call" style="text-decoration:none">${PH}</a>${wa?`<a class="btn btn-sm btn-primary" href="https://wa.me/${wa}" target="_blank" rel="noopener" title="WhatsApp" aria-label="WhatsApp" style="text-decoration:none">${WA}</a>`:''}</div>`:''}
   </div>`;
-  if(a.phone) html+=`<div style="display:flex;gap:8px;margin-bottom:12px"><a class="btn btn-full" href="tel:${esc(a.phone)}" style="text-decoration:none">Call</a>${wa?`<a class="btn btn-full" href="https://wa.me/${wa}" target="_blank" rel="noopener" style="text-decoration:none">WhatsApp</a>`:''}</div>`;
-  const kpi=(l,v,chip)=>`<div class="dkpi" style="cursor:default"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(l)}</div><div class="dkpi-v">${esc(String(v))}</div></div>`;
+  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)',violet:'var(--nx-violet)'};
+  const numv=(to,fmt,suf)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>${suf||''}`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
-    + kpi('Sales value', pkrShort(a.sales_value)||'₨0', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'))
-    + kpi('Sales', a.sales_count, ic('<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>'))
-    + kpi('Open pipeline', a.pipeline, ic('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'))
-    + kpi('Won', a.won, ic('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>'))
-    + kpi('Conversion', (a.conversion||0)+'%', ic('<path d="M3 3v18h18"/><path d="m7 14 3-3 2 2 5-5"/>'))
-    + kpi('To collect', pkrShort(a.outstanding)||'₨0', ic('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'))
+    + kpi('Sales value', numv(a.sales_value,'pkr'), 'indigo', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    + kpi('Sales', numv(a.sales_count,'int'), 'violet', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
+    + kpi('Open pipeline', numv(a.pipeline,'int'), 'amber', '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>')
+    + kpi('Won', numv(a.won,'int'), 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + kpi('Conversion', numv(a.conversion,'int','%'), 'indigo', '<path d="M3 3v18h18"/><path d="m7 14 3-3 2 2 5-5"/>')
+    + kpi('To collect', numv(a.outstanding,'pkr'), 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
     + '</div>';
   if(stuckA.length){
     html+=`<div class="dsec">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuckA.length}</span></div>`;
@@ -2956,7 +2960,9 @@ function renderAgent(){
   } else {
     html+=_emptyCard('No leads in the pipeline','This agent has no active leads yet.');
   }
+  html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
   if(ME&&ME.role==='director') _renderAgentLoc(TEAM_AGENT);
 }
 function _agentLeadRow(l){
@@ -3669,30 +3675,35 @@ async function renderClients(){
   catch(e){ return sessionGone(); }
   if(!data||!data.success){ return sessionGone(); }
   _touch();
-  let html=_pageHead('My Clients','Everyone you have sold to.');
-  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div><div class="es">Your clients appear here once your sales are approved.</div></div></div>'; $('app-body').innerHTML=html; return; }
+  let html='<div class="nx-dash">'+_pageHead('My Clients','Everyone you have sold to.');
+  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div><div class="es">Your clients appear here once your sales are approved.</div></div></div></div>'; $('app-body').innerHTML=html; return; }
   const cl=data.clients||[];
   const totRem=cl.reduce((s,c)=>s+Number(c.total_remaining||0),0);
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  html+='<div class="kgrid">'
-    +_kpic('indigo', ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'),'Clients', data.count, "")
-    +_kpic('red', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),'Total remaining', pkrShort(totRem)||'₨0', "")
-    +'</div>';
+  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)'};
+  const numv=(to,fmt)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  html+='<div class="dgrid">'
+    + kpi('Clients', numv(data.count,'int'), 'indigo', '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
+    + kpi('Total remaining', numv(totRem,'pkr'), 'amber', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/>')
+    + '</div>';
   if(!cl.length){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div></div></div>'; }
-  else { html+='<div class="lgroup">'+cl.map(_clientRow).join('')+'</div>'; }
+  else { html+='<div class="dsec">Clients <span class="nb">'+cl.length+'</span></div><div class="lgroup">'+cl.map(_clientRow).join('')+'</div>'; }
+  html+='</div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 function _clientRow(c){
   const wa=_waNum(c.phone); const rem=Number(c.total_remaining||0);
   return `<div class="lrow">
     <div class="lrow-top">
-      ${_avatar(c.name,34)}
-      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name||'Client')}</div><div style="font-size:13px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.sales_count} unit${c.sales_count==1?'':'s'}${c.units?' · '+esc(c.units):''}</div></div>
+      ${_avatarC(c.name,40)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(c.name||'Client')}</div><div class="lr-sub"><span>${c.sales_count} unit${c.sales_count==1?'':'s'}${c.units?' · '+esc(c.units):''}</span></div></div>
       ${rem>0?`<span class="spill" style="background:var(--fk-danger-surface);border-color:transparent;color:var(--fk-danger);white-space:nowrap">${esc(pkrShort(rem))} due</span>`:`<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">Clear</span>`}
     </div>
     <div class="lrow-foot">
-      <span style="font-size:13px;color:var(--fk-text-muted)">Value <b style="color:var(--fk-text)">${esc(pkrShort(c.total_net)||'—')}</b></span>
-      ${c.phone?`<span style="display:flex;gap:6px"><a class="btn btn-sm" href="tel:${esc(c.phone)}" style="text-decoration:none">Call</a>${wa?`<a class="btn btn-sm" href="https://wa.me/${wa}" target="_blank" rel="noopener" style="text-decoration:none">WhatsApp</a>`:''}</span>`:''}
+      <span style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">Value <b style="color:var(--fk-text);font-variant-numeric:tabular-nums">${esc(pkrShort(c.total_net)||'—')}</b></span>
+      ${c.phone?`<span style="display:flex;gap:6px;flex:none"><a class="btn btn-sm" href="tel:${esc(c.phone)}" style="text-decoration:none">Call</a>${wa?`<a class="btn btn-sm" href="https://wa.me/${wa}" target="_blank" rel="noopener" style="text-decoration:none">WhatsApp</a>`:''}</span>`:''}
     </div>
   </div>`;
 }
