@@ -1260,10 +1260,6 @@ function _applyLeadAccess(){
   document.querySelectorAll('.ni[data-lead]').forEach(t=>{ t.style.display = noLeads ? 'none' : ''; });
   const isMgr = ME && ME.role==='marketing_manager';            // Manager-only sections (Team + Distribute). Director ≠ Manager.
   document.querySelectorAll('[data-mgr]').forEach(t=>{ t.style.display = isMgr ? '' : 'none'; });
-  // sub-dealers are receive-only: their lead view is "Received Leads" (manager assigns; they don't create)
-  const recvOnly = ME && ME.role==='sale_rep';
-  TAB_TITLES.leads = recvOnly ? 'Received Leads' : 'Leads';
-  document.querySelectorAll('.ni[data-lead] .ni-lb').forEach(e=>{ e.textContent = recvOnly ? 'Received Leads' : 'Leads'; });
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); setTab('home'); }
 async function enterApp(){
