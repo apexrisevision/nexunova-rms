@@ -1478,25 +1478,73 @@ async function renderHome(){
   _annUpdateBadge();
 }
 
-// ════ Manager dashboard — team-focused desk (replaces the rep home for marketing_manager) ════
+// ════ Manager module — team oversight helpers ════
+const _STUCK_DAYS=7, _IDLE_DAYS=5;
+function _daysSince(d){ if(!d) return 999; const ms=Date.now()-new Date(d).getTime(); return ms<0?0:Math.floor(ms/86400000); }
+function _buildTeamStats(){
+  TEAM_STATS={};
+  (TEAM_LEADS||[]).forEach(l=>{ const a=l.owner_sales_user_id; if(!a) return;
+    const s=TEAM_STATS[a]||(TEAM_STATS[a]={open:0,stuck:0,last:null});
+    const active=l.status!=='won'&&l.status!=='lost';
+    if(active){ s.open++; if(_daysSince(l.last_activity_at)>=_STUCK_DAYS) s.stuck++; }
+    if(l.last_activity_at && (!s.last || new Date(l.last_activity_at)>new Date(s.last))) s.last=l.last_activity_at;
+  });
+}
+function _stuckTeamLeads(){
+  return (TEAM_LEADS||[]).filter(l=>l.status!=='won'&&l.status!=='lost'&&!l.is_mine&&_daysSince(l.last_activity_at)>=_STUCK_DAYS)
+    .sort((a,b)=>new Date(a.last_activity_at)-new Date(b.last_activity_at));
+}
+function _nudgeAgent(leadId){
+  const l=(TEAM_LEADS||[]).find(x=>x.id===leadId); if(!l) return;
+  const a=(TEAM_DATA||[]).find(x=>String(x.id)===String(l.owner_sales_user_id));
+  if(!a||!a.phone){ toast('No phone on file for this agent','err'); return; }
+  const d=_daysSince(l.last_activity_at);
+  const msg='Reminder: please follow up with your lead *'+(l.name||'')+'*'+(l.phone?' ('+l.phone+')':'')+' — no activity for '+d+' day'+(d==1?'':'s')+'.';
+  window.open('https://wa.me/'+_waNum(a.phone)+'?text='+encodeURIComponent(msg),'_blank');
+}
+function _stuckRow(l){
+  const a=(TEAM_DATA||[]).find(x=>String(x.id)===String(l.owner_sales_user_id)); const d=_daysSince(l.last_activity_at);
+  return `<div class="lrow"><div class="lrow-top">
+    ${_avatar(l.name,34)}
+    <div style="flex:1;min-width:0;cursor:pointer" onclick="gotoLead('${l.id}')"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a?esc(a.name)+' · ':''}<span style="color:var(--fk-danger);font-weight:700">${d}d idle</span></div></div>
+    <button class="btn btn-sm" onclick="_nudgeAgent('${l.id}')">Nudge</button>
+  </div></div>`;
+}
+const _ACT_ICON={call:'phone',whatsapp:'message',visit:'home',meeting:'user',note:'fileText',stage:'compass',assigned:'inbox'};
+const _ACT_LABEL={call:'Called',whatsapp:'WhatsApp',visit:'Site visit',meeting:'Meeting',note:'Note',stage:'Stage update',assigned:'Assigned'};
+function _teamActRow(a){
+  const k=a.kind||'note'; const body=String(a.body||'');
+  let icon=_ACT_ICON[k]||'fileText', label=_ACT_LABEL[k]||k;
+  if(/\bwon\b/i.test(body)){ icon='check'; label='Deal won'; }
+  else if(/\blost\b/i.test(body)){ icon='x'; label='Lead lost'; }
+  return `<div class="lrow tap" onclick="gotoLead('${a.lead_id}')"><div class="lrow-top">
+    <span style="width:30px;height:30px;flex:none;border-radius:8px;display:grid;place-items:center;background:var(--fk-primary-chip);color:var(--fk-primary)">${li(icon,15,2)}</span>
+    <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b>${esc(a.actor||'Someone')}</b> · ${esc(label)}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.lead_name||'')}${body?' — '+esc(body):''}</div></div>
+    <span style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap">${_agoTxt(a.created_at)}</span>
+  </div></div>`;
+}
+// ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
 async function renderManagerHome(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
   let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0;
   try{
-    const [rT,rP,rF,rL]=await Promise.all([
+    const [rT,rP,rF,rL,rA]=await Promise.all([
       sb.rpc('get_my_team',{p_session_token:TOKEN}),
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
       sb.rpc('get_my_followups',{p_session_token:TOKEN}),
-      sb.rpc('list_my_leads',{p_session_token:TOKEN})
+      sb.rpc('list_my_leads',{p_session_token:TOKEN}),
+      sb.rpc('get_team_activity',{p_session_token:TOKEN,p_limit:12})
     ]);
     if(rT.data&&rT.data.error==='session_expired') return sessionGone();
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
     if(rP.data&&rP.data.success) perf=rP.data;
     if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); }
     if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(x=>x.is_mine&&x.status!=='won'&&x.status!=='lost'); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
+    TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
   }catch(e){ return sessionGone(); }
   await loadAnnouncements();
-  _touch();
+  _touch(); _buildTeamStats();
+  const stuck=_stuckTeamLeads();
   const nm=(ME&&ME.sales_user_name)||''; const _fn=nm?esc(String(nm).split(' ')[0]):'';
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
@@ -1516,17 +1564,21 @@ async function renderManagerHome(){
   html+='<div class="dgrid">'
     + kpi('Team agents', team.length, ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), "setTab('team')")
     + kpi('To distribute', myNew.length, ic('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'), "setTab('distribute')")
-    + kpi('Open pipeline', pipeline, ic('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'), "setTab('leads')")
-    + kpi('Team to collect', T.outstanding?pkrShort(T.outstanding):'₨0', ic('<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), "setTab('team')")
+    + kpi('Follow-ups due', fuRows.length, ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('leads')")
+    + kpi('Stuck leads', stuck.length, ic('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'), "setTab('home')")
     + '</div>';
   if(myNew.length){
     html+=`<div class="dsec">Leads to distribute <span class="nb">${myNew.length}</span></div>`;
     html+='<div class="lgroup">'+myNew.slice(0,5).map(_distRow).join('')+'</div>';
     if(myNew.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('distribute')">Distribute all</button>`;
   }
+  if(stuck.length){
+    html+=`<div class="dsec">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuck.length}</span></div>`;
+    html+='<div class="lgroup">'+stuck.slice(0,5).map(_stuckRow).join('')+'</div>';
+  }
   if(fuRows.length){
     html+=`<div class="dsec">Team follow-ups due <span class="nb">${fuRows.length}</span></div>`;
-    html+='<div class="lgroup">'+fuRows.slice(0,6).map(_fuRow).join('')+'</div>';
+    html+='<div class="lgroup">'+fuRows.slice(0,5).map(_fuRow).join('')+'</div>';
   }
   if(team.length){
     const top=team.slice().sort((a,b)=>Number(b.sales_value||0)-Number(a.sales_value||0)).slice(0,5);
@@ -1535,6 +1587,10 @@ async function renderManagerHome(){
     if(team.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('team')">View full team</button>`;
   } else {
     html+=_emptyCard('No agents under you yet','Your office places sub-agents under you — then their numbers appear here.');
+  }
+  if(TEAM_ACTIVITY.length){
+    html+=`<div class="dsec">Recent team activity</div>`;
+    html+='<div class="lgroup">'+TEAM_ACTIVITY.slice(0,8).map(_teamActRow).join('')+'</div>';
   }
   $('app-body').innerHTML=html;
   _annUpdateBadge();
@@ -2177,7 +2233,7 @@ async function _assignTo(leadId,toId){
 }
 function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div></div>'; }
 // ════ Manager — My Team (roster + per-agent numbers) ════
-let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null;
+let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[];
 async function renderTeam(){
   TEAM_AGENT=null;
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team…</div></div></div>';
@@ -2193,6 +2249,7 @@ async function renderTeam(){
   _touch();
   TEAM_DATA=data.team||[]; TEAM_TOTALS=data.totals||{};
   TEAM_LEADS=(leadsR&&leadsR.success&&leadsR.leads)||[];
+  _buildTeamStats();
   _renderTeamList();
 }
 function _renderTeamList(){
@@ -2211,10 +2268,12 @@ function _renderTeamList(){
 }
 function _teamRow(a){
   const wa=_waNum(a.phone);
+  const st=TEAM_STATS[a.id]||{}; const idle=st.last?_daysSince(st.last):999;
+  const dot=idle<_IDLE_DAYS?'var(--fk-success)':(idle<14?'var(--fk-warning)':'var(--fk-muted-fill)');
   return `<div class="lrow">
     <div class="lrow-top" onclick="openAgent('${a.id}')" style="cursor:pointer">
-      ${_avatar(a.name,34)}
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))} · ${a.conversion}% conv.</div></div>
+      <div style="position:relative;flex:none">${_avatar(a.name,34)}<span title="${idle<999?'active '+idle+'d ago':'no activity'}" style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid var(--fk-bg-card);background:${dot}"></span></div>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))} · ${a.conversion}% conv.${st.stuck?` · <span style="color:var(--fk-danger);font-weight:700">${st.stuck} stuck</span>`:''}</div></div>
       <div style="text-align:right"><div style="font-weight:700;font-size:14px">${esc(pkrShort(a.sales_value)||'₨0')}</div><div style="font-size:11px;color:var(--fk-text-muted)">${a.sales_count} sale${a.sales_count==1?'':'s'}</div></div>
       <span style="color:var(--fk-text-muted);opacity:.45;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
     </div>
@@ -2241,11 +2300,14 @@ function renderAgent(){
   const wa=_waNum(a.phone);
   const leads=(TEAM_LEADS||[]).filter(l=>String(l.owner_sales_user_id)===String(a.id));
   const sc={}; leads.forEach(l=>{ sc[l.status]=(sc[l.status]||0)+1; });
+  const lastAct=leads.reduce((m,l)=>{ const t=l.last_activity_at; return (t&&(!m||new Date(t)>new Date(m)))?t:m; }, null);
+  const idle=lastAct?_daysSince(lastAct):999;
+  const stuckA=leads.filter(l=>l.status!=='won'&&l.status!=='lost'&&_daysSince(l.last_activity_at)>=_STUCK_DAYS);
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ My Team</button>`;
   html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
     ${_avatar(a.name,46)}
-    <div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:13px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))}${a.phone?' · '+esc(a.phone):''}</div></div>
+    <div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div><div style="font-size:13px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))}${a.phone?' · '+esc(a.phone):''}</div><div style="font-size:12px;margin-top:3px;font-weight:600;color:${idle>=_IDLE_DAYS?'var(--fk-danger)':'var(--fk-success)'}">${lastAct?'Active '+_agoTxt(lastAct):'No activity yet'}${stuckA.length?' · '+stuckA.length+' stuck':''}</div></div>
   </div>`;
   if(a.phone) html+=`<div style="display:flex;gap:8px;margin-bottom:12px"><a class="btn btn-full" href="tel:${esc(a.phone)}" style="text-decoration:none">Call</a>${wa?`<a class="btn btn-full" href="https://wa.me/${wa}" target="_blank" rel="noopener" style="text-decoration:none">WhatsApp</a>`:''}</div>`;
   const kpi=(l,v,chip)=>`<div class="dkpi" style="cursor:default"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(l)}</div><div class="dkpi-v">${esc(String(v))}</div></div>`;
@@ -2257,6 +2319,10 @@ function renderAgent(){
     + kpi('Conversion', (a.conversion||0)+'%', ic('<path d="M3 3v18h18"/><path d="m7 14 3-3 2 2 5-5"/>'))
     + kpi('To collect', pkrShort(a.outstanding)||'₨0', ic('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'))
     + '</div>';
+  if(stuckA.length){
+    html+=`<div class="dsec">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuckA.length}</span></div>`;
+    html+='<div class="lgroup">'+stuckA.slice(0,5).map(_stuckRow).join('')+'</div>';
+  }
   if(leads.length){
     html+=`<div class="dsec">Lead pipeline <span class="nb">${leads.length}</span></div>`;
     const chips=LEAD_STAGES.map(([k,lb])=>{ const n=sc[k]||0; return n?`<span class="spill" style="background:${_leadColor(k)};border-color:transparent;color:#fff">${esc(lb)} ${n}</span>`:''; }).filter(Boolean).join('');
