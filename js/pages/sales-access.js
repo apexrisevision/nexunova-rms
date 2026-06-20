@@ -505,29 +505,47 @@ async function _saApproveGrouped(id) {
 function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove(); }
 
 // ── Change a member's portal role (+ optional team head) — set_sales_user_role ──
-function _saRoleOpen(id) {
-  const r = (_saRows || []).find(x => x.id === id) || {};
-  // "Reports to" = hierarchy-aware: show only seniors ABOVE this member's role level.
-  // rep → managers + directors · manager/cfo/admin → directors only · director → none.
+// Eligible parents are keyed off the SELECTED (new) role, not the member's old role:
+//   non-director → all active seniors that outrank that role (managers/directors), self excluded
+//   director     → none (a director has no team head)
+function _saParentOptsFor(memberId, selRole) {
   const _SA_RANK = { lead_entry: 1, sale_rep: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
-  const _myRank = _SA_RANK[r.role || 'sale_rep'] || 1;
-  const parentOpts = [{ value: '', label: '— none —' }].concat(
-    (_saRows || []).filter(x => x.id !== id && x.status === 'active'
+  const myRank = _SA_RANK[selRole] || 1;
+  return [{ value: '', label: '— none —' }].concat(
+    (_saRows || []).filter(x => x.id !== memberId && x.status === 'active'
         && (x.role === 'marketing_manager' || x.role === 'director')
-        && (_SA_RANK[x.role] || 0) > _myRank)
+        && (_SA_RANK[x.role] || 0) > myRank)
       .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }))
   );
+}
+function _saParentFieldHtml(memberId, selRole, curVal) {
+  const opts = _saParentOptsFor(memberId, selRole);
+  const keep = opts.some(o => String(o.value) === String(curVal || '')) ? curVal : '';
+  return _saFieldH('Team head <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· required for non-directors — who this member reports to</span>',
+    { name: 'sa-role-parent', el: 'select', options: opts, value: keep });
+}
+function _saRoleParentSync(memberId) {
+  const sel = (document.getElementById('sa-role-sel') || {}).value || 'sale_rep';
+  const cur = (document.getElementById('sa-role-parent') || {}).value || '';
+  const wrap = document.getElementById('sa-role-parent-wrap');
+  if (wrap) wrap.innerHTML = _saParentFieldHtml(memberId, sel, cur);
+}
+function _saRoleOpen(id) {
+  const r = (_saRows || []).find(x => x.id === id) || {};
   document.body.insertAdjacentHTML('beforeend', NX.modal({
     id: 'sa-role-modal', title: 'Portal role — ' + esc(r.full_name || ''), size: 's', onClose: '_saCloseModal()',
     body:
       _saRoleField('sa-role-sel', r.role || 'sale_rep')
-      + _saFieldH('Team head <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· required for non-directors — who this member reports to</span>', { name: 'sa-role-parent', el: 'select', options: parentOpts, value: r.parent_sales_user_id || '' })
+      + '<div id="sa-role-parent-wrap">' + _saParentFieldHtml(id, r.role || 'sale_rep', r.parent_sales_user_id || '') + '</div>'
       + `<div style="font-size:11.5px;color:var(--fk-text-muted);margin-top:6px">Role decides what this person logs into in the portal. (Role-specific screens roll out next — tagging it now keeps everyone classified.)</div>`
       + `<div class="nx-error" id="sa-role-err" style="display:none"></div>`,
     footer:
       NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' })
       + NX.button('Save role', { variant: 'primary', onclick: `_saRoleSave('${id}')` })
   }));
+  // refresh "Reports to" whenever the role selection changes (eligibility follows the NEW role)
+  const selEl = document.getElementById('sa-role-sel');
+  if (selEl) selEl.addEventListener('change', function () { _saRoleParentSync(id); });
 }
 
 async function _saRoleSave(id) {
