@@ -2793,6 +2793,19 @@ function _loadGMaps(key){
 }
 function _staleness(at){ if(!at) return 'old'; const m=Math.floor((Date.now()-new Date(at).getTime())/60000); return m<30?'fresh':(m<120?'stale':'old'); }
 const _STALE_COL={fresh:'#16A34A',stale:'#D97706',old:'#94A3B8'};
+function _liveListHtml(){
+  if(!LIVE_PINS.length) return `<div class="empty" style="padding:20px"><div class="ei">${li('compass',24,1.8)}</div><div class="et">No team locations yet</div><div class="es">Members appear here once they share location — Profile → “Use my current location” (no map key needed), or just by logging in with location allowed.</div></div>`;
+  const dotCol={fresh:'var(--fk-success)',stale:'var(--fk-warning)',old:'var(--fk-muted-fill)'};
+  return '<div class="dsec">Team members <span class="nb">'+LIVE_PINS.length+'</span></div><div class="lgroup">'+LIVE_PINS.map(p=>{
+    const st=_staleness(p.at);
+    return `<div class="lrow"><div class="lrow-top">
+      <span title="${st}" style="width:10px;height:10px;flex:none;border-radius:50%;background:${dotCol[st]}"></span>
+      ${_avatar(p.name,34)}
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}${p.label?' · '+esc(p.label):''}</div></div>
+      <a class="btn btn-sm" href="${_mapLink(p.lat,p.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Map</a>
+    </div></div>`;
+  }).join('')+'</div>';
+}
 async function renderLiveMap(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading live map…</div></div></div>';
   let data;
@@ -2804,9 +2817,11 @@ async function renderLiveMap(){
   const isDir=ME&&ME.role==='director';
   let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
   if(!LIVE_KEY){
-    html+=_emptyCard('Map setup required', isDir?'Add your Google Maps API key below to enable the live team map.':'Ask your director to add the Google Maps API key.');
+    html+=_liveListHtml();
+    html+=`<div class="dsec">Interactive map (optional)</div>`;
+    html+=_emptyCard('Add a Google Maps key for the live map', isDir?'The list above already works. For an interactive map with pins, add a Google Maps key below.':'Ask your director to add a Google Maps key for the interactive map.');
     if(isDir){
-      html+=`<div class="card"><div class="field"><label class="label">Google Maps API key</label><input class="input" id="mapskey" placeholder="AIza…" autocomplete="off"></div><button class="btn btn-primary btn-full" onclick="_saveMapsKey()">Save key</button><div style="font-size:12px;color:var(--fk-text-muted);margin-top:8px">Google Cloud → enable <b>Maps JavaScript API</b> → create an API key (restrict it to your domain).</div></div>`;
+      html+=`<div class="card"><div class="field"><label class="label">Google Maps API key</label><input class="input" id="mapskey" placeholder="AIza…" autocomplete="off"></div><button class="btn btn-primary btn-full" onclick="_saveMapsKey()">Save key</button><div style="font-size:12px;color:var(--fk-text-muted);margin-top:8px">Google Cloud → enable <b>Maps JavaScript API</b> + <b>billing</b> on the key's project, then create/use the key.</div></div>`;
     }
     $('app-body').innerHTML=html; return;
   }
@@ -2814,8 +2829,8 @@ async function renderLiveMap(){
   LIVE_PINS.forEach(p=>{ counts[_staleness(p.at)]++; });
   const seg=(k,lb)=>{ const on=LIVE_FILTER===k; return `<button onclick="LIVE_FILTER='${k}';_liveRenderMarkers(true)" style="flex:0 0 auto;border:1px solid ${on?'transparent':'var(--fk-border)'};background:${on?'var(--fk-primary)':'var(--fk-bg-card)'};color:${on?'#fff':'var(--fk-text-muted)'};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">${lb} ${counts[k]||0}</button>`; };
   html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${seg('all','All')}${seg('fresh','Active')}${seg('stale','Inactive')}${seg('old','Offline')}</div>`;
-  html+=`<div id="livemap-canvas" style="width:100%;height:62vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle)"></div>`;
-  if(!LIVE_PINS.length) html+=`<div class="empty" style="padding:20px"><div class="es">No team locations yet — members appear here once they share their location (Profile → “Use my current location”, or just by opening the app).</div></div>`;
+  html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle)"></div>`;
+  html+=_liveListHtml();
   $('app-body').innerHTML=html;
   try{ await _loadGMaps(LIVE_KEY); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Failed to load Google Maps</div><div class="es">Check the API key / billing in Google Cloud.</div></div>'; return; }
   _liveInitMap();
