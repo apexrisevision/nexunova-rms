@@ -4129,28 +4129,40 @@ async function renderRecovery(){
       +'<div class="et">No clients on your book yet</div><div class="es">Sales you close will appear here so you can follow up on their payments.</div></div></div>';
     return;
   }
-  let html=_pageHead('My Recovery','Clients & outstanding from your sales.')+'<div class="kpis">'
-    +'<div class="kpi red"><div class="kl">Overdue now</div><div class="kv num">'+pkrShort(T.overdue||0)+'</div></div>'
-    +'<div class="kpi amber"><div class="kl">Total remaining</div><div class="kv num">'+pkrShort(T.total_remaining||0)+'</div></div>'
-    +'<div class="kpi green"><div class="kl">Received</div><div class="kv num">'+pkrShort(T.received||0)+'</div></div></div>';
-  html+='<div class="note" style="margin:8px 2px 12px">'+(T.clients_in_arrears||0)+' of '+(T.clients||rows.length)+' client(s) overdue · tap a client to call or send a reminder.</div>';
-  html+='<div class="card" style="padding:0">';
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)'};
+  const numv=(to)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="pkr">${pkrShort(Number(to)||0)||'₨0'}</span>`;
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  let html='<div class="nx-dash">'+_pageHead('My Recovery','Clients & outstanding from your sales.');
+  html+='<div class="dgrid">'
+    + kpi('Overdue now', T.overdue, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
+    + kpi('Total remaining', T.total_remaining, 'indigo', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/>')
+    + kpi('Received', T.received, 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + '</div>';
+  html+='<div class="dsec">Clients to follow up'+(rows.length?` <span class="nb">${rows.length}</span>`:'')+'</div>';
+  html+=`<div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);margin:0 2px var(--fk-sp-3)">${(T.clients_in_arrears||0)} of ${(T.clients||rows.length)} overdue · tap a client to call or send a reminder.</div>`;
+  html+='<div class="lgroup">';
   rows.forEach(r=>{
-    const od=Number(r.overdue||0), wa=_waDigits(r.phone);
-    const odd=Number(r.overdue_days||0);
-    const amtLine=od>0.5
-      ? '<b style="color:var(--fk-danger)">'+pkrFull(od)+'</b> <span class="es">overdue</span>'
-      : '<b>'+pkrFull(r.total_remaining||0)+'</b> <span class="es">remaining</span>';
-    const tel=r.phone?'<a class="btn btn-ghost btn-sm" href="tel:'+esc(r.phone)+'">Call</a>':'';
-    const waBtn=wa?'<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="https://wa.me/'+wa+'?text='+encodeURIComponent(_recWaText(r,co))+'">WhatsApp</a>':'';
-    html+='<div class="rrow"><div class="ri" style="min-width:0">'
-      +'<b>'+esc(r.client_name||'')+'</b>'
-      +'<div>'+esc(r.unit_no||'')+(r.floor_name?' · '+esc(r.floor_name):'')+(r.phone?' · '+esc(r.phone):'')+(odd>0?' · <span style="color:var(--fk-danger)">'+odd+'d overdue</span>':'')+'</div>'
-      +'<div style="margin-top:3px">'+amtLine+' · <span class="es">'+(r.paid_pct||0)+'% paid'+(r.last_payment_date?' · last '+fdate(r.last_payment_date):'')+'</span></div></div>'
-      +'<div style="text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end">'+waBtn+tel+'</div></div>';
+    const od=Number(r.overdue||0), wa=_waDigits(r.phone), odd=Number(r.overdue_days||0), overdue=od>0.5;
+    const amtMain = overdue ? (pkrShort(od)||'₨0') : (pkrShort(r.total_remaining||0)||'₨0');
+    const pill = overdue
+      ? `<span class="spill" style="background:var(--fk-danger-surface);border-color:transparent;color:var(--fk-danger);white-space:nowrap">${odd>0?odd+'d overdue':'Overdue'}</span>`
+      : `<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success);white-space:nowrap">On track</span>`;
+    const tel=r.phone?`<a class="btn btn-sm" href="tel:${esc(r.phone)}" style="text-decoration:none">Call</a>`:'';
+    const waBtn=wa?`<a class="btn btn-sm btn-primary" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(_recWaText(r,co))}" style="text-decoration:none">WhatsApp</a>`:'';
+    html+=`<div class="lrow"><div class="lrow-top">
+      ${_avatarC(r.client_name,40)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.client_name||'Client')}</div><div class="lr-sub"><span>${esc(r.unit_no||'')}${r.floor_name?' · '+esc(r.floor_name):''}${r.phone?' · '+esc(r.phone):''}</span></div></div>
+      <div style="text-align:right;flex:none"><div style="font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums;color:${overdue?'var(--fk-danger)':'var(--fk-text)'}">${esc(amtMain)}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">${overdue?'overdue':'remaining'}</div></div>
+    </div>
+    <div class="lrow-foot">
+      <span style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);display:inline-flex;align-items:center;gap:6px;min-width:0">${pill}<span style="font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.paid_pct||0}% paid${r.last_payment_date?' · last '+esc(fdate(r.last_payment_date)):''}</span></span>
+      <span style="display:flex;gap:6px;flex:none">${waBtn}${tel}</span>
+    </div></div>`;
   });
-  html+='</div>';
+  html+='</div></div>';
   $('app-body').innerHTML=html;
+  _runCountUps();
 }
 
 // ════ leaderboard — who sold how many units (everyone sees everyone) ════
