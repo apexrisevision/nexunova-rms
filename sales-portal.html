@@ -694,27 +694,6 @@ body{background:var(--nx-page)}
 .hstat .hl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--fk-text-muted)}
 .hstat .hv{font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:8px;line-height:1.05}
 
-/* sleek icon KPI cards (used by Performance / Clients / My Sales) */
-.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
-.kpic{display:flex;align-items:center;gap:11px;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);padding:19px 14px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .14s,box-shadow .18s,border-color .18s}
-.kpic:hover{transform:translateY(-2px);box-shadow:var(--fk-shadow-raised)}
-.kpic:active{transform:translateY(0)}
-.kico{width:30px;height:30px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center}
-.kico svg{width:16px;height:16px}
-.kico.indigo{background:var(--fk-primary-tint);color:var(--fk-primary)}
-.kico.amber{background:var(--fk-warning-surface);color:var(--fk-warning)}
-.kico.green{background:var(--fk-success-surface);color:var(--fk-success)}
-.kico.red{background:var(--fk-danger-surface);color:var(--fk-danger)}
-.kpic .ktx{min-width:0;flex:1}
-.kpic .kl{font-size:11px;color:var(--fk-text-muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpic .kv{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-top:9px;line-height:1.1}
-
-/* KPI chips */
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.kpi{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);padding:12px}
-.kpi .kl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--fk-text-muted)}
-.kpi .kv{font-size:22px;font-weight:600;margin-top:2px}
-.kpi.green .kv{color:var(--fk-success)} .kpi.amber .kv{color:var(--fk-warning)} .kpi.muted .kv{color:var(--fk-text-muted)}
 
 /* card */
 .card{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);
@@ -774,9 +753,6 @@ body{background:var(--nx-page)}
 .projchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .pchip{padding:7px 14px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);font-size:13px;font-weight:500;color:var(--fk-text-muted);cursor:pointer}
 .pchip.on{background:var(--fk-primary-tint);border-color:var(--fk-primary);color:var(--fk-primary);font-weight:600}
-.seg2{display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;padding:4px;margin-bottom:10px}
-.seg2 .o{flex:1;text-align:center;padding:8px 4px;border-radius:7px;font-size:13px;font-weight:500;color:var(--fk-text-muted);cursor:pointer}
-.seg2 .o.on{background:var(--fk-bg-card);color:var(--fk-primary);font-weight:600;box-shadow:var(--fk-shadow)}
 .bsearch{width:100%;height:42px;padding:0 14px;border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-card);
   color:var(--fk-text);font-family:var(--fk-font);font-size:14px;margin-bottom:16px}
 .bsearch:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
@@ -797,9 +773,6 @@ body{background:var(--nx-page)}
   color:var(--fk-text);font-size:13px;font-weight:500;cursor:pointer}
 .backbtn:hover{background:var(--fk-subtle-hover)}
 .fd-title{font-size:16px;font-weight:600;letter-spacing:-.2px}
-.modeseg{display:flex;gap:6px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:12px;padding:5px;margin-bottom:14px}
-.modeseg .m{flex:1;text-align:center;padding:11px 6px;border-radius:9px;font-size:14px;font-weight:600;color:var(--fk-text-muted);cursor:pointer;transition:background .12s}
-.modeseg .m.on{background:var(--fk-primary);color:#fff;box-shadow:var(--fk-shadow)}
 .unit .uar{font-size:11px;color:var(--fk-text-muted);font-variant-numeric:tabular-nums;line-height:1.25}
 .unit .upr{font-size:11px;font-weight:600;color:var(--fk-text);font-variant-numeric:tabular-nums;line-height:1.25}
 .ressum{background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;padding:8px 14px;margin-bottom:14px}
@@ -820,7 +793,6 @@ body{background:var(--nx-page)}
 .badge.amber{background:var(--fk-warning-surface);border-color:var(--fk-warning-edge);color:var(--fk-warning)}
 .badge.red{background:var(--fk-danger-surface);border-color:var(--fk-danger-edge);color:var(--fk-danger)}
 .badge.muted{background:var(--fk-bg-subtle);border-color:var(--fk-border);color:var(--fk-text-muted)}
-.badge.fuchsia{background:rgba(217,70,239,.12);border-color:rgba(217,70,239,.35);color:#c026d3}
 
 /* empty */
 .empty{text-align:center;padding:44px 16px;color:var(--fk-text-muted)}
@@ -921,24 +893,8 @@ body{background:var(--nx-page)}
 .wz-done{width:78px;height:78px;border-radius:50%;margin:8px auto 16px;display:grid;place-items:center;background:var(--fk-success);color:#fff;box-shadow:0 14px 30px -10px var(--fk-success);animation:okpop .5s cubic-bezier(.2,1.3,.5,1)}
 .wz-done svg{width:38px;height:38px}
 
-/* leaderboard */
-.lbtabs{display:flex;gap:6px;margin:0 0 12px}
-.lbtab{flex:1;text-align:center;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);color:var(--fk-text-muted);cursor:pointer}
-.lbtab.on{background:var(--fk-primary);color:#fff;border-color:var(--fk-primary)}
-.lbme{background:var(--fk-primary-tint);color:var(--fk-primary);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px;text-align:center}
-.lbrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--fk-border);cursor:pointer}
-.lbrow:last-child{border-bottom:none}
-.lbrow.me{background:var(--fk-primary-tint)}
-.lbrank{width:34px;height:34px;flex:0 0 auto;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
-.lbrow.top .lbrank{font-size:18px;background:transparent}
-.lbinfo{flex:1;min-width:0}
-.lbinfo b{font-size:14px;font-weight:600}
-.lbinfo .es{font-size:13px;color:var(--fk-text-muted)}
-.lbcount{font-size:22px;font-weight:700;color:var(--fk-primary);min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
-.youtag{display:inline-block;font-size:11px;font-weight:700;background:var(--fk-primary);color:#fff;border-radius:5px;padding:1px 5px;vertical-align:middle;margin-left:4px;letter-spacing:.04em}
+/* leaderboard — expand panel (still used by renderLeaderboard) */
 .lbunits{background:var(--fk-bg-subtle);padding:4px 14px 10px}
-.lbu{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px;border-bottom:1px dashed var(--fk-border)}
-.lbu:last-child{border-bottom:none}
 
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(8,12,24,.46);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;animation:ovfade .2s ease}
@@ -965,7 +921,7 @@ body{background:var(--nx-page)}
   color:var(--fk-bg-card);padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--fk-shadow-raised);opacity:0;pointer-events:none;transition:opacity .2s}
 .toastbar.show{opacity:1}
 .toastbar.err{background:var(--fk-danger)} .toastbar.ok{background:var(--fk-success)}
-@media(max-width:560px){ .kpis{grid-template-columns:repeat(3,1fr)} .units{grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:6px} }
+@media(max-width:560px){ .units{grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:6px} }
 </style>
 </head>
 <body>
@@ -1674,9 +1630,6 @@ function goBack(){
 // ════ home dashboard (day at a glance + shortcuts) ════
 function _hStat(label,value,tone,onclick){
   return `<div class="hstat" onclick="${onclick}"><div class="hl">${esc(label)}</div><div class="hv" style="color:var(--fk-${tone})">${esc(String(value))}</div></div>`;
-}
-function _kpic(tone,icon,label,value,onclick){
-  return `<div class="kpic" onclick="${onclick}"><div class="kico ${tone}">${icon}</div><div class="ktx"><div class="kl">${esc(label)}</div><div class="kv">${esc(String(value))}</div></div></div>`;
 }
 // one standard screen heading used across all in-app tabs
 function _pageHead(t,s){ return `<div style="margin:0 2px 16px"><div style="font-size:18px;font-weight:700;letter-spacing:-.02em">${esc(t)}</div>${s?`<div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${esc(s)}</div>`:''}</div>`; }
@@ -3065,7 +3018,7 @@ async function renderFbSettings(){
     <span style="width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:${connected?'var(--fk-success-surface)':'var(--fk-bg-subtle)'};color:${connected?'var(--fk-success)':'var(--fk-text-muted)'}">${li(connected?'check':'x',20,2.2)}</span>
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">${connected?'Connected':'Not connected'}</div><div style="font-size:12px;color:var(--fk-text-muted)">${connected?esc((c.page_name||c.page_id||'Page'))+' · '+(c.leads_count||0)+' lead'+((c.leads_count==1)?'':'s')+' received':'Enter your Page details below to connect.'}</div></div>
   </div>`;
-  const copyRow=(label,val)=>`<div style="margin-bottom:10px"><div class="label">${esc(label)}</div><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-family:monospace;font-size:12px">${esc(String(val||''))}</span>${li('paperclip',15,2)}</div></div>`;
+  const copyRow=(label,val)=>`<div style="margin-bottom:10px"><div class="label">${esc(label)}</div><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-family:var(--fk-font);font-size:var(--fk-fs-body);color:var(--fk-text);word-break:break-all">${esc(String(val||''))}</span>${li('paperclip',15,2)}</div></div>`;
   html+=`<div class="dsec">Webhook — paste into Meta</div><div class="card">`
     + copyRow('Callback URL', FB_WEBHOOK_URL)
     + copyRow('Verify token', c.verify_token)
@@ -3944,7 +3897,6 @@ function _bvSearchResults(p){
     +(shown.length? _bvLegend()+'<div class="units">'+shown.map(unitCell).join('')+'</div>'
       : '<div class="empty" style="padding:24px"><div class="es">No matching units.</div></div>');
 }
-function kpi(label,val,cls){ return '<div class="kpi '+cls+'"><div class="kl">'+label+'</div><div class="kv num">'+(val==null?0:val)+'</div></div>'; }
 function unitCell(u){
   const code=(u.status_code||'').toUpperCase();
   const isAvail=u.is_available===true;
