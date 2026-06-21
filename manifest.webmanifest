@@ -1,0 +1,16 @@
+{
+  "name": "Nexunova CRM",
+  "short_name": "Nexunova",
+  "description": "Nexunova sales-agent workspace — leads, bookings and sales on the go.",
+  "id": "/sales-portal.html",
+  "start_url": "/sales-portal.html",
+  "scope": "/sales-portal.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/assets/favicon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

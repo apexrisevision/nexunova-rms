@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Nexunova CRM</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="/assets/favicon-64.png">
+<!-- PWA: installable to the home screen, opens standalone to the portal (NOT signup) -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#4f46e5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Nexunova CRM">
+<link rel="apple-touch-icon" href="/assets/favicon-180.png">
 <!-- Nexunova CRM · sale-agent workspace (leads → booking → sale) · session-gated -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1543,7 +1551,7 @@ function _applyLeadAccess(){
   show('.ni-grp[data-grp="sales"]', !isExec);
   show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
 }
-function _showApp(){ showScreen('screen-app'); _applyLeadAccess();
+function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
   setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){} }
 async function enterApp(){
@@ -3454,6 +3462,7 @@ async function renderProfile(){
   html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="_profileEdit()">Edit bank details</button>`;
   html+=`<button class="btn btn-full" onclick="_changePin()">Change PIN</button>`;
   html+=`<div style="height:16px"></div>`;
+  if(_installEligible()) html+=`<button class="btn btn-full btn-primary" style="margin-bottom:8px" onclick="_installNow()">${_svgDownload(15)} Install app on this device</button>`;
   html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="toggleTheme()">Switch light / dark</button>`;
   html+=`<button class="btn btn-full btn-danger-soft" onclick="doLogout()">Sign out</button>`;
   $('app-body').innerHTML=html;
@@ -4799,6 +4808,82 @@ function openModal(title,body,foot){
   _lockScroll(); _syncNav();
 }
 function closeModal(){ $('modal-host').innerHTML=''; _unlockScroll(); _syncNav(); }
+
+// ════════════════════════ PWA install — guided, no-nag ════════════════════════
+// Captures Chrome's beforeinstallprompt for a 1-tap native install; falls back to a
+// platform step-by-step guide (iOS Safari / Android-without-prompt). Never shows when
+// already installed/standalone; post-login banner is one-time + dismissible; the Profile
+// "Install app" entry is always available. No emoji — inline Lucide-style SVGs.
+let _deferredPrompt=null, _pwaInstalled=false;
+function _svgDownload(s){ return `<svg viewBox="0 0 24 24" width="${s||18}" height="${s||18}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>`; }
+function _svgX(s){ return `<svg viewBox="0 0 24 24" width="${s||18}" height="${s||18}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>`; }
+function _svgShare(s){ return `<svg viewBox="0 0 24 24" width="${s||15}" height="${s||15}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M12 16V4"/><path d="M8 8l4-4 4 4"/><rect x="4" y="10" width="16" height="10" rx="2"/></svg>`; }
+function _svgDots(s){ return `<svg viewBox="0 0 24 24" width="${s||15}" height="${s||15}" fill="currentColor" style="vertical-align:-3px"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>`; }
+function _svgPlus(s){ return `<svg viewBox="0 0 24 24" width="${s||15}" height="${s||15}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>`; }
+function _isStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }catch(e){ return false; } }
+function _pwaPlatform(){ const ua=navigator.userAgent||''; if(/iphone|ipad|ipod/i.test(ua)) return 'ios'; if(/android/i.test(ua)) return 'android'; return 'other'; }
+function _installEligible(){ return !_isStandalone() && !_pwaInstalled; }
+function _pwaInit(){
+  try{ if(localStorage.getItem('nx.pwa.installed')==='1') _pwaInstalled=true; }catch(e){}
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{ navigator.serviceWorker.register('/sw-portal.js',{scope:'/sales-portal.html'}).catch(()=>{}); });
+  }
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); _deferredPrompt=e; });   // stash for our own button
+  window.addEventListener('appinstalled',()=>{ _deferredPrompt=null; _pwaInstalled=true; try{ localStorage.setItem('nx.pwa.installed','1'); }catch(e){} _hideInstallBar(); try{ toast('App installed — find Nexunova on your home screen','ok'); }catch(e){} });
+  const st=document.createElement('style'); st.textContent='@keyframes pwaUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}@media (prefers-reduced-motion:reduce){#pwa-bar{animation:none!important}}'; document.head.appendChild(st);
+}
+function _maybeShowInstall(){
+  if(!_installEligible()) return;
+  let dismissed=false; try{ dismissed=localStorage.getItem('nx.pwa.dismissed')==='1'; }catch(e){}
+  if(dismissed) return;
+  setTimeout(_showInstallBar, 1200);   // let the dashboard settle first
+}
+function _showInstallBar(){
+  if(!_installEligible() || $('pwa-bar')) return;
+  const bar=document.createElement('div'); bar.id='pwa-bar';
+  bar.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:9000;max-width:520px;margin:0 auto;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;box-shadow:0 12px 34px rgba(15,23,42,.20);padding:12px 14px;display:flex;align-items:center;gap:12px;animation:pwaUp .25s ease';
+  bar.innerHTML=
+    '<span style="width:40px;height:40px;border-radius:11px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;flex:none">'+_svgDownload(20)+'</span>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:var(--fk-fw-bold,700);font-size:14px">Install Nexunova CRM</div><div style="font-size:12px;color:var(--fk-text-muted);line-height:1.35">Quick access from your home screen — never hunt for the link again.</div></div>'
+    +'<button class="btn btn-primary btn-sm" style="flex:none" onclick="_installNow()">Install</button>'
+    +'<button aria-label="Dismiss" style="flex:none;background:none;border:0;color:var(--fk-text-muted);cursor:pointer;padding:4px;line-height:0" onclick="_dismissInstallBar()">'+_svgX(18)+'</button>';
+  document.body.appendChild(bar);
+}
+function _hideInstallBar(){ const b=$('pwa-bar'); if(b) b.remove(); }
+function _dismissInstallBar(){ try{ localStorage.setItem('nx.pwa.dismissed','1'); }catch(e){} _hideInstallBar(); }
+async function _installNow(){
+  if(_deferredPrompt){
+    const dp=_deferredPrompt; _deferredPrompt=null;
+    try{ dp.prompt(); const r=await dp.userChoice; if(r&&r.outcome==='accepted') _hideInstallBar(); }catch(e){ _installGuide(); }
+    return;
+  }
+  _installGuide();   // iOS, or Android where Chrome never fired the prompt
+}
+function _installGuide(){
+  const plat=_pwaPlatform();
+  const step=(n,txt)=>`<div style="display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--fk-hairline)"><span style="width:22px;height:22px;border-radius:50%;background:var(--fk-primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:none">${n}</span><div style="font-size:13px;line-height:1.55">${txt}</div></div>`;
+  let intro, body;
+  if(plat==='ios'){
+    intro='On iPhone or iPad, install from <b>Safari</b>:';
+    body=step(1,'Tap the <b>Share</b> button '+_svgShare(15)+' at the bottom of Safari (the square with an up-arrow).')
+        +step(2,'Scroll down and tap <b>Add to Home Screen</b> '+_svgPlus(15)+'.')
+        +step(3,'Tap <b>Add</b> at the top-right — Nexunova appears on your home screen.');
+  } else if(plat==='android'){
+    intro='In <b>Chrome</b> on Android:';
+    body=step(1,'Tap the <b>menu</b> '+_svgDots(15)+' at the top-right of Chrome.')
+        +step(2,'Tap <b>Add to Home screen</b> (or <b>Install app</b>).')
+        +step(3,'Tap <b>Add</b> / <b>Install</b> — Nexunova appears on your home screen.');
+  } else {
+    intro='In your browser:';
+    body=step(1,'Open the browser <b>menu</b> '+_svgDots(15)+' (or the install icon in the address bar).')
+        +step(2,'Choose <b>Install app</b> / <b>Add to Home screen</b>.')
+        +step(3,'Confirm — Nexunova is added for one-tap access.');
+  }
+  openModal('Install Nexunova CRM',
+    '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px"><span style="width:42px;height:42px;border-radius:11px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;flex:none">'+_svgDownload(22)+'</span><div style="font-size:13px;color:var(--fk-text-muted)">'+intro+'</div></div>'+body,
+    '<button class="btn btn-primary btn-full" onclick="closeModal()">Got it</button>');
+}
+_pwaInit();
 
 // any interaction counts as activity → keeps the 30-min session alive
 ['click','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,_touch,{passive:true}));
