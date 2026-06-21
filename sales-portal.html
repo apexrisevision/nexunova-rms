@@ -1134,7 +1134,8 @@ body{background:var(--nx-page)}
         <div class="ni-grp-hd" onclick="toggleGroup('insights')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span class="ni-lb">Insights</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
         <div class="ni-sub">
           <a class="ni-child" data-tab="performance" onclick="setTab('performance')"><span class="ni-lb">Performance</span></a>
-          <a class="ni-child" data-tab="rank" onclick="setTab('rank')"><span class="ni-lb">Leaderboard</span></a>
+          <a class="ni-child" data-tab="rank" onclick="setTab('rank')"><span class="ni-lb">My Units</span></a>
+          <a class="ni-child" data-tab="adroi" data-roi style="display:none" onclick="setTab('adroi')"><span class="ni-lb">Marketing ROI</span></a>
           <a class="ni-child" data-tab="updates" onclick="setTab('updates')"><span class="ni-lb">Updates</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
         </div>
       </div>
@@ -1501,6 +1502,8 @@ function _applyLeadAccess(){
   show('[data-mgr]', isMgr);
   // Facebook Leads — directors only (company FB intake)
   show('[data-dir]', role==='director');
+  // Marketing ROI (ad-spend cost-per-lead) — CFO/admin exec + directors only
+  show('[data-roi]', isExec || role==='director');
 
   // Manager = oversight: hide personal record tabs (empty / covered by team views)
   show('.ni-grp[data-grp="money"]', !isMgr && !isExec);                                    // Clients + personal Recovery → Team Recovery covers managers
@@ -1576,7 +1579,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'Leaderboard',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Org Map',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Org Map',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && t!=='leadentry' && t!=='profile') t='leadentry';   // operator is locked to entry + profile
@@ -1591,6 +1594,7 @@ function setTab(t,_back){
   else if(t==='performance') renderPerformance();
   else if(t==='recovery') renderRecovery();
   else if(t==='rank') renderLeaderboard();
+  else if(t==='adroi') renderAdRoi();
   else if(t==='updates'){ ANN.open=null; renderUpdates(); }
   else if(t==='mine') renderMine();
   else if(t==='team') renderTeam();
@@ -1745,8 +1749,9 @@ function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span cla
 // Exec (admin/cfo) read-only org snapshot — real org totals + top performers (get_org_overview)
 async function renderExecHome(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  let d;
-  try{ const r=await sb.rpc('get_org_overview',{p_session_token:TOKEN}); d=r.data; }
+  let d, roi=null;
+  try{ const [r,ra]=await Promise.all([sb.rpc('get_org_overview',{p_session_token:TOKEN}), sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:_curPeriod()})]);
+    d=r.data; if(ra.data&&ra.data.success) roi=ra.data; }
   catch(e){ return sessionGone(); }
   if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone();
     $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Overview','Organisation snapshot.')+_emptyCard('Not available','This overview is for executives.')+'</div>'; return; }
@@ -1773,16 +1778,28 @@ async function renderExecHome(){
       <div style="flex:1;min-width:0"><div class="lr-name">${esc(t.name||'—')}</div><div class="tm-sub">${esc(_portalRoleLabel(t.role))} · ${Number(t.count)||0} sale${Number(t.count)===1?'':'s'}</div></div>
       <div style="text-align:right;flex:none;font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-body);font-variant-numeric:tabular-nums">${esc(pkrShort(t.value)||'₨0')}</div>
     </div></div>`).join('')+'</div>'; }
+  html+=_roiHomeCard(roi);
   html+='</div>';
   $('app-body').innerHTML=html;
   _runCountUps();
+}
+function _roiHomeCard(roi){
+  if(!roi || !(roi.campaigns&&roi.campaigns.length)) return '';
+  const T=roi.totals||{};
+  const cpl = (T.cost_per_lead!=null) ? (pkrShort(T.cost_per_lead)||'₨0') : '—';
+  const cell=(lb,v)=>`<div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em">${lb}</div><div style="font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums;margin-top:2px">${v}</div></div>`;
+  return '<div class="dsec">Marketing ROI · '+esc(roi.month_label||'')+'</div>'
+    +`<div class="card listc" onclick="setTab('adroi')" style="cursor:pointer;display:flex;align-items:center;gap:10px">
+        <div style="display:flex;gap:10px;flex:1;min-width:0">${cell('Spend',esc(pkrShort(T.spend)||'₨0'))}${cell('Leads',Number(T.leads)||0)}${cell('Cost / lead',esc(cpl))}</div>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fk-text-muted);flex:none"><path d="m9 18 6-6-6-6"/></svg>
+      </div>`;
 }
 async function renderHome(){
   if(ME && (ME.role==='admin'||ME.role==='cfo')) return renderExecHome();                        // exec — read-only org snapshot
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
-  let perf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, rank='—';
+  let perf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, myUnits=0;
   try{
     const calls=[
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
@@ -1800,7 +1817,7 @@ async function renderHome(){
     if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
     if(rR.data&&rR.data.success){ resvActive=(rR.data.reservations||[]).filter(x=>x.status==='active').length; }
     if(rS.data&&rS.data.success){ pend=((rS.data.submissions)||[]).filter(x=>x.status==='pending').length; }
-    if(rB.data&&rB.data.success){ const rows=(rB.data.rows||[]).slice().sort((a,b)=>(Number(b.units_all||0)-Number(a.units_all||0))); const i=rows.findIndex(x=>x.agent_id===rB.data.my_agent_id); if(i>=0) rank='#'+(i+1); }
+    if(rB.data&&rB.data.success){ myUnits=Number(rB.data.units_all)||0; }
     if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; _leadsBadgeSet(newLeads.length); }
   }catch(e){ return sessionGone(); }
   await loadAnnouncements();
@@ -1832,7 +1849,7 @@ async function renderHome(){
   html+='<div class="dgrid">'
     + kpi('Active reservations', numv(resvActive,'int'), 'indigo', '<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>', "setTab('mine')", 0)
     + kpi('Pending approvals', numv(pend,'int'), 'amber', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "setTab('mine')", 0)
-    + kpi('My rank', esc(String(rank)), 'violet', '<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>', "setTab('rank')", 0)
+    + kpi('My units', numv(myUnits,'int'), 'violet', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>', "setTab('rank')", 0)
     + kpi('To collect', numv(outstanding,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', "setTab('recovery')", 0)
     + '</div>';
   if(_canLeads){
@@ -1906,16 +1923,20 @@ function _teamActRow(a){
 async function renderManagerHome(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
-  let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null;
+  let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null, roi=null;
+  const _isDir=ME&&ME.role==='director';
   try{
-    const [rT,rP,rF,rL,rA,rG]=await Promise.all([
+    const calls=[
       sb.rpc('get_my_team',{p_session_token:TOKEN}),
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
       sb.rpc('get_my_followups',{p_session_token:TOKEN}),
       sb.rpc('list_my_leads',{p_session_token:TOKEN}),
       sb.rpc('get_team_activity',{p_session_token:TOKEN,p_limit:12}),
       sb.rpc('get_team_targets',{p_session_token:TOKEN,p_period:_curPeriod()})
-    ]);
+    ];
+    if(_isDir) calls.push(sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:_curPeriod()}));
+    const res=await Promise.all(calls);
+    const [rT,rP,rF,rL,rA,rG]=res; const rROI=_isDir?res[6]:null;
     if(rT.data&&rT.data.error==='session_expired') return sessionGone();
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
     if(rP.data&&rP.data.success) perf=rP.data;
@@ -1923,6 +1944,7 @@ async function renderManagerHome(){
     if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(x=>x.is_mine&&x.status!=='won'&&x.status!=='lost'); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
     TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
     if(rG.data&&rG.data.success) targets=rG.data;
+    if(rROI&&rROI.data&&rROI.data.success) roi=rROI.data;
   }catch(e){ return sessionGone(); }
   await loadAnnouncements();
   _touch(); _buildTeamStats();
@@ -1955,6 +1977,7 @@ async function renderManagerHome(){
     html+=`<div class="dsec">This month's target</div>`;
     html+=`<div class="card listc" onclick="setTab('targets')" style="cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:15px;font-weight:700">${tt.actual_units} <span style="color:var(--fk-text-muted);font-weight:600">/ ${tt.target_units} units</span></div><div style="font-size:12px;font-weight:700;color:${pct>=100?'var(--fk-success)':'var(--fk-text-muted)'}">${pct}%</div></div>${_progBar(pct)}</div>`;
   }
+  if(isDir) html+=_roiHomeCard(roi);
   if(myNew.length){
     html+=`<div class="dsec">Leads to distribute <span class="nb">${myNew.length}</span></div>`;
     html+='<div class="lgroup">'+myNew.slice(0,5).map(_distRow).join('')+'</div>';
@@ -2137,29 +2160,35 @@ function _dupOwnedDialog(d){
 
 // ════ LEAD ENTRY — minimal data-entry role; everything feeds the director's pool (owner=director, entered_by=operator) ════
 const LE_SOURCES=[['facebook','Facebook'],['whatsapp','WhatsApp'],['instagram','Instagram'],['manual','Manual']];
-let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0};
+let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[],monthly:[]};
+const AD_PLATFORMS=[['facebook','Facebook'],['instagram','Instagram'],['whatsapp','WhatsApp']];
+function _adPlatTone(s){ return ({facebook:['var(--fk-info-surface)','var(--fk-info)'],instagram:['var(--nx-violet-soft)','var(--nx-violet)'],whatsapp:['var(--fk-success-surface)','var(--fk-success)']})[String(s||'').toLowerCase()]||['var(--fk-bg-subtle)','var(--fk-text-muted)']; }
+function _adPlatLabel(s){ const f=AD_PLATFORMS.find(x=>x[0]===String(s||'').toLowerCase()); return f?f[1]:(s||'—'); }
 function _leSrcOpts(sel){ return LE_SOURCES.map(s=>`<option value="${s[0]}"${sel===s[0]?' selected':''}>${s[1]}</option>`).join(''); }
 function _leSrcTone(s){ return ({facebook:['var(--fk-info-surface)','var(--fk-info)'],whatsapp:['var(--fk-success-surface)','var(--fk-success)'],instagram:['var(--nx-violet-soft)','var(--nx-violet)'],manual:['var(--fk-bg-subtle)','var(--fk-text-muted)']})[String(s||'').toLowerCase()]||['var(--fk-bg-subtle)','var(--fk-text-muted)']; }
 async function renderLeadEntry(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  try{ const [c,e]=await Promise.all([sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),sb.rpc('get_my_entered_leads',{p_session_token:TOKEN})]);
+  try{ const [c,e,a]=await Promise.all([sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),sb.rpc('get_my_entered_leads',{p_session_token:TOKEN}),sb.rpc('get_my_ad_spend',{p_session_token:TOKEN})]);
     if((c.data&&c.data.error==='session_expired')||(e.data&&e.data.error==='session_expired')) return sessionGone();
     if(c.data&&c.data.success) LEADCFG=c.data;
     if(!LEADCFG||!LEADCFG.sources||!LEADCFG.sources.length) LEADCFG=Object.assign({},LEADCFG||{},{sources:LE_SOURCES.map(s=>({value:s[0],label:s[1]}))});
     LE_ENTERED=(e.data&&e.data.success)?e.data:{rows:[],today:0};
+    LE_ADSPEND=(a.data&&a.data.success)?a.data:{rows:[],monthly:[]};
   }catch(err){ return sessionGone(); }
   _touch(); _leRender();
 }
 function _leRender(){
   const t=$('appbar-title'); if(t) t.textContent='Lead Entry';
   let html='<div class="nx-dash">'+_pageHead('Lead Entry','Add leads into the director’s pool — the director assigns them out from there.');
-  html+=_seg([['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered']], LE_VIEW, '_leTab');
+  html+=_seg([['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend']], LE_VIEW, '_leTab');
   if(LE_VIEW==='add') html+=_leAddForm();
   else if(LE_VIEW==='paste') html+=_lePasteForm();
   else if(LE_VIEW==='import') html+=_leImportPanel();
+  else if(LE_VIEW==='adspend') html+=_leAdSpendPanel();
   else html+=_leEnteredList();
   html+='</div>';
   $('app-body').innerHTML=html;
+  if(LE_VIEW==='adspend') _runCountUps();
 }
 function _leTab(v){ LE_VIEW=v; _leRender(); }
 function _leAddForm(){
@@ -2215,6 +2244,57 @@ function _leEnteredList(){
     <div style="text-align:right;flex:none"><span class="spill" style="background:${tn[0]};border-color:transparent;color:${tn[1]};white-space:nowrap">${esc(_srcLabel(r.source))}</span><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px">${esc(_agoTxt(r.created_at))}</div></div>
   </div></div>`; }).join('')+'</div>';
   return h;
+}
+// ── Ad Spend (operator logs campaign cost; finance computes cost-per-lead) ──
+function _leAdSpendPanel(){
+  const today=new Date().toISOString().slice(0,10);
+  const mfirst=today.slice(0,8)+'01';
+  let h='<div class="card" style="padding:14px">'
+    +'<div class="field"><label class="label">Platform <span style="color:var(--fk-danger)">*</span></label><select class="input" id="ad-platform">'+AD_PLATFORMS.map(p=>`<option value="${p[0]}">${p[1]}</option>`).join('')+'</select></div>'
+    +'<div class="field"><label class="label">Campaign name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ad-name" placeholder="e.g. June Apartments Boost" autocomplete="off"></div>'
+    +'<div class="field"><label class="label">Amount (PKR) <span style="color:var(--fk-danger)">*</span></label><input class="input num" id="ad-amount" inputmode="numeric" autocomplete="off"></div>'
+    +'<div style="display:flex;gap:10px"><div class="field" style="flex:1"><label class="label">Start date <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ad-start" type="date" value="'+mfirst+'"></div>'
+    +'<div class="field" style="flex:1"><label class="label">End date <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ad-end" type="date" value="'+today+'"></div></div>'
+    +'<div class="field"><label class="label">Notes</label><input class="input" id="ad-notes" autocomplete="off"></div>'
+    +'<div id="ad-err" style="display:none;color:var(--fk-danger);font-size:var(--fk-fs-body);margin-top:6px"></div>'
+    +'<button class="btn btn-primary btn-full" style="margin-top:10px" onclick="_leAdSave()">Log campaign spend</button></div>';
+  const monthly=(LE_ADSPEND&&LE_ADSPEND.monthly)||[];
+  if(monthly.length){
+    h+='<div class="dsec">Monthly spend</div><div class="lgroup">';
+    h+=monthly.map(m=>`<div class="lrow"><div class="lrow-top">
+        <div style="flex:1;min-width:0"><div class="lr-name">${esc(m.month_label||m.month)}</div><div class="lr-sub"><span>${Number(m.campaigns)||0} campaign${Number(m.campaigns)===1?'':'s'}</span></div></div>
+        <div style="text-align:right;flex:none"><div style="font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums">${esc(pkrShort(m.total)||'₨0')}</div></div>
+      </div></div>`).join('')+'</div>';
+  }
+  const rows=(LE_ADSPEND&&LE_ADSPEND.rows)||[];
+  if(!rows.length){ h+=_emptyCard('No campaigns logged yet','Log what each ad campaign cost — finance uses it to compute cost-per-lead.'); }
+  else {
+    h+='<div class="dsec">Your campaigns <span class="nb">'+rows.length+'</span></div><div class="lgroup">';
+    h+=rows.map(r=>{ const tn=_adPlatTone(r.platform); return `<div class="lrow"><div class="lrow-top">
+        <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.campaign_name||'')}</div><div class="lr-sub"><span style="font-variant-numeric:tabular-nums">${esc(fdate(r.start_date))} – ${esc(fdate(r.end_date))}</span></div></div>
+        <div style="text-align:right;flex:none"><span class="spill" style="background:${tn[0]};border-color:transparent;color:${tn[1]};white-space:nowrap">${esc(_adPlatLabel(r.platform))}</span><div style="font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-body);font-variant-numeric:tabular-nums;margin-top:3px">${esc(pkrShort(r.amount)||'₨0')}</div></div>
+      </div></div>`; }).join('')+'</div>';
+  }
+  return h;
+}
+async function _leAdSave(){
+  const err=$('ad-err'); if(err) err.style.display='none';
+  const platform=($('ad-platform')||{}).value||'facebook';
+  const name=(($('ad-name')||{}).value||'').trim();
+  const amount=(($('ad-amount')||{}).value||'').replace(/[^0-9.]/g,'');
+  const start=($('ad-start')||{}).value||'';
+  const end=($('ad-end')||{}).value||'';
+  const notes=($('ad-notes')||{}).value||'';
+  const fail=(m)=>{ if(err){err.style.display='block';err.textContent=m;} };
+  if(!name) return fail('Campaign name is required.');
+  if(!amount||Number(amount)<0) return fail('Enter a valid amount.');
+  if(!start||!end) return fail('Pick start and end dates.');
+  if(end<start) return fail('End date can’t be before the start date.');
+  try{ const {data}=await sb.rpc('log_ad_spend',{p_session_token:TOKEN,p_platform:platform,p_campaign_name:name,p_amount:Number(amount),p_start_date:start,p_end_date:end,p_notes:notes||null});
+    if(data&&data.success){ toast('Campaign spend logged','ok'); renderLeadEntry(); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else fail((data&&({bad_platform:'Pick a valid platform.',name_required:'Campaign name is required.',bad_amount:'Enter a valid amount.',bad_dates:'Check the start/end dates.',forbidden:'You are not allowed to do this.'})[data.error])||'Could not save this campaign.');
+  }catch(e){ fail('Could not save this campaign.'); }
 }
 function _afterImportDone(){ if(ME&&ME.role==='lead_entry') renderLeadEntry(); else renderLeads(); }
 
@@ -3270,7 +3350,7 @@ async function renderMore(){
   html+=row('My Sales','Deals you have closed',"setTab('mysales')");
   html+=row('My Clients','Everyone you have sold to',"setTab('clients')");
   html+=row('My Recovery','Outstanding to collect',"setTab('recovery')");
-  html+=row('Leaderboard','Your rank among the team',"setTab('rank')");
+  html+=row('My Units','Units you have sold',"setTab('rank')");
   html+=row('Updates','Company notices',"setTab('updates')",annExtra);
   html+=row('My Profile','Your details, bank &amp; PIN',"setTab('profile')");
   html+=`<button class="btn btn-full" style="margin-top:12px" onclick="toggleTheme()">Toggle theme</button>`;
@@ -4269,12 +4349,11 @@ async function renderRecovery(){
   _runCountUps();
 }
 
-// ════ leaderboard — who sold how many units (everyone sees everyone) ════
+// ════ My tally — self-only units sold (each person sees ONLY their own) ════
 let LB_DATA=null, LB_PERIOD='all';
 function setLbPeriod(p){ LB_PERIOD=p; renderLeaderboardBody(); }
-function lbToggleUnits(i){ const el=$('lb-u-'+i); if(el){ el.style.display=(el.style.display==='block')?'none':'block'; } }
 async function renderLeaderboard(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading leaderboard…</div></div></div>';
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   let data;
   try{ const r=await sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return sessionGone(); }
@@ -4283,50 +4362,99 @@ async function renderLeaderboard(){
 }
 function renderLeaderboardBody(){
   const data=LB_DATA; if(!data) return;
-  const key=LB_PERIOD==='month'?'units_month':'units_all';
   const monthPfx=new Date().toISOString().slice(0,7);
-  const rows=(data.rows||[]).slice().sort((a,b)=>(Number(b[key]||0)-Number(a[key]||0))||(Number(b.units_all||0)-Number(a.units_all||0)));
-  const active=rows.filter(r=>Number(r[key]||0)>0);
-  const myId=data.my_agent_id;
-  const mi=myId?active.findIndex(r=>r.agent_id===myId):-1;
-  let html='<div class="nx-dash">'+_pageHead('Leaderboard','Your rank among the team.');
-  html+=_seg([['all','All-time'],['month',data.month_label||'This month']], LB_PERIOD, 'setLbPeriod');
-  if(!active.length){
-    html+='<div class="card"><div class="empty">'
-      +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg></div>'
-      +'<div class="et">No sales '+(LB_PERIOD==='month'?'this month yet':'recorded yet')+'</div>'
-      +'<div class="es">As units are sold they show up here — and the race begins!</div></div></div></div>';
+  const cnt=Number(LB_PERIOD==='month'?data.units_month:data.units_all)||0;
+  const val=Number(LB_PERIOD==='month'?data.value_month:data.value_all)||0;
+  const list=(LB_PERIOD==='month')?(data.units||[]).filter(u=>String(u.sale_date||'').slice(0,7)===monthPfx):(data.units||[]);
+  let html='<div class="nx-dash">'+_pageHead('My Units','Units you have sold.');
+  if(data.no_agent){
+    html+='<div class="card"><div class="empty"><div class="et">No sales linked yet</div><div class="es">Once your office links your agent profile and approves a sale, your tally appears here.</div></div></div></div>';
     $('app-body').innerHTML=html; return;
   }
-  // compact dashboard KPI cards
+  html+=_seg([['all','All-time'],['month',data.month_label||'This month']], LB_PERIOD, 'setLbPeriod');
+  // self KPI cards — only your own numbers, no peers, no ranking
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',violet:'var(--nx-violet)'};
-  const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
+  const _AC={emerald:'var(--fk-success)',indigo:'var(--fk-primary)'};
+  const numv=(n,fmt)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="${fmt||'int'}">${fmt==='pkr'?(pkrShort(Number(n)||0)||'₨0'):(Number(n)||0)}</span>`;
   const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
-  html+='<div class="dgrid">'
-    + kpi('My rank', (mi>=0?'#'+(mi+1):'—'), 'indigo', '<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>')
-    + kpi('My units', numv(mi>=0?Number(active[mi][key]||0):0), 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>')
-    + kpi('Sale persons', numv(active.length), 'violet', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
+  html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
+    + kpi('Units sold', numv(cnt,'int'), 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>')
+    + kpi('Sales value', numv(val,'pkr'), 'indigo', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
     + '</div>';
-  html+='<div class="dsec">Rankings <span class="nb">'+active.length+'</span></div>';
+  if(!list.length){
+    html+='<div class="card"><div class="empty">'
+      +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg></div>'
+      +'<div class="et">No units '+(LB_PERIOD==='month'?'sold this month yet':'recorded yet')+'</div>'
+      +'<div class="es">Every approved sale you make shows up here.</div></div></div></div>';
+    $('app-body').innerHTML=html; _runCountUps(); return;
+  }
+  html+='<div class="dsec">Your units <span class="nb">'+list.length+'</span></div>';
   html+='<div class="lgroup">';
-  active.forEach((r,i)=>{
-    const rank=i+1, cnt=Number(r[key]||0), mine=(myId&&r.agent_id===myId);
-    let rankCell;
-    if(rank===1) rankCell=`<span style="color:var(--gold);width:26px;flex:none;display:grid;place-items:center">${li('award',22,2.2)}</span>`;
-    else if(rank<=3) rankCell=`<span style="color:var(--fk-text-muted);width:26px;flex:none;display:grid;place-items:center">${li('award',20,2)}</span>`;
-    else rankCell=`<span style="width:26px;flex:none;text-align:center;font-weight:var(--fk-fw-bold);color:var(--fk-text-muted);font-variant-numeric:tabular-nums">${rank}</span>`;
-    const list=(LB_PERIOD==='month')?(r.units||[]).filter(u=>String(u.sale_date||'').slice(0,7)===monthPfx):(r.units||[]);
-    const sub=list.length? list.map(u=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--fk-hairline);font-size:var(--fk-fs-body)"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.unit_no||'')}${u.project_name?' · <span style="color:var(--fk-text-muted)">'+esc(u.project_name)+'</span>':''}${u.client_name?' · '+esc(u.client_name):''}</span><span style="color:var(--fk-text-muted);white-space:nowrap;font-variant-numeric:tabular-nums">${esc(fdate(u.sale_date))}</span></div>`).join('')
-      : `<div style="padding:6px 0;color:var(--fk-text-muted);font-size:var(--fk-fs-body)">No units in this period</div>`;
-    html+=`<div class="lrow tap${mine?' sel':''}" onclick="lbToggleUnits(${i})"><div class="lrow-top">
-      ${rankCell}
-      ${_avatarC(r.agent_name,36)}
-      <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.agent_name||'')}${mine?' <span class="spill" style="background:var(--fk-primary-tint);border-color:transparent;color:var(--fk-primary);padding:0 7px">You</span>':''}</div><div class="lr-sub"><span>${cnt} unit${cnt===1?'':'s'} · tap to see which</span></div></div>
-      <div style="text-align:right;flex:none"><div style="font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums">${cnt}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">units</div></div>
-    </div><div class="lbunits" id="lb-u-${i}" style="display:none;margin-top:var(--fk-sp-2)">${sub}</div></div>`;
+  list.forEach(u=>{
+    html+=`<div class="lrow"><div class="lrow-top">
+      ${_avatarC(u.client_name||u.unit_no,36)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(u.unit_no||'')}${u.project_name?' <span style="font-weight:var(--fk-fw-medium);color:var(--fk-text-muted)">· '+esc(u.project_name)+'</span>':''}</div><div class="lr-sub"><span>${u.client_name?esc(u.client_name):'—'}${u.sale_date?' · '+esc(fdate(u.sale_date)):''}</span></div></div>
+      <div style="text-align:right;flex:none"><div style="font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-body);font-variant-numeric:tabular-nums">${esc(pkrShort(u.net_amount)||'—')}</div></div>
+    </div></div>`;
   });
   html+='</div></div>';
+  $('app-body').innerHTML=html;
+  _runCountUps();
+}
+
+// ════ Marketing ROI — ad spend vs source-matched leads (CFO + Director) ════
+let AD_MONTH=null;
+function _monShift(ym, delta){ const p=String(ym||'').split('-').map(Number); const d=new Date(p[0],(p[1]-1)+delta,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function _adRoiStep(delta){ AD_MONTH=_monShift(AD_MONTH||_curPeriod(), delta); renderAdRoi(); }
+async function renderAdRoi(){
+  if(!AD_MONTH) AD_MONTH=_curPeriod();
+  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  let data;
+  try{ const r=await sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:AD_MONTH}); if(r.error) throw r.error; data=r.data; }
+  catch(e){ return sessionGone(); }
+  if(!data||!data.success){ if(data&&data.error==='session_expired') return sessionGone();
+    $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Marketing ROI','Ad spend vs leads.')+_emptyCard('Not available','This report is for finance and directors.')+'</div>'; return; }
+  _touch();
+  const cur=_curPeriod(), platforms=data.platforms||[], camps=data.campaigns||[], T=data.totals||{};
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)'};
+  const numv=(to,fmt)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const dash=`<span style="color:var(--fk-text-muted)">—</span>`;
+  let html='<div class="nx-dash">'+_pageHead('Marketing ROI','Ad spend vs source-matched leads — cost per lead.');
+  // month stepper
+  const atCur=String(AD_MONTH)>=String(cur);
+  html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px">
+    <button class="btn btn-sm" onclick="_adRoiStep(-1)" title="Previous month"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+    <div style="font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title);min-width:130px;text-align:center">${esc(data.month_label||AD_MONTH)}</div>
+    <button class="btn btn-sm" onclick="_adRoiStep(1)" title="Next month" ${atCur?'disabled style="opacity:.4;pointer-events:none"':''}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>`;
+  if(!camps.length){
+    html+=_emptyCard('No ad spend this month','When the ads operator logs campaign spend for this month, cost-per-lead appears here.')+'</div>';
+    $('app-body').innerHTML=html; return;
+  }
+  // totals — compact dashboard KPIs
+  html+='<div class="dgrid">'
+    + kpi('Total spend', numv(T.spend,'pkr'), 'amber', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')
+    + kpi('Leads matched', numv(T.leads,'int'), 'indigo', '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')
+    + kpi('Cost / lead', (T.cost_per_lead!=null?numv(T.cost_per_lead,'pkr'):dash), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
+    + '</div>';
+  // per-platform cards (Spend · Leads · Cost/Lead)
+  const stat=(lb,v)=>`<div style="flex:1;text-align:center;min-width:0"><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em">${lb}</div><div style="font-weight:var(--fk-fw-bold);font-size:var(--fk-fs-title);font-variant-numeric:tabular-nums;margin-top:3px">${v}</div></div>`;
+  html+='<div class="dsec">By platform</div>';
+  html+=platforms.map(p=>{ const tn=_adPlatTone(p.platform); const cpl=p.cost_per_lead;
+    return `<div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="spill" style="background:${tn[0]};border-color:transparent;color:${tn[1]}">${esc(_adPlatLabel(p.platform))}</span><span style="margin-left:auto;font-size:var(--fk-fs-label);color:var(--fk-text-muted)">${Number(p.campaigns)||0} campaign${Number(p.campaigns)===1?'':'s'}</span></div>
+      <div style="display:flex;gap:6px">${stat('Spend',esc(pkrShort(p.spend)||'₨0'))}${stat('Leads',Number(p.leads)||0)}${stat('Cost / lead', cpl!=null?esc(pkrShort(cpl)):'<span style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);font-weight:var(--fk-fw-medium)">no leads yet</span>')}</div>
+    </div>`; }).join('');
+  // campaign breakdown
+  html+='<div class="dsec">Campaigns <span class="nb">'+camps.length+'</span></div><div class="lgroup">';
+  html+=camps.map(c=>{ const tn=_adPlatTone(c.platform); const cpl=c.cost_per_lead;
+    return `<div class="lrow"><div class="lrow-top">
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(c.campaign_name||'')}</div><div class="lr-sub"><span style="font-variant-numeric:tabular-nums">${esc(fdate(c.start_date))} – ${esc(fdate(c.end_date))} · ${Number(c.leads)||0} lead${Number(c.leads)===1?'':'s'}</span></div></div>
+      <div style="text-align:right;flex:none"><span class="spill" style="background:${tn[0]};border-color:transparent;color:${tn[1]};white-space:nowrap">${esc(_adPlatLabel(c.platform))}</span><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px;font-variant-numeric:tabular-nums">${esc(pkrShort(c.amount)||'₨0')} · ${cpl!=null?esc(pkrShort(cpl))+'/lead':'—'}</div></div>
+    </div></div>`; }).join('')+'</div>';
+  html+='</div>';
   $('app-body').innerHTML=html;
   _runCountUps();
 }
