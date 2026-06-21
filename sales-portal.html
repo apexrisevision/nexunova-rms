@@ -3667,27 +3667,153 @@ function _liveFitAll(){
   const lls=(LIVE_PINS||[]).filter(p=>LIVE_FILTER==='all'||_staleness(p.at)===LIVE_FILTER).map(p=>[Number(p.lat),Number(p.lng)]);
   if(lls.length===1) _liveMap.setView(lls[0],15); else if(lls.length) _liveMap.fitBounds(lls,{padding:[50,50]});
 }
+let LIVE_MODE='live';
+function _liveStopRefresh(){ if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; } }
+function _setLiveMode(m){ if(m===LIVE_MODE) return; _liveStopRefresh(); _replayStop(); LIVE_MODE=m; renderLiveMap(); }
 async function renderLiveMap(){
-  TRAIL_MEMBER=null;
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading live map…</div></div></div>';
+  TRAIL_MEMBER=null; if(!LIVE_MODE) LIVE_MODE='live';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading live map…</div></div></div>';
+  let html=_pageHead('Live Map','Your team on the map — live, day replay and heatmap.');
+  html+=_seg([['live','Live'],['replay','Replay'],['heat','Heatmap']], LIVE_MODE, '_setLiveMode');
+  html+='<div id="lm-body"></div>';
+  $('app-body').innerHTML=html;
+  try{ await _loadLeaflet(); }catch(e){ $('lm-body').innerHTML='<div class="card"><div class="empty"><div class="et">Map could not load</div><div class="es">Check your internet connection and try again.</div></div></div>'; return; }
+  if(LIVE_MODE==='replay') return _liveReplayMode();
+  if(LIVE_MODE==='heat')   return _liveHeatMode();
+  return _liveLiveMode();
+}
+async function _liveLiveMode(){
   let data;
   try{ const r=await sb.rpc('get_team_locations',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return sessionGone(); }
   if(!data||!data.success){ return sessionGone(); }
   _touch();
   LIVE_PINS=data.pins||[];
-  let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
-  html+='<div id="live-filter">'+_liveFilterBar()+'</div>';
+  let html='<div id="live-filter">'+_liveFilterBar()+'</div>';
   html+='<div style="display:flex;align-items:center;gap:6px;margin:-4px 2px 8px;font-size:11px;color:var(--fk-text-muted)"><span style="width:7px;height:7px;border-radius:50%;background:var(--fk-success);flex:none"></span><span id="live-updated">updated just now</span></div>';
   html+='<div id="live-follow" style="display:none;align-items:center;justify-content:space-between;gap:8px;background:var(--fk-primary-tint);border:1px solid var(--fk-primary);border-radius:10px;padding:7px 12px;margin-bottom:8px;font-size:13px;color:var(--fk-primary)"></div>';
   html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
   html+='<div id="live-list">'+_liveListHtml()+'</div>';
-  $('app-body').innerHTML=html;
-  try{ await _loadLeaflet(); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Map could not load</div><div class="es">Check your internet connection and try again.</div></div>'; return; }
-  _liveInitMap();
-  _liveFollowBanner();
+  $('lm-body').innerHTML=html;
+  _liveInitMap(); _liveFollowBanner();
   _liveLastRefresh=Date.now(); _liveUpdatedLabel(); _liveStartLabelTicker();
   _liveAutoRefresh();
+}
+// ── Replay (time machine): scrub / play the whole team's day on the map ──
+let REPLAY={day:null,members:[],min:0,max:0,t:0,playing:false,speedIdx:1,timer:null,markers:{},paths:{}};
+const REPLAY_SPEEDS=[{lb:'Slow',ms:90000},{lb:'Medium',ms:35000},{lb:'Fast',ms:12000}];
+const _REPLAY_PAL=['#4F46E5','#16A34A','#D97706','#DC2626','#0EA5E9','#9333EA','#DB2777','#0D9488','#CA8A04','#2563EB'];
+function _replayColor(i){ return _REPLAY_PAL[i%_REPLAY_PAL.length]; }
+function _replayClock(ms){ try{ return new Date(ms).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Karachi'}); }catch(e){ return ''; } }
+function _replayDayBar(day){ const today=_todayPKT();
+  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button class="btn btn-sm" onclick="_replaySetDay(-1)">‹</button><div style="flex:1;text-align:center;font-weight:700;font-size:14px">'+esc(_trailDayLabel(day))+'</div><button class="btn btn-sm" '+(String(day)>=String(today)?'disabled':'')+' onclick="_replaySetDay(1)">›</button></div>'; }
+function _replaySetDay(delta){ const a=(REPLAY.day||_todayPKT()).split('-').map(Number); const d=new Date(Date.UTC(a[0],a[1]-1,a[2])); d.setUTCDate(d.getUTCDate()+delta); let nd=d.toISOString().slice(0,10); if(nd>_todayPKT()) nd=_todayPKT(); REPLAY.day=nd; _replayStop(); if(LIVE_MODE==='heat') _liveHeatMode(); else _liveReplayMode(); }
+function _replayControls(){
+  return '<div class="card" id="replay-ctl" style="padding:12px 14px;margin-top:10px">'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<button class="btn btn-sm btn-primary" id="replay-play" onclick="_replayToggle()" style="min-width:66px">'+(REPLAY.playing?'Pause':'Play')+'</button>'
+    +'<input type="range" id="replay-slider" min="'+REPLAY.min+'" max="'+REPLAY.max+'" value="'+REPLAY.t+'" step="1000" oninput="_replaySeek(Number(this.value))" style="flex:1">'
+    +'<span id="replay-time" style="font-variant-numeric:tabular-nums;font-weight:700;min-width:54px;text-align:right">'+_replayClock(REPLAY.t)+'</span></div>'
+    +'<div style="display:flex;gap:6px;margin-top:8px">'+REPLAY_SPEEDS.map((s,i)=>'<button class="btn btn-sm'+(i===REPLAY.speedIdx?' btn-primary':'')+'" onclick="_replaySpeed('+i+')">'+s.lb+'</button>').join('')+'</div></div>';
+}
+function _replayLegend(){
+  if(!REPLAY.members.length) return '';
+  return '<div class="dsec">In this replay <span class="nb">'+REPLAY.members.length+'</span></div><div class="lgroup">'+REPLAY.members.map((m,i)=>{
+    const f=m.first_at?_replayClock(new Date(m.first_at).getTime()):'—', l=m.last_at?_replayClock(new Date(m.last_at).getTime()):'—';
+    return '<div class="lrow"><div class="lrow-top"><span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+_replayColor(i)+'"></span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(m.name)+'</div><div style="font-size:11px;color:var(--fk-text-muted)">'+(m.count||0)+' points · '+f+' – '+l+'</div></div></div></div>';
+  }).join('')+'</div>';
+}
+async function _liveReplayMode(){
+  const day=REPLAY.day||_todayPKT();
+  $('lm-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading replay…</div></div></div>';
+  let d; try{ const r=await sb.rpc('get_team_trail',{p_session_token:TOKEN,p_day:day}); d=r.data; }catch(e){ return sessionGone(); }
+  if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone(); $('lm-body').innerHTML=_emptyCard('Replay not available','This is for directors.'); return; }
+  _touch();
+  const members=(d.members||[]).filter(m=>m.points&&m.points.length);
+  let mn=Infinity,mx=-Infinity;
+  members.forEach(m=>m.points.forEach(p=>{ const t=new Date(p.at).getTime(); if(t<mn)mn=t; if(t>mx)mx=t; }));
+  REPLAY={day:d.day,members,min:isFinite(mn)?mn:0,max:isFinite(mx)?mx:0,t:isFinite(mn)?mn:0,playing:false,speedIdx:REPLAY.speedIdx||1,timer:null,markers:{},paths:{}};
+  let h=_replayDayBar(d.day);
+  h+='<div id="livemap-canvas" style="width:100%;height:50vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>';
+  if(!members.length){ h+=_emptyCard('No movement recorded','Nobody on your team shared location on '+esc(_trailDayLabel(d.day))+'.'); $('lm-body').innerHTML=h; _liveInitMap(); return; }
+  h+=_replayControls(); h+='<div style="margin-top:10px">'+_replayLegend()+'</div>';
+  $('lm-body').innerHTML=h;
+  _liveInitMap(); _replayInit(); _replaySeek(REPLAY.min);
+  const allLL=[]; members.forEach(m=>m.points.forEach(p=>allLL.push([Number(p.lat),Number(p.lng)])));
+  if(allLL.length) try{ _liveMap.fitBounds(allLL,{padding:[40,40]}); }catch(e){}
+}
+function _replayInit(){
+  if(!_liveMap||!window.L) return;
+  REPLAY.members.forEach((m,idx)=>{
+    const col=_replayColor(idx), lls=m.points.map(p=>[Number(p.lat),Number(p.lng)]);
+    REPLAY.paths[m.id]=L.polyline(lls,{color:col,weight:2,opacity:.22,interactive:false}).addTo(_liveMap);
+    const icon=L.divIcon({className:'lm-pin-wrap',html:'<div class="lm-pin" style="background:'+col+';width:32px;height:32px;font-size:12px">'+esc(_initials(m.name))+'</div>',iconSize:[32,32],iconAnchor:[16,16]});
+    const mk=L.marker(lls[0],{icon}).addTo(_liveMap);
+    mk.bindTooltip(esc(m.name),{permanent:true,direction:'top',offset:[0,-18],className:'lm-label'});
+    REPLAY.markers[m.id]=mk;
+  });
+}
+function _replayPosAt(points,t){
+  let lo=null,hi=null;
+  for(let i=0;i<points.length;i++){ const pt=new Date(points[i].at).getTime(); if(pt<=t) lo=points[i]; else { hi=points[i]; break; } }
+  if(!lo) return null; if(!hi) return [Number(lo.lat),Number(lo.lng)];
+  const t0=new Date(lo.at).getTime(), t1=new Date(hi.at).getTime(), k=(t1>t0)?(t-t0)/(t1-t0):0;
+  return [Number(lo.lat)+(Number(hi.lat)-Number(lo.lat))*k, Number(lo.lng)+(Number(hi.lng)-Number(lo.lng))*k];
+}
+function _replaySeek(t){
+  REPLAY.t=t;
+  const sl=$('replay-slider'); if(sl && Number(sl.value)!==t) sl.value=t;
+  const tc=$('replay-time'); if(tc) tc.textContent=_replayClock(t);
+  REPLAY.members.forEach(m=>{ const mk=REPLAY.markers[m.id]; if(!mk) return; const pos=_replayPosAt(m.points,t);
+    if(pos){ mk.setLatLng(pos); mk.setOpacity(1); } else { mk.setOpacity(0); } });
+}
+function _replayToggle(){ if(REPLAY.playing) _replayStop(); else _replayPlay(); }
+function _replayPlay(){
+  if(!REPLAY.members.length) return; if(REPLAY.t>=REPLAY.max) REPLAY.t=REPLAY.min;
+  REPLAY.playing=true; const b=$('replay-play'); if(b) b.textContent='Pause';
+  let last=performance.now(); const range=REPLAY.max-REPLAY.min, rate=range/Math.max(1000,REPLAY_SPEEDS[REPLAY.speedIdx].ms);
+  if(REPLAY.timer) clearInterval(REPLAY.timer);
+  REPLAY.timer=setInterval(()=>{
+    if(TAB!=='livemap'||LIVE_MODE!=='replay'){ _replayStop(); return; }
+    const now=performance.now(), dt=now-last; last=now; let nt=REPLAY.t+dt*rate;
+    if(nt>=REPLAY.max){ _replaySeek(REPLAY.max); _replayStop(); return; } _replaySeek(nt);
+  }, 70);
+}
+function _replayStop(){ REPLAY.playing=false; if(REPLAY.timer){ clearInterval(REPLAY.timer); REPLAY.timer=null; } const b=$('replay-play'); if(b) b.textContent='Play'; }
+function _replaySpeed(i){ const was=REPLAY.playing; REPLAY.speedIdx=i; _replayStop(); const el=$('replay-ctl'); if(el) el.outerHTML=_replayControls(); if(was) _replayPlay(); }
+// ── Heatmap mode: where the team spent time + presence analytics ──
+let _heatLoading=null;
+function _loadHeat(){
+  if(window.L && L.heatLayer) return Promise.resolve();
+  if(_heatLoading) return _heatLoading;
+  _heatLoading=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'; s.async=true; s.onload=()=>res(); s.onerror=()=>{ _heatLoading=null; rej(new Error('heat load failed')); }; document.head.appendChild(s); });
+  return _heatLoading;
+}
+function _heatPresence(members){
+  if(!members.length) return _emptyCard('No data for the heatmap','Nobody on your team shared location on this day.');
+  return '<div class="dsec">Presence today</div><div class="lgroup">'+members.map(m=>{
+    const pts=m.points||[]; let dist=0; for(let i=1;i<pts.length;i++){ dist+=_hav([Number(pts[i-1].lat),Number(pts[i-1].lng)],[Number(pts[i].lat),Number(pts[i].lng)]); }
+    const f=m.first_at?_replayClock(new Date(m.first_at).getTime()):'—', l=m.last_at?_replayClock(new Date(m.last_at).getTime()):'—';
+    return '<div class="lrow"><div class="lrow-top">'+_avatar(m.name,34)+'<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(m.name)+'</div><div style="font-size:11px;color:var(--fk-text-muted)">'+f+' – '+l+' · '+(m.count||0)+' points · ~'+(dist/1000).toFixed(1)+' km</div></div></div></div>';
+  }).join('')+'</div>';
+}
+async function _liveHeatMode(){
+  const day=REPLAY.day||_todayPKT();
+  $('lm-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading heatmap…</div></div></div>';
+  let d; try{ const r=await sb.rpc('get_team_trail',{p_session_token:TOKEN,p_day:day}); d=r.data; }catch(e){ return sessionGone(); }
+  if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone(); $('lm-body').innerHTML=_emptyCard('Heatmap not available','This is for directors.'); return; }
+  _touch(); REPLAY.day=d.day;
+  const members=(d.members||[]).filter(m=>m.points&&m.points.length);
+  let h=_replayDayBar(d.day);
+  h+='<div id="livemap-canvas" style="width:100%;height:52vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>';
+  h+='<div style="margin-top:10px">'+_heatPresence(members)+'</div>';
+  $('lm-body').innerHTML=h;
+  _liveInitMap();
+  const pts=[]; members.forEach(m=>m.points.forEach(p=>pts.push([Number(p.lat),Number(p.lng),0.7])));
+  if(!pts.length) return;
+  try{ await _loadHeat(); }catch(e){ return; }
+  if(window.L && L.heatLayer){ L.heatLayer(pts,{radius:26,blur:20,maxZoom:17,minOpacity:.3}).addTo(_liveMap);
+    try{ _liveMap.fitBounds(pts.map(p=>[p[0],p[1]]),{padding:[40,40]}); }catch(e){} }
 }
 function _liveUpdatedLabel(){ const el=$('live-updated'); if(!el) return;
   const s=Math.max(0,Math.round((Date.now()-_liveLastRefresh)/1000));
@@ -3704,7 +3830,7 @@ function _liveUpdateList(){ const el=$('live-list'); if(el) el.innerHTML=_liveLi
 function _liveAutoRefresh(){
   if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; }
   const tick=async ()=>{
-    if(TAB!=='livemap'){ if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; } return; }   // self-clear on leaving
+    if(TAB!=='livemap' || LIVE_MODE!=='live'){ if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; } return; }   // self-clear on leaving / mode change
     if(document.hidden || TRAIL_MEMBER) return;   // paused when backgrounded / viewing a member's trail
     try{ const {data}=await sb.rpc('get_team_locations',{p_session_token:TOKEN});
       if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); _liveLastRefresh=Date.now(); _liveUpdatedLabel(); }
