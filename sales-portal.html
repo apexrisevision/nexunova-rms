@@ -1488,10 +1488,11 @@ function _applyLeadAccess(){
   const isLE   = (role==='lead_entry');                           // data-entry operator — single-purpose entry screen only
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
   show('[data-le]', isLE);
-  if(isLE){   // lock the operator to the entry screen — hide everything else
+  if(isLE){   // lock the operator to the entry screen — hide everything else (but keep the Updates bell: she receives targeted announcements)
     show('.ni[data-tab="home"]', false); show('.ni[data-lead]', false); show('.ni-grp', false);
     const ah=$('appbar-home'); if(ah) ah.style.display='none';
-    const ab=$('appbar-bell'); if(ab) ab.style.display='none';
+    const ab=$('appbar-bell'); if(ab) ab.style.display='';
+    try{ loadAnnouncements(); }catch(e){}
     return;
   }
   show('.ni[data-tab="home"]', true);
@@ -1583,7 +1584,7 @@ async function doDeclineAgreement(){
 const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Org Map',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
-  if(ME && ME.role==='lead_entry' && t!=='leadentry' && t!=='profile') t='leadentry';   // operator is locked to entry + profile
+  if(ME && ME.role==='lead_entry' && t!=='leadentry' && t!=='profile' && t!=='updates') t='leadentry';   // operator: entry + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='leadentry') renderLeadEntry();
   else if(t==='home') renderHome();
@@ -3935,50 +3936,129 @@ function _annAttachHtml(att){
     `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="andatt-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>${esc(f.name||'Attachment')}</a>`).join('')+'</div>'; }
   return h+'</div>';
 }
+const _ANN_PRIO={urgent:['var(--fk-danger)','var(--fk-danger-surface)','Urgent'],important:['var(--fk-warning)','var(--fk-warning-surface)','Important'],normal:['var(--fk-text-muted)','var(--fk-bg-subtle)','']};
+function _annPrio(p){ return _ANN_PRIO[String(p||'normal').toLowerCase()]||_ANN_PRIO.normal; }
+function _annPill(txt,fg,bg){ return `<span class="annpill" style="background:${bg};border-color:transparent;color:${fg}">${esc(txt)}</span>`; }
 async function renderUpdates(){
   if(ANN.open){ return renderAnnDetail(ANN.open); }   // email-style detail view
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading updates…</div></div></div>';
   const ok=await loadAnnouncements(); if(!ok&&!ANN.loaded){ return sessionGone(); }
   _touch();
-  // entering the inbox = everything is seen → remember which were unread (bold), clear badge
-  if(ANN.unread>0){ ANN.unreadIds=new Set(ANN.list.slice(0,ANN.unread).map(a=>a.id));
-    try{ await sb.rpc('mark_sales_announcements_seen',{p_session_token:TOKEN}); }catch(e){}
-    ANN.unread=0; _annUpdateBadge(); }
-  let html=_pageHead('Updates','Notices from your company — tap to read.');
+  const isDir = ME&&ME.role==='director';
+  let html=_pageHead('Updates', isDir?'Post notices to your team and track who read & acknowledged.':'Notices from your director — tap to read.');
+  if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
   if(!ANN.list.length){
     html+='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>'
-      +'<div class="et">No updates yet</div><div class="es">Company notices (like rate revisions) will appear here.</div></div></div>';
+      +'<div class="et">No updates yet</div><div class="es">'+(isDir?'Compose one above to notify your team.':'Notices from your director will appear here.')+'</div></div></div>';
     $('app-body').innerHTML=html; return;
   }
-  html+='<div class="inbox">'+ANN.list.map(a=>{
-    const unread=ANN.unreadIds&&ANN.unreadIds.has(a.id);
-    return `<div class="inrow${unread?' unread':''}" onclick="_annOpen('${a.id}')">
-      <span class="indot"></span>
-      <div class="inmain">
-        <div class="intop"><div class="insubj">${esc(a.title)}</div><div class="indate">${esc(fdateShort(a.created_at))}</div></div>
-        <div class="insnip">${a.is_important?'<span class="instar">★ </span>':''}${(a.attachments&&a.attachments.length)?li('paperclip',12,2)+' ':''}${_annSnippet(a.body)}</div>
-      </div>
-      <svg class="inchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-    </div>`;
-  }).join('')+'</div>';
+  html+='<div class="inbox">'+ANN.list.map(_annRow).join('')+'</div>';
   $('app-body').innerHTML=html;
+}
+function _annRow(a){
+  const pr=_annPrio(a.priority), unread = !a.seen && !a.is_author;
+  const prioChip = (a.priority&&a.priority!=='normal') ? _annPill(pr[2],pr[0],pr[1]) : '';
+  let tail='';
+  if(a.is_author) tail=_annPill('You · sent','var(--fk-primary)','var(--fk-primary-tint)');
+  else if(a.requires_ack && a.acknowledged) tail=_annPill('Acknowledged','var(--fk-success)','var(--fk-success-surface)');
+  else if(a.requires_ack) tail=_annPill('Acknowledge needed','var(--fk-danger)','var(--fk-danger-surface)');
+  return `<div class="inrow${unread?' unread':''}" onclick="_annOpen('${a.id}')" style="border-left:3px solid ${unread?pr[0]:'transparent'}">
+    <span class="indot" style="${unread?('background:'+pr[0]):''}"></span>
+    <div class="inmain">
+      <div class="intop"><div class="insubj">${esc(a.title)}</div><div class="indate">${esc(fdateShort(a.created_at))}</div></div>
+      <div class="insnip">${(a.attachments&&a.attachments.length)?li('paperclip',12,2)+' ':''}${_annSnippet(a.body)}</div>
+      <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${prioChip}<span style="font-size:11px;color:var(--fk-text-muted)">${a.is_author?'sent by you':('From '+esc(a.author_name||'company'))}</span>${tail}</div>
+    </div>
+    <svg class="inchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+  </div>`;
 }
 function _annOpen(id){ ANN.open=id; renderAnnDetail(id); _syncNav(); }
 function _annBack(){ ANN.open=null; renderUpdates(); _syncNav(); }
-function renderAnnDetail(id){
+async function renderAnnDetail(id){
   const a=(ANN.list||[]).find(x=>x.id===id);
   if(!a){ ANN.open=null; return renderUpdates(); }
-  if(ANN.unreadIds) ANN.unreadIds.delete(id);
+  if(!a.is_author && !a.seen){   // opening = read receipt
+    try{ await sb.rpc('mark_announcement_seen',{p_session_token:TOKEN,p_announcement_id:id}); a.seen=true; ANN.unread=Math.max(0,Number(ANN.unread||0)-1); _annUpdateBadge(); }catch(e){}
+  }
   _touch();
-  $('app-body').innerHTML=`<div class="anddet">
+  const pr=_annPrio(a.priority);
+  let html=`<div class="anddet">
     <button class="andback" onclick="_annBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Updates</button>
-    <div class="andsubj">${esc(a.title)}${a.is_important?' <span class="annpill imp">Important</span>':''}</div>
-    <div class="andmeta">From your company · ${esc(fdate(a.created_at))}</div>
+    <div class="andsubj">${esc(a.title)}${(a.priority&&a.priority!=='normal')?' '+_annPill(pr[2],pr[0],pr[1]):''}</div>
+    <div class="andmeta">From ${a.is_author?'you':esc(a.author_name||'your company')} · ${esc(fdate(a.created_at))}</div>
     <div class="andbody">${esc(a.body).replace(/\n/g,'<br>')}</div>
-    ${_annAttachHtml(a.attachments)}
-  </div>`;
+    ${_annAttachHtml(a.attachments)}`;
+  if(!a.is_author && a.requires_ack){
+    if(a.acknowledged) html+=`<div style="margin-top:14px;display:flex;align-items:center;gap:7px;color:var(--fk-success);font-weight:var(--fk-fw-semibold);font-size:13px">${li('check',16,2.2)} You acknowledged this${a.acknowledged_at?' · '+esc(fdate(a.acknowledged_at)):''}</div>`;
+    else html+=`<button class="btn btn-primary btn-full" style="margin-top:14px" onclick="_annAck('${a.id}')">Acknowledge</button>`;
+  }
+  if(a.is_author) html+=`<div id="ann-receipts" style="margin-top:16px"><button class="btn btn-full" onclick="_annReceipts('${a.id}')">${li('users',15,2)} View receipts</button></div>`;
+  html+='</div>';
+  $('app-body').innerHTML=html;
   try{ $('app-body').scrollIntoView({block:'start'}); }catch(e){}
+}
+async function _annAck(id){
+  try{ const {data}=await sb.rpc('acknowledge_announcement',{p_session_token:TOKEN,p_announcement_id:id});
+    if(data&&data.success){ const a=(ANN.list||[]).find(x=>x.id===id); if(a){ a.acknowledged=true; a.acknowledged_at=new Date().toISOString(); a.seen=true; } toast('Acknowledged','ok'); renderAnnDetail(id); }
+    else toast((data&&data.message)||'Could not acknowledge','err');
+  }catch(e){ toast('Could not acknowledge','err'); }
+}
+async function _annReceipts(id){
+  const box=$('ann-receipts'); if(box) box.innerHTML='<div class="empty"><div class="et">Loading receipts…</div></div>';
+  let d; try{ const {data}=await sb.rpc('get_announcement_receipts',{p_session_token:TOKEN,p_announcement_id:id}); d=data; }catch(e){}
+  if(!d||!d.success){ if(box) box.innerHTML='<div class="es" style="color:var(--fk-text-muted)">Could not load receipts.</div>'; return; }
+  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)'};
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span></div><div class="kpi-val" style="font-variant-numeric:tabular-nums">${Number(val)||0}</div></div>`;
+  let h='<div class="dsec">Receipts</div><div class="dgrid" style="grid-template-columns:repeat(3,1fr)">'
+    + kpi('Received', d.received, 'indigo', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>')
+    + kpi('Read', d.read, 'amber', '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>')
+    + kpi('Acknowledged', d.acknowledged, 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + '</div>';
+  h+='<div class="lgroup">'+((d.people||[]).map(p=>{
+    const st = p.acknowledged_at?['Acknowledged','var(--fk-success)','var(--fk-success-surface)']:(p.seen_at?['Read','var(--fk-warning)','var(--fk-warning-surface)']:['Not seen yet','var(--fk-text-muted)','var(--fk-bg-subtle)']);
+    return `<div class="lrow"><div class="lrow-top">${_avatarC(p.name,34)}<div style="flex:1;min-width:0"><div class="lr-name">${esc(p.name)}</div><div class="lr-sub"><span>${esc(_portalRoleLabel(p.role))}${p.seen_at?' · '+esc(fdateShort(p.seen_at)):''}</span></div></div>${_annPill(st[0],st[1],st[2])}</div></div>`;
+  }).join(''))+'</div>';
+  if(box) box.innerHTML=h;
+}
+// ── compose (director only) ──
+let ANNC={targets:null,targetType:'all'};
+async function openAnnCompose(){
+  let t; try{ const {data}=await sb.rpc('get_announce_targets',{p_session_token:TOKEN}); t=data; }catch(e){}
+  if(!t||!t.success){ return toast('Could not load targets','err'); }
+  ANNC={targets:t,targetType:'all'};
+  const body='<div class="field"><label class="label">Title <span style="color:var(--fk-danger)">*</span></label><input class="input" id="annc-title" autocomplete="off"></div>'
+    +'<div class="field"><label class="label">Message <span style="color:var(--fk-danger)">*</span></label><textarea class="input" id="annc-body" rows="5"></textarea></div>'
+    +'<div class="field"><label class="label">Priority</label><select class="input" id="annc-prio" onchange="_annPrioChange(this.value)"><option value="normal">Normal</option><option value="important">Important</option><option value="urgent">Urgent</option></select></div>'
+    +'<div class="field"><label class="label">Send to</label><select class="input" id="annc-type" onchange="_annTargetType(this.value)"><option value="all">Everyone in the company</option><option value="role">A role</option><option value="team">A team</option><option value="user">One person</option></select></div>'
+    +'<div class="field" id="annc-extra">'+_annExtraHtml()+'</div>'
+    +'<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin:2px 2px 4px;cursor:pointer"><input type="checkbox" id="annc-ack" style="width:16px;height:16px"> Require acknowledgement</label>'
+    +'<div class="err" id="annc-err"></div>';
+  openModal('Compose announcement', body,
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_annSend()">Send</button>');
+}
+function _annExtraHtml(){
+  const t=ANNC.targets||{};
+  if(ANNC.targetType==='role') return '<label class="label">Which role</label><select class="input" id="annc-tv">'+((t.roles||[]).map(r=>`<option value="${esc(r.role)}">${esc(r.label)} (${Number(r.n)||0})</option>`).join(''))+'</select>';
+  if(ANNC.targetType==='team') return (t.teams&&t.teams.length)?('<label class="label">Which team</label><select class="input" id="annc-tv">'+t.teams.map(u=>`<option value="${esc(u.id)}">${esc(u.name)} · ${Number(u.team_size)||0} member${Number(u.team_size)===1?'':'s'}</option>`).join('')+'</select>'):'<div style="font-size:12px;color:var(--fk-text-muted)">No teams yet — no one has people reporting to them.</div>';
+  if(ANNC.targetType==='user') return '<label class="label">Which person</label><select class="input" id="annc-tv">'+((t.users||[]).map(u=>`<option value="${esc(u.id)}">${esc(u.name)} · ${esc(_portalRoleLabel(u.role))}</option>`).join(''))+'</select>';
+  return '<div style="font-size:12px;color:var(--fk-text-muted)">Everyone active in your company will receive this.</div>';
+}
+function _annTargetType(v){ ANNC.targetType=v; const e=$('annc-extra'); if(e) e.innerHTML=_annExtraHtml(); }
+function _annPrioChange(v){ if(v==='urgent'){ const c=$('annc-ack'); if(c) c.checked=true; } }
+async function _annSend(){
+  const err=$('annc-err'); if(err) err.classList.remove('show');
+  const title=(($('annc-title')||{}).value||'').trim(), bodyv=(($('annc-body')||{}).value||'').trim();
+  const prio=($('annc-prio')||{}).value||'normal', type=($('annc-type')||{}).value||'all', ack=!!($('annc-ack')||{}).checked;
+  const tv = (type==='all') ? null : (($('annc-tv')||{}).value||null);
+  const fail=(m)=>{ if(err){ err.textContent=m; err.classList.add('show'); } };
+  if(!title||!bodyv) return fail('Title and message are required.');
+  if(type!=='all' && !tv) return fail('Pick who should receive this.');
+  try{ const {data}=await sb.rpc('post_announcement',{p_session_token:TOKEN,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack});
+    if(data&&data.success){ closeModal(); toast('Announcement sent','ok'); ANN.open=null; renderUpdates(); }
+    else fail((data&&data.message)||'Could not send the announcement.');
+  }catch(e){ fail('Could not send the announcement.'); }
 }
 
 // ════ board ════
