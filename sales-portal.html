@@ -3336,7 +3336,7 @@ function _distRow(l){
 }
 
 // ════ More (overflow hub — leaderboard · recovery · updates · account) ════
-function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director'}[r])||'Sale Representative'; }
+function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director',lead_entry:'Lead Entry'}[r])||'Sale Representative'; }
 async function renderMore(){
   await loadAnnouncements(); _touch();
   const who=(ME&&ME.sales_user_name)||''; const role=_portalRoleLabel(ME&&ME.role);
