@@ -1683,12 +1683,10 @@ function toggleGroup(grp){ const g=document.querySelector('.sb .ni-grp[data-grp=
 function openSidebar(){ const s=$('sb'),k=$('sb-scrim'); if(s)s.classList.add('open'); if(k)k.classList.add('show'); }
 function closeSidebar(){ const s=$('sb'),k=$('sb-scrim'); if(s)s.classList.remove('open'); if(k)k.classList.remove('show'); }
 function toggleSidebar(){ const s=$('sb'); if(s&&s.classList.contains('open')) closeSidebar(); else openSidebar(); }
-// installed PWA has no browser reload → this re-fetches the current view's data in place (keeps context)
+// installed PWA has no browser reload → full reload (latest version + fresh data; SW is network-first)
 function _appRefresh(){
   const b=$('appbar-refresh'); if(b) b.classList.add('spin');
-  try{ if(typeof LEAD_OPEN!=='undefined' && LEAD_OPEN){ renderLeadDetail(LEAD_OPEN); } else { setTab(TAB||'home', true); } }
-  catch(e){ try{ location.reload(); }catch(x){} }
-  setTimeout(()=>{ const bb=$('appbar-refresh'); if(bb) bb.classList.remove('spin'); }, 700);
+  setTimeout(()=>{ try{ location.reload(); }catch(e){ try{ location.href=location.pathname; }catch(x){} } }, 140);   // brief spin, then reload
 }
 
 // ════ universal nav (appbar Back for in-section drill-downs) ════
