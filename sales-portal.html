@@ -1162,6 +1162,7 @@ body{background:var(--nx-page)}
       <button class="appbar-nav" id="appbar-home" onclick="setTab('home')" title="Go to dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Dashboard</span></button>
       <div class="appbar-title" id="appbar-title">Dashboard</div>
       <div style="flex:1"></div>
+      <button class="appbar-btn" id="appbar-theme" onclick="toggleTheme()" title="Light / dark"></button>
       <button class="appbar-btn" id="appbar-bell" onclick="setTab('updates')" title="Messages" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="btab-badge" id="ann-badge"></span></button>
       <div class="top-av" id="top-av" onclick="setTab('profile')" title="My profile">RM</div>
     </header>
@@ -1226,11 +1227,16 @@ function countdown(d){ if(!d) return {t:'—',c:'muted'}; const ms=new Date(d)-n
   if(ms<=0) return {t:'Expired',c:'red'}; const h=Math.floor(ms/3.6e6);
   if(h<24) return {t:h+'h left',c:'amber'}; return {t:Math.floor(h/24)+'d left',c:'green'}; }
 function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function _themeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  return dark
+    ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'; }
+function _updateThemeBtn(){ try{ const b=document.getElementById('appbar-theme'); if(b) b.innerHTML=_themeIcon(); }catch(e){} }
 function toggleTheme(){ const h=document.documentElement; const d=h.getAttribute('data-theme')==='dark';
-  h.setAttribute('data-theme',d?'light':'dark'); try{localStorage.setItem('rms.sales.theme',d?'light':'dark')}catch(e){} }
+  h.setAttribute('data-theme',d?'light':'dark'); try{localStorage.setItem('rms.sales.theme',d?'light':'dark')}catch(e){} _updateThemeBtn(); }
 (function initTheme(){ let t; try{t=localStorage.getItem('rms.sales.theme')}catch(e){}
   if(!t) t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
-  document.documentElement.setAttribute('data-theme',t); })();
+  document.documentElement.setAttribute('data-theme',t); _updateThemeBtn(); })();
 let _tt;
 function toast(msg,kind){ const b=$('toastbar'); b.textContent=msg; b.className='toastbar show '+(kind||'');
   clearTimeout(_tt); _tt=setTimeout(()=>b.classList.remove('show'),2600); }
@@ -3449,29 +3455,30 @@ async function renderProfile(){
   const p=data.profile||{}; PROFILE=p;
   const initials=((p.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
   const avatar=p.profile_photo_url?`<img src="${esc(p.profile_photo_url)}" style="width:100%;height:100%;object-fit:cover">`:esc(initials);
+  const kyc = p.kyc_status==='verified'
+    ? '<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success);flex:none"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><path d="M20 6 9 17l-5-5"/></svg>Verified</span>'
+    : '<span class="spill" style="flex:none">KYC '+esc(p.kyc_status||'pending')+'</span>';
   let html=_pageHead('My Profile','Your details, bank & security.');
-  html+=`<div class="card" style="padding:16px;text-align:center">
-    <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;margin:0 auto 10px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;font-size:24px;font-weight:700">${avatar}</div>
-    <div style="font-size:18px;font-weight:700">${esc(p.full_name||'')}</div>
-    <div style="color:var(--fk-text-muted);font-size:13px;margin-top:2px">${esc(_portalRoleLabel(p.role))} · ${esc(p.company_name||'')}</div>
-    <div style="margin-top:9px">${p.kyc_status==='verified'?'<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">✓ KYC verified</span>':'<span class="spill">KYC '+esc(p.kyc_status||'pending')+'</span>'}</div>
+  // compact header: avatar + name/role inline + KYC chip
+  html+=`<div class="card" style="padding:11px 13px;display:flex;align-items:center;gap:11px">
+    <div style="width:50px;height:50px;border-radius:50%;overflow:hidden;flex:none;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;font-size:18px;font-weight:700">${avatar}</div>
+    <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.full_name||'')}</div><div style="color:var(--fk-text-muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(p.role))} · ${esc(p.company_name||'')}</div></div>
+    ${kyc}
   </div>`;
-  const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><span style="font-weight:600;text-align:right;word-break:break-word">${v?esc(v):'—'}</span></div>`;
-  html+=`<div class="card" style="padding:4px 14px">`+fld('Phone',p.phone)+fld('CNIC',p.cnic)+fld('Father / Husband',p.father_name)+fld('Email',p.email)+fld('Address',p.address)+`</div>`;
-  html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">Bank — for payouts</div>`;
-  html+=`<div class="card" style="padding:4px 14px">`+fld('Bank',p.bank_name)+fld('Account #',p.bank_account_no)+fld('Title',p.bank_account_title)+`</div>`;
-  if(ME&&ME.role==='director') html+=`<div style="font-weight:700;font-size:14px;margin:14px 2px 8px">My location</div><div id="loc-card"></div>`;
-  html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="_profileEdit()">Edit bank details</button>`;
-  html+=`<button class="btn btn-full" onclick="_changePin()">Change PIN</button>`;
-  html+=`<div style="height:16px"></div>`;
-  if(_installEligible()) html+=`<button class="btn btn-full btn-primary" style="margin-bottom:8px" onclick="_installNow()">${_svgDownload(15)} Install app on this device</button>`;
-  html+=`<button class="btn btn-full" style="margin-bottom:8px" onclick="toggleTheme()">Switch light / dark</button>`;
-  html+=`<button class="btn btn-full btn-danger-soft" onclick="doLogout()">Sign out</button>`;
+  const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--fk-hairline);font-size:12.5px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><span style="font-weight:600;text-align:right;word-break:break-word">${v?esc(v):'—'}</span></div>`;
+  const lbl=(t)=>`<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--fk-text-muted);margin:12px 2px 5px">${t}</div>`;
+  html+=lbl('Details')+`<div class="card" style="padding:3px 13px">`+fld('Phone',p.phone)+fld('CNIC',p.cnic)+fld('Father / Husband',p.father_name)+fld('Email',p.email)+fld('Address',p.address)+`</div>`;
+  html+=lbl('Bank — for payouts')+`<div class="card" style="padding:3px 13px">`+fld('Bank',p.bank_name)+fld('Account #',p.bank_account_no)+fld('Title',p.bank_account_title)+`</div>`;
+  if(ME&&ME.role==='director') html+=lbl('My location')+`<div id="loc-card"></div>`;
+  // tight action grid
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px"><button class="btn btn-sm" onclick="_profileEdit()">Edit bank</button><button class="btn btn-sm" onclick="_changePin()">Change PIN</button></div>`;
+  if(_installEligible()) html+=`<button class="btn btn-sm btn-primary btn-full" style="margin-top:8px" onclick="_installNow()">${_svgDownload(14)} Install app</button>`;
+  html+=`<button class="btn btn-sm btn-full btn-danger-soft" style="margin-top:8px" onclick="doLogout()">Sign out</button>`;
   $('app-body').innerHTML=html;
   if(ME&&ME.role==='director') _renderMyLocCard();
 }
 // ── Member location (map via Google output=embed — no API key) ──
-function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:180px;border:0;border-radius:10px;display:block"></iframe>`; }
+function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:150px;border:0;border-radius:10px;display:block"></iframe>`; }
 function _mapLink(lat,lng){ return `https://www.google.com/maps?q=${lat},${lng}`; }
 async function _renderMyLocCard(){
   const el=$('loc-card'); if(!el) return;
