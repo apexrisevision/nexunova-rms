@@ -1147,8 +1147,10 @@ body{background:var(--nx-page)}
           <a class="ni-child" data-tab="adroi" data-roi style="display:none" onclick="setTab('adroi')"><span class="ni-lb">Marketing ROI</span></a>
         </div>
       </div>
-      <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
     </nav>
+    <div class="sb-bottom" style="padding:8px 12px;border-top:1px solid var(--fk-hairline)">
+      <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
+    </div>
     <div class="sb-foot">
       <div class="sb-user" onclick="setTab('profile')"><div class="top-av" id="sb-av">RM</div><div class="sb-user-meta"><b id="sb-uname">—</b><span id="sb-urole">—</span></div></div>
     </div>
@@ -1524,7 +1526,7 @@ function _applyLeadAccess(){
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
   show('[data-le]', isLE);
   if(isLE){   // lock the operator to the entry screen — hide everything else (but keep the Messages bell: she receives targeted announcements)
-    show('.ni[data-tab="home"]', false); show('.ni[data-lead]', false); show('.ni[data-tab="updates"]', false); show('.ni-grp', false);
+    show('.ni[data-tab="home"]', false); show('.ni[data-lead]', false); show('.sb-bottom', false); show('.ni-grp', false);
     const ah=$('appbar-home'); if(ah) ah.style.display='none';
     const ab=$('appbar-bell'); if(ab) ab.style.display='';
     try{ loadAnnouncements(); }catch(e){}
