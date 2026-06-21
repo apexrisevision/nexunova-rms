@@ -3507,6 +3507,37 @@ async function _renderAgentLoc(id){
 // ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
 let _leafLoading=null, _liveMap=null, _liveMarkers={}, LIVE_PINS=[], LIVE_FILTER='all';
 let _liveLastRefresh=0, _liveLabelTimer=null, _liveVisHook=false, _liveAccCircles={}, _liveCssDone=false;
+let _liveHist={}, _liveTails={}, _liveFollow=null;   // per-member recent path, trail polylines, follow-target
+function _hav(a,b){ const R=6371000, r=x=>x*Math.PI/180; const dLat=r(b[0]-a[0]), dLng=r(b[1]-a[1]);
+  const s=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(s)); }   // metres
+function _reduceMotion(){ try{ return window.matchMedia('(prefers-reduced-motion:reduce)').matches; }catch(e){ return false; } }
+function _liveGlide(mk,to,dur){
+  if(!mk) return; const f=mk.getLatLng(), a=[f.lat,f.lng];
+  if(_reduceMotion() || _hav(a,to)>200000 || _hav(a,to)<0.5){ mk.setLatLng(to); return; }   // snap on reduced-motion / huge jump / no move
+  const t0=performance.now();
+  (function frame(t){ const k=Math.min(1,(t-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    mk.setLatLng([a[0]+(to[0]-a[0])*e, a[1]+(to[1]-a[1])*e]); if(k<1) requestAnimationFrame(frame); })(t0);
+}
+function _memberStatus(p){
+  const key=String(p.id||p.name), st=_staleness(p.at);
+  if(st==='old') return {label:'Offline',cls:'old',moving:false};
+  const h=_liveHist[key]||[];
+  if(h.length>=2){ const a=h[h.length-2], b=h[h.length-1], dt=(new Date(b.at)-new Date(a.at))/1000;
+    if(dt>0){ const kmh=(_hav([a.lat,a.lng],[b.lat,b.lng])/dt)*3.6;
+      if(kmh>1.5) return {label:'Moving · '+Math.round(kmh)+' km/h',cls:'mov',moving:true};
+      return {label:'Idle',cls:'idle',moving:false}; } }
+  return {label: st==='fresh'?'Active':'Inactive', cls:st, moving:false};
+}
+function _liveToggleFollow(id){
+  if(id==null || id==='null'){ _liveFollow=null; }
+  else _liveFollow=(String(_liveFollow)===String(id))?null:String(id);
+  _liveFollowBanner(); if(_liveFollow) _liveFocus(_liveFollow);
+}
+function _liveFollowBanner(){ const el=$('live-follow'); if(!el) return;
+  if(_liveFollow){ const p=(LIVE_PINS||[]).find(x=>String(x.id)===String(_liveFollow));
+    el.style.display='flex'; el.innerHTML='<span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--fk-primary);animation:lmPulse 1.4s infinite"></span>Following <b style="margin-left:3px">'+esc((p&&p.name)||'agent')+'</b></span><button onclick="_liveToggleFollow(null)" style="background:none;border:0;color:var(--fk-primary);font-weight:700;cursor:pointer">Stop</button>';
+  } else { el.style.display='none'; el.innerHTML=''; }
+}
 let TRAIL_MEMBER=null, TRAIL_DAY=null, TRAIL_DATA=null, _trailMap=null, TRAIL_FROM='livemap';
 function _todayPKT(){ return new Date(Date.now()+5*3600000).toISOString().slice(0,10); }
 function _trailDayLabel(day){ if(day===_todayPKT()) return 'Today'; const d=new Date(Date.now()+5*3600000-86400000).toISOString().slice(0,10); if(day===d) return 'Yesterday'; const a=day.split('-').map(Number); return new Date(a[0],a[1]-1,a[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
@@ -3581,12 +3612,13 @@ function _liveListHtml(){
   if(!LIVE_PINS.length) return `<div class="empty" style="padding:20px"><div class="ei">${li('compass',24,1.8)}</div><div class="et">No team locations yet</div><div class="es">Members appear here once they share location — Profile → “Use my current location” (no map key needed), or just by logging in with location allowed.</div></div>`;
   const dotCol={fresh:'var(--fk-success)',stale:'var(--fk-warning)',old:'var(--fk-muted-fill)'};
   const stLbl={fresh:'Active',stale:'Inactive',old:'Offline'};
+  const msCol={mov:'var(--fk-success)',idle:'var(--fk-text-muted)',fresh:'var(--fk-success)',stale:'var(--fk-warning)',old:'var(--fk-text-muted)'};
   return '<div class="dsec">Team members <span class="nb">'+LIVE_PINS.length+'</span></div><div class="lgroup">'+LIVE_PINS.map(p=>{
-    const st=_staleness(p.at), acc=Number(p.accuracy)||0;
+    const st=_staleness(p.at), acc=Number(p.accuracy)||0, ms=_memberStatus(p);
     return `<div class="lrow tap" onclick="_liveFocus('${p.id}')"><div class="lrow-top">
       <span title="${stLbl[st]}" style="width:10px;height:10px;flex:none;border-radius:50%;background:${dotCol[st]}"></span>
       ${_avatar(p.name,34)}
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.is_me?' <span style="font-size:10px;color:var(--fk-primary);font-weight:700">YOU</span>':''}</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}${p.label?' · '+esc(p.label):''}${acc?' · ±'+acc+'m':''}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.is_me?' <span style="font-size:10px;color:var(--fk-primary);font-weight:700">YOU</span>':''}</div><div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b style="color:${msCol[ms.cls]||'var(--fk-text-muted)'}">${esc(ms.label)}</b><span style="color:var(--fk-text-muted)"> · ${esc(_portalRoleLabel(p.role))} · ${p.at?esc(_agoTxt(p.at)):'—'}${p.label?' · '+esc(p.label):''}${acc?' · ±'+acc+'m':''}</span></div></div>
       <button class="btn btn-sm" onclick="event.stopPropagation();_openTrail('${p.id}')">Trail</button>
       <a class="btn btn-sm" href="${_mapLink(p.lat,p.lng)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none" title="Open in Google Maps">Open</a>
     </div></div>`;
@@ -3607,16 +3639,19 @@ function _liveInjectCss(){
   document.head.appendChild(st);
 }
 function _livePopup(p){
-  const ago=p.at?esc(_agoTxt(p.at)):'—', acc=Number(p.accuracy)||0;
+  const ago=p.at?esc(_agoTxt(p.at)):'—', acc=Number(p.accuracy)||0, ms=_memberStatus(p);
   const dir='https://www.google.com/maps/dir/?api=1&destination='+Number(p.lat)+','+Number(p.lng);
-  return `<div style="min-width:178px">
+  const following=(String(_liveFollow)===String(p.id));
+  const sc=ms.moving?'#16A34A':(ms.cls==='old'?'#94A3B8':'#64748b');
+  return `<div style="min-width:184px">
     <div style="font-weight:700;font-size:14px">${esc(p.name||'')}${p.is_me?' · You':''}</div>
-    <div style="font-size:12px;color:#64748b;margin-top:2px">${esc(_portalRoleLabel(p.role))} · ${ago}</div>
+    <div style="font-size:12px;margin-top:2px"><b style="color:${sc}">${esc(ms.label)}</b><span style="color:#64748b"> · ${esc(_portalRoleLabel(p.role))} · ${ago}</span></div>
     ${p.label?`<div style="font-size:12px;color:#64748b">${esc(p.label)}</div>`:''}
     ${acc?`<div style="font-size:11px;color:#94a3b8;margin-top:2px">±${acc} m accuracy</div>`:''}
     <div style="display:flex;gap:6px;margin-top:9px">
       <a href="${dir}" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:#4F46E5;color:#fff;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:700">Directions</a>
-      <button onclick="_openTrail('${p.id}')" style="flex:1;background:#f1f5f9;border:0;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:700;cursor:pointer">Trail</button>
+      <button onclick="_liveToggleFollow('${p.id}')" style="flex:1;background:${following?'#4F46E5':'#f1f5f9'};color:${following?'#fff':'#0f172a'};border:0;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:700;cursor:pointer">${following?'Following':'Follow'}</button>
+      <button onclick="_openTrail('${p.id}')" style="flex:none;background:#f1f5f9;border:0;border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer">Trail</button>
     </div>
   </div>`;
 }
@@ -3644,11 +3679,13 @@ async function renderLiveMap(){
   let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
   html+='<div id="live-filter">'+_liveFilterBar()+'</div>';
   html+='<div style="display:flex;align-items:center;gap:6px;margin:-4px 2px 8px;font-size:11px;color:var(--fk-text-muted)"><span style="width:7px;height:7px;border-radius:50%;background:var(--fk-success);flex:none"></span><span id="live-updated">updated just now</span></div>';
+  html+='<div id="live-follow" style="display:none;align-items:center;justify-content:space-between;gap:8px;background:var(--fk-primary-tint);border:1px solid var(--fk-primary);border-radius:10px;padding:7px 12px;margin-bottom:8px;font-size:13px;color:var(--fk-primary)"></div>';
   html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
   html+='<div id="live-list">'+_liveListHtml()+'</div>';
   $('app-body').innerHTML=html;
   try{ await _loadLeaflet(); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Map could not load</div><div class="es">Check your internet connection and try again.</div></div>'; return; }
   _liveInitMap();
+  _liveFollowBanner();
   _liveLastRefresh=Date.now(); _liveUpdatedLabel(); _liveStartLabelTicker();
   _liveAutoRefresh();
 }
@@ -3680,7 +3717,7 @@ function _liveInitMap(){
   const el=$('livemap-canvas'); if(!el||!window.L) return;
   _liveInjectCss();
   if(_liveMap){ try{ _liveMap.remove(); }catch(e){} _liveMap=null; }
-  el.innerHTML=''; _liveMarkers={}; _liveAccCircles={};   // fresh map → fresh registries
+  el.innerHTML=''; _liveMarkers={}; _liveAccCircles={}; _liveTails={};   // fresh map → fresh registries (keep _liveHist for speed across re-renders)
   _liveMap=L.map(el,{zoomControl:true}).setView([30.3753,69.3451],6);
   // basemaps — crisp CARTO Voyager streets, clean Light, and Esri Satellite (free, no key)
   const streets=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap, © CARTO'});
@@ -3711,18 +3748,29 @@ function _liveRenderMarkers(fit){
   if(!_liveMap||!window.L) return;
   if(!_liveMarkers || Array.isArray(_liveMarkers)) _liveMarkers={};
   if(!_liveAccCircles) _liveAccCircles={};
+  const animate=!fit;   // refresh (fit=false) → glide; initial/filter → snap
   const pins=LIVE_PINS.filter(p=>LIVE_FILTER==='all'||_staleness(p.at)===LIVE_FILTER);
   const seen={}, latlngs=[];
   pins.forEach(p=>{
     const key=String(p.id||p.name||(p.lat+','+p.lng)), st=_staleness(p.at), ll=[Number(p.lat),Number(p.lng)];
-    const icon=L.divIcon({className:'lm-pin-wrap',html:'<div class="lm-pin '+st+(p.is_me?' me':'')+'">'+esc(_initials(p.name))+'</div>',iconSize:[38,38],iconAnchor:[19,19]});
+    // accumulate recent path (only when the fix actually changed)
+    const h=_liveHist[key]||(_liveHist[key]=[]); const lastH=h[h.length-1];
+    if(!lastH || lastH.at!==p.at){ h.push({lat:ll[0],lng:ll[1],at:p.at}); if(h.length>10) h.shift(); }
+    const status=_memberStatus(p);
+    const icon=L.divIcon({className:'lm-pin-wrap',html:'<div class="lm-pin '+st+(p.is_me?' me':'')+(status.moving?' moving':'')+'">'+esc(_initials(p.name))+'</div>',iconSize:[38,38],iconAnchor:[19,19]});
     const popup=_livePopup(p);
     let mk=_liveMarkers[key];
-    if(mk){ try{ mk.setLatLng(ll); mk.setIcon(icon); mk.setPopupContent(popup); if(mk.getTooltip()) mk.setTooltipContent(_liveLabelText(p)); }catch(e){} }   // MOVE in place
+    if(mk){ try{ if(animate) _liveGlide(mk,ll,1100); else mk.setLatLng(ll); mk.setIcon(icon); mk.setPopupContent(popup); if(mk.getTooltip()) mk.setTooltipContent(_liveLabelText(p)); }catch(e){} }
     else { mk=L.marker(ll,{icon}).addTo(_liveMap);
       mk.bindTooltip(_liveLabelText(p),{permanent:true,direction:'top',offset:[0,-22],className:'lm-label'});
       mk.bindPopup(popup); _liveMarkers[key]=mk; }
-    // GPS accuracy circle (only when sensible)
+    // fading movement trail (recent path → direction of travel)
+    const tailPts=h.map(x=>[x.lat,x.lng]); let tl=_liveTails[key];
+    if(tailPts.length>=2 && st!=='old'){
+      if(tl){ try{ tl.setLatLngs(tailPts); tl.setStyle({color:_STALE_COL[st]}); }catch(e){} }
+      else { tl=L.polyline(tailPts,{color:_STALE_COL[st],weight:3,opacity:.5,dashArray:'1,7',lineCap:'round',interactive:false}).addTo(_liveMap); _liveTails[key]=tl; }
+    } else if(tl){ try{ _liveMap.removeLayer(tl); }catch(e){} delete _liveTails[key]; }
+    // GPS accuracy circle
     const acc=Number(p.accuracy)||0; let cc=_liveAccCircles[key];
     if(acc>0 && acc<3000){
       if(cc){ try{ cc.setLatLng(ll); cc.setRadius(acc); }catch(e){} }
@@ -3730,8 +3778,10 @@ function _liveRenderMarkers(fit){
     } else if(cc){ try{ _liveMap.removeLayer(cc); }catch(e){} delete _liveAccCircles[key]; }
     seen[key]=1; latlngs.push(ll);
   });
-  Object.keys(_liveMarkers).forEach(k=>{ if(!seen[k]){ try{ _liveMap.removeLayer(_liveMarkers[k]); }catch(e){} delete _liveMarkers[k];
-    const c=_liveAccCircles[k]; if(c){ try{ _liveMap.removeLayer(c); }catch(e){} delete _liveAccCircles[k]; } } });
+  Object.keys(_liveMarkers).forEach(k=>{ if(!seen[k]){ [_liveMarkers,_liveAccCircles,_liveTails].forEach(reg=>{ if(reg[k]){ try{ _liveMap.removeLayer(reg[k]); }catch(e){} delete reg[k]; } }); } });
+  // FOLLOW: keep the chosen agent centred as they move
+  if(animate && _liveFollow){ const fp=pins.find(p=>String(p.id)===String(_liveFollow));
+    if(fp) try{ _liveMap.panTo([Number(fp.lat),Number(fp.lng)],{animate:true}); }catch(e){} }
   if(fit && latlngs.length){ if(latlngs.length===1) _liveMap.setView(latlngs[0],15); else _liveMap.fitBounds(latlngs,{padding:[50,50]}); }
 }
 // ── live location sending (member's app pushes GPS while the app is OPEN + FOREGROUND) ──
