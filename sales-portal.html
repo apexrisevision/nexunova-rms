@@ -340,6 +340,12 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 /* active tab indicator — indigo line on the left */
 .ni,.ni-child{position:relative}
 .ni.on::before,.ni-child.on::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:62%;border-radius:0 3px 3px 0;background:var(--fk-primary)}
+/* nesting guide — when a group is OPEN, all its items hang off a clear left line */
+.ni-grp.open>.ni-sub{border-left-width:2px;border-left-color:var(--fk-border)}
+.ni-grp.has-active>.ni-sub{border-left-color:var(--fk-primary)}
+.ni-child::after{content:"";position:absolute;left:-2px;top:50%;transform:translateY(-50%);width:9px;height:2px;border-radius:2px;background:var(--fk-border)}
+.ni-grp.has-active>.ni-sub .ni-child::after{background:var(--fk-primary);opacity:.5}
+.ni-child.on::after{background:var(--fk-primary);opacity:1}
 .sb-foot{border-top:1px solid var(--fk-hairline);padding:10px 12px}
 .sb-user{display:flex;align-items:center;gap:10px;padding:7px;border-radius:9px;cursor:pointer;transition:background .14s}
 .sb-user:hover{background:var(--fk-bg-subtle)}
