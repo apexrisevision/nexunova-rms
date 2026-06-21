@@ -626,6 +626,7 @@ body{background:var(--nx-page)}
 .tnext{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:var(--fk-fs-body);color:var(--fk-primary);background:var(--fk-primary-tint);border-radius:8px;padding:5px 8px}
 .tnext svg{width:13px;height:13px;flex:none}
 .ni-bdg.bdg-danger{background:var(--fk-danger);color:#fff}
+.ni.on .ni-bdg.bdg-danger{background:var(--fk-danger);color:#fff}
 .ni-bdg.bdg-amber{background:var(--fk-warning);color:#fff}
 /* bottom tab bar (mobile-first) */
 .btabs{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:920px;margin:0 auto;display:flex;
@@ -1673,7 +1674,11 @@ function _fuRow(l){
     ${tag}</div></div>`;
 }
 function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
-function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
+function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show','bdg-danger'); } else b.classList.remove('show','bdg-danger'); }
+// new-lead notification — toast once when the count grows (tracks last-seen per browser)
+function _leadsNotify(n){ try{ n=Number(n)||0; if(n<=0) return; const seen=Number(localStorage.getItem('nx_leads_seen')||'0');
+  if(n>seen){ toast(n+' new lead'+(n===1?'':'s')+' — open the Leads tab to view','ok'); localStorage.setItem('nx_leads_seen',String(n)); } }catch(e){} }
+function _leadsMarkSeen(n){ try{ localStorage.setItem('nx_leads_seen',String(Number(n)||0)); }catch(e){} }
 function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
 function _fuBadgeSet(overdue,today){ const b=$('nav-badge-followups'); if(!b) return; const od=Number(overdue||0),td=Number(today||0),n=od+td;
   b.classList.remove('bdg-danger','bdg-amber');
@@ -1818,7 +1823,7 @@ async function renderHome(){
     if(rR.data&&rR.data.success){ resvActive=(rR.data.reservations||[]).filter(x=>x.status==='active').length; }
     if(rS.data&&rS.data.success){ pend=((rS.data.submissions)||[]).filter(x=>x.status==='pending').length; }
     if(rB.data&&rB.data.success){ myUnits=Number(rB.data.units_all)||0; }
-    if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; _leadsBadgeSet(newLeads.length); }
+    if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; _leadsBadgeSet(newLeads.length); _leadsNotify(newLeads.length); }
   }catch(e){ return sessionGone(); }
   await loadAnnouncements();
   _touch();
@@ -1952,7 +1957,7 @@ async function renderManagerHome(){
   const nm=(ME&&ME.sales_user_name)||''; const _fn=nm?esc(String(nm).split(' ')[0]):'';
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
-  _leadsBadgeSet(newCnt); _distBadgeSet(myNew.length);
+  _leadsBadgeSet(newCnt); _distBadgeSet(myNew.length); _leadsNotify(newCnt);
   const isDir=ME&&ME.role==='director'; const roleLbl=isDir?'Director':'Manager'; const unit=isDir?'manager':'agent';
   let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
   html+=`<div class="herometric">
@@ -2041,6 +2046,7 @@ async function renderLeads(){
     return;
   }
   _leadsRender();
+  _leadsMarkSeen(Number((LEADCOUNTS&&LEADCOUNTS['new'])||0));   // opening Leads = these are now "seen"
 }
 function _leadBase(){
   const isMgr=!!(LEADCFG&&LEADCFG.can_assign);
