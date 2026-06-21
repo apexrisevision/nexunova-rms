@@ -1303,6 +1303,33 @@ function _startProfileWatch(){ if(_profWatch) return; _profWatch=true;
   setInterval(()=>{ if(!document.hidden) _refreshProfile(); }, 180000);   // every 3 min while active
 }
 
+// ════ smart background data refresh — fresh data WITHOUT a page reload (no form loss) ════
+// Silently re-runs the current data view in place. NEVER while a modal/form is open or the
+// user is typing, never while the tab is hidden. _BG suppresses loading spinners + count-up
+// re-animations so the refresh is invisible.
+let _BG=false, _bgStarted=false;
+function _bgBusy(){
+  try{ if((($('modal-host')||{}).innerHTML||'').trim()) return true; }catch(e){}   // a modal / form is open
+  const ae=document.activeElement;
+  if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||'')) return true;            // user is typing/selecting
+  return false;
+}
+function _bgFn(t){ return ({home:renderHome,board:renderBoard,leads:renderLeads,mine:renderMine,mysales:renderMySales})[t]; }
+async function _bgRefreshView(){
+  if(document.hidden || !TOKEN || !_validSession() || _bgBusy()) return;
+  const fn=_bgFn(TAB); if(typeof fn!=='function') return;
+  const sy=window.scrollY||0; _BG=true;
+  try{ await fn(); }catch(e){}
+  _BG=false;
+  try{ window.scrollTo(0,sy); }catch(e){}
+}
+function _startBgRefresh(){
+  if(_bgStarted) return; _bgStarted=true;
+  setInterval(()=>{ _bgRefreshView(); }, 300000);                  // ~5 min — every data view
+  setInterval(()=>{ if(TAB==='board') _bgRefreshView(); }, 90000); // sell-units board most aggressive (~90s)
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) _bgRefreshView(); });  // refresh on tab-focus
+}
+
 // ════ auth ════
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
@@ -1518,7 +1545,7 @@ function _applyLeadAccess(){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess();
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
-  setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} }
+  setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -1726,7 +1753,7 @@ function _countUp(el){
   requestAnimationFrame(function frame(t){ const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
     el.textContent=f(to*e); if(p<1) requestAnimationFrame(frame); else el.textContent=fin; });
 }
-function _runCountUps(){ document.querySelectorAll('#app-body [data-countup]').forEach(_countUp); }
+function _runCountUps(){ if(_BG) return; document.querySelectorAll('#app-body [data-countup]').forEach(_countUp); }   // skip re-animation on silent bg refresh
 // HONEST sparkline — a real curved trend ONLY when a non-zero series exists; otherwise a FLAT
 // faint baseline (never a rising curve over zero data — the line must not contradict the number).
 let _sparkSeed=0;
@@ -1754,7 +1781,7 @@ function _trend(pct){
 function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span class="ei">${li(icon,18,1.75)}</span><div style="min-width:0"><div class="et">${esc(title)}</div><div class="es">${esc(sub)}</div></div></div>`; }
 // Exec (admin/cfo) read-only org snapshot — real org totals + top performers (get_org_overview)
 async function renderExecHome(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   let d, roi=null;
   try{ const [r,ra]=await Promise.all([sb.rpc('get_org_overview',{p_session_token:TOKEN}), sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:_curPeriod()})]);
     d=r.data; if(ra.data&&ra.data.success) roi=ra.data; }
@@ -1803,7 +1830,7 @@ function _roiHomeCard(roi){
 async function renderHome(){
   if(ME && (ME.role==='admin'||ME.role==='cfo')) return renderExecHome();                        // exec — read-only org snapshot
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
   let perf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, myUnits=0;
   try{
@@ -1928,7 +1955,7 @@ function _teamActRow(a){
 // ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
 async function renderManagerHome(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
   let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null, roi=null;
   const _isDir=ME&&ME.role==='director';
   try{
@@ -2032,7 +2059,7 @@ function _trailToggle(){ _trailFull=true; if(LEAD_OPEN) renderLeadDetail(LEAD_OP
 function _waNum(p){ let d=String(p||'').replace(/\D/g,''); if(!d) return ''; if(d[0]==='0') d='92'+d.slice(1); else if(d.slice(0,2)!=='92') d='92'+d; return d; }
 async function renderLeads(){
   LEAD_OPEN=null;
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your leads…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your leads…</div></div></div>';
   try{
     const [c,r]=await Promise.all([
       sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),
@@ -3468,7 +3495,8 @@ async function _renderAgentLoc(id){
   el.innerHTML=`<div class="dsec">Location</div><div class="card">${_mapEmbed(d.lat,d.lng)}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><div style="font-size:13px"><div style="font-weight:600">${esc(d.label||'Location')}</div><div style="font-size:11px;color:var(--fk-text-muted)">Updated ${d.at?esc(_agoTxt(d.at)):'—'}</div></div><a class="btn btn-sm" href="${_mapLink(d.lat,d.lng)}" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div></div>`;
 }
 // ════ Live Map — Google Maps JS API, team live locations (mirrors the CRM map) ════
-let _leafLoading=null, _liveMap=null, _liveMarkers=[], LIVE_PINS=[], LIVE_FILTER='all';
+let _leafLoading=null, _liveMap=null, _liveMarkers={}, LIVE_PINS=[], LIVE_FILTER='all';
+let _liveLastRefresh=0, _liveLabelTimer=null, _liveVisHook=false;
 let TRAIL_MEMBER=null, TRAIL_DAY=null, TRAIL_DATA=null, _trailMap=null, TRAIL_FROM='livemap';
 function _todayPKT(){ return new Date(Date.now()+5*3600000).toISOString().slice(0,10); }
 function _trailDayLabel(day){ if(day===_todayPKT()) return 'Today'; const d=new Date(Date.now()+5*3600000-86400000).toISOString().slice(0,10); if(day===d) return 'Yesterday'; const a=day.split('-').map(Number); return new Date(a[0],a[1]-1,a[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
@@ -3561,13 +3589,20 @@ async function renderLiveMap(){
   LIVE_PINS=data.pins||[];
   let html=_pageHead('Live Map','Where your team is right now — live GPS locations.');
   html+='<div id="live-filter">'+_liveFilterBar()+'</div>';
+  html+='<div style="display:flex;align-items:center;gap:6px;margin:-4px 2px 8px;font-size:11px;color:var(--fk-text-muted)"><span style="width:7px;height:7px;border-radius:50%;background:var(--fk-success);flex:none"></span><span id="live-updated">updated just now</span></div>';
   html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
   html+='<div id="live-list">'+_liveListHtml()+'</div>';
   $('app-body').innerHTML=html;
   try{ await _loadLeaflet(); }catch(e){ const cv=$('livemap-canvas'); if(cv) cv.innerHTML='<div class="empty" style="padding:24px"><div class="et">Map could not load</div><div class="es">Check your internet connection and try again.</div></div>'; return; }
   _liveInitMap();
+  _liveLastRefresh=Date.now(); _liveUpdatedLabel(); _liveStartLabelTicker();
   _liveAutoRefresh();
 }
+function _liveUpdatedLabel(){ const el=$('live-updated'); if(!el) return;
+  const s=Math.max(0,Math.round((Date.now()-_liveLastRefresh)/1000));
+  el.textContent = s<5?'updated just now' : (s<60?('updated '+s+'s ago') : ('updated '+Math.floor(s/60)+'m ago')); }
+function _liveStartLabelTicker(){ if(_liveLabelTimer) clearInterval(_liveLabelTimer);
+  _liveLabelTimer=setInterval(()=>{ if(TAB!=='livemap'){ clearInterval(_liveLabelTimer); _liveLabelTimer=null; return; } _liveUpdatedLabel(); }, 5000); }
 let _liveRefreshTimer=null;
 function _liveFilterBar(){
   const c={all:LIVE_PINS.length,fresh:0,stale:0,old:0}; LIVE_PINS.forEach(p=>{ c[_staleness(p.at)]++; });
@@ -3577,57 +3612,65 @@ function _setLiveFilter(k){ LIVE_FILTER=k; const b=$('live-filter'); if(b) b.inn
 function _liveUpdateList(){ const el=$('live-list'); if(el) el.innerHTML=_liveListHtml(); }
 function _liveAutoRefresh(){
   if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; }
-  _liveRefreshTimer=setInterval(async ()=>{
-    if(TAB!=='livemap'){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; return; }   // self-clear on leaving
-    if(TRAIL_MEMBER) return;   // paused while viewing a member's trail
+  const tick=async ()=>{
+    if(TAB!=='livemap'){ if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; } return; }   // self-clear on leaving
+    if(document.hidden || TRAIL_MEMBER) return;   // paused when backgrounded / viewing a member's trail
     try{ const {data}=await sb.rpc('get_team_locations',{p_session_token:TOKEN});
-      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); }
+      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); _liveLastRefresh=Date.now(); _liveUpdatedLabel(); }
     }catch(e){}
-  }, 30000);
+  };
+  _liveRefreshTimer=setInterval(tick, 75000);   // ~75s while the map is open + foreground
+  if(!_liveVisHook){ _liveVisHook=true; document.addEventListener('visibilitychange',()=>{ if(!document.hidden && TAB==='livemap') tick(); }); }   // refresh on tab-focus
 }
 function _liveInitMap(){
   const el=$('livemap-canvas'); if(!el||!window.L) return;
   if(_liveMap){ try{ _liveMap.remove(); }catch(e){} _liveMap=null; }
-  el.innerHTML='';
+  el.innerHTML=''; _liveMarkers={};   // fresh map → fresh marker registry
   _liveMap=L.map(el,{zoomControl:true}).setView([30.3753,69.3451],6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_liveMap);
   setTimeout(()=>{ try{ _liveMap.invalidateSize(); }catch(e){} },200);
   _liveRenderMarkers(true);
 }
+// keyed by member id → on refresh we MOVE existing markers in place (setLatLng), never reset
+// the map view/zoom (fit only on first load / filter change).
 function _liveRenderMarkers(fit){
   if(!_liveMap||!window.L) return;
-  _liveMarkers.forEach(m=>{ try{ _liveMap.removeLayer(m); }catch(e){} }); _liveMarkers=[];
+  if(!_liveMarkers || Array.isArray(_liveMarkers)) _liveMarkers={};
   const pins=LIVE_PINS.filter(p=>LIVE_FILTER==='all'||_staleness(p.at)===LIVE_FILTER);
-  const latlngs=[];
+  const seen={}, latlngs=[];
   pins.forEach(p=>{
-    const st=_staleness(p.at), ll=[Number(p.lat),Number(p.lng)];
-    const mk=L.circleMarker(ll,{radius:9,fillColor:_STALE_COL[st],fillOpacity:st==='old'?0.5:1,color:'#fff',weight:2.5}).addTo(_liveMap);
-    mk.bindPopup('<div style="font-family:Inter,sans-serif;min-width:140px"><b>'+esc(p.name||'')+'</b><br><span style="font-size:12px;color:#666">'+esc(_portalRoleLabel(p.role))+' · '+(p.at?esc(_agoTxt(p.at)):'—')+'</span>'+(p.label?'<br><span style="font-size:12px;color:#666">'+esc(p.label)+'</span>':'')+'</div>');
-    _liveMarkers.push(mk); latlngs.push(ll);
+    const key=String(p.id||p.name||(p.lat+','+p.lng)), st=_staleness(p.at), ll=[Number(p.lat),Number(p.lng)];
+    const style={radius:9,fillColor:_STALE_COL[st],fillOpacity:st==='old'?0.5:1,color:'#fff',weight:2.5};
+    const popup='<div style="font-family:Inter,sans-serif;min-width:140px"><b>'+esc(p.name||'')+'</b><br><span style="font-size:12px;color:#666">'+esc(_portalRoleLabel(p.role))+' · '+(p.at?esc(_agoTxt(p.at)):'—')+'</span>'+(p.label?'<br><span style="font-size:12px;color:#666">'+esc(p.label)+'</span>':'')+'</div>';
+    let mk=_liveMarkers[key];
+    if(mk){ try{ mk.setLatLng(ll); mk.setStyle(style); mk.setPopupContent(popup); }catch(e){} }   // MOVE in place
+    else { mk=L.circleMarker(ll,style).addTo(_liveMap); mk.bindPopup(popup); _liveMarkers[key]=mk; }
+    seen[key]=1; latlngs.push(ll);
   });
+  Object.keys(_liveMarkers).forEach(k=>{ if(!seen[k]){ try{ _liveMap.removeLayer(_liveMarkers[k]); }catch(e){} delete _liveMarkers[k]; } });
   if(fit && latlngs.length){ if(latlngs.length===1) _liveMap.setView(latlngs[0],14); else _liveMap.fitBounds(latlngs,{padding:[40,40]}); }
 }
-// ── live location sending (member's app pushes GPS while open + online) ──
-let _liveLocTimer=null, _liveLocWatch=null;
+// ── live location sending (member's app pushes GPS while the app is OPEN + FOREGROUND) ──
+// Battery-conscious: a coarse fix every ~2 min while visible; paused entirely when the tab is
+// hidden/backgrounded. No constant high-accuracy watchPosition (that was the battery drainer).
+// NOTE: browsers cannot track location when the app/tab is closed — true background tracking
+// needs a native app. This only runs while the portal is open in the foreground.
+let _liveLocTimer=null, _liveLocVis=false;
 function _sendLiveLocation(){
-  if(!navigator.geolocation || !TOKEN) return;
+  if(!navigator.geolocation || !TOKEN || document.hidden) return;
   navigator.geolocation.getCurrentPosition(pos=>{
     const lat=+pos.coords.latitude.toFixed(6), lng=+pos.coords.longitude.toFixed(6);
     try{ sb.rpc('update_my_location',{p_session_token:TOKEN,p_lat:lat,p_lng:lng}).then(()=>{},()=>{}); }catch(e){}
-  }, ()=>{}, {enableHighAccuracy:true,timeout:20000,maximumAge:30000});
+  }, ()=>{}, {enableHighAccuracy:false, maximumAge:120000, timeout:20000});   // coarse + reuse a ≤2-min-old fix
 }
+function _liveLocResume(){ if(_liveLocTimer||document.hidden||!navigator.geolocation) return; _sendLiveLocation(); _liveLocTimer=setInterval(_sendLiveLocation, 120*1000); }
+function _liveLocPause(){ if(_liveLocTimer){ clearInterval(_liveLocTimer); _liveLocTimer=null; } }
 function _startLiveLocation(){
   if(!navigator.geolocation) return;
-  _sendLiveLocation();
-  // periodic ping keeps "last seen" fresh (Active) while the app is open
-  if(!_liveLocTimer) _liveLocTimer=setInterval(_sendLiveLocation, 60*1000);   // every 60s
-  // watch reacts to actual movement (throttled inside _sendLiveLocation’s freshness)
-  if(_liveLocWatch==null){
-    try{ _liveLocWatch=navigator.geolocation.watchPosition(pos=>{
-      const lat=+pos.coords.latitude.toFixed(6), lng=+pos.coords.longitude.toFixed(6);
-      try{ sb.rpc('update_my_location',{p_session_token:TOKEN,p_lat:lat,p_lng:lng}).then(()=>{},()=>{}); }catch(e){}
-    }, ()=>{}, {enableHighAccuracy:true,maximumAge:30000,timeout:60000}); }catch(e){}
+  if(!_liveLocVis){ _liveLocVis=true;
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden) _liveLocPause(); else _liveLocResume(); });   // pause when backgrounded → battery-safe
   }
+  _liveLocResume();
 }
 function _profileEdit(){
   const p=PROFILE||{};
@@ -3902,7 +3945,7 @@ function _clientRow(c){
 }
 // ════ My Sales — the agent's closed deals ════
 async function renderMySales(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your sales…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your sales…</div></div></div>';
   let data;
   try{ const r=await sb.rpc('get_my_sales',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return sessionGone(); }
@@ -4124,7 +4167,7 @@ async function loadBoard(){
 }
 function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleString('en-US')+' '+((u.area_unit||'sqft')) : ''; }
 async function renderBoard(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading availability…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading availability…</div></div></div>';
   const ok=await loadBoard(); if(!ok){ return sessionGone(); }
   const projects=BOARD.projects||[];
   if(!projects.length){
@@ -4363,7 +4406,7 @@ function _shareUnitSend(){
 // ════ my reservations ════
 let MINE_ROWS=[];
 async function renderMine(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   const [rRes,rSub]=await Promise.all([
     sb.rpc('get_my_reservations',{p_session_token:TOKEN}),
     sb.rpc('get_my_submissions',{p_session_token:TOKEN})
