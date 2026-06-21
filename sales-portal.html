@@ -1145,9 +1145,9 @@ body{background:var(--nx-page)}
           <a class="ni-child" data-tab="performance" onclick="setTab('performance')"><span class="ni-lb">Performance</span></a>
           <a class="ni-child" data-tab="rank" onclick="setTab('rank')"><span class="ni-lb">My Units</span></a>
           <a class="ni-child" data-tab="adroi" data-roi style="display:none" onclick="setTab('adroi')"><span class="ni-lb">Marketing ROI</span></a>
-          <a class="ni-child" data-tab="updates" onclick="setTab('updates')"><span class="ni-lb">Updates</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
         </div>
       </div>
+      <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
     </nav>
     <div class="sb-foot">
       <div class="sb-user" onclick="setTab('profile')"><div class="top-av" id="sb-av">RM</div><div class="sb-user-meta"><b id="sb-uname">—</b><span id="sb-urole">—</span></div></div>
@@ -1160,7 +1160,7 @@ body{background:var(--nx-page)}
       <button class="appbar-nav" id="appbar-home" onclick="setTab('home')" title="Go to dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Dashboard</span></button>
       <div class="appbar-title" id="appbar-title">Dashboard</div>
       <div style="flex:1"></div>
-      <button class="appbar-btn" id="appbar-bell" onclick="setTab('updates')" title="Updates" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="btab-badge" id="ann-badge"></span></button>
+      <button class="appbar-btn" id="appbar-bell" onclick="setTab('updates')" title="Messages" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="btab-badge" id="ann-badge"></span></button>
       <div class="top-av" id="top-av" onclick="setTab('profile')" title="My profile">RM</div>
     </header>
     <main class="appbody"><div id="app-body"></div></main>
@@ -1523,8 +1523,8 @@ function _applyLeadAccess(){
   const isLE   = (role==='lead_entry');                           // data-entry operator — single-purpose entry screen only
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
   show('[data-le]', isLE);
-  if(isLE){   // lock the operator to the entry screen — hide everything else (but keep the Updates bell: she receives targeted announcements)
-    show('.ni[data-tab="home"]', false); show('.ni[data-lead]', false); show('.ni-grp', false);
+  if(isLE){   // lock the operator to the entry screen — hide everything else (but keep the Messages bell: she receives targeted announcements)
+    show('.ni[data-tab="home"]', false); show('.ni[data-lead]', false); show('.ni[data-tab="updates"]', false); show('.ni-grp', false);
     const ah=$('appbar-home'); if(ah) ah.style.display='none';
     const ab=$('appbar-bell'); if(ab) ab.style.display='';
     try{ loadAnnouncements(); }catch(e){}
@@ -1616,7 +1616,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Updates',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Org Map',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Org Map',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && t!=='leadentry' && t!=='profile' && t!=='updates') t='leadentry';   // operator: entry + profile + read-only Updates
@@ -3430,7 +3430,7 @@ async function renderMore(){
   html+=row('My Clients','Everyone you have sold to',"setTab('clients')");
   html+=row('My Recovery','Outstanding to collect',"setTab('recovery')");
   html+=row('My Units','Units you have sold',"setTab('rank')");
-  html+=row('Updates','Company notices',"setTab('updates')",annExtra);
+  html+=row('Messages','Notices from your director',"setTab('updates')",annExtra);
   html+=row('My Profile','Your details, bank &amp; PIN',"setTab('profile')");
   html+=`<button class="btn btn-full" style="margin-top:12px" onclick="toggleTheme()">Toggle theme</button>`;
   html+=`<button class="btn btn-full" style="margin-top:8px;color:var(--fk-danger)" onclick="doLogout()">Sign out</button>`;
@@ -4358,7 +4358,7 @@ function _annVisible(){
 function _annPaint(){
   const isDir = ME&&ME.role==='director';
   if(!ANN.tab) ANN.tab='announcement';
-  let html=_pageHead('Updates', isDir?'Post notices to your team and track who read & acknowledged.':'Notices from your director — tap to read.');
+  let html=_pageHead('Messages', isDir?'Post notices to your team and track who read & acknowledged.':'Notices from your director — tap to read.');
   if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
   const all=ANN.list||[];
   const annN=all.filter(a=>a.kind==='announcement').length, sysN=all.length-annN;
@@ -4410,7 +4410,7 @@ async function renderAnnDetail(id){
   _touch();
   const pr=_annPrio(a.priority);
   let html=`<div class="anddet">
-    <button class="andback" onclick="_annBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Updates</button>
+    <button class="andback" onclick="_annBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Messages</button>
     <div class="andsubj">${esc(a.title)}${(a.priority&&a.priority!=='normal')?' '+_annPill(pr[2],pr[0],pr[1]):''}</div>
     <div class="andmeta">From ${a.is_author?'you':esc(a.author_name||'your company')} · ${esc(fdate(a.created_at))}</div>
     <div class="andbody">${esc(a.body).replace(/\n/g,'<br>')}</div>
