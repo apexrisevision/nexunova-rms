@@ -1243,7 +1243,7 @@ function fmtPhone(v){
 
 // ════ state ════
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, UPLOAD_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
-let ANN={list:[], unread:0, loaded:false, open:null, unreadIds:new Set()};
+let ANN={list:[], unread:0, unreadAnn:0, loaded:false, open:null, tab:'announcement'};
 // board view: mode (detailed=expanded all floors [default] | floors=summary directory),
 // which project, which floor is open (floors mode), status filter, search
 let BV={proj:0, floor:null, filter:'all', q:'', mode:'detailed'};
@@ -3915,12 +3915,13 @@ function _saleRow(s){
 }
 
 // ════ updates (company notices — email-style inbox; undeletable record) ════
-function _annUpdateBadge(){ const n=Number(ANN.unread||0);
+// badge counts unread ANNOUNCEMENTS (director messages) so they're never drowned by system noise
+function _annUpdateBadge(){ const n=Number(ANN.unreadAnn||0);
   [$('ann-badge'),$('nav-badge-updates')].forEach(b=>{ if(!b) return;
     if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }); }
 async function loadAnnouncements(){
   try{ const {data}=await sb.rpc('get_sales_announcements',{p_session_token:TOKEN});
-    if(data&&data.success){ ANN.list=data.announcements||[]; ANN.unread=Number(data.unread||0); ANN.loaded=true; _annUpdateBadge(); return true; }
+    if(data&&data.success){ ANN.list=data.announcements||[]; ANN.unread=Number(data.unread||0); ANN.unreadAnn=Number(data.unread_announcements||0); ANN.loaded=true; _annUpdateBadge(); return true; }
   }catch(e){}
   return false; }
 function _annSnippet(s){ s=String(s||'').replace(/\s+/g,' ').trim(); return esc(s.slice(0,84))+(s.length>84?'…':''); }
@@ -3943,32 +3944,56 @@ async function renderUpdates(){
   if(ANN.open){ return renderAnnDetail(ANN.open); }   // email-style detail view
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading updates…</div></div></div>';
   const ok=await loadAnnouncements(); if(!ok&&!ANN.loaded){ return sessionGone(); }
-  _touch();
+  _touch(); _annPaint();
+}
+function _annTab(t){ ANN.tab=t; _annPaint(); }
+// filter to the active tab, then sort: urgent-unacked pinned → unread → read; newest within
+function _annVisible(){
+  const all=ANN.list||[];
+  const rows = (ANN.tab==='announcement') ? all.filter(a=>a.kind==='announcement')
+             : (ANN.tab==='system')       ? all.filter(a=>a.kind!=='announcement')
+             : all.slice();
+  const rank=a=>{ if(a.priority==='urgent' && a.requires_ack && !a.acknowledged && !a.is_author) return 0;
+                  if(!a.seen && !a.is_author) return 1; return 2; };
+  return rows.slice().sort((a,b)=> rank(a)-rank(b) || (new Date(b.created_at)-new Date(a.created_at)));
+}
+function _annPaint(){
   const isDir = ME&&ME.role==='director';
+  if(!ANN.tab) ANN.tab='announcement';
   let html=_pageHead('Updates', isDir?'Post notices to your team and track who read & acknowledged.':'Notices from your director — tap to read.');
   if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
-  if(!ANN.list.length){
+  const all=ANN.list||[];
+  const annN=all.filter(a=>a.kind==='announcement').length, sysN=all.length-annN;
+  html+=_seg([['announcement','Announcements'+(annN?' · '+annN:'')],['system','System'+(sysN?' · '+sysN:'')],['all','All']], ANN.tab, '_annTab');
+  const rows=_annVisible();
+  if(!rows.length){
+    const msg = ANN.tab==='announcement' ? (isDir?'Compose one above to notify your team.':'No announcements from your director yet.')
+              : ANN.tab==='system' ? 'No system notices right now.' : 'No updates yet.';
     html+='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>'
-      +'<div class="et">No updates yet</div><div class="es">'+(isDir?'Compose one above to notify your team.':'Notices from your director will appear here.')+'</div></div></div>';
+      +'<div class="et">Nothing here</div><div class="es">'+esc(msg)+'</div></div></div>';
     $('app-body').innerHTML=html; return;
   }
-  html+='<div class="inbox">'+ANN.list.map(_annRow).join('')+'</div>';
+  html+='<div class="inbox">'+rows.map(_annRow).join('')+'</div>';
   $('app-body').innerHTML=html;
 }
 function _annRow(a){
-  const pr=_annPrio(a.priority), unread = !a.seen && !a.is_author;
+  const pr=_annPrio(a.priority);
+  const unread = !a.seen && !a.is_author;
+  const pinned = (a.priority==='urgent' && a.requires_ack && !a.acknowledged && !a.is_author);
+  const faded  = (a.seen && !a.is_author && !pinned);
   const prioChip = (a.priority&&a.priority!=='normal') ? _annPill(pr[2],pr[0],pr[1]) : '';
   let tail='';
   if(a.is_author) tail=_annPill('You · sent','var(--fk-primary)','var(--fk-primary-tint)');
   else if(a.requires_ack && a.acknowledged) tail=_annPill('Acknowledged','var(--fk-success)','var(--fk-success-surface)');
   else if(a.requires_ack) tail=_annPill('Acknowledge needed','var(--fk-danger)','var(--fk-danger-surface)');
-  return `<div class="inrow${unread?' unread':''}" onclick="_annOpen('${a.id}')" style="border-left:3px solid ${unread?pr[0]:'transparent'}">
-    <span class="indot" style="${unread?('background:'+pr[0]):''}"></span>
+  const pin = pinned ? `<span style="font-size:10px;font-weight:var(--fk-fw-bold);color:var(--fk-danger);text-transform:uppercase;letter-spacing:.05em">${li('alert-triangle',11,2.4)} Pinned</span>` : '';
+  return `<div class="inrow${unread?' unread':''}" onclick="_annOpen('${a.id}')" style="border-left:3px solid ${(unread||pinned)?pr[0]:'transparent'};${faded?'opacity:.58':''}">
+    <span class="indot" style="${(unread||pinned)?('background:'+pr[0]):''}"></span>
     <div class="inmain">
       <div class="intop"><div class="insubj">${esc(a.title)}</div><div class="indate">${esc(fdateShort(a.created_at))}</div></div>
       <div class="insnip">${(a.attachments&&a.attachments.length)?li('paperclip',12,2)+' ':''}${_annSnippet(a.body)}</div>
-      <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${prioChip}<span style="font-size:11px;color:var(--fk-text-muted)">${a.is_author?'sent by you':('From '+esc(a.author_name||'company'))}</span>${tail}</div>
+      <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${pin}${prioChip}<span style="font-size:11px;color:var(--fk-text-muted)">${a.is_author?'sent by you':('From '+esc(a.author_name||'company'))}</span>${tail}</div>
     </div>
     <svg class="inchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
   </div>`;
@@ -3979,7 +4004,10 @@ async function renderAnnDetail(id){
   const a=(ANN.list||[]).find(x=>x.id===id);
   if(!a){ ANN.open=null; return renderUpdates(); }
   if(!a.is_author && !a.seen){   // opening = read receipt
-    try{ await sb.rpc('mark_announcement_seen',{p_session_token:TOKEN,p_announcement_id:id}); a.seen=true; ANN.unread=Math.max(0,Number(ANN.unread||0)-1); _annUpdateBadge(); }catch(e){}
+    try{ await sb.rpc('mark_announcement_seen',{p_session_token:TOKEN,p_announcement_id:id}); a.seen=true;
+      ANN.unread=Math.max(0,Number(ANN.unread||0)-1);
+      if(a.kind==='announcement') ANN.unreadAnn=Math.max(0,Number(ANN.unreadAnn||0)-1);   // badge = unread announcements only
+      _annUpdateBadge(); }catch(e){}
   }
   _touch();
   const pr=_annPrio(a.priority);
