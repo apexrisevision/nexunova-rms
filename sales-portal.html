@@ -1946,7 +1946,7 @@ async function renderManagerHome(){
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
     if(rP.data&&rP.data.success) perf=rP.data;
     if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
-    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(x=>x.is_mine&&x.status!=='won'&&x.status!=='lost'); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
+    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(_distributablePool); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
     TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
     if(rG.data&&rG.data.success) targets=rG.data;
     if(rROI&&rROI.data&&rROI.data.success) roi=rROI.data;
@@ -2497,13 +2497,20 @@ function _wizFull(){ renderLeadDetail(WIZ.id); }
 // directors/exec act on ANY company lead (server allows it); reps only on their own
 function _isLeadAdmin(){ return !!(ME && (ME.role==='director'||ME.role==='admin'||ME.role==='cfo')); }
 function _canActLead(l){ return !!(l && (l.is_mine || _isLeadAdmin())); }
+// distribute pool: a director hands down every director-level lead (incl. ones owned by
+// another director / fed in by lead_entry); a manager hands down their own. Never Won/Lost.
+function _distributablePool(l){ if(!l||l.status==='won'||l.status==='lost') return false;
+  return _isLeadAdmin() ? (l.owner_role==='director') : !!l.is_mine; }
 // ── full details (360) — opened from the wizard's "View full details" ──
 async function renderLeadDetail(id){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
   let d, acts;
-  try{ const [rg,ri]=await Promise.all([
+  try{ const _calls=[
         sb.rpc('get_lead',{p_session_token:TOKEN,p_id:id}),
-        sb.rpc('get_lead_interactions',{p_session_token:TOKEN,p_lead_id:id})]);
+        sb.rpc('get_lead_interactions',{p_session_token:TOKEN,p_lead_id:id})];
+    if(!LEADCFG) _calls.push(sb.rpc('get_my_lead_config',{p_session_token:TOKEN}));   // need can_assign for the Hand-to button
+    const _res=await Promise.all(_calls); const rg=_res[0], ri=_res[1];
+    if(!LEADCFG && _res[2] && _res[2].data && _res[2].data.success) LEADCFG=_res[2].data;
     const data=rg.data;
     if(data&&data.error==='session_expired') return sessionGone();
     if(!data||!data.success){ toast('Lead not found','err'); return closeLead(); }
@@ -3262,7 +3269,7 @@ async function renderDistribute(){
   const cfg=(rU.data)||{};
   if(!cfg.success||!cfg.can_assign){ $('app-body').innerHTML=_pageHead('Distribute leads','Hand your leads to your sub-agents.')+_emptyCard('Distribution not available','Your role can’t hand leads down.'); return; }
   DISTV.reps=cfg.users||[]; DISTV.label=cfg.assigns_to_label||'team';
-  DISTV.leads=(((rL.data)&&rL.data.leads)||[]).filter(l=>l.is_mine && l.status!=='won' && l.status!=='lost');
+  DISTV.leads=(((rL.data)&&rL.data.leads)||[]).filter(_distributablePool);
   DISTV.sel=DISTV.sel.filter(id=>DISTV.leads.some(l=>l.id===id));   // drop ids that are no longer assignable
   _distBadgeSet(DISTV.leads.length);
   _distRender();
