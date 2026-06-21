@@ -12,5 +12,9 @@
   "icons": [
     { "src": "/assets/favicon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
     { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [
+    { "platform": "webapp", "url": "https://rms.nexunova.com/manifest.webmanifest" }
   ]
 }

@@ -4832,9 +4832,19 @@ function _pwaInit(){
   window.addEventListener('appinstalled',()=>{ _deferredPrompt=null; _pwaInstalled=true; try{ localStorage.setItem('nx.pwa.installed','1'); }catch(e){} _hideInstallBar(); try{ toast('App installed — find Nexunova on your home screen','ok'); }catch(e){} });
   const st=document.createElement('style'); st.textContent='@keyframes pwaUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}@media (prefers-reduced-motion:reduce){#pwa-bar{animation:none!important}}'; document.head.appendChild(st);
 }
-function _maybeShowInstall(){
-  if(!_installEligible()) return;
-  let dismissed=false; try{ dismissed=localStorage.getItem('nx.pwa.dismissed')==='1'; }catch(e){}
+// On every app open: check whether the app is ALREADY on this device. On Android
+// Chrome navigator.getInstalledRelatedApps() is authoritative; if it's not installed
+// we offer it. Banner dismissal is per-session, so it returns next open while the
+// app still isn't on the home screen (but never when already installed/standalone).
+async function _maybeShowInstall(){
+  if(_isStandalone()){ _pwaInstalled=true; return; }
+  if(navigator.getInstalledRelatedApps){
+    try{ const apps=await navigator.getInstalledRelatedApps();
+      if(apps && apps.length){ _pwaInstalled=true; try{ localStorage.setItem('nx.pwa.installed','1'); }catch(e){} _hideInstallBar(); return; }   // it's on the device
+      _pwaInstalled=false; try{ localStorage.removeItem('nx.pwa.installed'); }catch(e){}   // authoritative: NOT on the device → offer
+    }catch(e){}
+  } else if(_pwaInstalled){ return; }   // iOS / older: best-effort flag from the appinstalled event
+  let dismissed=false; try{ dismissed=sessionStorage.getItem('nx.pwa.dismissed')==='1'; }catch(e){}
   if(dismissed) return;
   setTimeout(_showInstallBar, 1200);   // let the dashboard settle first
 }
@@ -4850,7 +4860,7 @@ function _showInstallBar(){
   document.body.appendChild(bar);
 }
 function _hideInstallBar(){ const b=$('pwa-bar'); if(b) b.remove(); }
-function _dismissInstallBar(){ try{ localStorage.setItem('nx.pwa.dismissed','1'); }catch(e){} _hideInstallBar(); }
+function _dismissInstallBar(){ try{ sessionStorage.setItem('nx.pwa.dismissed','1'); }catch(e){} _hideInstallBar(); }   // per-session, not forever
 async function _installNow(){
   if(_deferredPrompt){
     const dp=_deferredPrompt; _deferredPrompt=null;
@@ -4864,8 +4874,8 @@ function _installGuide(){
   const step=(n,txt)=>`<div style="display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--fk-hairline)"><span style="width:22px;height:22px;border-radius:50%;background:var(--fk-primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:none">${n}</span><div style="font-size:13px;line-height:1.55">${txt}</div></div>`;
   let intro, body;
   if(plat==='ios'){
-    intro='On iPhone or iPad, install from <b>Safari</b>:';
-    body=step(1,'Tap the <b>Share</b> button '+_svgShare(15)+' at the bottom of Safari (the square with an up-arrow).')
+    intro='On iPhone, one-tap install isn’t allowed by Apple — add it in <b>Safari</b> in 3 quick steps:';
+    body=step(1,'Open this page in <b>Safari</b> (not Chrome), then tap the <b>Share</b> button '+_svgShare(15)+' at the bottom (the square with an up-arrow).')
         +step(2,'Scroll down and tap <b>Add to Home Screen</b> '+_svgPlus(15)+'.')
         +step(3,'Tap <b>Add</b> at the top-right — Nexunova appears on your home screen.');
   } else if(plat==='android'){
