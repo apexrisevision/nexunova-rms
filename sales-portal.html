@@ -1824,7 +1824,7 @@ async function renderHome(){
     if(rR.data&&rR.data.success){ resvActive=(rR.data.reservations||[]).filter(x=>x.status==='active').length; }
     if(rS.data&&rS.data.success){ pend=((rS.data.submissions)||[]).filter(x=>x.status==='pending').length; }
     if(rB.data&&rB.data.success){ myUnits=Number(rB.data.units_all)||0; }
-    if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; _leadsBadgeSet(newLeads.length); _leadsNotify(newLeads.length); }
+    if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; LEAD_UNCHECKED=Number(rL.data.unchecked)||0; _leadsBadgeSet(LEAD_UNCHECKED); _leadsNotify(LEAD_UNCHECKED); }
   }catch(e){ return sessionGone(); }
   await loadAnnouncements();
   _touch();
@@ -1947,7 +1947,7 @@ async function renderManagerHome(){
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
     if(rP.data&&rP.data.success) perf=rP.data;
     if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
-    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(_distributablePool); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; }
+    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(_distributablePool); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; LEAD_UNCHECKED=Number(rL.data.unchecked)||0; }
     TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
     if(rG.data&&rG.data.success) targets=rG.data;
     if(rROI&&rROI.data&&rROI.data.success) roi=rROI.data;
@@ -1958,7 +1958,7 @@ async function renderManagerHome(){
   const nm=(ME&&ME.sales_user_name)||''; const _fn=nm?esc(String(nm).split(' ')[0]):'';
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
-  _leadsBadgeSet(newCnt); _distBadgeSet(myNew.length); _leadsNotify(newCnt);
+  _leadsBadgeSet(LEAD_UNCHECKED); _distBadgeSet(myNew.length); _leadsNotify(LEAD_UNCHECKED);
   const isDir=ME&&ME.role==='director'; const roleLbl=isDir?'Director':'Manager'; const unit=isDir?'manager':'agent';
   let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
   html+=`<div class="herometric">
@@ -2014,7 +2014,9 @@ async function renderManagerHome(){
 }
 
 // ════ Leads (CRM top-of-funnel — capture & pipeline; owner-stamped) ════
-let LEADS=[], LEADCOUNTS={}, LEADV={filter:'all'};
+let LEADS=[], LEADCOUNTS={}, LEADV={filter:'all'}, LEAD_UNCHECKED=0;
+// a lead is "delegated/assigned" when it sits with a manager/rep (left the director/exec pool)
+function _leadAssigned(l){ return !!(l && l.owner_role && ['director','admin','cfo'].indexOf(l.owner_role)===-1); }
 const LEAD_STAGES=[['new','New'],['contacted','Contacted'],['visit','Visit'],['negotiation','Negotiation'],['won','Won'],['lost','Lost']];
 const LEAD_SOURCES=['Walk-in','Call','Referral','Online','Banner','Other'];
 const _LEAD_TONE={new:'var(--fk-primary)',contacted:'var(--fk-warning)',visit:'var(--fk-info)',negotiation:'var(--nx-violet)',won:'var(--fk-success)',lost:'var(--fk-danger)'};
@@ -2038,7 +2040,7 @@ async function renderLeads(){
     ]);
     if((c.data&&c.data.error==='session_expired')||(r.data&&r.data.error==='session_expired')) return sessionGone();
     LEADCFG=(c.data&&c.data.success)?c.data:null;
-    LEADS=(r.data&&r.data.leads)||[]; LEADCOUNTS=(r.data&&r.data.counts)||{};
+    LEADS=(r.data&&r.data.leads)||[]; LEADCOUNTS=(r.data&&r.data.counts)||{}; LEAD_UNCHECKED=Number(r.data&&r.data.unchecked)||0;
   }catch(e){ return sessionGone(); }
   _touch();
   if(LEADCFG && !LEADCFG.can_have_leads){
@@ -2047,7 +2049,6 @@ async function renderLeads(){
     return;
   }
   _leadsRender();
-  _leadsMarkSeen(Number((LEADCOUNTS&&LEADCOUNTS['new'])||0));   // opening Leads = these are now "seen"
 }
 function _leadBase(){
   const isMgr=!!(LEADCFG&&LEADCFG.can_assign);
@@ -2064,7 +2065,8 @@ function _leadsRender(){
   const scoped=_leadBase();
   const counts={}; scoped.forEach(l=>{ counts[l.status]=(counts[l.status]||0)+1; });
   const total=scoped.length;
-  _leadsBadgeSet(Number(counts['new']||0));
+  const assignedN=scoped.filter(_leadAssigned).length, uncheckedN=scoped.filter(l=>!l.checked&&l.status!=='won'&&l.status!=='lost').length;
+  _leadsBadgeSet(LEAD_UNCHECKED);   // red badge = UNCHECKED leads (drops as you open them)
   const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
   const plus='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
   const title=canCreate?'Leads':'Received Leads';
@@ -2076,7 +2078,10 @@ function _leadsRender(){
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
   html+=`<div class="lead-search">${srch}<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()"></div>`;
   const chip=(k,lb,n)=>`<button onclick="_leadFilter('${k}')" class="lead-chip${LEADV.filter===k?' on':''}">${esc(lb)} <b>${n}</b></button>`;
-  html+='<div class="lead-chips">'+chip('all','All',total)+LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')+'</div>';
+  html+='<div class="lead-chips">'+chip('all','All',total)
+    +(uncheckedN?chip('unchecked','Unchecked',uncheckedN):'')
+    +LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')
+    +(isMgr?chip('assigned','Assigned',assignedN):'')+'</div>';
   html+='<div id="lead-list"></div></div>';
   $('app-body').innerHTML=html;
   _leadListRender();
@@ -2084,7 +2089,12 @@ function _leadsRender(){
 function _leadSetScope(k){ LEADV.scope=k; _leadsRender(); }
 function _leadSetOwn(k){ LEADV.own=k; _leadsRender(); }
 function _leadListRender(){
-  let rows=_leadBase().filter(l=>LEADV.filter==='all'||l.status===LEADV.filter);
+  const f=LEADV.filter;
+  let rows=_leadBase().filter(l=>
+    f==='all' ? true
+    : f==='assigned'  ? _leadAssigned(l)
+    : f==='unchecked' ? (!l.checked && l.status!=='won' && l.status!=='lost')
+    : l.status===f);
   const q=(LEADV.q||'').trim().toLowerCase();
   if(q) rows=rows.filter(l=>((l.name||'').toLowerCase().includes(q))||((l.phone||'').replace(/\s/g,'').includes(q)));
   const el=$('lead-list'); if(!el) return;
@@ -2102,20 +2112,32 @@ function _leadListRender(){
 }
 function _leadCard(l){
   const col=_leadColor(l.status), lbl=_leadStageLabel(l.status);
+  const unchecked = !l.checked;
   const opts=LEAD_STAGES.map(([k,lb])=>`<option value="${k}"${l.status===k?' selected':''}>${esc(lb)}</option>`).join('');
   const caret='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
   const stat=`<span class="lead-stat" style="background:color-mix(in srgb,${col} 14%,var(--fk-bg-card));color:${col}">${esc(lbl)}${caret}<select class="lead-stat-x" onchange="_leadStage('${l.id}',this.value)" title="Change status">${opts}</select></span>`;
   const meta=[l.interest?esc(l.interest):'', l.budget?pkrShort(l.budget):''].filter(Boolean).join(' · ');
-  const sub=[l.phone?esc(l.phone):'', meta].filter(Boolean).join(' · ')+((!l.is_mine&&l.owner_name)?' · → '+esc(l.owner_name):'');
-  const srcTag = l.source ? (l.created_by_me?'':'Received · ')+_srcLabel(l.source) : '';   // PART C — where each lead came from
-  return `<div class="lrow lead-row" style="--lc:${col}">
+  const sub=[l.phone?esc(l.phone):'', meta].filter(Boolean).join(' · ');
+  const srcTag = l.source ? (l.created_by_me?'':'Received · ')+_srcLabel(l.source) : '';   // where each lead came from
+  const dot = unchecked ? `<span title="Not checked yet" style="width:8px;height:8px;border-radius:50%;background:${col};flex:none"></span>` : '';
+  const nameStyle = unchecked ? 'font-weight:var(--fk-fw-bold)' : 'font-weight:var(--fk-fw-medium);color:var(--fk-text-muted)';
+  // inline action: hand-to-team when this is a poolable lead (director/manager); else show who it was assigned to
+  const canAssign=!!(LEADCFG&&LEADCFG.can_assign);
+  let foot='';
+  if(_leadAssigned(l) && l.owner_name && !l.is_mine){
+    foot=`<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">${li('check',12,2.4)} Assigned to ${esc(l.owner_name)}</span>`;
+  } else if(canAssign && _distributablePool(l)){
+    foot=`<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openAssign('${l.id}')">Assign to team →</button>`;
+  }
+  return `<div class="lrow lead-row${unchecked?' lead-unread':''}" style="--lc:${col}${unchecked?'':';opacity:.78'}">
     <div class="lrow-top">
       <div class="lead-main" onclick="openLead('${l.id}')">
         ${_avatarC(l.name,40)}
-        <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
+        <div style="flex:1;min-width:0"><div class="lr-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${dot}${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
       </div>
       <div class="lead-right">${stat}<span class="lead-date">${esc(fdateShort(l.created_at))}</span></div>
     </div>
+    ${foot?`<div style="display:flex;justify-content:flex-end;margin-top:8px">${foot}</div>`:''}
   </div>`;
 }
 function _leadFilter(f){ LEADV.filter=f; _leadsRender(); }
@@ -2399,7 +2421,12 @@ async function _leadImportRun(){
 }
 // ════ LEAD WIZARD — one simple step at a time (default lead experience) ════
 let WIZ={id:null,step:1,lead:null,acts:null};
-async function openLead(id){ LEAD_OPEN=id; _trailFull=false; GW={active:false,leadId:null,step:1}; await renderLeadDetail(id); _syncNav(); }
+async function openLead(id){ LEAD_OPEN=id; _trailFull=false; GW={active:false,leadId:null,step:1}; await renderLeadDetail(id); _syncNav();
+  // opening = "checked": mark seen, un-bold locally, drop the unread badge
+  const l=(LEADS||[]).find(x=>x.id===id);
+  if(l && !l.checked){ l.checked=true; if(l.status!=='won'&&l.status!=='lost'){ LEAD_UNCHECKED=Math.max(0,LEAD_UNCHECKED-1); _leadsBadgeSet(LEAD_UNCHECKED); } }
+  try{ await sb.rpc('mark_lead_seen',{p_session_token:TOKEN,p_lead_id:id}); }catch(e){}
+}
 function closeLead(){ LEAD_OPEN=null; renderLeads(); }
 async function renderLeadWizard(fresh){
   if(fresh||!WIZ.lead){
@@ -2944,7 +2971,7 @@ async function openAssign(id){
 async function _assignTo(leadId,toId){
   try{ const {data}=await sb.rpc('assign_lead',{p_session_token:TOKEN,p_lead_id:leadId,p_to_id:toId});
     if(data&&data.success){ closeModal(); toast('Handed to '+(data.to_name||'team'),'ok');
-      if(TAB==='distribute') renderDistribute(); else if(TAB==='team') renderTeam(); else renderLeadDetail(leadId); }
+      if(TAB==='distribute') renderDistribute(); else if(TAB==='team') renderTeam(); else if(TAB==='leads'&&!LEAD_OPEN) renderLeads(); else renderLeadDetail(leadId); }
     else toast((data&&data.message)||'Could not assign','err');
   }catch(e){ toast('Could not assign','err'); }
 }
