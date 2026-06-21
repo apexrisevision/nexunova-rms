@@ -3635,6 +3635,7 @@ function _liveInjectCss(){
     +'@keyframes lmPulse{0%{transform:scale(.75);opacity:.75}100%{transform:scale(1.7);opacity:0}}'
     +'@media (prefers-reduced-motion:reduce){.lm-pin.fresh::after{animation:none;opacity:0}}'
     +'.lm-label{background:rgba(255,255,255,.96);border:1px solid rgba(15,23,42,.12);border-radius:8px;padding:1px 7px;font:600 11px/1.4 Inter,sans-serif;color:#1e293b;box-shadow:0 1px 5px rgba(0,0,0,.18);white-space:nowrap}'
+    +'.lm-site-wrap{background:none!important;border:none!important}.lm-site{display:inline-flex;align-items:center;gap:4px;background:#4F46E5;color:#fff;font:700 11px Inter,sans-serif;padding:2px 8px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.25);transform:translateX(-50%)}'
     +'.leaflet-popup-content{margin:11px 13px;font-family:Inter,sans-serif}.leaflet-popup-content-wrapper{border-radius:12px}';
   document.head.appendChild(st);
 }
@@ -3682,22 +3683,88 @@ async function renderLiveMap(){
   if(LIVE_MODE==='heat')   return _liveHeatMode();
   return _liveLiveMode();
 }
+let LIVE_SITES=[], _liveSiteLayers={}, _siteAdd=false;
 async function _liveLiveMode(){
-  let data;
-  try{ const r=await sb.rpc('get_team_locations',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  let data, sites;
+  try{ const [r,rs]=await Promise.all([sb.rpc('get_team_locations',{p_session_token:TOKEN}), sb.rpc('list_map_sites',{p_session_token:TOKEN})]);
+    if(r.error) throw r.error; data=r.data; sites=(rs.data&&rs.data.success)?rs.data.sites:[]; }
   catch(e){ return sessionGone(); }
   if(!data||!data.success){ return sessionGone(); }
   _touch();
-  LIVE_PINS=data.pins||[];
+  LIVE_PINS=data.pins||[]; LIVE_SITES=sites||[];
   let html='<div id="live-filter">'+_liveFilterBar()+'</div>';
-  html+='<div style="display:flex;align-items:center;gap:6px;margin:-4px 2px 8px;font-size:11px;color:var(--fk-text-muted)"><span style="width:7px;height:7px;border-radius:50%;background:var(--fk-success);flex:none"></span><span id="live-updated">updated just now</span></div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin:-4px 2px 8px"><span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fk-text-muted)"><span style="width:7px;height:7px;border-radius:50%;background:var(--fk-success);flex:none"></span><span id="live-updated">updated just now</span></span><span style="flex:1"></span><button class="btn btn-sm" onclick="_liveAddSiteStart()">'+li('plus',13,2.2)+' Add site</button></div>';
   html+='<div id="live-follow" style="display:none;align-items:center;justify-content:space-between;gap:8px;background:var(--fk-primary-tint);border:1px solid var(--fk-primary);border-radius:10px;padding:7px 12px;margin-bottom:8px;font-size:13px;color:var(--fk-primary)"></div>';
   html+=`<div id="livemap-canvas" style="width:100%;height:55vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
+  html+='<div id="live-sites">'+_liveSitesHtml()+'</div>';
   html+='<div id="live-list">'+_liveListHtml()+'</div>';
   $('lm-body').innerHTML=html;
-  _liveInitMap(); _liveFollowBanner();
+  _liveInitMap(); _liveDrawSites(); _liveFollowBanner();
   _liveLastRefresh=Date.now(); _liveUpdatedLabel(); _liveStartLabelTicker();
   _liveAutoRefresh();
+}
+// ── Geofence sites: who's inside / nearest, add by tapping the map ──
+function _mft(m){ return m<1000?Math.round(m)+'m':(m/1000).toFixed(1)+'km'; }
+function _siteAgentsInside(s){ return (LIVE_PINS||[]).filter(p=> _hav([Number(s.lat),Number(s.lng)],[Number(p.lat),Number(p.lng)]) <= Number(s.radius_m)); }
+function _siteNearest(s){ let best=null; (LIVE_PINS||[]).forEach(p=>{ const d=_hav([Number(s.lat),Number(s.lng)],[Number(p.lat),Number(p.lng)]); if(!best||d<best.d) best={p:p,d:d}; }); return best; }
+function _liveSitesHtml(){
+  if(!LIVE_SITES.length) return '';
+  return '<div class="dsec">Sites <span class="nb">'+LIVE_SITES.length+'</span></div><div class="lgroup">'+LIVE_SITES.map(s=>{
+    const inside=_siteAgentsInside(s), near=_siteNearest(s);
+    const sub = inside.length ? ('<b style="color:var(--fk-success)">'+inside.length+' inside</b>: '+inside.map(p=>esc(p.name)).join(', ')) : (near?('nearest: '+esc(near.p.name)+' · '+_mft(near.d)):'no agents');
+    return '<div class="lrow tap" onclick="_liveFocusSite(\''+s.id+'\')"><div class="lrow-top"><span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+(inside.length?'var(--fk-success)':'var(--fk-text-muted)')+'"></span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(s.name)+'</div><div style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sub+' · '+s.radius_m+'m</div></div><button class="btn btn-sm btn-danger-soft" onclick="event.stopPropagation();_liveDeleteSite(\''+s.id+'\')">Delete</button></div></div>';
+  }).join('')+'</div>';
+}
+function _liveUpdateSites(){ const el=$('live-sites'); if(el) el.innerHTML=_liveSitesHtml(); }
+function _sitePopup(s){
+  const inside=_siteAgentsInside(s), near=_siteNearest(s);
+  let b='<div style="font-weight:700;font-size:14px">'+esc(s.name)+'</div><div style="font-size:12px;color:#64748b;margin-top:1px">Radius '+s.radius_m+' m</div>';
+  b += inside.length ? ('<div style="font-size:12px;margin-top:6px"><b style="color:#16A34A">'+inside.length+' inside:</b> '+inside.map(p=>esc(p.name)).join(', ')+'</div>')
+                     : '<div style="font-size:12px;color:#94a3b8;margin-top:6px">No agents inside</div>';
+  if(near) b+='<div style="font-size:12px;color:#64748b;margin-top:3px">Nearest: '+esc(near.p.name)+' · '+_mft(near.d)+'</div>';
+  b+='<button onclick="_liveDeleteSite(\''+s.id+'\')" style="margin-top:9px;background:#fee2e2;color:#b91c1c;border:0;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer">Delete site</button>';
+  return '<div style="min-width:182px">'+b+'</div>';
+}
+function _liveDrawSites(){
+  if(!_liveMap||!window.L) return;
+  Object.keys(_liveSiteLayers).forEach(k=>{ const o=_liveSiteLayers[k]; try{ _liveMap.removeLayer(o.c); _liveMap.removeLayer(o.m); }catch(e){} }); _liveSiteLayers={};
+  (LIVE_SITES||[]).forEach(s=>{ const ll=[Number(s.lat),Number(s.lng)];
+    const c=L.circle(ll,{radius:Number(s.radius_m),color:'#4F46E5',weight:1.5,opacity:.7,fillColor:'#4F46E5',fillOpacity:.07}).addTo(_liveMap);
+    const icon=L.divIcon({className:'lm-site-wrap',html:'<div class="lm-site">'+esc(s.name)+'</div>',iconSize:[0,0]});
+    const m=L.marker(ll,{icon}).addTo(_liveMap); m.bindPopup(_sitePopup(s)); c.on('click',()=>{ try{ m.openPopup(); }catch(e){} });
+    _liveSiteLayers[s.id]={c:c,m:m};
+  });
+}
+function _liveFocusSite(id){ const s=(LIVE_SITES||[]).find(x=>String(x.id)===String(id)); if(!s||!_liveMap) return;
+  _liveMap.setView([Number(s.lat),Number(s.lng)],16,{animate:true}); const o=_liveSiteLayers[id]; if(o&&o.m) try{ o.m.openPopup(); }catch(e){}
+  try{ $('livemap-canvas').scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+}
+function _liveAddSiteStart(){
+  if(!_liveMap){ return toast('Open the map first','err'); }
+  _siteAdd=true; toast('Tap the map where the site is','ok');
+  try{ _liveMap.getContainer().style.cursor='crosshair'; }catch(e){}
+  _liveMap.once('click',e=>{ try{ _liveMap.getContainer().style.cursor=''; }catch(x){} _siteAdd=false; _liveAddSiteModal(e.latlng.lat,e.latlng.lng); });
+}
+function _liveAddSiteModal(lat,lng){
+  openModal('New site',
+    '<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:10px">A geofence at this spot — the map will show who is inside and the nearest agent.</div>'
+    +'<div class="field"><label class="label">Site name *</label><input class="input" id="site-name" placeholder="e.g. KHUSHAL BAGH site" autocomplete="off"></div>'
+    +'<div class="field"><label class="label">Radius (metres)</label><input class="input num" id="site-radius" inputmode="numeric" value="200"></div>'
+    +'<div class="err" id="site-err"></div>',
+    '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_liveAddSiteSave('+lat+','+lng+')">Add site</button>');
+}
+async function _liveAddSiteSave(lat,lng){
+  const name=(($('site-name')||{}).value||'').trim(); const rad=Math.round(Number((((($('site-radius')||{}).value)||'200').replace(/[^0-9]/g,'')))||200);
+  const err=$('site-err'); if(!name){ if(err){ err.textContent='Name is required.'; err.classList.add('show'); } return; }
+  try{ const {data}=await sb.rpc('add_map_site',{p_session_token:TOKEN,p_name:name,p_lat:lat,p_lng:lng,p_radius:rad});
+    if(data&&data.success){ closeModal(); toast('Site added','ok'); _liveLiveMode(); }
+    else { if(err){ err.textContent=(data&&data.error==='name_required')?'Name is required.':'Could not add site.'; err.classList.add('show'); } }
+  }catch(e){ if(err){ err.textContent='Could not add site.'; err.classList.add('show'); } }
+}
+async function _liveDeleteSite(id){
+  try{ const {data}=await sb.rpc('delete_map_site',{p_session_token:TOKEN,p_id:id});
+    if(data&&data.success){ try{ closeModal(); }catch(e){} toast('Site removed','ok'); _liveLiveMode(); } else toast('Could not remove','err');
+  }catch(e){ toast('Could not remove','err'); }
 }
 // ── Replay (time machine): scrub / play the whole team's day on the map ──
 let REPLAY={day:null,members:[],min:0,max:0,t:0,playing:false,speedIdx:1,timer:null,markers:{},paths:{}};
@@ -3833,7 +3900,7 @@ function _liveAutoRefresh(){
     if(TAB!=='livemap' || LIVE_MODE!=='live'){ if(_liveRefreshTimer){ clearInterval(_liveRefreshTimer); _liveRefreshTimer=null; } return; }   // self-clear on leaving / mode change
     if(document.hidden || TRAIL_MEMBER) return;   // paused when backgrounded / viewing a member's trail
     try{ const {data}=await sb.rpc('get_team_locations',{p_session_token:TOKEN});
-      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); _liveLastRefresh=Date.now(); _liveUpdatedLabel(); }
+      if(data&&data.success){ LIVE_PINS=data.pins||[]; _liveRenderMarkers(false); _liveUpdateList(); _liveUpdateSites(); const b=$('live-filter'); if(b) b.innerHTML=_liveFilterBar(); _liveLastRefresh=Date.now(); _liveUpdatedLabel(); }
     }catch(e){}
   };
   _liveRefreshTimer=setInterval(tick, 75000);   // ~75s while the map is open + foreground
