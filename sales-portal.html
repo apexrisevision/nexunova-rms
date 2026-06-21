@@ -1115,7 +1115,7 @@ body{background:var(--nx-page)}
       <div class="ni-grp" data-grp="leads" style="display:none">
         <div class="ni-grp-hd" onclick="toggleGroup('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
         <div class="ni-sub">
-          <a class="ni-child" data-tab="leads" data-lead onclick="setTab('leads')"><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
+          <a class="ni-child" data-tab="leads" data-lead onclick="setTab('leads')"><span class="ni-lb">All Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
           <a class="ni-child" data-tab="distribute" data-mgr onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni-child" data-tab="fbsettings" data-dir onclick="setTab('fbsettings')"><span class="ni-lb">Facebook Leads</span></a>
         </div>
@@ -1633,7 +1633,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Lead Entry',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && t!=='leadentry' && t!=='profile' && t!=='updates') t='leadentry';   // operator: entry + profile + read-only Updates
@@ -1662,7 +1662,12 @@ function setTab(t,_back){
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
   document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="'+t+'"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
-  const ttl=$('appbar-title'); if(ttl) ttl.textContent=TAB_TITLES[t]||'';
+  const ttl=$('appbar-title');
+  if(ttl){ let title=TAB_TITLES[t]||'';
+    const node=document.querySelector('.sb .ni-child[data-tab="'+t+'"]');
+    const grp=node&&node.closest('.ni-grp'); const gl=grp&&grp.querySelector('.ni-grp-hd .ni-lb');
+    if(gl&&gl.textContent.trim()) title=gl.textContent.trim()+' › '+title;   // breadcrumb: which menu this tab lives in
+    ttl.textContent=title; }
   closeSidebar();
   try{ const b=$('app-body'); if(b){ b.classList.remove('rise'); void b.offsetWidth; b.classList.add('rise'); } window.scrollTo(0,0); }catch(e){}
   _syncNav();
