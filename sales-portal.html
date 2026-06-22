@@ -2201,7 +2201,7 @@ function _leadCard(l){
     <div class="lrow-top">
       <div class="lead-main" onclick="openLead('${l.id}')">
         ${_avatarC(l.name,40)}
-        <div style="flex:1;min-width:0"><div class="lr-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${dot}${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
+        <div style="flex:1;min-width:0"><div class="lr-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${dot}${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${l.project_name?_projChip(l.project_name):''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
       </div>
       <div class="lead-right">${stat}<span class="lead-date">${esc(fdateShort(l.created_at))}</span></div>
     </div>
@@ -2258,6 +2258,11 @@ function _dupOwnedDialog(d){
 // ════ LEAD ENTRY — minimal data-entry role; everything feeds the director's pool (owner=director, entered_by=operator) ════
 const LE_SOURCES=[['facebook','Facebook'],['whatsapp','WhatsApp'],['instagram','Instagram'],['manual','Manual']];
 let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[],monthly:[]};
+let LE_PROJECTS=[];   // company projects for the lead-entry Project dropdown (token-scoped via list_my_projects)
+function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
+function _leProjOpts(sel){ return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>`<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${p.code?' ('+esc(p.code)+')':''}</option>`).join(''); }
+function _resolveProjId(t){ t=String(t||'').trim().toLowerCase(); if(!t) return ''; const p=LE_PROJECTS.find(x=>String(x.name||'').toLowerCase()===t||String(x.code||'').toLowerCase()===t); return p?p.id:''; }
+function _projChip(name){ return name?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--fk-fs-label);color:var(--fk-info);background:var(--fk-info-surface);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${_leBldgSvg()}${esc(name)}</span>`:''; }
 const AD_PLATFORMS=[['facebook','Facebook'],['instagram','Instagram'],['whatsapp','WhatsApp']];
 function _adPlatTone(s){ return ({facebook:['var(--fk-info-surface)','var(--fk-info)'],instagram:['var(--nx-violet-soft)','var(--nx-violet)'],whatsapp:['var(--fk-success-surface)','var(--fk-success)']})[String(s||'').toLowerCase()]||['var(--fk-bg-subtle)','var(--fk-text-muted)']; }
 function _adPlatLabel(s){ const f=AD_PLATFORMS.find(x=>x[0]===String(s||'').toLowerCase()); return f?f[1]:(s||'—'); }
@@ -2265,12 +2270,13 @@ function _leSrcOpts(sel){ return LE_SOURCES.map(s=>`<option value="${s[0]}"${sel
 function _leSrcTone(s){ return ({facebook:['var(--fk-info-surface)','var(--fk-info)'],whatsapp:['var(--fk-success-surface)','var(--fk-success)'],instagram:['var(--nx-violet-soft)','var(--nx-violet)'],manual:['var(--fk-bg-subtle)','var(--fk-text-muted)']})[String(s||'').toLowerCase()]||['var(--fk-bg-subtle)','var(--fk-text-muted)']; }
 async function renderLeadEntry(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  try{ const [c,e,a]=await Promise.all([sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),sb.rpc('get_my_entered_leads',{p_session_token:TOKEN}),sb.rpc('get_my_ad_spend',{p_session_token:TOKEN})]);
+  try{ const [c,e,a,pr]=await Promise.all([sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),sb.rpc('get_my_entered_leads',{p_session_token:TOKEN}),sb.rpc('get_my_ad_spend',{p_session_token:TOKEN}),sb.rpc('list_my_projects',{p_session_token:TOKEN})]);
     if((c.data&&c.data.error==='session_expired')||(e.data&&e.data.error==='session_expired')) return sessionGone();
     if(c.data&&c.data.success) LEADCFG=c.data;
     if(!LEADCFG||!LEADCFG.sources||!LEADCFG.sources.length) LEADCFG=Object.assign({},LEADCFG||{},{sources:LE_SOURCES.map(s=>({value:s[0],label:s[1]}))});
     LE_ENTERED=(e.data&&e.data.success)?e.data:{rows:[],today:0};
     LE_ADSPEND=(a.data&&a.data.success)?a.data:{rows:[],monthly:[]};
+    LE_PROJECTS=(pr.data&&pr.data.success)?(pr.data.projects||[]):[];
   }catch(err){ return sessionGone(); }
   _touch(); _leRender();
 }
@@ -2294,6 +2300,7 @@ function _leAddForm(){
     <div class="field"><label class="label">Name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="le-name" value="${esc(f.name||'')}" autocomplete="off"></div>
     <div class="field"><label class="label">Phone</label><input class="input" id="le-phone" inputmode="tel" value="${esc(f.phone||'')}" autocomplete="off"></div>
     <div class="field"><label class="label">Source</label><select class="input" id="le-source">${_leSrcOpts(f.source||'facebook')}</select></div>
+    <div class="field"><label class="label">Project <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· which project’s ad</span></label><select class="input" id="le-project">${_leProjOpts(f.project_id||'')}</select></div>
     <div class="field"><label class="label">Interested in</label><input class="input" id="le-interest" value="${esc(f.interest||'')}" autocomplete="off"></div>
     <div class="field"><label class="label">Budget (PKR)</label><input class="input num" id="le-budget" inputmode="numeric" value="${esc(f.budget||'')}" autocomplete="off"></div>
     <div class="field"><label class="label">Notes</label><input class="input" id="le-notes" value="${esc(f.notes||'')}" autocomplete="off"></div>
@@ -2304,7 +2311,7 @@ function _leAddForm(){
 async function _leSave(){
   const name=($('le-name')||{}).value||''; const err=$('le-err'); if(err) err.style.display='none';
   if(!name.trim()){ if(err){err.style.display='block';err.textContent='Name is required.';} return; }
-  const payload={name:name.trim(),phone:($('le-phone')||{}).value||'',source:($('le-source')||{}).value||'manual',interest:($('le-interest')||{}).value||'',budget:(($('le-budget')||{}).value||'').replace(/[^0-9.]/g,''),notes:($('le-notes')||{}).value||''};
+  const payload={name:name.trim(),phone:($('le-phone')||{}).value||'',source:($('le-source')||{}).value||'manual',project_id:($('le-project')||{}).value||'',interest:($('le-interest')||{}).value||'',budget:(($('le-budget')||{}).value||'').replace(/[^0-9.]/g,''),notes:($('le-notes')||{}).value||''};
   try{ const {data}=await sb.rpc('create_lead',{p_session_token:TOKEN,p_payload:payload});
     if(data&&data.success){ toast('Lead added to the pool','ok'); LE_FORM={}; LE_VIEW='add'; renderLeadEntry(); }
     else if(data&&data.error==='session_expired') sessionGone();
@@ -2337,7 +2344,7 @@ function _leEnteredList(){
   let h='<div class="dsec">Entered'+(LE_ENTERED.today?` <span class="nb">${LE_ENTERED.today} today</span>`:'')+'</div><div class="lgroup">';
   h+=rows.map(r=>{ const tn=_leSrcTone(r.source); return `<div class="lrow"><div class="lrow-top">
     ${_avatarC(r.name||'Lead',36)}
-    <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.name||'Lead')}</div><div class="lr-sub"><span style="font-variant-numeric:tabular-nums">${esc(r.phone||'—')}</span></div></div>
+    <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.name||'Lead')}</div><div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-variant-numeric:tabular-nums">${esc(r.phone||'—')}</span>${r.project_name?_projChip(r.project_name):''}</div></div>
     <div style="text-align:right;flex:none"><span class="spill" style="background:${tn[0]};border-color:transparent;color:${tn[1]};white-space:nowrap">${esc(_srcLabel(r.source))}</span><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px">${esc(_agoTxt(r.created_at))}</div></div>
   </div></div>`; }).join('')+'</div>';
   return h;
@@ -2403,7 +2410,8 @@ const _IMP_ALIASES={
   source:['source','lead source','channel','origin'],
   interest:['interest','interested','interested in','unit','requirement','property','looking for'],
   budget:['budget','price','amount','range'],
-  notes:['notes','note','remarks','remark','comment','comments','detail','details','description'] };
+  notes:['notes','note','remarks','remark','comment','comments','detail','details','description'],
+  project:['project','projects','project name','projectname','scheme','society','tower'] };
 function _normPhoneJS(p){ let x=String(p||'').replace(/\D/g,''); if(!x)return ''; if(x.slice(0,2)==='92')return x; if(x[0]==='0')return '92'+x.slice(1); if(x.length===10)return '92'+x; return x; }
 function _csvParse(text){ const rows=[]; let i=0,f='',row=[],q=false; text=String(text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   while(i<text.length){ const c=text[i];
@@ -2423,12 +2431,14 @@ function _leadImportOpen(){
      <label class="btn btn-full" style="cursor:pointer;margin-bottom:10px;justify-content:center">${up}&nbsp; Choose CSV file<input type="file" accept=".csv,text/csv" style="display:none" onchange="_impFile(this)"></label>
      <textarea class="input" id="imp-csv" rows="7" placeholder="name,phone,source,interest,budget,notes&#10;Ali Khan,03001234567,walkin,2 bed,8000000,referred by Usman" style="font-size:12px"></textarea>
      <div class="field" style="margin-top:10px"><label class="label">Default source (used when a row leaves it blank)</label><select class="input" id="imp-src">${_impSrcOpts()}</select></div>
+     <div class="field" style="margin-top:10px"><label class="label">Default project (used when a row has no project / it doesn’t match)</label><select class="input" id="imp-project">${_leProjOpts('')}</select></div>
      <div id="imp-err" style="display:none;color:var(--fk-danger);font-size:13px;margin-top:6px"></div>`,
     `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leadImportPreview()">Preview</button>`);
 }
 function _impFile(input){ const f=input.files&&input.files[0]; if(!f)return; const r=new FileReader(); r.onload=e=>{ const ta=$('imp-csv'); if(ta) ta.value=e.target.result||''; }; r.readAsText(f); }
 function _leadImportPreview(){
   const raw=($('imp-csv')||{}).value||''; const err=$('imp-err'); const defSrc=($('imp-src')||{}).value||'manual';
+  const defProj=($('imp-project')||{}).value||'';
   const grid=_csvParse(raw);
   if(grid.length<2){ if(err){err.style.display='block';err.textContent='Add a header row plus at least one data row.';} return; }
   const headers=grid[0].map(h=>String(h||'').trim());
@@ -2437,24 +2447,26 @@ function _leadImportPreview(){
   const get=(r,fld)=> map[fld]!==undefined ? String(r[map[fld]]||'').trim() : '';
   IMPORT_ROWS=[]; const seen={};
   for(let i=1;i<grid.length;i++){ const r=grid[i];
-    const row={ name:get(r,'name'), phone:get(r,'phone'), source:get(r,'source')||defSrc, interest:get(r,'interest'), budget:get(r,'budget'), notes:get(r,'notes') };
+    const projId=_resolveProjId(get(r,'project'))||defProj;   // match a project column to a real project, else batch default
+    const row={ name:get(r,'name'), phone:get(r,'phone'), source:get(r,'source')||defSrc, project_id:projId, _projName:(LE_PROJECTS.find(x=>x.id===projId)||{}).name||'', interest:get(r,'interest'), budget:get(r,'budget'), notes:get(r,'notes') };
     let st='ok', why='Will import';
     if(!row.name){ st='invalid'; why='Missing name'; }
     else if(row.phone){ const n=_normPhoneJS(row.phone); if(n){ if(seen[n]){ st='dup'; why='Duplicate within this file'; } else seen[n]=1; } }
     row._st=st; row._why=why; IMPORT_ROWS.push(row);
   }
   if(IMPORT_ROWS.length>500){ if(err){err.style.display='block';err.textContent='Too many rows ('+IMPORT_ROWS.length+'). The limit is 500 per import — split the file.';} return; }
-  const fldLbl={name:'Name',phone:'Phone',source:'Source',interest:'Interest',budget:'Budget',notes:'Notes'};
+  const fldLbl={name:'Name',phone:'Phone',source:'Source',project:'Project',interest:'Interest',budget:'Budget',notes:'Notes'};
   const mapChips=Object.keys(fldLbl).map(f=> map[f]!==undefined
     ? `<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">${fldLbl[f]} ← ${esc(headers[map[f]])}</span>`
     : `<span class="spill" style="color:var(--fk-text-muted)">${fldLbl[f]} — not mapped</span>`).join('');
   const dot=s=> s==='invalid'?'var(--fk-danger)':(s==='dup'?'var(--fk-warning)':'var(--fk-success)');
-  const head=`<tr style="text-align:left;color:var(--fk-text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em"><th style="padding:6px 8px">#</th><th style="padding:6px 8px">Name</th><th style="padding:6px 8px">Phone</th><th style="padding:6px 8px">Source</th><th style="padding:6px 8px">Status</th></tr>`;
+  const head=`<tr style="text-align:left;color:var(--fk-text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em"><th style="padding:6px 8px">#</th><th style="padding:6px 8px">Name</th><th style="padding:6px 8px">Phone</th><th style="padding:6px 8px">Source</th><th style="padding:6px 8px">Project</th><th style="padding:6px 8px">Status</th></tr>`;
   const body=IMPORT_ROWS.slice(0,50).map((r,i)=>`<tr style="border-top:1px solid var(--fk-hairline)">
      <td style="padding:6px 8px;color:var(--fk-text-muted);font-variant-numeric:tabular-nums">${i+1}</td>
      <td style="padding:6px 8px">${esc(r.name||'—')}</td>
      <td style="padding:6px 8px;font-variant-numeric:tabular-nums">${esc(r.phone||'—')}</td>
      <td style="padding:6px 8px">${esc(r.source||'—')}</td>
+     <td style="padding:6px 8px;color:${r._projName?'var(--fk-info)':'var(--fk-text-muted)'}">${esc(r._projName||'—')}</td>
      <td style="padding:6px 8px"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot(r._st)};margin-right:6px"></span>${esc(r._why)}</td></tr>`).join('');
   const willImport=IMPORT_ROWS.filter(r=>r._st!=='invalid').length;
   const more=IMPORT_ROWS.length>50?`<div style="font-size:12px;color:var(--fk-text-muted);margin-top:8px">Showing first 50 of ${IMPORT_ROWS.length} rows.</div>`:'';
@@ -2467,7 +2479,7 @@ function _leadImportPreview(){
 async function _leadImportRun(){
   if(!IMPORT_ROWS.length){ closeModal(); return; }
   const defSrc=(IMPORT_ROWS[0]&&IMPORT_ROWS[0].source)||'manual';
-  const rows=IMPORT_ROWS.map(r=>({name:r.name,phone:r.phone,source:r.source,interest:r.interest,budget:r.budget,notes:r.notes}));
+  const rows=IMPORT_ROWS.map(r=>({name:r.name,phone:r.phone,source:r.source,project_id:r.project_id||'',interest:r.interest,budget:r.budget,notes:r.notes}));
   openModal('Importing…',`<div class="empty"><div class="et">Importing ${rows.length} row${rows.length===1?'':'s'}…</div></div>`,'');
   let data;
   try{ const r=await sb.rpc('import_leads',{p_session_token:TOKEN,p_rows:rows,p_default_source:defSrc}); data=r.data; }
@@ -2517,7 +2529,7 @@ function _wizRender(){
     h+=`<div class="wz-q">${fresh?'New lead — say hello':'Work this lead'}</div><div class="wz-sub">Step 1 of 3 — contact this person.</div>`;
     h+=`<div class="wz-card"><div class="wz-name">${esc(l.name)}</div>`;
     h+= l.phone?`<div class="wz-phone">${esc(l.phone)}</div>`:`<div style="color:var(--fk-text-muted);font-size:13px;margin-top:8px">No phone number on file</div>`;
-    h+=`<div class="wz-chips"><span class="spill">${_srcLabel(l.source)}</span>${l.interest?`<span class="spill">${esc(l.interest)}</span>`:''}${l.budget?`<span class="spill">${esc(pkrShort(l.budget))}</span>`:''}<span class="spill" style="background:${_leadColor(l.status)};border-color:transparent;color:#fff">${esc(_leadStageLabel(l.status))}</span></div>`;
+    h+=`<div class="wz-chips"><span class="spill">${_srcLabel(l.source)}</span>${l.project_name?`<span class="spill" style="background:var(--fk-info-surface);border-color:transparent;color:var(--fk-info)">${esc(l.project_name)}</span>`:''}${l.interest?`<span class="spill">${esc(l.interest)}</span>`:''}${l.budget?`<span class="spill">${esc(pkrShort(l.budget))}</span>`:''}<span class="spill" style="background:${_leadColor(l.status)};border-color:transparent;color:#fff">${esc(_leadStageLabel(l.status))}</span></div>`;
     h+= l.assigned_from?`<div style="font-size:13px;color:var(--fk-text-muted);margin-top:11px">${li('inbox',14,2)} Assigned to you by <b style="color:var(--fk-text)">${esc(l.assigned_from)}</b></div>`:'';
     h+='</div>';
     if(l.is_mine){
@@ -3396,7 +3408,7 @@ function _distSelRow(l){
   return `<div class="lrow tap${on?' sel':''}" onclick="_distToggle('${l.id}')"><div class="lrow-top">
     <span class="dck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
     ${_avatar(l.name,34)}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:11px;color:var(--fk-text-muted)">${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</div></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:11px;color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</span>${l.project_name?_projChip(l.project_name):''}</div></div>
   </div></div>`;
 }
 function _distToggle(id){ const i=DISTV.sel.indexOf(id); if(i>=0) DISTV.sel.splice(i,1); else DISTV.sel.push(id); _distRender(); }
