@@ -98,6 +98,25 @@
   .dash-kpi-row        { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
   .dash-qa-row         { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
 
+  /* ── Dashboard 2.0 "Command View" (nx- grids w/ INLINE grid-template-columns) ──
+     These set grid-template-columns directly in the style attribute, so only an
+     !important media-query rule can collapse them. mobile.css loads last → wins. */
+  .nx-workgrid   { grid-template-columns: 1fr !important; }   /* 2fr/1fr work area → stacked */
+  .nx-pulse-grid { grid-template-columns: 1fr 1fr !important; }   /* repeat(N) insight cards → 2-up */
+  .nx-dash-hero  { grid-template-columns: 1fr !important; }   /* 1.55fr/1fr money picture → stacked */
+  /* hero's right column: the left-border divider becomes a top rule when stacked */
+  .nx-dash-hero > div:last-child {
+    padding-left: 0 !important;
+    border-left: 0 !important;
+    border-top: 1px solid var(--fk-border);
+    padding-top: var(--fk-sp-4);
+    margin-top: var(--fk-sp-2);
+  }
+  .nx-dash-stats { flex-wrap: wrap; }   /* 3 inline stats can wrap rather than crush */
+  /* "Who is late" full-bleed nx-table is min-width:560 — let it scroll INSIDE its
+     card instead of being clipped by the page wrapper (its columns were unreachable). */
+  #pg-dashboard .nx-card--flush { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
   /* ── Inventory KPI strip ────────────────────────────────── */
   .inv-kpi-grid { grid-template-columns: 1fr 1fr !important; }
 
@@ -185,6 +204,11 @@
   .prom-kpi-strip                { grid-template-columns: 1fr 1fr !important; }
   .hc-kpi-row                    { grid-template-columns: 1fr 1fr !important; }
   .esc-kpi-grid, .lc-kpi-grid    { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── Dashboard 2.0 nx- grids → single column on small phones ── */
+  .nx-pulse-grid                 { grid-template-columns: 1fr !important; }   /* insight cards 1-up */
+  .nx-dash-stats                 { flex-direction: column; align-items: stretch !important; }
+  .nx-dash-stats > div[style*="width:1px"] { display: none !important; }     /* drop vertical dividers when stacked */
 
   /* ── Page title ──────────────────────────────────────────── */
   .ph-title, .inv-title { font-size: 18px !important; }

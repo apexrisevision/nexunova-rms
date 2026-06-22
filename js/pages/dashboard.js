@@ -238,7 +238,7 @@ function _dashHero(rec, overdueAmt, series, labels) {
   const collPct = rec.contracted > 0 ? (rec.collected / rec.contracted * 100) : 0;
   const tip = 'Contracted (Σ net of active sales) = Collected (Σ payments) + Receivable. ' +
     'Receivable = Overdue (past due) + Future (not yet due). Source: get_dashboard_receivable + recovery position.';
-  return `<div class="nx-card nx-rise" style="padding:var(--fk-sp-6);display:grid;grid-template-columns:1.55fr 1fr;gap:var(--fk-sp-6);align-items:stretch">
+  return `<div class="nx-card nx-rise nx-dash-hero" style="padding:var(--fk-sp-6);display:grid;grid-template-columns:1.55fr 1fr;gap:var(--fk-sp-6);align-items:stretch">
     <div style="min-width:0;display:flex;flex-direction:column;justify-content:center">
       <div class="nx-kpi-label" style="display:flex;align-items:center">Total receivable${NX.infoTip(tip)}</div>
       <div class="nx-hero-value" style="margin:10px 0 6px">${_dashCompact(rec.receivable)}</div>
@@ -284,7 +284,7 @@ function _dashStatChips(t) {
     <div class="nx-statchip-l">${label}</div>
     <div class="nx-statchip-v" style="font-size:var(--fk-fs-kpi);margin-top:3px">${val}</div></div>`;
   const div = '<div style="width:1px;align-self:stretch;background:var(--fk-border)"></div>';
-  return `<div class="nx-card" style="display:flex;align-items:center;padding:var(--fk-sp-4) var(--fk-sp-2)">
+  return `<div class="nx-card nx-dash-stats" style="display:flex;align-items:center;padding:var(--fk-sp-4) var(--fk-sp-2)">
     ${stat('Due this month', _dashCompact(t.due))}${div}${stat('Collected this month', _dashCompact(t.received_total))}${div}${stat('Recovery rate', _dashPct(t.recovery_pct))}</div>`;
 }
 
