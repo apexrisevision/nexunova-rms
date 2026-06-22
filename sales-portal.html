@@ -4027,12 +4027,53 @@ function _sendLiveLocation(){
 }
 function _liveLocResume(){ if(_liveLocTimer||document.hidden||!navigator.geolocation) return; _sendLiveLocation(); _liveLocTimer=setInterval(_sendLiveLocation, 120*1000); }
 function _liveLocPause(){ if(_liveLocTimer){ clearInterval(_liveLocTimer); _liveLocTimer=null; } }
-function _startLiveLocation(){
-  if(!navigator.geolocation) return;
-  if(!_liveLocVis){ _liveLocVis=true;
+function _armLiveLocation(){ if(!_liveLocVis){ _liveLocVis=true;
     document.addEventListener('visibilitychange',()=>{ if(document.hidden) _liveLocPause(); else _liveLocResume(); });   // pause when backgrounded → battery-safe
   }
   _liveLocResume();
+}
+function _startLiveLocation(){
+  if(!navigator.geolocation) return;
+  // Goal: ask for location ONCE, with a friendly explainer first — never an out-of-the-blue browser
+  // popup, and never a repeated prompt. The browser remembers an "Allow" for this origin, so once
+  // granted it stays granted on every later open. Behaviour by permission state:
+  //   granted → arm tracking silently (returning user — no prompt at all)
+  //   prompt  → show our soft "enable live location" banner; the real browser prompt only fires when
+  //             the user taps Enable (priming = higher allow-rate + no surprise)
+  //   denied  → stay silent (don't nag)
+  if(!navigator.permissions || !navigator.permissions.query){ _showLocBar(); return; }   // legacy: offer via banner, gated by a localStorage flag
+  navigator.permissions.query({name:'geolocation'}).then(st=>{
+    if(st.state==='granted'){ _armLiveLocation(); }
+    else if(st.state==='prompt'){ setTimeout(_showLocBar, 1500); }
+    try{ st.onchange=()=>{ if(st.state==='granted'){ _hideLocBar(); _armLiveLocation(); } else _liveLocPause(); }; }catch(e){}
+  }).catch(()=>{ _showLocBar(); });
+}
+// ── soft location-permission priming banner (mirrors the PWA install bar) ──
+function _svgPin(s){ return `<svg viewBox="0 0 24 24" width="${s||20}" height="${s||20}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`; }
+function _showLocBar(){
+  if($('loc-bar')) return;
+  let done=false, dismissed=false;
+  try{ done=localStorage.getItem('nx.loc.enabled')==='1'; }catch(e){}
+  try{ dismissed=sessionStorage.getItem('nx.loc.dismissed')==='1'; }catch(e){}
+  if(done || dismissed) return;
+  const bar=document.createElement('div'); bar.id='loc-bar';
+  bar.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:9000;max-width:520px;margin:0 auto;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;box-shadow:0 12px 34px rgba(15,23,42,.20);padding:12px 14px;display:flex;align-items:center;gap:12px;animation:pwaUp .25s ease';
+  bar.innerHTML=
+    '<span style="width:40px;height:40px;border-radius:11px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;flex:none">'+_svgPin(20)+'</span>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:var(--fk-fw-bold,700);font-size:14px">Turn on live location</div><div style="font-size:12px;color:var(--fk-text-muted);line-height:1.35">Lets your team see you on the live map while the app is open. Asked just once — allow it and you’re set.</div></div>'
+    +'<button class="btn btn-primary btn-sm" style="flex:none" onclick="_locEnable()">Allow</button>'
+    +'<button aria-label="Dismiss" style="flex:none;background:none;border:0;color:var(--fk-text-muted);cursor:pointer;padding:4px;line-height:0" onclick="_dismissLocBar()">'+_svgX(18)+'</button>';
+  document.body.appendChild(bar);
+}
+function _hideLocBar(){ const b=$('loc-bar'); if(b) b.remove(); }
+function _dismissLocBar(){ try{ sessionStorage.setItem('nx.loc.dismissed','1'); }catch(e){} _hideLocBar(); }   // per-session: returns next open until they allow
+function _locEnable(){
+  _hideLocBar();
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    ()=>{ try{ localStorage.setItem('nx.loc.enabled','1'); }catch(e){} try{ toast('Location on — you’re now on the live map','ok'); }catch(e){} try{ _armLiveLocation(); }catch(e){} },
+    (err)=>{ if(err && err.code===1){ try{ toast('No problem — turn it on anytime from your phone’s site settings','ok'); }catch(e){} } },
+    {enableHighAccuracy:false, maximumAge:120000, timeout:20000});
 }
 function _profileEdit(){
   const p=PROFILE||{};
