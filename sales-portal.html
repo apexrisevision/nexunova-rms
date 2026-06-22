@@ -3310,60 +3310,73 @@ async function _setTargetSave(id){
 function _targetShift(n){ TARGET_PERIOD=_periodShift(TARGET_PERIOD,n); renderTargets(); }
 // ════ Director — Facebook Leads settings (company page → lead intake) ════
 const FB_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/fb-leads-webhook';
-let FB_CONN=null;
+let FB_PAGES=[];
 function _copyEl(el){ const s=el.querySelector('span'); const t=s?s.textContent:''; try{ navigator.clipboard.writeText(t); toast('Copied','ok'); }catch(e){ toast('Copy failed','err'); } }
 async function renderFbSettings(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  let data;
-  try{ const r=await sb.rpc('get_fb_connection',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
+  let data, pr;
+  try{ const [r,p]=await Promise.all([sb.rpc('list_fb_connections',{p_session_token:TOKEN}), sb.rpc('list_my_projects',{p_session_token:TOKEN})]); if(r.error) throw r.error; data=r.data; pr=p.data; }
   catch(e){ return sessionGone(); }
+  if(data&&data.error==='session_expired') return sessionGone();
   if(!data||!data.success){ $('app-body').innerHTML=_pageHead('Facebook Leads')+_emptyCard('Not available','Only a director can configure Facebook lead intake.'); return; }
   _touch();
-  const c=data.connection||{}; FB_CONN=c; const connected=c.status==='connected';
-  let html=_pageHead('Facebook Leads','Connect your company Facebook page — lead-form submissions land here automatically.');
-  html+=`<div class="card" style="display:flex;align-items:center;gap:12px">
-    <span style="width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:${connected?'var(--fk-success-surface)':'var(--fk-bg-subtle)'};color:${connected?'var(--fk-success)':'var(--fk-text-muted)'}">${li(connected?'check':'x',20,2.2)}</span>
-    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">${connected?'Connected':'Not connected'}</div><div style="font-size:12px;color:var(--fk-text-muted)">${connected?esc((c.page_name||c.page_id||'Page'))+' · '+(c.leads_count||0)+' lead'+((c.leads_count==1)?'':'s')+' received':'Enter your Page details below to connect.'}</div></div>
-  </div>`;
+  LE_PROJECTS=(pr&&pr.success)?(pr.projects||[]):[];   // shared company-projects cache (powers the per-page Project dropdown)
+  FB_PAGES=data.pages||[];
+  let html=_pageHead('Facebook Leads','Connect one Facebook Page per project — lead-form submissions land here automatically, tagged to that project.');
   const copyRow=(label,val)=>`<div style="margin-bottom:10px"><div class="label">${esc(label)}</div><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-family:var(--fk-font);font-size:var(--fk-fs-body);color:var(--fk-text);word-break:break-all">${esc(String(val||''))}</span>${li('paperclip',15,2)}</div></div>`;
   html+=`<div class="dsec">Webhook — paste into Meta</div><div class="card">`
     + copyRow('Callback URL', FB_WEBHOOK_URL)
-    + copyRow('Verify token', c.verify_token)
-    + `<div style="font-size:12px;color:var(--fk-text-muted)">Meta App → Webhooks → Page → subscribe to <b>leadgen</b> with the URL + token above.</div></div>`;
-  html+=`<div class="dsec">Page connection</div><div class="card">
-    <div class="field"><label class="label">Facebook Page ID</label><input class="input" id="fb-pid" value="${esc(c.page_id||'')}" placeholder="e.g. 1234567890" autocomplete="off"></div>
-    <div class="field"><label class="label">Page name (optional)</label><input class="input" id="fb-pname" value="${esc(c.page_name||'')}" placeholder="Your page name" autocomplete="off"></div>
-    <div class="field"><label class="label">Page Access Token ${c.has_token?'<span style="color:var(--fk-text-muted);font-weight:400">· saved ••••'+esc(c.token_tail||'')+'</span>':''}</label><input class="input" id="fb-token" type="password" autocomplete="off" placeholder="${c.has_token?'Leave blank to keep current':'Paste long-lived Page token'}"></div>
-    <div class="toggle-row"><input type="checkbox" id="fb-notify" ${c.auto_notify!==false?'checked':''}><label for="fb-notify" style="font-size:14px">Notify me when a Facebook lead arrives</label></div>
-    <button class="btn btn-primary btn-full" onclick="_fbSave()">${connected?'Update connection':'Connect'}</button>
-  </div>`;
-  if(connected){
-    html+=`<div class="card" style="padding:4px 14px">`
-      + `<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">Leads received</span><b>${c.leads_count||0}</b></div>`
-      + `<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:13px"><span style="color:var(--fk-text-muted)">Last lead</span><b>${c.last_lead_at?esc(fdate(c.last_lead_at)):'—'}</b></div></div>`;
-    html+=`<button class="btn btn-full btn-danger-soft" onclick="_fbDisconnect()">Disconnect</button>`;
-  }
+    + `<div style="font-size:12px;color:var(--fk-text-muted)">In your Meta App → Webhooks → Page → subscribe to <b>leadgen</b> with this Callback URL and a page's Verify token (shown on each page below). Subscribe every project's Page to the same app.</div></div>`;
+  const addSvg='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-2px"><path d="M12 5v14M5 12h14"/></svg>';
+  html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between">Connected pages <button class="btn btn-sm btn-primary" onclick="_fbPageModal()">${addSvg} Add page</button></div>`;
+  if(!FB_PAGES.length){ html+=_emptyCard('No pages yet','Add a Facebook Page and map it to the project its lead-ads belong to.'); }
+  else { html+='<div class="lgroup">'+FB_PAGES.map(_fbPageRow).join('')+'</div>'; }
   html+=`<div class="dsec">How to connect</div><div class="card" style="font-size:13px;color:var(--fk-text-muted);line-height:1.7">
     <div>1. Open a <b>Meta App</b> (developers.facebook.com) with the <b>Webhooks</b> + <b>Lead Ads</b> products.</div>
-    <div>2. Add a <b>Page</b> webhook → use the Callback URL + Verify token above → subscribe to <b>leadgen</b>.</div>
-    <div>3. Generate a long-lived <b>Page Access Token</b> (perms <code>leads_retrieval</code>, <code>pages_manage_metadata</code>) and paste it here with the Page ID.</div>
+    <div>2. Add a <b>Page</b> webhook → use the Callback URL above + a page's Verify token → subscribe to <b>leadgen</b>.</div>
+    <div>3. For each project's Page: generate a long-lived <b>Page Access Token</b> (perms <code>leads_retrieval</code>, <code>pages_manage_metadata</code>) and add it here with the Page ID + project.</div>
     <div>4. Submit for <b>App Review</b> (leads_retrieval) to go live for real leads.</div>
-    <div style="margin-top:6px">New lead-form submissions then create a lead here automatically (deduped by phone), assigned to you to forward to managers.</div>
+    <div style="margin-top:6px">New submissions then create a lead automatically — deduped by phone, owned by the project's director, tagged to that project.</div>
   </div>`;
   $('app-body').innerHTML=html;
 }
-async function _fbSave(){
-  const payload={ page_id:($('fb-pid')||{}).value||'', page_name:($('fb-pname')||{}).value||'',
-    page_access_token:($('fb-token')||{}).value||'', auto_notify: !!($('fb-notify')||{}).checked };
-  try{ const {data}=await sb.rpc('save_fb_connection',{p_session_token:TOKEN,p_payload:payload});
-    if(data&&data.success){ toast(data.status==='connected'?'Connected':'Saved','ok'); renderFbSettings(); }
-    else toast((data&&data.message)||'Could not save','err');
-  }catch(e){ toast('Could not save','err'); }
+function _fbPageRow(p){
+  const ok=p.status==='connected';
+  return `<div class="lrow"><div class="lrow-top">
+    <span style="width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;background:${ok?'var(--fk-success-surface)':'var(--fk-bg-subtle)'};color:${ok?'var(--fk-success)':'var(--fk-text-muted)'}">${li(ok?'check':'x',18,2.2)}</span>
+    <div style="flex:1;min-width:0"><div class="lr-name">${esc(p.page_name||p.page_id||'Unnamed page')}</div>
+      <div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${p.project_name?_projChip(p.project_name):'<span style="color:var(--fk-warning)">No project set</span>'}<span style="font-variant-numeric:tabular-nums">${p.leads_count||0} lead${p.leads_count==1?'':'s'}</span>${p.last_lead_at?'<span>· '+esc(fdate(p.last_lead_at))+'</span>':''}</div></div>
+    <button class="btn btn-sm" style="flex:none" onclick="_fbPageModal('${esc(p.id)}')">Edit</button>
+  </div></div>`;
 }
-async function _fbDisconnect(){
-  try{ const {data}=await sb.rpc('disconnect_fb',{p_session_token:TOKEN});
-    if(data&&data.success){ toast('Disconnected','ok'); renderFbSettings(); } else toast('Could not disconnect','err');
-  }catch(e){ toast('Could not disconnect','err'); }
+function _fbPageModal(id){
+  const p=id?(FB_PAGES.find(x=>x.id===id)||{}):{}; const verify=p.verify_token||'';
+  openModal(id?'Edit page':'Add Facebook Page',
+    `<div class="field"><label class="label">Facebook Page ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="fbm-pid" value="${esc(p.page_id||'')}" placeholder="e.g. 1234567890" autocomplete="off"></div>
+     <div class="field"><label class="label">Page name (optional)</label><input class="input" id="fbm-pname" value="${esc(p.page_name||'')}" placeholder="Your page name" autocomplete="off"></div>
+     <div class="field"><label class="label">Project <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· leads from this page tag to</span></label><select class="input" id="fbm-project">${_leProjOpts(p.project_id||'')}</select></div>
+     <div class="field"><label class="label">Page Access Token ${p.has_token?'<span style="color:var(--fk-text-muted);font-weight:400">· saved ••••'+esc(p.token_tail||'')+'</span>':''}</label><input class="input" id="fbm-token" type="password" autocomplete="off" placeholder="${p.has_token?'Leave blank to keep current':'Paste long-lived Page token'}"></div>
+     ${verify?`<div class="field"><label class="label">Verify token <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· paste into Meta</span></label><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-size:var(--fk-fs-body);color:var(--fk-text);word-break:break-all">${esc(verify)}</span>${li('paperclip',15,2)}</div></div>`:'<div style="font-size:12px;color:var(--fk-text-muted);margin-bottom:10px">A verify token is generated when you save — reopen this page to copy it into Meta.</div>'}
+     <div class="toggle-row"><input type="checkbox" id="fbm-notify" ${p.auto_notify!==false?'checked':''}><label for="fbm-notify" style="font-size:14px">Notify the director when a lead arrives</label></div>
+     <div id="fbm-err" style="display:none;color:var(--fk-danger);font-size:13px;margin-top:6px"></div>`,
+    `${id?`<button class="btn btn-danger-soft" onclick="_fbPageDelete('${esc(id)}')">Delete</button>`:''}<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_fbPageSave(${id?`'${esc(id)}'`:'null'})">${id?'Save':'Add page'}</button>`);
+}
+async function _fbPageSave(id){
+  const err=$('fbm-err'); if(err) err.style.display='none';
+  const payload={ id:id||'', page_id:($('fbm-pid')||{}).value||'', page_name:($('fbm-pname')||{}).value||'',
+    project_id:($('fbm-project')||{}).value||'', page_access_token:($('fbm-token')||{}).value||'',
+    auto_notify: !!($('fbm-notify')||{}).checked };
+  if(!payload.page_id.trim()){ if(err){err.style.display='block';err.textContent='Facebook Page ID is required.';} return; }
+  try{ const {data}=await sb.rpc('save_fb_page',{p_session_token:TOKEN,p_payload:payload});
+    if(data&&data.success){ closeModal(); toast(data.status==='connected'?'Page connected':'Saved','ok'); renderFbSettings(); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else { if(err){err.style.display='block';err.textContent=(data&&data.message)||'Could not save this page.';} }
+  }catch(e){ if(err){err.style.display='block';err.textContent='Could not save this page.';} }
+}
+async function _fbPageDelete(id){
+  try{ const {data}=await sb.rpc('delete_fb_page',{p_session_token:TOKEN,p_id:id});
+    if(data&&data.success){ closeModal(); toast('Page removed','ok'); renderFbSettings(); } else toast('Could not remove','err');
+  }catch(e){ toast('Could not remove','err'); }
 }
 // ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
 let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null};
