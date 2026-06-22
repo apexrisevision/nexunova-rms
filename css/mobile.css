@@ -117,6 +117,15 @@
      card instead of being clipped by the page wrapper (its columns were unreachable). */
   #pg-dashboard .nx-card--flush { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+  /* ── Card headers (nx-card-hd) ───────────────────────────────
+     icon + title + a (often long) action link sit on one flex row. On a phone the
+     long action squeezed the title into a 3-line crush ("Who / is / late") and itself
+     overflowed. Let the row wrap so the action drops to its own line; pin the title. */
+  .nx-card-hd { flex-wrap: wrap; row-gap: 6px; }
+  .nx-card-hd-t { white-space: nowrap; }
+  .nx-card-hd-a { margin-left: auto; }
+  .nx-card-hd-a .nx-btn { white-space: normal; text-align: left; }
+
   /* ── Inventory KPI strip ────────────────────────────────── */
   .inv-kpi-grid { grid-template-columns: 1fr 1fr !important; }
 

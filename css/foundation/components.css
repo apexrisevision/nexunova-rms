@@ -49,6 +49,27 @@
 .nx-card-hd-sub{ font-size: var(--fk-fs-label); font-weight: var(--fk-fw-medium); color: var(--fk-text-muted); margin-top: 2px; }
 .nx-card-hd-a{ margin-left: auto; display: flex; align-items: center; gap: var(--fk-sp-2); }
 
+/* visual-overhaul.css boxes ANY class containing "-card" (`#s-app [class*="-card"]`) —
+   that unintentionally matches our header CHILDREN (nx-card-hd / -hd-t / -hd-sub / -hd-a),
+   wrapping every card title in its own nested box with a background + shadow. Strip that
+   box back off the header parts (keep the hd's bottom separator). Needs #s-app + !important
+   to out-weigh that rule. */
+#s-app .nx-card-hd{
+  border: 0 !important;
+  border-bottom: 1px solid var(--fk-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#s-app .nx-card-hd-t,
+#s-app .nx-card-hd-sub,
+#s-app .nx-card-hd-a{
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 
 /* ── 2. BUTTON ────────────────────────────────────────────────────────── */
 /* 4 variants × 2 sizes. <button class="nx-btn nx-btn--primary"> … */
