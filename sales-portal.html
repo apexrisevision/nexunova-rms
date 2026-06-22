@@ -4040,28 +4040,41 @@ function _startLiveLocation(){
   //   granted → arm tracking silently (returning user — no prompt at all)
   //   prompt  → show our soft "enable live location" banner; the real browser prompt only fires when
   //             the user taps Enable (priming = higher allow-rate + no surprise)
-  //   denied  → stay silent (don't nag)
-  if(!navigator.permissions || !navigator.permissions.query){ _showLocBar(); return; }   // legacy: offer via banner, gated by a localStorage flag
+  //   denied  → the browser will NEVER re-prompt programmatically (privacy rule); the only way back is
+  //             the user re-enabling location in site settings. So we surface a banner whose button
+  //             opens a step-by-step "how to turn it back on" guide instead of a (futile) prompt.
+  if(!navigator.permissions || !navigator.permissions.query){ setTimeout(()=>_showLocBar('ask'),1500); return; }   // legacy: offer the Allow banner
   navigator.permissions.query({name:'geolocation'}).then(st=>{
     if(st.state==='granted'){ _armLiveLocation(); }
-    else if(st.state==='prompt'){ setTimeout(_showLocBar, 1500); }
+    else if(st.state==='prompt'){ setTimeout(()=>_showLocBar('ask'), 1500); }
+    else if(st.state==='denied'){ setTimeout(()=>_showLocBar('fix'), 1500); }   // blocked earlier → guide them to re-enable
     try{ st.onchange=()=>{ if(st.state==='granted'){ _hideLocBar(); _armLiveLocation(); } else _liveLocPause(); }; }catch(e){}
-  }).catch(()=>{ _showLocBar(); });
+  }).catch(()=>{ setTimeout(()=>_showLocBar('ask'),1500); });
 }
-// ── soft location-permission priming banner (mirrors the PWA install bar) ──
+// ── soft location-permission banner (mirrors the PWA install bar) ──
+//   mode 'ask' → first-timers / undecided: an Allow button that fires the one browser prompt.
+//   mode 'fix' → users who previously blocked: a "Show how" button opening the re-enable guide
+//                (the browser refuses to prompt them again, so settings is the only path).
 function _svgPin(s){ return `<svg viewBox="0 0 24 24" width="${s||20}" height="${s||20}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`; }
-function _showLocBar(){
+function _showLocBar(mode){
+  mode = mode||'ask';
   if($('loc-bar')) return;
   let done=false, dismissed=false;
   try{ done=localStorage.getItem('nx.loc.enabled')==='1'; }catch(e){}
   try{ dismissed=sessionStorage.getItem('nx.loc.dismissed')==='1'; }catch(e){}
   if(done || dismissed) return;
+  const fix = mode==='fix';
+  const title = fix ? 'Location is turned off' : 'Turn on live location';
+  const sub   = fix ? 'Your team can’t see you on the live map. It was blocked earlier — here’s how to switch it back on.'
+                    : 'Lets your team see you on the live map while the app is open. Asked just once — allow it and you’re set.';
+  const btn   = fix ? '<button class="btn btn-primary btn-sm" style="flex:none" onclick="_locGuide()">Show how</button>'
+                    : '<button class="btn btn-primary btn-sm" style="flex:none" onclick="_locEnable()">Allow</button>';
   const bar=document.createElement('div'); bar.id='loc-bar';
   bar.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:9000;max-width:520px;margin:0 auto;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;box-shadow:0 12px 34px rgba(15,23,42,.20);padding:12px 14px;display:flex;align-items:center;gap:12px;animation:pwaUp .25s ease';
   bar.innerHTML=
     '<span style="width:40px;height:40px;border-radius:11px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;flex:none">'+_svgPin(20)+'</span>'
-    +'<div style="flex:1;min-width:0"><div style="font-weight:var(--fk-fw-bold,700);font-size:14px">Turn on live location</div><div style="font-size:12px;color:var(--fk-text-muted);line-height:1.35">Lets your team see you on the live map while the app is open. Asked just once — allow it and you’re set.</div></div>'
-    +'<button class="btn btn-primary btn-sm" style="flex:none" onclick="_locEnable()">Allow</button>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:var(--fk-fw-bold,700);font-size:14px">'+title+'</div><div style="font-size:12px;color:var(--fk-text-muted);line-height:1.35">'+sub+'</div></div>'
+    +btn
     +'<button aria-label="Dismiss" style="flex:none;background:none;border:0;color:var(--fk-text-muted);cursor:pointer;padding:4px;line-height:0" onclick="_dismissLocBar()">'+_svgX(18)+'</button>';
   document.body.appendChild(bar);
 }
@@ -4072,8 +4085,36 @@ function _locEnable(){
   if(!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(
     ()=>{ try{ localStorage.setItem('nx.loc.enabled','1'); }catch(e){} try{ toast('Location on — you’re now on the live map','ok'); }catch(e){} try{ _armLiveLocation(); }catch(e){} },
-    (err)=>{ if(err && err.code===1){ try{ toast('No problem — turn it on anytime from your phone’s site settings','ok'); }catch(e){} } },
+    (err)=>{ if(err && err.code===1){ _locGuide(); } },   // blocked → can't prompt again, show the manual re-enable steps
     {enableHighAccuracy:false, maximumAge:120000, timeout:20000});
+}
+// Platform-specific steps to re-enable a blocked location permission from site settings.
+function _locGuide(){
+  _hideLocBar();
+  const plat=(typeof _pwaPlatform==='function')?_pwaPlatform():'other';
+  const step=(n,txt)=>`<div style="display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--fk-hairline)"><span style="width:22px;height:22px;border-radius:50%;background:var(--fk-primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:none">${n}</span><div style="font-size:13px;line-height:1.55">${txt}</div></div>`;
+  let intro, body;
+  if(plat==='ios'){
+    intro='On iPhone, location was blocked for this site. Turn it back on in <b>Settings</b>:';
+    body=step(1,'Open the iPhone <b>Settings</b> app, tap <b>Safari</b>.')
+        +step(2,'Tap <b>Location</b> and choose <b>Ask</b> or <b>Allow</b>.')
+        +step(3,'Come back here and <b>reload</b> the page — the live map starts working.')
+        +step('★','Using the installed app? Settings → Privacy &amp; Security → <b>Location Services</b> → find Nexunova → <b>While Using</b>.');
+  } else if(plat==='android'){
+    intro='In <b>Chrome</b> on Android, unblock location for this site:';
+    body=step(1,'Tap the <b>lock / ⓘ icon</b> at the left of the address bar.')
+        +step(2,'Tap <b>Permissions</b> → <b>Location</b>.')
+        +step(3,'Switch it to <b>Allow</b>, then <b>reload</b> the page.')
+        +step('★','Also make sure your phone’s <b>Location</b> (GPS) is on from the quick-settings shade.');
+  } else {
+    intro='In your browser, unblock location for this site:';
+    body=step(1,'Click the <b>lock / site-info icon</b> at the left of the address bar.')
+        +step(2,'Find <b>Location</b> and set it to <b>Allow</b> (or clear/reset it).')
+        +step(3,'<b>Reload</b> the page — the live map starts working.');
+  }
+  openModal('Turn location back on',
+    '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px"><span style="width:42px;height:42px;border-radius:11px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;flex:none">'+_svgPin(22)+'</span><div style="font-size:13px;color:var(--fk-text-muted)">'+intro+'</div></div>'+body,
+    '<button class="btn btn-primary btn-full" onclick="closeModal()">Got it</button>');
 }
 function _profileEdit(){
   const p=PROFILE||{};
