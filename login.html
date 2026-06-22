@@ -73,13 +73,15 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
 <link rel="stylesheet" href="css/recovery-queue.css?v=20260611b">
 <!-- ── VISUAL HIERARCHY OVERHAUL — absolute last, enforces all 11 design rules ── -->
 <link rel="stylesheet" href="css/visual-overhaul.css?v=20260612a">
-<!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages ── -->
-<link rel="stylesheet" href="css/mobile.css?v=20260612g">
 <!-- ── FOUNDATION COMPONENT KIT (Phase 2) — loaded LAST so the nx- shell re-skin (section 11)
      wins over legacy shell CSS without !important. Page-level nx- classes are additive. ── -->
 <link rel="stylesheet" href="css/foundation/components.css?v=20260614m1">
 <!-- ── SHELL CHROME (Nav phase) — thin utility topbar + "+ New"/menus + sidebar "More" tier. Loaded after components.css so it wins without !important. ── -->
 <link rel="stylesheet" href="css/foundation/shell.css?v=20260617e">
+<!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages. MUST load AFTER every other
+     stylesheet (incl. foundation components + shell chrome) so its media-query rules win cascade
+     ties without needing !important everywhere. Keep this the last <link> in <head>. ── -->
+<link rel="stylesheet" href="css/mobile.css?v=20260622a">
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">

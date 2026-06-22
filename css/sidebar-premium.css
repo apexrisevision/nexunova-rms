@@ -787,7 +787,11 @@
     overflow: hidden !important;
   }
   #s-app > .main { margin-left: 0 !important; }
-  .sb.mobile-open {
+  /* Open drawer. MUST out-specify the `#s-app > .sb { width:0 }` closed rules
+     (here + enterprise-polish.css §21) — those carry an ID, so a plain
+     `.sb.mobile-open` (classes only) loses the !important tie and the drawer
+     stays 0-wide / invisible. `#s-app > .sb.mobile-open` = 1 id + 2 classes wins. */
+  #s-app > .sb.mobile-open {
     width:    var(--sb-w) !important;
     flex:     0 0 var(--sb-w) !important;
     overflow: visible !important;
