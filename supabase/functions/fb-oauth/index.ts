@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
       }
     } catch (_) { /* optional */ }
 
-    await sb.from("fb_oauth_sessions").delete().eq("nonce", nonce); // one-time
+    if (b.final === true) await sb.from("fb_oauth_sessions").delete().eq("nonce", nonce); // one-time, after the last selected page (multi-page connect reuses the nonce); otherwise the 10-min expiry / next exchange cleans it up
 
     return json({
       success: true, connection_id: saveRes.id, status: saveRes.status,

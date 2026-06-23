@@ -1001,7 +1001,12 @@ body{background:var(--nx-page)}
 .le-err{color:var(--fk-danger);font-size:13px;margin-top:8px}
 .le-cta{margin-top:14px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .le-list{margin-top:2px}
-@media(max-width:480px){ .le-grid2{grid-template-columns:1fr} }
+.le-picklist{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow:auto}
+.le-pickrow{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--fk-border);border-radius:10px}
+.le-pickname{display:flex;align-items:center;gap:8px;flex:1;min-width:0;font-weight:600;cursor:pointer}
+.le-pickname span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.le-pickrow .fbpick-proj{flex:0 0 44%;max-width:210px}
+@media(max-width:480px){ .le-grid2{grid-template-columns:1fr} .le-pickrow{flex-wrap:wrap} .le-pickrow .fbpick-proj{flex:1 1 100%;max-width:none} }
 </style>
 </head>
 <body>
@@ -3611,30 +3616,42 @@ async function _fbExchangeCode(code){
 }
 function _fbPagePickModal(nonce,pages){
   if(!pages.length) return toast('No managed Pages found on this account','err');
-  const rows=pages.map(p=>`<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;cursor:pointer;margin-bottom:8px"><input type="radio" name="fbpick" value="${p.ref}"><span style="font-weight:600">${esc(p.name)}</span></label>`).join('');
-  openModal('Select a Facebook Page',
-    `<div class="field"><label class="label">Your Pages</label>${rows}</div>
-     <div class="field"><label class="label">Project <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· leads from this page tag to</span></label><select class="input" id="fbpick-project">${_leProjOpts('')}</select></div>
-     <div id="fbpick-err" style="display:none;color:var(--fk-danger);font-size:13px"></div>`,
-    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="fbpick-go" onclick="_fbDoSave('${esc(nonce)}')">Connect</button>`);
+  const only1=pages.length===1;
+  const rows=pages.map(p=>`<div class="le-pickrow">
+    <label class="le-pickname"><input type="checkbox" class="fbpick-chk" value="${p.ref}" data-name="${esc(p.name)}"${only1?' checked':''}><span>${esc(p.name)}</span></label>
+    <select class="input fbpick-proj" id="fbpick-proj-${p.ref}">${_leProjOpts('')}</select>
+  </div>`).join('');
+  openModal('Connect your Pages',
+    `<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.5;margin-bottom:10px">Tick the Page(s) you want to connect and choose which project each one’s leads belong to — you can connect several at once.</div>
+     <div class="le-picklist">${rows}</div>
+     <div id="fbpick-err" style="display:none;color:var(--fk-danger);font-size:13px;margin-top:8px"></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="fbpick-go" onclick="_fbDoSave('${esc(nonce)}')">Connect selected</button>`);
 }
 async function _fbDoSave(nonce){
-  const sel=document.querySelector('input[name=fbpick]:checked'); const err=$('fbpick-err');
-  if(!sel){ if(err){err.style.display='block';err.textContent='Please select a page.';} return; }
-  const ref=Number(sel.value); const project_id=($('fbpick-project')||{}).value||null;
+  const checks=Array.from(document.querySelectorAll('.fbpick-chk:checked'));
+  const err=$('fbpick-err'); if(err) err.style.display='none';
+  if(!checks.length){ if(err){err.style.display='block';err.textContent='Please tick at least one Page.';} return; }
   const go=$('fbpick-go'); if(go){go.disabled=true;go.textContent='Connecting…';}
-  let data;
-  try{ const r=await sb.functions.invoke('fb-oauth',{body:{action:'save',session_token:TOKEN,nonce:nonce,ref:ref,project_id:project_id}}); data=r.data; if(r.error&&!data) throw r.error; }
-  catch(e){ if(go){go.disabled=false;go.textContent='Connect';} return toast('Connect failed: '+(e.message||e),'err'); }
-  if(!data||!data.success){ if(go){go.disabled=false;go.textContent='Connect';} if(err){err.style.display='block';err.textContent=(data&&(data.message||data.error))||'Could not connect.';} return; }
+  const ok=[]; const fail=[]; let firstConnId=null;
+  for(let i=0;i<checks.length;i++){
+    const c=checks[i]; const ref=Number(c.value); const nm=c.getAttribute('data-name')||'page';
+    const pid=($('fbpick-proj-'+ref)||{}).value||null; const last=(i===checks.length-1);
+    try{
+      const r=await sb.functions.invoke('fb-oauth',{body:{action:'save',session_token:TOKEN,nonce:nonce,ref:ref,project_id:pid,final:last}});
+      const d=r.data;
+      if(d&&d.success){ ok.push(nm); if(!firstConnId) firstConnId=d.connection_id||null; }
+      else fail.push(nm+' — '+((d&&(d.message||d.error))||'failed'));
+    }catch(e){ fail.push(nm+' — '+(e.message||e)); }
+  }
+  if(go){go.disabled=false;go.textContent='Connect selected';}
+  if(!ok.length){ if(err){err.style.display='block';err.textContent=fail[0]||'Could not connect.';} return; }
   closeModal();
-  if(FBWIZ && FBWIZ.open){           // step 5 satisfied — continue the wizard into the auto checks
-    FBWIZ.connId = data.connection_id || null;
-    toast('Connected — running checks…','ok');
+  if(fail.length) toast('Connected '+ok.length+' · '+fail.length+' failed','err');
+  else toast(ok.length>1?('Connected '+ok.length+' pages'):'Connected — '+ok[0],'ok');
+  if(FBWIZ && FBWIZ.open){           // step 5 satisfied — continue the wizard with the first connected page
+    FBWIZ.connId = firstConnId;
     FBWIZ.step = 6; _fbWizReload(); return;
   }
-  const sub=data.subscribed?'subscribed to leadgen':'saved (leadgen subscription pending)';
-  toast('Connected — '+(data.page_name||'')+' · '+sub,'ok');
   renderFbSettings();
 }
 
