@@ -1127,6 +1127,12 @@ body{background:var(--nx-page)}
 .web-code{position:relative}
 .web-code pre{margin:0;padding:12px 14px 12px;padding-right:74px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;color:var(--fk-text);white-space:pre-wrap;word-break:break-word;overflow-x:auto}
 .web-code-copy{position:absolute;top:8px;right:8px}
+/* WhatsApp connected-number rows (one scale) */
+.wa-conn{border:1px solid var(--fk-border);border-radius:12px;padding:14px;margin-bottom:12px}
+.wa-conn:last-child{margin-bottom:0}
+.wa-conn-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.wa-conn-n{font-size:var(--ts-body);font-weight:700;color:var(--fk-text)}
+.wa-conn-s{font-size:var(--ts-small);color:var(--fk-text-muted);margin-top:2px}
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -1308,6 +1314,7 @@ body{background:var(--nx-page)}
       <a class="ni" data-tab="myleads" data-le style="display:none" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
       <a class="ni" data-tab="fbconnect" data-le style="display:none" onclick="setTab('fbconnect')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Connect Facebook</span></a>
       <a class="ni" data-tab="webleads" data-le style="display:none" onclick="setTab('webleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span class="ni-lb">Website Leads</span></a>
+      <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
       <div class="ni-grp" data-grp="leads" style="display:none">
         <div class="ni-grp-hd" onclick="toggleGroup('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
         <div class="ni-sub">
@@ -1841,15 +1848,16 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',webleads:'Website Leads',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
-  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','webleads','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
+  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','webleads','whatsapp','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='leadentry') renderLeadEntry();
   else if(t==='myleads') renderMyLeads();
   else if(t==='fbconnect') renderFbConnect();
   else if(t==='webleads') renderWebLeads();
+  else if(t==='whatsapp') renderWhatsApp();
   else if(t==='home') renderHome();
   else if(t==='leads') renderLeads();
   else if(t==='board') renderBoard();
@@ -2466,6 +2474,8 @@ let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[]
 let LE_PROJECTS=[];   // company projects for the lead-entry Project dropdown (token-scoped via list_my_projects)
 let WEBCFG=null;      // website lead-capture config (intake key + default project)
 const WEB_LEAD_ENDPOINT='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/web-lead';
+let WACONNS=[];       // connected WhatsApp numbers
+const WA_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/wa-leads-webhook';
 function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
 function _leProjOpts(sel){ const own=(ME&&ME.company_name)||''; return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>{ const co=(p.company_name&&p.company_name!==own)?(' · '+p.company_name):''; return `<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${co?esc(co):(p.code?' ('+esc(p.code)+')':'')}</option>`; }).join(''); }
 function _resolveProjId(t){ t=String(t||'').trim().toLowerCase(); if(!t) return ''; const p=LE_PROJECTS.find(x=>String(x.name||'').toLowerCase()===t||String(x.code||'').toLowerCase()===t); return p?p.id:''; }
@@ -2495,11 +2505,17 @@ async function renderWebLeads(){ LE_VIEW='web';      $('app-body').innerHTML='<d
   try{ const r=await sb.rpc('get_web_lead_config',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); WEBCFG=(r.data&&r.data.success)?r.data:null; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
 }
+async function renderWhatsApp(){ LE_VIEW='wa';       $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!(await _leLoad())) return;
+  try{ const r=await sb.rpc('list_whatsapp_connections',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); WACONNS=(r.data&&r.data.success)?(r.data.connections||[]):[]; }catch(e){ return sessionGone(); }
+  _touch(); _leRender();
+}
 const LE_SCREENS={
   add:{t:'Add a manual lead',d:'Type a lead in by hand — it goes to the director’s pool for distribution.'},
   entered:{t:'My leads',d:'Leads you’ve added — now in the director’s pool.'},
   fb:{t:'Connect Facebook',d:'Connect your Page so Facebook lead-form submissions arrive in the CRM automatically.'},
-  web:{t:'Website Leads',d:'Capture leads straight from your website’s contact form into the CRM.'}
+  web:{t:'Website Leads',d:'Capture leads straight from your website’s contact form into the CRM.'},
+  wa:{t:'WhatsApp',d:'Turn messages to your WhatsApp Business number into leads (WhatsApp Cloud API).'}
 };
 function _leRender(){
   const sc=LE_SCREENS[LE_VIEW]||LE_SCREENS.add;
@@ -2508,6 +2524,7 @@ function _leRender(){
   if(LE_VIEW==='add') html+=_leAddForm();
   else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
   else if(LE_VIEW==='web') html+=_leWebPanel();
+  else if(LE_VIEW==='wa') html+=_leWaPanel();
   else html+=_leEnteredList();
   html+='</div></div>';
   $('app-body').innerHTML=html;
@@ -2564,6 +2581,60 @@ function _webRegen(){
 async function _webDoRegen(){ try{ const r=await sb.rpc('set_web_lead_config',{p_session_token:TOKEN,p_action:'regenerate'});
     if(r.data&&r.data.success){ if(typeof closeModal==='function') closeModal(); renderWebLeads(); toast('New key generated','ok'); }
     else toast('Could not regenerate','err'); }catch(e){ toast('Could not regenerate','err'); } }
+// ── WhatsApp panel (same template/components as the other operator screens) ──
+function _leWaPanel(){
+  const conns=WACONNS||[];
+  const list = conns.length ? `<div class="card le-card">${_leCardHd('','','','Connected numbers','Paste each number’s Callback URL + Verify token into your Meta app (WhatsApp → Configuration → Webhook, subscribe to “messages”).')}${
+    conns.map(c=>{ const last=c.last_event_at?fdate(c.last_event_at):'—';
+      return `<div class="wa-conn">
+        <div class="wa-conn-top"><div><div class="wa-conn-n">${esc(c.display_number||c.phone_number_id)}</div><div class="wa-conn-s">${esc(c.project_name||'No project')} · ${c.leads_count||0} lead${c.leads_count==1?'':'s'} · last ${esc(last)}</div></div>
+          <button class="btn btn-sm" onclick="_waDelete('${esc(c.phone_number_id)}')">Remove</button></div>
+        <div class="fbwiz-field"><div class="label">Callback URL <span class="fbwiz-mut">· WhatsApp → Configuration</span></div>${_fbWizCopy(WA_WEBHOOK_URL)}</div>
+        <div class="fbwiz-field"><div class="label">Verify token</div>${_fbWizCopy(c.verify_token||'')}</div>
+        <div class="wzs-actions"><button class="btn btn-primary btn-sm" onclick="_waSendTest('${esc(c.phone_number_id)}',this)">Send a test lead</button></div>
+      </div>`; }).join('')
+  }</div>` : '';
+  const form = `<div class="card le-card">
+    ${_leCardHd('','','','Connect a WhatsApp number',conns.length?'Add another number.':'From your Meta app → WhatsApp → API Setup. Incoming messages become leads in the director’s pool.')}
+    <div class="field"><label class="label">Phone Number ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="wa-pnid" placeholder="e.g. 123456789012345" autocomplete="off"></div>
+    <div class="field"><label class="label">Display number <span class="le-mut">· optional</span></label><input class="input" id="wa-disp" placeholder="e.g. +92 300 1234567" autocomplete="off"></div>
+    <div class="field"><label class="label">WhatsApp Business Account ID <span class="le-mut">· optional</span></label><input class="input" id="wa-waba" autocomplete="off"></div>
+    <div class="field"><label class="label">Access token <span class="le-mut">· optional (for replies later)</span></label><input class="input" id="wa-tok" type="password" autocomplete="off"></div>
+    <div class="field"><label class="label">Tag leads to project <span class="le-mut">· optional</span></label><select class="input" id="wa-proj">${_leProjOpts(null)}</select></div>
+    <div id="wa-err" class="le-err" style="display:none"></div>
+    <button class="btn btn-primary le-cta" onclick="_waSave()">Save number</button>
+    <details class="wzs-help" style="margin-top:12px"><summary>How it works</summary><div>1. In your Meta app add the <b>WhatsApp</b> product + a phone number. 2. Save the <b>Phone Number ID</b> here. 3. Copy the Callback URL + Verify token shown above into <b>WhatsApp → Configuration → Webhook</b> and subscribe to <b>messages</b>. 4. Any message to your number becomes a lead.</div></details>
+  </div>`;
+  return list + form;
+}
+async function _waSave(){
+  const pnid=(($('wa-pnid')||{}).value||'').trim(); const err=$('wa-err');
+  if(!pnid){ if(err){err.style.display='block';err.textContent='Phone Number ID is required.';} return; }
+  try{ const {data}=await sb.rpc('save_whatsapp_connection',{p_session_token:TOKEN,p_phone_number_id:pnid,
+      p_display_number:(($('wa-disp')||{}).value||'')||null,p_waba_id:(($('wa-waba')||{}).value||'')||null,
+      p_access_token:(($('wa-tok')||{}).value||'')||null,p_project_id:(($('wa-proj')||{}).value||'')||null});
+    if(data&&data.success){ toast('Number saved','ok'); renderWhatsApp(); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else if(err){ err.style.display='block'; err.textContent=(data&&data.message)||'Could not save the number.'; }
+  }catch(e){ toast('Could not save','err'); }
+}
+function _waDelete(pnid){ openModal('Remove this number?',
+  '<div style="font-size:14px;color:var(--fk-text);line-height:1.55">Leads already received stay. New WhatsApp messages to this number will stop becoming leads.</div>',
+  `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger-soft" onclick="_waDoDelete('${esc(pnid)}')">Remove</button>`); }
+async function _waDoDelete(pnid){ try{ const r=await sb.rpc('delete_whatsapp_connection',{p_session_token:TOKEN,p_phone_number_id:pnid});
+  if(r.data&&r.data.success){ if(typeof closeModal==='function') closeModal(); renderWhatsApp(); toast('Removed','ok'); } else toast('Could not remove','err'); }catch(e){ toast('Could not remove','err'); } }
+async function _waSendTest(pnid,btn){
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  const wa='92300'+Math.floor(1000000+Math.random()*8999999);
+  const payload={object:'whatsapp_business_account',entry:[{id:'TEST',changes:[{field:'messages',value:{messaging_product:'whatsapp',
+    metadata:{phone_number_id:pnid},contacts:[{profile:{name:'WhatsApp test '+new Date().toLocaleTimeString()},wa_id:wa}],
+    messages:[{from:wa,id:'wamid.test',text:{body:'Test lead from setup'},type:'text'}]}}]}]};
+  try{ const r=await fetch(WA_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const j=await r.json();
+    if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it’s in the director’s pool (ask them to delete it)','ok');
+    else toast('Test failed — make sure the number is saved','err');
+  }catch(e){ toast('Test failed — check your connection','err'); }
+  if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
+}
 // ── redesigned lead-entry building blocks ──
 function _leKpis(){
   const today=(LE_ENTERED&&LE_ENTERED.today)||0;
