@@ -307,6 +307,17 @@ function _arPrintAgent(agentId){
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html,'Agent Recovery'); else window.print();
 }
+function _arPrintGrandTotal(T){
+  T=T||{}; var ST=window._arStore||{};
+  var H=_arPrintHead();
+  return '<div class="ag" style="margin-top:16px;border-bottom:2px solid #c7cadb"><div><div class="an">GRAND TOTAL</div>'+
+      '<div class="am">'+(T.agents||(ST.agents||[]).length)+' agents · '+(T.units_sold||0)+' units · '+(T.clients||0)+' clients</div></div>'+
+      '<div class="ao">Total overdue<br><b>'+_arF(T.overdue||0)+'</b></div></div>'+
+    '<table class="tb">'+H.thead+'<tbody><tr class="tot"><td></td><td>ALL AGENTS</td><td></td>'+
+      '<td class="n big">'+_arF(T.overdue||0)+'</td><td class="n">'+_arF(T.month_due||0)+'</td>'+
+      '<td class="n grn">'+_arF(T.received||0)+'</td><td class="n">'+_arF(T.total_remaining||0)+'</td>'+
+      '<td class="n">'+(T.collected_pct||0)+'%</td></tr></tbody></table>';
+}
 function _arPrint(){
   var ST=window._arStore; if(!ST||!ST.rows.length){ if(typeof toast==='function') toast('Open the report first','warn'); return; }
   var H=_arPrintHead(); var T=ST.totals||{};
@@ -321,6 +332,7 @@ function _arPrint(){
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Agent Recovery Book — '+esc(H.co)+'</title><style>'+_arPrintCSS()+'</style></head><body>'+
     '<div class="hb"><div><div class="co">'+esc(H.co)+'</div><div class="ti">Agent Recovery Book</div></div><div class="hb-r"><b>Overdue '+_arF(T.overdue||0)+'</b><br>'+(T.agents||0)+' agents · as of '+esc(H.asOf)+'</div></div>'+
     sections+
+    _arPrintGrandTotal(T)+
     '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>Nexunova RMS · Agent Recovery · sale-agent-wise outstanding</span></div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html,'Agent Recovery Book'); else window.print();
