@@ -58,6 +58,19 @@ async function gate(token: string): Promise<{ ok: boolean; company_id?: string; 
   return { ok: true, company_id: s.company_id, sales_user_id: s.sales_user_id };
 }
 
+// Per-tenant app credentials: each company connects via THEIR OWN Meta app.
+// Falls back to the platform app (FB_APP_ID/SECRET) only if the company hasn't set its own.
+async function appCreds(companyId?: string): Promise<{ app_id: string; app_secret: string }> {
+  if (companyId) {
+    try {
+      const { data } = await sb.from("fb_app_config").select("app_id, app_secret").eq("company_id", companyId).limit(1);
+      const r = data?.[0];
+      if (r && r.app_id && r.app_secret) return { app_id: String(r.app_id), app_secret: String(r.app_secret) };
+    } catch (_) { /* fall through to platform */ }
+  }
+  return { app_id: APP_ID, app_secret: APP_SECRET };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ success: false, error: "method_not_allowed" }, 405);
@@ -66,28 +79,37 @@ Deno.serve(async (req: Request) => {
   try { b = await req.json(); } catch (_) { /* {} */ }
   const action = String(b.action ?? "");
 
-  // ── CONFIG (public) ────────────────────────────────────────────────────────
+  // ── CONFIG (per company: returns that company's app_id) ──────────────────────
   if (action === "config") {
-    const configured = !!(APP_ID && APP_SECRET && REDIRECT);
-    return json({ success: true, configured, app_id: APP_ID || null, redirect_uri: REDIRECT || null, scopes: SCOPES, graph_version: "v21.0" });
+    let aid = APP_ID, hasSecret = !!APP_SECRET;
+    const tok = String(b.session_token ?? "");
+    if (tok) {
+      const { data: ses } = await sb.from("sales_sessions").select("company_id, expires_at")
+        .eq("session_token", tok).gt("expires_at", new Date().toISOString()).limit(1);
+      const cid = ses?.[0]?.company_id;
+      if (cid) { const c = await appCreds(cid); aid = c.app_id; hasSecret = !!c.app_secret; }
+    }
+    const configured = !!(aid && hasSecret && REDIRECT);
+    return json({ success: true, configured, app_id: aid || null, redirect_uri: REDIRECT || null, scopes: SCOPES, graph_version: "v21.0" });
   }
 
   const g = await gate(String(b.session_token ?? ""));
   if (!g.ok) return json({ success: false, error: g.err }, g.err === "forbidden" ? 403 : 401);
 
-  // ── EXCHANGE ────────────────────────────────────────────────────────────────
+  // ── EXCHANGE (uses the company's own app credentials) ────────────────────────
   if (action === "exchange") {
-    if (!(APP_ID && APP_SECRET && REDIRECT)) return json({ success: false, error: "not_configured", message: "Facebook OAuth is not set up yet." });
+    const cr = await appCreds(g.company_id);
+    if (!(cr.app_id && cr.app_secret && REDIRECT)) return json({ success: false, error: "not_configured", message: "Your Meta app isn’t set up yet — add your App ID and App Secret first." });
     const code = String(b.code ?? "");
     if (!code) return json({ success: false, error: "code_required" });
     try {
-      // code → short-lived user token
-      const r1 = await fetch(`${GRAPH}/oauth/access_token?client_id=${encodeURIComponent(APP_ID)}&redirect_uri=${encodeURIComponent(REDIRECT)}&client_secret=${encodeURIComponent(APP_SECRET)}&code=${encodeURIComponent(code)}`);
+      // code → short-lived user token (caller's app)
+      const r1 = await fetch(`${GRAPH}/oauth/access_token?client_id=${encodeURIComponent(cr.app_id)}&redirect_uri=${encodeURIComponent(REDIRECT)}&client_secret=${encodeURIComponent(cr.app_secret)}&code=${encodeURIComponent(code)}`);
       const j1 = await r1.json();
       if (j1?.error || !j1?.access_token) return json({ success: false, error: "code_exchange_failed", message: j1?.error?.message ?? "Could not exchange the login code." });
       // short → long-lived user token
       let userTok = j1.access_token as string;
-      const r2 = await fetch(`${GRAPH}/oauth/access_token?grant_type=fb_exchange_token&client_id=${encodeURIComponent(APP_ID)}&client_secret=${encodeURIComponent(APP_SECRET)}&fb_exchange_token=${encodeURIComponent(userTok)}`);
+      const r2 = await fetch(`${GRAPH}/oauth/access_token?grant_type=fb_exchange_token&client_id=${encodeURIComponent(cr.app_id)}&client_secret=${encodeURIComponent(cr.app_secret)}&fb_exchange_token=${encodeURIComponent(userTok)}`);
       const j2 = await r2.json();
       if (j2?.access_token) userTok = j2.access_token;
       // managed pages (each carries its own page access token)

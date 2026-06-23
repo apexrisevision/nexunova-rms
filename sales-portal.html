@@ -3491,6 +3491,7 @@ async function _setTargetSave(id){
 function _targetShift(n){ TARGET_PERIOD=_periodShift(TARGET_PERIOD,n); renderTargets(); }
 // ════ Director — Facebook Leads settings (company page → lead intake) ════
 const FB_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/fb-leads-webhook';
+const FB_OAUTH_REDIRECT_URL='https://rms.nexunova.com/fb-oauth-callback.html';   // operator whitelists this in THEIR app's Facebook Login settings
 let FB_PAGES=[];
 function _copyEl(el){ const s=el.querySelector('span'); const t=s?s.textContent:''; try{ navigator.clipboard.writeText(t); toast('Copied','ok'); }catch(e){ toast('Copy failed','err'); } }
 // FB_CANWRITE: only the operator (lead_entry) + admin manage connections; directors are read-only.
@@ -3652,9 +3653,9 @@ async function _fbDiagLoad(){
 // ── FB OAuth Connect: sign in → pick page → pick project → connected (no manual IDs) ──
 let FB_OAUTH={state:null,popup:null,handler:null,cfg:null};
 async function _fbConnectStart(){
-  let cfg=FB_OAUTH.cfg;
-  if(!cfg){ try{ const r=await sb.functions.invoke('fb-oauth',{body:{action:'config'}}); cfg=r.data; FB_OAUTH.cfg=cfg; }catch(e){ return toast('Could not reach the Facebook connect service','err'); } }
-  if(!cfg||!cfg.configured){ toast('Facebook Connect isn’t set up yet — use Advanced → manual setup, or ask your admin.','err'); return; }
+  let cfg;
+  try{ const r=await sb.functions.invoke('fb-oauth',{body:{action:'config',session_token:TOKEN}}); cfg=r.data; FB_OAUTH.cfg=cfg; }catch(e){ return toast('Could not reach the Facebook connect service','err'); }
+  if(!cfg||!cfg.configured){ toast('Add your App ID & App Secret first (in this step), then Connect.','err'); return; }
   const state='nx'+Math.random().toString(36).slice(2)+Date.now().toString(36);
   FB_OAUTH.state=state;
   const url='https://www.facebook.com/'+(cfg.graph_version||'v21.0')+'/dialog/oauth'+
@@ -3769,13 +3770,25 @@ function _fbWizOpen(connId){
   _fbWizReload();
 }
 function _fbWizSetMode(mode){ FBWIZ.mode=mode; FBWIZ.manual.mode=mode; _fbWizSaveManual(); FBWIZ.step=null; _fbWizReload(); }   // remembered per tenant; fallback link re-runs this with 'new'
+async function _fbWizSaveAppKeys(){
+  const aid=(($('fbk-appid')||{}).value||'').trim(); const sec=(($('fbk-secret')||{}).value||'').trim(); const err=$('fbk-err');
+  if(err) err.style.display='none';
+  if(!aid){ if(err){err.style.display='block';err.textContent='App ID is required.';} return; }
+  try{
+    const {data}=await sb.rpc('save_fb_app_config',{p_session_token:TOKEN,p_app_id:aid,p_app_secret:sec||null});
+    if(data&&data.success){ FBWIZ.editKeys=false; FB_OAUTH.cfg=null; toast('App keys saved','ok'); _fbWizReload(); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else { if(err){err.style.display='block';err.textContent=(data&&data.message)||'Could not save keys.';} }
+  }catch(e){ if(err){err.style.display='block';err.textContent='Could not save keys.';} }
+}
 function _fbWizCloseToList(){ FBWIZ=null; _fbModuleInto(FB_HOST_ID||'fb-host'); }
 async function _fbWizReload(){
   const host=$(FB_HOST_ID||'fb-host'); if(host&&!$('fbwiz-card')) host.innerHTML='<div class="card" id="fbwiz-card"><div class="empty"><div class="et">Loading…</div></div></div>';
   try{
-    const [lc,dg]=await Promise.all([sb.rpc('list_fb_connections',{p_session_token:TOKEN}), sb.rpc('fb_diag_overview',{p_session_token:TOKEN})]);
+    const [lc,dg,ac]=await Promise.all([sb.rpc('list_fb_connections',{p_session_token:TOKEN}), sb.rpc('fb_diag_overview',{p_session_token:TOKEN}), sb.rpc('get_fb_app_config',{p_session_token:TOKEN})]);
     if(lc.data&&lc.data.success) FB_PAGES=lc.data.pages||[];
     FBWIZ.diag=(dg.data&&dg.data.success)?dg.data:{health:[],logs:[],imports:[]};
+    FBWIZ.appcfg=(ac.data&&ac.data.success)?ac.data:{app_id:null,has_secret:false};
   }catch(e){ return sessionGone(); }
   if(FBWIZ.connId) await _fbWizTokenCheck();
   if(!FBWIZ.mode){ _fbWizRender(); return; }   // fork not chosen yet → show the question
@@ -3938,16 +3951,30 @@ function _fbWizStepView(n){
     'Don’t see your Page? Make sure it’s added to your Business (Step 2). Don’t see Leads Access? Open the Page in Business settings → assign your app → enable lead access.',
     doneBtn(8));
 
-  // ── 9. Connect (AUTO) ──
+  // ── 9. Connect (AUTO) — first give the CRM your app's keys, then OAuth via YOUR app ──
   if(n===9){
     const c=_fbWizConn();
     if(c) return _fbWizAutoDone('Facebook connected','Your Page is connected to the CRM. The automatic checks are next.');
+    const cfg=FBWIZ.appcfg||{}; const haveKeys=!!(cfg.app_id&&cfg.has_secret);
+    if(!haveKeys || FBWIZ.editKeys){
+      // capture the client's OWN Meta app credentials so OAuth runs as THEIR app
+      return `<div class="fbwiz-step">
+        <div class="fbwiz-h"><span class="fbwiz-badge auto">Connect</span><h3>Link your app to the CRM</h3></div>
+        <p class="fbwiz-lead">Give the CRM your app’s keys so it can connect <b>through your own app</b>. Find them in your app → <b>App settings → Basic</b> (App ID + App secret).</p>
+        <div class="fbwiz-field"><div class="label">1 · Whitelist this redirect in your app <span class="fbwiz-mut">· Facebook Login → Settings → Valid OAuth Redirect URIs</span></div>${_fbWizCopy(FB_OAUTH_REDIRECT_URL)}</div>
+        <div class="fbwiz-field"><div class="label">2 · App ID</div><input class="input" id="fbk-appid" value="${esc(cfg.app_id||'')}" placeholder="e.g. 123456789012345" autocomplete="off"></div>
+        <div class="fbwiz-field"><div class="label">3 · App Secret ${cfg.has_secret?'<span class="fbwiz-mut">· saved ••••</span>':''}</div><input class="input" id="fbk-secret" type="password" autocomplete="off" placeholder="${cfg.has_secret?'Leave blank to keep current':'Paste your App secret'}"></div>
+        <div id="fbk-err" class="le-err" style="display:none"></div>
+        <div class="fbwiz-actions"><button class="btn btn-primary" onclick="_fbWizSaveAppKeys()">Save keys &amp; continue</button>${haveKeys?`<button class="btn btn-sm" onclick="FBWIZ.editKeys=false;_fbWizRender()">Cancel</button>`:''}</div>
+        ${_fbWizWhat('Your App ID is public; the App secret is private — the CRM keeps it on the server and never shows it again. This lets the CRM open the Facebook login using <b>your</b> app, so the connection belongs to you.')}
+        ${_fbWizStuck('Can’t find the keys? In your app dashboard → <b>App settings → Basic</b>. The secret is hidden — click <b>Show</b> (it may ask for your password). Make sure you also added the redirect URL above under Facebook Login → Settings.')}
+      </div>`;
+    }
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Connect Facebook</h3></div>
       <p class="fbwiz-lead">Sign in with Facebook, pick the Page(s) you set up, and choose which project each one’s leads belong to. Your CRM stores everything securely — you never copy a token.</p>
-      ${_fbWizShot('Facebook login → choose Page(s) → grant permissions')}
-      <div class="fbwiz-actions"><button class="btn btn-primary" onclick="_fbConnectStart()">Connect Facebook</button></div>
-      ${_fbWizStuck('A pop-up should open. If nothing happens, allow pop-ups for this site and click again. Pick the same Page you set up, and accept all the permissions Facebook asks for (pages + leads access).')}
+      <div class="fbwiz-actions"><button class="btn btn-primary" onclick="_fbConnectStart()">Connect Facebook</button><button class="btn btn-sm" onclick="FBWIZ.editKeys=true;_fbWizRender()">Change app keys</button></div>
+      ${_fbWizStuck('A pop-up should open. If nothing happens, allow pop-ups for this site and click again. Pick the same Page you set up, and accept all permissions Facebook asks for (pages + leads access). “URL blocked / redirect” error = the redirect URL isn’t whitelisted in your app’s Facebook Login settings (see Change app keys).')}
     </div>`;
   }
 
