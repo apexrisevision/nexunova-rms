@@ -2627,8 +2627,8 @@ function _leWaPanel(){
   }</div>` : '';
   const form = `<div class="card le-card">
     ${_leCardHd('','','','Connect a WhatsApp number',conns.length?'Add another number.':'From your Meta app → WhatsApp → API Setup. Incoming messages become leads in the director’s pool.')}
-    <div class="field"><label class="label">Phone Number ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="wa-pnid" placeholder="e.g. 123456789012345" autocomplete="off"></div>
-    <div class="field"><label class="label">Display number <span class="le-mut">· optional</span></label><input class="input" id="wa-disp" placeholder="e.g. +92 300 1234567" autocomplete="off"></div>
+    <div class="field"><label class="label">Phone Number ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="wa-pnid" placeholder="From Meta → WhatsApp → API Setup" autocomplete="off"></div>
+    <div class="field"><label class="label">Display number <span class="le-mut">· optional</span></label><input class="input" id="wa-disp" placeholder="Your WhatsApp business number" autocomplete="off"></div>
     <div class="field"><label class="label">WhatsApp Business Account ID <span class="le-mut">· optional</span></label><input class="input" id="wa-waba" autocomplete="off"></div>
     <div class="field"><label class="label">Access token <span class="le-mut">· optional (for replies later)</span></label><input class="input" id="wa-tok" type="password" autocomplete="off"></div>
     <div class="field"><label class="label">Tag leads to project <span class="le-mut">· optional</span></label><select class="input" id="wa-proj">${_leProjOpts(null)}</select></div>
@@ -2681,9 +2681,9 @@ function _leIgPanel(){
   }</div>` : '';
   const form = `<div class="card le-card">
     ${_leCardHd('','','','Connect an Instagram account',conns.length?'Add another account.':'A Direct Message to your Instagram becomes a lead in the director’s pool.')}
-    <div class="fbwiz-note">${li('info',14,2)} Instagram lead <b>ads</b> already arrive through <b>Connect Facebook</b>. This is for Instagram <b>Direct Messages</b> — Instagram doesn’t share a phone number, so the message + sender come through and follow-up happens in Instagram.</div>
-    <div class="field"><label class="label">Instagram account ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ig-acct" placeholder="e.g. 17841400000000000" autocomplete="off"></div>
-    <div class="field"><label class="label">Instagram username <span class="le-mut">· optional</span></label><input class="input" id="ig-user" placeholder="e.g. yourbusiness" autocomplete="off"></div>
+    <div class="fbwiz-note">${li('info',14,2)}<span>Instagram lead <b>ads</b> already arrive through <b>Connect Facebook</b>. This screen is for Instagram <b>Direct Messages</b> — Instagram doesn’t share a phone number, so the message and the sender’s Instagram come through, and follow-up happens in Instagram.</span></div>
+    <div class="field"><label class="label">Instagram account ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ig-acct" placeholder="Your Instagram account ID (from Meta)" autocomplete="off"></div>
+    <div class="field"><label class="label">Instagram username <span class="le-mut">· optional</span></label><input class="input" id="ig-user" placeholder="your_handle" autocomplete="off"></div>
     <div class="field"><label class="label">Linked Facebook Page ID <span class="le-mut">· optional</span></label><input class="input" id="ig-page" autocomplete="off"></div>
     <div class="field"><label class="label">Access token <span class="le-mut">· optional</span></label><input class="input" id="ig-tok" type="password" autocomplete="off"></div>
     <div class="field"><label class="label">Tag leads to project <span class="le-mut">· optional</span></label><select class="input" id="ig-proj">${_leProjOpts(null)}</select></div>
@@ -2813,7 +2813,7 @@ async function _leSave(){
 function _lePasteOpen(){
   openModal('Paste a lead',
     `<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.5;margin-bottom:10px">Paste WhatsApp / ad text — we’ll pull out the name &amp; phone and fill the form for you to review.</div>
-     <textarea class="input" id="le-paste" rows="6" placeholder="New lead from Facebook&#10;Name: Ali Khan&#10;Phone: 0300 1234567"></textarea>
+     <textarea class="input" id="le-paste" rows="6" placeholder="New lead from Facebook&#10;Name: Ali Khan&#10;Phone: 0300XXXXXXX"></textarea>
      <div class="field" style="margin-top:12px"><label class="label">Source</label>${_leSrcChips('whatsapp','le-paste-src')}</div>`,
     `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leParse()">Parse &amp; fill form</button>`);
 }
@@ -2918,7 +2918,7 @@ function _leadImportOpen(){
   openModal('Import leads',
     `<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.55;margin-bottom:10px">Paste CSV or choose a .csv file. The first row must be column headers. We recognise <b>name</b> (required), phone, source, interest, budget and notes — plus common aliases (mobile/contact → phone, client → name).</div>
      <label class="btn btn-full" style="cursor:pointer;margin-bottom:10px;justify-content:center">${up}&nbsp; Choose CSV file<input type="file" accept=".csv,text/csv" style="display:none" onchange="_impFile(this)"></label>
-     <textarea class="input" id="imp-csv" rows="7" placeholder="name,phone,source,interest,budget,notes&#10;Ali Khan,03001234567,walkin,2 bed,8000000,referred by Usman" style="font-size:12px"></textarea>
+     <textarea class="input" id="imp-csv" rows="7" placeholder="name,phone,source,interest,budget,notes&#10;Ali Khan,0300XXXXXXX,walkin,2 bed,8000000,referred by Usman" style="font-size:12px"></textarea>
      <div class="field" style="margin-top:10px"><label class="label">Default source (used when a row leaves it blank)</label><select class="input" id="imp-src">${_impSrcOpts()}</select></div>
      <div class="field" style="margin-top:10px"><label class="label">Default project (used when a row has no project / it doesn’t match)</label><select class="input" id="imp-project">${_leProjOpts('')}</select></div>
      <div id="imp-err" style="display:none;color:var(--fk-danger);font-size:13px;margin-top:6px"></div>`,
