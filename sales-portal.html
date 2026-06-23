@@ -3648,9 +3648,9 @@ async function _fbDoSave(nonce){
   closeModal();
   if(fail.length) toast('Connected '+ok.length+' · '+fail.length+' failed','err');
   else toast(ok.length>1?('Connected '+ok.length+' pages'):'Connected — '+ok[0],'ok');
-  if(FBWIZ && FBWIZ.open){           // step 5 satisfied — continue the wizard with the first connected page
+  if(FBWIZ && FBWIZ.open){           // connect (step 9) satisfied — continue with the first connected page
     FBWIZ.connId = firstConnId;
-    FBWIZ.step = 6; _fbWizReload(); return;
+    FBWIZ.step = 10; _fbWizReload(); return;
   }
   renderFbSettings();
 }
@@ -3662,11 +3662,14 @@ async function _fbDoSave(nonce){
 // No hardcoded app/page ids; per-tenant values (callback URL, verify token) pulled live.
 // ════════════════════════════════════════════════════════════════════════════
 let FBWIZ=null;                       // {open,step,connId,manual,diag,_tok,busy}
-const FBWIZ_TOTAL=8;
+const FBWIZ_TOTAL=12;
 const FBWIZ_LINKS={
   apps:'https://developers.facebook.com/apps/',
+  bizHome:'https://business.facebook.com/',
   biz:'https://business.facebook.com/settings/',
   bizPages:'https://business.facebook.com/settings/pages',
+  forms:'https://business.facebook.com/latest/instant_forms',
+  adsManager:'https://www.facebook.com/adsmanager/',
   testTool:'https://developers.facebook.com/tools/lead-ads-testing/'
 };
 function _fbWizKey(){ return 'nxfbwiz:'+((ME&&ME.company_name)||'co'); }
@@ -3676,11 +3679,11 @@ function _fbWizConn(){ return FBWIZ&&FBWIZ.connId ? (FB_PAGES.find(p=>p.id===FBW
 function _fbWizHealth(){ if(!FBWIZ||!FBWIZ.diag||!FBWIZ.connId) return null; return (FBWIZ.diag.health||[]).find(h=>h.connection_id===FBWIZ.connId)||null; }
 function _fbWizStatus(n){
   const m=(FBWIZ&&FBWIZ.manual)||{};
-  if(n>=1&&n<=4) return m['s'+n]?'done':'todo';
-  if(n===5) return (FBWIZ&&FBWIZ.connId)?'done':'todo';
-  if(n===6){ const t=FBWIZ&&FBWIZ._tok; return (t&&t.success&&t.token_valid!==false)?'done':'todo'; }
-  if(n===7){ const h=_fbWizHealth(); return (h&&h.last_verify_at)?'done':'todo'; }
-  if(n===8){ const h=_fbWizHealth(); return (h&&h.last_event_at)?'done':'todo'; }
+  if(n>=1&&n<=8) return m['s'+n]?'done':'todo';
+  if(n===9) return (FBWIZ&&FBWIZ.connId)?'done':'todo';
+  if(n===10){ const t=FBWIZ&&FBWIZ._tok; return (t&&t.success&&t.token_valid!==false)?'done':'todo'; }
+  if(n===11){ const h=_fbWizHealth(); return (h&&h.last_verify_at)?'done':'todo'; }
+  if(n===12){ const h=_fbWizHealth(); return (h&&h.last_event_at)?'done':'todo'; }
   return 'todo';
 }
 function _fbWizAllDone(){ for(let i=1;i<=FBWIZ_TOTAL;i++) if(_fbWizStatus(i)!=='done') return false; return true; }
@@ -3713,7 +3716,7 @@ function _fbWizFirstOpen(){ for(let i=1;i<=FBWIZ_TOTAL;i++) if(_fbWizStatus(i)!=
 function _fbWizManualDone(n){ FBWIZ.manual['s'+n]=true; _fbWizSaveManual(); FBWIZ.step=Math.min(n+1,FBWIZ_TOTAL); _fbWizRender(); }
 async function _fbWizCheck(n){
   FBWIZ.busy=true; _fbWizRender();
-  if(n===6){ await _fbWizTokenCheck(); }
+  if(n===10){ await _fbWizTokenCheck(); }
   else { try{ const dg=await sb.rpc('fb_diag_overview',{p_session_token:TOKEN}); FBWIZ.diag=(dg.data&&dg.data.success)?dg.data:FBWIZ.diag; }catch(e){} }
   FBWIZ.busy=false;
   const ok=_fbWizStatus(n)==='done';
@@ -3755,81 +3758,130 @@ function _fbWizStepView(n){
   const busy=FBWIZ.busy;
   const checkBtn=(n,label)=>`<button class="btn btn-primary" ${busy?'disabled':''} onclick="_fbWizCheck(${n})">${busy?'Checking…':esc(label)}</button>`;
   const doneBtn =(n)=>`<button class="btn btn-primary" onclick="_fbWizManualDone(${n})">I've done this ${li('arrow-right',14,2)}</button>`;
-  if(n===1) return _fbWizManualStep(1,'Open or create your Meta app',
-    'Go to your Meta for Developers account and open the app you use for lead ads — or create a new one. When creating, choose the <b>Business</b> type.',
-    _fbWizLink(FBWIZ_LINKS.apps,'Open my Meta apps'),'app (Business type)',
-    'A “Meta app” is the connection between your Facebook Page and your CRM. It must be the <b>Business</b> type to receive leads.',
-    'No app yet? Click <b>Create App</b> on that page and pick <b>Business</b>. Already have one for ads? Use that — don’t make a second.',
+
+  // ── 1. Business Manager ──
+  if(n===1) return _fbWizManualStep(1,'Create your Business Manager',
+    'Open Meta <b>Business settings</b> and create a Business account for your company. This is the home for your Page, ad account and app.<br><br><b>How:</b> business.facebook.com → <b>Create account</b> → enter your business name, your name and work email → <b>Submit</b>.',
+    _fbWizLink(FBWIZ_LINKS.bizHome,'Open Business settings'),'business.facebook.com → Create account',
+    'Business Manager is Meta’s control panel where your Page, ad account and app live together. You need one before anything else.',
+    'Already have a Business Manager (maybe your ads agency made one)? Use it — don’t create a duplicate. Just make sure you’re an <b>admin</b> of it.',
     doneBtn(1));
-  if(n===2) return _fbWizManualStep(2,'Switch your app to Live',
-    'In your app dashboard, find the <b>App Mode</b> toggle at the top and switch it from <b>Development</b> to <b>Live</b>.',
-    _fbWizLink(FBWIZ_LINKS.apps,'Open my app dashboard'),'App Mode toggle (top of dashboard)',
-    'In Development mode Facebook will not send real leads. Live mode turns delivery on.',
-    'Toggle greyed out or asking for a <b>Privacy Policy URL</b>? Paste your company’s privacy page (e.g. your website’s /privacy) in App Settings → Basic, Save, then toggle to Live again.',
+
+  // ── 2. Page ──
+  if(n===2) return _fbWizManualStep(2,'Add or create your Facebook Page',
+    'In <b>Business settings → Pages</b>, add your existing Facebook Page or create a new one. This is the Page people see and submit lead forms to.<br><br><b>How:</b> Business settings → <b>Pages</b> → <b>Add</b> → <b>Add a Page</b> (to claim yours) or <b>Create a new Page</b>.',
+    _fbWizLink(FBWIZ_LINKS.bizPages,'Open Business settings → Pages'),'Business settings → Pages → Add',
+    'Leads come from a Page’s lead form, so the Page must belong to your Business Manager.',
+    'If the Page lives on a personal account, use <b>Add a Page</b> / Request access rather than creating a new one — don’t split your audience.',
     doneBtn(2));
-  if(n===3){
+
+  // ── 3. Lead form ──
+  if(n===3) return _fbWizManualStep(3,'Create your lead form',
+    'Create a Lead Generation form (an <b>Instant Form</b>) for your Page — the form people fill in (name, phone, etc.). You can build it in the <b>Forms Library</b>, or while creating a Lead ad in <b>Ads Manager</b>.<br><br><b>Tip:</b> keep it simple — at least <b>Full name</b> and <b>Phone</b> fields so leads import cleanly.',
+    _fbWizLink(FBWIZ_LINKS.forms,'Open Forms Library')+_fbWizLink(FBWIZ_LINKS.adsManager,'Open Ads Manager'),
+    'Forms Library / Ads Manager → create Instant Form (Full name + Phone)',
+    'The Instant Form is what a person submits. Each submission becomes a lead in your CRM.',
+    'No “Forms Library” visible? Create the form inside a <b>Lead Generation</b> campaign in Ads Manager. You can also reuse an existing form.',
+    doneBtn(3));
+
+  // ── 4. Create Meta app (detailed) ──
+  if(n===4) return _fbWizManualStep(4,'Create your Meta app',
+    'The app is the secure bridge between your Page and your CRM. Create one in Meta for Developers:<br><br>1. Open <b>developers.facebook.com</b> → <b>My Apps</b> → <b>Create App</b>.<br>2. If asked, finish developer sign-up (verify your account).<br>3. Choose use case <b>Other</b> → app type <b>Business</b>.<br>4. Give it a name (e.g. your company name) and pick your <b>Business Manager</b> (the one from Step 1).<br>5. Click <b>Create app</b>.',
+    _fbWizLink(FBWIZ_LINKS.apps,'Open My Apps → Create App'),'developers.facebook.com → Create App → type Business',
+    'A “Meta app” is a private credential that lets your Page send leads to your CRM. It must be the <b>Business</b> type. One app can serve all your Pages.',
+    'Already have a Business-type app for ads? Use that one — don’t create a second. “Create App” greyed out? Complete developer account verification first.',
+    doneBtn(4));
+
+  // ── 5. Add products (Webhooks + Facebook Login) ──
+  if(n===5) return _fbWizManualStep(5,'Add the tools your app needs',
+    'In your new app’s dashboard, add two products:<br><br>1. <b>Webhooks</b> — lets Facebook notify your CRM of new leads.<br>2. <b>Facebook Login for Business</b> — lets you connect your Page in one click (Step 9).<br><br><b>How:</b> app dashboard → <b>Add product</b> (or the “+” in the left menu) → click <b>Set up</b> on each of those two.',
+    _fbWizLink(FBWIZ_LINKS.apps,'Open my app dashboard'),'App dashboard → Add product → Webhooks + Facebook Login',
+    'Products are features you switch on for your app. Webhooks delivers the leads; Facebook Login lets the CRM connect your Page without you copying tokens.',
+    'Can’t find a product? Use the search box on the “Add product” screen. You don’t need to fully configure them here — just add them; the next steps handle the settings.',
+    doneBtn(5));
+
+  // ── 6. Privacy policy + Live ──
+  if(n===6) return _fbWizManualStep(6,'Add your privacy policy &amp; go Live',
+    'Two quick things in your app:<br><br>1. <b>App Settings → Basic</b>: paste your company’s <b>Privacy Policy URL</b> (e.g. your website’s /privacy page) and <b>Save changes</b>.<br>2. At the top of the dashboard, switch <b>App Mode</b> from <b>Development</b> to <b>Live</b>.',
+    _fbWizLink(FBWIZ_LINKS.apps,'Open my app dashboard'),'App Settings → Basic (Privacy URL) + App Mode → Live',
+    'In Development mode Facebook will not send real leads. A privacy policy URL is required before the app can go Live.',
+    'Live toggle won’t turn on? It almost always means the Privacy Policy URL is missing — add it in App Settings → Basic, Save, then toggle Live again.',
+    doneBtn(6));
+
+  // ── 7. Turn on lead notifications (callback URL + verify token) ──
+  if(n===7){
     const c=_fbWizConn();
     const verify = c&&c.verify_token ? c.verify_token : null;
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge manual">Do this in Meta</span><h3>Turn on lead notifications</h3></div>
-      <p class="fbwiz-lead">In your app, open <b>Webhooks</b>, choose the <b>Page</b> product, find <b>leadgen</b> and switch <b>Subscribe</b> ON. When it asks for a Callback URL and a Verify Token, paste the values below.</p>
+      <p class="fbwiz-lead">In your app, open <b>Webhooks</b>, choose the <b>Page</b> object, find <b>leadgen</b> and switch <b>Subscribe</b> ON. When it asks for a Callback URL and a Verify Token, paste the values below.</p>
       ${_fbWizShot('Webhooks → Page → leadgen → Subscribe ON, with Callback URL + Verify Token fields')}
       <div class="fbwiz-field"><div class="label">Callback URL <span class="fbwiz-mut">· paste into Meta</span></div>${_fbWizCopy(FB_WEBHOOK_URL)}</div>
       <div class="fbwiz-field"><div class="label">Verify Token <span class="fbwiz-mut">· auto-generated by your CRM — never invent one</span></div>${
         verify ? _fbWizCopy(verify)
-               : '<div class="fbwiz-note">'+li('info',14,2)+' Your unique Verify Token is created automatically when you connect your Page (Step 5). If Meta asks for it now, you can complete Step 5 first, then return here to copy it.</div>'
+               : '<div class="fbwiz-note">'+li('info',14,2)+' Your unique Verify Token is created automatically when you connect your Page (Step 9). If Meta asks for it now, complete Step 9 first, then come back here to copy it.</div>'
       }</div>
-      <div class="fbwiz-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}${doneBtn(3)}</div>
+      <div class="fbwiz-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}${doneBtn(7)}</div>
       ${_fbWizWhat('This tells Facebook to ping your CRM the instant a lead comes in. The Callback URL is your CRM’s address; the Verify Token is a private password your CRM generated.')}
-      ${_fbWizStuck('Make sure you picked the <b>Page</b> object (not “Application”), found the <b>leadgen</b> field, and pressed <b>Subscribe</b>. The green tick for this confirms later at Step 7 when Facebook’s test ping reaches your CRM.')}
+      ${_fbWizStuck('Make sure you picked the <b>Page</b> object (not “Application”), found the <b>leadgen</b> field, and pressed <b>Subscribe</b>. This confirms automatically at Step 11 when Facebook’s ping reaches your CRM.')}
     </div>`;
   }
-  if(n===4) return _fbWizManualStep(4,'Link your Page and grant leads access',
-    'In <b>Business settings</b>, add your Facebook <b>Page</b> to your app, then under the Page’s <b>access</b> give your app permission to receive its leads (Leads Access).',
+
+  // ── 8. Link Page + Leads Access ──
+  if(n===8) return _fbWizManualStep(8,'Link your Page &amp; grant leads access',
+    'In <b>Business settings</b>, connect your Page to your app and allow the app to read its leads.<br><br><b>How:</b> Business settings → <b>Pages</b> → select your Page → <b>Connected assets / Add assets</b> → add your app. Then on the same Page, enable <b>Leads Access</b> (Lead Access) for the app.',
     _fbWizLink(FBWIZ_LINKS.bizPages,'Open Business settings → Pages')+_fbWizLink(FBWIZ_LINKS.biz,'Open Business settings'),
-    'Business settings → Pages → your Page → Connected apps / Leads Access',
+    'Business settings → Pages → your Page → connect app + Leads Access',
     'Your app can only read a Page’s leads after the Page is linked to it and Leads Access is granted.',
-    'Don’t see your Page? Make sure it’s added to your Business. Don’t see Leads Access? Open the Page in Business settings → assign your app → enable lead access.',
-    doneBtn(4));
-  if(n===5){
+    'Don’t see your Page? Make sure it’s added to your Business (Step 2). Don’t see Leads Access? Open the Page in Business settings → assign your app → enable lead access.',
+    doneBtn(8));
+
+  // ── 9. Connect (AUTO) ──
+  if(n===9){
     const c=_fbWizConn();
     if(c) return _fbWizAutoDone('Facebook connected','Your Page is connected to the CRM. The automatic checks are next.');
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Connect Facebook</h3></div>
-      <p class="fbwiz-lead">Sign in with Facebook, pick the Page you just set up, and choose which project its leads belong to. Your CRM stores everything securely — you never copy a token.</p>
-      ${_fbWizShot('Facebook login → choose Page → grant permissions')}
+      <p class="fbwiz-lead">Sign in with Facebook, pick the Page(s) you set up, and choose which project each one’s leads belong to. Your CRM stores everything securely — you never copy a token.</p>
+      ${_fbWizShot('Facebook login → choose Page(s) → grant permissions')}
       <div class="fbwiz-actions"><button class="btn btn-primary" onclick="_fbConnectStart()">Connect Facebook</button></div>
-      ${_fbWizStuck('A pop-up should open. If nothing happens, allow pop-ups for this site and click again. Pick the same Page you set up in the earlier steps, and accept all the permissions Facebook asks for (pages + leads access).')}
+      ${_fbWizStuck('A pop-up should open. If nothing happens, allow pop-ups for this site and click again. Pick the same Page you set up, and accept all the permissions Facebook asks for (pages + leads access).')}
     </div>`;
   }
-  if(n===6){
-    const t=FBWIZ._tok||{}; const ok=_fbWizStatus(6)==='done';
+
+  // ── 10. Token check (AUTO) ──
+  if(n===10){
+    const t=FBWIZ._tok||{}; const ok=_fbWizStatus(10)==='done';
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} Token valid${t.token_app_id?` · belongs to App ID <b>${esc(String(t.token_app_id))}</b>`:''}${t.token_expires_at?` · expires ${t.token_expires_at==='never'?'never':esc(fdate(t.token_expires_at))}`:''}</div>`
-      : `<div class="fbwiz-bad">${li('alert-triangle',16,2)} ${esc((t&&(t.message||t.error))||'Token not valid yet')}. <b>Fix:</b> reconnect at Step 5 with full permissions.</div>`;
+      : `<div class="fbwiz-bad">${li('alert-triangle',16,2)} ${esc((t&&(t.message||t.error))||'Token not valid yet')}. <b>Fix:</b> reconnect at Step 9 with full permissions.</div>`;
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Check the connection is healthy</h3></div>
       <p class="fbwiz-lead">Your CRM asks Facebook whether the connection is valid and which app it belongs to.</p>
       ${detail}
-      <div class="fbwiz-actions">${checkBtn(6,'Re-check')}</div>
-      ${_fbWizStuck('“Invalid/expired” almost always means the Facebook login didn’t grant every permission, or the token aged out. Go back to Step 5 and Connect again, accepting all permissions.')}
+      <div class="fbwiz-actions">${checkBtn(10,'Re-check')}</div>
+      ${_fbWizStuck('“Invalid/expired” almost always means the Facebook login didn’t grant every permission, or the token aged out. Go back to Step 9 and Connect again, accepting all permissions.')}
     </div>`;
   }
-  if(n===7){
-    const h=_fbWizHealth(); const ok=_fbWizStatus(7)==='done';
+
+  // ── 11. Verify ping (AUTO) ──
+  if(n===11){
+    const h=_fbWizHealth(); const ok=_fbWizStatus(11)==='done';
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} Facebook’s verification ping reached your CRM${h&&h.last_verify_at?` on ${esc(fdate(h.last_verify_at))}`:''}.</div>`
-      : `<div class="fbwiz-bad">${li('clock',16,2)} No verification ping yet. <b>Fix:</b> make sure Step 3 (Subscribe leadgen ON) is saved in your app’s Webhooks.</div>`;
+      : `<div class="fbwiz-bad">${li('clock',16,2)} No verification ping yet. <b>Fix:</b> make sure Step 7 (Subscribe leadgen ON) is saved in your app’s Webhooks.</div>`;
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Confirm Facebook can reach your CRM</h3></div>
       <p class="fbwiz-lead">When you turned on lead notifications, Facebook sends a one-time verification ping. We confirm it arrived.</p>
       ${detail}
-      <div class="fbwiz-actions">${checkBtn(7,'Check for ping')}${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>
-      ${_fbWizStuck('No ping ever? Re-open Webhooks in your app, confirm the <b>Page</b> object shows <b>leadgen — Subscribed</b>, and that the Callback URL exactly matches the one in Step 3. Re-press Subscribe to trigger a fresh ping, then Check again.')}
+      <div class="fbwiz-actions">${checkBtn(11,'Check for ping')}${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>
+      ${_fbWizStuck('No ping ever? Re-open Webhooks, confirm the <b>Page</b> object shows <b>leadgen — Subscribed</b>, and that the Callback URL exactly matches the one in Step 7. Re-press Subscribe to trigger a fresh ping, then Check again.')}
     </div>`;
   }
-  if(n===8){
-    const ok=_fbWizStatus(8)==='done';
+
+  // ── 12. Test lead (MANUAL → AUTO) ──
+  if(n===12){
+    const ok=_fbWizStatus(12)==='done';
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} A test lead arrived in your CRM. You can delete the test lead in the Testing Tool now.</div>`
       : `<div class="fbwiz-bad">${li('clock',16,2)} No lead detected yet. Create one in the Lead Ads Testing Tool, wait for it to show <b>Success</b>, then press Check.</div>`;
@@ -3838,8 +3890,8 @@ function _fbWizStepView(n){
       <p class="fbwiz-lead">Open the Lead Ads Testing Tool, pick your Page and form, and create a test lead. Track its status until it says <b>Success</b> — your CRM will detect it automatically.</p>
       ${_fbWizShot('Lead Ads Testing Tool → select Page + form → Create Lead → status Success')}
       ${detail}
-      <div class="fbwiz-actions">${_fbWizLink(FBWIZ_LINKS.testTool,'Open Lead Ads Testing Tool')}${checkBtn(8,'Check for test lead')}</div>
-      ${_fbWizStuck('“Pending” forever = your app isn’t Live (Step 2) or leadgen isn’t subscribed (Step 3). Nothing arrives at all = Page link / Leads Access missing (Step 4). Fix those, create a fresh test lead, then Check.')}
+      <div class="fbwiz-actions">${_fbWizLink(FBWIZ_LINKS.testTool,'Open Lead Ads Testing Tool')}${checkBtn(12,'Check for test lead')}</div>
+      ${_fbWizStuck('“Pending” forever = your app isn’t Live (Step 6) or leadgen isn’t subscribed (Step 7). Nothing arrives at all = Page link / Leads Access missing (Step 8). Fix those, create a fresh test lead, then Check.')}
     </div>`;
   }
   return '';
