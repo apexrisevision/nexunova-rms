@@ -48,7 +48,9 @@ Deno.serve(async (req: Request) => {
   if (!ses) return json({ success: false, error: "session_expired" }, 401);
   const { data: u } = await sb.from("sales_users").select("role").eq("id", ses.sales_user_id).limit(1);
   const role = u?.[0]?.role;
-  if (role !== "director" && role !== "admin") return json({ success: false, error: "forbidden" }, 403);
+  // FB connection management belongs to the operator (lead_entry); admin kept as
+  // superuser fallback. Directors are read-only (no test/write actions).
+  if (role !== "lead_entry" && role !== "admin") return json({ success: false, error: "forbidden" }, 403);
 
   // ── resolve the connection (must belong to caller's company) ──
   const connId = String(b.connection_id ?? "");

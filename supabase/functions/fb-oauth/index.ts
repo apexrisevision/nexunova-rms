@@ -52,7 +52,9 @@ async function gate(token: string): Promise<{ ok: boolean; company_id?: string; 
   if (!s) return { ok: false, err: "session_expired" };
   const { data: u } = await sb.from("sales_users").select("role").eq("id", s.sales_user_id).limit(1);
   const role = u?.[0]?.role;
-  if (role !== "director" && role !== "admin") return { ok: false, err: "forbidden" };
+  // FB connect belongs to the operator (lead_entry); admin kept as superuser fallback.
+  // Directors are read-only and do not connect/disconnect.
+  if (role !== "lead_entry" && role !== "admin") return { ok: false, err: "forbidden" };
   return { ok: true, company_id: s.company_id, sales_user_id: s.sales_user_id };
 }
 
