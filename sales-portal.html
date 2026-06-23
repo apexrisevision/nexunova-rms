@@ -2766,10 +2766,6 @@ function _leHero(title,desc){
     <div class="le2-stats">${stat(today,'Added today')}${stat(total,'Leads added')}${stat(LE_FBCOUNT||0,'Pages connected')}</div>
   </div>`;
 }
-function _leTabs(active){
-  const tabs=[['add','Add lead'],['entered','My leads'],['fb','Facebook']];
-  return '<div class="lep-tabs">'+tabs.map(t=>`<button class="lep-tab${t[0]===active?' on':''}" onclick="_leTab('${t[0]}')">${esc(t[1])}</button>`).join('')+'</div>';
-}
 function _leCardHd(bg,fg,ic,title,sub){   // bg/fg/ic kept for call-compat; clean title+desc header (matches the wizard hierarchy)
   return `<div class="le2-card-hd"><h2 class="le2-card-t">${esc(title)}</h2>${sub?`<div class="le2-card-s">${sub}</div>`:''}</div>`;
 }
