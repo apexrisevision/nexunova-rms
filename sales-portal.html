@@ -1315,6 +1315,7 @@ body{background:var(--nx-page)}
       <a class="ni" data-tab="fbconnect" data-le style="display:none" onclick="setTab('fbconnect')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Connect Facebook</span></a>
       <a class="ni" data-tab="webleads" data-le style="display:none" onclick="setTab('webleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span class="ni-lb">Website Leads</span></a>
       <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
+      <a class="ni" data-tab="igdm" data-le style="display:none" onclick="setTab('igdm')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span><span class="ni-lb">Instagram</span></a>
       <div class="ni-grp" data-grp="leads" style="display:none">
         <div class="ni-grp-hd" onclick="toggleGroup('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
         <div class="ni-sub">
@@ -1848,16 +1849,17 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
-  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','webleads','whatsapp','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
+  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','webleads','whatsapp','igdm','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='leadentry') renderLeadEntry();
   else if(t==='myleads') renderMyLeads();
   else if(t==='fbconnect') renderFbConnect();
   else if(t==='webleads') renderWebLeads();
   else if(t==='whatsapp') renderWhatsApp();
+  else if(t==='igdm') renderInstagram();
   else if(t==='home') renderHome();
   else if(t==='leads') renderLeads();
   else if(t==='board') renderBoard();
@@ -2476,6 +2478,8 @@ let WEBCFG=null;      // website lead-capture config (intake key + default proje
 const WEB_LEAD_ENDPOINT='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/web-lead';
 let WACONNS=[];       // connected WhatsApp numbers
 const WA_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/wa-leads-webhook';
+let IGCONNS=[];       // connected Instagram accounts (Direct Messages)
+const IG_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/ig-leads-webhook';
 function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
 function _leProjOpts(sel){ const own=(ME&&ME.company_name)||''; return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>{ const co=(p.company_name&&p.company_name!==own)?(' · '+p.company_name):''; return `<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${co?esc(co):(p.code?' ('+esc(p.code)+')':'')}</option>`; }).join(''); }
 function _resolveProjId(t){ t=String(t||'').trim().toLowerCase(); if(!t) return ''; const p=LE_PROJECTS.find(x=>String(x.name||'').toLowerCase()===t||String(x.code||'').toLowerCase()===t); return p?p.id:''; }
@@ -2510,12 +2514,18 @@ async function renderWhatsApp(){ LE_VIEW='wa';       $('app-body').innerHTML='<d
   try{ const r=await sb.rpc('list_whatsapp_connections',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); WACONNS=(r.data&&r.data.success)?(r.data.connections||[]):[]; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
 }
+async function renderInstagram(){ LE_VIEW='ig';      $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!(await _leLoad())) return;
+  try{ const r=await sb.rpc('list_instagram_connections',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); IGCONNS=(r.data&&r.data.success)?(r.data.connections||[]):[]; }catch(e){ return sessionGone(); }
+  _touch(); _leRender();
+}
 const LE_SCREENS={
   add:{t:'Add a manual lead',d:'Type a lead in by hand — it goes to the director’s pool for distribution.'},
   entered:{t:'My leads',d:'Leads you’ve added — now in the director’s pool.'},
   fb:{t:'Connect Facebook',d:'Connect your Page so Facebook lead-form submissions arrive in the CRM automatically.'},
   web:{t:'Website Leads',d:'Capture leads straight from your website’s contact form into the CRM.'},
-  wa:{t:'WhatsApp',d:'Turn messages to your WhatsApp Business number into leads (WhatsApp Cloud API).'}
+  wa:{t:'WhatsApp',d:'Turn messages to your WhatsApp Business number into leads (WhatsApp Cloud API).'},
+  ig:{t:'Instagram',d:'Turn Instagram Direct Messages into leads. (Instagram lead ads already arrive via Connect Facebook.)'}
 };
 function _leRender(){
   const sc=LE_SCREENS[LE_VIEW]||LE_SCREENS.add;
@@ -2525,6 +2535,7 @@ function _leRender(){
   else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
   else if(LE_VIEW==='web') html+=_leWebPanel();
   else if(LE_VIEW==='wa') html+=_leWaPanel();
+  else if(LE_VIEW==='ig') html+=_leIgPanel();
   else html+=_leEnteredList();
   html+='</div></div>';
   $('app-body').innerHTML=html;
@@ -2632,6 +2643,59 @@ async function _waSendTest(pnid,btn){
   try{ const r=await fetch(WA_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const j=await r.json();
     if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it’s in the director’s pool (ask them to delete it)','ok');
     else toast('Test failed — make sure the number is saved','err');
+  }catch(e){ toast('Test failed — check your connection','err'); }
+  if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
+}
+// ── Instagram DM panel (same template/components) ──
+function _leIgPanel(){
+  const conns=IGCONNS||[];
+  const list = conns.length ? `<div class="card le-card">${_leCardHd('','','','Connected Instagram accounts','Paste each account’s Callback URL + Verify token into your Meta app’s Instagram messaging webhook (subscribe to “messages”).')}${
+    conns.map(c=>{ const last=c.last_event_at?fdate(c.last_event_at):'—'; const title=c.ig_username?('@'+c.ig_username):c.ig_account_id;
+      return `<div class="wa-conn">
+        <div class="wa-conn-top"><div><div class="wa-conn-n">${esc(title)}</div><div class="wa-conn-s">${esc(c.project_name||'No project')} · ${c.leads_count||0} lead${c.leads_count==1?'':'s'} · last ${esc(last)}</div></div>
+          <button class="btn btn-sm" onclick="_igDelete('${esc(c.ig_account_id)}')">Remove</button></div>
+        <div class="fbwiz-field"><div class="label">Callback URL <span class="fbwiz-mut">· Instagram messaging webhook</span></div>${_fbWizCopy(IG_WEBHOOK_URL)}</div>
+        <div class="fbwiz-field"><div class="label">Verify token</div>${_fbWizCopy(c.verify_token||'')}</div>
+        <div class="wzs-actions"><button class="btn btn-primary btn-sm" onclick="_igSendTest('${esc(c.ig_account_id)}',this)">Send a test lead</button></div>
+      </div>`; }).join('')
+  }</div>` : '';
+  const form = `<div class="card le-card">
+    ${_leCardHd('','','','Connect an Instagram account',conns.length?'Add another account.':'A Direct Message to your Instagram becomes a lead in the director’s pool.')}
+    <div class="fbwiz-note">${li('info',14,2)} Instagram lead <b>ads</b> already arrive through <b>Connect Facebook</b>. This is for Instagram <b>Direct Messages</b> — Instagram doesn’t share a phone number, so the message + sender come through and follow-up happens in Instagram.</div>
+    <div class="field"><label class="label">Instagram account ID <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ig-acct" placeholder="e.g. 17841400000000000" autocomplete="off"></div>
+    <div class="field"><label class="label">Instagram username <span class="le-mut">· optional</span></label><input class="input" id="ig-user" placeholder="e.g. yourbusiness" autocomplete="off"></div>
+    <div class="field"><label class="label">Linked Facebook Page ID <span class="le-mut">· optional</span></label><input class="input" id="ig-page" autocomplete="off"></div>
+    <div class="field"><label class="label">Access token <span class="le-mut">· optional</span></label><input class="input" id="ig-tok" type="password" autocomplete="off"></div>
+    <div class="field"><label class="label">Tag leads to project <span class="le-mut">· optional</span></label><select class="input" id="ig-proj">${_leProjOpts(null)}</select></div>
+    <div id="ig-err" class="le-err" style="display:none"></div>
+    <button class="btn btn-primary le-cta" onclick="_igSave()">Save account</button>
+    <details class="wzs-help" style="margin-top:12px"><summary>How it works</summary><div>1. Your Instagram must be a <b>Business/Creator</b> account linked to a Facebook Page. 2. In your Meta app add <b>Instagram</b> + messaging; save the Instagram account ID here. 3. Copy the Callback URL + Verify token above into the Instagram <b>messages</b> webhook. 4. Any Direct Message becomes a lead.</div></details>
+  </div>`;
+  return list + form;
+}
+async function _igSave(){
+  const id=(($('ig-acct')||{}).value||'').trim(); const err=$('ig-err');
+  if(!id){ if(err){err.style.display='block';err.textContent='Instagram account ID is required.';} return; }
+  try{ const {data}=await sb.rpc('save_instagram_connection',{p_session_token:TOKEN,p_ig_account_id:id,
+      p_ig_username:(($('ig-user')||{}).value||'')||null,p_page_id:(($('ig-page')||{}).value||'')||null,
+      p_access_token:(($('ig-tok')||{}).value||'')||null,p_project_id:(($('ig-proj')||{}).value||'')||null});
+    if(data&&data.success){ toast('Account saved','ok'); renderInstagram(); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else if(err){ err.style.display='block'; err.textContent=(data&&data.message)||'Could not save the account.'; }
+  }catch(e){ toast('Could not save','err'); }
+}
+function _igDelete(id){ openModal('Remove this account?',
+  '<div style="font-size:14px;color:var(--fk-text);line-height:1.55">Leads already received stay. New Instagram messages to this account will stop becoming leads.</div>',
+  `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger-soft" onclick="_igDoDelete('${esc(id)}')">Remove</button>`); }
+async function _igDoDelete(id){ try{ const r=await sb.rpc('delete_instagram_connection',{p_session_token:TOKEN,p_ig_account_id:id});
+  if(r.data&&r.data.success){ if(typeof closeModal==='function') closeModal(); renderInstagram(); toast('Removed','ok'); } else toast('Could not remove','err'); }catch(e){ toast('Could not remove','err'); } }
+async function _igSendTest(igid,btn){
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  const sid='99'+Math.floor(10000000+Math.random()*89999999);
+  const payload={object:'instagram',entry:[{id:igid,messaging:[{sender:{id:sid},recipient:{id:igid},message:{mid:'mid.test',text:'Test lead from setup'}}]}]};
+  try{ const r=await fetch(IG_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const j=await r.json();
+    if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it’s in the director’s pool (ask them to delete it)','ok');
+    else toast('Test failed — make sure the account is saved','err');
   }catch(e){ toast('Test failed — check your connection','err'); }
   if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
 }
