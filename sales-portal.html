@@ -1007,6 +1007,40 @@ body{background:var(--nx-page)}
 .le-pickname span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .le-pickrow .fbpick-proj{flex:0 0 44%;max-width:210px}
 @media(max-width:480px){ .le-grid2{grid-template-columns:1fr} .le-pickrow{flex-wrap:wrap} .le-pickrow .fbpick-proj{flex:1 1 100%;max-width:none} }
+/* ── Lead Entry — premium SaaS remake ── */
+.le-pro{max-width:860px;margin:0 auto}
+.lep-hero{position:relative;overflow:hidden;border:1px solid var(--fk-border);border-radius:16px;background:var(--fk-bg-card);background-image:linear-gradient(180deg,color-mix(in srgb,var(--fk-primary) 8%,transparent),transparent 64%);padding:22px 22px 0;margin-bottom:16px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 6px 22px rgba(16,24,40,.05)}
+.lep-hero-glow{position:absolute;top:-70px;right:-50px;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--fk-primary) 20%,transparent),transparent 70%);pointer-events:none}
+.lep-hero-head{position:relative}
+.lep-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--fk-primary);margin-bottom:9px}
+.lep-title{font-size:22px;font-weight:800;letter-spacing:-.6px;color:var(--fk-text);margin:0;line-height:1.1}
+.lep-sub{font-size:13.5px;color:var(--fk-text-muted);line-height:1.55;margin-top:5px;max-width:540px}
+.lep-stats{position:relative;display:flex;margin:18px -22px 0;border-top:1px solid var(--fk-border)}
+.lep-stat{flex:1;padding:13px 22px;border-right:1px solid var(--fk-border)}
+.lep-stat:last-child{border-right:0}
+.lep-stat-n{font-size:20px;font-weight:800;color:var(--fk-text);font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lep-stat-l{font-size:10.5px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.lep-tabs{display:flex;gap:3px;padding:4px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:13px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.lep-tabs::-webkit-scrollbar{display:none}
+.lep-tab{flex:1 0 auto;white-space:nowrap;border:none;background:none;font-family:inherit;font-size:13px;font-weight:600;color:var(--fk-text-muted);padding:8px 16px;border-radius:9px;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s}
+.lep-tab:hover{color:var(--fk-text)}
+.lep-tab.on{background:var(--fk-bg-card);color:var(--fk-primary);box-shadow:0 1px 2px rgba(16,24,40,.10),0 1px 3px rgba(16,24,40,.06)}
+.le-pro .le-card{border:1px solid var(--fk-border);border-radius:14px;padding:20px;background:var(--fk-bg-card);box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 16px rgba(16,24,40,.04)}
+.le-pro .le-card-hd{align-items:flex-start;gap:12px;margin-bottom:16px;padding-bottom:15px;border-bottom:1px solid var(--fk-border)}
+.le-pro .le-card-ic{width:38px;height:38px;border-radius:11px}
+.le-pro .le-card-t{font-size:15.5px;font-weight:700;letter-spacing:-.2px}
+.le-pro .le-card-s{font-size:12.5px;margin-top:2px}
+.le-pro .field{margin-bottom:14px}
+.le-pro .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted);margin-bottom:6px;display:block}
+.le-pro .label .le-mut{letter-spacing:0;text-transform:none;font-weight:400}
+.le-pro .input{border-radius:10px;padding:11px 13px;font-size:14px;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);transition:border-color .15s,box-shadow .15s,background .15s}
+.le-pro .input:focus{outline:none;border-color:var(--fk-primary);background:var(--fk-bg-card);box-shadow:0 0 0 3px color-mix(in srgb,var(--fk-primary) 16%,transparent)}
+.le-pro textarea.input{line-height:1.5}
+.le-pro .le-chip{padding:9px 15px;border-radius:10px;font-weight:600}
+.le-pro .le-chip.on{box-shadow:0 1px 3px color-mix(in srgb,var(--fk-primary) 38%,transparent)}
+.le-pro .le-cta{margin-top:18px;padding:13px;font-size:14.5px;font-weight:700;border-radius:11px;box-shadow:0 2px 8px color-mix(in srgb,var(--fk-primary) 30%,transparent)}
+.le-pro .lgroup.le-list{border:1px solid var(--fk-border);border-radius:12px;overflow:hidden;margin-top:4px}
+@media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
 <body>
@@ -2360,16 +2394,14 @@ async function renderLeadEntry(){
 }
 function _leRender(){
   const t=$('appbar-title'); if(t) t.textContent='Lead Entry';
-  let html='<div class="nx-dash le-wrap">'+_pageHead('Lead Entry','Add leads into the director’s pool — the director assigns them out from there.');
-  html+=_leKpis();
-  html+=_seg([['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend'],['fb','Facebook']], LE_VIEW, '_leTab');
+  let html='<div class="nx-dash le-pro">'+_leHero()+_leTabs(LE_VIEW)+'<div class="lep-panel">';
   if(LE_VIEW==='add') html+=_leAddForm();
   else if(LE_VIEW==='paste') html+=_lePasteForm();
   else if(LE_VIEW==='import') html+=_leImportPanel();
   else if(LE_VIEW==='adspend') html+=_leAdSpendPanel();
   else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
   else html+=_leEnteredList();
-  html+='</div>';
+  html+='</div></div>';
   $('app-body').innerHTML=html;
   if(LE_VIEW==='adspend') _runCountUps();
   if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // operator manages connections
@@ -2388,6 +2420,31 @@ function _leKpis(){
     ${k('user','var(--fk-bg-subtle)','var(--fk-text-muted)',total,'Total entered')}
     ${k('tag','var(--fk-success-surface)','var(--fk-success)',pkrShort(spend)||'₨0','Ad spend · this month')}
   </div>`;
+}
+function _leHero(){
+  const today=(LE_ENTERED&&LE_ENTERED.today)||0;
+  const total=((LE_ENTERED&&LE_ENTERED.rows)||[]).length;
+  const cm=new Date().toISOString().slice(0,7);
+  const ms=((LE_ADSPEND&&LE_ADSPEND.monthly)||[]).find(m=>String(m.month||'').slice(0,7)===cm);
+  const spend=ms?ms.total:0;
+  const stat=(n,l)=>`<div class="lep-stat"><div class="lep-stat-n">${esc(String(n))}</div><div class="lep-stat-l">${esc(l)}</div></div>`;
+  return `<div class="lep-hero">
+    <div class="lep-hero-glow" aria-hidden="true"></div>
+    <div class="lep-hero-head">
+      <div class="lep-eyebrow">${li('user',12,2.4)} Operator console</div>
+      <h1 class="lep-title">Lead Entry</h1>
+      <div class="lep-sub">Capture leads in seconds — every entry drops into the director’s pool, ready to be distributed.</div>
+    </div>
+    <div class="lep-stats">
+      ${stat(today,'Added today')}
+      ${stat(total,'Total entered')}
+      ${stat(pkrShort(spend)||'₨0','Ad spend · month')}
+    </div>
+  </div>`;
+}
+function _leTabs(active){
+  const tabs=[['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend'],['fb','Facebook']];
+  return '<div class="lep-tabs">'+tabs.map(t=>`<button class="lep-tab${t[0]===active?' on':''}" onclick="_leTab('${t[0]}')">${esc(t[1])}</button>`).join('')+'</div>';
 }
 function _leCardHd(bg,fg,ic,title,sub){
   return `<div class="le-card-hd"><span class="le-card-ic" style="background:${bg};color:${fg}">${li(ic,16,2)}</span><div><div class="le-card-t">${esc(title)}</div>${sub?`<div class="le-card-s">${sub}</div>`:''}</div></div>`;
