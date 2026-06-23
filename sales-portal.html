@@ -1053,6 +1053,12 @@ body{background:var(--nx-page)}
 .le-pro .le-chip.on{box-shadow:0 1px 3px color-mix(in srgb,var(--fk-primary) 38%,transparent)}
 .le-pro .le-cta{margin-top:18px;padding:13px;font-size:14.5px;font-weight:700;border-radius:11px;box-shadow:0 2px 8px color-mix(in srgb,var(--fk-primary) 30%,transparent)}
 .le-pro .lgroup.le-list{border:1px solid var(--fk-border);border-radius:12px;overflow:hidden;margin-top:4px}
+.le-add-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding-bottom:14px;border-bottom:1px dashed var(--fk-border)}
+.le-add-or{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted);margin-right:2px}
+.fbwiz-modetog{display:inline-flex;gap:3px;padding:3px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;margin:0 0 14px}
+.fbwiz-modetog button{border:none;background:none;font-family:inherit;font-size:12px;font-weight:600;color:var(--fk-text-muted);padding:6px 12px;border-radius:7px;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s}
+.fbwiz-modetog button:hover{color:var(--fk-text)}
+.fbwiz-modetog button.on{background:var(--fk-bg-card);color:var(--fk-primary);box-shadow:0 1px 2px rgba(16,24,40,.10)}
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -2382,7 +2388,7 @@ function _dupOwnedDialog(d){
 
 // ════ LEAD ENTRY — minimal data-entry role; everything feeds the director's pool (owner=director, entered_by=operator) ════
 const LE_SOURCES=[['facebook','Facebook'],['whatsapp','WhatsApp'],['instagram','Instagram'],['manual','Manual']];
-let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[],monthly:[]};
+let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[],monthly:[]}, LE_FBCOUNT=0;
 let LE_PROJECTS=[];   // company projects for the lead-entry Project dropdown (token-scoped via list_my_projects)
 function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
 function _leProjOpts(sel){ return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>`<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${p.code?' ('+esc(p.code)+')':''}</option>`).join(''); }
@@ -2395,29 +2401,26 @@ function _leSrcOpts(sel){ return LE_SOURCES.map(s=>`<option value="${s[0]}"${sel
 function _leSrcTone(s){ return ({facebook:['var(--fk-info-surface)','var(--fk-info)'],whatsapp:['var(--fk-success-surface)','var(--fk-success)'],instagram:['var(--nx-violet-soft)','var(--nx-violet)'],manual:['var(--fk-bg-subtle)','var(--fk-text-muted)']})[String(s||'').toLowerCase()]||['var(--fk-bg-subtle)','var(--fk-text-muted)']; }
 async function renderLeadEntry(){
   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  try{ const [c,e,a,pr]=await Promise.all([sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),sb.rpc('get_my_entered_leads',{p_session_token:TOKEN}),sb.rpc('get_my_ad_spend',{p_session_token:TOKEN}),sb.rpc('list_my_projects',{p_session_token:TOKEN})]);
+  try{ const [c,e,pr,fc]=await Promise.all([sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),sb.rpc('get_my_entered_leads',{p_session_token:TOKEN}),sb.rpc('list_my_projects',{p_session_token:TOKEN}),sb.rpc('list_fb_connections',{p_session_token:TOKEN})]);
     if((c.data&&c.data.error==='session_expired')||(e.data&&e.data.error==='session_expired')) return sessionGone();
     if(c.data&&c.data.success) LEADCFG=c.data;
     if(!LEADCFG||!LEADCFG.sources||!LEADCFG.sources.length) LEADCFG=Object.assign({},LEADCFG||{},{sources:LE_SOURCES.map(s=>({value:s[0],label:s[1]}))});
     LE_ENTERED=(e.data&&e.data.success)?e.data:{rows:[],today:0};
-    LE_ADSPEND=(a.data&&a.data.success)?a.data:{rows:[],monthly:[]};
     LE_PROJECTS=(pr.data&&pr.data.success)?(pr.data.projects||[]):[];
+    LE_FBCOUNT=(fc.data&&fc.data.success)?((fc.data.pages||[]).length):0;
   }catch(err){ return sessionGone(); }
   _touch(); _leRender();
 }
 function _leRender(){
   const t=$('appbar-title'); if(t) t.textContent='Lead Entry';
+  if(LE_VIEW!=='add'&&LE_VIEW!=='entered'&&LE_VIEW!=='fb') LE_VIEW='add';   // collapsed from 6 tabs → 3
   let html='<div class="nx-dash le-pro">'+_leHero()+_leTabs(LE_VIEW)+'<div class="lep-panel">';
   if(LE_VIEW==='add') html+=_leAddForm();
-  else if(LE_VIEW==='paste') html+=_lePasteForm();
-  else if(LE_VIEW==='import') html+=_leImportPanel();
-  else if(LE_VIEW==='adspend') html+=_leAdSpendPanel();
   else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
   else html+=_leEnteredList();
   html+='</div></div>';
   $('app-body').innerHTML=html;
-  if(LE_VIEW==='adspend') _runCountUps();
-  if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // operator manages connections
+  if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // operator manages FB connections (IT)
 }
 function _leTab(v){ LE_VIEW=v; _leRender(); }
 // ── redesigned lead-entry building blocks ──
@@ -2437,26 +2440,23 @@ function _leKpis(){
 function _leHero(){
   const today=(LE_ENTERED&&LE_ENTERED.today)||0;
   const total=((LE_ENTERED&&LE_ENTERED.rows)||[]).length;
-  const cm=new Date().toISOString().slice(0,7);
-  const ms=((LE_ADSPEND&&LE_ADSPEND.monthly)||[]).find(m=>String(m.month||'').slice(0,7)===cm);
-  const spend=ms?ms.total:0;
   const stat=(n,l)=>`<div class="lep-stat"><div class="lep-stat-n">${esc(String(n))}</div><div class="lep-stat-l">${esc(l)}</div></div>`;
   return `<div class="lep-hero">
     <div class="lep-hero-glow" aria-hidden="true"></div>
     <div class="lep-hero-head">
-      <div class="lep-eyebrow">${li('user',12,2.4)} Operator console</div>
+      <div class="lep-eyebrow">${li('user',12,2.4)} IT · Operator console</div>
       <h1 class="lep-title">Lead Entry</h1>
-      <div class="lep-sub">Capture leads in seconds — every entry drops into the director’s pool, ready to be distributed.</div>
+      <div class="lep-sub">Add incoming leads and manage the Facebook lead connection. Every lead you add goes to the director’s pool for distribution.</div>
     </div>
     <div class="lep-stats">
       ${stat(today,'Added today')}
-      ${stat(total,'Total entered')}
-      ${stat(pkrShort(spend)||'₨0','Ad spend · month')}
+      ${stat(total,'Leads added')}
+      ${stat(LE_FBCOUNT||0,'Pages connected')}
     </div>
   </div>`;
 }
 function _leTabs(active){
-  const tabs=[['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend'],['fb','Facebook']];
+  const tabs=[['add','Add lead'],['entered','My leads'],['fb','Facebook']];
   return '<div class="lep-tabs">'+tabs.map(t=>`<button class="lep-tab${t[0]===active?' on':''}" onclick="_leTab('${t[0]}')">${esc(t[1])}</button>`).join('')+'</div>';
 }
 function _leCardHd(bg,fg,ic,title,sub){
@@ -2471,6 +2471,10 @@ function _leAddForm(){
   const f=LE_FORM||{};
   return `<div class="card le-card">
     ${_leCardHd('color-mix(in srgb,var(--fk-primary) 12%,transparent)','var(--fk-primary)','user','Add a lead','Lands in the director’s pool for assignment.')}
+    <div class="le-add-actions"><span class="le-add-or">Quick add:</span>
+      <button type="button" class="btn btn-sm" onclick="_lePasteOpen()">${li('message',14,2)} Paste text</button>
+      <button type="button" class="btn btn-sm" onclick="_leadImportOpen()">${li('inbox',14,2)} Import CSV</button>
+    </div>
     <div class="field"><label class="label">Name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="le-name" value="${esc(f.name||'')}" placeholder="Full name" autocomplete="off"></div>
     <div class="le-grid2">
       <div class="field"><label class="label">Phone</label><input class="input" id="le-phone" inputmode="tel" value="${esc(f.phone||'')}" placeholder="03xx xxxxxxx" autocomplete="off"></div>
@@ -2495,33 +2499,27 @@ async function _leSave(){
     else { if(err){err.style.display='block';err.textContent=(data&&data.message)||'Could not add this lead.';} }
   }catch(e){ if(err){err.style.display='block';err.textContent='Could not add this lead.';} }
 }
-function _lePasteForm(){
-  return `<div class="card le-card">
-    ${_leCardHd('var(--fk-info-surface)','var(--fk-info)','message','Paste a lead','Paste WhatsApp / ad text — we’ll pull out the name &amp; phone for you to review.')}
-    <textarea class="input" id="le-paste" rows="6" placeholder="New lead from Facebook&#10;Name: Ali Khan&#10;Phone: 0300 1234567"></textarea>
-    <div class="field" style="margin-top:12px"><label class="label">Source</label>${_leSrcChips('whatsapp','le-paste-src')}</div>
-    <button class="btn btn-primary btn-full le-cta" onclick="_leParse()">${li('compass',15,2)} Parse &amp; review</button>
-  </div>`;
+function _lePasteOpen(){
+  openModal('Paste a lead',
+    `<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.5;margin-bottom:10px">Paste WhatsApp / ad text — we’ll pull out the name &amp; phone and fill the form for you to review.</div>
+     <textarea class="input" id="le-paste" rows="6" placeholder="New lead from Facebook&#10;Name: Ali Khan&#10;Phone: 0300 1234567"></textarea>
+     <div class="field" style="margin-top:12px"><label class="label">Source</label>${_leSrcChips('whatsapp','le-paste-src')}</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leParse()">Parse &amp; fill form</button>`);
 }
 function _leParse(){
   const tx=($('le-paste')||{}).value||'', src=($('le-paste-src')||{}).value||'whatsapp';
   let phone=''; const pm=tx.match(/(\+?\d[\d\s().-]{8,}\d)/g); if(pm){ pm.sort((a,b)=>b.replace(/\D/g,'').length-a.replace(/\D/g,'').length); phone=pm[0].replace(/[()\-.]/g,' ').replace(/\s+/g,' ').trim(); }
   let name=''; const nm=tx.match(/name\s*[:\-]\s*(.+)/i); if(nm) name=nm[1].trim();
   if(!name){ const lines=tx.split(/\n/).map(s=>s.trim()).filter(Boolean); const cand=lines.find(l=>!/\d{4,}/.test(l)&&!/^(new lead|lead|from|source|via|phone|mobile|contact|number)\b/i.test(l)); if(cand) name=cand.slice(0,80); }
+  if(typeof closeModal==='function') closeModal();
   LE_FORM={name:name,phone:phone,source:src,interest:'',budget:'',notes:''}; LE_VIEW='add'; _leRender();
   toast((name||phone)?'Review the details, then Add':'Couldn’t detect — fill the form manually','ok');
 }
-function _leImportPanel(){
-  return `<div class="card le-card">
-    ${_leCardHd('var(--nx-violet-soft)','var(--nx-violet)','inbox','Import a CSV','Columns: name, phone, source, interest, budget, notes. Every row lands in the director’s pool.')}
-    <button class="btn btn-primary btn-full le-cta" onclick="_leadImportOpen()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Open CSV importer</button>
-  </div>`;
-}
 function _leEnteredList(){
   const rows=(LE_ENTERED&&LE_ENTERED.rows)||[];
-  if(!rows.length) return `<div class="card le-card">${_leCardHd('var(--fk-bg-subtle)','var(--fk-text-muted)','inbox','Entered leads','Leads you add or import will appear here.')}<div class="empty" style="padding:14px 0"><div class="et">Nothing entered yet</div></div></div>`;
-  const sub=(LE_ENTERED.today?LE_ENTERED.today+' added today · ':'')+rows.length+' total';
-  let h=`<div class="card le-card">${_leCardHd('var(--fk-info-surface)','var(--fk-info)','inbox','Entered leads',esc(sub))}<div class="lgroup le-list">`;
+  if(!rows.length) return `<div class="card le-card">${_leCardHd('var(--fk-bg-subtle)','var(--fk-text-muted)','user','Leads you’ve added','They go to the director’s pool for distribution. Leads you add or import show up here.')}<div class="empty" style="padding:14px 0"><div class="et">No leads added yet</div></div></div>`;
+  const sub=(LE_ENTERED.today?LE_ENTERED.today+' added today · ':'')+rows.length+' total — sent to the director’s pool';
+  let h=`<div class="card le-card">${_leCardHd('var(--fk-info-surface)','var(--fk-info)','user','Leads you’ve added',esc(sub))}<div class="lgroup le-list">`;
   h+=rows.map(r=>{ const tn=_leSrcTone(r.source); return `<div class="lrow"><div class="lrow-top">
     ${_avatarC(r.name||'Lead',36)}
     <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.name||'Lead')}</div><div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-variant-numeric:tabular-nums">${esc(r.phone||'—')}</span>${r.project_name?_projChip(r.project_name):''}</div></div>
@@ -3850,7 +3848,10 @@ function _fbWizRender(){
       <a class="fbwiz-guide" href="docs/connect-facebook-page.md" target="_blank" rel="noopener">${li('book-open',13,2)} Full guide</a></div>
     <div class="fbwiz-prog"><div class="fbwiz-prog-bar" style="width:${pct}%"></div></div>
     <div class="fbwiz-prog-lbl">${done} of ${active.length} done</div>
-    ${FBWIZ.mode==='exp'?`<div class="fbwiz-fallback"><a href="#" onclick="event.preventDefault();_fbWizSetMode('new')">${li('arrow-left',12,2)} Actually, I need the full setup</a></div>`:''}
+    <div class="fbwiz-modetog" title="Switch how much setup the wizard walks you through">
+      <button class="${FBWIZ.mode==='new'?'on':''}" onclick="_fbWizSetMode('new')">Full setup (12)</button>
+      <button class="${FBWIZ.mode==='exp'?'on':''}" onclick="_fbWizSetMode('exp')">I'm experienced (6)</button>
+    </div>
     <div class="fbwiz-rail">${rail}</div>
     <div class="fbwiz-body">${_fbWizStepView(step)}</div>
   </div>`;
