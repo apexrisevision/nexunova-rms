@@ -980,6 +980,19 @@ body{background:var(--nx-page)}
 .fbwiz-chk-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
 .fbwiz-chk{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--fk-bg-subtle)}
 .fbwiz-chk.ok{color:var(--fk-success)} .fbwiz-chk.no{color:var(--fk-text-muted)}
+.fbwiz-fallback{margin:-2px 0 12px;font-size:12.5px}
+.fbwiz-fallback a{color:var(--fk-text-muted);display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+.fbwiz-fallback a:hover{color:var(--fk-primary)}
+.fbwiz-fork{padding:14px 4px 8px}
+.fbwiz-fork-q{font-size:18px;font-weight:700;color:var(--fk-text);margin:0 0 4px;letter-spacing:-.3px}
+.fbwiz-fork-sub{font-size:13px;color:var(--fk-text-muted);margin:0 0 16px}
+.fbwiz-fork-opts{display:grid;gap:12px}
+.fbwiz-fork-opt{display:grid;grid-template-columns:auto 1fr;column-gap:13px;row-gap:3px;text-align:left;padding:16px 18px;border:1px solid var(--fk-border);border-radius:14px;background:var(--fk-bg-card);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .05s;font-family:inherit}
+.fbwiz-fork-opt:hover{border-color:var(--fk-primary);box-shadow:0 2px 12px color-mix(in srgb,var(--fk-primary) 16%,transparent)}
+.fbwiz-fork-opt:active{transform:translateY(1px)}
+.fbwiz-fork-ic{grid-row:1/3;width:44px;height:44px;border-radius:12px;display:grid;place-items:center}
+.fbwiz-fork-t{font-size:15px;font-weight:700;color:var(--fk-text)}
+.fbwiz-fork-s{font-size:12.5px;color:var(--fk-text-muted);line-height:1.5}
 /* ── Lead Entry console redesign ── */
 .le-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:4px 0 14px}
 .le-kpi{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--fk-border);border-radius:12px;background:transparent}
@@ -3714,9 +3727,11 @@ async function _fbDoSave(nonce){
 
 // ════════════════════════════════════════════════════════════════════════════
 // CONNECT-A-PAGE WIZARD — self-service, multi-tenant (operator drives; director
-// sees read-only progress). 8 steps, the real Meta sequence. AUTO steps the CRM
-// verifies; MANUAL steps the operator does in THEIR OWN Meta dashboard then confirms.
-// No hardcoded app/page ids; per-tenant values (callback URL, verify token) pulled live.
+// sees read-only progress). Upfront fork: "ran FB lead ads before?" → NEW = all 12
+// steps; EXP = skip account-creation (1–6), jump to steps 7–12 (lead-notifications,
+// leads-access, Connect, + AUTO checks). Choice remembered per tenant; fallback link
+// re-runs the full path. AUTO steps the CRM verifies; MANUAL steps the operator does
+// in THEIR OWN Meta dashboard. No hardcoded app/page ids; per-tenant values live.
 // ════════════════════════════════════════════════════════════════════════════
 let FBWIZ=null;                       // {open,step,connId,manual,diag,_tok,busy}
 const FBWIZ_TOTAL=12;
@@ -3743,11 +3758,16 @@ function _fbWizStatus(n){
   if(n===12){ const h=_fbWizHealth(); return (h&&h.last_event_at)?'done':'todo'; }
   return 'todo';
 }
-function _fbWizAllDone(){ for(let i=1;i<=FBWIZ_TOTAL;i++) if(_fbWizStatus(i)!=='done') return false; return true; }
+// active step path — experienced clients skip the account-creation steps (1–6)
+function _fbWizSteps(){ return (FBWIZ&&FBWIZ.mode==='exp') ? [7,8,9,10,11,12] : [1,2,3,4,5,6,7,8,9,10,11,12]; }
+function _fbWizAllDone(){ return _fbWizSteps().every(n=>_fbWizStatus(n)==='done'); }
 function _fbWizOpen(connId){
-  FBWIZ={open:true, step:1, connId:(connId||null), manual:_fbWizLoadManual(), diag:null, _tok:null, busy:false};
+  const m=_fbWizLoadManual();
+  FBWIZ={open:true, step:null, connId:(connId||null), manual:m, mode:(m.mode||null), diag:null, _tok:null, busy:false};
+  if(!FBWIZ.mode){ _fbWizRender(); return; }   // ask the one-time fork first (no network needed)
   _fbWizReload();
 }
+function _fbWizSetMode(mode){ FBWIZ.mode=mode; FBWIZ.manual.mode=mode; _fbWizSaveManual(); FBWIZ.step=null; _fbWizReload(); }   // remembered per tenant; fallback link re-runs this with 'new'
 function _fbWizCloseToList(){ FBWIZ=null; _fbModuleInto(FB_HOST_ID||'fb-host'); }
 async function _fbWizReload(){
   const host=$(FB_HOST_ID||'fb-host'); if(host&&!$('fbwiz-card')) host.innerHTML='<div class="card" id="fbwiz-card"><div class="empty"><div class="et">Loading…</div></div></div>';
@@ -3757,10 +3777,8 @@ async function _fbWizReload(){
     FBWIZ.diag=(dg.data&&dg.data.success)?dg.data:{health:[],logs:[],imports:[]};
   }catch(e){ return sessionGone(); }
   if(FBWIZ.connId) await _fbWizTokenCheck();
-  // advance to first incomplete step (don't jump past Connect until a page exists)
-  let s=FBWIZ.step||1;
-  for(let i=1;i<=FBWIZ_TOTAL;i++){ if(_fbWizStatus(i)!=='done'){ s=i; break; } if(i===FBWIZ_TOTAL) s=FBWIZ_TOTAL; }
-  FBWIZ.step=s;
+  if(!FBWIZ.mode){ _fbWizRender(); return; }   // fork not chosen yet → show the question
+  FBWIZ.step=_fbWizFirstOpen();                 // first incomplete step within the chosen path
   _fbWizRender();
 }
 async function _fbWizTokenCheck(){
@@ -3768,8 +3786,8 @@ async function _fbWizTokenCheck(){
   try{ const r=await sb.functions.invoke('fb-diag',{body:{session_token:TOKEN,action:'test_connection',connection_id:FBWIZ.connId}}); FBWIZ._tok=r.data||null; }
   catch(e){ FBWIZ._tok={success:false,error:'fetch_failed'}; }
 }
-function _fbWizGo(n){ if(_fbWizStatus(n)==='done'||n<=_fbWizFirstOpen()){ FBWIZ.step=n; _fbWizRender(); } }
-function _fbWizFirstOpen(){ for(let i=1;i<=FBWIZ_TOTAL;i++) if(_fbWizStatus(i)!=='done') return i; return FBWIZ_TOTAL; }
+function _fbWizGo(n){ const a=_fbWizSteps(); if(a.indexOf(n)<0) return; if(_fbWizStatus(n)==='done'||n<=_fbWizFirstOpen()){ FBWIZ.step=n; _fbWizRender(); } }
+function _fbWizFirstOpen(){ const a=_fbWizSteps(); for(const n of a) if(_fbWizStatus(n)!=='done') return n; return a[a.length-1]; }
 function _fbWizManualDone(n){ FBWIZ.manual['s'+n]=true; _fbWizSaveManual(); FBWIZ.step=Math.min(n+1,FBWIZ_TOTAL); _fbWizRender(); }
 async function _fbWizCheck(n){
   FBWIZ.busy=true; _fbWizRender();
@@ -3788,25 +3806,51 @@ function _fbWizCopy(val){ return `<div onclick="_copyEl(this)" style="display:fl
 function _fbWizStuck(html){ return `<details class="fbwiz-stuck"><summary>${li('help-circle',14,2)} Stuck on this step?</summary><div>${html}</div></details>`; }
 function _fbWizWhat(html){ return `<details class="fbwiz-what"><summary>What is this?</summary><div>${html}</div></details>`; }
 
+function _fbWizForkView(){
+  return `<div class="card" id="fbwiz-card">
+    <div class="fbwiz-top"><button class="btn btn-sm" onclick="_fbWizCloseToList()">${li('arrow-left',14,2)} Back</button>
+      <a class="fbwiz-guide" href="docs/connect-facebook-page.md" target="_blank" rel="noopener">${li('book-open',13,2)} Full guide</a></div>
+    <div class="fbwiz-fork">
+      <h3 class="fbwiz-fork-q">Have you run Facebook lead ads before?</h3>
+      <p class="fbwiz-fork-sub">This decides how much setup we walk you through.</p>
+      <div class="fbwiz-fork-opts">
+        <button class="fbwiz-fork-opt" onclick="_fbWizSetMode('new')">
+          <span class="fbwiz-fork-ic" style="background:color-mix(in srgb,var(--fk-primary) 12%,transparent);color:var(--fk-primary)">${li('compass',20,2)}</span>
+          <span class="fbwiz-fork-t">No — set me up from scratch</span>
+          <span class="fbwiz-fork-s">Full walkthrough: Business Manager, Page, lead form, app, then connect. <b>12 steps.</b></span>
+        </button>
+        <button class="fbwiz-fork-opt" onclick="_fbWizSetMode('exp')">
+          <span class="fbwiz-fork-ic" style="background:color-mix(in srgb,var(--fk-success) 14%,transparent);color:var(--fk-success)">${li('check-circle',20,2)}</span>
+          <span class="fbwiz-fork-t">Yes — I already have a Page, app &amp; lead form</span>
+          <span class="fbwiz-fork-s">Skip setup and go straight to turning on lead notifications, then Connect. <b>6 steps.</b></span>
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
 function _fbWizRender(){
   const host=$(FB_HOST_ID||'fb-host'); if(!host) return;
   // director / read-only never reaches here (they get the checklist); guard anyway
   if(!FB_CANWRITE){ FBWIZ=null; return _fbModuleInto(FB_HOST_ID||'fb-host'); }
+  if(!FBWIZ.mode){ host.innerHTML=_fbWizForkView(); return; }   // one-time upfront fork
   if(_fbWizAllDone()){ host.innerHTML=_fbWizDoneView(); return; }
-  const step=FBWIZ.step||1;
-  const done=Array.from({length:FBWIZ_TOTAL},(_,i)=>_fbWizStatus(i+1)==='done').filter(Boolean).length;
-  const pct=Math.round(done/FBWIZ_TOTAL*100);
-  // stepper rail
-  const rail=Array.from({length:FBWIZ_TOTAL},(_,i)=>{ const n=i+1; const st=_fbWizStatus(n); const cur=(n===step);
-    const dot = st==='done' ? `<span class="fbwiz-dot done">${li('check',13,3)}</span>` : `<span class="fbwiz-dot${cur?' cur':''}">${n}</span>`;
-    return `<button class="fbwiz-rail-item${cur?' cur':''}" onclick="_fbWizGo(${n})" title="Step ${n}">${dot}</button>`;
+  const active=_fbWizSteps();
+  const step=FBWIZ.step||active[0];
+  const done=active.filter(n=>_fbWizStatus(n)==='done').length;
+  const pct=Math.round(done/active.length*100);
+  const pos=active.indexOf(step)+1;
+  // stepper rail (renumbered 1..N within the chosen path)
+  const rail=active.map((n,idx)=>{ const st=_fbWizStatus(n); const cur=(n===step);
+    const dot = st==='done' ? `<span class="fbwiz-dot done">${li('check',13,3)}</span>` : `<span class="fbwiz-dot${cur?' cur':''}">${idx+1}</span>`;
+    return `<button class="fbwiz-rail-item${cur?' cur':''}" onclick="_fbWizGo(${n})" title="Step ${idx+1}">${dot}</button>`;
   }).join('<span class="fbwiz-rail-sep"></span>');
   host.innerHTML=`<div class="card" id="fbwiz-card">
     <div class="fbwiz-top"><button class="btn btn-sm" onclick="_fbWizCloseToList()">${li('arrow-left',14,2)} Back</button>
-      <div class="fbwiz-count">Step ${step} of ${FBWIZ_TOTAL}</div>
+      <div class="fbwiz-count">Step ${pos} of ${active.length}</div>
       <a class="fbwiz-guide" href="docs/connect-facebook-page.md" target="_blank" rel="noopener">${li('book-open',13,2)} Full guide</a></div>
     <div class="fbwiz-prog"><div class="fbwiz-prog-bar" style="width:${pct}%"></div></div>
-    <div class="fbwiz-prog-lbl">${done} of ${FBWIZ_TOTAL} done</div>
+    <div class="fbwiz-prog-lbl">${done} of ${active.length} done</div>
+    ${FBWIZ.mode==='exp'?`<div class="fbwiz-fallback"><a href="#" onclick="event.preventDefault();_fbWizSetMode('new')">${li('arrow-left',12,2)} Actually, I need the full setup</a></div>`:''}
     <div class="fbwiz-rail">${rail}</div>
     <div class="fbwiz-body">${_fbWizStepView(step)}</div>
   </div>`;
@@ -3876,11 +3920,11 @@ function _fbWizStepView(n){
       <div class="fbwiz-field"><div class="label">Callback URL <span class="fbwiz-mut">· paste into Meta</span></div>${_fbWizCopy(FB_WEBHOOK_URL)}</div>
       <div class="fbwiz-field"><div class="label">Verify Token <span class="fbwiz-mut">· auto-generated by your CRM — never invent one</span></div>${
         verify ? _fbWizCopy(verify)
-               : '<div class="fbwiz-note">'+li('info',14,2)+' Your unique Verify Token is created automatically when you connect your Page (Step 9). If Meta asks for it now, complete Step 9 first, then come back here to copy it.</div>'
+               : '<div class="fbwiz-note">'+li('info',14,2)+' Your unique Verify Token is created automatically when you connect your Page (the <b>Connect Facebook</b> step). If Meta asks for it now, do the Connect step first, then come back here to copy it.</div>'
       }</div>
       <div class="fbwiz-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}${doneBtn(7)}</div>
       ${_fbWizWhat('This tells Facebook to ping your CRM the instant a lead comes in. The Callback URL is your CRM’s address; the Verify Token is a private password your CRM generated.')}
-      ${_fbWizStuck('Make sure you picked the <b>Page</b> object (not “Application”), found the <b>leadgen</b> field, and pressed <b>Subscribe</b>. This confirms automatically at Step 11 when Facebook’s ping reaches your CRM.')}
+      ${_fbWizStuck('Make sure you picked the <b>Page</b> object (not “Application”), found the <b>leadgen</b> field, and pressed <b>Subscribe</b>. This confirms automatically once Facebook’s verification ping reaches your CRM.')}
     </div>`;
   }
 
@@ -3911,13 +3955,13 @@ function _fbWizStepView(n){
     const t=FBWIZ._tok||{}; const ok=_fbWizStatus(10)==='done';
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} Token valid${t.token_app_id?` · belongs to App ID <b>${esc(String(t.token_app_id))}</b>`:''}${t.token_expires_at?` · expires ${t.token_expires_at==='never'?'never':esc(fdate(t.token_expires_at))}`:''}</div>`
-      : `<div class="fbwiz-bad">${li('alert-triangle',16,2)} ${esc((t&&(t.message||t.error))||'Token not valid yet')}. <b>Fix:</b> reconnect at Step 9 with full permissions.</div>`;
+      : `<div class="fbwiz-bad">${li('alert-triangle',16,2)} ${esc((t&&(t.message||t.error))||'Token not valid yet')}. <b>Fix:</b> use <b>Connect Facebook</b> again with full permissions.</div>`;
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Check the connection is healthy</h3></div>
       <p class="fbwiz-lead">Your CRM asks Facebook whether the connection is valid and which app it belongs to.</p>
       ${detail}
       <div class="fbwiz-actions">${checkBtn(10,'Re-check')}</div>
-      ${_fbWizStuck('“Invalid/expired” almost always means the Facebook login didn’t grant every permission, or the token aged out. Go back to Step 9 and Connect again, accepting all permissions.')}
+      ${_fbWizStuck('“Invalid/expired” almost always means the Facebook login didn’t grant every permission, or the token aged out. Use <b>Connect Facebook</b> again, accepting all permissions.')}
     </div>`;
   }
 
@@ -3926,13 +3970,13 @@ function _fbWizStepView(n){
     const h=_fbWizHealth(); const ok=_fbWizStatus(11)==='done';
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} Facebook’s verification ping reached your CRM${h&&h.last_verify_at?` on ${esc(fdate(h.last_verify_at))}`:''}.</div>`
-      : `<div class="fbwiz-bad">${li('clock',16,2)} No verification ping yet. <b>Fix:</b> make sure Step 7 (Subscribe leadgen ON) is saved in your app’s Webhooks.</div>`;
+      : `<div class="fbwiz-bad">${li('clock',16,2)} No verification ping yet. <b>Fix:</b> make sure the <b>lead notifications</b> step (Subscribe leadgen ON) is saved in your app’s Webhooks.</div>`;
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Confirm Facebook can reach your CRM</h3></div>
       <p class="fbwiz-lead">When you turned on lead notifications, Facebook sends a one-time verification ping. We confirm it arrived.</p>
       ${detail}
       <div class="fbwiz-actions">${checkBtn(11,'Check for ping')}${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>
-      ${_fbWizStuck('No ping ever? Re-open Webhooks, confirm the <b>Page</b> object shows <b>leadgen — Subscribed</b>, and that the Callback URL exactly matches the one in Step 7. Re-press Subscribe to trigger a fresh ping, then Check again.')}
+      ${_fbWizStuck('No ping ever? Re-open Webhooks, confirm the <b>Page</b> object shows <b>leadgen — Subscribed</b>, and that the Callback URL exactly matches the one shown in the lead-notifications step. Re-press Subscribe to trigger a fresh ping, then Check again.')}
     </div>`;
   }
 
@@ -3948,7 +3992,7 @@ function _fbWizStepView(n){
       ${_fbWizShot('Lead Ads Testing Tool → select Page + form → Create Lead → status Success')}
       ${detail}
       <div class="fbwiz-actions">${_fbWizLink(FBWIZ_LINKS.testTool,'Open Lead Ads Testing Tool')}${checkBtn(12,'Check for test lead')}</div>
-      ${_fbWizStuck('“Pending” forever = your app isn’t Live (Step 6) or leadgen isn’t subscribed (Step 7). Nothing arrives at all = Page link / Leads Access missing (Step 8). Fix those, create a fresh test lead, then Check.')}
+      ${_fbWizStuck('“Pending” forever = your app isn’t <b>Live</b>, or <b>leadgen</b> isn’t subscribed. Nothing arrives at all = your Page isn’t linked to the app / <b>Leads Access</b> missing. Fix those, create a fresh test lead, then Check.')}
     </div>`;
   }
   return '';
