@@ -980,6 +980,28 @@ body{background:var(--nx-page)}
 .fbwiz-chk-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
 .fbwiz-chk{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--fk-bg-subtle)}
 .fbwiz-chk.ok{color:var(--fk-success)} .fbwiz-chk.no{color:var(--fk-text-muted)}
+/* ── Lead Entry console redesign ── */
+.le-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:4px 0 14px}
+.le-kpi{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--fk-border);border-radius:12px;background:transparent}
+.le-kpi-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none}
+.le-kpi-tx{min-width:0}
+.le-kpi-n{font-size:19px;font-weight:700;line-height:1.1;color:var(--fk-text);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.le-kpi-l{font-size:11.5px;color:var(--fk-text-muted);margin-top:2px}
+.le-card{padding:16px}
+.le-card-hd{display:flex;align-items:flex-start;gap:11px;margin-bottom:14px}
+.le-card-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none}
+.le-card-t{font-size:15px;font-weight:700;color:var(--fk-text)}
+.le-card-s{font-size:12.5px;color:var(--fk-text-muted);line-height:1.5;margin-top:1px}
+.le-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.le-mut{font-weight:400;text-transform:none;color:var(--fk-text-muted)}
+.le-chips{display:flex;gap:8px;flex-wrap:wrap}
+.le-chip{font-size:13px;font-weight:600;padding:8px 14px;border-radius:10px;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);color:var(--fk-text-muted);cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.le-chip:hover{border-color:var(--fk-primary)}
+.le-chip.on{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff}
+.le-err{color:var(--fk-danger);font-size:13px;margin-top:8px}
+.le-cta{margin-top:14px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.le-list{margin-top:2px}
+@media(max-width:480px){ .le-grid2{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -2333,7 +2355,8 @@ async function renderLeadEntry(){
 }
 function _leRender(){
   const t=$('appbar-title'); if(t) t.textContent='Lead Entry';
-  let html='<div class="nx-dash">'+_pageHead('Lead Entry','Add leads into the director’s pool — the director assigns them out from there.');
+  let html='<div class="nx-dash le-wrap">'+_pageHead('Lead Entry','Add leads into the director’s pool — the director assigns them out from there.');
+  html+=_leKpis();
   html+=_seg([['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend'],['fb','Facebook']], LE_VIEW, '_leTab');
   if(LE_VIEW==='add') html+=_leAddForm();
   else if(LE_VIEW==='paste') html+=_lePasteForm();
@@ -2347,18 +2370,43 @@ function _leRender(){
   if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // operator manages connections
 }
 function _leTab(v){ LE_VIEW=v; _leRender(); }
+// ── redesigned lead-entry building blocks ──
+function _leKpis(){
+  const today=(LE_ENTERED&&LE_ENTERED.today)||0;
+  const total=((LE_ENTERED&&LE_ENTERED.rows)||[]).length;
+  const cm=new Date().toISOString().slice(0,7);
+  const ms=((LE_ADSPEND&&LE_ADSPEND.monthly)||[]).find(m=>String(m.month||'').slice(0,7)===cm);
+  const spend=ms?ms.total:0;
+  const k=(ic,bg,fg,n,l)=>`<div class="le-kpi"><span class="le-kpi-ic" style="background:${bg};color:${fg}">${li(ic,16,2)}</span><div class="le-kpi-tx"><div class="le-kpi-n">${esc(String(n))}</div><div class="le-kpi-l">${esc(l)}</div></div></div>`;
+  return `<div class="le-kpis">
+    ${k('inbox','var(--fk-info-surface)','var(--fk-info)',today,'Added today')}
+    ${k('user','var(--fk-bg-subtle)','var(--fk-text-muted)',total,'Total entered')}
+    ${k('tag','var(--fk-success-surface)','var(--fk-success)',pkrShort(spend)||'₨0','Ad spend · this month')}
+  </div>`;
+}
+function _leCardHd(bg,fg,ic,title,sub){
+  return `<div class="le-card-hd"><span class="le-card-ic" style="background:${bg};color:${fg}">${li(ic,16,2)}</span><div><div class="le-card-t">${esc(title)}</div>${sub?`<div class="le-card-s">${sub}</div>`:''}</div></div>`;
+}
+function _leSrcChips(sel,id){ id=id||'le-source'; sel=sel||'facebook';
+  return `<input type="hidden" id="${id}" value="${esc(sel)}"><div class="le-chips">`+
+    LE_SOURCES.map(s=>`<button type="button" class="le-chip${s[0]===sel?' on':''}" data-v="${s[0]}" onclick="_leSetSrc('${id}',this)">${esc(s[1])}</button>`).join('')+`</div>`;
+}
+function _leSetSrc(id,btn){ const h=$(id); if(h) h.value=btn.getAttribute('data-v'); const w=btn.parentNode; if(w) w.querySelectorAll('.le-chip').forEach(b=>b.classList.toggle('on',b===btn)); }
 function _leAddForm(){
   const f=LE_FORM||{};
-  return `<div class="card" style="padding:14px">
-    <div class="field"><label class="label">Name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="le-name" value="${esc(f.name||'')}" autocomplete="off"></div>
-    <div class="field"><label class="label">Phone</label><input class="input" id="le-phone" inputmode="tel" value="${esc(f.phone||'')}" autocomplete="off"></div>
-    <div class="field"><label class="label">Source</label><select class="input" id="le-source">${_leSrcOpts(f.source||'facebook')}</select></div>
-    <div class="field"><label class="label">Project <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· which project’s ad</span></label><select class="input" id="le-project">${_leProjOpts(f.project_id||'')}</select></div>
-    <div class="field"><label class="label">Interested in</label><input class="input" id="le-interest" value="${esc(f.interest||'')}" autocomplete="off"></div>
-    <div class="field"><label class="label">Budget (PKR)</label><input class="input num" id="le-budget" inputmode="numeric" value="${esc(f.budget||'')}" autocomplete="off"></div>
-    <div class="field"><label class="label">Notes</label><input class="input" id="le-notes" value="${esc(f.notes||'')}" autocomplete="off"></div>
-    <div id="le-err" style="display:none;color:var(--fk-danger);font-size:var(--fk-fs-body);margin-top:6px"></div>
-    <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="_leSave()">Add lead</button>
+  return `<div class="card le-card">
+    ${_leCardHd('color-mix(in srgb,var(--fk-primary) 12%,transparent)','var(--fk-primary)','user','Add a lead','Lands in the director’s pool for assignment.')}
+    <div class="field"><label class="label">Name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="le-name" value="${esc(f.name||'')}" placeholder="Full name" autocomplete="off"></div>
+    <div class="le-grid2">
+      <div class="field"><label class="label">Phone</label><input class="input" id="le-phone" inputmode="tel" value="${esc(f.phone||'')}" placeholder="03xx xxxxxxx" autocomplete="off"></div>
+      <div class="field"><label class="label">Budget (PKR)</label><input class="input num" id="le-budget" inputmode="numeric" value="${esc(f.budget||'')}" placeholder="optional" autocomplete="off"></div>
+    </div>
+    <div class="field"><label class="label">Source</label>${_leSrcChips(f.source||'facebook','le-source')}</div>
+    <div class="field"><label class="label">Project <span class="le-mut">· which project’s ad</span></label><select class="input" id="le-project">${_leProjOpts(f.project_id||'')}</select></div>
+    <div class="field"><label class="label">Interested in</label><input class="input" id="le-interest" value="${esc(f.interest||'')}" placeholder="e.g. 2 Bed, GF shop" autocomplete="off"></div>
+    <div class="field"><label class="label">Notes</label><input class="input" id="le-notes" value="${esc(f.notes||'')}" placeholder="optional" autocomplete="off"></div>
+    <div id="le-err" class="le-err" style="display:none"></div>
+    <button class="btn btn-primary btn-full le-cta" onclick="_leSave()">${li('check',16,2.4)} Add lead</button>
   </div>`;
 }
 async function _leSave(){
@@ -2373,11 +2421,11 @@ async function _leSave(){
   }catch(e){ if(err){err.style.display='block';err.textContent='Could not add this lead.';} }
 }
 function _lePasteForm(){
-  return `<div class="card" style="padding:14px">
-    <div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);line-height:1.55;margin-bottom:10px">Paste the WhatsApp / ad lead text — we’ll pull out the name and phone for you to review before saving.</div>
+  return `<div class="card le-card">
+    ${_leCardHd('var(--fk-info-surface)','var(--fk-info)','message','Paste a lead','Paste WhatsApp / ad text — we’ll pull out the name &amp; phone for you to review.')}
     <textarea class="input" id="le-paste" rows="6" placeholder="New lead from Facebook&#10;Name: Ali Khan&#10;Phone: 0300 1234567"></textarea>
-    <div class="field" style="margin-top:10px"><label class="label">Source</label><select class="input" id="le-paste-src">${_leSrcOpts('whatsapp')}</select></div>
-    <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="_leParse()">Parse &amp; review</button>
+    <div class="field" style="margin-top:12px"><label class="label">Source</label>${_leSrcChips('whatsapp','le-paste-src')}</div>
+    <button class="btn btn-primary btn-full le-cta" onclick="_leParse()">${li('compass',15,2)} Parse &amp; review</button>
   </div>`;
 }
 function _leParse(){
@@ -2389,24 +2437,28 @@ function _leParse(){
   toast((name||phone)?'Review the details, then Add':'Couldn’t detect — fill the form manually','ok');
 }
 function _leImportPanel(){
-  return `<div class="card" style="padding:14px"><div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);line-height:1.55;margin-bottom:10px">Import a CSV (name, phone, source, interest, budget, notes). Every imported lead lands in the director’s pool.</div><button class="btn btn-primary btn-full" onclick="_leadImportOpen()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Open CSV importer</button></div>`;
+  return `<div class="card le-card">
+    ${_leCardHd('var(--nx-violet-soft)','var(--nx-violet)','inbox','Import a CSV','Columns: name, phone, source, interest, budget, notes. Every row lands in the director’s pool.')}
+    <button class="btn btn-primary btn-full le-cta" onclick="_leadImportOpen()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Open CSV importer</button>
+  </div>`;
 }
 function _leEnteredList(){
   const rows=(LE_ENTERED&&LE_ENTERED.rows)||[];
-  if(!rows.length) return _emptyCard('Nothing entered yet','Leads you add or import will appear here.');
-  let h='<div class="dsec">Entered'+(LE_ENTERED.today?` <span class="nb">${LE_ENTERED.today} today</span>`:'')+'</div><div class="lgroup">';
+  if(!rows.length) return `<div class="card le-card">${_leCardHd('var(--fk-bg-subtle)','var(--fk-text-muted)','inbox','Entered leads','Leads you add or import will appear here.')}<div class="empty" style="padding:14px 0"><div class="et">Nothing entered yet</div></div></div>`;
+  const sub=(LE_ENTERED.today?LE_ENTERED.today+' added today · ':'')+rows.length+' total';
+  let h=`<div class="card le-card">${_leCardHd('var(--fk-info-surface)','var(--fk-info)','inbox','Entered leads',esc(sub))}<div class="lgroup le-list">`;
   h+=rows.map(r=>{ const tn=_leSrcTone(r.source); return `<div class="lrow"><div class="lrow-top">
     ${_avatarC(r.name||'Lead',36)}
     <div style="flex:1;min-width:0"><div class="lr-name">${esc(r.name||'Lead')}</div><div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-variant-numeric:tabular-nums">${esc(r.phone||'—')}</span>${r.project_name?_projChip(r.project_name):''}</div></div>
     <div style="text-align:right;flex:none"><span class="spill" style="background:${tn[0]};border-color:transparent;color:${tn[1]};white-space:nowrap">${esc(_srcLabel(r.source))}</span><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px">${esc(_agoTxt(r.created_at))}</div></div>
-  </div></div>`; }).join('')+'</div>';
+  </div></div>`; }).join('')+'</div></div>';
   return h;
 }
 // ── Ad Spend (operator logs campaign cost; finance computes cost-per-lead) ──
 function _leAdSpendPanel(){
   const today=new Date().toISOString().slice(0,10);
   const mfirst=today.slice(0,8)+'01';
-  let h='<div class="card" style="padding:14px">'
+  let h='<div class="card le-card">'+_leCardHd('var(--fk-success-surface)','var(--fk-success)','tag','Log ad spend','Finance uses this to compute cost-per-lead.')
     +'<div class="field"><label class="label">Platform <span style="color:var(--fk-danger)">*</span></label><select class="input" id="ad-platform">'+AD_PLATFORMS.map(p=>`<option value="${p[0]}">${p[1]}</option>`).join('')+'</select></div>'
     +'<div class="field"><label class="label">Campaign name <span style="color:var(--fk-danger)">*</span></label><input class="input" id="ad-name" placeholder="e.g. June Apartments Boost" autocomplete="off"></div>'
     +'<div class="field"><label class="label">Amount (PKR) <span style="color:var(--fk-danger)">*</span></label><input class="input num" id="ad-amount" inputmode="numeric" autocomplete="off"></div>'
