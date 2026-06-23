@@ -1106,6 +1106,20 @@ body{background:var(--nx-page)}
 .wz2-desc{font-size:14px;color:var(--fk-text-muted);margin:0 0 18px;line-height:1.5}
 .wz2-content{font-size:14px}
 @media(max-width:640px){ .wz2-grid{grid-template-columns:1fr} .wz2-side{display:none} .wz2-main{padding:18px} }
+/* Lead Entry — clean header + panel headers (same hierarchy as the wizard) */
+.le2-head{border:1px solid var(--fk-border);border-radius:14px;background:var(--fk-bg-card);padding:18px 18px 0;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.le2-kicker{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fk-primary);margin-bottom:6px}
+.le2-title{font-size:21px;font-weight:800;letter-spacing:-.4px;color:var(--fk-text);margin:0;line-height:1.15}
+.le2-desc{font-size:14px;color:var(--fk-text-muted);line-height:1.5;margin:5px 0 0;max-width:580px}
+.le2-stats{display:flex;margin:16px -18px 0;border-top:1px solid var(--fk-border)}
+.le2-stat{flex:1;padding:12px 18px;border-right:1px solid var(--fk-border)}
+.le2-stat:last-child{border-right:0}
+.le2-stat-n{font-size:19px;font-weight:800;color:var(--fk-text);font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.le2-stat-l{font-size:11px;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+.le2-card-hd{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--fk-border)}
+.le2-card-t{font-size:17px;font-weight:700;letter-spacing:-.2px;color:var(--fk-text);margin:0}
+.le2-card-s{font-size:13px;color:var(--fk-text-muted);line-height:1.5;margin-top:3px}
+@media(max-width:560px){ .le2-stat{padding:11px 14px} .le2-stat-n{font-size:18px} .le2-title{font-size:20px} }
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -2487,27 +2501,20 @@ function _leKpis(){
 function _leHero(){
   const today=(LE_ENTERED&&LE_ENTERED.today)||0;
   const total=((LE_ENTERED&&LE_ENTERED.rows)||[]).length;
-  const stat=(n,l)=>`<div class="lep-stat"><div class="lep-stat-n">${esc(String(n))}</div><div class="lep-stat-l">${esc(l)}</div></div>`;
-  return `<div class="lep-hero">
-    <div class="lep-hero-glow" aria-hidden="true"></div>
-    <div class="lep-hero-head">
-      <div class="lep-eyebrow">${li('user',12,2.4)} IT · Operator console</div>
-      <h1 class="lep-title">Lead Entry</h1>
-      <div class="lep-sub">Add incoming leads and manage the Facebook lead connection. Every lead you add goes to the director’s pool for distribution.</div>
-    </div>
-    <div class="lep-stats">
-      ${stat(today,'Added today')}
-      ${stat(total,'Leads added')}
-      ${stat(LE_FBCOUNT||0,'Pages connected')}
-    </div>
+  const stat=(n,l)=>`<div class="le2-stat"><div class="le2-stat-n">${esc(String(n))}</div><div class="le2-stat-l">${esc(l)}</div></div>`;
+  return `<div class="le2-head">
+    <div class="le2-kicker">IT · Operator console</div>
+    <h1 class="le2-title">Lead Entry</h1>
+    <div class="le2-desc">Add incoming leads and manage your Facebook lead connection. Every lead you add goes to the director’s pool.</div>
+    <div class="le2-stats">${stat(today,'Added today')}${stat(total,'Leads added')}${stat(LE_FBCOUNT||0,'Pages connected')}</div>
   </div>`;
 }
 function _leTabs(active){
   const tabs=[['add','Add lead'],['entered','My leads'],['fb','Facebook']];
   return '<div class="lep-tabs">'+tabs.map(t=>`<button class="lep-tab${t[0]===active?' on':''}" onclick="_leTab('${t[0]}')">${esc(t[1])}</button>`).join('')+'</div>';
 }
-function _leCardHd(bg,fg,ic,title,sub){
-  return `<div class="le-card-hd"><span class="le-card-ic" style="background:${bg};color:${fg}">${li(ic,16,2)}</span><div><div class="le-card-t">${esc(title)}</div>${sub?`<div class="le-card-s">${sub}</div>`:''}</div></div>`;
+function _leCardHd(bg,fg,ic,title,sub){   // bg/fg/ic kept for call-compat; clean title+desc header (matches the wizard hierarchy)
+  return `<div class="le2-card-hd"><h2 class="le2-card-t">${esc(title)}</h2>${sub?`<div class="le2-card-s">${sub}</div>`:''}</div>`;
 }
 function _leSrcChips(sel,id){ id=id||'le-source'; sel=sel||'facebook';
   return `<input type="hidden" id="${id}" value="${esc(sel)}"><div class="le-chips">`+
