@@ -944,6 +944,9 @@ body{background:var(--nx-page)}
 /* ── Connect-a-Page wizard ── */
 .fbwiz-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
 .fbwiz-count{font-size:12px;font-weight:600;color:var(--fk-text-muted)}
+.fbwiz-prog{height:6px;border-radius:999px;background:var(--fk-bg-subtle);overflow:hidden;margin:2px 0 3px}
+.fbwiz-prog-bar{height:100%;background:var(--fk-success);border-radius:999px;transition:width .25s}
+.fbwiz-prog-lbl{font-size:11px;color:var(--fk-text-muted);text-align:right;margin-bottom:10px}
 .fbwiz-guide{font-size:12px;color:var(--fk-primary);display:inline-flex;align-items:center;gap:5px;text-decoration:none}
 .fbwiz-rail{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-bottom:16px}
 .fbwiz-rail-item{background:none;border:none;padding:0;cursor:pointer}
@@ -3662,15 +3665,19 @@ function _fbWizRender(){
   if(!FB_CANWRITE){ FBWIZ=null; return _fbModuleInto(FB_HOST_ID||'fb-host'); }
   if(_fbWizAllDone()){ host.innerHTML=_fbWizDoneView(); return; }
   const step=FBWIZ.step||1;
+  const done=Array.from({length:FBWIZ_TOTAL},(_,i)=>_fbWizStatus(i+1)==='done').filter(Boolean).length;
+  const pct=Math.round(done/FBWIZ_TOTAL*100);
   // stepper rail
   const rail=Array.from({length:FBWIZ_TOTAL},(_,i)=>{ const n=i+1; const st=_fbWizStatus(n); const cur=(n===step);
     const dot = st==='done' ? `<span class="fbwiz-dot done">${li('check',13,3)}</span>` : `<span class="fbwiz-dot${cur?' cur':''}">${n}</span>`;
-    return `<button class="fbwiz-rail-item${cur?' cur':''}" onclick="_fbWizGo(${n})">${dot}</button>`;
+    return `<button class="fbwiz-rail-item${cur?' cur':''}" onclick="_fbWizGo(${n})" title="Step ${n}">${dot}</button>`;
   }).join('<span class="fbwiz-rail-sep"></span>');
   host.innerHTML=`<div class="card" id="fbwiz-card">
     <div class="fbwiz-top"><button class="btn btn-sm" onclick="_fbWizCloseToList()">${li('arrow-left',14,2)} Back</button>
       <div class="fbwiz-count">Step ${step} of ${FBWIZ_TOTAL}</div>
       <a class="fbwiz-guide" href="docs/connect-facebook-page.md" target="_blank" rel="noopener">${li('book-open',13,2)} Full guide</a></div>
+    <div class="fbwiz-prog"><div class="fbwiz-prog-bar" style="width:${pct}%"></div></div>
+    <div class="fbwiz-prog-lbl">${done} of ${FBWIZ_TOTAL} done</div>
     <div class="fbwiz-rail">${rail}</div>
     <div class="fbwiz-body">${_fbWizStepView(step)}</div>
   </div>`;
@@ -3717,7 +3724,7 @@ function _fbWizStepView(n){
     doneBtn(4));
   if(n===5){
     const c=_fbWizConn();
-    if(c) return _fbWizAutoDone('Facebook connected','Your Page is connected to the CRM. Moving on to the automatic checks.', _fbWizLink('#','')==='' ? '' : '');
+    if(c) return _fbWizAutoDone('Facebook connected','Your Page is connected to the CRM. The automatic checks are next.');
     return `<div class="fbwiz-step">
       <div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>Connect Facebook</h3></div>
       <p class="fbwiz-lead">Sign in with Facebook, pick the Page you just set up, and choose which project its leads belong to. Your CRM stores everything securely — you never copy a token.</p>
