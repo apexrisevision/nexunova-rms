@@ -1120,6 +1120,28 @@ body{background:var(--nx-page)}
 .le2-card-t{font-size:17px;font-weight:700;letter-spacing:-.2px;color:var(--fk-text);margin:0}
 .le2-card-s{font-size:13px;color:var(--fk-text-muted);line-height:1.5;margin-top:3px}
 @media(max-width:560px){ .le2-stat{padding:11px 14px} .le2-stat-n{font-size:18px} .le2-title{font-size:20px} }
+/* Integrations slide-bar */
+.it-grid{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start}
+.it-side{display:flex;flex-direction:column;gap:4px}
+.it-ni{display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;border:1px solid var(--fk-border);background:var(--fk-bg-card);border-radius:10px;padding:10px 12px;cursor:pointer;font-family:inherit;transition:border-color .12s,box-shadow .12s}
+.it-ni:hover{border-color:var(--fk-primary)}
+.it-ni.cur{border-color:var(--fk-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--fk-primary) 14%,transparent)}
+.it-ni-t{font-size:13.5px;font-weight:700;color:var(--fk-text)}
+.it-ni-s{font-size:11.5px;color:var(--fk-text-muted);line-height:1.4}
+.it-content{min-width:0}
+.it-pane-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.it-pane-t{font-size:15px;font-weight:700;color:var(--fk-text)}
+.it-ov-grp{border:1px solid var(--fk-border);border-radius:12px;overflow:hidden}
+.it-ov-grp-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted);padding:9px 12px;background:var(--fk-bg-subtle);border-bottom:1px solid var(--fk-border)}
+.it-ov-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border-bottom:1px solid var(--fk-border);flex-wrap:wrap}
+.it-ov-row:last-child{border-bottom:0}
+.it-ov-src{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;color:var(--fk-text)}
+.it-ov-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--fk-text-muted)}
+.it-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.it-dot.ok{background:var(--fk-success)} .it-dot.warn{background:var(--fk-warning)} .it-dot.off{background:var(--fk-text-muted)}
+.it-ov-empty{padding:16px;color:var(--fk-text-muted);font-size:13px;display:flex;align-items:center;gap:8px;line-height:1.5}
+.it-ov-note{font-size:12px;color:var(--fk-text-muted);margin-top:12px}
+@media(max-width:640px){ .it-grid{grid-template-columns:1fr} .it-side{flex-direction:row;overflow-x:auto;flex-wrap:nowrap} .it-ni{min-width:160px} }
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -2450,6 +2472,7 @@ function _dupOwnedDialog(d){
 // ════ LEAD ENTRY — minimal data-entry role; everything feeds the director's pool (owner=director, entered_by=operator) ════
 const LE_SOURCES=[['facebook','Facebook'],['whatsapp','WhatsApp'],['instagram','Instagram'],['manual','Manual']];
 let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[],monthly:[]}, LE_FBCOUNT=0;
+let IT_VIEW='facebook';   // which integration is open in the Integrations slide-bar
 let LE_PROJECTS=[];   // company projects for the lead-entry Project dropdown (token-scoped via list_my_projects)
 function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
 function _leProjOpts(sel){ const own=(ME&&ME.company_name)||''; return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>{ const co=(p.company_name&&p.company_name!==own)?(' · '+p.company_name):''; return `<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${co?esc(co):(p.code?' ('+esc(p.code)+')':'')}</option>`; }).join(''); }
@@ -2477,13 +2500,58 @@ function _leRender(){
   if(LE_VIEW!=='add'&&LE_VIEW!=='entered'&&LE_VIEW!=='fb') LE_VIEW='add';   // collapsed from 6 tabs → 3
   let html='<div class="nx-dash le-pro">'+_leHero()+_leTabs(LE_VIEW)+'<div class="lep-panel">';
   if(LE_VIEW==='add') html+=_leAddForm();
-  else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
+  else if(LE_VIEW==='fb') html+=_itShell();
   else html+=_leEnteredList();
   html+='</div></div>';
   $('app-body').innerHTML=html;
-  if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // operator manages FB connections (IT)
+  if(LE_VIEW==='fb') _itLoad();   // operator manages lead-source connections (IT)
 }
 function _leTab(v){ LE_VIEW=v; _leRender(); }
+// ── Integrations slide-bar (lead-source connections; IT operator) ──
+const IT_TOOLS=[
+  ['facebook','Facebook','Lead-form ads from your Facebook Page',true],
+  ['overview','Overview','All connections and their health',true]
+];
+function _itShell(){
+  const nav=IT_TOOLS.map(t=>`<button class="it-ni${IT_VIEW===t[0]?' cur':''}" onclick="_itTab('${t[0]}')"><span class="it-ni-t">${esc(t[1])}</span><span class="it-ni-s">${esc(t[2])}</span></button>`).join('');
+  return `<div class="card le-card it-card">
+    ${_leCardHd('','','','Integrations','Connect your lead sources so leads arrive in the CRM automatically.')}
+    <div class="it-grid">
+      <aside class="it-side">${nav}</aside>
+      <section id="it-content" class="it-content"><div class="empty"><div class="et">Loading…</div></div></section>
+    </div>
+  </div>`;
+}
+function _itTab(v){ IT_VIEW=v; _leRender(); }
+function _itLoad(){ if(IT_VIEW==='overview') _itOverview('it-content'); else { FB_CANWRITE=true; _fbModuleInto('it-content'); } }
+async function _itOverview(hostId){
+  const host=$(hostId); if(!host) return;
+  let d;
+  try{ const r=await sb.rpc('fb_diag_overview',{p_session_token:TOKEN}); d=r.data; }
+  catch(e){ return sessionGone(); }
+  if(d&&d.error==='session_expired') return sessionGone();
+  const health=(d&&d.success)?(d.health||[]):[];
+  const dot=(ok,warn)=>`<span class="it-dot ${ok?'ok':(warn?'warn':'off')}"></span>`;
+  let rows;
+  if(!health.length){
+    rows=`<div class="it-ov-empty">${li('inbox',18,2)} No Facebook Pages connected yet. Open <b>Facebook</b> on the left to connect one.</div>`;
+  } else {
+    rows=health.map(h=>{ const conn=h.connection_status==='connected'; const ev=!!h.last_event_at;
+      return `<div class="it-ov-row">
+        <div class="it-ov-src">${dot(conn,!ev)}<span>${esc(h.page_name||h.page_id||'Page')}</span></div>
+        <div class="it-ov-meta">
+          <span>${conn?'Connected':'Disconnected'}</span>
+          <span>${h.last_event_at?('Last lead '+esc(fdate(h.last_event_at))):'No leads yet'}</span>
+          <span>Verify ${h.last_verify_at?esc(fdate(h.last_verify_at)):'—'}</span>
+        </div>
+      </div>`; }).join('');
+  }
+  host.innerHTML=`<div class="it-pane">
+    <div class="it-pane-h"><div class="it-pane-t">Connections overview</div><button class="btn btn-sm" onclick="_itOverview('it-content')">${li('arrow-right',13,2)} Refresh</button></div>
+    <div class="it-ov-grp"><div class="it-ov-grp-h">Facebook</div>${rows}</div>
+    <div class="it-ov-note">More sources (WhatsApp, website) will appear here as they’re added.</div>
+  </div>`;
+}
 // ── redesigned lead-entry building blocks ──
 function _leKpis(){
   const today=(LE_ENTERED&&LE_ENTERED.today)||0;
@@ -2505,12 +2573,12 @@ function _leHero(){
   return `<div class="le2-head">
     <div class="le2-kicker">IT · Operator console</div>
     <h1 class="le2-title">Lead Entry</h1>
-    <div class="le2-desc">Add incoming leads and manage your Facebook lead connection. Every lead you add goes to the director’s pool.</div>
+    <div class="le2-desc">Add incoming leads and manage your lead-source connections. Every lead you add goes to the director’s pool.</div>
     <div class="le2-stats">${stat(today,'Added today')}${stat(total,'Leads added')}${stat(LE_FBCOUNT||0,'Pages connected')}</div>
   </div>`;
 }
 function _leTabs(active){
-  const tabs=[['add','Add lead'],['entered','My leads'],['fb','Facebook']];
+  const tabs=[['add','Add lead'],['entered','My leads'],['fb','Integrations']];
   return '<div class="lep-tabs">'+tabs.map(t=>`<button class="lep-tab${t[0]===active?' on':''}" onclick="_leTab('${t[0]}')">${esc(t[1])}</button>`).join('')+'</div>';
 }
 function _leCardHd(bg,fg,ic,title,sub){   // bg/fg/ic kept for call-compat; clean title+desc header (matches the wizard hierarchy)
