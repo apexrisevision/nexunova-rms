@@ -3324,20 +3324,21 @@ async function renderFbSettings(){
   FB_PAGES=data.pages||[];
   let html=_pageHead('Facebook Leads','Connect one Facebook Page per project — lead-form submissions land here automatically, tagged to that project.');
   const copyRow=(label,val)=>`<div style="margin-bottom:10px"><div class="label">${esc(label)}</div><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-family:var(--fk-font);font-size:var(--fk-fs-body);color:var(--fk-text);word-break:break-all">${esc(String(val||''))}</span>${li('paperclip',15,2)}</div></div>`;
-  html+=`<div class="dsec">Webhook — paste into Meta</div><div class="card">`
-    + copyRow('Callback URL', FB_WEBHOOK_URL)
-    + `<div style="font-size:12px;color:var(--fk-text-muted)">In your Meta App → Webhooks → Page → subscribe to <b>leadgen</b> with this Callback URL and a page's Verify token (shown on each page below). Subscribe every project's Page to the same app.</div></div>`;
+  const fbSvg='<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7H8v-2.9h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6v1.9h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z"/></svg>';
   const addSvg='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-2px"><path d="M12 5v14M5 12h14"/></svg>';
-  html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between">Connected pages <button class="btn btn-sm btn-primary" onclick="_fbPageModal()">${addSvg} Add page</button></div>`;
-  if(!FB_PAGES.length){ html+=_emptyCard('No pages yet','Add a Facebook Page and map it to the project its lead-ads belong to.'); }
+  html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>Connected pages</span><button class="btn btn-sm btn-primary" onclick="_fbConnectStart()">${fbSvg} Connect Facebook</button></div>`;
+  if(!FB_PAGES.length){ html+=_emptyCard('No pages connected','Click “Connect Facebook”, sign in, pick your Page and a project — done. No IDs or tokens to copy.'); }
   else { html+='<div class="lgroup">'+FB_PAGES.map(_fbPageRow).join('')+'</div>'; }
-  html+=`<div class="dsec">How to connect</div><div class="card" style="font-size:13px;color:var(--fk-text-muted);line-height:1.7">
-    <div>1. Open a <b>Meta App</b> (developers.facebook.com) with the <b>Webhooks</b> + <b>Lead Ads</b> products.</div>
-    <div>2. Add a <b>Page</b> webhook → use the Callback URL above + a page's Verify token → subscribe to <b>leadgen</b>.</div>
-    <div>3. For each project's Page: generate a long-lived <b>Page Access Token</b> (perms <code>leads_retrieval</code>, <code>pages_manage_metadata</code>) and add it here with the Page ID + project.</div>
-    <div>4. Submit for <b>App Review</b> (leads_retrieval) to go live for real leads.</div>
-    <div style="margin-top:6px">New submissions then create a lead automatically — deduped by phone, owned by the project's director, tagged to that project.</div>
-  </div>`;
+  html+=`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted);padding:6px 2px">Advanced — manual setup &amp; webhook details</summary><div style="margin-top:10px">`
+    + `<div class="card">`+copyRow('Callback URL', FB_WEBHOOK_URL)+`<div style="font-size:12px;color:var(--fk-text-muted)">Only needed for manual Meta setup — <b>Connect Facebook</b> configures this automatically.</div></div>`
+    + `<div style="margin:10px 0"><button class="btn btn-sm" onclick="_fbPageModal()">${addSvg} Add page manually (Page ID + token)</button></div>`
+    + `<div class="card" style="font-size:13px;color:var(--fk-text-muted);line-height:1.7">
+      <div>1. Open a <b>Meta App</b> (developers.facebook.com) with the <b>Webhooks</b> + <b>Lead Ads</b> products.</div>
+      <div>2. Add a <b>Page</b> webhook → use the Callback URL above + a page's Verify token → subscribe to <b>leadgen</b>.</div>
+      <div>3. For each project's Page: generate a long-lived <b>Page Access Token</b> (perms <code>leads_retrieval</code>, <code>pages_manage_metadata</code>) and add it here with the Page ID + project.</div>
+      <div>4. Submit for <b>App Review</b> (leads_retrieval) to go live for real leads.</div>
+    </div>`
+    + `</div></details>`;
   html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between">Diagnostics <button class="btn btn-sm" onclick="_fbDiagLoad()">Refresh</button></div><div id="fb-diag"><div class="card"><div class="empty"><div class="et">Loading diagnostics…</div></div></div></div>`;
   $('app-body').innerHTML=html;
   _fbDiagLoad();
@@ -3445,6 +3446,65 @@ async function _fbDiagLoad(){
     (FB_DIAG.imports||[]).map(y=>{const res=y.lead_id?'inserted':(y.status==='duplicate'?'duplicate':(y.status==='received'?'test received':'not inserted'));return [esc(fdate(y.created_at)),esc(y.lead_name||'—')+(y.is_test?' <span style="color:var(--fk-text-muted)">(test)</span>':''),esc(y.lead_phone||'—'),esc(y.page_name||y.page_id||'—'),esc(y.project_name||'—'),_fbStatusBadge(y.status)+' <span style="color:var(--fk-text-muted);font-size:11px">'+esc(res)+'</span>',esc(y.error_message||'')];}),
     'No lead imports yet.');
   host.innerHTML=`<div class="card">${h}<div style="height:14px"></div>${lg}<div style="height:14px"></div>${im}</div>`;
+}
+// ── FB OAuth Connect: sign in → pick page → pick project → connected (no manual IDs) ──
+let FB_OAUTH={state:null,popup:null,handler:null,cfg:null};
+async function _fbConnectStart(){
+  let cfg=FB_OAUTH.cfg;
+  if(!cfg){ try{ const r=await sb.functions.invoke('fb-oauth',{body:{action:'config'}}); cfg=r.data; FB_OAUTH.cfg=cfg; }catch(e){ return toast('Could not reach the Facebook connect service','err'); } }
+  if(!cfg||!cfg.configured){ toast('Facebook Connect isn’t set up yet — use Advanced → manual setup, or ask your admin.','err'); return; }
+  const state='nx'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  FB_OAUTH.state=state;
+  const url='https://www.facebook.com/'+(cfg.graph_version||'v21.0')+'/dialog/oauth'+
+    '?client_id='+encodeURIComponent(cfg.app_id)+
+    '&redirect_uri='+encodeURIComponent(cfg.redirect_uri)+
+    '&state='+encodeURIComponent(state)+'&response_type=code'+
+    '&scope='+encodeURIComponent((cfg.scopes||[]).join(','));
+  if(FB_OAUTH.handler) window.removeEventListener('message',FB_OAUTH.handler);
+  FB_OAUTH.handler=function(ev){
+    if(ev.origin!==location.origin) return;
+    const d=ev.data||{}; if(d.source!=='nx-fb-oauth') return;
+    window.removeEventListener('message',FB_OAUTH.handler); FB_OAUTH.handler=null;
+    try{ if(FB_OAUTH.popup&&!FB_OAUTH.popup.closed) FB_OAUTH.popup.close(); }catch(e){}
+    if(d.error){ toast('Facebook sign-in cancelled','err'); return; }
+    if(d.state!==FB_OAUTH.state){ toast('Security check failed — please retry','err'); return; }
+    if(!d.code){ toast('No authorization code returned','err'); return; }
+    _fbExchangeCode(d.code);
+  };
+  window.addEventListener('message',FB_OAUTH.handler);
+  FB_OAUTH.popup=window.open(url,'nxfbconnect','width=600,height=740,menubar=no,toolbar=no');
+  if(!FB_OAUTH.popup) toast('Please allow popups to connect Facebook','err');
+}
+async function _fbExchangeCode(code){
+  toast('Loading your Facebook Pages…','ok');
+  let data;
+  try{ const r=await sb.functions.invoke('fb-oauth',{body:{action:'exchange',session_token:TOKEN,code:code}}); data=r.data; if(r.error&&!data) throw r.error; }
+  catch(e){ return toast('Could not load pages: '+(e.message||e),'err'); }
+  if(!data||!data.success){ return toast('Facebook: '+((data&&(data.message||data.error))||'could not load pages'),'err'); }
+  _fbPagePickModal(data.nonce,data.pages||[]);
+}
+function _fbPagePickModal(nonce,pages){
+  if(!pages.length) return toast('No managed Pages found on this account','err');
+  const rows=pages.map(p=>`<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;cursor:pointer;margin-bottom:8px"><input type="radio" name="fbpick" value="${p.ref}"><span style="font-weight:600">${esc(p.name)}</span></label>`).join('');
+  openModal('Select a Facebook Page',
+    `<div class="field"><label class="label">Your Pages</label>${rows}</div>
+     <div class="field"><label class="label">Project <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· leads from this page tag to</span></label><select class="input" id="fbpick-project">${_leProjOpts('')}</select></div>
+     <div id="fbpick-err" style="display:none;color:var(--fk-danger);font-size:13px"></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="fbpick-go" onclick="_fbDoSave('${esc(nonce)}')">Connect</button>`);
+}
+async function _fbDoSave(nonce){
+  const sel=document.querySelector('input[name=fbpick]:checked'); const err=$('fbpick-err');
+  if(!sel){ if(err){err.style.display='block';err.textContent='Please select a page.';} return; }
+  const ref=Number(sel.value); const project_id=($('fbpick-project')||{}).value||null;
+  const go=$('fbpick-go'); if(go){go.disabled=true;go.textContent='Connecting…';}
+  let data;
+  try{ const r=await sb.functions.invoke('fb-oauth',{body:{action:'save',session_token:TOKEN,nonce:nonce,ref:ref,project_id:project_id}}); data=r.data; if(r.error&&!data) throw r.error; }
+  catch(e){ if(go){go.disabled=false;go.textContent='Connect';} return toast('Connect failed: '+(e.message||e),'err'); }
+  if(!data||!data.success){ if(go){go.disabled=false;go.textContent='Connect';} if(err){err.style.display='block';err.textContent=(data&&(data.message||data.error))||'Could not connect.';} return; }
+  closeModal();
+  const sub=data.subscribed?'subscribed to leadgen ✓':'saved (leadgen subscription pending)';
+  toast('Connected ✓ '+(data.page_name||'')+' · '+sub,'ok');
+  renderFbSettings();
 }
 // ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
 let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null};
