@@ -944,7 +944,7 @@ body{background:var(--nx-page)}
 /* ── Connect-a-Page wizard ── */
 .fbwiz-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
 .fbwiz-count{font-size:12px;font-weight:600;color:var(--fk-text-muted)}
-.fbwiz-prog{height:6px;border-radius:999px;background:var(--fk-bg-subtle);overflow:hidden;margin:2px 0 3px}
+.fbwiz-prog{height:6px;border-radius:999px;background:var(--fk-bg-subtle);overflow:hidden;margin:0 0 18px}
 .fbwiz-prog-bar{height:100%;background:var(--fk-success);border-radius:999px;transition:width .25s}
 .fbwiz-prog-lbl{font-size:11px;color:var(--fk-text-muted);text-align:right;margin-bottom:10px}
 .fbwiz-guide{font-size:12px;color:var(--fk-primary);display:inline-flex;align-items:center;gap:5px;text-decoration:none}
@@ -1055,8 +1055,11 @@ body{background:var(--nx-page)}
 .le-pro .lgroup.le-list{border:1px solid var(--fk-border);border-radius:12px;overflow:hidden;margin-top:4px}
 .le-add-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding-bottom:14px;border-bottom:1px dashed var(--fk-border)}
 .le-add-or{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fk-text-muted);margin-right:2px}
-.fbwiz-modetog{display:inline-flex;gap:3px;padding:3px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;margin:0 0 14px}
-.fbwiz-modetog button{border:none;background:none;font-family:inherit;font-size:12px;font-weight:600;color:var(--fk-text-muted);padding:6px 12px;border-radius:7px;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s}
+.fbwiz-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 8px}
+.fbwiz-step-of{font-size:12.5px;font-weight:600;color:var(--fk-text-muted)}
+.fbwiz-step-of b{color:var(--fk-text)}
+.fbwiz-modetog{display:inline-flex;gap:2px;padding:3px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:9px}
+.fbwiz-modetog button{border:none;background:none;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--fk-text-muted);padding:5px 11px;border-radius:6px;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s}
 .fbwiz-modetog button:hover{color:var(--fk-text)}
 .fbwiz-modetog button.on{background:var(--fk-bg-card);color:var(--fk-primary);box-shadow:0 1px 2px rgba(16,24,40,.10)}
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
@@ -3837,22 +3840,19 @@ function _fbWizRender(){
   const done=active.filter(n=>_fbWizStatus(n)==='done').length;
   const pct=Math.round(done/active.length*100);
   const pos=active.indexOf(step)+1;
-  // stepper rail (renumbered 1..N within the chosen path)
-  const rail=active.map((n,idx)=>{ const st=_fbWizStatus(n); const cur=(n===step);
-    const dot = st==='done' ? `<span class="fbwiz-dot done">${li('check',13,3)}</span>` : `<span class="fbwiz-dot${cur?' cur':''}">${idx+1}</span>`;
-    return `<button class="fbwiz-rail-item${cur?' cur':''}" onclick="_fbWizGo(${n})" title="Step ${idx+1}">${dot}</button>`;
-  }).join('<span class="fbwiz-rail-sep"></span>');
   host.innerHTML=`<div class="card" id="fbwiz-card">
-    <div class="fbwiz-top"><button class="btn btn-sm" onclick="_fbWizCloseToList()">${li('arrow-left',14,2)} Back</button>
-      <div class="fbwiz-count">Step ${pos} of ${active.length}</div>
-      <a class="fbwiz-guide" href="docs/connect-facebook-page.md" target="_blank" rel="noopener">${li('book-open',13,2)} Full guide</a></div>
-    <div class="fbwiz-prog"><div class="fbwiz-prog-bar" style="width:${pct}%"></div></div>
-    <div class="fbwiz-prog-lbl">${done} of ${active.length} done</div>
-    <div class="fbwiz-modetog" title="Switch how much setup the wizard walks you through">
-      <button class="${FBWIZ.mode==='new'?'on':''}" onclick="_fbWizSetMode('new')">Full setup (12)</button>
-      <button class="${FBWIZ.mode==='exp'?'on':''}" onclick="_fbWizSetMode('exp')">I'm experienced (6)</button>
+    <div class="fbwiz-top">
+      <button class="btn btn-sm" onclick="_fbWizCloseToList()">${li('arrow-left',14,2)} Back</button>
+      <a class="fbwiz-guide" href="docs/connect-facebook-page.md" target="_blank" rel="noopener">${li('book-open',13,2)} Full guide</a>
     </div>
-    <div class="fbwiz-rail">${rail}</div>
+    <div class="fbwiz-meta">
+      <div class="fbwiz-step-of">Step <b>${pos}</b> of ${active.length}</div>
+      <div class="fbwiz-modetog" title="How much setup the wizard walks you through">
+        <button class="${FBWIZ.mode==='new'?'on':''}" onclick="_fbWizSetMode('new')">Full</button>
+        <button class="${FBWIZ.mode==='exp'?'on':''}" onclick="_fbWizSetMode('exp')">Experienced</button>
+      </div>
+    </div>
+    <div class="fbwiz-prog"><div class="fbwiz-prog-bar" style="width:${pct}%"></div></div>
     <div class="fbwiz-body">${_fbWizStepView(step)}</div>
   </div>`;
 }
