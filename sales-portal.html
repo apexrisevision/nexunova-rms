@@ -3800,7 +3800,7 @@ async function _fbWizCheck(n){
   _fbWizRender();
 }
 // ── shared bits ──
-function _fbWizShot(label){ return `<div class="fbwiz-shot">${li('image',16,2)}<span>SCREENSHOT SLOT — ${esc(label)}</span></div>`; }
+function _fbWizShot(label){ return ''; /* screenshot slots hidden for now — when real Meta screenshots are ready, restore: `<div class="fbwiz-shot"><img src="/assets/fbwiz/...png" alt="${esc(label)}"></div>` (slots: steps 1,2,3,4,5,7,9,12) */ }
 function _fbWizLink(url,label){ return `<a class="btn btn-sm" href="${url}" target="_blank" rel="noopener">${li('external-link',14,2)} ${esc(label)}</a>`; }
 function _fbWizCopy(val){ return `<div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-size:13px;word-break:break-all">${esc(String(val||''))}</span>${li('copy',15,2)}</div>`; }
 function _fbWizStuck(html){ return `<details class="fbwiz-stuck"><summary>${li('help-circle',14,2)} Stuck on this step?</summary><div>${html}</div></details>`; }
