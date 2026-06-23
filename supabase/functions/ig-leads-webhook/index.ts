@@ -34,6 +34,7 @@ Deno.serve(async (req: Request) => {
 
   let body: any = {};
   try { body = await req.json(); } catch (_) { body = {}; }
+  const isTest = body && body._nx_test === true;   // "Send a test lead" → auto-deleted after 5 min
 
   const results: any[] = [];
   try {
@@ -51,6 +52,7 @@ Deno.serve(async (req: Request) => {
         else if (Array.isArray(msg?.attachments) && msg.attachments.length) text = "[" + (msg.attachments[0]?.type || "attachment") + "]";
         const name = ev?.sender?.username || "";                   // usually absent; lead falls back to "Instagram lead"
         const r = await sb.rpc("create_lead_from_instagram", { p_ig_account_id: igId, p_sender_id: senderId, p_name: name, p_text: text });
+        if (isTest && r.data?.id) { try { await sb.from("leads").update({ is_test: true }).eq("id", r.data.id); } catch (_) { /* ignore */ } }
         results.push(r.data?.error || (r.data?.success ? "ok" : "failed"));
       }
     }

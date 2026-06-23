@@ -36,6 +36,7 @@ Deno.serve(async (req: Request) => {
 
   const key = String(d.key ?? d.intake_key ?? url.searchParams.get("key") ?? "").trim();
   if (!key) return json({ success: false, error: "key_required" });
+  const isTest = d._nx_test === true || String(d._nx_test ?? "") === "true";   // "Send a test lead" → auto-deleted after 5 min
 
   // honeypot — if a hidden field is filled, silently accept (drop) to defeat bots
   if (pick(d, ["_gotcha", "honeypot", "_hp"])) return json({ success: true, dropped: true });
@@ -61,6 +62,7 @@ Deno.serve(async (req: Request) => {
     if (String(err).startsWith("duplicate")) { if (redirect) return Response.redirect(redirect, 302); return json({ success: true, duplicate: true }); }
     return json({ success: false, error: err, message: res?.message || "Could not save the lead." });
   }
+  if (isTest && res && res.id) { try { await sb.from("leads").update({ is_test: true }).eq("id", res.id); } catch (_) { /* ignore */ } }
   if (redirect) return Response.redirect(redirect, 302);   // plain HTML form → thank-you page
   return json({ success: true });
 });

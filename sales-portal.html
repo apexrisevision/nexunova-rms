@@ -2597,9 +2597,9 @@ async function _webSendTest(btn){
   if(!WEBCFG||!WEBCFG.intake_key){ toast('No key yet','err'); return; }
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   try{ const r=await fetch(WEB_LEAD_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({key:WEBCFG.intake_key,name:'Website test '+new Date().toLocaleTimeString(),phone:'0300'+Math.floor(1000000+Math.random()*8999999)})});
+      body:JSON.stringify({key:WEBCFG.intake_key,_nx_test:true,name:'Website test '+new Date().toLocaleTimeString(),phone:'0300'+Math.floor(1000000+Math.random()*8999999)})});
     const j=await r.json();
-    if(j&&j.success) toast('Test lead sent ✓ — it’s now in the director’s pool (ask them to delete it)','ok');
+    if(j&&j.success) toast('Test lead sent ✓ — it appears as a test lead and auto-deletes in ~5 minutes','ok');
     else toast((j&&j.message)||'Test failed','err');
   }catch(e){ toast('Test failed — check your connection','err'); }
   if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
@@ -2657,11 +2657,11 @@ async function _waDoDelete(pnid){ try{ const r=await sb.rpc('delete_whatsapp_con
 async function _waSendTest(pnid,btn){
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   const wa='92300'+Math.floor(1000000+Math.random()*8999999);
-  const payload={object:'whatsapp_business_account',entry:[{id:'TEST',changes:[{field:'messages',value:{messaging_product:'whatsapp',
+  const payload={object:'whatsapp_business_account',_nx_test:true,entry:[{id:'TEST',changes:[{field:'messages',value:{messaging_product:'whatsapp',
     metadata:{phone_number_id:pnid},contacts:[{profile:{name:'WhatsApp test '+new Date().toLocaleTimeString()},wa_id:wa}],
     messages:[{from:wa,id:'wamid.test',text:{body:'Test lead from setup'},type:'text'}]}}]}]};
   try{ const r=await fetch(WA_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const j=await r.json();
-    if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it’s in the director’s pool (ask them to delete it)','ok');
+    if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it appears as a test lead and auto-deletes in ~5 minutes','ok');
     else toast('Test failed — make sure the number is saved','err');
   }catch(e){ toast('Test failed — check your connection','err'); }
   if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
@@ -2712,9 +2712,9 @@ async function _igDoDelete(id){ try{ const r=await sb.rpc('delete_instagram_conn
 async function _igSendTest(igid,btn){
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   const sid='99'+Math.floor(10000000+Math.random()*89999999);
-  const payload={object:'instagram',entry:[{id:igid,messaging:[{sender:{id:sid},recipient:{id:igid},message:{mid:'mid.test',text:'Test lead from setup'}}]}]};
+  const payload={object:'instagram',_nx_test:true,entry:[{id:igid,messaging:[{sender:{id:sid},recipient:{id:igid},message:{mid:'mid.test',text:'Test lead from setup'}}]}]};
   try{ const r=await fetch(IG_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const j=await r.json();
-    if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it’s in the director’s pool (ask them to delete it)','ok');
+    if(j&&j.received&&(j.results||[]).indexOf('ok')>=0) toast('Test lead sent ✓ — it appears as a test lead and auto-deletes in ~5 minutes','ok');
     else toast('Test failed — make sure the account is saved','err');
   }catch(e){ toast('Test failed — check your connection','err'); }
   if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
