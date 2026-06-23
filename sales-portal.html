@@ -2283,15 +2283,17 @@ async function renderLeadEntry(){
 function _leRender(){
   const t=$('appbar-title'); if(t) t.textContent='Lead Entry';
   let html='<div class="nx-dash">'+_pageHead('Lead Entry','Add leads into the director’s pool — the director assigns them out from there.');
-  html+=_seg([['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend']], LE_VIEW, '_leTab');
+  html+=_seg([['add','Add lead'],['paste','Paste'],['import','Import CSV'],['entered','Entered'],['adspend','Ad Spend'],['fb','Facebook']], LE_VIEW, '_leTab');
   if(LE_VIEW==='add') html+=_leAddForm();
   else if(LE_VIEW==='paste') html+=_lePasteForm();
   else if(LE_VIEW==='import') html+=_leImportPanel();
   else if(LE_VIEW==='adspend') html+=_leAdSpendPanel();
+  else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
   else html+=_leEnteredList();
   html+='</div>';
   $('app-body').innerHTML=html;
   if(LE_VIEW==='adspend') _runCountUps();
+  if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // operator manages connections
 }
 function _leTab(v){ LE_VIEW=v; _leRender(); }
 function _leAddForm(){
@@ -3312,35 +3314,50 @@ function _targetShift(n){ TARGET_PERIOD=_periodShift(TARGET_PERIOD,n); renderTar
 const FB_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/fb-leads-webhook';
 let FB_PAGES=[];
 function _copyEl(el){ const s=el.querySelector('span'); const t=s?s.textContent:''; try{ navigator.clipboard.writeText(t); toast('Copied','ok'); }catch(e){ toast('Copy failed','err'); } }
-async function renderFbSettings(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+// FB_CANWRITE: only the operator (lead_entry) + admin manage connections; directors are read-only.
+let FB_CANWRITE=false;
+async function renderFbSettings(){   // director/admin route (data-dir nav) — read-only for directors
+  FB_CANWRITE = !!(ME && (ME.role==='lead_entry' || ME.role==='admin'));
+  const sub = FB_CANWRITE
+    ? 'Connect a Facebook Page per project — lead-form submissions arrive automatically, tagged to that project.'
+    : 'Read-only view. Your IT operator manages the Facebook connections; leads route to you automatically.';
+  $('app-body').innerHTML=_pageHead('Facebook Leads',sub)+'<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
+  await _fbModuleInto('fb-host');
+}
+// Shared FB module renderer — used by the director read-only route AND the operator's
+// Lead Entry "Facebook" segment. Honours FB_CANWRITE (set by the caller).
+async function _fbModuleInto(hostId){
+  const host=$(hostId); if(!host) return;
   let data, pr;
   try{ const [r,p]=await Promise.all([sb.rpc('list_fb_connections',{p_session_token:TOKEN}), sb.rpc('list_my_projects',{p_session_token:TOKEN})]); if(r.error) throw r.error; data=r.data; pr=p.data; }
   catch(e){ return sessionGone(); }
   if(data&&data.error==='session_expired') return sessionGone();
-  if(!data||!data.success){ $('app-body').innerHTML=_pageHead('Facebook Leads')+_emptyCard('Not available','Only a director can configure Facebook lead intake.'); return; }
+  if(!data||!data.success){ host.innerHTML=_emptyCard('Not available','Facebook lead intake is not available for your role.'); return; }
   _touch();
   LE_PROJECTS=(pr&&pr.success)?(pr.projects||[]):[];   // shared company-projects cache (powers the per-page Project dropdown)
   FB_PAGES=data.pages||[];
-  let html=_pageHead('Facebook Leads','Connect one Facebook Page per project — lead-form submissions land here automatically, tagged to that project.');
+  const cw=FB_CANWRITE;
   const copyRow=(label,val)=>`<div style="margin-bottom:10px"><div class="label">${esc(label)}</div><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-family:var(--fk-font);font-size:var(--fk-fs-body);color:var(--fk-text);word-break:break-all">${esc(String(val||''))}</span>${li('paperclip',15,2)}</div></div>`;
   const fbSvg='<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7H8v-2.9h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6v1.9h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z"/></svg>';
   const addSvg='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-2px"><path d="M12 5v14M5 12h14"/></svg>';
-  html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>Connected pages</span><button class="btn btn-sm btn-primary" onclick="_fbConnectStart()">${fbSvg} Connect Facebook</button></div>`;
-  if(!FB_PAGES.length){ html+=_emptyCard('No pages connected','Click “Connect Facebook”, sign in, pick your Page and a project — done. No IDs or tokens to copy.'); }
+  let html='';
+  html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>Connected pages</span>${cw?`<button class="btn btn-sm btn-primary" onclick="_fbConnectStart()">${fbSvg} Connect Facebook</button>`:''}</div>`;
+  if(!FB_PAGES.length){ html+=_emptyCard('No pages connected', cw?'Click “Connect Facebook”, sign in, pick your Page and a project — done. No IDs or tokens to copy.':'Your operator hasn’t connected a Facebook Page yet. Leads will appear here once they do.'); }
   else { html+='<div class="lgroup">'+FB_PAGES.map(_fbPageRow).join('')+'</div>'; }
-  html+=`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted);padding:6px 2px">Advanced — manual setup &amp; webhook details</summary><div style="margin-top:10px">`
-    + `<div class="card">`+copyRow('Callback URL', FB_WEBHOOK_URL)+`<div style="font-size:12px;color:var(--fk-text-muted)">Only needed for manual Meta setup — <b>Connect Facebook</b> configures this automatically.</div></div>`
-    + `<div style="margin:10px 0"><button class="btn btn-sm" onclick="_fbPageModal()">${addSvg} Add page manually (Page ID + token)</button></div>`
-    + `<div class="card" style="font-size:13px;color:var(--fk-text-muted);line-height:1.7">
-      <div>1. Open a <b>Meta App</b> (developers.facebook.com) with the <b>Webhooks</b> + <b>Lead Ads</b> products.</div>
-      <div>2. Add a <b>Page</b> webhook → use the Callback URL above + a page's Verify token → subscribe to <b>leadgen</b>.</div>
-      <div>3. For each project's Page: generate a long-lived <b>Page Access Token</b> (perms <code>leads_retrieval</code>, <code>pages_manage_metadata</code>) and add it here with the Page ID + project.</div>
-      <div>4. Submit for <b>App Review</b> (leads_retrieval) to go live for real leads.</div>
-    </div>`
-    + `</div></details>`;
+  if(cw){
+    html+=`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--fk-text-muted);padding:6px 2px">Advanced — manual setup &amp; webhook details</summary><div style="margin-top:10px">`
+      + `<div class="card">`+copyRow('Callback URL', FB_WEBHOOK_URL)+`<div style="font-size:12px;color:var(--fk-text-muted)">Only needed for manual Meta setup — <b>Connect Facebook</b> configures this automatically.</div></div>`
+      + `<div style="margin:10px 0"><button class="btn btn-sm" onclick="_fbPageModal()">${addSvg} Add page manually (Page ID + token)</button></div>`
+      + `<div class="card" style="font-size:13px;color:var(--fk-text-muted);line-height:1.7">
+        <div>1. Open a <b>Meta App</b> (developers.facebook.com) with the <b>Webhooks</b> + <b>Lead Ads</b> products.</div>
+        <div>2. Add a <b>Page</b> webhook → use the Callback URL above + a page's Verify token → subscribe to <b>leadgen</b>.</div>
+        <div>3. For each project's Page: generate a long-lived <b>Page Access Token</b> (perms <code>leads_retrieval</code>, <code>pages_manage_metadata</code>) and add it here with the Page ID + project.</div>
+        <div>4. Submit for <b>App Review</b> (leads_retrieval) to go live for real leads.</div>
+      </div>`
+      + `</div></details>`;
+  }
   html+=`<div class="dsec" style="display:flex;align-items:center;justify-content:space-between">Diagnostics <button class="btn btn-sm" onclick="_fbDiagLoad()">Refresh</button></div><div id="fb-diag"><div class="card"><div class="empty"><div class="et">Loading diagnostics…</div></div></div></div>`;
-  $('app-body').innerHTML=html;
+  host.innerHTML=html;
   _fbDiagLoad();
 }
 function _fbPageRow(p){
@@ -3349,8 +3366,8 @@ function _fbPageRow(p){
     <span style="width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;background:${ok?'var(--fk-success-surface)':'var(--fk-bg-subtle)'};color:${ok?'var(--fk-success)':'var(--fk-text-muted)'}">${li(ok?'check':'x',18,2.2)}</span>
     <div style="flex:1;min-width:0"><div class="lr-name">${esc(p.page_name||p.page_id||'Unnamed page')}</div>
       <div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${p.project_name?_projChip(p.project_name):'<span style="color:var(--fk-warning)">No project set</span>'}<span style="font-variant-numeric:tabular-nums">${p.leads_count||0} lead${p.leads_count==1?'':'s'}</span>${p.last_lead_at?'<span>· '+esc(fdate(p.last_lead_at))+'</span>':''}</div></div>
-    <button class="btn btn-sm" style="flex:none" onclick="event.stopPropagation();_fbTestConn('${esc(p.id)}',this)">Test</button>
-    <button class="btn btn-sm" style="flex:none" onclick="_fbPageModal('${esc(p.id)}')">Edit</button>
+    ${FB_CANWRITE?`<button class="btn btn-sm" style="flex:none" onclick="event.stopPropagation();_fbTestConn('${esc(p.id)}',this)">Test</button>
+    <button class="btn btn-sm" style="flex:none" onclick="_fbPageModal('${esc(p.id)}')">Edit</button>`:''}
   </div></div>`;
 }
 function _fbPageModal(id){
@@ -3437,7 +3454,7 @@ async function _fbDiagLoad(){
         <div class="lr-sub" style="display:flex;gap:12px;flex-wrap:wrap"><span>Last verify: ${p.last_verify_at?esc(fdate(p.last_verify_at)):'never'}</span><span>Last event: ${p.last_event_at?esc(fdate(p.last_event_at)):'never'}</span><span>HTTP: ${p.last_http_status||'—'}</span></div>
         ${p.last_error?`<div class="lr-sub" style="color:var(--fk-danger)">${esc(p.last_error)}</div>`:''}
       </div>
-      <button class="btn btn-sm" style="flex:none" onclick="_fbSendTestWebhook('${esc(p.connection_id)}',false)">Send test webhook</button>
+      ${FB_CANWRITE?`<button class="btn btn-sm" style="flex:none" onclick="_fbSendTestWebhook('${esc(p.connection_id)}',false)">Send test webhook</button>`:''}
     </div></div>`).join('')+'</div>'; }
   let lg=_fbSub('Recent webhook logs')+_fbTbl(['Time','Event','Page','Form','Lead ID','Status','Error',''],
     (FB_DIAG.logs||[]).map((w,i)=>[esc(fdate(w.created_at)),esc(w.event_type||''),esc(w.page_id||'—'),esc(w.form_id||'—'),esc(w.leadgen_id||'—'),_fbStatusBadge(w.status),esc(w.error_message||''),`<button class="btn btn-sm" onclick="_fbRaw('log',${i})">Raw</button>`]),
