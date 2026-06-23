@@ -1086,6 +1086,26 @@ body{background:var(--nx-page)}
 .wzs-help summary{cursor:pointer;color:var(--fk-text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px}
 .wzs-help>div{margin-top:8px;color:var(--fk-text-muted);line-height:1.6;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;padding:10px 12px}
 .wzs-help p{margin:0 0 6px} .wzs-help p:last-child{margin:0}
+/* two-pane installer layout */
+.wz2-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--fk-border)}
+.wz2-top-t{font-size:15px;font-weight:700;color:var(--fk-text)}
+.wz2-top-r{display:flex;align-items:center;gap:8px}
+.wz2-grid{display:grid;grid-template-columns:212px 1fr}
+.wz2-side{border-right:1px solid var(--fk-border);background:var(--fk-bg-subtle);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+.wz2-side-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--fk-text-muted);padding:4px 8px 8px}
+.wz2-ni{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:none;background:none;font-family:inherit;font-size:13px;color:var(--fk-text-muted);padding:7px 8px;border-radius:8px;cursor:pointer;transition:background .12s,color .12s}
+.wz2-ni:hover{background:var(--fk-subtle-hover,rgba(0,0,0,.05));color:var(--fk-text)}
+.wz2-ni.cur{background:var(--fk-bg-card);color:var(--fk-text);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.wz2-ni-ic{width:21px;height:21px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;background:var(--fk-bg-card);border:1px solid var(--fk-border);color:var(--fk-text-muted)}
+.wz2-ni-ic.cur{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff}
+.wz2-ni-ic.done{background:var(--fk-success);border-color:var(--fk-success);color:#fff}
+.wz2-ni-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wz2-main{padding:22px;min-height:248px}
+.wz2-stepno{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-primary);margin-bottom:6px}
+.wz2-title{font-size:21px;font-weight:800;letter-spacing:-.4px;color:var(--fk-text);margin:0 0 5px;line-height:1.15}
+.wz2-desc{font-size:14px;color:var(--fk-text-muted);margin:0 0 18px;line-height:1.5}
+.wz2-content{font-size:14px}
+@media(max-width:640px){ .wz2-grid{grid-template-columns:1fr} .wz2-side{display:none} .wz2-main{padding:18px} }
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -3866,19 +3886,38 @@ function _fbWizForkView(){
   </div>`;
 }
 const _FBWIZ_TITLES={1:'Create your Business Manager',2:'Add your Facebook Page',3:'Create your lead form',4:'Create your Meta app',5:'Add the tools your app needs',6:'Add privacy policy & go Live',7:'Turn on lead notifications',8:'Link your Page & grant leads access',9:'Connect Facebook',10:'Connection health',11:'Facebook can reach your CRM',12:'Send a test lead'};
+const _FBWIZ_DESC={
+  1:'Set up your company’s Meta Business account.',
+  2:'Add the Facebook Page your leads come from.',
+  3:'Make the form people fill in (name, phone).',
+  4:'Create the app that connects your Page to the CRM.',
+  5:'Switch on Webhooks and Facebook Login in your app.',
+  6:'Add a privacy policy URL and make the app Live.',
+  7:'Tell Facebook to send new leads to your CRM.',
+  8:'Connect your Page to your app and allow lead access.',
+  9:'Sign in and link your Page to the CRM.',
+  10:'We check your connection is valid.',
+  11:'We confirm Facebook can reach your CRM.',
+  12:'Send one test lead to confirm it all works.'
+};
+function _fbWizNavList(){
+  const a=_fbWizSteps(), cur=FBWIZ.step;
+  return a.map((n,i)=>{ const st=_fbWizStatus(n), isCur=(n===cur);
+    const ic = st==='done' ? `<span class="wz2-ni-ic done">${li('check',12,3)}</span>` : `<span class="wz2-ni-ic${isCur?' cur':''}">${i+1}</span>`;
+    return `<button class="wz2-ni${isCur?' cur':''}" onclick="_fbWizGo(${n})">${ic}<span class="wz2-ni-t">${esc(_FBWIZ_TITLES[n]||'')}</span></button>`;
+  }).join('');
+}
 function _fbWizRender(){
   const host=$(FB_HOST_ID||'fb-host'); if(!host) return;
   if(!FB_CANWRITE){ FBWIZ=null; return _fbModuleInto(FB_HOST_ID||'fb-host'); }   // director read-only
   if(!FBWIZ.mode){ host.innerHTML=_fbWizForkView(); return; }   // one-time upfront fork
   if(_fbWizAllDone()){ host.innerHTML=_fbWizDoneView(); return; }
   const active=_fbWizSteps(); const step=FBWIZ.step||active[0];
-  const done=active.filter(n=>_fbWizStatus(n)==='done').length;
-  const pct=Math.round(done/active.length*100);
   const pos=active.indexOf(step)+1;
   host.innerHTML=`<div class="card wzcard" id="fbwiz-card">
-    <div class="wz-head">
-      <div><div class="wz-title">Set up Facebook leads</div><div class="wz-sub">Step ${pos} of ${active.length} — ${esc(_FBWIZ_TITLES[step]||'')}</div></div>
-      <div class="wz-head-r">
+    <div class="wz2-top">
+      <div class="wz2-top-t">Set up Facebook leads</div>
+      <div class="wz2-top-r">
         <div class="fbwiz-modetog" title="How much setup the wizard walks you through">
           <button class="${FBWIZ.mode==='new'?'on':''}" onclick="_fbWizSetMode('new')">Full</button>
           <button class="${FBWIZ.mode==='exp'?'on':''}" onclick="_fbWizSetMode('exp')">Experienced</button>
@@ -3886,8 +3925,15 @@ function _fbWizRender(){
         <button class="wz-x" title="Close" onclick="_fbWizCloseToList()">${li('x',16,2.2)}</button>
       </div>
     </div>
-    <div class="wz-prog"><i style="width:${pct}%"></i></div>
-    <div class="wz-body">${_fbWizStepView(step)}</div>
+    <div class="wz2-grid">
+      <aside class="wz2-side"><div class="wz2-side-h">Setup steps</div>${_fbWizNavList()}</aside>
+      <section class="wz2-main">
+        <div class="wz2-stepno">Step ${pos} of ${active.length}</div>
+        <h1 class="wz2-title">${esc(_FBWIZ_TITLES[step]||'')}</h1>
+        <div class="wz2-desc">${esc(_FBWIZ_DESC[step]||'')}</div>
+        <div class="wz2-content">${_fbWizStepView(step)}</div>
+      </section>
+    </div>
     <div class="wz-foot">
       <div class="wz-foot-l">
         <button class="btn btn-sm" onclick="_fbWizReset()">Reset</button>
@@ -3978,15 +4024,14 @@ function _fbWizStepView(n){
   if(n===7){
     const c=_fbWizConn();
     const verify = c&&c.verify_token ? c.verify_token : null;
-    return _fbWizBody('manual','Turn on lead notifications',
-      `<p class="wzs-text">In your app open <b>Webhooks</b> → the <b>Page</b> object → find <b>leadgen</b> → switch <b>Subscribe</b> ON. When asked, paste these:</p>
+    return `<p class="wzs-text">In your app open <b>Webhooks</b> → the <b>Page</b> object → find <b>leadgen</b> → switch <b>Subscribe</b> ON. When asked, paste these:</p>
        <div class="fbwiz-field"><div class="label">Callback URL</div>${_fbWizCopy(FB_WEBHOOK_URL)}</div>
        <div class="fbwiz-field"><div class="label">Verify Token <span class="fbwiz-mut">· auto-generated</span></div>${
          verify ? _fbWizCopy(verify)
                 : '<div class="fbwiz-note">'+li('info',14,2)+' Created automatically when you connect your Page (the Connect step). Do that first, then come back here to copy it.</div>'
        }</div>
        <div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>
-       ${_fbWizHelp('This tells Facebook to ping your CRM the instant a lead comes in.','Pick the <b>Page</b> object (not “Application”), find <b>leadgen</b>, press <b>Subscribe</b>. It confirms at the verify-ping step.')}`);
+       ${_fbWizHelp('This tells Facebook to ping your CRM the instant a lead comes in.','Pick the <b>Page</b> object (not “Application”), find <b>leadgen</b>, press <b>Subscribe</b>. It confirms at the verify-ping step.')}`;
   }
 
   // ── 8. Link Page + Leads Access ──
@@ -4000,22 +4045,20 @@ function _fbWizStepView(n){
 
   // ── 9. Connect — give the CRM your app keys, then OAuth via YOUR app (footer drives the action) ──
   if(n===9){
-    if(_fbWizConn()) return _fbWizBody('auto','Facebook connected', `<div class="fbwiz-ok">${li('check-circle',16,2)} Your Page is connected. The automatic checks are next.</div>`);
+    if(_fbWizConn()) return `<div class="fbwiz-ok">${li('check-circle',16,2)} Your Page is connected. The automatic checks are next.</div>`;
     const cfg=FBWIZ.appcfg||{}; const haveKeys=!!(cfg.app_id&&cfg.has_secret);
     if(!haveKeys || FBWIZ.editKeys){
-      return _fbWizBody('connect','Link your app to the CRM',
-        `<p class="wzs-text">Give the CRM your app’s keys so it connects <b>through your own app</b>. Find them in your app → <b>App settings → Basic</b>.</p>
+      return `<p class="wzs-text">First, give the CRM your app’s keys so it connects <b>through your own app</b> — find them in your app → <b>App settings → Basic</b>.</p>
          <div class="fbwiz-field"><div class="label">1 · Whitelist this redirect <span class="fbwiz-mut">· Facebook Login → Valid OAuth Redirect URIs</span></div>${_fbWizCopy(FB_OAUTH_REDIRECT_URL)}</div>
          <div class="fbwiz-field"><div class="label">2 · App ID</div><input class="input" id="fbk-appid" value="${esc(cfg.app_id||'')}" placeholder="e.g. 123456789012345" autocomplete="off"></div>
          <div class="fbwiz-field"><div class="label">3 · App Secret ${cfg.has_secret?'<span class="fbwiz-mut">· saved ••••</span>':''}</div><input class="input" id="fbk-secret" type="password" autocomplete="off" placeholder="${cfg.has_secret?'Leave blank to keep current':'Paste your App secret'}"></div>
          <div id="fbk-err" class="le-err" style="display:none"></div>
          ${haveKeys?`<div class="wzs-actions"><button class="btn btn-sm" onclick="FBWIZ.editKeys=false;_fbWizRender()">Cancel change</button></div>`:''}
-         ${_fbWizHelp('Your App ID is public; the secret stays on the server and is never shown again.','Keys are in App settings → Basic (click Show on the secret). Also add the redirect above under Facebook Login → Settings.')}`);
+         ${_fbWizHelp('Your App ID is public; the secret stays on the server and is never shown again.','Keys are in App settings → Basic (click Show on the secret). Also add the redirect above under Facebook Login → Settings.')}`;
     }
-    return _fbWizBody('connect','Connect Facebook',
-      `<p class="wzs-text">Press <b>Connect Facebook</b> below, sign in, pick the Page(s) you set up, and choose each one’s project. The CRM gets the token automatically — you never copy it.</p>
+    return `<p class="wzs-text">Press <b>Connect Facebook</b> below, sign in, pick the Page(s) you set up, and choose each one’s project. The CRM gets the token automatically — you never copy it.</p>
        <div class="wzs-actions"><button class="btn btn-sm" onclick="FBWIZ.editKeys=true;_fbWizRender()">Change app keys</button></div>
-       ${_fbWizHelp('','A pop-up opens — allow pop-ups if blocked. “URL blocked” = the redirect isn’t whitelisted in your app’s Facebook Login settings (Change app keys).')}`);
+       ${_fbWizHelp('','A pop-up opens — allow pop-ups if blocked. “URL blocked” = the redirect isn’t whitelisted in your app’s Facebook Login settings (Change app keys).')}`;
   }
 
   // ── 10. Token check (AUTO) ──
@@ -4024,8 +4067,7 @@ function _fbWizStepView(n){
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} Token valid${t.token_app_id?` · App ID <b>${esc(String(t.token_app_id))}</b>`:''}${t.token_expires_at?` · expires ${t.token_expires_at==='never'?'never':esc(fdate(t.token_expires_at))}`:''}</div>`
       : `<div class="fbwiz-bad">${li('alert-triangle',16,2)} ${esc((t&&(t.message||t.error))||'Not checked yet — press Check below.')}</div>`;
-    return _fbWizBody('auto','Connection health',
-      `<p class="wzs-text">The CRM checks the token is valid and which app it belongs to.</p>${detail}${_fbWizHelp('','“Invalid/expired” = use Connect Facebook again, accepting all permissions.')}`);
+    return `<p class="wzs-text">The CRM checks the token is valid and which app it belongs to.</p>${detail}${_fbWizHelp('','“Invalid/expired” = use Connect Facebook again, accepting all permissions.')}`;
   }
 
   // ── 11. Verify ping (AUTO) ──
@@ -4034,8 +4076,7 @@ function _fbWizStepView(n){
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} Facebook’s verification ping reached your CRM${h&&h.last_verify_at?` on ${esc(fdate(h.last_verify_at))}`:''}.</div>`
       : `<div class="fbwiz-bad">${li('clock',16,2)} No ping yet. Make sure leadgen Subscribe is ON, then press Check.</div>`;
-    return _fbWizBody('auto','Facebook can reach your CRM',
-      `<p class="wzs-text">When you turned on lead notifications, Facebook sends a one-time ping. We confirm it arrived.</p>${detail}<div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>${_fbWizHelp('','No ping? Confirm Page → leadgen is Subscribed and the Callback URL matches, re-press Subscribe, then Check.')}`);
+    return `<p class="wzs-text">When you turned on lead notifications, Facebook sends a one-time ping. We confirm it arrived.</p>${detail}<div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>${_fbWizHelp('','No ping? Confirm Page → leadgen is Subscribed and the Callback URL matches, re-press Subscribe, then Check.')}`;
   }
 
   // ── 12. Test lead (MANUAL → AUTO) ──
@@ -4044,8 +4085,7 @@ function _fbWizStepView(n){
     const detail = ok
       ? `<div class="fbwiz-ok">${li('check-circle',16,2)} A test lead arrived. You can delete it in the Testing Tool now.</div>`
       : `<div class="fbwiz-bad">${li('clock',16,2)} No lead yet. Create one in the Testing Tool, wait for <b>Success</b>, then press Check.</div>`;
-    return _fbWizBody('manual','Send a test lead',
-      `<p class="wzs-text">Open the Lead Ads Testing Tool, pick your Page + form, create a test lead, and wait for <b>Success</b> — the CRM detects it automatically.</p>${detail}<div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.testTool,'Open Lead Ads Testing Tool')}</div>${_fbWizHelp('','“Pending” forever = app not Live or leadgen not subscribed. Nothing arrives = Page not linked / Leads Access missing.')}`);
+    return `<p class="wzs-text">Open the Lead Ads Testing Tool, pick your Page + form, create a test lead, and wait for <b>Success</b> — the CRM detects it automatically.</p>${detail}<div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.testTool,'Open Lead Ads Testing Tool')}</div>${_fbWizHelp('','“Pending” forever = app not Live or leadgen not subscribed. Nothing arrives = Page not linked / Leads Access missing.')}`;
   }
   return '';
 }
@@ -4058,7 +4098,7 @@ function _fbWizHelp(what,stuck){
   return `<details class="wzs-help"><summary>Need help?</summary><div>${what?`<p>${what}</p>`:''}${stuck?`<p>${stuck}</p>`:''}</div></details>`;
 }
 function _fbWizManualStep(n,title,lead,links,_shot,what,stuck){
-  return _fbWizBody('manual', title, `<p class="wzs-text">${lead}</p>${links?`<div class="wzs-actions">${links}</div>`:''}${_fbWizHelp(what,stuck)}`);
+  return `<p class="wzs-text">${lead}</p>${links?`<div class="wzs-actions">${links}</div>`:''}${_fbWizHelp(what,stuck)}`;
 }
 function _fbWizAutoDone(title,msg){ return `<div class="fbwiz-step"><div class="fbwiz-h"><span class="fbwiz-badge auto">Automatic</span><h3>${esc(title)}</h3></div><div class="fbwiz-ok">${li('check-circle',16,2)} ${esc(msg)}</div></div>`; }
 function _fbWizDoneView(){
