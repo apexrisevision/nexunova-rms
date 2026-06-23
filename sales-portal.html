@@ -1120,6 +1120,10 @@ body{background:var(--nx-page)}
 .le2-card-t{font-size:17px;font-weight:700;letter-spacing:-.2px;color:var(--fk-text);margin:0}
 .le2-card-s{font-size:13px;color:var(--fk-text-muted);line-height:1.5;margin-top:3px}
 @media(max-width:560px){ .le2-stat{padding:11px 14px} .le2-stat-n{font-size:18px} .le2-title{font-size:20px} }
+/* website snippet code block (monospace only for literal code to copy) */
+.web-code{position:relative}
+.web-code pre{margin:0;padding:12px 14px 12px;padding-right:74px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;color:var(--fk-text);white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+.web-code-copy{position:absolute;top:8px;right:8px}
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -1300,6 +1304,7 @@ body{background:var(--nx-page)}
       <a class="ni" data-tab="leadentry" data-le style="display:none" onclick="setTab('leadentry')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ni-lb">Add Manual Lead</span></a>
       <a class="ni" data-tab="myleads" data-le style="display:none" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
       <a class="ni" data-tab="fbconnect" data-le style="display:none" onclick="setTab('fbconnect')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Connect Facebook</span></a>
+      <a class="ni" data-tab="webleads" data-le style="display:none" onclick="setTab('webleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span class="ni-lb">Website Leads</span></a>
       <div class="ni-grp" data-grp="leads" style="display:none">
         <div class="ni-grp-hd" onclick="toggleGroup('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
         <div class="ni-sub">
@@ -1833,14 +1838,15 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',webleads:'Website Leads',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
-  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
+  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','webleads','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='leadentry') renderLeadEntry();
   else if(t==='myleads') renderMyLeads();
   else if(t==='fbconnect') renderFbConnect();
+  else if(t==='webleads') renderWebLeads();
   else if(t==='home') renderHome();
   else if(t==='leads') renderLeads();
   else if(t==='board') renderBoard();
@@ -2455,6 +2461,8 @@ function _dupOwnedDialog(d){
 const LE_SOURCES=[['facebook','Facebook'],['whatsapp','WhatsApp'],['instagram','Instagram'],['manual','Manual']];
 let LE_VIEW='add', LE_FORM={}, LE_ENTERED={rows:[],today:0}, LE_ADSPEND={rows:[],monthly:[]}, LE_FBCOUNT=0;
 let LE_PROJECTS=[];   // company projects for the lead-entry Project dropdown (token-scoped via list_my_projects)
+let WEBCFG=null;      // website lead-capture config (intake key + default project)
+const WEB_LEAD_ENDPOINT='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/web-lead';
 function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
 function _leProjOpts(sel){ const own=(ME&&ME.company_name)||''; return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>{ const co=(p.company_name&&p.company_name!==own)?(' · '+p.company_name):''; return `<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${co?esc(co):(p.code?' ('+esc(p.code)+')':'')}</option>`; }).join(''); }
 function _resolveProjId(t){ t=String(t||'').trim().toLowerCase(); if(!t) return ''; const p=LE_PROJECTS.find(x=>String(x.name||'').toLowerCase()===t||String(x.code||'').toLowerCase()===t); return p?p.id:''; }
@@ -2479,10 +2487,16 @@ async function _leLoad(){
 async function renderLeadEntry(){ LE_VIEW='add';     $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>'; if(await _leLoad()){ _touch(); _leRender(); } }
 async function renderMyLeads(){   LE_VIEW='entered'; $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>'; if(await _leLoad()){ _touch(); _leRender(); } }
 async function renderFbConnect(){ LE_VIEW='fb';      $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>'; if(await _leLoad()){ _touch(); _leRender(); } }
+async function renderWebLeads(){ LE_VIEW='web';      $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!(await _leLoad())) return;
+  try{ const r=await sb.rpc('get_web_lead_config',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); WEBCFG=(r.data&&r.data.success)?r.data:null; }catch(e){ return sessionGone(); }
+  _touch(); _leRender();
+}
 const LE_SCREENS={
   add:{t:'Add a manual lead',d:'Type a lead in by hand — it goes to the director’s pool for distribution.'},
   entered:{t:'My leads',d:'Leads you’ve added — now in the director’s pool.'},
-  fb:{t:'Connect Facebook',d:'Connect your Page so Facebook lead-form submissions arrive in the CRM automatically.'}
+  fb:{t:'Connect Facebook',d:'Connect your Page so Facebook lead-form submissions arrive in the CRM automatically.'},
+  web:{t:'Website Leads',d:'Capture leads straight from your website’s contact form into the CRM.'}
 };
 function _leRender(){
   const sc=LE_SCREENS[LE_VIEW]||LE_SCREENS.add;
@@ -2490,11 +2504,63 @@ function _leRender(){
   let html='<div class="nx-dash le-pro">'+_leHero(sc.t,sc.d)+'<div class="lep-panel">';
   if(LE_VIEW==='add') html+=_leAddForm();
   else if(LE_VIEW==='fb') html+='<div id="fb-host"><div class="card"><div class="empty"><div class="et">Loading…</div></div></div></div>';
+  else if(LE_VIEW==='web') html+=_leWebPanel();
   else html+=_leEnteredList();
   html+='</div></div>';
   $('app-body').innerHTML=html;
   if(LE_VIEW==='fb'){ FB_CANWRITE=true; _fbModuleInto('fb-host'); }   // FB connect screen — content unchanged
 }
+// ── Website Leads panel (same template/components as the other operator screens) ──
+function _leWebPanel(){
+  const key=(WEBCFG&&WEBCFG.intake_key)||'';
+  const snippet='<form action="'+WEB_LEAD_ENDPOINT+'" method="POST">\n'
+    +'  <input type="hidden" name="key" value="'+key+'">\n'
+    +'  <input name="name" placeholder="Your name" required>\n'
+    +'  <input name="phone" placeholder="Phone number" required>\n'
+    +'  <input name="email" placeholder="Email (optional)">\n'
+    +'  <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" style="display:none">\n'
+    +'  <button type="submit">Send</button>\n'
+    +'</form>';
+  return `<div class="card le-card">
+    ${_leCardHd('','','','Your website endpoint','Point your website’s form here. Leads arrive in the director’s pool, tagged “website”.')}
+    <div class="fbwiz-field"><div class="label">Endpoint URL</div>${_fbWizCopy(WEB_LEAD_ENDPOINT)}</div>
+    <div class="fbwiz-field"><div class="label">Your intake key <span class="fbwiz-mut">· keep this inside the form</span></div>${_fbWizCopy(key)}</div>
+    <div class="field"><label class="label">Tag website leads to project (optional)</label><select class="input" onchange="_webSetProject(this.value)">${_leProjOpts(WEBCFG&&WEBCFG.default_project_id)}</select></div>
+    <div class="wzs-actions"><button class="btn btn-primary btn-sm" onclick="_webSendTest(this)">Send a test lead</button><button class="btn btn-sm" onclick="_webRegen()">Regenerate key</button></div>
+  </div>
+  <div class="card le-card">
+    ${_leCardHd('','','','Add this form to your website','Paste this where you want the contact form. Works on any site (plain HTML, WordPress, etc.).')}
+    <div class="fbwiz-field"><div class="label">HTML form snippet</div>${_webCodeBlock(snippet)}</div>
+    <details class="wzs-help"><summary>Developer: send via API instead</summary><div>POST JSON to the endpoint with <code>key</code>, <code>name</code>, <code>phone</code>, <code>email</code> (and optional <code>project_id</code>). A <code>200 {"success":true}</code> means the lead was saved.</div></details>
+  </div>`;
+}
+function _webCodeBlock(text){
+  const id='wcb'+Math.random().toString(36).slice(2,8);
+  return `<div class="web-code"><pre id="${id}">${esc(text)}</pre><button class="btn btn-sm web-code-copy" onclick="_webCopyFrom('${id}')">${li('copy',14,2)} Copy</button></div>`;
+}
+function _webCopyFrom(id){ const el=$(id); if(!el) return; const t=el.textContent||'';
+  try{ navigator.clipboard.writeText(t); toast('Copied','ok'); }
+  catch(e){ const r=document.createRange(); r.selectNode(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); try{document.execCommand('copy');}catch(_){} s.removeAllRanges(); toast('Copied','ok'); } }
+async function _webSetProject(v){ try{ await sb.rpc('set_web_lead_config',{p_session_token:TOKEN,p_action:'project',p_project_id:v||null}); if(WEBCFG) WEBCFG.default_project_id=v||null; toast('Saved','ok'); }catch(e){ toast('Could not save','err'); } }
+async function _webSendTest(btn){
+  if(!WEBCFG||!WEBCFG.intake_key){ toast('No key yet','err'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  try{ const r=await fetch(WEB_LEAD_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key:WEBCFG.intake_key,name:'Website test '+new Date().toLocaleTimeString(),phone:'0300'+Math.floor(1000000+Math.random()*8999999)})});
+    const j=await r.json();
+    if(j&&j.success) toast('Test lead sent ✓ — it’s now in the director’s pool (ask them to delete it)','ok');
+    else toast((j&&j.message)||'Test failed','err');
+  }catch(e){ toast('Test failed — check your connection','err'); }
+  if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
+}
+function _webRegen(){
+  openModal('Regenerate key?',
+    '<div style="font-size:14px;color:var(--fk-text);line-height:1.55">This makes a new intake key. Any form still using the old key will stop sending leads until you paste the new key into it.</div>',
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger-soft" onclick="_webDoRegen()">Regenerate</button>`);
+}
+async function _webDoRegen(){ try{ const r=await sb.rpc('set_web_lead_config',{p_session_token:TOKEN,p_action:'regenerate'});
+    if(r.data&&r.data.success){ if(typeof closeModal==='function') closeModal(); renderWebLeads(); toast('New key generated','ok'); }
+    else toast('Could not regenerate','err'); }catch(e){ toast('Could not regenerate','err'); } }
 // ── redesigned lead-entry building blocks ──
 function _leKpis(){
   const today=(LE_ENTERED&&LE_ENTERED.today)||0;
