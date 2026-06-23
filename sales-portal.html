@@ -1133,6 +1133,16 @@ body{background:var(--nx-page)}
 .wa-conn-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
 .wa-conn-n{font-size:var(--ts-body);font-weight:700;color:var(--fk-text)}
 .wa-conn-s{font-size:var(--ts-small);color:var(--fk-text-muted);margin-top:2px}
+/* Connections / health overview (one scale) */
+.co-hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.co-mng{border:none;background:none;font-family:inherit;font-size:var(--ts-small);font-weight:600;color:var(--fk-primary);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.co-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--fk-border);flex-wrap:wrap}
+.co-row:first-of-type{border-top:0}
+.co-src{display:flex;align-items:center;gap:8px;font-size:var(--ts-body);font-weight:600;color:var(--fk-text)}
+.co-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:var(--ts-small);color:var(--fk-text-muted)}
+.co-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.co-dot.ok{background:var(--fk-success)} .co-dot.warn{background:var(--fk-warning)} .co-dot.off{background:var(--fk-text-muted)}
+.co-empty{font-size:var(--ts-small);color:var(--fk-text-muted);display:flex;align-items:center;gap:8px;padding:4px 0}
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
 </style>
 </head>
@@ -1312,6 +1322,7 @@ body{background:var(--nx-page)}
       <a class="ni" data-tab="home" onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <a class="ni" data-tab="leadentry" data-le style="display:none" onclick="setTab('leadentry')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ni-lb">Add Manual Lead</span></a>
       <a class="ni" data-tab="myleads" data-le style="display:none" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
+      <a class="ni" data-tab="conn" data-le style="display:none" onclick="setTab('conn')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="ni-lb">Connections</span></a>
       <a class="ni" data-tab="fbconnect" data-le style="display:none" onclick="setTab('fbconnect')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Connect Facebook</span></a>
       <a class="ni" data-tab="webleads" data-le style="display:none" onclick="setTab('webleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span class="ni-lb">Website Leads</span></a>
       <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
@@ -1849,13 +1860,14 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
-  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','fbconnect','webleads','whatsapp','igdm','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
+  if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t==='leadentry') renderLeadEntry();
   else if(t==='myleads') renderMyLeads();
+  else if(t==='conn') renderConnections();
   else if(t==='fbconnect') renderFbConnect();
   else if(t==='webleads') renderWebLeads();
   else if(t==='whatsapp') renderWhatsApp();
@@ -2480,6 +2492,7 @@ let WACONNS=[];       // connected WhatsApp numbers
 const WA_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/wa-leads-webhook';
 let IGCONNS=[];       // connected Instagram accounts (Direct Messages)
 const IG_WEBHOOK_URL='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/ig-leads-webhook';
+let CONNOV=null;      // connections overview / health snapshot
 function _leBldgSvg(){ return '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>'; }
 function _leProjOpts(sel){ const own=(ME&&ME.company_name)||''; return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>{ const co=(p.company_name&&p.company_name!==own)?(' · '+p.company_name):''; return `<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${co?esc(co):(p.code?' ('+esc(p.code)+')':'')}</option>`; }).join(''); }
 function _resolveProjId(t){ t=String(t||'').trim().toLowerCase(); if(!t) return ''; const p=LE_PROJECTS.find(x=>String(x.name||'').toLowerCase()===t||String(x.code||'').toLowerCase()===t); return p?p.id:''; }
@@ -2519,9 +2532,15 @@ async function renderInstagram(){ LE_VIEW='ig';      $('app-body').innerHTML='<d
   try{ const r=await sb.rpc('list_instagram_connections',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); IGCONNS=(r.data&&r.data.success)?(r.data.connections||[]):[]; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
 }
+async function renderConnections(){ LE_VIEW='conn';   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!(await _leLoad())) return;
+  try{ const r=await sb.rpc('get_connections_overview',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); CONNOV=(r.data&&r.data.success)?r.data:{}; }catch(e){ return sessionGone(); }
+  _touch(); _leRender();
+}
 const LE_SCREENS={
   add:{t:'Add a manual lead',d:'Type a lead in by hand — it goes to the director’s pool for distribution.'},
   entered:{t:'My leads',d:'Leads you’ve added — now in the director’s pool.'},
+  conn:{t:'Connections',d:'The health of every lead source connected to your CRM.'},
   fb:{t:'Connect Facebook',d:'Connect your Page so Facebook lead-form submissions arrive in the CRM automatically.'},
   web:{t:'Website Leads',d:'Capture leads straight from your website’s contact form into the CRM.'},
   wa:{t:'WhatsApp',d:'Turn messages to your WhatsApp Business number into leads (WhatsApp Cloud API).'},
@@ -2536,6 +2555,7 @@ function _leRender(){
   else if(LE_VIEW==='web') html+=_leWebPanel();
   else if(LE_VIEW==='wa') html+=_leWaPanel();
   else if(LE_VIEW==='ig') html+=_leIgPanel();
+  else if(LE_VIEW==='conn') html+=_leConnPanel();
   else html+=_leEnteredList();
   html+='</div></div>';
   $('app-body').innerHTML=html;
@@ -2698,6 +2718,28 @@ async function _igSendTest(igid,btn){
     else toast('Test failed — make sure the account is saved','err');
   }catch(e){ toast('Test failed — check your connection','err'); }
   if(btn){ btn.disabled=false; btn.textContent='Send a test lead'; }
+}
+// ── Connections / health overview (every lead source in one place) ──
+function _coCard(title, manageTab, manageLabel, bodyHtml){
+  return `<div class="card le-card">
+    <div class="le2-card-hd co-hd"><h2 class="le2-card-t">${esc(title)}</h2><button class="co-mng" onclick="setTab('${manageTab}')">${esc(manageLabel||'Manage')} ${li('arrow-right',12,2)}</button></div>
+    ${bodyHtml}
+  </div>`;
+}
+function _leConnPanel(){
+  const o=CONNOV||{};
+  const dot=(cls)=>`<span class="co-dot ${cls}"></span>`;
+  const row=(name,cls,meta)=>`<div class="co-row"><div class="co-src">${dot(cls)}<span>${esc(name)}</span></div><div class="co-meta">${meta.filter(Boolean).map(m=>'<span>'+esc(m)+'</span>').join('')}</div></div>`;
+  const empty=(msg)=>`<div class="co-empty">${li('inbox',16,2)} ${esc(msg)}</div>`;
+  const leadStr=(n)=>(n||0)+' lead'+((n||0)===1?'':'s');
+  const connRows=(arr,emptyMsg)=>{ arr=arr||[]; if(!arr.length) return empty(emptyMsg);
+    return arr.map(c=>row(c.name||'—', (c.active===false?'off':(c.last_event?'ok':'warn')), [ leadStr(c.leads), 'last '+(c.last_event?fdate(c.last_event):'—'), c.project ])).join(''); };
+  const web=o.website||{};
+  const webBody = web.configured ? row('Website form','ok',[ leadStr(web.leads), 'Live' ]) : empty('Not set up yet.');
+  return _coCard('Facebook','fbconnect','Manage', connRows(o.facebook,'No Facebook Page connected.'))
+       + _coCard('Website','webleads','Manage', webBody)
+       + _coCard('WhatsApp','whatsapp','Manage', connRows(o.whatsapp,'No WhatsApp number connected.'))
+       + _coCard('Instagram','igdm','Manage', connRows(o.instagram,'No Instagram account connected.'));
 }
 // ── redesigned lead-entry building blocks ──
 function _leKpis(){
