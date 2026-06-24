@@ -15,6 +15,9 @@ function _rClientName(id) { const c = (window._clientsCache || []).find(x => x.i
 function _rUnitNo(unitId) { const u = (window._unitsCache || []).find(x => x.id === unitId); return u ? ((u.unitNo || u.unit_no || '') + (u.floorLabel ? ' · ' + u.floorLabel : '')) : ''; }
 function _rMode(m) { m = String(m || '').toLowerCase(); if (m.includes('cash')) return 'Cash'; if (m.includes('cheque') || m.includes('pdc') || m.includes('cdc')) return 'Cheque'; if (m.includes('online') || m.includes('ibft') || m.includes('transfer')) return 'Online'; if (m.includes('bank') || m.includes('deposit')) return 'Bank'; return m ? (m[0].toUpperCase() + m.slice(1)) : 'Other'; }
 function _rAgingBucket(d) { d = Number(d || 0); if (d <= 0) return 'Current'; if (d <= 30) return '0–30'; if (d <= 60) return '31–60'; if (d <= 90) return '61–90'; if (d <= 180) return '91–180'; return '180+'; }
+// Portfolio Summary cell bands (hex so they survive both screen + the print frame).
+function _rPctCell(v) { v = Number(v || 0); const c = v >= 70 ? '#15803d' : (v >= 40 ? '#b45309' : '#dc2626'); return '<span style="color:' + c + ';font-weight:600">' + v.toFixed(1) + '%</span>'; }
+function _rStatusCell(v) { const s = String(v || ''); const c = /cancel/i.test(s) ? '#dc2626' : '#15803d'; return '<span style="color:' + c + ';font-weight:600">' + esc(s) + '</span>'; }
 
 // ── The 8 reports: meta (hub) + config (NXReport). recovery_position = meta only. ──
 const REPORTS = {
@@ -227,6 +230,19 @@ const REPORTS = {
       }
     } },
 
+  // Portfolio Summary — director one-page, as-on-date snapshot of EVERY unit.
+  // Spine = get_portfolio_summary, which reuses get_recovery_position for the active
+  // net/received (so it ties to Recovery Position to the rupee) and adds area · rate ·
+  // status · sale-person. Floor sub-totals + grand total; cancelled kept separate.
+  portfolio: { meta: { title: 'Portfolio Summary', group: 'OPERATIONS', desc: 'All units, as on date — area, rate, gross, discount, net, received, balance, recovery % · floor sub-totals + grand total' },
+    config: {
+      id: 'portfolio', title: 'Portfolio Summary', group: 'OPERATIONS', orientation: 'landscape',
+      description: 'One-page snapshot of every unit as on date — price, received, balance & recovery %, grouped by floor with a grand total',
+      filters: [{ kind: 'project' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Active' }, { v: 'all', l: 'All (incl. cancelled)' }, { v: 'cancelled', l: 'Cancelled' }] }, { kind: 'daterange', openStart: true }],
+      fetch: f => supabase.rpc('get_portfolio_summary', { p_company_id: S.cid, p_project_id: f.project || null, p_to_date: f.to || td(), p_status: f.status || 'active' }).then(r => { if (r.error) throw r.error; return r.data; }),
+      transform: (data, f) => _portfolioTransform(data, f)
+    } },
+
   // Report #9 — Officer Performance. Per-officer recovery scorecard over a period:
   // recovered (with the OLD/CURRENT FIFO split), promise keep-rate (fair + strict),
   // calls, field visits, escalations. Feeds off the same get_team_performance RPC
@@ -391,6 +407,87 @@ function _unitStatementTransform(data, f) {
 //   B = this-month-start..this-month-end → due_period (this month's installment),
 //       received_total (received this month, to date — no future receipts exist).
 // Net Due Now is signed: a negative value means the client is in advance / credit.
+// Portfolio Summary transform — flat as-on rows from get_portfolio_summary →
+// floor groups (sub-totals) + grand total. In the All / Cancelled views the
+// cancelled units are shown in a clearly-labelled separate section and are NEVER
+// folded into the active grand total, so cancelled money is never mistaken for
+// active outstanding.
+function _portfolioTransform(data, f) {
+  const rows = (data && data.rows) || [];
+  const asOn = (data && data.as_on) || td();
+  const view = (f && f.status) || 'active';
+  const active = rows.filter(r => String(r.status) !== 'cancelled');
+  const cancelled = rows.filter(r => String(r.status) === 'cancelled');
+
+  const columns = [
+    { key: 'unit', label: 'Unit' },
+    { key: 'floor', label: 'Floor' },
+    { key: 'area', label: 'Area', num: true },
+    { key: 'rate', label: 'Rate/sqft', num: true, fmt: 'money' },
+    { key: 'gross', label: 'Gross Price', num: true, fmt: 'money' },
+    { key: 'discount', label: 'Discount', num: true, fmt: 'money' },
+    { key: 'net', label: 'Net Payable', num: true, fmt: 'money' },
+    { key: 'received', label: 'Received', num: true, fmt: 'money' },
+    { key: 'balance', label: 'Balance', num: true, fmt: 'money' },
+    { key: 'recovery', label: 'Recovery %', num: true, fmt: _rPctCell },
+    { key: 'status', label: 'Status', fmt: _rStatusCell },
+    { key: 'client', label: 'Client' },
+    { key: 'agent', label: 'Sale Person' }
+  ];
+
+  const mk = r => ({
+    unit: r.unit_no || '—',
+    floor: r.floor_name || '—',
+    area: r.area != null ? Number(r.area) : null,
+    rate: Number(r.unit_rate || 0),
+    gross: Number(r.gross || 0),
+    discount: Number(r.discount || 0),
+    net: Number(r.net || 0),
+    received: Number(r.received || 0),
+    balance: Number(r.balance || 0),
+    recovery: Number(r.recovery_pct || 0),
+    status: String(r.status) === 'cancelled' ? 'Cancelled' : 'Active',
+    client: (r.client_code ? r.client_code + ' · ' : '') + (r.client_name || '—'),
+    agent: r.agent_name || '—',
+    _click: r.sale_id ? "nav('salesdetail','" + r.sale_id + "')" : ''
+  });
+
+  const subtotal = src => {
+    const t = { gross: 0, discount: 0, net: 0, received: 0, balance: 0 };
+    src.forEach(r => { t.gross += Number(r.gross || 0); t.discount += Number(r.discount || 0); t.net += Number(r.net || 0); t.received += Number(r.received || 0); t.balance += Number(r.balance || 0); });
+    t.recovery = t.net > 0 ? Math.round(t.received / t.net * 1000) / 10 : 0;
+    return t;
+  };
+
+  const byFloor = src => {
+    const ord = {}, map = {};
+    src.forEach(r => { const fn = r.floor_name || '—'; if (!(fn in map)) { map[fn] = []; ord[fn] = (r.floor_no != null ? Number(r.floor_no) : 9999); } map[fn].push(r); });
+    return Object.keys(map).sort((a, b) => ord[a] - ord[b] || a.localeCompare(b))
+      .map(fn => { const rs = map[fn].map(mk); return { label: 'Floor · ' + fn, rows: rs, subtotal: subtotal(rs) }; });
+  };
+
+  let groups, basis, totalsLabel;
+  if (view === 'cancelled') {
+    groups = byFloor(cancelled); basis = cancelled; totalsLabel = 'GRAND TOTAL · CANCELLED';
+  } else {
+    groups = byFloor(active); basis = active; totalsLabel = 'GRAND TOTAL · ACTIVE';
+    if (view === 'all' && cancelled.length) {
+      groups.push({ label: '⚑ Cancelled units · shown separately — excluded from the active grand total', rows: cancelled.map(mk), subtotal: subtotal(cancelled) });
+    }
+  }
+  const totals = subtotal(basis);
+
+  const summary = [
+    { label: 'As on', value: fD(asOn) },
+    { label: view === 'cancelled' ? 'Cancelled units' : 'Active units', value: basis.length },
+    { label: 'Net Payable', value: totals.net, money: true },
+    { label: 'Received', value: totals.received, money: true },
+    { label: 'Balance', value: totals.balance, money: true },
+    { label: 'Recovery %', value: totals.recovery.toFixed(1) + '%' }
+  ];
+  return { columns, groups, totals, totalsLabel, summary };
+}
+
 function _clientSummaryTransform(data, f) {
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const A = (data && data.A) || [], B = (data && data.B) || [];
@@ -455,7 +552,7 @@ function rReports() {
   const groups = [
     { title: 'RECOVERY', keys: ['recovery_position', 'aging'] },
     { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement', 'client_summary'] },
-    { title: 'OPERATIONS', keys: ['collections', 'pdc', 'sales_summary', 'availability', 'team_performance'] }
+    { title: 'OPERATIONS', keys: ['portfolio', 'collections', 'pdc', 'sales_summary', 'availability', 'team_performance'] }
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
     ${NX.pageHeader('Reports', '', { icon:'bar-chart-3' })}
