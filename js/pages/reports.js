@@ -18,6 +18,8 @@ function _rAgingBucket(d) { d = Number(d || 0); if (d <= 0) return 'Current'; if
 // Portfolio Summary cell bands (hex so they survive both screen + the print frame).
 function _rPctCell(v) { v = Number(v || 0); const c = v >= 70 ? '#15803d' : (v >= 40 ? '#b45309' : '#dc2626'); return '<span style="color:' + c + ';font-weight:600">' + v.toFixed(1) + '%</span>'; }
 function _rStatusCell(v) { const s = String(v || ''); const c = /cancel/i.test(s) ? '#dc2626' : '#15803d'; return '<span style="color:' + c + ';font-weight:600">' + esc(s) + '</span>'; }
+// Truncate long client / agent names so 13 columns fit landscape; full value on hover + in Excel.
+function _rEllip(v, max) { const e = esc(v == null ? '' : String(v)); return '<span style="display:inline-block;max-width:' + max + 'px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="' + e + '">' + e + '</span>'; }
 
 // ── The 8 reports: meta (hub) + config (NXReport). recovery_position = meta only. ──
 const REPORTS = {
@@ -234,10 +236,10 @@ const REPORTS = {
   // Spine = get_portfolio_summary, which reuses get_recovery_position for the active
   // net/received (so it ties to Recovery Position to the rupee) and adds area · rate ·
   // status · sale-person. Floor sub-totals + grand total; cancelled kept separate.
-  portfolio: { meta: { title: 'Portfolio Summary', group: 'OPERATIONS', desc: 'All units, as on date — area, rate, gross, discount, net, received, balance, recovery % · floor sub-totals + grand total' },
+  portfolio: { meta: { title: 'Portfolio Summary', group: 'OPERATIONS', desc: 'All units, as on date — area, rate, gross, discount, net, received, current receivable, balance to project end, recovery % · floor sub-totals + grand total' },
     config: {
       id: 'portfolio', title: 'Portfolio Summary', group: 'OPERATIONS', orientation: 'landscape',
-      description: 'One-page snapshot of every unit as on date — price, received, balance & recovery %, grouped by floor with a grand total',
+      description: 'One-page snapshot of every unit as on date — price, received, current receivable, balance to project end & recovery %, grouped by floor with a grand total',
       filters: [{ kind: 'project' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Active' }, { v: 'all', l: 'All (incl. cancelled)' }, { v: 'cancelled', l: 'Cancelled' }] }, { kind: 'daterange', openStart: true }],
       fetch: f => supabase.rpc('get_portfolio_summary', { p_company_id: S.cid, p_project_id: f.project || null, p_to_date: f.to || td(), p_status: f.status || 'active' }).then(r => { if (r.error) throw r.error; return r.data; }),
       transform: (data, f) => _portfolioTransform(data, f)
@@ -419,42 +421,46 @@ function _portfolioTransform(data, f) {
   const active = rows.filter(r => String(r.status) !== 'cancelled');
   const cancelled = rows.filter(r => String(r.status) === 'cancelled');
 
+  // Floor is the group heading (Floor · Ground …) — not repeated as a per-row cell.
+  // Client moved to the front; Balance split into Current Receivable (due as of the
+  // as-on date) + Balance to Project End (net − received). Widths keep all 13 columns
+  // inside landscape; long client / agent names ellipsis with a hover tooltip.
   const columns = [
-    { key: 'unit', label: 'Unit' },
-    { key: 'floor', label: 'Floor' },
-    { key: 'area', label: 'Area', num: true },
-    { key: 'rate', label: 'Rate/sqft', num: true, fmt: 'money' },
-    { key: 'gross', label: 'Gross Price', num: true, fmt: 'money' },
-    { key: 'discount', label: 'Discount', num: true, fmt: 'money' },
-    { key: 'net', label: 'Net Payable', num: true, fmt: 'money' },
-    { key: 'received', label: 'Received', num: true, fmt: 'money' },
-    { key: 'balance', label: 'Balance', num: true, fmt: 'money' },
-    { key: 'recovery', label: 'Recovery %', num: true, fmt: _rPctCell },
-    { key: 'status', label: 'Status', fmt: _rStatusCell },
-    { key: 'client', label: 'Client' },
-    { key: 'agent', label: 'Sale Person' }
+    { key: 'unit', label: 'Unit', w: '56px' },
+    { key: 'client', label: 'Client', w: '150px', fmt: v => _rEllip(v, 150) },
+    { key: 'area', label: 'Area', num: true, w: '50px' },
+    { key: 'rate', label: 'Rate/sqft', num: true, fmt: 'money', w: '82px' },
+    { key: 'gross', label: 'Gross Price', num: true, fmt: 'money', w: '98px' },
+    { key: 'discount', label: 'Discount', num: true, fmt: 'money', w: '92px' },
+    { key: 'net', label: 'Net Payable', num: true, fmt: 'money', w: '100px' },
+    { key: 'received', label: 'Received', num: true, fmt: 'money', w: '100px' },
+    { key: 'current_receivable', label: 'Current Receivable', num: true, fmt: 'money', w: '104px' },
+    { key: 'balance', label: 'Balance to Project End', num: true, fmt: 'money', w: '108px' },
+    { key: 'recovery', label: 'Recovery %', num: true, fmt: _rPctCell, w: '74px' },
+    { key: 'status', label: 'Status', fmt: _rStatusCell, w: '70px' },
+    { key: 'agent', label: 'Sale Person', w: '120px', fmt: v => _rEllip(v, 120) }
   ];
 
   const mk = r => ({
     unit: r.unit_no || '—',
-    floor: r.floor_name || '—',
+    client: (r.client_code ? r.client_code + ' · ' : '') + (r.client_name || '—'),
     area: r.area != null ? Number(r.area) : null,
     rate: Number(r.unit_rate || 0),
     gross: Number(r.gross || 0),
     discount: Number(r.discount || 0),
     net: Number(r.net || 0),
     received: Number(r.received || 0),
+    current_receivable: Number(r.current_receivable || 0),
     balance: Number(r.balance || 0),
     recovery: Number(r.recovery_pct || 0),
     status: String(r.status) === 'cancelled' ? 'Cancelled' : 'Active',
-    client: (r.client_code ? r.client_code + ' · ' : '') + (r.client_name || '—'),
     agent: r.agent_name || '—',
     _click: r.sale_id ? "nav('salesdetail','" + r.sale_id + "')" : ''
   });
 
   const subtotal = src => {
-    const t = { gross: 0, discount: 0, net: 0, received: 0, balance: 0 };
-    src.forEach(r => { t.gross += Number(r.gross || 0); t.discount += Number(r.discount || 0); t.net += Number(r.net || 0); t.received += Number(r.received || 0); t.balance += Number(r.balance || 0); });
+    const t = { gross: 0, discount: 0, net: 0, received: 0, current_receivable: 0, balance: 0 };
+    src.forEach(r => { t.gross += Number(r.gross || 0); t.discount += Number(r.discount || 0); t.net += Number(r.net || 0); t.received += Number(r.received || 0); t.current_receivable += Number(r.current_receivable || 0); t.balance += Number(r.balance || 0); });
     t.recovery = t.net > 0 ? Math.round(t.received / t.net * 1000) / 10 : 0;
     return t;
   };
@@ -479,10 +485,10 @@ function _portfolioTransform(data, f) {
 
   const summary = [
     { label: 'As on', value: fD(asOn) },
-    { label: view === 'cancelled' ? 'Cancelled units' : 'Active units', value: basis.length },
     { label: 'Net Payable', value: totals.net, money: true },
     { label: 'Received', value: totals.received, money: true },
-    { label: 'Balance', value: totals.balance, money: true },
+    { label: 'Current Receivable', value: totals.current_receivable, money: true },
+    { label: 'Balance to Project End', value: totals.balance, money: true },
     { label: 'Recovery %', value: totals.recovery.toFixed(1) + '%' }
   ];
   return { columns, groups, totals, totalsLabel, summary };
