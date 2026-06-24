@@ -240,9 +240,32 @@ const REPORTS = {
     config: {
       id: 'portfolio', title: 'Portfolio Summary', group: 'OPERATIONS', orientation: 'landscape',
       description: 'One-page snapshot of every unit as on date — price, received, current receivable, balance to project end & recovery %, grouped by floor with a grand total',
-      filters: [{ kind: 'project' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Active' }, { v: 'all', l: 'All (incl. cancelled)' }, { v: 'cancelled', l: 'Cancelled' }] }, { kind: 'daterange', openStart: true }],
-      fetch: f => supabase.rpc('get_portfolio_summary', { p_company_id: S.cid, p_project_id: f.project || null, p_to_date: f.to || td(), p_status: f.status || 'active' }).then(r => { if (r.error) throw r.error; return r.data; }),
-      transform: (data, f) => _portfolioTransform(data, f)
+      filters: [{ kind: 'project' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Portfolio · Active' }, { v: 'all', l: 'Portfolio · All (incl. cancelled)' }, { v: 'cancelled', l: 'Portfolio · Cancelled' }, { v: 'demand', l: 'Demand · this month' }] }, { kind: 'daterange', openStart: true }],
+      fetch: async f => {
+        if (f.status === 'demand') {
+          // Demand view = the folded-in Recovery Demand Summary. SAME two
+          // get_recovery_position calls (A: epoch→last-month-end, B: this month) so the
+          // month math ties to the rupee; + get_portfolio_summary for floor / agent /
+          // status so the table matches the Portfolio view.
+          const t = td(), d = new Date(t + 'T00:00:00'), y = d.getFullYear(), m = d.getMonth(), pad = n => String(n).padStart(2, '0');
+          const curStart = y + '-' + pad(m + 1) + '-01';
+          const le = new Date(y, m, 0), ce = new Date(y, m + 1, 0);
+          const lastEnd = le.getFullYear() + '-' + pad(le.getMonth() + 1) + '-' + pad(le.getDate());
+          const curEnd = ce.getFullYear() + '-' + pad(ce.getMonth() + 1) + '-' + pad(ce.getDate());
+          const proj = f.project || null;
+          const [P, A, B] = await Promise.all([
+            supabase.rpc('get_portfolio_summary', { p_company_id: S.cid, p_project_id: proj, p_to_date: t, p_status: 'active' }),
+            supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: proj, p_from_date: '2000-01-01', p_to_date: lastEnd }),
+            supabase.rpc('get_recovery_position', { p_company_id: S.cid, p_project_id: proj, p_from_date: curStart, p_to_date: curEnd })
+          ]);
+          if (P.error) throw P.error; if (A.error) throw A.error; if (B.error) throw B.error;
+          return { demand: true, P: (P.data && P.data.rows) || [], A: (A.data && A.data.rows) || [], B: (B.data && B.data.rows) || [], lastEnd, curStart };
+        }
+        const r = await supabase.rpc('get_portfolio_summary', { p_company_id: S.cid, p_project_id: f.project || null, p_to_date: f.to || td(), p_status: f.status || 'active' });
+        if (r.error) throw r.error;
+        return r.data;
+      },
+      transform: (data, f) => (data && data.demand) ? _portfolioDemandTransform(data, f) : _portfolioTransform(data, f)
     } },
 
   // Report #9 — Officer Performance. Per-officer recovery scorecard over a period:
@@ -494,6 +517,84 @@ function _portfolioTransform(data, f) {
   return { columns, groups, totals, totalsLabel, summary };
 }
 
+// Demand (this month) view of Portfolio Summary — the folded-in Recovery Demand
+// Summary. Per-row math is IDENTICAL to the old report (A = get_recovery_position
+// epoch→last-month-end, B = this month), so Net Due Now ties to the rupee. Adds
+// Status + Sale Person and Portfolio's floor grouping (floor / sub-totals).
+function _portfolioDemandTransform(data, f) {
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const A = (data && data.A) || [], B = (data && data.B) || [], P = (data && data.P) || [];
+  const le = String((data && data.lastEnd) || ''), cs = String((data && data.curStart) || '');
+  const leLabel = le.length === 10 ? (Number(le.slice(8, 10)) + ' ' + MON[Number(le.slice(5, 7)) - 1]) : 'last month';
+  const monShort = cs.length >= 7 ? MON[Number(cs.slice(5, 7)) - 1] : 'This Mo';
+  const monYear = cs.length >= 7 ? (MON[Number(cs.slice(5, 7)) - 1] + ' ' + cs.slice(0, 4)) : 'This month';
+  const bById = {}; B.forEach(r => { bById[r.sale_id] = r; });
+  const pById = {}; P.forEach(r => { pById[r.sale_id] = r; });
+
+  const rows = A.map(r => {
+    const p = pById[r.sale_id] || {};
+    const bRow = bById[r.sale_id], hasB = !!bRow, b = bRow || {};
+    const total = Number(r.total_price || 0), disc = Number(r.discount || 0), net = Number(r.net_price || 0);
+    const arrears = Math.max(0, Number(r.closing || 0));
+    const curInst = Number(b.due_period || 0);
+    const recdMonth = Number(b.received_total || 0);
+    const recdToLast = Number(r.received_total || 0);
+    const netDue = hasB ? Math.max(0, Number(b.closing || 0)) : Math.max(0, arrears + curInst - recdMonth);
+    const advApplied = (arrears + curInst - recdMonth) - netDue;
+    const balance = Math.max(0, net - (recdToLast + recdMonth));
+    return {
+      unit: r.unit_no || p.unit_no || '—',
+      client: (r.client_code ? r.client_code + ' · ' : '') + (r.client_name || '—'),
+      total, disc, net, arrears, curInst, recdMonth,
+      advApplied: Math.abs(advApplied) > 0.5 ? advApplied : null,
+      netDue, balance,
+      status: 'Active',
+      agent: p.agent_name || '—',
+      _floor: p.floor_name || r.floor_name || '—',
+      _floorNo: (p.floor_no != null ? Number(p.floor_no) : 9999),
+      _click: r.sale_id ? "nav('salesdetail','" + r.sale_id + "')" : ''
+    };
+  });
+
+  const columns = [
+    { key: 'unit', label: 'Unit', w: '56px' },
+    { key: 'client', label: 'Client', w: '150px', fmt: v => _rEllip(v, 150) },
+    { key: 'total', label: 'Total Price', num: true, fmt: 'money', w: '94px' },
+    { key: 'disc', label: 'Less Discount', num: true, fmt: 'money', w: '92px' },
+    { key: 'net', label: 'Net Amount', num: true, fmt: 'money', w: '94px' },
+    { key: 'arrears', label: 'Arrears to ' + leLabel, num: true, fmt: 'money', w: '96px' },
+    { key: 'curInst', label: monShort + ' Installment', num: true, fmt: 'money', w: '90px' },
+    { key: 'recdMonth', label: 'Received in ' + monShort, num: true, fmt: 'money', w: '90px' },
+    { key: 'advApplied', label: 'Advance Adj.', num: true, fmt: 'money', blank: '—', w: '84px' },
+    { key: 'netDue', label: 'Net Due Now', num: true, fmt: 'money', w: '98px' },
+    { key: 'balance', label: 'Balance to Final', num: true, fmt: 'money', w: '98px' },
+    { key: 'status', label: 'Status', fmt: _rStatusCell, w: '62px' },
+    { key: 'agent', label: 'Sale Person', w: '110px', fmt: v => _rEllip(v, 110) }
+  ];
+
+  const subtotal = src => {
+    const t = { total: 0, disc: 0, net: 0, arrears: 0, curInst: 0, recdMonth: 0, advApplied: 0, netDue: 0, balance: 0 };
+    src.forEach(r => { t.total += Number(r.total || 0); t.disc += Number(r.disc || 0); t.net += Number(r.net || 0); t.arrears += Number(r.arrears || 0); t.curInst += Number(r.curInst || 0); t.recdMonth += Number(r.recdMonth || 0); t.advApplied += Number(r.advApplied || 0); t.netDue += Number(r.netDue || 0); t.balance += Number(r.balance || 0); });
+    return t;
+  };
+
+  const ord = {}, map = {};
+  rows.forEach(r => { const fn = r._floor || '—'; if (!(fn in map)) { map[fn] = []; ord[fn] = r._floorNo; } map[fn].push(r); });
+  const groups = Object.keys(map).sort((a, b) => ord[a] - ord[b] || a.localeCompare(b))
+    .map(fn => ({ label: 'Floor · ' + fn, rows: map[fn], subtotal: subtotal(map[fn]) }));
+
+  const totals = subtotal(rows);
+  const summary = [
+    { label: 'Month', value: monYear },
+    { label: 'Net Due Now', value: totals.netDue, money: true },
+    { label: 'Arrears b/f', value: totals.arrears, money: true },
+    { label: monShort + ' Installment', value: totals.curInst, money: true },
+    { label: 'Received in ' + monShort, value: totals.recdMonth, money: true },
+    { label: 'Balance to Final', value: totals.balance, money: true }
+  ];
+  return { columns, groups, totals, totalsLabel: 'GRAND TOTAL · DEMAND (' + rows.length + ')', summary };
+}
+
 function _clientSummaryTransform(data, f) {
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const A = (data && data.A) || [], B = (data && data.B) || [];
@@ -557,7 +658,7 @@ function rReports() {
   document.querySelector('.pw')?.classList.remove('rpt-mode');
   const groups = [
     { title: 'RECOVERY', keys: ['recovery_position', 'aging'] },
-    { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement', 'client_summary'] },
+    { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement'] },
     { title: 'OPERATIONS', keys: ['portfolio', 'collections', 'pdc', 'sales_summary', 'availability', 'team_performance'] }
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
@@ -1005,6 +1106,14 @@ function _riqPrint(){
 // ── Routing: RP → bespoke shell; others → NXReport factory ───────────────────
 function openRptViewer(key) {
   if (key === 'recovery_position') return _rpOpen();
+  // Recovery Demand Summary retired → folded into Portfolio Summary's Demand view.
+  // Any deep-link to client_summary now opens Portfolio Summary in Demand mode.
+  if (key === 'client_summary') {
+    document.querySelector('.pw')?.classList.remove('rpt-mode');
+    NXReport.render(REPORTS.portfolio.config);
+    NXReport._set('status', 'demand');
+    return;
+  }
   const r = REPORTS[key];
   if (r && r.config) { document.querySelector('.pw')?.classList.remove('rpt-mode'); return NXReport.render(r.config); }
 }
