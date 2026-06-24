@@ -53,7 +53,10 @@
     FILT = _defaultFilters(config);
     const pg = document.getElementById('pg-reports');
     if (!pg) return;
-    pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
+    // Optional per-report horizontal padding (default = vertical sp-6, i.e. unchanged for
+    // every other report). Wide tables (e.g. Portfolio Summary) trim it to gain table width.
+    const padX = config.padX || 'var(--fk-sp-6)';
+    pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6) ${padX};display:flex;flex-direction:column;gap:var(--fk-sp-4)">
       ${_headerHTML(config)}
       <div id="nxr-summary"></div>
       <div id="nxr-body"><div class="nx-card"><div class="nx-empty"><div class="nx-empty-msg">Loading…</div></div></div></div>

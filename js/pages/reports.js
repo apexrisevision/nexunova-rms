@@ -239,6 +239,7 @@ const REPORTS = {
   portfolio: { meta: { title: 'Portfolio Summary', group: 'OPERATIONS', desc: 'All units, as on date — area, rate, gross, discount, net, received, current receivable, recovery % · floor sub-totals + grand total' },
     config: {
       id: 'portfolio', title: 'Portfolio Summary', group: 'OPERATIONS', orientation: 'landscape',
+      padX: 'var(--fk-sp-3)',  // wide 12-col table — trim horizontal page padding so Sale Person isn't clipped
       description: 'One-page snapshot of every unit as on date — price, received, current receivable & recovery %, grouped by floor with a grand total',
       filters: [{ kind: 'project' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Portfolio · Active' }, { v: 'all', l: 'Portfolio · All (incl. cancelled)' }, { v: 'cancelled', l: 'Portfolio · Cancelled' }, { v: 'demand', l: 'Demand · this month' }] }, { kind: 'daterange', openStart: true }],
       fetch: async f => {
