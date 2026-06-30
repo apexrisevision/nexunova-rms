@@ -490,9 +490,10 @@ async function _saApproveGrouped(id) {
   const role = (document.getElementById('sa-approve-role') || {}).value || 'sale_rep';
   const parent = (document.getElementById('sa-approve-parent') || {}).value || null;
   if (role !== 'director' && !parent) {
+    const _m = 'Select who this member reports to — only a Director can have no team head.';
     const e = document.getElementById('sa-approve-err');
-    if (e) { e.textContent = 'Select who this member reports to — only a Director can have no team head.'; e.style.display = 'block'; }
-    else if (typeof toast === 'function') toast('Select who this member reports to.', 'err');
+    if (e) { e.textContent = _m; e.style.display = 'block'; try { e.scrollIntoView({ block: 'center' }); } catch (_) {} }
+    if (typeof toast === 'function') toast('Select who this member reports to (Reports to).', 'err');
     return;
   }
   try {
@@ -601,7 +602,10 @@ async function _saApproveSubmit(id) {
   const commRaw = (document.getElementById('sa-approve-comm') || {}).value;
   const comm = commRaw === '' || commRaw == null ? null : parseFloat(commRaw);
   const err = document.getElementById('sa-approve-err');
-  const showErr = (m) => { if (err) { err.textContent = m; err.style.display = 'block'; } };
+  const showErr = (m) => {
+    if (err) { err.textContent = m; err.style.display = 'block'; try { err.scrollIntoView({ block: 'center' }); } catch (_) {} }
+    if (typeof toast === 'function') toast(m, 'err');
+  };
   if (!proj) { showErr('Pick a project — it becomes their reserve scope and agent home project.'); return; }
   if (comm != null && (isNaN(comm) || comm < 0 || comm > 100)) { showErr('Commission must be between 0 and 100.'); return; }
   const _linkSel = (document.querySelector('input[name="sa-link"]:checked') || {}).value || '';
