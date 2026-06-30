@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to connect Facebook & Instagram Lead Ads · Nexunova RMS</title>
+<meta name="description" content="Step-by-step guide to connect a Facebook Page's lead forms (and Instagram lead ads) to your Nexunova CRM so submissions arrive automatically.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EAEEF4; --card:#FFFFFF; --subtle:#F6F8FE; --subtle-2:#EDF1FB;
+  --border:#E4E9F4; --text:#101A33; --muted:#4C5A7D; --faint:#AAB6D2;
+  --primary:#2563EB; --primary-tint:rgba(37,99,235,.10);
+  --success:#16A34A; --success-tint:rgba(22,163,74,.10);
+  --warning:#B45309; --warning-tint:rgba(217,119,6,.10); --warning-edge:rgba(217,119,6,.32);
+  --danger:#DC2626; --danger-tint:rgba(220,38,38,.09);
+  --r-sm:8px; --r:10px; --r-lg:14px;
+  --shadow:0 1px 3px rgba(15,23,42,.08),0 4px 12px rgba(15,23,42,.05);
+  --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;background:var(--subtle-2);padding:1px 6px;border-radius:6px;color:var(--text)}
+b,strong{font-weight:600}
+/* header */
+.top{background:var(--card);border-bottom:1px solid var(--border)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:58px}
+.brand{font-weight:700;font-size:15px;letter-spacing:-.2px}
+.brand span{color:var(--primary)}
+.top .back{font-size:13px;font-weight:600;color:var(--muted)}
+.hero{padding:40px 0 28px}
+.hero h1{font-size:30px;font-weight:700;letter-spacing:-.6px;line-height:1.2}
+.hero p{margin-top:10px;font-size:15.5px;color:var(--muted);max-width:720px}
+.layout{display:grid;grid-template-columns:230px 1fr;gap:32px;padding-bottom:80px;align-items:start}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
+/* toc */
+.toc{position:sticky;top:18px}
+.toc-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:0 0 8px 10px}
+.toc a{display:block;padding:6px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--muted);font-weight:500}
+.toc a:hover{background:var(--subtle);color:var(--text);text-decoration:none}
+/* cards / sections */
+.sec{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:20px}
+.sec>h2{font-size:19px;font-weight:700;letter-spacing:-.3px;margin-bottom:4px;scroll-margin-top:18px}
+.sec>.lead{color:var(--muted);margin-bottom:16px}
+.sec h3{font-size:15px;font-weight:700;margin:18px 0 6px}
+.sec p{margin:8px 0}
+.sec ul,.sec ol{margin:8px 0 8px 20px}
+.sec li{margin:5px 0}
+/* checklist */
+.check{list-style:none;margin:6px 0 0!important}
+.check li{position:relative;padding-left:28px;margin:9px 0}
+.check li::before{content:"";position:absolute;left:0;top:3px;width:17px;height:17px;border-radius:5px;background:var(--success-tint);border:1px solid var(--success)}
+.check li::after{content:"";position:absolute;left:5px;top:7px;width:6px;height:9px;border:solid var(--success);border-width:0 2px 2px 0;transform:rotate(45deg)}
+/* steps */
+.step{display:grid;grid-template-columns:38px 1fr;gap:14px;padding:18px 0;border-top:1px solid var(--border)}
+.step:first-of-type{border-top:0}
+.step-n{width:34px;height:34px;border-radius:9px;background:var(--primary-tint);color:var(--primary);font-weight:700;display:grid;place-items:center;font-size:15px}
+.step.auto .step-n{background:var(--success-tint);color:var(--success)}
+.step-b h3{margin:2px 0 4px;font-size:15.5px}
+.step-b .where{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--subtle);border:1px solid var(--border);border-radius:999px;padding:3px 11px;margin:6px 0}
+.tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:2px}
+.tag.meta{background:var(--warning-tint);color:var(--warning)}
+.tag.crm{background:var(--primary-tint);color:var(--primary)}
+.tag.auto{background:var(--success-tint);color:var(--success)}
+.eg{font-size:13px;color:var(--muted);margin-top:8px}
+.eg b{color:var(--text)}
+/* copy value rows */
+.kv{margin:10px 0}
+.kv .label{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
+.copy{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--subtle);word-break:break-all}
+.copy code{background:none;padding:0;flex:1;font-size:13px}
+.copy button{flex:none;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:var(--font);font-size:12px;font-weight:600;padding:5px 11px;border-radius:7px;cursor:pointer;transition:.12s}
+.copy button:hover{border-color:var(--primary);color:var(--primary)}
+.copy button.done{background:var(--success-tint);border-color:var(--success);color:var(--success)}
+.perms{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.perms code{background:var(--subtle);border:1px solid var(--border)}
+/* screenshot slot */
+.shot{display:flex;align-items:center;justify-content:center;min-height:96px;border:2px dashed var(--border);border-radius:var(--r);color:var(--faint);font-size:12px;letter-spacing:.02em;margin:12px 0;background:var(--subtle);text-align:center;padding:0 14px}
+/* callouts */
+.callout{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:13px 15px;border-radius:var(--r);margin:14px 0;font-size:13.5px;line-height:1.55;border:1px solid var(--border);background:var(--subtle)}
+.callout .ic{font-weight:700;text-align:center}
+.callout.warn{background:var(--warning-tint);border-color:var(--warning-edge)}
+.callout.warn .ic{color:var(--warning)}
+.callout.info .ic{color:var(--primary)}
+.callout.tip{background:var(--success-tint);border-color:rgba(22,163,74,.3)}
+.callout.tip .ic{color:var(--success)}
+.callout b{color:var(--text)}
+/* error/faq blocks */
+.err{padding:14px 0;border-top:1px solid var(--border)}
+.err:first-of-type{border-top:0}
+.err .q{font-weight:700;font-size:14.5px;display:flex;align-items:flex-start;gap:8px}
+.err .q .x{color:var(--danger);font-weight:700}
+.err .a{color:var(--muted);margin-top:5px}
+.err .a code{background:var(--subtle)}
+.faq dt{font-weight:700;margin-top:14px}
+.faq dt:first-child{margin-top:0}
+.faq dd{color:var(--muted);margin-top:4px}
+.footnote{color:var(--faint);font-size:12.5px;text-align:center;padding:24px 0 40px}
+.pathsep{color:var(--faint);padding:0 2px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Nexunova <span>RMS</span> · Help</div>
+    <a class="back" href="sales-portal.html">&larr; Back to the app</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Connect Facebook &amp; Instagram Lead Ads to your CRM</h1>
+    <p>When someone submits your Facebook or Instagram lead form, the lead appears in your CRM automatically — no copy-paste, no spreadsheets. This is the full setup reference; the in-app <b>Connect Facebook</b> wizard walks the same steps with one-click buttons and automatic checks.</p>
+  </div>
+
+  <div class="layout">
+    <nav class="toc">
+      <div class="toc-h">On this page</div>
+      <a href="#overview">1 · Overview</a>
+      <a href="#prereq">2 · Prerequisites</a>
+      <a href="#steps">3 · Step-by-step</a>
+      <a href="#values">4 · Technical values</a>
+      <a href="#instagram">5 · Instagram</a>
+      <a href="#domain">6 · Domain &amp; Live</a>
+      <a href="#errors">7 · Common errors</a>
+      <a href="#testing">8 · Testing</a>
+      <a href="#faq">9 · FAQ</a>
+    </nav>
+
+    <main>
+      <!-- 1. OVERVIEW -->
+      <section class="sec" id="overview">
+        <h2>1 · Overview</h2>
+        <p class="lead">What this connects and what you need before you start.</p>
+        <p><b>What it does:</b> it links a Facebook <b>Page</b>'s lead form to your CRM through your <b>own</b> Meta app. Every form submission (from Facebook <i>or</i> Instagram lead ads) is delivered to your CRM and lands in the right project for follow-up.</p>
+        <p><b>Everything happens in your own Meta account</b> — your Business Manager, your Page, your app. The CRM only receives the leads. You never invent a "verify token": the CRM generates it for you and shows it when it's needed.</p>
+        <div class="callout info"><div class="ic">i</div><div>The CRM has a built-in <b>Connect Facebook</b> wizard that mirrors every step below with "Open in Meta" buttons, copy buttons and automatic checks. This page is the written reference for the same sequence.</div></div>
+        <h3>You'll need</h3>
+        <ul>
+          <li>A <b>Facebook Page</b> (the one your leads come from).</li>
+          <li>A <b>Meta Business Manager</b> (business.facebook.com) where the Page lives.</li>
+          <li>A <b>Meta app</b> (Business type) — you'll create this in the steps.</li>
+          <li><b>Admin access</b> to all of the above, and a personal Facebook login.</li>
+          <li>A company <b>privacy policy URL</b> (your website's /privacy page).</li>
+        </ul>
+      </section>
+
+      <!-- 2. PREREQUISITES -->
+      <section class="sec" id="prereq">
+        <h2>2 · Prerequisites checklist</h2>
+        <p class="lead">Have these ready — most setup failures trace back to a missing item here.</p>
+        <ul class="check">
+          <li>A personal <b>Facebook account</b> you can log in with, and that is an <b>admin</b> of the Business Manager.</li>
+          <li>A <b>Business Manager</b> account (or access to your agency's — don't create a duplicate).</li>
+          <li>The <b>Facebook Page</b> added to that Business Manager.</li>
+          <li>A <b>Lead Generation (Instant) form</b> on the Page — at minimum <b>Full name</b> + <b>Phone</b>.</li>
+          <li>A <b>Business-type Meta app</b> (one app can serve all your Pages).</li>
+          <li>App permissions/products: <b>Webhooks</b> and <b>Facebook Login for Business</b>.</li>
+          <li>A public <b>Privacy Policy URL</b> (required to switch the app to <b>Live</b>).</li>
+          <li><b>Leads Access</b> granted to the app on the Page (Business settings).</li>
+        </ul>
+      </section>
+
+      <!-- 3. STEP BY STEP -->
+      <section class="sec" id="steps">
+        <h2>3 · Step-by-step</h2>
+        <p class="lead">The same 12 steps as the in-app wizard. Steps 1&ndash;7 and 9 are done in Meta; step 8 is the one-click Connect in the CRM; steps 10&ndash;12 are automatic checks.</p>
+
+        <div class="step">
+          <div class="step-n">1</div>
+          <div class="step-b">
+            <h3>Create your Business Manager <span class="tag meta">In Meta</span></h3>
+            <div class="where">business.facebook.com <span class="pathsep">&rsaquo;</span> Create account</div>
+            <p>Enter your business name, your name and a work email, then <b>Submit</b>. This is the home for your Page, ad account and app.</p>
+            <p class="eg">Already have one (maybe your ads agency made it)? <b>Use it</b> — just make sure you're an <b>admin</b>. Don't create a duplicate.</p>
+            <div class="shot">Screenshot: Business settings &rsaquo; Create account</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">2</div>
+          <div class="step-b">
+            <h3>Add or create your Facebook Page <span class="tag meta">In Meta</span></h3>
+            <div class="where">Business settings <span class="pathsep">&rsaquo;</span> Pages <span class="pathsep">&rsaquo;</span> Add</div>
+            <p>Add your existing Page (claim it with <b>Add a Page</b>) or <b>Create a new Page</b>. Leads come from a Page's lead form, so the Page must belong to your Business Manager.</p>
+            <p class="eg">If the Page lives on a personal account, use <b>Add a Page</b> / request access rather than creating a new one — don't split your audience.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">3</div>
+          <div class="step-b">
+            <h3>Create your lead form <span class="tag meta">In Meta</span></h3>
+            <div class="where">Forms Library <span class="pathsep">or</span> Ads Manager <span class="pathsep">&rsaquo;</span> Instant Form</div>
+            <p>Create a Lead Generation <b>Instant Form</b> for your Page — the form people fill in. Build it in the <b>Forms Library</b>, or while creating a Lead ad in <b>Ads Manager</b>.</p>
+            <p class="eg"><b>Example:</b> keep it simple — at least <b>Full name</b> and <b>Phone</b> fields so leads import cleanly.</p>
+            <div class="shot">Screenshot: Instant Form builder with Full name + Phone</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">4</div>
+          <div class="step-b">
+            <h3>Create your Meta app <span class="tag meta">In Meta</span></h3>
+            <div class="where">developers.facebook.com <span class="pathsep">&rsaquo;</span> My Apps <span class="pathsep">&rsaquo;</span> Create App</div>
+            <p>The app is the secure bridge between your Page and the CRM.</p>
+            <ol>
+              <li>Open <b>My Apps &rsaquo; Create App</b> (finish developer sign-up if prompted).</li>
+              <li>Choose use case <b>Other</b> &rsaquo; app type <b>Business</b>.</li>
+              <li>Name it (e.g. your company) and pick your <b>Business Manager</b> from Step 1.</li>
+              <li>Click <b>Create app</b>.</li>
+            </ol>
+            <p class="eg">Already have a Business-type app for ads? <b>Use that one</b> — don't make a second. "Create App" greyed out? Complete developer-account verification first.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">5</div>
+          <div class="step-b">
+            <h3>Add the tools your app needs <span class="tag meta">In Meta</span></h3>
+            <div class="where">App dashboard <span class="pathsep">&rsaquo;</span> Add product</div>
+            <p>Add two products (click <b>Set up</b> on each):</p>
+            <ul>
+              <li><b>Webhooks</b> — lets Facebook notify your CRM of new leads.</li>
+              <li><b>Facebook Login for Business</b> — lets you connect your Page in one click at Step 8.</li>
+            </ul>
+            <p class="eg">Just add them here — the settings come in the next steps.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">6</div>
+          <div class="step-b">
+            <h3>Add privacy policy &amp; go Live <span class="tag meta">In Meta</span></h3>
+            <div class="where">App Settings <span class="pathsep">&rsaquo;</span> Basic &nbsp;·&nbsp; App Mode toggle</div>
+            <ol>
+              <li><b>App Settings &rsaquo; Basic</b> — paste your <b>Privacy Policy URL</b> and <b>Save changes</b>.</li>
+              <li>Top of the dashboard — switch <b>App Mode</b> from <b>Development</b> to <b>Live</b>.</li>
+            </ol>
+            <div class="callout warn"><div class="ic">!</div><div>In <b>Development</b> mode Facebook will <b>not</b> send real leads. The <b>Live</b> toggle won't turn on until a <b>Privacy Policy URL</b> is saved.</div></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">7</div>
+          <div class="step-b">
+            <h3>Link your Page &amp; grant Leads Access <span class="tag meta">In Meta</span></h3>
+            <div class="where">Business settings <span class="pathsep">&rsaquo;</span> Pages <span class="pathsep">&rsaquo;</span> your Page <span class="pathsep">&rsaquo;</span> connect app + Leads Access</div>
+            <p>Connect your <b>app</b> to the Page and allow it to read the Page's leads.</p>
+            <p><b>How:</b> Business settings &rsaquo; <b>Pages</b> &rsaquo; select your Page &rsaquo; <b>Connected assets / Add assets</b> &rsaquo; add your app. Then on the same Page, enable <b>Leads Access</b> (Lead Access) for the app.</p>
+            <p class="eg">Your app can only read a Page's leads after the Page is linked to it <b>and</b> Leads Access is granted.</p>
+            <div class="shot">Screenshot: Page &rsaquo; Connected assets &rsaquo; add app + Leads Access toggle</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">8</div>
+          <div class="step-b">
+            <h3>Connect Facebook <span class="tag crm">In the CRM</span></h3>
+            <div class="where">Connect Facebook wizard <span class="pathsep">&rsaquo;</span> Step 8</div>
+            <p>This is the one-click connection — and the step that <b>creates your verify token</b>.</p>
+            <ol>
+              <li>If the wizard asks for app keys, paste your <b>App ID</b> and <b>App Secret</b> (from <b>App Settings &rsaquo; Basic</b>) and Save.</li>
+              <li>Whitelist the CRM redirect in your app: <b>Facebook Login for Business &rsaquo; Settings &rsaquo; Valid OAuth Redirect URIs</b> — add the redirect URI shown in <a href="#values">Technical values</a>.</li>
+              <li>Press <b>Connect Facebook</b> &rsaquo; sign in with your Facebook &rsaquo; grant the permissions &rsaquo; <b>pick the Page</b> &rsaquo; choose the <b>project</b> its leads belong to.</li>
+            </ol>
+            <div class="callout tip"><div class="ic">&#10003;</div><div>The CRM stores the access <b>on its server</b> — you never copy a page token. It also <b>auto-subscribes</b> your Page to <code>leadgen</code> and <b>generates the Verify Token</b> you'll use in Step 9.</div></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">9</div>
+          <div class="step-b">
+            <h3>Turn on lead notifications <span class="tag meta">In Meta</span></h3>
+            <div class="where">App <span class="pathsep">&rsaquo;</span> Webhooks <span class="pathsep">&rsaquo;</span> Page <span class="pathsep">&rsaquo;</span> leadgen <span class="pathsep">&rsaquo;</span> Subscribe</div>
+            <p>Open <b>Webhooks</b> &rsaquo; the <b>Page</b> object &rsaquo; find <b>leadgen</b> &rsaquo; switch <b>Subscribe</b> ON. When asked, paste the two values from your wizard (see <a href="#values">Technical values</a>):</p>
+            <ul>
+              <li><b>Callback URL</b> — your CRM's address (Copy in the wizard).</li>
+              <li><b>Verify Token</b> — generated by the CRM at Step 8; now shown in the wizard, ready to copy.</li>
+            </ul>
+            <div class="callout warn"><div class="ic">!</div><div>If the Verify Token looks <b>empty</b>, you haven't connected yet — finish <b>Step 8 (Connect Facebook)</b> first, then return here; it's created at connect-time.</div></div>
+          </div>
+        </div>
+
+        <div class="step auto">
+          <div class="step-n">10</div>
+          <div class="step-b">
+            <h3>Connection health <span class="tag auto">Automatic</span></h3>
+            <p>The CRM checks the token is valid and shows which <b>App ID</b> it belongs to. Red means the login didn't grant all permissions or the token expired — repeat Step 8, accepting every permission.</p>
+          </div>
+        </div>
+
+        <div class="step auto">
+          <div class="step-n">11</div>
+          <div class="step-b">
+            <h3>Facebook can reach your CRM <span class="tag auto">Automatic</span></h3>
+            <p>When you subscribed at Step 9, Facebook sends a one-time verification ping. The CRM confirms it arrived. If not, re-check that <b>leadgen</b> is <b>Subscribed</b> and the Callback URL matches, then press Subscribe again.</p>
+          </div>
+        </div>
+
+        <div class="step auto">
+          <div class="step-n">12</div>
+          <div class="step-b">
+            <h3>Send a test lead <span class="tag auto">In Meta &rsaquo; CRM detects</span></h3>
+            <div class="where">developers.facebook.com <span class="pathsep">&rsaquo;</span> Lead Ads Testing Tool</div>
+            <p>Pick your Page + form, <b>Create Lead</b>, and wait for <b>Success</b>. The CRM detects the first lead and ticks this green. Delete the test lead afterwards. (More in <a href="#testing">Testing</a>.)</p>
+          </div>
+        </div>
+
+        <div class="callout tip" style="margin-top:18px"><div class="ic">&#10003;</div><div>When all 12 are green: <b>"Connected &amp; verified — your leads will now arrive automatically."</b> A health strip on the Page's row (token valid, last event, lead count) stays visible so you can spot problems later.</div></div>
+      </section>
+
+      <!-- 4. TECHNICAL VALUES -->
+      <section class="sec" id="values">
+        <h2>4 · Exact technical values</h2>
+        <p class="lead">The precise values to paste into Meta. Use the copy buttons.</p>
+
+        <div class="kv">
+          <div class="label">Callback URL <span style="text-transform:none;font-weight:500;color:var(--faint)">· Webhooks &rsaquo; Page &rsaquo; leadgen</span></div>
+          <div class="copy"><code id="v-callback">https://itqxljtfbrppntgyfush.supabase.co/functions/v1/fb-leads-webhook</code><button onclick="cp(this,'v-callback')">Copy</button></div>
+          <div class="callout info" style="margin-top:8px"><div class="ic">i</div><div>This is the address for our shared platform. <b>Your tenant's exact Callback URL is shown in your own wizard at Step 9</b> — the project reference may differ. Always copy it from there to be safe.</div></div>
+        </div>
+
+        <div class="kv">
+          <div class="label">Valid OAuth Redirect URI <span style="text-transform:none;font-weight:500;color:var(--faint)">· Facebook Login for Business &rsaquo; Settings</span></div>
+          <div class="copy"><code id="v-redirect">https://rms.nexunova.com/fb-oauth-callback.html</code><button onclick="cp(this,'v-redirect')">Copy</button></div>
+        </div>
+
+        <div class="kv">
+          <div class="label">App Domains <span style="text-transform:none;font-weight:500;color:var(--faint)">· App Settings &rsaquo; Basic</span></div>
+          <div class="copy"><code id="v-dom1">nexunova.com</code><button onclick="cp(this,'v-dom1')">Copy</button></div>
+          <div class="copy" style="margin-top:6px"><code id="v-dom2">supabase.co</code><button onclick="cp(this,'v-dom2')">Copy</button></div>
+        </div>
+
+        <div class="kv">
+          <div class="label">Required permissions <span style="text-transform:none;font-weight:500;color:var(--faint)">· granted during Connect (Step 8)</span></div>
+          <div class="perms">
+            <code>pages_show_list</code><code>pages_read_engagement</code><code>pages_manage_metadata</code><code>leads_retrieval</code>
+          </div>
+          <p class="eg">You don't request these manually — accept them in the Connect pop-up. If any is declined, Step 10 goes red; reconnect and allow all.</p>
+        </div>
+
+        <div class="kv">
+          <div class="label">Webhook field to subscribe</div>
+          <div class="copy"><code id="v-field">leadgen</code><button onclick="cp(this,'v-field')">Copy</button> <span class="eg" style="margin:0">on the <b>Page</b> object</span></div>
+        </div>
+      </section>
+
+      <!-- 5. INSTAGRAM -->
+      <section class="sec" id="instagram">
+        <h2>5 · Instagram lead ads</h2>
+        <p class="lead">Good news: Instagram lead ads need <b>no separate setup</b>.</p>
+        <p>Instagram <b>lead ads</b> arrive through the <b>same</b> "Connect Facebook" connection you set up above — there is nothing extra to configure. The only requirement is that your <b>Instagram account is linked to the Facebook Page</b> (Page settings &rsaquo; Linked accounts &rsaquo; Instagram). Lead-form submissions from Instagram then flow into the CRM exactly like Facebook ones.</p>
+        <div class="callout info"><div class="ic">i</div><div>Instagram <b>Direct Messages</b> are a different feature, set up on a separate screen. Instagram doesn't share a phone number for DMs, so the message and the sender's handle come through and follow-up happens in Instagram. DM setup is optional and unrelated to lead ads.</div></div>
+      </section>
+
+      <!-- 6. DOMAIN SETUP -->
+      <section class="sec" id="domain">
+        <h2>6 · Domain setup &amp; going Live</h2>
+        <p class="lead">Three things in <b>App Settings &rsaquo; Basic</b> let the connection work and go Live.</p>
+        <ul>
+          <li><b>App Domains</b> — add <code>nexunova.com</code> and <code>supabase.co</code>. These authorise the CRM's domains so the OAuth pop-up and webhook aren't blocked.</li>
+          <li><b>Privacy Policy URL</b> — a public page (your website's /privacy). Required before the app can go Live.</li>
+          <li><b>App Mode = Live</b> — top of the dashboard. In Development mode Facebook never sends real leads.</li>
+        </ul>
+        <p>Separately, in <b>Facebook Login for Business &rsaquo; Settings</b>, add the <a href="#values">Valid OAuth Redirect URI</a> exactly as shown — this is what lets the Connect pop-up return to the CRM.</p>
+        <div class="callout warn"><div class="ic">!</div><div>The redirect URI must match <b>character-for-character</b> (including <code>https://</code> and the trailing path). A mismatch is the #1 cause of the "URL blocked" error.</div></div>
+      </section>
+
+      <!-- 7. COMMON ERRORS -->
+      <section class="sec" id="errors">
+        <h2>7 · Common errors &amp; fixes</h2>
+        <p class="lead">Almost every issue is one of these.</p>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> "URL blocked: This redirect failed" in the Connect pop-up</div>
+          <div class="a">The redirect URI isn't whitelisted. In your app &rsaquo; <b>Facebook Login for Business &rsaquo; Settings &rsaquo; Valid OAuth Redirect URIs</b>, add <code>https://rms.nexunova.com/fb-oauth-callback.html</code> exactly, Save, and try again.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> "Domain not included in the app's domains" / can't switch to Live</div>
+          <div class="a">In <b>App Settings &rsaquo; Basic</b>, add <code>nexunova.com</code> and <code>supabase.co</code> under <b>App Domains</b>, and make sure a <b>Privacy Policy URL</b> is saved. Then toggle <b>App Mode &rsaquo; Live</b>.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> The Verify Token field is empty at Step 9</div>
+          <div class="a">The token is created when you connect. Finish <b>Step 8 (Connect Facebook)</b> first, then return to Step 9 — the token will be populated and ready to copy.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> Token invalid or expired (Step 10 red)</div>
+          <div class="a">Re-connect: Step 8 &rsaquo; <b>Connect Facebook</b> again, accepting <b>every</b> permission in the pop-up.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> Test lead stuck on "Pending" forever</div>
+          <div class="a">Your app isn't <b>Live</b> (Step 6) or <b>leadgen</b> isn't <b>Subscribed</b> (Step 9). Fix both, then create a fresh test lead.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> No leads ever arrive (Step 11/12 never go green)</div>
+          <div class="a">Your <b>Page isn't linked to the app</b>, or <b>Leads Access</b> isn't granted (Step 7). Open Business settings &rsaquo; Pages &rsaquo; your Page, connect your app, and enable lead access. Also confirm <code>leadgen</code> is subscribed (Step 9).</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> Leads connect but go to the wrong person</div>
+          <div class="a">Routing to the receiving director is set by your CRM administrator and can't be changed from the operator screen by design. Contact your admin.</div>
+        </div>
+      </section>
+
+      <!-- 8. TESTING -->
+      <section class="sec" id="testing">
+        <h2>8 · Testing</h2>
+        <p class="lead">Confirm a real lead flows end-to-end before you rely on it.</p>
+        <ol>
+          <li>Open the <b>Lead Ads Testing Tool</b> &mdash; <a href="https://developers.facebook.com/tools/lead-ads-testing/" target="_blank" rel="noopener">developers.facebook.com/tools/lead-ads-testing</a>.</li>
+          <li>Select your <b>Page</b> and the <b>lead form</b> from Step 3.</li>
+          <li>Click <b>Create Lead</b> (then <b>Preview form</b> &rsaquo; submit). Wait for <b>Success</b>.</li>
+          <li>In the CRM wizard, <b>Step 12</b> ticks green automatically when the lead arrives, and the lead appears in the project you chose at Step 8.</li>
+          <li>Delete the test lead in the tool afterwards.</li>
+        </ol>
+        <div class="shot">Screenshot: Lead Ads Testing Tool &rsaquo; Create Lead &rsaquo; Success</div>
+        <div class="callout info"><div class="ic">i</div><div>If the test never reaches the CRM, re-read <a href="#errors">Common errors</a> — it's almost always App not Live, leadgen not subscribed, or Leads Access not granted.</div></div>
+      </section>
+
+      <!-- 9. FAQ -->
+      <section class="sec" id="faq">
+        <h2>9 · FAQ</h2>
+        <dl class="faq">
+          <dt>Do I have to create or copy a "verify token"?</dt>
+          <dd>No. The CRM generates it for you at Connect (Step 8). You only copy it <i>from</i> the wizard <i>into</i> Meta at Step 9.</dd>
+
+          <dt>Can one Meta app serve several Pages?</dt>
+          <dd>Yes. Create the app once; you can connect multiple Pages, each mapped to its own project, in one Connect step.</dd>
+
+          <dt>Where is the Callback URL for my specific tenant?</dt>
+          <dd>It's shown in your own wizard at Step 9 (the project reference can differ between tenants). Copy it from there rather than hard-coding the one on this page.</dd>
+
+          <dt>Does Instagram need separate setup?</dt>
+          <dd>For lead <i>ads</i>, no — they arrive through the same Facebook connection, as long as the Instagram account is linked to the Page. Instagram Direct Messages are a separate, optional feature.</dd>
+
+          <dt>Do I need to keep the Connect pop-up or browser open after connecting?</dt>
+          <dd>No. Once Step 8 succeeds the access is stored on the CRM server. Leads keep arriving even when you're logged out.</dd>
+
+          <dt>Who can run this, and who can see the connection?</dt>
+          <dd>The <b>operator</b> (IT / lead-entry role) runs the whole wizard — connect, test, view logs. <b>Directors</b> get a read-only view of connected Pages and health; leads still route to the active director automatically.</dd>
+
+          <dt>The wizard asks for an App ID and App Secret — where are those?</dt>
+          <dd>In your Meta app &rsaquo; <b>App Settings &rsaquo; Basic</b> (click <b>Show</b> on the secret). The CRM keeps the secret on its server and never displays it again.</dd>
+        </dl>
+      </section>
+
+      <div class="footnote">Nexunova RMS · This guide mirrors the in-app <b>Connect Facebook</b> wizard. Questions? Contact your CRM administrator.</div>
+    </main>
+  </div>
+</div>
+
+<script>
+function cp(btn, id){
+  var el = document.getElementById(id);
+  var text = el ? el.textContent.trim() : '';
+  function done(){ var o = btn.textContent; btn.textContent = 'Copied'; btn.classList.add('done'); setTimeout(function(){ btn.textContent = o; btn.classList.remove('done'); }, 1400); }
+  if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, function(){ fallback(text); done(); }); }
+  else { fallback(text); done(); }
+  function fallback(t){ try{ var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }catch(e){} }
+}
+</script>
+</body>
+</html>
