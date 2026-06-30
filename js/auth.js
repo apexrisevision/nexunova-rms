@@ -14,6 +14,19 @@ function initLogin(){
   const err=document.getElementById('lerr');
   if(err) err.style.display='none';
 
+  // Re-arm the Sign In button. On a SUCCESSFUL login doLogin() leaves the button
+  // disabled + "Signing in..." (it only resets on failure); the success path just
+  // hides the login screen. After logout the screen is shown again, so without this
+  // the button stays disabled/"Signing in..." and re-login is impossible until a
+  // full page refresh rebuilds it. Mirrors doLogin()'s _btnReset.
+  const _sb = document.getElementById('lx-signin-btn');
+  if(_sb){
+    _sb.disabled = false;
+    _sb.classList.remove('lx-loading');
+    const _sbSpan = _sb.querySelector('span'); if(_sbSpan) _sbSpan.textContent = 'Sign In';
+    const _sbSvg = _sb.querySelector('svg'); if(_sbSvg) _sbSvg.style.opacity = '';
+  }
+
   // Clear any browser autofill so doLogin() doesn't trigger on stale values
   const u = document.getElementById('li-u');
   const p = document.getElementById('li-p');
