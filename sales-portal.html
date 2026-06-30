@@ -4024,9 +4024,9 @@ async function _fbDoSave(nonce){
   closeModal();
   if(fail.length) toast('Connected '+ok.length+' · '+fail.length+' failed','err');
   else toast(ok.length>1?('Connected '+ok.length+' pages'):'Connected — '+ok[0],'ok');
-  if(FBWIZ && FBWIZ.open){           // connect (step 9) satisfied — continue with the first connected page
+  if(FBWIZ && FBWIZ.open){           // connect (step 8) satisfied — go to lead-notifications (step 9); _fbWizReload lands on first-incomplete anyway
     FBWIZ.connId = firstConnId;
-    FBWIZ.step = 10; _fbWizReload(); return;
+    FBWIZ.step = 9; _fbWizReload(); return;
   }
   renderFbSettings();
 }
@@ -4057,8 +4057,8 @@ function _fbWizConn(){ return FBWIZ&&FBWIZ.connId ? (FB_PAGES.find(p=>p.id===FBW
 function _fbWizHealth(){ if(!FBWIZ||!FBWIZ.diag||!FBWIZ.connId) return null; return (FBWIZ.diag.health||[]).find(h=>h.connection_id===FBWIZ.connId)||null; }
 function _fbWizStatus(n){
   const m=(FBWIZ&&FBWIZ.manual)||{};
-  if(n>=1&&n<=8) return m['s'+n]?'done':'todo';
-  if(n===9) return (FBWIZ&&FBWIZ.connId)?'done':'todo';
+  if((n>=1&&n<=7)||n===9) return m['s'+n]?'done':'todo';   // manual steps (1–7 setup/Link + 9 lead-notifications)
+  if(n===8) return (FBWIZ&&FBWIZ.connId)?'done':'todo';     // 8 = Connect (OAuth → connId)
   if(n===10){ const t=FBWIZ&&FBWIZ._tok; return (t&&t.success&&t.token_valid!==false)?'done':'todo'; }
   if(n===11){ const h=_fbWizHealth(); return (h&&h.last_verify_at)?'done':'todo'; }
   if(n===12){ const h=_fbWizHealth(); return (h&&h.last_event_at)?'done':'todo'; }
@@ -4139,13 +4139,13 @@ function _fbWizForkView(){
         <button class="fbwiz-fork-opt" onclick="_fbWizSetMode('exp')">
           <span class="fbwiz-fork-ic" style="background:color-mix(in srgb,var(--fk-success) 14%,transparent);color:var(--fk-success)">${li('check-circle',20,2)}</span>
           <span class="fbwiz-fork-t">Yes — I already have a Page, app &amp; lead form</span>
-          <span class="fbwiz-fork-s">Skip setup and go straight to turning on lead notifications, then Connect. <b>6 steps.</b></span>
+          <span class="fbwiz-fork-s">Skip setup and go straight to linking your Page, connecting, then turning on lead notifications. <b>6 steps.</b></span>
         </button>
       </div>
     </div>
   </div>`;
 }
-const _FBWIZ_TITLES={1:'Create your Business Manager',2:'Add your Facebook Page',3:'Create your lead form',4:'Create your Meta app',5:'Add the tools your app needs',6:'Add privacy policy & go Live',7:'Turn on lead notifications',8:'Link your Page & grant leads access',9:'Connect Facebook',10:'Connection health',11:'Facebook can reach your CRM',12:'Send a test lead'};
+const _FBWIZ_TITLES={1:'Create your Business Manager',2:'Add your Facebook Page',3:'Create your lead form',4:'Create your Meta app',5:'Add the tools your app needs',6:'Add privacy policy & go Live',7:'Link your Page & grant leads access',8:'Connect Facebook',9:'Turn on lead notifications',10:'Connection health',11:'Facebook can reach your CRM',12:'Send a test lead'};
 const _FBWIZ_DESC={
   1:'Set up your company’s Meta Business account.',
   2:'Add the Facebook Page your leads come from.',
@@ -4153,9 +4153,9 @@ const _FBWIZ_DESC={
   4:'Create the app that connects your Page to the CRM.',
   5:'Switch on Webhooks and Facebook Login in your app.',
   6:'Add a privacy policy URL and make the app Live.',
-  7:'Tell Facebook to send new leads to your CRM.',
-  8:'Connect your Page to your app and allow lead access.',
-  9:'Sign in and link your Page to the CRM.',
+  7:'Connect your Page to your app and allow lead access.',
+  8:'Sign in and link your Page to the CRM.',
+  9:'Tell Facebook to send new leads to your CRM.',
   10:'We check your connection is valid.',
   11:'We confirm Facebook can reach your CRM.',
   12:'Send one test lead to confirm it all works.'
@@ -4208,17 +4208,17 @@ function _fbWizRender(){
 }
 function _fbWizPrimaryBtn(n){
   const nx=`Next ${li('arrow-right',14,2)}`;
-  if(n<=8) return `<button class="btn btn-primary" onclick="_fbWizNext()">${nx}</button>`;
-  if(n===9){
+  if(n===8){   // Connect (OAuth)
     if(_fbWizConn()) return `<button class="btn btn-primary" onclick="_fbWizNext()">${nx}</button>`;
     const cfg=FBWIZ.appcfg||{}; const haveKeys=!!(cfg.app_id&&cfg.has_secret);
     if(!haveKeys||FBWIZ.editKeys) return `<button class="btn btn-primary" onclick="_fbWizSaveAppKeys()">Save &amp; continue</button>`;
     return `<button class="btn btn-primary" onclick="_fbConnectStart()">Connect Facebook</button>`;
   }
+  if((n>=1&&n<=7)||n===9) return `<button class="btn btn-primary" onclick="_fbWizNext()">${nx}</button>`;   // manual steps
   if(_fbWizStatus(n)==='done') return `<button class="btn btn-primary" onclick="_fbWizNext()">${nx}</button>`;
   return `<button class="btn btn-primary" ${FBWIZ.busy?'disabled':''} onclick="_fbWizCheck(${n})">${FBWIZ.busy?'Checking…':'Check'}</button>`;
 }
-function _fbWizNext(){ const n=FBWIZ.step; if(n<=8){ FBWIZ.manual['s'+n]=true; _fbWizSaveManual(); } const a=_fbWizSteps(); const i=a.indexOf(n); FBWIZ.step=(i<a.length-1)?a[i+1]:n; FBWIZ.editKeys=false; _fbWizRender(); }
+function _fbWizNext(){ const n=FBWIZ.step; if((n>=1&&n<=7)||n===9){ FBWIZ.manual['s'+n]=true; _fbWizSaveManual(); } const a=_fbWizSteps(); const i=a.indexOf(n); FBWIZ.step=(i<a.length-1)?a[i+1]:n; FBWIZ.editKeys=false; _fbWizRender(); }
 function _fbWizBack(){ const a=_fbWizSteps(); const i=a.indexOf(FBWIZ.step); if(i>0){ FBWIZ.step=a[i-1]; FBWIZ.editKeys=false; _fbWizRender(); } }
 function _fbWizReset(){
   openModal('Start over?',
@@ -4280,31 +4280,17 @@ function _fbWizStepView(n){
     'Live toggle won’t turn on? It almost always means the Privacy Policy URL is missing — add it in App Settings → Basic, Save, then toggle Live again.',
     doneBtn(6));
 
-  // ── 7. Turn on lead notifications (callback URL + verify token) ──
-  if(n===7){
-    const c=_fbWizConn();
-    const verify = c&&c.verify_token ? c.verify_token : null;
-    return `<p class="wzs-text">In your app open <b>Webhooks</b> → the <b>Page</b> object → find <b>leadgen</b> → switch <b>Subscribe</b> ON. When asked, paste these:</p>
-       <div class="fbwiz-field"><div class="label">Callback URL</div>${_fbWizCopy(FB_WEBHOOK_URL)}</div>
-       <div class="fbwiz-field"><div class="label">Verify Token <span class="fbwiz-mut">· auto-generated</span></div>${
-         verify ? _fbWizCopy(verify)
-                : '<div class="fbwiz-note">'+li('info',14,2)+' Created automatically when you connect your Page (the Connect step). Do that first, then come back here to copy it.</div>'
-       }</div>
-       <div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>
-       ${_fbWizHelp('This tells Facebook to ping your CRM the instant a lead comes in.','Pick the <b>Page</b> object (not “Application”), find <b>leadgen</b>, press <b>Subscribe</b>. It confirms at the verify-ping step.')}`;
-  }
-
-  // ── 8. Link Page + Leads Access ──
-  if(n===8) return _fbWizManualStep(8,'Link your Page and grant leads access',
+  // ── 7. Link Page + Leads Access ──
+  if(n===7) return _fbWizManualStep(7,'Link your Page and grant leads access',
     'In <b>Business settings</b>, connect your Page to your app and allow the app to read its leads.<br><br><b>How:</b> Business settings → <b>Pages</b> → select your Page → <b>Connected assets / Add assets</b> → add your app. Then on the same Page, enable <b>Leads Access</b> (Lead Access) for the app.',
     _fbWizLink(FBWIZ_LINKS.bizPages,'Open Business settings → Pages')+_fbWizLink(FBWIZ_LINKS.biz,'Open Business settings'),
     'Business settings → Pages → your Page → connect app + Leads Access',
     'Your app can only read a Page’s leads after the Page is linked to it and Leads Access is granted.',
     'Don’t see your Page? Make sure it’s added to your Business (Step 2). Don’t see Leads Access? Open the Page in Business settings → assign your app → enable lead access.',
-    doneBtn(8));
+    doneBtn(7));
 
-  // ── 9. Connect — give the CRM your app keys, then OAuth via YOUR app (footer drives the action) ──
-  if(n===9){
+  // ── 8. Connect — give the CRM your app keys, then OAuth via YOUR app (footer drives the action) ──
+  if(n===8){
     if(_fbWizConn()) return `<div class="fbwiz-ok">${li('check-circle',16,2)} Your Page is connected. The automatic checks are next.</div>`;
     const cfg=FBWIZ.appcfg||{}; const haveKeys=!!(cfg.app_id&&cfg.has_secret);
     if(!haveKeys || FBWIZ.editKeys){
@@ -4319,6 +4305,20 @@ function _fbWizStepView(n){
     return `<p class="wzs-text">Press <b>Connect Facebook</b> below, sign in, pick the Page(s) you set up, and choose each one’s project. The CRM gets the token automatically — you never copy it.</p>
        <div class="wzs-actions"><button class="btn btn-sm" onclick="FBWIZ.editKeys=true;_fbWizRender()">Change app keys</button></div>
        ${_fbWizHelp('','A pop-up opens — allow pop-ups if blocked. “URL blocked” = the redirect isn’t whitelisted in your app’s Facebook Login settings (Change app keys).')}`;
+  }
+
+  // ── 9. Turn on lead notifications (callback URL + verify token — auto-created at Connect, step 8) ──
+  if(n===9){
+    const c=_fbWizConn();
+    const verify = c&&c.verify_token ? c.verify_token : null;
+    return `<p class="wzs-text">In your app open <b>Webhooks</b> → the <b>Page</b> object → find <b>leadgen</b> → switch <b>Subscribe</b> ON. When asked, paste these:</p>
+       <div class="fbwiz-field"><div class="label">Callback URL</div>${_fbWizCopy(FB_WEBHOOK_URL)}</div>
+       <div class="fbwiz-field"><div class="label">Verify Token <span class="fbwiz-mut">· auto-generated</span></div>${
+         verify ? _fbWizCopy(verify)
+                : '<div class="fbwiz-note">'+li('info',14,2)+' This appears once your Page is connected (the previous step). If it’s blank, go back and Connect first, then return here to copy it.</div>'
+       }</div>
+       <div class="wzs-actions">${_fbWizLink(FBWIZ_LINKS.apps,'Open Webhooks settings')}</div>
+       ${_fbWizHelp('This tells Facebook to ping your CRM the instant a lead comes in.','Pick the <b>Page</b> object (not “Application”), find <b>leadgen</b>, press <b>Subscribe</b>. It confirms at the verify-ping step.')}`;
   }
 
   // ── 10. Token check (AUTO) ──
