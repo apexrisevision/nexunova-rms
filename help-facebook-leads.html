@@ -149,6 +149,13 @@ b,strong{font-weight:600}
           <li><b>Admin access</b> to all of the above, and a personal Facebook login.</li>
           <li>A company <b>privacy policy URL</b> (your website's /privacy page).</li>
         </ul>
+        <div class="callout warn"><div class="ic">!</div><div><b>Common setup pitfalls</b> — the things operators actually get stuck on:
+          <ul style="margin:6px 0 0 18px">
+            <li><b>No "Development &rarr; Live" toggle?</b> Newer Business apps don't have one — you publish by completing required fields + the use case instead. See <a href="#domain">&sect;6 Domain &amp; Live</a>.</li>
+            <li><b>App Icon is required</b> to go Live and is the most-missed field. See <a href="#domain">&sect;6</a>.</li>
+            <li><b>App Domains must be a bare domain</b> — <code>nexunova.com</code>, not <code>https://nexunova.com</code>. See <a href="#values">&sect;4 Technical values</a>.</li>
+            <li><b>Only the Page's own admin can press Connect</b> — Facebook won't let anyone else authorize it. See <a href="#steps">Step 8</a>.</li>
+          </ul></div></div>
       </section>
 
       <!-- 2. PREREQUISITES -->
@@ -237,13 +244,17 @@ b,strong{font-weight:600}
         <div class="step">
           <div class="step-n">6</div>
           <div class="step-b">
-            <h3>Add privacy policy &amp; go Live <span class="tag meta">In Meta</span></h3>
-            <div class="where">App Settings <span class="pathsep">&rsaquo;</span> Basic &nbsp;·&nbsp; App Mode toggle</div>
+            <h3>Add privacy policy, App Icon &amp; publish (go Live) <span class="tag meta">In Meta</span></h3>
+            <div class="where">App Settings <span class="pathsep">&rsaquo;</span> Basic &nbsp;·&nbsp; App Dashboard / use-case publish</div>
+            <p>Facebook won't send real leads until the app is <b>published / Live</b>. First fill <b>all three</b> required fields in <b>App Settings &rsaquo; Basic</b>, then <b>Save changes</b>:</p>
             <ol>
-              <li><b>App Settings &rsaquo; Basic</b> — paste your <b>Privacy Policy URL</b> and <b>Save changes</b>.</li>
-              <li>Top of the dashboard — switch <b>App Mode</b> from <b>Development</b> to <b>Live</b>.</li>
+              <li><b>App Domains</b> — add <code>nexunova.com</code> (bare domain — see <a href="#values">Technical values</a> for the format).</li>
+              <li><b>Privacy Policy URL</b> — e.g. <code>https://nexunova.com/privacy</code>.</li>
+              <li><b>App Icon</b> — a square logo (JPG/PNG, up to 5MB, 1024&times;1024 recommended). <b>Required</b> — and the most-missed one.</li>
             </ol>
-            <div class="callout warn"><div class="ic">!</div><div>In <b>Development</b> mode Facebook will <b>not</b> send real leads. The <b>Live</b> toggle won't turn on until a <b>Privacy Policy URL</b> is saved.</div></div>
+            <div class="callout warn"><div class="ic">!</div><div><b>Don't see an "App Mode" Development/Live toggle?</b> Newer Business-type apps don't have one. Complete <b>App Domains + Privacy Policy + App Icon</b> first, then publish from the <b>App Dashboard</b> / use-case flow (below) — not from Basic settings.</div></div>
+            <p><b>Where the publish control actually is:</b> on the <b>App Dashboard</b>, open the <b>"Capture &amp; manage ad leads"</b> use case and use its <b>Publish / Go Live</b> control. Check the <b>Required actions</b> page — if it's <b>empty</b>, nothing is blocking you and you can publish. Completing the <b>Capture &amp; manage ad leads</b> use case is what actually matters for leads to flow.</p>
+            <div class="callout info"><div class="ic">i</div><div>While in <b>Development</b> / unpublished, Facebook delivers <b>test leads only</b> (to people with a role on the app). Real public leads need the app published.</div></div>
           </div>
         </div>
 
@@ -251,11 +262,13 @@ b,strong{font-weight:600}
           <div class="step-n">7</div>
           <div class="step-b">
             <h3>Link your Page &amp; grant Leads Access <span class="tag meta">In Meta</span></h3>
-            <div class="where">Business settings <span class="pathsep">&rsaquo;</span> Pages <span class="pathsep">&rsaquo;</span> your Page <span class="pathsep">&rsaquo;</span> connect app + Leads Access</div>
-            <p>Connect your <b>app</b> to the Page and allow it to read the Page's leads.</p>
-            <p><b>How:</b> Business settings &rsaquo; <b>Pages</b> &rsaquo; select your Page &rsaquo; <b>Connected assets / Add assets</b> &rsaquo; add your app. Then on the same Page, enable <b>Leads Access</b> (Lead Access) for the app.</p>
-            <p class="eg">Your app can only read a Page's leads after the Page is linked to it <b>and</b> Leads Access is granted.</p>
-            <div class="shot">Screenshot: Page &rsaquo; Connected assets &rsaquo; add app + Leads Access toggle</div>
+            <div class="where">Business settings <span class="pathsep">&rsaquo;</span> Accounts <span class="pathsep">&rsaquo;</span> Pages <span class="pathsep">&rsaquo;</span> your Page <span class="pathsep">&rsaquo;</span> connect app + Leads Access</div>
+            <p>Your app can read a Page's leads only after the Page is <b>linked to the app</b> <b>and</b> <b>Leads Access</b> is granted.</p>
+            <p><b>How:</b> <b>Business settings &rsaquo; Accounts &rsaquo; Pages</b> &rsaquo; select your Page &rsaquo; <b>Connect / Add assets</b> and add your <b>app</b>. Then enable <b>Leads Access</b> (also shown as <b>Lead Access</b>) for the app on that Page.</p>
+            <div class="callout warn"><div class="ic">!</div><div>Can't find where to add the app? The Page's <b>Connected assets</b> sometimes only lists <b>Instagram</b>, not apps. If so, go the other way: <b>Business settings &rsaquo; Accounts &rsaquo; Apps &rsaquo; your app &rsaquo; Add assets &rsaquo; Pages</b> and connect the Page from there — it's the same link either direction.</div></div>
+            <p style="font-weight:700;margin:14px 0 2px">Finding your Page ID</p>
+            <p class="eg">If a different person runs the Connect step, send them the <b>Page ID</b>: open the Page &rsaquo; <b>Settings</b> &rsaquo; scroll to <b>Page ID</b> (or <b>About</b> &rsaquo; <i>Page transparency</i>), or read it under <b>Business settings &rsaquo; Pages</b> beside the Page name.</p>
+            <div class="shot">Screenshot: Business settings &rsaquo; Accounts &rsaquo; Pages &rsaquo; connect app + Leads Access</div>
           </div>
         </div>
 
@@ -265,6 +278,7 @@ b,strong{font-weight:600}
             <h3>Connect Facebook <span class="tag crm">In the CRM</span></h3>
             <div class="where">Connect Facebook wizard <span class="pathsep">&rsaquo;</span> Step 8</div>
             <p>This is the one-click connection — and the step that <b>creates your verify token</b>.</p>
+            <div class="callout warn"><div class="ic">!</div><div><b>Who must do this:</b> the person whose <b>Facebook account is an admin of the Page</b> has to press <b>Connect Facebook</b> and sign in. Your CRM admin (or anyone else) <b>cannot</b> do it for them — Facebook only lets the Page's own admin authorize access. Have that person at the keyboard for this step.</div></div>
             <ol>
               <li>If the wizard asks for app keys, paste your <b>App ID</b> and <b>App Secret</b> (from <b>App Settings &rsaquo; Basic</b>) and Save.</li>
               <li>Whitelist the CRM redirect in your app: <b>Facebook Login for Business &rsaquo; Settings &rsaquo; Valid OAuth Redirect URIs</b> — add the redirect URI shown in <a href="#values">Technical values</a>.</li>
@@ -336,6 +350,19 @@ b,strong{font-weight:600}
           <div class="label">App Domains <span style="text-transform:none;font-weight:500;color:var(--faint)">· App Settings &rsaquo; Basic</span></div>
           <div class="copy"><code id="v-dom1">nexunova.com</code><button onclick="cp(this,'v-dom1')">Copy</button></div>
           <div class="copy" style="margin-top:6px"><code id="v-dom2">supabase.co</code><button onclick="cp(this,'v-dom2')">Copy</button></div>
+          <div class="callout warn" style="margin-top:8px"><div class="ic">!</div><div><b>Use the bare domain only</b> — no <code>https://</code>, no trailing slash, no path.<br>
+            <span style="color:var(--success);font-weight:700">RIGHT:</span> <code>nexunova.com</code> &nbsp;&middot;&nbsp;
+            <span style="color:var(--danger);font-weight:700">WRONG:</span> <code>https://nexunova.com</code></div></div>
+        </div>
+
+        <div class="kv">
+          <div class="label">Privacy Policy URL <span style="text-transform:none;font-weight:500;color:var(--faint)">· App Settings &rsaquo; Basic</span></div>
+          <div class="copy"><code id="v-privacy">https://nexunova.com/privacy</code><button onclick="cp(this,'v-privacy')">Copy</button></div>
+        </div>
+
+        <div class="kv">
+          <div class="label">App Icon <span style="text-transform:none;font-weight:500;color:var(--faint)">· App Settings &rsaquo; Basic · required to go Live</span></div>
+          <div class="copy" style="cursor:default"><code style="flex:1">Any square logo image &mdash; JPG/PNG, up to 5MB (1024&times;1024 recommended)</code></div>
         </div>
 
         <div class="kv">
@@ -363,12 +390,14 @@ b,strong{font-weight:600}
       <!-- 6. DOMAIN SETUP -->
       <section class="sec" id="domain">
         <h2>6 · Domain setup &amp; going Live</h2>
-        <p class="lead">Three things in <b>App Settings &rsaquo; Basic</b> let the connection work and go Live.</p>
+        <p class="lead">A few fields in <b>App Settings &rsaquo; Basic</b> must be complete before the connection works and the app can be published.</p>
         <ul>
-          <li><b>App Domains</b> — add <code>nexunova.com</code> and <code>supabase.co</code>. These authorise the CRM's domains so the OAuth pop-up and webhook aren't blocked.</li>
-          <li><b>Privacy Policy URL</b> — a public page (your website's /privacy). Required before the app can go Live.</li>
-          <li><b>App Mode = Live</b> — top of the dashboard. In Development mode Facebook never sends real leads.</li>
+          <li><b>App Domains</b> — add <code>nexunova.com</code> and <code>supabase.co</code> as <b>bare domains</b> (no <code>https://</code>, no slash). These authorise the CRM's domains so the OAuth pop-up and webhook aren't blocked.</li>
+          <li><b>Privacy Policy URL</b> — a public page, e.g. <code>https://nexunova.com/privacy</code>. Required before the app can be published.</li>
+          <li><b>App Icon</b> — a square logo (JPG/PNG, up to 5MB). <b>Required</b> to publish, and the field people most often forget.</li>
         </ul>
+        <h3>Going Live on newer apps</h3>
+        <p>Many newer Business-type apps have <b>no "Development &rarr; Live" toggle</b> on App Settings &rsaquo; Basic. Once the three fields above are filled, publish from the <b>App Dashboard</b> instead: complete the <b>"Capture &amp; manage ad leads"</b> use case and use its <b>Publish / Go Live</b> control. The <b>Required actions</b> page lists anything still blocking you — if it's <b>empty</b>, you're clear to publish.</p>
         <p>Separately, in <b>Facebook Login for Business &rsaquo; Settings</b>, add the <a href="#values">Valid OAuth Redirect URI</a> exactly as shown — this is what lets the Connect pop-up return to the CRM.</p>
         <div class="callout warn"><div class="ic">!</div><div>The redirect URI must match <b>character-for-character</b> (including <code>https://</code> and the trailing path). A mismatch is the #1 cause of the "URL blocked" error.</div></div>
       </section>
@@ -384,8 +413,23 @@ b,strong{font-weight:600}
         </div>
 
         <div class="err">
-          <div class="q"><span class="x">&#10007;</span> "Domain not included in the app's domains" / can't switch to Live</div>
-          <div class="a">In <b>App Settings &rsaquo; Basic</b>, add <code>nexunova.com</code> and <code>supabase.co</code> under <b>App Domains</b>, and make sure a <b>Privacy Policy URL</b> is saved. Then toggle <b>App Mode &rsaquo; Live</b>.</div>
+          <div class="q"><span class="x">&#10007;</span> "Domain not included in the app's domains" / can't go Live</div>
+          <div class="a">In <b>App Settings &rsaquo; Basic</b>, add <code>nexunova.com</code> and <code>supabase.co</code> under <b>App Domains</b>, save a <b>Privacy Policy URL</b> and an <b>App Icon</b>, then publish (see next two).</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> There's no "App Mode" Development/Live toggle to switch</div>
+          <div class="a">Newer Business apps don't have the toggle. Fill <b>App Domains + Privacy Policy URL + App Icon</b> in <b>App Settings &rsaquo; Basic</b>, then publish from the <b>App Dashboard &rsaquo; "Capture &amp; manage ad leads"</b> use case. Check the <b>Required actions</b> page — empty means nothing is blocking you.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> App Domains won't save / "invalid domain"</div>
+          <div class="a">You pasted a full URL. App Domains takes the <b>bare domain</b> only: <code>nexunova.com</code> — not <code>https://nexunova.com</code>, no trailing slash, no path.</div>
+        </div>
+
+        <div class="err">
+          <div class="q"><span class="x">&#10007;</span> "Connect Facebook" — can't authorize / expecting someone else to do it</div>
+          <div class="a">The Connect (OAuth) must be done by the person whose <b>Facebook account is an admin of the Page</b>. No one — not even your CRM admin — can authorize it on their behalf. Have the Page admin sign in at the Connect step.</div>
         </div>
 
         <div class="err">
