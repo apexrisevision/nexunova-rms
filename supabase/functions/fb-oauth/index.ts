@@ -10,7 +10,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 //                portal can open the OAuth dialog. { configured:false } until the
 //                platform secrets are set.
 //   • exchange — { session_token, code } → code→short→long-lived user token →
-//                /me/accounts. Stores user token + page tokens in fb_oauth_sessions
+//                /me/accounts (personal pages) + business-portfolio owned/client pages
+//                (business_management). Stores user token + page tokens in fb_oauth_sessions
 //                under a one-time nonce. Returns nonce + [{ref,name}] only (NO ids/tokens).
 //   • save     — { session_token, nonce, ref, project_id } → resolves the chosen page
 //                SERVER-SIDE, reuses save_fb_page (mint temp director session) to upsert
@@ -31,7 +32,10 @@ const GRAPH = "https://graph.facebook.com/v21.0";
 const APP_ID = Deno.env.get("FB_APP_ID") ?? "";
 const APP_SECRET = Deno.env.get("FB_APP_SECRET") ?? "";
 const REDIRECT = Deno.env.get("FB_OAUTH_REDIRECT") ?? "";
-const SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_metadata", "leads_retrieval"];
+// business_management lets the user token read /me/businesses and a portfolio's
+// owned/client pages — required because a Page owned by a Business Portfolio does
+// NOT appear in /me/accounts. Granted at Standard access for app admins/testers.
+const SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_metadata", "leads_retrieval", "business_management"];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +73,49 @@ async function appCreds(companyId?: string): Promise<{ app_id: string; app_secre
     } catch (_) { /* fall through to platform */ }
   }
   return { app_id: APP_ID, app_secret: APP_SECRET };
+}
+
+// Business-owned pages: a Page can live in a Business Portfolio, which /me/accounts
+// does NOT return. With business_management granted we read the user's businesses and
+// their owned/client pages. If that scope wasn't granted, /me/businesses returns
+// "(#100) Missing Permission" — we catch it and skip, so personal-page tenants are
+// unaffected (graceful fallback to the /me/accounts result). Only pages we can obtain a
+// page access_token for are returned — a token is required for the leadgen subscription
+// and lead retrieval. `have` carries the page_ids already collected from /me/accounts so
+// we de-duplicate.
+async function fetchBusinessPages(userTok: string, have: Set<string>): Promise<any[]> {
+  const out: any[] = [];
+  try {
+    const rb = await fetch(`${GRAPH}/me/businesses?fields=id,name&limit=100&access_token=${encodeURIComponent(userTok)}`);
+    const jb = await rb.json();
+    if (jb?.error || !Array.isArray(jb?.data)) return out;   // scope not granted / no businesses → skip
+    for (const biz of jb.data) {
+      for (const edge of ["owned_pages", "client_pages"]) {
+        try {
+          const rp = await fetch(`${GRAPH}/${encodeURIComponent(String(biz.id))}/${edge}?fields=id,name,access_token,tasks&limit=200&access_token=${encodeURIComponent(userTok)}`);
+          const jp = await rp.json();
+          if (jp?.error || !Array.isArray(jp?.data)) continue;
+          for (const p of jp.data) {
+            const pid = String(p.id);
+            if (have.has(pid)) continue;
+            // owned_pages/client_pages may omit the page token — fetch it directly with the user token.
+            let tok: string | undefined = p.access_token;
+            if (!tok) {
+              try {
+                const rt = await fetch(`${GRAPH}/${encodeURIComponent(pid)}?fields=access_token&access_token=${encodeURIComponent(userTok)}`);
+                const jt = await rt.json();
+                tok = jt?.access_token;
+              } catch (_) { /* leave undefined */ }
+            }
+            if (!tok) continue;   // can't connect a page without its access token
+            have.add(pid);
+            out.push({ page_id: pid, name: String(p.name ?? pid), access_token: tok, tasks: p.tasks ?? [] });
+          }
+        } catch (_) { /* skip this edge */ }
+      }
+    }
+  } catch (_) { /* skip the business path entirely */ }
+  return out;
 }
 
 Deno.serve(async (req: Request) => {
@@ -112,12 +159,18 @@ Deno.serve(async (req: Request) => {
       const r2 = await fetch(`${GRAPH}/oauth/access_token?grant_type=fb_exchange_token&client_id=${encodeURIComponent(cr.app_id)}&client_secret=${encodeURIComponent(cr.app_secret)}&fb_exchange_token=${encodeURIComponent(userTok)}`);
       const j2 = await r2.json();
       if (j2?.access_token) userTok = j2.access_token;
-      // managed pages (each carries its own page access token)
+      // 1) personally-managed pages (each carries its own page access token)
       const r3 = await fetch(`${GRAPH}/me/accounts?fields=id,name,access_token,tasks&limit=200&access_token=${encodeURIComponent(userTok)}`);
       const j3 = await r3.json();
-      if (j3?.error) return json({ success: false, error: "pages_fetch_failed", message: j3.error.message });
-      const pages = (j3?.data ?? []).map((p: any) => ({ page_id: String(p.id), name: String(p.name ?? p.id), access_token: p.access_token, tasks: p.tasks ?? [] }));
-      if (!pages.length) return json({ success: false, error: "no_pages", message: "No Facebook Pages are managed by this account." });
+      const pages = (Array.isArray(j3?.data) ? j3.data : []).map((p: any) => ({ page_id: String(p.id), name: String(p.name ?? p.id), access_token: p.access_token, tasks: p.tasks ?? [] }));
+      // 2) business-portfolio-owned pages (NOT returned by /me/accounts). Merged + de-duped.
+      //    Skips gracefully if business_management wasn't granted, so the personal path is unaffected.
+      const have = new Set<string>(pages.map((p: any) => p.page_id));
+      for (const bp of await fetchBusinessPages(userTok, have)) pages.push(bp);
+      if (!pages.length) {
+        const why = j3?.error?.message ? (" (" + j3.error.message + ")") : "";
+        return json({ success: false, error: "no_pages", message: "No Facebook Pages found for this account — personal or business" + why + "." });
+      }
 
       const nonce = rid() + rid();
       await sb.from("fb_oauth_sessions").delete().lt("expires_at", new Date().toISOString()); // opportunistic cleanup
