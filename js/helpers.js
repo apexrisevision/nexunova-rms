@@ -259,7 +259,7 @@ function hasPermission(perm){
 
   const defaults = {
     recovery:['dashboard','units','clients','recovery','contacts','reports','sales'],
-    accounts:['dashboard','recovery','reports','clients','agents'],
+    accounts:['dashboard','recovery','reports','clients','agents','units','sales','documents'],   // must cover every module the accounts sidebar advertises, else shown items bounce (units=cancelled/transfer ledgers)
     // Manager = broad READ-ONLY across the app. These grant page/module READ access only;
     // write/edit/delete stay blocked by the `role-readonly` body class + server-side authz
     // (manager write-block batches). Mirrors recovery/accounts so a manager works
