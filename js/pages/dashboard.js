@@ -692,6 +692,9 @@ async function _dashStaff(pg, role) {
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6)">${_dashSkeleton()}</div>`;
   // Recovery officers: the dashboard IS their working recovery report (live figures + table).
   if (role === 'recovery' || role === 'recovery_officer') { return _dashRecoveryReport(pg); }
+  // Accounts / finance are DATA-ENTRY roles, not recovery officers — give them a plain
+  // quick-actions home (their permitted modules), never the recovery call-list view.
+  if (role === 'accounts' || role === 'finance') { return _dashAccountsHome(pg, role); }
   let q = {}, alerts = { total: 0, items: [] };
   try {
     const proj = (typeof activeProjectId === 'function' ? activeProjectId() : null);
@@ -901,4 +904,36 @@ function _dashOffTools() {
     ${tool('Escalations', 'flag', "nav('escalations')")}
     ${tool('Call logs', 'phone-call', "nav('contacts')")}
   </div>`, { header: { title: 'My tools — everything you need', icon: 'grid', actions: NX.infoTip('Quick access to every recovery action. "Log a call" records the outcome (promise / no-answer / dispute) and sets your next follow-up — that keeps the recovery loop alive.') } });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACCOUNTS / FINANCE — data-entry home (quick actions, NOT the recovery view)
+   ════════════════════════════════════════════════════════════════════════ */
+function _dashAccountsHome(pg, role) {
+  const who = (S && (S.name || S.username)) || '';
+  const hr = new Date().getHours();
+  const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const can = k => (typeof hasPermission !== 'function') || hasPermission(k);
+  const tile = (perm, label, desc, icon, go) => can(perm)
+    ? `<div class="nx-card" style="cursor:pointer" onclick="${go}" onmouseover="this.style.background='var(--fk-bg-subtle)'" onmouseout="this.style.background=''">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${NX.ichip(icon, '', { size: 'md' })}<span class="nx-kpi-label" style="text-transform:none;font-weight:600;color:var(--fk-text)">${label}</span></div>
+        <div class="nx-kpi-label" style="text-transform:none">${desc}</div>
+        <div style="color:var(--fk-primary);font-size:12px;font-weight:500;margin-top:10px">Open →</div>
+      </div>` : '';
+  const tiles = [
+    tile('addpayment', 'Record Payment', 'Enter a new receipt against a unit', 'hand-coins', "nav('addpayment')"),
+    tile('receipts', 'Receipt Vouchers', 'View & print payment receipts', 'file-text', "nav('receipts')"),
+    tile('sales', 'Sales', 'Browse bookings & sale details', 'shopping-bag', "nav('sales')"),
+    tile('clients', 'Clients', 'Client records & statements', 'users', "nav('clients')"),
+    tile('agents', 'Sales Agents', 'Agent list & details', 'user-check', "nav('agents')"),
+    tile('reports', 'Reports', 'Run & export reports', 'bar-chart-3', "nav('reports')")
+  ].filter(Boolean).join('');
+  pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-4)">
+    ${_dashHeader()}
+    <div>
+      <h2 style="font-size:18px;font-weight:600;margin:0">${greet}${who ? ', ' + esc(String(who).split(' ')[0]) : ''}</h2>
+      <div class="nx-kpi-label" style="text-transform:none;margin-top:3px">Your quick actions — pick a task to get started.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--fk-sp-3)">${tiles || NX.empty({ icon: 'info', message: 'No modules assigned yet — ask your admin to grant access.' })}</div>
+  </div>`;
 }
