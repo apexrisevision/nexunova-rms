@@ -705,11 +705,6 @@ body{background:var(--nx-page)}
 .annhi-snip{font-size:13px;color:var(--fk-text-muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 /* home dashboard */
 .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
-.hstat{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);padding:16px;cursor:pointer;box-shadow:var(--fk-shadow);transition:transform .14s,box-shadow .18s,border-color .18s}
-.hstat:hover{box-shadow:var(--fk-shadow-raised);transform:translateY(-2px)}
-.hstat:active{transform:translateY(0)}
-.hstat .hl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:var(--fk-text-muted)}
-.hstat .hv{font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:8px;line-height:1.05}
 
 
 /* card */
@@ -1144,6 +1139,14 @@ body{background:var(--nx-page)}
 .co-dot.ok{background:var(--fk-success)} .co-dot.warn{background:var(--fk-warning)} .co-dot.off{background:var(--fk-text-muted)}
 .co-empty{font-size:var(--ts-small);color:var(--fk-text-muted);display:flex;align-items:center;gap:8px;padding:4px 0}
 @media(max-width:560px){ .lep-stat{padding:11px 14px} .lep-stat-n{font-size:18px} .lep-title{font-size:20px} }
+/* ── skeleton loading state — flat pulse (no gradient shimmer, kit law) ── */
+.skel-head,.skel-kpi,.skel-row{background:var(--fk-bg-subtle);border:1px solid var(--fk-hairline);border-radius:var(--fk-radius-card);animation:skpulse 1.3s ease-in-out infinite}
+.skel-head{height:40px;max-width:340px;margin-bottom:12px;border-radius:10px}
+.skel-kpi{height:96px}
+.skel-row{height:62px;margin-top:10px}
+.skel .dgrid{margin-top:0}
+@keyframes skpulse{0%,100%{opacity:.5}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.skel-head,.skel-kpi,.skel-row{animation:none}}
 </style>
 </head>
 <body>
@@ -1407,7 +1410,6 @@ const TOK_KEY='rms.sales.token';
 // ════ helpers ════
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const pkr=n=>'PKR '+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});
 const pkrFull=n=>'₨'+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});
 // compact PKR using local Lakh/Crore convention (e.g. 8,711,867 -> '₨87.12 L')
 function pkrShort(n){ n=Number(n||0); if(!n) return ''; return '₨'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
@@ -1587,7 +1589,11 @@ async function bootstrap(){
   const signup=params.get('signup');
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
-  if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){} const ok=await loadBoard(); if(ok){ _touch(); _startIdleWatch(); await enterApp(); return; } _clearSession(); }
+  if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){}
+    const ok=await loadBoard();
+    // only a confirmed expiry clears the saved session — a network blip must NOT log anyone out
+    if(ok!=='expired'){ _touch(); _startIdleWatch(); await enterApp(); return; }
+    _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   setCompanyContext(null);
   showScreen('screen-login');
@@ -1947,11 +1953,26 @@ function goBack(){
 }
 
 // ════ home dashboard (day at a glance + shortcuts) ════
-function _hStat(label,value,tone,onclick){
-  return `<div class="hstat" onclick="${onclick}"><div class="hl">${esc(label)}</div><div class="hv" style="color:var(--fk-${tone})">${esc(String(value))}</div></div>`;
-}
 // one standard screen heading used across all in-app tabs
 function _pageHead(t,s){ return `<div style="margin:0 2px 16px"><div style="font-size:18px;font-weight:700;letter-spacing:-.02em">${esc(t)}</div>${s?`<div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${esc(s)}</div>`:''}</div>`; }
+// skeleton loading state — heading + KPI grid + list rows (pulse, not spinner)
+function _skel(){ return '<div class="skel"><div class="skel-head"></div><div class="dgrid"><div class="skel-kpi"></div><div class="skel-kpi"></div><div class="skel-kpi"></div><div class="skel-kpi"></div></div><div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>'; }
+// network / load failure — show an in-place retry, NEVER sign the user out on a blip
+function _retryTab(){ setTab(TAB,true); }
+function _netErr(){
+  const b=$('app-body'); if(!b) return;
+  b.innerHTML='<div class="card"><div class="empty">'
+    +'<div class="ei">'+li('alert-triangle',20,1.8)+'</div>'
+    +'<div class="et">Could not load</div><div class="es">Check your internet connection and try again.</div>'
+    +'<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="_retryTab()">Retry</button>'
+    +'</div></div>';
+}
+// shared failure gate: true = handled (expired → login, else in-place retry); false = data is good
+function _loadFail(d){
+  if(d && d.success) return false;
+  if(d && d.error==='session_expired'){ sessionGone(); return true; }
+  _netErr(); return true;
+}
 // follow-up worklist row (Home) → opens the lead in the Leads tab
 // single-accent initials avatar (rounded-square, indigo tint) — used across all list rows
 function _avatar(name,sz){
@@ -2041,7 +2062,7 @@ function _spark(accent, series){
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity="${fillOp}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${w} ${h} L0 ${h} Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${col}" stroke-width="${sw}"${dash} stroke-linecap="round" stroke-linejoin="round" opacity="${lineOp}"/></svg>`;
 }
 function _trend(pct){
-  pct=(pct==null||!isFinite(pct))?0:pct;
+  if(pct==null||!isFinite(pct)) return '';   // no computed comparison → show nothing (never a fake 0%)
   const cls=pct>0?'up':(pct<0?'dn':'flat');
   const ar=pct<0?'<path d="M7 7l10 10"/><path d="M17 7v10H7"/>':'<path d="M7 17 17 7"/><path d="M7 7h10v10"/>';
   return `<span class="trendchip ${cls}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ar}</svg>${Math.abs(pct)}%</span>`;
@@ -2049,11 +2070,11 @@ function _trend(pct){
 function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span class="ei">${li(icon,18,1.75)}</span><div style="min-width:0"><div class="et">${esc(title)}</div><div class="es">${esc(sub)}</div></div></div>`; }
 // Exec (admin/cfo) read-only org snapshot — real org totals + top performers (get_org_overview)
 async function renderExecHome(){
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   let d, roi=null;
   try{ const [r,ra]=await Promise.all([sb.rpc('get_org_overview',{p_session_token:TOKEN}), sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:_curPeriod()})]);
     d=r.data; if(ra.data&&ra.data.success) roi=ra.data; }
-  catch(e){ return sessionGone(); }
+  catch(e){ return _netErr(); }
   if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone();
     $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Overview','Organisation snapshot.')+_emptyCard('Not available','This overview is for executives.')+'</div>'; return; }
   _touch();
@@ -2061,7 +2082,7 @@ async function renderExecHome(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   let html='<div class="nx-dash">';
   html+=`<div class="nx-rise" style="margin:0 2px var(--fk-sp-3)"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Organisation snapshot · read-only.</div></div>`;
   html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
@@ -2098,9 +2119,9 @@ function _roiHomeCard(roi){
 async function renderHome(){
   if(ME && (ME.role==='admin'||ME.role==='cfo')) return renderExecHome();                        // exec — read-only org snapshot
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
-  let perf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, myUnits=0;
+  let perf=null, prevPerf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, myUnits=0;
   try{
     const calls=[
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
@@ -2108,25 +2129,30 @@ async function renderHome(){
       sb.rpc('get_my_followups',{p_session_token:TOKEN}),
       sb.rpc('get_my_reservations',{p_session_token:TOKEN}),
       sb.rpc('get_my_submissions',{p_session_token:TOKEN}),
-      sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN})
+      sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN}),
+      sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('last')[0],p_to:_perfRange('last')[1]})   // real month-on-month comparison
     ];
     if(_canLeads) calls.push(sb.rpc('list_my_leads',{p_session_token:TOKEN}));
-    const [rP,rO,rF,rR,rS,rB,rL]=await Promise.all(calls);
+    const [rP,rO,rF,rR,rS,rB,rPrev,rL]=await Promise.all(calls);
     if(rP.data&&rP.data.success===false&&rP.data.error==='session_expired') return sessionGone();
     if(rP.data&&rP.data.success) perf=rP.data;
+    if(rPrev.data&&rPrev.data.success) prevPerf=rPrev.data;
     if(rO.data&&rO.data.success&&!rO.data.no_agent){ const T=rO.data.totals||{}; outstanding=Number(T.overdue||T.total_remaining||0); }
     if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
     if(rR.data&&rR.data.success){ resvActive=(rR.data.reservations||[]).filter(x=>x.status==='active').length; }
     if(rS.data&&rS.data.success){ pend=((rS.data.submissions)||[]).filter(x=>x.status==='pending').length; }
     if(rB.data&&rB.data.success){ myUnits=Number(rB.data.units_all)||0; }
     if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; LEAD_UNCHECKED=Number(rL.data.unchecked)||0; _leadsBadgeSet(LEAD_UNCHECKED); _leadsNotify(LEAD_UNCHECKED); }
-  }catch(e){ return sessionGone(); }
+  }catch(e){ return _netErr(); }
   await loadAnnouncements();
   _touch();
   const nm=(ME&&ME.sales_user_name)||'';
   const _fn=nm?esc(String(nm).split(' ')[0]):'';
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
+  // honest month-on-month trend: only when last month had real sales value to compare against
+  const pVal=prevPerf?Number(prevPerf.sales&&prevPerf.sales.value||0):0;
+  const momPct=pVal>0?Math.round((sVal-pVal)*100/pVal):null;
   let _d=0; const _dl=()=>`animation-delay:${(_d++)*40}ms`;
   const _convW=Math.max(3,Math.min(100,Number(conv)||0));
   let html='<div class="nx-dash">';
@@ -2142,16 +2168,16 @@ async function renderHome(){
       <div class="hm-divv"></div>
       <div class="hm-stat"><span><span class="hs-ic">${ic('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')}</span>To collect</span><b>${outstanding?pkrShort(outstanding):'₨0'}</b></div>
     </div>
-    <div class="hm-vs">${_trend(0)}<span>vs last month</span></div>
+    ${momPct==null?'':`<div class="hm-vs">${_trend(momPct)}<span>vs last month</span></div>`}
   </div>`;
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
   const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',violet:'var(--nx-violet)',emerald:'var(--fk-success)'};
   const kpi=(label,valHtml,accent,iconPath,onclick,trendPct)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(trendPct)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
-    + kpi('Active reservations', numv(resvActive,'int'), 'indigo', '<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>', "setTab('mine')", 0)
-    + kpi('Pending approvals', numv(pend,'int'), 'amber', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "setTab('mine')", 0)
-    + kpi('My units', numv(myUnits,'int'), 'violet', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>', "setTab('rank')", 0)
-    + kpi('To collect', numv(outstanding,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', "setTab('recovery')", 0)
+    + kpi('Active reservations', numv(resvActive,'int'), 'indigo', '<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>', "setTab('mine')", null)
+    + kpi('Pending approvals', numv(pend,'int'), 'amber', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "setTab('mine')", null)
+    + kpi('My units', numv(myUnits,'int'), 'violet', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>', "setTab('rank')", null)
+    + kpi('To collect', numv(outstanding,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', "setTab('recovery')", null)
     + '</div>';
   if(_canLeads){
     const _vall=`<a class="dsec-all" onclick="setTab('leads')">View all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>`;
@@ -2223,7 +2249,7 @@ function _teamActRow(a){
 // ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
 async function renderManagerHome(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team desk…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null, roi=null;
   const _isDir=ME&&ME.role==='director';
   try{
@@ -2246,7 +2272,7 @@ async function renderManagerHome(){
     TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
     if(rG.data&&rG.data.success) targets=rG.data;
     if(rROI&&rROI.data&&rROI.data.success) roi=rROI.data;
-  }catch(e){ return sessionGone(); }
+  }catch(e){ return _netErr(); }
   await loadAnnouncements();
   _touch(); _buildTeamStats();
   const stuck=_stuckTeamLeads();
@@ -2327,7 +2353,7 @@ function _trailToggle(){ _trailFull=true; if(LEAD_OPEN) renderLeadDetail(LEAD_OP
 function _waNum(p){ let d=String(p||'').replace(/\D/g,''); if(!d) return ''; if(d[0]==='0') d='92'+d.slice(1); else if(d.slice(0,2)!=='92') d='92'+d; return d; }
 async function renderLeads(){
   LEAD_OPEN=null;
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your leads…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   try{
     const [c,r]=await Promise.all([
       sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),
@@ -2336,7 +2362,7 @@ async function renderLeads(){
     if((c.data&&c.data.error==='session_expired')||(r.data&&r.data.error==='session_expired')) return sessionGone();
     LEADCFG=(c.data&&c.data.success)?c.data:null;
     LEADS=(r.data&&r.data.leads)||[]; LEADCOUNTS=(r.data&&r.data.counts)||{}; LEAD_UNCHECKED=Number(r.data&&r.data.unchecked)||0;
-  }catch(e){ return sessionGone(); }
+  }catch(e){ return _netErr(); }
   _touch();
   if(LEADCFG && !LEADCFG.can_have_leads){
     $('app-body').innerHTML=_pageHead('Leads')
@@ -2510,29 +2536,29 @@ async function _leLoad(){
     LE_ENTERED=(e.data&&e.data.success)?e.data:{rows:[],today:0};
     LE_PROJECTS=(pr.data&&pr.data.success)?(pr.data.projects||[]):[];
     LE_FBCOUNT=(fc.data&&fc.data.success)?((fc.data.pages||[]).length):0;
-  }catch(err){ sessionGone(); return false; }
+  }catch(err){ _netErr(); return false; }
   return true;
 }
 // each operator app = its own left-nav button + screen (no top tabs)
-async function renderLeadEntry(){ LE_VIEW='add';     $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>'; if(await _leLoad()){ _touch(); _leRender(); } }
-async function renderMyLeads(){   LE_VIEW='entered'; $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>'; if(await _leLoad()){ _touch(); _leRender(); } }
-async function renderFbConnect(){ LE_VIEW='fb';      $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>'; if(await _leLoad()){ _touch(); _leRender(); } }
-async function renderWebLeads(){ LE_VIEW='web';      $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+async function renderLeadEntry(){ LE_VIEW='add';     $('app-body').innerHTML=_skel(); if(await _leLoad()){ _touch(); _leRender(); } }
+async function renderMyLeads(){   LE_VIEW='entered'; $('app-body').innerHTML=_skel(); if(await _leLoad()){ _touch(); _leRender(); } }
+async function renderFbConnect(){ LE_VIEW='fb';      $('app-body').innerHTML=_skel(); if(await _leLoad()){ _touch(); _leRender(); } }
+async function renderWebLeads(){ LE_VIEW='web';      $('app-body').innerHTML=_skel();
   if(!(await _leLoad())) return;
   try{ const r=await sb.rpc('get_web_lead_config',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); WEBCFG=(r.data&&r.data.success)?r.data:null; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
 }
-async function renderWhatsApp(){ LE_VIEW='wa';       $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+async function renderWhatsApp(){ LE_VIEW='wa';       $('app-body').innerHTML=_skel();
   if(!(await _leLoad())) return;
   try{ const r=await sb.rpc('list_whatsapp_connections',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); WACONNS=(r.data&&r.data.success)?(r.data.connections||[]):[]; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
 }
-async function renderInstagram(){ LE_VIEW='ig';      $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+async function renderInstagram(){ LE_VIEW='ig';      $('app-body').innerHTML=_skel();
   if(!(await _leLoad())) return;
   try{ const r=await sb.rpc('list_instagram_connections',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); IGCONNS=(r.data&&r.data.success)?(r.data.connections||[]):[]; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
 }
-async function renderConnections(){ LE_VIEW='conn';   $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+async function renderConnections(){ LE_VIEW='conn';   $('app-body').innerHTML=_skel();
   if(!(await _leLoad())) return;
   try{ const r=await sb.rpc('get_connections_overview',{p_session_token:TOKEN}); if(r.data&&r.data.error==='session_expired') return sessionGone(); CONNOV=(r.data&&r.data.success)?r.data:{}; }catch(e){ return sessionGone(); }
   _touch(); _leRender();
@@ -2995,12 +3021,12 @@ async function openLead(id){ LEAD_OPEN=id; _trailFull=false; GW={active:false,le
 function closeLead(){ LEAD_OPEN=null; renderLeads(); }
 async function renderLeadWizard(fresh){
   if(fresh||!WIZ.lead){
-    $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+    $('app-body').innerHTML=_skel();
     try{ const {data}=await sb.rpc('get_lead',{p_session_token:TOKEN,p_id:WIZ.id});
       if(data&&data.error==='session_expired') return sessionGone();
       if(!data||!data.success){ toast('Lead not found','err'); return closeLead(); }
       WIZ.lead=data.lead; WIZ.acts=data.activities||[];
-    }catch(e){ return sessionGone(); }
+    }catch(e){ return _netErr(); }
   }
   _touch(); _wizRender();
 }
@@ -3096,7 +3122,7 @@ function _distributablePool(l){ if(!l||l.status==='won'||l.status==='lost') retu
   return _isLeadAdmin() ? (l.owner_role==='director') : !!l.is_mine; }
 // ── full details (360) — opened from the wizard's "View full details" ──
 async function renderLeadDetail(id){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let d, acts;
   try{ const _calls=[
         sb.rpc('get_lead',{p_session_token:TOKEN,p_id:id}),
@@ -3109,7 +3135,7 @@ async function renderLeadDetail(id){
     if(!data||!data.success){ toast('Lead not found','err'); return closeLead(); }
     d=data; LEAD_DETAIL=data;
     acts = (ri.data&&ri.data.success&&Array.isArray(ri.data.rows)) ? ri.data.rows.slice().reverse() : (d.activities||[]);  // newest-first → oldest-first for the trail
-  }catch(e){ return sessionGone(); }
+  }catch(e){ return _netErr(); }
   _touch();
   const l=d.lead;
   const wa=_waNum(l.phone);
@@ -3545,7 +3571,7 @@ function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div clas
 let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[], TEAM_OPEN={}, TEAM_KIDS={};
 async function renderTeam(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your team…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data, leadsR;
   try{
     const [r,rl]=await Promise.all([
@@ -3553,8 +3579,8 @@ async function renderTeam(){
       sb.rpc('list_my_leads',{p_session_token:TOKEN})
     ]);
     if(r.error) throw r.error; data=r.data; leadsR=rl.data;
-  }catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  }catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   TEAM_DATA=data.team||[]; TEAM_TOTALS=data.totals||{};
   TEAM_LEADS=(leadsR&&leadsR.success&&leadsR.leads)||[];
@@ -3573,7 +3599,7 @@ function _renderTeamTree(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   let html='<div class="nx-dash">'+_pageHead('My Team','Your team — tap a manager to expand their members.');
   html+='<div class="dgrid">'
     + kpi('Members', numv(team.length,'int'), 'indigo', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
@@ -3683,7 +3709,7 @@ function renderAgent(){
   </div>`;
   const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)',violet:'var(--nx-violet)'};
   const numv=(to,fmt,suf)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>${suf||''}`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
     + kpi('Sales value', numv(a.sales_value,'pkr'), 'indigo', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
     + kpi('Sales', numv(a.sales_count,'int'), 'violet', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
@@ -3719,11 +3745,11 @@ function _agentLeadRow(l){
 }
 // ════ Manager — Team Recovery (per-agent outstanding) ════
 async function renderTeamRecovery(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading team recovery…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_team',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   const team=(data.team||[]).slice().sort((a,b)=>Number(b.outstanding||0)-Number(a.outstanding||0));
   const T=data.totals||{};
@@ -3750,11 +3776,11 @@ function _periodLabel(p){ const a=p.split('-').map(Number); return new Date(a[0]
 function _progBar(pct){ pct=Math.max(0,Math.min(100,pct)); const col=pct>=100?'var(--fk-success)':(pct>=50?'var(--fk-primary)':'var(--fk-warning)'); return `<div style="height:8px;border-radius:5px;background:var(--fk-bg-subtle);overflow:hidden;margin-top:10px"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px;transition:width .3s"></div></div>`; }
 async function renderTargets(){
   if(!TARGET_PERIOD) TARGET_PERIOD=_curPeriod();
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading targets…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_team_targets',{p_session_token:TOKEN,p_period:TARGET_PERIOD}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch(); TARGETS_DATA=data;
   const agents=data.agents||[], T=data.totals||{};
   const pctU=T.target_units>0?Math.round(T.actual_units*100/T.target_units):0;
@@ -4394,10 +4420,10 @@ function _fbWizChecklistHTML(){
 // ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
 let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null};
 async function renderDistribute(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let rU,rL;
   try{ [rU,rL]=await Promise.all([sb.rpc('get_assignable_users',{p_session_token:TOKEN}), sb.rpc('list_my_leads',{p_session_token:TOKEN})]); }
-  catch(e){ return sessionGone(); }
+  catch(e){ return _netErr(); }
   if(rL.data&&rL.data.success===false&&rL.data.error==='session_expired') return sessionGone();
   _touch();
   const cfg=(rU.data)||{};
@@ -4487,33 +4513,13 @@ function _distRow(l){
 
 // ════ More (overflow hub — leaderboard · recovery · updates · account) ════
 function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director',lead_entry:'Lead Entry'}[r])||'Sale Representative'; }
-async function renderMore(){
-  await loadAnnouncements(); _touch();
-  const who=(ME&&ME.sales_user_name)||''; const role=_portalRoleLabel(ME&&ME.role);
-  const chev='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fk-text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
-  const row=(label,desc,onclick,extra)=>`<div class="card" style="padding:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="${onclick}">
-     <div><div style="font-weight:700;font-size:14px">${esc(label)}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:2px">${esc(desc)}</div></div>
-     <div style="display:flex;align-items:center;gap:8px">${extra||''}${chev}</div></div>`;
-  const annExtra=ANN.unread>0?`<span style="font-size:11px;font-weight:700;background:var(--fk-danger);color:#fff;border-radius:999px;padding:2px 8px">${ANN.unread} new</span>`:'';
-  let html=_pageHead('More', who+(role?' · '+role:''));
-  html+=row('My Performance','Funnel, activity &amp; results',"setTab('performance')");
-  html+=row('My Sales','Deals you have closed',"setTab('mysales')");
-  html+=row('My Clients','Everyone you have sold to',"setTab('clients')");
-  html+=row('My Recovery','Outstanding to collect',"setTab('recovery')");
-  html+=row('My Units','Units you have sold',"setTab('rank')");
-  html+=row('Messages','Notices from your director',"setTab('updates')",annExtra);
-  html+=row('My Profile','Your details, bank &amp; PIN',"setTab('profile')");
-  html+=`<button class="btn btn-full" style="margin-top:12px" onclick="toggleTheme()">Toggle theme</button>`;
-  html+=`<button class="btn btn-full" style="margin-top:8px;color:var(--fk-danger)" onclick="doLogout()">Sign out</button>`;
-  $('app-body').innerHTML=html;
-}
 // ════ My Profile — self-service (view / edit / change PIN) ════
 async function renderProfile(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_profile',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   const p=data.profile||{}; PROFILE=p;
   const initials=((p.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
@@ -4620,10 +4626,11 @@ function _trailShift(n){
   if(nd>_todayPKT()) return; TRAIL_DAY=nd; renderTrail();
 }
 async function renderTrail(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading footsteps…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let d;
   try{ const r=await sb.rpc('get_member_trail',{p_session_token:TOKEN,p_member:TRAIL_MEMBER,p_day:TRAIL_DAY}); d=r.data; }
-  catch(e){ return sessionGone(); }
+  catch(e){ toast('Could not load trail','err'); TRAIL_MEMBER=null; return renderLiveMap(); }
+  if(d&&d.error==='session_expired') return sessionGone();
   if(!d||!d.success){ toast('Could not load trail','err'); TRAIL_MEMBER=null; return renderLiveMap(); }
   _touch(); TRAIL_DATA=d;
   const t=$('appbar-title'); if(t) t.textContent=d.name||'Footsteps';
@@ -4661,18 +4668,25 @@ function _trailInitMap(){
   }
 }
 // Leaflet + OpenStreetMap — free, no API key, no billing.
+// CDN fallback chain (unpkg → jsDelivr): a single-CDN outage must not kill the maps
+// (precedent: the jsDelivr 301-loop that broke login on 2026-06-16).
+const _LEAF_CDNS=['https://unpkg.com/leaflet@1.9.4/dist/','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/'];
 function _loadLeaflet(){
   if(window.L && window.L.map) return Promise.resolve();
   if(_leafLoading) return _leafLoading;
   _leafLoading=new Promise((res,rej)=>{
-    if(!document.getElementById('leaflet-css')){
+    const tryCdn=(i)=>{
+      if(i>=_LEAF_CDNS.length){ _leafLoading=null; rej(new Error('load failed')); return; }
+      const base=_LEAF_CDNS[i];
+      const old=document.getElementById('leaflet-css'); if(old) old.remove();
       const lk=document.createElement('link'); lk.id='leaflet-css'; lk.rel='stylesheet';
-      lk.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(lk);
-    }
-    const s=document.createElement('script');
-    s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    s.async=true; s.onload=()=>res(); s.onerror=()=>{ _leafLoading=null; rej(new Error('load failed')); };
-    document.head.appendChild(s);
+      lk.href=base+'leaflet.css'; document.head.appendChild(lk);
+      const s=document.createElement('script');
+      s.src=base+'leaflet.js';
+      s.async=true; s.onload=()=>res(); s.onerror=()=>{ s.remove(); tryCdn(i+1); };
+      document.head.appendChild(s);
+    };
+    tryCdn(0);
   });
   return _leafLoading;
 }
@@ -4745,7 +4759,7 @@ function _liveStopRefresh(){ if(_liveRefreshTimer){ clearInterval(_liveRefreshTi
 function _setLiveMode(m){ if(m===LIVE_MODE) return; _liveStopRefresh(); _replayStop(); LIVE_MODE=m; renderLiveMap(); }
 async function renderLiveMap(){
   TRAIL_MEMBER=null; if(!LIVE_MODE) LIVE_MODE='live';
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading live map…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   let html=_pageHead('Live Map','Your team on the map — live, day replay and heatmap.');
   html+=_seg([['live','Live'],['replay','Replay'],['heat','Heatmap']], LIVE_MODE, '_setLiveMode');
   html+='<div id="lm-body"></div>';
@@ -4760,8 +4774,8 @@ async function _liveLiveMode(){
   let data, sites;
   try{ const [r,rs]=await Promise.all([sb.rpc('get_team_locations',{p_session_token:TOKEN}), sb.rpc('list_map_sites',{p_session_token:TOKEN})]);
     if(r.error) throw r.error; data=r.data; sites=(rs.data&&rs.data.success)?rs.data.sites:[]; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   LIVE_PINS=data.pins||[]; LIVE_SITES=sites||[];
   let html='<div id="live-filter">'+_liveFilterBar()+'</div>';
@@ -4865,7 +4879,7 @@ function _replayLegend(){
 async function _liveReplayMode(){
   const day=REPLAY.day||_todayPKT();
   $('lm-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading replay…</div></div></div>';
-  let d; try{ const r=await sb.rpc('get_team_trail',{p_session_token:TOKEN,p_day:day}); d=r.data; }catch(e){ return sessionGone(); }
+  let d; try{ const r=await sb.rpc('get_team_trail',{p_session_token:TOKEN,p_day:day}); d=r.data; }catch(e){ const b=$('lm-body'); if(b) b.innerHTML=_emptyCard('Could not load','Check your connection and try again.'); return; }
   if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone(); $('lm-body').innerHTML=_emptyCard('Replay not available','This is for directors.'); return; }
   _touch();
   const members=(d.members||[]).filter(m=>m.points&&m.points.length);
@@ -4939,7 +4953,7 @@ function _heatPresence(members){
 async function _liveHeatMode(){
   const day=REPLAY.day||_todayPKT();
   $('lm-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading heatmap…</div></div></div>';
-  let d; try{ const r=await sb.rpc('get_team_trail',{p_session_token:TOKEN,p_day:day}); d=r.data; }catch(e){ return sessionGone(); }
+  let d; try{ const r=await sb.rpc('get_team_trail',{p_session_token:TOKEN,p_day:day}); d=r.data; }catch(e){ const b=$('lm-body'); if(b) b.innerHTML=_emptyCard('Could not load','Check your connection and try again.'); return; }
   if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone(); $('lm-body').innerHTML=_emptyCard('Heatmap not available','This is for directors.'); return; }
   _touch(); REPLAY.day=d.day;
   const members=(d.members||[]).filter(m=>m.points&&m.points.length);
@@ -5193,9 +5207,9 @@ let PERF_PERIOD='month';
 let ORG_DATA=null, ORG_VIEW=null, MEMBER_SCOPE='self', MEMBER_PERIOD='month';
 async function renderOrg(){
   TRAIL_MEMBER=null; ORG_VIEW=null;
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading organisation…</div></div></div>';
-  let d; try{ const r=await sb.rpc('get_org_tree',{p_session_token:TOKEN}); d=r.data; }catch(e){ return sessionGone(); }
-  if(!d||!d.success){ return sessionGone(); }
+  $('app-body').innerHTML=_skel();
+  let d; try{ const r=await sb.rpc('get_org_tree',{p_session_token:TOKEN}); d=r.data; }catch(e){ return _netErr(); }
+  if(_loadFail(d)) return;
   _touch(); ORG_DATA=d; _renderOrgTree();
 }
 function _orgChildren(pid){ return (ORG_DATA.nodes||[]).filter(n=>String(n.parent_id)===String(pid)); }
@@ -5261,9 +5275,10 @@ function _setMemScope(s){ MEMBER_SCOPE=s; if(ORG_VIEW&&ORG_VIEW.view==='leads') 
 function _setMemPeriod(p){ MEMBER_PERIOD=p; renderMemberPerf(); }
 async function renderMemberPerf(){
   const id=ORG_VIEW.member, node=_orgFind(id), head=node&&Number(node.reports||0)>0;
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   const [from,to]=_perfRange(MEMBER_PERIOD);
-  let d; try{ const r=await sb.rpc('get_member_performance',{p_session_token:TOKEN,p_member:id,p_from:from,p_to:to,p_scope:head?MEMBER_SCOPE:'self'}); d=r.data; }catch(e){ return sessionGone(); }
+  let d; try{ const r=await sb.rpc('get_member_performance',{p_session_token:TOKEN,p_member:id,p_from:from,p_to:to,p_scope:head?MEMBER_SCOPE:'self'}); d=r.data; }catch(e){ toast('Could not load','err'); return _orgBack(); }
+  if(d&&d.error==='session_expired') return sessionGone();
   if(!d||!d.success){ toast('Could not load','err'); return _orgBack(); }
   _touch();
   const L=d.leads||{}, A=d.activity||{}, S=d.sales||{};
@@ -5271,7 +5286,7 @@ async function renderMemberPerf(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(to,fmt,suf)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>${suf||''}`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   let html='<div class="nx-dash"><button class="backbtn" onclick="_orgBack()" style="margin-bottom:var(--fk-sp-3)">‹ Hierarchy</button>';
   html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:var(--fk-sp-3)">${_avatarC(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-title);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div><div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">${esc(_portalRoleLabel(d.role))} · Performance${head&&MEMBER_SCOPE==='team'?' · whole team':''}</div></div></div>`;
   if(head) html+=_seg([['self','Personal'],['team','Whole team']], MEMBER_SCOPE, '_setMemScope');
@@ -5297,8 +5312,9 @@ async function renderMemberPerf(){
 }
 async function renderMemberLeads(){
   const id=ORG_VIEW.member, node=_orgFind(id), head=node&&Number(node.reports||0)>0;
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
-  let d; try{ const r=await sb.rpc('get_member_leads',{p_session_token:TOKEN,p_member:id,p_scope:head?MEMBER_SCOPE:'self'}); d=r.data; }catch(e){ return sessionGone(); }
+  $('app-body').innerHTML=_skel();
+  let d; try{ const r=await sb.rpc('get_member_leads',{p_session_token:TOKEN,p_member:id,p_scope:head?MEMBER_SCOPE:'self'}); d=r.data; }catch(e){ toast('Could not load','err'); return _orgBack(); }
+  if(d&&d.error==='session_expired') return sessionGone();
   if(!d||!d.success){ toast('Could not load','err'); return _orgBack(); }
   _touch();
   const leads=d.leads||[];
@@ -5327,7 +5343,7 @@ function _perfRange(p){
   return [null,null];
 }
 async function renderPerformance(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   const [from,to]=_perfRange(PERF_PERIOD);
   const mgr = ME && (ME.role==='marketing_manager'||ME.role==='director');
   let data, perAgent=[];
@@ -5338,8 +5354,8 @@ async function renderPerformance(){
     if(res[0].error) throw res[0].error; data=res[0].data;
     if(mgr && res[1] && res[1].data && res[1].data.success) perAgent=res[1].data.agents||[];
   }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   const L=data.leads||{}, A=data.activities||{};
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -5348,7 +5364,7 @@ async function renderPerformance(){
   html+=_seg([['month','This month'],['last','Last month'],['all','All time']], PERF_PERIOD, '_perfSetPeriod');
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
     + kpi('Leads', numv(Number(L.total)||0,'int'), 'indigo', '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')
     + kpi('Conversion', numv(Number(data.conversion)||0,'int')+'%', 'emerald', '<path d="M20 6 9 17l-5-5"/>')
@@ -5387,11 +5403,11 @@ function _perfAgentRow(a){
 }
 // ════ My Clients — everyone the agent has sold to ════
 async function renderClients(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your clients…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_clients',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   let html='<div class="nx-dash">'+_pageHead('My Clients','Everyone you have sold to.');
   if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div><div class="es">Your clients appear here once your sales are approved.</div></div></div></div>'; $('app-body').innerHTML=html; return; }
@@ -5400,7 +5416,7 @@ async function renderClients(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
     + kpi('Clients', numv(data.count,'int'), 'indigo', '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
     + kpi('Total remaining', numv(totRem,'pkr'), 'amber', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/>')
@@ -5427,11 +5443,11 @@ function _clientRow(c){
 }
 // ════ My Sales — the agent's closed deals ════
 async function renderMySales(){
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your sales…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_sales',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   _touch();
   let html='<div class="nx-dash">'+_pageHead('My Sales','Deals you have closed.');
   if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No sales linked yet</div><div class="es">Once your office links your agent profile and approves a sale, it appears here.</div></div></div></div>'; $('app-body').innerHTML=html; return; }
@@ -5439,7 +5455,7 @@ async function renderMySales(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
     + kpi('Sales closed', numv(Number(data.count)||0,'int'), 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
     + kpi('Total value', numv(Number(data.total)||0,'pkr'), 'indigo', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
@@ -5494,8 +5510,8 @@ function _annPrio(p){ return _ANN_PRIO[String(p||'normal').toLowerCase()]||_ANN_
 function _annPill(txt,fg,bg){ return `<span class="annpill" style="background:${bg};border-color:transparent;color:${fg}">${esc(txt)}</span>`; }
 async function renderUpdates(){
   if(ANN.open){ return renderAnnDetail(ANN.open); }   // email-style detail view
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading updates…</div></div></div>';
-  const ok=await loadAnnouncements(); if(!ok&&!ANN.loaded){ return sessionGone(); }
+  $('app-body').innerHTML=_skel();
+  const ok=await loadAnnouncements(); if(!ok&&!ANN.loaded){ return _netErr(); }
   _touch(); _annPaint();
 }
 function _annTab(t){ ANN.tab=t; _annPaint(); }
@@ -5643,14 +5659,18 @@ async function _annSend(){
 
 // ════ board ════
 async function loadBoard(){
-  const {data,error}=await sb.rpc('get_availability_board',{p_session_token:TOKEN,p_project_id:null});
+  // tri-state: true = loaded · 'expired' = session gone · false = network/other failure (keep the session!)
+  let data,error;
+  try{ const r=await sb.rpc('get_availability_board',{p_session_token:TOKEN,p_project_id:null}); data=r.data; error=r.error; }
+  catch(e){ return false; }
+  if(data&&data.error==='session_expired') return 'expired';
   if(error||!data||!data.success){ return false; }
   BOARD=data; _touch(); return true;
 }
 function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleString('en-US')+' '+((u.area_unit||'sqft')) : ''; }
 async function renderBoard(){
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading availability…</div></div></div>';
-  const ok=await loadBoard(); if(!ok){ return sessionGone(); }
+  if(!_BG) $('app-body').innerHTML=_skel();
+  const ok=await loadBoard(); if(ok!==true){ if(ok==='expired') return sessionGone(); return _netErr(); }
   const projects=BOARD.projects||[];
   if(!projects.length){
     $('app-body').innerHTML='<div class="card"><div class="empty">'
@@ -5672,7 +5692,7 @@ async function renderBoard(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
-  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid">'
     + kpi('Available', c.available, 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/>')
     + kpi('Reserved', c.reserved, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
@@ -5888,12 +5908,13 @@ function _shareUnitSend(){
 // ════ my reservations ════
 let MINE_ROWS=[];
 async function renderMine(){
-  if(!_BG) $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  if(!_BG) $('app-body').innerHTML=_skel();
   const [rRes,rSub]=await Promise.all([
     sb.rpc('get_my_reservations',{p_session_token:TOKEN}),
     sb.rpc('get_my_submissions',{p_session_token:TOKEN})
   ]);
-  if(rRes.error||!rRes.data||!rRes.data.success){ return sessionGone(); }
+  if(rRes.data&&rRes.data.error==='session_expired') return sessionGone();
+  if(rRes.error||!rRes.data||!rRes.data.success){ return _netErr(); }
   MINE_ROWS=rRes.data.reservations||[];
   const subs=(rSub.data&&rSub.data.submissions)||[];
   const subBy={};
@@ -5909,7 +5930,7 @@ async function renderMine(){
   const TONE={success:['var(--fk-success-surface)','var(--fk-success)'],warning:['var(--fk-warning-surface)','var(--fk-warning)'],danger:['var(--fk-danger-surface)','var(--fk-danger)'],primary:['var(--fk-primary-surface)','var(--fk-primary)'],muted:['var(--fk-bg-subtle)','var(--fk-text-muted)']};
   const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)'};
   const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
-  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   const BM='m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z';
   const pill=(tone,label)=>`<span class="spill" style="background:${TONE[tone][0]};border-color:transparent;color:${TONE[tone][1]};white-space:nowrap">${esc(label)}</span>`;
   const tile=(tone,iconPath)=>`<span style="width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:${TONE[tone][0]};color:${TONE[tone][1]}">${ic(iconPath)}</span>`;
@@ -5933,7 +5954,7 @@ async function renderMine(){
     else if(st==='cancelled'){ tone='danger'; label='Cancelled'; }
     else { tone='muted'; label=st.charAt(0).toUpperCase()+st.slice(1); }
     const rej=(sub&&sub.status==='rejected')?`<div style="font-size:var(--fk-fs-label);color:var(--fk-danger);margin-top:6px">Rejected: ${esc(sub.reject_reason||'see office')}</div>`:'';
-    const sub2=`${esc(r.project_name||'')}${r.client_name?' · '+esc(r.client_name):''}${r.token_received?' · token <span style="font-variant-numeric:tabular-nums">'+esc(pkr(r.token_amount))+'</span>':''}`;
+    const sub2=`${esc(r.project_name||'')}${r.client_name?' · '+esc(r.client_name):''}${r.token_received?' · token <span style="font-variant-numeric:tabular-nums">'+esc(pkrFull(r.token_amount))+'</span>':''}`;
     const foot=(tip||actions||rej)?`<div class="lrow-foot"><span style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">${tip}</span><span style="display:flex;gap:6px;flex:none">${actions}</span></div>${rej}`:'';
     return `<div class="lrow"><div class="lrow-top">
       ${tile(tone,BM)}
@@ -5969,11 +5990,11 @@ function _waDigits(p){ let d=String(p||'').replace(/[^0-9]/g,''); if(d.length===
 function _recWaText(r,co){ const amt=pkrFull((r.overdue>0.5?r.overdue:r.total_remaining)||0);
   return 'Assalam-o-Alaikum '+(r.client_name||'')+' Sahab,\n\nAap ke unit '+(r.unit_no||'')+' par '+amt+' baqaya hai. Baraye meherbani jald se jald adaigi karwa dein taake aap ka account clear rahe.\n\nShukria'+(co?'\n'+co:''); }
 async function renderRecovery(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading your recovery book…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_outstanding',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   if(data.no_agent){
     $('app-body').innerHTML='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>'
@@ -5992,7 +6013,7 @@ async function renderRecovery(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',emerald:'var(--fk-success)'};
   const numv=(to)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="pkr">${pkrShort(Number(to)||0)||'₨0'}</span>`;
-  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   let html='<div class="nx-dash">'+_pageHead('My Recovery','Clients & outstanding from your sales.');
   html+='<div class="dgrid">'
     + kpi('Overdue now', T.overdue, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
@@ -6029,11 +6050,11 @@ async function renderRecovery(){
 let LB_DATA=null, LB_PERIOD='all';
 function setLbPeriod(p){ LB_PERIOD=p; renderLeaderboardBody(); }
 async function renderLeaderboard(){
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
-  if(!data||!data.success){ return sessionGone(); }
+  catch(e){ return _netErr(); }
+  if(_loadFail(data)) return;
   LB_DATA=data; _touch(); renderLeaderboardBody();
 }
 function renderLeaderboardBody(){
@@ -6052,7 +6073,7 @@ function renderLeaderboardBody(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={emerald:'var(--fk-success)',indigo:'var(--fk-primary)'};
   const numv=(n,fmt)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="${fmt||'int'}">${fmt==='pkr'?(pkrShort(Number(n)||0)||'₨0'):(Number(n)||0)}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
     + kpi('Units sold', numv(cnt,'int'), 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>')
     + kpi('Sales value', numv(val,'pkr'), 'indigo', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
@@ -6084,10 +6105,10 @@ function _monShift(ym, delta){ const p=String(ym||'').split('-').map(Number); co
 function _adRoiStep(delta){ AD_MONTH=_monShift(AD_MONTH||_curPeriod(), delta); renderAdRoi(); }
 async function renderAdRoi(){
   if(!AD_MONTH) AD_MONTH=_curPeriod();
-  $('app-body').innerHTML='<div class="card"><div class="empty"><div class="et">Loading…</div></div></div>';
+  $('app-body').innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:AD_MONTH}); if(r.error) throw r.error; data=r.data; }
-  catch(e){ return sessionGone(); }
+  catch(e){ return _netErr(); }
   if(!data||!data.success){ if(data&&data.error==='session_expired') return sessionGone();
     $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Marketing ROI','Ad spend vs leads.')+_emptyCard('Not available','This report is for finance and directors.')+'</div>'; return; }
   _touch();
@@ -6095,7 +6116,7 @@ async function renderAdRoi(){
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(0)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   const dash=`<span style="color:var(--fk-text-muted)">—</span>`;
   let html='<div class="nx-dash">'+_pageHead('Marketing ROI','Ad spend vs source-matched leads — cost per lead.');
   // month stepper
