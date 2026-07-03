@@ -668,31 +668,6 @@ body{background:var(--nx-page)}
   background:var(--fk-danger,#e11d48);color:#fff;font-size:11px;font-weight:700;line-height:16px;text-align:center;
   border:1.5px solid var(--fk-bg-card);display:none}
 .btab-badge.show{display:block}
-/* ── 5-tab mode (all roles except the lead-entry operator, who keeps her drawer) ── */
-.btabs{display:none}
-#screen-app.tabs .btabs{display:flex}
-#screen-app.tabs .sb,#screen-app.tabs .sb-scrim{display:none!important}
-#screen-app.tabs .sb-toggle{display:none!important}
-#screen-app.tabs .appbody{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
-/* Money header — exactly two tappable numbers */
-.mny-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.mny{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:12px 14px;cursor:pointer;transition:box-shadow .15s}
-.mny:hover{box-shadow:var(--fk-shadow-raised)}
-.mny-l{font-size:var(--fk-fs-label);font-weight:var(--fk-fw-semibold);color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em}
-.mny-v{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-bold);font-variant-numeric:tabular-nums;margin-top:4px;color:var(--fk-text)}
-/* More — flat list rows (≥44px touch targets) */
-.more-row{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 10px;border-bottom:1px solid var(--fk-hairline);cursor:pointer;color:var(--fk-text);transition:background .12s}
-.more-row:last-of-type{border-bottom:0}
-.more-row:active{background:var(--fk-bg-subtle)}
-.more-row>svg:first-child{color:var(--fk-primary);flex:none}
-.more-meta{flex:1;min-width:0}
-.more-l{font-size:14px;font-weight:var(--fk-fw-semibold)}
-.more-d{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:1px}
-.more-row .more-chev{color:var(--fk-text-muted);opacity:.6;flex:none}
-/* Today worklist rows */
-.td-act{width:38px;height:38px;flex:none;display:grid;place-items:center;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text-muted);border-radius:10px;cursor:pointer;text-decoration:none;transition:color .12s,border-color .12s}
-.td-act:active{background:var(--fk-bg-subtle)}
-.td-act.wa{color:var(--fk-success)}
 /* updates / announcements — email-style inbox */
 .inbox{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);overflow:hidden}
 .inrow{display:flex;align-items:center;gap:10px;padding:12px 13px;border-bottom:1px solid var(--fk-border);cursor:pointer;transition:background .1s}
@@ -1339,6 +1314,7 @@ body{background:var(--nx-page)}
   <aside class="sb" id="sb">
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
     <nav class="sb-nav">
+      <a class="ni" data-tab="home" onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <div class="sb-grp" data-le style="display:none">Leads</div>
       <a class="ni" data-tab="leadentry" data-le style="display:none" onclick="setTab('leadentry')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ni-lb">Add Manual Lead</span></a>
       <a class="ni" data-tab="myleads" data-le style="display:none" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
@@ -1349,6 +1325,48 @@ body{background:var(--nx-page)}
       <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
       <a class="ni" data-tab="igdm" data-le style="display:none" onclick="setTab('igdm')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span><span class="ni-lb">Instagram</span></a>
       <a class="ni" data-tab="adspend" data-le style="display:none" onclick="setTab('adspend')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg></span><span class="ni-lb">Ad Spend</span></a>
+      <div class="ni-grp" data-grp="leads" style="display:none">
+        <div class="ni-grp-hd" onclick="toggleGroup('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="ni-sub">
+          <a class="ni-child" data-tab="leads" data-lead onclick="setTab('leads')"><span class="ni-lb">All Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
+          <a class="ni-child" data-tab="distribute" data-mgr onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
+          <a class="ni-child" data-tab="fbsettings" data-dir onclick="setTab('fbsettings')"><span class="ni-lb">Facebook Leads</span></a>
+        </div>
+      </div>
+      <div class="ni-grp" data-grp="team" data-mgr style="display:none">
+        <div class="ni-grp-hd" onclick="toggleGroup('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">Team</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="ni-sub">
+          <a class="ni-child" data-tab="team" onclick="setTab('team')"><span class="ni-lb">My Team</span></a>
+          <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
+          <a class="ni-child" data-tab="teamperf" onclick="setTab('teamperf')"><span class="ni-lb">Team Performance</span></a>
+          <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
+          <a class="ni-child" data-tab="livemap" data-dir onclick="setTab('livemap')"><span class="ni-lb">Live Map</span></a>
+          <a class="ni-child" data-tab="org" data-dir onclick="setTab('org')"><span class="ni-lb">Hierarchy</span></a>
+        </div>
+      </div>
+      <div class="ni-grp" data-grp="sales">
+        <div class="ni-grp-hd" onclick="toggleGroup('sales')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h4a1 1 0 0 1 1 1v11"/></svg></span><span class="ni-lb">Sale / Reservation</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="ni-sub">
+          <a class="ni-child" data-tab="board" onclick="setTab('board')"><span class="ni-lb">Sell units</span></a>
+          <a class="ni-child" data-tab="mine" onclick="setTab('mine')"><span class="ni-lb">Reservations</span></a>
+          <a class="ni-child" data-tab="mysales" onclick="setTab('mysales')"><span class="ni-lb">My Sales</span></a>
+        </div>
+      </div>
+      <div class="ni-grp" data-grp="money">
+        <div class="ni-grp-hd" onclick="toggleGroup('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="ni-lb">Clients &amp; Money</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="ni-sub">
+          <a class="ni-child" data-tab="clients" onclick="setTab('clients')"><span class="ni-lb">Clients</span></a>
+          <a class="ni-child" data-tab="recovery" onclick="setTab('recovery')"><span class="ni-lb">Recovery</span></a>
+        </div>
+      </div>
+      <div class="ni-grp" data-grp="insights">
+        <div class="ni-grp-hd" onclick="toggleGroup('insights')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span class="ni-lb">Insights</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="ni-sub">
+          <a class="ni-child" data-tab="performance" onclick="setTab('performance')"><span class="ni-lb">Performance</span></a>
+          <a class="ni-child" data-tab="rank" onclick="setTab('rank')"><span class="ni-lb">My Units</span></a>
+          <a class="ni-child" data-tab="adroi" data-roi style="display:none" onclick="setTab('adroi')"><span class="ni-lb">Marketing ROI</span></a>
+        </div>
+      </div>
     </nav>
     <div class="sb-bottom" style="padding:8px 12px;border-top:1px solid var(--fk-hairline)">
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
@@ -1373,14 +1391,6 @@ body{background:var(--nx-page)}
   </div>
  </div>
  <div class="sb-scrim" id="sb-scrim" onclick="closeSidebar()"></div>
- <!-- 5-tab bottom bar — same tabs for every role; content adapts inside each tab -->
- <nav class="btabs" id="btabs" aria-label="Main">
-   <button class="btab" data-bt="home" onclick="setTab('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span><span class="btab-badge" id="bt-badge-home"></span></button>
-   <button class="btab" data-bt="leads" onclick="setTab('leads')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span>Leads</span><span class="btab-badge" id="bt-badge-leads"></span></button>
-   <button class="btab" data-bt="units" onclick="setTab('board')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h4a1 1 0 0 1 1 1v11"/></svg><span>Units</span></button>
-   <button class="btab" data-bt="money" onclick="setTab('recovery')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.4"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg><span>Money</span></button>
-   <button class="btab" data-bt="more" onclick="setTab('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span></button>
- </nav>
 </div>
 
 <div id="modal-host"></div>
@@ -1757,16 +1767,39 @@ function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showSc
 let AGREE_GATE=null;
 function _applyLeadAccess(){
   const role = (ME && ME.role) || 'sale_rep';
-  const isLE = (role==='lead_entry');   // data-entry operator — keeps her single-purpose drawer (screens untouched)
+  const isExec = (role==='admin'||role==='cfo');                 // exec — minimal portal (mainly use main RMS app)
+  const isMgr  = (role==='marketing_manager'||role==='director'); // manager OR director — team oversight shell
+  const isLE   = (role==='lead_entry');                           // data-entry operator — single-purpose drawer
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
-  // everyone except the operator gets the 5-tab bar; the drawer + hamburger disappear
-  const app=$('screen-app'); if(app) app.classList.toggle('tabs', !isLE);
   show('[data-le]', isLE);
-  const ah=$('appbar-home'); if(ah) ah.style.display='none';   // Home is a bottom tab now
-  const ab=$('appbar-bell'); if(ab) ab.style.display='';
-  if(isLE){ try{ loadAnnouncements(); }catch(e){} }
-  // role-adaptive CONTENT lives inside each tab (Home/Leads/Units/Money render by role;
-  // the More hub builds its own role-specific rows) — no per-role nav to toggle any more.
+  if(isLE){   // lock the operator to her own apps — hide Dashboard + the manager/sales groups (keep the Messages bell + drawer link)
+    show('.ni[data-tab="home"]', false); show('[data-lead]', false); show('.ni-grp', false);
+    const ah=$('appbar-home'); if(ah) ah.style.display='none';
+    const ab=$('appbar-bell'); if(ab) ab.style.display='';
+    try{ loadAnnouncements(); }catch(e){}
+    return;
+  }
+  show('.ni[data-tab="home"]', true);
+  { const ah=$('appbar-home'); if(ah) ah.style.display=''; const ab=$('appbar-bell'); if(ab) ab.style.display=''; }
+
+  // Leads group + the Leads item — everyone except exec
+  show('.ni-grp[data-grp="leads"]', !isExec);
+  show('[data-lead]', !isExec);
+  // Team group + Distribute (data-mgr) — managers & directors
+  show('[data-mgr]', isMgr);
+  // Facebook Leads — directors only (company FB intake)
+  show('[data-dir]', role==='director');
+  // Marketing ROI (ad-spend cost-per-lead) — CFO/admin exec + directors only
+  show('[data-roi]', isExec || role==='director');
+
+  // Manager = oversight: hide personal record tabs (empty / covered by team views)
+  show('.ni-grp[data-grp="money"]', !isMgr && !isExec);                                    // Clients + personal Recovery → Team Recovery covers managers
+  show('.ni-grp[data-grp="sales"] .ni-child[data-tab="mysales"]', !isExec);                 // personal closed deals — managers/directors sell too
+  show('.ni-grp[data-grp="insights"] .ni-child[data-tab="performance"]', !isMgr && !isExec); // managers get Team Performance under the Team group
+
+  // Exec (cfo/admin) = minimal: only Dashboard · Updates · Profile
+  show('.ni-grp[data-grp="sales"]', !isExec);
+  show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
@@ -1832,17 +1865,8 @@ async function doDeclineAgreement(){
   renderHoldBlocked(AGREE_GATE);
 }
 
-// ════ navigation — 5 fixed bottom tabs (Home · Leads · Units · Money · More); the
-// lead-entry operator keeps her single-purpose drawer (screens untouched by design) ════
-const TAB_TITLES={home:'Today',leadentry:'Add a lead',myleads:'My leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad spend',leads:'Leads',board:'Units',mine:'Units',mysales:'Money',clients:'Money',recovery:'Money',teamrecovery:'Money',performance:'My results',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Assign leads',targets:'Targets',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads',more:'More'};
-// which bottom tab lights up for each screen — everything not listed lives under More
-const _BT_MAP={home:'home',leadentry:'home',leads:'leads',distribute:'leads',board:'units',mine:'units',recovery:'money',mysales:'money',clients:'money',teamrecovery:'money'};
-function _syncTabs(){
-  const key=_BT_MAP[TAB]||'more';
-  document.querySelectorAll('#btabs .btab').forEach(b=>b.classList.toggle('on', b.getAttribute('data-bt')===key));
-}
-// screens that ARE a tab root (no Back chip on them)
-const _TAB_ROOTS=['home','leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','leads','board','mine','recovery','mysales','clients','teamrecovery','more'];   // operator apps are drawer roots — no Back chip
+// ════ navigation (home-hub launcher — no bottom tabs) ════
+const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -1863,6 +1887,7 @@ function setTab(t,_back){
   else if(t==='clients') renderClients();
   else if(t==='performance') renderPerformance();
   else if(t==='recovery') renderRecovery();
+  else if(t==='rank') renderLeaderboard();
   else if(t==='adroi') renderAdRoi();
   else if(t==='updates'){ ANN.open=null; renderUpdates(); }
   else if(t==='mine') renderMine();
@@ -1870,18 +1895,25 @@ function setTab(t,_back){
   else if(t==='distribute') renderDistribute();
   else if(t==='targets') renderTargets();
   else if(t==='teamrecovery') renderTeamRecovery();
+  else if(t==='teamperf') renderPerformance();
   else if(t==='livemap') renderLiveMap();
   else if(t==='org') renderOrg();
   else if(t==='fbsettings') renderFbSettings();
-  else if(t==='more') renderMoreHub();
   else renderHome();
-  document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));   // operator drawer active state
-  const ttl=$('appbar-title'); if(ttl) ttl.textContent=TAB_TITLES[t]||'';   // plain title — no breadcrumbs
+  document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
+  document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="'+t+'"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
+  const ttl=$('appbar-title');
+  if(ttl){ let title=TAB_TITLES[t]||'';
+    const node=document.querySelector('.sb .ni-child[data-tab="'+t+'"]');
+    const grp=node&&node.closest('.ni-grp'); const gl=grp&&grp.querySelector('.ni-grp-hd .ni-lb');
+    if(gl&&gl.textContent.trim()) title=gl.textContent.trim()+' › '+title;   // breadcrumb: which menu this tab lives in
+    ttl.textContent=title; }
   closeSidebar();
   try{ const b=$('app-body'); if(b){ b.classList.remove('rise'); void b.offsetWidth; b.classList.add('rise'); } window.scrollTo(0,0); }catch(e){}
-  _syncNav(); _syncTabs();
+  _syncNav();
 }
-// sidebar drawer (lead-entry operator only)
+// sidebar drawer (mobile)
+function toggleGroup(grp){ const g=document.querySelector('.sb .ni-grp[data-grp="'+grp+'"]'); if(g) g.classList.toggle('open'); }
 function openSidebar(){ const s=$('sb'),k=$('sb-scrim'); if(s)s.classList.add('open'); if(k)k.classList.add('show'); }
 function closeSidebar(){ const s=$('sb'),k=$('sb-scrim'); if(s)s.classList.remove('open'); if(k)k.classList.remove('show'); }
 function toggleSidebar(){ const s=$('sb'); if(s&&s.classList.contains('open')) closeSidebar(); else openSidebar(); }
@@ -1898,10 +1930,7 @@ function _canGoBack(){
   if(TAB==='updates'&&ANN.open) return true;
   if(TAB==='board'&&BV.floor) return true;
   if(TAB==='leads'&&LEAD_OPEN) return true;
-  if(TAB==='team'&&TEAM_AGENT) return true;
-  if(TRAIL_MEMBER) return true;
-  if(TAB==='org'&&ORG_VIEW) return true;
-  return !_TAB_ROOTS.includes(TAB);   // tab roots have the bottom bar; only drill-downs & More children show Back
+  return TAB!=='home';   // every section (not the dashboard) shows Back
 }
 function _avInit(){ const nm=(ME&&ME.sales_user_name)||''; return ((String(nm).trim().split(/\s+/).map(w=>w[0]).slice(0,2).join(''))||'•').toUpperCase(); }
 function _syncNav(){
@@ -1919,12 +1948,9 @@ function goBack(){
   if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4b) agent detail → team tree
   if(TRAIL_MEMBER){ TRAIL_MEMBER=null; if(TRAIL_FROM==='org'){ ORG_VIEW=null; _renderOrgTree(); } else { renderLiveMap(); } return; }   // 4c) footstep trail → its origin
   if(TAB==='org'&&ORG_VIEW){ _orgBack(); return; }                    // 4d) member perf/leads → org map
-  if(!_TAB_ROOTS.includes(TAB)){                                     // 5) child screen → its tab's root
-    const bt=_BT_MAP[TAB]||'more';
-    setTab({home:'home',leads:'leads',units:'board',money:'recovery',more:'more'}[bt],true); return; }
-  let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 6) previous section
+  let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 5) previous section
   if(prev){ setTab(prev,true); return; }
-  if(TAB!=='home'){ setTab('home',true); return; }                   // 7) fall back to Home
+  if(TAB!=='home'){ setTab('home',true); return; }                   // 6) fall back to dashboard
 }
 
 // ════ home dashboard (day at a glance + shortcuts) ════
@@ -1973,15 +1999,16 @@ function _fuRow(l){
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>${l.phone?`<div style="font-size:13px;color:var(--fk-text-muted)">${esc(l.phone)}</div>`:''}${(!l.is_mine&&l.owner_name)?`<div style="font-size:11px;color:var(--fk-primary)">→ ${esc(l.owner_name)}</div>`:''}</div>
     ${tag}</div></div>`;
 }
-function gotoLead(id){ TAB='leads'; const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); _syncTabs(); openLead(id); }
-function _leadsBadgeSet(n){ const b=$('bt-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
+function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
+function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show','bdg-danger'); } else b.classList.remove('show','bdg-danger'); }
 // new-lead notification — toast once when the count grows (tracks last-seen per browser)
 function _leadsNotify(n){ try{ n=Number(n)||0; if(n<=0) return; const seen=Number(localStorage.getItem('nx_leads_seen')||'0');
   if(n>seen){ toast(n+' new lead'+(n===1?'':'s')+' — open the Leads tab to view','ok'); localStorage.setItem('nx_leads_seen',String(n)); } }catch(e){} }
 function _leadsMarkSeen(n){ try{ localStorage.setItem('nx_leads_seen',String(Number(n)||0)); }catch(e){} }
 function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
-function _fuBadgeSet(overdue,today){ const b=$('bt-badge-home'); if(!b) return; const od=Number(overdue||0),td=Number(today||0),n=od+td;
-  if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); b.style.background=od>0?'var(--fk-danger)':'var(--fk-warning)'; } else b.classList.remove('show'); }
+function _fuBadgeSet(overdue,today){ const b=$('nav-badge-followups'); if(!b) return; const od=Number(overdue||0),td=Number(today||0),n=od+td;
+  b.classList.remove('bdg-danger','bdg-amber');
+  if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); b.classList.add(od>0?'bdg-danger':'bdg-amber'); } else b.classList.remove('show'); }
 async function _refreshFuBadge(){ try{ const {data}=await sb.rpc('get_my_followups',{p_session_token:TOKEN}); if(data&&data.success) _fuBadgeSet(data.overdue,data.today); }catch(e){} }
 // name-derived soft avatar (dashboard list sections only — does not touch the shared _avatar)
 function _avatarC(name,sz){
@@ -3770,7 +3797,11 @@ function _teamRow(a){
   </div></div>`;
 }
 // ── Team navigation ──
-function _teamSelectTab(){ TAB='team'; _syncTabs(); }
+function _teamSelectTab(){
+  TAB='team';
+  document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')==='team'));
+  document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="team"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
+}
 // dashboard "Your team" tap: a manager → open the team tree; a rep → their detail
 function _teamTap(id){
   const node=(TEAM_DATA||[]).find(x=>String(x.id)===String(id));
@@ -6177,38 +6208,6 @@ async function cancelMine(id){
   }catch(e){ toast('Could not release.','err'); }
 }
 
-// ════ MONEY tab — one place for sales, collections and clients (segments over the
-// existing screens: recovery=To collect · mysales=My sales · clients=Clients · teamrecovery=Team) ════
-let MONEYC={sold:null,collect:null,at:0};
-async function _moneyNums(){
-  if(Date.now()-MONEYC.at<120000 && MONEYC.sold!=null) return MONEYC;   // 2-min cache across segments
-  try{
-    const [p,o]=await Promise.all([
-      sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
-      sb.rpc('get_my_outstanding',{p_session_token:TOKEN})
-    ]);
-    MONEYC.sold=(p.data&&p.data.success)?Number((p.data.sales||{}).value||0):0;
-    MONEYC.collect=(o.data&&o.data.success&&!o.data.no_agent)?Number(((o.data.totals)||{}).total_remaining||0):0;
-    MONEYC.at=Date.now();
-  }catch(e){}
-  return MONEYC;
-}
-function _moneySegs(){
-  const segs=[['recovery','To collect'],['mysales','My sales'],['clients','Clients']];
-  if(ME&&(ME.role==='marketing_manager'||ME.role==='director')) segs.push(['teamrecovery','Team']);
-  return segs;
-}
-function _moneyHead(active){
-  const num=(id,lb,v,tab)=>`<div class="mny" onclick="setTab('${tab}')"><div class="mny-l">${lb}</div><div class="mny-v" id="${id}">${v==null?'…':(pkrShort(v)||'₨0')}</div></div>`;
-  return _pageHead('Money','Your sales, collections and clients — one place.')
-    +`<div class="mny-row">${num('mny-sold','Sold this month',MONEYC.sold,'mysales')}${num('mny-col','To collect',MONEYC.collect,'recovery')}</div>`
-    +_seg(_moneySegs(), active, 'setTab');
-}
-function _moneyFill(){ _moneyNums().then(c=>{ const a=$('mny-sold'),b=$('mny-col'); if(a)a.textContent=pkrShort(c.sold)||'₨0'; if(b)b.textContent=pkrShort(c.collect)||'₨0'; }); }
-// ════ UNITS tab head — board (All units) + bookings (My Bookings) under one roof ════
-function _unitsHead(active){
-  return _pageHead('Units','Find, book and sell units.')+_seg([['board','All units'],['mine','My Bookings']], active, 'setTab');
-}
 // ════ my recovery (agent-wise outstanding) ════
 let REC_ROWS=[], REC_CO='', RECV={q:'',f:'all'};
 function _waDigits(p){ let d=String(p||'').replace(/[^0-9]/g,''); if(d.length===11&&d[0]==='0') d='92'+d.slice(1); if(d.length===10) d='92'+d; return d; }
