@@ -511,7 +511,7 @@ body{background:var(--nx-page)}
 /* ════ Leads view — same card language as the dashboard (slate page is global) ════ */
 .nx-leads .lgroup{box-shadow:var(--nx-card-sh);border-radius:var(--nx-radius)}
 .nx-leads .lrow{padding:var(--fk-sp-2) var(--fk-sp-3)}
-.lead-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--fk-sp-3);margin:0 2px var(--fk-sp-3)}
+.lead-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--fk-sp-3);margin:0 2px var(--fk-sp-3)}
 .lead-h1{font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.02em;color:var(--fk-text)}
 .lead-hsub{color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)}
 .lead-add{flex:none;width:auto;gap:5px}
@@ -626,6 +626,53 @@ body{background:var(--nx-page)}
   background:var(--fk-danger,#e11d48);color:#fff;font-size:11px;font-weight:700;line-height:16px;text-align:center;
   border:1.5px solid var(--fk-bg-card);display:none}
 .btab-badge.show{display:block}
+/* nav mode: non-operator roles use the 5-tab bottom bar (drawer removed entirely);
+   the lead-entry operator keeps its sidebar drawer (mode-tabs is absent for it). */
+#btabs{display:none}
+body.mode-tabs #btabs{display:flex}
+body.mode-tabs .sb{display:none}
+body.mode-tabs .sb-toggle{display:none}
+body.mode-tabs .sb-scrim{display:none}
+body.mode-tabs .appbody{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+/* lift the one-time nudges + toast clear of the bottom tab bar (inline styles → !important) */
+body.mode-tabs #loc-bar,body.mode-tabs #pwa-bar{bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
+body.mode-tabs .toastbar{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+/* Money — top two numbers */
+.money-nums{display:flex;gap:10px;margin:0 2px 14px}
+.mn-card{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;gap:4px;padding:13px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);background:var(--fk-bg-card);font-family:inherit;cursor:pointer}
+.mn-card:last-child{cursor:pointer}
+button.mn-card:active{transform:scale(.985)}
+.mn-lbl{font-size:12px;color:var(--fk-text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.03em}
+.mn-val{font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--fk-text)}
+/* Home worklist */
+.wl{display:flex;flex-direction:column;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);overflow:hidden}
+.wl-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--fk-hairline);cursor:pointer;transition:background .12s}
+.wl-row:last-child{border-bottom:0}
+.wl-row:active{background:var(--fk-bg-subtle)}
+.wl-main{flex:1;min-width:0}
+.wl-name{font-size:14.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wl-sub{font-size:12.5px;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.wl-own{font-size:11px;color:var(--fk-primary);margin-top:1px}
+.wl-tag{flex:none;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.wl-tag.late{background:var(--fk-danger-surface);color:var(--fk-danger)}
+.wl-tag.today{background:var(--fk-warning-surface);color:var(--fk-warning)}
+.wl-tag.start{background:var(--fk-primary-chip);color:var(--fk-primary)}
+.wl-acts{display:flex;gap:6px;flex:none}
+.wl-act{width:34px;height:34px;flex:none;border-radius:9px;display:grid;place-items:center;background:var(--fk-bg-subtle);color:var(--fk-text);border:1px solid var(--fk-border);text-decoration:none}
+.wl-act:active{transform:scale(.92)}
+.wl-act.wa{background:var(--fk-success-surface);color:var(--fk-success);border-color:transparent}
+/* More — flat list */
+.more-list{display:flex;flex-direction:column;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);overflow:hidden}
+.more-row{display:flex;align-items:center;gap:13px;padding:14px 15px;background:none;border:0;border-bottom:1px solid var(--fk-hairline);font-family:inherit;text-align:left;width:100%;cursor:pointer;color:var(--fk-text);transition:background .12s}
+.more-row:last-child{border-bottom:0}
+.more-row:active{background:var(--fk-bg-subtle)}
+.more-ic{width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--fk-primary-chip);color:var(--fk-primary)}
+.more-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.more-lb{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.more-sb{font-size:12.5px;color:var(--fk-text-muted);font-weight:500}
+.more-cv{width:18px;height:18px;flex:none;color:var(--fk-text-muted)}
+.more-row.danger .more-ic{background:var(--fk-danger-surface);color:var(--fk-danger)}
+.more-row.danger .more-lb{color:var(--fk-danger)}
 /* updates / announcements — email-style inbox */
 .inbox{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);overflow:hidden}
 .inrow{display:flex;align-items:center;gap:10px;padding:12px 13px;border-bottom:1px solid var(--fk-border);cursor:pointer;transition:background .1s}
@@ -1272,48 +1319,7 @@ body{background:var(--nx-page)}
       <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
       <a class="ni" data-tab="igdm" data-le style="display:none" onclick="setTab('igdm')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span><span class="ni-lb">Instagram</span></a>
       <a class="ni" data-tab="adspend" data-le style="display:none" onclick="setTab('adspend')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg></span><span class="ni-lb">Ad Spend</span></a>
-      <div class="ni-grp" data-grp="leads" style="display:none">
-        <div class="ni-grp-hd" onclick="toggleGroup('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
-        <div class="ni-sub">
-          <a class="ni-child" data-tab="leads" data-lead onclick="setTab('leads')"><span class="ni-lb">All Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
-          <a class="ni-child" data-tab="distribute" data-mgr onclick="setTab('distribute')"><span class="ni-lb">Distribute leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
-          <a class="ni-child" data-tab="fbsettings" data-dir onclick="setTab('fbsettings')"><span class="ni-lb">Facebook Leads</span></a>
-        </div>
-      </div>
-      <div class="ni-grp" data-grp="team" data-mgr style="display:none">
-        <div class="ni-grp-hd" onclick="toggleGroup('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">Team</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
-        <div class="ni-sub">
-          <a class="ni-child" data-tab="team" onclick="setTab('team')"><span class="ni-lb">My Team</span></a>
-          <a class="ni-child" data-tab="teamrecovery" onclick="setTab('teamrecovery')"><span class="ni-lb">Team Recovery</span></a>
-          <a class="ni-child" data-tab="teamperf" onclick="setTab('teamperf')"><span class="ni-lb">Team Performance</span></a>
-          <a class="ni-child" data-tab="targets" onclick="setTab('targets')"><span class="ni-lb">Targets</span></a>
-          <a class="ni-child" data-tab="livemap" data-dir onclick="setTab('livemap')"><span class="ni-lb">Live Map</span></a>
-          <a class="ni-child" data-tab="org" data-dir onclick="setTab('org')"><span class="ni-lb">Hierarchy</span></a>
-        </div>
-      </div>
-      <div class="ni-grp" data-grp="sales">
-        <div class="ni-grp-hd" onclick="toggleGroup('sales')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h4a1 1 0 0 1 1 1v11"/></svg></span><span class="ni-lb">Sale / Reservation</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
-        <div class="ni-sub">
-          <a class="ni-child" data-tab="board" onclick="setTab('board')"><span class="ni-lb">Sell units</span></a>
-          <a class="ni-child" data-tab="mine" onclick="setTab('mine')"><span class="ni-lb">Reservations</span></a>
-          <a class="ni-child" data-tab="mysales" onclick="setTab('mysales')"><span class="ni-lb">My Sales</span></a>
-        </div>
-      </div>
-      <div class="ni-grp" data-grp="money">
-        <div class="ni-grp-hd" onclick="toggleGroup('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="ni-lb">Clients &amp; Money</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
-        <div class="ni-sub">
-          <a class="ni-child" data-tab="clients" onclick="setTab('clients')"><span class="ni-lb">Clients</span></a>
-          <a class="ni-child" data-tab="recovery" onclick="setTab('recovery')"><span class="ni-lb">Recovery</span></a>
-        </div>
-      </div>
-      <div class="ni-grp" data-grp="insights">
-        <div class="ni-grp-hd" onclick="toggleGroup('insights')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span><span class="ni-lb">Insights</span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
-        <div class="ni-sub">
-          <a class="ni-child" data-tab="performance" onclick="setTab('performance')"><span class="ni-lb">Performance</span></a>
-          <a class="ni-child" data-tab="rank" onclick="setTab('rank')"><span class="ni-lb">My Units</span></a>
-          <a class="ni-child" data-tab="adroi" data-roi style="display:none" onclick="setTab('adroi')"><span class="ni-lb">Marketing ROI</span></a>
-        </div>
-      </div>
+      <!-- non-operator roles navigate via the 5-tab bottom bar; the drawer holds only the lead-entry operator apps above -->
     </nav>
     <div class="sb-bottom" style="padding:8px 12px;border-top:1px solid var(--fk-hairline)">
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
@@ -1337,6 +1343,14 @@ body{background:var(--nx-page)}
     <main class="appbody"><div id="app-body"></div></main>
   </div>
  </div>
+ <!-- primary nav: 5 fixed bottom tabs (non-operator roles) — thumb-reachable, safe-area padded -->
+ <nav class="btabs" id="btabs" aria-label="Main">
+   <button class="btab" data-btab="home" onclick="setTab('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
+   <button class="btab" data-btab="leads" onclick="setTab('leads')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span>Leads</span><span class="btab-badge" id="btab-badge-leads"></span></button>
+   <button class="btab" data-btab="board" onclick="setTab('board')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg><span>Units</span></button>
+   <button class="btab" data-btab="money" onclick="setTab('money')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg><span>Money</span></button>
+   <button class="btab" data-btab="more" onclick="setTab('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span></button>
+ </nav>
  <div class="sb-scrim" id="sb-scrim" onclick="closeSidebar()"></div>
 </div>
 
@@ -1396,7 +1410,13 @@ const _LIP={
   instagram:'<rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>',
   globe:'<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-  'user-plus':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>'
+  'user-plus':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  'map-pin':'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  'bar-chart':'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+  'log-out':'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  'trending-up':'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>'
 };
 function li(n,sz,sw){ sz=sz||16; return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw||1.9}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex:none">${_LIP[n]||''}</svg>`; }
 // per-area rate from total price ÷ area (rounded), e.g. '₨24,900/sqft'
@@ -1714,39 +1734,35 @@ function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showSc
 let AGREE_GATE=null;
 function _applyLeadAccess(){
   const role = (ME && ME.role) || 'sale_rep';
-  const isExec = (role==='admin'||role==='cfo');                 // exec — minimal portal (mainly use main RMS app)
-  const isMgr  = (role==='marketing_manager'||role==='director'); // manager OR director — team oversight shell
-  const isLE   = (role==='lead_entry');                           // data-entry operator — single-purpose drawer
+  const isLE = (role==='lead_entry');                            // data-entry operator — single-purpose drawer (keeps its sidebar)
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
+  // non-operator roles use the 5-tab bottom bar; the operator keeps its drawer
+  document.body.classList.toggle('mode-tabs', !isLE);
   show('[data-le]', isLE);
-  if(isLE){   // lock the operator to her own apps — hide Dashboard + the manager/sales groups (keep the Messages bell + drawer link)
-    show('.ni[data-tab="home"]', false); show('[data-lead]', false); show('.ni-grp', false);
+  if(isLE){   // lock the operator to her own apps — hide Dashboard (keep the Messages bell + drawer link)
+    show('.ni[data-tab="home"]', false);
     const ah=$('appbar-home'); if(ah) ah.style.display='none';
     const ab=$('appbar-bell'); if(ab) ab.style.display='';
     try{ loadAnnouncements(); }catch(e){}
     return;
   }
-  show('.ni[data-tab="home"]', true);
-  { const ah=$('appbar-home'); if(ah) ah.style.display=''; const ab=$('appbar-bell'); if(ab) ab.style.display=''; }
-
-  // Leads group + the Leads item — everyone except exec
-  show('.ni-grp[data-grp="leads"]', !isExec);
-  show('[data-lead]', !isExec);
-  // Team group + Distribute (data-mgr) — managers & directors
-  show('[data-mgr]', isMgr);
-  // Facebook Leads — directors only (company FB intake)
-  show('[data-dir]', role==='director');
-  // Marketing ROI (ad-spend cost-per-lead) — CFO/admin exec + directors only
-  show('[data-roi]', isExec || role==='director');
-
-  // Manager = oversight: hide personal record tabs (empty / covered by team views)
-  show('.ni-grp[data-grp="money"]', !isMgr && !isExec);                                    // Clients + personal Recovery → Team Recovery covers managers
-  show('.ni-grp[data-grp="sales"] .ni-child[data-tab="mysales"]', !isExec);                 // personal closed deals — managers/directors sell too
-  show('.ni-grp[data-grp="insights"] .ni-child[data-tab="performance"]', !isMgr && !isExec); // managers get Team Performance under the Team group
-
-  // Exec (cfo/admin) = minimal: only Dashboard · Updates · Profile
-  show('.ni-grp[data-grp="sales"]', !isExec);
-  show('.ni-grp[data-grp="insights"] .ni-child[data-tab="rank"]', !isExec);
+  // non-operator: drawer is hidden entirely; the appbar home/bell stay. Role-adaptive
+  // content lives inside each of the 5 tabs (Home / Leads / Units / Money / More).
+  const ah=$('appbar-home'); if(ah) ah.style.display='';
+  const ab=$('appbar-bell'); if(ab) ab.style.display='';
+}
+// which of the 5 bottom tabs a given screen belongs to (drives the active state)
+const _BTAB_OF={
+  home:'home',
+  leads:'leads', distribute:'leads',
+  board:'board', mine:'board',
+  money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
+  more:'more', performance:'more', teamperf:'more', team:'more', org:'more', targets:'more',
+  livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more'
+};
+function _syncBtabs(t){
+  const base=_BTAB_OF[t]||'more';
+  document.querySelectorAll('#btabs .btab').forEach(b=>b.classList.toggle('on', b.getAttribute('data-btab')===base));
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
@@ -1812,8 +1828,8 @@ async function doDeclineAgreement(){
   renderHoldBlocked(AGREE_GATE);
 }
 
-// ════ navigation (home-hub launcher — no bottom tabs) ════
-const TAB_TITLES={home:'Dashboard',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'All Leads',board:'Sell units',mine:'Reservations',mysales:'My Sales',clients:'Clients',recovery:'Recovery',performance:'Performance',rank:'My Units',adroi:'Marketing ROI',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Distribute leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'Team Performance',livemap:'Live Map',org:'Hierarchy',fbsettings:'Facebook Leads'};
+// ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
+const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -1845,16 +1861,13 @@ function setTab(t,_back){
   else if(t==='teamperf') renderPerformance();
   else if(t==='livemap') renderLiveMap();
   else if(t==='org') renderOrg();
+  else if(t==='money') renderMoney();
+  else if(t==='more') renderMore();
   else if(t==='fbsettings') renderFbSettings();
   else renderHome();
-  document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));
-  document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="'+t+'"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
-  const ttl=$('appbar-title');
-  if(ttl){ let title=TAB_TITLES[t]||'';
-    const node=document.querySelector('.sb .ni-child[data-tab="'+t+'"]');
-    const grp=node&&node.closest('.ni-grp'); const gl=grp&&grp.querySelector('.ni-grp-hd .ni-lb');
-    if(gl&&gl.textContent.trim()) title=gl.textContent.trim()+' › '+title;   // breadcrumb: which menu this tab lives in
-    ttl.textContent=title; }
+  document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));   // operator drawer active state
+  _syncBtabs(t);                                                                                                       // bottom-bar active state
+  const ttl=$('appbar-title'); if(ttl) ttl.textContent=TAB_TITLES[t]||'';
   closeSidebar();
   try{ const b=$('app-body'); if(b){ b.classList.remove('rise'); void b.offsetWidth; b.classList.add('rise'); } window.scrollTo(0,0); }catch(e){}
   _syncNav();
@@ -1892,8 +1905,8 @@ function goBack(){
   if(TAB==='updates'&&ANN.open){ _annBack(); return; }               // 2) updates message → inbox
   if(TAB==='board'&&BV.floor){ _bvBack(); _syncNav(); return; }      // 3) floor drill → board
   if(TAB==='leads'&&LEAD_OPEN){ closeLead(); _syncNav(); return; }    // 4) lead detail → leads list
-  if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4b) agent detail → team tree
-  if(TRAIL_MEMBER){ TRAIL_MEMBER=null; if(TRAIL_FROM==='org'){ ORG_VIEW=null; _renderOrgTree(); } else { renderLiveMap(); } return; }   // 4c) footstep trail → its origin
+  if(TRAIL_MEMBER){ TRAIL_MEMBER=null; if(TRAIL_FROM==='org'){ ORG_VIEW=null; _renderOrgTree(); } else if(TRAIL_FROM==='team'){ renderAgent(); } else { renderLiveMap(); } return; }   // 4b) footstep trail → its origin (before the team-agent branch, since TEAM_AGENT stays set)
+  if(TAB==='team'&&TEAM_AGENT){ _teamBack(); return; }                // 4c) agent detail → team tree
   if(TAB==='org'&&ORG_VIEW){ _orgBack(); return; }                    // 4d) member perf/leads → org map
   let prev=null; while(NAV_HIST.length){ const p=NAV_HIST.pop(); if(p&&p!==TAB){ prev=p; break; } }  // 5) previous section
   if(prev){ setTab(prev,true); return; }
@@ -1946,8 +1959,10 @@ function _fuRow(l){
     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>${l.phone?`<div style="font-size:13px;color:var(--fk-text-muted)">${esc(l.phone)}</div>`:''}${(!l.is_mine&&l.owner_name)?`<div style="font-size:11px;color:var(--fk-primary)">→ ${esc(l.owner_name)}</div>`:''}</div>
     ${tag}</div></div>`;
 }
-function gotoLead(id){ TAB='leads'; document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on',n.getAttribute('data-tab')==='leads')); document.querySelectorAll('.sb .ni-grp').forEach(g=>g.classList.remove('has-active')); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
-function _leadsBadgeSet(n){ const b=$('nav-badge-leads'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show','bdg-danger'); } else b.classList.remove('show','bdg-danger'); }
+function gotoLead(id){ TAB='leads'; _syncBtabs('leads'); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
+function _leadsBadgeSet(n){ const b=$('nav-badge-leads'), tb=$('btab-badge-leads');
+  if(b){ if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show','bdg-danger'); } else b.classList.remove('show','bdg-danger'); }
+  if(tb){ if(n>0){ tb.textContent=n>99?'99+':String(n); tb.classList.add('show'); } else tb.classList.remove('show'); } }
 // new-lead notification — toast once when the count grows (tracks last-seen per browser)
 function _leadsNotify(n){ try{ n=Number(n)||0; if(n<=0) return; const seen=Number(localStorage.getItem('nx_leads_seen')||'0');
   if(n>seen){ toast(n+' new lead'+(n===1?'':'s')+' — open the Leads tab to view','ok'); localStorage.setItem('nx_leads_seen',String(n)); } }catch(e){} }
@@ -1985,6 +2000,31 @@ function _newLeadRow(l){
     <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name)}</div><div class="lr-sub">${l.phone?`<span>${esc(l.phone)}</span>`:''}${l.source?`<span class="lr-chip">${_srcLabel(l.source)}</span>`:''}${l.created_at?`<span style="white-space:nowrap">${esc(_agoTxt(l.created_at))}</span>`:''}${(!l.is_mine&&l.owner_name)?`<span>${esc(l.owner_name)}</span>`:''}</div></div>
     <span class="lr-btn pri">Start ${chev}</span>
   </div></div>`;
+}
+// Home two-number strip (each optionally taps through to a tab)
+function _numStrip(items){
+  return '<div class="money-nums">'+items.map(it=>{
+    const open=it.onclick?`<button class="mn-card" onclick="${it.onclick}">`:'<div class="mn-card">', end=it.onclick?'</button>':'</div>';
+    return open+`<span class="mn-lbl">${esc(it.lbl)}</span><span class="mn-val">${it.val}</span>`+end;
+  }).join('')+'</div>';
+}
+// Home worklist row (unified): overdue → due today → new lead; each row Call / WhatsApp / open
+function _wlRow(l,kind){
+  const wa=_waNum(l.phone);
+  let tag;
+  if(kind==='overdue'){ const dd=l.next_follow_up_at?Math.floor((Date.now()-new Date(l.next_follow_up_at).getTime())/86400000):0; tag=`<span class="wl-tag late">${dd>=1?dd+'d late':'Late'}</span>`; }
+  else if(kind==='today'){ tag='<span class="wl-tag today">Today</span>'; }
+  else { tag='<span class="wl-tag start">Start</span>'; }
+  const sub = l.phone ? esc(l.phone) : (kind==='new' ? _srcLabel(l.source) : '');
+  const own = (!l.is_mine&&l.owner_name) ? `<div class="wl-own">→ ${esc(l.owner_name)}</div>` : '';
+  const call = l.phone?`<a class="wl-act" href="tel:${esc(l.phone)}" onclick="event.stopPropagation()" aria-label="Call">${li('phone',17,2)}</a>`:'';
+  const waB = wa?`<a class="wl-act wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="WhatsApp">${li('message',17,2)}</a>`:'';
+  return `<div class="wl-row tap" onclick="gotoLead('${l.id}')">
+    ${_avatar(l.name,38)}
+    <div class="wl-main"><div class="wl-name">${esc(l.name||'Lead')}</div>${sub?`<div class="wl-sub">${sub}</div>`:''}${own}</div>
+    ${tag}
+    <div class="wl-acts">${call}${waB}</div>
+  </div>`;
 }
 // ── premium dashboard helpers: count-up · sparkline · trend · alive-empty (visual only) ──
 function _reduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches); }
@@ -2027,9 +2067,8 @@ function _emptyMini(icon,title,sub){ return `<div class="nx-emptymini"><span cla
 // Exec (admin/cfo) read-only org snapshot — real org totals + top performers (get_org_overview)
 async function renderExecHome(){
   if(!_BG) $('app-body').innerHTML=_skel();
-  let d, roi=null;
-  try{ const [r,ra]=await Promise.all([sb.rpc('get_org_overview',{p_session_token:TOKEN}), sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:_curPeriod()})]);
-    d=r.data; if(ra.data&&ra.data.success) roi=ra.data; }
+  let d;
+  try{ const r=await sb.rpc('get_org_overview',{p_session_token:TOKEN}); d=r.data; }
   catch(e){ return _netErr(); }
   if(!d||!d.success){ if(d&&d.error==='session_expired') return sessionGone();
     if(d&&d.error) $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Overview','Organisation snapshot.')+_emptyCard('Not available','This overview is for executives.')+'</div>';
@@ -2037,18 +2076,9 @@ async function renderExecHome(){
     return; }
   _touch();
   const nm=(ME&&ME.sales_user_name)||'', _fn=nm?esc(String(nm).split(' ')[0]):'';
-  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
-  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   let html='<div class="nx-dash">';
-  html+=`<div class="nx-rise" style="margin:0 2px var(--fk-sp-3)"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Organisation snapshot · read-only.</div></div>`;
-  html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
-    + kpi('Org sales', numv(Number(d.sales_value)||0,'pkr'), 'indigo', '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>')
-    + kpi('To collect', numv(Number(d.to_collect)||0,'pkr'), 'amber', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')
-    + kpi('Open pipeline', numv(Number(d.pipeline)||0,'int'), 'violet', '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')
-    + kpi('Team size', numv(Number(d.members)||0,'int'), 'emerald', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
-    + '</div>';
+  html+=`<div style="margin:0 2px 14px"><div style="font-size:18px;font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Organisation snapshot · read-only.</div></div>`;
+  html+=_numStrip([{lbl:'Org sales',val:pkrShort(d.sales_value)||'₨0'},{lbl:'To collect',val:pkrShort(d.to_collect)||'₨0'}]);
   const top=d.top||[];
   html+='<div class="dsec">Top performers</div>';
   if(!top.length){ html+=_emptyCard('No sales yet','Sales by your team will rank here.'); }
@@ -2058,10 +2088,8 @@ async function renderExecHome(){
       <div style="flex:1;min-width:0"><div class="lr-name">${esc(t.name||'—')}</div><div class="tm-sub">${esc(_portalRoleLabel(t.role))} · ${Number(t.count)||0} sale${Number(t.count)===1?'':'s'}</div></div>
       <div style="text-align:right;flex:none;font-weight:var(--fk-fw-semibold);font-size:var(--fk-fs-body);font-variant-numeric:tabular-nums">${esc(pkrShort(t.value)||'₨0')}</div>
     </div></div>`).join('')+'</div>'; }
-  html+=_roiHomeCard(roi);
   html+='</div>';
   $('app-body').innerHTML=html;
-  _runCountUps();
 }
 function _roiHomeCard(roi){
   if(!roi || !(roi.campaigns&&roi.campaigns.length)) return '';
@@ -2078,84 +2106,38 @@ async function renderHome(){
   if(ME && (ME.role==='admin'||ME.role==='cfo')) return renderExecHome();                        // exec — read-only org snapshot
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
   if(!_BG) $('app-body').innerHTML=_skel();
-  const _canLeads=!(ME&&(ME.role==='admin'||ME.role==='cfo'));
-  let perf=null, prevPerf=null, outstanding=0, fuRows=[], newLeads=[], pipeline=0, resvActive=0, pend=0, myUnits=0;
+  let sold=0, collect=0, overdue=[], today=[], news=[];
   try{
-    const calls=[
+    const [rP,rO,rF,rL]=await Promise.all([
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
       sb.rpc('get_my_outstanding',{p_session_token:TOKEN}),
       sb.rpc('get_my_followups',{p_session_token:TOKEN}),
-      sb.rpc('get_my_reservations',{p_session_token:TOKEN}),
-      sb.rpc('get_my_submissions',{p_session_token:TOKEN}),
-      sb.rpc('get_sales_leaderboard',{p_session_token:TOKEN}),
-      sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('last')[0],p_to:_perfRange('last')[1]})   // real month-on-month comparison
-    ];
-    if(_canLeads) calls.push(sb.rpc('list_my_leads',{p_session_token:TOKEN}));
-    const [rP,rO,rF,rR,rS,rB,rPrev,rL]=await Promise.all(calls);
+      sb.rpc('list_my_leads',{p_session_token:TOKEN})
+    ]);
     if(rP.data&&rP.data.success===false&&rP.data.error==='session_expired') return sessionGone();
-    if(rP.data&&rP.data.success) perf=rP.data;
-    if(rPrev.data&&rPrev.data.success) prevPerf=rPrev.data;
-    if(rO.data&&rO.data.success&&!rO.data.no_agent){ const T=rO.data.totals||{}; outstanding=Number(T.overdue||T.total_remaining||0); }
-    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
-    if(rR.data&&rR.data.success){ resvActive=(rR.data.reservations||[]).filter(x=>x.status==='active').length; }
-    if(rS.data&&rS.data.success){ pend=((rS.data.submissions)||[]).filter(x=>x.status==='pending').length; }
-    if(rB.data&&rB.data.success){ myUnits=Number(rB.data.units_all)||0; }
-    if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; newLeads=ls.filter(x=>x.status==='new'); pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; LEAD_UNCHECKED=Number(rL.data.unchecked)||0; _leadsBadgeSet(LEAD_UNCHECKED); _leadsNotify(LEAD_UNCHECKED); }
+    if(rP.data&&rP.data.success) sold=Number(rP.data.sales&&rP.data.sales.value||0);
+    if(rO.data&&rO.data.success&&!rO.data.no_agent){ const T=rO.data.totals||{}; collect=Number(T.total_remaining||T.overdue||0); }
+    if(rF.data&&rF.data.success){ const rows=rF.data.rows||[]; overdue=rows.filter(x=>x.bucket==='overdue'); today=rows.filter(x=>x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
+    if(rL&&rL.data&&rL.data.success){ const ls=rL.data.leads||[]; news=ls.filter(x=>x.status==='new'); LEAD_UNCHECKED=Number(rL.data.unchecked)||0; _leadsBadgeSet(LEAD_UNCHECKED); _leadsNotify(LEAD_UNCHECKED); }
   }catch(e){ return _netErr(); }
   await loadAnnouncements();
   _touch();
-  const nm=(ME&&ME.sales_user_name)||'';
-  const _fn=nm?esc(String(nm).split(' ')[0]):'';
-  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
-  // honest month-on-month trend: only when last month had real sales value to compare against
-  const pVal=prevPerf?Number(prevPerf.sales&&prevPerf.sales.value||0):0;
-  const momPct=pVal>0?Math.round((sVal-pVal)*100/pVal):null;
-  let _d=0; const _dl=()=>`animation-delay:${(_d++)*40}ms`;
-  const _convW=Math.max(3,Math.min(100,Number(conv)||0));
+  const nm=(ME&&ME.sales_user_name)||'', _fn=nm?esc(String(nm).split(' ')[0]):'';
   let html='<div class="nx-dash">';
-  html+=`<div class="nx-rise" style="${_dl()};margin:0 2px var(--fk-sp-3)"><div style="font-size:var(--fk-fs-page);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;color:var(--fk-text)">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fk-fs-body);margin-top:3px;font-weight:var(--fk-fw-medium)">Here is your desk for today.</div></div>`;
-  html+=`<div class="herometric nx-rise" style="${_dl()}">
-    <div class="hm-eyebrow">This month</div>
-    <div class="hm-big" data-countup data-to="${sVal}" data-fmt="pkr">${pkrShort(sVal)||'₨0'}</div>
-    <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed</div>
-    <div class="hm-area">${_spark('var(--fk-primary)')}</div>
-    <div class="hm-conv"><div class="hm-conv-top"><span>Conversion</span><b>${conv}%</b></div><div class="hm-prog" title="${conv}% conversion"><i style="width:${_convW}%"></i></div></div>
-    <div class="hm-foot">
-      <div class="hm-stat"><span><span class="hs-ic">${ic('<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')}</span>Pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
-      <div class="hm-divv"></div>
-      <div class="hm-stat"><span><span class="hs-ic">${ic('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')}</span>To collect</span><b>${outstanding?pkrShort(outstanding):'₨0'}</b></div>
-    </div>
-    ${momPct==null?'':`<div class="hm-vs">${_trend(momPct)}<span>vs last month</span></div>`}
-  </div>`;
-  const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
-  const _AC={indigo:'var(--fk-primary)',amber:'var(--fk-warning)',violet:'var(--nx-violet)',emerald:'var(--fk-success)'};
-  const kpi=(label,valHtml,accent,iconPath,onclick,trendPct)=>`<div class="dkpi nx-rise" style="${_dl()}" onclick="${onclick}"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(trendPct)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
-  html+='<div class="dgrid">'
-    + kpi('Active reservations', numv(resvActive,'int'), 'indigo', '<path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/>', "setTab('mine')", null)
-    + kpi('Pending approvals', numv(pend,'int'), 'amber', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "setTab('mine')", null)
-    + kpi('My units', numv(myUnits,'int'), 'violet', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>', "setTab('rank')", null)
-    + kpi('To collect', numv(outstanding,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', "setTab('recovery')", null)
-    + '</div>';
-  if(_canLeads){
-    const _vall=`<a class="dsec-all" onclick="setTab('leads')">View all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>`;
-    // Follow up today — amber accent (urgency)
-    html+=`<div class="dsec amber nx-rise" style="${_dl()}">Follow up today <span class="nb">${fuRows.length}</span>${_vall}</div>`;
-    html+= fuRows.length
-      ? `<div class="lgroup fu nx-rise" style="${_dl()}">`+fuRows.slice(0,6).map(_fuCard).join('')+'</div>'
-      : `<div class="nx-rise" style="${_dl()}">`+_emptyRow('check',"No follow-ups today — you're all caught up")+'</div>';
-    // New leads — indigo accent (fresh / action)
-    html+=`<div class="dsec nx-rise" style="${_dl()}">New leads <span class="nb">${newLeads.length}</span>${_vall}</div>`;
-    if(newLeads.length){
-      html+=`<div class="lgroup nl nx-rise" style="${_dl()}">`+newLeads.slice(0,5).map(_newLeadRow).join('')+'</div>';
-      if(newLeads.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('leads')">View all leads</button>`;
-    } else {
-      html+=`<div class="nx-rise" style="${_dl()}">`+_emptyRow('inbox',"No new leads right now — fresh leads will land here")+'</div>';
-    }
+  html+=`<div style="margin:0 2px 14px"><div style="font-size:18px;font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">Here’s your list for today.</div></div>`;
+  html+=_numStrip([{lbl:'This month sold',val:pkrShort(sold)||'₨0',onclick:"setTab('money')"},{lbl:'To collect',val:pkrShort(collect)||'₨0',onclick:"setTab('money')"}]);
+  const total=overdue.length+today.length+news.length;
+  html+=`<div class="dsec">Today${total?` <span class="nb">${total}</span>`:''}</div>`;
+  if(!total){ html+=_emptyRow('check',"You’re all caught up — no follow-ups due and no new leads."); }
+  else {
+    html+='<div class="wl">'
+      + overdue.map(l=>_wlRow(l,'overdue')).join('')
+      + today.map(l=>_wlRow(l,'today')).join('')
+      + news.map(l=>_wlRow(l,'new')).join('')
+      + '</div>';
   }
   html+='</div>';
   $('app-body').innerHTML=html;
-  _runCountUps();
   _annUpdateBadge();
 }
 
@@ -2204,90 +2186,57 @@ function _teamActRow(a){
     <span style="font-size:11px;color:var(--fk-text-muted);white-space:nowrap">${_agoTxt(a.created_at)}</span>
   </div></div>`;
 }
-// ════ Manager dashboard — team command center (replaces the rep home for marketing_manager) ════
+// ════ Manager / Director Home — one worklist + To-assign + target strip ════
 async function renderManagerHome(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
   if(!_BG) $('app-body').innerHTML=_skel();
-  let team=[], T={}, perf=null, fuRows=[], myNew=[], pipeline=0, newCnt=0, targets=null, roi=null;
-  const _isDir=ME&&ME.role==='director';
+  let team=[], T={}, sold=0, overdue=[], today=[], toAssign=0, targets=null;
   try{
-    const calls=[
+    const [rT,rP,rF,rL,rG]=await Promise.all([
       sb.rpc('get_my_team',{p_session_token:TOKEN}),
       sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
       sb.rpc('get_my_followups',{p_session_token:TOKEN}),
       sb.rpc('list_my_leads',{p_session_token:TOKEN}),
-      sb.rpc('get_team_activity',{p_session_token:TOKEN,p_limit:12}),
       sb.rpc('get_team_targets',{p_session_token:TOKEN,p_period:_curPeriod()})
-    ];
-    if(_isDir) calls.push(sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:_curPeriod()}));
-    const res=await Promise.all(calls);
-    const [rT,rP,rF,rL,rA,rG]=res; const rROI=_isDir?res[6]:null;
+    ]);
     if(rT.data&&rT.data.error==='session_expired') return sessionGone();
     if(rT.data&&rT.data.success){ team=rT.data.team||[]; T=rT.data.totals||{}; TEAM_DATA=team; TEAM_TOTALS=T; }
-    if(rP.data&&rP.data.success) perf=rP.data;
-    if(rF.data&&rF.data.success){ fuRows=(rF.data.rows||[]).filter(x=>x.bucket==='overdue'||x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
-    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; myNew=ls.filter(_distributablePool); newCnt=ls.filter(x=>x.status==='new').length; pipeline=ls.filter(x=>['new','contacted','visit','negotiation'].includes(x.status)).length; LEAD_UNCHECKED=Number(rL.data.unchecked)||0; }
-    TEAM_ACTIVITY=(rA.data&&rA.data.success&&rA.data.activities)||[];
+    if(rP.data&&rP.data.success) sold=Number(rP.data.sales&&rP.data.sales.value||0);
+    if(rF.data&&rF.data.success){ const rows=rF.data.rows||[]; overdue=rows.filter(x=>x.bucket==='overdue'); today=rows.filter(x=>x.bucket==='today'); _fuBadgeSet(rF.data.overdue,rF.data.today); }
+    if(rL.data&&rL.data.success){ const ls=rL.data.leads||[]; TEAM_LEADS=ls; toAssign=ls.filter(_distributablePool).length; LEAD_UNCHECKED=Number(rL.data.unchecked)||0; _leadsBadgeSet(LEAD_UNCHECKED); _distBadgeSet(toAssign); _leadsNotify(LEAD_UNCHECKED); }
     if(rG.data&&rG.data.success) targets=rG.data;
-    if(rROI&&rROI.data&&rROI.data.success) roi=rROI.data;
   }catch(e){ return _netErr(); }
   await loadAnnouncements();
   _touch(); _buildTeamStats();
   const stuck=_stuckTeamLeads();
-  const nm=(ME&&ME.sales_user_name)||''; const _fn=nm?esc(String(nm).split(' ')[0]):'';
-  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  const sVal=perf?Number(perf.sales.value||0):0, sCnt=perf?Number(perf.sales.count||0):0, conv=perf?Number(perf.conversion||0):0;
-  _leadsBadgeSet(LEAD_UNCHECKED); _distBadgeSet(myNew.length); _leadsNotify(LEAD_UNCHECKED);
+  const collect=Number(T.outstanding||0);
+  const nm=(ME&&ME.sales_user_name)||'', _fn=nm?esc(String(nm).split(' ')[0]):'';
   const isDir=ME&&ME.role==='director'; const roleLbl=isDir?'Director':'Manager'; const unit=isDir?'manager':'agent';
-  let html=`<div style="margin:0 2px 12px"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
-  html+=`<div class="herometric">
-    <div class="hm-eyebrow">Team sales · this month</div>
-    <div class="hm-big">${pkrShort(sVal)||'₨0'}</div>
-    <div class="hm-sub">${sCnt} sale${sCnt==1?'':'s'} closed · ${conv}% conversion</div>
-    <div class="hm-foot">
-      <div class="hm-stat"><span>Open pipeline</span><b>${pipeline} lead${pipeline==1?'':'s'}</b></div>
-      <div class="hm-divv"></div>
-      <div class="hm-stat"><span>Team to collect</span><b>${T.outstanding?pkrShort(T.outstanding):'₨0'}</b></div>
-    </div>
-  </div>`;
-  const kpi=(label,val,chip,onclick)=>`<div class="dkpi" onclick="${onclick}"><div class="dkpi-l"><span class="dch">${chip}</span>${esc(label)}</div><div class="dkpi-v">${esc(String(val))}</div></div>`;
-  html+='<div class="dgrid">'
-    + kpi(isDir?'Managers':'Team agents', team.length, ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), "setTab('team')")
-    + kpi('To distribute', myNew.length, ic('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'), "setTab('distribute')")
-    + kpi('Follow-ups due', fuRows.length, ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), "setTab('leads')")
-    + kpi('Stuck leads', stuck.length, ic('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'), stuck.length?"document.getElementById('mh-stuck').scrollIntoView({behavior:'smooth'})":"")
-    + '</div>';
+  let html='<div class="nx-dash">';
+  html+=`<div style="margin:0 2px 14px"><div style="font-size:18px;font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:13px;margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
+  html+=_numStrip([{lbl:'Team sold this month',val:pkrShort(sold)||'₨0',onclick:"setTab('money')"},{lbl:'Team to collect',val:pkrShort(collect)||'₨0',onclick:"setTab('money')"}]);
+  if(toAssign>0){
+    html+='<div class="wl" style="margin-top:8px"><div class="wl-row tap" onclick="setTab(\'distribute\')">'
+      +`<span class="more-ic">${li('send',18,2)}</span>`
+      +`<div class="wl-main"><div class="wl-name">To assign: ${toAssign}</div><div class="wl-sub">New leads waiting to hand to your team</div></div>`
+      +'<svg class="more-cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+      +'</div></div>';
+  }
   if(targets && targets.totals && Number(targets.totals.target_units)>0){
     const tt=targets.totals, pct=Math.round(Number(tt.actual_units)*100/Number(tt.target_units));
-    html+=`<div class="dsec">This month's target</div>`;
+    html+=`<div class="dsec">This month’s target</div>`;
     html+=`<div class="card listc" onclick="setTab('targets')" style="cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:15px;font-weight:700">${tt.actual_units} <span style="color:var(--fk-text-muted);font-weight:600">/ ${tt.target_units} units</span></div><div style="font-size:12px;font-weight:700;color:${pct>=100?'var(--fk-success)':'var(--fk-text-muted)'}">${pct}%</div></div>${_progBar(pct)}</div>`;
   }
-  if(isDir) html+=_roiHomeCard(roi);
-  if(myNew.length){
-    html+=`<div class="dsec">Leads to distribute <span class="nb">${myNew.length}</span></div>`;
-    html+='<div class="lgroup">'+myNew.slice(0,5).map(_distRow).join('')+'</div>';
-    if(myNew.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('distribute')">Distribute all</button>`;
-  }
+  const total=overdue.length+today.length;
+  html+=`<div class="dsec">Today${total?` <span class="nb">${total}</span>`:''}</div>`;
+  if(!total){ html+=_emptyRow('check',"No follow-ups due across your team right now."); }
+  else { html+='<div class="wl">'+overdue.map(l=>_wlRow(l,'overdue')).join('')+today.map(l=>_wlRow(l,'today')).join('')+'</div>'; }
   if(stuck.length){
-    html+=`<div class="dsec" id="mh-stuck">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuck.length}</span></div>`;
+    html+=`<div class="dsec">Needs attention <span class="nb" style="background:var(--fk-danger)">${stuck.length}</span></div>`;
+    html+=`<div style="font-size:12.5px;color:var(--fk-text-muted);margin:0 2px 10px">No action 7+ days</div>`;
     html+='<div class="lgroup">'+stuck.slice(0,5).map(_stuckRow).join('')+'</div>';
   }
-  if(fuRows.length){
-    html+=`<div class="dsec">Team follow-ups due <span class="nb">${fuRows.length}</span></div>`;
-    html+='<div class="lgroup">'+fuRows.slice(0,5).map(_fuRow).join('')+'</div>';
-  }
-  if(team.length){
-    const top=team.slice().sort((a,b)=>Number(b.sales_value||0)-Number(a.sales_value||0)).slice(0,5);
-    html+=`<div class="dsec">Your team <span class="nb">${team.length}</span></div>`;
-    html+='<div class="lgroup">'+top.map(_teamRow).join('')+'</div>';
-    if(team.length>5) html+=`<button class="btn btn-full btn-sm" onclick="setTab('team')">View full team</button>`;
-  } else {
-    html+=_emptyCard('No agents under you yet','Your office places sub-agents under you — then their numbers appear here.');
-  }
-  if(TEAM_ACTIVITY.length){
-    html+=`<div class="dsec">Recent team activity</div>`;
-    html+='<div class="lgroup">'+TEAM_ACTIVITY.slice(0,8).map(_teamActRow).join('')+'</div>';
-  }
+  html+='</div>';
   $('app-body').innerHTML=html;
   _annUpdateBadge();
 }
@@ -2350,8 +2299,11 @@ function _leadsRender(){
   const plus='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
   const title=canCreate?'Leads':'Received Leads';
   const subt=canCreate?'Your prospects — capture, follow up, and move them to sale.':'Leads your manager assigned to you — call, follow up, and close.';
+  const assignN=(isMgr)?LEADS.filter(_distributablePool).length:0;
+  const assignBtn=isMgr?`<button class="btn lead-add" onclick="setTab('distribute')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Assign${assignN?' ('+assignN+')':''}</button>`:'';
+  const acts=(canCreate||isMgr)?`<div style="display:flex;gap:8px;flex:none;flex-wrap:wrap;justify-content:flex-end">${assignBtn}${canCreate?`<button class="btn lead-add" onclick="_leadImportOpen()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Import</button><button class="btn btn-primary lead-add" onclick="_leadFormOpen()">${plus} Add lead</button>`:''}</div>`:'';
   let html='<div class="nx-leads">';
-  html+=`<div class="lead-head"><div style="min-width:0"><div class="lead-h1">${title}</div><div class="lead-hsub">${subt}</div></div>${canCreate?`<div style="display:flex;gap:8px;flex:none"><button class="btn lead-add" onclick="_leadImportOpen()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Import</button><button class="btn btn-primary lead-add" onclick="_leadFormOpen()">${plus} Add lead</button></div>`:''}</div>`;
+  html+=`<div class="lead-head"><div style="min-width:0"><div class="lead-h1">${title}</div><div class="lead-hsub">${subt}</div></div>${acts}</div>`;
   if(isMgr) html+=_seg([['mine','Mine'],['all','My team']], LEADV.scope, '_leadSetScope');
   if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
@@ -3248,7 +3200,7 @@ async function renderLeadDetail(id){
       <input class="input" id="lg-nextstep" placeholder="Next step (optional) — e.g. send brochure" style="margin-top:8px">
       <div class="lglog-lb">Next follow-up (optional)</div>
       <input type="date" id="lg-next" class="input">
-      <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="_leadLog('${l.id}')">Log interaction</button>
+      <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="_leadLog('${l.id}')">Save call note</button>
     </div>`;
     html+=`<button class="btn btn-full" style="margin-bottom:10px" onclick="_leadActions('${l.id}')">More actions ⋯</button>`;
   }
@@ -3626,7 +3578,7 @@ function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div clas
 // ════ Manager — My Team (roster + per-agent numbers) ════
 let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[], TEAM_OPEN={}, TEAM_KIDS={}, TEAMV={q:''};
 async function renderTeam(){
-  TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
+  TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={}; TRAIL_MEMBER=null;
   $('app-body').innerHTML=_skel();
   let data, leadsR;
   try{
@@ -3661,7 +3613,7 @@ function _renderTeamTree(){
     + kpi('Members', numv(team.length,'int'), 'indigo', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>')
     + kpi('Team sales', numv(Number(T.sales_value)||0,'pkr'), 'emerald', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
     + kpi('To collect', numv(Number(T.outstanding)||0,'pkr'), 'amber', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')
-    + kpi('Open pipeline', numv(Number(T.pipeline)||0,'int'), 'violet', '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')
+    + kpi('Open leads', numv(Number(T.pipeline)||0,'int'), 'violet', '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>')
     + '</div>';
   if(!team.length){ html+=_emptyCard('No team yet','Your office places members under you — then they appear here with their numbers.'); }
   else {
@@ -3747,7 +3699,7 @@ function _teamRow(a){
 function _teamSelectTab(){
   TAB='team';
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')==='team'));
-  document.querySelectorAll('.sb .ni-grp').forEach(g=>{ const has=!!g.querySelector('[data-tab="team"]'); g.classList.toggle('has-active',has); if(has) g.classList.add('open'); });
+  _syncBtabs('team');
 }
 // dashboard "Your team" tap: a manager → open the team tree; a rep → their detail
 function _teamTap(id){
@@ -3761,6 +3713,8 @@ function openAgent(id){
   closeSidebar(); renderAgent(); window.scrollTo(0,0); _syncNav();
 }
 function _teamBack(){ TEAM_AGENT=null; _renderTeamTree(); _syncNav(); }
+// director: open a member's day-by-day footsteps trail from the team detail (was the Hierarchy menu)
+function _teamOpenTrail(id){ TRAIL_FROM='team'; TRAIL_MEMBER=id; TRAIL_DAY=null; renderTrail(); _syncNav(); }
 function renderAgent(){
   const a=_findTeamNode(TEAM_AGENT);
   if(!a) return _teamBack();
@@ -3786,16 +3740,19 @@ function renderAgent(){
   html+='<div class="dgrid">'
     + kpi('Sales value', numv(a.sales_value,'pkr'), 'indigo', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
     + kpi('Sales', numv(a.sales_count,'int'), 'violet', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
-    + kpi('Open pipeline', numv(a.pipeline,'int'), 'amber', '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>')
+    + kpi('Open leads', numv(a.pipeline,'int'), 'amber', '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>')
     + kpi('Won', numv(a.won,'int'), 'emerald', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
-    + kpi('Conversion', numv(a.conversion,'int','%'), 'indigo', '<path d="M3 3v18h18"/><path d="m7 14 3-3 2 2 5-5"/>')
+    + kpi('Won %', numv(a.conversion,'int','%'), 'indigo', '<path d="M3 3v18h18"/><path d="m7 14 3-3 2 2 5-5"/>')
     + kpi('To collect', numv(a.outstanding,'pkr'), 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
     + '</div>';
   if(stuckA.length){
     html+=`<div class="dsec">Needs attention · ${_STUCK_DAYS}d+ idle <span class="nb" style="background:var(--fk-danger)">${stuckA.length}</span></div>`;
     html+='<div class="lgroup">'+stuckA.slice(0,5).map(_stuckRow).join('')+'</div>';
   }
-  if(ME&&ME.role==='director') html+='<div id="agent-loc"></div>';
+  if(ME&&ME.role==='director'){
+    html+='<div id="agent-loc"></div>';
+    html+=`<button class="btn btn-full" style="justify-content:center;gap:8px;margin-top:6px" onclick="_teamOpenTrail('${a.id}')">${li('compass',17,2)} Live location &amp; footsteps</button>`;
+  }
   if(leads.length){
     html+=`<div class="dsec">Lead pipeline <span class="nb">${leads.length}</span></div>`;
     const chips=LEAD_STAGES.map(([k,lb])=>{ const n=sc[k]||0; return n?`<span class="spill" style="background:${_leadColor(k)};border-color:transparent;color:#fff">${esc(lb)} ${n}</span>`:''; }).filter(Boolean).join('');
@@ -3818,7 +3775,7 @@ function _agentLeadRow(l){
 }
 // ════ Manager — Team Recovery (per-agent outstanding) ════
 async function renderTeamRecovery(){
-  $('app-body').innerHTML=_skel();
+  MB().innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_team',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return _netErr(); }
@@ -3832,7 +3789,7 @@ async function renderTeamRecovery(){
   if(!withDue.length){ html+=_emptyCard('All clear','No outstanding across your team right now.'); }
   else { html+='<div class="dsec">By agent</div><div class="lgroup">'+withDue.map(_recAgentRow).join('')+'</div>'; }
   html+='</div>';
-  $('app-body').innerHTML=html;
+  MB().innerHTML=html;
 }
 function _recAgentRow(a){
   return `<div class="lrow"><div class="lrow-top" onclick="openAgent('${a.id}')" style="cursor:pointer">
@@ -4502,7 +4459,7 @@ async function renderDistribute(){
   if(rL.data&&rL.data.success===false&&rL.data.error==='session_expired') return sessionGone();
   _touch();
   const cfg=(rU.data)||{};
-  if(!cfg.success||!cfg.can_assign){ $('app-body').innerHTML=_pageHead('Distribute leads','Hand your leads to your sub-agents.')+_emptyCard('Distribution not available','Your role can’t hand leads down.'); return; }
+  if(!cfg.success||!cfg.can_assign){ $('app-body').innerHTML=_pageHead('Assign leads','Hand your leads to your sub-agents.')+_emptyCard('Assigning not available','Your role can’t hand leads down.'); return; }
   DISTV.reps=cfg.users||[]; DISTV.label=cfg.assigns_to_label||'team';
   DISTV.leads=(((rL.data)&&rL.data.leads)||[]).filter(_distributablePool);
   DISTV.sel=DISTV.sel.filter(id=>DISTV.leads.some(l=>l.id===id));   // drop ids that are no longer assignable
@@ -4511,8 +4468,9 @@ async function renderDistribute(){
 }
 function _distRender(){
   const reps=DISTV.reps, leads=DISTV.leads, sel=DISTV.sel;
-  let html=_pageHead('Distribute leads','Select leads and assign them to your '+esc(DISTV.label)+' — one by one or auto-balanced.');
-  if(!reps.length){ html+=_emptyCard('No '+esc(DISTV.label)+' yet','Add one in Portal Access first, then you can distribute leads.'); $('app-body').innerHTML=html; return; }
+  let html=`<button class="backbtn" onclick="setTab('leads')" style="margin-bottom:var(--fk-sp-3)">‹ Leads</button>`;
+  html+=_pageHead('Assign leads','Select leads and assign them to your '+esc(DISTV.label)+' — one by one or split equally.');
+  if(!reps.length){ html+=_emptyCard('No '+esc(DISTV.label)+' yet','Add one in Portal Access first, then you can assign leads.'); $('app-body').innerHTML=html; return; }
   // team load snapshot
   html+='<div class="dsec">Team load</div><div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px">'
     + reps.map(u=>`<span class="spill">${esc(u.name)} · <b>${u.open_leads}</b> open</span>`).join('')
@@ -4523,7 +4481,7 @@ function _distRender(){
     <button class="btn btn-sm" ${leads.length?'':'disabled'} onclick="_distToggleAll()">${all?'Clear':'Select all'}</button>
     <span style="font-size:13px;color:var(--fk-text-muted);flex:1;min-width:60px">${n} selected</span>
     <button class="btn btn-sm btn-primary" ${n?'':'disabled'} onclick="_distAssignPick()">Assign to ${esc(DISTV.label)}</button>
-    <button class="btn btn-sm" ${n?'':'disabled'} onclick="_distAuto()">Auto-balance</button>
+    <button class="btn btn-sm" ${n?'':'disabled'} onclick="_distAuto()">Split equally</button>
   </div>`;
   if(leads.length){
     const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
@@ -4586,9 +4544,9 @@ function _distAuto(){
   ids.forEach(lid=>{ let best=reps[0]; reps.forEach(u=>{ if(load[u.id]<load[best.id]) best=u; }); (plan[best.id]=plan[best.id]||[]).push(lid); load[best.id]++; });
   DISTV.plan=plan;
   const preview=reps.filter(u=>plan[u.id]).map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--fk-hairline);font-size:14px"><span>${esc(u.name)} <span style="color:var(--fk-text-muted);font-size:11px">· ${u.open_leads} now</span></span><b style="color:var(--fk-primary)">+${plan[u.id].length}</b></div>`).join('');
-  openModal('Auto-balance '+ids.length+' lead'+(ids.length==1?'':'s'),
+  openModal('Split '+ids.length+' lead'+(ids.length==1?'':'s')+' equally',
     '<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:10px">Split across your '+esc(DISTV.label)+', evening out current load:</div><div class="card" style="padding:2px 14px;margin:0">'+preview+'</div>',
-    '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_distAutoRun()">Distribute</button>');
+    '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_distAutoRun()">Assign</button>');
 }
 async function _distAutoRun(){
   const plan=DISTV.plan||{}; closeModal();
@@ -4598,7 +4556,7 @@ async function _distAutoRun(){
       if(data&&data.success) total+=Number(data.assigned||0); else fail++;
     }catch(e){ fail++; }
   }
-  toast('Distributed '+total+' lead'+(total==1?'':'s')+' across '+groups+' '+DISTV.label+(fail?(' · '+fail+' failed'):''), fail?'err':'ok');
+  toast('Assigned '+total+' lead'+(total==1?'':'s')+' across '+groups+' '+DISTV.label+(fail?(' · '+fail+' failed'):''), fail?'err':'ok');
   DISTV.sel=[]; DISTV.plan=null; renderDistribute();
 }
 function _distRow(l){
@@ -4736,7 +4694,7 @@ async function renderTrail(){
   const _dot='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--fk-success);vertical-align:middle;margin-right:5px"></span>';
   const statusTxt= online ? (_dot+'Online now'+(d.cur_label?' · '+esc(d.cur_label):''))
     : (d.last_at ? ('Offline · last seen '+esc(_agoTxt(d.last_at))+(d.cur_label?' · '+esc(d.cur_label):'')) : 'No location on this day');
-  let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ ${TRAIL_FROM==='org'?'Hierarchy':'Live Map'}</button>`;
+  let html=`<button class="backbtn" onclick="goBack()" style="margin-bottom:12px">‹ ${TRAIL_FROM==='org'?'Hierarchy':(TRAIL_FROM==='team'?'Back':'Live Map')}</button>`;
   html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">${_avatar(d.name,40)}<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name||'')}</div><div style="font-size:12px;font-weight:600;color:${online?'var(--fk-success)':'var(--fk-text-muted)'}">${statusTxt}</div></div></div>`;
   html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button class="btn btn-sm" onclick="_trailShift(-1)">‹</button><div style="flex:1;text-align:center;font-weight:700;font-size:14px">${esc(_trailDayLabel(d.day))}</div><button class="btn btn-sm" ${d.day>=_todayPKT()?'disabled':''} onclick="_trailShift(1)">›</button></div>`;
   html+=`<div id="trail-canvas" style="width:100%;height:50vh;border-radius:12px;overflow:hidden;border:1px solid var(--fk-border);background:var(--fk-bg-subtle);position:relative;z-index:0"></div>`;
@@ -5424,7 +5382,7 @@ async function renderMemberPerf(){
   html+=_seg([['month','This month'],['last','Last month'],['all','All time']], MEMBER_PERIOD, '_setMemPeriod');
   html+='<div class="dgrid">'
     + kpi('Leads', numv(L.total,'int'), 'indigo', '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')
-    + kpi('Conversion', numv(d.conversion,'int','%'), 'emerald', '<path d="M20 6 9 17l-5-5"/>')
+    + kpi('Won %', numv(d.conversion,'int','%'), 'emerald', '<path d="M20 6 9 17l-5-5"/>')
     + kpi('Sales', numv(S.count,'int'), 'amber', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
     + kpi('Sales value', numv(S.value,'pkr'), 'violet', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
     + '</div>';
@@ -5491,14 +5449,14 @@ async function renderPerformance(){
   const L=data.leads||{}, A=data.activities||{};
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:13px"><span style="color:var(--fk-text-muted)">${esc(l)}</span><b>${esc(String(v))}</b></div>`;
-  let html='<div class="nx-dash">'+_pageHead(mgr?'Team Performance':'My Performance', mgr?'Your team’s funnel, activity & results.':'Your funnel, activity & results.');
+  let html='<div class="nx-dash">'+_pageHead(mgr?'My results':'My results', mgr?'Your team’s funnel, activity & results.':'Your funnel, activity & results.');
   html+=_seg([['month','This month'],['last','Last month'],['all','All time']], PERF_PERIOD, '_perfSetPeriod');
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(to,fmt)=>`<span data-countup data-to="${to}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(to)||'₨0'):to}</span>`;
   const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   html+='<div class="dgrid" style="grid-template-columns:repeat(2,1fr)">'
     + kpi('Leads', numv(Number(L.total)||0,'int'), 'indigo', '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')
-    + kpi('Conversion', numv(Number(data.conversion)||0,'int')+'%', 'emerald', '<path d="M20 6 9 17l-5-5"/>')
+    + kpi('Won %', numv(Number(data.conversion)||0,'int')+'%', 'emerald', '<path d="M20 6 9 17l-5-5"/>')
     + kpi('Sales', numv(Number(data.sales&&data.sales.count)||0,'int'), 'amber', '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/>')
     + kpi('Sales value', numv(Number(data.sales&&data.sales.value)||0,'pkr'), 'violet', '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')
     + '</div>';
@@ -5535,14 +5493,14 @@ function _perfAgentRow(a){
 // ════ My Clients — everyone the agent has sold to ════
 let CL_ROWS=[], CL_Q='';
 async function renderClients(){
-  $('app-body').innerHTML=_skel();
+  MB().innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_clients',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return _netErr(); }
   if(_loadFail(data)) return;
   _touch();
   let html='<div class="nx-dash">'+_pageHead('My Clients','Everyone you have sold to.');
-  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div><div class="es">Your clients appear here once your sales are approved.</div></div></div></div>'; $('app-body').innerHTML=html; return; }
+  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No clients yet</div><div class="es">Your clients appear here once your sales are approved.</div></div></div></div>'; MB().innerHTML=html; return; }
   const cl=data.clients||[];
   const totRem=cl.reduce((s,c)=>s+Number(c.total_remaining||0),0);
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -5563,7 +5521,7 @@ async function renderClients(){
     html+='<div class="dsec">Clients <span class="nb">'+cl.length+'</span></div><div id="cl-list"></div>';
   }
   html+='</div>';
-  $('app-body').innerHTML=html;
+  MB().innerHTML=html;
   _clListRender();
   _runCountUps();
 }
@@ -5592,14 +5550,14 @@ function _clientRow(c){
 }
 // ════ My Sales — the agent's closed deals ════
 async function renderMySales(){
-  if(!_BG) $('app-body').innerHTML=_skel();
+  if(!_BG) MB().innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_sales',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return _netErr(); }
   if(_loadFail(data)) return;
   _touch();
   let html='<div class="nx-dash">'+_pageHead('My Sales','Deals you have closed.');
-  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No sales linked yet</div><div class="es">Once your office links your agent profile and approves a sale, it appears here.</div></div></div></div>'; $('app-body').innerHTML=html; return; }
+  if(data.no_agent){ html+='<div class="card"><div class="empty"><div class="et">No sales linked yet</div><div class="es">Once your office links your agent profile and approves a sale, it appears here.</div></div></div></div>'; MB().innerHTML=html; return; }
   const sales=data.sales||[];
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={indigo:'var(--fk-primary)',emerald:'var(--fk-success)'};
@@ -5620,7 +5578,7 @@ async function renderMySales(){
     html+='<div id="ms-list" style="margin-top:var(--fk-sp-3)"></div>';
   }
   html+='</div>';
-  $('app-body').innerHTML=html;
+  MB().innerHTML=html;
   _msListRender();
   _runCountUps();
 }
@@ -5836,20 +5794,24 @@ async function loadBoard(){
   BOARD=data; _touch(); return true;
 }
 function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleString('en-US')+' '+((u.area_unit||'sqft')) : ''; }
+// Units tab segmented control: All units (board) ⇄ My Bookings (reservations)
+function _unitsSeg(){ return '<div class="seg" style="margin:0 0 14px">'
+  +'<button class="so'+(TAB==='board'?' on':'')+'" onclick="setTab(\'board\')">All units</button>'
+  +'<button class="so'+(TAB==='mine'?' on':'')+'" onclick="setTab(\'mine\')">My Bookings</button></div>'; }
 async function renderBoard(){
   if(!_BG) $('app-body').innerHTML=_skel();
   const ok=await loadBoard(); if(ok!==true){ if(ok==='expired') return sessionGone(); return _netErr(); }
   const projects=BOARD.projects||[];
   if(!projects.length){
-    $('app-body').innerHTML='<div class="card"><div class="empty">'
+    $('app-body').innerHTML='<div class="nx-dash">'+_unitsSeg()+'<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/></svg></div>'
-      +'<div class="et">No inventory in your scope</div><div class="es">Ask your office to assign you a project.</div></div></div>';
+      +'<div class="et">No inventory in your scope</div><div class="es">Ask your office to assign you a project.</div></div></div></div>';
     return;
   }
   if(BV.proj>=projects.length) BV.proj=0;
   const p=projects[BV.proj]; const c=p.counts||{};
   BOARD_PROJ=p.project_name||p.company_name||'';
-  let html='<div class="nx-dash">'+_pageHead('Availability','Reserve and sell available units across your projects.');
+  let html='<div class="nx-dash">'+_pageHead('Units','Reserve and sell available units across your projects.')+_unitsSeg();
   if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:var(--fk-sp-3);border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-bold)">${li('tag',13,2)} Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
   if(projects.length>1){
     // Each chip is the PROJECT (e.g. KHUSHAL BAGH HEIGHTS / Awami Market); in an umbrella these span member companies.
@@ -6073,6 +6035,82 @@ function _shareUnitSend(){
   window.open('https://wa.me/'+(ph||'')+'?text='+encodeURIComponent(lines.join('\n')),'_blank');
   closeModal();
 }
+// ════ Money — merged: To collect (Recovery) · My sales · Clients · Team (mgr) ════
+// The four screens keep their own bodies; renderMoney frames them with a persistent
+// two-number header + segment bar. Sub-renderers write into #mny-body (via MB()).
+let MONEY_SEG='collect', MONEY_NUMS=null;
+function _isMgrRole(){ return !!(ME && (ME.role==='marketing_manager'||ME.role==='director')); }
+function MB(){ return document.getElementById('mny-body')||document.getElementById('app-body'); }
+function _moneySetSeg(s){ MONEY_SEG=s; renderMoney(); }
+function _moneyNumStrip(){
+  const nums=MONEY_NUMS||{};
+  const sold = nums.sold!=null ? (pkrShort(nums.sold)||'₨0') : '—';
+  const coll = nums.collect!=null ? (pkrShort(nums.collect)||'₨0') : '—';
+  return `<div class="money-nums">
+    <div class="mn-card"><span class="mn-lbl">Sold this month</span><span class="mn-val" id="mn-sold">${sold}</span></div>
+    <button class="mn-card" onclick="_moneySetSeg('collect')"><span class="mn-lbl">To collect</span><span class="mn-val" id="mn-coll">${coll}</span></button>
+  </div>`;
+}
+function _moneySegBar(){
+  const segs=[['collect','To collect'],['mysales','My sales'],['clients','Clients']];
+  if(_isMgrRole()) segs.push(['team','Team']);
+  return _seg(segs, MONEY_SEG, '_moneySetSeg');
+}
+async function renderMoney(){
+  const seg = (MONEY_SEG==='team' && !_isMgrRole()) ? 'collect' : MONEY_SEG;   // Team only for managers/directors
+  MONEY_SEG=seg;
+  $('app-body').innerHTML = '<div class="nx-dash">'+_moneyNumStrip()+_moneySegBar()+'<div id="mny-body">'+_skel()+'</div></div>';
+  _moneyLoadNums();
+  if(seg==='mysales') return renderMySales();
+  if(seg==='clients') return renderClients();
+  if(seg==='team') return renderTeamRecovery();
+  return renderRecovery();
+}
+async function _moneyLoadNums(){
+  try{
+    const [rP,rO]=await Promise.all([
+      sb.rpc('get_sales_performance',{p_session_token:TOKEN,p_from:_perfRange('month')[0],p_to:_perfRange('month')[1]}),
+      sb.rpc('get_my_outstanding',{p_session_token:TOKEN})
+    ]);
+    let sold=0, collect=0;
+    if(rP.data&&rP.data.success) sold=Number(rP.data.sales&&rP.data.sales.value||0);
+    if(rO.data&&rO.data.success&&!rO.data.no_agent){ const T=rO.data.totals||{}; collect=Number(T.total_remaining||T.overdue||0); }
+    MONEY_NUMS={sold,collect};
+    const es=$('mn-sold'); if(es) es.textContent=pkrShort(sold)||'₨0';
+    const ec=$('mn-coll'); if(ec) ec.textContent=pkrShort(collect)||'₨0';
+  }catch(e){}
+}
+
+// ════ More — flat overflow list (role-adaptive), no groups ════
+function _moreRow(icon,label,sub,onclick,danger){
+  const cv=danger?'':'<svg class="more-cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+  return `<button class="more-row${danger?' danger':''}" onclick="${onclick}">
+    <span class="more-ic">${li(icon,18,1.9)}</span>
+    <span class="more-tx"><span class="more-lb">${esc(label)}</span>${sub?`<span class="more-sb">${esc(sub)}</span>`:''}</span>
+    ${cv}</button>`;
+}
+function renderMore(){
+  const role=(ME&&ME.role)||'sale_rep';
+  const isExec=role==='admin'||role==='cfo';
+  const isMgr=role==='marketing_manager'||role==='director';
+  const isDir=role==='director';
+  const nm=(ME&&ME.sales_user_name)||'Sales';
+  let html='<div class="nx-dash">'+_pageHead('More', esc(nm)+' · '+esc(_portalRoleLabel(role)));
+  html+='<div class="more-list">';
+  if(!isExec) html+=_moreRow('trending-up','My results', isMgr?'Your team’s funnel & results':'Your funnel, activity & results',"setTab('performance')");
+  if(isMgr)  html+=_moreRow('users','My Team','Your full team, top to bottom',"setTab('team')");
+  if(isMgr)  html+=_moreRow('target','Targets','Monthly goals for your team',"setTab('targets')");
+  if(isDir)  html+=_moreRow('map-pin','Live Map','Where your team is right now',"setTab('livemap')");
+  if(isDir||isExec) html+=_moreRow('bar-chart','Ad results','Ad spend vs leads · cost per lead',"setTab('adroi')");
+  if(isDir)  html+=_moreRow('facebook','Facebook Leads','Connect pages · automatic lead intake',"setTab('fbsettings')");
+  html+=_moreRow('message','Messages','Company notices & announcements',"setTab('updates')");
+  html+=_moreRow('user','My Profile','Your details & PIN',"setTab('profile')");
+  html+=_moreRow('log-out','Sign out','',"doLogout()",true);
+  html+='</div></div>';
+  $('app-body').innerHTML=html;
+  _annUpdateBadge();
+}
+
 // ════ my reservations ════
 let MINE_ROWS=[], MS_ROWS=[], MS_Q='';
 async function renderMine(){
@@ -6089,9 +6127,9 @@ async function renderMine(){
   subs.forEach(s=>{ if(!s.reservation_id) return;
     if(!subBy[s.reservation_id] || s.status==='pending') subBy[s.reservation_id]=s; });
   if(!MINE_ROWS.length){
-    $('app-body').innerHTML='<div class="card"><div class="empty">'
+    $('app-body').innerHTML='<div class="nx-dash">'+_unitsSeg()+'<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></div>'
-      +'<div class="et">No reservations yet</div><div class="es">Reserve an available unit from the board.</div></div></div>';
+      +'<div class="et">No bookings yet</div><div class="es">Reserve an available unit from All units.</div></div></div></div>';
     return;
   }
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -6132,7 +6170,7 @@ async function renderMine(){
   };
   const activeRows=MINE_ROWS.filter(r=>r.status==='active');
   const closedRows=MINE_ROWS.filter(r=>r.status!=='active');
-  let html='<div class="nx-dash">'+_pageHead('My Reservations','Your held units & sale submissions.');
+  let html='<div class="nx-dash">'+_pageHead('My Bookings','Your held units & sale submissions.')+_unitsSeg();
   html+='<div class="dgrid">'
     + kpi('Active', nActive, 'indigo', BM)
     + kpi('Under review', nReview, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
@@ -6161,13 +6199,13 @@ function _waDigits(p){ let d=String(p||'').replace(/[^0-9]/g,''); if(d.length===
 function _recWaText(r,co){ const amt=pkrFull((r.overdue>0.5?r.overdue:r.total_remaining)||0);
   return 'Assalam-o-Alaikum '+(r.client_name||'')+' Sahab,\n\nAap ke unit '+(r.unit_no||'')+' par '+amt+' baqaya hai. Baraye meherbani jald se jald adaigi karwa dein taake aap ka account clear rahe.\n\nShukria'+(co?'\n'+co:''); }
 async function renderRecovery(){
-  $('app-body').innerHTML=_skel();
+  MB().innerHTML=_skel();
   let data;
   try{ const r=await sb.rpc('get_my_outstanding',{p_session_token:TOKEN}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return _netErr(); }
   if(_loadFail(data)) return;
   if(data.no_agent){
-    $('app-body').innerHTML='<div class="card"><div class="empty">'
+    MB().innerHTML='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>'
       +'<div class="et">Recovery book not ready yet</div><div class="es">'+esc(data.message||'Once your office links your agent profile, your clients and their outstanding appear here.')+'</div></div></div>';
     return;
@@ -6176,7 +6214,7 @@ async function renderRecovery(){
   const T=data.totals||{};
   const co=(typeof SALES_CO_NAME!=='undefined'&&SALES_CO_NAME)||_coNameRemembered()||'';
   if(!rows.length){
-    $('app-body').innerHTML='<div class="card"><div class="empty">'
+    MB().innerHTML='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>'
       +'<div class="et">No clients on your book yet</div><div class="es">Sales you close will appear here so you can follow up on their payments.</div></div></div>';
     return;
@@ -6198,7 +6236,7 @@ async function renderRecovery(){
   html+='<div class="dsec">Clients to follow up'+(rows.length?` <span class="nb">${rows.length}</span>`:'')+'</div>';
   html+=`<div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted);margin:0 2px var(--fk-sp-3)">${(T.clients_in_arrears||0)} of ${(T.clients||rows.length)} overdue · tap a client to call or send a reminder.</div>`;
   html+='<div id="rec-list"></div></div>';
-  $('app-body').innerHTML=html;
+  MB().innerHTML=html;
   _recListRender();
   _runCountUps();
 }
@@ -6314,7 +6352,7 @@ async function renderAdRoi(){
   try{ const r=await sb.rpc('get_ad_performance',{p_session_token:TOKEN,p_month:AD_MONTH}); if(r.error) throw r.error; data=r.data; }
   catch(e){ return _netErr(); }
   if(!data||!data.success){ if(data&&data.error==='session_expired') return sessionGone();
-    $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Marketing ROI','Ad spend vs leads.')+_emptyCard('Not available','This report is for finance and directors.')+'</div>'; return; }
+    $('app-body').innerHTML='<div class="nx-dash">'+_pageHead('Ad results','Ad spend vs leads.')+_emptyCard('Not available','This report is for finance and directors.')+'</div>'; return; }
   _touch();
   const cur=_curPeriod(), platforms=data.platforms||[], camps=data.campaigns||[], T=data.totals||{};
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -6322,7 +6360,7 @@ async function renderAdRoi(){
   const numv=(to,fmt)=>`<span data-countup data-to="${Number(to)||0}" data-fmt="${fmt}">${fmt==='pkr'?(pkrShort(Number(to)||0)||'₨0'):(Number(to)||0)}</span>`;
   const kpi=(label,valHtml,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${valHtml}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
   const dash=`<span style="color:var(--fk-text-muted)">—</span>`;
-  let html='<div class="nx-dash">'+_pageHead('Marketing ROI','Ad spend vs source-matched leads — cost per lead.');
+  let html='<div class="nx-dash">'+_pageHead('Ad results','Ad spend vs source-matched leads — cost per lead.');
   // month stepper
   const atCur=String(AD_MONTH)>=String(cur);
   html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px">
