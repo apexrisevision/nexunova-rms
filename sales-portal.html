@@ -6738,7 +6738,7 @@ function _ccPaint(d){
   html+=_ccSnapshot(d.snapshot||{});
   html+=_ccPipeline(d.pipeline||{});
   html+=_ccResponse(d.response||{});
-  html+=_ccLeaderboard(d.leaderboard||[], d.period);
+  html+=_ccLeaderboard(d.leaderboard||[], d.period, d.board_avg);
   $('app-body').innerHTML=html;
 }
 function _ccSnapshot(s){
@@ -6776,20 +6776,36 @@ function _ccResponse(r){
     <div style="font-size:12px;font-weight:600;color:var(--fk-text-muted);margin-bottom:6px">Waiting longest — no contact</div>
     <div class="inbox">${rows}</div></div>`;
 }
-function _ccLeaderboard(board, period){
+let CCL={sort:'activity'};
+function _ccSort(s){ CCL.sort=s; if(CC.data) _ccPaint(CC.data); }
+function _pct(v){ if(v===null||v===undefined) return '—'; v=Number(v); return isNaN(v)?'—':(v+'%'); }
+function _ccLeaderboard(board, period, avg){
   const seg=_seg([['week','This week'],['month','This month']], period, '_ccPeriod');
-  const rows=(board||[]).map((a,i)=>{
-    const top=(i===0 && ((Number(a.conversions)||0)>0 || (Number(a.followups)||0)>0));
+  const sortSeg=_seg([['activity','Top performers'],['conv','Conversion %']], CCL.sort, '_ccSort');
+  let list=(board||[]).slice();
+  if(CCL.sort==='conv') list.sort((a,b)=>{
+    const ra=(a.conv_rate==null?-1:Number(a.conv_rate)), rb=(b.conv_rate==null?-1:Number(b.conv_rate));
+    return rb-ra || (Number(b.conversions)||0)-(Number(a.conversions)||0) || (Number(b.leads_received)||0)-(Number(a.leads_received)||0);
+  });
+  const m=(v,l,hi)=>`<div style="text-align:center;min-width:40px"><div style="font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;${hi?'color:var(--fk-primary)':''}">${v}</div><div style="font-size:10px;color:var(--fk-text-muted)">${l}</div></div>`;
+  const rows=list.map((a,i)=>{
+    const top=(CCL.sort==='conv') ? (i===0 && a.conv_rate!=null && (Number(a.leads_received)||0)>0)
+                                  : (i===0 && ((Number(a.conversions)||0)>0 || (Number(a.followups)||0)>0));
     const laggard=((Number(a.leads_received)||0)>0 && (Number(a.conversions)||0)===0);
-    const m=(v,l)=>`<div style="text-align:center;min-width:44px"><div style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${v}</div><div style="font-size:10px;color:var(--fk-text-muted)">${l}</div></div>`;
-    return `<div onclick="_ccAgent('${a.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;margin-bottom:8px;cursor:pointer;border:1px solid ${top?'var(--fk-primary)':'var(--fk-border)'};background:${top?'var(--fk-primary-tint)':'var(--fk-bg-card)'}">
-      <div style="width:24px;text-align:center;font-weight:700;color:${top?'var(--fk-primary)':'var(--fk-text-muted)'};font-variant-numeric:tabular-nums">${i+1}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}${laggard?' <span style="width:7px;height:7px;border-radius:50%;background:var(--fk-danger);display:inline-block;vertical-align:middle;margin-left:4px"></span>':''}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))}</div></div>
-      ${m(Number(a.leads_received)||0,'Leads')}${m(Number(a.followups)||0,'F/ups')}${m(Number(a.conversions)||0,'Won')}${m(_ccDur(a.avg_response_min),'Resp')}
+    return `<div onclick="_ccAgent('${a.id}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:8px;cursor:pointer;border:1px solid ${top?'var(--fk-primary)':'var(--fk-border)'};background:${top?'var(--fk-primary-tint)':'var(--fk-bg-card)'}">
+      <div style="width:20px;text-align:center;font-weight:700;color:${top?'var(--fk-primary)':'var(--fk-text-muted)'};font-variant-numeric:tabular-nums">${i+1}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}${laggard?' <span style="width:7px;height:7px;border-radius:50%;background:var(--fk-danger);display:inline-block;vertical-align:middle;margin-left:4px"></span>':''}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))}</div></div>
+      ${m(Number(a.leads_received)||0,'Leads')}${m(Number(a.followups)||0,'F/ups')}${m(Number(a.conversions)||0,'Won')}${m(_pct(a.conv_rate),'Conv',true)}${m(_ccDur(a.avg_response_min),'Resp')}
     </div>`;
   }).join('');
+  const avgRow = avg ? `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;margin-bottom:10px;background:var(--fk-bg-subtle);border:1px dashed var(--fk-border)">
+      <div style="width:20px;text-align:center;color:var(--fk-text-muted)">${li('users',14,2)}</div>
+      <div style="flex:1;font-size:12.5px;font-weight:600;color:var(--fk-text-muted)">Company average</div>
+      <div style="text-align:center;min-width:40px"><div style="font-size:13.5px;font-weight:700;color:var(--fk-primary);font-variant-numeric:tabular-nums">${_pct(avg.conv_rate)}</div><div style="font-size:10px;color:var(--fk-text-muted)">Conv</div></div>
+    </div>` : '';
   return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:13px;font-weight:600">Agent leaderboard</div></div>
-    ${seg}<div style="margin-top:12px">${rows||'<div style="font-size:12.5px;color:var(--fk-text-muted)">No agents yet.</div>'}</div></div>`;
+    ${seg}<div style="margin-top:10px">${sortSeg}</div>
+    <div style="margin-top:12px">${avgRow}${rows||'<div style="font-size:12.5px;color:var(--fk-text-muted)">No agents yet.</div>'}</div></div>`;
 }
 function _ccPeriod(p){ CC.period=p; renderCommand(); }
 function _ccStage(st){ try{ LEADV.filter=st; }catch(e){} setTab('leads'); }
