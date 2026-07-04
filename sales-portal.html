@@ -4941,14 +4941,25 @@ async function _renderNotifCard(){
 }
 async function _saveNotif(){
   const waEl=$('ntf-wa'), puEl=$('ntf-push');
-  const wa=!!(waEl&&waEl.checked); let pu=!!(puEl&&puEl.checked);
-  if(pu){
+  const wa=!!(waEl&&waEl.checked); const wantPush=!!(puEl&&puEl.checked);
+  if(wantPush){
     // turning push ON must actually get browser permission + a subscription on THIS device
-    const ok=await _enablePush();
-    if(!ok){ pu=false; if(puEl) puEl.checked=false; toast('Allow notifications in your browser to turn on push','err'); }
-  } else { _disablePush(); }
-  try{ await sb.rpc('set_my_notify_prefs',{p_session_token:TOKEN,p_whatsapp:wa,p_push:pu}); }catch(e){ toast('Could not save','err'); return; }
-  if(pu) toast('Push enabled on this device','ok'); else toast('Notification settings saved','ok');
+    const ok=await _enablePush();   // on success this also sets notify_push=true server-side
+    if(!ok){
+      // enable failed on THIS device — revert the toggle but DO NOT disable the account-wide pref
+      // (they may be subscribed on other devices). Persist only the WhatsApp change.
+      if(puEl) puEl.checked=false;
+      try{ await sb.rpc('set_my_notify_prefs',{p_session_token:TOKEN,p_whatsapp:wa,p_push:null}); }catch(e){}
+      toast('Allow notifications in your browser to turn on push','err');
+      return;
+    }
+    try{ await sb.rpc('set_my_notify_prefs',{p_session_token:TOKEN,p_whatsapp:wa,p_push:true}); }catch(e){ toast('Could not save','err'); return; }
+    toast('Push enabled on this device','ok');
+  } else {
+    _disablePush();                 // explicit off → drop the account pref too
+    try{ await sb.rpc('set_my_notify_prefs',{p_session_token:TOKEN,p_whatsapp:wa,p_push:false}); }catch(e){ toast('Could not save','err'); return; }
+    toast('Notification settings saved','ok');
+  }
 }
 // ── Member location (map via Google output=embed — no API key) ──
 function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:150px;border:0;border-radius:10px;display:block"></iframe>`; }
