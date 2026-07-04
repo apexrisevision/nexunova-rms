@@ -14,6 +14,7 @@ let _saCompanyCode = null;
 let _saUmbrella = null;
 let _saAnns = [];
 let _saAnnIsHome = false;
+let _saPool = [];   // unassigned leads (owner NULL) — orphan pool
 
 // ── Portal role taxonomy (Phase 0: data/tagging only; gated behaviour later) ──
 const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director', lead_entry: 'Lead Entry' };
@@ -91,6 +92,11 @@ async function rSalesAccess() {
     if (ad && ad.success) { _saAnns = ad.announcements || []; _saAnnIsHome = !!ad.is_group_home; }
     else { _saAnns = []; _saAnnIsHome = false; }
   } catch (e) { _saAnns = []; _saAnnIsHome = false; }
+
+  try {
+    const { data: up } = await supabase.rpc('list_unassigned_leads', { p_company_id: cid });
+    _saPool = (up && up.success) ? (up.leads || []) : [];
+  } catch (e) { _saPool = []; }
 
   _saRender();
 }
@@ -210,7 +216,51 @@ function _saBodyHtml() {
 
   return linkCard + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
          `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
+         _saPoolCardHtml() +
          `<div style="margin-top:var(--fk-sp-3)">${_saAnnCardHtml()}</div>`;
+}
+
+// ── Unassigned pool: owner-less leads (member deactivated/deleted) → bulk reassign ──
+function _saActiveMemberOpts(excludeId) {
+  return (_saRows || []).filter(x => x.status === 'active' && x.id !== excludeId)
+    .map(x => ({ value: x.id, label: (x.full_name || '?') + (x.role ? ' (' + _saRoleLabel(x.role) + ')' : '') }));
+}
+function _saPoolCardHtml() {
+  const pool = _saPool || [];
+  if (!pool.length) return '';
+  const opts = _saActiveMemberOpts(null);
+  const sel = '<select id="sa-pool-target" class="nx-input" style="max-width:260px">'
+    + '<option value="">Choose a member…</option>'
+    + opts.map(o => `<option value="${o.value}">${esc(o.label)}</option>`).join('') + '</select>';
+  const card = NX.card(
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">These leads have no owner — their member was deactivated or deleted. Select rows and reassign them to an active member.</div>`
+    + `<div style="display:flex;gap:var(--fk-sp-3);align-items:center;flex-wrap:wrap;margin-bottom:var(--fk-sp-2)">${sel}${NX.button('Reassign selected', { variant: 'primary', size: 'sm', icon: 'user-check', onclick: '_saPoolReassign()' })}<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--fk-text-muted);cursor:pointer"><input type="checkbox" onclick="_saPoolToggleAll(this)"> Select all</label></div>`
+    + NX.table({
+      cols: [{ label: '' }, { label: 'Name' }, { label: 'Phone' }, { label: 'Status' }, { label: 'Source' }, { label: 'Added' }],
+      rows: pool.map(l => [
+        `<input type="checkbox" class="sa-pool-cb" value="${esc(l.id)}">`,
+        `<b>${esc(l.name || '—')}</b>`,
+        esc(l.phone || '—'),
+        NX.badge(esc(l.status || '—'), 'muted'),
+        esc(l.source || '—'),
+        esc(fdateRsv(l.created_at))
+      ]),
+      flush: true
+    }),
+    { header: { icon: 'inbox', tone: 'warning', title: 'Unassigned leads', sub: pool.length + ' with no owner' }, flush: true });
+  return `<div style="margin-top:var(--fk-sp-3)">${card}</div>`;
+}
+function _saPoolToggleAll(cb) { document.querySelectorAll('.sa-pool-cb').forEach(x => { x.checked = cb.checked; }); }
+async function _saPoolReassign() {
+  const to = (document.getElementById('sa-pool-target') || {}).value || null;
+  if (!to) { if (typeof toast === 'function') toast('Choose a member to receive the leads.', 'err'); return; }
+  const ids = [...document.querySelectorAll('.sa-pool-cb:checked')].map(x => x.value);
+  if (!ids.length) { if (typeof toast === 'function') toast('Select at least one lead.', 'err'); return; }
+  try {
+    const { data } = await supabase.rpc('admin_reassign_leads', { p_lead_ids: ids, p_to: to });
+    if (data && data.success) { if (typeof toast === 'function') toast('Reassigned ' + (data.reassigned || 0) + ' lead(s) to ' + (data.target_name || 'member') + '.', 'ok'); rSalesAccess(); }
+    else if (typeof toast === 'function') toast((data && data.message) || 'Could not reassign.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not reassign.', 'err'); }
 }
 
 // ── Dealer Updates: admin posts dated notices (rate revisions etc.) that land in
@@ -646,12 +696,44 @@ async function _saReject(id, name) {
 }
 
 async function _saDelete(id, name) {
+  const r = (_saRows || []).find(x => x.id === id) || {};
+  const total = r.total_leads || 0;
+  if (total > 0) { _saReassignPickerOpen(id, name, total); return; }   // must reassign first
   if (!confirm('Delete ' + name + ' permanently? This removes their access for good and releases any active reservations they hold (those units return to Available).')) return;
+  _saDoDelete(id);
+}
+async function _saDoDelete(id) {
   try {
     const { data } = await supabase.rpc('delete_sales_user', { p_id: id });
-    if (data && data.success) { if (typeof toast === 'function') toast('Sales person deleted.', 'ok'); rSalesAccess(); }
-    else if (typeof toast === 'function') toast((data && data.message) || 'Could not delete.', 'err');
+    if (data && data.success) { if (typeof toast === 'function') toast('Sales person deleted.', 'ok'); rSalesAccess(); return true; }
+    if (typeof toast === 'function') toast((data && data.message) || 'Could not delete.', 'err');
   } catch (e) { if (typeof toast === 'function') toast('Could not delete.', 'err'); }
+  return false;
+}
+function _saReassignPickerOpen(id, name, total) {
+  const opts = [{ value: '', label: '— Unassigned pool —' }].concat(_saActiveMemberOpts(id));
+  document.body.insertAdjacentHTML('beforeend', NX.modal({
+    id: 'sa-reassign-modal', title: 'Reassign leads before deleting', size: 's', onClose: '_saCloseModal()',
+    body:
+      `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)"><b>${esc(name)}</b> still owns <b>${total}</b> lead(s). Choose who receives them — then ${esc(name)} will be deleted.</div>`
+      + _saFieldH('Reassign all leads to', { name: 'sa-reassign-to', el: 'select', options: opts, value: '' })
+      + `<div class="nx-error" id="sa-reassign-err" style="display:none"></div>`,
+    footer:
+      NX.button('Cancel', { variant: 'ghost', onclick: '_saCloseModal()' })
+      + NX.button('Reassign & delete', { variant: 'danger', onclick: `_saReassignAndDelete('${id}')` })
+  }));
+}
+async function _saReassignAndDelete(id) {
+  const to = (document.getElementById('sa-reassign-to') || {}).value || null;
+  const err = document.getElementById('sa-reassign-err');
+  const fail = m => { if (err) { err.style.display = 'block'; err.textContent = m; } };
+  try {
+    const { data } = await supabase.rpc('admin_reassign_member_leads', { p_from: id, p_to: to, p_scope: 'all' });
+    if (!data || !data.success) { fail((data && data.message) || 'Could not reassign the leads.'); return; }
+    const ok = await _saDoDelete(id);
+    if (ok) { _saCloseModal(); if (typeof toast === 'function') toast('Reassigned ' + (data.reassigned || 0) + ' lead(s) to ' + (data.target_name || 'the pool') + ', then deleted.', 'ok'); }
+    else fail('Leads reassigned, but the delete failed. Try Delete again.');
+  } catch (e) { fail('Could not complete. Please try again.'); }
 }
 
 async function _saReactivate(id, name) {
@@ -664,10 +746,18 @@ async function _saReactivate(id, name) {
 }
 
 async function _saDeactivate(id, name) {
-  if (!confirm('Deactivate ' + name + '? Their access is revoked immediately (active reservations stay until you release them).')) return;
+  const r = (_saRows || []).find(x => x.id === id) || {};
+  const open = r.open_leads || 0;
+  const target = r.parent_name ? ('their team head (' + r.parent_name + ')') : 'the unassigned pool';
+  const msg = open > 0
+    ? 'Deactivate ' + name + '? Their ' + open + ' active lead(s) will move to ' + target + '. Access is revoked immediately (active reservations stay until you release them).'
+    : 'Deactivate ' + name + '? Access is revoked immediately (active reservations stay until you release them).';
+  if (!confirm(msg)) return;
   try {
     const { data } = await supabase.rpc('deactivate_sales_user', { p_id: id });
-    if (data && data.success) { if (typeof toast === 'function') toast('Sales access deactivated.', 'ok'); rSalesAccess(); }
-    else if (typeof toast === 'function') toast('Could not deactivate.', 'err');
+    if (data && data.success) {
+      const t = (data.reassigned > 0) ? ('Deactivated — ' + data.reassigned + ' lead(s) moved to ' + (data.target_name || 'the pool') + '.') : 'Sales access deactivated.';
+      if (typeof toast === 'function') toast(t, 'ok'); rSalesAccess();
+    } else if (typeof toast === 'function') toast('Could not deactivate.', 'err');
   } catch (e) { if (typeof toast === 'function') toast('Could not deactivate.', 'err'); }
 }
