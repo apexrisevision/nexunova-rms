@@ -1991,7 +1991,7 @@ function onLogin(data){
     const wc=$('who-co'); if(wc) wc.textContent=data.company_name||''; }
   enterApp();
 }
-function doLogout(){ _clearSession(); TOKEN=null; location.href=location.pathname; }
+function doLogout(){ _clearSession(); TOKEN=null; try{ sessionStorage.removeItem('nx.push.nudged'); }catch(e){} location.href=location.pathname; }
 function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
   const err=$('login-err'); err.textContent='Your session expired. Please sign in again.'; err.classList.add('show'); }
 
@@ -4924,18 +4924,31 @@ async function _renderNotifCard(){
   const row=(id,label,desc,on,disabled,note)=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--fk-hairline)">
       <div style="min-width:0"><div style="font-size:13px;font-weight:600">${label}</div><div style="font-size:11.5px;color:var(--fk-text-muted)">${disabled?note:desc}</div></div>
       <input type="checkbox" id="${id}" ${on?'checked':''} ${disabled?'disabled':''} style="width:18px;height:18px;flex:0 0 auto;accent-color:var(--fk-primary);cursor:pointer" onchange="_saveNotif()"></div>`;
+  // Push row reflects the ACTUAL device state (permission + live subscription), not just the saved pref —
+  // so a member with no subscription always sees it OFF and can tap to enable on this device.
   const pushUnsupported = !_pushSupported();
+  let perm='default', hasSub=false;
+  if(!pushUnsupported){ try{ perm=Notification.permission; }catch(e){} try{ hasSub=!!(await _pushCurrentSub()); }catch(e){} }
+  const pushOn = hasSub && perm==='granted' && p.company_push;
+  const pushBlocked = !p.company_push || pushUnsupported || perm==='denied';
+  const pushDesc = !p.company_push ? 'Turned off for your company by your office'
+                 : pushUnsupported ? 'Not supported on this device'
+                 : perm==='denied' ? 'Blocked — allow notifications in your browser settings'
+                 : pushOn ? 'On for this device' : 'Off — tap to enable on this device';
   el.innerHTML =
     row('ntf-wa','WhatsApp reminders','Follow-up alerts on WhatsApp', !!p.whatsapp && p.company_whatsapp, !p.company_whatsapp, 'Turned off for your company by your office')
-    + row('ntf-push','Push notifications', pushUnsupported?'Not supported on this device':'New-lead & follow-up alerts', !!p.push && p.company_push && !pushUnsupported, (!p.company_push || pushUnsupported), (!p.company_push?'Turned off for your company by your office':'Not supported on this device'));
+    + row('ntf-push','Push notifications', pushDesc, pushOn, pushBlocked, pushDesc);
 }
 async function _saveNotif(){
   const waEl=$('ntf-wa'), puEl=$('ntf-push');
-  const wa=!!(waEl&&waEl.checked), pu=!!(puEl&&puEl.checked);
+  const wa=!!(waEl&&waEl.checked); let pu=!!(puEl&&puEl.checked);
+  if(pu){
+    // turning push ON must actually get browser permission + a subscription on THIS device
+    const ok=await _enablePush();
+    if(!ok){ pu=false; if(puEl) puEl.checked=false; toast('Allow notifications in your browser to turn on push','err'); }
+  } else { _disablePush(); }
   try{ await sb.rpc('set_my_notify_prefs',{p_session_token:TOKEN,p_whatsapp:wa,p_push:pu}); }catch(e){ toast('Could not save','err'); return; }
-  if(pu){ const ok=await _enablePush(); if(!ok && puEl){ /* permission denied/unsupported: keep pref but note */ } }
-  else { _disablePush(); }
-  toast('Notification settings saved','ok');
+  if(pu) toast('Push enabled on this device','ok'); else toast('Notification settings saved','ok');
 }
 // ── Member location (map via Google output=embed — no API key) ──
 function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:150px;border:0;border-radius:10px;display:block"></iframe>`; }
@@ -6907,14 +6920,16 @@ async function _disablePush(){
   try{ const sub=await _pushCurrentSub(); if(sub){ try{ await sb.rpc('delete_push_subscription',{p_session_token:TOKEN,p_endpoint:sub.endpoint}); }catch(e){} await sub.unsubscribe(); } }catch(e){}
 }
 // One-time post-login nudge (after the email gate resolves). Never nags twice.
-function _maybePushPrompt(){
-  if(!_pushReady()) return;                                          // unconfigured/unsupported → silent (WhatsApp covers)
-  const g=$('verify-gate'); if(g && g.style.display!=='none') return; // wait until email gate resolved
-  if(Notification.permission==='granted'){ _enablePush(); return; }   // already allowed → ensure sub is saved
-  if(Notification.permission==='denied') return;
-  let asked=false; try{ asked=localStorage.getItem('nx.push.asked')==='1'; }catch(e){}
-  if(asked) return;
-  try{ localStorage.setItem('nx.push.asked','1'); }catch(e){}
+async function _maybePushPrompt(){
+  if(!_pushReady()) return;                                           // unconfigured/unsupported → silent (WhatsApp covers)
+  const g=$('verify-gate'); if(g && g.style.display!=='none') return; // wait until the email gate resolves
+  if(Notification.permission==='denied') return;                      // blocked → can't prompt (must unblock in browser)
+  try{ if(await _pushCurrentSub()) return; }catch(e){}                // already subscribed on THIS device → nothing to do
+  if(Notification.permission==='granted'){ await _enablePush(); return; } // allowed but no sub yet → subscribe silently
+  // not subscribed → nudge ONCE per session; re-nudge every new session until the device subscribes
+  let nudged=false; try{ nudged=sessionStorage.getItem('nx.push.nudged')==='1'; }catch(e){}
+  if(nudged) return;
+  try{ sessionStorage.setItem('nx.push.nudged','1'); }catch(e){}
   openModal('Turn on notifications?',
     '<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.5">Get alerted the moment a new lead is assigned to you and when a follow-up is due — even when the app is closed.</div>',
     '<button class="btn" onclick="closeModal()">Not now</button><button class="btn btn-primary" onclick="_pushPromptEnable()">Enable</button>');
