@@ -185,10 +185,12 @@ function _saBodyHtml() {
     }));
   } else {
     peopleCard = NX.card(NX.table({
-      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Role' }, { label: 'Project scope' }, { label: 'Active reservations', num: true }, { label: 'Last login' }, { label: 'Status' }, { label: '' }],
+      cols: [{ label: 'Name' }, { label: 'Phone' }, { label: 'Email' }, { label: 'Role' }, { label: 'Project scope' }, { label: 'Active reservations', num: true }, { label: 'Last login' }, { label: 'Status' }, { label: '' }],
       rows: people.map(r => [
         `<b>${esc(r.full_name)}</b>` + (r.agent_code ? `<div style="font-size:11px;color:var(--fk-text-muted)">Agent ${esc(r.agent_code)}</div>` : ''),
         esc(r.phone),
+        (r.email_verified ? NX.badge('Verified', 'success', { dot: true }) : (r.email ? NX.badge('Unverified', 'warning') : NX.badge('No email', 'muted')))
+          + (r.email ? `<div style="font-size:11px;color:var(--fk-text-muted);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.email)}</div>` : ''),
         NX.badge(_saRoleLabel(r.role), _SA_ROLE_TONE[r.role] || 'muted')
           + (r.parent_name ? `<div style="font-size:11px;color:var(--fk-text-muted)">under ${esc(r.parent_name)}</div>` : ''),
         r.project_id ? esc(r.project_name || 'Assigned project') : '<span style="color:var(--fk-text-muted)">All projects</span>',

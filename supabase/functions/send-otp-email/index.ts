@@ -246,6 +246,14 @@ Deno.serve(async (req) => {
       );
       break;
 
+    case "sales_email_verify":
+      subject = "Verify your email — Nexunova CRM";
+      html    = otpEmailHtml(
+        otp ?? "",
+        `${full_name ? `Hi ${full_name}, ` : ""}use the code below to verify this email for your sales portal${company_name ? ` at ${company_name}` : ""}. This enables PIN recovery if you ever forget it:`
+      );
+      break;
+
     case "subuser_reset_notify":
       subject = `Password reset request — ${subuser_name ?? "A user"} (${company_name ?? "your company"})`;
       html    = subuserNotifyHtml(
