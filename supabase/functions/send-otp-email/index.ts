@@ -238,6 +238,14 @@ Deno.serve(async (req) => {
       );
       break;
 
+    case "sales_pin_reset":
+      subject = "Your PIN reset code — Nexunova CRM";
+      html    = otpEmailHtml(
+        otp ?? "",
+        `${full_name ? `Hi ${full_name}, ` : ""}use the code below to reset your sales-portal PIN${company_name ? ` for ${company_name}` : ""}:`
+      );
+      break;
+
     case "subuser_reset_notify":
       subject = `Password reset request — ${subuser_name ?? "A user"} (${company_name ?? "your company"})`;
       html    = subuserNotifyHtml(

@@ -1215,6 +1215,7 @@ button.mn-card:active{transform:scale(.985)}
     <div class="field" id="co-field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
     <div class="field"><label class="label">Mobile number</label><input class="input" id="i-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"></div>
     <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
+    <div style="text-align:right;margin:-4px 2px 10px"><a href="#" class="auth-link" onclick="goForgot();return false" style="font-size:12.5px;color:var(--fk-primary);text-decoration:none">Forgot PIN?</a></div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
     <div class="err" id="login-err"></div>
     <div class="trust">
@@ -1222,6 +1223,42 @@ button.mn-card:active{transform:scale(.985)}
       <span class="pill"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Office-approved</span>
     </div>
     <div id="login-to-register" style="display:none" class="auth-switch">New here? <a href="#" onclick="showScreen('screen-register');return false">Request access</a></div>
+  </div></div>
+</div>
+
+<!-- ════════ FORGOT PIN — request a reset code ════════ -->
+<div id="screen-forgot" class="screen">
+  <div class="auth-wrap"><div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
+      <div><div class="brand-name">Nexunova CRM</div><div class="brand-sub">Reset your PIN</div></div>
+    </div>
+    <div class="co-name" id="fp-co-name" style="display:none"></div>
+    <div class="auth-title">Forgot your PIN?</div>
+    <div class="auth-sub">Enter your company code and mobile number. We'll email you a 6-digit reset code.</div>
+    <div class="field" id="fp-co-field"><label class="label">Company code</label><input class="input" id="fp-co" autocapitalize="off" autocomplete="off"></div>
+    <div class="field"><label class="label">Mobile number</label><input class="input" id="fp-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"></div>
+    <button class="btn btn-primary btn-full" id="fp-btn" onclick="doForgotRequest()">Send reset code</button>
+    <div class="err" id="fp-err"></div>
+    <div class="auth-switch">Remembered it? <a href="#" onclick="goLogin();return false">Sign in</a></div>
+  </div></div>
+</div>
+
+<!-- ════════ RESET PIN — enter code + choose a new PIN ════════ -->
+<div id="screen-reset" class="screen">
+  <div class="auth-wrap"><div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
+      <div><div class="brand-name">Nexunova CRM</div><div class="brand-sub">Reset your PIN</div></div>
+    </div>
+    <div class="auth-title">Enter your reset code</div>
+    <div class="auth-sub">We emailed a 6-digit code to <b id="rp-hint" style="color:var(--fk-text)">your email</b>. Enter it below and choose a new PIN. The code is valid for 10 minutes.</div>
+    <div class="field"><label class="label">Reset code</label><input class="input" id="rp-otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"></div>
+    <div class="field"><label class="label">New PIN</label><input class="input" id="rp-pin" type="password" inputmode="numeric" maxlength="6" placeholder="6 digits" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"></div>
+    <div class="field"><label class="label">Confirm new PIN</label><input class="input" id="rp-pin2" type="password" inputmode="numeric" maxlength="6" placeholder="Re-enter PIN" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"><div class="note" style="font-size:11px;color:var(--fk-text-muted);margin-top:4px">6 digits. Avoid easy ones like 123456 or 111111.</div></div>
+    <button class="btn btn-primary btn-full" id="rp-btn" onclick="doForgotVerify()">Set new PIN</button>
+    <div class="err" id="rp-err"></div>
+    <div class="auth-switch">Didn't get the code? <a href="#" onclick="doForgotResend();return false">Resend</a> &nbsp;·&nbsp; <a href="#" onclick="goLogin();return false">Sign in</a></div>
   </div></div>
 </div>
 
@@ -1733,6 +1770,73 @@ async function doLogin(){
     onLogin(data);
   }catch(e){ err.textContent=e.message||'Sign in failed'; err.classList.add('show'); }
   finally{ btn.disabled=false; btn.textContent='Sign in'; }
+}
+
+// ════ Forgot / reset PIN (Email-OTP recovery) ════
+let FP_CO=null, FP_PHONE=null;
+const _EASY_PINS=['123456','654321','123123','121212','112233','786786','098765','456789'];
+function _applyForgotCompany(){
+  const co=SALES_CO||_coRemembered(); const f=$('fp-co-field'); const nm=SALES_CO_NAME||_coNameRemembered();
+  const nEl=$('fp-co-name'); if(nEl){ if(nm){ nEl.textContent=nm; nEl.style.display='block'; } else nEl.style.display='none'; }
+  if(co){ if($('fp-co')) $('fp-co').value=co; if(f) f.style.display='none'; }
+  else if(f){ f.style.display='block'; }
+}
+function goForgot(){
+  _applyForgotCompany();
+  const ph=($('i-phone').value||'').trim(); if(/^\+92\d{1,10}$/.test(ph)) $('fp-phone').value=ph;
+  $('fp-err').classList.remove('show'); showScreen('screen-forgot');
+}
+async function _sendResetCode(co,ph,btn,err){
+  const {data,error}=await sb.rpc('sales_request_pin_reset',{p_company_code:co,p_phone:ph});
+  if(error) throw error;
+  if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not send a reset code.'; err.classList.add('show'); return null; }
+  return data;
+}
+async function doForgotRequest(){
+  const co=($('fp-co').value||SALES_CO||_coRemembered()||'').trim(), ph=$('fp-phone').value.trim();
+  const err=$('fp-err'); err.classList.remove('show');
+  if(!co){ err.textContent='Enter your company code.'; err.classList.add('show'); return; }
+  if(!/^\+92\d{10}$/.test(ph)){ err.textContent='Enter your mobile, e.g. +923123456789.'; err.classList.add('show'); return; }
+  const btn=$('fp-btn'); btn.disabled=true; btn.textContent='Sending…';
+  try{
+    const data=await _sendResetCode(co,ph,btn,err);
+    if(!data) return;
+    FP_CO=co; FP_PHONE=ph; try{localStorage.setItem('rms.sales.co',co)}catch(e){}
+    $('rp-hint').textContent=data.email_hint||'your email';
+    $('rp-otp').value=''; $('rp-pin').value=''; $('rp-pin2').value=''; $('rp-err').classList.remove('show');
+    showScreen('screen-reset'); toast('Reset code sent to your email','ok');
+  }catch(e){ err.textContent='Could not send a reset code. Please try again.'; err.classList.add('show'); }
+  finally{ btn.disabled=false; btn.textContent='Send reset code'; }
+}
+async function doForgotResend(){
+  if(!FP_CO||!FP_PHONE){ showScreen('screen-forgot'); return; }
+  const err=$('rp-err'); err.classList.remove('show');
+  try{
+    const data=await _sendResetCode(FP_CO,FP_PHONE,null,err);
+    if(data){ $('rp-hint').textContent=data.email_hint||'your email'; toast('A new code is on its way','ok'); }
+  }catch(e){ err.textContent='Could not resend the code. Please try again.'; err.classList.add('show'); }
+}
+async function doForgotVerify(){
+  const otp=$('rp-otp').value.trim(), pin=$('rp-pin').value.trim(), pin2=$('rp-pin2').value.trim();
+  const err=$('rp-err'); err.classList.remove('show');
+  if(!/^\d{6}$/.test(otp)){ err.textContent='Enter the 6-digit code from your email.'; err.classList.add('show'); return; }
+  if(!/^\d{6}$/.test(pin)){ err.textContent='Your new PIN must be exactly 6 digits.'; err.classList.add('show'); return; }
+  if(/^(\d)\1{5}$/.test(pin)||_EASY_PINS.includes(pin)){ err.textContent='That PIN is too easy to guess. Choose a less obvious 6-digit PIN.'; err.classList.add('show'); return; }
+  if(pin!==pin2){ err.textContent='The two PINs don’t match.'; err.classList.add('show'); return; }
+  const btn=$('rp-btn'); btn.disabled=true; btn.textContent='Setting…';
+  try{
+    const {data,error}=await sb.rpc('sales_verify_pin_reset',{p_company_code:FP_CO,p_phone:FP_PHONE,p_otp:otp,p_new_pin:pin});
+    if(error) throw error;
+    if(!data||!data.success){
+      let m=(data&&data.message)||'Could not reset your PIN.';
+      if(data&&data.error==='invalid_otp'&&typeof data.attempts_left==='number') m+=' '+data.attempts_left+' attempt(s) left.';
+      err.textContent=m; err.classList.add('show'); return;
+    }
+    // success: send them to sign-in with the phone pre-filled
+    if($('i-phone')) $('i-phone').value=FP_PHONE; applyLoginCompany();
+    $('i-pin').value=''; showScreen('screen-login'); toast('PIN updated — sign in with your new PIN','ok');
+  }catch(e){ err.textContent='Could not reset your PIN. Please try again.'; err.classList.add('show'); }
+  finally{ btn.disabled=false; btn.textContent='Set new PIN'; }
 }
 function onLogin(data){
   TOKEN=data.session_token; _saveSession(TOKEN); _startIdleWatch();
