@@ -5983,17 +5983,40 @@ async function loadAnnouncements(){
   }catch(e){}
   return false; }
 function _annSnippet(s){ s=String(s||'').replace(/\s+/g,' ').trim(); return esc(s.slice(0,84))+(s.length>84?'…':''); }
-// attachments in an opened message: images as a thumb grid (tap = full), files as chips
-function _annAttachHtml(att){
+// attachments in an opened message: images as a thumb grid (tap = full), files as chips.
+// Legacy {url} entries render directly; new {path} entries are private → signed on open.
+const ANN_FILE_FN='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/announcement-file';
+function _fmtSize(b){ b=Number(b)||0; if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function _svgFile(){ return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'; }
+function _annIsImg(f){ return (f.type||'').startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(f.name||''); }
+function _annAttachHtml(att, annId){
   if(!Array.isArray(att)||!att.length) return '';
-  const imgs=att.filter(f=>(f.type||'').startsWith('image/'));
-  const files=att.filter(f=>!(f.type||'').startsWith('image/'));
+  const imgs=att.filter(_annIsImg), files=att.filter(f=>!_annIsImg(f));
   let h='<div class="andatt">';
-  if(imgs.length){ h+='<div class="andatt-grid">'+imgs.map(f=>
-    `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="andatt-img"><img src="${esc(f.url)}" alt="${esc(f.name||'')}" loading="lazy"></a>`).join('')+'</div>'; }
-  if(files.length){ h+='<div class="andatt-files">'+files.map(f=>
-    `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="andatt-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>${esc(f.name||'Attachment')}</a>`).join('')+'</div>'; }
+  if(imgs.length){ h+='<div class="andatt-grid">'+imgs.map((f,i)=>{
+    if(f.url) return `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="andatt-img"><img src="${esc(f.url)}" alt="${esc(f.name||'')}" loading="lazy"></a>`;
+    return `<a class="andatt-img" data-ann="${esc(annId||'')}" data-path="${esc(f.path||'')}" style="cursor:pointer" onclick="_annOpenAttach('${esc(annId||'')}','${esc(f.path||'')}');return false"><img alt="${esc(f.name||'')}" loading="lazy"></a>`;
+  }).join('')+'</div>'; }
+  if(files.length){ h+='<div class="andatt-files">'+files.map(f=>{
+    const meta=f.size?(' · '+_fmtSize(f.size)):'';
+    if(f.url) return `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="andatt-chip">${_svgFile()}${esc(f.name||'Attachment')}${meta}</a>`;
+    return `<button type="button" class="andatt-chip" onclick="_annOpenAttach('${esc(annId||'')}','${esc(f.path||'')}')">${_svgFile()}${esc(f.name||'Attachment')}${meta}</button>`;
+  }).join('')+'</div>'; }
   return h+'</div>';
+}
+async function _annSignAttach(annId, path){
+  try{ const r=await fetch(ANN_FILE_FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_token:TOKEN,announcement_id:annId,path})});
+    const d=await r.json(); return (d&&d.success)?d.url:null; }catch(e){ return null; }
+}
+async function _annHydrateAttachments(annId){
+  const nodes=document.querySelectorAll('.andatt-img[data-path]');
+  for(const n of nodes){ if(n.getAttribute('data-ann')!==String(annId)) continue;
+    const url=await _annSignAttach(annId, n.getAttribute('data-path'));
+    if(url){ const img=n.querySelector('img'); if(img) img.src=url; n.setAttribute('href',url); n.setAttribute('target','_blank'); } }
+}
+async function _annOpenAttach(annId, path){
+  const url=await _annSignAttach(annId, path);
+  if(url) window.open(url,'_blank','noopener'); else toast('Could not open attachment','err');
 }
 const _ANN_PRIO={urgent:['var(--fk-danger)','var(--fk-danger-surface)','Urgent'],important:['var(--fk-warning)','var(--fk-warning-surface)','Important'],normal:['var(--fk-text-muted)','var(--fk-bg-subtle)','']};
 function _annPrio(p){ return _ANN_PRIO[String(p||'normal').toLowerCase()]||_ANN_PRIO.normal; }
@@ -6082,7 +6105,7 @@ async function renderAnnDetail(id){
     <div class="andsubj">${esc(a.title)}${(a.priority&&a.priority!=='normal')?' '+_annPill(pr[2],pr[0],pr[1]):''}</div>
     <div class="andmeta">From ${a.is_author?'you':esc(a.author_name||'your company')} · ${esc(fdate(a.created_at))}</div>
     <div class="andbody">${esc(a.body).replace(/\n/g,'<br>')}</div>
-    ${_annAttachHtml(a.attachments)}`;
+    ${_annAttachHtml(a.attachments, a.id)}`;
   if(!a.is_author && a.requires_ack){
     if(a.acknowledged) html+=`<div style="margin-top:14px;display:flex;align-items:center;gap:7px;color:var(--fk-success);font-weight:var(--fk-fw-semibold);font-size:13px">${li('check',16,2.2)} You acknowledged this${a.acknowledged_at?' · '+esc(fdate(a.acknowledged_at)):''}</div>`;
     else html+=`<button class="btn btn-primary btn-full" style="margin-top:14px" onclick="_annAck('${a.id}')">Acknowledge</button>`;
@@ -6090,6 +6113,7 @@ async function renderAnnDetail(id){
   if(a.is_author) html+=`<div id="ann-receipts" style="margin-top:16px"><button class="btn btn-full" onclick="_annReceipts('${a.id}')">${li('users',15,2)} View receipts</button></div>`;
   html+='</div>';
   $('app-body').innerHTML=html;
+  try{ _annHydrateAttachments(a.id); }catch(e){}   // sign private image thumbs
   try{ $('app-body').scrollIntoView({block:'start'}); }catch(e){}
 }
 async function _annAck(id){
@@ -6127,7 +6151,7 @@ async function openAnnCompose(editId){
   let t; try{ const {data}=await sb.rpc('get_announce_targets',{p_session_token:TOKEN}); t=data; }catch(e){}
   if(!t||!t.success){ return toast('Could not load targets','err'); }
   const ed = editId ? (ANN.scheduled||[]).find(x=>x.id===editId) : null;
-  ANNC={targets:t, targetType:(ed?ed.target_type:'all'), editId:(ed?ed.id:null)};
+  ANNC={targets:t, targetType:(ed?ed.target_type:'all'), editId:(ed?ed.id:null), files:[]};
   const schedVal = (ed&&ed.scheduled_at) ? _toKarachiInput(ed.scheduled_at) : '';
   const opt=(v,l,cur)=>`<option value="${v}"${cur===v?' selected':''}>${l}</option>`;
   const body='<div class="field"><label class="label">Title <span style="color:var(--fk-danger)">*</span></label><input class="input" id="annc-title" autocomplete="off" value="'+(ed?esc(ed.title):'')+'"></div>'
@@ -6136,6 +6160,9 @@ async function openAnnCompose(editId){
     +'<div class="field"><label class="label">Send to</label><select class="input" id="annc-type" onchange="_annTargetType(this.value)">'+opt('all','Everyone in the company',ANNC.targetType)+opt('role','A role',ANNC.targetType)+opt('team','A team',ANNC.targetType)+opt('user','One person',ANNC.targetType)+'</select></div>'
     +'<div class="field" id="annc-extra">'+_annExtraHtml(ed?ed.target_value:null)+'</div>'
     +'<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin:2px 2px 8px;cursor:pointer"><input type="checkbox" id="annc-ack" style="width:16px;height:16px"'+((ed&&ed.requires_ack)?' checked':'')+'> Require acknowledgement</label>'
+    +(ed?'':('<div class="field"><label class="label">Attachments <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· JPG/PNG/WEBP/PDF · up to 5, 10MB each</span></label>'
+       +'<label class="btn btn-sm" style="cursor:pointer">'+li('paperclip',14,2)+' Add files<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple style="display:none" onchange="_annPickFiles(this)"></label>'
+       +'<div id="annc-files" style="margin-top:8px"></div></div>'))
     +'<div class="field"><label class="label">When</label><select class="input" id="annc-when" onchange="_annWhenChange(this.value)">'+opt('now','Publish now',ed?'schedule':'now')+opt('schedule','Schedule for later',ed?'schedule':'now')+'</select></div>'
     +'<div class="field" id="annc-sched-wrap" style="display:'+(ed?'block':'none')+'"><label class="label">Date &amp; time <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· Asia/Karachi</span></label><input class="input" type="datetime-local" id="annc-sched" value="'+esc(schedVal)+'"></div>'
     +'<div class="err" id="annc-err"></div>';
@@ -6152,6 +6179,30 @@ function _annExtraHtml(sel){
 function _annTargetType(v){ ANNC.targetType=v; const e=$('annc-extra'); if(e) e.innerHTML=_annExtraHtml(); }
 function _annPrioChange(v){ if(v==='urgent'){ const c=$('annc-ack'); if(c) c.checked=true; } }
 function _annWhenChange(v){ const w=$('annc-sched-wrap'); if(w) w.style.display=(v==='schedule')?'block':'none'; }
+async function _annUploadFile(file){
+  const fd=new FormData(); fd.append('session_token',TOKEN); fd.append('file',file);
+  const r=await fetch(ANN_FILE_FN,{method:'POST',body:fd}); return await r.json();
+}
+async function _annPickFiles(input){
+  const files=[...(input.files||[])]; input.value='';
+  for(const f of files){
+    if((ANNC.files||[]).length>=5){ toast('Up to 5 files','err'); break; }
+    if(!['image/jpeg','image/png','image/webp','application/pdf'].includes(f.type)){ toast('Only JPG, PNG, WEBP or PDF','err'); continue; }
+    if(f.size>10*1024*1024){ toast(esc(f.name)+' is over 10MB','err'); continue; }
+    const b=$('annc-attbtn'); if(b) b.textContent='Uploading…';
+    try{ const res=await _annUploadFile(f);
+      if(res&&res.success){ (ANNC.files=ANNC.files||[]).push({path:res.path,name:res.name,size:res.size,type:res.type}); }
+      else toast('Could not upload '+esc(f.name),'err');
+    }catch(e){ toast('Could not upload '+esc(f.name),'err'); }
+    if(b) b.textContent='Add files';
+  }
+  _annRenderChips();
+}
+function _annRenderChips(){
+  const box=$('annc-files'); if(!box) return; const fs=ANNC.files||[];
+  box.innerHTML=fs.map((f,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:8px;margin-bottom:6px;font-size:12.5px">${_svgFile()}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><span style="color:var(--fk-text-muted)">${_fmtSize(f.size)}</span><button type="button" onclick="_annRemoveFile(${i})" style="background:none;border:0;color:var(--fk-danger);cursor:pointer;padding:2px;display:grid;place-items:center">${li('x',15,2.2)}</button></div>`).join('');
+}
+function _annRemoveFile(i){ (ANNC.files||[]).splice(i,1); _annRenderChips(); }
 async function _annSend(){
   const err=$('annc-err'); if(err) err.classList.remove('show');
   const title=(($('annc-title')||{}).value||'').trim(), bodyv=(($('annc-body')||{}).value||'').trim();
@@ -6170,7 +6221,7 @@ async function _annSend(){
       const r=await sb.rpc('update_scheduled_announcement',{p_session_token:TOKEN,p_id:ANNC.editId,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack,p_scheduled_at:sched}); data=r.data;
       if(data&&data.success){ closeModal(); toast('Scheduled announcement updated','ok'); _annLoadScheduled(); return; }
     }else{
-      const r=await sb.rpc('post_announcement',{p_session_token:TOKEN,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack,p_scheduled_at:sched}); data=r.data;
+      const r=await sb.rpc('post_announcement',{p_session_token:TOKEN,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack,p_attachments:(ANNC.files||[]),p_scheduled_at:sched}); data=r.data;
       if(data&&data.success){ closeModal(); toast(data.scheduled?'Announcement scheduled':'Announcement sent','ok'); ANN.open=null; if(data.scheduled){ ANN.tab='scheduled'; _annLoadScheduled(); } else renderUpdates(); return; }
     }
     fail((data&&data.message)||'Could not save the announcement.');
