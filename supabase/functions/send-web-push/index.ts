@@ -23,6 +23,22 @@ const CORS = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
+// Remove a dead endpoint (404/410) from push_subscriptions via the prune RPC (service role).
+async function pruneDeadSubscription(endpoint: string | undefined): Promise<void> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key || !endpoint) return;
+  try {
+    await fetch(`${url}/rest/v1/rpc/prune_push_subscription`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ p_endpoint: endpoint }),
+    });
+  } catch (e) {
+    console.error("[send-web-push] prune failed:", (e as Error)?.message);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -47,9 +63,14 @@ Deno.serve(async (req) => {
     await webpush.sendNotification(subscription as never, JSON.stringify(payload ?? {}));
     return json({ success: true });
   } catch (e) {
-    // 404/410 → subscription is dead; caller may prune. Return 200 so pg_net doesn't retry-storm.
+    // 404/410 → subscription is dead → prune it. Return 200 so pg_net doesn't retry-storm.
     const status = (e as { statusCode?: number })?.statusCode;
+    const gone = status === 404 || status === 410;
     console.error("[send-web-push] send failed:", status, (e as Error)?.message);
-    return json({ success: false, status: status ?? null, error: (e as Error)?.message ?? "send_failed", gone: status === 404 || status === 410 });
+    if (gone) {
+      const endpoint = (subscription as { endpoint?: string })?.endpoint;
+      await pruneDeadSubscription(endpoint);
+    }
+    return json({ success: false, status: status ?? null, error: (e as Error)?.message ?? "send_failed", gone, pruned: gone });
   }
 });
