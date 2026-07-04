@@ -1634,7 +1634,7 @@ function _consumePendingBrief(){
 async function _consumePendingAnn(){
   if(!PENDING_ANN) return; const id=PENDING_ANN; PENDING_ANN=null;
   try{ history.replaceState({}, '', location.pathname); }catch(e){}
-  try{ await loadAnnouncements(); ANN.open=id; setTab('updates'); }catch(e){}
+  try{ await loadAnnouncements(); setTab('updates'); ANN.open=id; renderAnnDetail(id); }catch(e){}
 }
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
@@ -6063,8 +6063,9 @@ function _annTab(t){ if(t==='scheduled'){ return _annLoadScheduled(); } ANN.tab=
 function _annVisible(){
   const all=ANN.list||[];
   const rows = (ANN.tab==='announcement') ? all.filter(a=>a.kind==='announcement')
-             : (ANN.tab==='system')       ? all.filter(a=>a.kind!=='announcement')
-             : all.slice();
+             : (ANN.tab==='brief')        ? all.filter(a=>a.kind==='brief')
+             : (ANN.tab==='system')       ? all.filter(a=>a.kind!=='announcement' && a.kind!=='brief')
+             : all.filter(a=>a.kind!=='brief');   // "All" excludes briefs — they live in their own tab
   const rank=a=>{ if(a.requires_ack && !a.acknowledged && !a.is_author) return 0;   // any un-acked required → pinned top
                   if(!a.seen && !a.is_author) return 1; return 2; };
   return rows.slice().sort((a,b)=> rank(a)-rank(b) || (new Date(b.created_at)-new Date(a.created_at)));
@@ -6074,9 +6075,14 @@ function _annPaint(){
   if(!ANN.tab) ANN.tab='announcement';
   let html=_pageHead('Messages', isDir?'Post notices to your team and track who read & acknowledged.':'Notices from your director — tap to read.');
   if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
+  const isDirAdmin = ME&&(ME.role==='director'||ME.role==='admin');
   const all=ANN.list||[];
-  const annN=all.filter(a=>a.kind==='announcement').length, sysN=all.length-annN;
-  const segs=[['announcement','Announcements'+(annN?' · '+annN:'')],['system','System'+(sysN?' · '+sysN:'')],['all','All']];
+  const annN=all.filter(a=>a.kind==='announcement').length;
+  const brN=all.filter(a=>a.kind==='brief').length;
+  const sysN=all.filter(a=>a.kind!=='announcement'&&a.kind!=='brief').length;
+  const segs=[['announcement','Announcements'+(annN?' · '+annN:'')]];
+  if(isDirAdmin) segs.push(['brief','Briefs'+(brN?' · '+brN:'')]);
+  segs.push(['system','System'+(sysN?' · '+sysN:'')],['all','All']);
   if(isDir) segs.push(['scheduled','Scheduled'+((ANN.scheduled&&ANN.scheduled.length)?' · '+ANN.scheduled.length:'')]);
   html+=_seg(segs, ANN.tab, '_annTab');
   if(ANN.tab==='scheduled'){
@@ -6088,14 +6094,28 @@ function _annPaint(){
   const rows=_annVisible();
   if(!rows.length){
     const msg = ANN.tab==='announcement' ? (isDir?'Compose one above to notify your team.':'No announcements from your director yet.')
+              : ANN.tab==='brief' ? 'Your first NexuBrief arrives at 9 AM — leads, priorities and suggestions for the day.'
               : ANN.tab==='system' ? 'No system notices right now.' : 'No updates yet.';
     html+='<div class="card"><div class="empty">'
       +'<div class="ei"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>'
       +'<div class="et">Nothing here</div><div class="es">'+esc(msg)+'</div></div></div>';
     $('app-body').innerHTML=html; return;
   }
-  html+='<div class="inbox">'+rows.map(_annRow).join('')+'</div>';
+  const rowFn = (ANN.tab==='brief') ? _annBriefRow : _annRow;
+  html+='<div class="inbox">'+rows.map(rowFn).join('')+'</div>';
   $('app-body').innerHTML=html;
+}
+// Sleek, scannable Briefs list row: date · one-line preview · read indicator
+function _annBriefRow(a){
+  const unread=!a.seen;
+  return `<div class="inrow${unread?' unread':''}" onclick="_annOpen('${a.id}')" style="border-left:3px solid ${unread?'var(--fk-primary)':'transparent'}">
+    <span style="width:30px;height:30px;border-radius:9px;flex:none;background:var(--fk-primary-tint);color:var(--fk-primary);display:flex;align-items:center;justify-content:center">${li('inbox',15,2)}</span>
+    <div class="inmain">
+      <div class="intop"><div class="insubj">${esc(a.title)}</div><div class="indate">${esc(fdateShort(a.created_at))}</div></div>
+      <div class="insnip">${_annSnippet(a.body)}</div>
+    </div>
+    ${unread?'<span style="font-size:10px;font-weight:var(--fk-fw-bold);color:var(--fk-primary);text-transform:uppercase;letter-spacing:.05em;flex:none">New</span>':'<svg class="inchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'}
+  </div>`;
 }
 function _annRow(a){
   const pr=_annPrio(a.priority);
@@ -6123,6 +6143,7 @@ function _annBack(){ ANN.open=null; renderUpdates(); _syncNav(); }
 async function renderAnnDetail(id){
   const a=(ANN.list||[]).find(x=>x.id===id);
   if(!a){ ANN.open=null; return renderUpdates(); }
+  if(a.kind==='brief'){ return renderBriefDetail(id); }   // premium NexuBrief view
   if(!a.is_author && !a.seen){   // opening = read receipt
     try{ await sb.rpc('mark_announcement_seen',{p_session_token:TOKEN,p_announcement_id:id}); a.seen=true;
       ANN.unread=Math.max(0,Number(ANN.unread||0)-1);
@@ -6171,6 +6192,76 @@ async function _annReceipts(id){
   }).join(''))+'</div>';
   if(box) box.innerHTML=h;
 }
+// ── NexuBrief — premium detail view for kind='brief' messages ──
+function _suggIcon(t){ t=(t||'').toLowerCase();
+  if(/unassign|distribut|assign/.test(t)) return 'users';
+  if(/wait|hour|no contact|contact|call/.test(t)) return 'clock';
+  if(/follow-?up|check in|check-in|logged/.test(t)) return 'phone';
+  if(/campaign|facebook|instagram|whatsapp|website|source|produced no|verify/.test(t)) return 'target';
+  if(/overdue|past due/.test(t)) return 'alert-triangle';
+  if(/won|deal|clos/.test(t)) return 'award';
+  return 'arrow-right';
+}
+function _briefOpenCC(){ setTab('command'); }
+async function renderBriefDetail(id){
+  const a=(ANN.list||[]).find(x=>x.id===id);
+  if(!a){ ANN.open=null; return renderUpdates(); }
+  ANN.tab='brief';   // so Back returns to the Briefs list
+  if(!a.seen){   // opening = read receipt (same mechanism as announcements)
+    try{ await sb.rpc('mark_announcement_seen',{p_session_token:TOKEN,p_announcement_id:id}); a.seen=true;
+      ANN.unread=Math.max(0,Number(ANN.unread||0)-1); _annUpdateBadge(); }catch(e){}
+  }
+  _touch();
+  $('app-body').innerHTML='<div class="anddet">'+_skel()+'</div>';
+  let d; try{ const {data}=await sb.rpc('get_brief_detail',{p_session_token:TOKEN,p_announcement_id:id}); d=data; }catch(e){}
+  if(!d||!d.success){ return renderAnnDetailFallbackBrief(a); }
+  const dateStr = d.brief_date ? _fmtBriefDate(d.brief_date) : fdate(d.created_at);
+  const yLines = String(d.yesterday||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const sugg = Array.isArray(d.suggestions)?d.suggestions:[];
+  const isDir = ME&&ME.role==='director';
+
+  let html='<div class="anddet">'
+    +`<button class="andback" onclick="_annBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Briefs</button>`
+    // masthead
+    +`<div style="display:flex;align-items:center;gap:11px;margin:2px 0 4px">
+        <span style="width:36px;height:36px;border-radius:10px;flex:none;background:var(--fk-primary);color:#fff;display:flex;align-items:center;justify-content:center">${li('inbox',19,2)}</span>
+        <div style="min-width:0">
+          <div style="font-size:19px;font-weight:700;letter-spacing:-.01em;line-height:1.1"><span style="color:var(--fk-primary)">Nexu</span>Brief</div>
+          <div style="font-size:12px;color:var(--fk-text-muted);margin-top:2px">${esc(dateStr)}${d.source==='fallback'?' · summary from your latest figures':''}</div>
+        </div>
+      </div>`
+    // section: Yesterday
+    +`<div class="dsec" style="margin-top:16px">Yesterday</div>`
+    +`<div style="font-size:14px;line-height:1.7;color:var(--fk-text)">${yLines.length?yLines.map(l=>esc(l)).join('<br>'):'No new activity recorded.'}</div>`;
+  // section: Nexu Suggestions
+  html+=`<div class="dsec" style="margin-top:20px">Nexu Suggestions</div>`;
+  if(sugg.length){
+    html+='<div>'+sugg.map(s=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid var(--fk-border);border-left:3px solid var(--fk-primary);border-radius:12px;margin-bottom:8px;background:var(--fk-bg-card)">
+        <span style="width:28px;height:28px;border-radius:8px;flex:none;background:var(--fk-primary-tint);color:var(--fk-primary);display:flex;align-items:center;justify-content:center">${li(_suggIcon(s),15,2)}</span>
+        <div style="font-size:13.5px;line-height:1.5;color:var(--fk-text);padding-top:3px">${esc(s)}</div>
+      </div>`).join('')+'</div>';
+  } else {
+    html+=`<div style="font-size:13px;color:var(--fk-text-muted)">Nothing needs your attention today — the pipeline is on track.</div>`;
+  }
+  // footer CTA
+  html+=`<button class="btn btn-primary btn-full" style="margin-top:18px" onclick="_briefOpenCC()">${li('bar-chart',15,2.2)} Open Command Center</button>`;
+  if(isDir) html+=`<div id="ann-receipts" style="margin-top:14px"><button class="btn btn-full" onclick="_annReceipts('${a.id}')">${li('users',15,2)} View who read this</button></div>`;
+  html+='</div>';
+  $('app-body').innerHTML=html;
+  try{ $('app-body').scrollIntoView({block:'start'}); }catch(e){}
+}
+// If structured detail can't load, still show the stored text (never a blank brief)
+function renderAnnDetailFallbackBrief(a){
+  let html='<div class="anddet">'
+    +`<button class="andback" onclick="_annBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Briefs</button>`
+    +`<div class="andsubj">${esc(a.title||'NexuBrief')}</div>`
+    +`<div class="andmeta">${esc(fdate(a.created_at))}</div>`
+    +`<div class="andbody">${esc(a.body||'').replace(/\n/g,'<br>')}</div>`
+    +`<button class="btn btn-primary btn-full" style="margin-top:16px" onclick="_briefOpenCC()">${li('bar-chart',15,2.2)} Open Command Center</button>`
+    +'</div>';
+  $('app-body').innerHTML=html;
+}
+
 // ── compose (director only) — supports publish-now, schedule, and edit ──
 let ANNC={targets:null,targetType:'all',editId:null};
 // ISO timestamptz → "YYYY-MM-DDTHH:MM" in Asia/Karachi (for the datetime-local input)
@@ -6688,37 +6779,32 @@ function _ccPeriod(p){ CC.period=p; renderCommand(); }
 function _ccStage(st){ try{ LEADV.filter=st; }catch(e){} setTab('leads'); }
 function _ccAgent(id){ setTab('leads'); }   // director sees company leads; agent-scoped filter is a follow-up
 
-// ── AI Daily Brief card (director/admin) ──
-function _fmtBriefTime(iso){ try{ return new Date(iso).toLocaleString('en-US',{hour:'numeric',minute:'2-digit',day:'numeric',month:'short'}); }catch(e){ return ''; } }
+// ── NexuBrief card (director/admin) — slim link into the inbox ──
 function _fmtBriefDate(d){ try{ return new Date(d+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',day:'numeric',month:'short'}); }catch(e){ return d; } }
 async function _brToggle(on){
   try{ const r=await sb.rpc('set_company_brief_pref',{p_session_token:TOKEN,p_on:on});
     if(r&&r.data&&r.data.success){ if(BR.data) BR.data.enabled=on; _ccPaint(CC.data); } }catch(e){}
 }
+async function _openBriefInInbox(annId){
+  try{ await loadAnnouncements(); }catch(e){}
+  ANN.tab='brief'; setTab('updates'); _annOpen(annId);
+}
 function _ccBrief(b){
   if(!b || !(ME&&(ME.role==='director'||ME.role==='admin'))) return '';
   const en=b.enabled!==false;
-  const sw=`<button onclick="_brToggle(${en?'false':'true'})" role="switch" aria-checked="${en}" title="AI Daily Brief" style="position:relative;width:38px;height:22px;border-radius:11px;border:0;cursor:pointer;flex:none;background:${en?'var(--fk-primary)':'var(--fk-border)'};transition:background .15s"><span style="position:absolute;top:2px;left:${en?'18px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)"></span></button>`;
+  const sw=`<button onclick="_brToggle(${en?'false':'true'})" role="switch" aria-checked="${en}" title="NexuBrief" style="position:relative;width:38px;height:22px;border-radius:11px;border:0;cursor:pointer;flex:none;background:${en?'var(--fk-primary)':'var(--fk-border)'};transition:background .15s"><span style="position:absolute;top:2px;left:${en?'18px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)"></span></button>`;
   const head=`<div style="display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:8px;background:var(--fk-primary-tint);color:var(--fk-primary);display:flex;align-items:center;justify-content:center;flex:none">${li('inbox',15,2)}</span><div style="font-size:13px;font-weight:600">AI Daily Brief</div></div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:8px;background:var(--fk-primary-tint);color:var(--fk-primary);display:flex;align-items:center;justify-content:center;flex:none">${li('inbox',15,2)}</span><div style="font-size:13px;font-weight:600"><span style="color:var(--fk-primary)">Nexu</span>Brief</div></div>
     ${sw}</div>`;
-  if(!en) return `<div class="card" id="cc-brief">${head}<div style="font-size:12px;color:var(--fk-text-muted);margin-top:10px">Turned off. Turn on to get an 8 AM briefing pushed to your directors.</div></div>`;
-  let bodyHtml;
-  if(b.brief && b.brief.body){
-    const fb=b.brief.source==='fallback';
-    bodyHtml=`<div style="font-size:13.5px;line-height:1.65;white-space:pre-wrap;margin-top:12px">${esc(b.brief.body)}</div>`
-      +`<div style="font-size:11px;color:var(--fk-text-muted);margin-top:10px;display:flex;align-items:center;gap:8px"><span>${_fmtBriefTime(b.brief.created_at)}</span>${fb?'<span class="spill" style="background:var(--fk-warning-surface);border-color:transparent;color:var(--fk-warning)">summary only</span>':''}</div>`;
+  if(!en) return `<div class="card" id="cc-brief">${head}<div style="font-size:12px;color:var(--fk-text-muted);margin-top:10px">Turned off. Turn on to get a 9 AM briefing delivered to your inbox each morning.</div></div>`;
+  let body;
+  if(b.latest_announcement_id){
+    body=`<button class="btn btn-sm btn-full" style="margin-top:12px;justify-content:space-between;display:flex" onclick="_openBriefInInbox('${b.latest_announcement_id}')"><span style="display:flex;align-items:center;gap:7px">${li('inbox',14,2)} Open latest NexuBrief</span>${li('arrow-right',15,2)}</button>`
+      +`<div style="font-size:11px;color:var(--fk-text-muted);margin-top:8px">${b.latest_date?('Latest · '+_fmtBriefDate(b.latest_date)+' · '):''}delivered to your Messages inbox every morning</div>`;
   } else {
-    bodyHtml=`<div style="font-size:12.5px;color:var(--fk-text-muted);margin-top:12px">Today’s brief arrives at 8 AM.${(b.history&&b.history.length)?'':' Nothing yet — first one lands tomorrow morning.'}</div>`;
+    body=`<div style="font-size:12.5px;color:var(--fk-text-muted);margin-top:12px">Today’s NexuBrief arrives at 9 AM in your Messages inbox.</div>`;
   }
-  let hist=''; const H=b.history||[];
-  if(H.length){
-    hist=`<button class="btn btn-sm btn-full" style="margin-top:12px;justify-content:space-between;display:flex" onclick="BR.showHist=!BR.showHist;_ccPaint(CC.data)"><span>Past briefs</span><span style="color:var(--fk-text-muted)">${H.length}</span></button>`;
-    if(BR.showHist){
-      hist+=`<div style="margin-top:8px">`+H.map(h=>`<div style="border-top:1px solid var(--fk-border);padding:10px 0"><div style="font-size:11px;font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">${_fmtBriefDate(h.date)}${h.source==='fallback'?' · summary only':''}</div><div style="font-size:12.5px;line-height:1.55;white-space:pre-wrap;color:var(--fk-text)">${esc(h.body)}</div></div>`).join('')+`</div>`;
-    }
-  }
-  return `<div class="card" id="cc-brief">${head}${bodyHtml}${hist}</div>`;
+  return `<div class="card" id="cc-brief">${head}${body}</div>`;
 }
 
 function renderMore(){
@@ -6729,7 +6815,7 @@ function renderMore(){
   const nm=(ME&&ME.sales_user_name)||'Sales';
   let html='<div class="nx-dash">'+_pageHead('More', esc(nm)+' · '+esc(_portalRoleLabel(role)));
   html+='<div class="more-list">';
-  if(isDir||role==='admin') html+=_moreRow('bar-chart','Command Center','Live team dashboard, response times & daily brief',"setTab('command')");
+  if(isDir||role==='admin') html+=_moreRow('bar-chart','Command Center','Live team dashboard, response times & pipeline',"setTab('command')");
   if(!isExec) html+=_moreRow('trending-up','My results', isMgr?'Your team’s funnel & results':'Your funnel, activity & results',"setTab('performance')");
   if(isMgr)  html+=_moreRow('users','My Team','Your full team, top to bottom',"setTab('team')");
   if(isMgr)  html+=_moreRow('target','Targets','Monthly goals for your team',"setTab('targets')");
