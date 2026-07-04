@@ -3,6 +3,10 @@
   "outputDirectory": ".",
   "buildCommand": "",
   "installCommand": "",
+  "rewrites": [
+    { "source": "/crm", "destination": "/sales-portal.html" },
+    { "source": "/join/:code", "destination": "/sales-portal.html" }
+  ],
   "headers": [
     {
       "source": "/sales-portal.html",

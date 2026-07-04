@@ -10,6 +10,7 @@
 let _saRows = [];
 let _saLimit = null;
 let _saSignupToken = null;
+let _saJoinCode = null;
 let _saCompanyCode = null;
 let _saUmbrella = null;
 let _saAnns = [];
@@ -103,6 +104,11 @@ async function rSalesAccess() {
     const { data: nf } = await supabase.rpc('admin_get_crm_notify');
     _saNotify = (nf && nf.success) ? nf : null;
   } catch (e) { _saNotify = null; }
+
+  try {
+    const { data: jc } = await supabase.rpc('admin_get_join_code', { p_company_id: cid });
+    _saJoinCode = (jc && jc.success) ? (jc.join_code || null) : null;
+  } catch (e) { _saJoinCode = null; }
 
   _saRender();
 }
@@ -220,7 +226,7 @@ function _saBodyHtml() {
     }), { header: { icon: 'users', tone: 'primary', title: 'Sales people' }, flush: true });
   }
 
-  return linkCard + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
+  return linkCard + _saJoinCardHtml() + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
          `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
          _saPoolCardHtml() +
          _saNotifyCardHtml() +
@@ -413,6 +419,82 @@ function _saCopyLink() {
   const url = _saSignupUrl();
   if (navigator.clipboard) navigator.clipboard.writeText(url);
   if (typeof toast === 'function') toast('Signup link copied', 'ok');
+}
+
+// ── Short join link (/join/<CODE>) + printable QR ──
+function _saJoinLink() { return _saJoinCode ? (location.origin + '/join/' + _saJoinCode) : ''; }
+function _saJoinCardHtml() {
+  const code = _saJoinCode || '';
+  const link = _saJoinLink();
+  const host = (location.host || 'rms.nexunova.com') + '/join/';
+  const inner = `
+    <div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">A short, memorable link for your team — easier to share (and to print on a poster) than the long link above.${code ? '' : ' Set a code to switch it on.'}</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--fk-text-muted)">${esc(host)}</span>
+      <input id="sa-join-input" class="nx-input" value="${esc(code)}" maxlength="12" placeholder="e.g. FOURTEEN"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
+        style="width:160px;font-size:13px;font-weight:600;letter-spacing:.04em">
+      ${NX.button(code ? 'Update code' : 'Set code', { variant: 'primary', size: 'sm', icon: 'check', onclick: '_saSaveJoinCode()' })}
+    </div>
+    <div style="font-size:11px;color:var(--fk-text-muted);margin-top:6px">4–12 letters or numbers (A–Z, 0–9). Must be unique across companies.</div>`;
+  const live = code ? `
+    <div style="margin-top:14px;border-top:1px dashed var(--fk-border);padding-top:12px;display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
+      <input class="nx-input" readonly value="${esc(link)}" onclick="this.select()" style="flex:1;min-width:220px;font-size:12px">
+      ${NX.button('Copy', { variant: 'secondary', size: 'sm', icon: 'link', onclick: '_saCopyJoinLink()' })}
+      ${NX.button('Download QR', { variant: 'ghost', size: 'sm', icon: 'download', onclick: '_saDownloadQR()' })}
+    </div>` : '';
+  return `<div style="margin-top:var(--fk-sp-3)">` +
+    NX.card(inner + live, { header: { icon: 'link', tone: 'primary', title: 'Short join link & QR' } }) +
+    `</div>`;
+}
+async function _saSaveJoinCode() {
+  const el = document.getElementById('sa-join-input'); if (!el) return;
+  const code = (el.value || '').trim();
+  try {
+    const { data } = await supabase.rpc('admin_set_join_code', { p_company_id: S.cid, p_code: code });
+    if (data && data.success) {
+      _saJoinCode = data.join_code || null;
+      if (typeof toast === 'function') toast(code ? 'Join code saved' : 'Join code cleared', 'ok');
+      rSalesAccess();
+    } else if (typeof toast === 'function') { toast((data && data.message) || 'Could not save the code.', 'err'); }
+  } catch (e) { if (typeof toast === 'function') toast('Could not save the code.', 'err'); }
+}
+function _saCopyJoinLink() {
+  const u = _saJoinLink(); if (u && navigator.clipboard) navigator.clipboard.writeText(u);
+  if (typeof toast === 'function') toast('Join link copied', 'ok');
+}
+// Lazy-load the QR encoder only when an admin actually downloads a QR (kept out
+// of the portal bundle entirely — vendored locally, no CDN at runtime).
+function _saEnsureQrLib() {
+  return new Promise((resolve, reject) => {
+    if (window.qrcode) return resolve();
+    const s = document.createElement('script');
+    s.src = 'assets/qrcode-generator.js?v=20260705';
+    s.onload = () => resolve(); s.onerror = () => reject(new Error('qr_lib_failed'));
+    document.head.appendChild(s);
+  });
+}
+async function _saDownloadQR() {
+  if (!_saJoinCode) { if (typeof toast === 'function') toast('Set a join code first', 'err'); return; }
+  const url = _saJoinLink();
+  try {
+    await _saEnsureQrLib();
+    const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+    const count = qr.getModuleCount(); const margin = 4;
+    const scale = Math.max(6, Math.floor(1024 / (count + margin * 2)));  // ~1000px, high-res printable
+    const size = (count + margin * 2) * scale;
+    const cv = document.createElement('canvas'); cv.width = size; cv.height = size;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#000000';
+    for (let r = 0; r < count; r++) for (let c = 0; c < count; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+    }
+    const a = document.createElement('a');
+    a.href = cv.toDataURL('image/png'); a.download = 'join-' + _saJoinCode + '.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    if (typeof toast === 'function') toast('QR downloaded', 'ok');
+  } catch (e) { if (typeof toast === 'function') toast('Could not generate the QR.', 'err'); }
 }
 
 async function _saRotate() {

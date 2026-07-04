@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Served at /, /crm, and /join/<CODE> (Vercel rewrites). base=/ keeps relative
+     assets (css/, js/, assets/) resolving to root under the deeper /join/ path. -->
+<base href="/">
 <title>Nexunova CRM</title>
 <link rel="icon" href="/assets/favicon-64.png">
 <!-- PWA: installable to the home screen, opens standalone to the portal (NOT signup) -->
@@ -1636,6 +1639,9 @@ async function _consumePendingAnn(){
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
   const signup=params.get('signup');
+  // short join link: /join/<CODE> (Vercel rewrite serves this page; path carries the code)
+  const _jm=location.pathname.match(/^\/join\/([A-Za-z0-9]{4,12})\/?$/);
+  const joinCode=_jm?_jm[1]:null;
   PENDING_LEAD=params.get('lead')||null;
   PENDING_ANN=params.get('ann')||null;
   PENDING_BRIEF=!!params.get('brief');
@@ -1647,8 +1653,24 @@ async function bootstrap(){
     if(ok!=='expired'){ _touch(); _startIdleWatch(); await enterApp(); return; }
     _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
+  if(joinCode){ return openJoinLink(joinCode); }
   setCompanyContext(null);
   showScreen('screen-login');
+}
+// Resolve a short /join/<CODE> to its company signup (mirrors openSignupLink).
+async function openJoinLink(code){
+  const {data}=await sb.rpc('get_sales_company_by_join_code',{p_code:code});
+  if(!data||!data.success){
+    setCompanyContext(null); showScreen('screen-login');
+    const err=$('login-err'); if(err){ err.textContent='This join link is invalid or has been turned off. Ask your office for the current link.'; err.classList.add('show'); }
+    const r=$('login-to-register'); if(r) r.style.display='none';
+    return;
+  }
+  SIGNUP_TOKEN=data.signup_token;
+  setCompanyContext(data);
+  const r=$('login-to-register'); if(r) r.style.display='block';
+  showScreen('screen-login');
+  loadSignupAgreement(data.signup_token);
 }
 // Opening the signup link lands on SIGN IN by default; "Request access" is offered below.
 async function openSignupLink(token){
