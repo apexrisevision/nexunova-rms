@@ -1616,10 +1616,17 @@ function _startBgRefresh(){
 // ════ auth ════
 let PENDING_LEAD=null;   // deep-link target from a push notification (?lead=<id>)
 let PENDING_ANN=null;    // deep-link to an announcement from a push (?ann=<id>)
+let PENDING_BRIEF=false; // deep-link to the daily brief from a push (?brief=1)
 function _consumePendingLead(){
   if(!PENDING_LEAD) return; const id=PENDING_LEAD; PENDING_LEAD=null;
   try{ history.replaceState({}, '', location.pathname); }catch(e){}
   try{ gotoLead(id); }catch(e){}
+}
+function _consumePendingBrief(){
+  if(!PENDING_BRIEF) return;
+  try{ history.replaceState({}, '', location.pathname); }catch(e){}
+  if(ME&&(ME.role==='director'||ME.role==='admin')){ setTab('command'); } // renderCommand scrolls to the card
+  else PENDING_BRIEF=false;
 }
 async function _consumePendingAnn(){
   if(!PENDING_ANN) return; const id=PENDING_ANN; PENDING_ANN=null;
@@ -1631,6 +1638,7 @@ async function bootstrap(){
   const signup=params.get('signup');
   PENDING_LEAD=params.get('lead')||null;
   PENDING_ANN=params.get('ann')||null;
+  PENDING_BRIEF=!!params.get('brief');
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
   if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){}
@@ -2039,7 +2047,7 @@ function _syncBtabs(t){
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
   setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
-  try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
+  try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -6567,6 +6575,7 @@ function _moreRow(icon,label,sub,onclick,danger){
 }
 // ════════════════════ Director Command Center (flagship) ════════════════════
 let CC={period:'week', data:null, showUn:false, _timer:null};
+let BR={data:null, showHist:false};
 const _CC_SRC=[['facebook','Facebook','#1877F2'],['instagram','Instagram','#E1306C'],['whatsapp','WhatsApp','#25D366'],['website','Website','#0EA5E9']];
 const _CC_STG=[['new','New','var(--fk-primary)'],['contacted','Contacted','#6366f1'],['visit','Visit','var(--fk-warning)'],['negotiation','Negotiation','#8b5cf6'],['won','Won','var(--fk-success)'],['lost','Lost','var(--fk-text-muted)']];
 function _ccDur(m){ m=Number(m); if(m==null||isNaN(m)) return '—'; if(m<60) return Math.round(m)+'m'; const h=Math.floor(m/60), mm=Math.round(m%60); return h+'h'+(mm?(' '+mm+'m'):''); }
@@ -6580,13 +6589,23 @@ function _ccSpark(vals){
 async function renderCommand(){
   if(!(ME&&(ME.role==='director'||ME.role==='admin'))){ return setTab('home'); }
   if(!CC.data) $('app-body').innerHTML=_skel();
-  let d; try{ const r=await sb.rpc('get_command_center',{p_session_token:TOKEN,p_period:CC.period}); if(r.error) throw r.error; d=r.data; }catch(e){ return _netErr(); }
+  let d, br=BR.data;
+  try{
+    const [rc,rb]=await Promise.all([
+      sb.rpc('get_command_center',{p_session_token:TOKEN,p_period:CC.period}),
+      sb.rpc('get_daily_brief',{p_session_token:TOKEN})
+    ]);
+    if(rc.error) throw rc.error; d=rc.data;
+    if(rb&&!rb.error&&rb.data&&rb.data.success) br=rb.data;
+  }catch(e){ return _netErr(); }
   if(_loadFail(d)) return;
-  CC.data=d; _touch(); _ccPaint(d); _ccStart();
+  CC.data=d; BR.data=br; _touch(); _ccPaint(d); _ccStart();
+  if(PENDING_BRIEF){ PENDING_BRIEF=false; try{ const el=document.getElementById('cc-brief'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} }
 }
 function _ccStart(){ if(CC._timer) return; CC._timer=setInterval(()=>{ if(TAB==='command'){ renderCommand(); } }, 60000); }  // live auto-refresh
 function _ccPaint(d){
   let html=_pageHead('Command Center','Live team performance, response times & pipeline.');
+  html+=_ccBrief(BR.data);
   html+=_ccSnapshot(d.snapshot||{});
   html+=_ccPipeline(d.pipeline||{});
   html+=_ccResponse(d.response||{});
@@ -6646,6 +6665,39 @@ function _ccLeaderboard(board, period){
 function _ccPeriod(p){ CC.period=p; renderCommand(); }
 function _ccStage(st){ try{ LEADV.filter=st; }catch(e){} setTab('leads'); }
 function _ccAgent(id){ setTab('leads'); }   // director sees company leads; agent-scoped filter is a follow-up
+
+// ── AI Daily Brief card (director/admin) ──
+function _fmtBriefTime(iso){ try{ return new Date(iso).toLocaleString('en-US',{hour:'numeric',minute:'2-digit',day:'numeric',month:'short'}); }catch(e){ return ''; } }
+function _fmtBriefDate(d){ try{ return new Date(d+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',day:'numeric',month:'short'}); }catch(e){ return d; } }
+async function _brToggle(on){
+  try{ const r=await sb.rpc('set_company_brief_pref',{p_session_token:TOKEN,p_on:on});
+    if(r&&r.data&&r.data.success){ if(BR.data) BR.data.enabled=on; _ccPaint(CC.data); } }catch(e){}
+}
+function _ccBrief(b){
+  if(!b || !(ME&&(ME.role==='director'||ME.role==='admin'))) return '';
+  const en=b.enabled!==false;
+  const sw=`<button onclick="_brToggle(${en?'false':'true'})" role="switch" aria-checked="${en}" title="AI Daily Brief" style="position:relative;width:38px;height:22px;border-radius:11px;border:0;cursor:pointer;flex:none;background:${en?'var(--fk-primary)':'var(--fk-border)'};transition:background .15s"><span style="position:absolute;top:2px;left:${en?'18px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)"></span></button>`;
+  const head=`<div style="display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:8px;background:var(--fk-primary-tint);color:var(--fk-primary);display:flex;align-items:center;justify-content:center;flex:none">${li('inbox',15,2)}</span><div style="font-size:13px;font-weight:600">AI Daily Brief</div></div>
+    ${sw}</div>`;
+  if(!en) return `<div class="card" id="cc-brief">${head}<div style="font-size:12px;color:var(--fk-text-muted);margin-top:10px">Turned off. Turn on to get an 8 AM briefing pushed to your directors.</div></div>`;
+  let bodyHtml;
+  if(b.brief && b.brief.body){
+    const fb=b.brief.source==='fallback';
+    bodyHtml=`<div style="font-size:13.5px;line-height:1.65;white-space:pre-wrap;margin-top:12px">${esc(b.brief.body)}</div>`
+      +`<div style="font-size:11px;color:var(--fk-text-muted);margin-top:10px;display:flex;align-items:center;gap:8px"><span>${_fmtBriefTime(b.brief.created_at)}</span>${fb?'<span class="spill" style="background:var(--fk-warning-surface);border-color:transparent;color:var(--fk-warning)">summary only</span>':''}</div>`;
+  } else {
+    bodyHtml=`<div style="font-size:12.5px;color:var(--fk-text-muted);margin-top:12px">Today’s brief arrives at 8 AM.${(b.history&&b.history.length)?'':' Nothing yet — first one lands tomorrow morning.'}</div>`;
+  }
+  let hist=''; const H=b.history||[];
+  if(H.length){
+    hist=`<button class="btn btn-sm btn-full" style="margin-top:12px;justify-content:space-between;display:flex" onclick="BR.showHist=!BR.showHist;_ccPaint(CC.data)"><span>Past briefs</span><span style="color:var(--fk-text-muted)">${H.length}</span></button>`;
+    if(BR.showHist){
+      hist+=`<div style="margin-top:8px">`+H.map(h=>`<div style="border-top:1px solid var(--fk-border);padding:10px 0"><div style="font-size:11px;font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">${_fmtBriefDate(h.date)}${h.source==='fallback'?' · summary only':''}</div><div style="font-size:12.5px;line-height:1.55;white-space:pre-wrap;color:var(--fk-text)">${esc(h.body)}</div></div>`).join('')+`</div>`;
+    }
+  }
+  return `<div class="card" id="cc-brief">${head}${bodyHtml}${hist}</div>`;
+}
 
 function renderMore(){
   const role=(ME&&ME.role)||'sale_rep';
