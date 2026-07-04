@@ -58,39 +58,47 @@ function firstLine(s: string): string {
 const bySrc = (obj: Record<string, number>) =>
   Object.entries(obj || {}).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([k, v]) => `${v} ${k}`).join(", ");
 
-// Deterministic content from stats — the graceful fallback (and drives good suggestions).
+// Deterministic content from stats — the graceful fallback. Headline-first,
+// parked-aware, suggestions as commands.
 function fallbackContent(s: any): { yesterday: string; suggestions: string[] } {
+  const parked = s.parked || { total: 0, by_owner: [] };
+  const owner0 = (parked.by_owner || [])[0];
+  const top = s.untouched_top || [];
   const y: string[] = [];
-  y.push(`${s.new_yesterday || 0} new lead${(s.new_yesterday || 0) === 1 ? "" : "s"} yesterday${(s.new_yesterday || 0) > 0 ? " (" + bySrc(s.yesterday_by_source) + ")" : ""}.`);
-  if ((s.won_yesterday || 0) > 0) y.push(`${s.won_yesterday} deal${s.won_yesterday === 1 ? "" : "s"} won.`);
-  const hot = s.hot_leads || [];
-  if (hot.length) y.push(`Hot: ${hot.slice(0, 2).map((h: any) => `${h.lead} (${h.stage})`).join(", ")}.`);
-  if ((s.overdue_total || 0) > 0) {
-    const od = (s.overdue_followups || []).slice(0, 3).map((o: any) => `${o.lead} [${o.owner}]`).join(", ");
-    y.push(`${s.overdue_total} follow-up${s.overdue_total === 1 ? "" : "s"} overdue: ${od}.`);
+  // headline = the day's single most important fact
+  if (parked.total > 0 && owner0) {
+    y.push(`${parked.total} lead${parked.total === 1 ? " is" : "s are"} sitting with ${owner0.owner}, not yet distributed to the team.`);
+  } else if (top.length) {
+    y.push(`Oldest untouched lead is now at ${top[0].hours} hours with no contact.`);
+  } else if ((s.new_yesterday || 0) > 0) {
+    y.push(`${s.new_yesterday} new lead${s.new_yesterday === 1 ? "" : "s"} came in yesterday (${bySrc(s.yesterday_by_source)}).`);
+  } else {
+    y.push(`No new leads yesterday${(s.zero_new_streak || 0) >= 2 ? ` — ${s.zero_new_streak} days running with none` : ""}.`);
   }
-  if ((s.unassigned_open || 0) > 0) y.push(`${s.unassigned_open} lead${s.unassigned_open === 1 ? "" : "s"} unassigned.`);
+  if ((s.new_yesterday || 0) > 0 && parked.total > 0) y.push(`${s.new_yesterday} new yesterday (${bySrc(s.yesterday_by_source)}).`);
+  if ((s.won_yesterday || 0) > 0) y.push(`${s.won_yesterday} deal${s.won_yesterday === 1 ? "" : "s"} won.`);
+  if (top.length) y.push(`Longest with no contact: ${top.slice(0, 3).map((t: any) => `${t.lead} (${t.hours}h)`).join(", ")}.`);
+  if ((s.overdue_total || 0) > 0) y.push(`${s.overdue_total} follow-up${s.overdue_total === 1 ? "" : "s"} overdue.`);
+  if ((s.pool_unassigned || 0) > 0) y.push(`${s.pool_unassigned} lead${s.pool_unassigned === 1 ? "" : "s"} unassigned in the pool.`);
 
   const sug: string[] = [];
-  const w = s.worst_untouched;
-  if (w && w.hours) sug.push(`${w.lead} has waited ${w.hours} hours with no contact — assign or call today.`);
-  if ((s.unassigned_open || 0) > 0) sug.push(`${s.unassigned_open} lead${s.unassigned_open === 1 ? "" : "s"} sit unassigned — distribute them to your team.`);
-  const inactive = s.inactive_agents || [];
-  if (inactive.length) sug.push(`${inactive.slice(0, 3).join(", ")} logged no follow-ups this week — check in.`);
-  const drought = s.source_drought || [];
-  if (drought.length) sug.push(`${drought.join(", ")} produced no leads in 3 days — verify the campaign is running.`);
-  if (!sug.length && (s.overdue_total || 0) > 0) sug.push(`Clear the ${s.overdue_total} overdue follow-up${s.overdue_total === 1 ? "" : "s"}, oldest first.`);
+  if (parked.total > 0 && owner0) sug.push(`Distribute the ${parked.total} lead${parked.total === 1 ? "" : "s"} parked with ${owner0.owner} across your reps today.`);
+  if (top.length) sug.push(`Call ${top[0].lead} first — ${top[0].hours} hours, no contact.`);
+  if ((s.pool_unassigned || 0) > 0) sug.push(`Assign the ${s.pool_unassigned} unassigned pool lead${s.pool_unassigned === 1 ? "" : "s"} now.`);
+  if ((s.inactive_agents || []).length) sug.push(`${s.inactive_agents.slice(0, 3).join(", ")} logged no follow-ups this week — check in today.`);
+  if ((s.source_drought || []).length) sug.push(`${s.source_drought.join(", ")} has gone quiet — verify the campaign is running.`);
+  else if ((s.zero_new_streak || 0) >= 2) sug.push(`No new leads for ${s.zero_new_streak} days — check campaign budget and delivery.`);
   return { yesterday: y.join("\n"), suggestions: sug.slice(0, 4) };
 }
 
 async function generate(stats: any): Promise<{ yesterday: string; suggestions: string[] }> {
   const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
   const sys = [
-    "You write a concise morning briefing for a real-estate sales director. Return ONLY valid JSON — no markdown, no code fences — with exactly two keys:",
-    '{"yesterday": string, "suggestions": string[]}.',
-    '"yesterday": 4 to 6 short factual lines separated by \\n — leads by source, notable hot lead(s), overdue follow-ups by name, unassigned count. Plain English, no flattery, no emojis.',
-    '"suggestions": 2 to 4 concrete, specific actions derived STRICTLY from the data (use the given names and numbers). Examples of shape: "Ali has waited 81 hours with no contact — assign him to a rep today"; "3 leads sit unassigned — distribute them"; "Bilal logged zero follow-ups this week — check in"; "Facebook produced no leads for 3 days — verify the campaign".',
-    "Never invent data. If the data supports only one real suggestion, return one. Do not pad with generic advice. No flattery, no emojis. Names given are first names — use as-is; never output phone numbers.",
+    "You write the morning briefing a real-estate sales director actually acts on. Return ONLY valid JSON — no markdown, no code fences — with exactly two keys: {\"yesterday\": string, \"suggestions\": string[]}.",
+    "\"yesterday\": The FIRST line is the headline — the single most important fact or risk of the day, not a routine recap. Then 3 to 5 more short factual lines. Use specific, comparative numbers wherever the data allows (e.g. \"oldest untouched lead now at 84 hours\", \"0 new leads for the 3rd straight day\"). Plain English.",
+    "OPERATIONAL REALITY — 'parked' leads (in the data under 'parked') are owned by a director/default-receiver but never distributed to a rep and have had no contact: treat them as UNWORKED and say so plainly by owner name and count, e.g. \"17 leads are sitting with Naeem, not yet distributed to the team.\" This usually IS the headline. Only mention pool_unassigned (owner=none) when it is greater than 0 — do not say 'no unassigned leads' when leads are parked.",
+    "\"suggestions\": 2 to 4 direct COMMANDS, not observations. Imperative, short, confident. e.g. \"Distribute the 17 leads parked with Naeem across your reps today\"; \"Call Muhammad first — 82 hours, no contact.\" Derive STRICTLY from the data; use the given names and numbers.",
+    "If the day genuinely has nothing notable, say that in ONE line and return few or no suggestions. Never pad. Never invent data. No flattery, no emojis. Names given are first names — use as-is; never output phone numbers.",
   ].join(" ");
   const msg = await client.messages.create({
     model: MODEL, max_tokens: 900, system: sys,
