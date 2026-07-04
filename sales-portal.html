@@ -3926,7 +3926,15 @@ async function _fbModuleInto(hostId){
   host.innerHTML=html;
   _fbDiagLoad();
 }
-function _fbPageLeads(p){ return FB_LEADS_OK ? FB_LEADS.filter(l=>p.project_id && String(l.project_id)===String(p.project_id)) : []; }
+// list_my_leads exposes project_name (not project_id), so attribute a page's leads by project name
+// (with a project_id fallback in case the shape ever includes it). Both pages map to distinct projects.
+function _fbPageLeads(p){
+  if(!FB_LEADS_OK) return [];
+  return FB_LEADS.filter(l=>
+    (p.project_name && l.project_name && String(l.project_name)===String(p.project_name)) ||
+    (p.project_id && l.project_id && String(l.project_id)===String(p.project_id))
+  );
+}
 function _fbPageRow(p){
   const ok=p.status==='connected';
   const n = FB_LEADS_OK ? _fbPageLeads(p).length : (p.leads_count||0);
@@ -3953,7 +3961,7 @@ function _fbToggleLeads(connId, btn){
   const leads=_fbPageLeads(conn).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
   box.innerHTML = leads.length
     ? leads.map(_fbLeadMini).join('')
-    : '<div class="es" style="padding:12px 14px">Is page se abhi koi lead nahi aayi.</div>';
+    : '<div class="es" style="padding:12px 14px">No leads from this page yet.</div>';
   box.hidden=false;
 }
 function _fbLeadMini(l){
