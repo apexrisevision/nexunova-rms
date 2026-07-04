@@ -1615,15 +1615,22 @@ function _startBgRefresh(){
 
 // ════ auth ════
 let PENDING_LEAD=null;   // deep-link target from a push notification (?lead=<id>)
+let PENDING_ANN=null;    // deep-link to an announcement from a push (?ann=<id>)
 function _consumePendingLead(){
   if(!PENDING_LEAD) return; const id=PENDING_LEAD; PENDING_LEAD=null;
   try{ history.replaceState({}, '', location.pathname); }catch(e){}
   try{ gotoLead(id); }catch(e){}
 }
+async function _consumePendingAnn(){
+  if(!PENDING_ANN) return; const id=PENDING_ANN; PENDING_ANN=null;
+  try{ history.replaceState({}, '', location.pathname); }catch(e){}
+  try{ await loadAnnouncements(); ANN.open=id; setTab('updates'); }catch(e){}
+}
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
   const signup=params.get('signup');
   PENDING_LEAD=params.get('lead')||null;
+  PENDING_ANN=params.get('ann')||null;
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
   if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){}
@@ -2032,7 +2039,7 @@ function _syncBtabs(t){
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
   setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
-  try{ _consumePendingLead(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
+  try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -6109,7 +6116,7 @@ async function openAnnCompose(){
   ANNC={targets:t,targetType:'all'};
   const body='<div class="field"><label class="label">Title <span style="color:var(--fk-danger)">*</span></label><input class="input" id="annc-title" autocomplete="off"></div>'
     +'<div class="field"><label class="label">Message <span style="color:var(--fk-danger)">*</span></label><textarea class="input" id="annc-body" rows="5"></textarea></div>'
-    +'<div class="field"><label class="label">Priority</label><select class="input" id="annc-prio" onchange="_annPrioChange(this.value)"><option value="normal">Normal</option><option value="important">Important</option><option value="urgent">Urgent</option></select></div>'
+    +'<div class="field"><label class="label">Priority</label><select class="input" id="annc-prio" onchange="_annPrioChange(this.value)"><option value="normal">Normal</option><option value="important">Important</option><option value="urgent">Urgent</option></select><div style="font-size:11px;color:var(--fk-text-muted);margin-top:4px">Everyone targeted also gets a push notification. Urgent sends immediately even at night; Normal/Important wait until 8am (quiet hours).</div></div>'
     +'<div class="field"><label class="label">Send to</label><select class="input" id="annc-type" onchange="_annTargetType(this.value)"><option value="all">Everyone in the company</option><option value="role">A role</option><option value="team">A team</option><option value="user">One person</option></select></div>'
     +'<div class="field" id="annc-extra">'+_annExtraHtml()+'</div>'
     +'<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin:2px 2px 4px;cursor:pointer"><input type="checkbox" id="annc-ack" style="width:16px;height:16px"> Require acknowledgement</label>'
