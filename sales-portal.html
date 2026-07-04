@@ -2030,7 +2030,7 @@ const _BTAB_OF={
   board:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
   more:'more', performance:'more', teamperf:'more', team:'more', org:'more', targets:'more',
-  livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more'
+  livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
 };
 function _syncBtabs(t){
   const base=_BTAB_OF[t]||'more';
@@ -2116,6 +2116,7 @@ function setTab(t,_back){
   else if(t==='igdm') renderInstagram();
   else if(t==='adspend') renderAdSpend();
   else if(t==='home') renderHome();
+  else if(t==='command') renderCommand();
   else if(t==='leads') renderLeads();
   else if(t==='board') renderBoard();
   else if(t==='mysales') renderMySales();
@@ -6564,6 +6565,88 @@ function _moreRow(icon,label,sub,onclick,danger){
     <span class="more-tx"><span class="more-lb">${esc(label)}</span>${sub?`<span class="more-sb">${esc(sub)}</span>`:''}</span>
     ${cv}</button>`;
 }
+// ════════════════════ Director Command Center (flagship) ════════════════════
+let CC={period:'week', data:null, showUn:false, _timer:null};
+const _CC_SRC=[['facebook','Facebook','#1877F2'],['instagram','Instagram','#E1306C'],['whatsapp','WhatsApp','#25D366'],['website','Website','#0EA5E9']];
+const _CC_STG=[['new','New','var(--fk-primary)'],['contacted','Contacted','#6366f1'],['visit','Visit','var(--fk-warning)'],['negotiation','Negotiation','#8b5cf6'],['won','Won','var(--fk-success)'],['lost','Lost','var(--fk-text-muted)']];
+function _ccDur(m){ m=Number(m); if(m==null||isNaN(m)) return '—'; if(m<60) return Math.round(m)+'m'; const h=Math.floor(m/60), mm=Math.round(m%60); return h+'h'+(mm?(' '+mm+'m'):''); }
+function _ccSpark(vals){
+  const v=(vals||[]).map(x=>Number(x.n)||0); if(!v.length) return '';
+  const w=120,h=30,mx=Math.max(1,...v),st=v.length>1?w/(v.length-1):w;
+  const pts=v.map((n,i)=>`${(i*st).toFixed(1)},${(h-2-(n/mx)*(h-6)).toFixed(1)}`).join(' ');
+  const last=v[v.length-1];
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="overflow:visible"><polyline points="${pts}" fill="none" stroke="var(--fk-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${((v.length-1)*st).toFixed(1)}" cy="${(h-2-(last/mx)*(h-6)).toFixed(1)}" r="2.6" fill="var(--fk-primary)"/></svg>`;
+}
+async function renderCommand(){
+  if(!(ME&&(ME.role==='director'||ME.role==='admin'))){ return setTab('home'); }
+  if(!CC.data) $('app-body').innerHTML=_skel();
+  let d; try{ const r=await sb.rpc('get_command_center',{p_session_token:TOKEN,p_period:CC.period}); if(r.error) throw r.error; d=r.data; }catch(e){ return _netErr(); }
+  if(_loadFail(d)) return;
+  CC.data=d; _touch(); _ccPaint(d); _ccStart();
+}
+function _ccStart(){ if(CC._timer) return; CC._timer=setInterval(()=>{ if(TAB==='command'){ renderCommand(); } }, 60000); }  // live auto-refresh
+function _ccPaint(d){
+  let html=_pageHead('Command Center','Live team performance, response times & pipeline.');
+  html+=_ccSnapshot(d.snapshot||{});
+  html+=_ccPipeline(d.pipeline||{});
+  html+=_ccResponse(d.response||{});
+  html+=_ccLeaderboard(d.leaderboard||[], d.period);
+  $('app-body').innerHTML=html;
+}
+function _ccSnapshot(s){
+  const by=s.new_by_source||{}; const known=_CC_SRC.reduce((a,x)=>a+(Number(by[x[0]])||0),0);
+  const total=Object.values(by).reduce((a,n)=>a+(Number(n)||0),0); const other=total-known;
+  const tile=(label,n,col)=>`<div style="flex:1;min-width:72px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:12px;padding:10px 12px"><div style="font-size:22px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:11px;color:var(--fk-text-muted);margin-top:4px;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex:none"></span>${esc(label)}</div></div>`;
+  const fu=s.followups||{};
+  const fchip=(label,n,col,bg)=>`<div style="flex:1;text-align:center;padding:9px 6px;border-radius:10px;background:${bg};border:1px solid transparent"><div style="font-size:18px;font-weight:700;color:${col};font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:11px;color:var(--fk-text-muted);margin-top:2px">${label}</div></div>`;
+  let un='';
+  if(CC.showUn){ const list=s.unassigned_list||[];
+    un=`<div style="margin-top:8px">`+(list.length?list.map(l=>`<div class="inrow" style="border-left:3px solid var(--fk-warning)" onclick="gotoLead('${l.id}')"><div class="inmain"><div class="intop"><div class="insubj">${esc(l.name||'Lead')}</div><div class="indate">${_ccDur((Number(l.hours)||0)*60)}</div></div><div class="insnip">${esc(l.source||'')} · no owner</div></div></div>`).join(''):'<div style="font-size:12px;color:var(--fk-text-muted);padding:6px 2px">Pool is empty.</div>')+`</div>`; }
+  return `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:13px;font-weight:600">New leads today</div>${_ccSpark(s.spark)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${_CC_SRC.map(x=>tile(x[1],by[x[0]],x[2])).join('')}${other>0?tile('Other',other,'var(--fk-text-muted)'):''}</div>
+    <div style="font-size:12px;font-weight:600;color:var(--fk-text-muted);margin:14px 0 6px">Follow-ups due today</div>
+    <div style="display:flex;gap:8px">${fchip('Done',fu.done,'var(--fk-success)','var(--fk-success-surface)')}${fchip('Pending',fu.pending,'var(--fk-warning)','var(--fk-warning-surface)')}${fchip('Overdue',fu.overdue,'var(--fk-danger)','var(--fk-danger-surface)')}</div>
+    <button class="btn btn-sm btn-full" style="margin-top:12px;justify-content:space-between;display:flex" onclick="CC.showUn=!CC.showUn;_ccPaint(CC.data)"><span>${li('inbox',15,2)} Unassigned pool</span><span class="spill" style="background:${(Number(s.unassigned)||0)>0?'var(--fk-warning-surface)':'var(--fk-bg-subtle)'};border-color:transparent;color:${(Number(s.unassigned)||0)>0?'var(--fk-warning)':'var(--fk-text-muted)'}">${Number(s.unassigned)||0}</span></button>
+    ${un}
+  </div>`;
+}
+function _ccPipeline(p){
+  const total=_CC_STG.reduce((a,x)=>a+(Number(p[x[0]])||0),0)||1;
+  const bar=_CC_STG.filter(x=>(Number(p[x[0]])||0)>0).map(x=>`<div title="${x[1]}: ${Number(p[x[0]])||0}" onclick="_ccStage('${x[0]}')" style="width:${((Number(p[x[0]])||0)/total*100).toFixed(2)}%;background:${x[2]};cursor:pointer"></div>`).join('');
+  const legend=_CC_STG.map(x=>`<button onclick="_ccStage('${x[0]}')" style="display:flex;align-items:center;gap:6px;background:none;border:0;cursor:pointer;font-size:12px;color:var(--fk-text)"><span style="width:9px;height:9px;border-radius:3px;background:${x[2]};flex:none"></span>${x[1]} <b style="font-variant-numeric:tabular-nums">${Number(p[x[0]])||0}</b></button>`).join('');
+  return `<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px">Pipeline</div>
+    <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--fk-bg-subtle)">${bar}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px">${legend}</div></div>`;
+}
+function _ccResponse(r){
+  const worst=r.worst||[];
+  const rows=worst.length?worst.map(w=>`<div class="inrow" onclick="gotoLead('${w.id}')" style="border-left:3px solid var(--fk-danger)"><div class="inmain"><div class="intop"><div class="insubj">${esc(w.name||'Lead')}</div><div class="indate" style="color:var(--fk-danger)">${_ccDur((Number(w.hours)||0)*60)}</div></div><div class="insnip">${esc(w.source||'')}${w.owner_name?(' · '+esc(w.owner_name)):' · unassigned'} — no contact yet</div></div><svg class="inchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>`).join(''):'<div style="font-size:12.5px;color:var(--fk-text-muted);padding:6px 2px">Every open lead has been contacted. Nice.</div>';
+  return `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:13px;font-weight:600">First-response time</div>
+      <span class="spill" style="background:var(--fk-primary-tint);border-color:transparent;color:var(--fk-primary)">Avg ${_ccDur(r.company_avg_min)}</span></div>
+    <div style="font-size:12px;font-weight:600;color:var(--fk-text-muted);margin-bottom:6px">Waiting longest — no contact</div>
+    <div class="inbox">${rows}</div></div>`;
+}
+function _ccLeaderboard(board, period){
+  const seg=_seg([['week','This week'],['month','This month']], period, '_ccPeriod');
+  const rows=(board||[]).map((a,i)=>{
+    const top=(i===0 && ((Number(a.conversions)||0)>0 || (Number(a.followups)||0)>0));
+    const laggard=((Number(a.leads_received)||0)>0 && (Number(a.conversions)||0)===0);
+    const m=(v,l)=>`<div style="text-align:center;min-width:44px"><div style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${v}</div><div style="font-size:10px;color:var(--fk-text-muted)">${l}</div></div>`;
+    return `<div onclick="_ccAgent('${a.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;margin-bottom:8px;cursor:pointer;border:1px solid ${top?'var(--fk-primary)':'var(--fk-border)'};background:${top?'var(--fk-primary-tint)':'var(--fk-bg-card)'}">
+      <div style="width:24px;text-align:center;font-weight:700;color:${top?'var(--fk-primary)':'var(--fk-text-muted)'};font-variant-numeric:tabular-nums">${i+1}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}${laggard?' <span style="width:7px;height:7px;border-radius:50%;background:var(--fk-danger);display:inline-block;vertical-align:middle;margin-left:4px"></span>':''}</div><div style="font-size:11px;color:var(--fk-text-muted)">${esc(_portalRoleLabel(a.role))}</div></div>
+      ${m(Number(a.leads_received)||0,'Leads')}${m(Number(a.followups)||0,'F/ups')}${m(Number(a.conversions)||0,'Won')}${m(_ccDur(a.avg_response_min),'Resp')}
+    </div>`;
+  }).join('');
+  return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:13px;font-weight:600">Agent leaderboard</div></div>
+    ${seg}<div style="margin-top:12px">${rows||'<div style="font-size:12.5px;color:var(--fk-text-muted)">No agents yet.</div>'}</div></div>`;
+}
+function _ccPeriod(p){ CC.period=p; renderCommand(); }
+function _ccStage(st){ try{ LEADV.filter=st; }catch(e){} setTab('leads'); }
+function _ccAgent(id){ setTab('leads'); }   // director sees company leads; agent-scoped filter is a follow-up
+
 function renderMore(){
   const role=(ME&&ME.role)||'sale_rep';
   const isExec=role==='admin'||role==='cfo';
@@ -6572,6 +6655,7 @@ function renderMore(){
   const nm=(ME&&ME.sales_user_name)||'Sales';
   let html='<div class="nx-dash">'+_pageHead('More', esc(nm)+' · '+esc(_portalRoleLabel(role)));
   html+='<div class="more-list">';
+  if(isDir||role==='admin') html+=_moreRow('bar-chart','Command Center','Live team dashboard, response times & daily brief',"setTab('command')");
   if(!isExec) html+=_moreRow('trending-up','My results', isMgr?'Your team’s funnel & results':'Your funnel, activity & results',"setTab('performance')");
   if(isMgr)  html+=_moreRow('users','My Team','Your full team, top to bottom',"setTab('team')");
   if(isMgr)  html+=_moreRow('target','Targets','Monthly goals for your team',"setTab('targets')");
