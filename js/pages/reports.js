@@ -36,7 +36,7 @@ const REPORTS = {
           client: (r.client_code ? r.client_code + ' · ' : '') + (r.client_name || ''),
           unit: (r.unit_no || '') + (r.floor_name ? ' · ' + r.floor_name : ''),
           bucket: _rAgingBucket(r.overdue_days), overdue_days: Number(r.overdue_days || 0), closing: Number(r.closing || 0),
-          _click: "nav('salesdetail','" + r.sale_id + "')"
+          _click: r.sale_id ? "openSaleDetail('" + r.sale_id + "')" : ''
         })).sort((a, b) => b.overdue_days - a.overdue_days);
         const columns = [{ key: 'client', label: 'Client' }, { key: 'unit', label: 'Unit' }, { key: 'bucket', label: 'Bucket' }, { key: 'overdue_days', label: 'Days', num: true }, { key: 'closing', label: 'Outstanding', num: true, fmt: 'money' }];
         const total = rows.reduce((s, r) => s + r.closing, 0);
@@ -477,7 +477,8 @@ function _portfolioTransform(data, f) {
     recovery: Number(r.recovery_pct || 0),
     status: String(r.status) === 'cancelled' ? 'Cancelled' : 'Active',
     agent: r.agent_name || '—',
-    _click: r.sale_id ? "nav('salesdetail','" + r.sale_id + "')" : ''
+    // click a unit → open its Unit Detail directly (fallback to Sale Detail if unit_id is missing)
+    _click: r.unit_id ? "openUD('" + r.unit_id + "')" : (r.sale_id ? "openSaleDetail('" + r.sale_id + "')" : '')
   });
 
   const subtotal = src => {
@@ -550,7 +551,7 @@ function _portfolioDemandTransform(data, f) {
       agent: p.agent_name || '—',
       _floor: p.floor_name || r.floor_name || '—',
       _floorNo: (p.floor_no != null ? Number(p.floor_no) : 9999),
-      _click: r.sale_id ? "nav('salesdetail','" + r.sale_id + "')" : ''
+      _click: r.sale_id ? "openSaleDetail('" + r.sale_id + "')" : ''
     };
   });
 

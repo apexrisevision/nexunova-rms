@@ -561,7 +561,7 @@ function _dashWhoLate(rows) {
         : '—';
       const client = esc(r.client_name || '') + (r.client_code ? ` · ${esc(r.client_code)}` : '');
       const unit   = esc(r.unit_no || '') + (r.floor_name ? ` · ${esc(r.floor_name)}` : '');
-      return `<tr class="nx-late-row" style="cursor:pointer" onclick="nav('salesdetail','${esc(r.sale_id)}')">
+      return `<tr class="nx-late-row" style="cursor:pointer" onclick="openSaleDetail('${esc(r.sale_id)}')">
         <td><div style="display:flex;align-items:center;gap:var(--fk-sp-2)">${_dashAvatar(r.client_name)}<span style="min-width:0">${client}</span></div></td>
         <td>${unit}</td>
         <td class="num">${_dashExact(r.closing)}</td><td>${days}</td><td>${last}</td>
