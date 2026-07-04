@@ -11,6 +11,7 @@ let _saRows = [];
 let _saLimit = null;
 let _saSignupToken = null;
 let _saJoinCode = null;
+let _saPortal = null;   // main-portal (/crm) signup setting
 let _saCompanyCode = null;
 let _saUmbrella = null;
 let _saAnns = [];
@@ -109,6 +110,11 @@ async function rSalesAccess() {
     const { data: jc } = await supabase.rpc('admin_get_join_code', { p_company_id: cid });
     _saJoinCode = (jc && jc.success) ? (jc.join_code || null) : null;
   } catch (e) { _saJoinCode = null; }
+
+  try {
+    const { data: ps } = await supabase.rpc('admin_get_portal_signup', { p_company_id: cid });
+    _saPortal = (ps && ps.success) ? ps : null;
+  } catch (e) { _saPortal = null; }
 
   _saRender();
 }
@@ -226,7 +232,7 @@ function _saBodyHtml() {
     }), { header: { icon: 'users', tone: 'primary', title: 'Sales people' }, flush: true });
   }
 
-  return linkCard + _saJoinCardHtml() + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
+  return linkCard + _saPortalCardHtml() + _saJoinCardHtml() + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
          `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
          _saPoolCardHtml() +
          _saNotifyCardHtml() +
@@ -421,14 +427,64 @@ function _saCopyLink() {
   if (typeof toast === 'function') toast('Signup link copied', 'ok');
 }
 
-// ── Short join link (/join/<CODE>) + printable QR ──
+// ── Main portal link (/crm) — Sign in + Request access on one page ──
+function _saCrmLink() { return location.origin + '/crm'; }
+function _saPortalCardHtml() {
+  const p = _saPortal; if (!p) return '';
+  const host = (location.host || 'rms.nexunova.com') + '/crm';
+  const en = !!p.enabled;
+  const scopePick = (en && p.is_umbrella_home)
+    ? `<div style="margin-top:10px"><label class="nx-label">Who signs up here</label>
+         <select class="nx-input" onchange="_saSetPortalScope(this.value)" style="max-width:360px">
+           <option value="umbrella"${p.scope === 'umbrella' ? ' selected' : ''}>${esc(p.umbrella_name || 'Umbrella')} — sell across all member companies</option>
+           <option value="company"${p.scope === 'company' ? ' selected' : ''}>This company only</option>
+         </select></div>` : '';
+  const note = en
+    ? `<div style="margin-top:10px;font-size:12px;color:var(--fk-text-muted)">Anyone with this link can <strong>request access</strong> — <strong>new requests still require your approval</strong> before they can sign in.</div>`
+    : `<div style="margin-top:10px;font-size:12px;color:var(--fk-text-muted)">Off — the main link is <strong>sign-in only</strong>. People need a signup link (below) to request access.</div>`;
+  const inner =
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">One link for your whole team — <strong>Sign in</strong> and <strong>Request access</strong> live on the same page.</div>
+     <div style="display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
+       <input class="nx-input" readonly value="${esc(_saCrmLink())}" onclick="this.select()" style="flex:1;min-width:220px;font-size:12px">
+       ${NX.button('Copy', { variant: 'primary', size: 'sm', icon: 'link', onclick: '_saCopyCrm()' })}
+       ${NX.button('Download QR', { variant: 'ghost', size: 'sm', icon: 'download', onclick: '_saDownloadCrmQR()' })}
+     </div>
+     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--fk-border)">
+       <div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--fk-text)">Allow signup from the main portal link</div>
+         <div style="font-size:12px;color:var(--fk-text-muted)">Show “Request access” on ${esc(host)}</div></div>
+       <input type="checkbox" ${en ? 'checked' : ''} style="width:18px;height:18px;flex:0 0 auto;accent-color:var(--fk-primary);cursor:pointer" onchange="_saTogglePortal(this.checked)"></div>
+     ${scopePick}${note}`;
+  return `<div style="margin-top:var(--fk-sp-3)">` +
+    NX.card(inner, { header: { icon: 'link', tone: 'primary', title: 'Main portal link' } }) + `</div>`;
+}
+async function _saTogglePortal(on) {
+  const scope = (_saPortal && _saPortal.scope) || 'umbrella';
+  try {
+    const { data } = await supabase.rpc('admin_set_portal_signup', { p_company_id: S.cid, p_enabled: !!on, p_scope: scope });
+    if (data && data.success) {
+      _saPortal.enabled = data.enabled; _saPortal.scope = data.scope;
+      if (typeof toast === 'function') toast(on ? 'Signup enabled on the main link' : 'Main link is sign-in only', 'ok');
+      _saRender();
+    } else if (typeof toast === 'function') toast('Could not update the setting.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not update the setting.', 'err'); }
+}
+async function _saSetPortalScope(scope) {
+  try {
+    const { data } = await supabase.rpc('admin_set_portal_signup', { p_company_id: S.cid, p_enabled: true, p_scope: scope });
+    if (data && data.success) { _saPortal.enabled = true; _saPortal.scope = data.scope; if (typeof toast === 'function') toast('Signup target updated', 'ok'); _saRender(); }
+  } catch (e) { if (typeof toast === 'function') toast('Could not update the target.', 'err'); }
+}
+function _saCopyCrm() { const u = _saCrmLink(); if (u && navigator.clipboard) navigator.clipboard.writeText(u); if (typeof toast === 'function') toast('Main portal link copied', 'ok'); }
+function _saDownloadCrmQR() { _saDownloadQRFor(_saCrmLink(), 'portal-qr.png'); }
+
+// ── Short join link (/join/<CODE>) + printable QR (optional, per-target) ──
 function _saJoinLink() { return _saJoinCode ? (location.origin + '/join/' + _saJoinCode) : ''; }
 function _saJoinCardHtml() {
   const code = _saJoinCode || '';
   const link = _saJoinLink();
   const host = (location.host || 'rms.nexunova.com') + '/join/';
   const inner = `
-    <div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">A short, memorable link for your team — easier to share (and to print on a poster) than the long link above.${code ? '' : ' Set a code to switch it on.'}</div>
+    <div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)"><strong>Optional</strong> — a short link for a <strong>specific target</strong> (e.g. a single project or client). Most teams just use the main portal link above.${code ? '' : ' Set a code to switch it on.'}</div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--fk-text-muted)">${esc(host)}</span>
       <input id="sa-join-input" class="nx-input" value="${esc(code)}" maxlength="12" placeholder="e.g. FOURTEEN"
@@ -444,7 +500,7 @@ function _saJoinCardHtml() {
       ${NX.button('Download QR', { variant: 'ghost', size: 'sm', icon: 'download', onclick: '_saDownloadQR()' })}
     </div>` : '';
   return `<div style="margin-top:var(--fk-sp-3)">` +
-    NX.card(inner + live, { header: { icon: 'link', tone: 'primary', title: 'Short join link & QR' } }) +
+    NX.card(inner + live, { header: { icon: 'link', tone: 'muted', title: 'Short link for a specific target (optional)' } }) +
     `</div>`;
 }
 async function _saSaveJoinCode() {
@@ -474,9 +530,12 @@ function _saEnsureQrLib() {
     document.head.appendChild(s);
   });
 }
-async function _saDownloadQR() {
+function _saDownloadQR() {   // join-code QR (optional, per-target)
   if (!_saJoinCode) { if (typeof toast === 'function') toast('Set a join code first', 'err'); return; }
-  const url = _saJoinLink();
+  _saDownloadQRFor(_saJoinLink(), 'join-' + _saJoinCode + '.png');
+}
+async function _saDownloadQRFor(url, filename) {
+  if (!url) { if (typeof toast === 'function') toast('Nothing to encode', 'err'); return; }
   try {
     await _saEnsureQrLib();
     const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
@@ -491,7 +550,7 @@ async function _saDownloadQR() {
       if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
     }
     const a = document.createElement('a');
-    a.href = cv.toDataURL('image/png'); a.download = 'join-' + _saJoinCode + '.png';
+    a.href = cv.toDataURL('image/png'); a.download = filename || 'qr.png';
     document.body.appendChild(a); a.click(); a.remove();
     if (typeof toast === 'function') toast('QR downloaded', 'ok');
   } catch (e) { if (typeof toast === 'function') toast('Could not generate the QR.', 'err'); }

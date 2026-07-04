@@ -1654,6 +1654,22 @@ async function bootstrap(){
     _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   if(joinCode){ return openJoinLink(joinCode); }
+  return openPortalDefault();
+}
+// Bare /crm (no ?signup, no /join): if the company enabled main-portal signup,
+// show sign-in WITH "Request access" wired to the default target; else sign-in only.
+async function openPortalDefault(){
+  try{
+    const {data}=await sb.rpc('get_portal_default_signup');
+    if(data&&data.success){
+      SIGNUP_TOKEN=data.signup_token;
+      setCompanyContext(data);
+      const r=$('login-to-register'); if(r) r.style.display='block';
+      showScreen('screen-login');
+      loadSignupAgreement(data.signup_token);
+      return;
+    }
+  }catch(e){}
   setCompanyContext(null);
   showScreen('screen-login');
 }
