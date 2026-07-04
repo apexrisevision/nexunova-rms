@@ -33,3 +33,28 @@ self.addEventListener('fetch', e => {
   }
   e.respondWith(fetch(req).catch(() => caches.match(req)));  // assets: network, cache fallback only when offline
 });
+
+// ── Web Push: show notification + deep-link click to the lead ──
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
+  const title = d.title || 'Nexunova CRM';
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || '',
+    data: { url: d.url || '/sales-portal.html' },
+    icon: '/assets/icon-192.png',
+    badge: '/assets/icon-192.png'
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/sales-portal.html';
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of wins) {
+      if (c.url.includes('/sales-portal.html')) { try { await c.focus(); await c.navigate(url); } catch (_) {} return; }
+    }
+    await self.clients.openWindow(url);
+  })());
+});

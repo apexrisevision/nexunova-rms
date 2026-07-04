@@ -15,6 +15,7 @@ let _saUmbrella = null;
 let _saAnns = [];
 let _saAnnIsHome = false;
 let _saPool = [];   // unassigned leads (owner NULL) — orphan pool
+let _saNotify = null;   // company CRM notification master switches
 
 // ── Portal role taxonomy (Phase 0: data/tagging only; gated behaviour later) ──
 const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director', lead_entry: 'Lead Entry' };
@@ -97,6 +98,11 @@ async function rSalesAccess() {
     const { data: up } = await supabase.rpc('list_unassigned_leads', { p_company_id: cid });
     _saPool = (up && up.success) ? (up.leads || []) : [];
   } catch (e) { _saPool = []; }
+
+  try {
+    const { data: nf } = await supabase.rpc('admin_get_crm_notify');
+    _saNotify = (nf && nf.success) ? nf : null;
+  } catch (e) { _saNotify = null; }
 
   _saRender();
 }
@@ -217,7 +223,32 @@ function _saBodyHtml() {
   return linkCard + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
          `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
          _saPoolCardHtml() +
+         _saNotifyCardHtml() +
          `<div style="margin-top:var(--fk-sp-3)">${_saAnnCardHtml()}</div>`;
+}
+
+// ── Company-level CRM notification master switches (per channel) ──
+function _saNotifyCardHtml() {
+  if (!_saNotify) return '';
+  const sw = (id, label, desc, on) =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--fk-border)">
+       <div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--fk-text)">${label}</div><div style="font-size:12px;color:var(--fk-text-muted)">${desc}</div></div>
+       <input type="checkbox" id="${id}" ${on ? 'checked' : ''} style="width:18px;height:18px;flex:0 0 auto;accent-color:var(--fk-primary);cursor:pointer" onchange="_saSaveNotify()"></div>`;
+  const card = NX.card(
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">Company-wide switches for CRM follow-up &amp; lead reminders. Turning one off stops that channel for every member (members can also opt out individually).</div>`
+    + sw('sa-ntf-wa', 'WhatsApp reminders', 'Follow-up reminders via WhatsApp', _saNotify.whatsapp)
+    + sw('sa-ntf-push', 'Push notifications', 'New-lead &amp; follow-up push alerts', _saNotify.push),
+    { header: { icon: 'bell', tone: 'primary', title: 'CRM notifications' } });
+  return `<div style="margin-top:var(--fk-sp-3)">${card}</div>`;
+}
+async function _saSaveNotify() {
+  const wa = !!(document.getElementById('sa-ntf-wa') || {}).checked;
+  const pu = !!(document.getElementById('sa-ntf-push') || {}).checked;
+  try {
+    const { data } = await supabase.rpc('admin_set_crm_notify', { p_whatsapp: wa, p_push: pu });
+    if (data && data.success) { _saNotify = { success: true, whatsapp: wa, push: pu }; if (typeof toast === 'function') toast('CRM notification settings saved.', 'ok'); }
+    else if (typeof toast === 'function') toast((data && data.message) || 'Could not save.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not save.', 'err'); }
 }
 
 // ── Unassigned pool: owner-less leads (member deactivated/deleted) → bulk reassign ──

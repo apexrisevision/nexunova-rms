@@ -1614,9 +1614,16 @@ function _startBgRefresh(){
 }
 
 // ════ auth ════
+let PENDING_LEAD=null;   // deep-link target from a push notification (?lead=<id>)
+function _consumePendingLead(){
+  if(!PENDING_LEAD) return; const id=PENDING_LEAD; PENDING_LEAD=null;
+  try{ history.replaceState({}, '', location.pathname); }catch(e){}
+  try{ gotoLead(id); }catch(e){}
+}
 async function bootstrap(){
   const params=new URLSearchParams(location.search);
   const signup=params.get('signup');
+  PENDING_LEAD=params.get('lead')||null;
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
   if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){}
@@ -1860,7 +1867,7 @@ function _maybeVerifyGate(){
   g.style.display='grid';
 }
 function _vgHide(){ const g=$('verify-gate'); if(g) g.style.display='none'; }
-function _vgSkip(){ VG_SKIPPED=true; _vgHide(); }
+function _vgSkip(){ VG_SKIPPED=true; _vgHide(); try{ _maybePushPrompt(); }catch(e){} }
 function _vgErr(m){ const e=$('vg-err'); if(e){ e.textContent=m; e.classList.add('show'); } }
 function _vgIcon(){ return '<div class="vg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>'; }
 function _vgRenderEmail(){
@@ -1916,7 +1923,7 @@ async function _vgVerify(){
       _vgErr(m); return;
     }
     if(ME){ ME.email=data.email||VG_OTP; ME.email_verified=true; }
-    _vgHide(); toast('Email verified','ok');
+    _vgHide(); toast('Email verified','ok'); try{ _maybePushPrompt(); }catch(e){}
     if(TAB==='profile'){ try{ renderProfile(); }catch(e){} }
   }catch(err){ _vgErr('Could not verify. Please try again.'); }
   finally{ if($('vg-vbtn')){ $('vg-vbtn').disabled=false; $('vg-vbtn').textContent='Verify email'; } }
@@ -2024,7 +2031,8 @@ function _syncBtabs(t){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
-  setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){} }
+  setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
+  try{ _consumePendingLead(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -4900,12 +4908,34 @@ async function renderProfile(){
   html+=lbl('Details')+`<div class="card" style="padding:3px 13px">`+fld('Phone',p.phone)+fld('CNIC',p.cnic)+fld('Father / Husband',p.father_name)+emailRow+fld('Address',p.address)+`</div>`;
   html+=lbl('Bank — for payouts')+`<div class="card" style="padding:3px 13px">`+fld('Bank',p.bank_name)+fld('Account #',p.bank_account_no)+fld('Title',p.bank_account_title)+`</div>`;
   if(ME&&ME.role==='director') html+=lbl('My location')+`<div id="loc-card"></div>`;
+  html+=lbl('Notifications')+`<div id="notif-card" class="card" style="padding:3px 13px"><div style="padding:8px 0;font-size:12.5px;color:var(--fk-text-muted)">Loading…</div></div>`;
   // tight action grid
   html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px"><button class="btn btn-sm" onclick="_profileEdit()">Edit bank</button><button class="btn btn-sm" onclick="_changePin()">Change PIN</button></div>`;
   if(_installEligible()) html+=`<button class="btn btn-sm btn-primary btn-full" style="margin-top:8px" onclick="_installNow()">${_svgDownload(14)} Install app</button>`;
   html+=`<button class="btn btn-sm btn-full btn-danger-soft" style="margin-top:8px" onclick="doLogout()">Sign out</button>`;
   $('app-body').innerHTML=html;
   if(ME&&ME.role==='director') _renderMyLocCard();
+  _renderNotifCard();
+}
+async function _renderNotifCard(){
+  const el=$('notif-card'); if(!el) return;
+  let p; try{ const r=await sb.rpc('get_my_notify_prefs',{p_session_token:TOKEN}); if(!r.data||!r.data.success) throw 0; p=r.data; }
+  catch(e){ el.innerHTML='<div style="padding:8px 0;font-size:12.5px;color:var(--fk-text-muted)">Couldn’t load notification settings.</div>'; return; }
+  const row=(id,label,desc,on,disabled,note)=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--fk-hairline)">
+      <div style="min-width:0"><div style="font-size:13px;font-weight:600">${label}</div><div style="font-size:11.5px;color:var(--fk-text-muted)">${disabled?note:desc}</div></div>
+      <input type="checkbox" id="${id}" ${on?'checked':''} ${disabled?'disabled':''} style="width:18px;height:18px;flex:0 0 auto;accent-color:var(--fk-primary);cursor:pointer" onchange="_saveNotif()"></div>`;
+  const pushUnsupported = !_pushSupported();
+  el.innerHTML =
+    row('ntf-wa','WhatsApp reminders','Follow-up alerts on WhatsApp', !!p.whatsapp && p.company_whatsapp, !p.company_whatsapp, 'Turned off for your company by your office')
+    + row('ntf-push','Push notifications', pushUnsupported?'Not supported on this device':'New-lead & follow-up alerts', !!p.push && p.company_push && !pushUnsupported, (!p.company_push || pushUnsupported), (!p.company_push?'Turned off for your company by your office':'Not supported on this device'));
+}
+async function _saveNotif(){
+  const waEl=$('ntf-wa'), puEl=$('ntf-push');
+  const wa=!!(waEl&&waEl.checked), pu=!!(puEl&&puEl.checked);
+  try{ await sb.rpc('set_my_notify_prefs',{p_session_token:TOKEN,p_whatsapp:wa,p_push:pu}); }catch(e){ toast('Could not save','err'); return; }
+  if(pu){ const ok=await _enablePush(); if(!ok && puEl){ /* permission denied/unsupported: keep pref but note */ } }
+  else { _disablePush(); }
+  toast('Notification settings saved','ok');
 }
 // ── Member location (map via Google output=embed — no API key) ──
 function _mapEmbed(lat,lng){ return `<iframe title="location map" loading="lazy" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed" style="width:100%;height:150px;border:0;border-radius:10px;display:block"></iframe>`; }
@@ -6849,6 +6879,47 @@ function openModal(title,body,foot){
   _lockScroll(); _syncNav();
 }
 function closeModal(){ $('modal-host').innerHTML=''; _unlockScroll(); _syncNav(); }
+
+// ════════════════════════ Web Push notifications ════════════════════════
+// Paste the VAPID PUBLIC key (base64url) here to enable push. While empty, all
+// push flows are silent no-ops (WhatsApp reminders still cover the member).
+const PUSH_VAPID_PUBLIC = '';
+function _pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+function _pushReady(){ return !!PUSH_VAPID_PUBLIC && _pushSupported(); }
+function _urlB64ToUint8(b64){
+  const pad='='.repeat((4-b64.length%4)%4); const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(s); const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i); return arr;
+}
+async function _pushCurrentSub(){ try{ const reg=await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); }catch(e){ return null; } }
+async function _enablePush(){
+  if(!_pushReady()) return false;
+  try{
+    const perm=await Notification.requestPermission(); if(perm!=='granted') return false;
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub) sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(PUSH_VAPID_PUBLIC) });
+    const j=sub.toJSON();
+    await sb.rpc('save_push_subscription',{ p_session_token:TOKEN, p_endpoint:sub.endpoint, p_p256dh:j.keys.p256dh, p_auth:j.keys.auth, p_ua:navigator.userAgent });
+    return true;
+  }catch(e){ return false; }
+}
+async function _disablePush(){
+  try{ const sub=await _pushCurrentSub(); if(sub){ try{ await sb.rpc('delete_push_subscription',{p_session_token:TOKEN,p_endpoint:sub.endpoint}); }catch(e){} await sub.unsubscribe(); } }catch(e){}
+}
+// One-time post-login nudge (after the email gate resolves). Never nags twice.
+function _maybePushPrompt(){
+  if(!_pushReady()) return;                                          // unconfigured/unsupported → silent (WhatsApp covers)
+  const g=$('verify-gate'); if(g && g.style.display!=='none') return; // wait until email gate resolved
+  if(Notification.permission==='granted'){ _enablePush(); return; }   // already allowed → ensure sub is saved
+  if(Notification.permission==='denied') return;
+  let asked=false; try{ asked=localStorage.getItem('nx.push.asked')==='1'; }catch(e){}
+  if(asked) return;
+  try{ localStorage.setItem('nx.push.asked','1'); }catch(e){}
+  openModal('Turn on notifications?',
+    '<div style="font-size:13px;color:var(--fk-text-muted);line-height:1.5">Get alerted the moment a new lead is assigned to you and when a follow-up is due — even when the app is closed.</div>',
+    '<button class="btn" onclick="closeModal()">Not now</button><button class="btn btn-primary" onclick="_pushPromptEnable()">Enable</button>');
+}
+async function _pushPromptEnable(){ closeModal(); const ok=await _enablePush(); toast(ok?'Notifications on':'Could not enable notifications', ok?'ok':'err'); }
 
 // ════════════════════════ PWA install — guided, no-nag ════════════════════════
 // Captures Chrome's beforeinstallprompt for a 1-tap native install; falls back to a
