@@ -6883,7 +6883,7 @@ function closeModal(){ $('modal-host').innerHTML=''; _unlockScroll(); _syncNav()
 // ════════════════════════ Web Push notifications ════════════════════════
 // Paste the VAPID PUBLIC key (base64url) here to enable push. While empty, all
 // push flows are silent no-ops (WhatsApp reminders still cover the member).
-const PUSH_VAPID_PUBLIC = '';
+const PUSH_VAPID_PUBLIC = 'BNm48aGVux56VnCfJjwsUlKWENH7qPd_B9ctJmNHAxxp75ozx5_lLszGNXSMPs6RpPNJgOMZLwJoTzgu4ggIrHE';
 function _pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
 function _pushReady(){ return !!PUSH_VAPID_PUBLIC && _pushSupported(); }
 function _urlB64ToUint8(b64){
