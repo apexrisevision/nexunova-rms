@@ -1526,7 +1526,7 @@ function fmtPhone(v){
 
 // ════ state ════
 let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAYS=7, RESERVE_TOKEN=false, SIGNUP_TOKEN=null, UPLOAD_TOKEN=null, SALES_CO=null, SALES_CO_NAME=null;
-let ANN={list:[], unread:0, unreadAnn:0, loaded:false, open:null, tab:'announcement'};
+let ANN={list:[], unread:0, unreadAnn:0, loaded:false, open:null, tab:'announcement', scheduled:[], schedLoaded:false};
 // board view: mode (detailed=expanded all floors [default] | floors=summary directory),
 // which project, which floor is open (floors mode), status filter, search
 let BV={proj:0, floor:null, filter:'all', q:'', mode:'detailed'};
@@ -6004,14 +6004,14 @@ async function renderUpdates(){
   const ok=await loadAnnouncements(); if(!ok&&!ANN.loaded){ return _netErr(); }
   _touch(); _annPaint();
 }
-function _annTab(t){ ANN.tab=t; _annPaint(); }
+function _annTab(t){ if(t==='scheduled'){ return _annLoadScheduled(); } ANN.tab=t; _annPaint(); }
 // filter to the active tab, then sort: urgent-unacked pinned → unread → read; newest within
 function _annVisible(){
   const all=ANN.list||[];
   const rows = (ANN.tab==='announcement') ? all.filter(a=>a.kind==='announcement')
              : (ANN.tab==='system')       ? all.filter(a=>a.kind!=='announcement')
              : all.slice();
-  const rank=a=>{ if(a.priority==='urgent' && a.requires_ack && !a.acknowledged && !a.is_author) return 0;
+  const rank=a=>{ if(a.requires_ack && !a.acknowledged && !a.is_author) return 0;   // any un-acked required → pinned top
                   if(!a.seen && !a.is_author) return 1; return 2; };
   return rows.slice().sort((a,b)=> rank(a)-rank(b) || (new Date(b.created_at)-new Date(a.created_at)));
 }
@@ -6022,7 +6022,15 @@ function _annPaint(){
   if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
   const all=ANN.list||[];
   const annN=all.filter(a=>a.kind==='announcement').length, sysN=all.length-annN;
-  html+=_seg([['announcement','Announcements'+(annN?' · '+annN:'')],['system','System'+(sysN?' · '+sysN:'')],['all','All']], ANN.tab, '_annTab');
+  const segs=[['announcement','Announcements'+(annN?' · '+annN:'')],['system','System'+(sysN?' · '+sysN:'')],['all','All']];
+  if(isDir) segs.push(['scheduled','Scheduled'+((ANN.scheduled&&ANN.scheduled.length)?' · '+ANN.scheduled.length:'')]);
+  html+=_seg(segs, ANN.tab, '_annTab');
+  if(ANN.tab==='scheduled'){
+    const s=ANN.scheduled||[];
+    if(!s.length){ html+='<div class="card"><div class="empty"><div class="ei">'+li('clock',22,1.7)+'</div><div class="et">Nothing scheduled</div><div class="es">Use Compose → “Schedule for later” to queue an announcement.</div></div></div>'; }
+    else html+='<div class="inbox">'+s.map(_annSchedRow).join('')+'</div>';
+    $('app-body').innerHTML=html; return;
+  }
   const rows=_annVisible();
   if(!rows.length){
     const msg = ANN.tab==='announcement' ? (isDir?'Compose one above to notify your team.':'No announcements from your director yet.')
@@ -6038,7 +6046,7 @@ function _annPaint(){
 function _annRow(a){
   const pr=_annPrio(a.priority);
   const unread = !a.seen && !a.is_author;
-  const pinned = (a.priority==='urgent' && a.requires_ack && !a.acknowledged && !a.is_author);
+  const pinned = (a.requires_ack && !a.acknowledged && !a.is_author);
   const faded  = (a.seen && !a.is_author && !pinned);
   const prioChip = (a.priority&&a.priority!=='normal') ? _annPill(pr[2],pr[0],pr[1]) : '';
   let tail='';
@@ -6108,45 +6116,95 @@ async function _annReceipts(id){
   }).join(''))+'</div>';
   if(box) box.innerHTML=h;
 }
-// ── compose (director only) ──
-let ANNC={targets:null,targetType:'all'};
-async function openAnnCompose(){
+// ── compose (director only) — supports publish-now, schedule, and edit ──
+let ANNC={targets:null,targetType:'all',editId:null};
+// ISO timestamptz → "YYYY-MM-DDTHH:MM" in Asia/Karachi (for the datetime-local input)
+function _toKarachiInput(iso){ try{
+  const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(iso));
+  const g=t=>(p.find(x=>x.type===t)||{}).value||''; return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`;
+}catch(e){ return ''; } }
+async function openAnnCompose(editId){
   let t; try{ const {data}=await sb.rpc('get_announce_targets',{p_session_token:TOKEN}); t=data; }catch(e){}
   if(!t||!t.success){ return toast('Could not load targets','err'); }
-  ANNC={targets:t,targetType:'all'};
-  const body='<div class="field"><label class="label">Title <span style="color:var(--fk-danger)">*</span></label><input class="input" id="annc-title" autocomplete="off"></div>'
-    +'<div class="field"><label class="label">Message <span style="color:var(--fk-danger)">*</span></label><textarea class="input" id="annc-body" rows="5"></textarea></div>'
-    +'<div class="field"><label class="label">Priority</label><select class="input" id="annc-prio" onchange="_annPrioChange(this.value)"><option value="normal">Normal</option><option value="important">Important</option><option value="urgent">Urgent</option></select><div style="font-size:11px;color:var(--fk-text-muted);margin-top:4px">Everyone targeted also gets a push notification. Urgent sends immediately even at night; Normal/Important wait until 8am (quiet hours).</div></div>'
-    +'<div class="field"><label class="label">Send to</label><select class="input" id="annc-type" onchange="_annTargetType(this.value)"><option value="all">Everyone in the company</option><option value="role">A role</option><option value="team">A team</option><option value="user">One person</option></select></div>'
-    +'<div class="field" id="annc-extra">'+_annExtraHtml()+'</div>'
-    +'<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin:2px 2px 4px;cursor:pointer"><input type="checkbox" id="annc-ack" style="width:16px;height:16px"> Require acknowledgement</label>'
+  const ed = editId ? (ANN.scheduled||[]).find(x=>x.id===editId) : null;
+  ANNC={targets:t, targetType:(ed?ed.target_type:'all'), editId:(ed?ed.id:null)};
+  const schedVal = (ed&&ed.scheduled_at) ? _toKarachiInput(ed.scheduled_at) : '';
+  const opt=(v,l,cur)=>`<option value="${v}"${cur===v?' selected':''}>${l}</option>`;
+  const body='<div class="field"><label class="label">Title <span style="color:var(--fk-danger)">*</span></label><input class="input" id="annc-title" autocomplete="off" value="'+(ed?esc(ed.title):'')+'"></div>'
+    +'<div class="field"><label class="label">Message <span style="color:var(--fk-danger)">*</span></label><textarea class="input" id="annc-body" rows="5">'+(ed?esc(ed.body):'')+'</textarea></div>'
+    +'<div class="field"><label class="label">Priority</label><select class="input" id="annc-prio" onchange="_annPrioChange(this.value)">'+opt('normal','Normal',ed&&ed.priority)+opt('important','Important',ed&&ed.priority)+opt('urgent','Urgent',ed&&ed.priority)+'</select><div style="font-size:11px;color:var(--fk-text-muted);margin-top:4px">Everyone targeted also gets a push notification. Urgent sends immediately even at night; Normal/Important wait until 8am (quiet hours).</div></div>'
+    +'<div class="field"><label class="label">Send to</label><select class="input" id="annc-type" onchange="_annTargetType(this.value)">'+opt('all','Everyone in the company',ANNC.targetType)+opt('role','A role',ANNC.targetType)+opt('team','A team',ANNC.targetType)+opt('user','One person',ANNC.targetType)+'</select></div>'
+    +'<div class="field" id="annc-extra">'+_annExtraHtml(ed?ed.target_value:null)+'</div>'
+    +'<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin:2px 2px 8px;cursor:pointer"><input type="checkbox" id="annc-ack" style="width:16px;height:16px"'+((ed&&ed.requires_ack)?' checked':'')+'> Require acknowledgement</label>'
+    +'<div class="field"><label class="label">When</label><select class="input" id="annc-when" onchange="_annWhenChange(this.value)">'+opt('now','Publish now',ed?'schedule':'now')+opt('schedule','Schedule for later',ed?'schedule':'now')+'</select></div>'
+    +'<div class="field" id="annc-sched-wrap" style="display:'+(ed?'block':'none')+'"><label class="label">Date &amp; time <span style="font-weight:400;text-transform:none;color:var(--fk-text-muted)">· Asia/Karachi</span></label><input class="input" type="datetime-local" id="annc-sched" value="'+esc(schedVal)+'"></div>'
     +'<div class="err" id="annc-err"></div>';
-  openModal('Compose announcement', body,
-    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_annSend()">Send</button>');
+  openModal(ed?'Edit scheduled announcement':'Compose announcement', body,
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_annSend()">'+(ed?'Save changes':'Send')+'</button>');
 }
-function _annExtraHtml(){
-  const t=ANNC.targets||{};
-  if(ANNC.targetType==='role') return '<label class="label">Which role</label><select class="input" id="annc-tv">'+((t.roles||[]).map(r=>`<option value="${esc(r.role)}">${esc(r.label)} (${Number(r.n)||0})</option>`).join(''))+'</select>';
-  if(ANNC.targetType==='team') return (t.teams&&t.teams.length)?('<label class="label">Which team</label><select class="input" id="annc-tv">'+t.teams.map(u=>`<option value="${esc(u.id)}">${esc(u.name)} · ${Number(u.team_size)||0} member${Number(u.team_size)===1?'':'s'}</option>`).join('')+'</select>'):'<div style="font-size:12px;color:var(--fk-text-muted)">No teams yet — no one has people reporting to them.</div>';
-  if(ANNC.targetType==='user') return '<label class="label">Which person</label><select class="input" id="annc-tv">'+((t.users||[]).map(u=>`<option value="${esc(u.id)}">${esc(u.name)} · ${esc(_portalRoleLabel(u.role))}</option>`).join(''))+'</select>';
+function _annExtraHtml(sel){
+  const t=ANNC.targets||{}; const s=sel||null;
+  if(ANNC.targetType==='role') return '<label class="label">Which role</label><select class="input" id="annc-tv">'+((t.roles||[]).map(r=>`<option value="${esc(r.role)}"${s===r.role?' selected':''}>${esc(r.label)} (${Number(r.n)||0})</option>`).join(''))+'</select>';
+  if(ANNC.targetType==='team') return (t.teams&&t.teams.length)?('<label class="label">Which team</label><select class="input" id="annc-tv">'+t.teams.map(u=>`<option value="${esc(u.id)}"${s===u.id?' selected':''}>${esc(u.name)} · ${Number(u.team_size)||0} member${Number(u.team_size)===1?'':'s'}</option>`).join('')+'</select>'):'<div style="font-size:12px;color:var(--fk-text-muted)">No teams yet — no one has people reporting to them.</div>';
+  if(ANNC.targetType==='user') return '<label class="label">Which person</label><select class="input" id="annc-tv">'+((t.users||[]).map(u=>`<option value="${esc(u.id)}"${s===u.id?' selected':''}>${esc(u.name)} · ${esc(_portalRoleLabel(u.role))}</option>`).join(''))+'</select>';
   return '<div style="font-size:12px;color:var(--fk-text-muted)">Everyone active in your company will receive this.</div>';
 }
 function _annTargetType(v){ ANNC.targetType=v; const e=$('annc-extra'); if(e) e.innerHTML=_annExtraHtml(); }
 function _annPrioChange(v){ if(v==='urgent'){ const c=$('annc-ack'); if(c) c.checked=true; } }
+function _annWhenChange(v){ const w=$('annc-sched-wrap'); if(w) w.style.display=(v==='schedule')?'block':'none'; }
 async function _annSend(){
   const err=$('annc-err'); if(err) err.classList.remove('show');
   const title=(($('annc-title')||{}).value||'').trim(), bodyv=(($('annc-body')||{}).value||'').trim();
   const prio=($('annc-prio')||{}).value||'normal', type=($('annc-type')||{}).value||'all', ack=!!($('annc-ack')||{}).checked;
   const tv = (type==='all') ? null : (($('annc-tv')||{}).value||null);
+  const when=($('annc-when')||{}).value||'now';
   const fail=(m)=>{ if(err){ err.textContent=m; err.classList.add('show'); } };
   if(!title||!bodyv) return fail('Title and message are required.');
   if(type!=='all' && !tv) return fail('Pick who should receive this.');
+  let sched=null;
+  if(when==='schedule'){ const dv=(($('annc-sched')||{}).value||''); if(!dv) return fail('Pick a date & time to schedule.'); sched=dv.replace('T',' '); }
   _busyFoot(true);
-  try{ const {data}=await sb.rpc('post_announcement',{p_session_token:TOKEN,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack});
-    if(data&&data.success){ closeModal(); toast('Announcement sent','ok'); ANN.open=null; renderUpdates(); return; }
-    fail((data&&data.message)||'Could not send the announcement.');
-  }catch(e){ fail('Could not send the announcement.'); }
+  try{
+    let data;
+    if(ANNC.editId){
+      const r=await sb.rpc('update_scheduled_announcement',{p_session_token:TOKEN,p_id:ANNC.editId,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack,p_scheduled_at:sched}); data=r.data;
+      if(data&&data.success){ closeModal(); toast('Scheduled announcement updated','ok'); _annLoadScheduled(); return; }
+    }else{
+      const r=await sb.rpc('post_announcement',{p_session_token:TOKEN,p_title:title,p_body:bodyv,p_priority:prio,p_target_type:type,p_target_value:tv,p_requires_ack:ack,p_scheduled_at:sched}); data=r.data;
+      if(data&&data.success){ closeModal(); toast(data.scheduled?'Announcement scheduled':'Announcement sent','ok'); ANN.open=null; if(data.scheduled){ ANN.tab='scheduled'; _annLoadScheduled(); } else renderUpdates(); return; }
+    }
+    fail((data&&data.message)||'Could not save the announcement.');
+  }catch(e){ fail('Could not save the announcement.'); }
   _busyFoot(false);
+}
+// ── scheduled list (director) ──
+async function _annLoadScheduled(){
+  try{ const {data}=await sb.rpc('list_scheduled_announcements',{p_session_token:TOKEN});
+    ANN.scheduled=(data&&data.success)?(data.scheduled||[]):[]; ANN.schedLoaded=true; }catch(e){ ANN.scheduled=[]; }
+  ANN.tab='scheduled'; _annPaint();
+}
+function _annSchedRow(a){
+  const pr=_annPrio(a.priority);
+  const prioChip=(a.priority&&a.priority!=='normal')?_annPill(pr[2],pr[0],pr[1]):'';
+  const when = a.scheduled_at ? fdate(a.scheduled_at) : '—';
+  return `<div class="inrow" style="border-left:3px solid var(--fk-primary)">
+    <span class="indot" style="background:var(--fk-primary)"></span>
+    <div class="inmain">
+      <div class="intop"><div class="insubj">${esc(a.title)}</div><div class="indate">${li('clock',12,2)} ${esc(when)}</div></div>
+      <div class="insnip">${_annSnippet(a.body)}</div>
+      <div style="margin-top:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${prioChip}${a.requires_ack?_annPill('Ack required','var(--fk-warning)','var(--fk-warning-surface)'):''}
+        <button class="btn btn-sm" onclick="event.stopPropagation();openAnnCompose('${a.id}')">${li('edit',13,2)} Edit</button>
+        <button class="btn btn-sm btn-danger-soft" onclick="event.stopPropagation();_annCancelSched('${a.id}')">${li('x',13,2.2)} Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function _annCancelSched(id){
+  if(!confirm('Cancel this scheduled announcement? It will not be sent.')) return;
+  try{ const {data}=await sb.rpc('cancel_scheduled_announcement',{p_session_token:TOKEN,p_id:id});
+    if(data&&data.success){ toast('Scheduled announcement cancelled','ok'); _annLoadScheduled(); return; }
+    toast((data&&data.message)||'Could not cancel','err');
+  }catch(e){ toast('Could not cancel','err'); }
 }
 
 // ════ board ════
