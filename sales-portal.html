@@ -1400,7 +1400,7 @@ button.mn-card:active{transform:scale(.985)}
   <aside class="sb" id="sb">
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
     <nav class="sb-nav">
-      <a class="ni" data-tab="home" onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
+      <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <div class="sb-grp" data-le style="display:none">Leads</div>
       <a class="ni" data-tab="leadentry" data-le style="display:none" onclick="setTab('leadentry')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ni-lb">Add Manual Lead</span></a>
       <a class="ni" data-tab="myleads" data-le style="display:none" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
@@ -1411,7 +1411,24 @@ button.mn-card:active{transform:scale(.985)}
       <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
       <a class="ni" data-tab="igdm" data-le style="display:none" onclick="setTab('igdm')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span><span class="ni-lb">Instagram</span></a>
       <a class="ni" data-tab="adspend" data-le style="display:none" onclick="setTab('adspend')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg></span><span class="ni-lb">Ad Spend</span></a>
-      <!-- non-operator roles navigate via the 5-tab bottom bar; the drawer holds only the lead-entry operator apps above -->
+      <!-- ══ selling roles (rep / manager / director): workflow-grouped sidebar nav ══ -->
+      <div class="sb-grp" data-sell style="display:none">Workspace</div>
+      <a class="ni" data-tab="leads" data-sell style="display:none" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
+      <a class="ni" data-tab="board" data-sell style="display:none" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
+      <a class="ni" data-tab="mine" data-sell style="display:none" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
+      <a class="ni" data-tab="money" data-sell style="display:none" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
+      <a class="ni" data-tab="performance" data-sell style="display:none" onclick="setTab('performance')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ni-lb">My results</span></a>
+      <!-- ══ manager + director: team management ══ -->
+      <div class="sb-grp" data-mgr style="display:none">Management</div>
+      <a class="ni" data-tab="team" data-mgr style="display:none" onclick="setTab('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">My Team</span></a>
+      <a class="ni" data-tab="distribute" data-mgr style="display:none" onclick="setTab('distribute')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="ni-lb">Assign leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
+      <a class="ni" data-tab="targets" data-mgr style="display:none" onclick="setTab('targets')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="ni-lb">Targets</span></a>
+      <!-- ══ director + exec: leadership ══ -->
+      <div class="sb-grp" data-lead-grp style="display:none">Leadership</div>
+      <a class="ni" data-tab="command" data-cmd style="display:none" onclick="setTab('command')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span><span class="ni-lb">Command Center</span></a>
+      <a class="ni" data-tab="livemap" data-dir style="display:none" onclick="setTab('livemap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span class="ni-lb">Live Map</span></a>
+      <a class="ni" data-tab="fbsettings" data-dir style="display:none" onclick="setTab('fbsettings')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></span><span class="ni-lb">Facebook Leads</span></a>
+      <a class="ni" data-tab="adroi" data-ad style="display:none" onclick="setTab('adroi')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-5v13L3 15z"/><path d="M11.6 16.8a3 3 0 1 1-5.78-1.5"/></svg></span><span class="ni-lb">Ad results</span></a>
     </nav>
     <div class="sb-bottom" style="padding:8px 12px;border-top:1px solid var(--fk-hairline)">
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
@@ -1435,14 +1452,7 @@ button.mn-card:active{transform:scale(.985)}
     <main class="appbody"><div id="app-body"></div></main>
   </div>
  </div>
- <!-- primary nav: 5 fixed bottom tabs (non-operator roles) — thumb-reachable, safe-area padded -->
- <nav class="btabs" id="btabs" aria-label="Main">
-   <button class="btab" data-btab="home" onclick="setTab('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
-   <button class="btab" data-btab="leads" onclick="setTab('leads')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span>Leads</span><span class="btab-badge" id="btab-badge-leads"></span></button>
-   <button class="btab" data-btab="board" onclick="setTab('board')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg><span>Units</span></button>
-   <button class="btab" data-btab="money" onclick="setTab('money')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg><span>Money</span></button>
-   <button class="btab" data-btab="more" onclick="setTab('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span></button>
- </nav>
+ <!-- bottom bar retired (P2): every role now navigates via the sidebar -->
  <div class="sb-scrim" id="sb-scrim" onclick="closeSidebar()"></div>
 </div>
 
@@ -2080,23 +2090,28 @@ function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showSc
 // ════ agreement gate (initial signing / amendments / hold) ════
 let AGREE_GATE=null;
 function _applyLeadAccess(){
-  const role = (ME && ME.role) || 'sale_rep';
-  const isLE = (role==='lead_entry');                            // data-entry operator — single-purpose drawer (keeps its sidebar)
+  // P2 sidebar shell: EVERY role navigates via the sidebar (persistent rail on
+  // desktop, hamburger drawer on mobile). The 5-tab bottom bar is retired. Each
+  // workflow group is role-gated below; the operator keeps its own apps only.
+  const role   = (ME && ME.role) || 'sale_rep';
+  const isLE   = role==='lead_entry';                       // data-entry operator
+  const isExec = role==='admin' || role==='cfo';
+  const isMgr  = role==='marketing_manager' || role==='director';
+  const isDir  = role==='director';
+  const isAdmin= role==='admin';
+  const sell   = !isLE && !isExec;                          // rep / manager / director sell
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
-  // non-operator roles use the 5-tab bottom bar; the operator keeps its drawer
-  document.body.classList.toggle('mode-tabs', !isLE);
-  show('[data-le]', isLE);
-  if(isLE){   // lock the operator to her own apps — hide Dashboard (keep the Messages bell + drawer link)
-    show('.ni[data-tab="home"]', false);
-    const ah=$('appbar-home'); if(ah) ah.style.display='none';
-    const ab=$('appbar-bell'); if(ab) ab.style.display='';
-    try{ loadAnnouncements(); }catch(e){}
-    return;
-  }
-  // non-operator: drawer is hidden entirely; the appbar home/bell stay. Role-adaptive
-  // content lives inside each of the 5 tabs (Home / Leads / Units / Money / More).
-  const ah=$('appbar-home'); if(ah) ah.style.display='';
+  show('[data-le]',       isLE);                            // operator apps (Add lead / sources)
+  show('[data-main]',     !isLE);                           // Dashboard — everyone but the operator
+  show('[data-sell]',     sell);                            // Workspace group
+  show('[data-mgr]',      isMgr);                           // Management group
+  show('[data-dir]',      isDir);                           // Live Map / Facebook Leads
+  show('[data-cmd]',      isDir || isAdmin);                // Command Center
+  show('[data-ad]',       isDir || isExec);                 // Ad results
+  show('[data-lead-grp]', isDir || isExec);                 // Leadership group header
+  const ah=$('appbar-home'); if(ah) ah.style.display = isLE ? 'none' : '';
   const ab=$('appbar-bell'); if(ab) ab.style.display='';
+  if(isLE){ try{ loadAnnouncements(); }catch(e){} }
 }
 // which of the 5 bottom tabs a given screen belongs to (drives the active state)
 const _BTAB_OF={
