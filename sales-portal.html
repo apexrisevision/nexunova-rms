@@ -2757,7 +2757,7 @@ function _leadCard(l){
 }
 function _leadFilter(f){ LEADV.filter=f; _leadsRender(); }
 async function _leadStage(id,status){
-  try{ const {data}=await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:id,p_status:status});
+  try{ const {data}=await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:id,p_status:status});
     if(data&&data.success){ const l=LEADS.find(x=>x.id===id);
       if(l){ const old=l.status; l.status=status;
         LEADCOUNTS[old]=Math.max(0,Number(LEADCOUNTS[old]||0)-1); LEADCOUNTS[status]=Number(LEADCOUNTS[status]||0)+1; }
@@ -3460,7 +3460,7 @@ async function _wizOutcome(key){
   const map={interested:{label:'Interested',stage:'contacted'},visit:{label:'Wants a site visit',stage:'visit'},later:{label:'Call again later',stage:null},noanswer:{label:'No answer',stage:null}};
   const m=map[key];
   try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:WIZ.id,p_kind:'note',p_body:m.label+(note?' — '+note:'')});
-    if(m.stage&&WIZ.lead.status!==m.stage&&!(WIZ.lead.status==='visit'&&m.stage==='contacted')){ await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:WIZ.id,p_status:m.stage}); WIZ.lead.status=m.stage; } }catch(e){}
+    if(m.stage&&WIZ.lead.status!==m.stage&&!(WIZ.lead.status==='visit'&&m.stage==='contacted')){ await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:WIZ.id,p_status:m.stage}); WIZ.lead.status=m.stage; } }catch(e){}
   WIZ.step=3; _wizRender();
 }
 async function _wizFollow(days){
@@ -3605,8 +3605,8 @@ function _leadNextAction(l){
   return null;
 }
 function _focusFu(){ const el=$('l360-fu'); if(el){ el.focus(); try{ if(el.showPicker) el.showPicker(); }catch(e){} } }
-async function _leadCall(id,phone){ try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:id,p_kind:'call',p_body:null}); if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:id,p_status:'contacted'}); }catch(e){} } }catch(e){} window.location.href='tel:'+phone; setTimeout(()=>{ if(LEAD_OPEN===id) renderLeadDetail(id); },500); }
-async function _leadWa(id,wa){ try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:id,p_kind:'whatsapp',p_body:null}); if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:id,p_status:'contacted'}); }catch(e){} } }catch(e){} window.open('https://wa.me/'+wa,'_blank'); if(LEAD_OPEN===id) renderLeadDetail(id); }
+async function _leadCall(id,phone){ try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:id,p_kind:'call',p_body:null}); if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:id,p_status:'contacted'}); }catch(e){} } }catch(e){} window.location.href='tel:'+phone; setTimeout(()=>{ if(LEAD_OPEN===id) renderLeadDetail(id); },500); }
+async function _leadWa(id,wa){ try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:id,p_kind:'whatsapp',p_body:null}); if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:id,p_status:'contacted'}); }catch(e){} } }catch(e){} window.open('https://wa.me/'+wa,'_blank'); if(LEAD_OPEN===id) renderLeadDetail(id); }
 function _leadNote(id){
   const kinds=[['note','Note'],['visit','Visit'],['meeting','Meeting'],['call','Call'],['whatsapp','WhatsApp']];
   openModal('Log activity',
@@ -3637,8 +3637,10 @@ function _leadActions(id){
 function _leadEdit(id){
   const l=(LEAD_DETAIL&&LEAD_DETAIL.lead)||{}; closeModal();
   openModal('Edit lead',
-    '<div class="field"><label class="label">Name</label><input class="input" id="le-name" value="'+esc(l.name||'')+'"></div>'
+    '<div class="sec-head">Contact <span>· who they are</span></div>'
+    +'<div class="field"><label class="label">Name <span class="req">*</span></label><input class="input" id="le-name" value="'+esc(l.name||'')+'"></div>'
     +'<div class="field"><label class="label">Phone</label><input class="input" id="le-phone" inputmode="tel" value="'+esc(l.phone||'')+'"></div>'
+    +'<div class="sec-head">Opportunity <span>· what they want</span></div>'
     +'<div class="field"><label class="label">Interested in</label><input class="input" id="le-interest" value="'+esc(l.interest||'')+'"></div>'
     +'<div class="field"><label class="label">Budget (PKR)</label><input class="input num" id="le-budget" inputmode="numeric" value="'+esc(l.budget!=null?l.budget:'')+'"></div>'
     +'<div class="field"><label class="label">Notes</label><textarea class="input" id="le-notes" rows="2">'+esc(l.notes||'')+'</textarea></div>',
@@ -3743,7 +3745,7 @@ async function _gwOtherSave(){
   if(!t){ if(typeof toast==='function') toast('Write something first','err'); return; }
   try{
     if(GW.step===1){ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:GW.leadId,p_kind:'note',p_body:'Contacted — '+t});
-      if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:GW.leadId,p_status:'contacted'}); }catch(e){} } }
+      if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:GW.leadId,p_status:'contacted'}); }catch(e){} } }
     else { await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:GW.leadId,p_kind:'note',p_body:t}); }
   }catch(e){}
   GW.other=false; GW.step=(GW.step===1?2:3); renderLeadDetail(GW.leadId);
@@ -3792,7 +3794,7 @@ async function _gwMethod(key){
   const map={call:{kind:'call',body:null},whatsapp:{kind:'whatsapp',body:null},inperson:{kind:'meeting',body:'Met in person'},noanswer:{kind:'call',body:'No answer'}};
   const m=map[key];
   try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:GW.leadId,p_kind:m.kind,p_body:m.body});
-    if(key!=='noanswer' && LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:GW.leadId,p_status:'contacted'}); }catch(e){} }
+    if(key!=='noanswer' && LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status==='new'){ try{ await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:GW.leadId,p_status:'contacted'}); }catch(e){} }
   }catch(e){}
   GW.step=(key==='noanswer')?3:2;
   renderLeadDetail(GW.leadId);
@@ -3802,7 +3804,7 @@ async function _gwSaid(key){
   const map={interested:{label:'Interested',stage:'contacted'},visit:{label:'Wants a site visit',stage:'visit'},later:{label:'Call again later',stage:null}};
   const m=map[key];
   try{ await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:GW.leadId,p_kind:'note',p_body:m.label});
-    if(m.stage && LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status!==m.stage && !(LEAD_DETAIL.lead.status==='visit'&&m.stage==='contacted')){ try{ await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:GW.leadId,p_status:m.stage}); }catch(e){} }
+    if(m.stage && LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.status!==m.stage && !(LEAD_DETAIL.lead.status==='visit'&&m.stage==='contacted')){ try{ await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:GW.leadId,p_status:m.stage}); }catch(e){} }
   }catch(e){}
   GW.step=3; renderLeadDetail(GW.leadId);
 }
@@ -3908,7 +3910,7 @@ function _leadActRow(a){
 }
 async function _leadDetailStage(id,status){
   if(LEAD_DETAIL&&LEAD_DETAIL.lead&&LEAD_DETAIL.lead.id===id&&LEAD_DETAIL.lead.status===status) return; // already there, no spam
-  try{ const {data}=await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:id,p_status:status});
+  try{ const {data}=await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:id,p_status:status});
     if(data&&data.success){ toast('Moved to '+_leadStageLabel(status),'ok'); renderLeadDetail(id); }
     else if(data&&data.error==='link_required') _leadWonBlock(id);
     else toast((data&&data.message)||'Could not update','err');
@@ -6652,7 +6654,7 @@ async function submitReserve(){
     if(BOOK_LEAD){ const lid=BOOK_LEAD.id, uno=RESERVE_UNIT.no; BOOK_LEAD=null;
       try{ if(rid) await sb.rpc('link_lead_reservation',{p_session_token:TOKEN,p_lead_id:lid,p_reservation_id:rid});
            await sb.rpc('add_lead_activity',{p_session_token:TOKEN,p_lead_id:lid,p_kind:'note',p_body:'Booked — reserved unit '+uno+' for this client'});
-           await sb.rpc('update_lead_stage',{p_session_token:TOKEN,p_id:lid,p_status:'won'}); }catch(e){}
+           await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:lid,p_status:'won'}); }catch(e){}
       return openLead(lid);   // back to the lead → now shows "Convert to sale"
     }
     renderBoard();
