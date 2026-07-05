@@ -2628,11 +2628,11 @@ async function renderLeads(){
   try{
     const [c,r]=await Promise.all([
       sb.rpc('get_my_lead_config',{p_session_token:TOKEN}),
-      sb.rpc('list_my_leads',{p_session_token:TOKEN})
+      sb.rpc('list_my_deals',{p_session_token:TOKEN})   // P4: the pipeline is DEAL-SOURCED (deals mirror leads 1:1; lead.status stays in sync)
     ]);
     if((c.data&&c.data.error==='session_expired')||(r.data&&r.data.error==='session_expired')) return sessionGone();
     LEADCFG=(c.data&&c.data.success)?c.data:null;
-    LEADS=(r.data&&r.data.leads)||[]; LEADCOUNTS=(r.data&&r.data.counts)||{}; LEAD_UNCHECKED=Number(r.data&&r.data.unchecked)||0;
+    LEADS=(r.data&&(r.data.deals||r.data.leads))||[]; LEADCOUNTS=(r.data&&r.data.counts)||{}; LEAD_UNCHECKED=Number(r.data&&r.data.unchecked)||0;
   }catch(e){ return _netErr(); }
   _touch();
   if(LEADCFG && !LEADCFG.can_have_leads){
