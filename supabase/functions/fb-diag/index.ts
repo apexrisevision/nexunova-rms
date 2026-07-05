@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
   const connId = String(b.connection_id ?? "");
   if (!connId) return json({ success: false, error: "connection_required" }, 400);
   const { data: connRows } = await sb.from("fb_connections")
-    .select("id, page_id, page_name, page_access_token, company_id")
+    .select("id, page_id, page_name, page_access_token, company_id, verify_token")
     .eq("id", connId).eq("company_id", ses.company_id).limit(1);
   const conn = connRows?.[0];
   if (!conn) return json({ success: false, error: "connection_not_found" }, 404);
@@ -112,7 +112,10 @@ Deno.serve(async (req: Request) => {
           value: {
             page_id: conn.page_id, form_id: "NX_DIAG_FORM",
             leadgen_id: "NX_DIAG_" + Date.now(),
+            // fb-leads-webhook gates test-mode on the connection's verify_token.
+            // fb-diag is already session-authenticated, so we attach it server-side.
             _nx_test: true, _nx_test_insert: insert, _nx_test_fields: fields,
+            _nx_test_secret: conn.verify_token ?? null,
           },
         }],
       }],
