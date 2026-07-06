@@ -222,7 +222,8 @@ function toggleSidebar(){
 
 function updateCoLogo(){
   var logo=typeof getCoLogo==='function'?getCoLogo():null;
-  var coName=S?S.coName||'Nexunova':'Nexunova';
+  // Staff chrome (sidebar/topbar) shows the DISPLAY (brand) name; documents use legal name.
+  var coName=typeof coDisplayName==='function'?coDisplayName():(S?S.coName||'Nexunova':'Nexunova');
   var ini_=coName.charAt(0).toUpperCase();
   // ── Workspace switcher (Zone 2) ──
   var wsAv=document.getElementById('sb-ws-av');

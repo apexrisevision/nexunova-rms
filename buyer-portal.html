@@ -201,10 +201,10 @@ tr.od td{background:var(--fk-danger-surface)}
 <div id="screen-app" class="screen">
   <div class="topbar">
     <div class="brand" style="margin:0;gap:8px">
-      <div class="brand-mark" style="width:30px;height:30px">
+      <div class="brand-mark" id="tb-mark" style="width:30px;height:30px;overflow:hidden">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/><path d="M9 21v-6h6v6"/></svg>
       </div>
-      <div><div class="brand-name" style="font-size:13px">Mera Hisaab</div></div>
+      <div><div class="brand-name" style="font-size:13px">Mera Hisaab</div><div class="brand-sub" id="tb-dev" style="font-size:10px"></div></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="who" id="who"></span>
@@ -278,6 +278,11 @@ async function openApp(){
   const {data,error}=await sb.rpc('get_portal_sales',{p_session_token:TOKEN});
   if(error||!data||!data.success){ return sessionGone(); }
   SALES=data.sales||[];
+  // Developer (tenant) branding — buyer-facing → legal company name + logo.
+  const cB=data.company||{};
+  const devEl=$('tb-dev'); if(devEl) devEl.textContent=cB.name||'';
+  const mark=$('tb-mark');
+  if(cB.logo_url && mark){ mark.innerHTML='<img src="'+esc(cB.logo_url)+'" style="width:100%;height:100%;object-fit:contain;background:#fff" alt="">'; mark.style.background='#fff'; }
   $('who').innerHTML='<b>'+esc(data.client&&data.client.full_name||'')+'</b>';
   if(!SALES.length){
     $('app-body').innerHTML='<div class="card"><div class="empty"><div class="ei">'

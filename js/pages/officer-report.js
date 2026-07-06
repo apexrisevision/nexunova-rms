@@ -343,7 +343,7 @@ function _orPrint(){
       ledRow('=','Current remaining', '(as of '+esc(_orDate(ST.today))+')', T.remaining, 'res')+
     '</table>';
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Recovery — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
-    '<div class="hb"><div><div class="co">'+esc(co)+(who?' · Officer: '+esc(who):'')+'</div><div class="ti">Recovery Report</div></div>'+
+    '<div class="hb"><div>'+_orLogoTag+'<div class="co">'+esc(co)+(who?' · Officer: '+esc(who):'')+'</div><div class="ti">Recovery Report</div></div>'+
       '<div class="hb-r"><b>'+esc(ST.monLabel)+'</b><br>as of '+esc(_orDate(ST.today))+'</div></div>'+
     '<div class="sum">'+
       '<div class="sc"><label>This month’s demand</label><b>'+_orF(T.dueMonth)+'</b></div>'+
@@ -354,7 +354,7 @@ function _orPrint(){
     '<table class="tb"><colgroup><col class="c1"><col><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9"><col class="c10"></colgroup>'+
     '<thead><tr><th class="n">#</th><th>Client / Unit / Phone</th><th class="n">Overdue</th><th class="n">Old arrears</th><th class="n">Due to date</th><th class="n">Recovered</th><th class="n">Advance pre-paid</th><th class="n">Current remaining</th><th>Will pay</th><th>What to do</th></tr></thead>'+
     '<tbody>'+rowsHTML+totalRow+'</tbody></table>'+
-    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>Nexunova RMS · '+(ST.scoped?'Your assigned accounts only':'All accounts')+'</span></div>'+
+    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>'+(_orWL?'':'Nexunova RMS · ')+(ST.scoped?'Your assigned accounts only':'All accounts')+'</span></div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'Recovery Report'); else window.print();
 }
@@ -386,7 +386,10 @@ async function _orBoardBrief(){
   var collPct=pc(collected,contract), cashPct=pc(cash,contract), recvPct=pc(recv,demand);
   var agedPct=pc(a180p,outstanding), top20Pct=pc(top20,outstanding), top10Pct=pc(top10,outstanding);
   var curPct=pc(cur,active), cancelPct=pc(cxC,cxC+active);
-  var co=(typeof S!=='undefined'&&S&&S.coName)||'Company';
+  var co=(typeof coLegalName==='function')?coLegalName():((typeof S!=='undefined'&&S&&S.coName)||'Company');
+  var _orLogo=(typeof getCoLogo==='function')?getCoLogo():null;
+  var _orWL=!!(window._cobranding&&window._cobranding.white_label);
+  var _orLogoTag=_orLogo?'<img src="'+_orLogo+'" style="height:30px;max-width:120px;object-fit:contain;background:#fff;border-radius:6px;padding:3px 6px;margin-bottom:6px;display:block" alt="">':'';
   var seg=function(v,col){ var w=outstanding>0?(v/outstanding*100):0; return w>0.05?'<span style="display:block;height:100%;width:'+w.toFixed(1)+'%;background:'+col+'"></span>':''; };
   var legend=function(col,lb,v){ var w=pc(v,outstanding); return '<div class="lg"><span class="dot" style="background:'+col+'"></span><span class="lgl">'+lb+'</span><span class="lgv">'+_orC(v)+' · '+w+'%</span></div>'; };
   var topRows=(B.top_rows||[]).map(function(r,i){
@@ -419,7 +422,7 @@ async function _orBoardBrief(){
     '.tb .n{text-align:right;font-variant-numeric:tabular-nums}.tb .big{font-weight:800;color:#dc2626}'+
     '.ft{margin-top:11px;border-top:1px solid #eceef5;padding-top:8px;font-size:8px;color:#aab0c4;line-height:1.6}';
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery — Board Brief — '+esc(co)+'</title><style>'+css+'</style></head><body>'+
-    '<div class="hb"><div><div class="co">'+esc(co)+'</div><div class="ti">Recovery — Board Brief</div><div class="sb">Active portfolio · '+active+' accounts</div></div>'+
+    '<div class="hb"><div>'+_orLogoTag+'<div class="co">'+esc(co)+'</div><div class="ti">Recovery — Board Brief</div><div class="sb">Active portfolio · '+active+' accounts</div></div>'+
       '<div class="hb-r"><b>'+esc(monLabel)+'</b><br>as of '+esc(_orDate(today))+'</div></div>'+
     '<div class="head">'+headline+'</div>'+
     '<div class="kp">'+
@@ -446,7 +449,7 @@ async function _orBoardBrief(){
     '<table class="tb"><caption>Worst accounts — director attention list</caption>'+
       '<thead><tr><th></th><th>Client / Unit</th><th class="n">Overdue</th><th class="n">Paid</th><th class="n">Outstanding</th></tr></thead>'+
       '<tbody>'+topRows+'</tbody></table>'+
-    '<div class="ft">All figures verified against source ledgers (recovery reconciles to the rupee). “Collected” includes '+_orC(adj)+' of imported opening-balance adjustments (non-cash); cash collected to date = '+_orC(cash)+'. Outstanding is as of '+esc(_orDate(today))+' — future installments through project completion are not counted. Remaining over project life ≈ '+_orC(remEnd)+'.<br>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' · Nexunova RMS'+(B.scoped?' · assigned projects only':'')+'</div>'+
+    '<div class="ft">All figures verified against source ledgers (recovery reconciles to the rupee). “Collected” includes '+_orC(adj)+' of imported opening-balance adjustments (non-cash); cash collected to date = '+_orC(cash)+'. Outstanding is as of '+esc(_orDate(today))+' — future installments through project completion are not counted. Remaining over project life ≈ '+_orC(remEnd)+'.<br>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+(_orWL?'':' · Nexunova RMS')+(B.scoped?' · assigned projects only':'')+'</div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'Recovery Board Brief'); else { var w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); } }
 }

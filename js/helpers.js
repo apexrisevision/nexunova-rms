@@ -271,14 +271,74 @@ function hasPermission(perm){
 
 function effectiveRole(){return(!S)?'':S.role==='user'?'recovery':S.role;}
 
+// ── Company branding accessors (Phase 1B) ───────────────────────────────────
+// getCoLogo is SERVER-FIRST: the authoritative logo lives at companies.logo_url
+// (surfaced on window._cobranding.logo_url). localStorage is a per-browser cache
+// / offline fallback only. The in-memory company object is the last resort.
 function getCoLogo(){
+  const b=window._cobranding;
+  if(b&&b.logo_url) return b.logo_url;
   if(S?.cid){
     const logo=localStorage.getItem('rms_logo_'+S.cid);
     if(logo)return logo;
   }
   const db=gdb();
   const co=(db.companies||[]).find(c=>c.id===S?.cid);
-  return co?.logo||null;
+  return co?.logo_url||co?.logo||null;
+}
+// Legal name → financial / buyer-facing documents. Display name → staff chrome.
+function coLegalName(){ return (window._cobranding&&window._cobranding.company_name)||(S&&S.coName)||'Nexunova'; }
+function coDisplayName(){ var b=window._cobranding||{}; return b.display_name||b.company_name||(S&&S.coName)||'Nexunova'; }
+
+// ── Shared logo upload → company-logos bucket + set_company_logo RPC ─────────
+// Accepts PNG/JPG/SVG/WebP ≤2MB. Raster images are canvas-resized to ≤400×160
+// (PNG, transparency preserved); SVG uploaded as-is. Returns the public URL
+// (cache-busted) and updates window._cobranding + localStorage cache.
+function _resizeLogoToBlob(file){
+  if(file.type==='image/svg+xml') return Promise.resolve({blob:file,ext:'svg',ct:'image/svg+xml'});
+  return new Promise(function(resolve,reject){
+    const reader=new FileReader();
+    reader.onerror=function(){reject(new Error('Could not read file'));};
+    reader.onload=function(e){
+      const img=new Image();
+      img.onerror=function(){reject(new Error('Could not decode image'));};
+      img.onload=function(){
+        const maxW=400,maxH=160; let w=img.width,h=img.height;
+        if(w>maxW||h>maxH){const sc=Math.min(maxW/w,maxH/h);w=Math.round(w*sc);h=Math.round(h*sc);}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        cv.toBlob(function(b){ b?resolve({blob:b,ext:'png',ct:'image/png'}):reject(new Error('Could not encode image')); },'image/png',0.92);
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function uploadCompanyLogo(file){
+  if(!S||!S.cid) throw new Error('No active company');
+  const ok=['image/png','image/jpeg','image/jpg','image/svg+xml','image/webp'];
+  if(!ok.includes(file.type)) throw new Error('Use a PNG, JPG, SVG or WebP file');
+  if(file.size>2*1024*1024) throw new Error('Logo must be 2 MB or smaller');
+  const r=await _resizeLogoToBlob(file);
+  // Unique filename + upsert:false — upsert:true would trigger a SELECT/UPDATE path
+  // that INSERT-scoped storage RLS denies (see anon_storage_upsert_rls_denied); the
+  // unique name also naturally busts any CDN cache on re-upload.
+  const path=S.cid+'/logo_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+r.ext;
+  const up=await supabase.storage.from('company-logos').upload(path, r.blob, {upsert:false, contentType:r.ct});
+  if(up.error) throw up.error;
+  let url=supabase.storage.from('company-logos').getPublicUrl(path).data.publicUrl;
+  const {error}=await supabase.rpc('set_company_logo',{p_company_id:S.cid, p_url:url});
+  if(error) throw error;
+  window._cobranding=window._cobranding||{}; window._cobranding.logo_url=url;
+  try{ localStorage.setItem('rms_logo_'+S.cid, url); }catch(_){}
+  return url;
+}
+async function clearCompanyLogo(){
+  if(!S||!S.cid) return;
+  const {error}=await supabase.rpc('set_company_logo',{p_company_id:S.cid, p_url:null});
+  if(error) throw error;
+  if(window._cobranding) window._cobranding.logo_url=null;
+  try{ localStorage.removeItem('rms_logo_'+S.cid); }catch(_){}
 }
 
 // ── Password Strength Validator (Fix 7) ──────────────────────────────

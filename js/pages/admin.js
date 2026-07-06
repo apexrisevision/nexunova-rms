@@ -73,43 +73,36 @@ async function saveSettings(){
 }
 
 // ══ LOGO UPLOAD ═══════════════════════════════
-function uploadCoLogo(inp){
+// Phase 1B: logo now uploads to the company-logos bucket + companies.logo_url
+// (server source of truth, syncs across devices/users). uploadCompanyLogo lives
+// in helpers.js and is shared with the setup wizard.
+async function uploadCoLogo(inp){
   const f=inp.files[0];
   if(!f)return;
-  if(f.type!=='image/png'){toast('PNG files only','err');inp.value='';return;}
-  if(f.size>2*1024*1024){toast('Max size is 2 MB','err');inp.value='';return;}
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const img=new Image();
-    img.onload=()=>{
-      const maxW=300,maxH=120;
-      let w=img.width,h=img.height;
-      if(w>maxW||h>maxH){const sc=Math.min(maxW/w,maxH/h);w=Math.round(w*sc);h=Math.round(h*sc);}
-      const canvas=document.createElement('canvas');
-      canvas.width=w;canvas.height=h;
-      const ctx=canvas.getContext('2d');
-      ctx.clearRect(0,0,w,h);
-      ctx.drawImage(img,0,0,w,h);
-      const logo=canvas.toDataURL('image/png',0.8);
-      localStorage.setItem('rms_logo_'+S.cid, logo);
-      const wrap=document.getElementById('logo-prev-wrap');
-      if(wrap)wrap.innerHTML=`<img src="${logo}" style="max-height:60px;max-width:180px;object-fit:contain">`;
-      if(typeof updateCoLogo==='function')updateCoLogo();
-      toast('Logo saved!','ok');
-      inp.value='';
-      setTimeout(()=>rAT(),120);
-    };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(f);
+  const wrap=document.getElementById('logo-prev-wrap');
+  if(wrap)wrap.innerHTML='<span style="font-size:11px;color:var(--t3)">⏳ Uploading…</span>';
+  try{
+    const url=await uploadCompanyLogo(f);
+    if(wrap)wrap.innerHTML=`<img src="${url}" style="max-height:60px;max-width:180px;object-fit:contain">`;
+    if(typeof updateCoLogo==='function')updateCoLogo();
+    toast('Logo saved to your company profile','ok');
+    inp.value='';
+    setTimeout(()=>rAT(),120);
+  }catch(e){
+    if(wrap)wrap.innerHTML='<span style="font-size:11px;color:var(--err)">Upload failed</span>';
+    toast('Logo upload failed: '+(e.message||e),'err');
+    inp.value='';
+  }
 }
 
-function removeCoLogo(){
+async function removeCoLogo(){
   if(!confirm('Remove company logo?'))return;
-  localStorage.removeItem('rms_logo_'+S.cid);
-  if(typeof updateCoLogo==='function')updateCoLogo();
-  toast('Logo removed','ok');
-  rAT();
+  try{
+    await clearCompanyLogo();
+    if(typeof updateCoLogo==='function')updateCoLogo();
+    toast('Logo removed','ok');
+    rAT();
+  }catch(e){ toast('Could not remove logo: '+(e.message||e),'err'); }
 }
 
 // ── Settings ──────────────────────────────────────────────────────

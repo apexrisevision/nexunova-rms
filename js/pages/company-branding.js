@@ -8,7 +8,31 @@ async function loadCobranding() {
   try {
     const { data } = await supabase.rpc('get_company_branding', { p_company_id: S.cid });
     if (data) window._cobranding = data;
+    // Refresh staff chrome (sidebar/topbar) now that display_name + server logo are known.
+    if (typeof updateCoLogo === 'function') updateCoLogo();
+    // Adjustment B: migrate any per-browser localStorage logo to the server profile.
+    _migrateLocalLogoIfNeeded();
   } catch (e) { /* non-fatal — letterhead will fall back to defaults */ }
+}
+
+// One-time: if this browser holds a base64 logo (legacy localStorage-only) but the
+// company profile has no server logo yet, upload it silently so it stops being
+// browser-only. Runs on the admin's own browser (the one that uploaded it).
+async function _migrateLocalLogoIfNeeded() {
+  try {
+    if (!S || !S.cid) return;
+    const b = window._cobranding || {};
+    if (b.logo_url) return;                                   // server already has a logo
+    const local = localStorage.getItem('rms_logo_' + S.cid);
+    if (!local || local.indexOf('data:') !== 0) return;       // nothing to migrate (or already a URL)
+    const resp = await fetch(local);
+    const blob = await resp.blob();
+    const ext  = blob.type === 'image/jpeg' ? 'jpg' : 'png';
+    const file = new File([blob], 'logo.' + ext, { type: blob.type || 'image/png' });
+    await uploadCompanyLogo(file);
+    if (typeof updateCoLogo === 'function') updateCoLogo();
+    if (typeof toast === 'function') toast('Your logo is now saved to your company profile', 'ok');
+  } catch (e) { /* silent — the localStorage fallback still renders it locally */ }
 }
 
 // ── Feature flags — cache on login, check before gated pages ─────────────────
@@ -103,12 +127,16 @@ async function rBranding(ct) {
       <h3 style="font-size:15px;margin:0;font-weight:700">Company Identity</h3>
       <button class="btn btn-g btn-sm" onclick="openBrandingWizard()">⚙ Setup Wizard</button>
     </div>
-    <div class="fr"><label class="fl">Company Name *</label>
+    <div class="fr"><label class="fl">Company Name * <span style="color:var(--t3);font-weight:400">(legal — on receipts &amp; documents)</span></label>
       <input id="br-name" class="inp-light" value="${esc(b.company_name||'')}"></div>
+    <div class="fr"><label class="fl">Display Name <span style="color:var(--t3);font-weight:400">(brand — shown to staff &amp; members)</span></label>
+      <input id="br-display" class="inp-light" placeholder="${esc(b.company_name||'Brand name')}" value="${esc(b.display_name||'')}"></div>
     <div class="fr"><label class="fl">Business Email</label>
       <input id="br-email" class="inp-light" type="email" value="${esc(b.business_email||'')}"></div>
     <div class="fr"><label class="fl">Business Phone</label>
       <input id="br-phone" class="inp-light" type="tel" value="${esc(b.business_phone||'')}"></div>
+    <div class="fr"><label class="fl">Website</label>
+      <input id="br-web" class="inp-light" type="url" placeholder="https://example.com" value="${esc(b.website||'')}"></div>
     <div class="g2">
       <div class="fr"><label class="fl">City</label>
         <input id="br-city" class="inp-light" value="${esc(b.city||'')}"></div>
@@ -131,7 +159,7 @@ async function rBranding(ct) {
 
     <div style="margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line)">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px">Company Logo</div>
-      <p style="font-size:11px;color:var(--t3);margin:0 0 10px;line-height:1.5">Appears on all printed documents and the sidebar. Use a PNG with transparent background.</p>
+      <p style="font-size:11px;color:var(--t3);margin:0 0 10px;line-height:1.5">Appears on all printed documents and the sidebar. PNG, JPG, SVG or WebP (≤2 MB). PNG with a transparent background looks best.</p>
       <div id="logo-prev-wrap" style="margin-bottom:10px;padding:12px;background:var(--canvas);border:1.5px dashed var(--line);border-radius:var(--rm);min-height:64px;display:flex;align-items:center;justify-content:center">
         ${logo
           ? `<img src="${logo}" style="max-height:60px;max-width:180px;object-fit:contain">`
@@ -140,7 +168,7 @@ async function rBranding(ct) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-gh btn-sm" onclick="document.getElementById('logo-inp').click()">Upload PNG Logo</button>
         ${logo ? `<button class="btn btn-r btn-sm" onclick="removeCoLogo()">✕ Remove</button>` : ''}
-        <input type="file" id="logo-inp" accept=".png" style="display:none" onchange="uploadCoLogo(this)">
+        <input type="file" id="logo-inp" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" onchange="uploadCoLogo(this)">
       </div>
     </div>
 
@@ -274,6 +302,8 @@ async function saveBranding() {
   try {
     const payload = {
       company_name:        name,
+      display_name:        document.getElementById('br-display')?.value?.trim()  || '',
+      website:             document.getElementById('br-web')?.value?.trim()      || '',
       business_email:      document.getElementById('br-email')?.value?.trim()    || '',
       business_phone:      document.getElementById('br-phone')?.value?.trim()    || '',
       city:                document.getElementById('br-city')?.value?.trim()     || '',
@@ -294,7 +324,10 @@ async function saveBranding() {
     window._cobranding = { ...window._cobranding, ...payload };
     S.coName = name;
     sessionStorage.setItem('nxn_sess', JSON.stringify(S));
-    const sbCo = document.getElementById('sb-co'); if (sbCo) sbCo.textContent = name;
+    // Staff chrome shows the display (brand) name; falls back to legal name.
+    const staffName = payload.display_name || name;
+    const sbCo = document.getElementById('sb-co'); if (sbCo) sbCo.textContent = staffName;
+    if (typeof updateCoLogo === 'function') updateCoLogo();
     toast('Company branding saved', 'ok');
   } catch (e) {
     toast('Error: ' + e.message, 'err');
@@ -316,6 +349,8 @@ function openBrandingWizard() {
     totalSteps: 4,
     data: {
       company_name:        existing.company_name        || S?.coName  || '',
+      display_name:        existing.display_name        || '',
+      website:             existing.website             || '',
       business_email:      existing.business_email      || '',
       business_phone:      existing.business_phone      || '',
       city:                existing.city                || '',
@@ -347,6 +382,8 @@ function _wzCollect() {
   const step = _wz.step;
   if (step === 1) {
     _wz.data.company_name   = g('wz-name');
+    _wz.data.display_name   = g('wz-display');
+    _wz.data.website        = g('wz-web');
     _wz.data.business_email = g('wz-email');
     _wz.data.business_phone = g('wz-phone');
     _wz.data.city           = g('wz-city');
@@ -397,10 +434,11 @@ function _wzRender() {
   let body = '';
   if (s === 1) {
     body = `<div class="g2">
-      <div class="fr"><label class="fl">Company Name *</label><input id="wz-name" class="inp-light" value="${esc(d.company_name)}"></div>
-      <div class="fr"><label class="fl">Company Type</label><select class="inp-light" disabled><option>Real Estate</option></select></div>
+      <div class="fr"><label class="fl">Company Name * <span style="color:var(--t3);font-weight:400">(legal)</span></label><input id="wz-name" class="inp-light" value="${esc(d.company_name)}"></div>
+      <div class="fr"><label class="fl">Display Name <span style="color:var(--t3);font-weight:400">(brand)</span></label><input id="wz-display" class="inp-light" placeholder="${esc(d.company_name||'Brand name')}" value="${esc(d.display_name)}"></div>
       <div class="fr"><label class="fl">Business Email</label><input id="wz-email" class="inp-light" type="email" value="${esc(d.business_email)}"></div>
       <div class="fr"><label class="fl">Business Phone</label><input id="wz-phone" class="inp-light" type="tel" value="${esc(d.business_phone)}"></div>
+      <div class="fr"><label class="fl">Website</label><input id="wz-web" class="inp-light" type="url" placeholder="https://example.com" value="${esc(d.website)}"></div>
       <div class="fr"><label class="fl">City</label><input id="wz-city" class="inp-light" value="${esc(d.city)}"></div>
       <div class="fr"><label class="fl">Country</label><input id="wz-country" class="inp-light" value="${esc(d.country||'Pakistan')}"></div>
     </div>
@@ -414,7 +452,7 @@ function _wzRender() {
       ${_wz.logo ? `<img src="${_wz.logo}" style="max-height:60px;max-width:200px;object-fit:contain">` : `<span style="font-size:12px;color:var(--t3)">No logo — </span>&nbsp;<button class="btn btn-gh btn-sm" onclick="document.getElementById('wz-logo-inp').click()">Upload PNG Logo</button>`}
     </div>
     ${_wz.logo ? `<div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn btn-gh btn-sm" onclick="document.getElementById('wz-logo-inp').click()">Change Logo</button><button class="btn btn-r btn-sm" onclick="_wzRemoveLogo()">✕ Remove</button></div>` : ''}
-    <input type="file" id="wz-logo-inp" accept=".png" style="display:none" onchange="_wzUploadLogo(this)">
+    <input type="file" id="wz-logo-inp" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" onchange="_wzUploadLogo(this)">
 
     <div class="fr"><label class="fl">Letterhead Subtitle</label>
       <input id="wz-sub" class="inp-light" value="${esc(d.letterhead_subtitle)}" placeholder="Recovery Management System"></div>
@@ -484,34 +522,25 @@ function _wzRender() {
   </div>`;
 }
 
-function _wzUploadLogo(inp) {
+async function _wzUploadLogo(inp) {
   const f = inp.files[0]; if (!f) return;
-  if (f.type !== 'image/png') { toast('PNG only', 'err'); return; }
-  if (f.size > 2*1024*1024) { toast('Max 2MB', 'err'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW=300,maxH=120;
-      let w=img.width,h=img.height;
-      if(w>maxW||h>maxH){const sc=Math.min(maxW/w,maxH/h);w=Math.round(w*sc);h=Math.round(h*sc);}
-      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-      cv.getContext('2d').drawImage(img,0,0,w,h);
-      const logo=cv.toDataURL('image/png',0.8);
-      localStorage.setItem('rms_logo_'+S.cid, logo);
-      _wz.logo = logo;
-      if (typeof updateCoLogo==='function') updateCoLogo();
-      _wzRender();
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(f);
+  const wrap = document.getElementById('wz-logo-wrap');
+  if (wrap) wrap.innerHTML = '<span style="font-size:12px;color:var(--t3)">⏳ Uploading…</span>';
+  try {
+    const url = await uploadCompanyLogo(f);   // → company-logos bucket + companies.logo_url
+    _wz.logo = url;
+    if (typeof updateCoLogo === 'function') updateCoLogo();
+    _wzRender();
+  } catch (e) {
+    toast('Logo upload failed: ' + (e.message || e), 'err');
+    _wzRender();
+  }
 }
 
-function _wzRemoveLogo() {
-  localStorage.removeItem('rms_logo_'+S.cid);
+async function _wzRemoveLogo() {
+  try { await clearCompanyLogo(); } catch (e) { toast('Could not remove logo', 'err'); return; }
   _wz.logo = null;
-  if (typeof updateCoLogo==='function') updateCoLogo();
+  if (typeof updateCoLogo === 'function') updateCoLogo();
   _wzRender();
 }
 
@@ -531,7 +560,9 @@ async function _wzFinish() {
     window._cobranding = { ...window._cobranding, ...payload };
     S.coName = payload.company_name;
     sessionStorage.setItem('nxn_sess', JSON.stringify(S));
-    const sbCo = document.getElementById('sb-co'); if (sbCo) sbCo.textContent = payload.company_name;
+    const staffName = payload.display_name || payload.company_name;
+    const sbCo = document.getElementById('sb-co'); if (sbCo) sbCo.textContent = staffName;
+    if (typeof updateCoLogo === 'function') updateCoLogo();
     _wzClose();
     toast('Company branding saved successfully!', 'ok');
     // Refresh Company tab if open

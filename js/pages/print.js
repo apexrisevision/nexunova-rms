@@ -110,9 +110,13 @@ function _footer(){
   if(br.business_email)bits.push(esc(br.business_email));
   if(br.ntn_number)bits.push('NTN: '+esc(br.ntn_number));
   var foot=br.footer_text||'This is a computer-generated document.';
+  // Adjustment A: "Powered by Nexunova" is plan-gated. White-label tiers
+  // (Ultimate/Enterprise) suppress it; all other tiers keep the tasteful line.
+  var poweredBy = br.white_label===true ? '' :
+    '<div style="margin-top:3px;font-size:8px;color:#c2c2c2;letter-spacing:.4px">Powered by Nexunova</div>';
   return '<div class="footer-bar">'
     +(bits.length?'<div class="foot-co">'+bits.join('&nbsp;&nbsp;·&nbsp;&nbsp;')+'</div>':'')
-    +'<div>'+esc(foot)+'</div></div>';
+    +'<div>'+esc(foot)+'</div>'+poweredBy+'</div>';
 }
 
 // ── Shared: signature block (uses window._cobranding) ──

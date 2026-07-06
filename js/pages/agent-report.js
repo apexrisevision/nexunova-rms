@@ -286,10 +286,16 @@ function _arPrintCSS(){
 }
 function _arPrintHead(){
   var ST=window._arStore;
-  var co=(typeof S!=='undefined'&&S&&S.coName)||'Company';
+  var co=(typeof coLegalName==='function')?coLegalName():((typeof S!=='undefined'&&S&&S.coName)||'Company');
+  var logo=(typeof getCoLogo==='function')?getCoLogo():null;
+  var wl=!!(window._cobranding&&window._cobranding.white_label);
+  // Logo sits in a white chip so any logo reads clearly on the indigo header.
+  var logoTag=logo?'<img src="'+logo+'" style="height:30px;max-width:120px;object-fit:contain;background:#fff;border-radius:6px;padding:3px 6px;margin-bottom:6px;display:block" alt="">':'';
   var thead='<thead><tr><th class="n">#</th><th>Client / Unit / Phone</th><th class="n">Overdue</th><th class="n">Arrears</th><th class="n">This month</th><th class="n">Received</th><th class="n">Total remaining</th><th class="n">Paid</th></tr></thead>';
-  return {co:co, asOf:_arDate(ST.asOf), thead:thead};
+  return {co:co, logo:logo, logoTag:logoTag, wl:wl, asOf:_arDate(ST.asOf), thead:thead};
 }
+// Footer brand line — suppressed for white-label (Ultimate/Enterprise) tenants.
+function _arFootBrand(wl, tail){ return wl ? '' : '<span>Nexunova RMS · '+tail+'</span>'; }
 function _arPrintAgent(agentId){
   var ST=window._arStore; if(!ST){ return; }
   if(agentId==='__none__') agentId=null;
@@ -299,11 +305,11 @@ function _arPrintAgent(agentId){
   var Z={overdue:0,month_due:0,received:0,total_remaining:0}; rows.forEach(function(r){ Z.overdue+=Number(r.overdue||0);Z.month_due+=Number(r.month_due||0);Z.received+=Number(r.received||0);Z.total_remaining+=Number(r.total_remaining||0); });
   var tot='<tr class="tot"><td></td><td>TOTAL · '+rows.length+' clients</td><td></td><td class="n big">'+_arF(Z.overdue)+'</td><td class="n">'+_arF(Z.month_due)+'</td><td class="n grn">'+_arF(Z.received)+'</td><td class="n">'+_arF(Z.total_remaining)+'</td><td></td></tr>';
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Agent Recovery — '+esc(meta.agent_name||'')+'</title><style>'+_arPrintCSS()+'</style></head><body>'+
-    '<div class="hb"><div><div class="co">'+esc(H.co)+'</div><div class="ti">Agent Recovery Book</div></div><div class="hb-r"><b>'+esc(meta.agent_name||'')+'</b><br>as of '+esc(H.asOf)+'</div></div>'+
+    '<div class="hb"><div>'+H.logoTag+'<div class="co">'+esc(H.co)+'</div><div class="ti">Agent Recovery Book</div></div><div class="hb-r"><b>'+esc(meta.agent_name||'')+'</b><br>as of '+esc(H.asOf)+'</div></div>'+
     '<div class="ag"><div><div class="an">'+esc(meta.agent_name||'')+'</div><div class="am">'+(meta.agent_code?esc(meta.agent_code)+' · ':'')+(meta.agent_phone?esc(meta.agent_phone)+' · ':'')+rows.length+' units</div></div>'+
       '<div class="ao">Overdue<br><b>'+_arF(Z.overdue)+'</b></div></div>'+
     '<table class="tb">'+H.thead+'<tbody>'+_arPrintRowsHTML(rows)+tot+'</tbody></table>'+
-    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>Nexunova RMS · Agent Recovery</span></div>'+
+    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span>'+_arFootBrand(H.wl,'Agent Recovery')+'</div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html,'Agent Recovery'); else window.print();
 }
@@ -330,10 +336,10 @@ function _arPrint(){
       '<table class="tb">'+H.thead+'<tbody>'+_arPrintRowsHTML(rows)+tot+'</tbody></table>';
   }).join('');
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Agent Recovery Book — '+esc(H.co)+'</title><style>'+_arPrintCSS()+'</style></head><body>'+
-    '<div class="hb"><div><div class="co">'+esc(H.co)+'</div><div class="ti">Agent Recovery Book</div></div><div class="hb-r"><b>Overdue '+_arF(T.overdue||0)+'</b><br>'+(T.agents||0)+' agents · as of '+esc(H.asOf)+'</div></div>'+
+    '<div class="hb"><div>'+H.logoTag+'<div class="co">'+esc(H.co)+'</div><div class="ti">Agent Recovery Book</div></div><div class="hb-r"><b>Overdue '+_arF(T.overdue||0)+'</b><br>'+(T.agents||0)+' agents · as of '+esc(H.asOf)+'</div></div>'+
     sections+
     _arPrintGrandTotal(T)+
-    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>Nexunova RMS · Agent Recovery · sale-agent-wise outstanding</span></div>'+
+    '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span>'+_arFootBrand(H.wl,'Agent Recovery · sale-agent-wise outstanding')+'</div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html,'Agent Recovery Book'); else window.print();
 }

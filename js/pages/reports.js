@@ -1530,8 +1530,17 @@ async function _rpExcel(){ await window.ensureXLSX();
   var rows=(window._rp2&&window._rp2.rows)?_rp2_view():(Array.isArray(res.rows)?res.rows:[]);
   var hdr=['S#','Client Code','Client Name','Unit','Floor','Net Price','Opening','Opening DP','Opening Arrears','Due','Recovered','vs DP','vs Old','vs Current','Advance','Advance B/F','Closing','Closing DP','Closing Old','Closing Current','Paid %','Overdue Days'];
   var aoa=[];
+  // Branded Excel title block — legal company name + contact line (logo can't ride an aoa sheet).
+  var _xb=window._cobranding||{};
+  var _xco=(typeof coLegalName==='function')?coLegalName():(S?S.coName||'':'');
+  aoa.push([_xco]);
+  var _xcl=[_xb.address_full||[_xb.city,_xb.country].filter(Boolean).join(', '),
+            _xb.business_phone?('Tel: '+_xb.business_phone):'',
+            _xb.business_email||'',
+            _xb.ntn_number?('NTN: '+_xb.ntn_number):''].filter(Boolean).join('  ·  ');
+  if(_xcl) aoa.push([_xcl]);
   aoa.push(['Recovery Position — Grand Summary (Rollforward)']);
-  aoa.push(['Company',S?S.coName||'':'','Project',D.projName||'All Projects','Period',D.periodLbl||'']);
+  aoa.push(['Company',_xco,'Project',D.projName||'All Projects','Period',D.periodLbl||'']);
   aoa.push([]); aoa.push(hdr);
   rows.forEach(function(r,i){aoa.push([i+1,r.client_code||'',r.client_name||'',r.unit_no||'',r.floor_name||'',
     Number(r.net_price||0),Number(r.opening||0),Number(r.opening_dp||0),Number(r.opening_arrears||0),Number(r.due_period||0),

@@ -641,10 +641,10 @@ async function loadReport(){
 
       <div class="doc-footer">
         <div class="footer-note">
-          This report was generated automatically by Nexunova RMS.<br>
+          ${b.white_label ? '' : 'This report was generated automatically by Nexunova RMS.<br>'}
           ${b.footer_text||'For queries, contact the accounts department.'}
         </div>
-        <div class="footer-brand">Nexunova RMS · Powered by Nexunova</div>
+        <div class="footer-brand">${b.white_label ? (b.company_name||'') : 'Powered by Nexunova'}</div>
       </div>
     </div>
   </div>`;
