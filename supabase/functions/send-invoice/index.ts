@@ -52,7 +52,9 @@ async function renderInvoicePDF(data: any, logoBytes: Uint8Array | null): Promis
     page.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: th, color: col });
   const box = (x: number, y: number, w: number, h: number, col: any) => page.drawRectangle({ x, y, width: w, height: h, color: col });
   const money = (n: any) => (data.currency || "PKR") + " " + Math.round(Number(n || 0)).toLocaleString("en-US");
-  const overdue = !!data.overdue, ACCENT = overdue ? RED : INDIGO;
+  const overdue = !!data.overdue;
+  const paid = String(data.display_status) === "paid" || Number(data.balance || 0) <= 0;
+  const ACCENT = overdue ? RED : INDIGO;
   let y = H;
 
   box(0, H - 6, W, 6, INDIGO);
@@ -64,6 +66,7 @@ async function renderInvoicePDF(data: any, logoBytes: Uint8Array | null): Promis
   RT("INVOICE", R, y - 4, 30, bold, INK, 2);
   RT("Nexunova RMS · Platform Subscription", R, y - 20, 9, font, MUTED);
   if (overdue) { const bw = 74, bh = 20, bx = R - bw, by = y - 46; box(bx, by, bw, bh, RED); CT("OVERDUE", bx + bw / 2, by + 6, 10, bold, WHITE); }
+  else if (paid) { const bw = 58, bh = 20, bx = R - bw, by = y - 46; box(bx, by, bw, bh, GREEN); CT("PAID", bx + bw / 2, by + 6, 10, bold, WHITE); }
 
   y = H - 150; hr(y + 14);
   T("BILLED TO", M, y, 8, bold, INDIGO, 1.2);
@@ -145,6 +148,21 @@ function b64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 function emailHtml(d: any): string {
+  const paid = String(d.display_status) === "paid" || Number(d.balance || 0) <= 0;
+  const amt = d.currency + " " + Math.round(Number(d.amount || 0)).toLocaleString("en-US");
+  if (paid) {
+    return `<div style="font-family:Inter,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:12px">
+      <div style="margin-bottom:20px"><div style="font-size:20px;font-weight:700;color:#f8fafc">Nexunova RMS</div>
+      <div style="font-size:12px;color:#22c55e;letter-spacing:1px;text-transform:uppercase">Payment Received · ${d.invoice_number}</div></div>
+      <p style="font-size:14px;color:#cbd5e1;line-height:1.6">Dear ${d.company?.name || "Customer"},</p>
+      <p style="font-size:14px;color:#cbd5e1;line-height:1.6">Thank you — we've received your payment for your <strong style="color:#f8fafc">${d.plan_name}</strong> (${d.billing_cycle}) subscription. Your paid invoice / receipt is attached (PDF).</p>
+      <div style="background:#0f2417;border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:18px 20px;margin:20px 0">
+        <table style="width:100%;font-size:13px;color:#cbd5e1"><tr><td>Invoice</td><td style="text-align:right;color:#f8fafc">${d.invoice_number}</td></tr>
+        <tr><td>Amount paid</td><td style="text-align:right;color:#4ade80;font-weight:700">${amt}</td></tr>
+        <tr><td>Status</td><td style="text-align:right;color:#4ade80;font-weight:700">PAID IN FULL</td></tr></table></div>
+      <p style="font-size:12px;color:#94a3b8;line-height:1.6">This confirms your Nexunova RMS subscription is active. Questions? <a href="mailto:support@nexunova.com" style="color:#6366f1">support@nexunova.com</a></p>
+    </div>`;
+  }
   const due = d.overdue ? `<span style="color:#f43f5e">${d.due_date} (overdue)</span>` : d.due_date;
   return `<div style="font-family:Inter,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:12px">
     <div style="margin-bottom:20px"><div style="font-size:20px;font-weight:700;color:#f8fafc">Nexunova RMS</div>
@@ -153,7 +171,7 @@ function emailHtml(d: any): string {
     <p style="font-size:14px;color:#cbd5e1;line-height:1.6">Your ${d.plan_name} (${d.billing_cycle}) subscription invoice is attached (PDF).</p>
     <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px 20px;margin:20px 0">
       <table style="width:100%;font-size:13px;color:#cbd5e1"><tr><td>Invoice</td><td style="text-align:right;color:#f8fafc">${d.invoice_number}</td></tr>
-      <tr><td>Amount</td><td style="text-align:right;color:#f8fafc;font-weight:700">${d.currency} ${Math.round(Number(d.amount||0)).toLocaleString("en-US")}</td></tr>
+      <tr><td>Amount</td><td style="text-align:right;color:#f8fafc;font-weight:700">${amt}</td></tr>
       <tr><td>Balance due</td><td style="text-align:right;color:#f8fafc;font-weight:700">${d.currency} ${Math.round(Number(d.balance||0)).toLocaleString("en-US")}</td></tr>
       <tr><td>Due date</td><td style="text-align:right">${due}</td></tr></table></div>
     ${d.pay_url && Number(d.balance||0) > 0 ? `<a href="${d.pay_url}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;margin:6px 0 18px">Pay securely →</a>` : ""}
@@ -214,7 +232,10 @@ Deno.serve(async (req) => {
   });
   if (!up.ok && up.status !== 200) { const t = await up.text(); console.error("[send-invoice] upload failed", up.status, t); }
 
-  await rpc("mark_invoice_sent", { p_invoice_id: invoiceId, p_pdf_path: path }, SERVICE_KEY, SERVICE_KEY);
+  // Test copies pass skip_mark:true so nothing is recorded as sent in the system.
+  if (!body.skip_mark) {
+    await rpc("mark_invoice_sent", { p_invoice_id: invoiceId, p_pdf_path: path }, SERVICE_KEY, SERVICE_KEY);
+  }
 
   // signed URL (7 days) for preview/download
   let signedUrl: string | null = null;
@@ -225,20 +246,26 @@ Deno.serve(async (req) => {
     if (s.ok) { const j = await s.json(); signedUrl = `${SUPABASE_URL}/storage/v1${j.signedURL}`; }
   } catch { /* */ }
 
-  let emailed = false, emailError: string | null = null;
+  let emailed = false, emailError: string | null = null, sentTo: string | null = null;
   if (mode === "send") {
-    const to = data.billing_email;
+    const to = (typeof body.to === "string" && body.to) ? body.to : data.billing_email;  // body.to = test override
+    sentTo = to;
+    const paid = String(data.display_status) === "paid" || Number(data.balance || 0) <= 0;
+    const co = data.company?.name || "Customer";
+    const subject = paid
+      ? `Payment received — ${co} · ${data.invoice_number} · Nexunova RMS`
+      : `Invoice ${data.invoice_number} — ${co} · Nexunova RMS`;
     if (!to) emailError = "no_billing_email";
     else if (!RESEND_KEY) emailError = "resend_not_configured";
     else {
       try {
         const er = await fetch("https://api.resend.com/emails", {
           method: "POST", headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: RESEND_FROM, to, subject: `Invoice ${data.invoice_number} — Nexunova RMS subscription`, html: emailHtml(data), attachments: [{ filename: `${data.invoice_number}.pdf`, content: b64(pdf) }] }),
+          body: JSON.stringify({ from: RESEND_FROM, to, subject, html: emailHtml(data), attachments: [{ filename: `${data.invoice_number}.pdf`, content: b64(pdf) }] }),
         });
         emailed = er.ok; if (!er.ok) emailError = `resend_${er.status}`;
       } catch (e) { emailError = String((e as Error).message); }
     }
   }
-  return Response.json({ success: true, invoice_id: invoiceId, invoice_number: data.invoice_number, pdf_path: path, signed_url: signedUrl, emailed, email_error: emailError }, { headers: CORS });
+  return Response.json({ success: true, invoice_id: invoiceId, invoice_number: data.invoice_number, pdf_path: path, signed_url: signedUrl, emailed, sent_to: sentTo, email_error: emailError }, { headers: CORS });
 });
