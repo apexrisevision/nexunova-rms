@@ -130,6 +130,48 @@ async function _handleFileUploadAppend(fileInput, textareaId, bucket, folder) {
   }
 }
 
+// ══ REQUIRED-REASON MODAL (audit) ══════════════════════════
+// Shared "Why is this change being made?" prompt for destructive money actions
+// (payment void, sale amount edits). Enforces a minimum length; resolves the
+// entered reason, or null if the user cancels. The reason is passed to the RPC
+// (p_reason) which records it on the immutable audit trail.
+function requireReason(opts){
+  opts = opts || {};
+  var title  = opts.title  || 'Confirm change';
+  var detail = opts.detail || '';
+  var okLabel= opts.okLabel|| 'Confirm';
+  var minLen = opts.minLen || 10;
+  return new Promise(function(resolve){
+    document.getElementById('_reason-overlay')?.remove();
+    var ov = document.createElement('div');
+    ov.id = '_reason-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.55);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML =
+      '<div style="background:var(--card,#0f172a);border:1px solid rgba(99,102,241,.3);border-radius:14px;padding:26px 24px 20px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.6)">'
+      + '<div style="font-size:16px;font-weight:700;color:var(--text,#f8fafc);margin-bottom:6px">'+esc(title)+'</div>'
+      + (detail?'<div style="font-size:12px;color:var(--t3,rgba(255,255,255,.5));margin-bottom:14px">'+esc(detail)+'</div>':'')
+      + '<div style="font-size:11px;font-weight:600;color:var(--t2,rgba(255,255,255,.65));margin-bottom:6px">Why is this change being made? <span style="color:var(--err,#f43f5e)">*</span></div>'
+      + '<textarea id="_reason-txt" rows="3" autocomplete="off" placeholder="This is recorded on the audit trail (min '+minLen+' characters)…" '
+      + 'style="width:100%;padding:9px 11px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.14);border-radius:8px;color:var(--text,#f1f5f9);font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical;outline:none"></textarea>'
+      + '<div id="_reason-err" style="font-size:11px;color:var(--err,#f43f5e);min-height:16px;margin-top:4px"></div>'
+      + '<div style="display:flex;gap:8px;margin-top:12px">'
+      + '<button id="_reason-cancel" style="flex:1;padding:9px;background:transparent;border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:var(--t2,rgba(255,255,255,.6));font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>'
+      + '<button id="_reason-ok" style="flex:2;padding:9px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">'+esc(okLabel)+'</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    var txt = ov.querySelector('#_reason-txt'), errEl = ov.querySelector('#_reason-err');
+    setTimeout(function(){ txt?.focus(); }, 50);
+    var close = function(val){ ov.remove(); resolve(val); };
+    ov.querySelector('#_reason-cancel').addEventListener('click', function(){ close(null); });
+    ov.querySelector('#_reason-ok').addEventListener('click', function(){
+      var v = (txt?.value || '').trim();
+      if (v.length < minLen) { errEl.textContent = 'Please enter at least '+minLen+' characters.'; txt?.focus(); return; }
+      close(v);
+    });
+    ov.addEventListener('click', function(e){ if(e.target===ov) close(null); });
+  });
+}
+
 // ══ SIDEBAR COLLAPSE ══════════════════════════
 (function initSidebarCollapse(){
   document.addEventListener('DOMContentLoaded',function(){

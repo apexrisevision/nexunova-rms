@@ -509,33 +509,35 @@ function _rvNavTo(dir) {
 }
 
 async function _rvCancelFromDetail(paymentId, code, amount) {
-  // _voidReasonPrompt is defined in payments.js (global scope). A void is approval-gated
-  // server-side; non-admins receive a pending_approval response.
-  const _run = (reason) => (async () => {
-    try {
-      const { data, error } = await supabase.rpc('cancel_payment', {
-        p_payment_id:   paymentId,
-        p_company_id:   S.cid,
-        p_cancelled_by: S.userId,
-        p_reason:       reason
-      });
-      if (error) throw error;
-      if (data?.status === 'pending_approval') {
-        toast('Void request submitted for Admin approval', 'ok');
-        if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
-        return;
-      }
-      if (!data?.success) throw new Error(data?.error || 'Cancel failed');
-      toast(`${code} cancelled`, 'ok');
-      await _rvLoadAndRender();
-      _rvBackToList();
-    } catch(e) {
-      notify.error('Cancel Failed', { detail: e.message });
+  // A void is destructive: a reason is REQUIRED (min 10 chars) and recorded on the
+  // immutable audit trail. Non-admins receive a pending_approval response server-side.
+  const reason = await requireReason({
+    title:  'Void payment',
+    detail: `${code} — PKR ${fM(amount)} will be reversed`,
+    okLabel:'Void payment'
+  });
+  if (reason === null) return; // cancelled
+  try {
+    const { data, error } = await supabase.rpc('cancel_payment', {
+      p_payment_id:   paymentId,
+      p_company_id:   S.cid,
+      p_cancelled_by: S.userId,
+      p_reason:       reason
+    });
+    if (error) throw error;
+    if (data?.status === 'pending_approval') {
+      toast('Void request submitted for Admin approval', 'ok');
+      if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
+      return;
     }
-  })();
-  if (typeof _voidReasonPrompt === 'function') {
-    _voidReasonPrompt(`${code} — PKR ${fM(amount)} will be reversed`, _run);
-  } else {
-    _run(null);
+    if (!data?.success) {
+      if (data?.error === 'reason_required') { notify.error('Reason Required', { detail: data.message }); return; }
+      throw new Error(data?.error || 'Cancel failed');
+    }
+    toast(`${code} cancelled`, 'ok');
+    await _rvLoadAndRender();
+    _rvBackToList();
+  } catch(e) {
+    notify.error('Cancel Failed', { detail: e.message });
   }
 }

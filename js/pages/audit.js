@@ -22,7 +22,7 @@ async function rAudit() {
   _audFilters = { table: '', action: '', userId: '', from: '', to: '', sensitive: false, search: '' };
 
   const tableOpts = ['payments','sales','installments','pdc_cheques','clients','units','projects','agents',
-    'payment_promises','sale_amendments','unit_cancellations','unit_transfers','app_users','approval_requests',
+    'payment_promises','sale_amendments','unit_cancellations','unit_transfers','app_users','subscriptions','approval_requests',
     'approval_request_comments','blacklisted_clients','contact_logs','escalations','follow_up_reminders','legal_cases']
     .map(t => `<option value="${t}">${t}</option>`).join('');
   const actionOpts = ['INSERT','UPDATE','DELETE','restriction_warning','approval_applied']
@@ -54,7 +54,7 @@ async function rAudit() {
 
   el.innerHTML =
     '<div class="ani">' +
-      NX.pageHeader('Audit Trail', actions, { icon:'history', sub:'Complete history of every change — who, what, when' }) +
+      NX.pageHeader('Audit Trail', actions, { icon:'history', sub:'Every change, recorded — who, what, when & why. Append-only and tamper-proof.' }) +
       '<div id="aud-stats-row" class="nx-kpi-row" style="margin-bottom:var(--fk-sp-4)"></div>' +
       NX.card(filters, { class:'nx-aud-filters' }) +
       '<div style="height:var(--fk-sp-4)"></div>' +
@@ -369,6 +369,13 @@ function _audRenderDiff(e) {
       </div>
     </div>
 
+    <!-- Reason (why the change was made) — the KBH forensic answer -->
+    ${e.reason ? `<div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin-bottom:var(--fk-sp-4);background:var(--fk-warning-surface,rgba(245,158,11,.08));border:1px solid var(--fk-warning-edge,rgba(245,158,11,.35));border-radius:var(--fk-radius-control,8px)">
+      <svg width="16" height="16" style="flex-shrink:0;margin-top:1px" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#d97706;margin-bottom:2px">Reason given</div>
+      <div style="font-size:13px;color:var(--fk-text);line-height:1.5">${esc(e.reason)}</div></div>
+    </div>` : ''}
+
     <!-- Diff table -->
     ${diffRows ? `
     <div style="margin-bottom:16px">
@@ -471,6 +478,7 @@ async function openAuditHistory(tableName, recordId, title) {
               <span style="font-size:10px;color:var(--t3);white-space:nowrap;flex-shrink:0">${_audFmtTime(r.changed_at)}</span>
             </div>
             <div style="font-size:11px;color:var(--t2);font-family:monospace">${esc(flds)}</div>
+            ${r.reason ? `<div style="font-size:11px;color:#d97706;margin-top:3px"><b>Reason:</b> ${esc(r.reason)}</div>` : ''}
             ${(r.action === 'UPDATE' && r.old_data && r.new_data) ?
               `<button class="btn btn-gh btn-xs" style="margin-top:5px" onclick="_audOpenEntry(${r.id})">View Diff →</button>` : ''}
           </div>
