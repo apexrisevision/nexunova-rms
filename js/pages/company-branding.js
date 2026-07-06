@@ -78,7 +78,11 @@ function _updateSidebarFeatureVisibility() {
     const el = document.querySelector(`.ni[data-pg="${pg}"]`);
     if (!el) return;
     const on = hasFeature(flag);
-    el.style.opacity     = on ? '' : '0.45';
+    // Disabled features are HIDDEN (not dimmed). Use !important — the sidebar's
+    // .ni rule sets display with !important, which a plain inline style can't beat.
+    if (on) el.style.removeProperty('display');
+    else    el.style.setProperty('display', 'none', 'important');
+    el.style.opacity     = '';
     el.title             = on ? '' : 'Upgrade your plan to unlock this feature';
     el.dataset.gated     = on ? '' : '1';
   });

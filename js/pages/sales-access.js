@@ -173,7 +173,7 @@ function _saBodyHtml() {
        ${umb ? '' : NX.button('Rotate', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: '_saRotate()' })}
      </div>
      ${umb ? '' : `<div style="font-size:11px;color:var(--fk-text-muted);margin-top:var(--fk-sp-2)">Only use <em>Rotate</em> if this link ever leaks — it replaces it with a new one and disables the old copies.</div>`}
-     ${umb ? `<div style="margin-top:14px;border-top:1px dashed var(--fk-border);padding-top:12px">
+     ${(umb && isHome) ? `<div style="margin-top:14px;border-top:1px dashed var(--fk-border);padding-top:12px">
        <div style="font-size:12.5px;color:var(--fk-text-muted);margin-bottom:6px"><strong>Single-project link</strong> — a dealer who signs up with this one sells <strong>only this company's project</strong> (not the whole umbrella). Use it for project-specific dealers.</div>
        <div style="display:flex;gap:var(--fk-sp-2);align-items:center;flex-wrap:wrap">
          <input class="nx-input" readonly value="${esc(_saCompanyUrl())}" onclick="this.select()" style="flex:1;min-width:240px;font-size:12px">
@@ -430,6 +430,8 @@ function _saCopyLink() {
 // ── Main portal link (/crm) — Sign in + Request access on one page ──
 function _saCrmLink() { return location.origin + '/crm'; }
 function _saPortalCardHtml() {
+  // Umbrella members do not configure the portal — it's centralised at the group head.
+  if (_saUmbrella && !_saUmbrella.is_home) return '';
   const p = _saPortal; if (!p) return '';
   const host = (location.host || 'rms.nexunova.com') + '/crm';
   const en = !!p.enabled;
@@ -480,6 +482,8 @@ function _saDownloadCrmQR() { _saDownloadQRFor(_saCrmLink(), 'portal-qr.png'); }
 // ── Short join link (/join/<CODE>) + printable QR (optional, per-target) ──
 function _saJoinLink() { return _saJoinCode ? (location.origin + '/join/' + _saJoinCode) : ''; }
 function _saJoinCardHtml() {
+  // Join codes are a group-head concept; hide for umbrella members (they have none).
+  if (_saUmbrella && !_saUmbrella.is_home) return '';
   const code = _saJoinCode || '';
   const link = _saJoinLink();
   const host = (location.host || 'rms.nexunova.com') + '/join/';

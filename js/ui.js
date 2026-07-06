@@ -496,7 +496,7 @@ function buildSB(){
         { id:'addpayment',  ic:'banknote',          lb:'Record Payment' },
         { id:'pdc',         ic:'calendar-clock',    lb:'PDC', bdg:(window._pdcDueCount||null), bdgType:(window._pdcDueCount?'warn':null) },
         { id:'receivables', ic:'arrow-up-circle',   lb:'Additional Receivables' },
-        { id:'recovery',    ic:'list-checks',       lb:'Payments', dot:(overdueN>0?'danger':null) },
+        { id:'recovery',    ic:'list-checks',       lb:'Collections', dot:(overdueN>0?'danger':null) },
         { id:'payables',    ic:'arrow-down-circle', lb:'Payables' },
       ]},
       // ── 2 · Online Portal (everything for the self-service sales portal) ──
@@ -529,8 +529,6 @@ function buildSB(){
         { id:'ledgers',       ic:'book-open',      lb:'Ledgers' },
         { id:'statements',    ic:'file-text',      lb:'Account Statements' },
         { id:'receipts',      ic:'receipt',        lb:'Receipt Vouchers' },
-        { id:'doc-schedule',  ic:'calendar-clock', lb:'Payment Schedule', action:"nav('documents','schedule')" },
-        { id:'doc-unitreport',ic:'file-text',      lb:'Unit Report',      action:"nav('documents','unit-report')" },
       ]},
       // ── 6 · Team & Approvals ──
       { label: 'Team & Approvals', items: [
@@ -575,7 +573,7 @@ function buildSB(){
       { label: 'Recovery', items: [
         { id:'myrecovery',  ic:'radar',          lb:'My Recovery' },
         { id:'queue',       ic:'sunrise',        lb:'Morning List', dot:(window._tierACount>0?'danger':null) },
-        { id:'recovery',    ic:'list-checks',    lb:'Payments' },
+        { id:'recovery',    ic:'list-checks',    lb:'Collections' },
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
         { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
         { id:'reminders',   ic:'bell',           lb:'Reminders' },
@@ -604,7 +602,7 @@ function buildSB(){
         { id:'agents',  ic:'users',      lb:'Sales Agents', more:true },
       ]},
       { label: 'Recovery', items: [
-        { id:'recovery', ic:'banknote',  lb:'Payments' },
+        { id:'recovery', ic:'banknote',  lb:'Collections' },
         { id:'paylinks', ic:'link',      lb:'Payment Links' },
         { id:'ledgers',  ic:'book-open', lb:'Ledgers', more:true },
       ]},
@@ -632,7 +630,7 @@ function buildSB(){
         { id:'commissions', ic:'trending-up', lb:'Commissions',  more:true },
       ]},
       { label: 'Recovery', items: [
-        { id:'recovery',    ic:'list-checks',    lb:'Payments' },
+        { id:'recovery',    ic:'list-checks',    lb:'Collections' },
         { id:'pdc',         ic:'calendar-clock', lb:'PDC' },
         { id:'promises',    ic:'handshake',      lb:'Follow-ups' },
         { id:'reminders',   ic:'bell',           lb:'Reminders' },
@@ -653,7 +651,7 @@ function buildSB(){
       { key:'projects',  id:'projects',  ic:'building-2',  lb:'Projects' },
       { key:'units',     id:'units',     ic:'home',        lb:'All Units' },
       { key:'clients',   id:'clients',   ic:'user-check',  lb:'Clients' },
-      { key:'recovery',  id:'recovery',  ic:'banknote',    lb:'Payments' },
+      { key:'recovery',  id:'recovery',  ic:'banknote',    lb:'Collections' },
       { key:'contacts',  id:'contacts',  ic:'phone',       lb:'Call Logs' },
       { key:'reports',   id:'reports',   ic:'bar-chart-3', lb:'Reports' },
       { key:'documents', id:'documents', ic:'printer',     lb:'Documents' },
