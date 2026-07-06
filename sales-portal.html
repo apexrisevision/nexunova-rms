@@ -297,7 +297,16 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .sb-nav{flex:1;overflow-y:auto;padding:6px 12px 12px;scrollbar-width:thin;scrollbar-color:var(--fk-border) transparent}
 .sb-nav::-webkit-scrollbar{width:6px}
 .sb-nav::-webkit-scrollbar-thumb{background:var(--fk-border);border-radius:3px}
-.sb-grp{font-size:var(--fs-caption);font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--fk-text-muted);padding:15px 10px 6px}
+/* collapsible group header (accordion) — reuses the .ni-grp open/chevron mechanic */
+.sb-grp{display:flex;align-items:center;width:100%;box-sizing:border-box;background:none;border:0;font-family:inherit;font-size:var(--fs-caption);font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--fk-text-muted);padding:15px 10px 6px;cursor:pointer;text-align:left;transition:color .14s ease}
+.sb-grp:hover{color:var(--fk-text)}
+.ni-grp.has-active>.sb-grp{color:var(--fk-primary)}
+.sb-grp-t{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-grp-bdg{margin-left:8px}
+.sb-grp .ni-cv{margin-left:auto}
+.sb-grp-body{overflow:hidden;max-height:0;transition:max-height .18s ease}
+.ni-grp.open>.sb-grp-body{max-height:640px}
+@media(prefers-reduced-motion:reduce){ .sb-grp-body{transition:none} .ni-cv{transition:none} }
 .ni{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;cursor:pointer;color:var(--fk-text-muted);font-size:var(--fs-secondary);font-weight:500;text-decoration:none;transition:background .14s ease,color .14s ease;margin-bottom:2px}
 .ni:hover{background:var(--fk-bg-subtle);color:var(--fk-text)}
 .ni-ic{width:18px;height:18px;flex:none;display:grid;place-items:center;color:currentColor;opacity:.92}
@@ -1401,34 +1410,56 @@ button.mn-card:active{transform:scale(.985)}
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
     <nav class="sb-nav">
       <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
-      <div class="sb-grp" data-le style="display:none">Leads</div>
-      <a class="ni" data-tab="leadentry" data-le style="display:none" onclick="setTab('leadentry')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ni-lb">Add Manual Lead</span></a>
-      <a class="ni" data-tab="myleads" data-le style="display:none" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
-      <div class="sb-grp" data-le style="display:none">Lead sources</div>
-      <a class="ni" data-tab="conn" data-le style="display:none" onclick="setTab('conn')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="ni-lb">Connections</span></a>
-      <a class="ni" data-tab="fbconnect" data-le style="display:none" onclick="setTab('fbconnect')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Connect Facebook</span></a>
-      <a class="ni" data-tab="webleads" data-le style="display:none" onclick="setTab('webleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span class="ni-lb">Website Leads</span></a>
-      <a class="ni" data-tab="whatsapp" data-le style="display:none" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
-      <a class="ni" data-tab="igdm" data-le style="display:none" onclick="setTab('igdm')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span><span class="ni-lb">Instagram</span></a>
-      <a class="ni" data-tab="adspend" data-le style="display:none" onclick="setTab('adspend')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg></span><span class="ni-lb">Ad Spend</span></a>
+      <!-- ══ lead-entry operator: manual leads ══ -->
+      <div class="ni-grp" data-grp="op-leads" data-le style="display:none">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('op-leads')"><span class="sb-grp-t">Leads</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="leadentry" onclick="setTab('leadentry')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ni-lb">Add Manual Lead</span></a>
+          <a class="ni" data-tab="myleads" onclick="setTab('myleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="ni-lb">My Leads</span></a>
+        </div>
+      </div>
+      <!-- ══ lead-entry operator: lead sources ══ -->
+      <div class="ni-grp" data-grp="op-sources" data-le style="display:none">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('op-sources')"><span class="sb-grp-t">Lead sources</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="conn" onclick="setTab('conn')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="ni-lb">Connections</span></a>
+          <a class="ni" data-tab="fbconnect" onclick="setTab('fbconnect')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Connect Facebook</span></a>
+          <a class="ni" data-tab="webleads" onclick="setTab('webleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span class="ni-lb">Website Leads</span></a>
+          <a class="ni" data-tab="whatsapp" onclick="setTab('whatsapp')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l2-5.5a8.5 8.5 0 0 1-1-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></span><span class="ni-lb">WhatsApp</span></a>
+          <a class="ni" data-tab="igdm" onclick="setTab('igdm')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span><span class="ni-lb">Instagram</span></a>
+          <a class="ni" data-tab="adspend" onclick="setTab('adspend')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg></span><span class="ni-lb">Ad Spend</span></a>
+        </div>
+      </div>
       <!-- ══ selling roles (rep / manager / director): workflow-grouped sidebar nav ══ -->
-      <div class="sb-grp" data-sell style="display:none">Workspace</div>
-      <a class="ni" data-tab="leads" data-sell style="display:none" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
-      <a class="ni" data-tab="board" data-sell style="display:none" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
-      <a class="ni" data-tab="mine" data-sell style="display:none" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
-      <a class="ni" data-tab="money" data-sell style="display:none" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
-      <a class="ni" data-tab="performance" data-sell style="display:none" onclick="setTab('performance')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ni-lb">My results</span></a>
+      <div class="ni-grp" data-grp="workspace" data-sell style="display:none">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('workspace')"><span class="sb-grp-t">Workspace</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-workspace"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="leads" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
+          <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
+          <a class="ni" data-tab="mine" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
+          <a class="ni" data-tab="money" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
+          <a class="ni" data-tab="performance" onclick="setTab('performance')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ni-lb">My results</span></a>
+        </div>
+      </div>
       <!-- ══ manager + director: team management ══ -->
-      <div class="sb-grp" data-mgr style="display:none">Management</div>
-      <a class="ni" data-tab="team" data-mgr style="display:none" onclick="setTab('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">My Team</span></a>
-      <a class="ni" data-tab="distribute" data-mgr style="display:none" onclick="setTab('distribute')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="ni-lb">Assign leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
-      <a class="ni" data-tab="targets" data-mgr style="display:none" onclick="setTab('targets')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="ni-lb">Targets</span></a>
-      <!-- ══ director + exec: leadership ══ -->
-      <div class="sb-grp" data-lead-grp style="display:none">Leadership</div>
-      <a class="ni" data-tab="command" data-cmd style="display:none" onclick="setTab('command')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span><span class="ni-lb">Command Center</span></a>
-      <a class="ni" data-tab="livemap" data-dir style="display:none" onclick="setTab('livemap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span class="ni-lb">Live Map</span></a>
-      <a class="ni" data-tab="fbsettings" data-dir style="display:none" onclick="setTab('fbsettings')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></span><span class="ni-lb">Facebook Leads</span></a>
-      <a class="ni" data-tab="adroi" data-ad style="display:none" onclick="setTab('adroi')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-5v13L3 15z"/><path d="M11.6 16.8a3 3 0 1 1-5.78-1.5"/></svg></span><span class="ni-lb">Ad results</span></a>
+      <div class="ni-grp" data-grp="management" data-mgr style="display:none">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('management')"><span class="sb-grp-t">Management</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-management"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="team" onclick="setTab('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">My Team</span></a>
+          <a class="ni" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="ni-lb">Assign leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
+          <a class="ni" data-tab="targets" onclick="setTab('targets')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="ni-lb">Targets</span></a>
+        </div>
+      </div>
+      <!-- ══ director + exec: leadership (items keep finer role gating: cmd / dir / ad) ══ -->
+      <div class="ni-grp" data-grp="leadership" data-lead-grp style="display:none">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('leadership')"><span class="sb-grp-t">Leadership</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="command" data-cmd style="display:none" onclick="setTab('command')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span><span class="ni-lb">Command Center</span></a>
+          <a class="ni" data-tab="livemap" data-dir style="display:none" onclick="setTab('livemap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span class="ni-lb">Live Map</span></a>
+          <a class="ni" data-tab="fbsettings" data-dir style="display:none" onclick="setTab('fbsettings')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></span><span class="ni-lb">Facebook Leads</span></a>
+          <a class="ni" data-tab="adroi" data-ad style="display:none" onclick="setTab('adroi')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-5v13L3 15z"/><path d="M11.6 16.8a3 3 0 1 1-5.78-1.5"/></svg></span><span class="ni-lb">Ad results</span></a>
+        </div>
+      </div>
     </nav>
     <div class="sb-bottom" style="padding:8px 12px;border-top:1px solid var(--fk-hairline)">
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
@@ -2111,6 +2142,7 @@ function _applyLeadAccess(){
   show('[data-lead-grp]', isDir || isExec);                 // Leadership group header
   const ah=$('appbar-home'); if(ah) ah.style.display = isLE ? 'none' : '';
   const ab=$('appbar-bell'); if(ab) ab.style.display='';
+  try{ _syncNavGroups(); }catch(e){}                         // apply accordion default-open once role gating has settled
   if(isLE){ try{ loadAnnouncements(); }catch(e){} }
 }
 // which of the 5 bottom tabs a given screen belongs to (drives the active state)
@@ -2230,14 +2262,64 @@ function setTab(t,_back){
   else if(t==='fbsettings') renderFbSettings();
   else renderHome();
   document.querySelectorAll('.sb [data-tab]').forEach(n=>n.classList.toggle('on', n.getAttribute('data-tab')===t));   // operator drawer active state
+  _syncNavGroups(t);                                                                                                   // accordion: open the active page's group (auto-expand deep-links)
   _syncBtabs(t);                                                                                                       // bottom-bar active state
   const ttl=$('appbar-title'); if(ttl) ttl.textContent=TAB_TITLES[t]||'';
   closeSidebar();
   try{ const b=$('app-body'); if(b){ b.classList.remove('rise'); void b.offsetWidth; b.classList.add('rise'); } window.scrollTo(0,0); }catch(e){}
   _syncNav();
 }
-// sidebar drawer (mobile)
-function toggleGroup(grp){ const g=document.querySelector('.sb .ni-grp[data-grp="'+grp+'"]'); if(g) g.classList.toggle('open'); }
+// ════ sidebar accordion groups (collapsible, per-user persisted) ════
+// which nav group each screen lives in — drives default-open + deep-link auto-expand
+const _GRP_OF={
+  leadentry:'op-leads', myleads:'op-leads',
+  conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
+  leads:'workspace', board:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
+  team:'management', distribute:'management', targets:'management',
+  command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
+};
+const _NAV_GRP_KEY='crm.nav.groups';
+function _navGroupState(){ try{ return JSON.parse(localStorage.getItem(_NAV_GRP_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function _navGroupSave(s){ try{ localStorage.setItem(_NAV_GRP_KEY, JSON.stringify(s)); }catch(e){} }
+// collapsed group headers show the SUM of their children's badges so nothing urgent hides
+function _syncGroupBadges(){
+  document.querySelectorAll('.sb .ni-grp[data-grp]').forEach(g=>{
+    const hb=g.querySelector('.sb-grp-bdg'); if(!hb) return;
+    const open=g.classList.contains('open');
+    let sum=0, danger=false;
+    g.querySelectorAll('.sb-grp-body .ni-bdg.show').forEach(cb=>{
+      const n=parseInt((cb.textContent||'').replace(/\D/g,''),10); if(!isNaN(n)) sum+=n;
+      if(cb.classList.contains('bdg-danger')) danger=true;
+    });
+    if(!open && sum>0){ hb.textContent=sum>99?'99+':String(sum); hb.classList.add('show'); hb.classList.toggle('bdg-danger',danger); }
+    else { hb.classList.remove('show','bdg-danger'); hb.textContent=''; }
+  });
+}
+// apply open/closed state: active page's group always open, others honor saved state (default collapsed)
+function _syncNavGroups(t){
+  const active=_GRP_OF[t||TAB]||null;
+  const st=_navGroupState();
+  document.querySelectorAll('.sb .ni-grp[data-grp]').forEach(g=>{
+    const id=g.getAttribute('data-grp');
+    let open;
+    if(id===active) open=true;                                                   // group of the current page → always expanded
+    else if(Object.prototype.hasOwnProperty.call(st,id)) open=!!st[id];          // otherwise honor the user's saved arrangement
+    else open=false;                                                             // default: collapsed
+    g.classList.toggle('open', open);
+    g.classList.toggle('has-active', id===active);
+    const btn=g.querySelector('[data-grp-btn]'); if(btn) btn.setAttribute('aria-expanded', open?'true':'false');
+  });
+  _syncGroupBadges();
+}
+// tap a group header → expand/collapse + persist the choice
+function toggleGroup(grp){
+  const g=document.querySelector('.sb .ni-grp[data-grp="'+grp+'"]'); if(!g) return;
+  const open=!g.classList.contains('open');
+  g.classList.toggle('open', open);
+  const btn=g.querySelector('[data-grp-btn]'); if(btn) btn.setAttribute('aria-expanded', open?'true':'false');
+  const st=_navGroupState(); st[grp]=open; _navGroupSave(st);
+  _syncGroupBadges();
+}
 function openSidebar(){ const s=$('sb'),k=$('sb-scrim'); if(s)s.classList.add('open'); if(k)k.classList.add('show'); }
 function closeSidebar(){ const s=$('sb'),k=$('sb-scrim'); if(s)s.classList.remove('open'); if(k)k.classList.remove('show'); }
 function toggleSidebar(){ const s=$('sb'); if(s&&s.classList.contains('open')) closeSidebar(); else openSidebar(); }
@@ -2326,12 +2408,13 @@ function _fuRow(l){
 function gotoLead(id){ TAB='leads'; _syncBtabs('leads'); const t=$('appbar-title'); if(t) t.textContent='Leads'; closeSidebar(); openLead(id); }
 function _leadsBadgeSet(n){ const b=$('nav-badge-leads'), tb=$('btab-badge-leads');
   if(b){ if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show','bdg-danger'); } else b.classList.remove('show','bdg-danger'); }
-  if(tb){ if(n>0){ tb.textContent=n>99?'99+':String(n); tb.classList.add('show'); } else tb.classList.remove('show'); } }
+  if(tb){ if(n>0){ tb.textContent=n>99?'99+':String(n); tb.classList.add('show'); } else tb.classList.remove('show'); }
+  try{ _syncGroupBadges(); }catch(e){} }                     // roll the Leads count up to Workspace when collapsed
 // new-lead notification — toast once when the count grows (tracks last-seen per browser)
 function _leadsNotify(n){ try{ n=Number(n)||0; if(n<=0) return; const seen=Number(localStorage.getItem('nx_leads_seen')||'0');
   if(n>seen){ toast(n+' new lead'+(n===1?'':'s')+' — open the Leads tab to view','ok'); localStorage.setItem('nx_leads_seen',String(n)); } }catch(e){} }
 function _leadsMarkSeen(n){ try{ localStorage.setItem('nx_leads_seen',String(Number(n)||0)); }catch(e){} }
-function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }
+function _distBadgeSet(n){ const b=$('nav-badge-distribute'); if(!b)return; if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); try{ _syncGroupBadges(); }catch(e){} }
 function _fuBadgeSet(overdue,today){ const b=$('nav-badge-followups'); if(!b) return; const od=Number(overdue||0),td=Number(today||0),n=od+td;
   b.classList.remove('bdg-danger','bdg-amber');
   if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); b.classList.add(od>0?'bdg-danger':'bdg-amber'); } else b.classList.remove('show'); }
