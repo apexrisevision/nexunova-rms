@@ -878,6 +878,9 @@ function nav(pg,x){
       }
     }
   }
+  // ── Lazy page loader (Phase A2): fetch this page's module on first visit,
+  //    then re-enter nav(). Aborts the current pass while the script loads. ──
+  if(typeof _navLazyGuard==='function'&&_navLazyGuard(pg,x))return;
   const curActive=document.querySelector('.pg.on')?.id?.replace('pg-','');
   if(curActive&&curActive!==pg){
     _prevPg=curActive;
@@ -918,7 +921,13 @@ function nav(pg,x){
   }
   // Close mobile sidebar on navigation
   closeMobileSidebar();
-  const fns={dashboard:rDash,onlineportal:rOnlinePortal,queue:rQueue,newsale:rNewSale,editsale:rEditSale,projects:rProjects,projectdetail:rProjectDetail,units:rUnits,unitdetail:()=>rUD(_uid),clients:rClients,clientdetail:rClientDetail,agents:rAgents,agentdetail:rAgentDetail,sales:rSales,salesdetail:rSaleDetail,recovery:rRec,addpayment:rAddPayment,receipts:rReceipts,pdc:rPDC,cancelledunits:rCancelLedger,transferunits:rTransferLedger,officerledger:rOfficerLedger,receivingledger:rReceivingLedger,ledgers:rLedgers,'ledger-client':rLedgerClient,'ledger-unit':rLedgerUnit,'ledger-agent':rLedgerAgent,'ledger-project':rLedgerProject,commissions:rCommissions,unittransfer:rUnitTransfer,unitcancel:rUnitCancel,unitchain:rUnitChain,reminders:rReminders,contacts:rCons,search:rSearch,reports:rReports,recoveryiq:rRecoveryIQ,myrecovery:rMyRecovery,agentrecovery:rAgentRecovery,documents:rDocs,statements:rStatements,backup:rBackup,admin:rAdmin,categories:rCategories,users:rUsers,healthcenter:()=>openClientsTab('health'),promises:rPromises,audit:rAudit,approvals:rApprovals,team:rTeam,paylinks:rPayLinks,'paylink-detail':rPayLinkDetail,'payment-methods':rPaymentMethods,changepassword:rChangepassword,banks:rBanks,blacklist:()=>openClientsTab('blacklist'),payables:rPayables,receivables:rReceivables,escalations:rEscalations,legalcases:rLegalCases,agenttransactions:rAgentTransactions,campaigns:rCampaigns,forecasting:rForecasting,commscenter:rCommsCenter,noc:rNOC,fieldvisits:rFieldVisits,reservations:rReservations,salesaccess:rSalesAccess,salesubmissions:rSaleSubmissions,dealeragreement:rDealerAgreement};
+  // NOTE: values are window.-prefixed so the object literal never throws when a
+  // page module is still lazy-loaded (a bare identifier would ReferenceError;
+  // window.rXxx is undefined-safe). _navLazyGuard above guarantees the target
+  // page's module is loaded before we dispatch. Arrow entries resolve at call
+  // time — also safe once their module is in.
+  const W=window;
+  const fns={dashboard:W.rDash,onlineportal:W.rOnlinePortal,queue:W.rQueue,newsale:W.rNewSale,editsale:W.rEditSale,projects:W.rProjects,projectdetail:W.rProjectDetail,units:W.rUnits,unitdetail:()=>rUD(_uid),clients:W.rClients,clientdetail:W.rClientDetail,agents:W.rAgents,agentdetail:W.rAgentDetail,sales:W.rSales,salesdetail:W.rSaleDetail,recovery:W.rRec,addpayment:W.rAddPayment,receipts:W.rReceipts,pdc:W.rPDC,cancelledunits:W.rCancelLedger,transferunits:W.rTransferLedger,officerledger:W.rOfficerLedger,receivingledger:W.rReceivingLedger,ledgers:W.rLedgers,'ledger-client':W.rLedgerClient,'ledger-unit':W.rLedgerUnit,'ledger-agent':W.rLedgerAgent,'ledger-project':W.rLedgerProject,commissions:W.rCommissions,unittransfer:W.rUnitTransfer,unitcancel:W.rUnitCancel,unitchain:W.rUnitChain,reminders:W.rReminders,contacts:W.rCons,search:W.rSearch,reports:W.rReports,recoveryiq:W.rRecoveryIQ,myrecovery:W.rMyRecovery,agentrecovery:W.rAgentRecovery,documents:W.rDocs,statements:W.rStatements,backup:W.rBackup,admin:W.rAdmin,categories:W.rCategories,users:W.rUsers,healthcenter:()=>openClientsTab('health'),promises:W.rPromises,audit:W.rAudit,approvals:W.rApprovals,team:W.rTeam,paylinks:W.rPayLinks,'paylink-detail':W.rPayLinkDetail,'payment-methods':W.rPaymentMethods,changepassword:W.rChangepassword,banks:W.rBanks,blacklist:()=>openClientsTab('blacklist'),payables:W.rPayables,receivables:W.rReceivables,escalations:W.rEscalations,legalcases:W.rLegalCases,agenttransactions:W.rAgentTransactions,campaigns:W.rCampaigns,forecasting:W.rForecasting,commscenter:W.rCommsCenter,noc:W.rNOC,fieldvisits:W.rFieldVisits,reservations:W.rReservations,salesaccess:W.rSalesAccess,salesubmissions:W.rSaleSubmissions,dealeragreement:W.rDealerAgreement};
   const _PAGE_FLAG = {
     noc:'noc', campaigns:'campaigns', forecasting:'forecasting',
     commscenter:'comms_center', executive:'executive_dashboard',

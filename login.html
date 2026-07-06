@@ -3304,7 +3304,10 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/components/client-form.js?v=20260617b"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260706pA"></script>
+<script src="js/ui.js?v=20260706pA2"></script>
+<!-- Lazy page loader (Phase A2): manifest + nav guard + cross-module stubs.
+     Must load after ui.js (defines nav) and before any page module. -->
+<script src="js/lazy-pages.js?v=20260706a3"></script>
 <script src="js/foundation/shell.js?v=20260614rec"></script>
 <script src="js/recovery-bell.js?v=20260614rec2"></script>
 
@@ -3316,72 +3319,22 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/pages/signup.js?v=20260612g"></script>
 <script src="js/pages/onboarding.js?v=20260612g"></script>
 
-<!-- 6. Page renderers -->
-<script src="js/pages/dashboard.js?v=20260704a"></script>
-<script src="js/pages/units.js?v=20260616a"></script>
-<script src="js/pages/clients.js?v=20260614w4"></script>
-<script src="js/pages/projects.js?v=20260613ps"></script>
-<script src="js/pages/agents.js?v=20260617merge"></script>
-<script src="js/pages/sales.js?v=20260617comm"></script>
-<script src="js/pages/recovery.js?v=20260614rec"></script>
-<script src="js/pages/payments.js?v=20260613ps"></script>
-<script src="js/pages/receipts.js?v=20260706p2b"></script>
-<script src="js/pages/pdc.js?v=20260613ps"></script>
-<script src="js/pages/cancelled.js?v=20260613ps"></script>
-<script src="js/pages/transferred.js?v=20260613ps"></script>
-<script src="js/pages/ownership-chain.js?v=20260613a"></script>
-<script src="js/pages/officerledger.js?v=20260613ps"></script>
-<script src="js/pages/receivingledger.js?v=20260613ps"></script>
-<script src="js/pages/ledgers.js?v=20260616c"></script>
-<script src="js/pages/ledger-client.js?v=20260514e"></script>
-<script src="js/pages/ledger-unit.js?v=20260616"></script>
-<script src="js/pages/ledger-agent.js?v=20260514e"></script>
-<script src="js/pages/ledger-project.js?v=20260514e"></script>
-<script src="js/pages/reminders.js?v=20260614rec3"></script>
-<script src="js/pages/contacts.js?v=20260613a"></script>
-<script src="js/pages/health-center.js?v=20260604a"></script>
-<!-- radar.js retired (Phase 3A) → js/pages/archive/ -->
-<script src="js/pages/promises.js?v=20260614w4"></script>
-<script src="js/pages/recovery-queue.js?v=20260615en"></script>
-<script src="js/pages/audit.js?v=20260706p2b"></script>
-<script src="js/pages/approvals.js?v=20260613a"></script>
-<script src="js/pages/reservations.js?v=20260615p2"></script>
-<script src="js/pages/sales-access.js?v=20260706pA"></script>
-<script src="js/pages/sale-submissions.js?v=20260617nom"></script>
-<script src="js/pages/dealer-agreement.js?v=20260618"></script>
-<script src="js/pages/team.js?v=20260613ps"></script>
-<script src="js/pages/search.js?v=20260517a"></script>
-<script src="js/pages/reports.js?v=20260706p1b"></script>
-<script src="js/pages/officer-report.js?v=20260706p1b"></script>
-<script src="js/pages/agent-report.js?v=20260706p1b"></script>
-<script src="js/pages/print.js?v=20260706p1b"></script>
-<script src="js/pages/documents.js?v=20260617b"></script>
-<script src="js/pages/statements.js?v=20260617b"></script>
-<script src="js/pages/transfers.js?v=20260613a"></script>
-<script src="js/pages/cancellation.js?v=20260617a"></script>
-<script src="js/pages/backup.js?v=20260618exp"></script>
-<script src="js/pages/admin.js?v=20260706p1b"></script>
-<script src="js/pages/categories.js?v=20260613w2"></script>
-<script src="js/pages/users.js?v=20260614m1"></script>
-<script src="js/pages/payment-wall.js?v=20260522a"></script>
-<script src="js/pages/super-admin.js?v=20260618exp"></script>
-<script src="js/whatsapp-helper.js"></script>
-<script src="js/pages/payment-links.js?v=20260517a"></script>
-<script src="js/pages/payment-methods.js?v=20260612b2"></script>
-<script src="js/pages/banks.js?v=20260612b1"></script>
-<script src="js/pages/blacklist.js?v=20260604a"></script>
-<script src="js/pages/payables.js?v=20260522a"></script>
-<script src="js/pages/receivables.js?v=20260522a"></script>
-<script src="js/pages/escalations.js?v=20260614rec"></script>
-<script src="js/pages/legalcases.js?v=20260613a"></script>
-<script src="js/pages/agenttransactions.js?v=20260613b"></script>
-<script src="js/pages/campaigns.js?v=20260613a"></script>
-<script src="js/pages/forecasting.js?v=20260614w4"></script>
-<script src="js/pages/comms-center.js?v=20260528a"></script>
-<!-- executive.js retired (Phase 3A) → js/pages/archive/ -->
-<script src="js/pages/noc.js?v=20260613ps"></script>
-<script src="js/pages/fieldvisits.js?v=20260614rec"></script>
-<script src="js/pages/company-branding.js?v=20260706pA"></script>
+<!-- 6. Page renderers — LAZY-LOADED on first navigation (Phase A2).
+     The ~55 page modules formerly listed here now fetch on demand via
+     js/lazy-pages.js (loaded above, right after ui.js), keeping login light.
+     Only the landing page + the shared page-libraries that other pages call
+     synchronously (print engine, ledger framework, fmtPKR) + a few globally-
+     reachable helpers stay eager below. Full rationale: js/lazy-pages.js. -->
+<script src="js/pages/dashboard.js?v=20260704a"></script>        <!-- landing page -->
+<script src="js/pages/print.js?v=20260706p1b"></script>          <!-- print/document engine used by ~10 pages -->
+<script src="js/pages/ledgers.js?v=20260616c"></script>          <!-- ledger framework (_ldg* used by ledger family) -->
+<script src="js/pages/payment-wall.js?v=20260522a"></script>     <!-- fmtPKR + subscription paywall -->
+<script src="js/pages/contacts.js?v=20260613a"></script>         <!-- global Log-a-Call helpers + login cache warm -->
+<script src="js/pages/officer-report.js?v=20260706p1b"></script> <!-- rendered inline on the recovery dashboard -->
+<script src="js/pages/company-branding.js?v=20260706pA"></script><!-- hasFeature/feature-flags used inside nav() -->
+<script src="js/pages/super-admin.js?v=20260618exp"></script>    <!-- self-boots on ?super-admin route -->
+<script src="js/whatsapp-helper.js"></script>                    <!-- shared WhatsApp deep-link helper -->
+<!-- radar.js / executive.js retired (Phase 3A) → js/pages/archive/ -->
 
 <!-- 6.6. Reusable Form Navigation Bar -->
 <script src="js/form-nav.js?v=20260516i"></script>
