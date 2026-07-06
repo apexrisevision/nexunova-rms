@@ -447,3 +447,83 @@
 .sa-modal-title { font-size: 15px; font-weight: 600; color: var(--sa-text); letter-spacing: -0.1px; }
 .sa-modal-x { background: none; border: none; color: var(--sa-text-3); font-size: 22px; line-height: 1; cursor: pointer; transition: color .18s; }
 .sa-modal-x:hover { color: var(--sa-text); }
+
+/* ══ THEME ISOLATION (fix 2026-07-06) ═══════════════════════════════════════
+   The super-admin console is a FIXED dark surface, independent of the app's
+   light/dark theme. Global `[data-theme="light"] …` rules elsewhere were
+   bleeding in and washing out text (logo, tabs, Exit, stat labels, card
+   titles) against the dark background. Re-assert the dark-surface colours with
+   #id specificity (an id beats any [data-theme] .class rule) so the console
+   reads correctly in BOTH app themes. Colours reference the --sa-* tokens
+   already defined on #s-super-admin. */
+#s-super-admin .sa-logo,
+#s-super-admin .sa-tab.active,
+#s-super-admin .sa-stat-val,
+#s-super-admin .sa-card-title,
+#s-super-admin .sa-gate-brand,
+#s-super-admin .sa-detail-val,
+#s-super-admin .sa-modal-title { color: var(--sa-text) !important; }
+
+#s-super-admin .sa-tab,
+#s-super-admin .sa-stat-lbl,
+#s-super-admin .sa-tbl th,
+#s-super-admin .sa-gate-hint,
+#s-super-admin .sa-gate-brand .sa-gate-sub,
+#s-super-admin .sa-detail-lbl,
+#s-super-admin .sa-card-hd .sa-card-title ~ *,
+#s-super-admin .sa-modal-x { color: var(--sa-text-3) !important; }
+
+#s-super-admin .sa-tab:hover,
+#s-super-admin .sa-logout-btn,
+#s-super-admin .sa-btn-ghost,
+#s-super-admin .sa-tbl td { color: var(--sa-text-2) !important; }
+
+#s-super-admin .sa-badge { color: var(--sa-accent-tx) !important; }
+#s-super-admin .sa-receipt-link { color: var(--sa-accent-tx) !important; }
+#s-super-admin .sa-empty { color: var(--sa-text-4) !important; }
+
+/* Neutralise legacy rainbow stat colours (values stay neutral in BOTH themes) */
+#s-super-admin .sa-stat.cyan .sa-stat-val,
+#s-super-admin .sa-stat.purple .sa-stat-val,
+#s-super-admin .sa-stat.green .sa-stat-val,
+#s-super-admin .sa-stat.orange .sa-stat-val,
+#s-super-admin .sa-stat.red .sa-stat-val { color: var(--sa-text) !important; }
+#s-super-admin .sa-stat.cyan .sa-stat-lbl,
+#s-super-admin .sa-stat.purple .sa-stat-lbl,
+#s-super-admin .sa-stat.green .sa-stat-lbl,
+#s-super-admin .sa-stat.orange .sa-stat-lbl,
+#s-super-admin .sa-stat.red .sa-stat-lbl { color: var(--sa-text-3) !important; }
+
+/* Filter pills: keep the dark-surface treatment (ignore the light-mode override) */
+#s-super-admin .sa-filter-btn { background: var(--sa-surface-2) !important; color: var(--sa-text-3) !important; border-color: var(--sa-line) !important; }
+#s-super-admin .sa-filter-btn.active { background: var(--sa-accent-bg) !important; color: var(--sa-accent-tx) !important; border-color: var(--sa-accent-bd) !important; }
+
+/* Status badges keep their semantic colours in both themes */
+#s-super-admin .sa-status.pending,
+#s-super-admin .sa-status.pending_payment { color: var(--sa-warn) !important; }
+#s-super-admin .sa-status.approved,
+#s-super-admin .sa-status.active { color: var(--sa-ok) !important; }
+#s-super-admin .sa-status.rejected { color: var(--sa-bad) !important; }
+#s-super-admin .sa-status.needs_info,
+#s-super-admin .sa-status.trialing,
+#s-super-admin .sa-status.payment_under_review { color: var(--sa-accent-tx) !important; }
+
+/* Base text colour on the console root so ANY unclassed text stays legible on
+   the dark surface (in light app-theme it would otherwise inherit dark). Child
+   elements with their own colour keep it (inheritance, not specificity). */
+#s-super-admin { color: var(--sa-text); }
+
+/* Tinted action buttons — keep their semantic text + fill in both themes */
+#s-super-admin .sa-btn-primary { color: #fff !important; }
+#s-super-admin .sa-btn-approve { color: var(--sa-ok) !important;        background: var(--sa-ok-bg) !important;     border-color: var(--sa-ok-bd) !important; }
+#s-super-admin .sa-btn-reject  { color: var(--sa-bad) !important;       background: var(--sa-bad-bg) !important;    border-color: var(--sa-bad-bd) !important; }
+#s-super-admin .sa-btn-info    { color: var(--sa-accent-tx) !important; background: var(--sa-accent-bg) !important; border-color: var(--sa-accent-bd) !important; }
+
+/* Inputs stay dark-surface (a global light-theme input rule was washing them out) */
+#s-super-admin .sa-input,
+#s-super-admin .sa-notes-input,
+#s-super-admin .sa-select,
+#s-super-admin .sa-textarea { background: rgba(255,255,255,0.04) !important; color: var(--sa-text) !important; border-color: var(--sa-line) !important; }
+#s-super-admin .sa-input::placeholder,
+#s-super-admin .sa-notes-input::placeholder,
+#s-super-admin .sa-textarea::placeholder { color: var(--sa-text-4) !important; }
