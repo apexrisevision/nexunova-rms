@@ -836,9 +836,10 @@ const SA = (() => {
     </div>`;
 
     try {
-      const [detailRes, flagsRes] = await Promise.all([
+      const [detailRes, flagsRes, invRes] = await Promise.all([
         supabase.rpc('get_company_detail_admin', { p_company_id: companyId }),
-        supabase.rpc('list_company_feature_flags', { p_company_id: companyId })
+        supabase.rpc('list_company_feature_flags', { p_company_id: companyId }),
+        supabase.rpc('sa_list_invoices', { p_company_id: companyId })
       ]);
       if (detailRes.error) throw detailRes.error;
 
@@ -848,6 +849,7 @@ const SA = (() => {
       const plan = d.plan || {};
       const stats = d.stats || {};
       const flags = Array.isArray(flagsRes.data) ? flagsRes.data : [];
+      const invoices = Array.isArray(invRes.data) ? invRes.data : [];
       const fmtM = n => Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0});
 
       const FEATURE_KEYS = [
@@ -874,6 +876,40 @@ const SA = (() => {
           <button onclick="SA._toggleFlag('${companyId}','${fk.key}',${!enabled},'${_esc(companyName)}')" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ${enabled?'rgba(34,197,94,0.35)':'rgba(239,68,68,0.3)'};background:${enabled?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.08)'};color:${enabled?'#4ade80':'#f87171'}">${enabled?'Enabled':'Disabled'}</button>
         </div>`;
       }).join('');
+
+      // ── Subscription invoices (Commit 2) ──
+      const _invChip = (s) => {
+        const m = {
+          paid:    ['#4ade80','rgba(34,197,94,0.12)','rgba(34,197,94,0.35)'],
+          partial: ['#fbbf24','rgba(251,191,36,0.12)','rgba(251,191,36,0.35)'],
+          overdue: ['#f87171','rgba(239,68,68,0.12)','rgba(239,68,68,0.35)'],
+          sent:    ['#93b8fb','rgba(59,130,246,0.12)','rgba(59,130,246,0.3)'],
+          unpaid:  ['rgba(255,255,255,0.6)','rgba(255,255,255,0.06)','rgba(255,255,255,0.15)'],
+          draft:   ['rgba(255,255,255,0.5)','rgba(255,255,255,0.05)','rgba(255,255,255,0.12)'],
+          cancelled:['rgba(255,255,255,0.4)','rgba(255,255,255,0.05)','rgba(255,255,255,0.12)'],
+          refunded:['rgba(255,255,255,0.4)','rgba(255,255,255,0.05)','rgba(255,255,255,0.12)'],
+        }[s] || ['rgba(255,255,255,0.6)','rgba(255,255,255,0.06)','rgba(255,255,255,0.15)'];
+        return `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:5px;color:${m[0]};background:${m[1]};border:1px solid ${m[2]}">${_esc(s)}</span>`;
+      };
+      const invoiceRows = invoices.map(inv => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;color:white;font-weight:600">${_esc(inv.invoice_number)}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4)">Due ${inv.due_date?_date(inv.due_date):'—'} · ${_esc(inv.currency||'PKR')} ${fmtM(inv.amount)}${Number(inv.received)>0?` · recv ${fmtM(inv.received)}`:''}${Number(inv.balance)>0?` · bal ${fmtM(inv.balance)}`:''}</div>
+          </div>
+          ${_invChip(inv.display_status||inv.status)}
+          ${inv.pdf_storage_path ? `<button onclick="SA._viewInvoicePdf('${inv.id}')" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:rgba(255,255,255,0.7);padding:4px 10px;font-size:11px;cursor:pointer">PDF</button>` : `<span style="font-size:10px;color:rgba(255,255,255,0.25);padding:4px 8px">no pdf</span>`}
+        </div>`).join('');
+      const invoiceSection = `
+        <div style="margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.3);font-weight:600">Subscription Invoices</div>
+            <button onclick="SA._genSendInvoice('${companyId}','${_esc(co.company_name||companyName)}')" style="background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.4);border-radius:7px;padding:5px 12px;color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer">+ Generate &amp; Send Invoice</button>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border-radius:10px;overflow:hidden;max-height:220px;overflow-y:auto">
+            ${invoices.length ? invoiceRows : '<div style="padding:16px;text-align:center;color:rgba(255,255,255,0.35);font-size:12px">No invoices yet.</div>'}
+          </div>
+        </div>`;
 
       const isSuspended = !!co.suspended_at;
 
@@ -921,6 +957,8 @@ const SA = (() => {
           <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:8px 12px">${flagRows}</div>
         </div>
 
+        ${invoiceSection}
+
         <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
           <button onclick="SA._recordPayment('${companyId}','${_esc(co.company_name||companyName)}', ${Number(sub.amount)||Number(plan.price)||0}, '${_esc(sub.billing_cycle||plan.billing_cycle||'monthly')}', '${_esc(sub.current_period_end||'')}')" style="background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:8px 18px;color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">Record Payment &amp; Extend</button>
           ${isSuspended
@@ -932,6 +970,31 @@ const SA = (() => {
     } catch(e) {
       ov.innerHTML = `<div style="background:#14171d;border-radius:16px;padding:40px;color:#f87171;text-align:center">${_esc(e.message)}</div>`;
     }
+  }
+
+  // ── Invoices: generate the cycle invoice + email the PDF (super-admin) ──
+  async function _genSendInvoice(companyId, companyName) {
+    if (!confirm('Generate this billing cycle\'s invoice and email the PDF to the billing contact?')) return;
+    try {
+      const g = await supabase.rpc('sa_generate_invoice', { p_company_id: companyId });
+      if (g.error) throw g.error;
+      const gd = g.data || {};
+      if (!gd.success || !gd.invoice_id) throw new Error(gd.error || 'Could not create invoice');
+      const { data, error } = await supabase.functions.invoke('send-invoice', { body: { invoice_id: gd.invoice_id, mode: 'send' } });
+      if (error) throw error;
+      if (data && data.emailed) alert('Invoice ' + (data.invoice_number || '') + ' emailed to the billing contact.');
+      else alert('Invoice ' + ((data && data.invoice_number) || '') + ' generated' + (data && data.email_error ? ' — email not sent: ' + data.email_error : '') + '.');
+      _loadCompanyDetail(companyId, companyName);
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  }
+  // Re-render + sign the invoice PDF and open it (idempotent, no email).
+  async function _viewInvoicePdf(invoiceId) {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-invoice', { body: { invoice_id: invoiceId, mode: 'generate' } });
+      if (error) throw error;
+      if (data && data.signed_url) window.open(data.signed_url, '_blank');
+      else alert('Could not open PDF' + (data && data.error ? ': ' + JSON.stringify(data.error) : ''));
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
 
   async function _toggleFlag(companyId, featureKey, newEnabled, companyName) {
@@ -1112,7 +1175,8 @@ const SA = (() => {
     _annOpenForm, _annCloseForm, _annSave, _annToggle, _annDelete,
     _ticketSetFilter, _ticketResolve, _ticketSetPriority,
     _loadCompanyDetail, _toggleFlag, _suspendCo,
-    _recordPayment, _submitExtend, _closeExtend
+    _recordPayment, _submitExtend, _closeExtend,
+    _genSendInvoice, _viewInvoicePdf
   };
 })();
 
