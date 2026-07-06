@@ -2299,11 +2299,14 @@ function _syncGroupBadges(){
 function _syncNavGroups(t){
   const active=_GRP_OF[t||TAB]||null;
   const st=_navGroupState();
+  const role=(ME&&ME.role)||'';
+  const sell=(role==='sale_rep'||role==='marketing_manager'||role==='director');  // roles whose daily work lives in Workspace
   document.querySelectorAll('.sb .ni-grp[data-grp]').forEach(g=>{
     const id=g.getAttribute('data-grp');
     let open;
     if(id===active) open=true;                                                   // group of the current page → always expanded
-    else if(Object.prototype.hasOwnProperty.call(st,id)) open=!!st[id];          // otherwise honor the user's saved arrangement
+    else if(Object.prototype.hasOwnProperty.call(st,id)) open=!!st[id];          // saved arrangement always wins
+    else if(!active && id==='workspace' && sell) open=true;                       // ungrouped landing (Dashboard/Messages) → open Workspace for sellers (no stored pref)
     else open=false;                                                             // default: collapsed
     g.classList.toggle('open', open);
     g.classList.toggle('has-active', id===active);
