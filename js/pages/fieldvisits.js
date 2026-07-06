@@ -38,7 +38,7 @@ async function _fvLoad() {
   try {
     const [{ data: rows, error: e1 }, { data: analytics }] = await Promise.all([
       supabase.rpc('get_field_visits', { p_company_id: S.cid }),
-      supabase.rpc('get_field_visit_analytics', { p_company_id: S.cid, p_days: 30 })
+      supabase.rpc('get_field_visit_analytics', { p_company_id: S.cid })
     ]);
     if (e1) throw e1;
     _fvData      = Array.isArray(rows) ? rows : [];

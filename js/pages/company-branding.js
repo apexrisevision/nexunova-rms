@@ -41,7 +41,9 @@ async function _migrateLocalLogoIfNeeded() {
 async function loadFeatureFlags() {
   if (!S || !S.cid) return;
   try {
-    const { data } = await supabase.rpc('list_company_feature_flags', { p_company_id: S.cid });
+    // Caller-scoped reader (own company via _rms_caller); NOT the super-admin
+    // list_company_feature_flags, which raises 42501→403 for normal users.
+    const { data } = await supabase.rpc('get_my_feature_flags');
     const flags = {};
     if (Array.isArray(data)) {
       data.forEach(r => { flags[r.feature_key] = r.enabled !== false; });

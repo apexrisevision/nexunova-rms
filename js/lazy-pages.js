@@ -43,7 +43,7 @@
   var ESCAL        = ['js/pages/escalations.js?v=20260614rec'];
   var CANCELLATION = ['js/pages/cancellation.js?v=20260617a'];
   var TRANSFERS    = ['js/pages/transfers.js?v=20260613a'];
-  var FIELDVISITS  = ['js/pages/fieldvisits.js?v=20260614rec'];
+  var FIELDVISITS  = ['js/pages/fieldvisits.js?v=20260706ff'];
   var PROMISES     = ['js/pages/promises.js?v=20260614w4'];
   // clients cluster — clientdetail tabs call rHealthCenter/rBlacklist (guarded)
   // and _cdLoadPromises (unguarded) at sync render, so its siblings ride along.
@@ -111,9 +111,9 @@
     payables: ['js/pages/payables.js?v=20260522a'],
     receivables: ['js/pages/receivables.js?v=20260522a'],
     escalations: ESCAL,
-    legalcases: ['js/pages/legalcases.js?v=20260613a'],
+    legalcases: ['js/pages/legalcases.js?v=20260706ff'],
     agenttransactions: AGENTTX,
-    campaigns: ['js/pages/campaigns.js?v=20260613a'],
+    campaigns: ['js/pages/campaigns.js?v=20260706ff'],
     forecasting: ['js/pages/forecasting.js?v=20260614w4'],
     commscenter: ['js/pages/comms-center.js?v=20260528a'],
     noc: ['js/pages/noc.js?v=20260613ps'],

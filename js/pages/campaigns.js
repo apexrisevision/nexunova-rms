@@ -37,7 +37,7 @@ async function _camLoadList() {
   gridEl.innerHTML = `<div style="padding:32px;text-align:center;color:var(--fk-text-muted)">Loading…</div>`;
 
   try {
-    const { data, error } = await supabase.rpc('get_campaigns_list', { p_company_id: S.cid });
+    const { data, error } = await supabase.rpc('list_campaigns', { p_company_id: S.cid });
     if (error) throw error;
     _camList = Array.isArray(data) ? data : [];
     _camRenderTabs();

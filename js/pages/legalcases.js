@@ -58,7 +58,7 @@ async function rLegalCases() {
 async function _lcLoad() {
   try {
     const [{ data: rows, error: e1 }, { data: analytics }] = await Promise.all([
-      supabase.rpc('get_legal_cases',   { p_company_id: S.cid }),
+      supabase.rpc('list_legal_cases',   { p_company_id: S.cid }),
       supabase.rpc('get_legal_analytics',{ p_company_id: S.cid })
     ]);
     if (e1) throw e1;
