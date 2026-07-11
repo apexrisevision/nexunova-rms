@@ -522,15 +522,15 @@ function buildSB(){
       { label: 'Transfer & Cancel', items: [
         { id:'unittransfer',   ic:'arrow-left-right', lb:'Transfer Unit' },
         { id:'unitcancel',     ic:'x-circle', lb:'Cancel Unit' },
-        { id:'transferunits',  ic:'repeat', lb:'Transferred Units' },
-        { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units' },
       ]},
       // ── 5 · Reports & Ledgers ──
       { label: 'Reports & Ledgers', items: [
-        { id:'reports',       ic:'bar-chart-3',    lb:'Reports' },
-        { id:'ledgers',       ic:'book-open',      lb:'Ledgers' },
-        { id:'statements',    ic:'file-text',      lb:'Account Statements' },
-        { id:'receipts',      ic:'receipt',        lb:'Receipt Vouchers' },
+        { id:'reports',        ic:'bar-chart-3',    lb:'Reports' },
+        { id:'ledgers',        ic:'book-open',      lb:'Ledgers' },
+        { id:'statements',     ic:'file-text',      lb:'Account Statements' },
+        { id:'receipts',       ic:'receipt',        lb:'Receipt Vouchers' },
+        { id:'transferunits',  ic:'repeat',         lb:'Transferred Units' },
+        { id:'cancelledunits', ic:'tag',            lb:'Cancelled Units' },
       ]},
       // ── 6 · Team & Approvals ──
       { label: 'Team & Approvals', items: [
