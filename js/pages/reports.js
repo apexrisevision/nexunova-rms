@@ -110,7 +110,10 @@ const REPORTS = {
       fetch: async f => {
         const r = await supabase.rpc('list_payments_filtered', { p_company_id: S.cid, p_filters: { date_from: f.from || null, date_to: f.to || null, limit: 5000 } });
         if (r.error) throw r.error;
-        const pays = r.data || [];
+        // Exclude cancelled/void receipts — list_payments_filtered has no status guard,
+        // so voided payments would otherwise inflate the grand total (over-counting real
+        // collections). Recovery Position already excludes these; this keeps the two reports tied.
+        const pays = (r.data || []).filter(p => String(p.status || '') !== 'cancelled');
         const sids = [...new Set(pays.map(p => p.sale_id).filter(Boolean))];
         let unitMap = {};
         if (sids.length) { const sm = await supabase.rpc('get_sales_unit_map', { p_company_id: S.cid, p_sale_ids: sids }); (sm.data || []).forEach(s => { unitMap[s.id] = s.unit_id; }); }

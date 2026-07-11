@@ -520,6 +520,7 @@ function buildSB(){
       ]},
       // ── 4 · Transfer & Cancel ──
       { label: 'Transfer & Cancel', items: [
+        { id:'unitcancel',     ic:'x-circle', lb:'Cancel Unit' },
         { id:'transferunits',  ic:'repeat', lb:'Transferred Units' },
         { id:'cancelledunits', ic:'tag',    lb:'Cancelled Units' },
       ]},
