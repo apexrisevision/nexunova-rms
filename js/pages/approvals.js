@@ -43,6 +43,7 @@ const _AP_TYPE = {
   client_status:    { c:'#06b6d4', lb:'Client Status',    action:'client_status'   },
   legal_delete:     { c:'#dc2626', lb:'Legal Delete',     action:'legal_delete'    },
   sale_edit:        { c:'#f59e0b', lb:'Sale Edit',        action:'sale_edit'       },
+  unit_change:      { c:'#14b8a6', lb:'Change Unit',      action:'unit_change'     },
 };
 
 // Default restriction levels (since we don't have a reader RPC for company_restriction_rules
@@ -51,7 +52,7 @@ const _AP_DEFAULT_LEVELS = {
   discount:'soft', price_revision:'soft', cancellation:'soft', transfer:'soft',
   refund:'soft', dnd:'soft', blacklist:'soft', payment_void:'soft',
   backdate:'soft', schedule_change:'soft', client_status:'soft',
-  legal_delete:'soft', sale_edit:'soft',
+  legal_delete:'soft', sale_edit:'soft', unit_change:'soft',
 };
 
 // Risk pill colors (HIGH / MEDIUM / LOW)
@@ -73,7 +74,7 @@ const _AP_TYPE_TONE = {
   discount:'primary', price_revision:'info', cancellation:'danger', transfer:'warning',
   refund:'info', dnd:'', blacklist:'danger', payment_void:'primary',
   payment_backdate:'primary', schedule_change:'info', client_status:'info',
-  legal_delete:'danger', sale_edit:'warning',
+  legal_delete:'danger', sale_edit:'warning', unit_change:'info',
 };
 const _AP_RISK_TONE = { high:'danger', medium:'warning', low:'info' };
 const _AP_SLA_TONE  = { on_track:'success', at_risk:'warning', breached:'danger' };
@@ -283,6 +284,28 @@ function _apRiskCallouts(req) {
       lines.push(`Unit transferred to new client · Transfer fee: PKR ${fM(Number(p.transfer_fee || 0))}`);
       if (p.documentation_charges) lines.push(`Documentation charges: PKR ${fM(Number(p.documentation_charges))}`);
       break;
+    case 'unit_change': {
+      // Same client, different unit. Spell out the money so the approver is not signing blind:
+      // the payload carries the new unit's price, not the delta.
+      const newNet = (Number(p.price_per_sqft || 0) * Number(p.area_sqft || 0)) - Number(p.discount || 0);
+      if (p.old_unit_no || p.new_unit_no) {
+        lines.push(`${esc(p.client_name || 'Client')} moves from unit ${esc(p.old_unit_no || '?')} to unit ${esc(p.new_unit_no || '?')}`);
+      }
+      lines.push('Same client keeps his booking — only the unit under it changes.');
+      lines.push(`New unit price: PKR ${fM(newNet)} (${fM(Number(p.area_sqft || 0))} sqft @ PKR ${fM(Number(p.price_per_sqft || 0))}/sqft)`);
+      lines.push('Money already received carries forward; only the balance is rescheduled.');
+      const insts = Array.isArray(p.installments) ? p.installments : [];
+      if (insts.length) {
+        const sum = insts.reduce((s, i) => s + Number(i.amount_due || 0), 0);
+        lines.push(`New schedule: ${insts.length} installment(s) totalling PKR ${fM(sum)}`);
+      } else {
+        lines.push('No new installments — he has already paid the new unit in full (any excess becomes credit).');
+      }
+      if (p.change_fee) lines.push(`Change fee: PKR ${fM(Number(p.change_fee))}`);
+      if (p.documentation_charges) lines.push(`Documentation charges: PKR ${fM(Number(p.documentation_charges))}`);
+      lines.push('Old unit returns to Available; new unit becomes Sold.');
+      break;
+    }
     case 'refund':
       lines.push('Payment status becomes "refunded"');
       if (p.refund_amount) lines.push(`Refund amount: PKR ${fM(Number(p.refund_amount))}`);

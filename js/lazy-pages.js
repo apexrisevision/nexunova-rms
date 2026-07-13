@@ -37,7 +37,7 @@
   var REPORTS      = ['js/pages/reports.js?v=20260711collfix'];
   var AUDIT        = ['js/pages/audit.js?v=20260706p2b'];
   var ADMIN        = ['js/pages/admin.js?v=20260706p1b'];
-  var APPROVALS    = ['js/pages/approvals.js?v=20260613a'];
+  var APPROVALS    = ['js/pages/approvals.js?v=20260714uc'];
   var PAYLINKS     = ['js/pages/payment-links.js?v=20260517a'];
   var OWNCHAIN     = ['js/pages/ownership-chain.js?v=20260613a'];
   var ESCAL        = ['js/pages/escalations.js?v=20260614rec'];
