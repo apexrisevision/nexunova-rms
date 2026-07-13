@@ -125,7 +125,7 @@ function _ucBodyHTML(data) {
 
   if (chain.length === 0) {
     return `<div style="margin-bottom:16px">${summary}</div>` +
-      NX.card(NX.empty({ icon:'git-branch', message:'No history yet — when this unit is sold, cancelled or transferred, the chain will appear here.' }));
+      NX.card(NX.empty({ icon:'git-branch', message:'No history yet — when this unit is sold, cancelled, transferred or changed, the chain will appear here.' }));
   }
 
   const tl = NX.card(`<div class="uc-tl">${chain.map((evt, i) => _ucEventHTML(evt, i, chain.length)).join('')}</div>`);
@@ -139,9 +139,9 @@ function _ucOriginBadge(origin) {
 }
 
 function _ucEventHTML(evt, idx, total) {
-  const typeMap  = { sale: 'is-sale', cancellation: 'is-cancel', transfer: 'is-xfer' };
-  const labelMap = { sale: 'Sale', cancellation: 'Cancellation', transfer: 'Transfer' };
-  const toneMap  = { sale: 'primary', cancellation: 'danger', transfer: 'warning' };
+  const typeMap  = { sale: 'is-sale', cancellation: 'is-cancel', transfer: 'is-xfer', unit_change: 'is-xfer' };
+  const labelMap = { sale: 'Sale', cancellation: 'Cancellation', transfer: 'Transfer', unit_change: 'Unit Changed' };
+  const toneMap  = { sale: 'primary', cancellation: 'danger', transfer: 'warning', unit_change: 'info' };
   const cls = typeMap[evt.event_type] || '';
   const lbl = labelMap[evt.event_type] || evt.event_type;
   const tone = toneMap[evt.event_type] || '';
@@ -157,6 +157,9 @@ function _ucEventHTML(evt, idx, total) {
   if (evt.event_type === 'sale')         { aLabel = 'Sale Price'; bLabel = 'Paid'; }
   if (evt.event_type === 'cancellation') { aLabel = 'Total Paid'; bLabel = 'Net Refund'; }
   if (evt.event_type === 'transfer')     { aLabel = 'New Sale Price'; bLabel = 'Transfer Charges'; }
+  // Same buyer, different unit. amount_a is THIS unit's price (the RPC picks the side that belongs
+  // to the unit being viewed), amount_b the money he had already paid and carried across.
+  if (evt.event_type === 'unit_change')  { aLabel = 'Price On This Unit'; bLabel = 'Paid & Carried'; }
 
   const inner =
     `<div class="uc-meta">

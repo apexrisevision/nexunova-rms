@@ -39,7 +39,7 @@
   var ADMIN        = ['js/pages/admin.js?v=20260706p1b'];
   var APPROVALS    = ['js/pages/approvals.js?v=20260714uc'];
   var PAYLINKS     = ['js/pages/payment-links.js?v=20260517a'];
-  var OWNCHAIN     = ['js/pages/ownership-chain.js?v=20260613a'];
+  var OWNCHAIN     = ['js/pages/ownership-chain.js?v=20260714uc'];
   var ESCAL        = ['js/pages/escalations.js?v=20260614rec'];
   var CANCELLATION = ['js/pages/cancellation.js?v=20260617a'];
   var TRANSFERS    = ['js/pages/transfers.js?v=20260713uc'];
