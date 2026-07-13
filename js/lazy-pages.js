@@ -42,7 +42,7 @@
   var OWNCHAIN     = ['js/pages/ownership-chain.js?v=20260613a'];
   var ESCAL        = ['js/pages/escalations.js?v=20260614rec'];
   var CANCELLATION = ['js/pages/cancellation.js?v=20260617a'];
-  var TRANSFERS    = ['js/pages/transfers.js?v=20260613a'];
+  var TRANSFERS    = ['js/pages/transfers.js?v=20260713uc'];
   var FIELDVISITS  = ['js/pages/fieldvisits.js?v=20260706ff'];
   var PROMISES     = ['js/pages/promises.js?v=20260614w4'];
   // clients cluster — clientdetail tabs call rHealthCenter/rBlacklist (guarded)
@@ -62,6 +62,9 @@
   ];
   // agenttransactions renders with agents.js CSS/format helpers (_agCSS/_agK).
   var AGENTTX = ['js/pages/agenttransactions.js?v=20260713a'].concat(AGENTS);
+  // Change Unit is built on the same rops-* system as Transfer and borrows its
+  // _opsWarmCSS bridge, so transfers.js must load with it.
+  var UNITCHANGE = ['js/pages/unitchange.js?v=20260713b'].concat(TRANSFERS);
 
   // ── nav-key → script srcs ────────────────────────────────────────────────
   var M = {
@@ -89,7 +92,7 @@
     'ledger-agent': ['js/pages/ledger-agent.js?v=20260514e'],
     'ledger-project': ['js/pages/ledger-project.js?v=20260514e'],
 
-    unittransfer: TRANSFERS, unitcancel: CANCELLATION, unitchain: OWNCHAIN,
+    unittransfer: TRANSFERS, unitcancel: CANCELLATION, unitchange: UNITCHANGE, unitchain: OWNCHAIN,
 
     reminders: ['js/pages/reminders.js?v=20260614rec3'],
     search: ['js/pages/search.js?v=20260517a'],

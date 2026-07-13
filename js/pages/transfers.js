@@ -20,7 +20,7 @@ let _txResult = null;
    here (global); cancellation.js calls it too. */
 function _opsWarmCSS() {
   if (document.getElementById('_ops_warm_css')) return;
-  const SC = '#pg-unittransfer, #pg-unitcancel';
+  const SC = '#pg-unittransfer, #pg-unitcancel, #pg-unitchange';
   const css = `
     ${SC}{font-family:var(--fk-font);color:var(--fk-text)}
     ${pf('.rops-hd')}{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;padding:0;border:none;background:none}
