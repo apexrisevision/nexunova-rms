@@ -61,7 +61,7 @@
     'js/pages/dealer-agreement.js?v=20260618'
   ];
   // agenttransactions renders with agents.js CSS/format helpers (_agCSS/_agK).
-  var AGENTTX = ['js/pages/agenttransactions.js?v=20260613b'].concat(AGENTS);
+  var AGENTTX = ['js/pages/agenttransactions.js?v=20260713a'].concat(AGENTS);
 
   // ── nav-key → script srcs ────────────────────────────────────────────────
   var M = {

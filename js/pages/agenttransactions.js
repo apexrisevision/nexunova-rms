@@ -19,9 +19,19 @@ const _AT_TYPES = [
   ['clawback',          'Clawback (Cancellation)'],
   ['write_off',         'Write-off'],
 ];
-const _AT_TYPE_LABELS = Object.fromEntries(_AT_TYPES);
-// Only adjustment_credit adds to the agent's balance; the rest reduce/pay it.
-const _atIsCredit = t => t === 'adjustment_credit';
+// System-written types — not offered in the manual-entry form.
+// unit_cancelled / unit_transferred carry amount 0: they exist so the agent's ledger shows the
+// unit left him. Commission is deliberately NOT reversed (owner decision 2026-07-13).
+const _AT_SYSTEM_TYPES = [
+  ['commission_accrued', 'Commission Accrued'],
+  ['unit_cancelled',     'Unit Cancelled'],
+  ['unit_transferred',   'Unit Transferred'],
+];
+const _AT_TYPE_LABELS = Object.fromEntries([..._AT_TYPES, ..._AT_SYSTEM_TYPES]);
+// Record-only lines: no money moves, so they must not colour or count as credit/deduction.
+const _atIsRecord = t => t === 'unit_cancelled' || t === 'unit_transferred';
+// adjustment_credit and commission_accrued add to the agent's balance; the rest reduce/pay it.
+const _atIsCredit = t => t === 'adjustment_credit' || t === 'commission_accrued';
 
 async function rAgentTransactions() {
   const el = document.getElementById('pg-agenttransactions');
@@ -54,7 +64,8 @@ function _atRenderTabs() {
   el.innerHTML = NX.tabs({ tabs: [
     { k:'all',    label:'All' },
     { k:'credit', label:'Credits' },
-    { k:'debit',  label:'Deductions' }
+    { k:'debit',  label:'Deductions' },
+    { k:'record', label:'Cancelled / Transferred' }
   ], active:_atTypeFilter, onSelect:"_atSetType('%k')" });
 }
 
@@ -64,8 +75,9 @@ function _atFilterRender() {
   const agentId = (document.getElementById('at-agent-filter') || {}).value || '';
   let rows = _atData || [];
   if (agentId) rows = rows.filter(r => r.agent_id === agentId);
-  if (_atTypeFilter === 'credit') rows = rows.filter(r => _atIsCredit(r.transaction_type));
-  if (_atTypeFilter === 'debit')  rows = rows.filter(r => !_atIsCredit(r.transaction_type));
+  if (_atTypeFilter === 'credit') rows = rows.filter(r => !_atIsRecord(r.transaction_type) && _atIsCredit(r.transaction_type));
+  if (_atTypeFilter === 'debit')  rows = rows.filter(r => !_atIsRecord(r.transaction_type) && !_atIsCredit(r.transaction_type));
+  if (_atTypeFilter === 'record') rows = rows.filter(r => _atIsRecord(r.transaction_type));
   _atRender(rows);
 }
 
@@ -93,8 +105,9 @@ function _atRender(rows) {
   if (!bodyEl) return;
   const isA = S.role === 'admin' || S.role === 'owner';
 
-  const credits = (rows||[]).filter(r => _atIsCredit(r.transaction_type)).reduce((s, r) => s + Number(r.amount || 0), 0);
-  const debits  = (rows||[]).filter(r => !_atIsCredit(r.transaction_type)).reduce((s, r) => s + Number(r.amount || 0), 0);
+  const money   = (rows||[]).filter(r => !_atIsRecord(r.transaction_type));
+  const credits = money.filter(r =>  _atIsCredit(r.transaction_type)).reduce((s, r) => s + Number(r.amount || 0), 0);
+  const debits  = money.filter(r => !_atIsCredit(r.transaction_type)).reduce((s, r) => s + Number(r.amount || 0), 0);
 
   if (kpiEl) {
     kpiEl.innerHTML =
@@ -114,11 +127,14 @@ function _atRender(rows) {
         <th>Agent</th><th>Type</th><th class="num">Amount</th><th>Method</th><th>Reference</th><th>Date</th>${isA?'<th class="num"></th>':''}
       </tr></thead><tbody>
       ${rows.map(r => {
+        const record = _atIsRecord(r.transaction_type);
         const credit = _atIsCredit(r.transaction_type);
+        const label  = _AT_TYPE_LABELS[r.transaction_type] || r.transaction_type;
         return `<tr>
           <td><div style="font-weight:500">${esc(r.agents?.agent_name || '—')}</div><div class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(r.agents?.agent_code || '')}</div></td>
-          <td>${NX.badge(_AT_TYPE_LABELS[r.transaction_type] || r.transaction_type, credit ? 'success' : 'danger')}</td>
-          <td class="num" style="font-weight:600;color:${credit ? 'var(--fk-success)' : 'var(--fk-danger)'}">${credit ? '+' : '-'}${fM(r.amount)}</td>
+          <td>${NX.badge(label, record ? 'warning' : (credit ? 'success' : 'danger'))}
+              ${record && r.notes ? `<div style="font-size:11px;color:var(--fk-text-muted);margin-top:4px;max-width:340px">${esc(r.notes)}</div>` : ''}</td>
+          <td class="num" style="font-weight:600;color:${record ? 'var(--fk-text-muted)' : (credit ? 'var(--fk-success)' : 'var(--fk-danger)')}">${record ? '—' : (credit ? '+' : '-') + fM(r.amount)}</td>
           <td style="color:var(--fk-text-muted)">${esc(r.payment_method || '—')}</td>
           <td class="nx-mono" style="color:var(--fk-text-muted)">${esc(r.reference || '—')}</td>
           <td style="color:var(--fk-text-muted)">${r.created_at ? fD(r.created_at.split('T')[0]) : '—'}</td>
