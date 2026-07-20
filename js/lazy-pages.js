@@ -30,7 +30,7 @@
   'use strict';
 
   // ── shared bundle arrays (deduped; versions match the former eager tags) ──
-  var SALES        = ['js/pages/sales.js?v=20260617comm'];
+  var SALES        = ['js/pages/sales.js?v=20260720sched'];
   var PROJECTS     = ['js/pages/projects.js?v=20260613ps'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
   var AGENTS       = ['js/pages/agents.js?v=20260617merge'];

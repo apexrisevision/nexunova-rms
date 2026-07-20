@@ -289,9 +289,26 @@ function _spGenerate(net, tpl, p) {
     if (bookingAmt > 0) lines.push({ type: 'down_payment', label: 'Booking / Down Payment', due: bookingDate, amount: bookingAmt });
     var monthlyAmt = _spRound(p.monthlyAmt || 0);
     var cmonths = parseInt(p.months) || 0;
-    d = new Date(p.startDate);
+    var startD = new Date(p.startDate);
+    var lastMonthly = cmonths > 0 ? _spAddMonths(startD, cmonths - 1) : startD;
+    d = new Date(startD.getTime());
     for (i = 1; i <= cmonths; i++) { lines.push({ type: 'installment', label: 'Installment ' + i, due: _spYmd(d), amount: monthlyAmt }); d = _spAddMonths(d, 1); }
-    (p.specials || []).forEach(function (s) { lines.push({ type: s.type || 'custom', label: s.label || 'Special', due: s.due || _spYmd(d), amount: _spRound(s.amount || 0) }); });
+    // Additional payments that run ALONGSIDE the monthlies — annual / half-yearly /
+    // quarterly (recurring across the plan window) or a single one-time payment.
+    (p.extras || []).forEach(function (ex) {
+      var amt = _spRound(ex.amount || 0); if (amt <= 0) return;
+      var iv  = ex.freq === 'quarterly' ? 3 : ex.freq === 'halfyearly' ? 6 : ex.freq === 'yearly' ? 12 : 0;
+      var lab = ex.freq === 'quarterly' ? 'Quarterly payment' : ex.freq === 'halfyearly' ? 'Half-yearly payment' : ex.freq === 'yearly' ? 'Yearly payment' : 'Extra payment';
+      var ed  = ex.start ? new Date(ex.start) : new Date(startD.getTime());
+      if (iv === 0) { lines.push({ type: 'custom', label: lab, due: _spYmd(ed), amount: amt }); return; }
+      var guard = 0;
+      while (_spYmd(ed) <= _spYmd(lastMonthly) && guard < 600) {
+        lines.push({ type: 'custom', label: lab, due: _spYmd(ed), amount: amt });
+        ed = _spAddMonths(ed, iv); guard++;
+      }
+    });
+    // chronological order so the schedule reads top-to-bottom by date
+    lines.sort(function (a, b) { return a.due < b.due ? -1 : a.due > b.due ? 1 : 0; });
   } else { // 'equal' or 'possession'
     var bookingPct = Number(p.bookingPct) || 0;
     var possessionPct = tpl === 'possession' ? (Number(p.possessionPct) || 0) : 0;
@@ -352,7 +369,7 @@ async function rNewSale() {
     saleDate: today, bookingDate: today, startDate: _spYmd(_spAddMonths(new Date(), 1)),
     rate: 0, area: 0, list: 0, deal: 0, discount: 0, pricePerSqft: 0, net: 0,
     tpl: 'equal', bookingPct: 30, months: 12, possessionPct: 10,
-    custom: { bookingAmt: 0, monthlyAmt: 0, months: 12 },
+    custom: { bookingAmt: 0, monthlyAmt: 0, months: 12, extras: [] },
     plan: [],
     // Optional booking-time extras (FIELD_CENSUS B2) — same columns Edit Sale writes via edit_sale().
     coBuyerName: '', coBuyerCnic: '', coBuyerShare: '',
@@ -678,7 +695,8 @@ function _nsStep4() {
       <div class="nx-field"><label class="nx-label"># Months</label><input class="nx-input" id="ns-p-months" type="number" min="0" value="${_ns.custom.months||''}" oninput="_nsPlanChange()"></div>
       <div class="nx-field" style="grid-column:1/4"><label class="nx-label">First installment date</label><input class="nx-input" id="ns-p-start" type="date" value="${_ns.startDate}" oninput="_nsPlanChange()"></div>
     </div>
-    <div class="nx-kpi-label" style="text-transform:none;margin-top:6px">Remainder (net − booking − Σmonthly) is absorbed into the last monthly line automatically.</div>`;
+    <div class="nx-kpi-label" style="text-transform:none;margin-top:6px">Remainder (net − booking − Σmonthly − Σperiodic) is absorbed into the last monthly line automatically.</div>
+    ${_nsExtrasSection()}`;
   } else {
     params = `<div style="display:grid;grid-template-columns:repeat(${tpl==='possession'?4:3},1fr);gap:var(--fk-sp-3)">
       <div class="nx-field"><label class="nx-label">Booking %</label><input class="nx-input" id="ns-p-bookpct" type="number" min="0" max="100" step="0.5" value="${_ns.bookingPct}" oninput="_nsPlanChange()"></div>
@@ -706,13 +724,51 @@ function _nsReadPlanParams() {
     _ns.custom.monthlyAmt = parseAmt(document.getElementById('ns-p-monthamt')?.value);
     _ns.custom.months     = parseInt(document.getElementById('ns-p-months')?.value) || 0;
     return { bookingAmt:_ns.custom.bookingAmt, monthlyAmt:_ns.custom.monthlyAmt, months:_ns.custom.months,
-             startDate:_ns.startDate, bookingDate:_ns.bookingDate };
+             startDate:_ns.startDate, bookingDate:_ns.bookingDate, extras:(_ns.custom.extras || []) };
   }
   _ns.bookingPct    = parseFloat(document.getElementById('ns-p-bookpct')?.value) || 0;
   _ns.months        = parseInt(document.getElementById('ns-p-months')?.value) || 0;
   _ns.possessionPct = _ns.tpl === 'possession' ? (parseFloat(document.getElementById('ns-p-posspct')?.value) || 0) : 0;
   return { bookingPct:_ns.bookingPct, months:_ns.months, possessionPct:_ns.possessionPct,
            startDate:_ns.startDate, bookingDate:_ns.bookingDate };
+}
+
+// ── Custom plan: additional periodic / one-time payments (run alongside monthly) ──
+// Each extra = { amount, freq: once|quarterly|halfyearly|yearly, start:YYYY-MM-DD }.
+// Recurring extras are expanded into dated lines by _spGenerate (custom branch);
+// the last monthly installment absorbs the net difference.
+const _NS_FREQ = [['once','One-time'], ['quarterly','Quarterly'], ['halfyearly','Half-yearly'], ['yearly','Yearly']];
+
+function _nsExtrasSection() {
+  const extras = _ns.custom.extras || [];
+  const rows = extras.map((ex, i) => `
+    <div style="display:grid;grid-template-columns:1.2fr 1.1fr 1.2fr auto;gap:var(--fk-sp-2);align-items:end;margin-bottom:8px">
+      <div class="nx-field" style="margin:0"><label class="nx-label">Amount</label>
+        <input class="nx-input num" inputmode="decimal" value="${ex.amount || ''}" placeholder="e.g. 300000" oninput="_nsExtraEdit(${i},'amount',this.value)" style="text-align:right"></div>
+      <div class="nx-field" style="margin:0"><label class="nx-label">Frequency</label>
+        <select class="nx-select" onchange="_nsExtraEdit(${i},'freq',this.value)">${_NS_FREQ.map(([v,l]) => `<option value="${v}"${ex.freq===v?' selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="nx-field" style="margin:0"><label class="nx-label">${ex.freq==='once'?'Payment date':'Starts on'}</label>
+        <input class="nx-input" type="date" value="${ex.start || ''}" onchange="_nsExtraEdit(${i},'start',this.value)"></div>
+      <div>${NX.button('✕', { variant:'ghost', size:'sm', onclick:`_nsExtraDel(${i})`, attrs:'title="Remove this payment"' })}</div>
+    </div>`).join('');
+  return `<div class="nx-card" style="margin-top:var(--fk-sp-3);background:var(--fk-bg-subtle)">
+    <div class="nx-card-title" style="font-size:var(--fk-fs-body,13px)">Additional payments <span class="nx-kpi-label" style="text-transform:none">— annual / half-yearly / quarterly / one-time, on top of the monthly</span></div>
+    <div style="margin-top:var(--fk-sp-2)">${rows || '<div class="nx-kpi-label" style="text-transform:none">None yet — e.g. a fixed yearly amount agreed with the client.</div>'}</div>
+    <div style="margin-top:var(--fk-sp-2)">${NX.button('+ Add periodic payment', { variant:'secondary', size:'sm', onclick:'_nsExtraAdd()' })}</div>
+  </div>`;
+}
+function _nsExtraAdd() {
+  if (!_ns.custom.extras) _ns.custom.extras = [];
+  const base = _ns.startDate ? new Date(_ns.startDate) : new Date();
+  _ns.custom.extras.push({ amount:'', freq:'yearly', start:_spYmd(_spAddMonths(base, 12)) });
+  _nsRenderStep();
+}
+function _nsExtraDel(i) { (_ns.custom.extras || []).splice(i, 1); _nsRenderStep(); }
+function _nsExtraEdit(i, field, val) {
+  const ex = (_ns.custom.extras || [])[i]; if (!ex) return;
+  ex[field] = (field === 'amount') ? parseAmt(val) : val;
+  if (field === 'freq') _nsRenderStep();   // date label flips (Starts on ↔ Payment date)
+  else _nsPlanChange();                    // amount/date: live recompute, keep focus
 }
 
 function _nsPlanChange() {
@@ -726,11 +782,15 @@ function _nsPlanChange() {
 
   _ns.plan = warnMsg ? [] : _spGenerate(_ns.net, _ns.tpl, p);
   const sum = _spSum(_ns.plan);
-  const matches = !warnMsg && _ns.plan.length && Math.abs(sum - _ns.net) < 0.01;
+  // Periodic extras can outgrow the net and push the absorbing last line negative —
+  // that ties out numerically but is nonsense money, so block it explicitly.
+  const negLine = _ns.plan.find(l => l.amount < -0.01);
+  const matches = !warnMsg && !negLine && _ns.plan.length && Math.abs(sum - _ns.net) < 0.01;
 
   const tie = document.getElementById('ns-tieout');
   if (tie) {
     if (warnMsg) tie.innerHTML = NX.banner(warnMsg, 'warn');
+    else if (negLine) tie.innerHTML = NX.banner(`Periodic payments are too large — the last installment goes negative (${fMF(negLine.amount)}). Increase # months or lower the periodic amount.`, 'danger');
     else if (matches) tie.innerHTML = `<div class="nx-banner nx-banner--info" style="background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.35);color:var(--fk-success)">${NX.icon('check',16)}<span><strong>Plan = Deal ✓</strong> — schedule totals ${fMF(sum)}, exactly the net payable.</span></div>`;
     else tie.innerHTML = NX.banner(`Schedule ${fMF(sum)} ≠ net ${fMF(_ns.net)}`, 'danger');
   }
