@@ -80,7 +80,7 @@
     agents: AGENTS, agentdetail: AGENTS, commissions: AGENTS,
 
     recovery: ['js/pages/recovery.js?v=20260614rec'],
-    addpayment: ['js/pages/payments.js?v=20260613ps'],
+    addpayment: ['js/pages/payments.js?v=20260720amt'],
     receipts: ['js/pages/receipts.js?v=20260706p2b'],
     pdc: ['js/pages/pdc.js?v=20260613ps'],
     cancelledunits: ['js/pages/cancelled.js?v=20260613ps'],

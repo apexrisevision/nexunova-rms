@@ -173,7 +173,7 @@
 
     const footer =
       NX.button('Cancel', { variant: 'ghost', onclick: 'ClientForm.close()' }) +
-      NX.button(isEdit ? 'Save changes' : 'Create client', { variant: 'primary', onclick: 'ClientForm.save()', attrs: 'id="cfm-save"' });
+      NX.button(isEdit ? 'Save changes' : 'Save Client', { variant: 'primary', onclick: 'ClientForm.save()', attrs: 'id="cfm-save"' });
 
     document.body.insertAdjacentHTML('beforeend', NX.modal({
       id: 'cfm-modal', title: isEdit ? 'Edit client' : 'Add client', size: 'm',
@@ -342,7 +342,7 @@
       close();
       if (cb) cb({ id: clientId, full_name: name, cnic: payload.cnic, projectId: projId, status: payload.status, isNew: false });
     } catch (e) {
-      if (btn) { btn.disabled = false; const sp = btn.querySelector('span'); if (sp) sp.textContent = isEdit ? 'Save changes' : 'Create client'; }
+      if (btn) { btn.disabled = false; const sp = btn.querySelector('span'); if (sp) sp.textContent = isEdit ? 'Save changes' : 'Save Client'; }
       fail('Could not save client: ' + (e.message || e));
     }
   }

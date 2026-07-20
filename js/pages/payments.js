@@ -189,10 +189,22 @@ function _apRenderForm() {
   const today = (typeof td === 'function') ? td() : new Date().toISOString().slice(0, 10);
 
   const form =
+    // Amount is the primary field — always prominent and clearly visible, empty or
+    // filled (its own row, larger type, PKR prefix, placeholder, accent border) so
+    // it can never be mistaken for blank space the way a plain empty input can.
+    '<div class="nx-field" style="margin-bottom:var(--fk-sp-4,16px)">' +
+      '<label class="nx-label" for="ap-amount">Amount received (PKR) <span class="nx-req" aria-hidden="true">*</span></label>' +
+      '<div style="position:relative">' +
+        '<span aria-hidden="true" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:500;color:var(--fk-text-muted);letter-spacing:.3px;pointer-events:none">PKR</span>' +
+        '<input class="nx-input num" type="number" id="ap-amount" name="ap-amount" min="1" step="0.01" placeholder="0" ' +
+          'style="height:56px;font-size:22px;padding-left:62px;border:1.5px solid var(--fk-primary-edge);background:var(--fk-primary-surface)">' +
+      '</div>' +
+    '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3,12px)">' +
-      NX.field({ label:'Amount (PKR)', name:'ap-amount', type:'number', required:true, attrs:'min="1" step="0.01" class="nx-input num"' }) +
       NX.field({ label:'Payment date', name:'ap-date', type:'date', value:today, required:true }) +
       NX.field({ label:'Mode', name:'ap-mode', el:'select', value:'cash', options:_AP_MODES, attrs:'onchange="_apOnModeChange()"' }) +
+    '</div>' +
+    '<div style="margin-top:var(--fk-sp-3,12px)">' +
       NX.field({ label:'Reference / Txn no', name:'ap-ref', placeholder:'Bank / transaction reference (optional)' }) +
     '</div>' +
     '<div id="ap-cheque" style="display:none;margin-top:var(--fk-sp-3,12px)">' +
