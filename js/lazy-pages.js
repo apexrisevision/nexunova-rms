@@ -83,7 +83,7 @@
     addpayment: ['js/pages/payments.js?v=20260720amt'],
     receipts: ['js/pages/receipts.js?v=20260706p2b'],
     pdc: ['js/pages/pdc.js?v=20260613ps'],
-    cancelledunits: ['js/pages/cancelled.js?v=20260613ps'],
+    cancelledunits: ['js/pages/cancelled.js?v=20260720cxl'],
     transferunits: ['js/pages/transferred.js?v=20260613ps'],
     officerledger: ['js/pages/officerledger.js?v=20260613ps'],
     receivingledger: ['js/pages/receivingledger.js?v=20260613ps'],

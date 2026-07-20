@@ -11,11 +11,9 @@ function rCancelLedger() {
   if (!pg) return;
   if (typeof _ldgCSS === 'function') _ldgCSS();
 
-  if (!_clFilter.fr && typeof _ldgFiscalYear === 'function') {
-    const { from, to } = _ldgFiscalYear();
-    _clFilter.fr = from; _clFilter.to = to;
-  }
-
+  // No default date window — cancelled units (incl. imported ones without a
+  // recorded cancellation date) should all be visible on open; the user can
+  // narrow by date if they want.
   if (!_clFilter.project && typeof activeProjectId === 'function') _clFilter.project = activeProjectId() || '';   // global project lens
   const projects = ((typeof gprojects === 'function') ? gprojects() : (window._projectsCache || []))
     .filter(p => typeof hasProjectAccess !== 'function' || hasProjectAccess(p.id));
@@ -91,6 +89,7 @@ function _clRenderKPIs() {
   if (!el) return;
   const rows = _clList;
   const totalCount = rows.length;
+  const totalCollected = rows.reduce((s, r) => s + (+r.total_paid || 0), 0);
   const totalForfeited = rows.reduce((s, r) => s + (+r.total_deductions || 0), 0);
   const totalRefundDue = rows.reduce((s, r) => s + (+r.net_refund_amount || 0), 0);
   const totalRefundPaid = rows.reduce((s, r) =>
@@ -99,6 +98,7 @@ function _clRenderKPIs() {
 
   el.innerHTML =
     NX.kpi({ icon:'x-circle',   tone:'danger',  label:'Cancelled',       value:String(totalCount) }) +
+    NX.kpi({ icon:'wallet',     tone:'info',    label:'Collected (on cancelled)', value:`PKR ${_clK(totalCollected)}` }) +
     NX.kpi({ icon:'ban',        tone:'danger',  label:'Forfeited',       value:`PKR ${_clK(totalForfeited)}` }) +
     NX.kpi({ icon:'check-circle', tone:'success', label:'Refund Paid',   value:`PKR ${_clK(totalRefundPaid)}` }) +
     NX.kpi({ icon:'clock',      tone:'warning', label:'Pending Refund',  value:`PKR ${_clK(totalPending)}` });
@@ -121,17 +121,21 @@ function _clRenderTable() {
       const forfeited = +r.total_deductions || 0;
       const paid = (r.refund_status || '').toLowerCase() === 'paid' ? refundDue : 0;
       const pending = Math.max(0, refundDue - paid);
+      // Imported / silently-cancelled units have no formal refund record — show the
+      // collected amount but blank the refund columns so nothing reads as "owed".
+      const hasRec = r.has_record !== false && r.id != null;
+      const dash = '<span style="color:var(--fk-text-muted)">—</span>';
       return `<tr style="cursor:pointer" onclick="_clOpenDetail(${i})">
-        <td style="white-space:nowrap">${esc(_clDate(r.cancellation_date))}</td>
-        <td><div style="font-weight:500">${esc(r.unit_no || r.unit_code || '—')}</div><div class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(r.cancellation_voucher_no || '')}</div></td>
+        <td style="white-space:nowrap">${esc(_clDate(r.cancellation_date)) || dash}</td>
+        <td><div style="font-weight:500">${esc(r.unit_no || r.unit_code || '—')}</div><div class="nx-mono" style="font-size:11px;color:var(--fk-text-muted)">${esc(r.cancellation_voucher_no || r.sale_number || '')}</div></td>
         <td>${esc(r.client_name || '—')}</td>
         <td style="color:var(--fk-text-muted)">${esc(r.project_name || '—')}</td>
         <td class="num">${_clFM(+r.total_paid || 0)}</td>
-        <td class="num" style="color:var(--fk-danger)">${_clFM(forfeited)}</td>
-        <td class="num">${_clFM(refundDue)}</td>
-        <td class="num" style="color:var(--fk-success)">${_clFM(paid)}</td>
-        <td class="num" style="color:${pending > 0 ? 'var(--fk-danger)' : 'var(--fk-text-muted)'}">${_clFM(pending)}</td>
-        <td>${_clBadge(r.refund_status)}</td>
+        <td class="num" style="color:var(--fk-danger)">${hasRec ? _clFM(forfeited) : dash}</td>
+        <td class="num">${hasRec ? _clFM(refundDue) : dash}</td>
+        <td class="num" style="color:var(--fk-success)">${hasRec ? _clFM(paid) : dash}</td>
+        <td class="num" style="color:${pending > 0 ? 'var(--fk-danger)' : 'var(--fk-text-muted)'}">${hasRec ? _clFM(pending) : dash}</td>
+        <td>${hasRec ? _clBadge(r.refund_status) : '<span style="display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;background:var(--fk-bg-subtle);color:var(--fk-text-muted);white-space:nowrap">Not processed</span>'}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
   wrap.innerHTML = NX.card(body, { flush:true });
@@ -154,31 +158,36 @@ function _clOpenDetail(idx) {
   const forfeited = +r.total_deductions || 0;
   const paid = (r.refund_status || '').toLowerCase() === 'paid' ? refundDue : 0;
   const pending = Math.max(0, refundDue - paid);
+  const hasRec = r.has_record !== false && r.id != null;
 
   const grp = (icon, tone, title, rows) =>
     `<div class="ldg-grp"><div class="ldg-grp-hd">${NX.ichip(icon, tone, { size:'sm' })}${esc(title)}</div>${rows}</div>`;
   const row = (l, v, cls) => `<div class="ldg-row"><span class="l">${esc(l)}</span><span class="r ${cls||''}">${v}</span></div>`;
 
   const body =
-    `<div style="margin-bottom:14px">${_clBadge(r.refund_status)}</div>` +
+    (hasRec
+      ? `<div style="margin-bottom:14px">${_clBadge(r.refund_status)}</div>`
+      : `<div style="margin-bottom:14px;padding:11px 14px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:12.5px;color:var(--fk-text-muted);line-height:1.5"><strong style="color:var(--fk-text)">Not processed through cancellation workflow.</strong> Only the collected amount is known — forfeiture / refund treatment is handled in QuickBooks.</div>`) +
     grp('package', '', 'Unit & Client',
       row('Client', esc(r.client_name || '—')) +
       row('Unit', esc(r.unit_no || r.unit_code || '—')) +
       row('Project', esc(r.project_name || '—')) +
       row('Type', esc(r.cancellation_type || '—')) +
       row('Reason', esc(r.reason_category || '—'))) +
-    grp('rotate-ccw', '', 'Refund',
+    (hasRec ? grp('rotate-ccw', '', 'Refund',
       row('Refund Date', esc(_clDate(r.refund_date) || '—')) +
       row('Method', esc(r.refund_method || '—')) +
-      row('Reference', esc(r.refund_reference || '—'))) +
-    grp('wallet', '', 'Financial Breakdown',
-      row('Total Paid', 'PKR ' + _clFM(+r.total_paid || 0)) +
-      row('Booking Forfeiture', '− PKR ' + _clFM(+r.booking_forfeiture || 0), 'ldg-neg') +
-      row('Cancellation Charges', '− PKR ' + _clFM(+r.cancellation_charges || 0), 'ldg-neg') +
-      row('Total Deductions', '− PKR ' + _clFM(forfeited), 'ldg-neg') +
-      row('Net Refund Due', '<span style="color:var(--fk-primary)">PKR ' + _clFM(refundDue) + '</span>', 'is-total') +
-      row('Refund Paid', 'PKR ' + _clFM(paid), 'ldg-pos') +
-      row('Refund Pending', 'PKR ' + _clFM(pending), pending > 0 ? 'ldg-neg' : '')) +
+      row('Reference', esc(r.refund_reference || '—'))) : '') +
+    grp('wallet', '', hasRec ? 'Financial Breakdown' : 'Amount Collected',
+      row(hasRec ? 'Total Paid' : 'Amount Collected', 'PKR ' + _clFM(+r.total_paid || 0)) +
+      (hasRec
+        ? row('Booking Forfeiture', '− PKR ' + _clFM(+r.booking_forfeiture || 0), 'ldg-neg') +
+          row('Cancellation Charges', '− PKR ' + _clFM(+r.cancellation_charges || 0), 'ldg-neg') +
+          row('Total Deductions', '− PKR ' + _clFM(forfeited), 'ldg-neg') +
+          row('Net Refund Due', '<span style="color:var(--fk-primary)">PKR ' + _clFM(refundDue) + '</span>', 'is-total') +
+          row('Refund Paid', 'PKR ' + _clFM(paid), 'ldg-pos') +
+          row('Refund Pending', 'PKR ' + _clFM(pending), pending > 0 ? 'ldg-neg' : '')
+        : '')) +
     (r.detailed_reason ? `<div style="padding:12px 14px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:12.5px;color:var(--fk-text-muted);line-height:1.5;margin-bottom:8px"><strong style="color:var(--fk-text)">Reason: </strong>${esc(r.detailed_reason)}</div>` : '') +
     (r.notes ? `<div style="padding:12px 14px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:12.5px;color:var(--fk-text-muted);line-height:1.5"><strong style="color:var(--fk-text)">Notes: </strong>${esc(r.notes)}</div>` : '');
 
