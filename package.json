@@ -7,7 +7,9 @@
     "start": "electron .",
     "build": "electron-builder --win",
     "build:dir": "electron-builder --win --dir",
-    "shots": "node scripts/capture-screenshots.js"
+    "shots": "node scripts/capture-screenshots.js",
+    "check": "node scripts/predeploy-check.js",
+    "predeploy": "node scripts/predeploy-check.js"
   },
   "build": {
     "appId": "com.nexunova.rms",

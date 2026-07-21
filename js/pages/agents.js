@@ -1221,13 +1221,13 @@ async function _csOpenForm(id) {
       </div></div>` +
     `<div class="nx-field"><label class="nx-label" for="cs-active">Status</label><select class="nx-select" id="cs-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>` +
     `<div class="nx-field"><label class="nx-label" for="cs-notes">Notes</label><textarea class="nx-textarea" id="cs-notes" rows="2" placeholder="Optional notes…"></textarea></div>` +
-    `<div class="nx-error" id="cs-err"></div>`;
+    `<div class="nx-error" id="csm-err"></div>`;
 
   _csFormHost().innerHTML = NX.modal({
     id:'m-cs-form', title: id ? 'Edit commission structure' : 'Add commission structure', size:'m',
     onClose:'_csCloseForm()', body,
     footer: NX.button('Cancel', { variant:'secondary', onclick:'_csCloseForm()' }) +
-            NX.button('Save structure', { variant:'primary', attrs:'id="cs-save-btn"', onclick:'_csSave()' })
+            NX.button('Save structure', { variant:'primary', attrs:'id="csm-save-btn"', onclick:'_csSave()' })
   });
 
   document.getElementById('cs-id').value = id || '';
@@ -1265,7 +1265,7 @@ async function _csSave() {
   const rate     = parseFloat(document.getElementById('cs-rate')?.value);
   const bookPct  = parseFloat(document.getElementById('cs-book-pct')?.value || 50);
   const possPct  = parseFloat(document.getElementById('cs-poss-pct')?.value || 50);
-  const errEl    = document.getElementById('cs-err');
+  const errEl    = document.getElementById('csm-err');
 
   if (isNaN(rate) || rate < 0 || rate > 100) {
     errEl.textContent = 'Commission rate must be between 0 and 100%'; errEl.style.display = ''; return;
@@ -1275,7 +1275,7 @@ async function _csSave() {
   }
   errEl.style.display = 'none';
 
-  const btn = document.getElementById('cs-save-btn');
+  const btn = document.getElementById('csm-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {

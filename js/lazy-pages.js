@@ -33,7 +33,7 @@
   var SALES        = ['js/pages/sales.js?v=20260720sched'];
   var PROJECTS     = ['js/pages/projects.js?v=20260613ps'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
-  var AGENTS       = ['js/pages/agents.js?v=20260617merge'];
+  var AGENTS       = ['js/pages/agents.js?v=20260721clean'];
   var REPORTS      = ['js/pages/reports.js?v=20260711collfix'];
   var AUDIT        = ['js/pages/audit.js?v=20260706p2b'];
   var ADMIN        = ['js/pages/admin.js?v=20260706p1b'];
