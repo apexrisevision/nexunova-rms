@@ -10,7 +10,8 @@
     "shots": "node scripts/capture-screenshots.js",
     "check": "node scripts/predeploy-check.js",
     "check:forms": "node scripts/smoke-forms.js",
-    "check:all": "node scripts/predeploy-check.js && node scripts/smoke-forms.js",
+    "check:pages": "node scripts/smoke-pages.js",
+    "check:all": "node scripts/predeploy-check.js && node scripts/smoke-forms.js && node scripts/smoke-pages.js",
     "predeploy": "node scripts/predeploy-check.js"
   },
   "build": {
