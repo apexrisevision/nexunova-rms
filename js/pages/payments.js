@@ -159,8 +159,9 @@ function _apRenderContext() {
   const s    = _apSummary.sale;
   const inst = Array.isArray(_apSummary.installments) ? _apSummary.installments : [];
   const net  = Number(s.net_amount || 0);
-  const paid = inst.reduce((a, r) => a + Number(r.amount_paid || 0), 0);
-  const out  = inst.reduce((a, r) => a + Number(r.outstanding  || 0), 0);
+  const shift = Number(_apSummary.net_shift || 0);   // amount shifted IN(+)/OUT(−) between units
+  const paid = inst.reduce((a, r) => a + Number(r.amount_paid || 0), 0) + shift;
+  const out  = inst.reduce((a, r) => a + Number(r.outstanding  || 0), 0) - shift;
 
   c.innerHTML =
     '<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start">' +
@@ -345,8 +346,9 @@ async function _apShowSuccess(o) {
       _apSummary = data;
       const inst = data.installments || [];
       net  = Number(data.sale.net_amount || 0);
-      paid = inst.reduce((a, r) => a + Number(r.amount_paid || 0), 0);
-      out  = inst.reduce((a, r) => a + Number(r.outstanding  || 0), 0);
+      const shift = Number(data.net_shift || 0);
+      paid = inst.reduce((a, r) => a + Number(r.amount_paid || 0), 0) + shift;
+      out  = inst.reduce((a, r) => a + Number(r.outstanding  || 0), 0) - shift;
     }
   } catch (_) { /* balance is best-effort */ }
   _apRenderContext();

@@ -48,7 +48,9 @@ function rReceipts(receiveUnitId) {
     '</style>' +
     NX.pageHeader('Receipt Vouchers',
       NX.button('Add Voucher', { variant:'primary', size:'sm', icon:'plus', onclick:'_rvNewVoucher()' }) +
-      ' ' + NX.button('Browse all', { variant:'ghost', size:'sm', icon:'list', onclick:'_rvShowListView()' })) +
+      ' ' + NX.button('Browse all', { variant:'ghost', size:'sm', icon:'list', onclick:'_rvShowListView()' }) +
+      ((S?.role==='admin' || S?.role==='owner') ? ' ' + NX.button('Shift amount', { variant:'secondary', size:'sm', icon:'shuffle', onclick:'_rvOpenShift()' }) : '')) +
+    '<div id="rv-shift-host"></div>' +
     '<div id="rv-detail-view" style="margin-top:var(--fk-sp-3)"></div>' +
     '<div id="rv-entry-view" style="display:none;margin-top:var(--fk-sp-3)"></div>' +
     '<div id="rv-list-view" style="display:none;margin-top:var(--fk-sp-3)">' +
@@ -417,7 +419,7 @@ async function _rvEntryAccPick(unitId) {
     if (!data || !data.success) throw new Error(data?.error || 'No sale found for this unit');
     _rvEntry.summary = data;
     const s = data.sale || {};
-    const out = (data.installments || []).reduce((a,r) => a + Number(r.outstanding||0), 0);
+    const out = (data.installments || []).reduce((a,r) => a + Number(r.outstanding||0), 0) - Number(data.net_shift || 0);
     if (bal) bal.innerHTML = (s.sale_number ? NX.esc(s.sale_number) + ' · ' : '') +
       'Balance <b style="color:'+(out>0?'var(--fk-danger)':'var(--fk-success)')+'">PKR ' + fM(out) + '</b>';
     document.getElementById('rve-amount')?.focus();
@@ -552,5 +554,108 @@ async function _rvCancelFromDetail(paymentId, code, amount) {
     _rvBackToList();
   } catch(e) {
     notify.error('Cancel Failed', { detail: e.message });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SHIFT AMOUNT BETWEEN UNITS (admin/owner) — DR source ledger, CR destination.
+// Records a unit_amount_shifts row via shift_unit_amount RPC. No cash movement;
+// reallocates already-received money from one unit's account to another's.
+// ════════════════════════════════════════════════════════════════════════════
+let _rvShift = { from:null, to:null };
+let _rvShSearchTimer = null;
+
+function _rvOpenShift() {
+  if (!(S?.role === 'admin' || S?.role === 'owner')) { toast('Admins only', 'warn'); return; }
+  _rvShift = { from:null, to:null };
+  const host = document.getElementById('rv-shift-host'); if (!host) return;
+  const today = _rvToday();
+  const box = (side, label) =>
+    '<div class="nx-field" style="position:relative;margin-bottom:var(--fk-sp-3)">' +
+      '<label class="nx-label">' + label + ' <span class="nx-req">*</span></label>' +
+      '<input class="nx-input" id="rvsh-' + side + '" autocomplete="off" placeholder="Search client name or unit no…" ' +
+        'oninput="_rvShift.' + side + '=null;clearTimeout(_rvShSearchTimer);_rvShSearchTimer=setTimeout(()=>_rvShiftSearch(\'' + side + '\',this.value),140)" ' +
+        'onfocus="_rvShiftSearch(\'' + side + '\',this.value)">' +
+      '<div id="rvsh-' + side + '-results" class="rv-acc-drop"></div>' +
+      '<div id="rvsh-' + side + '-bal" style="font-size:11.5px;margin-top:5px;color:var(--fk-text-muted)"></div>' +
+    '</div>';
+  host.innerHTML = NX.modal({
+    id:'rv-shift', title:'Shift amount between units', size:'m', onClose:'_rvCloseShift()',
+    body:
+      '<div style="font-size:12px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3);line-height:1.5">' +
+        'Moves already-received money from one unit to another — the source is <b>debited</b> (balance goes up) and the destination <b>credited</b> (balance goes down). No cash is received.' +
+      '</div>' +
+      box('from', 'From unit (debit — money leaves here)') +
+      box('to', 'To unit (credit — money goes here)') +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">' +
+        NX.field({ label:'Amount (PKR)', name:'rvsh-amount', type:'number', required:true, attrs:'min="1" step="0.01" class="nx-input num"' }) +
+        NX.field({ label:'Date', name:'rvsh-date', type:'date', value:today, required:true }) +
+      '</div>' +
+      '<div style="margin-top:var(--fk-sp-3)">' + NX.field({ label:'Narration', name:'rvsh-narr', placeholder:'Leave blank for auto: Amount shifted to <to> from <from>' }) + '</div>' +
+      '<div id="rvsh-err" style="font-size:12px;color:var(--fk-danger);min-height:16px;margin-top:var(--fk-sp-2)"></div>',
+    footer:
+      NX.button('Cancel', { variant:'ghost', onclick:'_rvCloseShift()' }) +
+      NX.button('Shift amount', { variant:'primary', icon:'shuffle', attrs:'id="rvsh-save"', onclick:'_rvShiftSave()' })
+  });
+  setTimeout(() => document.getElementById('rvsh-from')?.focus(), 40);
+}
+function _rvCloseShift() { const h = document.getElementById('rv-shift-host'); if (h) h.innerHTML = ''; _rvShift = { from:null, to:null }; }
+
+function _rvShiftSearch(side, q) {
+  const wrap = document.getElementById('rvsh-' + side + '-results'); if (!wrap) return;
+  const query = (q || '').trim().toLowerCase();
+  if (!query) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
+  const rows = (typeof gunits === 'function' ? gunits() : (window._unitsCache || []))
+    .filter(u => u.isAvailable === false && u.saleId)
+    .filter(u => (u.customerName||'').toLowerCase().includes(query) || (u.unitNo||'').toLowerCase().includes(query))
+    .slice(0, 8)
+    .map(u => {
+      const pend = Number(u.pendingAmount||0);
+      return '<div class="rv-acc-item" onclick="_rvShiftPick(\'' + side + '\',\'' + u.id + '\')">' +
+        '<div style="min-width:0"><div style="font-weight:600;color:var(--fk-text)">' + NX.esc(u.customerName||'—') + '</div>' +
+        '<div style="font-size:11px;color:var(--fk-text-muted)">Unit ' + NX.esc(u.unitNo||'—') + '</div></div>' +
+        '<div class="num" style="font-size:12px;color:' + (pend>0?'var(--fk-danger)':'var(--fk-success)') + '">' + (pend>0?('PKR '+fM(pend)):'Paid') + '</div>' +
+      '</div>';
+    }).join('');
+  wrap.innerHTML = rows || '<div class="rv-acc-item" style="justify-content:center;color:var(--fk-text-muted)">No matching sold units</div>';
+  wrap.style.display = 'block';
+}
+function _rvShiftPick(side, unitId) {
+  const u = (typeof gunits === 'function' ? gunits() : (window._unitsCache || [])).find(x => x.id === unitId);
+  if (!u || !u.saleId) return;
+  _rvShift[side] = { unitId, saleId:u.saleId, unitNo:u.unitNo, name:u.customerName, received:Number(u.totalPaid||0), pending:Number(u.pendingAmount||0) };
+  const res = document.getElementById('rvsh-' + side + '-results'); if (res) { res.innerHTML = ''; res.style.display = 'none'; }
+  const inp = document.getElementById('rvsh-' + side); if (inp) inp.value = (u.customerName||'—') + ' — Unit ' + (u.unitNo||'—');
+  const bal = document.getElementById('rvsh-' + side + '-bal');
+  if (bal) bal.innerHTML = 'Received <b>PKR ' + fM(Number(u.totalPaid||0)) + '</b> · Balance <b style="color:' + (u.pendingAmount>0?'var(--fk-danger)':'var(--fk-success)') + '">PKR ' + fM(Number(u.pendingAmount||0)) + '</b>';
+}
+
+async function _rvShiftSave() {
+  const err = document.getElementById('rvsh-err'); if (err) err.textContent = '';
+  const from = _rvShift.from, to = _rvShift.to;
+  const amount = parseFloat(document.getElementById('rvsh-amount')?.value || '0');
+  const date = document.getElementById('rvsh-date')?.value;
+  const narr = (document.getElementById('rvsh-narr')?.value || '').trim();
+  const fail = m => { if (err) err.textContent = m; toast(m, 'warn'); };
+  if (!from?.saleId) return fail('Pick the source (From) unit.');
+  if (!to?.saleId)   return fail('Pick the destination (To) unit.');
+  if (from.saleId === to.saleId) return fail('Source and destination must be different.');
+  if (!(amount > 0)) return fail('Enter a positive amount.');
+  if (amount > from.received + 0.01) return fail('Source unit only received PKR ' + fM(from.received) + ' — cannot shift more.');
+  const btn = document.getElementById('rvsh-save');
+  if (btn) { btn.disabled = true; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Shifting…'; }
+  try {
+    const { data, error } = await supabase.rpc('shift_unit_amount', {
+      p_company_id: S.cid, p_from_sale_id: from.saleId, p_to_sale_id: to.saleId,
+      p_amount: amount, p_shift_date: date, p_narration: narr || null
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Shift failed');
+    toast('Shifted PKR ' + fM(amount) + ' from ' + from.unitNo + ' to ' + to.unitNo, 'ok');
+    _rvCloseShift();
+    if (typeof loadUnitsCache === 'function') { try { await loadUnitsCache(S.cid); } catch(e){} }
+  } catch (e) {
+    if (btn) { btn.disabled = false; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Shift amount'; }
+    fail('Could not shift — ' + (e.message || 'error'));
   }
 }
