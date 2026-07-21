@@ -297,7 +297,8 @@ function _rvBackToList() { _rvEntry = null; _rvOpenLast(); }
 const _RVE_MODES = [
   { value:'cash',          label:'Cash Receipt (CRV)' },
   { value:'bank_transfer', label:'Bank Receipt (BRV)' },
-  { value:'cheque',        label:'Cheque / PDC' }
+  { value:'cheque',        label:'Cheque / PDC' },
+  { value:'adjustment',    label:'Adjustment (ARV)' }
 ];
 function _rvToday(){ return (typeof td === 'function') ? td() : new Date().toISOString().slice(0,10); }
 
@@ -363,6 +364,11 @@ function _rvEntryFormHtml() {
         NX.field({ label:'Cheque date', name:'rve-chqdate', type:'date', value:today, attrs:'onchange="_rvEntryModeChange()"' }) +
       '</div>' +
       '<div id="rve-pdc-note" style="margin-top:var(--fk-sp-2)"></div>' +
+    '</div>' +
+    // Adjustment (ARV) — non-cash: money settled against services / stock / barter, no cash received
+    '<div id="rve-adjbox" style="display:none;margin-top:var(--fk-sp-3)">' +
+      NX.field({ label:'Adjustment against', name:'rve-adjagainst', placeholder:'e.g. against services, stock, barter — no cash received' }) +
+      '<div style="margin-top:var(--fk-sp-2);padding:10px 13px;background:var(--fk-bg-subtle);border-radius:var(--fk-radius-control);font-size:12px;color:var(--fk-text-muted);line-height:1.5"><strong style="color:var(--fk-text)">Adjustment (ARV):</strong> no cash/bank received — booked to settle against services, stock, etc.</div>' +
     '</div>' +
     '<div style="margin-top:var(--fk-sp-3)">' + NX.field({ label:'Notes', name:'rve-notes', el:'textarea', placeholder:'Optional' }) + '</div>' +
     '<div style="display:flex;justify-content:flex-end;gap:var(--fk-sp-2);margin-top:var(--fk-sp-4)">' +
@@ -431,6 +437,8 @@ function _rvEntryModeChange() {
   const chqOnly = (mode === 'cheque');
   const showBank = (mode === 'bank_transfer' || mode === 'cheque');
   if (box) box.style.display = showBank ? 'block' : 'none';
+  const adjBox = document.getElementById('rve-adjbox');
+  if (adjBox) adjBox.style.display = (mode === 'adjustment') ? 'block' : 'none';
   // hide cheque-only fields when plain bank transfer
   ['rve-chqno','rve-chqdate'].forEach(id => { const f = document.getElementById(id); if (f) f.closest('.nx-field').style.display = chqOnly ? '' : 'none'; });
   const today = _rvToday();
@@ -454,6 +462,7 @@ async function _rvEntrySave() {
   const bank   = (document.getElementById('rve-bank')?.value || '').trim();
   const chqNo  = (document.getElementById('rve-chqno')?.value || '').trim();
   const chqDt  = document.getElementById('rve-chqdate')?.value;
+  const adjAgainst = (document.getElementById('rve-adjagainst')?.value || '').trim();
   const notes  = (document.getElementById('rve-notes')?.value || '').trim();
   const today  = _rvToday();
   if (!(amount > 0)) { toast('Enter a positive amount', 'warn'); return; }
@@ -476,10 +485,14 @@ async function _rvEntrySave() {
       _rvBackToList(); await _rvLoadAndRender();
       return;
     }
+    const _isAdj = (mode === 'adjustment');
     const { data, error } = await supabase.rpc('record_payment_simple', {
       p_company_id: S.cid, p_sale_id: s.sale_id, p_amount: amount, p_payment_date: date,
-      p_payment_method: mode, p_reference_no: ref || (mode==='cheque' ? chqNo : null) || null,
-      p_bank_name: bank || null, p_notes: notes || null, p_created_by: S.userId || null,
+      p_payment_method: mode,
+      p_reference_no: (_isAdj ? (adjAgainst || ref) : (ref || (mode==='cheque' ? chqNo : null))) || null,
+      p_bank_name: bank || null,
+      p_notes: (_isAdj && adjAgainst ? ('Adjustment against: ' + adjAgainst + (notes ? (' — ' + notes) : '')) : (notes || null)),
+      p_created_by: S.userId || null,
       p_cheque_date: mode === 'cheque' ? chqDt : null, p_bank_id: null
     });
     if (error) throw error;
