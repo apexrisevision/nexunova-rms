@@ -9,6 +9,8 @@
     "build:dir": "electron-builder --win --dir",
     "shots": "node scripts/capture-screenshots.js",
     "check": "node scripts/predeploy-check.js",
+    "check:forms": "node scripts/smoke-forms.js",
+    "check:all": "node scripts/predeploy-check.js && node scripts/smoke-forms.js",
     "predeploy": "node scripts/predeploy-check.js"
   },
   "build": {
