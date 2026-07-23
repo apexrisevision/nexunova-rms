@@ -150,7 +150,7 @@ function _csRender() {
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
         NX.button('Export Excel', { variant: 'secondary', size: 'sm', icon: 'download', onclick: '_csExport()' }) +
         NX.button('PDF', { variant: 'secondary', size: 'sm', icon: 'printer', onclick: '_csPDF()' }) +
-        NX.button('30-day log', { variant: 'secondary', size: 'sm', icon: 'calendar', onclick: '_csGridPDF()' }) +
+        NX.button('Contact log', { variant: 'secondary', size: 'sm', icon: 'calendar', onclick: '_csLogPicker()' }) +
         NX.button('Share on WhatsApp', { variant: 'primary', size: 'sm', icon: 'share-2', onclick: '_csShare()' }) +
       '</div>' +
     '</div>', { compact: true });
@@ -497,9 +497,52 @@ function _csPDF() {
 // legible text, so instead each client gets a block listing every contact in the
 // window in full: date · channel · status · promise · remarks. Answers "har din kya
 // hua" without cryptic codes. Newest first, worst-owing clients first.
+// Period picker for the contact log — user chooses any range (default last 7 days).
+let _csLog = { from: null, to: null };
+function _csLogPicker() {
+  if (!_csLog.to) _csLog.to = _csheet.date;
+  if (!_csLog.from) _csLog.from = _csAddDays(_csheet.date, -6);   // weekly default
+  _csLogRender();
+}
+function _csLogClose() { const h = document.getElementById('cs-log-host'); if (h) h.innerHTML = ''; }
+function _csLogPreset(days) { _csLog.to = _csheet.date; _csLog.from = _csAddDays(_csheet.date, -(days - 1)); _csLogRender(); }
+function _csLogMonth() { _csLog.to = _csheet.date; _csLog.from = _csheet.date.slice(0, 8) + '01'; _csLogRender(); }
+function _csLogGenerate() {
+  if (!_csLog.from || !_csLog.to) { toast('Select a period.', 'warn'); return; }
+  if (_csLog.from > _csLog.to) { toast('“From” must be on or before “To”.', 'warn'); return; }
+  _csLogClose();
+  _csGridPDF(_csLog.from, _csLog.to);
+}
+function _csLogRender() {
+  const n = (_csLog.from && _csLog.to) ? (Math.round((new Date(_csLog.to + 'T00:00:00') - new Date(_csLog.from + 'T00:00:00')) / 86400000) + 1) : 0;
+  const preset = (lb, d) => NX.button(lb, { variant: 'secondary', size: 'sm', onclick: '_csLogPreset(' + d + ')' });
+  const body =
+    '<div class="nx-field" style="margin:0 0 12px"><label class="nx-label">Quick period</label>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        preset('Last 7 days', 7) + preset('Last 14 days', 14) + preset('Last 30 days', 30) +
+        NX.button('This month', { variant: 'secondary', size: 'sm', onclick: '_csLogMonth()' }) +
+      '</div></div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+      '<div class="nx-field" style="margin:0;flex:1;min-width:140px"><label class="nx-label">From</label>' +
+        '<input class="nx-input" type="date" value="' + esc(_csLog.from || '') + '" max="' + esc(_csheet.date) + '" oninput="_csLog.from=this.value"></div>' +
+      '<div class="nx-field" style="margin:0;flex:1;min-width:140px"><label class="nx-label">To</label>' +
+        '<input class="nx-input" type="date" value="' + esc(_csLog.to || '') + '" max="' + esc(_csheet.date) + '" oninput="_csLog.to=this.value"></div>' +
+    '</div>' +
+    '<div class="nx-kpi-label" style="text-transform:none;margin-top:10px">' + (n > 0 ? n + '-day' : '') + ' report — every contact in this range, per client.</div>';
+  const footer =
+    NX.button('Cancel', { variant: 'ghost', size: 'sm', onclick: '_csLogClose()' }) +
+    NX.button('Generate PDF', { variant: 'primary', size: 'sm', icon: 'printer', onclick: '_csLogGenerate()' });
+  let host = document.getElementById('cs-log-host');
+  if (!host) { host = document.createElement('div'); host.id = 'cs-log-host'; document.body.appendChild(host); }
+  host.innerHTML = NX.modal({ title: 'Contact log — pick period', size: 'm', body: body, footer: footer, onClose: '_csLogClose()' });
+  const ov = host.querySelector('.nx-modal-overlay');
+  if (ov) ov.addEventListener('click', e => { if (e.target === ov) _csLogClose(); });
+}
+
 function _csRespText(rr) { return (_CS_RESPONSES.find(x => _CS_RESP_MAP[x] === rr) || rr || '—'); }
-function _csGridPDF() {
-  const start = _csAddDays(_csheet.date, -29), end = _csheet.date;
+function _csGridPDF(from, to) {
+  const end = to || _csheet.date;
+  const start = from || _csAddDays(end, -6);   // default: last 7 days
   const inWin = d => d >= start && d <= end;
   // Per client (row): all its contacts inside the 30-day window, newest first.
   const blocks = [];
@@ -514,7 +557,7 @@ function _csGridPDF() {
       blocks.push({ r, logs });
     }
   });
-  if (!blocks.length) { if (typeof toast === 'function') toast('No contact activity in the last 30 days.', 'warn'); return; }
+  if (!blocks.length) { if (typeof toast === 'function') toast('No contact activity between ' + fD(start) + ' and ' + fD(end) + '.', 'warn'); return; }
   blocks.sort((a, b) => b.r.closing - a.r.closing);
   const co = (typeof coLegalName === 'function') ? coLegalName() : ((S && S.coName) || 'Company');
   const who = (S && (S.name || S.username)) || '';
