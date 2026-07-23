@@ -1,4 +1,22 @@
-﻿// ══ SEARCHABLE SELECT ════════════════════════
+﻿// ══ CRISP CHAT KILL (owner request 2026-07-24) ══════════════════════════════
+// The Crisp live-chat launcher was disabled in login.html, but the entry HTML is
+// cached hard (unlike ?v='d JS). This runs from a cache-busted file so it removes
+// the widget even when a stale login.html still loads Crisp. Belt-and-suspenders.
+(function killCrisp(){
+  function nuke(){
+    try{ if(window.$crisp&&window.$crisp.push){ window.$crisp.push(['do','chat:hide']); } }catch(e){}
+    try{
+      document.querySelectorAll('.crisp-client,[id^="crisp-"],iframe[src*="crisp"],a[href*="crisp.chat"]')
+        .forEach(function(el){ try{ el.remove(); }catch(_){ el.style.display='none'; } });
+    }catch(e){}
+  }
+  try{ window.$crisp=window.$crisp||[]; window.$crisp.push=function(){}; }catch(e){}   // stop new pushes rendering it
+  nuke();
+  if(document.readyState!=='complete') window.addEventListener('load',nuke);
+  var n=0,t=setInterval(function(){ nuke(); if(++n>40) clearInterval(t); },400);        // ~16s of cleanup
+})();
+
+// ══ SEARCHABLE SELECT ════════════════════════
 function mkSS(id,opts,val,onChange){
   var wrap=document.createElement('div');wrap.className='ss-wrap';wrap.style.width='100%';
   var inp=document.createElement('input');inp.className='ss-inp';inp.style.width='100%';inp.id=id;

@@ -349,7 +349,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <!-- ══ CRISP LIVE CHAT + AI BOT — disabled for now (owner request 2026-07-24); re-enable by uncommenting ══ -->
 <!-- <script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="032f6ce9-493a-4be9-8048-342e6102b364";(function(){var d=document;var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script> -->
 <!-- Safety net: if Crisp was cached/injected elsewhere, keep its launcher hidden -->
-<style>.crisp-client,#crisp-chatbox{display:none !important;}</style>
+<style>.crisp-client,[id^="crisp-"],iframe[src*="crisp"],a[href*="crisp.chat"]{display:none !important;}</style>
 </head>
 <body>
 
@@ -2390,7 +2390,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/components/client-form.js?v=20260720amt"></script>
 
 <!-- 4. UI primitives: searchable select, nav, sidebar, toast -->
-<script src="js/ui.js?v=20260723cs"></script>
+<script src="js/ui.js?v=20260724kill"></script>
 <!-- Lazy page loader (Phase A2): manifest + nav guard + cross-module stubs.
      Must load after ui.js (defines nav) and before any page module. -->
 <script src="js/lazy-pages.js?v=20260724cs5"></script>
