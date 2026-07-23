@@ -42,7 +42,17 @@ async function tryRestoreSession(){
     if(!raw)return;
     const sess=JSON.parse(raw);
     if(!sess?.cid)return;
+    // Cross-tab guard: the live (shared localStorage) auth token must belong to the
+    // same user this tab's saved session was created for. If another tab logged in
+    // as a different account, the token was swapped — force a clean login here so we
+    // never render company A while authenticating as company B.
+    if(sess.authUid && _sess.user && _sess.user.id !== sess.authUid){
+      sessionStorage.removeItem('nxn_sess');
+      document.getElementById('s-login').classList.add('on');
+      return;
+    }
     S=sess;_coid=sess.cid;
+    if(typeof _installAuthGuard==='function')_installAuthGuard();
 
     // Route to payment wall if subscription not active
     const subStatus=sess.subStatus||'active';

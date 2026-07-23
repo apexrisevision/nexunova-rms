@@ -320,7 +320,11 @@ async function _completeLogin(user, company) {
     invoiceCurrency:    company.invoice_currency || 'PKR',
     invoiceDue:         company.invoice_due || null
   };
+  // Record WHICH Supabase auth user this tab is bound to, so the cross-tab guard
+  // can detect if the shared (localStorage) token gets swapped by another tab.
+  try { const { data: { session: _sbSess } } = await supabase.auth.getSession(); S.authUid = (_sbSess && _sbSess.user && _sbSess.user.id) || null; } catch(_) { S.authUid = null; }
   sessionStorage.setItem('nxn_sess', JSON.stringify(S));
+  _installAuthGuard();
 
   const _blockedStatuses = ['pending_payment','payment_under_review','expired','cancelled','past_due'];
   if(_blockedStatuses.includes(subStatus)){
@@ -577,6 +581,34 @@ function _showForcePasswordChange(user, company, reason) {
   }
   $go.addEventListener('click', _fpcSubmit);
   $conf.addEventListener('keydown', e => { if (e.key === 'Enter') _fpcSubmit(); });
+}
+
+// ── Cross-tab auth guard ──────────────────────────────────────────────────────
+// Supabase persists its auth token in localStorage (shared across ALL tabs), while
+// this app keeps its own session (S) in sessionStorage (per-tab). Logging into a
+// different company in another tab silently overwrites the shared token — leaving
+// THIS tab showing company A while every RPC authenticates as company B (writes
+// then fail 'wrong_tenant', reads may cross tenants). Detect the swap and sign out.
+let _authGuardBusy = false;
+async function _verifyAuthSession(){
+  if(_authGuardBusy || !S || !S.authUid) return;      // no baseline (older session) → skip
+  _authGuardBusy = true;
+  try{
+    const { data: { session } } = await supabase.auth.getSession();
+    const cur = (session && session.user && session.user.id) || null;
+    if(cur && cur !== S.authUid){
+      try { if(typeof notify!=='undefined') notify.error('Signed out', { detail:'You signed in to a different account in another tab, so this tab was signed out. Please log in again.', duration: 8000 }); } catch(_){}
+      doLogout('session_switched');
+    }
+  }catch(_){}
+  finally{ _authGuardBusy = false; }
+}
+function _installAuthGuard(){
+  if(window._authGuardInstalled) return;
+  window._authGuardInstalled = true;
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') _verifyAuthSession(); });
+  window.addEventListener('focus', _verifyAuthSession);
+  try { supabase.auth.onAuthStateChange(function(){ _verifyAuthSession(); }); } catch(_){}  // fires cross-tab on token change
 }
 
 function doLogout(reason){
