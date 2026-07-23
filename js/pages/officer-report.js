@@ -186,6 +186,8 @@ async function rMyRecovery(){
       '<span class="nx-kpi-label" style="text-transform:none">'+esc(monLabel)+' · as of '+esc(_orDate(today))+'</span>'+
       '<div style="margin-left:auto;display:flex;gap:8px">'+
         NX.button('Refresh',{variant:'ghost',size:'sm',icon:'refresh-cw',onclick:"rMyRecovery()"})+
+        NX.button('Copy',{variant:'ghost',size:'sm',icon:'copy',onclick:"_orCopy()"})+
+        NX.button('Share',{variant:'secondary',size:'sm',icon:'share-2',onclick:"_orShare()"})+
         NX.button('Board Brief',{variant:'primary',size:'sm',icon:'trending-up',onclick:"_orBoardBrief()"})+
         NX.button('Print / PDF',{variant:'secondary',size:'sm',icon:'printer',onclick:"_orPrint()"})+
       '</div>'+
@@ -357,6 +359,54 @@ function _orPrint(){
     '<div class="ft"><span>Generated '+esc((new Date()).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span><span>'+(_orWL?'':'Nexunova RMS · ')+(ST.scoped?'Your assigned accounts only':'All accounts')+'</span></div>'+
   '</body></html>';
   if(window.NXPrint && typeof NXPrint.emit==='function') NXPrint.emit(html, 'Recovery Report'); else window.print();
+}
+
+// ── SHARE — a plain-text WhatsApp/copy summary of THIS recovery report, built
+//    from the same _orStore the screen shows. Money picture + top accounts to
+//    chase, so an officer can send their day/status to a manager or group. ──
+function _orShareText(){
+  var ST=window._orStore; if(!ST||!ST.rows.length) return '';
+  var T=ST.T, pct=T.dueMonth>0?Math.round(T.recovered/T.dueMonth*100):0;
+  var who=(typeof S!=='undefined'&&S&&(S.name||S.username))||'';
+  var owe=ST.rows.filter(function(r){return r._closing>0.5;}).sort(function(a,b){return b._closing-a._closing;});
+  var L=[];
+  L.push('*Recovery Report*');
+  L.push(ST.monLabel+' - as of '+_orDate(ST.today));
+  if(who) L.push('Officer: '+who);
+  L.push('------------------------------');
+  L.push('Demand this month: '+_orF(T.dueMonth));
+  L.push('Recovered: '+_orF(T.recovered)+' ('+pct+'%)');
+  if(T.oldArrears>0.5) L.push('Old arrears: '+_orF(T.oldArrears));
+  L.push('Current remaining: '+_orF(T.remaining));
+  L.push('------------------------------');
+  if(owe.length){
+    L.push('Top accounts to recover:');
+    owe.slice(0,10).forEach(function(r,i){
+      L.push((i+1)+'. '+r.client_name+(r.unit_no?' ('+r.unit_no+')':'')+' - '+_orF(r._closing)+(r._odd>0?' | '+r._odd+'d overdue':''));
+    });
+    if(owe.length>10) L.push('...and '+(owe.length-10)+' more');
+    L.push('------------------------------');
+    L.push('Accounts owing: '+owe.length+'  |  Total '+_orF(T.remaining));
+  } else {
+    L.push('All caught up - nothing outstanding.');
+  }
+  L.push('- Nexunova RMS');
+  return L.join('\n');
+}
+function _orShare(){
+  var txt=_orShareText();
+  if(!txt){ if(typeof toast==='function') toast('Open the report first','warn'); return; }
+  if(typeof openWhatsApp==='function') openWhatsApp('', txt);
+  else window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+}
+function _orCopy(){
+  var txt=_orShareText();
+  if(!txt){ if(typeof toast==='function') toast('Open the report first','warn'); return; }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(
+      function(){ if(typeof toast==='function') toast('Report copied - paste in WhatsApp or anywhere.','ok'); },
+      function(){ if(typeof toast==='function') toast('Could not copy automatically.','warn'); });
+  } else if(typeof toast==='function') toast('Copy not supported here.','warn');
 }
 
 // ── BOARD BRIEF — a single-page, director-grade PDF. Server-computed (verified)

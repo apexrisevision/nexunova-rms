@@ -2408,12 +2408,12 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
      Only the landing page + the shared page-libraries that other pages call
      synchronously (print engine, ledger framework, fmtPKR) + a few globally-
      reachable helpers stay eager below. Full rationale: js/lazy-pages.js. -->
-<script src="js/pages/dashboard.js?v=20260704a"></script>        <!-- landing page -->
+<script src="js/pages/dashboard.js?v=20260723share"></script>        <!-- landing page -->
 <script src="js/pages/print.js?v=20260706p1b"></script>          <!-- print/document engine used by ~10 pages -->
 <script src="js/pages/ledgers.js?v=20260616c"></script>          <!-- ledger framework (_ldg* used by ledger family) -->
 <script src="js/pages/payment-wall.js?v=20260522a"></script>     <!-- fmtPKR + subscription paywall -->
 <script src="js/pages/contacts.js?v=20260613a"></script>         <!-- global Log-a-Call helpers + login cache warm -->
-<script src="js/pages/officer-report.js?v=20260706p1b"></script> <!-- rendered inline on the recovery dashboard -->
+<script src="js/pages/officer-report.js?v=20260723share"></script> <!-- rendered inline on the recovery dashboard -->
 <script src="js/pages/company-branding.js?v=20260706ff"></script><!-- hasFeature/feature-flags used inside nav() -->
 <script src="js/pages/super-admin.js?v=20260706inv"></script>    <!-- self-boots on ?super-admin route -->
 <script src="js/whatsapp-helper.js"></script>                    <!-- shared WhatsApp deep-link helper -->

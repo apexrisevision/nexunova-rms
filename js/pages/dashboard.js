@@ -757,6 +757,8 @@ async function _dashRecoveryReport(pg) {
       <div style="margin-left:auto;display:flex;gap:8px">
         ${NX.button('Record Payment', { variant: 'primary', size: 'sm', icon: 'plus', onclick: "nav('addpayment')" })}
         ${NX.button('Refresh', { variant: 'ghost', size: 'sm', icon: 'refresh-cw', onclick: 'rDash()' })}
+        ${NX.button('Copy', { variant: 'ghost', size: 'sm', icon: 'copy', onclick: '_orCopy()' })}
+        ${NX.button('Share', { variant: 'secondary', size: 'sm', icon: 'share-2', onclick: '_orShare()' })}
         ${NX.button('Print / PDF', { variant: 'secondary', size: 'sm', icon: 'printer', onclick: '_orPrint()' })}
       </div>
     </div>
