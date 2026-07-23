@@ -96,7 +96,7 @@
 
     reminders: ['js/pages/reminders.js?v=20260614rec3'],
     callreport: ['js/pages/call-report.js?v=20260723dcr'],
-    callsheet: ['js/pages/call-sheet.js?v=20260723cs2'],
+    callsheet: ['js/pages/call-sheet.js?v=20260723cs3'],
     search: ['js/pages/search.js?v=20260517a'],
     reports: REPORTS, recoveryiq: REPORTS,
     agentrecovery: ['js/pages/agent-report.js?v=20260706p1b'],

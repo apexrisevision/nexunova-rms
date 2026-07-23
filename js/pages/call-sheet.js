@@ -13,8 +13,17 @@
 // on promises), so they flow into the Daily Call Report, contact history, etc.
 // ═════════════════════════════════════════════════════════════════════════════
 
-let _csheet = { date: null, rows: [], byUnit: {}, loaded: false };
+let _csheet = { date: null, rows: [], byUnit: {}, loaded: false, onlyResponded: false };
 let _csResp = null;   // active quick-response modal state
+
+// Rows to show / export. When "only responded" is on, keep just the accounts that
+// got a response on the selected day; otherwise every account that still owes.
+function _csVisibleRows() {
+  if (!_csheet.onlyResponded) return _csheet.rows;
+  const byUnit = _csLogsByUnit();
+  return _csheet.rows.filter(r => r.unit_id && byUnit[r.unit_id]);
+}
+function _csToggleResponded(on) { _csheet.onlyResponded = !!on; _csRender(); }
 
 function _csToday() {
   const d = new Date();
@@ -109,9 +118,12 @@ function _csRender() {
           '<input class="nx-input" type="date" style="width:170px" value="' + esc(_csheet.date) + '" onchange="_csSetDate(this.value)">' +
           NX.button('›', { variant: 'secondary', size: 'sm', onclick: '_csShiftDay(1)', disabled: isToday }) +
         '</div></div>' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none">' +
+        '<input type="checkbox"' + (_csheet.onlyResponded ? ' checked' : '') + ' onchange="_csToggleResponded(this.checked)"> Only responded clients</label>' +
       '<div style="flex:1"></div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-        NX.button('Export', { variant: 'secondary', size: 'sm', icon: 'download', onclick: '_csExport()' }) +
+        NX.button('Export Excel', { variant: 'secondary', size: 'sm', icon: 'download', onclick: '_csExport()' }) +
+        NX.button('PDF', { variant: 'secondary', size: 'sm', icon: 'printer', onclick: '_csPDF()' }) +
         NX.button('Share on WhatsApp', { variant: 'primary', size: 'sm', icon: 'share-2', onclick: '_csShare()' }) +
       '</div>' +
     '</div>', { compact: true });
@@ -129,12 +141,16 @@ function _csRender() {
     stat('Current remaining', _csF(T.closing), 'var(--fk-danger)') +
     '</div>';
 
-  if (!rows.length) {
-    root.innerHTML = bar + summary + NX.card(NX.empty({ icon: 'check-circle', message: 'No accounts with an outstanding balance.' }));
+  const shown = _csVisibleRows();
+  if (!shown.length) {
+    root.innerHTML = bar + summary + NX.card(NX.empty({
+      icon: _csheet.onlyResponded ? 'phone-off' : 'check-circle',
+      message: _csheet.onlyResponded ? 'No responses added yet for ' + fD(_csheet.date) + '. Uncheck “Only responded” to see all owing accounts.' : 'No accounts with an outstanding balance.'
+    }));
     return;
   }
 
-  const body = rows.map((r, i) => {
+  const body = shown.map((r, i) => {
     const c = r.unit_id ? byUnit[r.unit_id] : null;
     const id = esc(r.unit_id || '');
     const dayLbl = r.odd > 0 ? r.odd + 'd' : '—';
@@ -169,10 +185,11 @@ function _csRender() {
     '</tr>';
   }).join('');
 
+  const TS = shown.reduce((t, r) => { t.old += r.old; t.cur += r.cur; t.dp += r.dp; t.closing += r.closing; return t; }, { old: 0, cur: 0, dp: 0, closing: 0 });
   const foot = '<tr style="border-top:2px solid var(--fk-border);font-weight:600">' +
-    '<td></td><td>TOTAL · ' + rows.length + '</td>' +
-    '<td class="num">' + _csF(T.old) + '</td><td class="num">' + _csF(T.cur) + '</td><td class="num">' + _csF(T.dp) + '</td>' +
-    '<td class="num" style="color:var(--fk-danger)">' + _csF(T.closing) + '</td><td></td><td></td><td></td></tr>';
+    '<td></td><td>TOTAL · ' + shown.length + '</td>' +
+    '<td class="num">' + _csF(TS.old) + '</td><td class="num">' + _csF(TS.cur) + '</td><td class="num">' + _csF(TS.dp) + '</td>' +
+    '<td class="num" style="color:var(--fk-danger)">' + _csF(TS.closing) + '</td><td></td><td></td><td></td></tr>';
 
   root.innerHTML = bar + summary + NX.card(
     '<div style="overflow-x:auto"><table class="nx-table nx-table--flush"><thead><tr>' +
@@ -305,7 +322,7 @@ async function _csSaveResp() {
 
 /* ─── Share / Export ───────────────────────────────────────────────────────── */
 function _csShareText() {
-  const rows = _csheet.rows;
+  const rows = _csVisibleRows();
   const byUnit = _csLogsByUnit();
   const done = rows.filter(r => r.unit_id && byUnit[r.unit_id]);
   const promiseRows = done.filter(r => byUnit[r.unit_id].promise_to_pay);
@@ -339,7 +356,7 @@ function _csShare() {
   else window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
 }
 function _csExport() {
-  const rows = _csheet.rows;
+  const rows = _csVisibleRows();
   const byUnit = _csLogsByUnit();
   const cell = v => '<td>' + String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</td>';
   const head = ['#', 'Client', 'Phone', 'Unit', 'Old remaining', 'This month', 'DP remaining', 'Current remaining', 'Recovered', 'Days', 'Channel', 'Response', 'Remarks', 'Promise Amt', 'Promise Date'];
@@ -361,4 +378,46 @@ function _csExport() {
   document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   if (typeof toast === 'function') toast('Exported ' + rows.length + ' rows.', 'ok');
+}
+
+// PDF / print — clean A4 landscape sheet (money columns + response), via NXPrint.
+function _csPDF() {
+  const rows = _csVisibleRows();
+  if (!rows.length) { if (typeof toast === 'function') toast('Nothing to print for this filter.', 'warn'); return; }
+  const byUnit = _csLogsByUnit();
+  const co = (typeof coLegalName === 'function') ? coLegalName() : ((S && S.coName) || 'Company');
+  const who = (S && (S.name || S.username)) || '';
+  const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const m = n => Number(n || 0) ? Number(n).toLocaleString('en-US') : '—';
+  const T = rows.reduce((t, r) => { t.old += r.old; t.cur += r.cur; t.dp += r.dp; t.closing += r.closing; return t; }, { old: 0, cur: 0, dp: 0, closing: 0 });
+  const body = rows.map((r, i) => {
+    const c = (r.unit_id && byUnit[r.unit_id]) || {};
+    const resp = c.response_received ? (_CS_RESPONSES.find(x => _CS_RESP_MAP[x] === c.response_received) || c.response_received) : '';
+    const promise = c.promise_to_pay ? 'Promise ' + m(c.promise_amount) + (c.promise_date ? ' by ' + e(c.promise_date) : '') : '';
+    return '<tr>' +
+      '<td class="rk">' + (i + 1) + '</td>' +
+      '<td><div class="cn">' + e(r.client_name) + '</div><div class="su">' + e(r.unit_no) + (r.phone ? ' · ' + e(r.phone) : '') + '</div></td>' +
+      '<td class="n">' + m(r.old) + '</td><td class="n">' + m(r.cur) + '</td><td class="n">' + m(r.dp) + '</td>' +
+      '<td class="n big">' + m(r.closing) + '</td><td class="n">' + (r.odd > 0 ? r.odd + 'd' : '—') + '</td>' +
+      '<td>' + e(c.channel || '') + '</td><td>' + e(promise || resp) + '</td><td>' + e(c.remarks || '') + '</td></tr>';
+  }).join('');
+  const totRow = '<tr class="tot"><td></td><td>TOTAL · ' + rows.length + '</td>' +
+    '<td class="n">' + m(T.old) + '</td><td class="n">' + m(T.cur) + '</td><td class="n">' + m(T.dp) + '</td>' +
+    '<td class="n big">' + m(T.closing) + '</td><td></td><td></td><td></td><td></td></tr>';
+  const css = '@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}' +
+    'body{font-family:"Inter",Arial,sans-serif;color:#1e2433;font-size:10px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.hb{background:linear-gradient(100deg,#4f46e5,#6366f1);color:#fff;border-radius:10px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}' +
+    '.hb .co{font-size:10px;opacity:.85;font-weight:600;text-transform:uppercase;letter-spacing:.03em}.hb .ti{font-size:19px;font-weight:800;margin-top:2px}.hb-r{text-align:right;font-size:10px;opacity:.92;line-height:1.6}.hb-r b{font-size:12px}' +
+    'table{width:100%;border-collapse:collapse;font-size:9.5px}th{font-size:7.5px;text-transform:uppercase;letter-spacing:.04em;color:#8990a6;text-align:left;font-weight:700;padding:6px 7px;border-bottom:1.5px solid #e3e5ef}th.n{text-align:right}' +
+    'td{padding:5px 7px;border-bottom:1px solid #f1f2f7;vertical-align:top}tbody tr:nth-child(even) td{background:#fbfbfe}.n{text-align:right;font-variant-numeric:tabular-nums}.rk{color:#aab0c4;font-weight:700}.cn{font-weight:700}.su{font-size:8px;color:#a0a5b8}.big{font-weight:800;color:#dc2626}' +
+    '.tot td{background:#f3f4fa;font-weight:800;border-top:2px solid #c7cadb}.ft{margin-top:10px;border-top:1px solid #eceef5;padding-top:7px;font-size:8px;color:#aab0c4;display:flex;justify-content:space-between}';
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery Call Sheet — ' + e(co) + '</title><style>' + css + '</style></head><body>' +
+    '<div class="hb"><div><div class="co">' + e(co) + (who ? ' · Agent: ' + e(who) : '') + '</div><div class="ti">Recovery Call Sheet</div></div>' +
+      '<div class="hb-r"><b>' + e(fD(_csheet.date)) + '</b><br>' + rows.length + ' account' + (rows.length !== 1 ? 's' : '') + (_csheet.onlyResponded ? ' · responded only' : '') + '</div></div>' +
+    '<table><thead><tr><th class="n">#</th><th>Client / Unit</th><th class="n">Old remaining</th><th class="n">This month</th><th class="n">DP remaining</th><th class="n">Current remaining</th><th class="n">Days</th><th>Channel</th><th>Response</th><th>Remarks</th></tr></thead>' +
+    '<tbody>' + body + totRow + '</tbody></table>' +
+    '<div class="ft"><span>Generated ' + e((new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</span><span>Nexunova RMS</span></div>' +
+    '</body></html>';
+  if (window.NXPrint && typeof NXPrint.emit === 'function') NXPrint.emit(html, 'Recovery Call Sheet');
+  else { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); setTimeout(() => { try { w.print(); } catch (x) {} }, 300); } }
 }
