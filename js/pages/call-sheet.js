@@ -20,8 +20,8 @@ let _csResp = null;   // active quick-response modal state
 // got a response on the selected day; otherwise every account that still owes.
 function _csVisibleRows() {
   if (!_csheet.onlyResponded) return _csheet.rows;
-  const byUnit = _csLogsByUnit();
-  return _csheet.rows.filter(r => r.unit_id && byUnit[r.unit_id]);
+  const idx = _csDayLogs();
+  return _csheet.rows.filter(r => _csLogFor(idx, r));
 }
 function _csToggleResponded(on) { _csheet.onlyResponded = !!on; _csRender(); }
 
@@ -81,15 +81,22 @@ function _csShiftDay(delta) {
   _csRender();
 }
 
-/* ─── Today's (selected-day's) contact logs, latest per unit ───────────────── */
-function _csLogsByUnit() {
-  const logs = (window._contactLogsCache || []).filter(c => c.unit_id && (c.contact_date || '').slice(0, 10) === _csheet.date);
-  const map = {};
+/* ─── Selected-day's contact logs, indexed by unit / sale / client ─────────────
+   create_contact_log enriches sale_id + client_id from the unit, so a row always
+   links to its log by at least one key — even if a log's unit_id is null. */
+function _csDayLogs() {
+  const logs = (window._contactLogsCache || []).filter(c => (c.contact_date || '').slice(0, 10) === _csheet.date);
+  const idx = { byUnit: {}, bySale: {}, byClient: {} };
+  const newer = (a, b) => !b || (a.contact_time || '') > (b.contact_time || '') || (a.created_at || '') > (b.created_at || '');
   logs.forEach(c => {
-    const prev = map[c.unit_id];
-    if (!prev || (c.contact_time || '') > (prev.contact_time || '') || (c.created_at || '') > (prev.created_at || '')) map[c.unit_id] = c;
+    if (c.unit_id && newer(c, idx.byUnit[c.unit_id])) idx.byUnit[c.unit_id] = c;
+    if (c.sale_id && newer(c, idx.bySale[c.sale_id])) idx.bySale[c.sale_id] = c;
+    if (c.client_id && newer(c, idx.byClient[c.client_id])) idx.byClient[c.client_id] = c;
   });
-  return map;
+  return idx;
+}
+function _csLogFor(idx, r) {
+  return (r.unit_id && idx.byUnit[r.unit_id]) || (r.sale_id && idx.bySale[r.sale_id]) || (r.client_id && idx.byClient[r.client_id]) || null;
 }
 function _csRespLabel(c) {
   if (!c) return null;
@@ -102,12 +109,12 @@ function _csRender() {
   const root = document.getElementById('cs-root');
   if (!root) return;
   const rows = _csheet.rows;
-  const byUnit = _csLogsByUnit();
+  const idx = _csDayLogs();
   const isToday = _csheet.date === _csToday();
 
-  const contacted = rows.filter(r => r.unit_id && byUnit[r.unit_id]).length;
-  const promiseRows = rows.filter(r => r.unit_id && byUnit[r.unit_id] && byUnit[r.unit_id].promise_to_pay);
-  const promisedAmt = promiseRows.reduce((s, r) => s + Number(byUnit[r.unit_id].promise_amount || 0), 0);
+  const contacted = rows.filter(r => _csLogFor(idx, r)).length;
+  const promiseRows = rows.filter(r => { const c = _csLogFor(idx, r); return c && c.promise_to_pay; });
+  const promisedAmt = promiseRows.reduce((s, r) => s + Number(_csLogFor(idx, r).promise_amount || 0), 0);
   const T = rows.reduce((t, r) => { t.old += r.old; t.cur += r.cur; t.dp += r.dp; t.closing += r.closing; return t; }, { old: 0, cur: 0, dp: 0, closing: 0 });
 
   const bar = NX.card(
@@ -151,7 +158,7 @@ function _csRender() {
   }
 
   const body = shown.map((r, i) => {
-    const c = r.unit_id ? byUnit[r.unit_id] : null;
+    const c = _csLogFor(idx, r);
     const id = esc(r.unit_id || '');
     const dayLbl = r.odd > 0 ? r.odd + 'd' : '—';
     const dayTone = r.odd > 90 ? 'danger' : r.odd > 60 ? 'warning' : r.odd > 30 ? 'info' : '';
@@ -159,17 +166,19 @@ function _csRender() {
     const wa = (r.phone && r.unit_id) ? '<button class="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" title="WhatsApp" onclick="_csWA(\'' + id + '\')">' + NX.icon('message-circle', 15) + '</button>' : '';
 
     let respCell;
-    if (!r.unit_id) {
-      respCell = '<span class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted)">—</span>';
-    } else if (c) {
+    if (c) {
       const tone = c.promise_to_pay ? 'var(--fk-success)' : 'var(--fk-text)';
-      respCell = '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span style="color:' + tone + '">' + esc(_csRespLabel(c)) + '</span>' +
-        (c.remarks ? '<span class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(c.remarks) + '">' + esc(c.remarks) + '</span>' : '') +
-        NX.button('Edit', { variant: 'ghost', size: 'sm', onclick: "_csOpenResp('" + id + "')" }) +
+      respCell = '<div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="color:' + tone + ';font-weight:500">' + esc(_csRespLabel(c)) + '</span>' +
+          (r.unit_id ? NX.button('Edit', { variant: 'ghost', size: 'sm', onclick: "_csOpenResp('" + id + "')" }) : '') +
+        '</div>' +
+        (c.remarks ? '<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted);margin-top:2px;white-space:normal">' + esc(c.remarks) + '</div>' : '') +
       '</div>';
-    } else {
+    } else if (r.unit_id) {
       respCell = NX.button('+ Add response', { variant: 'secondary', size: 'sm', onclick: "_csOpenResp('" + id + "')" });
+    } else {
+      respCell = '<span class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted)">—</span>';
     }
 
     return '<tr' + (c ? ' style="background:var(--fk-bg-subtle)"' : '') + '>' +
@@ -216,7 +225,7 @@ const _CS_RESP_MAP = { 'Answered': 'Answered', 'No answer': 'NoResponse', 'Promi
 function _csOpenResp(uid) {
   const r = _csheet.byUnit[uid];
   if (!r) return;
-  const existing = _csLogsByUnit()[uid];
+  const existing = _csLogFor(_csDayLogs(), r);
   _csResp = {
     unitId: uid,
     channel: (existing && existing.channel) || 'Call',
@@ -293,8 +302,12 @@ async function _csSaveResp() {
       status_tag:        'Active',
       created_by:        S.userId
     };
-    const { error } = await supabase.rpc('create_contact_log', { p_company_id: S.cid, p_data: payload });
+    const { data, error } = await supabase.rpc('create_contact_log', { p_company_id: S.cid, p_data: payload });
     if (error) throw error;
+    if (data && data.success === false) throw new Error(data.message || data.error || 'Could not save the response.');
+    // Optimistically add the saved row so it shows even before the cache reload.
+    const savedRow = data && data.row;
+    if (savedRow) { if (!window._contactLogsCache) window._contactLogsCache = []; window._contactLogsCache.unshift(savedRow); }
 
     if (isPromise) {
       try {
@@ -323,10 +336,10 @@ async function _csSaveResp() {
 /* ─── Share / Export ───────────────────────────────────────────────────────── */
 function _csShareText() {
   const rows = _csVisibleRows();
-  const byUnit = _csLogsByUnit();
-  const done = rows.filter(r => r.unit_id && byUnit[r.unit_id]);
-  const promiseRows = done.filter(r => byUnit[r.unit_id].promise_to_pay);
-  const promisedAmt = promiseRows.reduce((s, r) => s + Number(byUnit[r.unit_id].promise_amount || 0), 0);
+  const idx = _csDayLogs();
+  const done = rows.filter(r => _csLogFor(idx, r));
+  const promiseRows = done.filter(r => _csLogFor(idx, r).promise_to_pay);
+  const promisedAmt = promiseRows.reduce((s, r) => s + Number(_csLogFor(idx, r).promise_amount || 0), 0);
   const who = (S && (S.name || S.username)) || '';
   const L = [];
   L.push('*Recovery Call Sheet*');
@@ -338,7 +351,7 @@ function _csShareText() {
   L.push('------------------------------');
   if (done.length) {
     done.forEach((r, i) => {
-      const c = byUnit[r.unit_id];
+      const c = _csLogFor(idx, r);
       L.push((i + 1) + '. ' + r.client_name + (r.unit_no ? ' [' + r.unit_no + ']' : '') + ' — remaining ' + _csF(r.closing));
       L.push('   ' + (c.channel || 'Call') + ': ' + (_csRespLabel(c) || c.response_received || ''));
       if (c.remarks) L.push('   ' + c.remarks);
@@ -357,11 +370,11 @@ function _csShare() {
 }
 function _csExport() {
   const rows = _csVisibleRows();
-  const byUnit = _csLogsByUnit();
+  const idx = _csDayLogs();
   const cell = v => '<td>' + String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</td>';
   const head = ['#', 'Client', 'Phone', 'Unit', 'Old remaining', 'This month', 'DP remaining', 'Current remaining', 'Recovered', 'Days', 'Channel', 'Response', 'Remarks', 'Promise Amt', 'Promise Date'];
   const trs = rows.map((r, i) => {
-    const c = (r.unit_id && byUnit[r.unit_id]) || {};
+    const c = _csLogFor(idx, r) || {};
     return '<tr>' + [
       i + 1, r.client_name, r.phone, r.unit_no,
       Math.round(r.old), Math.round(r.cur), Math.round(r.dp), Math.round(r.closing), Math.round(r.recovered), r.odd,
@@ -384,14 +397,14 @@ function _csExport() {
 function _csPDF() {
   const rows = _csVisibleRows();
   if (!rows.length) { if (typeof toast === 'function') toast('Nothing to print for this filter.', 'warn'); return; }
-  const byUnit = _csLogsByUnit();
+  const idx = _csDayLogs();
   const co = (typeof coLegalName === 'function') ? coLegalName() : ((S && S.coName) || 'Company');
   const who = (S && (S.name || S.username)) || '';
   const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const m = n => Number(n || 0) ? Number(n).toLocaleString('en-US') : '—';
   const T = rows.reduce((t, r) => { t.old += r.old; t.cur += r.cur; t.dp += r.dp; t.closing += r.closing; return t; }, { old: 0, cur: 0, dp: 0, closing: 0 });
   const body = rows.map((r, i) => {
-    const c = (r.unit_id && byUnit[r.unit_id]) || {};
+    const c = _csLogFor(idx, r) || {};
     const resp = c.response_received ? (_CS_RESPONSES.find(x => _CS_RESP_MAP[x] === c.response_received) || c.response_received) : '';
     const promise = c.promise_to_pay ? 'Promise ' + m(c.promise_amount) + (c.promise_date ? ' by ' + e(c.promise_date) : '') : '';
     return '<tr>' +
