@@ -150,7 +150,7 @@ function _csRender() {
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
         NX.button('Export Excel', { variant: 'secondary', size: 'sm', icon: 'download', onclick: '_csExport()' }) +
         NX.button('PDF', { variant: 'secondary', size: 'sm', icon: 'printer', onclick: '_csPDF()' }) +
-        NX.button('30-day grid', { variant: 'secondary', size: 'sm', icon: 'calendar', onclick: '_csGridPDF()' }) +
+        NX.button('30-day log', { variant: 'secondary', size: 'sm', icon: 'calendar', onclick: '_csGridPDF()' }) +
         NX.button('Share on WhatsApp', { variant: 'primary', size: 'sm', icon: 'share-2', onclick: '_csShare()' }) +
       '</div>' +
     '</div>', { compact: true });
@@ -493,68 +493,75 @@ function _csPDF() {
   else { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); setTimeout(() => { try { w.print(); } catch (x) {} }, 300); } }
 }
 
-// 30-DAY DAY-WISE GRID — a matrix (clients × last 30 days) of what was logged each
-// day, short-coded. Answers "kis din kis ko kya" over a month at a glance.
-const _CS_CODE = { Promised: 'P', Answered: 'A', NoResponse: 'NA', Dispute: 'D', SwitchedOff: 'SO', WrongNumber: 'WN' };
-const _CS_CODE_COLOR = { P: '#16a34a', A: '#2563eb', NA: '#8990a6', D: '#dc2626', SO: '#b45309', WN: '#b45309' };
+// 30-DAY LOG — a READABLE per-client day-wise history. A 30-column grid can't hold
+// legible text, so instead each client gets a block listing every contact in the
+// window in full: date · channel · status · promise · remarks. Answers "har din kya
+// hua" without cryptic codes. Newest first, worst-owing clients first.
+function _csRespText(rr) { return (_CS_RESPONSES.find(x => _CS_RESP_MAP[x] === rr) || rr || '—'); }
 function _csGridPDF() {
-  // 30-day window ending at the selected date.
-  const days = [];
-  for (let i = 29; i >= 0; i--) days.push(_csAddDays(_csheet.date, -i));
-  const winSet = {}; days.forEach(d => winSet[d] = true);
-  // Index every log in the window by unit/sale/client → date → code (latest that day).
-  const byU = {}, byS = {}, byC = {};
-  (window._contactLogsCache || []).forEach(cl => {
-    const d = (cl.contact_date || '').slice(0, 10);
-    if (!winSet[d]) return;
-    const code = _CS_CODE[cl.response_received] || (cl.response_received ? String(cl.response_received).slice(0, 2) : '·');
-    if (cl.unit_id) { (byU[cl.unit_id] = byU[cl.unit_id] || {})[d] = code; }
-    if (cl.sale_id) { (byS[cl.sale_id] = byS[cl.sale_id] || {})[d] = code; }
-    if (cl.client_id) { (byC[cl.client_id] = byC[cl.client_id] || {})[d] = code; }
+  const start = _csAddDays(_csheet.date, -29), end = _csheet.date;
+  const inWin = d => d >= start && d <= end;
+  // Per client (row): all its contacts inside the 30-day window, newest first.
+  const blocks = [];
+  _csheet.rows.forEach(r => {
+    const logs = (window._contactLogsCache || []).filter(cl => {
+      const d = (cl.contact_date || '').slice(0, 10);
+      if (!inWin(d)) return false;
+      return (r.unit_id && cl.unit_id === r.unit_id) || (r.sale_id && cl.sale_id === r.sale_id) || (r.client_id && cl.client_id === r.client_id);
+    });
+    if (logs.length) {
+      logs.sort((a, b) => ((b.contact_date || '') + (b.contact_time || '')).localeCompare((a.contact_date || '') + (a.contact_time || '')));
+      blocks.push({ r, logs });
+    }
   });
-  const codeAt = (r, d) => (r.unit_id && byU[r.unit_id] && byU[r.unit_id][d]) || (r.sale_id && byS[r.sale_id] && byS[r.sale_id][d]) || (r.client_id && byC[r.client_id] && byC[r.client_id][d]) || '';
-  // Only rows with ≥1 activity in the window.
-  const rows = _csheet.rows.filter(r => days.some(d => codeAt(r, d)));
-  if (!rows.length) { if (typeof toast === 'function') toast('No contact activity in the last 30 days.', 'warn'); return; }
+  if (!blocks.length) { if (typeof toast === 'function') toast('No contact activity in the last 30 days.', 'warn'); return; }
+  blocks.sort((a, b) => b.r.closing - a.r.closing);
   const co = (typeof coLegalName === 'function') ? coLegalName() : ((S && S.coName) || 'Company');
   const who = (S && (S.name || S.username)) || '';
   const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const dd = d => d.slice(8, 10);          // day-of-month
-  const mon = d => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(d.slice(5, 7), 10) - 1];
-  // header: show month label when it changes
-  const th = days.map((d, i) => {
-    const showMon = i === 0 || d.slice(5, 7) !== days[i - 1].slice(5, 7);
-    return '<th class="dcol">' + (showMon ? '<span class="mo">' + mon(d) + '</span>' : '') + dd(d) + '</th>';
-  }).join('');
-  const body = rows.map(r => {
-    const cells = days.map(d => {
-      const cd = codeAt(r, d);
-      return '<td class="dc"' + (cd ? ' style="color:' + (_CS_CODE_COLOR[cd] || '#1e2433') + ';font-weight:700"' : '') + '>' + (cd || '') + '</td>';
+  const F = n => Number(n || 0) ? '₨' + Number(n).toLocaleString('en-US') : '—';
+
+  const body = blocks.map(b => {
+    const r = b.r;
+    const rows = b.logs.map(c => {
+      const promise = c.promise_to_pay ? F(c.promise_amount) + (c.promise_date ? ' by ' + e(fD((c.promise_date || '').slice(0, 10))) : '') : '—';
+      const foll = c.next_followup_date ? '<div class="fu">Next follow-up: ' + e(fD((c.next_followup_date || '').slice(0, 10))) + '</div>' : '';
+      return '<tr>' +
+        '<td class="dt">' + e(fD((c.contact_date || '').slice(0, 10))) + (c.contact_time ? '<div class="tm">' + e((c.contact_time || '').slice(0, 5)) + '</div>' : '') + '</td>' +
+        '<td>' + e(c.channel || '—') + '</td>' +
+        '<td class="st">' + e(_csRespText(c.response_received)) + '</td>' +
+        '<td class="n">' + promise + '</td>' +
+        '<td class="rm">' + (c.remarks ? e(c.remarks) : '<span class="mut">—</span>') + foll + '</td>' +
+      '</tr>';
     }).join('');
-    return '<tr><td class="cl"><div class="cn">' + e(r.client_name) + '</div><div class="su">' + e(r.unit_no) + '</div></td>' + cells + '</tr>';
+    return '<div class="cli">' +
+      '<div class="chd"><span class="cn">' + e(r.client_name) + '</span>' +
+        '<span class="cu">' + e(r.unit_no) + (r.phone ? ' · ' + e(r.phone) : '') + '</span>' +
+        '<span class="cout">Outstanding ' + F(r.closing) + '</span>' +
+        '<span class="ccnt">' + b.logs.length + ' contact' + (b.logs.length !== 1 ? 's' : '') + '</span></div>' +
+      '<table class="log"><thead><tr><th style="width:80px">Date</th><th style="width:70px">Channel</th><th style="width:95px">Status</th><th style="width:110px" class="n">Promise</th><th>Remarks</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
   }).join('');
-  const css = '@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box}' +
-    'body{font-family:"Inter",Arial,sans-serif;color:#1e2433;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.hb{background:linear-gradient(100deg,#4f46e5,#6366f1);color:#fff;border-radius:9px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}' +
-    '.hb .co{font-size:9px;opacity:.85;font-weight:600;text-transform:uppercase}.hb .ti{font-size:17px;font-weight:800;margin-top:2px}.hb-r{text-align:right;font-size:9px;opacity:.92;line-height:1.5}.hb-r b{font-size:11px}' +
-    'table{width:100%;border-collapse:collapse;table-layout:fixed}' +
-    'th,td{border:1px solid #eceef5}th{font-size:7px;color:#6b7180;font-weight:700;padding:2px 0;text-align:center;background:#f6f7fb}' +
-    'th.dcol{width:2.7%}.mo{display:block;font-size:6px;color:#4f46e5;font-weight:800}' +
-    'td.cl{width:18%;padding:3px 6px;border-left:none}td.dc{text-align:center;font-size:8px;padding:2px 0;color:#c8ccd8}' +
-    '.cn{font-weight:700;font-size:9px;line-height:1.2}.su{font-size:7px;color:#a0a5b8}' +
-    'tbody tr:nth-child(even) td{background:#fcfcfe}' +
-    '.lg{margin-top:8px;font-size:8px;color:#6b7180;display:flex;gap:12px;flex-wrap:wrap}.lg b{color:#1e2433}' +
-    '.ft{margin-top:8px;border-top:1px solid #eceef5;padding-top:6px;font-size:7.5px;color:#aab0c4;display:flex;justify-content:space-between}';
-  const legend = '<div class="lg"><span><b style="color:#16a34a">P</b> Promise</span><span><b style="color:#2563eb">A</b> Answered</span>' +
-    '<span><b style="color:#8990a6">NA</b> No answer</span><span><b style="color:#dc2626">D</b> Dispute</span>' +
-    '<span><b style="color:#b45309">SO</b> Switched off</span><span><b style="color:#b45309">WN</b> Wrong number</span><span>blank = no contact that day</span></div>';
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery — 30-Day Grid — ' + e(co) + '</title><style>' + css + '</style></head><body>' +
-    '<div class="hb"><div><div class="co">' + e(co) + (who ? ' · Agent: ' + e(who) : '') + '</div><div class="ti">Recovery — 30-Day Activity Grid</div></div>' +
-      '<div class="hb-r"><b>' + e(fD(days[0])) + ' → ' + e(fD(days[29])) + '</b><br>' + rows.length + ' client' + (rows.length !== 1 ? 's' : '') + ' with activity</div></div>' +
-    '<table><thead><tr><th class="cl" style="text-align:left;padding-left:6px">Client / Unit</th>' + th + '</tr></thead><tbody>' + body + '</tbody></table>' +
-    legend +
+
+  const css = '@page{size:A4 portrait;margin:11mm}*{box-sizing:border-box}' +
+    'body{font-family:"Inter",Arial,sans-serif;color:#1e2433;font-size:10.5px;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.hb{background:linear-gradient(100deg,#4f46e5,#6366f1);color:#fff;border-radius:10px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}' +
+    '.hb .co{font-size:10px;opacity:.85;font-weight:600;text-transform:uppercase;letter-spacing:.03em}.hb .ti{font-size:18px;font-weight:800;margin-top:2px}.hb-r{text-align:right;font-size:10px;opacity:.92;line-height:1.6}.hb-r b{font-size:12px}' +
+    '.cli{border:1px solid #e8eaf2;border-radius:9px;margin-bottom:11px;overflow:hidden;page-break-inside:avoid}' +
+    '.chd{background:#f6f7fb;padding:8px 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid #e8eaf2}' +
+    '.chd .cn{font-weight:800;font-size:12px}.chd .cu{color:#6b7180;font-size:9.5px}.chd .cout{color:#dc2626;font-weight:700;font-size:10px}.chd .ccnt{margin-left:auto;color:#8990a6;font-size:9px;font-weight:600}' +
+    'table.log{width:100%;border-collapse:collapse;font-size:10px}' +
+    'table.log th{background:#fbfbfe;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#8990a6;font-weight:700;padding:5px 9px;border-bottom:1px solid #eceef5}' +
+    'table.log td{padding:6px 9px;border-bottom:1px solid #f3f4f8;vertical-align:top}table.log tr:last-child td{border-bottom:none}' +
+    '.n{text-align:right;font-variant-numeric:tabular-nums}.dt{font-weight:600;white-space:nowrap}.tm{font-size:8px;color:#a0a5b8;font-weight:400}' +
+    '.st{font-weight:600}.rm{line-height:1.4}.fu{font-size:8.5px;color:#4f46e5;margin-top:2px}.mut{color:#c8ccd8}' +
+    '.ft{margin-top:10px;border-top:1px solid #eceef5;padding-top:8px;font-size:8px;color:#aab0c4;display:flex;justify-content:space-between}';
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery — 30-Day Log — ' + e(co) + '</title><style>' + css + '</style></head><body>' +
+    '<div class="hb"><div><div class="co">' + e(co) + (who ? ' · Agent: ' + e(who) : '') + '</div><div class="ti">Recovery — 30-Day Contact Log</div></div>' +
+      '<div class="hb-r"><b>' + e(fD(start)) + ' → ' + e(fD(end)) + '</b><br>' + blocks.length + ' client' + (blocks.length !== 1 ? 's' : '') + ' with activity</div></div>' +
+    body +
     '<div class="ft"><span>Generated ' + e((new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</span><span>Nexunova RMS</span></div>' +
     '</body></html>';
-  if (window.NXPrint && typeof NXPrint.emit === 'function') NXPrint.emit(html, 'Recovery 30-Day Grid');
+  if (window.NXPrint && typeof NXPrint.emit === 'function') NXPrint.emit(html, 'Recovery 30-Day Log');
   else { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); setTimeout(() => { try { w.print(); } catch (x) {} }, 300); } }
 }
