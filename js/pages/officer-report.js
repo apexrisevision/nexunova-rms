@@ -256,8 +256,53 @@ function _orRender(){
     kc({label:'Old arrears', value:_orF(T.oldArrears), icon:'layers', tone:'warning'}, 'old', 'Carried over from before this month — click to see each account')+
     kc({label:'Current remaining', value:_orF(T.remaining), icon:'wallet', tone:'danger'}, 'remaining', 'Still outstanding to date — click to see each account')+
   '</div>';
-  b.innerHTML=kpiStrip+NX.card(rf+ctx+filterRow+'<div id="or-table"></div>', {});
+  b.innerHTML='<div id="or-today"></div>'+kpiStrip+NX.card(rf+ctx+filterRow+'<div id="or-table"></div>', {});
   _orRenderTable();
+  _orLoadToday();   // live "today's calls" panel — refreshes on every render (incl. after a call is logged)
+}
+
+// ── TODAY'S CALLS — a live activity strip at the TOP of the recovery report.
+//    Fed by get_daily_call_report (self for officers, all for admins). Because
+//    _orRender re-runs after every logged call (the save re-navs the page), this
+//    panel updates itself through the day — no manual refresh needed. ──
+async function _orLoadToday(){
+  var host=document.getElementById('or-today'); if(!host) return;
+  try{
+    var today=(typeof td==='function'?td():new Date().toISOString().slice(0,10));
+    var res=await supabase.rpc('get_daily_call_report',{p_company_id:S.cid,p_date:today,p_officer:null});
+    if(res.error) throw res.error;
+    _orRenderToday(host, res.data||{});
+  }catch(e){ host.innerHTML=''; }   // supplementary — never block the report
+}
+function _orRenderToday(host, d){
+  var s=d.summary||{}, calls=Array.isArray(d.calls)?d.calls:[], isAdmin=!!d.is_admin;
+  var chip=function(lb,val,col){ return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:var(--fk-bg-subtle);font-size:12px">'+lb+' <b'+(col?' style="color:var(--fk-'+col+')"':'')+'>'+val+'</b></span>'; };
+  var head='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
+    '<span style="font-weight:600;display:flex;align-items:center;gap:6px">'+NX.icon('phone-call',16)+'Today’s calls</span>'+
+    chip('Calls', s.calls||0)+
+    chip('Connected', s.connected||0)+
+    chip('Promises', s.promises||0, (s.promises>0?'success':''))+
+    chip('Promised', _orF(s.promised_amount||0), (s.promised_amount>0?'success':''))+
+    chip('Follow-ups', s.followups||0)+
+    '<a class="nx-kpi-label" style="text-transform:none;margin-left:auto;color:var(--fk-primary);cursor:pointer;text-decoration:none" onclick="nav(\'callreport\')">Full report →</a>'+
+  '</div>';
+  var listHTML;
+  if(!calls.length){
+    listHTML='<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted)">No calls logged yet today — work the list below; each call you log (Call / Log &amp; status) appears here.</div>';
+  } else {
+    listHTML=calls.slice(0,8).map(function(c){
+      var resp=c.response_type||c.call_status||c.status_tag||'—';
+      var prom=c.promise_to_pay?' <span style="color:var(--fk-success)">· Promise '+_orF(c.promise_amount||0)+'</span>':'';
+      var off=(isAdmin&&c.officer_name)?' <span class="nx-kpi-label" style="text-transform:none">('+esc(c.officer_name)+')</span>':'';
+      return '<div style="display:flex;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--fk-border);font-size:13px">'+
+        '<span class="nx-kpi-label" style="text-transform:none;white-space:nowrap;min-width:64px">'+esc(c.time||'')+'</span>'+
+        '<span style="flex:1;min-width:0"><b>'+esc(c.client_name||'—')+'</b>'+(c.unit_no?' <span class="num nx-kpi-label" style="text-transform:none">'+esc(c.unit_no)+'</span>':'')+off+
+          (c.remarks?'<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(c.remarks)+'</div>':'')+'</span>'+
+        '<span style="white-space:nowrap">'+esc(resp)+prom+'</span>'+
+      '</div>';
+    }).join('')+(calls.length>8?'<div class="nx-kpi-label" style="text-transform:none;margin-top:6px">…and '+(calls.length-8)+' more — see Full report</div>':'');
+  }
+  host.innerHTML=NX.card(head+listHTML, {compact:true})+'<div style="height:var(--fk-sp-3)"></div>';
 }
 
 // ── Print / PDF: clean A4 brief — money picture + the full call list. ──
