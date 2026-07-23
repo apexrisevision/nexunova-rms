@@ -95,6 +95,7 @@
     unittransfer: TRANSFERS, unitcancel: CANCELLATION, unitchange: UNITCHANGE, unitchain: OWNCHAIN,
 
     reminders: ['js/pages/reminders.js?v=20260614rec3'],
+    callreport: ['js/pages/call-report.js?v=20260723dcr'],
     search: ['js/pages/search.js?v=20260517a'],
     reports: REPORTS, recoveryiq: REPORTS,
     agentrecovery: ['js/pages/agent-report.js?v=20260706p1b'],

@@ -214,6 +214,7 @@ function hasPermission(perm){
     units:'units', unitdetail:'units', addunit:'units',
     clients:'clients', clientdetail:'clients',
     recovery:'recovery', queue:'recovery', addpayment:'recovery', receipts:'recovery', pdc:'recovery',
+    callreport:'recovery',
     contacts:'contacts',
     reports:'reports',
     documents:'documents',
