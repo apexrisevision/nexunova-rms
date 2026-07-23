@@ -30,6 +30,18 @@ function _csToday() {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 function _csF(n) { const x = Number(n || 0); return x ? '₨' + ((typeof fM === 'function') ? fM(x) : x.toLocaleString('en-US')) : '—'; }
+// Days between a past contact date and the sheet's selected date → "3d ago".
+function _csAgo(cd) {
+  const a = new Date(cd + 'T00:00:00'), b = new Date(_csheet.date + 'T00:00:00');
+  const d = Math.round((b - a) / 86400000);
+  return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d + 'd ago';
+}
+// Add days to a YYYY-MM-DD string, return YYYY-MM-DD.
+function _csAddDays(base, days) {
+  const d = new Date((base || _csToday()) + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
 /* ─── Entry point ──────────────────────────────────────────────────────────── */
 async function rCallSheet() {
@@ -84,10 +96,14 @@ function _csShiftDay(delta) {
 /* ─── Selected-day's contact logs, indexed by unit / sale / client ─────────────
    create_contact_log enriches sale_id + client_id from the unit, so a row always
    links to its log by at least one key — even if a log's unit_id is null. */
+// CARRY-FORWARD: the status shown for a day is the latest response ON OR BEFORE it,
+// so a client's standing (e.g. "call after 1 week") persists day to day instead of
+// going blank. Only the 30-day grid looks at each individual day.
 function _csDayLogs() {
-  const logs = (window._contactLogsCache || []).filter(c => (c.contact_date || '').slice(0, 10) === _csheet.date);
+  const logs = (window._contactLogsCache || []).filter(c => (c.contact_date || '').slice(0, 10) <= _csheet.date);
   const idx = { byUnit: {}, bySale: {}, byClient: {} };
-  const newer = (a, b) => !b || (a.contact_time || '') > (b.contact_time || '') || (a.created_at || '') > (b.created_at || '');
+  const key = c => (c.contact_date || '') + 'T' + (c.contact_time || '') + '#' + (c.created_at || '');
+  const newer = (a, b) => !b || key(a) > key(b);
   logs.forEach(c => {
     if (c.unit_id && newer(c, idx.byUnit[c.unit_id])) idx.byUnit[c.unit_id] = c;
     if (c.sale_id && newer(c, idx.bySale[c.sale_id])) idx.bySale[c.sale_id] = c;
@@ -110,9 +126,12 @@ function _csRender() {
   if (!root) return;
   const rows = _csheet.rows;
   const idx = _csDayLogs();
-  const isToday = _csheet.date === _csToday();
+  const today = _csToday();
+  const isToday = _csheet.date === today;
 
-  const contacted = rows.filter(r => _csLogFor(idx, r)).length;
+  const withStatus = rows.filter(r => _csLogFor(idx, r)).length;
+  const contactedToday = rows.filter(r => { const c = _csLogFor(idx, r); return c && (c.contact_date || '').slice(0, 10) === _csheet.date; }).length;
+  const followupDue = rows.filter(r => { const c = _csLogFor(idx, r); return c && c.next_followup_date && (c.next_followup_date || '').slice(0, 10) <= _csheet.date; }).length;
   const promiseRows = rows.filter(r => { const c = _csLogFor(idx, r); return c && c.promise_to_pay; });
   const promisedAmt = promiseRows.reduce((s, r) => s + Number(_csLogFor(idx, r).promise_amount || 0), 0);
   const T = rows.reduce((t, r) => { t.old += r.old; t.cur += r.cur; t.dp += r.dp; t.closing += r.closing; return t; }, { old: 0, cur: 0, dp: 0, closing: 0 });
@@ -131,6 +150,7 @@ function _csRender() {
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
         NX.button('Export Excel', { variant: 'secondary', size: 'sm', icon: 'download', onclick: '_csExport()' }) +
         NX.button('PDF', { variant: 'secondary', size: 'sm', icon: 'printer', onclick: '_csPDF()' }) +
+        NX.button('30-day grid', { variant: 'secondary', size: 'sm', icon: 'calendar', onclick: '_csGridPDF()' }) +
         NX.button('Share on WhatsApp', { variant: 'primary', size: 'sm', icon: 'share-2', onclick: '_csShare()' }) +
       '</div>' +
     '</div>', { compact: true });
@@ -141,10 +161,10 @@ function _csRender() {
   }
   const summary = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:var(--fk-sp-3) 0">' +
     stat('Accounts owing', rows.length) +
-    stat('Contacted ' + (isToday ? 'today' : ''), contacted, (contacted > 0 ? 'var(--fk-success)' : '')) +
-    stat('Pending', Math.max(0, rows.length - contacted)) +
+    stat('Contacted ' + (isToday ? 'today' : 'that day'), contactedToday, (contactedToday > 0 ? 'var(--fk-success)' : '')) +
+    stat('With a status', withStatus) +
+    stat('Follow-up due', followupDue, (followupDue > 0 ? 'var(--fk-warning)' : '')) +
     stat('Promises', promiseRows.length, (promiseRows.length > 0 ? 'var(--fk-success)' : '')) +
-    stat('Promised', _csF(promisedAmt), (promisedAmt > 0 ? 'var(--fk-success)' : '')) +
     stat('Current remaining', _csF(T.closing), 'var(--fk-danger)') +
     '</div>';
 
@@ -168,11 +188,19 @@ function _csRender() {
     let respCell;
     if (c) {
       const tone = c.promise_to_pay ? 'var(--fk-success)' : 'var(--fk-text)';
+      const cd = (c.contact_date || '').slice(0, 10);
+      const fresh = cd === _csheet.date;
+      const whenChip = fresh
+        ? '<span style="font-size:10px;font-weight:600;color:var(--fk-success);background:var(--fk-success-soft,rgba(16,185,129,.12));padding:1px 6px;border-radius:10px">today</span>'
+        : '<span class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted)">· ' + esc(_csAgo(cd)) + '</span>';
+      const fu = (c.next_followup_date || '').slice(0, 10);
+      const fuDue = fu && fu <= _csheet.date;
       respCell = '<div>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-          '<span style="color:' + tone + ';font-weight:500">' + esc(_csRespLabel(c)) + '</span>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+          '<span style="color:' + tone + ';font-weight:500">' + esc(_csRespLabel(c)) + '</span>' + whenChip +
           (r.unit_id ? NX.button('Edit', { variant: 'ghost', size: 'sm', onclick: "_csOpenResp('" + id + "')" }) : '') +
         '</div>' +
+        (fu ? '<div class="nx-kpi-label" style="text-transform:none;margin-top:2px;color:' + (fuDue ? 'var(--fk-warning)' : 'var(--fk-text-muted)') + '">' + (fuDue ? '⏰ Follow-up due · ' : 'Follow-up: ') + fD(fu) + '</div>' : '') +
         (c.remarks ? '<div class="nx-kpi-label" style="text-transform:none;color:var(--fk-text-muted);margin-top:2px;white-space:normal">' + esc(c.remarks) + '</div>' : '') +
       '</div>';
     } else if (r.unit_id) {
@@ -233,6 +261,7 @@ function _csOpenResp(uid) {
     remarks: (existing && existing.remarks) || '',
     promiseAmount: (existing && existing.promise_amount) || null,
     promiseDate: (existing && existing.promise_date) || null,
+    followupDate: (existing && existing.next_followup_date) ? (existing.next_followup_date || '').slice(0, 10) : null,
     busy: false
   };
   _csRespRender();
@@ -240,6 +269,7 @@ function _csOpenResp(uid) {
 function _csRespClose() { const h = document.getElementById('cs-resp-host'); if (h) h.innerHTML = ''; _csResp = null; }
 function _csRespSetChannel(v) { if (_csResp) { _csResp.channel = v; _csRespRender(); } }
 function _csRespPick(r) { if (_csResp) { _csResp.response = r; _csRespRender(); } }
+function _csRespSetFollowup(days) { if (_csResp) { _csResp.followupDate = days == null ? null : _csAddDays(_csheet.date, days); _csRespRender(); } }
 
 function _csRespRender() {
   if (!_csResp) return;
@@ -248,6 +278,11 @@ function _csRespRender() {
     NX.button(v, { variant: _csResp.channel === v ? 'primary' : 'secondary', size: 'sm', onclick: "_csRespSetChannel('" + v + "')" })).join(' ');
   const respRow = _CS_RESPONSES.map(v =>
     NX.button(v, { variant: _csResp.response === v ? 'primary' : 'secondary', size: 'sm', onclick: "_csRespPick('" + v + "')" })).join(' ');
+  const fuPresets = [['None', null], ['Tomorrow', 1], ['+3d', 3], ['1 week', 7], ['2 weeks', 14], ['1 month', 30]];
+  const fuRow = fuPresets.map(p => {
+    const sel = p[1] == null ? !_csResp.followupDate : (_csResp.followupDate === _csAddDays(_csheet.date, p[1]));
+    return NX.button(p[0], { variant: sel ? 'primary' : 'secondary', size: 'sm', onclick: '_csRespSetFollowup(' + (p[1] == null ? 'null' : p[1]) + ')' });
+  }).join(' ');
   const isPromise = _csResp.response === 'Promise to pay';
   const promiseFields = isPromise
     ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">' +
@@ -264,7 +299,12 @@ function _csRespRender() {
     '<div class="nx-field" style="margin:0 0 12px"><label class="nx-label">Response</label><div style="display:flex;gap:6px;flex-wrap:wrap">' + respRow + '</div></div>' +
     promiseFields +
     '<div class="nx-field" style="margin:12px 0 0"><label class="nx-label">Remarks (client ne kya kaha)</label>' +
-      '<textarea class="nx-input" rows="3" oninput="_csResp.remarks=this.value" placeholder="e.g. Salary 25 tareekh ko aayegi, tab pay karega">' + esc(_csResp.remarks || '') + '</textarea></div>';
+      '<textarea class="nx-input" rows="3" oninput="_csResp.remarks=this.value" placeholder="e.g. Salary 25 tareekh ko aayegi, tab pay karega">' + esc(_csResp.remarks || '') + '</textarea></div>' +
+    '<div class="nx-field" style="margin:12px 0 0"><label class="nx-label">Next follow-up (reminder banega)</label>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + fuRow +
+        '<input class="nx-input" type="date" style="width:150px" value="' + esc(_csResp.followupDate || '') + '" oninput="_csResp.followupDate=this.value;_csRespRender()">' +
+        (_csResp.followupDate ? '<span class="nx-kpi-label" style="text-transform:none;color:var(--fk-primary)">→ ' + fD(_csResp.followupDate) + '</span>' : '') +
+      '</div></div>';
   const footer =
     NX.button('Cancel', { variant: 'ghost', size: 'sm', onclick: '_csRespClose()' }) +
     NX.button(_csResp.busy ? 'Saving…' : 'Save response', { variant: 'primary', size: 'sm', disabled: _csResp.busy, onclick: '_csSaveResp()' });
@@ -299,6 +339,8 @@ async function _csSaveResp() {
       promise_to_pay:    isPromise,
       promise_amount:    isPromise ? Number(_csResp.promiseAmount) : null,
       promise_date:      isPromise ? _csResp.promiseDate : null,
+      next_followup_date: _csResp.followupDate || null,
+      next_followup_channel: _csResp.followupDate ? _csResp.channel : null,
       status_tag:        'Active',
       created_by:        S.userId
     };
@@ -308,6 +350,22 @@ async function _csSaveResp() {
     // Optimistically add the saved row so it shows even before the cache reload.
     const savedRow = data && data.row;
     if (savedRow) { if (!window._contactLogsCache) window._contactLogsCache = []; window._contactLogsCache.unshift(savedRow); }
+
+    // Next follow-up → a reminder in the Reminders page + top bell on that date.
+    if (_csResp.followupDate) {
+      try {
+        await supabase.rpc('create_follow_up_reminder', {
+          p_company_id: S.cid,
+          p_data: {
+            unit_id: _csResp.unitId, client_id: (r && r.client_id) || null, sale_id: (r && r.sale_id) || null,
+            contact_log_id: (data && data.id) || null,
+            remind_at: _csResp.followupDate + 'T09:00:00+00:00',
+            channels: [_csResp.channel], message: 'Follow-up: ' + ((r && r.client_name) || '') + (r && r.unit_no ? ' (' + r.unit_no + ')' : ''),
+            status: 'pending', created_by: S.userId
+          }
+        });
+      } catch (e) { console.warn('[call-sheet reminder]', e); if (typeof toast === 'function') toast('Response saved — but the reminder could not be set.', 'warn'); }
+    }
 
     if (isPromise) {
       try {
@@ -432,5 +490,71 @@ function _csPDF() {
     '<div class="ft"><span>Generated ' + e((new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</span><span>Nexunova RMS</span></div>' +
     '</body></html>';
   if (window.NXPrint && typeof NXPrint.emit === 'function') NXPrint.emit(html, 'Recovery Call Sheet');
+  else { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); setTimeout(() => { try { w.print(); } catch (x) {} }, 300); } }
+}
+
+// 30-DAY DAY-WISE GRID — a matrix (clients × last 30 days) of what was logged each
+// day, short-coded. Answers "kis din kis ko kya" over a month at a glance.
+const _CS_CODE = { Promised: 'P', Answered: 'A', NoResponse: 'NA', Dispute: 'D', SwitchedOff: 'SO', WrongNumber: 'WN' };
+const _CS_CODE_COLOR = { P: '#16a34a', A: '#2563eb', NA: '#8990a6', D: '#dc2626', SO: '#b45309', WN: '#b45309' };
+function _csGridPDF() {
+  // 30-day window ending at the selected date.
+  const days = [];
+  for (let i = 29; i >= 0; i--) days.push(_csAddDays(_csheet.date, -i));
+  const winSet = {}; days.forEach(d => winSet[d] = true);
+  // Index every log in the window by unit/sale/client → date → code (latest that day).
+  const byU = {}, byS = {}, byC = {};
+  (window._contactLogsCache || []).forEach(cl => {
+    const d = (cl.contact_date || '').slice(0, 10);
+    if (!winSet[d]) return;
+    const code = _CS_CODE[cl.response_received] || (cl.response_received ? String(cl.response_received).slice(0, 2) : '·');
+    if (cl.unit_id) { (byU[cl.unit_id] = byU[cl.unit_id] || {})[d] = code; }
+    if (cl.sale_id) { (byS[cl.sale_id] = byS[cl.sale_id] || {})[d] = code; }
+    if (cl.client_id) { (byC[cl.client_id] = byC[cl.client_id] || {})[d] = code; }
+  });
+  const codeAt = (r, d) => (r.unit_id && byU[r.unit_id] && byU[r.unit_id][d]) || (r.sale_id && byS[r.sale_id] && byS[r.sale_id][d]) || (r.client_id && byC[r.client_id] && byC[r.client_id][d]) || '';
+  // Only rows with ≥1 activity in the window.
+  const rows = _csheet.rows.filter(r => days.some(d => codeAt(r, d)));
+  if (!rows.length) { if (typeof toast === 'function') toast('No contact activity in the last 30 days.', 'warn'); return; }
+  const co = (typeof coLegalName === 'function') ? coLegalName() : ((S && S.coName) || 'Company');
+  const who = (S && (S.name || S.username)) || '';
+  const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const dd = d => d.slice(8, 10);          // day-of-month
+  const mon = d => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(d.slice(5, 7), 10) - 1];
+  // header: show month label when it changes
+  const th = days.map((d, i) => {
+    const showMon = i === 0 || d.slice(5, 7) !== days[i - 1].slice(5, 7);
+    return '<th class="dcol">' + (showMon ? '<span class="mo">' + mon(d) + '</span>' : '') + dd(d) + '</th>';
+  }).join('');
+  const body = rows.map(r => {
+    const cells = days.map(d => {
+      const cd = codeAt(r, d);
+      return '<td class="dc"' + (cd ? ' style="color:' + (_CS_CODE_COLOR[cd] || '#1e2433') + ';font-weight:700"' : '') + '>' + (cd || '') + '</td>';
+    }).join('');
+    return '<tr><td class="cl"><div class="cn">' + e(r.client_name) + '</div><div class="su">' + e(r.unit_no) + '</div></td>' + cells + '</tr>';
+  }).join('');
+  const css = '@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box}' +
+    'body{font-family:"Inter",Arial,sans-serif;color:#1e2433;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.hb{background:linear-gradient(100deg,#4f46e5,#6366f1);color:#fff;border-radius:9px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}' +
+    '.hb .co{font-size:9px;opacity:.85;font-weight:600;text-transform:uppercase}.hb .ti{font-size:17px;font-weight:800;margin-top:2px}.hb-r{text-align:right;font-size:9px;opacity:.92;line-height:1.5}.hb-r b{font-size:11px}' +
+    'table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+    'th,td{border:1px solid #eceef5}th{font-size:7px;color:#6b7180;font-weight:700;padding:2px 0;text-align:center;background:#f6f7fb}' +
+    'th.dcol{width:2.7%}.mo{display:block;font-size:6px;color:#4f46e5;font-weight:800}' +
+    'td.cl{width:18%;padding:3px 6px;border-left:none}td.dc{text-align:center;font-size:8px;padding:2px 0;color:#c8ccd8}' +
+    '.cn{font-weight:700;font-size:9px;line-height:1.2}.su{font-size:7px;color:#a0a5b8}' +
+    'tbody tr:nth-child(even) td{background:#fcfcfe}' +
+    '.lg{margin-top:8px;font-size:8px;color:#6b7180;display:flex;gap:12px;flex-wrap:wrap}.lg b{color:#1e2433}' +
+    '.ft{margin-top:8px;border-top:1px solid #eceef5;padding-top:6px;font-size:7.5px;color:#aab0c4;display:flex;justify-content:space-between}';
+  const legend = '<div class="lg"><span><b style="color:#16a34a">P</b> Promise</span><span><b style="color:#2563eb">A</b> Answered</span>' +
+    '<span><b style="color:#8990a6">NA</b> No answer</span><span><b style="color:#dc2626">D</b> Dispute</span>' +
+    '<span><b style="color:#b45309">SO</b> Switched off</span><span><b style="color:#b45309">WN</b> Wrong number</span><span>blank = no contact that day</span></div>';
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recovery — 30-Day Grid — ' + e(co) + '</title><style>' + css + '</style></head><body>' +
+    '<div class="hb"><div><div class="co">' + e(co) + (who ? ' · Agent: ' + e(who) : '') + '</div><div class="ti">Recovery — 30-Day Activity Grid</div></div>' +
+      '<div class="hb-r"><b>' + e(fD(days[0])) + ' → ' + e(fD(days[29])) + '</b><br>' + rows.length + ' client' + (rows.length !== 1 ? 's' : '') + ' with activity</div></div>' +
+    '<table><thead><tr><th class="cl" style="text-align:left;padding-left:6px">Client / Unit</th>' + th + '</tr></thead><tbody>' + body + '</tbody></table>' +
+    legend +
+    '<div class="ft"><span>Generated ' + e((new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</span><span>Nexunova RMS</span></div>' +
+    '</body></html>';
+  if (window.NXPrint && typeof NXPrint.emit === 'function') NXPrint.emit(html, 'Recovery 30-Day Grid');
   else { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); setTimeout(() => { try { w.print(); } catch (x) {} }, 300); } }
 }
