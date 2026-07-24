@@ -239,6 +239,7 @@ function _rvShowDetail(paymentId) {
       NX.button('Last', { variant:'secondary', size:'sm', disabled: pos<0 || pos>=total-1, onclick:"_rvNavTo('last')" }) +
       '<span style="flex:1"></span>' +
       NX.button('Add Voucher', { variant:'primary', size:'sm', icon:'plus', onclick:'_rvNewVoucher()' }) +
+      ((!cancelled && (S?.role==='admin' || S?.role==='owner')) ? NX.button('Edit voucher', { variant:'secondary', size:'sm', icon:'pencil', onclick:"_rvEditFromDetail('" + r.id + "')" }) : '') +
       (!cancelled ? NX.button('Cancel voucher', { variant:'danger', size:'sm', onclick:"_rvCancelFromDetail('" + r.id + "','" + esc(code) + "'," + r.amount + ")" }) : '') +
       NX.button('Print Receipt', { variant:'secondary', size:'sm', icon:'printer', onclick:"openReceiptReport('" + r.id + "')" }) +
     '</div>';
@@ -554,6 +555,88 @@ async function _rvCancelFromDetail(paymentId, code, amount) {
     _rvBackToList();
   } catch(e) {
     notify.error('Cancel Failed', { detail: e.message });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EDIT VOUCHER (admin/owner) — correct a wrongly-posted receipt IN PLACE.
+// Same voucher number is kept; edit_payment re-FIFOs the sale and audit-logs the
+// old->new change with a mandatory reason. Non-admins never see the button.
+// ════════════════════════════════════════════════════════════════════════════
+function _rvEditFromDetail(paymentId) {
+  if (!(S?.role === 'admin' || S?.role === 'owner')) { toast('Admins only', 'warn'); return; }
+  const r = _rvFiltered.find(x => x.id === paymentId) || _rvList.find(x => x.id === paymentId);
+  if (!r) return;
+  if (r.status === 'cancelled') { toast('Cancelled voucher can’t be edited', 'warn'); return; }
+  const host = document.getElementById('rv-shift-host'); if (!host) return;
+  const code = r.voucher_code || r.payment_code;
+  // keep the voucher's current mode selectable even if it isn't a standard entry mode
+  const modeOpts = _RVE_MODES.slice();
+  if (r.payment_method && !modeOpts.some(m => m.value === r.payment_method))
+    modeOpts.unshift({ value:r.payment_method, label:(_RV_MODE_LBL[r.payment_method] || r.payment_method) });
+  host.innerHTML = NX.modal({
+    id:'rv-edit', title:'Edit voucher · ' + esc(code), size:'m', onClose:'_rvCloseEdit()',
+    body:
+      '<div style="font-size:12px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3);line-height:1.5">' +
+        'Corrects this receipt in place — the voucher number stays the same. The change is recorded on the audit trail and the unit’s balance is recomputed. No new cash is received.' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">' +
+        NX.field({ label:'Amount (PKR)', name:'rved-amount', type:'number', value:(r.amount ?? ''), required:true, attrs:'min="1" step="0.01" class="nx-input num"' }) +
+        NX.field({ label:'Date', name:'rved-date', type:'date', value:(r.payment_date || _rvToday()), required:true }) +
+      '</div>' +
+      '<div style="margin-top:var(--fk-sp-3)">' +
+        NX.field({ label:'Mode', name:'rved-mode', el:'select', value:(r.payment_method || 'cash'), options:modeOpts }) +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3);margin-top:var(--fk-sp-3)">' +
+        NX.field({ label:'Reference no', name:'rved-ref', value:(r.reference_no || '') }) +
+        NX.field({ label:'Bank', name:'rved-bank', value:(r.bank_name || '') }) +
+      '</div>' +
+      '<div style="margin-top:var(--fk-sp-3)">' +
+        NX.field({ label:'Notes', name:'rved-notes', value:(r.notes || '') }) +
+      '</div>' +
+      '<div style="margin-top:var(--fk-sp-3)">' +
+        NX.field({ label:'Reason for edit', name:'rved-reason', required:true, placeholder:'e.g. Wrong amount posted — receipt was PKR 50,000 not 500,000' }) +
+      '</div>' +
+      '<div id="rved-err" style="font-size:12px;color:var(--fk-danger);min-height:16px;margin-top:var(--fk-sp-2)"></div>',
+    footer:
+      NX.button('Cancel', { variant:'ghost', onclick:'_rvCloseEdit()' }) +
+      NX.button('Save changes', { variant:'primary', icon:'check', attrs:'id="rved-save" data-id="' + esc(r.id) + '"', onclick:'_rvEditSave()' })
+  });
+  setTimeout(() => document.getElementById('rved-amount')?.focus(), 40);
+}
+function _rvCloseEdit() { const h = document.getElementById('rv-shift-host'); if (h) h.innerHTML = ''; }
+
+async function _rvEditSave() {
+  const err = document.getElementById('rved-err'); if (err) err.textContent = '';
+  const btn = document.getElementById('rved-save');
+  const id  = btn?.getAttribute('data-id'); if (!id) return;
+  const amount = parseFloat(document.getElementById('rved-amount')?.value || '0');
+  const date   = document.getElementById('rved-date')?.value;
+  const mode   = document.getElementById('rved-mode')?.value;
+  const ref    = (document.getElementById('rved-ref')?.value || '').trim();
+  const bank   = (document.getElementById('rved-bank')?.value || '').trim();
+  const notes  = (document.getElementById('rved-notes')?.value || '').trim();
+  const reason = (document.getElementById('rved-reason')?.value || '').trim();
+  if (!(amount > 0))          { if (err) err.textContent = 'Enter a positive amount.'; return; }
+  if (!date)                  { if (err) err.textContent = 'Enter the date.'; return; }
+  if (reason.length < 10)     { if (err) err.textContent = 'Reason must be at least 10 characters.'; return; }
+  if (btn) { btn.disabled = true; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Saving…'; }
+  try {
+    const { data, error } = await supabase.rpc('edit_payment', {
+      p_payment_id: id, p_company_id: S.cid,
+      p_data: { amount, payment_date: date, payment_method: mode,
+        reference_no: ref || null, bank_name: bank || null, notes: notes || null },
+      p_reason: reason, p_edited_by: S.userId || null
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message || data?.error || 'Edit failed');
+    _rvCloseEdit();
+    toast('Voucher updated', 'ok');
+    await _rvLoadAndRender();
+    _rvShowDetail(id);
+  } catch (e) {
+    if (btn) { btn.disabled = false; const sp = btn.querySelector('span'); if (sp) sp.textContent = 'Save changes'; }
+    if (err) err.textContent = e.message || 'Could not save';
   }
 }
 
