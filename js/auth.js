@@ -387,6 +387,7 @@ async function _completeLogin(user, company) {
 
   if(typeof initDemoBanner === 'function') initDemoBanner();
   _checkPlatformAnnouncements();
+  _checkPaymentThankYou();
   notify.success(`Welcome, ${user.name}`, { duration: 2500 });
   _startSessionCheck();
   _startIdleTimer();
@@ -683,6 +684,34 @@ async function _checkPlatformAnnouncements() {
       seen.push(a.id);
     });
     sessionStorage.setItem('nxn_ann_seen', JSON.stringify(seen));
+  } catch(_) {}
+}
+
+// ── One-off "payment received" thank-you for Fourteen Group only ──────
+// Shows a dismissible English modal on login, at most ONCE per calendar
+// day, for up to 5 distinct days — then never again. TEMPORARY: remove
+// on owner's word (delete this fn + its call in _completeLogin).
+function _checkPaymentThankYou() {
+  try {
+    if (!S || String(S.coCode || '').toLowerCase() !== '14groupofcompanies') return;
+    const KEY = 'nxn_pay_ty_14g';
+    const MAX_SHOWS = 5;
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(_) { st = {}; }
+    const count = st.count || 0;
+    if (count >= MAX_SHOWS) return;
+    const today = new Date().toISOString().slice(0, 10);   // YYYY-MM-DD (local-ish)
+    if (st.lastDay === today) return;                        // already shown today
+    if (typeof notify === 'undefined' || !notify.alert) return;
+    notify.alert({
+      type:   'success',
+      title:  'Thank you for your payment',
+      detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active. Your next payment is due on <strong>23 August 2026</strong>. Please pay on or before this date to avoid any interruption in access.',
+      okText: 'OK'
+    });
+    st.count = count + 1;
+    st.lastDay = today;
+    localStorage.setItem(KEY, JSON.stringify(st));
   } catch(_) {}
 }
 
