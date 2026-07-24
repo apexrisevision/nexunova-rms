@@ -19,7 +19,7 @@
 //
 // CONFIG CONTRACT — see foundation/KIT.md "Reports" and js/pages/reports.js.
 //   { id, title, group, description, orientation,
-//     filters:[ {kind:'daterange'|'project'|'status'|'clientPicker'|'unitPicker', …} ],
+//     filters:[ {kind:'daterange'|'project'|'status'|'clientPicker'|'unitPicker'|'saletype', …} ],
 //     fetch:async(f)=>data,                         // f = current filter state
 //     transform:(data,f)=>({ columns, rows, totals, summary, groups }) }
 // ══════════════════════════════════════════════════════════════════════════
@@ -67,7 +67,7 @@
   function _defaultFilters(config) {
     // Seed the project filter from the global active-project lens (topbar selector).
     const _ap = (typeof activeProjectId === 'function' ? activeProjectId() : '') || '';
-    const f = { from: monthStart(), to: today(), project: _ap, status: '', clientId: '', unitId: '' };
+    const f = { from: monthStart(), to: today(), project: _ap, status: '', clientId: '', unitId: '', saleTypeId: '' };
     (config.filters || []).forEach(fl => {
       if (fl.kind === 'daterange') {
         if (fl.allTime) { f.from = ''; f.to = ''; }
@@ -127,6 +127,16 @@
       const us = (global._unitsCache || []).slice().sort((a, b) => String(a.unitNo || a.unit_no || '').localeCompare(String(b.unitNo || b.unit_no || '')));
       const opts = '<option value="">— Select unit —</option>' + us.map(u => `<option value="${esc(u.id)}">${esc((u.unitNo || u.unit_no || '') + (u.floorLabel ? ' · ' + u.floorLabel : ''))}</option>`).join('');
       return lbl('Unit') + `<select class="nx-select" style="min-width:240px" onchange="NXReport._set('unitId',this.value)">${opts}</select>`;
+    }
+    if (fl.kind === 'saletype') {
+      // Optional filter: empty = all types (breakdown shown either way). Active types only.
+      const ts = (global._saleTypesCache || []).filter(t => t.isActive !== false)
+        .slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || String(a.name || '').localeCompare(String(b.name || '')));
+      // de-dupe by name (same type is seeded per-project) so the picker lists each once
+      const seen = new Set();
+      const opts = '<option value="">All types</option>' + ts.filter(t => { const k = (t.name || '').toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
+        .map(t => `<option value="${esc(t.typeCode || t.id)}"${(t.typeCode || t.id) === FILT.saleTypeId ? ' selected' : ''}>${esc(t.name || '—')}</option>`).join('');
+      return lbl('Sale type') + `<select class="nx-select" style="width:auto" onchange="NXReport._set('saleTypeId',this.value)">${opts}</select>`;
     }
     if (fl.kind === 'officerPicker') {
       // Recovery officers only (the same set the team RPC scores). Optional filter:

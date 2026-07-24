@@ -217,6 +217,47 @@ const REPORTS = {
       }
     } },
 
+  // Sales by Type — every active sale tagged by its sale_type (Installment / Cash /
+  // Adjustment / Transfer …). Spine = list_sales_for_report (returns sale_type_id);
+  // type name resolved from _saleTypesCache. Optional sale-type filter narrows to one
+  // type; the "By Sale Type" appendix always shows the full type-wise breakdown.
+  sales_by_type: { meta: { title: 'Sales by Type', group: 'OPERATIONS', desc: 'Units grouped by sale type — Installment / Cash / Adjustment / Transfer; count & net value per type' },
+    config: {
+      id: 'sales_by_type', title: 'Sales by Type', group: 'OPERATIONS', orientation: 'landscape',
+      description: 'Every active sale tagged by its sale type — filter to one type, or read the full type-wise breakdown',
+      filters: [{ kind: 'project' }, { kind: 'daterange', allTime: true }, { kind: 'saletype' }],
+      fetch: async f => {
+        const flt = { status: 'active', sale_from: f.from || null, sale_to: f.to || null, limit: 5000 };
+        const r = await supabase.rpc('list_sales_for_report', { p_company_id: S.cid, p_filters: flt });
+        if (r.error) throw r.error;
+        return r.data || [];
+      },
+      transform: (data, f) => {
+        const cache = window._saleTypesCache || [];
+        const byId  = id => cache.find(t => t.id === id) || null;
+        let raw = (data || []).slice();
+        if (f.project)     raw = raw.filter(s => s.project_id === f.project);            // RPC ignores project_id — filter here
+        if (f.saleTypeId)  raw = raw.filter(s => (byId(s.sale_type_id)?.typeCode || byId(s.sale_type_id)?.id) === f.saleTypeId);
+        const rows = raw.map(s => ({
+          type:        byId(s.sale_type_id)?.name || '— Untyped —',
+          sale_number: s.sale_number || s.sale_no || '—',
+          sale_date:   s.sale_date || s.created_at,
+          client:      _rClientName(s.client_id) || s.client_name || '—',
+          unit:        _rUnitNo(s.unit_id) || s.unit_no || '—',
+          value:       Number(s.total_amount || 0),
+          discount:    Number(s.discount || 0),
+          net:         Number(s.net_amount || 0)
+        })).sort((a, b) => String(a.type).localeCompare(String(b.type)) || String(b.sale_date || '').localeCompare(String(a.sale_date || '')));
+        const columns = [{ key: 'type', label: 'Sale Type' }, { key: 'sale_number', label: 'Sale #' }, { key: 'sale_date', label: 'Date', fmt: 'date' }, { key: 'client', label: 'Client' }, { key: 'unit', label: 'Unit' }, { key: 'value', label: 'Value', num: true, fmt: 'money' }, { key: 'discount', label: 'Discount', num: true, fmt: 'money' }, { key: 'net', label: 'Net', num: true, fmt: 'money' }];
+        const value = rows.reduce((s, r) => s + r.value, 0), disc = rows.reduce((s, r) => s + r.discount, 0), net = rows.reduce((s, r) => s + r.net, 0);
+        const byType = {}; rows.forEach(r => { const x = byType[r.type] = byType[r.type] || { count: 0, net: 0 }; x.count++; x.net += r.net; });
+        const typeRows = Object.keys(byType).sort().map(t => ({ type: t, count: byType[t].count, net: byType[t].net }));
+        const appendix = [{ title: 'By Sale Type', columns: [{ key: 'type', label: 'Sale Type' }, { key: 'count', label: 'Units', num: true }, { key: 'net', label: 'Net Value', num: true, fmt: 'money' }], rows: typeRows, totals: { count: rows.length, net }, totalsLabel: 'TOTAL' }];
+        const summary = [{ label: 'Units', value: rows.length }, { label: 'Sales Value', value, money: true }, { label: 'Discount', value: disc, money: true }, { label: 'Net', value: net, money: true }];
+        return { columns, rows, totals: { value, discount: disc, net }, totalsLabel: 'TOTAL', summary, appendix };
+      }
+    } },
+
   availability: { meta: { title: 'Availability / Inventory', group: 'OPERATIONS', desc: 'Unit grid by floor — sold / available / blocked, areas, list values' },
     config: {
       id: 'availability', title: 'Availability / Inventory', group: 'OPERATIONS', orientation: 'portrait',
@@ -661,7 +702,7 @@ function rReports() {
   const groups = [
     { title: 'RECOVERY', keys: ['recovery_position', 'aging'] },
     { title: 'CLIENT & UNIT', keys: ['client_ledger', 'unit_statement'] },
-    { title: 'OPERATIONS', keys: ['portfolio', 'collections', 'pdc', 'sales_summary', 'availability', 'team_performance'] }
+    { title: 'OPERATIONS', keys: ['portfolio', 'collections', 'pdc', 'sales_summary', 'sales_by_type', 'availability', 'team_performance'] }
   ];
   pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6);display:flex;flex-direction:column;gap:var(--fk-sp-6)">
     ${NX.pageHeader('Reports', '', { icon:'bar-chart-3' })}
