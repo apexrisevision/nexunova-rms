@@ -694,7 +694,7 @@ async function _checkPlatformAnnouncements() {
 function _checkPaymentThankYou() {
   try {
     if (!S || String(S.coCode || '').toLowerCase() !== '14groupofcompanies') return;
-    const KEY = 'nxn_pay_ty_14g';
+    const KEY = 'nxn_pay_ty_14g_v2';
     const MAX_SHOWS = 5;
     let st = {};
     try { st = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(_) { st = {}; }
@@ -706,7 +706,7 @@ function _checkPaymentThankYou() {
     notify.alert({
       type:   'success',
       title:  'Thank you for your payment',
-      detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active. Your next payment is due on <strong>23 August 2026</strong>. Please pay on or before this date to avoid any interruption in access.',
+      detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active.<br><br>Your next payment is due on 23 August 2026. Please pay on or before this date to avoid any interruption in access.',
       okText: 'OK'
     });
     st.count = count + 1;
