@@ -595,12 +595,17 @@ function _nsMorePatch() {
   if (s(_ns.saleTypeId))      p.sale_type_id       = s(_ns.saleTypeId);
   return p;
 }
-function _nsHasMore() { return Object.keys(_nsMorePatch()).length > 0; }
+function _nsHasMore() { return Object.keys(_nsMorePatch()).some(k => k !== 'sale_type_id'); }
 
 function _nsStep3() {
   const agentOpts = '<option value="">— None —</option>' +
     (_salAgents||[]).filter(a => !_ns.unit?.projectId || a.project_id === _ns.unit.projectId)
       .map(a => `<option value="${a.id}"${_ns.agentId===a.id?' selected':''}>${esc(a.full_name||'?')}</option>`).join('');
+  // Default the sale type to Installment (the common case) so it's never left blank.
+  if (!_ns.saleTypeId) {
+    const _defT = (window._saleTypesCache || []).find(t => t.projectId === _ns.unit?.projectId && t.typeCode === 'installment');
+    if (_defT) _ns.saleTypeId = _defT.id;
+  }
   return `<div class="nx-card">
     <div class="nx-card-title">Deal terms</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3);margin-top:var(--fk-sp-3)">
@@ -613,11 +618,12 @@ function _nsStep3() {
       <div class="nx-field"><label class="nx-label">Sale date</label><input class="nx-input" id="ns-saledate" type="date" value="${_ns.saleDate}" oninput="_ns.saleDate=this.value"></div>
       <div class="nx-field"><label class="nx-label">Agent (optional)</label><select class="nx-select" id="ns-agent" onchange="_ns.agentId=this.value||null;_nsAgentComm()">${agentOpts}</select></div>
       <div class="nx-field"><label class="nx-label">Commission %</label><input class="nx-input" id="ns-comm" type="text" inputmode="decimal" value="${_ns.commPct||''}" oninput="_ns.commPct=parseFloat(this.value)||null"></div>
+      <div class="nx-field"><label class="nx-label">Sale type <span class="nx-kpi-label" style="text-transform:none">— installment / cash / adjustment</span></label><select class="nx-select" id="ns-saletype" onchange="_ns.saleTypeId=this.value">${_salSaleTypeOptions(_ns.unit?.projectId, _ns.saleTypeId)}</select></div>
     </div>
     <div id="ns-deal-note" class="nx-kpi-label" style="text-transform:none;margin-top:var(--fk-sp-3)"></div>
   </div>
   <details class="nx-card" style="margin-top:var(--fk-sp-3)"${_nsHasMore() ? ' open' : ''}>
-    <summary style="cursor:pointer;font-size:var(--fk-fs-body,13px);color:var(--fk-text-muted)">More booking details (optional) — co-buyer · nominee · WHT/CVT · sale type</summary>
+    <summary style="cursor:pointer;font-size:var(--fk-fs-body,13px);color:var(--fk-text-muted)">More booking details (optional) — co-buyer · nominee · WHT/CVT</summary>
     <div style="margin-top:var(--fk-sp-3)">
       <div class="nx-kpi-label" style="text-transform:none;margin-bottom:var(--fk-sp-1);color:var(--fk-text)">Co-buyer / joint applicant</div>
       <div style="display:grid;grid-template-columns:2fr 1.6fr 1fr;gap:var(--fk-sp-3)">
@@ -635,7 +641,6 @@ function _nsStep3() {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--fk-sp-3)">
         <div class="nx-field"><label class="nx-label">WHT amount</label><input class="nx-input num" id="ns-wht" type="text" inputmode="decimal" value="${esc(_ns.wht)}" oninput="_ns.wht=this.value"></div>
         <div class="nx-field"><label class="nx-label">CVT amount</label><input class="nx-input num" id="ns-cvt" type="text" inputmode="decimal" value="${esc(_ns.cvt)}" oninput="_ns.cvt=this.value"></div>
-        <div class="nx-field"><label class="nx-label">Sale type</label><select class="nx-select" id="ns-saletype" onchange="_ns.saleTypeId=this.value">${_salSaleTypeOptions(_ns.unit?.projectId, _ns.saleTypeId)}</select></div>
       </div>
     </div>
   </details>
@@ -1855,6 +1860,12 @@ async function rEditSale() {
           </div>
           <div class="g2">
             <div class="fr">
+              <label class="fl">Sale type <span style="opacity:.45;font-size:10px">(installment / cash / adjustment / transfer)</span></label>
+              <select id="ef-saletype" class="inp-light">${_salSaleTypeOptions(unitRec?.projectId, d.sale_type_id)}</select>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="fr">
               <label class="fl">Agent Commission % <span style="opacity:.45;font-size:10px">(optional — on net amount)</span></label>
               <input id="ef-comm-pct" class="inp-light" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.5" value="${d.commission_rate != null ? fmtV(d.commission_rate) : ''}">
               <div id="ef-comm-amt" style="font-size:11px;color:var(--ok);margin-top:4px">${d.commission_rate ? 'Est. commission: PKR ' + Math.round(Number(d.net_amount||0)*Number(d.commission_rate)/100).toLocaleString('en-US') : ''}</div>
@@ -2325,6 +2336,7 @@ async function saveEditSale() {
       down_payment:         down,
       commission_rate:      isNaN(efCommPct2) ? null : efCommPct2,
       commission_notes:     document.getElementById('ef-comm-notes')?.value.trim()         || null,
+      sale_type_id:         document.getElementById('ef-saletype')?.value                  || null,
       notes:                document.getElementById('ef-notes').value.trim()              || null,
       co_buyer_name:        document.getElementById('ef-cobuyer-name').value.trim()       || null,
       co_buyer_cnic:        document.getElementById('ef-cobuyer-cnic').value.trim()       || null,
@@ -2371,6 +2383,7 @@ async function saveEditSale() {
     down_payment:         down,
     commission_rate:      isNaN(efCommPct) ? null : efCommPct,
     commission_notes:     document.getElementById('ef-comm-notes')?.value.trim()         || null,
+    sale_type_id:         document.getElementById('ef-saletype')?.value                  || null,
     notes:                document.getElementById('ef-notes').value.trim()              || null,
     co_buyer_name:        document.getElementById('ef-cobuyer-name').value.trim()       || null,
     co_buyer_cnic:        document.getElementById('ef-cobuyer-cnic').value.trim()       || null,
