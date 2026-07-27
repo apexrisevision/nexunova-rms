@@ -687,17 +687,30 @@ async function _checkPlatformAnnouncements() {
   } catch(_) {}
 }
 
-// ── One-off "payment received" thank-you for Fourteen Group only ──────
+// ── One-off "payment received" thank-you (per-tenant) ────────────────
 // Shows a dismissible English modal on login, at most ONCE per calendar
 // day, for up to 5 distinct days — then never again. TEMPORARY: remove
-// on owner's word (delete this fn + its call in _completeLogin).
+// on owner's word (delete the relevant entry + this fn's call).
 function _checkPaymentThankYou() {
   try {
-    if (!S || String(S.coCode || '').toLowerCase() !== '14groupofcompanies') return;
-    const KEY = 'nxn_pay_ty_14g_v2';
+    if (!S) return;
+    const code = String(S.coCode || '').toLowerCase();
+    // Registry of active thank-you notices, keyed by company_code.
+    const NOTICES = {
+      '14groupofcompanies': {
+        key:    'nxn_pay_ty_14g_v2',
+        detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active.<br><br>Your next payment is due on 23 August 2026. Please pay on or before this date to avoid any interruption in access.'
+      },
+      'fmh': {
+        key:    'nxn_pay_ty_fmh_v1',
+        detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active.<br><br>Your next payment is due on 24 August 2026. Please pay on or before this date to avoid any interruption in access.'
+      }
+    };
+    const cfg = NOTICES[code];
+    if (!cfg) return;
     const MAX_SHOWS = 5;
     let st = {};
-    try { st = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(_) { st = {}; }
+    try { st = JSON.parse(localStorage.getItem(cfg.key) || '{}'); } catch(_) { st = {}; }
     const count = st.count || 0;
     if (count >= MAX_SHOWS) return;
     const today = new Date().toISOString().slice(0, 10);   // YYYY-MM-DD (local-ish)
@@ -706,12 +719,12 @@ function _checkPaymentThankYou() {
     notify.alert({
       type:   'success',
       title:  'Thank you for your payment',
-      detail: 'We have received your payment successfully. Thank you for choosing Nexunova — your account is active.<br><br>Your next payment is due on 23 August 2026. Please pay on or before this date to avoid any interruption in access.',
+      detail: cfg.detail,
       okText: 'OK'
     });
     st.count = count + 1;
     st.lastDay = today;
-    localStorage.setItem(KEY, JSON.stringify(st));
+    localStorage.setItem(cfg.key, JSON.stringify(st));
   } catch(_) {}
 }
 
