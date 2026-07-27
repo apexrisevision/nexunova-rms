@@ -250,7 +250,7 @@ textarea:focus {
 }
 .req-star,
 .req {
-  color: var(--nx-pink) !important;
+  color: #dc2626 !important;
   font-weight: 700 !important;
 }
 

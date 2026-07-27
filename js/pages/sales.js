@@ -1884,7 +1884,7 @@ async function rEditSale() {
       <div class="card mb14">
         <div class="ch"><h3><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Pricing</h3></div>
         <div class="cb">
-          <div class="g2">
+          <div style="max-width:440px">
             <div class="fr">
               <label class="fl">Price per Sq Ft (PKR) <span class="req-star">*</span></label>
               <input id="ef-price-sqft" class="inp-light inp-amt" type="text" inputmode="numeric"
@@ -1897,8 +1897,6 @@ async function rEditSale() {
                 style="opacity:.7;cursor:default" value="${fmtV(d.area_sqft)}">
               <div style="font-size:10px;color:var(--t3);margin-top:3px">Fixed to the unit record</div>
             </div>
-          </div>
-          <div class="g2">
             <div class="fr">
               <label class="fl">Total Amount</label>
               <input id="ef-total" class="inp-light" readonly style="opacity:.65;font-weight:700" value="${fmtV(d.total_amount)}">
@@ -1908,8 +1906,6 @@ async function rEditSale() {
               <input id="ef-discount" class="inp-light inp-amt" type="text" inputmode="numeric"
                 value="${Number(d.discount||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
             </div>
-          </div>
-          <div class="g2">
             <div class="fr">
               <label class="fl">Net Amount</label>
               <input id="ef-net" class="inp-light" readonly style="opacity:.65;font-weight:800;color:var(--info)" value="${fmtV(d.net_amount)}">
@@ -1919,8 +1915,6 @@ async function rEditSale() {
               <input id="ef-down" class="inp-light inp-amt" type="text" inputmode="numeric"
                 value="${Number(d.down_payment||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
             </div>
-          </div>
-          <div class="g2">
             <div class="fr">
               <label class="fl">Already Collected</label>
               <input class="inp-light" readonly style="opacity:.65;color:var(--ok)" value="PKR ${Number(totalPaid).toLocaleString('en-US',{maximumFractionDigits:0})}">
