@@ -338,6 +338,29 @@ function _spSum(lines) { return _spRound((lines||[]).reduce(function (s, l) { re
 function _spBooking(lines) { var b = (lines||[]).find(function (l) { return l.type === 'down_payment'; }); return b ? b.amount : 0; }
 function _spMonthlyCount(lines) { return (lines||[]).filter(function (l) { return l.type !== 'down_payment'; }).length; }
 
+// Force a schedule's active rows to sum EXACTLY to `net` by absorbing any
+// shortfall/excess into the LAST installment (prefers an 'installment'-type
+// row; else the last active row). Rows use `.amount_due`; soft-deleted rows
+// (`._deleted`) are skipped. Mutates in place. Returns the signed amount
+// absorbed (0 if already balanced), or null if it can't (no rows, or the
+// adjustment would drive the target row negative).
+function _absorbIntoLastInstallment(rows, net) {
+  var active = (rows || []).filter(function (r) { return !r._deleted; });
+  if (!active.length) return null;
+  var sum  = active.reduce(function (s, r) { return s + (parseFloat(r.amount_due) || 0); }, 0);
+  var diff = _spRound(_spRound(net) - sum);
+  if (diff === 0) return 0;
+  var target = null;
+  for (var k = active.length - 1; k >= 0; k--) {
+    if ((active[k].installment_type || active[k].type) === 'installment') { target = active[k]; break; }
+  }
+  if (!target) target = active[active.length - 1];
+  var newAmt = _spRound((parseFloat(target.amount_due) || 0) + diff);
+  if (newAmt < 0) return null;
+  target.amount_due = newAmt;
+  return diff;
+}
+
 
 // ══ NEW SALE — 5-STEP GUIDED FLOW ══════════════════════════════════════
 // Step order is load-bearing: UNIT first fixes the project, so the CLIENT
@@ -1160,13 +1183,16 @@ async function saveSale() {
     return;
   }
 
-  // Balance check — popup if not balanced
-  const net       = pSqft * area - discount;
-  const scheduled = _salSchedule.reduce((s, r) => s + (parseFloat(r.amount_due) || 0), 0);
-  if (Math.abs(net - scheduled) >= 1) {
+  // Auto-balance: absorb any shortfall/excess into the LAST installment so the
+  // schedule always equals net.
+  const net      = pSqft * area - discount;
+  const absorbed = _absorbIntoLastInstallment(_salSchedule, net);
+  if (absorbed === null) {
+    const scheduled = _salSchedule.reduce((s, r) => s + (parseFloat(r.amount_due) || 0), 0);
     _salSchedErrorPopup(scheduled, net);
     return;
   }
+  if (absorbed !== 0) toast('Last installment auto-adjusted by PKR ' + Math.abs(absorbed).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' to match net', 'info');
 
   const confirmed = await _salSaveConfirmPopup();
   if (!confirmed) return;
@@ -1887,8 +1913,8 @@ async function rEditSale() {
           <div style="max-width:440px">
             <div class="fr">
               <label class="fl">Price per Sq Ft (PKR) <span class="req-star">*</span></label>
-              <input id="ef-price-sqft" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.price_per_sqft||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+              <input id="ef-price-sqft" class="inp-light inp-amt" type="text" inputmode="decimal"
+                value="${Number(d.price_per_sqft||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()">
               <div id="e-ef-price-sqft" class="ferr"></div>
             </div>
             <div class="fr">
@@ -1903,8 +1929,8 @@ async function rEditSale() {
             </div>
             <div class="fr">
               <label class="fl">Discount (PKR)</label>
-              <input id="ef-discount" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.discount||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+              <input id="ef-discount" class="inp-light inp-amt" type="text" inputmode="decimal"
+                value="${Number(d.discount||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()">
             </div>
             <div class="fr">
               <label class="fl">Net Amount</label>
@@ -1912,8 +1938,8 @@ async function rEditSale() {
             </div>
             <div class="fr">
               <label class="fl">Down Payment (PKR)</label>
-              <input id="ef-down" class="inp-light inp-amt" type="text" inputmode="numeric"
-                value="${Number(d.down_payment||0).toLocaleString('en-US',{maximumFractionDigits:0})}" oninput="_salEditCalc()">
+              <input id="ef-down" class="inp-light inp-amt" type="text" inputmode="decimal"
+                value="${Number(d.down_payment||0).toLocaleString('en-US',{maximumFractionDigits:2})}" oninput="_salEditCalc()">
             </div>
             <div class="fr">
               <label class="fl">Already Collected</label>
@@ -2252,11 +2278,17 @@ async function saveEditSale() {
   // only include the source fields: price_per_sqft, area_sqft, discount, down_payment
   const net      = Math.max(0, pSqft * area - discount);
   const schedule = window._salEditSchedule || [];
-  const instSum  = schedule.filter(r => !r._deleted).reduce((s, r) => s + (parseFloat(r.amount_due) || 0), 0);
 
-  if (schedule.length > 0 && Math.abs(instSum - net) >= 1) {
-    _salSchedErrorPopup(instSum, net);
-    return;
+  // Auto-balance: absorb any shortfall/excess into the LAST installment so the
+  // schedule always equals net — no manual re-balancing needed.
+  if (schedule.filter(r => !r._deleted).length > 0) {
+    const absorbed = _absorbIntoLastInstallment(schedule, net);
+    if (absorbed === null) {
+      const instSum = schedule.filter(r => !r._deleted).reduce((s, r) => s + (parseFloat(r.amount_due) || 0), 0);
+      _salSchedErrorPopup(instSum, net);
+      return;
+    }
+    if (absorbed !== 0) toast('Last installment auto-adjusted by PKR ' + Math.abs(absorbed).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' to match net', 'info');
   }
 
   const confirmed = await _salSaveConfirmPopup();
