@@ -280,11 +280,11 @@ const REPORTS = {
   // Spine = get_portfolio_summary, which reuses get_recovery_position for the active
   // net/received (so it ties to Recovery Position to the rupee) and adds area · rate ·
   // status · sale-person. Floor sub-totals + grand total; cancelled kept separate.
-  portfolio: { meta: { title: 'Portfolio Summary', group: 'OPERATIONS', desc: 'All units, as on date — area, rate, gross, discount, net, received, current receivable, recovery % · floor sub-totals + grand total' },
+  portfolio: { meta: { title: 'Portfolio Summary', group: 'OPERATIONS', desc: 'All units, as on date — price, received, overdue now (Current Receivable) AND balance to the final installment · floor sub-totals + grand total' },
     config: {
       id: 'portfolio', title: 'Portfolio Summary', group: 'OPERATIONS', orientation: 'landscape',
       padX: 'var(--fk-sp-3)',  // wide 12-col table — trim horizontal page padding so Sale Person isn't clipped
-      description: 'One-page snapshot of every unit as on date — price, received, current receivable & recovery %, grouped by floor with a grand total',
+      description: 'One-page snapshot of every unit as on date, grouped by floor with a grand total. Two different receivables: Current Receivable = due & overdue TODAY; Balance to Final = everything still owed to the last installment (future dues included).',
       filters: [{ kind: 'project' }, { kind: 'status', label: 'View', default: 'active', options: [{ v: 'active', l: 'Portfolio · Active' }, { v: 'all', l: 'Portfolio · All (incl. cancelled)' }, { v: 'cancelled', l: 'Portfolio · Cancelled' }, { v: 'demand', l: 'Demand · this month' }] }, { kind: 'daterange', openStart: true }],
       fetch: async f => {
         if (f.status === 'demand') {
@@ -503,9 +503,10 @@ function _portfolioTransform(data, f) {
     { key: 'net', label: 'Net Payable', num: true, fmt: 'money', w: '100px' },
     { key: 'received', label: 'Received', num: true, fmt: 'money', w: '100px' },
     { key: 'current_receivable', label: 'Current Receivable', num: true, fmt: 'money', w: '104px' },
+    { key: 'balance', label: 'Balance to Final', num: true, fmt: 'money', w: '98px' },
     { key: 'recovery', label: 'Recovery %', num: true, fmt: _rPctCell, w: '74px' },
     { key: 'status', label: 'Status', fmt: _rStatusCell, w: '70px' },
-    { key: 'agent', label: 'Sale Person', w: '120px', fmt: v => _rEllip(v, 120) }
+    { key: 'agent', label: 'Sale Person', w: '110px', fmt: v => _rEllip(v, 110) }
   ];
 
   const mk = r => ({
@@ -518,6 +519,10 @@ function _portfolioTransform(data, f) {
     net: Number(r.net || 0),
     received: Number(r.received || 0),
     current_receivable: Number(r.current_receivable || 0),
+    // Balance to Final = net − received, i.e. everything still owed to the LAST
+    // installment (future dues included). NOT clamped at zero: two FMH units are
+    // genuinely overpaid, and clamping would break the tie to Net − Received.
+    balance: Number(r.balance || 0),
     recovery: Number(r.recovery_pct || 0),
     status: String(r.status) === 'cancelled' ? 'Cancelled' : 'Active',
     agent: r.agent_name || '—',
@@ -526,8 +531,8 @@ function _portfolioTransform(data, f) {
   });
 
   const subtotal = src => {
-    const t = { gross: 0, discount: 0, net: 0, received: 0, current_receivable: 0 };
-    src.forEach(r => { t.gross += Number(r.gross || 0); t.discount += Number(r.discount || 0); t.net += Number(r.net || 0); t.received += Number(r.received || 0); t.current_receivable += Number(r.current_receivable || 0); });
+    const t = { gross: 0, discount: 0, net: 0, received: 0, current_receivable: 0, balance: 0 };
+    src.forEach(r => { t.gross += Number(r.gross || 0); t.discount += Number(r.discount || 0); t.net += Number(r.net || 0); t.received += Number(r.received || 0); t.current_receivable += Number(r.current_receivable || 0); t.balance += Number(r.balance || 0); });
     t.recovery = t.net > 0 ? Math.round(t.received / t.net * 1000) / 10 : 0;
     return t;
   };
@@ -555,6 +560,7 @@ function _portfolioTransform(data, f) {
     { label: 'Net Payable', value: totals.net, money: true },
     { label: 'Received', value: totals.received, money: true },
     { label: 'Current Receivable', value: totals.current_receivable, money: true },
+    { label: 'Balance to Final', value: totals.balance, money: true },
     { label: 'Recovery %', value: totals.recovery.toFixed(1) + '%' }
   ];
   return { columns, groups, totals, totalsLabel, summary };
