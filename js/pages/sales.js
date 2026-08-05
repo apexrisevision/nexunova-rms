@@ -1694,7 +1694,7 @@ function _renderSaleDetail(d, docs, amendments, client) {
     + opRow('Payment Schedule', 'Full installment schedule', NX.button('Open', { variant:'secondary', size:'sm', icon:'calendar', onclick:`openScheduleReport('${d.id}')` }))
     + `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Demand Notice</div><div class="sd-ops-s">For a specific overdue installment</div></div><div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;min-width:220px"><select id="sd-demand-inst" class="nx-select" style="flex:1;max-width:280px;font-size:12px">${pendingInstOpts || '<option value="">— No pending installments —</option>'}</select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printDemandNotice()' })}</div></div>`
     + opRow('Payment Statement', 'Outstanding balance view', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'_salPrintPaymentStatement()' }))
-    + (isA ? opRow('Allotment Letter', 'Confirms unit allotment', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' })) : '')
+    + (isA ? `<div class="sd-ops-row" style="flex-wrap:wrap"><div style="min-width:0"><div class="sd-ops-t">Provisional Allotment Letter</div><div class="sd-ops-s">Data only, for the pre-printed sheet (8.5&times;14.5in) &mdash; margins None, scale 100%</div></div><div style="display:flex;gap:8px;align-items:center"><select id="sd-allot-mode" class="nx-select" style="width:auto;font-size:12px"><option value="member" selected>Member Copy</option><option value="office">Office Copy</option><option value="both">Both copies</option><option value="full">Full letter (plain paper)</option></select>${NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printAllotmentLetter()' })}</div></div>` : '')
     + (isA ? opRow('Possession Letter', 'Unit handover document', NX.button('Print', { variant:'secondary', size:'sm', icon:'printer', onclick:'printPossessionLetter()' })) : '')
     + (isA ? opDivider + opRow('Log Amendment', 'Record a price or schedule change', NX.button('Log', { variant:'ghost', size:'sm', icon:'pencil', onclick:`openSaleAmendmentModal('${d.id}')` })) : '')
     + (isA && d.status !== 'cancelled' ? opRow('<span style="color:var(--fk-danger)">Cancel Unit</span>', 'Full cancellation — reverses the unit, agent commission &amp; logs the refund', NX.button('Cancel Unit', { variant:'danger-soft', size:'sm', icon:'x-circle', onclick:`nav('unitcancel','${d.unit_id}')` })) : '')
@@ -2723,45 +2723,172 @@ async function deleteSaleDoc(id) {
   rSaleDetail();
 }
 
-// ══ PRINT: ALLOTMENT LETTER ════════════════════════════════════════════
+// ══ PRINT: PROVISIONAL ALLOTMENT LETTER ════════════════════════════════
+// The letter is PRE-PRINTED stationery (8.5in × 14.5in — slightly longer than
+// Legal). The physical sheet already carries the logos, the three title lines,
+// all four body paragraphs, both signature blocks, the seal and the footer.
+// Only the blank band between the title block and "Dear Member," is ours, so
+// the 'member' / 'office' modes print NOTHING except that band, positioned
+// absolutely on a zero-margin page. 'full' reproduces the whole sheet for plain
+// paper (when pre-printed stock runs out or a PDF has to be emailed).
+//
+// ── CALIBRATION ────────────────────────────────────────────────────────
+// AL_TOP / AL_SIDE / AL_BAND were measured off a photo of the real sheet and
+// MUST be trued against a test print — nudge them, don't rebuild the layout.
+// Print with margins = None and scale = 100%, or the overlay drifts.
+const AL_TOP  = 3.30;   // in — sheet top edge → top of the blank band
+const AL_SIDE = 1.10;   // in — left/right margin, matched to the printed text block
+const AL_BAND = 2.60;   // in — height of the blank band (title bottom → "Dear Member,")
 
-function printAllotmentLetter() {
-  const d = _salCurrentDetail;
-  if (!d) { toast('No sale loaded', 'warn'); return; }
-  const fmtPKR   = n => 'PKR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
-  const saleDate = d.sale_date ? new Date(d.sale_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
-  const coName   = (window._cobranding || {}).company_name || S?.coName || 'Company';
+const AL_PAGE_W = 8.5;
+const AL_PAGE_H = 14.5;
 
-  const w = _pw('Allotment Letter — ' + (d.sale_number || ''), _pCSS('A4'));
-  if (!w) return;
+function _alCSS() {
+  return '@page{size:' + AL_PAGE_W + 'in ' + AL_PAGE_H + 'in;margin:0}' +
+    '*{box-sizing:border-box}html,body{margin:0;padding:0}' +
+    'body{font-family:"Times New Roman",Times,Georgia,serif;color:#111;' +
+      '-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.al-page{position:relative;width:' + AL_PAGE_W + 'in;height:' + AL_PAGE_H + 'in;overflow:hidden;page-break-after:always}' +
+    '.al-page:last-child{page-break-after:auto}' +
+    // The data band — the only thing that prints on pre-printed stock.
+    '.al-band{position:absolute;left:' + AL_SIDE + 'in;right:' + AL_SIDE + 'in;top:' + AL_TOP + 'in;height:' + AL_BAND + 'in;overflow:hidden}' +
+    '.al-box{float:right;border:1.3px solid #111;border-radius:3px;padding:6px 11px 7px;min-width:2.2in;margin:0 0 7px 16px}' +
+    '.al-br{display:flex;align-items:baseline;justify-content:space-between;gap:16px;line-height:1.55}' +
+    '.al-br span{font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#555;flex:none}' +
+    '.al-br b{font-size:13.5px;text-align:right}' +
+    '.al-l{display:flex;font-size:13.5px;line-height:1.66}' +
+    '.al-l .k{width:1.3in;flex:none;color:#333}' +
+    '.al-l .v{font-weight:bold;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.al-l .v.wrap{white-space:normal}' +
+    '.al-split{display:flex;gap:18px}.al-split>*{flex:1;min-width:0}';
+}
 
-  const kv = (l, v) => '<tr><td style="background:#f5f7fa;font-weight:700;color:#555;width:180px">' + l + '</td><td>' + v + '</td></tr>';
+// The data band — identical on every mode, so the overlay and the full letter
+// can never disagree about what was allotted.
+function _alBand(d, c) {
+  const v     = x => (x === null || x === undefined || String(x).trim() === '') ? '—' : esc(String(x));
+  const money = x => (x === null || x === undefined || x === '' || isNaN(Number(x)))
+    ? '—' : 'PKR ' + Number(x).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  const dated = d.sale_date
+    ? new Date(d.sale_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+  // MID = the client code (owner's call, 2026-08-05). Imported FMH clients carry
+  // FMH-C-0018, newer ones CLT-2026-0014 — both are the member's identity here.
+  const mid  = c.client_code || d.client_code || '—';
+  const area = d.area_sqft ? Number(d.area_sqft).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' sft' : '—';
+  const br   = (l, x) => '<div class="al-br"><span>' + l + '</span><b>' + v(x) + '</b></div>';
 
-  let h = _lh('Allotment Letter', d.project_name);
-  h += '<div class="body">';
-  h += '<div style="font-size:10px;color:#888;margin-bottom:8px">Ref: ' + esc(d.sale_number || '—') + ' &nbsp;|&nbsp; Date: ' + saleDate + '</div>';
-  h += '<div class="doc-title">Allotment Letter</div>';
-  h += '<p style="margin-bottom:10px">Dear <b>' + esc(d.client_name || 'Valued Customer') + '</b>,</p>';
-  h += '<p style="margin-bottom:12px;line-height:1.7">We are pleased to inform you that the following property has been allotted to you in accordance with the terms and conditions of the sale agreement dated <b>' + saleDate + '</b>.</p>';
-  h += '<table>';
-  h += kv('Client Name', esc(d.client_name || '—'));
-  if (d.co_buyer_name) h += kv('Co-buyer / Joint Owner', esc(d.co_buyer_name));
-  h += kv('Sale Number', '<span style="font-family:monospace">' + esc(d.sale_number || '—') + '</span>');
-  h += kv('Project', esc(d.project_name || '—'));
-  h += kv('Unit No.', esc(d.unit_no || '—') + (d.floor_label ? ' — ' + esc(d.floor_label) : ''));
-  if (d.unit_type) h += kv('Unit Type', esc(d.unit_type));
-  if (d.area_sqft) h += kv('Area', Number(d.area_sqft).toLocaleString('en-US') + ' sq ft');
-  h += kv('Sale Date', saleDate);
-  h += kv('Total Sale Value', '<b>' + fmtPKR(d.net_amount) + '</b>');
-  if (d.agent_name) h += kv('Sales Agent', esc(d.agent_name));
-  h += '</table>';
-  h += '<p style="margin:12px 0;line-height:1.7">This letter confirms your allotment. Please retain this document for your records. For any queries, please contact our office.</p>';
-  h += '<p style="margin-bottom:4px">Thank you for choosing <b>' + esc(coName) + '</b>.</p>';
-  h += '<div class="no-break">' + _sigBlock({ label: 'Client Acknowledgement', value: d.client_name || '' }) + '</div>';
+  return '<div class="al-band">' +
+    '<div class="al-box">' +
+      br('MID',   mid) +
+      br('Unit',  d.unit_no) +
+      br('Floor', d.floor_label) +
+      '<div class="al-br"><span>Area</span><b>' + area + '</b></div>' +
+    '</div>' +
+    '<div class="al-l"><div class="k">Member Name</div><div class="v">' + v(d.client_name || c.full_name) + '</div></div>' +
+    '<div class="al-l"><div class="k">S/O, D/O, W/O</div><div class="v">' + v(c.father_name) + '</div></div>' +
+    '<div class="al-l"><div class="k">CNIC</div><div class="v">' + v(c.cnic) + '</div></div>' +
+    '<div class="al-l"><div class="k">Mobile</div><div class="v">' + v(c.phone_primary) + '</div></div>' +
+    '<div class="al-l"><div class="k">Address</div><div class="v wrap">' + v(c.address) + '</div></div>' +
+    '<div class="al-split">' +
+      '<div class="al-l"><div class="k">Net Price</div><div class="v">' + money(d.net_amount) + '</div></div>' +
+      '<div class="al-l"><div class="k" style="width:0.7in">Dated</div><div class="v">' + dated + '</div></div>' +
+    '</div>' +
+  '</div>';
+}
+
+// Full letter for plain paper — same sheet size, so it reads identically to the
+// pre-printed stock. Company address / phone / website come from the company
+// record; whatever is blank there simply prints blank (never invented).
+function _alFullPage(d, c, copyLabel) {
+  const br      = window._cobranding || {};
+  let logo = br.logo_url || null;
+  try { if (typeof getCoLogo === 'function') logo = getCoLogo() || logo; } catch (e) { /* branding not loaded */ }
+  const project = d.project_name || br.company_name || '';
+  const coAddr  = br.address_full || br.address || '';
+  const coPhone = br.business_phone || '';
+  const coMail  = br.business_email || '';
+  const coWeb   = br.website || '';
+  const place   = coAddr || d.project_location || '';
+
+  let h = '<div class="al-page" style="padding:0.45in">';
+  h += '<div style="border:2px dashed #111;height:100%;padding:0.35in 0.45in;display:flex;flex-direction:column">';
+
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;min-height:0.85in">' +
+       (logo ? '<img src="' + esc(logo) + '" style="height:0.8in;max-width:2.1in;object-fit:contain">' : '<div></div>') +
+       '<div style="text-align:right;font-size:11px;letter-spacing:1px;color:#444">' +
+         (br.company_name ? 'A PROJECT OF<br><b style="font-size:14px;letter-spacing:0;color:#111">' + esc(br.company_name) + '</b>' : '') +
+       '</div></div>';
+
+  h += '<div style="text-align:center;margin-top:0.18in">' +
+       '<div style="font-size:22px;font-weight:bold;letter-spacing:.5px">PROVISIONAL ALLOTMENT LETTER</div>' +
+       '<div style="font-size:17px;font-weight:bold;margin-top:5px">' + esc(copyLabel) + '</div>' +
+       '<div style="font-size:17px;font-weight:bold;margin-top:4px">' + esc(project) + '</div>' +
+       '</div>';
+
+  // The band is absolutely positioned against the PAGE, so it lands in exactly
+  // the same spot as on the pre-printed sheet.
+  h += _alBand(d, c);
+
+  h += '<div style="margin-top:' + (AL_TOP + AL_BAND - 1.55).toFixed(2) + 'in;font-size:14px;line-height:1.62;text-align:justify">';
+  h += '<p style="margin:0 0 11px"><b>Dear Member,</b></p>';
+  h += '<p style="margin:0 0 11px">Management of <b>' + esc(project) + '</b> is pleased to allot you above mentioned Unit at <b><u>' + esc(project) + '</u></b>' +
+       (place ? ', at <b><u>' + esc(place) + '</u></b>' : '') +
+       '. By virtue of this allotment you are bound by terms and conditions mentioned overleaf and adhere to the bye-laws as approved from time to time by the management. The physical possession of unit shall be handed over to you as per the agreed terms and conditions.</p>';
+  h += '<p style="margin:0 0 11px">Detail of your <b>Unit</b> and MID number is given on top right corner of this letter. Please always quote your MID number for all future correspondence/query.</p>';
+  h += '<p style="margin:0 0 11px">The Member shall ensure timely payment of the Installments through cash, pay order, demand draft or electronic funds Transfer to company account to avoid cancellation.</p>';
+  h += '<p style="margin:0">Assuring you of our best co-operation and services at all times.</p>';
   h += '</div>';
 
-  w.document.write(h);
-  _pclose(w);
+  h += '<div style="flex:1 1 auto;min-height:0.5in"></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:11px;line-height:1.4">' +
+       '<div><b>Chief Executive Officer</b><br>' + esc(br.company_name || '') + '</div>' +
+       '<div style="text-align:right"><b>Director (Finance)</b><br>' + esc(br.company_name || '') + '</div>' +
+       '</div>';
+
+  h += '<div style="text-align:center;margin-top:0.22in;font-size:10.5px;line-height:1.5;color:#333">' +
+       '<b style="letter-spacing:1px">PROJECT ADDRESS:</b>' +
+       (coAddr  ? '<br>' + esc(coAddr) : '') +
+       (coPhone ? '<br>C: ' + esc(coPhone) : '') +
+       (coMail  ? '<br>E: ' + esc(coMail) : '') +
+       (coWeb   ? '<br>W: ' + esc(coWeb) : '') +
+       '</div>';
+
+  h += '</div></div>';
+  return h;
+}
+
+async function printAllotmentLetter() {
+  const d = _salCurrentDetail;
+  if (!d) { toast('No sale loaded', 'warn'); return; }
+
+  const sel  = document.getElementById('sd-allot-mode');
+  const mode = (sel && sel.value) || 'member';
+
+  // Full client row — father_name / cnic / phone_primary / address only exist on
+  // the clients table, not on the sale detail payload.
+  let c = {};
+  if (d.client_id) {
+    try {
+      const r = await supabase.rpc('get_client_by_id', { p_id: d.client_id, p_company_id: S.cid });
+      if (!r.error && r.data) c = r.data;
+    } catch (e) { /* blank fields rather than no letter */ }
+  }
+
+  let body;
+  if (mode === 'full') {
+    body = _alFullPage(d, c, 'MEMBER COPY') + _alFullPage(d, c, 'OFFICE COPY');
+  } else if (mode === 'both') {
+    body = '<div class="al-page">' + _alBand(d, c) + '</div>' +
+           '<div class="al-page">' + _alBand(d, c) + '</div>';
+  } else {
+    body = '<div class="al-page">' + _alBand(d, c) + '</div>';
+  }
+
+  const title = 'Provisional Allotment Letter — ' + (d.sale_number || '');
+  const html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(title) +
+                '</title><style>' + _alCSS() + '</style></head><body>' + body + '</body></html>';
+  NXPrint.emit(html, title);
 }
 
 
