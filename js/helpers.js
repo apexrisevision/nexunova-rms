@@ -203,14 +203,12 @@ function isValidCNIC(v) {
   }, true);
 })();
 
-function hasPermission(perm){
-  if(!S)return false;
-  if(S.role==='admin'||S.role==='owner')return true;
-
-  // Per-user module_permissions take priority when explicitly set.
-  // The permission key in the DB uses the module key (e.g. 'projects', 'recovery', 'reports').
-  // Map nav page IDs to module keys where they differ.
-  const _pageToModule = {
+// Per-user module_permissions use the MODULE key (e.g. 'projects', 'recovery',
+// 'reports'). Nav page IDs are finer-grained, so map page → module here. Kept at
+// module scope because both hasPermission() and hasModuleGrant() read it (the
+// nav gate in ui.js needs the module key to honour an explicit admin grant).
+const PAGE_TO_MODULE = (function(){
+  return {
     units:'units', unitdetail:'units', addunit:'units',
     clients:'clients', clientdetail:'clients',
     recovery:'recovery', queue:'recovery', addpayment:'recovery', receipts:'recovery', pdc:'recovery',
@@ -237,7 +235,26 @@ function hasPermission(perm){
     officerledger:'reports', receivingledger:'reports',
     audit:'reports',
   };
-  const moduleKey = _pageToModule[perm] || perm;
+})();
+
+// Module key behind a nav page id ('ledgers' → 'reports', 'unitdetail' → 'units').
+function moduleKeyFor(pg){ return PAGE_TO_MODULE[pg] || pg; }
+
+// TRUE only when an admin has EXPLICITLY ticked this page's module for this user
+// in Users & Roles. Distinct from hasPermission(), which also honours the
+// hardcoded role defaults. The nav gate uses this to let an explicit grant open
+// a page that the role's baseline allow-list never anticipated.
+function hasModuleGrant(pg){
+  const p = (S && S.permissions) ? S.permissions : null;
+  if(!p) return false;
+  return !!p[moduleKeyFor(pg)];
+}
+
+function hasPermission(perm){
+  if(!S)return false;
+  if(S.role==='admin'||S.role==='owner')return true;
+
+  const moduleKey = moduleKeyFor(perm);
 
   const userPerms = (S && S.permissions) ? S.permissions : null;
   const hasExplicit = userPerms && Object.keys(userPerms).length > 0;

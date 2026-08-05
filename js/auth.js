@@ -667,8 +667,34 @@ async function _checkSessionValidity() {
       _stopSessionCheck();
       notify.warning('Session expired', { detail: 'Your password was changed. Please sign in again.', duration: 5000 });
       setTimeout(() => doLogout(), 1500);
+      return;
     }
+    // Live permission refresh — S.permissions is snapshotted at login, so a module
+    // granted in Users & Roles used to stay invisible until the user logged out and
+    // back in. The RPC returns the caller's own role/permissions, so pick them up
+    // here and rebuild the sidebar when they actually changed.
+    _applyLivePermissions(data);
   } catch(_) {}
+}
+
+// Adopt role/module_permissions handed back by check_session_valid. No-op on older
+// backends that don't return them.
+function _applyLivePermissions(data) {
+  if (!S || !data || typeof data !== 'object') return;
+  if (!('permissions' in data) && !('role' in data)) return;
+
+  const nextPerms = data.permissions && typeof data.permissions === 'object' ? data.permissions : {};
+  const nextRole  = data.role || S.role;
+  const changed   = JSON.stringify(nextPerms) !== JSON.stringify(S.permissions || {}) || nextRole !== S.role;
+  if (!changed) return;
+
+  S.permissions = nextPerms;
+  S.role        = nextRole;
+  try { sessionStorage.setItem('nxn_sess', JSON.stringify(S)); } catch(_) {}
+  if (typeof buildSB === 'function') buildSB();
+  if (typeof notify !== 'undefined' && notify.info) {
+    notify.info('Your access was updated', { detail: 'New modules now appear in the menu.', duration: 4000 });
+  }
 }
 
 async function _checkPlatformAnnouncements() {

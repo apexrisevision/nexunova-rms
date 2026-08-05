@@ -105,7 +105,7 @@
     backup: ['js/pages/backup.js?v=20260618exp'],
     admin: ADMIN, changepassword: ADMIN,
     categories: ['js/pages/categories.js?v=20260613w2'],
-    users: ['js/pages/users.js?v=20260614m1'],
+    users: ['js/pages/users.js?v=20260805grant'],
     promises: PROMISES,
     audit: AUDIT,
     approvals: APPROVALS,

@@ -61,14 +61,28 @@ function _ldgHubCss() {
   </style>`;
 }
 
+// The agent list lives in agents.js as `_agCache`, but agents.js is LAZY-loaded —
+// open Ledgers without ever visiting Agents (every recovery / finance user, since
+// their sidebar has no Agents entry) and the bare identifier throws ReferenceError,
+// killing the whole page render. Read it defensively; keep our own copy otherwise.
+function _ldgAgents() {
+  try { if (typeof _agCache !== 'undefined' && Array.isArray(_agCache) && _agCache.length) return _agCache; }
+  catch (e) {}
+  return window._ldgAgentCache || [];
+}
+function _ldgSetAgents(rows) {
+  window._ldgAgentCache = rows;
+  try { if (typeof _agCache !== 'undefined') _agCache = rows; } catch (e) {}
+}
+
 function rLedgers() {
   const pg = document.getElementById('pg-ledgers');
   if (!pg) return;
   _ldgFilter = 'all';
 
-  if (!(_agCache && _agCache.length)) {
+  if (!_ldgAgents().length) {
     supabase.rpc('list_agents', { p_company_id: S?.cid, p_sort: 'name' })
-      .then(({ data }) => { if (Array.isArray(data)) _agCache = data; })
+      .then(({ data }) => { if (Array.isArray(data)) _ldgSetAgents(data); })
       .catch(() => {});
   }
   // Warm the sold-unit cache so the first unified search resolves instantly.
@@ -144,7 +158,7 @@ function _ldgGather(type, term) {
       });
   }
   if (type === 'agent') {
-    return (_agCache || [])
+    return _ldgAgents()
       .filter(a => !term || (a.full_name||'').toLowerCase().includes(term) || (a.agent_code||'').toLowerCase().includes(term))
       .map(a => ({ type, id:a.id, label:a.full_name||'Unnamed', sub:a.agent_code||'' }));
   }
@@ -206,7 +220,7 @@ function _lhubOpen(type, id) {
     window._ldgCtx = { id, name: u?.unitNo || '—', sub: p?.projectName || p?.name || '' };
     nav('ledger-unit');
   } else if (type === 'agent') {
-    const a = (_agCache || []).find(x => x.id === id);
+    const a = _ldgAgents().find(x => x.id === id);
     window._ldgCtx = { id, name: a?.full_name || '—', sub: a?.agent_code || '' };
     nav('ledger-agent');
   } else if (type === 'project') {

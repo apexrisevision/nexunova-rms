@@ -30,7 +30,8 @@ const MODULE_LIST = [
   { key: 'reports',   label: 'Reports' },
   { key: 'documents', label: 'Documents' },
   { key: 'agents',    label: 'Agents' },
-  { key: 'search',    label: 'Quick Search' }
+  { key: 'search',    label: 'Quick Search' },
+  { key: 'sales',     label: 'Sales' }
 ];
 
 let _usersData = [];

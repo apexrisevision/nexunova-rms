@@ -455,6 +455,34 @@ function _sbi(name, size){
 // grouped nav. CSS removed from visual-overhaul.css + app.css; localStorage key
 // 'rms.uimode' is no longer read or written.
 
+// The modules an admin can tick in Users & Roles → their nav entry. Keys match
+// MODULE_LIST in js/pages/users.js; ids match the page ids nav() understands.
+const MODULE_NAV_ITEMS = [
+  { key:'projects',  id:'projects',  ic:'building-2',  lb:'Projects' },
+  { key:'units',     id:'units',     ic:'home',        lb:'All Units' },
+  { key:'clients',   id:'clients',   ic:'user-check',  lb:'Clients' },
+  { key:'recovery',  id:'recovery',  ic:'banknote',    lb:'Collections' },
+  { key:'contacts',  id:'contacts',  ic:'phone',       lb:'Call Logs' },
+  { key:'reports',   id:'reports',   ic:'bar-chart-3', lb:'Reports' },
+  { key:'documents', id:'documents', ic:'printer',     lb:'Documents' },
+  { key:'agents',    id:'agents',    ic:'users',       lb:'Sales Agents' },
+  { key:'search',    id:'search',    ic:'search',      lb:'Quick Search' },
+  { key:'sales',     id:'sales',     ic:'file-text',   lb:'Sales' },
+];
+
+// Curated sidebars (recovery / finance / manager) are hardcoded lists, so a module
+// ticked in Users & Roles would never appear in them. Append anything explicitly
+// granted that the role's own groups don't already advertise, as "Extra access".
+function _grantedExtraGroup(navGroups){
+  if (typeof hasModuleGrant !== 'function') return null;
+  const shown = {};
+  navGroups.forEach(function(g){ g.items.forEach(function(x){ shown[x.id] = true; }); });
+  const extras = MODULE_NAV_ITEMS.filter(function(m){
+    return !shown[m.id] && hasModuleGrant(m.id);
+  });
+  return extras.length ? { label:'Extra access', items: extras } : null;
+}
+
 function buildSB(){
   const fus  = gfus();
   const role = effectiveRole();
@@ -674,17 +702,7 @@ function buildSB(){
   } else {
     // manager, staff, or any other role — permission-driven sidebar
     // Only include modules the user has explicit access to via module_permissions
-    const _allModuleItems = [
-      { key:'projects',  id:'projects',  ic:'building-2',  lb:'Projects' },
-      { key:'units',     id:'units',     ic:'home',        lb:'All Units' },
-      { key:'clients',   id:'clients',   ic:'user-check',  lb:'Clients' },
-      { key:'recovery',  id:'recovery',  ic:'banknote',    lb:'Collections' },
-      { key:'contacts',  id:'contacts',  ic:'phone',       lb:'Call Logs' },
-      { key:'reports',   id:'reports',   ic:'bar-chart-3', lb:'Reports' },
-      { key:'documents', id:'documents', ic:'printer',     lb:'Documents' },
-      { key:'agents',    id:'agents',    ic:'users',       lb:'Sales Agents' },
-      { key:'search',    id:'search',    ic:'search',      lb:'Quick Search' },
-    ];
+    const _allModuleItems = MODULE_NAV_ITEMS;
     const allowedItems = _allModuleItems.filter(m =>
       typeof hasPermission === 'function' ? hasPermission(m.id) : false
     );
@@ -694,6 +712,12 @@ function buildSB(){
     if(allowedItems.length){
       navGroups.push({ label:'My Modules', items: allowedItems });
     }
+  }
+
+  // Explicit Users & Roles grants that this role's curated sidebar doesn't cover.
+  if (isR || isAc || isM) {
+    const _extra = _grantedExtraGroup(navGroups);
+    if (_extra) navGroups.push(_extra);
   }
 
   // Finance sleep — strip the Finance group if no active finance user exists in the company.
@@ -710,7 +734,8 @@ function buildSB(){
     'Sales & Money':'banknote', 'Agents & Bookings':'users', 'Recovery':'radar',
     'Transfer & Cancel':'repeat', 'Reports & Ledgers':'bar-chart-3', 'Team & Approvals':'shield',
     'Documents':'printer', 'Setup & Settings':'settings',
-    'Inventory':'home', 'Sales':'file-text', 'Reports':'bar-chart-3', 'Inbox':'inbox', 'My Modules':'layout-grid'
+    'Inventory':'home', 'Sales':'file-text', 'Reports':'bar-chart-3', 'Inbox':'inbox', 'My Modules':'layout-grid',
+    'Extra access':'shield'
   };
   let html = '';
   navGroups.forEach(function(g){
@@ -895,13 +920,17 @@ function nav(pg,x){
         accounts:['dashboard','recovery','addpayment','receipts','pdc','cancelledunits','transferunits','officerledger','receivingledger','ledgers','ledger-client','ledger-unit','ledger-agent','ledger-project','commissions','reports','documents','clients','clientdetail','agents','agentdetail','sales','salesdetail','paylinks','paylink-detail','agentrecovery'],
       };
       // For manager/staff: rely entirely on hasPermission()
-      // For recovery/accounts: must be in baseline list AND pass hasPermission()
+      // For recovery/accounts: the baseline allow-list is a role DEFAULT, not a
+      // ceiling — an explicit Users & Roles grant must also open the page, or
+      // ticking a module there does nothing (reports for a recovery officer was
+      // silently bounced because 'reports' isn't in the recovery baseline).
       const inBaseline=(allow[r]||[]).includes(pg);
+      const granted=typeof hasModuleGrant==='function'?hasModuleGrant(pg):false;
       const permitted=typeof hasPermission==='function'?hasPermission(pg):false;
       if(r==='manager'||r==='staff'){
         if(!permitted)pg='dashboard';
       }else{
-        if(!inBaseline||!permitted)pg='dashboard';
+        if((!inBaseline&&!granted)||!permitted)pg='dashboard';
       }
     }
   }
