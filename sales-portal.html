@@ -583,6 +583,26 @@ body.mode-tabs .selbar{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
 body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 /* the host sits on <body> so no animated/transformed ancestor can capture it */
 #selbar-host{position:relative;z-index:40}
+/* Director board — one card per team member, tap for the full picture */
+.tbd{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px;margin-bottom:4px}
+.tbd-c{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);
+  box-shadow:var(--fk-shadow);padding:12px;cursor:pointer;transition:box-shadow .16s,border-color .16s,transform .16s}
+.tbd-c:hover{border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border));transform:translateY(-2px)}
+.tbd-c.idle{border-style:dashed;box-shadow:none}
+.tbd-top{display:flex;align-items:center;gap:8px;min-width:0}
+.tbd-nm{font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbd-tag{font-size:var(--fk-fs-label);color:var(--fk-info);background:var(--fk-info-surface);border-radius:999px;padding:1px 7px;flex:none}
+.tbd-big{font-size:var(--fs-kpi);font-weight:700;line-height:1.05;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.tbd-sub{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
+.tbd-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--fk-muted-fill);margin:9px 0 7px}
+.tbd-chips{display:flex;gap:5px;flex-wrap:wrap}
+.tbd-chip{font-size:var(--fk-fs-label);border-radius:999px;padding:1px 7px;background:var(--fk-bg-subtle);color:var(--fk-text-muted);white-space:nowrap}
+.tbd-chip.warn{background:var(--fk-warning-surface);color:var(--fk-warning)}
+.tbd-chip.bad{background:var(--fk-danger-surface);color:var(--fk-danger)}
+.tbd-chip.good{background:var(--fk-success-surface);color:var(--fk-success)}
+.tbd-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-secondary)}
+.tbd-row:last-child{border-bottom:0}
+.tbd-row b{font-variant-numeric:tabular-nums}
 /* touch targets: 36 on desktop, 40 on phones (icon-only buttons stay square) */
 .lead-act{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:36px;min-width:36px;padding:0 12px;
   border:1px solid var(--fk-border);background:var(--fk-bg-card);border-radius:var(--fk-radius-pill);
@@ -2693,6 +2713,87 @@ function _teamActRow(a){
   </div></div>`;
 }
 // ════ Manager / Director Home — one worklist + To-assign + target strip ════
+// ════════════ Director board — team members as cards, per project ════════════
+// One card per member (sorted by name), tap for the whole picture: how many leads
+// you gave them, where those leads stand, how many matured, how many never opened.
+let DBOARD={proj:"all", data:null};
+async function _boardLoad(pid){
+  try{ const {data}=await sb.rpc("get_director_board",{p_session_token:TOKEN,p_project_id:(pid&&pid!=="all")?pid:null});
+    DBOARD.data=(data&&data.success)?data:null; }catch(e){ DBOARD.data=null; }
+  return DBOARD.data;
+}
+async function _boardSetProj(pid){ DBOARD.proj=pid; const el=$("tbd-wrap"); if(el) el.innerHTML=_skel();
+  await _boardLoad(pid); const e2=$("tbd-wrap"); if(e2) e2.innerHTML=_boardHtml(); }
+const _BSTG=[["new","New","var(--fk-primary)"],["contacted","Contacted","#6366f1"],["visit","Visit","var(--fk-warning)"],
+             ["negotiation","Negotiation","#8b5cf6"],["won","Won","var(--fk-success)"],["lost","Lost","var(--fk-text-muted)"]];
+function _boardHtml(){
+  const d=DBOARD.data;
+  if(!d) return _emptyCard("Team board unavailable","Refresh the page, or check your connection.");
+  const projs=d.projects||[], mem=d.members||[], T=d.totals||{};
+  let h="";
+  if(projs.length>1||DBOARD.proj!=="all"){
+    const all=projs.reduce((a,p)=>a+Number(p.leads||0),0);
+    const segs=[["all","All ("+all+")"]].concat(projs.map(p=>[p.id, esc(p.tag||p.name)+" ("+p.leads+")"]));
+    h+=_seg(segs, DBOARD.proj, "_boardSetProj");
+  }
+  h+=`<div style="display:flex;gap:7px;flex-wrap:wrap;margin:0 2px 10px">`
+   + `<span class="tbd-chip">${Number(T.leads||0)} leads · ${Number(T.members||0)} people</span>`
+   + (Number(T.pending||0)?`<span class="tbd-chip warn">${T.pending} pending</span>`:"")
+   + (Number(T.matured||0)?`<span class="tbd-chip good">${T.matured} matured</span>`:"")
+   + (Number(T.not_opened||0)?`<span class="tbd-chip bad">${T.not_opened} never opened</span>`:"")
+   + `</div>`;
+  if(!mem.length) return h+_emptyCard("No team members yet","Add someone under you in Portal Access first.");
+  h+=`<div class="tbd">`+mem.map(_boardCard).join("")+`</div>`;
+  return h;
+}
+function _boardCard(m){
+  const total=Number(m.leads||0), st=m.stages||{};
+  const bar=total?_BSTG.map(function(x){ const n=Number(st[x[0]]||0);
+      return n?`<span title="${x[1]}: ${n}" style="width:${(n*100/total).toFixed(1)}%;background:${x[2]}"></span>`:""; }).join(""):"";
+  const chips=[
+    Number(m.matured||0)?`<span class="tbd-chip good">${m.matured} matured</span>`:"",
+    Number(m.pending||0)?`<span class="tbd-chip">${m.pending} pending</span>`:"",
+    Number(m.not_opened||0)?`<span class="tbd-chip bad">${m.not_opened} unopened</span>`:"",
+    Number(m.overdue||0)?`<span class="tbd-chip warn">${m.overdue} overdue</span>`:""
+  ].filter(Boolean).join("");
+  const nm=String(m.name||"").split(" · ")[0];
+  return `<div class="tbd-c${total?"":" idle"}" onclick="_boardOpen('${m.id}')">
+    <div class="tbd-top">${_avatar(nm,26)}<span class="tbd-nm">${esc(nm)}</span>${m.project_tag?`<span class="tbd-tag">${esc(m.project_tag)}</span>`:""}</div>
+    <div class="tbd-big">${total}</div>
+    <div class="tbd-sub">leads · you gave ${Number(m.given_by_me||0)}</div>
+    ${total?`<div class="tbd-bar">${bar}</div>`:`<div style="height:6px"></div>`}
+    <div class="tbd-chips">${chips||`<span class="tbd-chip">nothing yet</span>`}</div>
+  </div>`;
+}
+function _boardOpen(id){
+  const d=DBOARD.data; if(!d) return;
+  const m=(d.members||[]).find(x=>x.id===id); if(!m) return;
+  const st=m.stages||{}, total=Number(m.leads||0);
+  const pj=(d.projects||[]).find(p=>p.id===DBOARD.proj);
+  const projLbl=(DBOARD.proj==="all")?"all projects":((pj&&(pj.tag||pj.name))||"this project");
+  const row=(lb,val,col)=>`<div class="tbd-row"><span style="color:var(--fk-text-muted)">${esc(lb)}</span><b${col?` style="color:${col}"`:""}>${val}</b></div>`;
+  let body=`<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:8px">Showing ${esc(projLbl)}</div>`;
+  body+=`<div class="card" style="padding:2px 14px;margin-bottom:12px">`
+    + row("Leads you gave them", Number(m.given_by_me||0))
+    + row("Leads with them now", total)
+    + row("Matured (won)", Number(m.matured||0), "var(--fk-success)")
+    + row("Still pending", Number(m.pending||0), "var(--fk-warning)")
+    + row("Lost", Number(m.lost||0))
+    + row("Conversion", (m.conversion||0)+"%")
+    + `</div>`;
+  body+=`<div class="dsec" style="margin-top:0">Stage breakdown</div><div class="card" style="padding:2px 14px;margin-bottom:12px">`
+    + _BSTG.map(x=>row(x[1], Number(st[x[0]]||0), Number(st[x[0]]||0)?x[2]:"")).join("") + `</div>`;
+  body+=`<div class="dsec">Work &amp; attention</div><div class="card" style="padding:2px 14px">`
+    + row("Never opened", Number(m.not_opened||0), Number(m.not_opened||0)?"var(--fk-danger)":"")
+    + row("Follow-ups overdue", Number(m.overdue||0), Number(m.overdue||0)?"var(--fk-warning)":"")
+    + row("Calls / messages today", Number(m.touches_today||0))
+    + row("Last activity", m.last_touch?esc(agoTxt(m.last_touch)):"—")
+    + `</div>`;
+  const foot=`<button class="btn" onclick="closeModal()">Close</button>`
+    + `<button class="btn btn-primary" onclick="closeModal();_boardLeads('${m.id}')">See their leads →</button>`;
+  openModal(esc(String(m.name||"Member")), body, foot);
+}
+function _boardLeads(id){ TEAM_AGENT=id; ORG_VIEW={view:"leads"}; MEMBER_SCOPE="self"; renderMemberLeads(); }
 async function renderManagerHome(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
   if(!_BG) $('app-body').innerHTML=_skel();
@@ -2721,6 +2822,7 @@ async function renderManagerHome(){
   let html='<div class="nx-dash">';
   html+=`<div style="margin:0 2px 14px"><div style="font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
   html+=_numStrip([{lbl:'Team sold this month',val:pkrShort(sold)||'₨0',onclick:"setTab('money')"},{lbl:'Team to collect',val:pkrShort(collect)||'₨0',onclick:"setTab('money')"}]);
+  html+='<div class="dsec">Your team</div><div id="tbd-wrap">'+_skel()+'</div>';
   if(toAssign>0){
     html+='<div class="wl" style="margin-top:8px"><div class="wl-row tap" onclick="setTab(\'distribute\')">'
       +`<span class="more-ic">${li('send',18,2)}</span>`
@@ -2744,6 +2846,7 @@ async function renderManagerHome(){
   }
   html+='</div>';
   $('app-body').innerHTML=html;
+  _boardLoad(DBOARD.proj).then(()=>{ const el=$('tbd-wrap'); if(el) el.innerHTML=_boardHtml(); });
   _annUpdateBadge();
 }
 
