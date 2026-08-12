@@ -2921,7 +2921,8 @@ async function _leadSelAssign(){
   picked.forEach(l=>{ const id=l.project_id||'none', nm=l.project_name||'No project';
     const e=m.get(id)||{id,name:nm,n:0}; e.n++; m.set(id,e); });
   const projs=[...m.values()].sort((a,b)=>b.n-a.n);
-  if(projs.length===1) return _leadSelAssignProj(projs[0].id);
+  // always ask which project to enter first — even when the selection is all one
+  // project — so the flow reads the same every time
   const body=projs.map(p=>`<div class="lrow tap" onclick="_leadSelAssignProj('${p.id}')"><div class="lrow-top">
      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.name)}</div>
      <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${p.n} selected lead${p.n==1?'':'s'}</div></div>
@@ -2934,7 +2935,8 @@ async function _leadSelAssignProj(pid){
     try{ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN});
       LEADSEL.reps=(data&&data.users)||[]; }catch(e){ return toast('Could not load team','err'); }
   }
-  const all=LEADSEL.reps||[];
+  const byLoad=(a,b)=>(Number(b.open_leads||0)-Number(a.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
+  const all=(LEADSEL.reps||[]).slice().sort(byLoad);        // most leads in hand first
   const mine=(pid&&pid!=='none')?all.filter(u=>u.home_project_id===pid):all;
   const list=mine.length?mine:all;
   if(!list.length) return toast('No team member available','err');
@@ -5169,7 +5171,7 @@ function _distSetProj(id){
 // Staff for the active project tab. "All projects" (or a project nobody is tagged
 // to, or the Show-all escape) falls back to the full team so nobody gets stranded.
 function _distReps(){
-  const all=DISTV.reps||[];
+  const all=(DISTV.reps||[]).slice().sort((a,b)=>(Number(b.open_leads||0)-Number(a.open_leads||0))||String(a.name||'').localeCompare(String(b.name||'')));
   if(DISTV.proj==='all'||DISTV.proj==='none'||DISTV.allReps) return all;
   const mine=all.filter(u=>u.home_project_id===DISTV.proj);
   return mine.length?mine:all;
