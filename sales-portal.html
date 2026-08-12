@@ -559,6 +559,12 @@ body{background:var(--nx-page)}
 .lead-search .input{padding-left:40px}
 .lead-search .lead-sort{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--fk-text-muted);font-family:inherit;font-size:var(--fs-caption);font-weight:600;cursor:pointer;height:34px;max-width:118px}
 .lead-search.has-sort .input{padding-right:124px}
+/* clear (×) inside the search field — standard, and stops people deleting 20 chars by hand */
+.lead-search .lead-clr{position:absolute;top:50%;transform:translateY(-50%);right:128px;width:26px;height:26px;
+  border:0;background:var(--fk-muted-fill);color:var(--fk-text-muted);border-radius:50%;cursor:pointer;
+  display:grid;place-items:center;font-family:inherit;line-height:1;padding:0}
+.lead-search .lead-clr:hover{background:var(--fk-subtle-hover);color:var(--fk-text)}
+.lead-search:not(.has-sort) .lead-clr{right:8px}
 .lead-chips{display:flex;gap:var(--fk-sp-2);overflow-x:auto;margin:var(--fk-sp-3) 0;padding-bottom:2px}
 .lead-chip{flex:0 0 auto;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text-muted);border-radius:var(--fk-radius-pill);padding:6px 12px;font-size:var(--fk-fs-body);font-weight:var(--fk-fw-semibold);cursor:pointer;white-space:nowrap;transition:background .16s ease,color .16s ease,border-color .16s ease}
 .lead-chip:hover{border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
@@ -575,11 +581,13 @@ body{background:var(--nx-page)}
   display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 body.mode-tabs .selbar{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
 body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
-.lead-act{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 11px;
+/* touch targets: 36 on desktop, 40 on phones (icon-only buttons stay square) */
+.lead-act{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:36px;min-width:36px;padding:0 12px;
   border:1px solid var(--fk-border);background:var(--fk-bg-card);border-radius:var(--fk-radius-pill);
   color:var(--fk-text);font-size:var(--fs-caption);font-weight:var(--fk-fw-medium);font-family:inherit;cursor:pointer}
 .lead-act:active{background:var(--fk-subtle-hover)}
 .lead-act.wa{color:#128C7E;border-color:color-mix(in srgb,#128C7E 34%,var(--fk-border))}
+@media (max-width:640px){ .lead-act{height:40px;min-width:40px} .selbar .lead-act{padding:0 10px} }
 .lead-row:hover{background:var(--fk-bg-subtle);box-shadow:inset 3px 0 0 var(--lc,var(--fk-primary))}
 .lead-main{display:flex;align-items:center;gap:var(--fk-sp-3);flex:1;min-width:0;cursor:pointer}
 .lead-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:var(--fk-sp-1)}
@@ -1604,6 +1612,27 @@ function fmtCnic(v){
   return out;
 }
 // Mobile: always +92, then the 10-digit number WITHOUT the leading 0 (numeric keyboard has no +).
+// ── display formats (one place, so every screen reads the same) ──────────────
+// Pakistani mobile the way people actually write it: 0300-1234567
+function phDisp(v){
+  let d=String(v||'').replace(/\D/g,'');
+  if(d.indexOf('0092')===0) d=d.slice(4); else if(d.indexOf('92')===0 && d.length>10) d=d.slice(2);
+  if(d.length===10 && d[0]==='3') d='0'+d;
+  if(d.length!==11) return String(v||'');           // unknown shape → leave as-is
+  return d.slice(0,4)+'-'+d.slice(4);
+}
+// "just now · 25m · 4h · 3d" for the last week, then the plain date
+function agoTxt(d){
+  if(!d) return '';
+  const t=new Date(d); if(isNaN(t)) return '';
+  const s=Math.floor((Date.now()-t.getTime())/1000);
+  if(s<0)     return fdateShort(d);
+  if(s<60)    return 'just now';
+  if(s<3600)  return Math.floor(s/60)+'m';
+  if(s<86400) return Math.floor(s/3600)+'h';
+  if(s<604800)return Math.floor(s/86400)+'d';
+  return fdateShort(d);
+}
 function fmtPhone(v){
   let d=String(v||'').replace(/\D/g,'');
   if(d.indexOf('92')===0) d=d.slice(2);   // drop the country code if it's there
@@ -2483,7 +2512,7 @@ function _wlRow(l,kind){
   if(kind==='overdue'){ const dd=l.next_follow_up_at?Math.floor((Date.now()-new Date(l.next_follow_up_at).getTime())/86400000):0; tag=`<span class="wl-tag late">${dd>=1?dd+'d late':'Late'}</span>`; }
   else if(kind==='today'){ tag='<span class="wl-tag today">Today</span>'; }
   else { tag='<span class="wl-tag start">Start</span>'; }
-  const sub = l.phone ? esc(l.phone) : (kind==='new' ? _srcLabel(l.source) : '');
+  const sub = l.phone ? esc(phDisp(l.phone)) : (kind==='new' ? _srcLabel(l.source) : '');
   const own = (!l.is_mine&&l.owner_name) ? `<div class="wl-own">→ ${esc(l.owner_name)}</div>` : '';
   // same buttons as before, but the touch is logged so activity counters fill up
   const call = l.phone?`<a class="wl-act" href="tel:${esc(l.phone)}" onclick="event.stopPropagation();_leadTouch('${l.id}','call')" aria-label="Call">${li('phone',17,2)}</a>`:'';
@@ -2788,7 +2817,7 @@ function _leadsRender(){
   if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
   const _so=(v,lb)=>`<option value="${v}"${(LEADV.sort||'activity')===v?' selected':''}>${lb}</option>`;
-  html+=`<div class="lead-search has-sort">${srch}<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()"><select class="lead-sort" title="Sort leads" onchange="LEADV.sort=this.value;_leadListRender()">${_so('activity','Recent activity')+_so('fu','Follow-up due')+_so('newest','Newest first')+_so('oldest','Oldest first')+_so('name','Name A–Z')}</select></div>`;
+  html+=`<div class="lead-search has-sort">${srch}<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_clrToggle('lead-clr',this);_leadListRender()"><button class="lead-clr" id="lead-clr" style="display:${(LEADV.q||'')?'grid':'none'}" onclick="_leadSearchClear()" aria-label="Clear search" title="Clear search">✕</button><select class="lead-sort" title="Sort leads" onchange="LEADV.sort=this.value;_leadListRender()">${_so('activity','Recent activity')+_so('fu','Follow-up due')+_so('newest','Newest first')+_so('oldest','Oldest first')+_so('name','Name A–Z')}</select></div>`;
   const chip=(k,lb,n)=>`<button onclick="_leadFilter('${k}')" class="lead-chip${LEADV.filter===k?' on':''}">${esc(lb)} <b>${n}</b></button>`;
   const toAssignN=isMgr?scoped.filter(_distributablePool).length:0;
   html+='<div class="lead-chips">'+chip('all','All',total)
@@ -2804,6 +2833,9 @@ function _leadsRender(){
   $('app-body').innerHTML=html;
   _leadListRender();
 }
+function _clrToggle(id,el){ const b=document.getElementById(id); if(b) b.style.display=(el&&el.value)?'grid':'none'; }
+function _leadSearchClear(){ LEADV.q=''; _leadsRender(); try{ const el=$('lead-q'); if(el) el.focus(); }catch(e){} }
+function _distSearchClear(){ DISTV.q=''; _distRender(); try{ const el=$('dist-q'); if(el) el.focus(); }catch(e){} }
 function _leadSetScope(k){ LEADV.scope=k; _leadsRender(); }
 // projects present in the current lead list (short tag when we know it)
 function _leadProjects(){
@@ -2879,7 +2911,7 @@ function _leadCard(l){
   const caret='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
   const stat=`<span class="lead-stat" style="background:color-mix(in srgb,${col} 14%,var(--fk-bg-card));color:${col}">${esc(lbl)}${caret}<select class="lead-stat-x" onchange="_leadStage('${l.id}',this.value)" title="Change status">${opts}</select></span>`;
   const meta=[l.interest?esc(l.interest):'', l.budget?pkrShort(l.budget):''].filter(Boolean).join(' · ');
-  const sub=[l.phone?esc(l.phone):'', meta].filter(Boolean).join(' · ');
+  const sub=[l.phone?esc(phDisp(l.phone)):'', meta].filter(Boolean).join(' · ');
   const srcTag = l.source ? (l.created_by_me?'':'Received · ')+_srcLabel(l.source) : '';   // where each lead came from
   const dot = unchecked ? `<span title="Not checked yet" style="width:8px;height:8px;border-radius:50%;background:${col};flex:none"></span>` : '';
   const nameStyle = unchecked ? 'font-weight:var(--fk-fw-bold)' : 'font-weight:var(--fk-fw-medium);color:var(--fk-text-muted)';
@@ -2908,7 +2940,7 @@ function _leadCard(l){
         ${chk}${_avatarC(l.name,40)}
         <div style="flex:1;min-width:0"><div class="lr-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${dot}${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${l.project_name?_projChip(l.project_name):''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
       </div>
-      <div class="lead-right">${stat}<span class="lead-date">${esc(fdateShort(l.created_at))}</span>${_leadFuTag(l)}</div>
+      <div class="lead-right">${stat}<span class="lead-date" title="Last activity">${esc(agoTxt(l.last_activity_at||l.created_at))}</span>${_leadFuTag(l)}</div>
     </div>
     ${(quick||foot)?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">${quick}<span style="flex:1"></span>${foot}</div>`:''}
   </div>`;
@@ -5326,7 +5358,7 @@ function _distRender(){
   </div>`;
   if(leads.length){
     const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
-    html+=`<div class="lead-search">${srch}<input class="input" id="dist-q" placeholder="Search lead name or phone…" value="${esc(DISTV.q||'')}" oninput="DISTV.q=this.value;_distListRender()"></div>`;
+    html+=`<div class="lead-search">${srch}<input class="input" id="dist-q" placeholder="Search lead name or phone…" value="${esc(DISTV.q||'')}" oninput="DISTV.q=this.value;_clrToggle('dist-clr',this);_distListRender()"><button class="lead-clr" id="dist-clr" style="display:${(DISTV.q||'')?'grid':'none'}" onclick="_distSearchClear()" aria-label="Clear search" title="Clear search">✕</button></div>`;
   }
   html+=`<div class="dsec">Leads to assign <span class="nb">${_pool.length}</span></div>`;
   if(!leads.length){ html+=_emptyCard('All caught up','None of your leads are waiting to be handed down.'); }
@@ -5380,7 +5412,7 @@ function _distSelRow(l){
   return `<div class="lrow tap${on?' sel':''}" onclick="_distToggle('${l.id}')"><div class="lrow-top">
     <span class="dck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
     ${_avatar(l.name,34)}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</span>${l.project_name?_projChip(l.project_name):''}</div></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(phDisp(l.phone))+' · ':''}${esc(_leadStageLabel(l.status))}</span>${l.project_name?_projChip(l.project_name):''}</div></div>
   </div></div>`;
 }
 function _distToggle(id){ const i=DISTV.sel.indexOf(id); if(i>=0) DISTV.sel.splice(i,1); else DISTV.sel.push(id); _distRender(); }
