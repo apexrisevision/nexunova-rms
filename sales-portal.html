@@ -2828,6 +2828,7 @@ function _leadsRender(){
     +LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')
     +(isMgr?chip('assigned','Assigned',assignedN):'')+'</div>';
   if(!LEADSEL.on) html+=_leadUndoBar()+_leadTip();
+  else html+=`<div class="card" style="padding:9px 12px;background:var(--fk-info-surface);border-color:transparent;font-size:var(--fs-caption);color:var(--fk-text-muted)">Only leads still waiting to be handed over are listed. Ones you already gave out are under the <b>Assigned</b> chip.</div>`;
   html+='<div id="lead-list"></div></div>';
   $('app-body').innerHTML=html;
   _selbarSync();                            // bar is mounted on <body>, outside the animated container
@@ -2865,6 +2866,7 @@ function _leadVisibleRows(){
     : f==='unchecked' ? (!l.checked && l.status!=='won' && l.status!=='lost')
     : l.status===f);
   if(LEADV.proj && LEADV.proj!=='all') rows=rows.filter(l=>(l.project_id||'none')===LEADV.proj);
+  if(typeof LEADSEL!=='undefined' && LEADSEL.on) rows=rows.filter(_leadPickable);   // selection = assignable pool only
   const q=(LEADV.q||'').trim().toLowerCase();
   if(q) rows=rows.filter(l=>((l.name||'').toLowerCase().includes(q))||((l.phone||'').replace(/\s/g,'').includes(q)));
   const s=LEADV.sort||'activity';   // 'activity' = server order (last touch first)
@@ -2927,14 +2929,20 @@ function _leadCard(l){
   // NOTHING per-row while selecting: a single-lead "Assign" button sitting on a
   // selected card is a trap — tapping it assigned that ONE lead and silently
   // dropped the other five. In selection mode the only assign is the bottom bar.
-  if(LEADSEL.on){ foot=''; }
+  if(LEADSEL.on){
+    foot=(_leadAssigned(l)&&l.owner_name)
+      ? `<span class="spill" style="background:var(--fk-bg-subtle);border-color:transparent;color:var(--fk-text-muted)">${li('check',12,2.4)} With ${esc(l.owner_name)}</span>`
+      : '';
+  }
   else if(_leadAssigned(l) && l.owner_name && !l.is_mine){
     foot=`<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">${li('check',12,2.4)} Assigned to ${esc(l.owner_name)}</span>`;
   } else if(canAssign && _distributablePool(l)){
     foot=`<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openAssign('${l.id}')">Assign to team →</button>`;
   }
-  const selOn=LEADSEL.on, picked=selOn&&LEADSEL.ids.includes(l.id);
-  const chk=selOn?`<span class="dck" style="flex:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>`:'';
+  const selOn=LEADSEL.on, picked=selOn&&LEADSEL.ids.includes(l.id), pickable=_leadPickable(l);
+  const chk=selOn?(pickable
+    ? `<span class="dck" style="flex:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>`
+    : `<span class="dck" style="flex:none;opacity:.35;border-style:dashed" title="Already assigned"></span>`):'';
   return `<div class="lrow lead-row${unchecked?' lead-unread':''}${picked?' sel':''}" style="--lc:${col}${unchecked?'':';opacity:.78'}"
       onpointerdown="_lpStart(event,'${l.id}')" onpointerup="_lpEnd()" onpointercancel="_lpEnd()" onpointerleave="_lpEnd()"
       onpointermove="_lpMove(event)" ondragstart="return false" onselectstart="return false"
@@ -2963,7 +2971,13 @@ function _leadWa(id,phone){
   const n=_waNum(phone||'');
   try{ window.open('https://wa.me/'+String(n||'').replace(/[^0-9]/g,''),'_blank'); }catch(e){}
 }
-function _leadFilter(f){ LEADV.filter=f; _leadsRender(); }
+function _leadFilter(f){
+  LEADV.filter=f;
+  // "Assigned" is the record of leads already handed over — nothing there can be
+  // picked, so drop out of selection mode instead of showing an empty list.
+  if(f==='assigned' && typeof LEADSEL!=='undefined' && LEADSEL.on){ LEADSEL.on=false; LEADSEL.ids=[]; }
+  _leadsRender();
+}
 // ════ Leads — long-press multi-select (select all · assign · move · delete) ════
 let LEADSEL={on:false, ids:[], reps:null, projs:null, undo:null};
 let _LP={t:null, fired:false};
@@ -2976,6 +2990,8 @@ function _lpStart(ev,id){
   if(_LP.el) _LP.el.classList.add('lead-picking');          // "I felt that" while holding
   _LP.t=setTimeout(()=>{ _LP.fired=true; _lpClear();
     try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){}
+    const l0=(LEADS||[]).find(x=>x.id===id);
+    if(!_leadPickable(l0)){ return toast('Already with '+((l0&&l0.owner_name)||'a team member')+' — pull it back first','err'); }
     LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender();
     toast('1 selected — tap more, then use the bar at the bottom','ok'); }, 420);
 }
@@ -2987,7 +3003,10 @@ function _lpClear(){ try{ document.querySelectorAll('.lead-picking').forEach(e=>
 function _lpEnd(){ clearTimeout(_LP.t); _LP.t=null; _lpClear(); }
 function _lpCtx(ev,id){                       // desktop right-click = same thing
   if(ev&&ev.preventDefault) ev.preventDefault();
-  if(!LEADSEL.on){ LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }
+  if(!LEADSEL.on){
+    const l0=(LEADS||[]).find(x=>x.id===id);
+    if(!_leadPickable(l0)){ toast('Already with '+((l0&&l0.owner_name)||'a team member')+' — pull it back first','err'); return false; }
+    LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }
   return false;
 }
 function _leadRowClick(ev,id){
@@ -2995,14 +3014,22 @@ function _leadRowClick(ev,id){
   if(LEADSEL.on) return _leadSelToggle(id);
   openLead(id);
 }
+// A lead that already sits with a team member is out of bounds: it can't be
+// picked, can't be swept up by Select all, and the assign pool hides it. The way
+// to move it is Pull back (explicit + logged), never a silent re-assign.
+function _leadPickable(l){ return !!l && !_leadAssigned(l); }
 function _leadSelToggle(id){
+  const l=LEADS.find(x=>x.id===id);
+  if(!_leadPickable(l)){
+    return toast('Already with '+((l&&l.owner_name)||'a team member')+' — pull it back first','err');
+  }
   const i=LEADSEL.ids.indexOf(id);
   if(i>=0) LEADSEL.ids.splice(i,1); else LEADSEL.ids.push(id);
   if(!LEADSEL.ids.length) LEADSEL.on=false;
   _leadsRender();
 }
 function _leadSelCancel(){ LEADSEL.on=false; LEADSEL.ids=[]; _leadsRender(); }
-function _leadSelVisible(){ return _leadVisibleRows().map(l=>l.id); }
+function _leadSelVisible(){ return _leadVisibleRows().filter(_leadPickable).map(l=>l.id); }
 function _leadSelAll(){
   const pool=_leadSelVisible();
   const allOn=pool.length>0 && pool.every(id=>LEADSEL.ids.includes(id));
@@ -4356,7 +4383,12 @@ async function _leadSetFollowup(id,val){
 const ASSIGN={ids:[], reps:null, projs:null, after:null, pid:null};
 async function assignLeads(ids, after){
   ids=(ids||[]).filter(Boolean);
-  if(!ids.length) return toast('Nothing selected','err');
+  // never send a lead that already sits with a team member — the server refuses it
+  // anyway, but drop it here so the count the user sees is the count that moves
+  const before=ids.length;
+  ids=ids.filter(id=>{ const l=(LEADS||[]).find(x=>x.id===id); return !l || _leadPickable(l); });
+  if(before!==ids.length) toast((before-ids.length)+' already assigned — skipped','err');
+  if(!ids.length) return toast('Nothing left to assign — pull a lead back first','err');
   ASSIGN.ids=ids; ASSIGN.after=after||_assignRefresh; ASSIGN.pid=null;
   try{
     if(!ASSIGN.reps){ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN});
