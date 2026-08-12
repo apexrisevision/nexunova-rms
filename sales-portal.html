@@ -2764,13 +2764,16 @@ function _leadsRender(){
     +(uncheckedN?chip('unchecked','Unchecked',uncheckedN):'')
     +LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')
     +(isMgr?chip('assigned','Assigned',assignedN):'')+'</div>';
+  if(LEADSEL.on) html+=_leadSelBar(); else html+=_leadUndoBar();
   html+='<div id="lead-list"></div></div>';
   $('app-body').innerHTML=html;
   _leadListRender();
 }
 function _leadSetScope(k){ LEADV.scope=k; _leadsRender(); }
 function _leadSetOwn(k){ LEADV.own=k; _leadsRender(); }
-function _leadListRender(){
+// the rows currently on screen (filter + search + sort) — shared by the list and
+// by "Select all" so the two can never disagree
+function _leadVisibleRows(){
   const f=LEADV.filter;
   let rows=_leadBase().filter(l=>
     f==='all' ? true
@@ -2788,6 +2791,11 @@ function _leadListRender(){
   else if(s==='newest') rows=rows.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
   else if(s==='oldest') rows=rows.slice().sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
   else if(s==='name') rows=rows.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  return rows;
+}
+function _leadListRender(){
+  const rows=_leadVisibleRows();
+  const q=(LEADV.q||'').trim().toLowerCase();
   const el=$('lead-list'); if(!el) return;
   if(!rows.length){
     const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
@@ -2830,10 +2838,14 @@ function _leadCard(l){
   } else if(canAssign && _distributablePool(l)){
     foot=`<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openAssign('${l.id}')">Assign to team →</button>`;
   }
-  return `<div class="lrow lead-row${unchecked?' lead-unread':''}" style="--lc:${col}${unchecked?'':';opacity:.78'}">
+  const selOn=LEADSEL.on, picked=selOn&&LEADSEL.ids.includes(l.id);
+  const chk=selOn?`<span class="dck" style="flex:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>`:'';
+  return `<div class="lrow lead-row${unchecked?' lead-unread':''}${picked?' sel':''}" style="--lc:${col}${unchecked?'':';opacity:.78'}"
+      onpointerdown="_lpStart(event,'${l.id}')" onpointerup="_lpEnd()" onpointercancel="_lpEnd()" onpointerleave="_lpEnd()"
+      oncontextmenu="return _lpCtx(event,'${l.id}')">
     <div class="lrow-top">
-      <div class="lead-main" onclick="openLead('${l.id}')">
-        ${_avatarC(l.name,40)}
+      <div class="lead-main" onclick="_leadRowClick(event,'${l.id}')">
+        ${chk}${_avatarC(l.name,40)}
         <div style="flex:1;min-width:0"><div class="lr-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${dot}${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${l.project_name?_projChip(l.project_name):''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
       </div>
       <div class="lead-right">${stat}<span class="lead-date">${esc(fdateShort(l.created_at))}</span>${_leadFuTag(l)}</div>
@@ -2842,6 +2854,149 @@ function _leadCard(l){
   </div>`;
 }
 function _leadFilter(f){ LEADV.filter=f; _leadsRender(); }
+// ════ Leads — long-press multi-select (select all · assign · move · delete) ════
+let LEADSEL={on:false, ids:[], reps:null, projs:null, undo:null};
+let _LP={t:null, fired:false};
+function _leadSelCan(){ return !!(ME && (ME.role==='director'||ME.role==='admin'||ME.role==='cfo')); }   // move/delete
+function _lpStart(ev,id){
+  if(LEADSEL.on) return;
+  _LP.fired=false; clearTimeout(_LP.t);
+  _LP.t=setTimeout(()=>{ _LP.fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){}
+    LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }, 420);
+}
+function _lpEnd(){ clearTimeout(_LP.t); }
+function _lpCtx(ev,id){                       // desktop right-click = same thing
+  if(ev&&ev.preventDefault) ev.preventDefault();
+  if(!LEADSEL.on){ LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }
+  return false;
+}
+function _leadRowClick(ev,id){
+  if(_LP.fired){ _LP.fired=false; return; }   // swallow the click that follows a long-press
+  if(LEADSEL.on) return _leadSelToggle(id);
+  openLead(id);
+}
+function _leadSelToggle(id){
+  const i=LEADSEL.ids.indexOf(id);
+  if(i>=0) LEADSEL.ids.splice(i,1); else LEADSEL.ids.push(id);
+  if(!LEADSEL.ids.length) LEADSEL.on=false;
+  _leadsRender();
+}
+function _leadSelCancel(){ LEADSEL.on=false; LEADSEL.ids=[]; _leadsRender(); }
+function _leadSelVisible(){ return _leadVisibleRows().map(l=>l.id); }
+function _leadSelAll(){
+  const pool=_leadSelVisible();
+  const allOn=pool.length>0 && pool.every(id=>LEADSEL.ids.includes(id));
+  if(allOn) LEADSEL.ids=LEADSEL.ids.filter(id=>!pool.includes(id));
+  else pool.forEach(id=>{ if(!LEADSEL.ids.includes(id)) LEADSEL.ids.push(id); });
+  if(!LEADSEL.ids.length) LEADSEL.on=false;
+  _leadsRender();
+}
+function _leadSelBar(){
+  const n=LEADSEL.ids.length, pool=_leadSelVisible();
+  const allOn=pool.length>0 && pool.every(id=>LEADSEL.ids.includes(id));
+  const canAssign=!!(LEADCFG&&LEADCFG.can_assign), adm=_leadSelCan();
+  return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5">
+    <b style="font-size:var(--fs-body)">${n} selected</b>
+    <button class="btn btn-sm" onclick="_leadSelAll()">${allOn?'Clear':'Select all'}</button>
+    <span style="flex:1"></span>
+    ${canAssign?`<button class="btn btn-sm btn-primary" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign to team</button>`:''}
+    ${adm?`<button class="btn btn-sm" ${n?'':'disabled'} onclick="_leadSelMove()">Move</button>`:''}
+    ${adm?`<button class="btn btn-sm" ${n?'':'disabled'} onclick="_leadSelDelete()" style="color:var(--fk-danger)">Delete</button>`:''}
+    <button class="btn btn-sm" onclick="_leadSelCancel()">Cancel</button>
+  </div>`;
+}
+function _leadUndoBar(){
+  const u=LEADSEL.undo; if(!u) return '';
+  return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:var(--fs-secondary)">${u.n} lead${u.n==1?'':'s'} deleted</span>
+    <span style="flex:1"></span>
+    <button class="btn btn-sm btn-primary" onclick="_leadSelUndo()">Undo</button>
+    <button class="btn btn-sm" onclick="LEADSEL.undo=null;_leadsRender()">Dismiss</button>
+  </div>`;
+}
+// step 1 — which project's leads are we handing over
+async function _leadSelAssign(){
+  const picked=LEADS.filter(l=>LEADSEL.ids.includes(l.id));
+  const m=new Map();
+  picked.forEach(l=>{ const id=l.project_id||'none', nm=l.project_name||'No project';
+    const e=m.get(id)||{id,name:nm,n:0}; e.n++; m.set(id,e); });
+  const projs=[...m.values()].sort((a,b)=>b.n-a.n);
+  if(projs.length===1) return _leadSelAssignProj(projs[0].id);
+  const body=projs.map(p=>`<div class="lrow tap" onclick="_leadSelAssignProj('${p.id}')"><div class="lrow-top">
+     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.name)}</div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${p.n} selected lead${p.n==1?'':'s'}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700">Choose →</span></div></div>`).join('');
+  openModal('Which project?','<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+}
+// step 2 — that project's team members
+async function _leadSelAssignProj(pid){
+  if(!LEADSEL.reps){
+    try{ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN});
+      LEADSEL.reps=(data&&data.users)||[]; }catch(e){ return toast('Could not load team','err'); }
+  }
+  const all=LEADSEL.reps||[];
+  const mine=(pid&&pid!=='none')?all.filter(u=>u.home_project_id===pid):all;
+  const list=mine.length?mine:all;
+  if(!list.length) return toast('No team member available','err');
+  const ids=LEADSEL.ids.filter(id=>{ const l=LEADS.find(x=>x.id===id); return (pid==='none'||!pid)?true:(l&&(l.project_id||'none')===pid); });
+  LEADSEL.pendIds=ids;                       // kept in state, not stuffed into the onclick
+  const body=list.map(u=>`<div class="lrow tap" onclick="_leadSelAssignTo('${u.id}')"><div class="lrow-top">
+     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):''}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700">Assign →</span></div></div>`).join('');
+  const more=(mine.length&&mine.length!==all.length)?`<div style="text-align:center;margin-top:10px"><a href="#" onclick="_leadSelAssignProj(null);return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`:'';
+  openModal('Assign '+ids.length+' lead'+(ids.length==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>'+more,'<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+}
+async function _leadSelAssignTo(uid){
+  const ids=(LEADSEL.pendIds||LEADSEL.ids).slice();
+  if(!ids.length) return;
+  closeModal();
+  try{ const {data}=await sb.rpc('assign_leads_bulk',{p_session_token:TOKEN,p_lead_ids:ids,p_to_id:uid});
+    if(data&&data.success){ toast((data.assigned||0)+' lead'+((data.assigned==1)?'':'s')+' → '+(data.to_name||'team'),'ok');
+      LEADSEL.on=false; LEADSEL.ids=[]; renderLeads(); }
+    else toast((data&&data.message)||'Could not assign','err');
+  }catch(e){ toast('Could not assign','err'); }
+}
+async function _leadSelMove(){
+  if(!LEADSEL.projs){
+    try{ const {data}=await sb.rpc('list_group_projects',{p_session_token:TOKEN});
+      LEADSEL.projs=(data&&data.projects)||[]; }catch(e){ return toast('Could not load projects','err'); }
+  }
+  const body=(LEADSEL.projs||[]).map(p=>`<div class="lrow tap" onclick="_leadSelMoveTo('${p.id}')"><div class="lrow-top">
+     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.name)}</div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${esc(p.tag||'')}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700">Move →</span></div></div>`).join('');
+  openModal('Move '+LEADSEL.ids.length+' lead'+(LEADSEL.ids.length==1?'':'s')+' to project','<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+}
+async function _leadSelMoveTo(pid){
+  const ids=LEADSEL.ids.slice(); closeModal();
+  try{ const {data}=await sb.rpc('move_leads_project_bulk',{p_session_token:TOKEN,p_lead_ids:ids,p_project_id:pid});
+    if(data&&data.success){ toast((data.moved||0)+' lead'+((data.moved==1)?'':'s')+' → '+(data.project_name||'project'),'ok');
+      LEADSEL.on=false; LEADSEL.ids=[]; renderLeads(); }
+    else toast((data&&data.message)||'Could not move','err');
+  }catch(e){ toast('Could not move','err'); }
+}
+function _leadSelDelete(){
+  const n=LEADSEL.ids.length;
+  openModal('Delete '+n+' lead'+(n==1?'':'s')+'?',
+    '<div style="font-size:var(--fs-body)">These leads will be hidden from every list. Nothing is lost — you can undo it right after, and your office can restore them later.</div>',
+    '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--fk-danger);border-color:var(--fk-danger)" onclick="_leadSelDeleteRun()">Delete</button>');
+}
+async function _leadSelDeleteRun(){
+  const ids=LEADSEL.ids.slice(); closeModal();
+  try{ const {data}=await sb.rpc('delete_leads_bulk',{p_session_token:TOKEN,p_lead_ids:ids});
+    if(data&&data.success){ LEADSEL.on=false; LEADSEL.ids=[]; LEADSEL.undo={ids, n:Number(data.deleted||0)};
+      toast((data.deleted||0)+' lead'+((data.deleted==1)?'':'s')+' deleted','ok'); renderLeads(); }
+    else toast((data&&data.message)||'Could not delete','err');
+  }catch(e){ toast('Could not delete','err'); }
+}
+async function _leadSelUndo(){
+  const u=LEADSEL.undo; if(!u) return;
+  try{ const {data}=await sb.rpc('restore_leads_bulk',{p_session_token:TOKEN,p_lead_ids:u.ids});
+    if(data&&data.success){ toast((data.restored||0)+' lead'+((data.restored==1)?'':'s')+' restored','ok'); LEADSEL.undo=null; renderLeads(); }
+    else toast((data&&data.message)||'Could not restore','err');
+  }catch(e){ toast('Could not restore','err'); }
+}
 async function _leadStage(id,status){
   try{ const {data}=await sb.rpc('move_deal_stage',{p_session_token:TOKEN,p_id:id,p_status:status});
     if(data&&data.success){ const l=LEADS.find(x=>x.id===id);
