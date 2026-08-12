@@ -2974,20 +2974,95 @@ function _leadSelAll(){
   if(!LEADSEL.ids.length) LEADSEL.on=false;
   _leadsRender();
 }
+// Standard contextual action bar: close (✕) · count "n of N" · Select all ·
+// overflow (⋯) for the long tail · one primary action on the right.
 function _leadSelBar(){
   const n=LEADSEL.ids.length, pool=_leadSelVisible();
   const allOn=pool.length>0 && pool.every(id=>LEADSEL.ids.includes(id));
-  const canAssign=!!(LEADCFG&&LEADCFG.can_assign), adm=_leadSelCan();
+  const canAssign=!!(LEADCFG&&LEADCFG.can_assign);
   return `<div class="selbar">
-    <b style="font-size:var(--fs-body)">${n} selected</b>
-    <button class="btn btn-sm" onclick="_leadSelAll()">${allOn?'Clear':'Select all'}</button>
+    <button class="lead-act" onclick="_leadSelCancel()" aria-label="Cancel selection" title="Cancel selection (Esc)">${li('x',15,2.4)}</button>
+    <b style="font-size:var(--fs-body)">${n}<span style="font-weight:500;color:var(--fk-text-muted)"> of ${pool.length} selected</span></b>
     <span style="flex:1"></span>
-    ${adm?`<button class="btn btn-sm" ${n?'':'disabled'} onclick="_leadSelMove()">Move</button>`:''}
-    ${adm?`<button class="btn btn-sm" ${n?'':'disabled'} onclick="_leadSelDelete()" style="color:var(--fk-danger)">Delete</button>`:''}
-    <button class="btn btn-sm" onclick="_leadSelCancel()">Cancel</button>
-    ${canAssign?`<button class="btn btn-sm btn-primary" style="flex:1;min-width:130px" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign to team →</button>`:''}
+    <button class="lead-act" onclick="_leadSelAll()">${allOn?'Clear all':'Select all'}</button>
+    <button class="lead-act" onclick="_leadSelMore()" aria-label="More actions" title="More actions">⋯</button>
+    ${canAssign?`<button class="btn btn-sm btn-primary" style="flex:1;min-width:140px" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign to team →</button>`:''}
   </div>`;
 }
+// the long tail lives in one sheet so the bar stays readable on a phone
+function _leadSelMore(){
+  const n=LEADSEL.ids.length, adm=_leadSelCan();
+  const row=(icon,label,onclick,sub,danger)=>`<div class="lrow tap" onclick="${onclick}"><div class="lrow-top">
+      <span style="width:30px;flex:none;color:${danger?'var(--fk-danger)':'var(--fk-text-muted)'}">${li(icon,17,2)}</span>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body)${danger?';color:var(--fk-danger)':''}">${esc(label)}</div>
+      ${sub?`<div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${esc(sub)}</div>`:''}</div></div></div>`;
+  let body='<div class="lgroup">'
+    + row('clock','Set follow-up','_leadSelFollowup()','Pick a date for all '+n)
+    + row('check','Mark as checked','_leadSelSeen()','Clears the unread dot')
+    + row('x','Mark as lost','_leadSelLost()','Reason required')
+    + (adm?row('home','Move to project','_leadSelMove()','Change which project these belong to'):'')
+    + row('copy','Copy phone numbers','_leadSelCopy()',n+' number'+(n==1?'':'s')+' to the clipboard')
+    + row('minus','Invert selection','_leadSelInvert()','Swap what is picked on this screen')
+    + (adm?row('minus','Delete','_leadSelDelete()','Hidden from lists, undo available',true):'')
+    + '</div>';
+  openModal(n+' lead'+(n==1?'':'s')+' selected', body, '<button class="btn btn-full" onclick="closeModal()">Close</button>');
+}
+function _leadSelInvert(){
+  closeModal();
+  const pool=_leadSelVisible();
+  LEADSEL.ids=pool.filter(id=>!LEADSEL.ids.includes(id));
+  if(!LEADSEL.ids.length) LEADSEL.on=false;
+  _leadsRender();
+}
+function _leadSelCopy(){
+  closeModal();
+  const nums=LEADS.filter(l=>LEADSEL.ids.includes(l.id)).map(l=>l.phone).filter(Boolean);
+  if(!nums.length) return toast('No phone numbers in the selection','err');
+  const txt=nums.join('\n');
+  const done=()=>toast(nums.length+' number'+(nums.length==1?'':'s')+' copied','ok');
+  try{ navigator.clipboard.writeText(txt).then(done,()=>_copyFallback(txt,done)); }
+  catch(e){ _copyFallback(txt,done); }
+}
+function _copyFallback(txt,done){
+  try{ const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select();
+    document.execCommand('copy'); document.body.removeChild(t); done(); }
+  catch(e){ toast('Could not copy','err'); }
+}
+function _leadSelFollowup(){
+  closeModal();
+  const d=(days)=>{ const x=new Date(); x.setDate(x.getDate()+days); x.setHours(10,0,0,0); return x.toISOString(); };
+  const opt=(lb,iso)=>`<div class="lrow tap" onclick="_leadSelBulk('followup','${iso}',null)"><div class="lrow-top">
+     <div style="flex:1"><div style="font-weight:600;font-size:var(--fs-body)">${esc(lb)}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700">Set →</span></div></div>`;
+  openModal('Follow up on…','<div class="lgroup">'+opt('Today',d(0))+opt('Tomorrow',d(1))+opt('In 3 days',d(3))+opt('Next week',d(7))+'</div>',
+    '<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+}
+function _leadSelSeen(){ closeModal(); _leadSelBulk('seen',null,null); }
+function _leadSelLost(){
+  closeModal();
+  openModal('Mark '+LEADSEL.ids.length+' lead'+(LEADSEL.ids.length==1?'':'s')+' lost',
+    '<div class="field"><label class="label">Reason <span style="color:var(--fk-danger)">*</span></label><input class="input" id="bl-reason" placeholder="e.g. budget too low, bought elsewhere"></div>',
+    '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_leadSelLostRun()">Mark lost</button>');
+}
+function _leadSelLostRun(){
+  const r=(($('bl-reason')||{}).value||'').trim();
+  if(r.length<3) return toast('Add a reason first','err');
+  closeModal(); _leadSelBulk('lost',null,r);
+}
+async function _leadSelBulk(action,when,reason){
+  const ids=LEADSEL.ids.slice(); if(!ids.length) return;
+  try{ const {data}=await sb.rpc('bulk_lead_action',{p_session_token:TOKEN,p_lead_ids:ids,p_action:action,p_when:when,p_reason:reason});
+    if(data&&data.success){
+      const lbl=action==='seen'?'marked checked':action==='followup'?'scheduled':'marked lost';
+      toast((data.done||0)+' lead'+((data.done==1)?'':'s')+' '+lbl+((data.skipped?' · '+data.skipped+' skipped':'')),'ok');
+      LEADSEL.on=false; LEADSEL.ids=[]; renderLeads();
+    } else toast((data&&data.message)||'Could not update','err');
+  }catch(e){ toast('Could not update','err'); }
+}
+// Esc exits selection — the desktop convention
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && typeof LEADSEL!=='undefined' && LEADSEL.on){ _leadSelCancel(); }
+});
 // one-time discovery hint — nobody finds long-press on their own
 function _leadTip(){
   try{ if(localStorage.getItem('rms.sales.tip.longpress')==='1') return ''; }catch(e){ return ''; }
