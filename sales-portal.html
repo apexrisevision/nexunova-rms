@@ -2805,7 +2805,47 @@ function _boardOpen(id){
     + `<button class="btn btn-primary" onclick="closeModal();_boardLeads('${m.id}')">See their leads →</button>`;
   openModal(esc(String(m.name||"Member")), body, foot);
 }
-function _boardLeads(id){ TEAM_AGENT=id; ORG_VIEW={view:"leads"}; MEMBER_SCOPE="self"; renderMemberLeads(); }
+// "See their leads" — self-contained on purpose. The org-tree screen it used to
+// borrow reads ORG_VIEW.member and ORG_DATA, neither of which exists when you come
+// from the dashboard, so it silently bounced back and looked like a dead button.
+async function _boardLeads(id){
+  const d=DBOARD.data||{};
+  const m=(d.members||[]).find(x=>x.id===id)||{};
+  const pj=(d.projects||[]).find(x=>x.id===DBOARD.proj);
+  $("app-body").innerHTML=_skel();
+  let res;
+  try{ const r=await sb.rpc("get_member_leads",{p_session_token:TOKEN,p_member:id,p_scope:"self"}); res=r.data; }
+  catch(e){ toast("Could not load their leads","err"); return renderManagerHome(); }
+  if(res&&res.error==="session_expired") return sessionGone();
+  if(!res||!res.success){ toast((res&&res.message)||"Could not load their leads","err"); return renderManagerHome(); }
+  _touch();
+  let leads=res.leads||[];
+  if(pj&&pj.name) leads=leads.filter(l=>String(l.project_name||"")===String(pj.name));   // honour the active tab
+  const nm=String(res.name||m.name||"Member");
+  let html=`<div class="nx-dash"><button class="backbtn" onclick="renderManagerHome()" style="margin-bottom:var(--fk-sp-3)">‹ Your team</button>`;
+  html+=`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:var(--fk-sp-3)">${_avatarC(nm,40)}
+    <div style="flex:1;min-width:0"><div style="font-size:var(--fk-fs-title);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nm)}</div>
+    <div style="font-size:var(--fk-fs-body);color:var(--fk-text-muted)">${leads.length} lead${leads.length==1?"":"s"}${pj?" · "+esc(pj.tag||pj.name):""}</div></div>
+    ${m.phone?`<a class="lead-act" href="tel:${esc(m.phone)}" onclick="event.stopPropagation()">${li("phone",14,2.1)} Call</a>`:""}</div>`;
+  if(!leads.length){ html+=_emptyCard("No leads here", pj?("Nothing of "+esc(pj.tag||pj.name)+" with them yet."):"They are not holding any leads yet."); }
+  else {
+    const PT={new:["var(--fk-primary-tint)","var(--fk-primary)"],contacted:["var(--fk-warning-surface)","var(--fk-warning)"],
+      visit:["var(--fk-info-surface)","var(--fk-info)"],negotiation:["var(--nx-violet-soft)","var(--nx-violet)"],
+      won:["var(--fk-success-surface)","var(--fk-success)"],lost:["var(--fk-bg-subtle)","var(--fk-text-muted)"]};
+    const pill=(st)=>{ const t=PT[st]||PT.lost;
+      return `<span class="spill" style="background:${t[0]};border-color:transparent;color:${t[1]};white-space:nowrap">${esc(_leadStageLabel(st)||st||"")}</span>`; };
+    html+=`<div class="dsec">Their leads <span class="nb">${leads.length}</span></div><div class="lgroup">`;
+    html+=leads.map(l=>`<div class="lrow tap" onclick="openLead('${l.id}')"><div class="lrow-top">
+      ${_avatarC(l.name||"Lead",36)}
+      <div style="flex:1;min-width:0"><div class="lr-name">${esc(l.name||"Lead")}</div>
+      <div class="lr-sub" style="display:flex;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(phDisp(l.phone)):"—"}</span>
+      ${l.project_name?_projChip(l.project_name):""}${l.last_activity_at?`<span>${esc(agoTxt(l.last_activity_at))}</span>`:""}</div></div>
+      ${pill(l.status)}</div></div>`).join("");
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  $("app-body").innerHTML=html;
+}
 async function renderManagerHome(){
   TEAM_AGENT=null; TEAM_OPEN={}; TEAM_KIDS={};
   if(!_BG) $('app-body').innerHTML=_skel();
