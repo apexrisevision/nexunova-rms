@@ -2914,20 +2914,30 @@ function _leadUndoBar(){
     <button class="btn btn-sm" onclick="LEADSEL.undo=null;_leadsRender()">Dismiss</button>
   </div>`;
 }
-// step 1 — which project's leads are we handing over
+// step 1 — which project's team are we entering. ALL projects of the group are
+// listed (KBH, FMH, Awami …), not just the ones the selected leads sit in, so a
+// lead can be handed to any project's team.
 async function _leadSelAssign(){
-  const picked=LEADS.filter(l=>LEADSEL.ids.includes(l.id));
-  const m=new Map();
-  picked.forEach(l=>{ const id=l.project_id||'none', nm=l.project_name||'No project';
-    const e=m.get(id)||{id,name:nm,n:0}; e.n++; m.set(id,e); });
-  const projs=[...m.values()].sort((a,b)=>b.n-a.n);
-  // always ask which project to enter first — even when the selection is all one
-  // project — so the flow reads the same every time
-  const body=projs.map(p=>`<div class="lrow tap" onclick="_leadSelAssignProj('${p.id}')"><div class="lrow-top">
-     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.name)}</div>
-     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${p.n} selected lead${p.n==1?'':'s'}</div></div>
-     <span style="color:var(--fk-primary);font-weight:700">Choose →</span></div></div>`).join('');
-  openModal('Which project?','<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+  if(!LEADSEL.projs){
+    try{ const {data}=await sb.rpc('list_group_projects',{p_session_token:TOKEN});
+      LEADSEL.projs=(data&&data.projects)||[]; }catch(e){ return toast('Could not load projects','err'); }
+  }
+  // how the current selection splits across projects — shown as a hint per row
+  const mine={}; LEADS.filter(l=>LEADSEL.ids.includes(l.id))
+    .forEach(l=>{ const k=l.project_id||'none'; mine[k]=(mine[k]||0)+1; });
+  const projs=(LEADSEL.projs||[]);
+  if(!projs.length) return _leadSelAssignProj(null);
+  const staffN=(pid)=>((LEADSEL.reps||[]).filter(u=>u.home_project_id===pid).length);
+  const body=projs.map(p=>{
+    const n=mine[p.id]||0, s=staffN(p.id);
+    const bits=[n?(n+' of your selection'):'', s?(s+' staff'):''].filter(Boolean).join(' · ');
+    return `<div class="lrow tap" onclick="_leadSelAssignProj('${p.id}')"><div class="lrow-top">
+     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.tag||p.name)}</div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${esc(p.name)}${bits?' · '+bits:''}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700">Enter →</span></div></div>`;
+  }).join('');
+  openModal('Assign '+LEADSEL.ids.length+' lead'+(LEADSEL.ids.length==1?'':'s')+' — which project?',
+    '<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
 }
 // step 2 — that project's team members
 async function _leadSelAssignProj(pid){
@@ -2940,7 +2950,9 @@ async function _leadSelAssignProj(pid){
   const mine=(pid&&pid!=='none')?all.filter(u=>u.home_project_id===pid):all;
   const list=mine.length?mine:all;
   if(!list.length) return toast('No team member available','err');
-  const ids=LEADSEL.ids.filter(id=>{ const l=LEADS.find(x=>x.id===id); return (pid==='none'||!pid)?true:(l&&(l.project_id||'none')===pid); });
+  // entering a project picks WHOSE team gets the leads — the whole selection goes
+  // to the member you tap, whichever project the leads themselves sit in
+  const ids=LEADSEL.ids.slice();
   LEADSEL.pendIds=ids;                       // kept in state, not stuffed into the onclick
   const body=list.map(u=>`<div class="lrow tap" onclick="_leadSelAssignTo('${u.id}')"><div class="lrow-top">
      ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div>
