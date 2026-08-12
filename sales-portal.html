@@ -581,6 +581,8 @@ body{background:var(--nx-page)}
   display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 body.mode-tabs .selbar{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
 body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+/* the host sits on <body> so no animated/transformed ancestor can capture it */
+#selbar-host{position:relative;z-index:40}
 /* touch targets: 36 on desktop, 40 on phones (icon-only buttons stay square) */
 .lead-act{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:36px;min-width:36px;padding:0 12px;
   border:1px solid var(--fk-border);background:var(--fk-bg-card);border-radius:var(--fk-radius-pill);
@@ -2274,7 +2276,7 @@ function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
-    LEADSEL.on=false; LEADSEL.ids=[]; try{ document.body.classList.remove('selecting'); }catch(e){}
+    LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
   }
   if(t==='leadentry') renderLeadEntry();
   else if(t==='myleads') renderMyLeads();
@@ -2825,12 +2827,10 @@ function _leadsRender(){
     +(uncheckedN?chip('unchecked','Unchecked',uncheckedN):'')
     +LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')
     +(isMgr?chip('assigned','Assigned',assignedN):'')+'</div>';
-  // the bar is FIXED at the bottom, so the page needs room under the last row
-  try{ document.body.classList.toggle('selecting', !!LEADSEL.on); }catch(e){}
   if(!LEADSEL.on) html+=_leadUndoBar()+_leadTip();
   html+='<div id="lead-list"></div></div>';
-  html+=LEADSEL.on?_leadSelBar():'';        // fixed bottom bar — always in thumb reach
   $('app-body').innerHTML=html;
+  _selbarSync();                            // bar is mounted on <body>, outside the animated container
   _leadListRender();
 }
 function _clrToggle(id,el){ const b=document.getElementById(id); if(b) b.style.display=(el&&el.value)?'grid':'none'; }
@@ -2924,7 +2924,11 @@ function _leadCard(l){
       <button class="lead-act wa" onclick="event.stopPropagation();_leadWa('${l.id}','${esc(l.phone)}')">${li('message',13,2.1)} WhatsApp</button>
     </span>` : '';
   let foot='';
-  if(_leadAssigned(l) && l.owner_name && !l.is_mine){
+  // NOTHING per-row while selecting: a single-lead "Assign" button sitting on a
+  // selected card is a trap — tapping it assigned that ONE lead and silently
+  // dropped the other five. In selection mode the only assign is the bottom bar.
+  if(LEADSEL.on){ foot=''; }
+  else if(_leadAssigned(l) && l.owner_name && !l.is_mine){
     foot=`<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">${li('check',12,2.4)} Assigned to ${esc(l.owner_name)}</span>`;
   } else if(canAssign && _distributablePool(l)){
     foot=`<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openAssign('${l.id}')">Assign to team →</button>`;
@@ -2972,7 +2976,8 @@ function _lpStart(ev,id){
   if(_LP.el) _LP.el.classList.add('lead-picking');          // "I felt that" while holding
   _LP.t=setTimeout(()=>{ _LP.fired=true; _lpClear();
     try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){}
-    LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }, 420);
+    LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender();
+    toast('1 selected — tap more, then use the bar at the bottom','ok'); }, 420);
 }
 function _lpMove(ev){    // finger moved → this is a scroll, not a long-press
   if(!_LP.t) return;
@@ -3006,6 +3011,22 @@ function _leadSelAll(){
   if(!LEADSEL.ids.length) LEADSEL.on=false;
   _leadsRender();
 }
+// The bar lives on <body>, NOT inside #app-body. #app-body carries the .rise
+// animation (a transform), and a transformed ancestor becomes the containing
+// block for position:fixed — which is why the bar could end up off-screen and
+// the owner saw no way to assign a whole selection. Mounting it on body also
+// means an #app-body re-render can never wipe it.
+function _selbarHost(){
+  let h=document.getElementById('selbar-host');
+  if(!h){ h=document.createElement('div'); h.id='selbar-host'; document.body.appendChild(h); }
+  return h;
+}
+function _selbarSync(){
+  const h=_selbarHost();
+  const on=(typeof LEADSEL!=='undefined') && LEADSEL.on;
+  h.innerHTML = on ? _leadSelBar() : '';
+  try{ document.body.classList.toggle('selecting', !!on); }catch(e){}
+}
 // Standard contextual action bar: close (✕) · count "n of N" · Select all ·
 // overflow (⋯) for the long tail · one primary action on the right.
 function _leadSelBar(){
@@ -3018,7 +3039,7 @@ function _leadSelBar(){
     <span style="flex:1"></span>
     <button class="lead-act" onclick="_leadSelAll()">${allOn?'Clear all':'Select all'}</button>
     <button class="lead-act" onclick="_leadSelMore()" aria-label="More actions" title="More actions">⋯</button>
-    ${canAssign?`<button class="btn btn-sm btn-primary" style="flex:1;min-width:140px" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign to team →</button>`:''}
+    ${canAssign?`<button class="btn btn-sm btn-primary" style="flex:1;min-width:150px" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign ${n} lead${n==1?'':'s'} →</button>`:''}
   </div>`;
 }
 // the long tail lives in one sheet so the bar stays readable on a phone
@@ -4401,7 +4422,13 @@ async function _assignRun(uid){
     } else toast((data&&data.message)||'Could not assign','err');
   }catch(e){ toast('Could not assign','err'); }
 }
-async function openAssign(id){ return assignLeads([id]); }
+async function openAssign(id){
+  // Safety net: if a selection is live and this lead is part of it, hand over the
+  // WHOLE selection. Losing five of six leads to a stray tap must not be possible.
+  if(typeof LEADSEL!=='undefined' && LEADSEL.on && LEADSEL.ids.length>1 && LEADSEL.ids.includes(id))
+    return assignLeads(LEADSEL.ids.slice());
+  return assignLeads([id]);
+}
 function _assignTo(leadId,toId){ ASSIGN.ids=[leadId]; return _assignRun(toId); }
 function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div></div>'; }
 // ════ Manager — My Team (roster + per-agent numbers) ════
