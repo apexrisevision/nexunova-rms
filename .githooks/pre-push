@@ -1,0 +1,32 @@
+#!/bin/sh
+# Nexunova RMS — PUSH GATE
+#
+# Nothing reaches origin without passing both:
+#   1. predeploy-check.js  — static: syntax, dead modals, undefined handlers
+#   2. smoke-portal.js     — a real browser clicking the real portal
+#
+# The second one exists because the first cannot see an off-screen action bar, a
+# button wired to state the caller never sets, or a bulk action that sends 1 id
+# instead of 6. All three of those reached the owner. Not again.
+#
+# Emergency bypass (say so in the commit message):  SKIP_GATE=1 git push
+if [ "$SKIP_GATE" = "1" ]; then
+  echo "push-gate: SKIPPED by SKIP_GATE=1"
+  exit 0
+fi
+
+echo "push-gate: static checks…"
+node scripts/predeploy-check.js || { echo "push-gate: BLOCKED (static checks failed)"; exit 1; }
+
+echo "push-gate: real-browser click-through…"
+node scripts/smoke-portal.js
+rc=$?
+if [ $rc -eq 2 ]; then
+  echo "push-gate: browser or database unavailable — click-through could not run."
+  echo "           Re-run when online, or push with SKIP_GATE=1 if you accept the risk."
+  exit 1
+fi
+[ $rc -eq 0 ] || { echo "push-gate: BLOCKED (portal smoke failed)"; exit 1; }
+
+echo "push-gate: PASSED"
+exit 0

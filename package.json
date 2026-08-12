@@ -12,7 +12,9 @@
     "check:forms": "node scripts/smoke-forms.js",
     "check:pages": "node scripts/smoke-pages.js",
     "check:all": "node scripts/predeploy-check.js && node scripts/smoke-forms.js && node scripts/smoke-pages.js",
-    "predeploy": "node scripts/predeploy-check.js"
+    "predeploy": "node scripts/predeploy-check.js",
+    "smoke:portal": "node scripts/smoke-portal.js",
+    "gate": "node scripts/predeploy-check.js && node scripts/smoke-portal.js"
   },
   "build": {
     "appId": "com.nexunova.rms",
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "electron": "^35.7.5",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "puppeteer-core": "^25.6.0"
   }
 }
