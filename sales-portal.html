@@ -2935,8 +2935,8 @@ async function _leadSelAssignProj(pid){
     try{ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN});
       LEADSEL.reps=(data&&data.users)||[]; }catch(e){ return toast('Could not load team','err'); }
   }
-  const byLoad=(a,b)=>(Number(b.open_leads||0)-Number(a.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
-  const all=(LEADSEL.reps||[]).slice().sort(byLoad);        // most leads in hand first
+  const byLoad=(a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
+  const all=(LEADSEL.reps||[]).slice().sort(byLoad);        // lightest load first
   const mine=(pid&&pid!=='none')?all.filter(u=>u.home_project_id===pid):all;
   const list=mine.length?mine:all;
   if(!list.length) return toast('No team member available','err');
@@ -5171,7 +5171,7 @@ function _distSetProj(id){
 // Staff for the active project tab. "All projects" (or a project nobody is tagged
 // to, or the Show-all escape) falls back to the full team so nobody gets stranded.
 function _distReps(){
-  const all=(DISTV.reps||[]).slice().sort((a,b)=>(Number(b.open_leads||0)-Number(a.open_leads||0))||String(a.name||'').localeCompare(String(b.name||'')));
+  const all=(DISTV.reps||[]).slice().sort((a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||'')));   // lightest load first
   if(DISTV.proj==='all'||DISTV.proj==='none'||DISTV.allReps) return all;
   const mine=all.filter(u=>u.home_project_id===DISTV.proj);
   return mine.length?mine:all;
