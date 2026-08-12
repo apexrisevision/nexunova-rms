@@ -589,6 +589,7 @@ body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0
   box-shadow:var(--fk-shadow);padding:12px;cursor:pointer;transition:box-shadow .16s,border-color .16s,transform .16s}
 .tbd-c:hover{border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border));transform:translateY(-2px)}
 .tbd-c.idle{border-style:dashed;box-shadow:none}
+.tbd-c.out{border-color:color-mix(in srgb,var(--fk-warning) 45%,var(--fk-border));background:var(--fk-warning-surface)}
 .tbd-top{display:flex;align-items:center;gap:8px;min-width:0}
 .tbd-nm{font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tbd-tag{font-size:var(--fk-fs-label);color:var(--fk-info);background:var(--fk-info-surface);border-radius:999px;padding:1px 7px;flex:none}
@@ -2742,8 +2743,18 @@ function _boardHtml(){
    + (Number(T.matured||0)?`<span class="tbd-chip good">${T.matured} matured</span>`:"")
    + (Number(T.not_opened||0)?`<span class="tbd-chip bad">${T.not_opened} never opened</span>`:"")
    + `</div>`;
-  if(!mem.length) return h+_emptyCard("No team members yet","Add someone under you in Portal Access first.");
-  h+=`<div class="tbd">`+mem.map(_boardCard).join("")+`</div>`;
+  if(!mem.length) return h+_emptyCard("No team members yet","Nobody is tagged to this project yet — set it in Portal Access.");
+  // On a project tab the list is THAT project's staff. Anyone tagged elsewhere who
+  // is holding this project's leads is shown separately instead of being hidden —
+  // those leads are in the wrong hands and that has to stay visible.
+  const own=mem.filter(m=>m.belongs!==false), out=mem.filter(m=>m.belongs===false);
+  h+=`<div class="tbd">`+own.map(_boardCard).join("")+`</div>`;
+  if(out.length){
+    const n=out.reduce((a,m)=>a+Number(m.leads||0),0);
+    const pj=(projs.find(p=>p.id===DBOARD.proj)||{});
+    h+=`<div class="dsec" style="color:var(--fk-warning)">Not ${esc(pj.tag||"this project")} staff — but holding ${n} of its lead${n==1?"":"s"}</div>`;
+    h+=`<div class="tbd">`+out.map(_boardCard).join("")+`</div>`;
+  }
   return h;
 }
 function _boardCard(m){
@@ -2757,7 +2768,8 @@ function _boardCard(m){
     Number(m.overdue||0)?`<span class="tbd-chip warn">${m.overdue} overdue</span>`:""
   ].filter(Boolean).join("");
   const nm=String(m.name||"").split(" · ")[0];
-  return `<div class="tbd-c${total?"":" idle"}" onclick="_boardOpen('${m.id}')">
+  const out=(m.belongs===false);
+  return `<div class="tbd-c${total?"":" idle"}${out?" out":""}" onclick="_boardOpen('${m.id}')">
     <div class="tbd-top">${_avatar(nm,26)}<span class="tbd-nm">${esc(nm)}</span>${m.project_tag?`<span class="tbd-tag">${esc(m.project_tag)}</span>`:""}</div>
     <div class="tbd-big">${total}</div>
     <div class="tbd-sub">leads · you gave ${Number(m.given_by_me||0)}</div>
