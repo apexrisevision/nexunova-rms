@@ -2799,7 +2799,8 @@ function _leadsRender(){
   const scoped=_leadBase();
   const counts={}; scoped.forEach(l=>{ counts[l.status]=(counts[l.status]||0)+1; });
   const total=scoped.length;
-  const assignedN=scoped.filter(_leadAssigned).length, uncheckedN=scoped.filter(l=>!l.checked&&l.status!=='won'&&l.status!=='lost').length;
+  const assignedN=scoped.filter(_leadAssigned).length,
+        uncheckedN=scoped.filter(l=>!l.checked&&l.status!=='won'&&l.status!=='lost'&&l.is_mine).length;
   _leadsBadgeSet(LEAD_UNCHECKED);   // red badge = UNCHECKED leads (drops as you open them)
   const canCreate=!!(LEADCFG && LEADCFG.sources && LEADCFG.sources.length);
   const plus='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
@@ -2863,7 +2864,7 @@ function _leadVisibleRows(){
     f==='all' ? true
     : f==='assigned'  ? _leadAssigned(l)
     : f==='toassign'  ? _distributablePool(l)      // still with you — waiting to be handed down
-    : f==='unchecked' ? (!l.checked && l.status!=='won' && l.status!=='lost')
+    : f==='unchecked' ? (!l.checked && l.status!=='won' && l.status!=='lost' && l.is_mine)
     : l.status===f);
   if(LEADV.proj && LEADV.proj!=='all') rows=rows.filter(l=>(l.project_id||'none')===LEADV.proj);
   if(typeof LEADSEL!=='undefined' && LEADSEL.on) rows=rows.filter(_leadPickable);   // selection = assignable pool only
