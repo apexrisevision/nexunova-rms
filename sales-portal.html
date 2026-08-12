@@ -826,6 +826,23 @@ button.mn-card:active{transform:scale(.985)}
 .card.listc:active{transform:scale(.994)}
 /* cohesive list — rows grouped in ONE card w/ hairline dividers (denser + sleeker than floating cards) */
 .lgroup{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);overflow:hidden;margin-bottom:12px}
+/* LEADS LIST — on the Leads screen each lead is its own card. Packed hairline rows
+   made a long list read as one grey block: no gap, nothing to tell one lead from
+   the next. Cards + a stage-coloured left edge give every lead its own boundary. */
+.nx-leads .lgroup{background:transparent;border:0;box-shadow:none;overflow:visible;
+  display:flex;flex-direction:column;gap:10px}
+.nx-leads .lgroup .lead-row{background:var(--fk-bg-card);border:1px solid var(--fk-border);
+  border-left:3px solid var(--lc,var(--fk-primary));border-radius:var(--fk-radius-card);
+  box-shadow:var(--fk-shadow);padding:12px 14px}
+.nx-leads .lgroup .lead-row:last-child{border-bottom:1px solid var(--fk-border)}
+.nx-leads .lgroup .lead-row.lead-unread{box-shadow:0 1px 2px rgba(16,26,51,.06),0 0 0 1px color-mix(in srgb,var(--lc,var(--fk-primary)) 22%,transparent)}
+.nx-leads .lgroup .lead-row.sel{border-color:var(--fk-primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--fk-primary) 28%,transparent)}
+.nx-leads .lgroup .lead-row:hover{background:var(--fk-bg-card);box-shadow:var(--nx-card-sh-hi,0 4px 14px rgba(16,26,51,.10))}
+.nx-leads .lrow-top{align-items:flex-start;gap:12px}
+.nx-leads .lr-name{font-size:var(--fs-body);line-height:1.25}
+.nx-leads .lr-sub{margin-top:4px;row-gap:4px;flex-wrap:wrap}
+.nx-leads .lead-right{gap:6px;padding-left:4px}
+.nx-leads .lead-date{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
 .lrow{padding:10px 13px;border-bottom:1px solid var(--fk-hairline);transition:background .12s}
 .lrow:last-child{border-bottom:0}
 .lrow.tap{cursor:pointer}
