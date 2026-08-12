@@ -4946,7 +4946,7 @@ function _fbWizChecklistHTML(){
   return `<div class="dsec">Setup progress</div><div class="card" style="display:flex;flex-direction:column;gap:8px">${rows}<div class="fbwiz-mut" style="font-size:var(--fs-caption)">Your operator completes connection setup. This is a read-only view.</div></div>`;
 }
 // ════ Manager — Distribute leads (hand the manager's own leads to sub-agents) ════
-let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null, q:''};
+let DISTV={sel:[], reps:[], leads:[], label:'team', plan:null, q:'', proj:'all', allReps:false};
 async function renderDistribute(){
   $('app-body').innerHTML=_skel();
   let rU,rL;
@@ -4967,9 +4967,16 @@ function _distRender(){
   let html=`<button class="backbtn" onclick="setTab('leads')" style="margin-bottom:var(--fk-sp-3)">‹ Leads</button>`;
   html+=_pageHead('Assign leads','Select leads and assign them to your '+esc(DISTV.label)+' — one by one or split equally.');
   if(!reps.length){ html+=_emptyCard('No '+esc(DISTV.label)+' yet','Add one in Portal Access first, then you can assign leads.'); $('app-body').innerHTML=html; return; }
-  // team load snapshot
+  // project tabs — work one project at a time (its leads + its staff)
+  const projs=_distProjects();
+  if(projs.length>1){
+    const segs=[['all','All ('+leads.length+')']].concat(projs.map(p=>[p.id, esc(p.name)+' ('+p.n+')']));
+    html+=_seg(segs, DISTV.proj, '_distSetProj');
+  }
+  // team load snapshot — only the staff of the active project
+  const shownReps=_distReps();
   html+='<div class="dsec">Team load</div><div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px">'
-    + reps.map(u=>`<span class="spill">${esc(u.name)} · <b>${u.open_leads}</b> open</span>`).join('')
+    + shownReps.map(u=>`<span class="spill">${esc(u.name)} · <b>${u.open_leads}</b> open</span>`).join('')
     + '</div>';
   // action toolbar
   const n=sel.length, _pool=_distFiltered(), all=_pool.length>0 && _pool.every(l=>sel.includes(l.id));
@@ -4983,16 +4990,45 @@ function _distRender(){
     const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
     html+=`<div class="lead-search">${srch}<input class="input" id="dist-q" placeholder="Search lead name or phone…" value="${esc(DISTV.q||'')}" oninput="DISTV.q=this.value;_distListRender()"></div>`;
   }
-  html+=`<div class="dsec">Leads to assign <span class="nb">${leads.length}</span></div>`;
+  html+=`<div class="dsec">Leads to assign <span class="nb">${_pool.length}</span></div>`;
   if(!leads.length){ html+=_emptyCard('All caught up','None of your leads are waiting to be handed down.'); }
   else html+='<div id="dist-list"></div>';
   $('app-body').innerHTML=html;
   _distListRender();
 }
+// Projects present in the pool, in lead-count order — these become the tabs.
+function _distProjects(){
+  const m=new Map();
+  (DISTV.leads||[]).forEach(l=>{
+    const id=l.project_id||'none', nm=l.project_name||'No project';
+    const e=m.get(id)||{id, name:nm, n:0}; e.n++; m.set(id,e);
+  });
+  return [...m.values()].sort((a,b)=>b.n-a.n);
+}
+function _distSetProj(id){
+  DISTV.proj=id; DISTV.allReps=false;
+  // drop picks belonging to another project so switching tabs can never assign them by mistake
+  if(id!=='all'){ DISTV.sel=DISTV.sel.filter(x=>{ const l=(DISTV.leads||[]).find(z=>z.id===x); return l && (l.project_id||'none')===id; }); }
+  _distRender();
+}
+// Staff for the active project tab. "All projects" (or a project nobody is tagged
+// to, or the Show-all escape) falls back to the full team so nobody gets stranded.
+function _distReps(){
+  const all=DISTV.reps||[];
+  if(DISTV.proj==='all'||DISTV.proj==='none'||DISTV.allReps) return all;
+  const mine=all.filter(u=>u.home_project_id===DISTV.proj);
+  return mine.length?mine:all;
+}
+function _distRepsFiltered(){
+  return !DISTV.allReps && DISTV.proj!=='all' && DISTV.proj!=='none'
+      && (DISTV.reps||[]).some(u=>u.home_project_id===DISTV.proj);
+}
 function _distFiltered(){
   const q=(DISTV.q||'').trim().toLowerCase();
-  if(!q) return DISTV.leads;
-  return DISTV.leads.filter(l=>String(l.name||'').toLowerCase().includes(q)||String(l.phone||'').replace(/\s/g,'').includes(q));
+  let pool=DISTV.leads||[];
+  if(DISTV.proj && DISTV.proj!=='all') pool=pool.filter(l=>(l.project_id||'none')===DISTV.proj);
+  if(!q) return pool;
+  return pool.filter(l=>String(l.name||'').toLowerCase().includes(q)||String(l.phone||'').replace(/\s/g,'').includes(q));
 }
 function _distListRender(){
   const el=$('dist-list'); if(!el) return;
@@ -5019,10 +5055,14 @@ function _distToggleAll(){
 }
 function _distAssignPick(){
   if(!DISTV.sel.length) return;
-  const body=DISTV.reps.map(u=>`<div class="lrow tap" onclick="_distBulkAssign('${u.id}')"><div class="lrow-top">
-     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${u.open_leads} open</div></div>
+  const list=_distReps();
+  const body=list.map(u=>`<div class="lrow tap" onclick="_distBulkAssign('${u.id}')"><div class="lrow-top">
+     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):''}</div></div>
      <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap">Assign →</span></div></div>`).join('');
-  openModal('Assign '+DISTV.sel.length+' lead'+(DISTV.sel.length==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+  const more=_distRepsFiltered()
+    ? `<div style="text-align:center;margin-top:10px"><a href="#" onclick="DISTV.allReps=true;closeModal();_distAssignPick();return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`
+    : '';
+  openModal('Assign '+DISTV.sel.length+' lead'+(DISTV.sel.length==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>'+more,'<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
 }
 async function _distBulkAssign(toId){
   const ids=DISTV.sel.slice(); if(!ids.length) return;
@@ -5033,7 +5073,7 @@ async function _distBulkAssign(toId){
   }catch(e){ toast('Could not assign','err'); }
 }
 function _distAuto(){
-  const ids=DISTV.sel.slice(), reps=DISTV.reps.slice();
+  const ids=DISTV.sel.slice(), reps=_distReps().slice();   // split within the active project's staff
   if(!ids.length||!reps.length) return;
   // load-balance: each lead goes to the rep with the lowest projected open load
   const load={}, plan={}; reps.forEach(u=>{ load[u.id]=Number(u.open_leads||0); });
