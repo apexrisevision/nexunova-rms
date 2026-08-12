@@ -564,7 +564,22 @@ body{background:var(--nx-page)}
 .lead-chip:hover{border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
 .lead-chip.on{background:var(--fk-primary-tint);color:var(--fk-primary);border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
 .lead-chip b{font-weight:var(--fk-fw-bold);font-variant-numeric:tabular-nums}
-.lead-row{transition:background .16s ease,box-shadow .16s ease}
+/* long-press on a lead = multi-select, so the browser must not hijack it with
+   its own text-selection + copy/paste bubble */
+.lead-row{transition:background .16s ease,box-shadow .16s ease;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.lead-row.lead-picking{background:var(--fk-primary-tint)}
+/* selection action bar — pinned within thumb reach, above the tab bar */
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:31;max-width:920px;margin:0 auto;
+  background:var(--fk-bg-card);border-top:1px solid var(--fk-border);box-shadow:0 -6px 18px rgba(16,26,51,.10);
+  padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+body.mode-tabs .selbar{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+.lead-act{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 11px;
+  border:1px solid var(--fk-border);background:var(--fk-bg-card);border-radius:var(--fk-radius-pill);
+  color:var(--fk-text);font-size:var(--fs-caption);font-weight:var(--fk-fw-medium);font-family:inherit;cursor:pointer}
+.lead-act:active{background:var(--fk-subtle-hover)}
+.lead-act.wa{color:#128C7E;border-color:color-mix(in srgb,#128C7E 34%,var(--fk-border))}
 .lead-row:hover{background:var(--fk-bg-subtle);box-shadow:inset 3px 0 0 var(--lc,var(--fk-primary))}
 .lead-main{display:flex;align-items:center;gap:var(--fk-sp-3);flex:1;min-width:0;cursor:pointer}
 .lead-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:var(--fk-sp-1)}
@@ -2229,6 +2244,9 @@ let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
+  if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
+    LEADSEL.on=false; LEADSEL.ids=[]; try{ document.body.classList.remove('selecting'); }catch(e){}
+  }
   if(t==='leadentry') renderLeadEntry();
   else if(t==='myleads') renderMyLeads();
   else if(t==='conn') renderConnections();
@@ -2467,8 +2485,9 @@ function _wlRow(l,kind){
   else { tag='<span class="wl-tag start">Start</span>'; }
   const sub = l.phone ? esc(l.phone) : (kind==='new' ? _srcLabel(l.source) : '');
   const own = (!l.is_mine&&l.owner_name) ? `<div class="wl-own">→ ${esc(l.owner_name)}</div>` : '';
-  const call = l.phone?`<a class="wl-act" href="tel:${esc(l.phone)}" onclick="event.stopPropagation()" aria-label="Call">${li('phone',17,2)}</a>`:'';
-  const waB = wa?`<a class="wl-act wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="WhatsApp">${li('message',17,2)}</a>`:'';
+  // same buttons as before, but the touch is logged so activity counters fill up
+  const call = l.phone?`<a class="wl-act" href="tel:${esc(l.phone)}" onclick="event.stopPropagation();_leadTouch('${l.id}','call')" aria-label="Call">${li('phone',17,2)}</a>`:'';
+  const waB = wa?`<a class="wl-act wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" onclick="event.stopPropagation();_leadTouch('${l.id}','whatsapp')" aria-label="WhatsApp">${li('message',17,2)}</a>`:'';
   return `<div class="wl-row tap" onclick="gotoLead('${l.id}')">
     ${_avatar(l.name,38)}
     <div class="wl-main"><div class="wl-name">${esc(l.name||'Lead')}</div>${sub?`<div class="wl-sub">${sub}</div>`:''}${own}</div>
@@ -2580,6 +2599,12 @@ async function renderHome(){
   html+=`<div class="dsec">Today${total?` <span class="nb">${total}</span>`:''}</div>`;
   if(!total){ html+=_emptyRow('check',"You’re all caught up — no follow-ups due and no new leads."); }
   else {
+    // at-a-glance shape of the day, before the list itself
+    const pill=(lb,n,col,bg)=>n?`<div style="flex:1;min-width:84px;text-align:center;padding:9px 6px;border-radius:10px;background:${bg}"><div style="font-size:var(--fs-title);font-weight:700;color:${col};font-variant-numeric:tabular-nums">${n}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:2px">${lb}</div></div>`:'';
+    const strip=pill('Late',overdue.length,'var(--fk-danger)','var(--fk-danger-surface)')
+              + pill('Due today',today.length,'var(--fk-warning)','var(--fk-warning-surface)')
+              + pill('New leads',news.length,'var(--fk-primary)','var(--fk-primary-tint)');
+    if(strip) html+=`<div style="display:flex;gap:8px;margin:0 2px 10px">${strip}</div>`;
     html+='<div class="wl">'
       + overdue.map(l=>_wlRow(l,'overdue')).join('')
       + today.map(l=>_wlRow(l,'today')).join('')
@@ -2755,21 +2780,47 @@ function _leadsRender(){
   let html='<div class="nx-leads">';
   html+=`<div class="lead-head"><div style="min-width:0"><div class="lead-h1">${title}</div><div class="lead-hsub">${subt}</div></div>${acts}</div>`;
   if(isMgr) html+=_seg([['mine','Mine'],['all','My team']], LEADV.scope, '_leadSetScope');
+  // project tabs — same idea as the Assign screen, so a big list can be worked one project at a time
+  const lprojs=_leadProjects();
+  if(lprojs.length>1){
+    html+=_seg([['all','All ('+scoped.length+')']].concat(lprojs.map(p=>[p.id, esc(p.tag||p.name)+' ('+p.n+')'])), (LEADV.proj||'all'), '_leadSetProj');
+  }
   if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
   const _so=(v,lb)=>`<option value="${v}"${(LEADV.sort||'activity')===v?' selected':''}>${lb}</option>`;
   html+=`<div class="lead-search has-sort">${srch}<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_leadListRender()"><select class="lead-sort" title="Sort leads" onchange="LEADV.sort=this.value;_leadListRender()">${_so('activity','Recent activity')+_so('fu','Follow-up due')+_so('newest','Newest first')+_so('oldest','Oldest first')+_so('name','Name A–Z')}</select></div>`;
   const chip=(k,lb,n)=>`<button onclick="_leadFilter('${k}')" class="lead-chip${LEADV.filter===k?' on':''}">${esc(lb)} <b>${n}</b></button>`;
+  const toAssignN=isMgr?scoped.filter(_distributablePool).length:0;
   html+='<div class="lead-chips">'+chip('all','All',total)
+    +(isMgr&&toAssignN?chip('toassign','To assign',toAssignN):'')
     +(uncheckedN?chip('unchecked','Unchecked',uncheckedN):'')
     +LEAD_STAGES.map(([k,lb])=>chip(k,lb,Number(counts[k]||0))).join('')
     +(isMgr?chip('assigned','Assigned',assignedN):'')+'</div>';
-  if(LEADSEL.on) html+=_leadSelBar(); else html+=_leadUndoBar();
+  // the bar is FIXED at the bottom, so the page needs room under the last row
+  try{ document.body.classList.toggle('selecting', !!LEADSEL.on); }catch(e){}
+  if(!LEADSEL.on) html+=_leadUndoBar()+_leadTip();
   html+='<div id="lead-list"></div></div>';
+  html+=LEADSEL.on?_leadSelBar():'';        // fixed bottom bar — always in thumb reach
   $('app-body').innerHTML=html;
   _leadListRender();
 }
 function _leadSetScope(k){ LEADV.scope=k; _leadsRender(); }
+// projects present in the current lead list (short tag when we know it)
+function _leadProjects(){
+  const tagOf={}; ((LEADSEL&&LEADSEL.projs)||[]).forEach(p=>{ tagOf[p.id]=p.tag; });
+  const m=new Map();
+  _leadBase().forEach(l=>{ const id=l.project_id||'none', nm=l.project_name||'No project';
+    const e=m.get(id)||{id, name:nm, tag:tagOf[id]||nm, n:0}; e.n++; m.set(id,e); });
+  return [...m.values()].sort((a,b)=>b.n-a.n);
+}
+function _leadSetProj(id){
+  LEADV.proj=id;
+  if(id!=='all' && LEADSEL.on){   // keep the selection honest when the view narrows
+    LEADSEL.ids=LEADSEL.ids.filter(x=>{ const l=LEADS.find(z=>z.id===x); return l && (l.project_id||'none')===id; });
+    if(!LEADSEL.ids.length) LEADSEL.on=false;
+  }
+  _leadsRender();
+}
 function _leadSetOwn(k){ LEADV.own=k; _leadsRender(); }
 // the rows currently on screen (filter + search + sort) — shared by the list and
 // by "Select all" so the two can never disagree
@@ -2778,8 +2829,10 @@ function _leadVisibleRows(){
   let rows=_leadBase().filter(l=>
     f==='all' ? true
     : f==='assigned'  ? _leadAssigned(l)
+    : f==='toassign'  ? _distributablePool(l)      // still with you — waiting to be handed down
     : f==='unchecked' ? (!l.checked && l.status!=='won' && l.status!=='lost')
     : l.status===f);
+  if(LEADV.proj && LEADV.proj!=='all') rows=rows.filter(l=>(l.project_id||'none')===LEADV.proj);
   const q=(LEADV.q||'').trim().toLowerCase();
   if(q) rows=rows.filter(l=>((l.name||'').toLowerCase().includes(q))||((l.phone||'').replace(/\s/g,'').includes(q)));
   const s=LEADV.sort||'activity';   // 'activity' = server order (last touch first)
@@ -2832,6 +2885,12 @@ function _leadCard(l){
   const nameStyle = unchecked ? 'font-weight:var(--fk-fw-bold)' : 'font-weight:var(--fk-fw-medium);color:var(--fk-text-muted)';
   // inline action: hand-to-team when this is a poolable lead (director/manager); else show who it was assigned to
   const canAssign=!!(LEADCFG&&LEADCFG.can_assign);
+  // one-tap reach-out, straight from the list (also logs the touch so activity
+  // numbers in Team/performance actually fill up)
+  const quick=(!LEADSEL.on && l.phone) ? `<span style="display:flex;gap:6px">
+      <button class="lead-act" onclick="event.stopPropagation();_leadCall('${l.id}','${esc(l.phone)}')">${li('phone',13,2.1)} Call</button>
+      <button class="lead-act wa" onclick="event.stopPropagation();_leadWa('${l.id}','${esc(l.phone)}')">${li('message',13,2.1)} WhatsApp</button>
+    </span>` : '';
   let foot='';
   if(_leadAssigned(l) && l.owner_name && !l.is_mine){
     foot=`<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success)">${li('check',12,2.4)} Assigned to ${esc(l.owner_name)}</span>`;
@@ -2842,6 +2901,7 @@ function _leadCard(l){
   const chk=selOn?`<span class="dck" style="flex:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>`:'';
   return `<div class="lrow lead-row${unchecked?' lead-unread':''}${picked?' sel':''}" style="--lc:${col}${unchecked?'':';opacity:.78'}"
       onpointerdown="_lpStart(event,'${l.id}')" onpointerup="_lpEnd()" onpointercancel="_lpEnd()" onpointerleave="_lpEnd()"
+      onpointermove="_lpMove(event)" ondragstart="return false" onselectstart="return false"
       oncontextmenu="return _lpCtx(event,'${l.id}')">
     <div class="lrow-top">
       <div class="lead-main" onclick="_leadRowClick(event,'${l.id}')">
@@ -2850,8 +2910,22 @@ function _leadCard(l){
       </div>
       <div class="lead-right">${stat}<span class="lead-date">${esc(fdateShort(l.created_at))}</span>${_leadFuTag(l)}</div>
     </div>
-    ${foot?`<div style="display:flex;justify-content:flex-end;margin-top:8px">${foot}</div>`:''}
+    ${(quick||foot)?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">${quick}<span style="flex:1"></span>${foot}</div>`:''}
   </div>`;
+}
+// call / WhatsApp from the list. The interaction is logged so the team's activity
+// counters (call / whatsapp) stop reading zero.
+function _leadTouch(id,kind){
+  try{ sb.rpc('log_lead_interaction',{p_session_token:TOKEN,p_lead_id:id,p_channel:kind}); }catch(e){}
+}
+function _leadCall(id,phone){
+  _leadTouch(id,'call');
+  try{ window.location.href='tel:'+String(phone||'').replace(/[^0-9+]/g,''); }catch(e){}
+}
+function _leadWa(id,phone){
+  _leadTouch(id,'whatsapp');
+  const n=_waNum(phone||'');
+  try{ window.open('https://wa.me/'+String(n||'').replace(/[^0-9]/g,''),'_blank'); }catch(e){}
 }
 function _leadFilter(f){ LEADV.filter=f; _leadsRender(); }
 // ════ Leads — long-press multi-select (select all · assign · move · delete) ════
@@ -2861,10 +2935,19 @@ function _leadSelCan(){ return !!(ME && (ME.role==='director'||ME.role==='admin'
 function _lpStart(ev,id){
   if(LEADSEL.on) return;
   _LP.fired=false; clearTimeout(_LP.t);
-  _LP.t=setTimeout(()=>{ _LP.fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){}
+  _LP.x=(ev&&ev.clientX)||0; _LP.y=(ev&&ev.clientY)||0;
+  _LP.el=(ev&&ev.currentTarget)||null;
+  if(_LP.el) _LP.el.classList.add('lead-picking');          // "I felt that" while holding
+  _LP.t=setTimeout(()=>{ _LP.fired=true; _lpClear();
+    try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){}
     LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }, 420);
 }
-function _lpEnd(){ clearTimeout(_LP.t); }
+function _lpMove(ev){    // finger moved → this is a scroll, not a long-press
+  if(!_LP.t) return;
+  if(Math.abs(((ev&&ev.clientX)||0)-_LP.x)>10 || Math.abs(((ev&&ev.clientY)||0)-_LP.y)>10) _lpEnd();
+}
+function _lpClear(){ try{ document.querySelectorAll('.lead-picking').forEach(e=>e.classList.remove('lead-picking')); }catch(e){} }
+function _lpEnd(){ clearTimeout(_LP.t); _LP.t=null; _lpClear(); }
 function _lpCtx(ev,id){                       // desktop right-click = same thing
   if(ev&&ev.preventDefault) ev.preventDefault();
   if(!LEADSEL.on){ LEADSEL.on=true; LEADSEL.ids=[id]; LEADSEL.undo=null; _leadsRender(); }
@@ -2895,16 +2978,27 @@ function _leadSelBar(){
   const n=LEADSEL.ids.length, pool=_leadSelVisible();
   const allOn=pool.length>0 && pool.every(id=>LEADSEL.ids.includes(id));
   const canAssign=!!(LEADCFG&&LEADCFG.can_assign), adm=_leadSelCan();
-  return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5">
+  return `<div class="selbar">
     <b style="font-size:var(--fs-body)">${n} selected</b>
     <button class="btn btn-sm" onclick="_leadSelAll()">${allOn?'Clear':'Select all'}</button>
     <span style="flex:1"></span>
-    ${canAssign?`<button class="btn btn-sm btn-primary" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign to team</button>`:''}
     ${adm?`<button class="btn btn-sm" ${n?'':'disabled'} onclick="_leadSelMove()">Move</button>`:''}
     ${adm?`<button class="btn btn-sm" ${n?'':'disabled'} onclick="_leadSelDelete()" style="color:var(--fk-danger)">Delete</button>`:''}
     <button class="btn btn-sm" onclick="_leadSelCancel()">Cancel</button>
+    ${canAssign?`<button class="btn btn-sm btn-primary" style="flex:1;min-width:130px" ${n?'':'disabled'} onclick="_leadSelAssign()">Assign to team →</button>`:''}
   </div>`;
 }
+// one-time discovery hint — nobody finds long-press on their own
+function _leadTip(){
+  try{ if(localStorage.getItem('rms.sales.tip.longpress')==='1') return ''; }catch(e){ return ''; }
+  if(!(LEADCFG&&LEADCFG.can_assign)) return '';
+  return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--fk-info-surface);border-color:transparent">
+    <span style="font-size:var(--fs-secondary)">${li('inbox',15,2)} Tip — press and hold any lead to select several at once, then assign them together.</span>
+    <span style="flex:1"></span>
+    <button class="btn btn-sm" onclick="_leadTipSeen()">Got it</button>
+  </div>`;
+}
+function _leadTipSeen(){ try{ localStorage.setItem('rms.sales.tip.longpress','1'); }catch(e){} _leadsRender(); }
 function _leadUndoBar(){
   const u=LEADSEL.undo; if(!u) return '';
   return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
