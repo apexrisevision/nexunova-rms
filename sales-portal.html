@@ -3118,60 +3118,10 @@ function _leadUndoBar(){
 // step 1 — which project's team are we entering. ALL projects of the group are
 // listed (KBH, FMH, Awami …), not just the ones the selected leads sit in, so a
 // lead can be handed to any project's team.
-async function _leadSelAssign(){
-  if(!LEADSEL.projs){
-    try{ const {data}=await sb.rpc('list_group_projects',{p_session_token:TOKEN});
-      LEADSEL.projs=(data&&data.projects)||[]; }catch(e){ return toast('Could not load projects','err'); }
-  }
-  // how the current selection splits across projects — shown as a hint per row
-  const mine={}; LEADS.filter(l=>LEADSEL.ids.includes(l.id))
-    .forEach(l=>{ const k=l.project_id||'none'; mine[k]=(mine[k]||0)+1; });
-  const projs=(LEADSEL.projs||[]);
-  if(!projs.length) return _leadSelAssignProj(null);
-  const staffN=(pid)=>((LEADSEL.reps||[]).filter(u=>u.home_project_id===pid).length);
-  const body=projs.map(p=>{
-    const n=mine[p.id]||0, s=staffN(p.id);
-    const bits=[n?(n+' of your selection'):'', s?(s+' staff'):''].filter(Boolean).join(' · ');
-    return `<div class="lrow tap" onclick="_leadSelAssignProj('${p.id}')"><div class="lrow-top">
-     <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.tag||p.name)}</div>
-     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${esc(p.name)}${bits?' · '+bits:''}</div></div>
-     <span style="color:var(--fk-primary);font-weight:700">Enter →</span></div></div>`;
-  }).join('');
-  openModal('Assign '+LEADSEL.ids.length+' lead'+(LEADSEL.ids.length==1?'':'s')+' — which project?',
-    '<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
-}
+async function _leadSelAssign(){ return assignLeads(LEADSEL.ids.slice()); }
 // step 2 — that project's team members
-async function _leadSelAssignProj(pid){
-  if(!LEADSEL.reps){
-    try{ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN});
-      LEADSEL.reps=(data&&data.users)||[]; }catch(e){ return toast('Could not load team','err'); }
-  }
-  const byLoad=(a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
-  const all=(LEADSEL.reps||[]).slice().sort(byLoad);        // lightest load first
-  const mine=(pid&&pid!=='none')?all.filter(u=>u.home_project_id===pid):all;
-  const list=mine.length?mine:all;
-  if(!list.length) return toast('No team member available','err');
-  // entering a project picks WHOSE team gets the leads — the whole selection goes
-  // to the member you tap, whichever project the leads themselves sit in
-  const ids=LEADSEL.ids.slice();
-  LEADSEL.pendIds=ids;                       // kept in state, not stuffed into the onclick
-  const body=list.map(u=>`<div class="lrow tap" onclick="_leadSelAssignTo('${u.id}')"><div class="lrow-top">
-     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div>
-     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):''}</div></div>
-     <span style="color:var(--fk-primary);font-weight:700">Assign →</span></div></div>`).join('');
-  const more=(mine.length&&mine.length!==all.length)?`<div style="text-align:center;margin-top:10px"><a href="#" onclick="_leadSelAssignProj(null);return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`:'';
-  openModal('Assign '+ids.length+' lead'+(ids.length==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>'+more,'<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
-}
-async function _leadSelAssignTo(uid){
-  const ids=(LEADSEL.pendIds||LEADSEL.ids).slice();
-  if(!ids.length) return;
-  closeModal();
-  try{ const {data}=await sb.rpc('assign_leads_bulk',{p_session_token:TOKEN,p_lead_ids:ids,p_to_id:uid});
-    if(data&&data.success){ toast((data.assigned||0)+' lead'+((data.assigned==1)?'':'s')+' → '+(data.to_name||'team'),'ok');
-      LEADSEL.on=false; LEADSEL.ids=[]; renderLeads(); }
-    else toast((data&&data.message)||'Could not assign','err');
-  }catch(e){ toast('Could not assign','err'); }
-}
+function _leadSelAssignProj(pid){ return _assignMemberStep(pid); }
+function _leadSelAssignTo(uid){ return _assignRun(uid); }
 async function _leadSelMove(){
   if(!LEADSEL.projs){
     try{ const {data}=await sb.rpc('list_group_projects',{p_session_token:TOKEN});
@@ -4378,26 +4328,81 @@ async function _leadSetFollowup(id,val){
     if(data&&data.success){ toast(when?'Follow-up set':'Follow-up cleared','ok'); _refreshFuBadge(); } else toast('Could not set','err');
   }catch(e){ toast('Could not set','err'); }
 }
-async function openAssign(id){
-  let res;
-  try{ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN}); res=data; }
-  catch(e){ return toast('Could not load','err'); }
-  if(!res||!res.success||!res.can_assign) return toast('You can’t hand leads down','err');
-  const users=res.users||[];
-  const body = users.length
-    ? users.map(u=>`<div class="card" style="padding:11px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" onclick="_assignTo('${id}','${u.id}')">
-        <div><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${u.open_leads} open</div></div>
-        <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap">Assign →</span></div>`).join('')
-    : `<div class="empty"><div class="et">No team members under you yet</div><div class="es">Add someone under you in Portal Access first.</div></div>`;
-  openModal('Assign this lead to', body, '<button class="btn" onclick="closeModal()">Cancel</button>');
+// ════════ THE assign flow — one implementation, three entry points ════════
+// leads → pick project → that project's members (lightest load first) → assign.
+// Every "Assign" button in the app goes through assignLeads(); there is no second
+// copy of this logic to drift out of sync.
+const ASSIGN={ids:[], reps:null, projs:null, after:null, pid:null};
+async function assignLeads(ids, after){
+  ids=(ids||[]).filter(Boolean);
+  if(!ids.length) return toast('Nothing selected','err');
+  ASSIGN.ids=ids; ASSIGN.after=after||_assignRefresh; ASSIGN.pid=null;
+  try{
+    if(!ASSIGN.reps){ const {data}=await sb.rpc('get_assignable_users',{p_session_token:TOKEN});
+      if(!data||!data.success||!data.can_assign) return toast((data&&data.message)||'You can’t hand leads down','err');
+      ASSIGN.reps=data.users||[]; }
+    if(!ASSIGN.projs){ const {data}=await sb.rpc('list_group_projects',{p_session_token:TOKEN});
+      ASSIGN.projs=(data&&data.projects)||[]; }
+  }catch(e){ return toast('Could not load your team','err'); }
+  if(!(ASSIGN.reps||[]).length) return toast('No team member under you yet','err');
+  _assignProjectStep();
 }
-async function _assignTo(leadId,toId){
-  try{ const {data}=await sb.rpc('assign_lead',{p_session_token:TOKEN,p_lead_id:leadId,p_to_id:toId});
-    if(data&&data.success){ closeModal(); toast('Handed to '+(data.to_name||'team'),'ok');
-      if(TAB==='distribute') renderDistribute(); else if(TAB==='team') renderTeam(); else if(TAB==='leads'&&!LEAD_OPEN) renderLeads(); else renderLeadDetail(leadId); }
-    else toast((data&&data.message)||'Could not assign','err');
+function _assignRefresh(){                       // land back where the user was
+  if(TAB==='distribute') renderDistribute();
+  else if(TAB==='leads') renderLeads();
+  else if(LEAD_OPEN) renderLeadDetail(LEAD_OPEN);
+  else renderLeads();
+}
+function _assignProjectStep(){
+  const n=ASSIGN.ids.length;
+  const mine={}; (LEADS||[]).filter(l=>ASSIGN.ids.includes(l.id))
+    .forEach(l=>{ const k=l.project_id||'none'; mine[k]=(mine[k]||0)+1; });
+  const staffN=pid=>(ASSIGN.reps||[]).filter(u=>u.home_project_id===pid).length;
+  const projs=(ASSIGN.projs||[]);
+  if(!projs.length) return _assignMemberStep(null);
+  const body=projs.map(p=>{
+    const k=mine[p.id]||0, st=staffN(p.id);
+    const bits=[k?(k+' of your selection'):'', st?(st+' staff'):'no staff tagged'].filter(Boolean).join(' · ');
+    return `<div class="lrow tap" onclick="_assignMemberStep('${p.id}')"><div class="lrow-top">
+      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.tag||p.name)}</div>
+      <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${esc(p.name)} · ${bits}</div></div>
+      <span style="color:var(--fk-primary);font-weight:700">Enter →</span></div></div>`;
+  }).join('');
+  openModal('Assign '+n+' lead'+(n==1?'':'s')+' — which project?',
+    '<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
+}
+function _assignMemberStep(pid){
+  ASSIGN.pid=pid;
+  const byLoad=(a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
+  const all=(ASSIGN.reps||[]).slice().sort(byLoad);                 // lightest load first
+  const mine=(pid&&pid!=='none'&&pid!=='null')?all.filter(u=>u.home_project_id===pid):all;
+  const list=mine.length?mine:all;
+  const n=ASSIGN.ids.length;
+  const body=list.map(u=>`<div class="lrow tap" onclick="_assignRun('${u.id}')"><div class="lrow-top">
+     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):''}</div></div>
+     <span style="color:var(--fk-primary);font-weight:700">Assign →</span></div></div>`).join('');
+  const more=(mine.length&&mine.length!==all.length)
+    ? `<div style="text-align:center;margin-top:10px"><a href="#" onclick="_assignMemberStep(null);return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`
+    : '';
+  const back='<button class="btn" onclick="_assignProjectStep()">‹ Projects</button><button class="btn btn-full" onclick="closeModal()">Cancel</button>';
+  openModal('Assign '+n+' lead'+(n==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>'+more, back);
+}
+async function _assignRun(uid){
+  const ids=ASSIGN.ids.slice(); if(!ids.length) return;
+  closeModal();
+  try{ const {data}=await sb.rpc('assign_leads_bulk',{p_session_token:TOKEN,p_lead_ids:ids,p_to_id:uid});
+    if(data&&data.success){
+      toast((data.assigned||0)+' lead'+((data.assigned==1)?'':'s')+' → '+(data.to_name||'team'),'ok');
+      if(typeof LEADSEL!=='undefined'){ LEADSEL.on=false; LEADSEL.ids=[]; }
+      if(typeof DISTV!=='undefined') DISTV.sel=[];
+      ASSIGN.reps=null;                    // loads fresh so the "open" counts stay honest
+      const fn=ASSIGN.after; ASSIGN.after=null; (fn||_assignRefresh)();
+    } else toast((data&&data.message)||'Could not assign','err');
   }catch(e){ toast('Could not assign','err'); }
 }
+async function openAssign(id){ return assignLeads([id]); }
+function _assignTo(leadId,toId){ ASSIGN.ids=[leadId]; return _assignRun(toId); }
 function _emptyCard(t,s){ return '<div class="card"><div class="empty"><div class="et">'+esc(t)+'</div>'+(s?'<div class="es">'+esc(s)+'</div>':'')+'</div></div>'; }
 // ════ Manager — My Team (roster + per-agent numbers) ════
 let TEAM_DATA=[], TEAM_TOTALS={}, TEAM_LEADS=[], TEAM_AGENT=null, TEAM_STATS={}, TEAM_ACTIVITY=[], TEAM_OPEN={}, TEAM_KIDS={}, TEAMV={q:''};
@@ -5423,25 +5428,8 @@ function _distToggleAll(){
   else pool.forEach(id=>{ if(!DISTV.sel.includes(id)) DISTV.sel.push(id); });
   _distRender();
 }
-function _distAssignPick(){
-  if(!DISTV.sel.length) return;
-  const list=_distReps();
-  const body=list.map(u=>`<div class="lrow tap" onclick="_distBulkAssign('${u.id}')"><div class="lrow-top">
-     ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):''}</div></div>
-     <span style="color:var(--fk-primary);font-weight:700;white-space:nowrap">Assign →</span></div></div>`).join('');
-  const more=_distRepsFiltered()
-    ? `<div style="text-align:center;margin-top:10px"><a href="#" onclick="DISTV.allReps=true;closeModal();_distAssignPick();return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`
-    : '';
-  openModal('Assign '+DISTV.sel.length+' lead'+(DISTV.sel.length==1?'':'s')+' to…','<div class="lgroup">'+body+'</div>'+more,'<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
-}
-async function _distBulkAssign(toId){
-  const ids=DISTV.sel.slice(); if(!ids.length) return;
-  closeModal();
-  try{ const {data}=await sb.rpc('assign_leads_bulk',{p_session_token:TOKEN,p_lead_ids:ids,p_to_id:toId});
-    if(data&&data.success){ toast((data.assigned||0)+' lead'+((data.assigned==1)?'':'s')+' → '+(data.to_name||'team'),'ok'); DISTV.sel=[]; renderDistribute(); }
-    else toast((data&&data.message)||'Could not assign','err');
-  }catch(e){ toast('Could not assign','err'); }
-}
+function _distAssignPick(){ return assignLeads(DISTV.sel.slice()); }
+function _distBulkAssign(toId){ return _assignRun(toId); }
 function _distAuto(){
   const ids=DISTV.sel.slice(), reps=_distReps().slice();   // split within the active project's staff
   if(!ids.length||!reps.length) return;
