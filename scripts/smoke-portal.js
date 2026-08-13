@@ -229,8 +229,23 @@ async function preflight() {
     const who = await page.evaluate(() => (typeof ME !== 'undefined' && ME && ME.sales_user_name) || '');
     assert(/\w/.test(who), 'signed in as ' + (who || '(unknown)'));
 
-    step('First-run prompts');
-    assert(await dismissOverlays(page), 'notification / install prompts dismissed (they cover the whole page)');
+    step('First-run prompts must not block the app');
+    // The notification ask used to open as a full-screen modal ~2s after login and
+    // covered 100% of the viewport before the user had seen a single lead. Nothing
+    // may block the first seconds again.
+    const firstLoad = await page.evaluate(() => {
+      const ov = document.querySelector('.overlay');
+      const r = ov ? ov.getBoundingClientRect() : null;
+      const mid = document.elementFromPoint(innerWidth / 2, innerHeight * 0.45);
+      return {
+        blocking: !!(mid && mid.closest && mid.closest('.overlay')),
+        coverPct: r ? Math.round(r.width * r.height * 100 / (innerWidth * innerHeight)) : 0,
+        title: ((document.querySelector('.modal-title') || {}).textContent || '').trim(),
+      };
+    });
+    assert(!firstLoad.blocking, 'nothing blocks the page on first load'
+      + (firstLoad.title ? ' (found: "' + firstLoad.title + '", ' + firstLoad.coverPct + '% cover)' : ''));
+    assert(await dismissOverlays(page), 'any first-run bars/prompts are dismissible');
 
     step('Leads screen');
     // The app finishes booting by navigating to its own default screen, so a setTab()

@@ -719,7 +719,7 @@ body.mode-tabs .sb-toggle{display:none}
 body.mode-tabs .sb-scrim{display:none}
 body.mode-tabs .appbody{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 /* lift the one-time nudges + toast clear of the bottom tab bar (inline styles → !important) */
-body.mode-tabs #loc-bar,body.mode-tabs #pwa-bar{bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
+body.mode-tabs #loc-bar,body.mode-tabs #pwa-bar,body.mode-tabs #push-bar{bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
 body.mode-tabs .toastbar{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
 /* Money — top two numbers */
 .money-nums{display:flex;gap:10px;margin:0 2px 14px}
@@ -8139,11 +8139,51 @@ async function _maybePushPrompt(){
   let nudged=false; try{ nudged=sessionStorage.getItem('nx.push.nudged')==='1'; }catch(e){}
   if(nudged) return;
   try{ sessionStorage.setItem('nx.push.nudged','1'); }catch(e){}
-  openModal('Turn on notifications?',
-    '<div style="font-size:var(--fs-secondary);color:var(--fk-text-muted);line-height:1.5">Get alerted the moment a new lead is assigned to you and when a follow-up is due — even when the app is closed.</div>',
-    '<button class="btn" onclick="closeModal()">Not now</button><button class="btn btn-primary" onclick="_pushPromptEnable()">Enable</button>');
+  // A blocking full-screen modal used to land ~2s after login and cover 100% of the
+  // screen before the user had even seen their leads. Ask with a slim bar instead,
+  // and only once nothing else is competing for the screen.
+  _queuePushBar();
 }
-async function _pushPromptEnable(){ closeModal(); const ok=await _enablePush(); toast(ok?'Notifications on':'Could not enable notifications', ok?'ok':'err'); }
+// show the ask when the app is actually usable: no modal open, no install bar, and
+// the user has had a moment with the app. Re-checks a few times, then gives up
+// quietly until the next session.
+function _queuePushBar(){
+  let tries=0;
+  const tick=()=>{
+    if($('push-bar')) return;
+    if(Notification.permission!=='default') return;                  // decided elsewhere
+    // Only TRANSIENT things count as busy. #loc-bar is a long-lived bar (live
+    // location) — waiting for it to disappear meant the ask never appeared at all;
+    // we stack above it instead.
+    const busy = !!document.querySelector('.overlay') || !!$('pwa-bar');
+    // visibility, not inline style: the gate hides via class too, and style.display
+    // is '' then — which would hold the ask back for ever
+    const gate=$('verify-gate'); const gated = !!(gate && gate.offsetParent);
+    if(!busy && !gated){ _showPushBar(); return; }
+    if(++tries<12) setTimeout(tick, 5000);                            // ~1 min of patience
+  };
+  setTimeout(tick, 12000);                                            // never in the first seconds
+}
+function _showPushBar(){
+  if($('push-bar')) return;
+  // sit above the live-location bar when that one is on screen, so two bars never
+  // stack on top of each other
+  const loc=$('loc-bar');
+  const lift = (loc && loc.offsetParent) ? Math.round(loc.getBoundingClientRect().height) + 10 : 0;
+  const bar=document.createElement('div'); bar.id='push-bar';
+  bar.style.cssText='position:fixed;left:12px;right:12px;bottom:'+(14+lift)+'px;z-index:8900;max-width:520px;margin:0 auto;'
+    +'background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;box-shadow:0 12px 34px rgba(15,23,42,.20);'
+    +'padding:12px 14px;display:flex;align-items:center;gap:12px;animation:pwaUp .25s ease';
+  bar.innerHTML=
+    '<span style="width:40px;height:40px;border-radius:11px;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;flex:none">'+li('inbox',20,2)+'</span>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:var(--fk-fw-bold,700);font-size:var(--fs-body)">Turn on alerts</div>'
+    +'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.35">Know the moment a lead is assigned to you or a follow-up is due.</div></div>'
+    +'<button class="btn btn-primary btn-sm" style="flex:none" onclick="_pushPromptEnable()">Enable</button>'
+    +'<button aria-label="Dismiss" style="flex:none;background:none;border:0;color:var(--fk-text-muted);cursor:pointer;padding:4px;line-height:0" onclick="_dismissPushBar()">'+_svgX(18)+'</button>';
+  document.body.appendChild(bar);
+}
+function _dismissPushBar(){ const b=$('push-bar'); if(b) b.remove(); }
+async function _pushPromptEnable(){ _dismissPushBar(); closeModal(); const ok=await _enablePush(); toast(ok?'Notifications on':'Could not enable notifications', ok?'ok':'err'); }
 
 // ════════════════════════ PWA install — guided, no-nag ════════════════════════
 // Captures Chrome's beforeinstallprompt for a 1-tap native install; falls back to a
