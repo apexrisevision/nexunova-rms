@@ -1271,6 +1271,30 @@ button.mn-card:active{transform:scale(.985)}
 .skel .dgrid{margin-top:0}
 @keyframes skpulse{0%,100%{opacity:.5}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.skel-head,.skel-kpi,.skel-row{animation:none}}
+/* ══ Phase 2 — forced follow-up accountability ══ */
+.fu-lock{display:flex;gap:11px;align-items:flex-start;background:var(--fk-danger-surface);border:1px solid color-mix(in srgb,var(--fk-danger) 30%,transparent);border-radius:var(--fk-radius-md);padding:12px 14px;margin-bottom:12px}
+.fu-lock .fu-ic{flex:none;color:var(--fk-danger);margin-top:1px}
+.fu-lock .fu-t{font-weight:var(--fk-fw-bold);font-size:var(--fs-secondary);color:var(--fk-danger)}
+.fu-lock .fu-s{font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:3px;line-height:1.45}
+.fu-lock button{margin-top:9px}
+.fu-blk{background:var(--fk-warning-surface);border:1px solid color-mix(in srgb,var(--fk-warning) 34%,transparent);border-radius:var(--fk-radius-md);padding:11px 13px;margin-bottom:12px;font-size:var(--fs-caption);color:var(--fk-text);line-height:1.45}
+.fu-blk b{color:var(--fk-warning)}
+/* above the live-location bar (z 9000) — a sheet the member cannot dismiss must
+   never be the thing hidden behind a banner they also cannot reach. */
+.fu-ov{position:fixed;inset:0;background:rgba(9,11,14,.62);backdrop-filter:blur(2px);z-index:9500;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:560px){.fu-ov{align-items:center}}
+.fu-sheet{background:var(--fk-bg-card);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:var(--fk-radius-lg) var(--fk-radius-lg) 0 0;padding:18px 17px 20px}
+@media(min-width:560px){.fu-sheet{border-radius:var(--fk-radius-lg)}}
+.fu-sheet h3{margin:0;font-size:var(--fs-section);font-weight:var(--fk-fw-bold)}
+.fu-sheet .fu-why{font-size:var(--fs-caption);color:var(--fk-text-muted);margin:5px 0 15px;line-height:1.5}
+.fu-lb{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted);font-weight:var(--fk-fw-bold);margin:13px 0 7px}
+.fu-chips{display:flex;flex-wrap:wrap;gap:7px}
+.fu-chip{font:inherit;font-size:var(--fs-caption);padding:7px 13px;border-radius:var(--fk-radius-pill);border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text-muted);cursor:pointer}
+.fu-chip.on{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff;font-weight:var(--fk-fw-bold)}
+.fu-err{color:var(--fk-danger);font-size:var(--fs-caption);margin-top:9px;min-height:17px}
+.lead-lock{display:inline-flex;align-items:center;gap:4px;font-size:var(--fk-fs-label);color:var(--fk-danger);background:var(--fk-danger-surface);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap}
+.tbd-c.blocked{box-shadow:inset 3px 0 0 var(--fk-danger)}
+.tbd-chip.blk{background:var(--fk-danger);color:#fff;border-color:transparent;font-weight:var(--fk-fw-bold)}
 </style>
 </head>
 <body>
@@ -1615,7 +1639,9 @@ const _LIP={
   'bar-chart':'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
   'log-out':'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
   'trending-up':'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
-  'chevron-down':'<path d="m6 9 6 6 6-6"/>'
+  'chevron-down':'<path d="m6 9 6 6 6-6"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  alert:'<path d="M12 9v4"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 17h.01"/>'
 };
 function li(n,sz,sw){ sz=sz||16; return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw||1.9}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex:none">${_LIP[n]||''}</svg>`; }
 // per-area rate from total price ÷ area (rounded), e.g. '₨24,900/sqft'
@@ -2782,11 +2808,13 @@ function _boardCard(m){
     Number(m.matured||0)?`<span class="tbd-chip good">${m.matured} matured</span>`:"",
     Number(m.pending||0)?`<span class="tbd-chip">${m.pending} pending</span>`:"",
     Number(m.not_opened||0)?`<span class="tbd-chip bad">${m.not_opened} unopened</span>`:"",
-    Number(m.overdue||0)?`<span class="tbd-chip warn">${m.overdue} overdue</span>`:""
+    Number(m.overdue||0)?`<span class="tbd-chip warn">${m.overdue} overdue</span>`:"",
+    m.assign_blocked?`<span class="tbd-chip blk">blocked</span>`:"",
+    Number(m.locked||0)?`<span class="tbd-chip bad">${m.locked} locked</span>`:""
   ].filter(Boolean).join("");
   const nm=String(m.name||"").split(" · ")[0];
   const out=(m.belongs===false);
-  return `<div class="tbd-c${total?"":" idle"}${out?" out":""}" onclick="_boardOpen('${m.id}')">
+  return `<div class="tbd-c${total?"":" idle"}${out?" out":""}${m.assign_blocked?" blocked":""}" onclick="_boardOpen('${m.id}')">
     <div class="tbd-top">${_avatar(nm,26)}<span class="tbd-nm">${esc(nm)}</span>${m.project_tag?`<span class="tbd-tag">${esc(m.project_tag)}</span>`:""}</div>
     <div class="tbd-big">${total}</div>
     <div class="tbd-sub">leads · you gave ${Number(m.given_by_me||0)}</div>
@@ -3125,7 +3153,7 @@ function _leadCard(l){
         ${chk}${_avatarC(l.name,40)}
         <div style="flex:1;min-width:0"><div class="lr-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${dot}${esc(l.name)}</div><div class="lr-sub">${sub?`<span>${sub}</span>`:''}${l.project_name?_projChip(l.project_name):''}${srcTag?`<span style="display:inline-flex;align-items:center;font-size:var(--fk-fs-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap">${srcTag}</span>`:''}</div></div>
       </div>
-      <div class="lead-right">${stat}<span class="lead-date" title="Last activity">${esc(agoTxt(l.last_activity_at||l.created_at))}</span>${_leadFuTag(l)}</div>
+      <div class="lead-right">${stat}<span class="lead-date" title="Last activity">${esc(agoTxt(l.last_activity_at||l.created_at))}</span>${l.is_locked?`<span class="lead-lock" title="Locked — follow-up missed">${li('lock',11,2.2)} Locked</span>`:''}${_leadFuTag(l)}</div>
     </div>
     ${(quick||foot)?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">${quick}<span style="flex:1"></span>${foot}</div>`:''}
   </div>`;
@@ -4009,7 +4037,11 @@ async function openLead(id){ LEAD_OPEN=id; _trailFull=false; GW={active:false,le
   // opening = "checked": mark seen, un-bold locally, drop the unread badge
   const l=(LEADS||[]).find(x=>x.id===id);
   if(l && !l.checked){ l.checked=true; if(l.status!=='won'&&l.status!=='lost'){ LEAD_UNCHECKED=Math.max(0,LEAD_UNCHECKED-1); _leadsBadgeSet(LEAD_UNCHECKED); } }
-  try{ await sb.rpc('mark_lead_seen',{p_session_token:TOKEN,p_lead_id:id}); }catch(e){}
+  // Phase 2: the server decides whether opening this lead owes a disposition.
+  try{ const {data}=await sb.rpc('mark_lead_seen',{p_session_token:TOKEN,p_lead_id:id});
+    if(data&&data.disposition_required&&LEAD_OPEN===id)
+      _fuOpen(id,true,(LEAD_DETAIL&&LEAD_DETAIL.lead)||null);
+  }catch(e){}
 }
 function closeLead(){ LEAD_OPEN=null; renderLeads(); }
 async function renderLeadWizard(fresh){
@@ -4114,6 +4146,96 @@ function _canActLead(l){ return !!(l && (l.is_mine || _isLeadAdmin())); }
 function _distributablePool(l){ if(!l||l.status==='won'||l.status==='lost') return false;
   return _isLeadAdmin() ? (l.owner_role==='director') : !!l.is_mine; }
 // ── full details (360) — opened from the wizard's "View full details" ──
+/* ══ Phase 2 — forced follow-up ═════════════════════════════════════════════
+   Opening a lead you own creates an obligation: where it stands, what happened,
+   and when you'll be back. The server owns the rule (submit_lead_disposition);
+   this is the surface for it. When `forced` the sheet has no way out — that is
+   the point, so the tap-and-leave loop cannot happen. */
+let FU={id:null,status:null,channel:'call',forced:false,name:''};
+const FU_STAGES=[['new','New'],['contacted','Contacted'],['visit','Visit'],['negotiation','Negotiation'],['won','Won'],['lost','Lost']];
+const FU_CHANNELS=[['call','Call'],['whatsapp','WhatsApp'],['visit','Visit'],['meeting','Meeting'],['note','Note']];
+
+function _fuOpen(id,forced,lead){
+  const l=lead||(LEAD_DETAIL&&LEAD_DETAIL.lead)||{};
+  FU={id:id,status:l.status||'contacted',channel:'call',forced:!!forced,name:l.name||'this lead'};
+  _fuPaint();
+}
+function _fuPaint(){
+  const closing=(FU.status==='won'||FU.status==='lost');
+  const chip=(g,k,lb,on)=>`<button type="button" class="fu-chip${on?' on':''}" onclick="_fuPick('${g}','${k}')">${esc(lb)}</button>`;
+  let h=`<div class="fu-ov" onclick="_fuOverlay(event)"><div class="fu-sheet" role="dialog" aria-modal="true">
+    <h3>${FU.forced?'Before you move on':'Update this lead'}</h3>
+    <div class="fu-why">${FU.forced
+      ? 'You opened <b>'+esc(FU.name)+'</b>. Record where it stands, what happened, and when you’ll be back.'
+      : 'Set the stage, leave a note, and pick the next follow-up date.'}</div>
+    <div class="fu-lb">Where does it stand?</div>
+    <div class="fu-chips">${FU_STAGES.map(s=>chip('status',s[0],s[1],FU.status===s[0])).join('')}</div>
+    <div class="fu-lb">How did you reach them?</div>
+    <div class="fu-chips">${FU_CHANNELS.map(c=>chip('channel',c[0],c[1],FU.channel===c[0])).join('')}</div>
+    <div class="fu-lb">What happened?</div>
+    <textarea class="input" id="fu-note" rows="3" placeholder="A line or two — what was said, what they want."></textarea>`;
+  if(!closing){
+    h+=`<div class="fu-lb">Next follow-up</div>
+        <input type="date" class="input" id="fu-date" min="${_fuTodayStr()}" value="${_fuDefaultDate()}">`;
+  } else {
+    h+=`<div class="fu-why" style="margin:13px 0 0">This lead is closing as <b>${esc(FU.status)}</b> — no follow-up date needed.</div>`;
+  }
+  h+=`<div class="fu-err" id="fu-err"></div>
+      <button class="btn btn-primary btn-full" style="margin-top:4px" onclick="_fuSave()">Save and continue</button>
+      ${FU.forced?'':'<button class="btn btn-full" style="margin-top:8px" onclick="_fuClose()">Cancel</button>'}
+      </div></div>`;
+  $('modal-host').innerHTML=h; _lockScroll(); _enhanceForm($('modal-host')); _syncNav();
+}
+function _fuPick(group,val){
+  const note=$('fu-note'), date=$('fu-date');
+  FU._note=note?note.value:(FU._note||''); FU._date=date?date.value:(FU._date||'');
+  FU[group]=val; _fuPaint();
+  const n2=$('fu-note'); if(n2&&FU._note) n2.value=FU._note;
+  const d2=$('fu-date'); if(d2&&FU._date) d2.value=FU._date;
+}
+function _fuOverlay(ev){ if(ev.target!==ev.currentTarget) return; if(!FU.forced) _fuClose(); }
+function _fuClose(){ $('modal-host').innerHTML=''; _unlockScroll(); _syncNav(); }
+function _fuTodayStr(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function _fuDefaultDate(){ const d=new Date(); d.setDate(d.getDate()+2); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+async function _fuSave(){
+  const err=$('fu-err'); const note=($('fu-note')&&$('fu-note').value||'').trim();
+  const closing=(FU.status==='won'||FU.status==='lost');
+  const dateEl=$('fu-date'); const dv=dateEl?dateEl.value:'';
+  if(note.length<3){ if(err) err.textContent='Write what happened — at least a few words.'; return; }
+  if(!closing&&!dv){ if(err) err.textContent='Pick the next follow-up date.'; return; }
+  if(err) err.textContent='';
+  let data;
+  try{
+    const r=await sb.rpc('submit_lead_disposition',{
+      p_session_token:TOKEN, p_lead_id:FU.id, p_status:FU.status,
+      p_comment:note, p_next_follow_up_at:(closing?null:new Date(dv+'T12:00:00').toISOString()),
+      p_channel:FU.channel});
+    data=r.data;
+  }catch(e){ if(err) err.textContent='Network problem — try again.'; return; }
+  if(data&&data.error==='session_expired') return sessionGone();
+  if(!data||!data.success){ if(err) err.textContent=(data&&data.message)||'Could not save.'; return; }
+  const b=data.block||{};
+  _fuClose();
+  toast(closing?'Lead closed':'Saved — next follow-up set','ok');
+  if(b.enforced&&Number(b.overdue||0)>0)
+    setTimeout(()=>toast(b.overdue+' follow-up'+(b.overdue==1?'':'s')+' still overdue','err'),900);
+  if(LEAD_OPEN===FU.id) renderLeadDetail(FU.id); else renderLeads();
+}
+/* the read-only banner on a locked lead */
+function _fuLockBanner(l){
+  if(!l||!l.is_locked) return '';
+  const miss=Number(l.missed_count||0);
+  return `<div class="fu-lock"><span class="fu-ic">${li('lock',18,2)}</span><div style="flex:1">
+    <div class="fu-t">Locked — follow-up was missed</div>
+    <div class="fu-s">This lead is read-only until you update it.${miss?' Missed '+miss+' time'+(miss==1?'':'s')+'.':''} Nothing is lost — record where it stands and it opens again.</div>
+    ${l.is_mine?`<button class="btn btn-primary btn-sm" onclick="_fuOpen('${l.id}',false)">Update now</button>`:''}
+  </div></div>`;
+}
+/* the "you cannot take new leads" strip */
+function _fuBlockBanner(b){
+  if(!b||!b.enforced||!b.blocked) return '';
+  return `<div class="fu-blk">${li('alert',14,2)} <b>New leads are on hold.</b> You have ${b.overdue} overdue follow-ups (limit ${b.limit}). Clear them and assignments resume automatically.</div>`;
+}
 async function renderLeadDetail(id){
   $('app-body').innerHTML=_skel();
   let d, acts;
@@ -4140,11 +4262,17 @@ async function renderLeadDetail(id){
     <div class="l360-tags"><span class="spill">${_srcLabel(l.source)}</span>${stagePill}${l.interest?`<span class="spill">${esc(l.interest)}</span>`:''}${l.budget?`<span class="spill">${esc(pkrShort(l.budget))}</span>`:''}${(!l.is_mine&&l.owner_name)?`<span class="spill">Held by ${esc(l.owner_name)}</span>`:''}${(l.is_mine&&l.assigned_from)?`<span class="spill">From ${esc(l.assigned_from)}</span>`:''}${(l.booking&&l.booking.unit_no)?`<span class="spill" style="background:var(--fk-primary-tint);border-color:transparent;color:var(--fk-primary)">${li('tag',12,2)} Unit ${esc(l.booking.unit_no)}</span>`:''}</div></div>`;
   // ── journey progress bar (where this lead is) ──
   html+=_leadJourney(l);
+  // ── Phase 2: locked / blocked state, before anything editable ──
+  html+=_fuLockBanner(l);
+  html+=_fuBlockBanner(d.block);
   // ── guided step panel (wizard-style, on top of the full page) ──
   if(l.is_mine){
     if(l.booking && l.booking.reservation_id){ html+=_bookingCard(l.booking); }
     else if(GW.active && GW.leadId===l.id){ html+=_gwPanel(l); }
-    else { const g=_leadGuide(l);
+    // A locked lead has no follow-up field and no log card, so the guide's
+    // "Add reminder" would focus an element that is no longer rendered. The lock
+    // banner above already carries the one action that applies.
+    else if(!l.is_locked){ const g=_leadGuide(l);
       let _gb=g.cta?`<button class="btn btn-primary btn-full" style="margin-top:11px" onclick="${g.cta.action}">${esc(g.cta.label)}</button>`:'';
       if(g.cta2) _gb+=`<button class="btn btn-full" style="margin-top:8px" onclick="${g.cta2.action}">${esc(g.cta2.label)}</button>`;
       html+=`<div class="l360-guide"><div class="lg-step">${li('compass',12,2)} What to do now</div><div class="lg-title">${esc(g.title)}</div><div class="lg-text">${esc(g.text)}</div>${_gb}</div>`;
@@ -4178,7 +4306,10 @@ async function renderLeadDetail(id){
     <div class="l360-stat"><div class="l">Follow-up</div><div class="v${fuTxt.warn?' warn':''}">${esc(fuTxt.t)}</div></div>
   </div>`;
   // ── stage stepper + follow-up + lost ──
-  if(_canActLead(l)){
+  // Phase 2: a locked lead is read-only here. Calling still works above — the
+  // point is to make the call, not to freeze the member out of it. Everything
+  // that EDITS the record routes through the disposition sheet instead.
+  if(_canActLead(l) && !l.is_locked){
     const fuVal=l.next_follow_up_at?new Date(l.next_follow_up_at).toISOString().slice(0,10):'';
     html+=`<div class="card" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:var(--fs-secondary);font-weight:700;margin-bottom:7px">${li('clock',14,2)} When to contact next?</div><input type="date" id="l360-fu" class="input" value="${fuVal}" onchange="_leadSetFollowup('${l.id}',this.value)"><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:7px">Sets a reminder — this lead pops up on your Home “Follow up today” on that date.</div></div>`;
     LOGV={channel:'call',outcome:null};
@@ -4198,7 +4329,7 @@ async function renderLeadDetail(id){
     html+=`<button class="btn btn-full" style="margin-bottom:10px" onclick="_leadActions('${l.id}')">More actions ⋯</button>`;
   }
   // ── hand down ──
-  if(LEADCFG&&LEADCFG.can_assign&&_canActLead(l)){
+  if(LEADCFG&&LEADCFG.can_assign&&_canActLead(l)&&!l.is_locked){
     html+=`<button class="btn btn-full btn-primary" style="margin-bottom:14px" onclick="openAssign('${l.id}')">Assign this lead to your team →</button>`;
   }
   // ── full trail ──
@@ -4624,7 +4755,17 @@ async function _assignRun(uid){
       if(typeof DISTV!=='undefined') DISTV.sel=[];
       ASSIGN.reps=null;                    // loads fresh so the "open" counts stay honest
       const fn=ASSIGN.after; ASSIGN.after=null; (fn||_assignRefresh)();
-    } else toast((data&&data.message)||'Could not assign','err');
+    }
+    // Phase 2: a blocked member is a hard stop with a reason — a toast is too
+    // quiet for something the director has to act on.
+    else if(data&&data.error==='assign_blocked'){
+      const b=data.block||{};
+      openModal('Cannot assign yet',
+        `<div style="font-size:var(--fs-secondary);line-height:1.55">${esc(data.message||'')}</div>
+         <div class="fu-blk" style="margin:13px 0 0">${li('alert',14,2)} Overdue <b>${Number(b.overdue||0)}</b> · allowed <b>${Number(b.limit||0)}</b>. The block lifts by itself as soon as they clear down to the limit.</div>`,
+        '<button class="btn btn-primary" onclick="closeModal()">Got it</button>');
+    }
+    else toast((data&&data.message)||'Could not assign','err');
   }catch(e){ toast('Could not assign','err'); }
 }
 async function openAssign(id){
