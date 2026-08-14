@@ -46,5 +46,5 @@ test-splash.js
 # Database snapshots — contain real tenant data (PII, password hashes, OTP tokens). Never commit.
 backups/
 
-# ── Back-office admin login for the browser harness (NEVER commit) ─
-scripts/.rms-admin.local.json
+# ── Local secrets for the browser harness. NEVER commit. ─────────
+.env.local

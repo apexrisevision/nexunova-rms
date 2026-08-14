@@ -1,8 +1,0 @@
-{
-  "_": "Copy this file to scripts/.rms-admin.local.json and fill in the real values.",
-  "_2": "That filename is gitignored — it can never reach the repo.",
-  "_3": "Use the ZZTEST scratch tenant, not a live company.",
-  "company_code": "zztestinternalsafeto",
-  "username": "",
-  "password": ""
-}
