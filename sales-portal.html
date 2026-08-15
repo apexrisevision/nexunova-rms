@@ -5118,6 +5118,7 @@ let FB_LEADS=[], FB_LEADS_OK=false;   // facebook leads (companywide) for per-pa
 function _copyEl(el){ const s=el.querySelector('span'); const t=s?s.textContent:''; try{ navigator.clipboard.writeText(t); toast('Copied','ok'); }catch(e){ toast('Copy failed','err'); } }
 // FB_CANWRITE: only the operator (lead_entry) + admin manage connections; directors are read-only.
 let FB_CANWRITE=false;
+let FB_RECIP_OK=false, FB_RECIPIENTS=[];   // director/admin may choose who a page's leads land with
 let FB_HOST_ID='fb-host';   // where the FB module/wizard renders (director route or lead-entry segment)
 async function renderFbSettings(){   // director/admin route (data-dir nav) — read-only for directors
   FB_CANWRITE = !!(ME && (ME.role==='lead_entry' || ME.role==='admin'));
@@ -5143,6 +5144,11 @@ async function _fbModuleInto(hostId){
   FB_LEADS_OK = !!(ll && ll.success);
   FB_LEADS = FB_LEADS_OK ? (ll.leads||[]).filter(x=>String(x.source||'').toLowerCase()==='facebook') : [];
   FB_PAGES=data.pages||[];
+  // who receives a page's leads — directors/admins may re-point it (set_fb_recipient).
+  // Deliberately NOT part of the page modal: that payload carries no recipient and
+  // would reset it to the oldest active director on every Save.
+  FB_RECIP_OK = !!data.can_set_recipient;
+  FB_RECIPIENTS = data.recipients||[];
   const cw=FB_CANWRITE;
   const copyRow=(label,val)=>`<div style="margin-bottom:10px"><div class="label">${esc(label)}</div><div onclick="_copyEl(this)" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);cursor:pointer;word-break:break-all"><span style="flex:1;font-family:var(--fk-font);font-size:var(--fk-fs-body);color:var(--fk-text);word-break:break-all">${esc(String(val||''))}</span>${li('paperclip',15,2)}</div></div>`;
   const fbSvg='<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7H8v-2.9h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6v1.9h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z"/></svg>';
@@ -5187,7 +5193,8 @@ function _fbPageRow(p){
   return `<div class="fbpg" id="fbpg-${esc(p.id)}"><div class="lrow"><div class="lrow-top">
     <span style="width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;background:${ok?'var(--fk-success-surface)':'var(--fk-bg-subtle)'};color:${ok?'var(--fk-success)':'var(--fk-text-muted)'}">${li(ok?'check':'x',18,2.2)}</span>
     <div style="flex:1;min-width:0"><div class="lr-name">${esc(p.page_name||p.page_id||'Unnamed page')}</div>
-      <div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${p.project_name?_projChip(p.project_name):'<span style="color:var(--fk-warning)">No project set</span>'}<span style="font-variant-numeric:tabular-nums">${n} lead${n==1?'':'s'}</span>${p.last_lead_at?'<span>· '+esc(fdate(p.last_lead_at))+'</span>':''}</div></div>
+      <div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${p.project_name?_projChip(p.project_name):'<span style="color:var(--fk-warning)">No project set</span>'}<span style="font-variant-numeric:tabular-nums">${n} lead${n==1?'':'s'}</span>${p.last_lead_at?'<span>· '+esc(fdate(p.last_lead_at))+'</span>':''}</div>
+      ${FB_RECIP_OK?`<div class="lr-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">Leads go to <b style="color:var(--fk-text)">${esc(p.recipient_name||'— not set —')}</b><button class="btn btn-sm" style="flex:none;padding:2px 9px" onclick="event.stopPropagation();_fbRecipModal('${esc(p.page_id||'')}')">Change</button></div>`:''}</div>
     ${toggle}
     ${FB_CANWRITE?`<button class="btn btn-sm" style="flex:none" onclick="event.stopPropagation();_fbWizOpen('${esc(p.id)}')">Set up</button>
     <button class="btn btn-sm" style="flex:none" onclick="event.stopPropagation();_fbTestConn('${esc(p.id)}',this)">Test</button>
@@ -5216,6 +5223,37 @@ function _fbLeadMini(l){
     <span class="spill" style="white-space:nowrap">${esc(_leadStageLabel(l.status))}</span>
     <span class="fbpg-acts">${tel}${waB}</span>
   </div>`;
+}
+// ── Who receives this Page's leads (director/admin) ──────────────────────────
+// Goes through set_fb_recipient, NOT save_fb_page: that RPC's payload has no
+// recipient field, so saving from the page modal would silently re-point the
+// page at the oldest active director. This touches recipient_sales_user_id only
+// — tokens, project, status and the verify token are never in play.
+function _fbRecipModal(pageId){
+  if(!FB_RECIP_OK) return;
+  const p=FB_PAGES.find(x=>String(x.page_id)===String(pageId)); if(!p) return;
+  const cur=String(p.recipient_sales_user_id||'');
+  const opts=(FB_RECIPIENTS||[]).map(r=>`<option value="${esc(r.id)}"${String(r.id)===cur?' selected':''}>${esc(r.name)}</option>`).join('');
+  openModal('Leads go to',
+    `<div style="font-size:var(--fs-secondary);color:var(--fk-text-muted);margin-bottom:12px;line-height:1.6">
+       New leads from <b style="color:var(--fk-text)">${esc(p.page_name||p.page_id||'this page')}</b> will land with the person you pick.
+       Leads already in the system keep their current owner.</div>
+     <div class="field"><label class="label">Receiving director</label><select class="input" id="fbr-who">${opts||'<option value="">No eligible director found</option>'}</select></div>
+     <div id="fbr-err" style="display:none;color:var(--fk-danger);font-size:var(--fs-secondary);margin-top:6px"></div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="fbr-save" onclick="_fbRecipSave('${esc(pageId)}')">Save</button>`);
+}
+async function _fbRecipSave(pageId){
+  const err=$('fbr-err'), btn=$('fbr-save');
+  const who=($('fbr-who')||{}).value||'';
+  const fail=m=>{ if(err){ err.style.display='block'; err.textContent=m; } if(btn) btn.disabled=false; };
+  if(!who) return fail('Pick who should receive this page’s leads.');
+  if(btn) btn.disabled=true;
+  try{
+    const {data}=await sb.rpc('set_fb_recipient',{p_session_token:TOKEN,p_page_id:pageId,p_recipient_sales_user_id:who});
+    if(data&&data.success){ closeModal(); toast(data.unchanged?'Already set':'Leads will now go to the selected director','ok'); _fbModuleInto(FB_HOST_ID); }
+    else if(data&&data.error==='session_expired') sessionGone();
+    else fail((data&&data.message)||'Could not change the recipient.');
+  }catch(e){ fail('Could not change the recipient.'); }
 }
 function _fbPageModal(id){
   const p=id?(FB_PAGES.find(x=>x.id===id)||{}):{}; const verify=p.verify_token||'';
