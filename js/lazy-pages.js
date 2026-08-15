@@ -76,6 +76,7 @@
     newsale: SALES, editsale: SALES, sales: SALES, salesdetail: SALES,
     projects: PROJECTS, projectdetail: PROJECTS,
     units: UNITS, unitdetail: UNITS,
+    unitmap: ['js/pages/unitmap.js?v=20260815map'],
     clients: CLIENTS, clientdetail: CLIENTS, healthcenter: CLIENTS, blacklist: CLIENTS,
     agents: AGENTS, agentdetail: AGENTS, commissions: AGENTS,
 
