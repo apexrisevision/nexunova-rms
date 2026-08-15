@@ -5184,7 +5184,9 @@ function _fbPageLeads(p){
 }
 function _fbPageRow(p){
   const ok=p.status==='connected';
-  const n = FB_LEADS_OK ? _fbPageLeads(p).length : (p.leads_count||0);
+  // operators can't read the leads themselves, so they take the server-side live
+  // count (leads_count is a lifetime counter and over-reports deleted leads)
+  const n = FB_LEADS_OK ? _fbPageLeads(p).length : Number(p.live_leads!=null?p.live_leads:(p.leads_count||0));
   // per-page "which leads came from this page" toggle (director/admin: real list; others: count only)
   const toggle = FB_LEADS_OK
     ? `<button class="btn btn-sm fbpg-tg" style="flex:none" onclick="event.stopPropagation();_fbToggleLeads('${esc(p.id)}',this)">${li('inbox',14,2)} Leads (${n}) <span class="fbpg-cv">${li('chevron-down',13,2.4)}</span></button>`
