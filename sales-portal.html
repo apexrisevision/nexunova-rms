@@ -3017,6 +3017,11 @@ function _leadsRender(){
   if(lprojs.length>1){
     html+=_seg([['all','All ('+scoped.length+')']].concat(lprojs.map(p=>[p.id, esc(p.tag||p.name)+' ('+p.n+')'])), (LEADV.proj||'all'), '_leadSetProj');
   }
+  // source-Page tabs — only when more than one Page feeds this list
+  const lpages=_leadPages();
+  if(lpages.length>1){
+    html+=_seg([['all','All ('+scoped.length+')']].concat(lpages.map(p=>[p.id, esc(p.tag)+' ('+p.n+')'])), (LEADV.page||'all'), '_leadSetPage');
+  }
   if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
   const _so=(v,lb)=>`<option value="${v}"${(LEADV.sort||'activity')===v?' selected':''}>${lb}</option>`;
@@ -3056,6 +3061,23 @@ function _leadSetProj(id){
   _leadsRender();
 }
 function _leadSetOwn(k){ LEADV.own=k; _leadsRender(); }
+// source Pages present in the current lead list — same idea as the project tabs,
+// for when two Facebook Pages feed the same project
+function _leadPages(){
+  const m=new Map();
+  _leadBase().forEach(l=>{ if(!l.fb_page_id) return;
+    const e=m.get(l.fb_page_id)||{id:l.fb_page_id, name:l.fb_page_name||'Facebook Page', tag:_pgShort(l.fb_page_name)||'Page', n:0};
+    e.n++; m.set(l.fb_page_id,e); });
+  return [...m.values()].sort((a,b)=>b.n-a.n);
+}
+function _leadSetPage(id){
+  LEADV.page=id;
+  if(id!=='all' && LEADSEL.on){   // keep the selection honest when the view narrows
+    LEADSEL.ids=LEADSEL.ids.filter(x=>{ const l=LEADS.find(z=>z.id===x); return l && l.fb_page_id===id; });
+    if(!LEADSEL.ids.length) LEADSEL.on=false;
+  }
+  _leadsRender();
+}
 // the rows currently on screen (filter + search + sort) — shared by the list and
 // by "Select all" so the two can never disagree
 function _leadVisibleRows(){
@@ -3067,6 +3089,7 @@ function _leadVisibleRows(){
     : f==='unchecked' ? (!l.checked && l.status!=='won' && l.status!=='lost' && l.is_mine)
     : l.status===f);
   if(LEADV.proj && LEADV.proj!=='all') rows=rows.filter(l=>(l.project_id||'none')===LEADV.proj);
+  if(LEADV.page && LEADV.page!=='all') rows=rows.filter(l=>l.fb_page_id===LEADV.page);
   if(typeof LEADSEL!=='undefined' && LEADSEL.on) rows=rows.filter(_leadPickable);   // selection = assignable pool only
   const q=(LEADV.q||'').trim().toLowerCase();
   if(q) rows=rows.filter(l=>((l.name||'').toLowerCase().includes(q))||((l.phone||'').replace(/\s/g,'').includes(q)));
@@ -3115,7 +3138,8 @@ function _leadCard(l){
   const stat=`<span class="lead-stat" style="background:color-mix(in srgb,${col} 14%,var(--fk-bg-card));color:${col}">${esc(lbl)}${caret}<select class="lead-stat-x" onchange="_leadStage('${l.id}',this.value)" title="Change status">${opts}</select></span>`;
   const meta=[l.interest?esc(l.interest):'', l.budget?pkrShort(l.budget):''].filter(Boolean).join(' · ');
   const sub=[l.phone?esc(phDisp(l.phone)):'', meta].filter(Boolean).join(' · ');
-  const srcTag = l.source ? (l.created_by_me?'':'Received · ')+_srcLabel(l.source) : '';   // where each lead came from
+  const srcTag = l.source ? (l.created_by_me?'':'Received · ')+_srcLabel(l.source)
+                            +(l.fb_page_name?' · '+esc(_pgShort(l.fb_page_name)):'') : '';   // where each lead came from (incl. which FB Page)
   const dot = unchecked ? `<span title="Not checked yet" style="width:8px;height:8px;border-radius:50%;background:${col};flex:none"></span>` : '';
   const nameStyle = unchecked ? 'font-weight:var(--fk-fw-bold)' : 'font-weight:var(--fk-fw-medium);color:var(--fk-text-muted)';
   // inline action: hand-to-team when this is a poolable lead (director/manager); else show who it was assigned to
@@ -4604,6 +4628,31 @@ async function _mgrPullback(id){
   }catch(e){ toast('Could not pull back','err'); }
 }
 function _srcLabel(s){ return ({facebook:'Facebook',whatsapp:'WhatsApp',instagram:'Instagram',website:'Website',manual:'Manual',walkin:'Walk-in',assigned:'Assigned',online:'Online',referral:'Referral',call:'Call',banner:'Banner',other:'Other'})[String(s||'').toLowerCase()]||esc(s||'—'); }
+// ── Facebook provenance: several Pages can feed ONE project, so the source Page
+//    is shown per lead. Long page names collapse to initials ("Khushal Bagh
+//    Height" → "KBH") so the chip never eats the row.
+function _pgShort(n){ const s=String(n||'').trim(); if(!s) return '';
+  if(s.length<=16) return s;
+  const w=s.split(/\s+/).filter(x=>x.length>1);
+  return w.length>1 ? w.map(x=>x[0].toUpperCase()).join('') : s.slice(0,16); }
+// Meta sends slugs — "which_apartment_are_you_interested_in?" / "1_bed".
+// Rendered generically: the two forms ask different questions and a third may
+// be added tomorrow, so nothing here is hard-coded to a question set.
+function _fbQ(s){ const t=String(s||'').replace(/_/g,' ').replace(/\s+/g,' ').trim(); return t?t[0].toUpperCase()+t.slice(1):''; }
+// Only Meta's own slug choices ("1_bed") get prettified — free text the client
+// typed is left exactly as written, never title-cased.
+function _fbA(s){ const t=String(s||'').trim();
+  return /^[a-z0-9]+(_[a-z0-9]+)+$/.test(t) ? t.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) : t; }
+// already shown at the top of the lead — don't repeat them in the answers block
+const _FB_SKIP=['full_name','first_name','last_name','name','phone','phone_number','email','inbox_url'];
+function _fbAnswerRows(l){
+  const fd=Array.isArray(l&&l.fb_answers)?l.fb_answers:[];
+  return fd.filter(f=>{ const n=String((f&&f.name)||'').toLowerCase().replace(/\?+$/,'');
+                        return n && _FB_SKIP.indexOf(n)===-1; })
+           .map(f=>({ q:_fbQ(f.name),
+                      a:(Array.isArray(f.values)?f.values:[]).map(_fbA).filter(Boolean).join(', ') }))
+           .filter(x=>x.q && x.a);
+}
 function _timeOf(d){ const x=new Date(d); return isNaN(x)?'':x.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
 let LOGV={channel:'call',outcome:null};
 function _logPick(el,g){ el.parentElement.querySelectorAll('.lgchip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); if(g==='ch') LOGV.channel=el.getAttribute('data-v'); else LOGV.outcome=el.getAttribute('data-v'); }
@@ -4624,11 +4673,19 @@ async function _leadLog(id){
 function _leadTrail(l,acts){
   const age=Math.max(0,Math.floor((Date.now()-new Date(l.created_at))/86400000));
   let html='<div class="tsum">'
-    +`<div class="ts"><div class="l">Source</div><div class="v">${_srcLabel(l.source)}</div></div>`
+    +`<div class="ts"><div class="l">Source</div><div class="v">${_srcLabel(l.source)}${l.fb_page_name?' · '+esc(l.fb_page_name):''}</div></div>`
     +`<div class="ts"><div class="l">Lead age</div><div class="v">${age} day${age===1?'':'s'}</div></div>`
     +`<div class="ts"><div class="l">First contact</div><div class="v">${l.first_contact_at?esc(fdateShort(l.first_contact_at)):'Not yet'}</div></div>`
     +`<div class="ts"><div class="l">Contacts</div><div class="v">${Number(l.contact_count||0)}</div></div>`
     +'</div>';
+  // what the client actually answered on the Meta instant form
+  const _fbRows=_fbAnswerRows(l);
+  if(_fbRows.length){
+    html+='<div style="margin-top:14px;padding-top:13px;border-top:1px solid var(--fk-border)">'
+      +'<div style="font-size:var(--fs-caption);font-weight:700;color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:9px">Form answers</div>'
+      +_fbRows.map(x=>`<div style="margin-bottom:9px"><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.4">${esc(x.q)}</div><div style="font-size:var(--fs-secondary);font-weight:600;color:var(--fk-text);margin-top:1px">${esc(x.a)}</div></div>`).join('')
+      +'</div>';
+  }
   const I={flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',msg:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/>',pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',arrow:'<line x1="5" y1="12" x2="19" y2="12"/><path d="m12 5 7 7-7 7"/>',check:'<path d="M20 6 9 17l-5-5"/>'};
   const svg=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const node=(cls,icon,label,body,time)=>`<div class="tnode"><div class="tdot ${cls}">${svg(icon)}</div><div class="tlabel">${label}</div>${body?`<div class="tbody">${body}</div>`:''}<div class="ttime">${esc(time)}</div></div>`;
