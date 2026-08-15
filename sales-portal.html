@@ -5174,14 +5174,13 @@ async function _fbModuleInto(hostId){
   host.innerHTML=html;
   _fbDiagLoad();
 }
-// list_my_leads exposes project_name (not project_id), so attribute a page's leads by project name
-// (with a project_id fallback in case the shape ever includes it). Both pages map to distinct projects.
+// Attribute a page's leads by the PAGE that produced them. This used to match on
+// project name, which broke the moment two Pages fed one project — every page row
+// then showed the whole project's leads. leads.fb_page_id is stamped by
+// create_lead_from_fb (and backfilled), so the page id is exact.
 function _fbPageLeads(p){
-  if(!FB_LEADS_OK) return [];
-  return FB_LEADS.filter(l=>
-    (p.project_name && l.project_name && String(l.project_name)===String(p.project_name)) ||
-    (p.project_id && l.project_id && String(l.project_id)===String(p.project_id))
-  );
+  if(!FB_LEADS_OK || !p || !p.page_id) return [];
+  return FB_LEADS.filter(l=>String(l.fb_page_id||'')===String(p.page_id));
 }
 function _fbPageRow(p){
   const ok=p.status==='connected';
