@@ -196,7 +196,7 @@ async function until(page, fn, ms = 20000) {
   // The map must recolour from the SERVER, not from anything cached locally.
   await B.page.evaluate(() => _umvOpen(MAPPLAN));
   await until(B.page, () => /Reserved 1/.test(document.querySelector('.umv-legend').textContent));
-  const legend2 = await B.page.evaluate(() => document.querySelector('.umv-legend').textContent.replace(/s+/g, ' ').trim());
+  const legend2 = await B.page.evaluate(() => document.querySelector('.umv-legend').textContent.replace(/\s+/g, ' ').trim());
   assert(/Reserved 1/.test(legend2), 'the map recoloured from the server: ' + legend2);
   await shot(B.page, 'viewer-after-reserve');
 
