@@ -86,7 +86,21 @@ async function until(page, fn, ms = 20000) {
     await page.evaluate(t => { localStorage.setItem('rms.sales.token', t); localStorage.setItem('rms.sales.active', String(Date.now())); }, token);
     await page.reload({ waitUntil: 'networkidle2' });
     await until(page, () => typeof window.renderUnitMap === 'function');
-    await sleep(1400);
+    // Wait for the portal's own boot render to LAND before driving. Proven by the
+    // diagnostic: the home screen resolves after the map is drawn and overwrites
+    // app-body, so the polygons vanish from under the tap. The director's home is
+    // the team board and takes longer, which is why only that path failed.
+    await until(page, () => {
+      const b = document.getElementById('app-body');
+      return !!b && b.children.length > 0 && !b.querySelector('.skel, .skeleton');
+    });
+    // and settle: two consecutive identical snapshots mean nothing else is in flight
+    await page.waitForFunction(() => {
+      const b = document.getElementById('app-body'); if (!b) return false;
+      const now = b.innerHTML.length;
+      if (window.__lastLen === now) return true;
+      window.__lastLen = now; return false;
+    }, { timeout: 20000, polling: 350 }).catch(() => {});
     await page.evaluate(() => { document.querySelectorAll('.overlay,.locbar').forEach(e => e.remove()); });
     return { page, errs };
   }
@@ -101,13 +115,37 @@ async function until(page, fn, ms = 20000) {
   }
 
   async function tapUnit(page, unitNo) {
-    const there = await until(page, `(() => { const t = [...document.querySelectorAll('#umv-svg text')]
-      .find(x => x.textContent === '${unitNo}'); return !!(t && t.previousElementSibling); })()`.replace('${unitNo}', unitNo));
-    if (!there) return false;
-    await page.evaluate(n => { const t = [...document.querySelectorAll('#umv-svg text')].find(x => x.textContent === n);
-      t.previousElementSibling.dispatchEvent(new MouseEvent('click', { bubbles: true })); }, unitNo);
-    return until(page, () => !!document.querySelector('.umv-sheet-in'));
+    const there = await until(page, () => document.querySelectorAll('#umv-svg text').length > 0);
+    if (!there) { await diag(page, unitNo, 'no labels ever appeared'); return false; }
+    const clicked = await page.evaluate(n => {
+      const t = [...document.querySelectorAll('#umv-svg text')].find(x => x.textContent === n);
+      if (!t) return 'label-missing';
+      const p = t.previousElementSibling;
+      if (!p || p.tagName.toLowerCase() !== 'polygon') return 'no-polygon-before-label';
+      p.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return 'ok';
+    }, unitNo);
+    if (clicked !== 'ok') { await diag(page, unitNo, clicked); return false; }
+    const opened = await until(page, () => !!document.querySelector('.umv-sheet-in'));
+    if (!opened) await diag(page, unitNo, 'clicked but the sheet never opened');
+    return opened;
   }
+  // TAP DIAG — what the page actually looked like when the tap failed
+  async function diag(page, unitNo, why) {
+    const d = await page.evaluate(n => ({
+      polygons: document.querySelectorAll('#umv-svg polygon').length,
+      labels: document.querySelectorAll('#umv-svg text').length,
+      hasLabel: [...document.querySelectorAll('#umv-svg text')].some(x => x.textContent === n),
+      sheet: !!document.querySelector('.umv-sheet-in'),
+      stage: !!document.getElementById('umv-stage'),
+      bodyHead: (document.getElementById('app-body') || {}).textContent
+        ? document.getElementById('app-body').textContent.replace(/\s+/g, ' ').trim().slice(0, 90) : '(empty)',
+      overlays: document.querySelectorAll('.overlay,.locbar,.fu-ov').length,
+      toast: (document.getElementById('toastbar') || {}).textContent || '',
+    }), unitNo);
+    console.log('     \u{1F50E} TAP FAILED (' + why + '): ' + JSON.stringify(d));
+  }
+
   // ══ SALE REP ══
   step('Sale rep');
   const A = await open('zz-map-rep');
