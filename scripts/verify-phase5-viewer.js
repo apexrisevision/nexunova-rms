@@ -100,6 +100,14 @@ async function until(page, fn, ms = 20000) {
     }, label);
   }
 
+  async function tapUnit(page, unitNo) {
+    const there = await until(page, `(() => { const t = [...document.querySelectorAll('#umv-svg text')]
+      .find(x => x.textContent === '${unitNo}'); return !!(t && t.previousElementSibling); })()`.replace('${unitNo}', unitNo));
+    if (!there) return false;
+    await page.evaluate(n => { const t = [...document.querySelectorAll('#umv-svg text')].find(x => x.textContent === n);
+      t.previousElementSibling.dispatchEvent(new MouseEvent('click', { bubbles: true })); }, unitNo);
+    return until(page, () => !!document.querySelector('.umv-sheet-in'));
+  }
   // ══ SALE REP ══
   step('Sale rep');
   const A = await open('zz-map-rep');
@@ -113,6 +121,7 @@ async function until(page, fn, ms = 20000) {
   assert(await until(A.page, () => document.querySelectorAll('#umv-svg polygon').length >= 30),
          '30 unit polygons rendered');
   await sleep(800);
+  await until(A.page, () => [...document.querySelectorAll('#umv-svg text')].some(t => t.textContent === 'UG-17A'));
   const nums = await A.page.evaluate(() => [...document.querySelectorAll('#umv-svg text')].map(t => t.textContent));
   assert(nums.includes('UG-17A') && nums.includes('UG-10A'),
          'numbers come from the DB — both 10A and 17A present (drawing label irrelevant)');
@@ -120,9 +129,7 @@ async function until(page, fn, ms = 20000) {
   assert(/Sold 1/.test(legend) && /Available 29/.test(legend), 'legend counts from the server: ' + legend.trim());
   await shot(A.page, 'viewer-canvas-rep');
 
-  await A.page.evaluate(() => { const t = [...document.querySelectorAll('#umv-svg text')].find(x => x.textContent === 'UG-01');
-    t.previousElementSibling.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-  assert(await until(A.page, () => !!document.querySelector('.umv-sheet-in')), 'rep opened the sold unit');
+  assert(await tapUnit(A.page, 'UG-01'), 'rep opened the sold unit');
   await sleep(700);
   const repSheet = await A.page.evaluate(() => document.querySelector('.umv-sheet-in').textContent);
   assert(/Sold/.test(repSheet), 'rep sees "Sold"');
@@ -137,9 +144,7 @@ async function until(page, fn, ms = 20000) {
   assert(await openFloor(B.page, 'Upper Ground'), 'director opened the floor');
   await until(B.page, () => document.querySelectorAll('#umv-svg polygon').length >= 30);
   await sleep(700);
-  await B.page.evaluate(() => { const t = [...document.querySelectorAll('#umv-svg text')].find(x => x.textContent === 'UG-01');
-    t.previousElementSibling.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-  assert(await until(B.page, () => !!document.querySelector('.umv-sheet-in')), 'director opened the same unit');
+  assert(await tapUnit(B.page, 'UG-01'), 'director opened the same unit');
   await sleep(700);
   const dirSheet = await B.page.evaluate(() => document.querySelector('.umv-sheet-in').textContent);
   assert(/ZZ Buyer/.test(dirSheet), 'director sees the client');

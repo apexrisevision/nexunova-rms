@@ -118,7 +118,7 @@
       var lx = u.label_x != null ? u.label_x : _cx(u.points)[0];
       var ly = u.label_y != null ? u.label_y : _cx(u.points)[1];
       // the number is the DB's unit_no, never the drawing's printed label
-      return '<polygon points="' + pts + '" fill="' + c[1] + '" stroke="' + c[0] +
+      return '<polygon data-unit="' + u.unit_id + '" points="' + pts + '" fill="' + c[1] + '" stroke="' + c[0] +
              '" stroke-width="' + (on ? 3 : 1.4) + '" vector-effect="non-scaling-stroke"' +
              ' style="cursor:pointer" onclick="_umvTap(\'' + u.unit_id + '\')"/>' +
              '<text x="' + lx + '" y="' + ly + '" font-size="0.013" text-anchor="middle"' +
@@ -126,6 +126,15 @@
              esc(u.unit_no) + '</text>';
     }).join('');
     svg.innerHTML = out;
+  }
+
+  // Selection is a stroke change on one node — never a rebuild of the layer.
+  function _highlight() {
+    var svg = $('umv-svg'); if (!svg) return;
+    var id = MAP.sel && MAP.sel.unit_id;
+    svg.querySelectorAll('polygon').forEach(function (p) {
+      p.setAttribute('stroke-width', p.getAttribute('data-unit') === id ? 3 : 1.4);
+    });
   }
   function _cx(p) { var x = 0, y = 0; p.forEach(function (q) { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
 
@@ -162,7 +171,7 @@
     var d = r.data;
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) return toast('Could not load this unit', 'err');
-    MAP.sel = d; _paint();
+    MAP.sel = d; _highlight();
     if (MAP.z < 1.8) { MAP.z = 1.8; _applyT(); }
     _sheet(d);
   };
@@ -206,7 +215,7 @@
     $('umv-sheet').innerHTML = h;
   }
   function _row(l, v) { return '<div class="umv-row"><span>' + l + '</span><span>' + v + '</span></div>'; }
-  window._umvClose = function () { MAP.sel = null; $('umv-sheet').innerHTML = ''; _paint(); };
+  window._umvClose = function () { MAP.sel = null; $('umv-sheet').innerHTML = ''; _highlight(); };
 
   // ── reserve — reserve_unit() and nothing else ────────────────────────────
   window._umvReserve = async function (unitId, days) {
