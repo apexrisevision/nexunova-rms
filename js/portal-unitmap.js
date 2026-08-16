@@ -204,6 +204,14 @@
            _row('By', esc(d.reservation.reserved_by || '—'));
     }
     h += '</div>';
+    // A price plan comes BEFORE a hold in the real conversation, and unlike a hold
+    // it is offered even when the rate is still pending — a rep has to be able to
+    // hand over a schedule while pricing is being settled.
+    if (d.state === 'available') {
+      h += '<div class="umv-res"><div class="umv-res-l">Price plan</div>' +
+           '<div class="umv-res-b"><button class="btn btn-secondary" onclick="_umvQuote(\'' + d.unit_id + '\')">' +
+           'Make a plan</button></div></div>';
+    }
     if (d.can_reserve) {
       h += '<div class="umv-res"><div class="umv-res-l">Hold this unit</div>' +
            '<div class="umv-res-b"><button class="btn btn-primary" onclick="_umvReserve(\'' + d.unit_id + '\',3)">3 days</button>' +
@@ -230,5 +238,86 @@
     if (!d || !d.success) return toast((d && d.message) || 'Could not hold this unit', 'err');
     toast('Held for ' + days + ' days', 'ok');
     await _umvOpen(MAP.planId);              // recolour from the server, never locally
+  };
+
+  // ── price plan → save_unit_quote() → PDF ─────────────────────────────────
+  // Deliberately NOT a reservation. Nothing here touches reserve_unit, and the
+  // unit is still available to the next rep the moment this closes.
+  function _unit(unitId) {
+    return ((MAP.plan && MAP.plan.units) || []).filter(function (x) { return x.unit_id === unitId; })[0];
+  }
+  function _isod(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+           '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  window._umvQuote = function (unitId) {
+    var u = _unit(unitId);
+    if (!u) return toast('Open the floor first', 'err');
+    var price = Number(u.price) || 0;
+    // A sensible opening offer the rep can overwrite: a fifth down, two years to pay.
+    var dp = price ? Math.round(price * 0.2 / 1000) * 1000 : '';
+    var mon = price ? Math.round((price - dp) / 24 / 1000) * 1000 : '';
+    var s = new Date(); s.setDate(1); s.setMonth(s.getMonth() + 1);
+    var e = new Date(s.getTime()); e.setMonth(e.getMonth() + 23);
+
+    function fld(id, label, extra, val) {
+      return '<div class="field"><label class="label">' + label + '</label>' +
+             '<input class="input" id="' + id + '" ' + (extra || '') +
+             ' value="' + (val == null ? '' : val) + '" autocomplete="off"></div>';
+    }
+    openModal('Price plan &mdash; ' + esc(u.unit_no),
+      fld('uq-name', 'Client name', '') +
+      fld('uq-phone', 'Phone <span style="color:var(--fk-text-muted);font-weight:400">(optional)</span>', 'inputmode="tel"') +
+      fld('uq-disc', 'Discount (PKR)', 'inputmode="numeric"', 0) +
+      fld('uq-dp', 'Down payment (PKR)', 'inputmode="numeric"', dp) +
+      fld('uq-mon', 'Monthly instalment (PKR)', 'inputmode="numeric"', mon) +
+      fld('uq-start', 'First instalment', 'type="date"', _isod(s)) +
+      fld('uq-end', 'Last instalment', 'type="date"', _isod(e)) +
+      (price ? '' : '<div class="umv-note" style="color:#d97706">This unit has no rate yet — the plan will say so on its face.</div>') +
+      '<div class="umv-note">A plan does not hold the unit. It stays available until someone books it.</div>',
+      '<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn btn-primary" id="uq-go" onclick="_umvQuoteSave(\'' + unitId + '\')">Save &amp; make PDF</button>');
+  };
+
+  window._umvQuoteSave = async function (unitId) {
+    var btn = $('uq-go'); if (btn && btn.disabled) return;
+    var val = function (id) { var e = $(id); return e ? String(e.value).trim() : ''; };
+    var num = function (id) { return Number(val(id).replace(/[^0-9.]/g, '')) || 0; };
+
+    var u = _unit(unitId); if (!u) return toast('Open the floor first', 'err');
+    var name = val('uq-name');
+    if (!name) return toast('Who is this plan for?', 'err');
+    var price = Number(u.price) || 0, disc = num('uq-disc'), dp = num('uq-dp');
+    if (price && disc > price) return toast('The discount is larger than the price', 'err');
+    if (price && dp > price - disc) return toast('The down payment is more than the net price', 'err');
+
+    var label = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+    try {
+      var r = await sb.rpc('save_unit_quote', {
+        p_session_token: TOKEN, p_unit_id: unitId, p_client_name: name,
+        p_client_phone: val('uq-phone') || null, p_discount: disc,
+        p_down_payment: dp, p_monthly: num('uq-mon'),
+        p_start_date: val('uq-start') || null, p_end_date: val('uq-end') || null, p_lead_id: null });
+      var d = r.data;
+      if (d && d.error === 'session_expired') return sessionGone();
+      if (!d || !d.success) throw new Error((d && d.message) || 'Could not save this plan');
+
+      // Read it back rather than print what we sent: the PDF must show the row that
+      // was actually stored, so a reprint months later matches it line for line.
+      var g = await sb.rpc('get_unit_quote', { p_session_token: TOKEN, p_quote_id: d.id });
+      var gd = g.data;
+      if (!gd || !gd.success) throw new Error('Saved as ' + d.quote_no + ', but it could not be read back');
+
+      var out = await QuotePDF.build({ artwork: MAP.plan.artwork, points: u.points,
+        quote: gd.quote, unit: gd.unit, project: gd.project, by: gd.by });
+      QuotePDF.download(out.bytes, gd.quote.quote_no + '.pdf');
+      closeModal();
+      toast(gd.quote.quote_no + ' saved', 'ok');
+    } catch (e) {
+      toast((e && e.message) || 'Could not make the plan', 'err');
+      if (btn) { btn.disabled = false; btn.innerHTML = label; }
+    }
   };
 })();
