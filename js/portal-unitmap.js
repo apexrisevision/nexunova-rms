@@ -31,6 +31,8 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function money(n) { return n ? Number(n).toLocaleString('en-US') : '—'; }
+  // like money(), but a real zero prints as 0 — "Paid: PKR —" read as missing data
+  function amount(n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); }
 
   // ── entry ────────────────────────────────────────────────────────────────
   window.renderUnitMap = async function () {
@@ -308,22 +310,29 @@
     var h = '<div class="umv-sheet-in"><div class="umv-sh-top">' +
       '<span class="umv-dot" style="background:' + c[0] + '"></span>' +
       '<b>' + esc(d.unit_no) + '</b>' +
-      '<span class="umv-state" style="color:' + c[0] + '">' + esc(d.label || d.state) + '</span>' +
+      '<span class="umv-state" style="color:' + c[0] + '">' +
+        esc(d.label || (d.state || '').charAt(0).toUpperCase() + (d.state || '').slice(1)) + '</span>' +
       '<button class="umv-x" onclick="_umvClose()">✕</button></div>' +
       '<div class="umv-rows">' +
         _row('Type', esc(d.type || '—')) +
-        _row('Area', d.area ? Number(d.area).toLocaleString('en-US') + ' sft' : '—') +
-        _row('Rate', d.rate_pending ? '<i class="umv-pend">Rate pending</i>' : 'PKR ' + money(d.price));
+        _row('Area', d.area ? Number(d.area).toLocaleString('en-US') + ' sft' : '—');
 
-    // Only a director's response carries these. A rep's never has them at all.
+    // A sold unit's price never reaches a rep, so there is no Rate row to draw —
+    // the test is "did the server send one", never "should I hide one".
+    if (d.rate_pending) h += _row('Rate', '<i class="umv-pend">Rate pending</i>');
+    else if (d.price != null) h += _row('Rate', 'PKR ' + money(d.price));
+
+    // Three tiers, all decided by get_map_unit_detail: a rep's sold unit carries
+    // the buyer's NAME and nothing else about them; a director's carries the rest.
     if (d.sale) {
-      h += _row('Client', esc(d.sale.client_name || '—')) +
-           _row('Phone', esc(d.sale.client_phone || '—')) +
-           _row('Sale', esc(d.sale.sale_number || '—')) +
-           _row('Net', 'PKR ' + money(d.sale.net_amount)) +
-           _row('Paid', 'PKR ' + money(d.sale.paid)) +
-           _row('Outstanding', '<b>PKR ' + money(d.sale.outstanding) + '</b>') +
-           (Number(d.sale.overdue) > 0 ? _row('Overdue', '<b style="color:#dc2626">PKR ' + money(d.sale.overdue) + '</b>') : '');
+      h += _row('Client', esc(d.sale.client_name || '—'));
+      if (d.sale.client_phone) h += _row('Phone', esc(d.sale.client_phone));
+      if (d.sale.sale_number)  h += _row('Sale', esc(d.sale.sale_number));
+      // nothing paid yet is "PKR 0", not a dash — money() reads 0 as "no value"
+      if (d.sale.net_amount != null)  h += _row('Net', 'PKR ' + amount(d.sale.net_amount));
+      if (d.sale.paid != null)        h += _row('Paid', 'PKR ' + amount(d.sale.paid));
+      if (d.sale.outstanding != null) h += _row('Outstanding', '<b>PKR ' + amount(d.sale.outstanding) + '</b>');
+      if (Number(d.sale.overdue) > 0) h += _row('Overdue', '<b style="color:#dc2626">PKR ' + money(d.sale.overdue) + '</b>');
     }
     if (d.reservation) {
       h += _row('Held for', esc(d.reservation.client_name || '—')) +
