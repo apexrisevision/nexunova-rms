@@ -13,8 +13,8 @@
 (function () {
   'use strict';
 
-  var MAP = { floors: [], plan: null, planId: null, sel: null,
-              z: 1, tx: 0, ty: 0, drag: null };
+  var MAP = { floors: [], plan: null, planId: null, sel: null, focus: null,
+              base: null, onResize: null, z: 1, tx: 0, ty: 0, drag: null };
   var COLOR = { available: ['#0ea5e9', 'rgba(14,165,233,.22)'],
                 reserved:  ['#d97706', 'rgba(217,119,6,.28)'],
                 sold:      ['#059669', 'rgba(5,150,105,.30)'] };
@@ -23,7 +23,7 @@
   // Styles ship with the module, so sales-portal.html stays a one-line change.
   (function () {
     var st = document.createElement('style');
-    st.textContent = ".umv-wrap{padding:12px 12px 90px}.umv-h{font-weight:700;margin:4px 2px 12px}.umv-load,.umv-msg{padding:24px;text-align:center;color:var(--fk-text-muted)}.umv-floors{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}.umv-floor{display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:13px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);color:var(--fk-text);font:inherit;cursor:pointer;text-align:left}.umv-floor.soon{opacity:.55;cursor:default}.umv-fl{font-weight:700}.umv-fu{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}.umv-top{display:flex;gap:10px;align-items:center;margin-bottom:9px}.umv-back{background:none;border:0;color:var(--fk-primary);font:inherit;cursor:pointer;padding:0}.umv-zoom{margin-left:auto;display:flex;gap:5px}.umv-zoom button{min-width:34px;height:30px;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);border-radius:7px;font:inherit;cursor:pointer}.umv-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:9px;font-size:var(--fs-caption)}.umv-chip{display:inline-flex;align-items:center;gap:5px;color:var(--fk-text-muted)}.umv-chip i{width:10px;height:10px;border-radius:3px;display:inline-block}.umv-stage{position:relative;overflow:hidden;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:#fff;touch-action:none}.umv-pan{position:relative;transform-origin:0 0;transition:transform .12s ease-out;line-height:0}.umv-pan img{width:100%;height:auto;display:block}.umv-pan svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.umv-soon{padding:40px 20px;text-align:center;border:1px dashed var(--fk-border);border-radius:var(--fk-radius-md)}.umv-soon-t{font-weight:700;font-size:var(--fs-section)}.umv-soon-s{color:var(--fk-text-muted);margin-top:6px}.umv-sheet-in{margin-top:12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);padding:13px 15px}.umv-sh-top{display:flex;align-items:center;gap:9px;margin-bottom:9px}.umv-dot{width:11px;height:11px;border-radius:50%}.umv-state{margin-left:auto;font-size:var(--fs-caption);font-weight:700}.umv-x{background:none;border:0;color:var(--fk-text-muted);font-size:15px;cursor:pointer}.umv-rows{display:flex;flex-direction:column}.umv-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--fk-border);font-size:var(--fs-caption)}.umv-row:last-child{border-bottom:0}.umv-row span:first-child{color:var(--fk-text-muted)}.umv-pend{color:#d97706;font-style:normal}.umv-res{margin-top:11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.umv-res-l{font-size:var(--fs-caption);color:var(--fk-text-muted)}.umv-res-b{display:flex;gap:7px;margin-left:auto}.umv-note{margin-top:11px;font-size:var(--fs-caption);color:var(--fk-text-muted)}";
+    st.textContent = ".umv-wrap{padding:12px 12px 90px}.umv-h{font-weight:700;margin:4px 2px 12px}.umv-load,.umv-msg{padding:24px;text-align:center;color:var(--fk-text-muted)}.umv-floors{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}.umv-floor{display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:13px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);color:var(--fk-text);font:inherit;cursor:pointer;text-align:left}.umv-floor.soon{opacity:.55;cursor:default}.umv-fl{font-weight:700}.umv-fu{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}.umv-top{display:flex;gap:10px;align-items:center;margin-bottom:9px}.umv-back{background:none;border:0;color:var(--fk-primary);font:inherit;cursor:pointer;padding:0}.umv-zoom{margin-left:auto;display:flex;gap:5px}.umv-zoom button{min-width:34px;height:30px;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);border-radius:7px;font:inherit;cursor:pointer}.umv-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:9px;font-size:var(--fs-caption)}.umv-chip{display:inline-flex;align-items:center;gap:5px;color:var(--fk-text-muted)}.umv-chip i{width:10px;height:10px;border-radius:3px;display:inline-block}.umv-stage{position:relative;overflow:hidden;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:#fff;touch-action:none;height:min(70vh,760px);min-height:320px}.umv-pan{position:absolute;left:0;top:0;width:100%;transform-origin:0 0;transition:transform .55s cubic-bezier(.22,.61,.36,1);line-height:0}@media (prefers-reduced-motion:reduce){.umv-pan{transition:none}}.umv-out{position:absolute;left:10px;top:10px;z-index:3;display:none;align-items:center;gap:6px;height:34px;padding:0 13px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(15,23,42,.18)}.umv-stage.focus .umv-out{display:inline-flex}.umv-pan img{width:100%;height:auto;display:block}.umv-pan svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.umv-soon{padding:40px 20px;text-align:center;border:1px dashed var(--fk-border);border-radius:var(--fk-radius-md)}.umv-soon-t{font-weight:700;font-size:var(--fs-section)}.umv-soon-s{color:var(--fk-text-muted);margin-top:6px}.umv-sheet-in{margin-top:12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);padding:13px 15px}.umv-sh-top{display:flex;align-items:center;gap:9px;margin-bottom:9px}.umv-dot{width:11px;height:11px;border-radius:50%}.umv-state{margin-left:auto;font-size:var(--fs-caption);font-weight:700}.umv-x{background:none;border:0;color:var(--fk-text-muted);font-size:15px;cursor:pointer}.umv-rows{display:flex;flex-direction:column}.umv-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--fk-border);font-size:var(--fs-caption)}.umv-row:last-child{border-bottom:0}.umv-row span:first-child{color:var(--fk-text-muted)}.umv-pend{color:#d97706;font-style:normal}.umv-res{margin-top:11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.umv-res-l{font-size:var(--fs-caption);color:var(--fk-text-muted)}.umv-res-b{display:flex;gap:7px;margin-left:auto}.umv-note{margin-top:11px;font-size:var(--fs-caption);color:var(--fk-text-muted)}";
     document.head.appendChild(st);
   })();
 
@@ -75,7 +75,7 @@
         '<div class="umv-soon-s">' + esc(d.message || 'Coming soon.') + '</div></div></div>';
       return;
     }
-    MAP.plan = d; MAP.sel = null; MAP.z = 1; MAP.tx = 0; MAP.ty = 0;
+    MAP.plan = d; MAP.sel = null; MAP.focus = null; MAP.z = 1; MAP.tx = 0; MAP.ty = 0;
     _canvas();
   };
 
@@ -93,6 +93,7 @@
           _chip('available', counts.available) + _chip('reserved', counts.reserved) + _chip('sold', counts.sold) +
         '</div>' +
         '<div class="umv-stage" id="umv-stage">' +
+          '<button class="umv-out" id="umv-out" onclick="_umvClose()">&lsaquo; All units</button>' +
           '<div class="umv-pan" id="umv-pan">' +
             '<img id="umv-img" src="' + esc(a.image_path) + '" alt="">' +
             '<svg id="umv-svg" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>' +
@@ -101,16 +102,32 @@
         '<div id="umv-sheet"></div>' +
       '</div>';
     var img = $('umv-img');
-    if (img.complete) _paint(); else img.onload = _paint;
+    var go = function () { _paint(); _fitAll(true); };
+    if (img.complete) go(); else img.onload = go;
     _bindPan();
+    if (!MAP.onResize) {
+      MAP.onResize = function () { if ($('umv-stage')) { MAP.focus ? _focusOn(MAP.focus, true) : _fitAll(true); } };
+      window.addEventListener('resize', MAP.onResize);
+    }
   }
   function _chip(k, n) {
     return '<span class="umv-chip"><i style="background:' + COLOR[k][0] + '"></i>' +
       k.charAt(0).toUpperCase() + k.slice(1) + ' <b>' + n + '</b></span>';
   }
 
+  /* FOCUS — one unit, alone.
+     A client being shown a flat should see that flat and nothing else. So the
+     focused state is not "a bit more zoom": the view flies to the unit's own
+     bounding box, and a veil with a hole cut out of it covers the rest of the
+     drawing. The hole is the unit's real outline, so what stays visible is the
+     flat's own plan — walls, rooms, balcony — at full resolution. */
+  // Strong enough that a neighbouring flat cannot be read. At .93 the surrounding
+  // plan was still legible, which is not "only this unit" — it is a dimmer floor.
+  var VEIL = 'rgba(255,255,255,.965)';
+
   function _paint() {
     var svg = $('umv-svg'); if (!svg) return;
+    if (MAP.focus) return _paintFocus(svg, MAP.focus);
     var out = (MAP.plan.units || []).map(function (u) {
       var c = COLOR[u.state] || COLOR.available;
       var on = MAP.sel && MAP.sel.unit_id === u.unit_id;
@@ -138,41 +155,151 @@
   }
   function _cx(p) { var x = 0, y = 0; p.forEach(function (q) { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
 
+  function _paintFocus(svg, u) {
+    var c = COLOR[u.state] || COLOR.available;
+    var pts = (u.points || []).map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+    var lx = u.label_x != null ? u.label_x : _cx(u.points)[0];
+    var ly = u.label_y != null ? u.label_y : _cx(u.points)[1];
+    // The label rides the zoom with everything else, so it stays at drawing scale —
+    // sizing it against the unit made it swallow the flat it was labelling.
+    var fs = 0.01;
+    svg.innerHTML =
+      '<defs><mask id="umv-hole" maskUnits="userSpaceOnUse" x="0" y="0" width="1" height="1">' +
+        '<rect x="0" y="0" width="1" height="1" fill="#fff"/>' +
+        '<polygon points="' + pts + '" fill="#000"/></mask></defs>' +
+      '<rect x="0" y="0" width="1" height="1" fill="' + VEIL + '" mask="url(#umv-hole)"' +
+        ' style="cursor:zoom-out" onclick="_umvClose()"/>' +
+      '<polygon data-unit="' + u.unit_id + '" points="' + pts + '" fill="none" stroke="' + c[0] +
+        '" stroke-width="3" vector-effect="non-scaling-stroke" style="pointer-events:none"/>' +
+      '<text x="' + lx + '" y="' + ly + '" font-size="' + fs + '" text-anchor="middle" font-weight="700"' +
+        ' fill="#0f172a" style="paint-order:stroke;stroke:#fff;stroke-width:' + (fs * 0.34) +
+        ';pointer-events:none">' + esc(u.unit_no) + '</text>';
+  }
+
+  // ── the view: fit a normalised box into the stage ────────────────────────
+  function _box(p) {
+    var x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+    (p || []).forEach(function (q) {
+      x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]);
+      x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]);
+    });
+    return { x0: x0, y0: y0, x1: x1, y1: y1 };
+  }
+  // The drawing is mostly margin and a title band — the building itself is barely
+  // half the sheet. Framing the UNITS instead of the paper is most of why the map
+  // stopped looking small.
+  function _unitsBox() {
+    var b = { x0: 1, y0: 1, x1: 0, y1: 0 };
+    (MAP.plan.units || []).forEach(function (u) {
+      var q = _box(u.points);
+      b.x0 = Math.min(b.x0, q.x0); b.y0 = Math.min(b.y0, q.y0);
+      b.x1 = Math.max(b.x1, q.x1); b.y1 = Math.max(b.y1, q.y1);
+    });
+    if (b.x1 <= b.x0) return { x0: 0, y0: 0, x1: 1, y1: 1 };
+    var px = (b.x1 - b.x0) * 0.03, py = (b.y1 - b.y0) * 0.05;
+    return { x0: Math.max(0, b.x0 - px), y0: Math.max(0, b.y0 - py),
+             x1: Math.min(1, b.x1 + px), y1: Math.min(1, b.y1 + py) };
+  }
+  function _view(b, fill) {
+    var st = $('umv-stage'); if (!st) return null;
+    var SW = st.clientWidth, SH = st.clientHeight;
+    var a = MAP.plan.artwork || {};
+    var img = $('umv-img');
+    var ar = (img && img.naturalWidth) ? img.naturalHeight / img.naturalWidth
+           : (a.h && a.w ? a.h / a.w : 2 / 3);
+    var PW = SW, PH = SW * ar;                       // the pan at scale 1
+    var bw = (b.x1 - b.x0) * PW, bh = (b.y1 - b.y0) * PH;
+    if (!(bw > 0 && bh > 0)) return null;
+    var z = Math.max(0.15, Math.min(Math.min(SW * fill / bw, SH * fill / bh), 60));
+    return { z: z, tx: SW / 2 - z * ((b.x0 + b.x1) / 2) * PW,
+                   ty: SH / 2 - z * ((b.y0 + b.y1) / 2) * PH };
+  }
+  function _apply(v, animate) {
+    if (!v) return;
+    var el = $('umv-pan'); if (!el) return;
+    if (!animate) { el.style.transition = 'none'; }
+    MAP.z = v.z; MAP.tx = v.tx; MAP.ty = v.ty; _applyT();
+    if (!animate) { void el.offsetWidth; el.style.transition = ''; }
+  }
+  function _fitAll(instant) {
+    MAP.base = _view(_unitsBox(), 0.98);
+    _apply(MAP.base, !instant);
+  }
+  function _focusOn(u, instant) {
+    _apply(_view(_box(u.points), 0.74), !instant);
+  }
+
   // ── zoom (CSS transform) + pan ───────────────────────────────────────────
   window._umvZoom = function (dir) {
-    if (dir === 0) { MAP.z = 1; MAP.tx = 0; MAP.ty = 0; }
-    else MAP.z = Math.min(5, Math.max(1, MAP.z + dir * 0.4));
-    if (MAP.z === 1) { MAP.tx = 0; MAP.ty = 0; }
-    _applyT();
+    if (dir === 0) { MAP.focus = null; _setFocusChrome(false); _paint(); return _fitAll(false); }
+    var st = $('umv-stage'); if (!st) return;
+    var SW = st.clientWidth, SH = st.clientHeight;
+    var floor = (MAP.base && MAP.base.z ? MAP.base.z : 1) * 0.6;
+    var nz = Math.max(floor, Math.min(MAP.z * (dir > 0 ? 1.4 : 1 / 1.4), 60));
+    var k = nz / MAP.z;                              // keep the stage centre still
+    MAP.tx = SW / 2 - (SW / 2 - MAP.tx) * k;
+    MAP.ty = SH / 2 - (SH / 2 - MAP.ty) * k;
+    MAP.z = nz; _applyT();
   };
+  function _setFocusChrome(on) {
+    var st = $('umv-stage'); if (st) st.classList.toggle('focus', !!on);
+  }
   function _applyT() {
     var el = $('umv-pan'); if (!el) return;
     el.style.transform = 'translate(' + MAP.tx + 'px,' + MAP.ty + 'px) scale(' + MAP.z + ')';
   }
   function _bindPan() {
     var st = $('umv-stage'); if (!st) return;
+    // ⚠ NEVER call setPointerCapture on pointerdown here. With the pointer captured
+    // by the stage, the browser dispatches the CLICK to the stage too — the polygon's
+    // own onclick never runs, so every tap after the first one appeared to re-open
+    // whichever unit was opened first. That is exactly the bug that reached the
+    // owner. Capture only once a real drag has started, and never before.
     st.addEventListener('pointerdown', function (e) {
-      if (MAP.z <= 1) return;
-      MAP.drag = { x: e.clientX - MAP.tx, y: e.clientY - MAP.ty };
-      st.setPointerCapture(e.pointerId);
+      if (e.target.closest && e.target.closest('.umv-out')) return;   // the button is not a drag handle
+      MAP.swallow = false;
+      MAP.drag = { sx: e.clientX, sy: e.clientY, x: e.clientX - MAP.tx, y: e.clientY - MAP.ty,
+                   id: e.pointerId, moved: false };
     });
     st.addEventListener('pointermove', function (e) {
-      if (!MAP.drag) return;
-      MAP.tx = e.clientX - MAP.drag.x; MAP.ty = e.clientY - MAP.drag.y; _applyT();
+      var d = MAP.drag; if (!d) return;
+      if (!d.moved) {
+        if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 6) return;   // a tap wobbles
+        d.moved = true;
+        try { st.setPointerCapture(d.id); } catch (err) {}
+        // dragging is direct manipulation — it must not lag behind an animation
+        var el = $('umv-pan'); if (el) el.style.transition = 'none';
+      }
+      MAP.tx = e.clientX - d.x; MAP.ty = e.clientY - d.y; _applyT();
     });
     ['pointerup', 'pointercancel'].forEach(function (ev) {
-      st.addEventListener(ev, function () { MAP.drag = null; });
+      st.addEventListener(ev, function () {
+        var d = MAP.drag; MAP.drag = null;
+        var el = $('umv-pan'); if (el) el.style.transition = '';
+        if (d && d.moved) {
+          try { st.releasePointerCapture(d.id); } catch (err) {}
+          MAP.swallow = true;          // a drag that ends over a unit must not open it
+        }
+      });
     });
   }
 
   // ── tap a unit → server decides what this role may see ───────────────────
   window._umvTap = async function (unitId) {
+    if (MAP.swallow) { MAP.swallow = false; return; }   // that was a pan, not a tap
     var r = await sb.rpc('get_map_unit_detail', { p_session_token: TOKEN, p_unit_id: unitId });
     var d = r.data;
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) return toast('Could not load this unit', 'err');
-    MAP.sel = d; _highlight();
-    if (MAP.z < 1.8) { MAP.z = 1.8; _applyT(); }
+    MAP.sel = d;
+    // the geometry lives on the plan; the detail comes from the server
+    var u = ((MAP.plan && MAP.plan.units) || []).filter(function (x) { return x.unit_id === unitId; })[0];
+    if (u) {
+      MAP.focus = u;
+      _setFocusChrome(true);
+      _paint();                    // veil + this unit alone
+      _focusOn(u, false);          // and fly to it
+    } else { _highlight(); }
     _sheet(d);
   };
 
@@ -223,7 +350,13 @@
     $('umv-sheet').innerHTML = h;
   }
   function _row(l, v) { return '<div class="umv-row"><span>' + l + '</span><span>' + v + '</span></div>'; }
-  window._umvClose = function () { MAP.sel = null; $('umv-sheet').innerHTML = ''; _highlight(); };
+  window._umvClose = function () {
+    MAP.sel = null; MAP.focus = null;
+    var sh = $('umv-sheet'); if (sh) sh.innerHTML = '';
+    _setFocusChrome(false);
+    _paint();                      // every unit back, veil gone
+    _fitAll(false);                // and fly back out to the whole floor
+  };
 
   // ── reserve — reserve_unit() and nothing else ────────────────────────────
   window._umvReserve = async function (unitId, days) {
