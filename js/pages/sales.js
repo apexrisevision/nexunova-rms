@@ -2294,111 +2294,24 @@ async function saveEditSale() {
   const confirmed = await _salSaveConfirmPopup();
   if (!confirmed) return;
 
-  // ── Approval gates: detect discount / price-revision changes ──────────
+  // ── Protected-field detection (discount / rate) ───────────────────────
+  // These go through edit_sale like every other field. edit_sale is the ONE
+  // gate: it demands a reason whenever a protected value actually changes
+  // (admins included) and routes non-admins to a 'sale_edit' approval that
+  // the approve engine applies via _edit_sale_core. The old code sent the
+  // discount to request_discount_change instead and dropped it from this
+  // payload — that RPC wrote the dead `sales.discount_amount` column, so the
+  // new discount never reached `sales.discount` (net_amount is GENERATED from
+  // it) and the rebalanced schedule below was never sent at all.
   const origDiscount  = window._salEditOrigDiscount  || 0;
   const origPriceSqft = window._salEditOrigPriceSqft || 0;
   const origArea      = window._salEditOrigArea      || 0;
-  const origNet       = window._salEditNetAmount     || 0;
-  const newNet        = Math.max(0, pSqft * area - discount);
+  const origNet       = Math.max(0, origPriceSqft * origArea - origDiscount);
 
-  const discountChanged   = Math.abs(discount - origDiscount)   >= 1;
-  const priceAreaChanged  = (Math.abs(pSqft - origPriceSqft)    >= 0.01 ||
-                             Math.abs(area  - origArea)          >= 0.01) && !discountChanged;
+  const discountChanged  = Math.abs(discount - origDiscount) >= 1;
+  const priceChanged     = Math.abs(pSqft - origPriceSqft)   >= 0.01;
+  const protectedChanged = discountChanged || priceChanged;
 
-  if (discountChanged || priceAreaChanged) {
-    const gateType = discountChanged ? 'discount' : 'price_revision';
-    const gateTitle = discountChanged
-      ? `Discount change requires approval`
-      : `Price revision requires approval`;
-    const gateDetail = discountChanged
-      ? `Discount: PKR ${fM(origDiscount)} → PKR ${fM(discount)}`
-      : `Net amount: PKR ${fM(origNet)} → PKR ${fM(newNet)}`;
-
-    const comment = await _salMakerCommentPrompt(gateTitle, gateDetail);
-    if (comment === null) return; // user cancelled
-
-    btn.disabled = true; btn.textContent = 'Submitting…';
-
-    let pendingApproval = false;
-
-    if (discountChanged) {
-      const { data: dr, error: de } = await supabase.rpc('request_discount_change', {
-        p_sale_id:       _salEditId,
-        p_new_discount:  discount,
-        p_maker_comment: comment
-      });
-      if (de || !dr?.success) {
-        btn.disabled = false; btn.textContent = 'Save Changes';
-        err.textContent = de?.message || dr?.error || 'Approval request failed'; return;
-      }
-      if (dr.status === 'pending_approval') pendingApproval = true;
-    } else {
-      // Price revision — create approval request directly
-      const { data: pr, error: pe } = await supabase.rpc('create_approval_request', {
-        p_data: {
-          request_type: 'price_revision',
-          entity_table: 'sales',
-          entity_id:    _salEditId,
-          title:        'Price revision',
-          amount:       newNet,
-          comment:      comment,
-          payload:      { net_amount: newNet, price_per_sqft: pSqft, area_sqft: area }
-        }
-      });
-      if (pe || !pr?.success) {
-        btn.disabled = false; btn.textContent = 'Save Changes';
-        err.textContent = pe?.message || pr?.error || 'Approval request failed'; return;
-      }
-      pendingApproval = true; // price revision is always pending (no admin-bypass path)
-    }
-
-    // Build non-gated payload — exclude the fields routed to approval
-    const efCommPct2 = parseFloat(document.getElementById('ef-comm-pct')?.value);
-    const safePayload = {
-      client_id:            clientId,
-      agent_id:             document.getElementById('ef-agent').value || null,
-      sale_date:            saleDate,
-      // discount excluded (handled by request_discount_change above)
-      down_payment:         down,
-      commission_rate:      isNaN(efCommPct2) ? null : efCommPct2,
-      commission_notes:     document.getElementById('ef-comm-notes')?.value.trim()         || null,
-      sale_type_id:         document.getElementById('ef-saletype')?.value                  || null,
-      notes:                document.getElementById('ef-notes').value.trim()              || null,
-      co_buyer_name:        document.getElementById('ef-cobuyer-name').value.trim()       || null,
-      co_buyer_cnic:        document.getElementById('ef-cobuyer-cnic').value.trim()       || null,
-      co_buyer_share_pct:   parseFloat(document.getElementById('ef-cobuyer-share').value) || null,
-      nominee_name:         document.getElementById('ef-nominee-name').value.trim()       || null,
-      nominee_cnic:         document.getElementById('ef-nominee-cnic').value.trim()       || null,
-      nominee_relation:     document.getElementById('ef-nominee-relation').value.trim()   || null,
-      wht_amount:           parseAmt(document.getElementById('ef-wht').value),
-      cvt_amount:           parseAmt(document.getElementById('ef-cvt').value),
-      discount_approved_by: document.getElementById('ef-disc-approved-by').value.trim()  || null,
-      discount_notes:       document.getElementById('ef-disc-notes').value.trim()         || null,
-    };
-    if (!priceAreaChanged) {
-      // Safe to include price fields if only discount was gated
-      safePayload.price_per_sqft = pSqft;
-    }
-    // price_per_sqft excluded if priceAreaChanged (pending revision approval)
-
-    const safeRes = await supabase.rpc('edit_sale', {
-      p_sale_id: _salEditId, p_company_id: S.cid, p_data: safePayload
-    });
-    if (safeRes.error || !safeRes.data?.success) {
-      btn.disabled = false; btn.textContent = 'Save Changes';
-      err.textContent = safeRes.error?.message || safeRes.data?.error || 'Save failed'; return;
-    }
-
-    btn.disabled = false; btn.textContent = 'Save Changes';
-    if (typeof refreshApprovalsBadge === 'function') refreshApprovalsBadge();
-    toast(pendingApproval
-      ? 'Approval request submitted — other fields saved'
-      : 'Sale updated (change applied — within policy)', 'ok');
-    nav('salesdetail');
-    return;
-  }
-
-  // ── Normal save (no approval gates triggered) ─────────────────────────
   const efCommPct = parseFloat(document.getElementById('ef-comm-pct')?.value);
   const payload = {
     client_id:            clientId,
@@ -2424,12 +2337,21 @@ async function saveEditSale() {
   };
 
   // edit_sale (price/discount/status) and edit_installment_schedule are approval-gated
-  // server-side for non-admins. Collect one reason up front; admins apply directly.
+  // server-side for non-admins. Collect one reason up front. Admins normally skip
+  // the prompt, but edit_sale requires a reason (min 10 chars) from EVERYONE the
+  // moment a protected value changes — so prompt on protected changes too.
   const _isAdminUser = !!(S && (S.role === 'owner' || S.role === 'admin'));
   let _reason = null;
-  if (!_isAdminUser) {
-    _reason = await _salMakerCommentPrompt('Approval Required',
-      'Changes to price/discount or the installment schedule require Admin approval. Enter a reason.');
+  if (protectedChanged || !_isAdminUser) {
+    const bits = [];
+    if (discountChanged) bits.push(`Discount: PKR ${fM(origDiscount)} → PKR ${fM(discount)}`);
+    if (priceChanged)    bits.push(`Rate: PKR ${fM(origPriceSqft)} → PKR ${fM(pSqft)}/sqft`);
+    if (protectedChanged) bits.push(`Net: PKR ${fM(origNet)} → PKR ${fM(net)}`);
+    const detail = bits.length
+      ? bits.join('  ·  ')
+      : 'Changes to price/discount or the installment schedule require Admin approval.';
+    _reason = await _salMakerCommentPrompt(
+      _isAdminUser ? 'Reason required for this change' : 'Approval Required', detail);
     if (!_reason) return;   // cancelled
   }
 
@@ -2443,7 +2365,7 @@ async function saveEditSale() {
   if (saleRes.error || saleRes.data?.success === false) {
     btn.disabled    = false;
     btn.textContent = 'Save Changes';
-    err.textContent = saleRes.error?.message || saleRes.data?.error || 'Save failed';
+    err.textContent = saleRes.error?.message || saleRes.data?.message || saleRes.data?.error || 'Save failed';
     return;
   }
   const _salePended = saleRes.data?.status === 'pending_approval';
@@ -2457,7 +2379,8 @@ async function saveEditSale() {
   btn.textContent = 'Save Changes';
 
   if (instRes.error || instRes.data?.success === false) {
-    const errs = instRes.data?.errors || [instRes.error?.message || 'unknown error'];
+    const errs = instRes.data?.errors ||
+      [instRes.error?.message || instRes.data?.message || instRes.data?.error || 'unknown error'];
     err.textContent = 'Sale saved but some installments failed: ' + errs.join('; ');
     return;
   }
