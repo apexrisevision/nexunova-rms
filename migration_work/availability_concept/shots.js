@@ -136,51 +136,47 @@ const LABELS = () => ({
   await clickSel('.win.available'); await sleep(600); await shot('05-detail-available');
   await page.mouse.click(200, 500); await sleep(400);
 
-  // ── twinkle: every lit pane on its OWN clock, and nothing else moving ────
-  const tw = await page.evaluate(() => {
-    const av = [...document.querySelectorAll('.win.available')].slice(0, 60).map(w => {
-      const s = getComputedStyle(w);
-      return { name: s.animationName, dur: s.animationDuration, del: s.animationDelay };
-    });
-    return { av, sold: getComputedStyle(document.querySelector('.win.sold')).animationName,
-             uniqDur: new Set(av.map(a => a.dur)).size, uniqDel: new Set(av.map(a => a.del)).size };
-  });
-  assert(/twinkle/.test(tw.av[0].name), 'available panes run "' + tw.av[0].name + '"');
-  assert(!/twinkle|breathe/.test(tw.sold), 'and sold panes stay still (' + tw.sold + ')');
-  assert(tw.uniqDur > 40, tw.uniqDur + '/60 panes have their OWN period — no shared beat');
-  assert(tw.uniqDel > 40, tw.uniqDel + '/60 have their own offset, so the peaks scatter');
-  /* The real proof is not the animation NAME, it is the picture: read every
-     pane's live brightness at two instants. Twinkling means only a handful are
-     near peak at any moment, and it is a DIFFERENT handful a moment later. */
-  const bright = () => page.evaluate(() => {
+  // ── SOLID: the panes hold still, and the colour is the only signal ───────
+  /* Twinkle was removed at the owner's request — on a phone it read as
+     restlessness rather than as a building at night. The test that replaces it
+     is the same kind of measurement, inverted: photograph the panes at two
+     instants and prove NOTHING changed, and read the colours to prove each
+     state holds one steady value. */
+  const still = () => page.evaluate(() => {
     const m = {};
-    document.querySelectorAll('.win.available').forEach(w => {
-      const f = getComputedStyle(w).filter;                    // e.g. "brightness(1.21)"
-      m[w.dataset.u] = Number((f.match(/brightness\(([\d.]+)\)/) || [0, 1])[1]);
+    document.querySelectorAll('.win').forEach(w => {
+      const s = getComputedStyle(w);
+      m[w.dataset.u] = s.backgroundColor + '|' + s.filter + '|' + s.opacity;
     });
     return m;
   });
-  await sleep(2200);
-  const A = await bright(); await shot('04a-glow-twinkle');
-  await sleep(1400);
-  const B = await bright(); await shot('04b-glow-twinkle-later');
+  const anim = await page.evaluate(() => {
+    const one = s => getComputedStyle(document.querySelector(s)).animationName;
+    return { av: one('.win.available'), sold: one('.win.sold'),
+             res: document.querySelector('.win.reserved') ? one('.win.reserved') : 'none' };
+  });
+  assert(!/twinkle|breathe/.test(anim.av), 'available panes no longer pulse (' + anim.av + ')');
+  assert(!/twinkle|breathe/.test(anim.sold) && !/twinkle|breathe/.test(anim.res),
+    'and neither do sold or reserved');
 
-  const peakA = Object.keys(A).filter(k => A[k] > 1.15), peakB = Object.keys(B).filter(k => B[k] > 1.15);
-  const vals = Object.values(A);
-  const levels = new Set(vals.map(v => v.toFixed(2))).size;
-  const range = Math.max(...vals) - Math.min(...vals);
-  const moved = peakA.filter(k => !peakB.includes(k)).length;
-  console.log('     peak now ' + peakA.length + '/' + Object.keys(A).length +
-              ', a moment later ' + peakB.length + ' — ' + moved + ' of the first set had faded' +
-              ' · ' + levels + ' levels, range ' + range.toFixed(2));
-  assert(peakA.length > 0 && peakA.length < Object.keys(A).length * 0.35,
-    'only ' + peakA.length + ' of ' + Object.keys(A).length + ' panes are near peak at once — scattered, not a wave');
-  /* Distinct-level counts stay modest ON PURPOSE: the curve holds two thirds of
-     every cycle at a flat baseline, so most panes legitimately share 0.88. What
-     matters is that the frame is not uniform — several levels AND real range. */
-  assert(levels >= 8 && range > 0.3,
-    'the same frame holds ' + levels + ' brightness levels across a ' + range.toFixed(2) + ' range');
-  assert(moved > peakA.length * 0.4, 'the bright set genuinely moves on (' + moved + ' of ' + peakA.length + ' changed)');
+  await sleep(2000);
+  const S1 = await still(); await shot('04a-solid');
+  await sleep(1500);
+  const S2 = await still(); await shot('04b-solid-later');
+  const moved = Object.keys(S1).filter(k => S1[k] !== S2[k]);
+  console.log('     panes that changed in 1.5s: ' + moved.length + ' of ' + Object.keys(S1).length);
+  assert(moved.length === 0, 'not one pane changed between two instants — the tower is still');
+
+  const colours = await page.evaluate(() => {
+    const by = s => new Set([...document.querySelectorAll('.win.' + s)]
+      .map(w => getComputedStyle(w).backgroundColor));
+    return { av: [...by('available')], sold: [...by('sold')], res: [...by('reserved')] };
+  });
+  assert(colours.av.length === 1, 'every available pane is one solid colour: ' + colours.av[0]);
+  assert(colours.sold.length === 1, 'every sold pane is one solid colour: ' + colours.sold[0]);
+  assert(colours.res.length <= 1, 'and reserved likewise' + (colours.res[0] ? ': ' + colours.res[0] : ''));
+  assert(new Set([colours.av[0], colours.sold[0]]).size === 2,
+    'available and sold are still told apart by colour alone');
 
   // "Inventory left" is money — a rep never sees the chip
   const repChips = await page.evaluate(() => [...document.querySelectorAll('.chip .k')].map(e => e.textContent.trim()));
@@ -213,15 +209,15 @@ const LABELS = () => ({
       v: c.querySelector('.v').textContent.trim(),
       s: (c.querySelector('.s') || {}).textContent.trim() || ''
     }));
-    const cells = [...document.querySelectorAll('.bcell')].map(b => ({
-      t: b.querySelector('.bt').textContent.trim(),
-      n: b.querySelector('.bn').textContent.trim(),
-      p: b.querySelector('.bp').textContent.trim()
-    }));
-    return { chips, cells };
+    return { chips,
+             // the type filter now lives in exactly one place
+             typePlaces: new Set([...document.querySelectorAll('[data-t]')]
+               .map(e => e.closest('.filters, .brk, .chips') || document.body)).size,
+             head: (document.querySelector('.hunt-h b') || {}).textContent || '',
+             labels: [...document.querySelectorAll('.f-lb')].map(e => e.textContent.trim()),
+             out: (document.getElementById('fout') || {}).innerText.replace(/\s+/g, ' ').trim() };
   });
   console.log('     ' + sum.chips.map(c => c.k + ' ' + c.v).join('  |  '));
-  sum.cells.forEach(c => console.log('       ' + c.t.padEnd(9) + c.n.padEnd(18) + c.p));
   assert(!sum.chips.some(c => /^Sold$/.test(c.k) && /%/.test(c.v)), 'no "Sold %" tile any more');
   const tot = sum.chips.find(c => c.k === 'Total units'), un = sum.chips.find(c => c.k === 'Unsold'),
         sold = sum.chips.find(c => c.k === 'Sold');
@@ -229,19 +225,20 @@ const LABELS = () => ({
   assert(un && un.v === '131' && /131 available · 0 reserved/.test(un.s), 'Unsold 131 (' + un.s + ')');
   assert(sold && sold.v === '173', 'Sold 173 as a COUNT');
   assert(Number(tot.v) === Number(un.v) + Number(sold.v), 'total = unsold + sold');
-  assert(sum.cells.length === 5 && sum.cells.some(c => c.t === '2 Bed' && /of 130 left/.test(c.n)),
-    'the by-type breakdown lists all 5 KBH types with counts');
-  assert(sum.cells.every(c => c.p.length > 0), 'and every type shows its price range');
+  assert(sum.typePlaces === 1, 'the type filter exists in exactly one place (' + sum.typePlaces + ')');
+  assert(sum.head === 'Filter', 'the filter section is headed "' + sum.head + '"');
+  assert(sum.labels.join('/') === 'Type/Budget', 'with two labelled rows: ' + sum.labels.join(', '));
+  assert(/Showing 304 of 304 units/.test(sum.out), 'and states its own result: "' + sum.out + '"');
 
-  // the breakdown is also a way in
-  await page.evaluate(() => [...document.querySelectorAll('.bcell')]
-    .find(b => b.querySelector('.bt').textContent === '3 Bed').click());
+  // the type chip filters the tower
+  await page.evaluate(() => [...document.querySelectorAll('#filters .pill')]
+    .find(b => b.textContent.trim().startsWith('3 Bed')).click());
   await sleep(400);
   const via = await page.evaluate(() => ({
     lit: [...document.querySelectorAll('.win')].filter(w => !w.classList.contains('off')).length,
     chip: (document.querySelector('#filters .pill.on') || {}).textContent
   }));
-  assert(via.lit === 22 && /3 Bed/.test(via.chip), 'clicking a summary cell filters the tower (' + via.chip.trim() + ')');
+  assert(via.lit === 22 && /3 Bed/.test(via.chip), 'clicking a type chip filters the tower (' + via.chip.trim() + ')');
   await page.evaluate(() => document.getElementById('clr').click()); await sleep(300);
 
   // ── 3b · type filter: chips come from the DB, not from a hardcoded list ──
@@ -256,8 +253,6 @@ const LABELS = () => ({
   const order = chips.filter(c => !/^All|Only available/.test(c)).map(c => c.split(/\s+\d+$/)[0].trim());
   assert(JSON.stringify(order) === JSON.stringify(['Studio', '1 Bed', '2 Bed', '3 Bed', 'No type']),
     'chips run in natural order: ' + order.join(' → '));
-  const cellOrder = await page.evaluate(() => [...document.querySelectorAll('.bcell .bt')].map(e => e.textContent.trim()));
-  assert(JSON.stringify(cellOrder) === JSON.stringify(order), 'and the summary matches: ' + cellOrder.join(' → '));
 
   await page.evaluate(() => [...document.querySelectorAll('#filters .pill')]
     .find(p => p.textContent.startsWith('2 Bed')).click());
@@ -265,12 +260,12 @@ const LABELS = () => ({
   const f2 = await page.evaluate(() => {
     const on = [...document.querySelectorAll('.win')].filter(w => !w.classList.contains('off'));
     return { lit: on.length, dim: document.querySelectorAll('.win.off').length,
-             note: document.getElementById('fnote').textContent,
+             note: document.getElementById('fout').innerText.replace(/\s+/g, ' ').trim(),
              sample: on.slice(0, 4).map(w => w.dataset.u) };
   });
   assert(f2.lit === 130, '2 Bed leaves exactly its 130 units bright (' + f2.sample.join(', ') + '…)');
   assert(f2.dim === 174, 'and dims the other 174');
-  assert(/showing 130 of 304/.test(f2.note), 'the bar says "' + f2.note + '"');
+  assert(/Showing 130 of 304/.test(f2.note), 'the bar says "' + f2.note + '"');
 
   // + only available
   await page.evaluate(() => document.querySelector('[data-avail]').click());
@@ -278,7 +273,7 @@ const LABELS = () => ({
   const f3 = await page.evaluate(() => ({
     lit: [...document.querySelectorAll('.win')].filter(w => !w.classList.contains('off') && !w.classList.contains('gone')).length,
     gone: document.querySelectorAll('.win.gone').length,
-    note: document.getElementById('fnote').textContent
+    note: document.getElementById('fout').innerText.replace(/\s+/g, ' ').trim()
   }));
   assert(f3.lit > 0 && f3.lit < 130, '"Only available" narrows 2 Bed to ' + f3.lit + ' units');
   assert(f3.gone > 0, 'sold units are blanked out of the facade (' + f3.gone + ')');
@@ -296,7 +291,7 @@ const LABELS = () => ({
   const inBand = await page.evaluate(() => ({
     lit: [...document.querySelectorAll('.win')].filter(w => !w.classList.contains('off') && !w.classList.contains('gone'))
            .map(w => w.dataset.u),
-    note: document.getElementById('fnote').textContent
+    note: document.getElementById('fout').innerText.replace(/\s+/g, ' ').trim()
   }));
   const want = await page.evaluate(() => {
     const out = [];
@@ -307,7 +302,7 @@ const LABELS = () => ({
   });
   assert(inBand.lit.length === want.length && inBand.lit.every(u => want.includes(u)),
     'budget 85 L – 1 Cr on 2 Bed lights exactly the ' + want.length + ' units the data says');
-  assert(/showing \d+ of 304/.test(inBand.note), 'the bar reads "' + inBand.note + '"');
+  assert(/Showing \d+ of 304/.test(inBand.note), 'the bar reads "' + inBand.note + '"');
 
   // the owner's own figures: min 4,100,000 → max 10,000,000, all types
   await page.evaluate(() => document.querySelector('#filters .pill[data-t=""]').click());

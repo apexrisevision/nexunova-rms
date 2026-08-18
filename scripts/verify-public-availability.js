@@ -193,6 +193,93 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
 
 
 
+  /* The top of the page: one filter, and a visible difference between what you
+     read and what you press. All of it measured — a chip that "looks like a
+     button" has to actually have a border and a background, and the type filter
+     has to exist exactly once. */
+  const top = async where => {
+    const t = await V.page.evaluate(() => {
+      const types = [...document.querySelectorAll('#filters .pill')];
+      const cs = types.length ? getComputedStyle(types[0]) : null;
+      const card = document.querySelector('.chip');
+      const cards = getComputedStyle(card);
+      const secTop = document.querySelector('.hunt').getBoundingClientRect().top;
+      const cardBottom = Math.max(...[...document.querySelectorAll('.chip')]
+        .map(c => c.getBoundingClientRect().bottom));
+      return {
+        // how many separate places offer a type filter
+        typeControls: document.querySelectorAll('[data-t]').length,
+        typeGroups: new Set([...document.querySelectorAll('[data-t]')]
+          .map(e => e.closest('.filters, .hunt, .brk, .chips') || document.body)).size,
+        labels: [...document.querySelectorAll('.f-lb')].map(e => e.textContent.trim()),
+        head: (document.querySelector('.hunt-h b') || {}).textContent || '',
+        chipText: types.map(p => p.textContent.replace(/\s+/g, ' ').trim()),
+        // a button must look like one
+        border: parseFloat(cs && cs.borderTopWidth), radius: parseFloat(cs && cs.borderTopLeftRadius),
+        bg: cs && cs.backgroundColor, h: Math.round(types[0].getBoundingClientRect().height),
+        cursor: cs && cs.cursor,
+        // a summary card must not
+        cardCursor: cards.cursor, cardIsButton: card.tagName === 'BUTTON',
+        cardsClickable: [...document.querySelectorAll('.chips button, .chips [onclick]')].length,
+        gap: Math.round(secTop - cardBottom),
+        resultLine: (document.getElementById('fout') || {}).innerText || ''
+      };
+    });
+    assert(t.typeGroups === 1,
+      'the type filter lives in exactly one place on ' + where + ' (' + t.typeGroups + ')');
+    assert(t.head === 'Filter', 'the section is headed "' + t.head + '"');
+    assert(t.labels.join('/') === 'Type/Budget', 'with two labelled rows: ' + t.labels.join(', '));
+    assert(t.border >= 1 && t.radius >= 6 && t.bg !== 'rgba(0, 0, 0, 0)' && t.h >= 34,
+      'a type chip is shaped like a button on ' + where +
+      ' (' + t.border + 'px border, r' + t.radius + ', ' + t.h + 'px tall, filled)');
+    // ZZTEST has one type; KBH has five. So check the SHAPE, not a fixed list.
+    const typeChips = t.chipText.filter(c => c !== 'Only available');
+    assert(/^All \d+$/.test(typeChips[0]) && typeChips.every(c => /\s\d+$/.test(c)),
+      'every type chip carries its count: ' + typeChips.join(' · '));
+    assert(!t.cardIsButton && t.cardCursor === 'default' && t.cardsClickable === 0,
+      'the summary cards are not pressable on ' + where);
+    assert(t.gap >= 10, 'and a clear gap separates them from the filter (' + t.gap + 'px)');
+    assert(/Showing/.test(t.resultLine), 'the filter states its own result: "' +
+      t.resultLine.replace(/\s+/g, ' ').trim().slice(0, 70) + '"');
+  };
+
+  /* SOLID. The panes used to twinkle; the owner had it removed because on a
+     phone it reads as restlessness. Proving "no animation" by reading the CSS
+     would prove nothing, so: photograph every pane's colour, filter and opacity
+     at two instants and show that not one of them moved. */
+  const solid = async where => {
+    const snap = () => V.page.evaluate(() => {
+      const m = {};
+      document.querySelectorAll('.win').forEach(w => {
+        const s = getComputedStyle(w);
+        m[w.dataset.u] = s.backgroundColor + '|' + s.filter + '|' + s.opacity;
+      });
+      return m;
+    });
+    /* The one-time power-on sweep stays by design, so wait for it to be OVER
+       before judging whether anything is still moving — and ask the browser
+       directly rather than watching opacity creep to 1, which reads as finished
+       a frame early. */
+    await V.page.waitForFunction(() => !document.getAnimations().some(a =>
+      a.playState === 'running' && a.effect && a.effect.target &&
+      a.effect.target.classList && a.effect.target.classList.contains('win')),
+      { timeout: 12000, polling: 150 });
+    const a = await snap();
+    await sleep(1600);
+    const b = await snap();
+    const moved = Object.keys(a).filter(k => a[k] !== b[k]);
+    assert(moved.length === 0,
+      'not one pane changed in 1.6s on ' + where + ' — the tower is still (' + moved.length + ' moved)');
+    const hues = await V.page.evaluate(() => {
+      const by = s => [...new Set([...document.querySelectorAll('.win.' + s)]
+        .map(w => getComputedStyle(w).backgroundColor))];
+      return { av: by('available'), taken: by('taken') };
+    });
+    assert(hues.av.length === 1 && hues.taken.length === 1,
+      'each state is one flat colour on ' + where + ': available ' + hues.av[0] + ', taken ' + hues.taken[0]);
+    assert(hues.av[0] !== hues.taken[0], 'and the two are still told apart by colour alone');
+  };
+
   /* The two things that broke on a phone while desktop stayed fine, both
      measured from real geometry rather than read off the stylesheet:
        · glass running over the free-count on the right
@@ -243,6 +330,8 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
 
   await inside('desktop');
   const deskShape = await geom('desktop');
+  await top('desktop');
+  await solid('desktop');
 
   const storage = await V.page.evaluate(() => ({
     ls: Object.keys(localStorage).length, ss: Object.keys(sessionStorage).length }));
@@ -346,9 +435,9 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   await shotFull('03-filter-budget');
   const filtered = await V.page.evaluate(() => ({
     lit: [...document.querySelectorAll('.win')].filter(w => !w.classList.contains('off') && !w.classList.contains('gone')).length,
-    note: document.getElementById('fnote').textContent
+    note: document.getElementById('fout').innerText.replace(/\s+/g, ' ').trim()
   }));
-  assert(filtered.lit > 0 && /showing \d+ of 30/.test(filtered.note),
+  assert(filtered.lit > 0 && /Showing \d+ of 30 units/.test(filtered.note),
     'type + budget filter works: ' + filtered.note);
 
   await V.page.evaluate(() => document.getElementById('cheap').click());
@@ -390,6 +479,8 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   assert(phone.hitFilter, 'a thumb landing on a filter chip actually reaches the chip');
   await inside('a phone');
   const phoneShape = await geom('a phone');
+  await top('a phone');
+  await solid('a phone');
   // and the shaft must not be four times fatter on a phone than on a desk
   const deskPc = deskShape.band / deskShape.inner, phonePc = phoneShape.band / phoneShape.inner;
   assert(phonePc < deskPc * 2.2,

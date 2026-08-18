@@ -67,69 +67,77 @@ html[data-theme="dark"] .btn.pri{color:#0B1220}
 .seg button.on{background:var(--pri);color:#fff}
 html[data-theme="dark"] .seg button.on{color:#0B1220}
 
-/* ── summary ────────────────────────────────────────────────────────────── */
-.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+/* ── the top of the page: two kinds of thing, told apart on sight ──────────
+   INFO reads. CONTROLS click. The first version blurred them — the by-type
+   breakdown was a filter that looked like a statistic, and the type filter
+   existed twice, once as that breakdown and once as chips. So: the cards above
+   state facts and cannot be pressed, everything below them is a button, and a
+   rule between the two says where one ends and the other begins.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── 1 · summary: information only ──────────────────────────────────────── */
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
 .chip{flex:1;min-width:150px;border:1px solid var(--bd);border-radius:12px;background:var(--card);
-  padding:9px 14px 10px;box-shadow:var(--shadow)}
+  padding:11px 14px 12px;box-shadow:var(--shadow);cursor:default}
 .chip .k{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
   display:flex;align-items:center;gap:6px}
 .chip .k i{width:9px;height:9px;border-radius:3px;display:inline-block}
-.chip .v{font-size:20px;font-weight:700;margin-top:3px;letter-spacing:-.02em}
-.chip .s{font-size:11px;color:var(--mut);margin-top:1px;font-variant-numeric:tabular-nums}
-.chip .m{height:4px;border-radius:99px;background:var(--sub);margin-top:7px;overflow:hidden}
+.chip .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em}
+.chip .s{font-size:11px;color:var(--mut);margin-top:2px;font-variant-numeric:tabular-nums}
+.chip .m{height:4px;border-radius:99px;background:var(--sub);margin-top:9px;overflow:hidden}
 .chip .m>span{display:block;height:100%;border-radius:99px;width:0;transition:width 1.4s var(--ease) .4s}
 
-/* the full picture of one project: what exists, what is gone, what is left —
-   and the same broken down by type, because that is what a rep is asked for */
-.brk{border:1px solid var(--bd);border-radius:12px;background:var(--card);box-shadow:var(--shadow);
-  padding:9px 12px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
-.brk-h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
-  align-self:center;padding-right:12px;border-right:1px solid var(--bd);white-space:nowrap}
-.bcell{flex:1;min-width:118px;padding:5px 8px;border:1px solid transparent;border-radius:9px;text-align:left;
-  transition:.16s var(--ease)}
-.bcell:hover{background:var(--sub);border-color:var(--bd)}
-.bcell .bt{font-size:12px;font-weight:600}
-.bcell .bn{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
-.bcell .bn small{font-size:11px;font-weight:500;color:var(--mut);margin-left:3px}
-.bcell .bb{height:4px;border-radius:99px;background:var(--sub);margin-top:6px;overflow:hidden;display:flex}
-.bcell .bb i{display:block;height:100%;background:var(--sky)}
-.bcell .bp{font-size:11px;color:var(--mut);margin-top:4px;font-variant-numeric:tabular-nums}
+/* ── 2 · filter: everything here is pressable ───────────────────────────── */
+.hunt{border:1px solid var(--bd);border-radius:12px;background:var(--card);
+  box-shadow:var(--shadow);padding:0;margin-bottom:16px;overflow:hidden}
+.hunt-h{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--bd);
+  background:var(--sub)}
+.hunt-h b{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx)}
+.hunt-h span{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.hunt-h .clr{margin-left:auto;height:28px;padding:0 12px;border:1px solid var(--bd);border-radius:8px;
+  background:var(--card);font-size:12px;font-weight:600;color:var(--pri)}
+.hunt-h .clr:hover{border-color:var(--pri)}
 
-/* ── filter panel ───────────────────────────────────────────────────────────
-   Deliberately loud. The owner's point: reps do not notice quiet controls, and
-   these two rows ARE the sales conversation ("2 bed dikhao", "mere budget mein").
-   So the filters get their own raised card with an accent edge, a heading, and
-   controls a size up from everything else on the page. */
-.hunt{border:1px solid var(--bd);border-left:3px solid var(--pri);border-radius:12px;background:var(--card);
-  box-shadow:var(--shadow);padding:10px 15px 12px;margin-bottom:14px}
-.hunt-h{display:flex;align-items:center;gap:9px;margin-bottom:9px}
-.hunt-h b{font-size:13px;font-weight:700;letter-spacing:-.01em}
-.hunt-h span{font-size:12px;color:var(--mut)}
-.hunt-h .clr{margin-left:auto;font-size:12px;font-weight:600;color:var(--pri)}
-.hunt-h .clr:hover{text-decoration:underline}
-.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.filters+.filters{margin-top:9px;padding-top:10px;padding-bottom:6px;border-top:1px dashed var(--bd)}
-.pill{height:36px;padding:0 15px;border:1px solid var(--bd);border-radius:99px;background:var(--sub);
-  font-size:13px;font-weight:600;color:var(--tx);display:inline-flex;align-items:center;gap:7px;
-  transition:.18s var(--ease)}
+/* one row per question, each with its own label and its own rule */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 15px}
+.filters+.filters{border-top:1px solid var(--bd);padding-bottom:18px}
+.f-lb{width:58px;flex:none;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--mut)}
+
+/* a chip that is unmistakably a button: border, fill, lift on hover */
+.pill{height:38px;padding:0 15px;border:1px solid var(--bd);border-radius:10px;background:var(--sub);
+  font-size:13px;font-weight:600;color:var(--tx);display:inline-flex;align-items:center;gap:8px;
+  box-shadow:0 1px 0 rgba(0,0,0,.04);transition:.16s var(--ease)}
 .pill:hover{border-color:var(--pri);background:var(--card);transform:translateY(-1px)}
+.pill:active{transform:none}
 .pill.on{background:var(--pri);border-color:var(--pri);color:#fff;box-shadow:0 4px 14px var(--pri-soft)}
 html[data-theme="dark"] .pill.on{color:#0B1220}
-.pill b{font-weight:700;opacity:.65;font-variant-numeric:tabular-nums}
-.pill.on b{opacity:.8}
+/* the count rides in its own little slug, so the label stays the label */
+.pill b{font-weight:700;font-size:12px;padding:2px 7px;border-radius:99px;background:var(--bd);
+  color:var(--mut);font-variant-numeric:tabular-nums}
+.pill.on b{background:rgba(255,255,255,.24);color:#fff}
+html[data-theme="dark"] .pill.on b{background:rgba(11,18,32,.22);color:#0B1220}
+.pill.tog{margin-left:auto}
 .pill.tog.on{background:var(--sky);border-color:var(--sky);color:#04283B;box-shadow:0 4px 14px var(--sky-soft)}
-.f-sep{width:1px;height:20px;background:var(--bd);margin:0 3px}
-.f-note{margin-left:auto;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
-.f-lb{width:64px;flex:none;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tx)}
-.num-in{width:84px;height:36px;border:1px solid var(--bd);border-radius:9px;background:var(--sub);color:var(--tx);
+.pill.tog.on b{background:rgba(4,40,59,.18);color:#04283B}
+
+.num-in{width:84px;height:38px;border:1px solid var(--bd);border-radius:10px;background:var(--sub);color:var(--tx);
   padding:0 11px;font:inherit;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
 .num-in.wide{width:126px}
 .num-in:focus{outline:0;border-color:var(--pri);background:var(--card)}
 .f-unit{font-size:12px;color:var(--mut);font-weight:600}
+.f-sep{width:1px;height:22px;background:var(--bd);margin:0 4px}
 /* the figure read back in words, so a typo of one zero is visible instantly */
 .rs{position:relative;display:inline-flex}
-.rs em{position:absolute;right:11px;bottom:-13px;font-style:normal;font-size:10px;font-weight:600;
+.rs em{position:absolute;right:11px;bottom:-14px;font-style:normal;font-size:10px;font-weight:600;
   color:var(--sky);font-variant-numeric:tabular-nums;pointer-events:none}
+
+/* what the current filter actually yields — one line, under the controls */
+.f-out{padding:10px 15px;border-top:1px solid var(--bd);background:var(--sub);
+  font-size:12px;color:var(--mut);display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.f-out b{color:var(--tx);font-weight:700;font-variant-numeric:tabular-nums}
+.f-out .rng{margin-left:auto;font-variant-numeric:tabular-nums}
+
 /* nothing matched — say so on the building itself, do not leave a dark tower */
 .empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;text-align:center;
   background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px 22px;box-shadow:var(--shadow)}
@@ -257,8 +265,7 @@ html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,
   .roof .cap,.plinth{box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
     inset 7px 0 0 var(--pillar),inset -7px 0 0 var(--pillar)}
   .core{width:6px}
-  .brk{gap:6px}
-  .bcell{min-width:96px}
+  .f-lb{width:100%}
 }
 /* ── the windows ────────────────────────────────────────────────────────── */
 /* Every pane carries its own unit number. The number is the point of the page —
@@ -273,21 +280,12 @@ html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,
   transition:transform .18s var(--ease),box-shadow .18s var(--ease),filter .18s var(--ease)}
 .win span{position:relative;z-index:2}
 @keyframes powerOn{to{opacity:1;transform:none}}
-/* TWINKLE — only the LIT panes move, and each one is on its OWN clock: a random
-   offset (--tw, 0–7s) AND a random period (--tp, 3–8s). Nothing shares a beat,
-   so the peaks scatter — one lights, then another somewhere else, the way stars
-   do. The flare is short (about a fifth of the cycle), which is what keeps most
-   panes quiet at any instant; that is the difference between a sky and a wave.
-
-   The earlier "breathe" gave every pane one shared 4.2s period, so a bright band
-   visibly travelled across the building. Chosen against, on purpose. */
-.win.available{animation:powerOn .55s var(--ease) forwards,twinkle var(--tp) ease-in-out infinite;
-  animation-delay:var(--d),calc(var(--d) + var(--tw))}
-@keyframes twinkle{
-  0%,66%,100%{filter:brightness(.88)}
-  78%{filter:brightness(1.32)}
-  88%{filter:brightness(.97)}
-}
+/* SOLID, on purpose. The panes used to twinkle — each on its own random clock —
+   and on a phone that reads as restlessness rather than as a building at night.
+   Every pane now holds one steady colour: available bright, taken dark, and (in
+   the back-office view) reserved amber. The power-on sweep on load stays; it
+   runs once and then everything is still.
+   Removed on purpose — do not put the pulse back without asking. */
 .win.available{background:var(--sky);box-shadow:0 0 5px var(--sky),0 0 15px var(--sky-soft);--wtx:#04283B}
 .win.reserved{background:var(--amb);box-shadow:0 0 5px var(--amb),0 0 15px var(--amb-soft);--wtx:#3B2503}
 .win.sold{--wtx:var(--sold-tx)}
@@ -414,16 +412,16 @@ html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,
   </div>
 
   <div class="chips" id="chips"></div>
-  <div class="brk" id="brk"></div>
 
   <div class="hunt">
     <div class="hunt-h">
-      <b>Find it for your client</b>
+      <b>Filter</b>
       <span id="huntsub">—</span>
       <button class="clr" id="clr">Clear</button>
     </div>
     <div class="filters" id="filters"></div>
     <div class="filters" id="budget"></div>
+    <div class="f-out" id="fout"></div>
   </div>
 
   <div class="stage">
@@ -561,14 +559,6 @@ function budgetOn(){ return FILTER.min != null || FILTER.max != null; }
 function lakh(n){ return n >= CR ? (n / CR).toFixed(2).replace(/\.00$/, '') + ' Cr'
                                  : Math.round(n / L) + ' L'; }
 function drawBudget(){
-  var av = [];
-  P.floors.forEach(f => f.units.forEach(u => { if (u.s === 'available' && u.p) av.push(u.p); }));
-  av.sort((a, b) => a - b);
-  // printed in rupees so it can be copied straight into the boxes below it
-  var span = av.length
-    ? 'available: ' + money(av[0]) + ' – ' + money(av[av.length - 1]) +
-      '  (' + lakh(av[0]) + ' – ' + lakh(av[av.length - 1]) + ')'
-    : 'no priced units';
   /* The boxes take PLAIN RUPEES — 4100000, not 41. Nobody selling a flat should
      have to divide by a lakh in his head while a client is talking, and the
      range printed on the right is in rupees too, so it can be typed straight in.
@@ -585,8 +575,7 @@ function drawBudget(){
     '<span class="f-unit">–</span>' +
     '<span class="rs"><input class="num-in wide" id="bmax" type="number" min="0" step="100000" ' +
       'placeholder="max PKR" value="' + (FILTER.max != null ? FILTER.max : '') + '">' +
-      '<em id="bmaxe">' + (FILTER.max != null ? lakh(FILTER.max) : '') + '</em></span>' +
-    '<span class="f-note">' + span + '</span>';
+      '<em id="bmaxe">' + (FILTER.max != null ? lakh(FILTER.max) : '') + '</em></span>';
 }
 document.getElementById('budget').onclick = e => {
   var b = e.target.closest('.pill'); if (!b) return;
@@ -616,12 +605,11 @@ function relist(){ if (document.getElementById('list').classList.contains('on'))
 function drawFilters(){
   var t = types(), total = t.reduce((a, x) => a + x[1], 0);
   document.getElementById('filters').innerHTML =
+    '<span class="f-lb">Type</span>' +
     '<button class="pill' + (FILTER.type ? '' : ' on') + '" data-t="">All <b>' + total + '</b></button>' +
     t.map(x => '<button class="pill' + (FILTER.type === x[0] ? ' on' : '') + '" data-t="' + esc(x[0]) + '">' +
       esc(x[0] === '—' ? 'No type' : x[0]) + ' <b>' + x[1] + '</b></button>').join('') +
-    '<span class="f-sep"></span>' +
-    '<button class="pill tog' + (FILTER.availOnly ? ' on' : '') + '" data-avail="1">Only available</button>' +
-    '<span class="f-note" id="fnote"></span>';
+    '<button class="pill tog' + (FILTER.availOnly ? ' on' : '') + '" data-avail="1">Only available</button>';
 }
 document.getElementById('filters').onclick = e => {
   var b = e.target.closest('.pill'); if (!b) return;
@@ -641,13 +629,22 @@ function applyFilter(){
     el.classList.toggle('off', !hit && !(FILTER.availOnly && u.s !== 'available'));
     el.classList.toggle('gone', !hit && FILTER.availOnly && u.s !== 'available');
   }));
-  var n = document.getElementById('fnote'), any = FILTER.type || FILTER.availOnly || budgetOn();
-  if (n) n.textContent = any ? 'showing ' + shown + ' of ' + total + ' units' : total + ' units';
-
+  var any = FILTER.type || FILTER.availOnly || budgetOn();
   var hs = document.getElementById('huntsub');
-  if (hs) hs.textContent = any ? filterWords() + ' → ' + shown + ' units'
-                               : 'type and budget — the two questions every client asks';
+  if (hs) hs.textContent = any ? filterWords() : '';
   document.getElementById('clr').style.visibility = any ? 'visible' : 'hidden';
+
+  /* One line that answers the filter — where the by-type card's price ranges
+     went: the same fact, once, next to the control that changes it. */
+  var sale = [];
+  P.floors.forEach(f => f.units.forEach(u => {
+    if (u.s === 'available' && u.p && matches(u)) sale.push(u.p); }));
+  sale.sort((a, b) => a - b);
+  document.getElementById('fout').innerHTML =
+    '<span>Showing <b>' + shown + '</b> of ' + total + ' units</span>' +
+    '<span><b>' + sale.length + '</b> priced and available</span>' +
+    (sale.length ? '<span class="rng">' + money(sale[0]) + ' – ' + money(sale[sale.length - 1]) +
+       '  (' + lakh(sale[0]) + ' – ' + lakh(sale[sale.length - 1]) + ')</span>' : '');
 
   // an empty answer is a real answer — say it on the tower instead of going dark
   var stage = document.querySelector('.stage-in'), old = document.getElementById('nores');
@@ -694,7 +691,6 @@ function paint(){
     (ROLE === 'dir' ? chip('Inventory left', 'PKR ' + short(valueLeft()), 'transparent', 0, 'transparent',
          'at list price') : '');
 
-  drawBreakdown(t);
 
   /* A floor plate holds its widest floor on ONE row — a wrapped, ragged row
      stops looking like a facade. The pane is then sized so the UNIT NUMBER fits
@@ -770,7 +766,7 @@ function paint(){
   tw.style.maxWidth = (rails + perRow * slot) + 'px';
   document.getElementById('lgt').textContent =
     'Every pane is one unit, numbered (' + fs + 'px)' + (full ? '' : ' — floor prefix on the rail') +
-    ' · available units twinkle, each on its own clock';
+    '';
 
   drawFilters(); drawBudget(); applyFilter();
 
@@ -803,6 +799,37 @@ function _rails(wide){
   return Math.ceil(out);
 }
 
+function short(n){
+  return n >= 1e9 ? (n / 1e7).toFixed(0) + ' Cr'
+       : n >= 1e7 ? (n / 1e7).toFixed(2) + ' Cr'
+       : (n / 1e6).toFixed(1) + ' M';
+}
+function valueLeft(){
+  var s = 0;
+  P.floors.forEach(function (f) { f.units.forEach(function (u) {
+    if (u.s === 'available') s += (u.p || 0); }); });
+  return s;
+}
+function shortLabel(l){
+  var m = l.match(/^(\d+)/);
+  return /upper ground/i.test(l) ? 'UG' : /^ground$/i.test(l) ? 'G'
+       : m ? m[1] + suffix(+m[1]) : l.replace(/\s*floor$/i, '');
+}
+function suffix(n){ return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'; }
+function tailOf(no){ var s = String(no); return s.indexOf('-') > 0 ? s.slice(s.indexOf('-') + 1) : s; }
+var MEAS = document.createElement('canvas').getContext('2d');
+function textW(s, px){
+  MEAS.font = '600 ' + px + "px 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
+  return MEAS.measureText(s).width;
+}
+function wins(units, floorFromBottom, offset, w, h, fs, full){
+  return units.map(function (u, i) {
+    var d = (floorFromBottom * 100 + (offset + i) * 6) + 'ms';
+        return '<button class="win ' + u.s + '" data-u="' + esc(u.n) + '" style="--w:' + w + 'px;--h:' + h +
+      'px;--fs:' + fs + 'px;--d:' + d + '"><span>' + esc(full ? u.n : tailOf(u.n)) + '</span></button>';
+  }).join('');
+}
+
 function chip(k, v, dot, frac, bar, sub){
   return '<div class="chip"><div class="k"><i style="background:'+dot+
     (dot === 'var(--sky)' ? ';box-shadow:0 0 8px var(--sky)' : '')+'"></i>'+k+'</div>'+
@@ -814,75 +841,6 @@ function chip(k, v, dot, frac, bar, sub){
 /* The type breakdown the owner asked for: for every real type in THIS project —
    how many exist, how many are still unsold, and what they cost. Clicking a cell
    is the same as tapping its filter chip, so the summary is also a way in. */
-function drawBreakdown(t){
-  var by = new Map();
-  P.floors.forEach(f => f.units.forEach(u => {
-    var k = u.t || '—', r = by.get(k);
-    if (!r) by.set(k, r = { total: 0, avail: 0, sold: 0, resv: 0, lo: null, hi: null });
-    r.total++;
-    if (u.s === 'sold') r.sold++; else if (u.s === 'reserved') r.resv++; else r.avail++;
-    if (u.s === 'available' && u.p) {
-      r.lo = r.lo == null ? u.p : Math.min(r.lo, u.p);
-      r.hi = r.hi == null ? u.p : Math.max(r.hi, u.p);
-    }
-  }));
-  // same order as the filter chips — smallest home first
-  var rows = [...by.entries()].sort((a, b) => typeRank(a[0]) - typeRank(b[0]) || a[0].localeCompare(b[0]));
-  document.getElementById('brk').innerHTML =
-    '<div class="brk-h">By type</div>' + rows.map(r => {
-      var k = r[0], v = r[1], pc = v.total ? Math.round(v.avail / v.total * 100) : 0;
-      return '<button class="bcell" data-t="' + esc(k) + '">' +
-        '<div class="bt">' + esc(k === '—' ? 'No type' : k) + '</div>' +
-        '<div class="bn">' + v.avail + '<small>of ' + v.total + ' left</small></div>' +
-        '<div class="bb"><i style="width:' + pc + '%"></i></div>' +
-        '<div class="bp">' + (v.lo ? (v.lo === v.hi ? lakh(v.lo) : lakh(v.lo) + ' – ' + lakh(v.hi))
-                                   : (v.avail ? 'rate pending' : 'sold out')) + '</div>' +
-      '</button>';
-    }).join('');
-}
-document.getElementById('brk').onclick = e => {
-  var b = e.target.closest('.bcell'); if (!b) return;
-  FILTER.type = FILTER.type === b.dataset.t ? null : b.dataset.t;
-  drawFilters(); applyFilter(); relist();
-};
-document.getElementById('clr').onclick = () => {
-  FILTER = { type: null, availOnly: false, min: null, max: null, band: null };
-  drawFilters(); drawBudget(); applyFilter(); relist();
-};
-function short(n){ return n >= 1e9 ? (n/1e7).toFixed(0)+' Cr' : n >= 1e7 ? (n/1e7).toFixed(2)+' Cr' : (n/1e6).toFixed(1)+' M'; }
-function valueLeft(){
-  var s = 0; P.floors.forEach(f => f.units.forEach(u => { if (u.s === 'available') s += (u.p || 0); }));
-  return s;
-}
-function shortLabel(l){
-  var m = l.match(/^(\d+)/);
-  return /upper ground/i.test(l) ? 'UG' : /^ground$/i.test(l) ? 'G'
-       : m ? m[1] + suffix(+m[1])
-       : l.replace(/\s*floor$/i, '');
-}
-function suffix(n){ return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'; }
-
-function wins(units, floorFromBottom, offset, w, h, fs, full){
-  return units.map((u, i) => {
-    var d = (floorFromBottom * 100 + (offset + i) * 6) + 'ms';
-    /* Twinkle needs each pane to be on its own clock. The offset AND the period
-       are both random — share either one and the panes fall back into step. */
-    var tw = u.s === 'available'
-      ? ';--tw:' + (Math.random() * 7).toFixed(2) + 's;--tp:' + (3 + Math.random() * 5).toFixed(2) + 's' : '';
-    return '<button class="win ' + u.s + '" data-u="' + esc(u.n) + '" ' +
-      'style="--w:'+w+'px;--h:'+h+'px;--fs:'+fs+'px;--d:'+d+tw+'">' +
-      '<span>' + esc(full ? u.n : tailOf(u.n)) + '</span></button>';
-  }).join('');
-}
-function tailOf(no){ var s = String(no); return s.indexOf('-') > 0 ? s.slice(s.indexOf('-') + 1) : s; }
-
-/* One shared canvas, the page's own font stack — so the width used to pick the
-   type size is the width the browser will actually paint. */
-var MEAS = document.createElement('canvas').getContext('2d');
-function textW(s, px){
-  MEAS.font = '600 ' + px + "px 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-  return MEAS.measureText(s).width;
-}
 
 /* ── hover tag ─────────────────────────────────────────────────────────── */
 var TAG = document.getElementById('tag');
