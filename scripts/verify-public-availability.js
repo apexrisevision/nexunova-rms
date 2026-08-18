@@ -125,14 +125,31 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   assert(acl[0].s === false, 'anon has no SELECT on availability_links');
   assert(acl[0].rls === true, 'and RLS is on (deny-all, no policies)');
 
-  const fnAcl = await sql(`SELECT p.proname,
-      has_function_privilege('anon', p.oid, 'EXECUTE') AS anon
-      FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-     WHERE n.nspname='public' AND p.proname IN
-       ('get_public_availability','create_availability_link','revoke_availability_link','list_availability_links')`);
-  const anonCan = fnAcl.filter(f => f.anon).map(f => f.proname);
-  assert(anonCan.length === 1 && anonCan[0] === 'get_public_availability',
-    'anon may execute exactly one function: ' + anonCan.join(', '));
+  /* The management RPCs ARE callable by anon, and that is not a hole: the whole
+     sales portal is an unauthenticated supabase client that identifies its user
+     with a sales_sessions token passed as an argument, so every portal RPC runs
+     as anon. The control is the session + role check inside each function, not
+     the GRANT — and that is what has to be measured. An earlier version of this
+     harness asserted grant-level exclusivity instead, which was both wrong and
+     the reason the Share-link screen 401'd for real directors. */
+  const guarded = await sql(`
+    SELECT (public.list_availability_links('no-such-session')->>'error')                 AS l,
+           (public.create_availability_link('no-such-session', '${ZZ_PROJECT}')->>'error') AS c,
+           (public.revoke_availability_link('no-such-session', 'x')->>'error')           AS r`);
+  assert(guarded[0].l === 'session_expired' && guarded[0].c === 'session_expired' &&
+         guarded[0].r === 'session_expired',
+    'the three management RPCs refuse a caller with no session');
+  const repGuard = await sql(`
+    DELETE FROM public.sales_sessions WHERE session_token='zz-pub-rep2';
+    INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+    SELECT company_id, id, project_id, 'zz-pub-rep2', now()+interval '5 minutes'
+      FROM public.sales_users WHERE company_id='${ZZ}' AND full_name='ZZ Rep One';
+    SELECT (public.list_availability_links('zz-pub-rep2')->>'error') AS l,
+           (public.create_availability_link('zz-pub-rep2', '${ZZ_PROJECT}')->>'error') AS c`);
+  assert(repGuard[0].l === 'not_allowed' && repGuard[0].c === 'not_allowed',
+    'and refuse a rep who does have a session');
+  const pubOk = await sql(`SELECT (public.get_public_availability('nope')->>'error') AS e`);
+  assert(pubOk[0].e === 'not_available', 'while the public one answers anyone, safely');
 
   // ── open it in a browser with NOTHING in it ───────────────────────────────
   stepH('A stranger opens /a/<token> — no login, no session, empty browser');
@@ -462,7 +479,7 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   await browser.close(); server.close();
   await sql(`DELETE FROM public.availability_links WHERE project_id IN
                 ('${ZZ_PROJECT}'${OTHER ? ", '" + other[0].id + "'" : ''});
-             DELETE FROM public.sales_sessions WHERE session_token IN ('zz-pub-dir','zz-pub-rep');`);
+             DELETE FROM public.sales_sessions WHERE session_token IN ('zz-pub-dir','zz-pub-rep','zz-pub-rep2');`);
   console.log('\n✓ fixture link and sessions removed');
   console.log(`\n${PASS} passed · ${FAIL} failed`);
   console.log('shots → migration_work/public_link/');

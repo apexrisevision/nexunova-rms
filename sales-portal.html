@@ -1524,6 +1524,7 @@ button.mn-card:active{transform:scale(.985)}
           <a class="ni" data-tab="leads" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
           <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
           <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
+          <a class="ni" data-tab="sharelink" data-dir style="display:none" onclick="setTab('sharelink')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Share link</span></a>
           <a class="ni" data-tab="mine" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
           <a class="ni" data-tab="money" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
           <a class="ni" data-tab="performance" onclick="setTab('performance')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ni-lb">My results</span></a>
@@ -2260,7 +2261,7 @@ function _applyLeadAccess(){
 const _BTAB_OF={
   home:'home',
   leads:'leads', distribute:'leads',
-  board:'board', unitmap:'board', mine:'board',
+  board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
   more:'more', performance:'more', teamperf:'more', team:'more', org:'more', targets:'more',
   livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
@@ -2335,7 +2336,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -2359,6 +2360,9 @@ function setTab(t,_back){
   // missing module must show a message, not break navigation for every tab
   else if(t==='unitmap'){ if(typeof renderUnitMap==='function') renderUnitMap();
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">The unit map could not load. Please refresh.</div>'; }
+  // same guard, same reason: js/portal-sharelink.js is a separate file
+  else if(t==='sharelink'){ if(typeof renderShareLinks==='function') renderShareLinks();
+    else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Share links could not load. Please refresh.</div>'; }
   else if(t==='mysales') renderMySales();
   else if(t==='profile') renderProfile();
   else if(t==='clients') renderClients();
@@ -2392,7 +2396,7 @@ function setTab(t,_back){
 const _GRP_OF={
   leadentry:'op-leads', myleads:'op-leads',
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
-  leads:'workspace', board:'workspace', unitmap:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
+  leads:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
 };
@@ -8520,5 +8524,6 @@ bootstrap();
 <script defer src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="js/portal-quote-pdf.js?v=20260816quote"></script>
 <script src="js/portal-unitmap.js?v=20260817focus"></script>
+<script src="js/portal-sharelink.js?v=20260818share"></script>
 </body>
 </html>
