@@ -29,6 +29,9 @@
   --amb:#D97706; --amb-soft:rgba(217,119,6,.16);
   --sold:#C3CDDB; --sold-edge:rgba(15,23,42,.06); --sold-tx:#5A6B82;
   --fac-1:#E4EAF2; --fac-2:#DCE3EC; --core:#CBD5E1; --slab:rgba(15,23,42,.07);
+  --pillar:#CFD8E4; --pillar-hi:rgba(255,255,255,.75); --pillar-lo:rgba(15,23,42,.14);
+  --slab-face:#D3DCE8; --slab-edge:rgba(15,23,42,.16);
+  --shaft:#C6D0DE; --shaft-line:rgba(15,23,42,.13);
   --night:#EAF0F7; --ground:#CBD5E1;
   --shadow:0 1px 2px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.08);
   --ease:cubic-bezier(.22,.61,.36,1);
@@ -40,6 +43,9 @@ html[data-theme="dark"]{
   --amb:#FBBF24; --amb-soft:rgba(251,191,36,.16);
   --sold:#18202F; --sold-edge:rgba(255,255,255,.045); --sold-tx:#697B99;
   --fac-1:#0E1626; --fac-2:#0B121F; --core:#131E33; --slab:rgba(255,255,255,.05);
+  --pillar:#162034; --pillar-hi:rgba(255,255,255,.10); --pillar-lo:rgba(0,0,0,.55);
+  --slab-face:#121C2E; --slab-edge:rgba(0,0,0,.5);
+  --shaft:#131D31; --shaft-line:rgba(255,255,255,.07);
   --night:#040810; --ground:#070C16;
   --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 34px rgba(0,0,0,.5);
 }
@@ -151,27 +157,41 @@ html[data-theme="dark"] .pill.on{color:#0B1220}
 /* flex-start + auto margins: the tower is centred while it fits, and scrolls
    from its left edge once the zoom makes it wider than the stage */
 .stage-in{position:relative;padding:34px 14px 0;display:flex;justify-content:flex-start;overflow-x:auto}
-.tower{width:100%;max-width:820px;position:relative;margin:0 auto}
+.tower{width:100%;max-width:820px;position:relative;margin:0 auto;
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.42)) drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+html[data-theme="light"] .tower{filter:drop-shadow(0 16px 26px rgba(15,23,42,.20))}
 
 /* one grid keeps labels, facade and counters on the same rails */
 /* the rails are deliberately mean: every px they give back is a px of glass,
    and glass is where the unit numbers have to fit */
-.rw{display:grid;grid-template-columns:44px minmax(0,1fr) 62px;align-items:stretch;gap:10px}
+.rw{display:grid;grid-template-columns:40px minmax(0,1fr) 54px;align-items:stretch;gap:10px}
 @media (max-width:560px){
   .wrap{padding:14px 10px 40px}
-  .rw{grid-template-columns:30px minmax(0,1fr) 44px;gap:6px}
+  .rw{grid-template-columns:28px minmax(0,1fr) 46px;gap:6px}
   .fl-name b{font-size:12px}
-  .fl-name,.fl-stat span{font-size:10px}
+  .fl-name{font-size:10px}
+  .fl-stat span{font-size:9px;letter-spacing:-.02em}
   .fl-stat{font-size:12px}
   .stage-in{padding:22px 8px 0}
-  .plate{padding:7px 5px;gap:5px}
+  .tower{--over:4px;--over-foot:4px}
+  .plate{--pil:5px;padding:8px calc(var(--pil) + 3px);gap:5px;--shaft-w:9px}
+  .roof .cap,.plinth{box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+    inset 7px 0 0 var(--pillar),inset -7px 0 0 var(--pillar)}
+  .core{width:9px}
   .brk{gap:6px}
   .bcell{min-width:96px}
 }
 
 /* roof — parapet, machine room, mast */
-.roof .cap{position:relative;height:14px;border-radius:6px 6px 0 0;background:var(--fac-2);
-  border:1px solid var(--bd);border-bottom:0;margin:0 -9px}
+/* the parapet: a wall that overhangs the facade slightly, with a lit coping on
+   top — that overhang is what makes a roof read as a roof and not as a lid */
+.roof .cap{position:relative;height:20px;border-radius:5px 5px 0 0;background:var(--fac-2);
+  margin:0 calc(var(--over, 7px) * -1);
+  box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+             inset 10px 0 0 var(--pillar),inset -10px 0 0 var(--pillar),
+             inset 11px 0 0 var(--pillar-hi),inset -11px 0 0 var(--pillar-lo)}
+.roof .cap::after{content:"";position:absolute;left:-4px;right:-4px;top:-4px;height:5px;
+  border-radius:3px;background:var(--slab-face);box-shadow:0 1px 0 var(--slab-edge)}
 .mast{position:relative;height:44px}
 .mast::before{content:"";position:absolute;left:50%;bottom:0;width:2px;height:44px;background:var(--bd)}
 .mast::after{content:"";position:absolute;left:calc(50% - 4px);top:-2px;width:9px;height:9px;border-radius:50%;
@@ -184,10 +204,33 @@ html[data-theme="dark"] .pill.on{color:#0B1220}
 .fl-name{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;text-align:right;
   font-size:11px;color:var(--mut);transition:color .2s var(--ease)}
 .fl-name b{color:var(--tx);font-weight:700;font-size:14px;letter-spacing:-.01em}
-.plate{position:relative;background:var(--fac-1);border-left:1px solid var(--bd);border-right:1px solid var(--bd);
-  border-bottom:1px solid var(--slab);padding:8px 7px;display:flex;align-items:center;gap:7px;
+/* THE SHELL.
+   The verticals are painted per floor rather than as one overlay: the rows stack
+   with no gap, so a pillar drawn on every plate at the same x reads as one
+   column running the whole height — and it survives any number of floors, any
+   zoom, and the mobile rail widths, none of which an absolutely-positioned
+   overlay would follow without being told. */
+.plate{position:relative;background:var(--fac-1);
+  padding:9px calc(var(--pil) + 5px);display:flex;align-items:center;gap:7px;
+  --pil:8px;
+  /* left pillar, its lit edge, right pillar, its shaded edge, and the slab */
+  box-shadow:
+    inset  var(--pil) 0 0 var(--pillar),
+    inset  calc(var(--pil) + 1px) 0 0 var(--pillar-hi),
+    inset  calc(var(--pil) * -1) 0 0 var(--pillar),
+    inset  calc((var(--pil) + 1px) * -1) 0 0 var(--pillar-lo),
+    inset 0 -3px 0 var(--slab-face),
+    inset 0 -4px 0 var(--slab-edge);
   transition:background .25s var(--ease)}
 .rw:nth-child(even) .plate{background:var(--fac-2)}
+
+/* the lift / stair shaft — one continuous column of masonry down the middle.
+   Only drawn where the floor really has a central corridor: a floor laid in
+   several courses has none, and inventing one would be a lie about the plan. */
+.tower:not(.wide) .plate::before{content:"";position:absolute;left:50%;top:0;bottom:0;
+  width:var(--shaft-w,12px);transform:translateX(-50%);pointer-events:none;z-index:0;
+  background:var(--shaft);
+  box-shadow:inset 1px 0 0 var(--shaft-line),inset -1px 0 0 var(--shaft-line)}
 /* cylindrical shading — the facade reads as a solid mass, not a flat band */
 .plate::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(90deg,rgba(255,255,255,.05),transparent 16%,transparent 76%,rgba(0,0,0,.30))}
@@ -195,22 +238,36 @@ html[data-theme="light"] .plate::after{background:linear-gradient(90deg,rgba(255
 .rw:hover .plate{background:var(--core)}
 .rw:hover .fl-name{color:var(--tx)}
 .wing{display:flex;flex-wrap:nowrap;gap:var(--gap);align-content:center;justify-content:center;flex:1}
-.tower.wide .wing{flex-wrap:wrap}
-.core{width:12px;flex:none;align-self:stretch;border-radius:2px;background:var(--core);position:relative}
-.core::after{content:"";position:absolute;left:50%;top:3px;bottom:3px;width:1px;background:var(--bd)}
+.tower.wide .wing,.tower.courses .wing{flex-wrap:wrap}
+.core{width:12px;flex:none;align-self:stretch}   /* the gap; the shaft paints it */
 .fl-stat{display:flex;flex-direction:column;justify-content:center;font-size:13px;font-weight:700}
 .fl-stat span{font-weight:500;color:var(--mut);font-size:11px}
 
 /* base — plinth, canopy, lobby light, shadow on the ground */
-.plinth{position:relative;height:40px;margin:0 -9px;background:var(--fac-2);
-  border:1px solid var(--bd);border-top:0;border-radius:0 0 4px 4px}
+/* the base carries the building: a plinth wider than the shaft above it, and a
+   canopy over the lobby light */
+.plinth{position:relative;height:46px;margin:0 calc(var(--over, 7px) * -1);background:var(--fac-2);
+  border-radius:0 0 3px 3px;
+  box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+             inset 10px 0 0 var(--pillar),inset -10px 0 0 var(--pillar),
+             inset 11px 0 0 var(--pillar-hi),inset -11px 0 0 var(--pillar-lo)}
 .plinth::before{content:"";position:absolute;left:50%;bottom:0;width:150px;height:26px;transform:translateX(-50%);
   background:var(--core);border:1px solid var(--bd);border-bottom:0;border-radius:3px 3px 0 0}
 .plinth::after{content:"";position:absolute;left:50%;bottom:0;width:86px;height:15px;transform:translateX(-50%);
   background:var(--sky);opacity:.75;border-radius:2px 2px 0 0;box-shadow:0 0 26px var(--sky)}
-.ground{height:78px;background:linear-gradient(180deg,var(--ground),transparent);position:relative}
+.ground{height:86px;background:linear-gradient(180deg,var(--ground),transparent);position:relative}
 .ground::before{content:"";position:absolute;left:50%;top:0;width:78%;height:1px;transform:translateX(-50%);
   background:linear-gradient(90deg,transparent,var(--bd),transparent)}
+/* the shadow the building casts on its own plot — the thing that stops the
+   whole drawing floating */
+.ground::after{content:"";position:absolute;left:50%;top:-6px;width:min(62%,620px);height:26px;
+  transform:translateX(-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent 72%)}
+html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,rgba(15,23,42,.22),transparent 72%)}
+
+/* the footing: a slab wider than the plinth, sitting on the ground */
+.foot-slab{position:relative;height:10px;margin:0 calc(var(--over-foot, 8px) * -1);border-radius:2px;background:var(--slab-face);
+  box-shadow:0 1px 0 var(--slab-edge),inset 0 1px 0 var(--pillar-hi)}
 
 /* ── the windows ────────────────────────────────────────────────────────── */
 /* Every pane carries its own unit number. The number is the point of the page —
@@ -565,8 +622,8 @@ function paint(){
   // the rails must match the media query above, or the tower is sized for a
   // layout the browser is not using
   var narrow = stage.clientWidth < 560;
-  var rails = narrow ? 30 + 44 + 12 + 10 + (wide ? 0 : 10)
-                     : 44 + 62 + 20 + 14 + (wide ? 0 : 12);
+  // label + counter + grid gaps + the plate's own pillars/padding + the shaft
+  var rails = (narrow ? 28 + 46 + 12 + 16 : 40 + 54 + 20 + 26) + (wide ? 0 : (narrow ? 9 : 12));
   var room = Math.max(narrow ? 250 : 360, stage.clientWidth - (narrow ? 16 : 30)) - rails;
 
   var longest = '';
@@ -576,11 +633,16 @@ function paint(){
 
   var courses = 1, slot, gap, w, h, fs;
   measure();
-  // a phone cannot hold 30 panes on one row at a readable size; give the floor
-  // as many courses as it needs rather than shrinking the glass to nothing
+  /* A floor that cannot hold its units on one readable row is laid in courses —
+     but the courses must be EVEN. Wrapping 15 panes at whatever happened to fit
+     left a row of seven, a row of seven and a lonely one, which reads as a
+     mistake rather than as a building. So each wing is given an exact width in
+     panes and wraps on that. */
+  var perWing = Math.ceil(max / 2), balanced = perWing;
   if (!wide && fs < 9 && ZOOM <= 1.25) {
     courses = narrow ? 3 : 2;
-    perRow = Math.ceil(max / courses);
+    balanced = Math.ceil(perWing / courses);
+    perRow = balanced * 2;
     measure(46);
   }
   function measure(cap){
@@ -593,6 +655,8 @@ function paint(){
   var full = fs >= 7.5;
   if (!full) fs = Math.max(7.5, Math.min(11, Math.floor((w - 5) / textW(tailOf(longest), 12) * 12 * 2) / 2));
 
+  // an exact wing width is what makes the courses even
+  var wingW = courses > 1 ? 'flex:none;width:' + (balanced * slot) + 'px' : '';
   var order = P.floors.slice().reverse();
   var html = '<div class="rw roof"><span></span><div><div class="mast"><span class="hut"></span></div>' +
              '<div class="cap"></div></div><span></span></div>';
@@ -603,20 +667,24 @@ function paint(){
     html += '<div class="rw" style="--gap:' + gap + 'px">' +
       '<div class="fl-name"><b>' + esc(shortLabel(f.label)) + '</b>' + f.units.length + ' units</div>' +
       '<div class="plate">' +
-        (wide || courses > 1
+        (wide
           ? '<div class="wing">' + wins(f.units, fromBottom, 0, w, h, fs, full) + '</div>'
-          : '<div class="wing">' + wins(f.units.slice(0, half), fromBottom, 0, w, h, fs, full) + '</div>' +
+          : '<div class="wing" style="' + wingW + '">' + wins(f.units.slice(0, half), fromBottom, 0, w, h, fs, full) + '</div>' +
             '<div class="core"></div>' +
-            '<div class="wing">' + wins(f.units.slice(half), fromBottom, half, w, h, fs, full) + '</div>') +
+            '<div class="wing" style="' + wingW + '">' + wins(f.units.slice(half), fromBottom, half, w, h, fs, full) + '</div>') +
       '</div>' +
       '<div class="fl-stat">' + av + '<span>/' + f.units.length + ' free</span></div>' +
     '</div>';
   });
-  html += '<div class="rw"><span></span><div class="plinth"></div><span></span></div>';
+  html += '<div class="rw"><span></span><div class="plinth"></div><span></span></div>' +
+          '<div class="rw"><span></span><div class="foot-slab"></div><span></span></div>';
   var tw = $('tower');
   tw.innerHTML = html;
-  tw.classList.toggle('wide', wide || courses > 1);
-  tw.style.maxWidth = ((wide || courses > 1 ? rails - 12 : rails) + perRow * slot) + 'px';
+  // .wide means "no central corridor": one wing, wrapped. A multi-course floor
+  // still has two wings around the shaft, so it must NOT get this class.
+  tw.classList.toggle('wide', wide);
+  tw.classList.toggle('courses', courses > 1);
+  tw.style.maxWidth = (rails + perRow * slot) + 'px';
   $('lgt').textContent = 'Every pane is one unit, numbered · available units twinkle, each on its own clock';
 
   drawFilters(); drawBudget(); applyFilter();

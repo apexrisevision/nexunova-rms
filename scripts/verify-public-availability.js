@@ -174,6 +174,29 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   };
   await shotFull('01-public-tower');
 
+
+  const inside = async where => {
+    const r = await V.page.evaluate(() => {
+      const s = document.querySelector('.stage-in').getBoundingClientRect();
+      const bits = [...document.querySelectorAll('.win, .fl-stat, .fl-name, .plate, .cap, .plinth, .foot-slab')]
+        .map(e => e.getBoundingClientRect());
+      const stat = document.querySelector('.fl-stat').getBoundingClientRect();
+      const widest = Math.max(...[...document.querySelectorAll('.cap, .plinth, .foot-slab')]
+        .map(e => e.getBoundingClientRect().right));
+      return { left: Math.min(...bits.map(b => b.left)) - s.left,
+               right: s.right - Math.max(...bits.map(b => b.right)),
+               underCounter: Math.round(widest - stat.left) };
+    });
+    assert(r.left >= -1 && r.right >= -1,
+      'nothing spills out of the stage on ' + where +
+      ' (' + Math.round(r.left) + 'px left, ' + Math.round(r.right) + 'px right)');
+    assert(r.underCounter <= 0,
+      'the roof and footing overhang stays clear of the free-count on ' + where +
+      ' (' + r.underCounter + 'px)');
+  };
+
+  await inside('desktop');
+
   const storage = await V.page.evaluate(() => ({
     ls: Object.keys(localStorage).length, ss: Object.keys(sessionStorage).length }));
   assert(storage.ls === 0 && storage.ss === 0,
@@ -292,10 +315,7 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   await V.page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3,
                              isMobile: true, hasTouch: true });
   await sleep(1800);
-  await V.page.screenshot({ path: path.join(SHOTS, '06-phone-tower.png'), fullPage: true });
-  await sleep(1400);
-  await V.page.screenshot({ path: path.join(SHOTS, '06-phone-tower.png'), fullPage: true });
-  console.log('  📸 06-phone-tower');
+  await shotFull('06-phone-tower');
 
   /* The one thing a phone gets wrong more than anything else: something wider
      than the screen, so the whole PAGE slides sideways. The tower is allowed to
@@ -321,6 +341,7 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
     phone.numbered + ' full, ' + (phone.labelled - phone.numbered) + ' shortened to the tail)');
   assert(phone.fs >= 7.5, 'the number is still ' + phone.fs + 'px');
   assert(phone.hitFilter, 'a thumb landing on a filter chip actually reaches the chip');
+  await inside('a phone');
 
   // a real TAP, not a mouse click — under touch emulation mouse input raises no
   // pointerdown, which is the trap that hid a bug in the portal smoke suite

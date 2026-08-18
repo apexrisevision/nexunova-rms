@@ -1,0 +1,1021 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Availability Tower — concept</title>
+<style>
+/* ══ CONCEPT ONLY ═══════════════════════════════════════════════════════════
+   Standalone mockup of the "Availability Tower" page. Real data (KBH / FMH /
+   Awami, pulled by fetch-data.js with the same state rule as _map_unit_state),
+   no server calls, nothing wired into the portal yet.
+   Tokens mirror sales-portal.html so the real build is a straight port.
+
+   The building is drawn, not tabulated: floor labels live OUTSIDE the facade in
+   the sky, so what is left inside the silhouette is only glass — that is the
+   whole difference between this and a grid.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#F1F5F9; --card:#FFFFFF; --sub:#F8FAFC; --bd:#E2E8F0;
+  --tx:#0F172A; --mut:#64748B; --pri:#4F46E5;
+  --sky:#0284C7; --sky-soft:rgba(2,132,199,.13); --pri-soft:rgba(79,70,229,.24);
+  --amb:#D97706; --amb-soft:rgba(217,119,6,.16);
+  --sold:#C3CDDB; --sold-edge:rgba(15,23,42,.06); --sold-tx:#5A6B82;
+  --fac-1:#E4EAF2; --fac-2:#DCE3EC; --core:#CBD5E1; --slab:rgba(15,23,42,.07);
+  --pillar:#CFD8E4; --pillar-hi:rgba(255,255,255,.75); --pillar-lo:rgba(15,23,42,.14);
+  --slab-face:#D3DCE8; --slab-edge:rgba(15,23,42,.16);
+  --shaft:#C6D0DE; --shaft-line:rgba(15,23,42,.13);
+  --night:#EAF0F7; --ground:#CBD5E1;
+  --shadow:0 1px 2px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.08);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+html[data-theme="dark"]{
+  --bg:#070C16; --card:#0F1726; --sub:#131C2E; --bd:#1E293B;
+  --tx:#E7ECF5; --mut:#8B9AB4; --pri:#818CF8;
+  --sky:#38BDF8; --sky-soft:rgba(56,189,248,.16); --pri-soft:rgba(129,140,248,.3);
+  --amb:#FBBF24; --amb-soft:rgba(251,191,36,.16);
+  --sold:#18202F; --sold-edge:rgba(255,255,255,.045); --sold-tx:#697B99;
+  --fac-1:#0E1626; --fac-2:#0B121F; --core:#131E33; --slab:rgba(255,255,255,.05);
+  --pillar:#162034; --pillar-hi:rgba(255,255,255,.10); --pillar-lo:rgba(0,0,0,.55);
+  --slab-face:#121C2E; --slab-edge:rgba(0,0,0,.5);
+  --shaft:#131D31; --shaft-line:rgba(255,255,255,.07);
+  --night:#040810; --ground:#070C16;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 34px rgba(0,0,0,.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);
+  font:14px/1.5 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+
+/* ── page frame ─────────────────────────────────────────────────────────── */
+/* wide on purpose: this page's job is to put a whole project on one screen, and
+   every px of width buys a bigger unit number */
+.wrap{max-width:1720px;margin:0 auto;padding:22px 20px 60px}
+.head{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.h-t{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.h-s{font-size:12px;color:var(--mut);margin-top:2px}
+.h-r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{height:32px;padding:0 13px;border:1px solid var(--bd);border-radius:8px;background:var(--card);
+  font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;transition:.18s var(--ease)}
+.btn:hover{border-color:var(--pri);color:var(--pri)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+html[data-theme="dark"] .btn.pri{color:#0B1220}
+.btn.pri:hover{filter:brightness(1.06)}
+.seg{display:inline-flex;border:1px solid var(--bd);border-radius:8px;background:var(--card);overflow:hidden}
+.seg button{height:32px;padding:0 12px;font-size:13px;font-weight:600;color:var(--mut);transition:.18s var(--ease)}
+.seg button.on{background:var(--pri);color:#fff}
+html[data-theme="dark"] .seg button.on{color:#0B1220}
+
+/* ── summary ────────────────────────────────────────────────────────────── */
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.chip{flex:1;min-width:150px;border:1px solid var(--bd);border-radius:12px;background:var(--card);
+  padding:9px 14px 10px;box-shadow:var(--shadow)}
+.chip .k{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+  display:flex;align-items:center;gap:6px}
+.chip .k i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.chip .v{font-size:20px;font-weight:700;margin-top:3px;letter-spacing:-.02em}
+.chip .s{font-size:11px;color:var(--mut);margin-top:1px;font-variant-numeric:tabular-nums}
+.chip .m{height:4px;border-radius:99px;background:var(--sub);margin-top:7px;overflow:hidden}
+.chip .m>span{display:block;height:100%;border-radius:99px;width:0;transition:width 1.4s var(--ease) .4s}
+
+/* the full picture of one project: what exists, what is gone, what is left —
+   and the same broken down by type, because that is what a rep is asked for */
+.brk{border:1px solid var(--bd);border-radius:12px;background:var(--card);box-shadow:var(--shadow);
+  padding:9px 12px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+.brk-h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+  align-self:center;padding-right:12px;border-right:1px solid var(--bd);white-space:nowrap}
+.bcell{flex:1;min-width:118px;padding:5px 8px;border:1px solid transparent;border-radius:9px;text-align:left;
+  transition:.16s var(--ease)}
+.bcell:hover{background:var(--sub);border-color:var(--bd)}
+.bcell .bt{font-size:12px;font-weight:600}
+.bcell .bn{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.bcell .bn small{font-size:11px;font-weight:500;color:var(--mut);margin-left:3px}
+.bcell .bb{height:4px;border-radius:99px;background:var(--sub);margin-top:6px;overflow:hidden;display:flex}
+.bcell .bb i{display:block;height:100%;background:var(--sky)}
+.bcell .bp{font-size:11px;color:var(--mut);margin-top:4px;font-variant-numeric:tabular-nums}
+
+/* ── filter panel ───────────────────────────────────────────────────────────
+   Deliberately loud. The owner's point: reps do not notice quiet controls, and
+   these two rows ARE the sales conversation ("2 bed dikhao", "mere budget mein").
+   So the filters get their own raised card with an accent edge, a heading, and
+   controls a size up from everything else on the page. */
+.hunt{border:1px solid var(--bd);border-left:3px solid var(--pri);border-radius:12px;background:var(--card);
+  box-shadow:var(--shadow);padding:10px 15px 12px;margin-bottom:14px}
+.hunt-h{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.hunt-h b{font-size:13px;font-weight:700;letter-spacing:-.01em}
+.hunt-h span{font-size:12px;color:var(--mut)}
+.hunt-h .clr{margin-left:auto;font-size:12px;font-weight:600;color:var(--pri)}
+.hunt-h .clr:hover{text-decoration:underline}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters+.filters{margin-top:9px;padding-top:10px;padding-bottom:6px;border-top:1px dashed var(--bd)}
+.pill{height:36px;padding:0 15px;border:1px solid var(--bd);border-radius:99px;background:var(--sub);
+  font-size:13px;font-weight:600;color:var(--tx);display:inline-flex;align-items:center;gap:7px;
+  transition:.18s var(--ease)}
+.pill:hover{border-color:var(--pri);background:var(--card);transform:translateY(-1px)}
+.pill.on{background:var(--pri);border-color:var(--pri);color:#fff;box-shadow:0 4px 14px var(--pri-soft)}
+html[data-theme="dark"] .pill.on{color:#0B1220}
+.pill b{font-weight:700;opacity:.65;font-variant-numeric:tabular-nums}
+.pill.on b{opacity:.8}
+.pill.tog.on{background:var(--sky);border-color:var(--sky);color:#04283B;box-shadow:0 4px 14px var(--sky-soft)}
+.f-sep{width:1px;height:20px;background:var(--bd);margin:0 3px}
+.f-note{margin-left:auto;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.f-lb{width:64px;flex:none;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tx)}
+.num-in{width:84px;height:36px;border:1px solid var(--bd);border-radius:9px;background:var(--sub);color:var(--tx);
+  padding:0 11px;font:inherit;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.num-in.wide{width:126px}
+.num-in:focus{outline:0;border-color:var(--pri);background:var(--card)}
+.f-unit{font-size:12px;color:var(--mut);font-weight:600}
+/* the figure read back in words, so a typo of one zero is visible instantly */
+.rs{position:relative;display:inline-flex}
+.rs em{position:absolute;right:11px;bottom:-13px;font-style:normal;font-size:10px;font-weight:600;
+  color:var(--sky);font-variant-numeric:tabular-nums;pointer-events:none}
+/* nothing matched — say so on the building itself, do not leave a dark tower */
+.empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;text-align:center;
+  background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px 22px;box-shadow:var(--shadow)}
+.empty b{display:block;font-size:14px}
+.empty span{font-size:12px;color:var(--mut)}
+
+/* filtered-out glass: still part of the facade, just not part of the answer.
+   !important because a running animation outranks a plain declaration. */
+.win.off{opacity:.15!important;filter:grayscale(1) brightness(.85)!important;box-shadow:none!important}
+.win.gone{opacity:.06!important;filter:none!important;box-shadow:none!important;color:transparent!important}
+
+/* ── night stage ────────────────────────────────────────────────────────── */
+.stage{position:relative;border:1px solid var(--bd);border-radius:14px;overflow:hidden;
+  background:var(--night);box-shadow:var(--shadow)}
+.stage::before{content:"";position:absolute;left:50%;bottom:70px;width:960px;height:820px;
+  transform:translateX(-50%);pointer-events:none;
+  background:radial-gradient(closest-side,var(--sky-soft),transparent 72%)}
+/* flex-start + auto margins: the tower is centred while it fits, and scrolls
+   from its left edge once the zoom makes it wider than the stage */
+.stage-in{position:relative;padding:34px 14px 0;display:flex;justify-content:flex-start;overflow-x:auto}
+.tower{width:100%;max-width:820px;position:relative;margin:0 auto;
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.42)) drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+html[data-theme="light"] .tower{filter:drop-shadow(0 16px 26px rgba(15,23,42,.20))}
+
+
+/* one grid keeps labels, facade and counters on the same rails */
+/* the rails are deliberately mean: every px they give back is a px of glass,
+   and glass is where the unit numbers have to fit */
+.rw{display:grid;grid-template-columns:40px minmax(0,1fr) 54px;align-items:stretch;gap:10px}
+
+/* roof — parapet, machine room, mast */
+/* the parapet: a wall that overhangs the facade slightly, with a lit coping on
+   top — that overhang is what makes a roof read as a roof and not as a lid */
+.roof .cap{position:relative;height:20px;border-radius:5px 5px 0 0;background:var(--fac-2);
+  margin:0 calc(var(--over, 7px) * -1);
+  box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+             inset 10px 0 0 var(--pillar),inset -10px 0 0 var(--pillar),
+             inset 11px 0 0 var(--pillar-hi),inset -11px 0 0 var(--pillar-lo)}
+.roof .cap::after{content:"";position:absolute;left:-4px;right:-4px;top:-4px;height:5px;
+  border-radius:3px;background:var(--slab-face);box-shadow:0 1px 0 var(--slab-edge)}.mast{position:relative;height:44px}
+.mast::before{content:"";position:absolute;left:50%;bottom:0;width:2px;height:44px;background:var(--bd)}
+.mast::after{content:"";position:absolute;left:calc(50% - 4px);top:-2px;width:9px;height:9px;border-radius:50%;
+  background:var(--amb);box-shadow:0 0 14px var(--amb);animation:beacon 2.8s ease-in-out infinite}
+.hut{position:absolute;left:50%;bottom:0;width:120px;height:22px;transform:translateX(-50%);
+  background:var(--fac-2);border:1px solid var(--bd);border-bottom:0;border-radius:4px 4px 0 0}
+@keyframes beacon{0%,100%{opacity:.22}50%{opacity:1}}
+
+/* a floor: label · facade plate · counter */
+.fl-name{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;text-align:right;
+  font-size:11px;color:var(--mut);transition:color .2s var(--ease)}
+.fl-name b{color:var(--tx);font-weight:700;font-size:14px;letter-spacing:-.01em}
+/* THE SHELL.
+   The verticals are painted per floor rather than as one overlay: the rows stack
+   with no gap, so a pillar drawn on every plate at the same x reads as one
+   column running the whole height — and it survives any number of floors, any
+   zoom, and the mobile rail widths, none of which an absolutely-positioned
+   overlay would follow without being told. */
+.plate{position:relative;background:var(--fac-1);
+  padding:9px calc(var(--pil) + 5px);display:flex;align-items:center;gap:7px;
+  --pil:8px;
+  /* left pillar, its lit edge, right pillar, its shaded edge, and the slab */
+  box-shadow:
+    inset  var(--pil) 0 0 var(--pillar),
+    inset  calc(var(--pil) + 1px) 0 0 var(--pillar-hi),
+    inset  calc(var(--pil) * -1) 0 0 var(--pillar),
+    inset  calc((var(--pil) + 1px) * -1) 0 0 var(--pillar-lo),
+    inset 0 -3px 0 var(--slab-face),
+    inset 0 -4px 0 var(--slab-edge);
+  transition:background .25s var(--ease)}
+.rw:nth-child(even) .plate{background:var(--fac-2)}
+
+/* the lift / stair shaft — one continuous column of masonry down the middle.
+   Only drawn where the floor really has a central corridor: a floor laid in
+   several courses has none, and inventing one would be a lie about the plan. */
+.tower:not(.wide) .plate::before{content:"";position:absolute;left:50%;top:0;bottom:0;
+  width:var(--shaft-w,12px);transform:translateX(-50%);pointer-events:none;z-index:0;
+  background:var(--shaft);
+  box-shadow:inset 1px 0 0 var(--shaft-line),inset -1px 0 0 var(--shaft-line)}/* cylindrical shading — the facade reads as a solid mass, not a flat band */
+.plate::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,255,255,.05),transparent 16%,transparent 76%,rgba(0,0,0,.30))}
+html[data-theme="light"] .plate::after{background:linear-gradient(90deg,rgba(255,255,255,.6),transparent 18%,transparent 76%,rgba(15,23,42,.10))}
+.rw:hover .plate{background:var(--core)}
+.rw:hover .fl-name{color:var(--tx)}
+.wing{display:flex;flex-wrap:nowrap;gap:var(--gap);align-content:center;justify-content:center;flex:1}
+.tower.wide .wing,.tower.courses .wing{flex-wrap:wrap}
+.core{width:12px;flex:none;align-self:stretch}   /* the gap; the shaft paints it */
+.fl-stat{display:flex;flex-direction:column;justify-content:center;font-size:13px;font-weight:700}
+.fl-stat span{font-weight:500;color:var(--mut);font-size:11px}
+
+/* base — plinth, canopy, lobby light, shadow on the ground */
+/* the base carries the building: a plinth wider than the shaft above it, and a
+   canopy over the lobby light */
+.plinth{position:relative;height:46px;margin:0 calc(var(--over, 7px) * -1);background:var(--fac-2);
+  border-radius:0 0 3px 3px;
+  box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+             inset 10px 0 0 var(--pillar),inset -10px 0 0 var(--pillar),
+             inset 11px 0 0 var(--pillar-hi),inset -11px 0 0 var(--pillar-lo)}.plinth::before{content:"";position:absolute;left:50%;bottom:0;width:150px;height:26px;transform:translateX(-50%);
+  background:var(--core);border:1px solid var(--bd);border-bottom:0;border-radius:3px 3px 0 0}
+.plinth::after{content:"";position:absolute;left:50%;bottom:0;width:86px;height:15px;transform:translateX(-50%);
+  background:var(--sky);opacity:.75;border-radius:2px 2px 0 0;box-shadow:0 0 26px var(--sky)}
+.ground{height:86px;background:linear-gradient(180deg,var(--ground),transparent);position:relative}
+.ground::before{content:"";position:absolute;left:50%;top:0;width:78%;height:1px;transform:translateX(-50%);
+  background:linear-gradient(90deg,transparent,var(--bd),transparent)}
+/* the shadow the building casts on its own plot — the thing that stops the
+   whole drawing floating */
+.ground::after{content:"";position:absolute;left:50%;top:-6px;width:min(62%,620px);height:26px;
+  transform:translateX(-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent 72%)}
+html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,rgba(15,23,42,.22),transparent 72%)}
+
+/* the footing: a slab wider than the plinth, sitting on the ground */
+.foot-slab{position:relative;height:10px;margin:0 calc(var(--over-foot, 8px) * -1);border-radius:2px;background:var(--slab-face);
+  box-shadow:0 1px 0 var(--slab-edge),inset 0 1px 0 var(--pillar-hi)}
+/* ── the windows ────────────────────────────────────────────────────────── */
+/* Every pane carries its own unit number. The number is the point of the page —
+   the glow only says WHICH ones to read first. */
+.win{width:var(--w);height:var(--h);border-radius:2.5px;position:relative;flex:none;
+  display:grid;place-items:center;overflow:hidden;
+  font-size:var(--fs);font-weight:600;line-height:1;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:var(--wtx);
+  background:var(--sold);box-shadow:inset 0 0 0 1px var(--sold-edge);
+  opacity:0;transform:translateY(3px);
+  animation:powerOn .55s var(--ease) forwards;animation-delay:var(--d);
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease),filter .18s var(--ease)}
+.win span{position:relative;z-index:2}
+@keyframes powerOn{to{opacity:1;transform:none}}
+/* TWINKLE — only the LIT panes move, and each one is on its OWN clock: a random
+   offset (--tw, 0–7s) AND a random period (--tp, 3–8s). Nothing shares a beat,
+   so the peaks scatter — one lights, then another somewhere else, the way stars
+   do. The flare is short (about a fifth of the cycle), which is what keeps most
+   panes quiet at any instant; that is the difference between a sky and a wave.
+
+   The earlier "breathe" gave every pane one shared 4.2s period, so a bright band
+   visibly travelled across the building. Chosen against, on purpose. */
+.win.available{animation:powerOn .55s var(--ease) forwards,twinkle var(--tp) ease-in-out infinite;
+  animation-delay:var(--d),calc(var(--d) + var(--tw))}
+@keyframes twinkle{
+  0%,66%,100%{filter:brightness(.88)}
+  78%{filter:brightness(1.32)}
+  88%{filter:brightness(.97)}
+}
+.win.available{background:var(--sky);box-shadow:0 0 5px var(--sky),0 0 15px var(--sky-soft);--wtx:#04283B}
+.win.reserved{background:var(--amb);box-shadow:0 0 5px var(--amb),0 0 15px var(--amb-soft);--wtx:#3B2503}
+.win.sold{--wtx:var(--sold-tx)}
+/* glass: a pane catches light at its top-left corner (behind the number) */
+.win.available::after,.win.reserved::after{content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(155deg,rgba(255,255,255,.42),rgba(255,255,255,.02) 55%)}
+.win:hover,.win:focus-visible{transform:scale(1.35);z-index:6;outline:0}
+.win.available:hover{box-shadow:0 0 12px var(--sky),0 0 32px var(--sky)}
+.win.reserved:hover{box-shadow:0 0 12px var(--amb),0 0 32px var(--amb)}
+.win.sold:hover{filter:brightness(1.9)}
+.win.pick{transform:scale(1.35);z-index:6;box-shadow:0 0 0 2px var(--night),0 0 0 4px var(--pri)}
+@media (prefers-reduced-motion:reduce){.win,.win.available{animation:none;opacity:1;transform:none}}
+
+/* hover tag */
+.tag{position:fixed;z-index:30;pointer-events:none;opacity:0;transform:translate(-50%,-142%);
+  background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:5px 9px;
+  font-size:12px;font-weight:600;white-space:nowrap;box-shadow:var(--shadow);transition:opacity .14s var(--ease)}
+.tag.on{opacity:1}
+.tag em{font-style:normal;font-weight:500;color:var(--mut);margin-left:7px}
+.tag em+em{color:var(--sky);font-weight:600}
+
+/* legend */
+.legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;padding:16px 0 4px;
+  font-size:12px;color:var(--mut);position:relative;z-index:2}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+
+/* ── detail card (slide-in) ─────────────────────────────────────────────── */
+.scrim{position:fixed;inset:0;background:rgba(2,6,16,.5);opacity:0;pointer-events:none;
+  transition:opacity .3s var(--ease);z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.card{position:fixed;top:0;right:0;bottom:0;width:min(390px,92vw);background:var(--card);
+  border-left:1px solid var(--bd);z-index:50;transform:translateX(102%);
+  transition:transform .42s var(--ease);display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.card.on{transform:none}
+.c-top{padding:18px 20px 14px;border-bottom:1px solid var(--bd);position:relative}
+.c-no{font-size:22px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.c-no i{width:12px;height:12px;border-radius:4px}
+.c-fl{font-size:12px;color:var(--mut);margin-top:3px}
+.c-x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;color:var(--mut);font-size:17px}
+.c-x:hover{background:var(--sub);color:var(--tx)}
+.c-body{padding:6px 20px;overflow:auto;flex:1}
+.row{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.row:last-child{border-bottom:0}
+.row span:first-child{color:var(--mut)}
+.row b{font-weight:600}
+.badge{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:99px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.badge.available{background:var(--sky-soft);color:var(--sky)}
+.badge.reserved{background:var(--amb-soft);color:var(--amb)}
+.badge.sold{background:var(--sub);color:var(--mut)}
+.c-foot{padding:14px 20px 20px;border-top:1px solid var(--bd);display:flex;gap:9px}
+.c-foot .btn{flex:1;justify-content:center;height:38px}
+.c-note{padding:0 20px 16px;font-size:12px;color:var(--mut)}
+
+/* ── cheapest-first list (on demand — the tower stays the page) ─────────── */
+.card.list{width:min(430px,94vw)}
+.lrow{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;width:100%;text-align:left;
+  padding:10px 20px;border-bottom:1px solid var(--bd);transition:background .15s var(--ease)}
+.lrow:hover{background:var(--sub)}
+.lrow .ln{font-weight:700;font-size:13px;letter-spacing:-.01em}
+.lrow .lp{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;text-align:right}
+.lrow .lt{grid-column:1/3;font-size:12px;color:var(--mut)}
+.lrow .lr{grid-column:3;font-size:11px;color:var(--mut);text-align:right;font-variant-numeric:tabular-nums}
+.lrow .pend{color:var(--amb);font-weight:600}
+.lrow .rank{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--sub);
+  color:var(--mut);font-size:10px;font-weight:700;margin-right:8px;vertical-align:1px}
+.lrow:first-child .rank{background:var(--sky);color:#04283B}
+
+/* ── share sheet ────────────────────────────────────────────────────────── */
+.modal{position:fixed;inset:0;display:none;place-items:center;z-index:60;padding:20px;background:rgba(2,6,16,.5)}
+.modal.on{display:grid}
+.snap{width:min(520px,94vw);background:var(--card);border:1px solid var(--bd);border-radius:14px;
+  overflow:hidden;box-shadow:var(--shadow);animation:pop .3s var(--ease)}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+.snap-h{padding:16px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.snap-h .t{font-weight:700}
+.snap-h .d{margin-left:auto;font-size:12px;color:var(--mut)}
+.snap-b{padding:16px 18px;background:var(--sub);max-height:56vh;overflow:auto}
+.snap-k{display:flex;gap:10px;margin-bottom:14px}
+.snap-k>div{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.snap-k .kk{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.snap-k .vv{font-size:18px;font-weight:700;margin-top:2px}
+/* the tower travels with the numbers — that is what makes it a poster, not a list */
+.mini{background:var(--night);border:1px solid var(--bd);border-radius:10px;padding:12px 10px;margin-bottom:14px}
+.mini .mr{display:grid;grid-template-columns:32px 1fr 46px;gap:8px;align-items:center;padding:1.5px 0}
+.mini .ml{font-size:10px;font-weight:700;color:var(--mut);text-align:right}
+.mini .mc{font-size:10px;color:var(--mut);text-align:right}
+.mini .mw{display:flex;gap:2px;justify-content:center;flex-wrap:wrap}
+.mini i{width:5px;height:8px;border-radius:1px;display:block;background:var(--sold)}
+.mini i.available{background:var(--sky);box-shadow:0 0 4px var(--sky)}
+.mini i.reserved{background:var(--amb);box-shadow:0 0 4px var(--amb)}
+.snap-l{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.snap-l .r{display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--bd)}
+.snap-l .r:last-child{border-bottom:0}
+.snap-l .r span{color:var(--mut)}
+.snap-l .rn{padding:0 12px 9px;font-size:11px;line-height:1.6;color:var(--sky);border-bottom:1px solid var(--bd)}
+.snap-l .rn:last-child{border-bottom:0}
+.snap-f{padding:12px 18px;display:flex;gap:9px;justify-content:flex-end;border-top:1px solid var(--bd)}
+.snap-note{padding:0 18px 14px;font-size:12px;color:var(--mut);background:var(--sub)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div>
+      <div class="h-t" id="ttl">Availability</div>
+      <div class="h-s" id="sub">—</div>
+    </div>
+    <div class="h-r">
+      <div class="seg" id="proj"></div>
+      <div class="seg" id="role">
+        <button data-role="rep" class="on">Rep view</button>
+        <button data-role="dir">Director view</button>
+      </div>
+      <div class="seg" id="zoom">
+        <button data-z="-1" title="Smaller panes">−</button>
+        <button data-z="1" title="Bigger panes">+</button>
+      </div>
+      <button class="btn" id="cheap">Cheapest</button>
+      <button class="btn" id="theme">◐ Theme</button>
+      <button class="btn pri" id="share">Share</button>
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div class="brk" id="brk"></div>
+
+  <div class="hunt">
+    <div class="hunt-h">
+      <b>Find it for your client</b>
+      <span id="huntsub">—</span>
+      <button class="clr" id="clr">Clear</button>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="filters" id="budget"></div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-in"><div class="tower" id="tower"></div></div>
+    <div class="legend">
+      <span><i style="background:var(--sky);box-shadow:0 0 8px var(--sky)"></i>Available — lit</span>
+      <span><i style="background:var(--amb);box-shadow:0 0 8px var(--amb)"></i>Reserved</span>
+      <span><i style="background:var(--sold)"></i>Sold — dark</span>
+      <span id="lgt"></span>
+    </div>
+    <div class="ground"></div>
+  </div>
+</div>
+
+<div class="tag" id="tag"></div>
+<div class="scrim" id="scrim"></div>
+<aside class="card" id="card">
+  <div class="c-top">
+    <button class="c-x" id="cx">✕</button>
+    <div class="c-no"><i id="cdot"></i><span id="cno">—</span></div>
+    <div class="c-fl" id="cfl">—</div>
+  </div>
+  <div class="c-body" id="cbody"></div>
+  <div class="c-note" id="cnote"></div>
+  <div class="c-foot" id="cfoot"></div>
+</aside>
+
+<aside class="card list" id="list">
+  <div class="c-top">
+    <button class="c-x" id="lx">✕</button>
+    <div class="c-no" style="font-size:18px">Cheapest first</div>
+    <div class="c-fl" id="lsub">—</div>
+  </div>
+  <div class="c-body" id="lbody" style="padding:0"></div>
+</aside>
+
+<div class="modal" id="modal">
+  <div class="snap">
+    <div class="snap-h"><div class="t" id="snt">—</div><div class="d" id="snd">—</div></div>
+    <div class="snap-b">
+      <div class="snap-k" id="snk"></div>
+      <div class="mini" id="snm"></div>
+      <div class="snap-l" id="snl"></div>
+    </div>
+    <div class="snap-note">Concept: the real Share renders this card to PNG / PDF with the vendored pdf-lib — one tap, then forward to the director group.</div>
+    <div class="snap-f"><button class="btn" id="snx">Close</button><button class="btn pri">Save image</button></div>
+  </div>
+</div>
+
+<script src="concept-data.js"></script>
+<script>
+/* ── concept behaviour ─────────────────────────────────────────────────────
+   The real page swaps TOWER_DATA for get_map_floors / get_map_plan and puts the
+   role split back on the server (get_map_unit_detail already answers a rep and a
+   director differently). The "Rep / Director" toggle here only demonstrates the
+   two shapes. */
+var D = window.TOWER_DATA, P = D[0], ROLE = 'rep', SEL = null, ZOOM = 1;
+var FILTER = { type: null, availOnly: false, min: null, max: null, band: null };
+var L = 100000, CR = 10000000;                   // a lakh and a crore, in rupees
+/* The budget the client actually says out loud. "60 se 80 lakh" is one tap or two
+   boxes — never a mental conversion from 6,000,000. */
+var BANDS = [
+  { k: 'u50',  t: 'Under 50 L',   min: null,   max: 50 * L },
+  { k: '50-75', t: '50 – 75 L',   min: 50 * L, max: 75 * L },
+  { k: '75-1c', t: '75 L – 1 Cr', min: 75 * L, max: CR },
+  { k: '1c+',  t: '1 Cr +',       min: CR,     max: null }
+];
+var money = n => n ? Number(n).toLocaleString('en-US') : '—';
+var esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+var CVAR = { available:'var(--sky)', reserved:'var(--amb)', sold:'var(--sold)' };
+
+document.getElementById('proj').innerHTML = D.map((p,i) =>
+  '<button data-p="'+i+'"'+(i?'':' class="on"')+'>'+esc(p.key)+'</button>').join('');
+document.getElementById('proj').onclick = e => {
+  var b = e.target.closest('button'); if (!b) return;
+  [...e.currentTarget.children].forEach(x => x.classList.remove('on')); b.classList.add('on');
+  P = D[+b.dataset.p];
+  FILTER = { type: null, availOnly: false, min: null, max: null, band: null };
+  close(); closeList(); paint();
+};
+document.getElementById('role').onclick = e => {
+  var b = e.target.closest('button'); if (!b) return;
+  [...e.currentTarget.children].forEach(x => x.classList.remove('on')); b.classList.add('on');
+  ROLE = b.dataset.role;
+  var keep = SEL;                       // the money chip appears/disappears with the role
+  paint();
+  if (keep) { var el = document.querySelector('.win[data-u="' + keep.u.n + '"]'); if (el) open(keep.f, keep.u, el); }
+};
+document.getElementById('zoom').onclick = e => {
+  var b = e.target.closest('button'); if (!b) return;
+  ZOOM = Math.max(.7, Math.min(2, ZOOM + (+b.dataset.z) * .25));
+  close(); paint();
+};
+document.getElementById('theme').onclick = () => {
+  var h = document.documentElement;
+  h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark';
+};
+
+/* ── filters ───────────────────────────────────────────────────────────────
+   The chips are BUILT FROM THE DATA, never hardcoded: KBH answers 1 Bed /
+   2 Bed / 3 Bed / Studio, FMH answers "2 Bed Apartment" and "Retail Shop",
+   Awami answers "Retail Shop / Office Unit / Apartment". Eight KBH ground
+   shops carry no type at all, so they get their own honest chip. */
+function types(){
+  var m = new Map();
+  P.floors.forEach(f => f.units.forEach(u => {
+    var k = u.t || '—'; m.set(k, (m.get(k) || 0) + 1);
+  }));
+  return [...m.entries()].sort((a, b) => typeRank(a[0]) - typeRank(b[0]) || a[0].localeCompare(b[0]));
+}
+/* Smallest home first, the way anyone lists them: Studio, 1 Bed, 2 Bed, 3 Bed…
+   Sorting by COUNT put 2 Bed before 1 Bed, which reads as an accident. Types
+   that carry no bedroom count (Retail Shop, Office Unit) follow the homes, and
+   the "no type at all" bucket sits last. */
+function typeRank(k){
+  if (k === '—') return 999;
+  if (/studio/i.test(k)) return 0;
+  var m = k.match(/(\d+)\s*bed/i);
+  if (m) return Number(m[1]);
+  return 100;
+}
+function matches(u){
+  if (FILTER.availOnly && u.s !== 'available') return false;
+  if (FILTER.type && (u.t || '—') !== FILTER.type) return false;
+  if (FILTER.min != null || FILTER.max != null) {
+    // a budget is a question about what he can BUY, so it only answers on
+    // available units — and a unit with no rate yet cannot be promised
+    if (u.s !== 'available' || !u.p) return false;
+    if (FILTER.min != null && u.p < FILTER.min) return false;
+    if (FILTER.max != null && u.p > FILTER.max) return false;
+  }
+  return true;
+}
+function budgetOn(){ return FILTER.min != null || FILTER.max != null; }
+function lakh(n){ return n >= CR ? (n / CR).toFixed(2).replace(/\.00$/, '') + ' Cr'
+                                 : Math.round(n / L) + ' L'; }
+function drawBudget(){
+  var av = [];
+  P.floors.forEach(f => f.units.forEach(u => { if (u.s === 'available' && u.p) av.push(u.p); }));
+  av.sort((a, b) => a - b);
+  // printed in rupees so it can be copied straight into the boxes below it
+  var span = av.length
+    ? 'available: ' + money(av[0]) + ' – ' + money(av[av.length - 1]) +
+      '  (' + lakh(av[0]) + ' – ' + lakh(av[av.length - 1]) + ')'
+    : 'no priced units';
+  /* The boxes take PLAIN RUPEES — 4100000, not 41. Nobody selling a flat should
+     have to divide by a lakh in his head while a client is talking, and the
+     range printed on the right is in rupees too, so it can be typed straight in.
+     The echo under each box reads the figure back as "41 L" for a sanity check. */
+  document.getElementById('budget').innerHTML =
+    '<span class="f-lb">Budget</span>' +
+    '<button class="pill' + (budgetOn() ? '' : ' on') + '" data-b="">Any</button>' +
+    BANDS.map(b => '<button class="pill' + (FILTER.band === b.k ? ' on' : '') + '" data-b="' + b.k + '">' +
+      b.t + '</button>').join('') +
+    '<span class="f-sep"></span>' +
+    '<span class="rs"><input class="num-in wide" id="bmin" type="number" min="0" step="100000" ' +
+      'placeholder="min PKR" value="' + (FILTER.min != null ? FILTER.min : '') + '">' +
+      '<em id="bmine">' + (FILTER.min != null ? lakh(FILTER.min) : '') + '</em></span>' +
+    '<span class="f-unit">–</span>' +
+    '<span class="rs"><input class="num-in wide" id="bmax" type="number" min="0" step="100000" ' +
+      'placeholder="max PKR" value="' + (FILTER.max != null ? FILTER.max : '') + '">' +
+      '<em id="bmaxe">' + (FILTER.max != null ? lakh(FILTER.max) : '') + '</em></span>' +
+    '<span class="f-note">' + span + '</span>';
+}
+document.getElementById('budget').onclick = e => {
+  var b = e.target.closest('.pill'); if (!b) return;
+  var band = BANDS.find(x => x.k === b.dataset.b);
+  FILTER.band = band ? band.k : null;
+  FILTER.min = band ? band.min : null;
+  FILTER.max = band ? band.max : null;
+  drawBudget(); applyFilter(); relist();
+};
+var BT;
+document.getElementById('budget').addEventListener('input', e => {
+  if (!/^b(min|max)$/.test(e.target.id)) return;
+  clearTimeout(BT);
+  BT = setTimeout(() => {
+    var mn = document.getElementById('bmin').value, mx = document.getElementById('bmax').value;
+    FILTER.min = mn === '' ? null : Number(mn);       // rupees, exactly as typed
+    FILTER.max = mx === '' ? null : Number(mx);
+    FILTER.band = (BANDS.find(b => b.min === FILTER.min && b.max === FILTER.max) || {}).k || null;
+    document.getElementById('bmine').textContent = FILTER.min != null ? lakh(FILTER.min) : '';
+    document.getElementById('bmaxe').textContent = FILTER.max != null ? lakh(FILTER.max) : '';
+    document.querySelectorAll('#budget .pill').forEach(p =>
+      p.classList.toggle('on', (p.dataset.b || '') === (FILTER.band || '') && (budgetOn() ? !!p.dataset.b : !p.dataset.b)));
+    applyFilter(); relist();
+  }, 220);
+});
+function relist(){ if (document.getElementById('list').classList.contains('on')) drawList(); }
+function drawFilters(){
+  var t = types(), total = t.reduce((a, x) => a + x[1], 0);
+  document.getElementById('filters').innerHTML =
+    '<button class="pill' + (FILTER.type ? '' : ' on') + '" data-t="">All <b>' + total + '</b></button>' +
+    t.map(x => '<button class="pill' + (FILTER.type === x[0] ? ' on' : '') + '" data-t="' + esc(x[0]) + '">' +
+      esc(x[0] === '—' ? 'No type' : x[0]) + ' <b>' + x[1] + '</b></button>').join('') +
+    '<span class="f-sep"></span>' +
+    '<button class="pill tog' + (FILTER.availOnly ? ' on' : '') + '" data-avail="1">Only available</button>' +
+    '<span class="f-note" id="fnote"></span>';
+}
+document.getElementById('filters').onclick = e => {
+  var b = e.target.closest('.pill'); if (!b) return;
+  if (b.dataset.avail) FILTER.availOnly = !FILTER.availOnly;
+  else FILTER.type = b.dataset.t || null;
+  drawFilters(); applyFilter(); relist();
+};
+/* Filtering never repaints the tower — the panes keep their power-on state and
+   only gain a class, so switching "2 Bed" on and off does not restage the show. */
+function applyFilter(){
+  var shown = 0, total = 0;
+  P.floors.forEach(f => f.units.forEach(u => {
+    var el = document.querySelector('.win[data-u="' + cssq(u.n) + '"]'); if (!el) return;
+    total++;
+    var hit = matches(u);
+    if (hit) shown++;
+    el.classList.toggle('off', !hit && !(FILTER.availOnly && u.s !== 'available'));
+    el.classList.toggle('gone', !hit && FILTER.availOnly && u.s !== 'available');
+  }));
+  var n = document.getElementById('fnote'), any = FILTER.type || FILTER.availOnly || budgetOn();
+  if (n) n.textContent = any ? 'showing ' + shown + ' of ' + total + ' units' : total + ' units';
+
+  var hs = document.getElementById('huntsub');
+  if (hs) hs.textContent = any ? filterWords() + ' → ' + shown + ' units'
+                               : 'type and budget — the two questions every client asks';
+  document.getElementById('clr').style.visibility = any ? 'visible' : 'hidden';
+
+  // an empty answer is a real answer — say it on the tower instead of going dark
+  var stage = document.querySelector('.stage-in'), old = document.getElementById('nores');
+  if (old) old.remove();
+  if (shown === 0 && stage) {
+    var d = document.createElement('div');
+    d.id = 'nores'; d.className = 'empty';
+    d.innerHTML = '<b>Nothing in this filter</b><span>' + esc(filterWords()) + '</span>';
+    stage.appendChild(d);
+  }
+}
+function filterWords(){
+  var s = [];
+  if (FILTER.type) s.push(FILTER.type);
+  if (budgetOn()) s.push((FILTER.min != null ? lakh(FILTER.min) : 'any') + ' – ' +
+                         (FILTER.max != null ? lakh(FILTER.max) : 'any'));
+  if (FILTER.availOnly) s.push('available only');
+  return s.join(' · ') || 'no filter';
+}
+function cssq(s){ return String(s).replace(/"/g, '\\"'); }
+
+function tally(floors){
+  var t = { available:0, reserved:0, sold:0, total:0 };
+  floors.forEach(f => f.units.forEach(u => { t[u.s]++; t.total++; }));
+  return t;
+}
+
+function paint(){
+  var t = tally(P.floors), pct = t.total ? Math.round(t.sold / t.total * 100) : 0;
+  document.getElementById('ttl').textContent = P.name;
+  document.getElementById('sub').textContent =
+    P.company + ' · ' + P.floors.length + ' floors · ' + t.total + ' units · live';
+
+  /* "Inventory left" is a money number, so it is a DIRECTOR's chip. On the real
+     page the rep's response will not carry the figure at all. */
+  /* Counts, not a percentage. The owner cut "Sold %" — a rep is asked "kitne
+     bache hain", never "kitne fisad bik gaye". */
+  document.getElementById('chips').innerHTML =
+    chip('Total units', t.total,  'transparent', 0, 'transparent', P.floors.length + ' floors') +
+    chip('Unsold',    t.available + t.reserved, 'var(--sky)', t.total ? (t.available + t.reserved)/t.total : 0, 'var(--sky)',
+         t.available + ' available · ' + t.reserved + ' reserved') +
+    chip('Sold',      t.sold,     'var(--sold)', t.total ? t.sold/t.total : 0, 'var(--mut)',
+         pct + '% of the project') +
+    (ROLE === 'dir' ? chip('Inventory left', 'PKR ' + short(valueLeft()), 'transparent', 0, 'transparent',
+         'at list price') : '');
+
+  drawBreakdown(t);
+
+  /* A floor plate holds its widest floor on ONE row — a wrapped, ragged row
+     stops looking like a facade. The pane is then sized so the UNIT NUMBER fits
+     inside it; only a 300-shop market is allowed to wrap into brick courses. */
+  var max = Math.max.apply(null, P.floors.map(f => f.units.length));
+  var wide = max > 34;
+  var perRow = wide ? 26 : max;
+  /* Sized against the REAL stage width, not a guessed one — at 1240 assumed the
+     counters on the right rail were being sliced off. */
+  var stage = document.getElementById('tower').parentElement;
+  var rails = 40 + 54 + 20 + 26 + (wide ? 0 : 12);
+  var room = Math.max(360, stage.clientWidth - 30) - rails;
+
+  /* Type size is MEASURED, not guessed: the longest unit number in this project
+     is drawn on a canvas and the pane sized around it. */
+  var longest = '';
+  P.floors.forEach(f => f.units.forEach(u => { if (u.n.length > longest.length) longest = u.n; }));
+  var need = textW(longest, 12);
+
+  var courses = 1, slot, gap, w, h, fs;
+  measure();
+  /* 30 six-character numbers on one row cannot reach a readable size in a 1440px
+     window — the arithmetic simply does not close. When that happens the floor
+     keeps ALL its units but lays them in two courses of glass instead of one.
+     Readability was the requirement; one-row-per-floor was only a preference. */
+  /* Courses must be EVEN: wrapping a wing at whatever happens to fit leaves a
+     lonely last pane, which reads as a mistake rather than as a building. */
+  var perWing = Math.ceil(max / 2), balanced = perWing;
+  if (!wide && fs < 9 && ZOOM <= 1.25) {
+    courses = 2;
+    balanced = Math.ceil(perWing / courses);
+    perRow = balanced * 2;
+    measure(46);
+  }
+
+  function measure(cap){
+    slot = Math.round(Math.max(16, Math.min(cap || 58, Math.floor(room / perRow))) * ZOOM);
+    gap = slot >= 30 ? 4 : 3;
+    w = slot - gap;
+    h = Math.max(17, Math.min(38, Math.round(w * 0.74)));
+    fs = Math.min(12, Math.floor((w - 6) / need * 12 * 2) / 2);
+  }
+  var full = fs >= 7.5;
+  if (!full) fs = Math.max(7.5, Math.min(11, Math.floor((w - 5) / textW(tailOf(longest), 12) * 12 * 2) / 2));
+
+  var wingW = courses > 1 ? 'flex:none;width:' + (balanced * slot) + 'px' : '';
+  var order = P.floors.slice().reverse();             // top floor first, Ground last
+  var html = '<div class="rw roof"><span></span><div><div class="mast"><span class="hut"></span></div>' +
+             '<div class="cap"></div></div><span></span></div>';
+  order.forEach((f, i) => {
+    var fromBottom = order.length - 1 - i;
+    var av = f.units.filter(u => u.s === 'available').length;
+    var half = Math.ceil(f.units.length / 2);
+    html += '<div class="rw" style="--gap:'+gap+'px">' +
+      '<div class="fl-name"><b>' + esc(shortLabel(f.label)) + '</b>' + f.units.length + ' units</div>' +
+      '<div class="plate">' +
+        (wide
+          ? '<div class="wing">' + wins(f.units, fromBottom, 0, w, h, fs, full) + '</div>'
+          : '<div class="wing" style="' + wingW + '">' + wins(f.units.slice(0, half), fromBottom, 0, w, h, fs, full) + '</div>' +
+            '<div class="core"></div>' +
+            '<div class="wing" style="' + wingW + '">' + wins(f.units.slice(half), fromBottom, half, w, h, fs, full) + '</div>') +
+      '</div>' +
+      '<div class="fl-stat">' + av + '<span>/' + f.units.length + ' free</span></div>' +
+    '</div>';
+  });
+  html += '<div class="rw"><span></span><div class="plinth"></div><span></span></div>' +
+          '<div class="rw"><span></span><div class="foot-slab"></div><span></span></div>';
+  var tw = document.getElementById('tower');
+  tw.innerHTML = html;
+  tw.classList.toggle('wide', wide);
+  tw.classList.toggle('courses', courses > 1);
+  // 64 label + 84 counter + 2×14 rail gaps + plate padding 24 + core 14
+  tw.style.maxWidth = (rails + perRow * slot) + 'px';
+  document.getElementById('lgt').textContent =
+    'Every pane is one unit, numbered (' + fs + 'px)' + (full ? '' : ' — floor prefix on the rail') +
+    ' · available units twinkle, each on its own clock';
+
+  drawFilters(); drawBudget(); applyFilter();
+
+  requestAnimationFrame(() => document.querySelectorAll('.chip .m>span')
+    .forEach(s => s.style.width = s.dataset.w));
+}
+
+function chip(k, v, dot, frac, bar, sub){
+  return '<div class="chip"><div class="k"><i style="background:'+dot+
+    (dot === 'var(--sky)' ? ';box-shadow:0 0 8px var(--sky)' : '')+'"></i>'+k+'</div>'+
+    '<div class="v num">'+v+'</div>'+
+    (sub ? '<div class="s">'+esc(sub)+'</div>' : '')+
+    '<div class="m"><span data-w="'+Math.round(frac*100)+'%" style="background:'+bar+'"></span></div></div>';
+}
+
+/* The type breakdown the owner asked for: for every real type in THIS project —
+   how many exist, how many are still unsold, and what they cost. Clicking a cell
+   is the same as tapping its filter chip, so the summary is also a way in. */
+function drawBreakdown(t){
+  var by = new Map();
+  P.floors.forEach(f => f.units.forEach(u => {
+    var k = u.t || '—', r = by.get(k);
+    if (!r) by.set(k, r = { total: 0, avail: 0, sold: 0, resv: 0, lo: null, hi: null });
+    r.total++;
+    if (u.s === 'sold') r.sold++; else if (u.s === 'reserved') r.resv++; else r.avail++;
+    if (u.s === 'available' && u.p) {
+      r.lo = r.lo == null ? u.p : Math.min(r.lo, u.p);
+      r.hi = r.hi == null ? u.p : Math.max(r.hi, u.p);
+    }
+  }));
+  // same order as the filter chips — smallest home first
+  var rows = [...by.entries()].sort((a, b) => typeRank(a[0]) - typeRank(b[0]) || a[0].localeCompare(b[0]));
+  document.getElementById('brk').innerHTML =
+    '<div class="brk-h">By type</div>' + rows.map(r => {
+      var k = r[0], v = r[1], pc = v.total ? Math.round(v.avail / v.total * 100) : 0;
+      return '<button class="bcell" data-t="' + esc(k) + '">' +
+        '<div class="bt">' + esc(k === '—' ? 'No type' : k) + '</div>' +
+        '<div class="bn">' + v.avail + '<small>of ' + v.total + ' left</small></div>' +
+        '<div class="bb"><i style="width:' + pc + '%"></i></div>' +
+        '<div class="bp">' + (v.lo ? (v.lo === v.hi ? lakh(v.lo) : lakh(v.lo) + ' – ' + lakh(v.hi))
+                                   : (v.avail ? 'rate pending' : 'sold out')) + '</div>' +
+      '</button>';
+    }).join('');
+}
+document.getElementById('brk').onclick = e => {
+  var b = e.target.closest('.bcell'); if (!b) return;
+  FILTER.type = FILTER.type === b.dataset.t ? null : b.dataset.t;
+  drawFilters(); applyFilter(); relist();
+};
+document.getElementById('clr').onclick = () => {
+  FILTER = { type: null, availOnly: false, min: null, max: null, band: null };
+  drawFilters(); drawBudget(); applyFilter(); relist();
+};
+function short(n){ return n >= 1e9 ? (n/1e7).toFixed(0)+' Cr' : n >= 1e7 ? (n/1e7).toFixed(2)+' Cr' : (n/1e6).toFixed(1)+' M'; }
+function valueLeft(){
+  var s = 0; P.floors.forEach(f => f.units.forEach(u => { if (u.s === 'available') s += (u.p || 0); }));
+  return s;
+}
+function shortLabel(l){
+  var m = l.match(/^(\d+)/);
+  return /upper ground/i.test(l) ? 'UG' : /^ground$/i.test(l) ? 'G'
+       : m ? m[1] + suffix(+m[1])
+       : l.replace(/\s*floor$/i, '');
+}
+function suffix(n){ return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'; }
+
+function wins(units, floorFromBottom, offset, w, h, fs, full){
+  return units.map((u, i) => {
+    var d = (floorFromBottom * 100 + (offset + i) * 6) + 'ms';
+    /* Twinkle needs each pane to be on its own clock. The offset AND the period
+       are both random — share either one and the panes fall back into step. */
+    var tw = u.s === 'available'
+      ? ';--tw:' + (Math.random() * 7).toFixed(2) + 's;--tp:' + (3 + Math.random() * 5).toFixed(2) + 's' : '';
+    return '<button class="win ' + u.s + '" data-u="' + esc(u.n) + '" ' +
+      'style="--w:'+w+'px;--h:'+h+'px;--fs:'+fs+'px;--d:'+d+tw+'">' +
+      '<span>' + esc(full ? u.n : tailOf(u.n)) + '</span></button>';
+  }).join('');
+}
+function tailOf(no){ var s = String(no); return s.indexOf('-') > 0 ? s.slice(s.indexOf('-') + 1) : s; }
+
+/* One shared canvas, the page's own font stack — so the width used to pick the
+   type size is the width the browser will actually paint. */
+var MEAS = document.createElement('canvas').getContext('2d');
+function textW(s, px){
+  MEAS.font = '600 ' + px + "px 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
+  return MEAS.measureText(s).width;
+}
+
+/* ── hover tag ─────────────────────────────────────────────────────────── */
+var TAG = document.getElementById('tag');
+document.getElementById('tower').addEventListener('mouseover', e => {
+  var b = e.target.closest('.win'); if (!b) return;
+  var h = find(b.dataset.u); if (!h) return;
+  /* the price is right here on hover — nobody should have to open a unit to
+     answer "kitne ka hai?". Same rule as the server: a rep is not shown the
+     price of a SOLD unit. */
+  var u = h.u, pr = priceFor(u);
+  TAG.innerHTML = esc(u.n) +
+    '<em>' + esc(u.t || '—') + (u.a ? ' · ' + Math.round(u.a) + ' sq ft' : '') + '</em>' +
+    '<em>' + (pr === null ? u.s : pr === 0 ? 'rate pending' : 'PKR ' + money(pr)) + '</em>';
+  var r = b.getBoundingClientRect();
+  TAG.style.left = (r.left + r.width/2) + 'px'; TAG.style.top = r.top + 'px';
+  TAG.classList.add('on');
+});
+document.getElementById('tower').addEventListener('mouseout', e => {
+  if (e.target.closest('.win')) TAG.classList.remove('on');
+});
+function find(no){
+  var f = P.floors.find(f => f.units.some(u => u.n === no));
+  return f ? { f:f, u:f.units.find(u => u.n === no) } : null;
+}
+/* null = this role may not see it (a rep on a SOLD unit); 0 = rate pending.
+   On the real page this is the server's answer, not a JS decision. */
+function priceFor(u){ return (u.s === 'sold' && ROLE === 'rep') ? null : (u.p || 0); }
+
+/* ── click a window → detail card ──────────────────────────────────────── */
+document.getElementById('tower').addEventListener('click', e => {
+  var b = e.target.closest('.win'); if (!b) return;
+  var h = find(b.dataset.u); if (h) open(h.f, h.u, b);
+});
+function open(f, u, el){
+  SEL = { f:f, u:u, el:el };
+  document.querySelectorAll('.win.pick').forEach(x => x.classList.remove('pick'));
+  el.classList.add('pick');
+  var dot = document.getElementById('cdot');
+  dot.style.background = CVAR[u.s];
+  dot.style.boxShadow = u.s === 'sold' ? 'none' : '0 0 10px ' + CVAR[u.s];
+  document.getElementById('cno').textContent = u.n;
+  document.getElementById('cfl').textContent = f.label + ' · ' + P.name;
+
+  /* Mirrors get_map_unit_detail exactly (migration 20260817e). A sold unit answers
+     in three tiers, and the money/contact tier is cut on the SERVER — this mock
+     only shows what each response would contain:
+       rep  → unit_no · floor · type · area · client NAME
+       dir  → + phone, booking, list price, paid, outstanding, overdue          */
+  var sold = u.s === 'sold', rep = ROLE === 'rep';
+  var rows =
+    row('Status', '<span class="badge '+u.s+'">'+u.s+'</span>') +
+    row('Floor', esc(f.label)) +
+    row('Type', esc(u.t || '—')) +
+    row('Area', u.a ? '<b class="num">'+u.a.toFixed(2)+'</b> sq ft' : '—');
+
+  if (!sold || !rep) {                                  // money: never to a rep on a sold unit
+    rows += row('Rate', u.a && u.p ? '<b class="num">PKR '+money(Math.round(u.p/u.a))+'</b> / sq ft' : '—') +
+            row('List price', '<b class="num">PKR '+money(u.p)+'</b>');
+  }
+  if (sold) {
+    rows += row('Client', '<b>Muhammad Saeed</b>');     // the name a rep DOES get
+    if (!rep) {
+      rows += row('Phone', '<b class="num">0300-1234567</b>') +
+        row('Booking', '<b>BKG-241</b>') +
+        row('Paid', '<b class="num">PKR '+money(Math.round((u.p||0)*.42))+'</b>') +
+        row('Outstanding', '<b class="num">PKR '+money(Math.round((u.p||0)*.58))+'</b>') +
+        row('Overdue', '<b class="num" style="color:var(--amb)">PKR 0</b>');
+    }
+  }
+  document.getElementById('cbody').innerHTML = rows;
+  document.getElementById('cnote').textContent =
+      sold && rep ? 'Sold. A rep gets the buyer’s name and the unit — no price, no phone, no dues. The server never sends them, so there is nothing here to un-hide.'
+    : u.s === 'reserved' ? 'Reserved. It frees itself when the reservation expires (cron_expire_reservations).'
+    : '';
+  document.getElementById('cfoot').innerHTML =
+    (u.s === 'available' ? '<button class="btn pri">Reserve</button>' : '') +
+    '<button class="btn">Make a plan</button>';
+  document.getElementById('card').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+function row(k, v){ return '<div class="row"><span>'+k+'</span><span>'+v+'</span></div>'; }
+function close(){
+  document.getElementById('card').classList.remove('on');
+  if (!document.getElementById('list').classList.contains('on'))
+    document.getElementById('scrim').classList.remove('on');
+  document.querySelectorAll('.win.pick').forEach(x => x.classList.remove('pick'));
+  SEL = null;
+}
+document.getElementById('cx').onclick = close;
+document.getElementById('scrim').onclick = () => { close(); closeList(); };
+
+/* ── cheapest first ────────────────────────────────────────────────────────
+   "Sabse sasta dikhao" has to be one tap, not thirty. Available units only —
+   which is also why price is never a problem here for a rep. Obeys the type
+   filter, so "2 Bed" + this list is the whole conversation. */
+function drawList(){
+  var rows = [];
+  P.floors.forEach(f => f.units.forEach(u => {
+    if (u.s !== 'available') return;
+    if (FILTER.type && (u.t || '—') !== FILTER.type) return;
+    if (budgetOn() && (!u.p || (FILTER.min != null && u.p < FILTER.min)
+                            || (FILTER.max != null && u.p > FILTER.max))) return;
+    rows.push({ u: u, f: f });
+  }));
+  // priced first, cheapest at the top; rate-pending units fall to the bottom
+  rows.sort((a, b) => {
+    var pa = a.u.p || 0, pb = b.u.p || 0;
+    if (!pa !== !pb) return pa ? -1 : 1;
+    return pa - pb || a.u.n.localeCompare(b.u.n);
+  });
+  document.getElementById('lsub').textContent =
+    rows.length + ' available' + (FILTER.type ? ' · ' + FILTER.type : '') +
+    (budgetOn() ? ' · ' + (FILTER.min != null ? lakh(FILTER.min) : 'any') + '–' +
+                          (FILTER.max != null ? lakh(FILTER.max) : 'any') : '') +
+    ' · ' + P.name;
+  document.getElementById('lbody').innerHTML = rows.length ? rows.map((r, i) =>
+    '<button class="lrow" data-u="' + esc(r.u.n) + '">' +
+      '<span class="ln"><span class="rank">' + (i + 1) + '</span>' + esc(r.u.n) + '</span>' +
+      '<span class="lp">' + (r.u.p ? 'PKR ' + money(r.u.p) : '<span class="pend">Rate pending</span>') + '</span>' +
+      '<span class="lt">' + esc(r.u.t || '—') + ' · ' + esc(r.f.label) + '</span>' +
+      '<span class="lr">' + (r.u.a ? Math.round(r.u.a) + ' sq ft' +
+        (r.u.p && r.u.a ? ' · ' + money(Math.round(r.u.p / r.u.a)) + '/ft' : '') : '') + '</span>' +
+    '</button>').join('')
+    : '<div style="padding:24px;text-align:center;color:var(--mut)">Nothing available in this filter.</div>';
+}
+document.getElementById('cheap').onclick = () => {
+  var l = document.getElementById('list');
+  if (l.classList.contains('on')) return closeList();
+  close(); drawList();
+  l.classList.add('on'); document.getElementById('scrim').classList.add('on');
+};
+function closeList(){
+  document.getElementById('list').classList.remove('on');
+  if (!document.getElementById('card').classList.contains('on'))
+    document.getElementById('scrim').classList.remove('on');
+}
+document.getElementById('lx').onclick = closeList;
+document.getElementById('lbody').onclick = e => {
+  var b = e.target.closest('.lrow'); if (!b) return;
+  var h = find(b.dataset.u); if (!h) return;
+  var el = document.querySelector('.win[data-u="' + cssq(h.u.n) + '"]');
+  closeList();
+  if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); open(h.f, h.u, el); }
+};
+
+/* ── share sheet ───────────────────────────────────────────────────────── */
+document.getElementById('share').onclick = () => {
+  var t = tally(P.floors);
+  document.getElementById('snt').textContent = P.name + ' — availability';
+  document.getElementById('snd').textContent = new Date().toLocaleDateString('en-US',
+    { day:'2-digit', month:'short', year:'numeric' });
+  var k = [['Available', t.available], ['Reserved', t.reserved], ['Sold', Math.round(t.sold/t.total*100)+'%']];
+  document.getElementById('snk').innerHTML = k.map(r =>
+    '<div><div class="kk">'+r[0]+'</div><div class="vv num">'+r[1]+'</div></div>').join('');
+  document.getElementById('snm').innerHTML = P.floors.slice().reverse().map(f =>
+    '<div class="mr"><div class="ml">' + esc(shortLabel(f.label)) + '</div>' +
+      '<div class="mw">' + f.units.map(u => '<i class="'+u.s+'"></i>').join('') + '</div>' +
+      '<div class="mc">' + f.units.filter(u => u.s === 'available').length + '/' + f.units.length + '</div></div>').join('');
+  /* The numbers are the message: a director forwards this so a rep can quote a
+     unit without opening anything. */
+  document.getElementById('snl').innerHTML = P.floors.slice().reverse().map(f => {
+    var free = f.units.filter(u => u.s === 'available');
+    return '<div class="r"><span>'+esc(f.label)+'</span><b class="num">'+
+      free.length + ' of ' + f.units.length + ' free</b></div>' +
+      (free.length ? '<div class="rn num">' + free.map(u => esc(u.n)).join(' · ') + '</div>' : '');
+  }).join('');
+  document.getElementById('modal').classList.add('on');
+};
+document.getElementById('snx').onclick = () => document.getElementById('modal').classList.remove('on');
+
+/* the pane size is derived from the stage width, so a resize has to re-derive it */
+var RS;
+window.addEventListener('resize', () => { clearTimeout(RS); RS = setTimeout(() => { close(); paint(); }, 160); });
+
+paint();
+</script>
+</body>
+</html>
