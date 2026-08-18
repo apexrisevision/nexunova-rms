@@ -1,7 +1,7 @@
 /**
  * Daily report — driven from the sidebar, like a person.
  *
- *   node scripts/verify-daily-report.js
+ *   node scripts/verify-team-report.js
  *
  * Two things the owner could not see and now can:
  *   · what a rep WRITES on a lead (a note) and the statuses they move
@@ -13,7 +13,7 @@
  * and truthfulness: can a director get to the screen by clicking, and does what
  * it shows match what is actually in the table?
  *
- * That is why this file is forbidden from calling renderDailyReport() — it
+ * That is why this file is forbidden from calling renderTeamReport() — it
  * clicks the sidebar. The unit map once worked for six commits while being
  * unreachable, and every test drove it directly.
  *
@@ -124,7 +124,7 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   const navItem = async page => {
     await page.evaluate(() => {
       const a = [...document.querySelectorAll('.sb .ni')]
-        .find(x => (x.querySelector('.ni-lb') || {}).textContent === 'Daily report');
+        .find(x => (x.querySelector('.ni-lb') || {}).textContent === 'Team report');
       if (!a) return;
       const grp = a.closest('.ni-grp');
       const btn = grp && grp.querySelector('[data-grp-btn]');
@@ -133,7 +133,7 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     await sleep(500);
     return page.evaluate(() => {
       const a = [...document.querySelectorAll('.sb .ni')]
-        .find(x => (x.querySelector('.ni-lb') || {}).textContent === 'Daily report');
+        .find(x => (x.querySelector('.ni-lb') || {}).textContent === 'Team report');
       if (!a) return null;
       const r = a.getBoundingClientRect();
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -162,7 +162,9 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   console.log('  📸 01-team-day');
 
   const team = await D.page.evaluate(() => ({
-    day: (document.querySelector('.dr-day b') || {}).textContent || '',
+    period: (document.querySelector('#tr-out') || {}).textContent || '',
+    presetOn: (document.querySelector('.dr-p.on[data-preset]') || {}).textContent || '',
+    projects: [...document.querySelectorAll('[data-proj]')].map(b => b.textContent.trim()),
     tiles: [...document.querySelectorAll('.dr-tile')].map(t =>
       t.querySelector('.k').textContent + ' ' + t.querySelector('.v').textContent),
     rows: [...document.querySelectorAll('.dr-row')].map(r => ({
@@ -172,15 +174,15 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     secs: [...document.querySelectorAll('.dr-sec')].map(s => s.textContent)
   }));
   console.log('     ' + team.tiles.join('  |  '));
-  assert(/Today/.test(team.day), 'it opens on today ("' + team.day.split('T')[0].trim() + '")');
+  assert(team.presetOn === 'Today', 'it opens on Today ("' + team.presetOn + '")');
   assert(team.rows.length > 0, 'it lists ' + team.rows.length + ' member(s)');
   const rep = team.rows.find(r => /ZZ Rep One/.test(r.name));
   assert(!!rep, 'ZZ Rep One is there');
   assert(rep.bits.some(b => /1 reached/.test(b)), 'showing who they reached: ' + rep.bits.join(' · '));
   assert(rep.bits.some(b => /1 note/.test(b)) && rep.bits.some(b => /1 status/.test(b)),
     'and that they wrote a note and moved a status');
-  assert(team.secs.some(s => /Worked today/.test(s)) && team.secs.some(s => /Nothing recorded/.test(s)),
-    'the day is split into who worked and who did not: ' + team.secs.join(' / '));
+  assert(team.secs.some(s => /Worked in this period/.test(s)) && team.secs.some(s => /Nothing recorded/.test(s)),
+    'the period splits into who worked and who did not: ' + team.secs.join(' / '));
 
   // ── the thing the owner could not see: the actual words ───────────────────
   stepH('Open that member — every note and status change');
@@ -211,34 +213,93 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   assert(day.entries.every(e => e.lead === 'ZZDR Lead'), 'and the lead it belongs to');
 
   // ── a day with nothing in it must say so, not look broken ─────────────────
-  stepH('Step back to a quiet day');
-  await D.page.evaluate(() => document.getElementById('app-body')
-    .querySelector('.backbtn').click());
+  // ── the period controls: presets, a custom range, and a project tab ──────
+  stepH('Widen the period and split it by project');
+  await D.page.evaluate(() => document.getElementById('app-body').querySelector('.backbtn').click());
   await until(D.page, () => !!document.querySelector('.dr-row'));
-  for (let i = 0; i < 30; i++) await D.page.evaluate(() => _drDay(-1));
-  await until(D.page, () => /^\s*(?!Today)/.test((document.querySelector('.dr-day b') || {}).textContent || ''));
-  await sleep(900);
-  await D.page.screenshot({ path: path.join(SHOTS, '03-quiet-day.png') });
-  console.log('  📸 03-quiet-day');
-  const quiet = await D.page.evaluate(() => ({
-    day: (document.querySelector('.dr-day b') || {}).textContent || '',
-    worked: [...document.querySelectorAll('.dr-sec')].some(s => /Worked today/.test(s.textContent)),
-    rows: document.querySelectorAll('.dr-row').length,
-    nextDisabled: !!document.querySelector('.dr-nav[disabled]')
-  }));
-  assert(!/Today/.test(quiet.day), 'the day moved back to ' + quiet.day.replace(/\s+/g, ' ').trim());
-  assert(quiet.rows > 0 && !quiet.worked, 'everyone is listed under "nothing recorded", not an empty screen');
-  assert(!quiet.nextDisabled, 'and the forward arrow is live again');
 
-  // there is no tomorrow to report on
-  for (let i = 0; i < 40; i++) await D.page.evaluate(() => _drDay(1));
+  await D.page.evaluate(() => [...document.querySelectorAll('[data-preset]')]
+    .find(b => b.textContent.trim() === 'This month').click());
+  await until(D.page, () => /days/.test((document.getElementById('tr-out') || {}).textContent || ''));
   await sleep(700);
-  const atToday = await D.page.evaluate(() => ({
-    day: (document.querySelector('.dr-day b') || {}).textContent || '',
-    disabled: !!document.querySelector('.dr-nav[disabled]')
+  await D.page.screenshot({ path: path.join(SHOTS, '03-this-month.png') });
+  console.log('  📸 03-this-month');
+  const month = await D.page.evaluate(() => ({
+    out: (document.getElementById('tr-out') || {}).textContent || '',
+    from: (document.getElementById('tr-from') || {}).value,
+    to: (document.getElementById('tr-to') || {}).value,
+    on: (document.querySelector('.dr-p.on[data-preset]') || {}).textContent || '',
+    rows: document.querySelectorAll('.dr-row').length
   }));
-  assert(/Today/.test(atToday.day) && atToday.disabled,
-    'walking forward stops at today, and the arrow disables itself');
+  console.log('     ' + month.out.replace(/\s+/g, ' ').trim());
+  assert(month.on === 'This month', 'the preset switched to "' + month.on + '"');
+  assert(/-01$/.test(month.from) && month.to >= month.from,
+    'the window starts on the 1st (' + month.from + ' → ' + month.to + ')');
+  assert(/\d+ days/.test(month.out), 'and the header states its length: ' + month.out.replace(/\s+/g,' ').trim());
+  assert(month.rows > 0, 'members are still listed (' + month.rows + ')');
+
+  // a custom from–to, typed the way a person types it
+  // every control click refetches — wait for the team view to be back rather
+  // than sleeping and hoping, or two loads race and the tabs read empty
+  const settle = () => until(D.page, () => document.querySelectorAll('[data-proj]').length > 0 &&
+    document.querySelectorAll('.dr-row').length > 0);
+  const wanted = { from: month.to, to: month.to };
+  await D.page.evaluate(v => {
+    const f = document.getElementById('tr-from'), t = document.getElementById('tr-to');
+    f.value = v.from; f.dispatchEvent(new Event('change', { bubbles: true }));
+  }, wanted);
+  await settle();
+  const custom = await D.page.evaluate(() => ({
+    on: !!document.querySelector('.dr-p.on[data-preset]'),
+    out: (document.getElementById('tr-out') || {}).textContent || ''
+  }));
+  assert(!custom.on, 'typing a date drops the preset — the window is yours now');
+
+  // project tabs are built from the leads that exist
+  await D.page.evaluate(() => [...document.querySelectorAll('[data-preset]')]
+    .find(b => b.textContent.trim() === 'This month').click());
+  await settle();
+  const tabs = await D.page.evaluate(() =>
+    [...document.querySelectorAll('[data-proj]')].map(b => ({ id: b.dataset.proj, t: b.textContent.trim() })));
+  console.log('     projects → ' + tabs.map(t => t.t).join(' | '));
+  assert(tabs.length >= 2 && tabs[0].t === 'All projects',
+    'the project row starts with All and lists ' + (tabs.length - 1) + ' more');
+  const withProject = tabs.filter(t => t.id);
+  if (withProject.length) {
+    await D.page.evaluate(id => document.querySelector('[data-proj="' + id + '"]').click(), withProject[0].id);
+    await settle();
+    const picked = await D.page.evaluate(() => ({
+      on: (document.querySelector('.dr-p.on[data-proj]') || {}).textContent || '',
+      rows: document.querySelectorAll('.dr-row').length
+    }));
+    assert(picked.on.trim() === withProject[0].t, 'picking ' + withProject[0].t + ' highlights that tab');
+    assert(picked.rows > 0, 'and the team is still listed under it (' + picked.rows + ')');
+    await D.page.evaluate(() => document.querySelector('[data-proj=""]').click());
+    await settle();
+  } else { ok('ZZTEST leads carry no project, so there is only the All tab'); }
+
+  // ── a member over a whole month: day by day, then the entries ────────────
+  stepH('One member over the month');
+  await D.page.evaluate(() => [...document.querySelectorAll('.dr-row')]
+    .find(r => /ZZ Rep One/.test(r.querySelector('.dr-nm').textContent)).click());
+  await until(D.page, () => !!document.querySelector('.dr-ent'));
+  await sleep(700);
+  await D.page.screenshot({ path: path.join(SHOTS, '04-member-month.png') });
+  console.log('  📸 04-member-month');
+  const mon = await D.page.evaluate(() => ({
+    tiles: [...document.querySelectorAll('.dr-tile')].map(t =>
+      t.querySelector('.k').textContent + ' ' + t.querySelector('.v').textContent),
+    days: [...document.querySelectorAll('.dr-d .dd')].map(d => d.textContent.trim()),
+    firstStamp: (document.querySelector('.dr-t') || {}).textContent.trim(),
+    sec: [...document.querySelectorAll('.dr-sec')].map(s => s.textContent).join(' / ')
+  }));
+  console.log('     ' + mon.tiles.join('  |  '));
+  assert(mon.tiles.some(t => /Leads given/.test(t)) && mon.tiles.some(t => /Active days/.test(t)),
+    'the member view reports the period, not just the day');
+  assert(/\d{2} \w{3}/.test(mon.firstStamp),
+    'over a multi-day window each entry carries its DATE too (' + mon.firstStamp + ')');
+  assert(/Everything they did/.test(mon.sec), 'and the full history is listed: ' + mon.sec);
+
   assert(D.errs.length === 0, 'no console errors' + (D.errs.length ? ': ' + D.errs[0] : ''));
   await D.ctx.close();
 

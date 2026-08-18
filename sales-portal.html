@@ -1537,7 +1537,7 @@ button.mn-card:active{transform:scale(.985)}
       <div class="ni-grp" data-grp="management" data-mgr style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('management')"><span class="sb-grp-t">Management</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-management"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
-          <a class="ni" data-tab="dailyreport" onclick="setTab('dailyreport')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span><span class="ni-lb">Daily report</span></a>
+          <a class="ni" data-tab="dailyreport" onclick="setTab('dailyreport')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span><span class="ni-lb">Team report</span></a>
           <a class="ni" data-tab="team" onclick="setTab('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">My Team</span></a>
           <a class="ni" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="ni-lb">Assign leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni" data-tab="targets" onclick="setTab('targets')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="ni-lb">Targets</span></a>
@@ -2340,7 +2340,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Daily report',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -8545,6 +8545,6 @@ bootstrap();
 <script src="js/portal-quote-pdf.js?v=20260816quote"></script>
 <script src="js/portal-unitmap.js?v=20260817focus"></script>
 <script src="js/portal-sharelink.js?v=20260818share"></script>
-<script src="js/portal-dailyreport.js?v=20260818daily"></script>
+<script src="js/portal-teamreport.js?v=20260818range"></script>
 </body>
 </html>
