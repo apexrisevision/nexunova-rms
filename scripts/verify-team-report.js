@@ -1,5 +1,5 @@
 /**
- * Daily report — driven from the sidebar, like a person.
+ * Team report — driven from the sidebar, like a person.
  *
  *   node scripts/verify-team-report.js
  *
@@ -21,6 +21,7 @@
  * they surface, and deletes them.
  */
 const fs = require('fs'), path = require('path'), http = require('http'), https = require('https');
+const zlib = require('zlib');
 const puppeteer = require('puppeteer-core');
 const ROOT = path.resolve(__dirname, '..'), PORT = 4225;
 const PAGE = `http://127.0.0.1:${PORT}/sales-portal.html`;
@@ -86,14 +87,16 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     INSERT INTO public.leads (company_id, name, phone, status, owner_sales_user_id, is_test)
     SELECT '${ZZ}', 'ZZDR Lead', '03001110000', 'contacted', id, true
       FROM public.sales_users WHERE company_id='${ZZ}' AND full_name='ZZ Rep One';
-    INSERT INTO public.lead_activities (lead_id, sales_user_id, kind, body)
-    SELECT l.id, l.owner_sales_user_id, k.kind, k.body
+    INSERT INTO public.lead_activities (lead_id, sales_user_id, kind, body, created_at)
+    SELECT l.id, l.owner_sales_user_id, k.kind, k.body,
+           (((now() AT TIME ZONE 'Asia/Karachi')::date + interval '12 hours') AT TIME ZONE 'Asia/Karachi')
       FROM public.leads l,
            (VALUES ('call', NULL), ('whatsapp', NULL),
                    ('note', '${NOTE}'), ('stage', 'Moved to contacted')) AS k(kind, body)
      WHERE l.company_id='${ZZ}' AND l.name='ZZDR Lead';
-    INSERT INTO public.lead_assignments (lead_id, from_sales_user_id, to_sales_user_id)
-    SELECT l.id, d.id, l.owner_sales_user_id
+    INSERT INTO public.lead_assignments (lead_id, from_sales_user_id, to_sales_user_id, assigned_at)
+    SELECT l.id, d.id, l.owner_sales_user_id,
+           (((now() AT TIME ZONE 'Asia/Karachi')::date + interval '12 hours') AT TIME ZONE 'Asia/Karachi')
       FROM public.leads l, public.sales_users d
      WHERE l.company_id='${ZZ}' AND l.name='ZZDR Lead'
        AND d.company_id='${ZZ}' AND d.full_name='ZZ Director';`);
@@ -151,10 +154,10 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   };
 
   // ── the director opens it by clicking ─────────────────────────────────────
-  stepH('ZZ Director → sidebar → Daily report');
+  stepH('ZZ Director → sidebar → Team report');
   const D = await portal('zz-dr-dir');
   const nav = await navItem(D.page);
-  if (!assert(nav && nav.visible, 'the sidebar shows "Daily report"')) throw new Error('no nav item');
+  if (!assert(nav && nav.visible, 'the sidebar shows "Team report"')) throw new Error('no nav item');
   assert(nav.reachable, 'and a click at it actually lands on it');
   await D.page.mouse.click(nav.x, nav.y);                    // a REAL click
   try { await until(D.page, () => !!document.querySelector('.dr-row')); }
@@ -293,6 +296,9 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   await sleep(700);
   await D.page.screenshot({ path: path.join(SHOTS, '04-member-month.png') });
   console.log('  📸 04-member-month');
+  // taken from the header the team view already printed, so the count comes from
+  // the data and this does not break when the month turns
+  const windowDays = Number((month.out.match(/(\d+) days/) || [])[1]) || 0;
   const mon = await D.page.evaluate(() => ({
     tiles: [...document.querySelectorAll('.dr-tile')].map(t =>
       t.querySelector('.k').textContent + ' ' + t.querySelector('.v').textContent),
@@ -358,8 +364,10 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   }
   /* One column per day of the WINDOW, not per day that happened to have work —
      otherwise two busy days in a fortnight draw two half-page slabs. */
-  assert(viz.cols === 18 && viz.colTitles.every(t => /entries/.test(t)),
-    viz.cols + ' columns for an 18-day window, each hoverable: "' + (viz.colTitles[0] || '') + '"');
+  /* one column per day of the window — the count comes from the data, not from
+     a number typed here, or this test breaks every time the month turns */
+  assert(viz.cols === windowDays && viz.colTitles.every(t => /entries/.test(t)),
+    viz.cols + ' columns for a ' + windowDays + '-day window, each hoverable: "' + (viz.colTitles[0] || '') + '"');
   assert(viz.kindRows.length === 5, 'the work breakdown lists all five kinds');
   assert(viz.alt.length === (viz.segments ? 2 : 1),
     'every plotted figure carries an aria-label for a screen reader (' + viz.alt.length + ')');
@@ -374,6 +382,87 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   assert(heights.length >= 1 && heights.every(h => h > 8 && h < 200),
     'every figure is a sane height, not stretched to the card (' + heights.join(', ') + 'px)');
 
+  // ── PDF ──────────────────────────────────────────────────────────────────
+  /* Headless Chrome will not write a blob: download to disk, and that last hop
+     is the browser's job, not ours. So the bytes are caught where they are
+     produced: ReportPDF.download is wrapped to keep a copy and then call
+     through. The button, the builder and the filename are all still exercised —
+     what is skipped is only Chrome saving a file, which we did not write. */
+  const armPdf = () => D.page.evaluate(() => {
+    if (window.__pdfArmed) return;
+    window.__pdfArmed = true;
+    const real = window.ReportPDF.download;
+    window.ReportPDF.download = function (bytes, name) {
+      window.__pdf = { name: name, len: bytes.length,
+        head: Array.from(bytes.slice(0, 5)).map(c => String.fromCharCode(c)).join(''),
+        text: Array.from(bytes).map(c => String.fromCharCode(c)).join('') };
+      return real.apply(this, arguments);
+    };
+  });
+  const grabPdf = async () => {
+    const v = await D.page.evaluate(() => { const x = window.__pdf; window.__pdf = null; return x; });
+    /* pdf-lib compresses its content streams (FlateDecode), so a raw byte scan
+       finds nothing even though every word is perfectly selectable in a reader.
+       Inflate the streams and read the text operators out of them — that is what
+       a reader does, and it is the only way to prove the page carries drawn text
+       rather than a screenshot. */
+    const raw = Buffer.from(v.text, 'latin1');
+    let out = '', i = 0;
+    while (true) {
+      const st = raw.indexOf('stream', i); if (st < 0) break;
+      const en = raw.indexOf('endstream', st); if (en < 0) break;
+      let s0 = st + 6;
+      while (raw[s0] === 13 || raw[s0] === 10) s0++;
+      try { out += zlib.inflateSync(raw.slice(s0, en)).toString('latin1'); } catch (e) {
+        out += raw.slice(s0, en).toString('latin1');
+      }
+      i = en + 9;
+    }
+    // both spellings pdf-lib may emit: (literal) Tj and <hex> Tj
+    const lit = (out.match(/\(((?:\\.|[^\\()])*)\)\s*Tj/g) || [])
+      .map(t => t.slice(1, t.lastIndexOf(')')).replace(/\\([()\\])/g, '$1'));
+    const hex = (out.match(/<[0-9A-Fa-f]{2,}>\s*Tj/g) || []).map(h => {
+      const x = h.slice(1, h.indexOf('>'));
+      let r = '';
+      for (let k = 0; k + 1 < x.length; k += 2) r += String.fromCharCode(parseInt(x.substr(k, 2), 16));
+      return r;
+    });
+    v.plain = lit.concat(hex).join(' ');
+    return v;
+  };
+
+  stepH('Export the member sheet');
+  await armPdf();
+  await D.page.evaluate(() => document.querySelector('.pdf').click());
+  await until(D.page, () => !!window.__pdf, 30000);
+  const mp = await grabPdf();
+  console.log('     ' + mp.name + '  ' + Math.round(mp.len / 1024) + ' KB');
+  assert(mp.head === '%PDF-', 'the member sheet really is a PDF');
+  assert(mp.len > 2000 && mp.plain.length > 200,
+    'with real content in it (' + Math.round(mp.len / 1024) + ' KB, ' + mp.plain.length + ' chars of text)');
+  assert(/ZZ-Rep-One/.test(mp.name) && /2026-08/.test(mp.name),
+    'and a filename that names the member and the period');
+  /* Drawn text, not a screenshot: a picture of the report would pass a size
+     check and fail this one. */
+  assert(/ZZDR client wants a corner unit/.test(mp.plain),
+    'the note the rep wrote is inside the file as selectable text');
+  assert(/Everything they did/.test(mp.plain) && /Nexunova|NEXUNOVA/.test(mp.plain),
+    'along with the section headings and the letterhead');
+
+  stepH('Export the team sheet');
+  await D.page.evaluate(() => document.getElementById('app-body').querySelector('.backbtn').click());
+  await until(D.page, () => !!document.querySelector('.dr-row'));
+  await armPdf();
+  await D.page.evaluate(() => document.querySelector('.pdf').click());
+  await until(D.page, () => !!window.__pdf, 30000);
+  const tp = await grabPdf();
+  console.log('     ' + tp.name + '  ' + Math.round(tp.len / 1024) + ' KB');
+  console.log('     text    → ' + (tp.plain || '(nothing decoded)').slice(0, 160));
+  assert(/team/.test(tp.name), 'the team sheet is named for the team, not a person');
+  assert(tp.head === '%PDF-' && tp.len > 2000, 'and is a real PDF with content');
+  assert(/ZZ Rep One/.test(tp.plain) && /ZZ Rep Two/.test(tp.plain),
+    'listing every member, the quiet ones included');
+  assert(/Team report/.test(tp.plain), 'under the report title');
   assert(D.errs.length === 0, 'no console errors' + (D.errs.length ? ': ' + D.errs[0] : ''));
   await D.ctx.close();
 

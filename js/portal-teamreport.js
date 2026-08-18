@@ -26,7 +26,14 @@
       ".dr-ctl{border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card);" +
         "overflow:hidden;margin-bottom:14px}" +
       ".dr-ctl-h{padding:9px 13px;border-bottom:1px solid var(--fk-border);background:var(--fk-bg-subtle);" +
+        "display:flex;align-items:center;gap:10px;" +
         "font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fk-text)}" +
+      ".pdf{margin-left:auto;height:26px;padding:0 11px;border:1px solid var(--fk-border);" +
+        "border-radius:8px;background:var(--fk-bg-card);font:inherit;font-size:12px;font-weight:600;" +
+        "letter-spacing:0;text-transform:none;color:var(--fk-primary);cursor:pointer}" +
+      ".pdf:hover{border-color:var(--fk-primary)}" +
+      ".pdf[disabled]{opacity:.55;cursor:default}" +
+      ".pdf.solo{margin-left:0}" +
       ".dr-r{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:10px 13px}" +
       ".dr-r+.dr-r{border-top:1px solid var(--fk-border)}" +
       ".dr-lb{width:58px;flex:none;font-size:11px;font-weight:700;letter-spacing:.07em;" +
@@ -141,8 +148,12 @@
   /* Everything here is a working day in Pakistan, so the date the screen asks
      for and the day the server measures have to be the same day. */
   function todayPK() {
-    var d = new Date(Date.now() + (new Date().getTimezoneOffset() * 60000) + 5 * 3600000);
-    return d.toISOString().slice(0, 10);
+    /* Date.now() is already epoch — timezone-free. The earlier version also
+       added getTimezoneOffset(), which on a machine set to PKT cancels the +5
+       exactly and hands back the UTC date: from 7pm to midnight every night the
+       report called yesterday 'Today'. Karachi has no DST, so a flat +5 is the
+       whole conversion. */
+    return new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 10);
   }
   function shift(iso, days) {
     var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days);
@@ -243,7 +254,7 @@
     var span = d.days === 1 ? dayName(d.from)
       : dayName(d.from) + ' – ' + dayName(d.to) + '  ·  ' + d.days + ' days';
     return '<div class="dr-ctl">' +
-      '<div class="dr-ctl-h">Report</div>' +
+      '<div class="dr-ctl-h">Report' +        '<button class="pdf" onclick="_drPdf()">Export PDF</button></div>' +
       '<div class="dr-r"><span class="dr-lb">Period</span>' + period + '</div>' +
       '<div class="dr-r"><span class="dr-lb">Project</span>' + project + '</div>' +
       '<div class="dr-out" id="tr-out">' + esc(span) + '</div></div>';
@@ -272,6 +283,44 @@
       };
     });
   }
+
+
+  /* ── PDF ────────────────────────────────────────────────────────────────────
+     The sheet is built from TR.data — the very rows the screen is showing — so
+     the file can never disagree with what the director just read. The member
+     sheet asks the server again with a bigger cap, because a month of one
+     person's work is routinely more than the 400 entries the screen needs. */
+  window._drPdf = async function () {
+    var btn = document.querySelector('.pdf');
+    if (!window.ReportPDF || !window.PDFLib) { try { toast('The PDF library did not load — refresh and try again', 'err'); } catch (e) {} return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+    try {
+      var data = TR.data, member = null;
+      if (TR.member) {
+        member = (data.members || [])[0] || null;
+        // the screen caps entries for speed; a printed history should be whole
+        if (data.entries_capped) {
+          var full = await sb.rpc('get_activity_report', {
+            p_session_token: TOKEN, p_from: TR.from, p_to: TR.to,
+            p_member_id: TR.member, p_project_id: TR.project, p_limit: 1000 });
+          if (full.data && full.data.success) { data = full.data; member = (data.members || [])[0] || member; }
+        }
+      }
+      var out = await ReportPDF.make(data, {
+        member: member,
+        project: TR.project ? _projName() : '',
+        company: (window.ME && ME.company_name) || ''
+      });
+      var stamp = TR.from === TR.to ? TR.from : TR.from + '_to_' + TR.to;
+      var who = member ? String(member.name).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'team';
+      ReportPDF.download(out.bytes, 'nexunova-report-' + who + '-' + stamp + '.pdf');
+      try { toast(out.pages + ' page' + (out.pages === 1 ? '' : 's') + ' saved', 'ok'); } catch (e) {}
+    } catch (e) {
+      try { toast('Could not build the PDF', 'err'); } catch (e2) {}
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Export PDF'; }
+    }
+  };
 
   // ── the team over the window ─────────────────────────────────────────────
   function _paintTeam() {
@@ -337,7 +386,7 @@
     var span = d.days === 1 ? dayName(d.from) : dayName(d.from) + ' – ' + dayName(d.to);
 
     var h = '<div class="dr-wrap viz-root">' +
-      '<button class="backbtn" onclick="_drBack()" style="margin-bottom:10px">‹ Team report</button>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +        '<button class="backbtn" onclick="_drBack()">‹ Team report</button>' +        '<button class="pdf solo" onclick="_drPdf()">Export PDF</button></div>' +
       '<div style="font-weight:700;font-size:var(--fs-title)">' + esc(m.name || '') + '</div>' +
       '<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:12px">' +
         esc(span) + ' · ' + d.days + ' day' + (d.days === 1 ? '' : 's') +
