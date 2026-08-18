@@ -165,22 +165,7 @@ html[data-theme="light"] .tower{filter:drop-shadow(0 16px 26px rgba(15,23,42,.20
 /* the rails are deliberately mean: every px they give back is a px of glass,
    and glass is where the unit numbers have to fit */
 .rw{display:grid;grid-template-columns:40px minmax(0,1fr) 54px;align-items:stretch;gap:10px}
-@media (max-width:560px){
-  .wrap{padding:14px 10px 40px}
-  .rw{grid-template-columns:28px minmax(0,1fr) 46px;gap:6px}
-  .fl-name b{font-size:12px}
-  .fl-name{font-size:10px}
-  .fl-stat span{font-size:9px;letter-spacing:-.02em}
-  .fl-stat{font-size:12px}
-  .stage-in{padding:22px 8px 0}
-  .tower{--over:4px;--over-foot:4px}
-  .plate{--pil:5px;padding:8px calc(var(--pil) + 3px);gap:5px;--shaft-w:9px}
-  .roof .cap,.plinth{box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
-    inset 7px 0 0 var(--pillar),inset -7px 0 0 var(--pillar)}
-  .core{width:9px}
-  .brk{gap:6px}
-  .bcell{min-width:96px}
-}
+
 
 /* roof — parapet, machine room, mast */
 /* the parapet: a wall that overhangs the facade slightly, with a lit coping on
@@ -269,6 +254,23 @@ html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,
 .foot-slab{position:relative;height:10px;margin:0 calc(var(--over-foot, 8px) * -1);border-radius:2px;background:var(--slab-face);
   box-shadow:0 1px 0 var(--slab-edge),inset 0 1px 0 var(--pillar-hi)}
 
+/* ── narrow screens — declared AFTER the shell so these actually win ───── */
+@media (max-width:560px){
+  .wrap{padding:14px 10px 40px}
+  .rw{grid-template-columns:28px minmax(0,1fr) 46px;gap:6px}
+  .fl-name b{font-size:12px}
+  .fl-name{font-size:10px}
+  .fl-stat span{font-size:9px;letter-spacing:-.02em}
+  .fl-stat{font-size:12px}
+  .stage-in{padding:22px 8px 0}
+  .tower{--over:4px;--over-foot:4px}
+  .plate{--pil:5px;padding:8px calc(var(--pil) + 3px);gap:4px;--shaft-w:6px}
+  .roof .cap,.plinth{box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+    inset 7px 0 0 var(--pillar),inset -7px 0 0 var(--pillar)}
+  .core{width:6px}
+  .brk{gap:6px}
+  .bcell{min-width:96px}
+}
 /* ── the windows ────────────────────────────────────────────────────────── */
 /* Every pane carries its own unit number. The number is the point of the page —
    the glow only says WHICH ones to read first. */
@@ -619,11 +621,9 @@ function paint(){
   var max = Math.max.apply(null, P.floors.map(function (f) { return f.units.length; }));
   var wide = max > 34, perRow = wide ? 26 : max;
   var stage = $('tower').parentElement;
-  // the rails must match the media query above, or the tower is sized for a
-  // layout the browser is not using
   var narrow = stage.clientWidth < 560;
-  // label + counter + grid gaps + the plate's own pillars/padding + the shaft
-  var rails = (narrow ? 28 + 46 + 12 + 16 : 40 + 54 + 20 + 26) + (wide ? 0 : (narrow ? 9 : 12));
+  // ask the stylesheet what the rails cost — never remember it (see _rails)
+  var rails = _rails(wide);
   var room = Math.max(narrow ? 250 : 360, stage.clientWidth - (narrow ? 16 : 30)) - rails;
 
   var longest = '';
@@ -691,6 +691,31 @@ function paint(){
   requestAnimationFrame(function () {
     document.querySelectorAll('.chip .m>span').forEach(function (s) { s.style.width = s.dataset.w; }); });
 }
+/* Ask the stylesheet, do not remember it. The rails used to be three constants
+   copied out of the CSS by hand, so when the narrow media block stopped applying
+   the JS carried on sizing for a layout the browser was not using and the glass
+   spilled over the free-count. This builds one throwaway row, reads what the
+   browser actually computed for the label column, the counter column, the grid
+   gaps, the plate's padding and the core, and throws it away. Any future CSS
+   change is followed for free. */
+function _rails(wide){
+  var tw = $('tower'), probe = document.createElement('div');
+  probe.className = 'rw';
+  probe.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;width:600px';
+  probe.innerHTML = '<div class="fl-name"><b>9</b>x</div>' +
+    '<div class="plate"><div class="wing"></div><div class="core"></div><div class="wing"></div></div>' +
+    '<div class="fl-stat">9<span>/9 free</span></div>';
+  tw.appendChild(probe);
+  var cs = getComputedStyle(probe), plate = probe.querySelector('.plate'), ps = getComputedStyle(plate);
+  var num = function (v, d) { var n = parseFloat(v); return isFinite(n) ? n : d; };
+  var cols = String(cs.gridTemplateColumns).split(' ');
+  var out = num(cols[0], 40) + num(cols[2], 54) + num(cs.columnGap, 10) * 2 +
+            num(ps.paddingLeft, 13) + num(ps.paddingRight, 13) +
+            (wide ? 0 : probe.querySelector('.core').getBoundingClientRect().width + num(ps.columnGap, 7) * 2);
+  tw.removeChild(probe);
+  return Math.ceil(out);
+}
+
 function chip(k, v, dot, frac, bar, sub){
   return '<div class="chip"><div class="k"><i style="background:' + dot +
     (dot === 'var(--sky)' ? ';box-shadow:0 0 8px var(--sky)' : '') + '"></i>' + k + '</div>' +

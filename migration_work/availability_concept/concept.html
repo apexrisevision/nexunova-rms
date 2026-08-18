@@ -243,6 +243,23 @@ html[data-theme="light"] .ground::after{background:radial-gradient(closest-side,
 /* the footing: a slab wider than the plinth, sitting on the ground */
 .foot-slab{position:relative;height:10px;margin:0 calc(var(--over-foot, 8px) * -1);border-radius:2px;background:var(--slab-face);
   box-shadow:0 1px 0 var(--slab-edge),inset 0 1px 0 var(--pillar-hi)}
+/* ── narrow screens — declared AFTER the shell so these actually win ───── */
+@media (max-width:560px){
+  .wrap{padding:14px 10px 40px}
+  .rw{grid-template-columns:28px minmax(0,1fr) 46px;gap:6px}
+  .fl-name b{font-size:12px}
+  .fl-name{font-size:10px}
+  .fl-stat span{font-size:9px;letter-spacing:-.02em}
+  .fl-stat{font-size:12px}
+  .stage-in{padding:22px 8px 0}
+  .tower{--over:4px;--over-foot:4px}
+  .plate{--pil:5px;padding:8px calc(var(--pil) + 3px);gap:4px;--shaft-w:6px}
+  .roof .cap,.plinth{box-shadow:inset 0 3px 0 var(--slab-face),inset 0 4px 0 var(--slab-edge),
+    inset 7px 0 0 var(--pillar),inset -7px 0 0 var(--pillar)}
+  .core{width:6px}
+  .brk{gap:6px}
+  .bcell{min-width:96px}
+}
 /* ── the windows ────────────────────────────────────────────────────────── */
 /* Every pane carries its own unit number. The number is the point of the page —
    the glow only says WHICH ones to read first. */
@@ -688,7 +705,7 @@ function paint(){
   /* Sized against the REAL stage width, not a guessed one — at 1240 assumed the
      counters on the right rail were being sliced off. */
   var stage = document.getElementById('tower').parentElement;
-  var rails = 40 + 54 + 20 + 26 + (wide ? 0 : 12);
+  var rails = _rails(wide);
   var room = Math.max(360, stage.clientWidth - 30) - rails;
 
   /* Type size is MEASURED, not guessed: the longest unit number in this project
@@ -759,6 +776,31 @@ function paint(){
 
   requestAnimationFrame(() => document.querySelectorAll('.chip .m>span')
     .forEach(s => s.style.width = s.dataset.w));
+}
+
+/* Ask the stylesheet, do not remember it. The rails used to be three constants
+   copied out of the CSS by hand, so when the narrow media block stopped applying
+   the JS carried on sizing for a layout the browser was not using and the glass
+   spilled over the free-count. This builds one throwaway row, reads what the
+   browser actually computed for the label column, the counter column, the grid
+   gaps, the plate's padding and the core, and throws it away. Any future CSS
+   change is followed for free. */
+function _rails(wide){
+  var tw = document.getElementById('tower'), probe = document.createElement('div');
+  probe.className = 'rw';
+  probe.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;width:600px';
+  probe.innerHTML = '<div class="fl-name"><b>9</b>x</div>' +
+    '<div class="plate"><div class="wing"></div><div class="core"></div><div class="wing"></div></div>' +
+    '<div class="fl-stat">9<span>/9 free</span></div>';
+  tw.appendChild(probe);
+  var cs = getComputedStyle(probe), plate = probe.querySelector('.plate'), ps = getComputedStyle(plate);
+  var num = function (v, d) { var n = parseFloat(v); return isFinite(n) ? n : d; };
+  var cols = String(cs.gridTemplateColumns).split(' ');
+  var out = num(cols[0], 40) + num(cols[2], 54) + num(cs.columnGap, 10) * 2 +
+            num(ps.paddingLeft, 13) + num(ps.paddingRight, 13) +
+            (wide ? 0 : probe.querySelector('.core').getBoundingClientRect().width + num(ps.columnGap, 7) * 2);
+  tw.removeChild(probe);
+  return Math.ceil(out);
 }
 
 function chip(k, v, dot, frac, bar, sub){

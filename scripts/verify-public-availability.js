@@ -192,6 +192,35 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   await shotFull('01-public-tower');
 
 
+
+  /* The two things that broke on a phone while desktop stayed fine, both
+     measured from real geometry rather than read off the stylesheet:
+       · glass running over the free-count on the right
+       · a lift shaft that ate the middle, because the narrow CSS block was
+         being overridden and the phone silently used desktop widths          */
+  const geom = async where => {
+    const g = await V.page.evaluate(() => {
+      const rw = document.querySelector('.rw:nth-child(2)');
+      const plate = rw.querySelector('.plate'), stat = rw.querySelector('.fl-stat');
+      const wings = [...rw.querySelectorAll('.wing')].map(w => w.getBoundingClientRect());
+      const glassR = Math.max(...[...document.querySelectorAll('.win')].map(w => w.getBoundingClientRect().right));
+      const inner = plate.clientWidth - parseFloat(getComputedStyle(plate).paddingLeft)
+                                      - parseFloat(getComputedStyle(plate).paddingRight);
+      return { overlap: Math.round(glassR - stat.getBoundingClientRect().left),
+               band: wings.length === 2 ? Math.round(wings[1].left - wings[0].right) : null,
+               inner: Math.round(inner),
+               spill: Math.round(Math.max(...[...document.querySelectorAll('.win')]
+                 .map(w => w.getBoundingClientRect().right)) - plate.getBoundingClientRect().right) };
+    });
+    assert(g.overlap < 0, 'no glass reaches the free-count on ' + where + ' (' + g.overlap + 'px)');
+    assert(g.spill <= 0, 'and no pane spills out of its own floor plate (' + g.spill + 'px)');
+    if (g.band != null) {
+      const pc = g.band / g.inner * 100;
+      assert(pc < 8, 'the lift shaft takes ' + pc.toFixed(1) + '% of the floor on ' + where + ' (< 8%)');
+    }
+    return g;
+  };
+
   const inside = async where => {
     const r = await V.page.evaluate(() => {
       const s = document.querySelector('.stage-in').getBoundingClientRect();
@@ -213,6 +242,7 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   };
 
   await inside('desktop');
+  const deskShape = await geom('desktop');
 
   const storage = await V.page.evaluate(() => ({
     ls: Object.keys(localStorage).length, ss: Object.keys(sessionStorage).length }));
@@ -359,6 +389,12 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   assert(phone.fs >= 7.5, 'the number is still ' + phone.fs + 'px');
   assert(phone.hitFilter, 'a thumb landing on a filter chip actually reaches the chip');
   await inside('a phone');
+  const phoneShape = await geom('a phone');
+  // and the shaft must not be four times fatter on a phone than on a desk
+  const deskPc = deskShape.band / deskShape.inner, phonePc = phoneShape.band / phoneShape.inner;
+  assert(phonePc < deskPc * 2.2,
+    'its share on a phone (' + (phonePc * 100).toFixed(1) + '%) stays close to the desk (' +
+    (deskPc * 100).toFixed(1) + '%)');
 
   // a real TAP, not a mouse click — under touch emulation mouse input raises no
   // pointerdown, which is the trap that hid a bug in the portal smoke suite
