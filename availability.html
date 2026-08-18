@@ -230,15 +230,15 @@ html[data-theme="light"] .plate::after{background:linear-gradient(90deg,rgba(255
   88%{filter:brightness(.97)}
 }
 .win.available{background:var(--sky);box-shadow:0 0 5px var(--sky),0 0 15px var(--sky-soft);--wtx:#04283B}
-.win.reserved{background:var(--amb);box-shadow:0 0 5px var(--amb),0 0 15px var(--amb-soft);--wtx:#3B2503}
-.win.sold{--wtx:var(--sold-tx)}
+/* the public link knows TWO states. "taken" is sold and reserved together —
+   nobody outside the company needs to be told which. */
+.win.sold,.win.taken{--wtx:var(--sold-tx)}
 /* glass: a pane catches light at its top-left corner (behind the number) */
-.win.available::after,.win.reserved::after{content:"";position:absolute;inset:0;z-index:1;
+.win.available::after{content:"";position:absolute;inset:0;z-index:1;
   background:linear-gradient(155deg,rgba(255,255,255,.42),rgba(255,255,255,.02) 55%)}
 .win:hover,.win:focus-visible{transform:scale(1.35);z-index:6;outline:0}
 .win.available:hover{box-shadow:0 0 12px var(--sky),0 0 32px var(--sky)}
-.win.reserved:hover{box-shadow:0 0 12px var(--amb),0 0 32px var(--amb)}
-.win.sold:hover{filter:brightness(1.9)}
+.win.sold:hover,.win.taken:hover{filter:brightness(1.9)}
 .win.pick{transform:scale(1.35);z-index:6;box-shadow:0 0 0 2px var(--night),0 0 0 4px var(--pri)}
 @media (prefers-reduced-motion:reduce){.win,.win.available{animation:none;opacity:1;transform:none}}
 
@@ -277,10 +277,7 @@ html[data-theme="light"] .plate::after{background:linear-gradient(90deg,rgba(255
 .badge{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:99px;
   font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .badge.available{background:var(--sky-soft);color:var(--sky)}
-.badge.reserved{background:var(--amb-soft);color:var(--amb)}
-.badge.sold{background:var(--sub);color:var(--mut)}
-.c-foot{padding:14px 20px 20px;border-top:1px solid var(--bd);display:flex;gap:9px}
-.c-foot .btn{flex:1;justify-content:center;height:38px}
+.badge.sold,.badge.taken{background:var(--sub);color:var(--mut)}
 .c-note{padding:0 20px 16px;font-size:12px;color:var(--mut)}
 
 /* ── cheapest-first list (on demand — the tower stays the page) ─────────── */
@@ -297,37 +294,6 @@ html[data-theme="light"] .plate::after{background:linear-gradient(90deg,rgba(255
   color:var(--mut);font-size:10px;font-weight:700;margin-right:8px;vertical-align:1px}
 .lrow:first-child .rank{background:var(--sky);color:#04283B}
 
-/* ── share sheet ────────────────────────────────────────────────────────── */
-.modal{position:fixed;inset:0;display:none;place-items:center;z-index:60;padding:20px;background:rgba(2,6,16,.5)}
-.modal.on{display:grid}
-.snap{width:min(520px,94vw);background:var(--card);border:1px solid var(--bd);border-radius:14px;
-  overflow:hidden;box-shadow:var(--shadow);animation:pop .3s var(--ease)}
-@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
-.snap-h{padding:16px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
-.snap-h .t{font-weight:700}
-.snap-h .d{margin-left:auto;font-size:12px;color:var(--mut)}
-.snap-b{padding:16px 18px;background:var(--sub);max-height:56vh;overflow:auto}
-.snap-k{display:flex;gap:10px;margin-bottom:14px}
-.snap-k>div{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
-.snap-k .kk{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-.snap-k .vv{font-size:18px;font-weight:700;margin-top:2px}
-/* the tower travels with the numbers — that is what makes it a poster, not a list */
-.mini{background:var(--night);border:1px solid var(--bd);border-radius:10px;padding:12px 10px;margin-bottom:14px}
-.mini .mr{display:grid;grid-template-columns:32px 1fr 46px;gap:8px;align-items:center;padding:1.5px 0}
-.mini .ml{font-size:10px;font-weight:700;color:var(--mut);text-align:right}
-.mini .mc{font-size:10px;color:var(--mut);text-align:right}
-.mini .mw{display:flex;gap:2px;justify-content:center;flex-wrap:wrap}
-.mini i{width:5px;height:8px;border-radius:1px;display:block;background:var(--sold)}
-.mini i.available{background:var(--sky);box-shadow:0 0 4px var(--sky)}
-.mini i.reserved{background:var(--amb);box-shadow:0 0 4px var(--amb)}
-.snap-l{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
-.snap-l .r{display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--bd)}
-.snap-l .r:last-child{border-bottom:0}
-.snap-l .r span{color:var(--mut)}
-.snap-l .rn{padding:0 12px 9px;font-size:11px;line-height:1.6;color:var(--sky);border-bottom:1px solid var(--bd)}
-.snap-l .rn:last-child{border-bottom:0}
-.snap-f{padding:12px 18px;display:flex;gap:9px;justify-content:flex-end;border-top:1px solid var(--bd)}
-.snap-note{padding:0 18px 14px;font-size:12px;color:var(--mut);background:var(--sub)}
 
 /* ── public-only chrome ─────────────────────────────────────────────────── */
 .boot{min-height:70vh;display:grid;place-items:center;text-align:center;padding:40px 20px}
@@ -375,8 +341,7 @@ html[data-theme="light"] .plate::after{background:linear-gradient(90deg,rgba(255
     <div class="stage-in"><div class="tower" id="tower"></div></div>
     <div class="legend">
       <span><i style="background:var(--sky);box-shadow:0 0 8px var(--sky)"></i>Available</span>
-      <span><i style="background:var(--amb);box-shadow:0 0 8px var(--amb)"></i>Reserved</span>
-      <span><i style="background:var(--sold)"></i>Sold</span>
+      <span><i style="background:var(--sold)"></i>Not available</span>
       <span id="lgt"></span>
     </div>
     <div class="ground"></div>
@@ -433,7 +398,8 @@ var BANDS = [
   { k: '75-1c', t: '75 L - 1 Cr', min: 75 * L, max: CR },
   { k: '1c+',   t: '1 Cr +',      min: CR,     max: null }
 ];
-var CVAR = { available:'var(--sky)', reserved:'var(--amb)', sold:'var(--sold)' };
+var CVAR = { available:'var(--sky)', taken:'var(--sold)' };
+var SAY  = { available:'Available', taken:'Not available' };
 var money = function (n) { return n ? Number(n).toLocaleString('en-US') : '—'; };
 var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
   return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
@@ -498,7 +464,7 @@ function budgetOn(){ return FILTER.min != null || FILTER.max != null; }
 function lakh(n){ return n >= CR ? (n / CR).toFixed(2).replace(/\.00$/, '') + ' Cr' : Math.round(n / L) + ' L'; }
 function cssq(s){ return String(s).replace(/"/g, '\\"'); }
 function tally(){
-  var t = { available:0, reserved:0, sold:0, total:0 };
+  var t = { available:0, taken:0, total:0 };
   P.floors.forEach(function (f) { f.units.forEach(function (u) {
     if (t[u.s] != null) t[u.s]++; t.total++; }); });
   return t;
@@ -577,10 +543,9 @@ function paint(){
 
   $('chips').innerHTML =
     chip('Total units', t.total, 'transparent', 0, 'transparent', P.floors.length + ' floors') +
-    chip('Unsold', t.available + t.reserved, 'var(--sky)',
-      t.total ? (t.available + t.reserved) / t.total : 0, 'var(--sky)',
-      t.available + ' available · ' + t.reserved + ' reserved') +
-    chip('Sold', t.sold, 'var(--sold)', t.total ? t.sold / t.total : 0, 'var(--mut)', '');
+    chip('Available', t.available, 'var(--sky)', t.total ? t.available / t.total : 0, 'var(--sky)',
+      'ready to sell right now') +
+    chip('Not available', t.taken, 'var(--sold)', t.total ? t.taken / t.total : 0, 'var(--mut)', '');
   drawBreakdown();
 
   var max = Math.max.apply(null, P.floors.map(function (f) { return f.units.length; }));
@@ -748,7 +713,7 @@ $('tower').addEventListener('mouseover', function (e) {
   var u = h.u;
   TAG.innerHTML = esc(u.n) +
     '<em>' + esc(u.t || '—') + (u.a ? ' · ' + Math.round(u.a) + ' sq ft' : '') + '</em>' +
-    '<em>' + (u.s !== 'available' ? u.s : (u.p ? 'PKR ' + money(u.p) : 'rate pending')) + '</em>';
+    '<em>' + (u.s !== 'available' ? SAY.taken : (u.p ? 'PKR ' + money(u.p) : 'rate pending')) + '</em>';
   var r = b.getBoundingClientRect();
   TAG.style.left = (r.left + r.width / 2) + 'px'; TAG.style.top = r.top + 'px';
   TAG.classList.add('on');
@@ -778,7 +743,7 @@ function openUnit(f, u, el){
   $('cno').textContent = u.n;
   $('cfl').textContent = f.label + ' · ' + P.name;
   var rows =
-    row('Status', '<span class="badge ' + u.s + '">' + u.s + '</span>') +
+    row('Status', '<span class="badge ' + u.s + '">' + SAY[u.s] + '</span>') +
     row('Floor', esc(f.label)) +
     row('Type', esc(u.t || '—')) +
     row('Area', u.a ? '<b class="num">' + u.a.toFixed(2) + '</b> sq ft' : '—');
@@ -789,7 +754,7 @@ function openUnit(f, u, el){
   $('cbody').innerHTML = rows;
   $('cnote').textContent = u.s === 'available'
     ? 'Available at the time this page was opened. Ask your contact to confirm and hold it.'
-    : u.s === 'reserved' ? 'On hold for another buyer right now.' : 'Already sold.';
+    : 'Already taken — this one is not for sale.';
   $('card').classList.add('on'); $('scrim').classList.add('on');
 }
 function row(k, v){ return '<div class="row"><span>' + k + '</span><span>' + v + '</span></div>'; }

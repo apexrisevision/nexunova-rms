@@ -14,6 +14,12 @@
  * no localStorage, no session token, no portal code on the page. If the tower
  * renders, it rendered for someone with no account at all.
  *
+ * Two more things are measured here because they are decisions, not details:
+ *   · the wire carries only 'available' and 'taken'. "reserved" and "sold" are
+ *     collapsed server-side, so a link holder cannot count today's holds.
+ *   · the token is stored ONLY as sha256. The table is read back to prove the
+ *     raw token is nowhere in it — a database dump yields no working link.
+ *
  * ZZTEST only. The link is created and revoked here through the same director
  * RPCs a human would use, and the fixture is cleaned up at the end.
  */
@@ -82,6 +88,26 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   assert(made[0].r.success && /^[0-9a-f]{32}$/.test(TOKEN || ''),
     'token is 128 random bits: ' + String(TOKEN).slice(0, 8) + '…');
 
+  // the raw token must exist NOWHERE in the table
+  const stored = await sql(`SELECT token_hash, label FROM public.availability_links
+                              WHERE token_hash = public._availability_token_hash('${TOKEN}')`);
+  assert(stored.length === 1, 'the link is stored');
+  assert(stored[0].token_hash !== TOKEN && /^[0-9a-f]{64}$/.test(stored[0].token_hash),
+    'stored as a sha256 hash, not the link: ' + stored[0].token_hash.slice(0, 12) + '…');
+  const anyRaw = await sql(`SELECT count(*) AS n FROM public.availability_links
+                              WHERE token_hash LIKE '%${TOKEN}%'`);
+  assert(Number(anyRaw[0].n) === 0, 'a dump of the table yields no working link');
+  const cols = await sql(`SELECT column_name FROM information_schema.columns
+                            WHERE table_schema='public' AND table_name='availability_links'`);
+  assert(!cols.some(c => c.column_name === 'token'), 'the plaintext token column is gone');
+
+  // what a director can see: no token, no hash — links are re-issued, not recovered
+  const listed = await sql(`SELECT public.list_availability_links('zz-pub-dir') AS r`);
+  const one = listed[0].r.links[0];
+  assert(!JSON.stringify(listed[0].r).includes(TOKEN), 'the director list never echoes the link back');
+  assert(one && one.project === 'ZZ Map Tower' && one.label === 'ZZ verify',
+    'but it does show which links exist: "' + one.label + '" on ' + one.project);
+
   // a rep must NOT be able to mint one
   await sql(`DELETE FROM public.sales_sessions WHERE session_token='zz-pub-rep';
     INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
@@ -137,8 +163,16 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   const V = await visit(TOKEN);
   await until(V.page, () => document.querySelectorAll('.win').length > 0);
   await sleep(2200);
-  await V.page.screenshot({ path: path.join(SHOTS, '01-public-tower.png'), fullPage: true });
-  console.log('  📸 01-public-tower');
+  /* A fullPage capture resizes the viewport, which fires the page's own resize
+     handler and repaints the tower — so the first shot catches the power-on
+     sweep mid-climb. Take it twice and keep the settled one. */
+  const shotFull = async n => {
+    await V.page.screenshot({ path: path.join(SHOTS, n + '.png'), fullPage: true });
+    await sleep(1600);
+    await V.page.screenshot({ path: path.join(SHOTS, n + '.png'), fullPage: true });
+    console.log('  📸 ' + n);
+  };
+  await shotFull('01-public-tower');
 
   const storage = await V.page.evaluate(() => ({
     ls: Object.keys(localStorage).length, ss: Object.keys(sessionStorage).length }));
@@ -149,16 +183,19 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
     title: document.getElementById('ttl').textContent,
     units: document.querySelectorAll('.win').length,
     avail: document.querySelectorAll('.win.available').length,
-    sold: document.querySelectorAll('.win.sold').length,
+    taken: document.querySelectorAll('.win.taken').length,
     reserved: document.querySelectorAll('.win.reserved').length,
+    sold: document.querySelectorAll('.win.sold').length,
     numbered: [...document.querySelectorAll('.win')].filter(w => w.textContent === w.dataset.u).length,
     chips: [...document.querySelectorAll('#filters .pill')].map(p => p.textContent.trim())
   }));
   assert(shape.title === 'ZZ Map Tower', 'the tower is titled "' + shape.title + '"');
   assert(shape.units === 30, 'all 30 ZZTEST units drawn');
   assert(shape.numbered === 30, 'every pane carries its unit number');
-  assert(shape.sold === 1 && shape.reserved === 1 && shape.avail === 28,
-    'states are real: ' + shape.avail + ' available, ' + shape.reserved + ' reserved, ' + shape.sold + ' sold');
+  assert(shape.avail === 28 && shape.taken === 2,
+    'two states only: ' + shape.avail + ' available, ' + shape.taken + ' not available');
+  assert(shape.reserved === 0 && shape.sold === 0,
+    'the words "reserved" and "sold" reach no pane — ZZTEST really has one of each');
 
   // ── THE POINT: what came down the wire ────────────────────────────────────
   stepH('What the server actually sent');
@@ -181,15 +218,19 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   }).catch(() => null);
   const parsed = JSON.parse(body.trim().split('\n').pop());
   const units = parsed.floors.flatMap(f => f.units);
+  const states = [...new Set(units.map(u => u.s))].sort();
+  assert(JSON.stringify(states) === JSON.stringify(['available', 'taken']),
+    'the wire carries exactly two states: ' + states.join(' / '));
+  assert(!/reserved|"sold"/i.test(body), 'the words reserved and sold are not in the payload at all');
   const takenWithPrice = units.filter(u => u.s !== 'available' && u.p != null);
   const availWithPrice = units.filter(u => u.s === 'available' && u.p != null);
   assert(takenWithPrice.length === 0,
-    'no price for sold or reserved units' + (takenWithPrice.length ? ' — ' + takenWithPrice.map(u => u.n) : ''));
+    'no price for taken units' + (takenWithPrice.length ? ' — ' + takenWithPrice.map(u => u.n) : ''));
   assert(availWithPrice.length > 0, availWithPrice.length + ' available units DO carry a price (a rep needs it)');
 
   // ── no way to act from here ───────────────────────────────────────────────
   stepH('Read-only: there is nothing to press');
-  await V.page.evaluate(() => document.querySelector('.win.sold').click());
+  await V.page.evaluate(() => document.querySelector('.win.taken').click());
   await sleep(600);
   await V.page.screenshot({ path: path.join(SHOTS, '02-sold-unit-card.png'),
     clip: await V.page.evaluate(() => { const r = document.getElementById('card').getBoundingClientRect();
@@ -197,10 +238,17 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   console.log('  📸 02-sold-unit-card');
   const soldCard = await V.page.evaluate(() => ({
     rows: [...document.querySelectorAll('#cbody .row')].map(r => r.children[0].textContent),
-    text: document.getElementById('card').innerText
+    text: document.getElementById('card').innerText,
+    badge: (document.querySelector('#cbody .badge') || {}).textContent || ''
   }));
   assert(!soldCard.rows.some(r => /Price|Rate/.test(r)),
-    'a sold unit shows no price: ' + soldCard.rows.join(', '));
+    'a taken unit shows no price: ' + soldCard.rows.join(', '));
+  // the badge is uppercased by CSS, so match the words, not the casing
+  console.log('     badge → "' + soldCard.badge + '"');
+  const cardTxt = soldCard.text.toLowerCase();
+  assert(soldCard.badge.toLowerCase().includes('not available') &&
+         !cardTxt.includes('sold') && !cardTxt.includes('reserved'),
+    'the card reads "' + soldCard.badge + '" — the words Sold and Reserved appear nowhere');
   assert(!/ZZ Buyer|0300/.test(soldCard.text), 'and names nobody');
 
   const buttons = await V.page.evaluate(() =>
@@ -225,8 +273,7 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
     const x = document.getElementById('bmax');
     x.value = '6000000'; x.dispatchEvent(new Event('input', { bubbles: true })); });
   await sleep(700);
-  await V.page.screenshot({ path: path.join(SHOTS, '03-filter-budget.png'), fullPage: true });
-  console.log('  📸 03-filter-budget');
+  await shotFull('03-filter-budget');
   const filtered = await V.page.evaluate(() => ({
     lit: [...document.querySelectorAll('.win')].filter(w => !w.classList.contains('off') && !w.classList.contains('gone')).length,
     note: document.getElementById('fnote').textContent
@@ -236,19 +283,41 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
 
   await V.page.evaluate(() => document.getElementById('cheap').click());
   await sleep(600);
-  await V.page.screenshot({ path: path.join(SHOTS, '04-cheapest.png'), fullPage: true });
-  console.log('  📸 04-cheapest');
+  await shotFull('04-cheapest');
   const list = await V.page.evaluate(() => [...document.querySelectorAll('.lrow')].map(r => r.dataset.u));
   assert(list.length > 0, 'the cheapest list opens with ' + list.length + ' units');
   assert(V.errs.length === 0, 'no console errors' + (V.errs.length ? ': ' + V.errs[0] : ''));
   await V.ctx.close();
 
+  // ── one project, one link: revoking KBH must not touch FMH ────────────────
+  stepH('Each project carries its own token');
+  const other = await sql(`SELECT id FROM public.projects
+                            WHERE company_id='${ZZ}' AND id <> '${ZZ_PROJECT}' LIMIT 1`);
+  let OTHER = null;
+  if (other.length) {
+    const m2 = await sql(`SELECT public.create_availability_link('zz-pub-dir','${other[0].id}','ZZ second') AS r`);
+    OTHER = m2[0].r.token;
+    assert(OTHER && OTHER !== TOKEN, 'a second project gets a different token');
+  } else { ok('only one ZZTEST project exists — isolation checked by rotation below'); }
+
+  // rotating a project's link retires the old one and leaves others alone
+  const rot = await sql(`SELECT public.create_availability_link('zz-pub-dir','${ZZ_PROJECT}','ZZ rotated') AS r`);
+  const ROTATED = rot[0].r.token;
+  const oldDead = await sql(`SELECT (public.get_public_availability('${TOKEN}')->>'success') AS s`);
+  const newLive = await sql(`SELECT (public.get_public_availability('${ROTATED}')->>'success') AS s`);
+  assert(oldDead[0].s === 'false', 'rotating retires the previous link for that project');
+  assert(newLive[0].s === 'true', 'and the fresh one works');
+  if (OTHER) {
+    const otherLive = await sql(`SELECT (public.get_public_availability('${OTHER}')->>'success') AS s`);
+    assert(otherLive[0].s === 'true', "the other project's link is untouched");
+  }
+
   // ── revoke kills the same URL ─────────────────────────────────────────────
   stepH('Revoke — the same link, a moment later');
-  const rev = await sql(`SELECT public.revoke_availability_link('zz-pub-dir','${TOKEN}') AS r`);
+  const rev = await sql(`SELECT public.revoke_availability_link('zz-pub-dir','${ROTATED}') AS r`);
   assert(rev[0].r.success === true, 'the director revoked it');
 
-  const D = await visit(TOKEN);
+  const D = await visit(ROTATED);
   await until(D.page, () => /no longer active/i.test(document.body.innerText));
   await D.page.screenshot({ path: path.join(SHOTS, '05-revoked.png') });
   console.log('  📸 05-revoked');
@@ -267,7 +336,8 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   await G.ctx.close();
 
   await browser.close(); server.close();
-  await sql(`DELETE FROM public.availability_links WHERE token='${TOKEN}';
+  await sql(`DELETE FROM public.availability_links WHERE project_id IN
+                ('${ZZ_PROJECT}'${OTHER ? ", '" + other[0].id + "'" : ''});
              DELETE FROM public.sales_sessions WHERE session_token IN ('zz-pub-dir','zz-pub-rep');`);
   console.log('\n✓ fixture link and sessions removed');
   console.log(`\n${PASS} passed · ${FAIL} failed`);
