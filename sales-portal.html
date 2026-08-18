@@ -593,6 +593,9 @@ body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0
 .tbd-top{display:flex;align-items:center;gap:8px;min-width:0}
 .tbd-nm{font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tbd-tag{font-size:var(--fk-fs-label);color:var(--fk-info);background:var(--fk-info-surface);border-radius:999px;padding:1px 7px;flex:none}
+/* a member nobody has tagged to a project: shown, never hidden, and marked so the
+   tag gets set instead of the person quietly disappearing from a project tab */
+.tbd-tag.none{color:var(--fk-warning);background:var(--fk-warning-surface)}
 .tbd-big{font-size:var(--fs-kpi);font-weight:700;line-height:1.05;margin:8px 0 2px;font-variant-numeric:tabular-nums}
 .tbd-sub{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
 .tbd-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--fk-muted-fill);margin:9px 0 7px}
@@ -2824,7 +2827,7 @@ function _boardCard(m){
   const nm=String(m.name||"").split(" · ")[0];
   const out=(m.belongs===false);
   return `<div class="tbd-c${total?"":" idle"}${out?" out":""}${m.assign_blocked?" blocked":""}" onclick="_boardOpen('${m.id}')">
-    <div class="tbd-top">${_avatar(nm,26)}<span class="tbd-nm">${esc(nm)}</span>${m.project_tag?`<span class="tbd-tag">${esc(m.project_tag)}</span>`:""}</div>
+    <div class="tbd-top">${_avatar(nm,26)}<span class="tbd-nm">${esc(nm)}</span>${m.project_tag?`<span class="tbd-tag">${esc(m.project_tag)}</span>`:`<span class="tbd-tag none" title="No project set for this member — they show on every project until one is set">No project</span>`}</div>
     <div class="tbd-big">${total}</div>
     <div class="tbd-sub">leads · you gave ${Number(m.given_by_me||0)}</div>
     ${total?`<div class="tbd-bar">${bar}</div>`:`<div style="height:6px"></div>`}
@@ -4780,12 +4783,18 @@ function _assignProjectStep(){
   const n=ASSIGN.ids.length;
   const mine={}; (LEADS||[]).filter(l=>ASSIGN.ids.includes(l.id))
     .forEach(l=>{ const k=l.project_id||'none'; mine[k]=(mine[k]||0)+1; });
+  // counted separately on purpose: "3 staff" means three are TAGGED to this
+  // project, while untagged members are pickable here too — saying "no staff
+  // tagged" next to a list that does contain people is what made this confusing
   const staffN=pid=>(ASSIGN.reps||[]).filter(u=>u.home_project_id===pid).length;
+  const untaggedN=()=>(ASSIGN.reps||[]).filter(u=>!u.home_project_id).length;
   const projs=(ASSIGN.projs||[]);
   if(!projs.length) return _assignMemberStep(null);
   const body=projs.map(p=>{
-    const k=mine[p.id]||0, st=staffN(p.id);
-    const bits=[k?(k+' of your selection'):'', st?(st+' staff'):'no staff tagged'].filter(Boolean).join(' · ');
+    const k=mine[p.id]||0, st=staffN(p.id), un=untaggedN();
+    const bits=[k?(k+' of your selection'):'',
+                st?(st+' staff'):'no staff tagged',
+                un?(un+' with no project'):''].filter(Boolean).join(' · ');
     return `<div class="lrow tap" onclick="_assignMemberStep('${p.id}')"><div class="lrow-top">
       <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(p.tag||p.name)}</div>
       <div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${esc(p.name)} · ${bits}</div></div>
@@ -4798,12 +4807,17 @@ function _assignMemberStep(pid){
   ASSIGN.pid=pid;
   const byLoad=(a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
   const all=(ASSIGN.reps||[]).slice().sort(byLoad);                 // lightest load first
-  const mine=(pid&&pid!=='none'&&pid!=='null')?all.filter(u=>u.home_project_id===pid):all;
+  // home_project_id is a LABEL, not a gate (see 20260812c). NULL means nobody has
+  // said which project this member belongs to — not that they belong to none — so
+  // an untagged member stays pickable on every project. A newly added rep was
+  // invisible here for exactly this reason.
+  const mine=(pid&&pid!=='none'&&pid!=='null')
+    ? all.filter(u=>u.home_project_id===pid||!u.home_project_id) : all;
   const list=mine.length?mine:all;
   const n=ASSIGN.ids.length;
   const body=list.map(u=>`<div class="lrow tap" onclick="_assignRun('${u.id}')"><div class="lrow-top">
      ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div>
-     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):''}</div></div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):'<span class="tbd-tag none">No project</span>'}</div></div>
      <span style="color:var(--fk-primary);font-weight:700">Assign →</span></div></div>`).join('');
   const more=(mine.length&&mine.length!==all.length)
     ? `<div style="text-align:center;margin-top:10px"><a href="#" onclick="_assignMemberStep(null);return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`
@@ -5869,12 +5883,14 @@ function _distSetProj(id){
 function _distReps(){
   const all=(DISTV.reps||[]).slice().sort((a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||'')));   // lightest load first
   if(DISTV.proj==='all'||DISTV.proj==='none'||DISTV.allReps) return all;
-  const mine=all.filter(u=>u.home_project_id===DISTV.proj);
+  // untagged staff belong to every project until someone says otherwise — a tag
+  // that was never set must not delete a person from this screen
+  const mine=all.filter(u=>u.home_project_id===DISTV.proj||!u.home_project_id);
   return mine.length?mine:all;
 }
 function _distRepsFiltered(){
   return !DISTV.allReps && DISTV.proj!=='all' && DISTV.proj!=='none'
-      && (DISTV.reps||[]).some(u=>u.home_project_id===DISTV.proj);
+      && (DISTV.reps||[]).some(u=>u.home_project_id===DISTV.proj||!u.home_project_id);
 }
 function _distFiltered(){
   const q=(DISTV.q||'').trim().toLowerCase();
