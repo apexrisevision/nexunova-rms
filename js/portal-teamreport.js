@@ -70,6 +70,46 @@
       ".dr-b.warn{border-color:transparent;background:var(--fk-warning-surface);color:var(--fk-warning)}" +
       ".dr-b.none{color:var(--fk-text-muted)}" +
       /* per-day rollup */
+      /* ── charts ────────────────────────────────────────────────────────
+         Colour is the LAST decision here and it was computed, not chosen: the
+         three outcome hues were run through the palette validator until every
+         check passed on BOTH surfaces — lightness band, chroma floor, CVD
+         separation, the normal-vision floor and contrast. The first attempt
+         (the portal's own success/warning/danger tokens) failed the
+         normal-vision floor at ΔE 14.4: red and amber sat too close for anyone
+         to tell apart, colour vision or not. Every segment also carries a
+         written label and a 2px gap, so colour is never the only signal. */
+      ".viz{--won:#15803D;--miss:#EDA100;--lost:#C81E1E;--rest:#94A3B8;--act:var(--fk-primary)}" +
+      "html[data-theme=dark] .viz{--won:#1BAF7A;--miss:#C98500;--lost:#DC4A4A;--rest:#475569}" +
+      ".viz{border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card);" +
+        "padding:12px 14px 14px;margin-bottom:10px}" +
+      ".viz-h{font-size:var(--fs-secondary);font-weight:700;margin-bottom:2px}" +
+      ".viz-s{font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:10px}" +
+      ".viz svg{display:block;width:100%;overflow:visible}" +
+      /* a fixed height: a stretched viewBox would otherwise grow to the card width */
+      ".viz .cols{display:flex;align-items:flex-end;gap:2px;height:104px;padding-bottom:1px;border-bottom:1px solid var(--fk-border)}" +
+      ".viz .cl{flex:1;min-width:2px;height:100%;display:flex;align-items:flex-end}" +
+      ".viz .cl i{display:block;width:100%;background:var(--act);border-radius:3px 3px 0 0;transition:filter .15s}" +
+      ".viz .cl:hover i{filter:brightness(1.2)}" +
+      ".viz .cols-x{display:flex;justify-content:space-between;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:5px}" +
+      ".viz .stack{display:flex;gap:2px;height:22px;border-radius:5px;overflow:hidden}" +
+      ".viz .stack .seg{display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;" +
+        "font-variant-numeric:tabular-nums;min-width:3px;border-radius:3px}" +
+      ".viz .gl{stroke:var(--fk-border);stroke-width:1}" +
+      ".viz .ax{fill:var(--fk-text-muted);font-size:9px}" +
+      ".viz .vl{fill:var(--fk-text);font-size:10px;font-weight:700}" +
+      ".viz rect.col{fill:var(--act);rx:2}" +
+      ".viz rect.col:hover{filter:brightness(1.15)}" +
+      ".viz .leg{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:var(--fs-caption)}" +
+      ".viz .leg span{display:inline-flex;align-items:center;gap:6px;color:var(--fk-text-muted)}" +
+      ".viz .leg i{width:10px;height:10px;border-radius:3px;display:inline-block}" +
+      ".viz .one{display:flex;align-items:center;gap:8px;font-size:var(--fs-secondary)}" +
+      ".viz .one i{width:12px;height:12px;border-radius:4px;flex:none}" +
+      ".viz .kb{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:var(--fs-caption)}" +
+      ".viz .kb .kn{width:74px;flex:none;color:var(--fk-text-muted)}" +
+      ".viz .kb .kt{flex:1;height:14px;border-radius:4px;background:var(--fk-bg-subtle);overflow:hidden}" +
+      ".viz .kb .kt i{display:block;height:100%;border-radius:4px;background:var(--act)}" +
+      ".viz .kb .kv{width:34px;flex:none;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}" +
       ".dr-days{border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card);overflow:hidden}" +
       ".dr-d{display:flex;align-items:center;gap:8px;padding:8px 13px;border-bottom:1px solid var(--fk-border);" +
         "font-size:var(--fs-secondary)}" +
@@ -296,7 +336,7 @@
     var peak = days.reduce(function (n, x) { return Math.max(n, x.entries || 0); }, 0) || 1;
     var span = d.days === 1 ? dayName(d.from) : dayName(d.from) + ' – ' + dayName(d.to);
 
-    var h = '<div class="dr-wrap">' +
+    var h = '<div class="dr-wrap viz-root">' +
       '<button class="backbtn" onclick="_drBack()" style="margin-bottom:10px">‹ Team report</button>' +
       '<div style="font-weight:700;font-size:var(--fs-title)">' + esc(m.name || '') + '</div>' +
       '<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:12px">' +
@@ -316,6 +356,10 @@
         _tile('Open now', m.open_leads || 0, (m.overdue || 0) + ' overdue') +
       '</div>';
 
+    /* The picture first, then the same numbers as a table underneath — the
+       figures are the summary, the day list is the accessible reading of it. */
+    h += _outcome(m) + _colChart(days, d.from, d.to, d.days) + _kindBars(m);
+
     if (days.length > 1) {
       h += '<div class="dr-sec">Day by day</div><div class="dr-days">' +
         days.map(function (x) {
@@ -333,6 +377,111 @@
            '<div class="card">' + es.map(function (e) { return _entry(e, d.days > 1); }).join('') + '</div>';
     }
     $('app-body').innerHTML = h + '</div>';
+  }
+
+  /* ── the one-page picture ──────────────────────────────────────────────────
+     Three figures, each chosen for the job its data does — form first, colour
+     last, which is the opposite of how a dashboard usually gets built:
+
+       · a MONTH OF DAYS is change-over-time → columns, one hue. Not a pie, not
+         a rainbow: the reader is comparing heights, so hue carries nothing.
+       · HOW THEY WORKED is magnitude across five kinds → horizontal bars, same
+         single hue, sorted as given. Categorical colour here would say the five
+         kinds are identities to tell apart; they are not, they are quantities.
+       · WHAT BECAME OF THE LEADS is part-to-whole with meaning attached to each
+         part → one stacked bar in the STATUS palette, every segment labelled in
+         words and separated by a 2px gap, so nobody has to rely on colour.
+
+     Everything is inline SVG: no chart library, nothing to load, and it renders
+     identically in the report and in a printed page. */
+
+  function _colChart(days, from, to, dayCount) {
+    if (!days.length) return '';
+    /* Plot EVERY day in the window, not only the days with something on them.
+       Two active days inside a fortnight drew two half-page slabs and read like
+       a busy period; with the empty days present the same data reads as what it
+       is — two spikes in a quiet month. The subtitle already claimed that; the
+       picture has to agree with it.
+
+       Flex boxes rather than SVG: preserveAspectRatio="none" stretches a viewBox
+       to its container and drags everything inside it out of shape, which is how
+       the first cut produced a 200px bar with a 100px numeral in it. */
+    var by = {};
+    days.forEach(function (x) { by[x.day] = x; });
+    var series = [], cur = from, guard = 0;
+    while (cur <= to && guard++ < 420) {
+      series.push(by[cur] || { day: cur, entries: 0, contacted: 0 });
+      cur = shift(cur, 1);
+    }
+    var peak = series.reduce(function (n, x) { return Math.max(n, x.entries || 0); }, 0) || 1;
+    var cols = series.map(function (x) {
+      var pc = x.entries ? Math.max((x.entries / peak) * 100, 4) : 0;
+      return '<span class="cl" title="' + esc(dayName(x.day)) + ' — ' + x.entries +
+        ' entries, ' + x.contacted + ' reached"><i style="height:' + pc.toFixed(1) + '%"></i></span>';
+    }).join('');
+    return '<div class="viz">' +
+      '<div class="viz-h">Activity across the period</div>' +
+      '<div class="viz-s">' + days.length + ' day' + (days.length === 1 ? '' : 's') +
+        ' with something recorded, of ' + dayCount + ' · busiest ' + peak + '</div>' +
+      '<div class="cols" role="img" aria-label="Entries per day across the period">' + cols + '</div>' +
+      '<div class="cols-x"><span>' + esc(dayName(series[0].day)) + '</span>' +
+        '<span>' + esc(dayName(series[series.length - 1].day)) + '</span></div>' +
+      '</div>';
+  }
+
+  function _kindBars(m) {
+    var rows = [['Calls', m.calls || 0], ['WhatsApp', m.whatsapp || 0], ['Visits', m.visits || 0],
+                ['Notes', m.notes || 0], ['Status moves', m.status_changes || 0]];
+    var peak = rows.reduce(function (n, r) { return Math.max(n, r[1]); }, 0) || 1;
+    if (!peak) return '';
+    return '<div class="viz">' +
+      '<div class="viz-h">How they worked</div>' +
+      '<div class="viz-s">every action they recorded, by kind</div>' +
+      rows.map(function (r) {
+        return '<div class="kb"><span class="kn">' + r[0] + '</span>' +
+          '<span class="kt"><i style="width:' + Math.round((r[1] / peak) * 100) + '%"></i></span>' +
+          '<span class="kv">' + r[1] + '</span></div>';
+      }).join('') + '</div>';
+  }
+
+  function _outcome(m) {
+    var given = m.given || 0;
+    if (!given) return '';
+    var won = m.won_of_given || 0, lost = m.lost_of_given || 0, miss = m.never_opened_of_given || 0;
+    var rest = Math.max(0, given - won - lost - miss);
+    var parts = [['Won', won, 'var(--won)'], ['Never opened', miss, 'var(--miss)'],
+                 ['Lost', lost, 'var(--lost)'], ['Still working', rest, 'var(--rest)']]
+                .filter(function (p) { return p[1] > 0; });
+    /* Flex boxes, not SVG: preserveAspectRatio="none" stretches a 100-unit
+       viewBox across the whole card and drags the segment labels with it, so
+       the numbers came out a hundred pixels tall. Boxes keep the type honest,
+       and the 2px gap between them is a real gap. */
+    /* A part-to-whole bar with ONE part is a one-bar bar chart: it draws a full
+       width and tells the reader nothing they did not already read in the tile
+       above. When every lead landed in the same state, say the sentence. */
+    if (parts.length < 2) {
+      var only = parts[0];
+      return '<div class="viz"><div class="viz-h">What became of the leads they were given</div>' +
+        '<div class="viz-s">' + given + ' lead' + (given === 1 ? '' : 's') +
+        ' in this period</div><div class="one"><i style="background:' + only[2] + '"></i>' +
+        'All ' + given + ' — <b>' + esc(only[0].toLowerCase()) + '</b></div></div>';
+    }
+    var segs = parts.map(function (p) {
+      var pc = (p[1] / given) * 100;
+      return '<span class="seg" style="flex:' + pc.toFixed(3) + ';background:' + p[2] + '" ' +
+        'title="' + esc(p[0]) + ' — ' + p[1] + ' of ' + given + '">' +
+        (pc > 9 ? p[1] : '') + '</span>';
+    }).join('');
+    return '<div class="viz">' +
+      '<div class="viz-h">What became of the leads they were given</div>' +
+      '<div class="viz-s">' + given + ' lead' + (given === 1 ? '' : 's') +
+        ' in this period, where each one stands today</div>' +
+      '<div class="stack" role="img" aria-label="Outcome of the leads given in this period">' +
+        segs + '</div>' +
+      '<div class="leg">' + parts.map(function (p) {
+        return '<span><i style="background:' + p[2] + '"></i>' + p[0] +
+               ' <b style="color:var(--fk-text)">' + p[1] + '</b></span>'; }).join('') + '</div>' +
+      '</div>';
   }
   function _projName() {
     if (TR.project === NO_PROJECT) return 'No project';

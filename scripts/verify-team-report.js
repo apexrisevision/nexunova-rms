@@ -73,6 +73,8 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   await sql(`
     DELETE FROM public.lead_activities a USING public.leads l
      WHERE a.lead_id=l.id AND l.company_id='${ZZ}' AND l.name='ZZDR Lead';
+    DELETE FROM public.lead_assignments la USING public.leads l
+     WHERE la.lead_id=l.id AND l.company_id='${ZZ}' AND l.name='ZZDR Lead';
     DELETE FROM public.leads WHERE company_id='${ZZ}' AND name='ZZDR Lead';
     DELETE FROM public.sales_sessions WHERE session_token IN ('zz-dr-dir','zz-dr-rep');
     INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
@@ -89,7 +91,12 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
       FROM public.leads l,
            (VALUES ('call', NULL), ('whatsapp', NULL),
                    ('note', '${NOTE}'), ('stage', 'Moved to contacted')) AS k(kind, body)
-     WHERE l.company_id='${ZZ}' AND l.name='ZZDR Lead';`);
+     WHERE l.company_id='${ZZ}' AND l.name='ZZDR Lead';
+    INSERT INTO public.lead_assignments (lead_id, from_sales_user_id, to_sales_user_id)
+    SELECT l.id, d.id, l.owner_sales_user_id
+      FROM public.leads l, public.sales_users d
+     WHERE l.company_id='${ZZ}' AND l.name='ZZDR Lead'
+       AND d.company_id='${ZZ}' AND d.full_name='ZZ Director';`);
 
   const server = await serve();
   const exe = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -300,6 +307,73 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     'over a multi-day window each entry carries its DATE too (' + mon.firstStamp + ')');
   assert(/Everything they did/.test(mon.sec), 'and the full history is listed: ' + mon.sec);
 
+  // ── the one-page picture ─────────────────────────────────────────────────
+  stepH('The figures');
+  const viz = await D.page.evaluate(() => {
+    const box = [...document.querySelectorAll('.viz')];
+    const outcome = box.find(v => /What became of/.test(v.textContent));
+    const cols = box.find(v => /Activity across/.test(v.textContent));
+    const kinds = box.find(v => /How they worked/.test(v.textContent));
+    const seg = outcome ? [...outcome.querySelectorAll('.stack .seg')] : [];
+    const stack = outcome && outcome.querySelector('.stack');
+    const gapOk = !stack || parseFloat(getComputedStyle(stack).gap) >= 2;
+    return {
+      titles: box.map(v => v.querySelector('.viz-h').textContent),
+      segments: seg.length,
+      onlyLine: outcome ? ((outcome.querySelector('.one') || {}).textContent || '') : '',
+      gapOk,
+      // every segment must be named in words, not left to colour alone
+      legend: outcome ? [...outcome.querySelectorAll('.leg span')].map(s => s.textContent.trim()) : [],
+      segTitles: seg.map(r => r.getAttribute('title') || ''),
+      cols: cols ? cols.querySelectorAll('.cl').length : 0,
+      colTitles: cols ? [...cols.querySelectorAll('.cl')].slice(0, 2).map(c => c.getAttribute('title')) : [],
+      kindRows: kinds ? [...kinds.querySelectorAll('.kb')].map(k =>
+        k.querySelector('.kn').textContent + ' ' + k.querySelector('.kv').textContent) : [],
+      // the figures must not be the only copy of the data
+      hasTable: !!document.querySelector('.dr-days') && !!document.querySelector('.dr-ent'),
+      geom: (() => { const r = {}; box.forEach(v => { const t = v.querySelector('.viz-h').textContent;
+        const plot = v.querySelector('.stack, .cols'); if (plot) r[t] = Math.round(plot.getBoundingClientRect().height); });
+        return r; })(),
+      alt: box.map(v => { const e = v.querySelector('[aria-label]');
+        return e ? e.getAttribute('aria-label') : null; }).filter(Boolean)
+    };
+  });
+  console.log('     figures → ' + viz.titles.join(' | '));
+  console.log('     legend  → ' + viz.legend.join(' · '));
+  console.log('     kinds   → ' + viz.kindRows.join(' · '));
+  assert(viz.titles.length === 3, 'three figures, one page (' + viz.titles.length + ')');
+  /* A part-to-whole bar with ONE part is a one-bar bar chart — it draws a full
+     width and tells the reader nothing. The screen says it in a sentence
+     instead, so this asserts whichever case the data actually produced. */
+  if (viz.segments) {
+    assert(viz.legend.length === viz.segments,
+      'the outcome bar names every segment in the legend (' + viz.segments + ' segments, ' +
+      viz.legend.length + ' labels)');
+    assert(viz.gapOk, 'and leaves a gap between segments, so two colours never touch');
+    assert(viz.segTitles.every(t => /—\s*\d+\s*of\s*\d+/.test(t)),
+      'each segment says what it is and how many, on hover: "' + viz.segTitles[0] + '"');
+  } else {
+    assert(/^All \d+ — \w+/.test(viz.onlyLine.trim()),
+      'one outcome class is stated, not drawn as a one-bar chart: "' + viz.onlyLine.trim() + '"');
+  }
+  /* One column per day of the WINDOW, not per day that happened to have work —
+     otherwise two busy days in a fortnight draw two half-page slabs. */
+  assert(viz.cols === 18 && viz.colTitles.every(t => /entries/.test(t)),
+    viz.cols + ' columns for an 18-day window, each hoverable: "' + (viz.colTitles[0] || '') + '"');
+  assert(viz.kindRows.length === 5, 'the work breakdown lists all five kinds');
+  assert(viz.alt.length === (viz.segments ? 2 : 1),
+    'every plotted figure carries an aria-label for a screen reader (' + viz.alt.length + ')');
+  assert(viz.hasTable, 'and the same numbers still exist as text below — the figures are not the only copy');
+
+  /* The palette validator checks colour, never layout. The first cut of these
+     figures passed every colour check and still rendered a 200px-tall bar with
+     a 100px numeral, because an SVG with preserveAspectRatio="none" stretches
+     to its container. So the shapes are measured too. */
+  console.log('     heights → ' + Object.entries(viz.geom).map(([k, v]) => k.split(' ')[0] + ' ' + v + 'px').join(' · '));
+  const heights = Object.values(viz.geom);
+  assert(heights.length >= 1 && heights.every(h => h > 8 && h < 200),
+    'every figure is a sane height, not stretched to the card (' + heights.join(', ') + 'px)');
+
   assert(D.errs.length === 0, 'no console errors' + (D.errs.length ? ': ' + D.errs[0] : ''));
   await D.ctx.close();
 
@@ -331,6 +405,8 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   await sql(`
     DELETE FROM public.lead_activities a USING public.leads l
      WHERE a.lead_id=l.id AND l.company_id='${ZZ}' AND l.name='ZZDR Lead';
+    DELETE FROM public.lead_assignments la USING public.leads l
+     WHERE la.lead_id=l.id AND l.company_id='${ZZ}' AND l.name='ZZDR Lead';
     DELETE FROM public.leads WHERE company_id='${ZZ}' AND name='ZZDR Lead';
     DELETE FROM public.sales_sessions WHERE session_token IN ('zz-dr-dir','zz-dr-rep','zz-dr-le');`);
   console.log('\n✓ fixture lead, activities and sessions removed');
