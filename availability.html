@@ -157,6 +157,17 @@ html[data-theme="dark"] .pill.on{color:#0B1220}
 /* the rails are deliberately mean: every px they give back is a px of glass,
    and glass is where the unit numbers have to fit */
 .rw{display:grid;grid-template-columns:44px minmax(0,1fr) 62px;align-items:stretch;gap:10px}
+@media (max-width:560px){
+  .wrap{padding:14px 10px 40px}
+  .rw{grid-template-columns:30px minmax(0,1fr) 44px;gap:6px}
+  .fl-name b{font-size:12px}
+  .fl-name,.fl-stat span{font-size:10px}
+  .fl-stat{font-size:12px}
+  .stage-in{padding:22px 8px 0}
+  .plate{padding:7px 5px;gap:5px}
+  .brk{gap:6px}
+  .bcell{min-width:96px}
+}
 
 /* roof — parapet, machine room, mast */
 .roof .cap{position:relative;height:14px;border-radius:6px 6px 0 0;background:var(--fac-2);
@@ -551,8 +562,12 @@ function paint(){
   var max = Math.max.apply(null, P.floors.map(function (f) { return f.units.length; }));
   var wide = max > 34, perRow = wide ? 26 : max;
   var stage = $('tower').parentElement;
-  var rails = 44 + 62 + 20 + 14 + (wide ? 0 : 12);
-  var room = Math.max(360, stage.clientWidth - 30) - rails;
+  // the rails must match the media query above, or the tower is sized for a
+  // layout the browser is not using
+  var narrow = stage.clientWidth < 560;
+  var rails = narrow ? 30 + 44 + 12 + 10 + (wide ? 0 : 10)
+                     : 44 + 62 + 20 + 14 + (wide ? 0 : 12);
+  var room = Math.max(narrow ? 250 : 360, stage.clientWidth - (narrow ? 16 : 30)) - rails;
 
   var longest = '';
   P.floors.forEach(function (f) { f.units.forEach(function (u) {
@@ -561,7 +576,13 @@ function paint(){
 
   var courses = 1, slot, gap, w, h, fs;
   measure();
-  if (!wide && fs < 9 && ZOOM <= 1.25) { courses = 2; perRow = Math.ceil(max / 2); measure(46); }
+  // a phone cannot hold 30 panes on one row at a readable size; give the floor
+  // as many courses as it needs rather than shrinking the glass to nothing
+  if (!wide && fs < 9 && ZOOM <= 1.25) {
+    courses = narrow ? 3 : 2;
+    perRow = Math.ceil(max / courses);
+    measure(46);
+  }
   function measure(cap){
     slot = Math.round(Math.max(16, Math.min(cap || 58, Math.floor(room / perRow))) * ZOOM);
     gap = slot >= 30 ? 4 : 3;

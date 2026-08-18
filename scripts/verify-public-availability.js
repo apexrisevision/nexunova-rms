@@ -287,6 +287,109 @@ const until = (page, fn, ms = 15000) => page.waitForFunction(fn, { timeout: ms, 
   const list = await V.page.evaluate(() => [...document.querySelectorAll('.lrow')].map(r => r.dataset.u));
   assert(list.length > 0, 'the cheapest list opens with ' + list.length + ' units');
   assert(V.errs.length === 0, 'no console errors' + (V.errs.length ? ': ' + V.errs[0] : ''));
+  // ── the phone, where this link is actually opened ────────────────────────
+  stepH('On a phone (390×844, touch) — WhatsApp opens links here');
+  await V.page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3,
+                             isMobile: true, hasTouch: true });
+  await sleep(1800);
+  await V.page.screenshot({ path: path.join(SHOTS, '06-phone-tower.png'), fullPage: true });
+  await sleep(1400);
+  await V.page.screenshot({ path: path.join(SHOTS, '06-phone-tower.png'), fullPage: true });
+  console.log('  📸 06-phone-tower');
+
+  /* The one thing a phone gets wrong more than anything else: something wider
+     than the screen, so the whole PAGE slides sideways. The tower is allowed to
+     scroll inside its own stage; the document is not. */
+  const phone = await V.page.evaluate(() => ({
+    docScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    stageScrolls: (() => { const s = document.querySelector('.stage-in');
+      return s.scrollWidth > s.clientWidth; })(),
+    numbered: [...document.querySelectorAll('.win')].filter(w => w.textContent === w.dataset.u).length,
+    labelled: [...document.querySelectorAll('.win')].filter(w => w.textContent.trim().length > 0).length,
+    fs: parseFloat(getComputedStyle(document.querySelector('.win')).fontSize),
+    chipsWrap: document.querySelectorAll('#filters .pill').length,
+    // nothing may sit on top of the filters where a thumb lands
+    hitFilter: (() => { const b = document.querySelector('#filters .pill');
+      const r = b.getBoundingClientRect();
+      const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!(el && b.contains(el)); })()
+  }));
+  assert(phone.docScroll <= 1, 'the page does not slide sideways (' + phone.docScroll + 'px overflow)');
+  /* On a phone the full "UG-01" may not fit; the number then shows as its tail
+     with the floor on the rail beside it. What must never happen is a blank. */
+  assert(phone.labelled === 30, 'no pane is blank on a phone (' +
+    phone.numbered + ' full, ' + (phone.labelled - phone.numbered) + ' shortened to the tail)');
+  assert(phone.fs >= 7.5, 'the number is still ' + phone.fs + 'px');
+  assert(phone.hitFilter, 'a thumb landing on a filter chip actually reaches the chip');
+
+  // a real TAP, not a mouse click — under touch emulation mouse input raises no
+  // pointerdown, which is the trap that hid a bug in the portal smoke suite
+  const box = await V.page.evaluate(() => {
+    const w = document.querySelector('.win.available');
+    w.scrollIntoView({ block: 'center' });
+    const r = w.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await V.page.touchscreen.tap(box.x, box.y);
+  await sleep(700);
+  await V.page.screenshot({ path: path.join(SHOTS, '07-phone-card.png') });
+  console.log('  📸 07-phone-card');
+
+  /* The card is position:fixed. If any ancestor ever holds a transform it stops
+     anchoring to the viewport and lands half off-screen — the bug that cost real
+     time in the portal. Measure the geometry, do not trust the CSS. */
+  const card = await V.page.evaluate(() => {
+    const c = document.getElementById('card'), r = c.getBoundingClientRect();
+    let t = null;
+    for (let e = c.parentElement; e; e = e.parentElement) {
+      const tr = getComputedStyle(e).transform;
+      if (tr && tr !== 'none') { t = e.tagName + '.' + e.className + ' → ' + tr; break; }
+    }
+    return { x: r.x, y: r.y, w: r.width, h: r.height,
+             vw: innerWidth, vh: innerHeight, open: c.classList.contains('on'),
+             unit: document.getElementById('cno').textContent,
+             transformedAncestor: t,
+             scrimCovers: (() => { const s = document.getElementById('scrim').getBoundingClientRect();
+               return Math.round(s.width) >= innerWidth - 1 && Math.round(s.height) >= innerHeight - 1; })(),
+             above: (() => { const el = document.elementFromPoint(innerWidth / 2, r.y + 40);
+               return !!(el && document.getElementById('card').contains(el)); })()
+    };
+  });
+  assert(card.open && card.unit.length > 0, 'a tap opens the unit card (' + card.unit + ')');
+  assert(card.transformedAncestor === null,
+    'no transformed ancestor above the fixed card' + (card.transformedAncestor ? ': ' + card.transformedAncestor : ''));
+  assert(card.y >= 0 && card.y < 2 && Math.round(card.h) >= card.vh - 2,
+    'it anchors to the viewport, full height (top ' + Math.round(card.y) + ', ' + Math.round(card.h) + ' of ' + card.vh + ')');
+  assert(Math.round(card.x + card.w) <= card.vw + 1 && card.x >= 0,
+    'and sits fully on screen (' + Math.round(card.x) + ' → ' + Math.round(card.x + card.w) + ' of ' + card.vw + ')');
+  assert(card.scrimCovers, 'the scrim covers the whole viewport behind it');
+  assert(card.above, 'nothing is painted over the card (z-index holds)');
+
+  // the cheapest sheet, same test — this is the "share-sheet" shaped one
+  await V.page.evaluate(() => document.getElementById('cx').click());
+  await sleep(400);
+  await V.page.evaluate(() => document.getElementById('cheap').click());
+  await sleep(700);
+  await V.page.screenshot({ path: path.join(SHOTS, '08-phone-cheapest.png') });
+  console.log('  📸 08-phone-cheapest');
+  const sheet = await V.page.evaluate(() => {
+    const l = document.getElementById('list'), r = l.getBoundingClientRect();
+    const row = document.querySelector('.lrow');
+    return { x: r.x, w: r.width, h: r.height, vw: innerWidth, vh: innerHeight,
+             rows: document.querySelectorAll('.lrow').length,
+             rowFits: row ? Math.round(row.getBoundingClientRect().right) <= innerWidth + 1 : false,
+             scrollable: l.querySelector('#lbody').scrollHeight > 0,
+             docScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  });
+  assert(sheet.rows > 0, 'the cheapest sheet lists ' + sheet.rows + ' units on a phone');
+  assert(Math.round(sheet.x + sheet.w) <= sheet.vw + 1 && sheet.x >= 0,
+    'the sheet is fully on screen (' + Math.round(sheet.x) + ' → ' + Math.round(sheet.x + sheet.w) + ' of ' + sheet.vw + ')');
+  assert(sheet.rowFits, 'and its rows do not run off the right edge');
+  assert(sheet.docScroll <= 1, 'the page still does not slide sideways with the sheet open');
+  await V.page.evaluate(() => document.getElementById('lx').click());
+  await sleep(300);
+
+  assert(V.errs.length === 0, 'no console errors on the phone either' + (V.errs.length ? ': ' + V.errs[0] : ''));
   await V.ctx.close();
 
   // ── one project, one link: revoking KBH must not touch FMH ────────────────
