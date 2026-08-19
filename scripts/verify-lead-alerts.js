@@ -139,6 +139,12 @@ const alertsOf = async who => sql(`
   assert(un && un.n === 3, 'the unopened three are counted into ONE alert, n=' + (un ? un.n : '—'));
   assert(un && /3 leads you have not opened yet/.test(un.title),
     'and it says so in words: "' + (un ? un.title : '') + '"');
+  /* A count alone leaves them staring at a list. The alert has to name a first
+     move, which is the third thing that was asked for: who should I call. */
+  const unBody = await sql("SELECT body FROM public.lead_alerts WHERE kind='not_opened'" +
+    " AND dedup_key LIKE 'notopen:%' ORDER BY created_at DESC LIMIT 1");
+  assert(unBody.length && /Start with ZZAL Unopened/.test(unBody[0].body),
+    'and names which one to start with: "' + (unBody[0]||{}).body + '"');
   const nc = as.filter(a => a.kind === 'no_contact')[0];
   assert(nc && nc.n === 1 && /opened this lead but never called/i.test(nc.title),
     'the opened-and-silent one names the lead instead of counting: "' + (nc ? nc.title : '') + '"');

@@ -138,7 +138,7 @@ BEGIN
         v_one   := r.lead;
       ELSE
         v_title := r.n || ' leads you have not opened yet';
-        v_body  := 'They have been with you for over ' || s.hours_not_opened || ' hours. Open them and make a start.';
+        v_body  := 'They have been with you for over ' || s.hours_not_opened || ' hours. Start with ' || r.nm || '.';
         v_one   := NULL;
       END IF;
       IF public._alert_raise(s.company_id, r.uid, v_one, 'not_opened', v_title, v_body, r.n,
@@ -165,7 +165,7 @@ BEGIN
         v_one   := r.lead;
       ELSE
         v_title := r.n || ' leads opened but never contacted';
-        v_body  := 'You looked at them over ' || s.hours_no_contact || ' hours ago and have not reached anyone yet.';
+        v_body  := 'You looked at them over ' || s.hours_no_contact || ' hours ago and have not called anybody. Start with ' || r.nm || '.';
         v_one   := NULL;
       END IF;
       IF public._alert_raise(s.company_id, r.uid, v_one, 'no_contact', v_title, v_body, r.n,
@@ -195,7 +195,7 @@ BEGIN
         v_one   := r.lead;
       ELSE
         v_title := r.n || ' leads have gone quiet';
-        v_body  := 'Nothing has been recorded on them for ' || s.days_stale || ' days or more.';
+        v_body  := 'Nothing recorded on them for ' || s.days_stale || ' days or more. ' || r.nm || ' has waited the longest.';
         v_one   := NULL;
       END IF;
       IF public._alert_raise(s.company_id, r.uid, v_one, 'stale', v_title, v_body, r.n,
@@ -225,7 +225,7 @@ BEGIN
         v_one   := r.lead;
       ELSE
         v_title := r.n || ' follow-ups due' || CASE WHEN r.late > 0 THEN ', ' || r.late || ' overdue' ELSE ' today' END;
-        v_body  := 'These are the dates you set yourself.';
+        v_body  := 'These are dates you set yourself. ' || r.nm || ' is the first one due.';
         v_one   := NULL;
       END IF;
       IF public._alert_raise(s.company_id, r.uid, v_one, 'followup_due', v_title, v_body, r.n,
