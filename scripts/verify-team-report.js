@@ -449,6 +449,21 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   assert(/Everything they did/.test(mp.plain) && /Nexunova|NEXUNOVA/.test(mp.plain),
     'along with the section headings and the letterhead');
 
+  /* The owner's ask was that the sheet carry EVERYTHING the screen carries, so
+     these check for the parts that were missing from it: the how-they-worked
+     breakdown, the day-by-day figures, and the tiles the paper used to drop.
+     A printed report that quietly leaves half the numbers behind is worse than
+     no printout — the reader has no way to know something is gone. */
+  assert(/How they worked/.test(mp.plain),
+    'the how-they-worked breakdown is on the sheet, not only on the screen');
+  assert(['Calls','WhatsApp','Visits','Notes','Status moves']
+           .every(k => new RegExp(k).test(mp.plain)),
+    'with every kind of action named — calls, WhatsApp, visits, notes, status moves');
+  assert(/WROTE/.test(mp.plain) && /STATUS MOVED/.test(mp.plain) && /OPEN NOW/.test(mp.plain),
+    'and all eight tiles, the four the paper used to drop included');
+  const multiDay = /[0-9]+ reached/.test(mp.plain);
+  console.log('     day-by-day figures ' + (multiDay ? 'present' : 'not applicable (single-day window)'));
+
   stepH('Export the team sheet');
   await D.page.evaluate(() => document.getElementById('app-body').querySelector('.backbtn').click());
   await until(D.page, () => !!document.querySelector('.dr-row'));

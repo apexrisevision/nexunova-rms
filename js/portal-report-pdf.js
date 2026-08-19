@@ -120,22 +120,31 @@
 
     // ── the numbers that lead ────────────────────────────────────────────────
     var t = d.totals || {};
+    /* The sheet carries everything the screen carries — the member view shows
+       eight tiles, so the paper shows eight, in two rows of four. A printed
+       report that quietly drops half the numbers is worse than no printout: the
+       person reading it has no way to know something is missing. */
     var tiles = member
       ? [['Leads given', member.given || 0], ['Reached', member.contacted || 0],
          ['Won', member.won_of_given || 0], ['Conversion', (member.conversion || 0) + '%'],
-         ['Active days', (member.active_days || 0) + ' of ' + d.days],
-         ['Never opened', member.never_opened_of_given || 0]]
+         ['Wrote', (member.notes || 0) + ' note' + ((member.notes || 0) === 1 ? '' : 's')],
+         ['Status moved', member.status_changes || 0],
+         ['Never opened', member.never_opened_of_given || 0],
+         ['Open now', (member.open_leads || 0) + '  (' + (member.overdue || 0) + ' overdue)']]
       : [['Members', t.members || 0], ['Worked', t.worked || 0], ['Silent', t.silent || 0],
          ['Leads given', t.given || 0], ['People reached', t.contacted || 0],
+         ['Calls', t.calls || 0], ['WhatsApp', t.whatsapp || 0],
          ['Status moved', t.status_changes || 0]];
-    var tw = (W - 2 * M) / tiles.length;
+    var perRow = member ? 4 : tiles.length;
+    var tw = (W - 2 * M) / perRow;
     tiles.forEach(function (k, i) {
-      var x = M + i * tw;
-      box(x, y - 34, tw - 6, 34, BAND);
-      T(String(k[0]).toUpperCase(), x + 8, y - 13, 6.5, bold, MUTE);
-      T(String(k[1]), x + 8, y - 28, 13, bold, INK);
+      var row = Math.floor(i / perRow), col = i % perRow;
+      var x = M + col * tw, ty = y - row * 40;
+      box(x, ty - 34, tw - 6, 34, BAND);
+      T(String(k[0]).toUpperCase(), x + 8, ty - 13, 6.5, bold, MUTE);
+      T(String(k[1]), x + 8, ty - 28, 13, bold, INK);
     });
-    y -= 50;
+    y -= 16 + Math.ceil(tiles.length / perRow) * 40;
 
     if (!member) {
       // ══ TEAM SHEET ════════════════════════════════════════════════════════
@@ -227,6 +236,48 @@
         y -= 16;
       }
 
+      /* How they worked ---------------------------------------------------
+         The screen breaks the period down by kind of action, and that is the
+         answer to the owner's real question. A bare total of 40 entries says
+         nothing; 31 calls and 2 notes says a great deal, and so does the same
+         number the other way round. */
+      var kinds = [['Calls', member.calls || 0], ['WhatsApp', member.whatsapp || 0],
+                   ['Visits', member.visits || 0], ['Notes', member.notes || 0],
+                   ['Status moves', member.status_changes || 0]];
+      var kpeak = kinds.reduce(function (n, k) { return Math.max(n, k[1]); }, 0);
+      if (kpeak) {
+        room(34 + kinds.length * 15);
+        T('How they worked', M, y, 9.5, bold, INK);
+        T('every action they recorded, by kind', M, y - 11, 7, reg, MUTE);
+        y -= 24;
+        var lw = 68, track = W - 2 * M - lw - 30;
+        kinds.forEach(function (k) {
+          T(k[0], M, y - 8, 7.5, reg, INK);
+          box(M + lw, y - 10.5, track, 8, BAND);
+          if (k[1]) box(M + lw, y - 10.5, Math.max((k[1] / kpeak) * track, 1.5), 8, ACC);
+          TR(String(k[1]), W - M, y - 8, 7.5, bold, INK);
+          y -= 15;
+        });
+        y -= 8;
+      }
+
+      /* The same days, as figures. The column chart above carries the shape;
+         paper has no tooltip to hover, so the numbers go down too. */
+      var busy = days.filter(function (x) { return (x.entries || 0) > 0; });
+      if (days.length > 1 && busy.length) {
+        room(30 + Math.ceil(busy.length / 2) * 13);
+        T('Day by day', M, y, 9.5, bold, INK); y -= 17;
+        var halfw = (W - 2 * M) / 2;
+        busy.forEach(function (x, i) {
+          if (i && i % 2 === 0) { y -= 13; room(26); }
+          var cx = M + (i % 2) * halfw;
+          T(dmy(x.day), cx, y, 7.5, reg, INK);
+          TR(x.contacted + ' reached  ' + x.entries + ' entr' + (x.entries === 1 ? 'y' : 'ies'),
+             cx + halfw - 16, y, 7.5, reg, MUTE);
+        });
+        y -= 22;
+      }
+
       var es = d.entries || [];
       room(40);
       T('Everything they did  ' + (d.entries_total || es.length) +
@@ -240,7 +291,11 @@
         T(clock(e.at), M, y, 7.5, reg, MUTE);
         T(KIND[e.kind] || e.kind, M + 70, y, 7.5, bold, ACC);
         T(e.lead || '-', M + 128, y, 8, bold, INK);
-        if (e.project) TR(safe(e.project), W - M, y, 7, reg, MUTE);
+        // the outcome is what came of the call; the screen shows it, so paper does too
+        var tail = [];
+        if (e.outcome) tail.push(e.outcome);
+        if (e.project) tail.push(e.project);
+        if (tail.length) TR(tail.join('  ·  '), W - M, y, 7, reg, MUTE);
         y -= 10;
         body.forEach(function (ln) { T(ln, M + 128, y, 8, reg, INK); y -= 10; });
         y -= 2;
