@@ -1524,6 +1524,7 @@ button.mn-card:active{transform:scale(.985)}
       <div class="ni-grp" data-grp="workspace" data-sell style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('workspace')"><span class="sb-grp-t">Workspace</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-workspace"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
+          <a class="ni" data-tab="alerts" onclick="setTab('alerts')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="ni-lb">Alerts</span><span class="ni-bdg" id="nav-badge-alerts"></span></a>
           <a class="ni" data-tab="leads" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
           <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
           <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
@@ -1805,6 +1806,7 @@ function _startBgRefresh(){
 
 // ════ auth ════
 let PENDING_LEAD=null;   // deep-link target from a push notification (?lead=<id>)
+let PENDING_TAB=null;    // ?tab=<name> — an alert push lands on the screen it is about
 let PENDING_ANN=null;    // deep-link to an announcement from a push (?ann=<id>)
 let PENDING_BRIEF=false; // deep-link to the daily brief from a push (?brief=1)
 function _consumePendingLead(){
@@ -1830,6 +1832,7 @@ async function bootstrap(){
   const _jm=location.pathname.match(/^\/join\/([A-Za-z0-9]{4,12})\/?$/);
   const joinCode=_jm?_jm[1]:null;
   PENDING_LEAD=params.get('lead')||null;
+  PENDING_TAB=params.get('tab')||null;      // push notifications deep-link here
   PENDING_ANN=params.get('ann')||null;
   PENDING_BRIEF=!!params.get('brief');
   // restore an active session FIRST so refreshing the link does not log anyone out
@@ -2265,7 +2268,7 @@ function _applyLeadAccess(){
 // which of the 5 bottom tabs a given screen belongs to (drives the active state)
 const _BTAB_OF={
   home:'home',
-  leads:'leads', distribute:'leads',
+  leads:'leads', distribute:'leads', alerts:'leads',
   board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
   more:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
@@ -2277,8 +2280,8 @@ function _syncBtabs(t){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
-  setTab('home'); try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
-  try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
+  setTab(PENDING_TAB==='alerts'?'alerts':'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
+  try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -2341,7 +2344,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -2372,6 +2375,8 @@ function setTab(t,_back){
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">The daily report could not load. Please refresh.</div>'; }
   else if(t==='givenleads'){ if(typeof renderGivenLeads==='function') renderGivenLeads();
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">This screen could not load. Please refresh.</div>'; }
+  else if(t==='alerts'){ if(typeof renderAlerts==='function') renderAlerts();
+    else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Alerts could not load. Please refresh.</div>'; }
   else if(t==='mysales') renderMySales();
   else if(t==='profile') renderProfile();
   else if(t==='clients') renderClients();
@@ -2406,7 +2411,7 @@ const _GRP_OF={
   leadentry:'op-leads', myleads:'op-leads',
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
   dailyreport:'management', givenleads:'management',
-  leads:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
+  alerts:'workspace', leads:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
 };
@@ -8562,5 +8567,6 @@ bootstrap();
 <script src="js/portal-report-pdf.js?v=20260819detail"></script>
 <script src="js/portal-teamreport.js?v=20260818pdf"></script>
 <script src="js/portal-givenleads.js?v=20260819given"></script>
+<script src="js/portal-alerts.js?v=20260819alerts"></script>
 </body>
 </html>
