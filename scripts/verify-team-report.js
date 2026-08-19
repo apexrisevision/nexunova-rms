@@ -307,7 +307,7 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
     sec: [...document.querySelectorAll('.dr-sec')].map(s => s.textContent).join(' / ')
   }));
   console.log('     ' + mon.tiles.join('  |  '));
-  assert(mon.tiles.some(t => /Leads given/.test(t)) && mon.tiles.some(t => /Active days/.test(t)),
+  assert(mon.tiles.some(t => /Given in this period/.test(t)) && mon.tiles.some(t => /Active days/.test(t)),
     'the member view reports the period, not just the day');
   assert(/\d{2} \w{3}/.test(mon.firstStamp),
     'over a multi-day window each entry carries its DATE too (' + mon.firstStamp + ')');
@@ -459,8 +459,14 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   assert(['Calls','WhatsApp','Visits','Notes','Status moves']
            .every(k => new RegExp(k).test(mp.plain)),
     'with every kind of action named — calls, WhatsApp, visits, notes, status moves');
-  assert(/WROTE/.test(mp.plain) && /STATUS MOVED/.test(mp.plain) && /OPEN NOW/.test(mp.plain),
+  assert(/GIVEN IN PERIOD/.test(mp.plain) && /STATUS MOVED/.test(mp.plain) && /HOLDING NOW/.test(mp.plain),
     'and all eight tiles, the four the paper used to drop included');
+  /* "Leads given" counts only what was handed over inside the window. A team
+     given its leads on the 12th reads 0 for every later window, next to a column
+     of real work — which is how it was misread. The label has to say which
+     question it answers. */
+  assert(!/LEADS GIVEN/.test(mp.plain),
+    'and none of them still says the bare "Leads given" that was being read as "has no leads"');
   const multiDay = /[0-9]+ reached/.test(mp.plain);
   console.log('     day-by-day figures ' + (multiDay ? 'present' : 'not applicable (single-day window)'));
 
@@ -478,6 +484,8 @@ const until = (page, fn, ms = 20000) => page.waitForFunction(fn, { timeout: ms, 
   assert(/ZZ Rep One/.test(tp.plain) && /ZZ Rep Two/.test(tp.plain),
     'listing every member, the quiet ones included');
   assert(/Team report/.test(tp.plain), 'under the report title');
+  assert(/handed over inside these dates/.test(tp.plain),
+    'and the team table explains what its Given column counts, on the page itself');
   assert(D.errs.length === 0, 'no console errors' + (D.errs.length ? ': ' + D.errs[0] : ''));
   await D.ctx.close();
 

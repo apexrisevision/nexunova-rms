@@ -331,7 +331,9 @@
     var h = '<div class="dr-wrap">' + _controls() +
       '<div class="dr-tiles">' +
         _tile('Worked', (t.worked || 0) + ' of ' + (t.members || 0), (t.silent || 0) + ' did nothing') +
-        _tile('Leads given', t.given || 0, (t.won_of_given || 0) + ' won so far') +
+        _tile('Given in this period', t.given || 0,
+          (t.given ? (t.won_of_given || 0) + ' won so far'
+                   : _holding(ms) + ' already with the team')) +
         _tile('People reached', t.contacted || 0, (t.calls || 0) + ' calls · ' + (t.whatsapp || 0) + ' WhatsApp') +
         _tile('Status moved', t.status_changes || 0, (t.notes || 0) + ' note' + ((t.notes || 0) === 1 ? '' : 's')) +
       '</div>';
@@ -344,6 +346,14 @@
     $('app-body').innerHTML = h + '</div>';
     _bindControls();
   }
+  /* Leads they are HOLDING right now — a standing figure, nothing to do with
+     the dates. It exists because "Given 0" was being read as "this person has
+     no leads", when what it means is "nothing was handed over inside these
+     dates" — which for a team that got its leads on the 12th is true every day
+     after the 12th. */
+  function _holding(ms) {
+    return (ms || []).reduce(function (n, m) { return n + (m.open_leads || 0); }, 0);
+  }
   function _tile(k, v, s) {
     return '<div class="dr-tile"><div class="k">' + esc(k) + '</div>' +
            '<div class="v">' + esc(String(v)) + '</div>' +
@@ -353,13 +363,15 @@
     var bits = [];
     if (m.given) bits.push(b('hot', '<b>' + m.given + '</b> given' +
       (m.given_by_me && m.given_by_me !== m.given ? ' (' + m.given_by_me + ' by you)' : '')));
+    // nothing handed over inside these dates is not the same as nothing to work
+    else if (m.open_leads) bits.push(b('', 'holding <b>' + m.open_leads + '</b>'));
     if (m.contacted) bits.push(b('', '<b>' + m.contacted + '</b> reached'));
     if (m.calls)     bits.push(b('', m.calls + ' call' + (m.calls === 1 ? '' : 's')));
     if (m.whatsapp)  bits.push(b('', m.whatsapp + ' WhatsApp'));
     if (m.visits)    bits.push(b('', m.visits + ' visit' + (m.visits === 1 ? '' : 's')));
     if (m.notes)     bits.push(b('', m.notes + ' note' + (m.notes === 1 ? '' : 's')));
     if (m.status_changes) bits.push(b('', m.status_changes + ' status'));
-    if (m.won_of_given)   bits.push(b('hot', m.won_of_given + ' won · ' + m.conversion + '%'));
+    if (m.won_of_given)   bits.push(b('hot', m.won_of_given + ' won' + (m.given ? ' · ' + m.conversion + '%' : '')));
     // the numbers that say the period did NOT go well
     if (m.never_opened_of_given) bits.push(b('warn', m.never_opened_of_given + ' never opened'));
     if (m.overdue)               bits.push(b('warn', m.overdue + ' overdue'));
@@ -393,9 +405,11 @@
         (TR.project ? ' · ' + esc(_projName()) : '') + '</div>' +
 
       '<div class="dr-tiles">' +
-        _tile('Leads given', m.given || 0, (m.given_by_me || 0) + ' by you') +
+        _tile('Given in this period', m.given || 0,
+          (m.given ? (m.given_by_me || 0) + ' by you' : 'none handed over in these dates')) +
         _tile('Reached', m.contacted || 0, (m.calls || 0) + ' calls · ' + (m.whatsapp || 0) + ' WhatsApp') +
-        _tile('Won', m.won_of_given || 0, (m.conversion || 0) + '% of what they were given') +
+        _tile('Won', m.won_of_given || 0, m.given ? (m.conversion || 0) + '% of what they were given'
+                                                  : 'nothing given in this period') +
         _tile('Active days', m.active_days || 0, 'of ' + d.days) +
       '</div>' +
       '<div class="dr-tiles">' +

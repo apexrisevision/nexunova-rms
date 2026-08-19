@@ -1538,6 +1538,7 @@ button.mn-card:active{transform:scale(.985)}
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('management')"><span class="sb-grp-t">Management</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-management"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
           <a class="ni" data-tab="dailyreport" onclick="setTab('dailyreport')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span><span class="ni-lb">Team report</span></a>
+          <a class="ni" data-tab="givenleads" onclick="setTab('givenleads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><span class="ni-lb">Leads I gave</span></a>
           <a class="ni" data-tab="team" onclick="setTab('team')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="ni-lb">My Team</span></a>
           <a class="ni" data-tab="distribute" onclick="setTab('distribute')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="ni-lb">Assign leads</span><span class="ni-bdg" id="nav-badge-distribute"></span></a>
           <a class="ni" data-tab="targets" onclick="setTab('targets')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="ni-lb">Targets</span></a>
@@ -2267,7 +2268,7 @@ const _BTAB_OF={
   leads:'leads', distribute:'leads',
   board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
-  more:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', org:'more', targets:'more',
+  more:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
   livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
 };
 function _syncBtabs(t){
@@ -2340,7 +2341,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -2369,6 +2370,8 @@ function setTab(t,_back){
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Share links could not load. Please refresh.</div>'; }
   else if(t==='dailyreport'){ if(typeof renderDailyReport==='function') renderDailyReport();
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">The daily report could not load. Please refresh.</div>'; }
+  else if(t==='givenleads'){ if(typeof renderGivenLeads==='function') renderGivenLeads();
+    else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">This screen could not load. Please refresh.</div>'; }
   else if(t==='mysales') renderMySales();
   else if(t==='profile') renderProfile();
   else if(t==='clients') renderClients();
@@ -2402,7 +2405,7 @@ function setTab(t,_back){
 const _GRP_OF={
   leadentry:'op-leads', myleads:'op-leads',
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
-  dailyreport:'management',
+  dailyreport:'management', givenleads:'management',
   leads:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
@@ -3146,12 +3149,19 @@ function _leadFuTag(l){
   if(diff===0) return `<span class="lead-fu today">${li('clock',11,2.2)}Due today</span>`;
   return `<span class="lead-fu">${li('clock',11,2.2)}${esc(fdateShort(l.next_follow_up_at))}</span>`;
 }
+/* A lead the owner has already opened should stop calling itself New — on their
+   screen and on the director's. The STATUS underneath does not move: opening is
+   not reaching anybody, and if it counted as contact every contacted figure in
+   the business would become a lie. So the label speaks and the funnel stays
+   honest. Only 'new' is relabelled; past that the stage name is the better word. */
+function _leadOpened(l){ return l.status==='new' && !!l.owner_opened; }
 function _leadCard(l){
-  const col=_leadColor(l.status), lbl=_leadStageLabel(l.status);
+  const col=_leadColor(l.status), lbl=_leadOpened(l)?'Opened':_leadStageLabel(l.status);
   const unchecked = !l.checked;
   const opts=LEAD_STAGES.map(([k,lb])=>`<option value="${k}"${l.status===k?' selected':''}>${esc(lb)}</option>`).join('');
   const caret='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
-  const stat=`<span class="lead-stat" style="background:color-mix(in srgb,${col} 14%,var(--fk-bg-card));color:${col}">${esc(lbl)}${caret}<select class="lead-stat-x" onchange="_leadStage('${l.id}',this.value)" title="Change status">${opts}</select></span>`;
+  const statTip=_leadOpened(l)?`Opened ${l.owner_opened_at?_agoTxt(l.owner_opened_at):''} — still New until someone is reached`:'Change status';
+  const stat=`<span class="lead-stat" title="${esc(statTip)}" style="background:color-mix(in srgb,${col} 14%,var(--fk-bg-card));color:${col}">${esc(lbl)}${caret}<select class="lead-stat-x" onchange="_leadStage('${l.id}',this.value)" title="Change status">${opts}</select></span>`;
   const meta=[l.interest?esc(l.interest):'', l.budget?pkrShort(l.budget):''].filter(Boolean).join(' · ');
   const sub=[l.phone?esc(phDisp(l.phone)):'', meta].filter(Boolean).join(' · ');
   const srcTag = l.source ? (l.created_by_me?'':'Received · ')+_srcLabel(l.source)
@@ -4077,6 +4087,10 @@ async function openLead(id){ LEAD_OPEN=id; _trailFull=false; GW={active:false,le
   // opening = "checked": mark seen, un-bold locally, drop the unread badge
   const l=(LEADS||[]).find(x=>x.id===id);
   if(l && !l.checked){ l.checked=true; if(l.status!=='won'&&l.status!=='lost'){ LEAD_UNCHECKED=Math.max(0,LEAD_UNCHECKED-1); _leadsBadgeSet(LEAD_UNCHECKED); } }
+  // when it is THEIRS, the label flips to "Opened" the moment they open it —
+  // the server is being told the same thing two lines below, this just spares
+  // them a refresh to see their own action
+  if(l && l.is_mine && !l.owner_opened){ l.owner_opened=true; l.owner_opened_at=new Date().toISOString(); }
   // Phase 2: the server decides whether opening this lead owes a disposition.
   try{ const {data}=await sb.rpc('mark_lead_seen',{p_session_token:TOKEN,p_lead_id:id});
     if(data&&data.disposition_required&&LEAD_OPEN===id)
@@ -8545,7 +8559,8 @@ bootstrap();
 <script src="js/portal-quote-pdf.js?v=20260816quote"></script>
 <script src="js/portal-unitmap.js?v=20260817focus"></script>
 <script src="js/portal-sharelink.js?v=20260818share"></script>
-<script src="js/portal-report-pdf.js?v=20260818pdf"></script>
+<script src="js/portal-report-pdf.js?v=20260819detail"></script>
 <script src="js/portal-teamreport.js?v=20260818pdf"></script>
+<script src="js/portal-givenleads.js?v=20260819given"></script>
 </body>
 </html>

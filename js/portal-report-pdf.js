@@ -125,14 +125,14 @@
        report that quietly drops half the numbers is worse than no printout: the
        person reading it has no way to know something is missing. */
     var tiles = member
-      ? [['Leads given', member.given || 0], ['Reached', member.contacted || 0],
+      ? [['Given in period', member.given || 0], ['Reached', member.contacted || 0],
          ['Won', member.won_of_given || 0], ['Conversion', (member.conversion || 0) + '%'],
-         ['Wrote', (member.notes || 0) + ' note' + ((member.notes || 0) === 1 ? '' : 's')],
+         ['Holding now', member.open_leads || 0],
          ['Status moved', member.status_changes || 0],
          ['Never opened', member.never_opened_of_given || 0],
-         ['Open now', (member.open_leads || 0) + '  (' + (member.overdue || 0) + ' overdue)']]
+         ['Overdue', member.overdue || 0]]
       : [['Members', t.members || 0], ['Worked', t.worked || 0], ['Silent', t.silent || 0],
-         ['Leads given', t.given || 0], ['People reached', t.contacted || 0],
+         ['Given in period', t.given || 0], ['People reached', t.contacted || 0],
          ['Calls', t.calls || 0], ['WhatsApp', t.whatsapp || 0],
          ['Status moved', t.status_changes || 0]];
     var perRow = member ? 4 : tiles.length;
@@ -150,7 +150,7 @@
       // ══ TEAM SHEET ════════════════════════════════════════════════════════
       var cols = [
         ['Member',        M,             186, 'l'],
-        ['Given',         M + 190,        44, 'r'],
+        ['Given*',        M + 190,        44, 'r'],
         ['Reached',       M + 238,        48, 'r'],
         ['Calls',         M + 290,        40, 'r'],
         ['WhatsApp',      M + 334,        52, 'r'],
@@ -188,6 +188,10 @@
         y -= 14;
       });
       if (!ms.length) T('Nobody reports to you yet.', M, y - 10, 9, reg, MUTE);
+      y -= 4;
+      T('* Given = leads handed over inside these dates. A member who was given their leads earlier ' +
+        'reads 0 here and is still working a full pile.', M, y - 10, 7, reg, MUTE);
+      y -= 10;
       y -= 6;
       rule(y);
       y -= 14;
