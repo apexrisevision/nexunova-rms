@@ -65,6 +65,12 @@
         "margin-bottom:8px;cursor:pointer;font:inherit;transition:.16s;position:relative}" +
       ".al-a:hover{border-color:var(--fk-text-muted)}" +
       ".al-a.seen{opacity:.62}" +
+      ".al-a.done{opacity:.5}" +
+      ".al-a.done .al-t{text-decoration:line-through;text-decoration-thickness:1px}" +
+      ".al-done{flex:none;align-self:center;font-size:var(--fk-fs-label);font-weight:600;" +
+        "color:var(--al-4);background:color-mix(in srgb,var(--al-4) 13%,var(--fk-bg-card));" +
+        "border-radius:var(--fk-radius-pill);padding:2px 9px;white-space:nowrap}" +
+      ".al-left{color:var(--t);font-weight:600}" +
       ".al-ic{flex:none;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;" +
         "justify-content:center;background:color-mix(in srgb,var(--t) 14%,var(--fk-bg-card));color:var(--t)}" +
       ".al-ic svg{width:17px;height:17px}" +
@@ -134,7 +140,8 @@
     }
 
     h += '<div class="al-hd"><b>Alerts</b>' +
-         '<span>' + (d.unseen ? d.unseen + ' new' : 'nothing new') + '</span>' +
+         '<span>' + (d.unseen ? d.unseen + ' need you'
+            : (as.filter(function (x) { return x.done; }).length ? 'all dealt with' : 'nothing new')) + '</span>' +
          (as.length ? '<button class="al-clear" id="al-clear">Mark all read</button>' : '') +
          '</div>';
 
@@ -149,15 +156,25 @@
     _wire();
   }
 
+  /* An alert is a snapshot; the person reads it as a live status. IQRA rang two
+     clients and the row raised at 00:40 went on telling her all day that she had
+     not opened them — an instruction she had already followed and could not make
+     go away. The server now recounts, so a finished alert can say it is finished,
+     and a half-finished one can say what is left. */
   function _one(a) {
     var k = KIND[a.kind] || { t: 2, i: 'clock', lb: a.kind };
-    return '<button class="al-a' + (a.seen ? ' seen' : '') + '" style="--t:var(--al-' + k.t + ')" ' +
+    var done = !!a.done;
+    var left = (!done && typeof a.live === 'number' && a.live > 0 && a.live < a.n)
+      ? '<span class="al-left"> · ' + a.live + ' left</span>' : '';
+    return '<button class="al-a' + (a.seen ? ' seen' : '') + (done ? ' done' : '') + '" ' +
+      'style="--t:var(--al-' + k.t + ')" ' +
       'data-a="' + esc(a.id) + '" data-lead="' + esc(a.lead_id || '') + '">' +
-      (a.seen ? '' : '<span class="al-dot"></span>') +
+      (a.seen || done ? '' : '<span class="al-dot"></span>') +
       '<span class="al-ic">' + ic(k.i) + '</span>' +
       '<span class="al-b"><span class="al-t">' + esc(a.title) + '</span>' +
-        (a.body ? '<div class="al-x">' + esc(a.body) + '</div>' : '') + '</span>' +
-      '<span class="al-w">' + esc(ago(a.at)) + '</span></button>';
+        (a.body ? '<div class="al-x">' + esc(a.body) + left + '</div>' : '') + '</span>' +
+      (done ? '<span class="al-done">Done</span>'
+            : '<span class="al-w">' + esc(ago(a.at)) + '</span>') + '</button>';
   }
 
   function _wire() {

@@ -92,6 +92,8 @@ const alertsOf = async who => sql(`
   fs.mkdirSync(SHOTS, { recursive: true });
   const co = await sql(`SELECT company_name FROM companies WHERE id='${ZZ}'`);
   assert(/ZZTEST/i.test(co[0].company_name), 'measuring on ' + co[0].company_name);
+  const base = await sql(`SELECT count(*) n FROM public.lead_alerts WHERE company_id <> '${ZZ}'`);
+  process.env.ZZ_BASELINE = String(base[0].n);
   const st = await sql(`SELECT enabled FROM public.alert_settings WHERE company_id='${ZZ}'`);
   assert(st.length && st[0].enabled === true, 'and the engine is switched on for it');
 
@@ -112,7 +114,8 @@ const alertsOf = async who => sql(`
            now()-interval '30 hours', now()-interval '30 hours', true
       FROM public.sales_users su,
            (VALUES ('ZZAL Unopened One',1),('ZZAL Unopened Two',2),
-                   ('ZZAL Unopened Three',3),('ZZAL Silent',4)) AS v(n,i)
+                   ('ZZAL Unopened Three',3),('ZZAL Silent',4),
+                   ('ZZAL Rung From List',5)) AS v(n,i)
      WHERE su.company_id='${ZZ}' AND su.full_name='ZZ Rep Two';
 
     -- the fourth one they DID open, sixty hours ago, and never rang
@@ -120,12 +123,23 @@ const alertsOf = async who => sql(`
     SELECT l.id, l.owner_sales_user_id, now()-interval '60 hours'
       FROM public.leads l WHERE l.company_id='${ZZ}' AND l.name='ZZAL Silent';
 
+    -- IQRA's case: rung and messaged straight from the Leads list, so there is
+    -- real work on it and NO view row. It must not be called \"not opened\".
+    INSERT INTO public.lead_activities (lead_id, sales_user_id, kind, created_at)
+    SELECT l.id, l.owner_sales_user_id, k.kind, now()-interval '20 hours'
+      FROM public.leads l, (VALUES ('call'),('whatsapp')) AS k(kind)
+     WHERE l.company_id='${ZZ}' AND l.name='ZZAL Rung From List';
+
     -- two more the director still holds, to hand over later in this test
     INSERT INTO public.leads (company_id, name, phone, status, owner_sales_user_id, is_test)
     SELECT '${ZZ}', v.n, '0300444000'||v.i, 'new', su.id, true
       FROM public.sales_users su, (VALUES ('ZZAL ToGive One',1),('ZZAL ToGive Two',2)) AS v(n,i)
      WHERE su.company_id='${ZZ}' AND su.full_name='ZZ Director';`);
-  ok('seeded, and not one of them has a follow-up date — the old engine was blind to all four');
+  ok('seeded, and not one of them has a follow-up date — the old engine was blind to all of them');
+  const noView = await sql(`SELECT count(*) n FROM public.lead_views v JOIN public.leads l ON l.id=v.lead_id
+     WHERE l.company_id='${ZZ}' AND l.name='ZZAL Rung From List'`);
+  assert(Number(noView[0].n) === 0,
+    'and one of them was rung from the list with no view row at all — the exact case IQRA hit');
 
   stepH('The sweep runs');
   const run1 = await sql(`SELECT public.cron_lead_alerts() AS r`);
@@ -137,6 +151,14 @@ const alertsOf = async who => sql(`
 
   const un = as.filter(a => a.kind === 'not_opened')[0];
   assert(un && un.n === 3, 'the unopened three are counted into ONE alert, n=' + (un ? un.n : '—'));
+  /* The fourth lead was rung and never opened. Counting it here is what IQRA
+     complained about: being told to do a thing she had already done. */
+  assert(un && un.n === 3 && !/4 leads/.test(un.title),
+    'and the one she RANG is not among them — working a lead is opening it');
+  const untouched = await sql(`SELECT public._lead_untouched(l.id, l.owner_sales_user_id) u
+     FROM public.leads l WHERE l.company_id='${ZZ}' AND l.name='ZZAL Rung From List'`);
+  assert(untouched[0].u === false,
+    'the server agrees: a lead you have called is not untouched');
   assert(un && /3 leads you have not opened yet/.test(un.title),
     'and it says so in words: "' + (un ? un.title : '') + '"');
   /* A count alone leaves them staring at a list. The alert has to name a first
@@ -293,9 +315,16 @@ const alertsOf = async who => sql(`
   stepH('Nobody else has been switched on');
   const live = await sql(`
     SELECT count(*) n FROM public.lead_alerts WHERE company_id <> '${ZZ}'`);
-  const on = await sql(`SELECT count(*) n FROM public.alert_settings WHERE enabled AND company_id <> '${ZZ}'`);
-  assert(Number(on[0].n) === 0 && Number(live[0].n) === 0,
-    'no real tenant is enabled and no real member has been sent anything');
+  /* Awami Market was switched on deliberately on 2026-08-19, so 'nobody else is
+     enabled' is no longer the property worth guarding. What still matters is that
+     this harness never writes into a live tenant: the fixtures it made are ZZTEST's
+     and the count for every other company is unchanged by running it. */
+  assert(Number(live[0].n) === Number(process.env.ZZ_BASELINE || live[0].n),
+    'other tenants hold ' + live[0].n + ' alerts, none of them written by this run');
+  const strays = await sql(`SELECT count(*) n FROM public.lead_alerts
+     WHERE company_id <> '${ZZ}' AND dedup_key LIKE '%ZZ%'`);
+  assert(Number(strays[0].n) === 0,
+    'and not one fixture alert leaked out of the scratch tenant');
 
   await browser.close(); server.close();
   await sql(CLEAN);
