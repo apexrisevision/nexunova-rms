@@ -1763,6 +1763,10 @@ async function _refreshProfile(){
   if(!TOKEN || document.hidden) return;
   const now=Date.now(); if(now-_lastProfChk<60000) return; _lastProfChk=now;   // ≤1 check/min
   try{ const {data}=await sb.rpc('get_my_profile',{p_session_token:TOKEN});
+    // The server says this session no longer exists — revoked from the office, or expired.
+    // Sign the open tab out instead of leaving a dead shell on screen. Only an explicit
+    // server verdict does this; a network/infra error throws below and is ignored (fail-open).
+    if(data && data.success===false && data.error==='session_expired'){ return sessionGone(); }
     if(!data||!data.success || !ME) return;
     const p=data.profile||{};
     const roleChanged = ME.role!==undefined && p.role!==ME.role;
