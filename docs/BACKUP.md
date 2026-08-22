@@ -56,6 +56,46 @@ a copy that survives even if the Supabase account disappears.
 
 It keeps the **last 30** nightly dumps and prunes older ones automatically.
 
+### Layer 2b — Local full backup script ⭐ works today, no DB password needed
+
+`scripts/backup-full.js` is the answer to "the free plan gives me no downloadable
+backup". It needs **nothing but the repo** — the Supabase Management API token
+already in `.mcp.json` — so it runs on the free plan, from any machine, right now.
+Layer 2 (the GitHub Action) still needs the DB password in a repo secret; this
+one does not.
+
+```bash
+npm run backup              # everything: schema + data + Excel + storage files
+npm run backup:quick        # same, minus the 74 MB audit_logs table (much faster)
+node scripts/backup-full.js --out E:/          # write straight to a USB drive
+node scripts/backup-full.js --no-storage       # database only
+```
+
+It writes `backups/BACKUP_<YYYYMMDD_HHMM>/`:
+
+| Folder | What it is |
+|--------|-----------|
+| `schema/` | DDL for the whole `public` schema — types, tables, constraints, indexes, views, **every function/RPC**, triggers, RLS policies, sequence positions, grants |
+| `sql/` | one `INSERT` script per table + `restore_all.sql` (FK checks off, `ON CONFLICT DO NOTHING`, re-runnable) |
+| `data/` | one JSON file per table — exact values, for scripted or partial recovery |
+| `excel/` | one workbook per tenant (KBH / FMH / Awami / …), one sheet per table, plus `_SHARED.xlsx` |
+| `storage/` | the actual uploaded files (receipts, documents, logos) |
+| `MANIFEST.json`, `RESTORE.md` | row counts per table + the restore runbook for that snapshot |
+
+Notes:
+
+- `backups/` is gitignored — these files contain real PII. **Copy each run to a
+  second location** (external drive / Google Drive / OneDrive). A backup that
+  only lives on the same laptop as the work is not a backup.
+- Generated columns (`sales.net_amount`, `installments.outstanding`, …) are
+  deliberately left out of the `INSERT` column lists — Postgres recomputes them.
+- **Not covered:** Supabase `auth.*` users and password hashes. After restoring
+  into a new project every user needs a password reset.
+- Private storage buckets (`payment-receipts`, `platform-invoices`) need a
+  service key. Optional: put `SUPABASE_SERVICE_KEY=...` in `.env.local`
+  (gitignored) and the script picks it up; without it those files are listed in
+  `storage/_MISSING.json` and everything else still downloads.
+
 ### Layer 3 — Storage files
 Supabase Storage objects (KYC/CNIC images, logos) are **not** inside the SQL
 dump. They are covered by Layer 1 (platform infra), but for an off-platform copy
