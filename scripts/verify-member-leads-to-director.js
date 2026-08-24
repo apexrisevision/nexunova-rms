@@ -165,6 +165,38 @@ const CLEAN = `
   assert(row2 && row2.with_me === true && row2.waiting === false,
     'the member\'s own screen now says it is back with him');
 
+  // ══ 5b · handed on, and the member can no longer work it ═════════════════
+  // The director's question: can he still see it? The answer must be "he sees
+  // THAT he gave it, not the number to ring." The ad ran on his phone but the
+  // company paid for it.
+  stepH('A lead that went to somebody else');
+  const c5 = await one(`SELECT public.create_lead('zz-mld-rep', jsonb_build_object(
+      'name','ZZMLD Handed Away','phone','03211234567','source','whatsapp')) AS r;`);
+  const id5 = c5.r.id;
+  const seen = await one(`SELECT (SELECT x FROM jsonb_array_elements(public.get_my_entered_leads('zz-mld-rep')->'rows') x
+                                   WHERE x->>'name'='ZZMLD Handed Away') AS row,
+                                 public.get_lead('zz-mld-rep','${id5}')->>'error' AS detail_err,
+                                 (SELECT count(*) FROM jsonb_array_elements(public.list_my_leads('zz-mld-rep')->'leads') y
+                                   WHERE y->>'name'='ZZMLD Handed Away')::int AS in_list;`);
+  assert(seen.row && seen.row.masked === true, 'his row is flagged masked');
+  assert(seen.row && !/1234567/.test(String(seen.row.phone || '')),
+    'the client\'s number is NOT in the payload — masking is server-side, not a CSS trick');
+  assert(seen.row && /••/.test(String(seen.row.phone || '')),
+    'what he gets is recognisable but not dialable (' + seen.row.phone + ')');
+  assert(seen.row && seen.row.name === 'ZZMLD Handed Away',
+    'the NAME stays — he must still be able to say "I gave you this one and nobody rang"');
+  assert(seen.detail_err === 'not_found', 'he cannot open the lead detail at all — no call, no WhatsApp, no log');
+  assert(seen.in_list === 0, 'and it is not in his Leads list');
+
+  stepH('The same lead handed back to him');
+  await sql(`SELECT public.assign_lead('zz-mld-dir','${id5}','${REP}');`);
+  const back = await one(`SELECT (SELECT x FROM jsonb_array_elements(public.get_my_entered_leads('zz-mld-rep')->'rows') x
+                                   WHERE x->>'name'='ZZMLD Handed Away') AS row,
+                                 public.get_lead('zz-mld-rep','${id5}')->>'success' AS detail_ok;`);
+  assert(back.row && back.row.masked === false && back.row.phone === '03211234567',
+    'the number comes back the moment the lead is his to work again');
+  assert(back.detail_ok === 'true', 'and the lead detail opens again');
+
   // ══ 6 · the real portal, reached by clicking the sidebar ══════════════════
   stepH('The screens themselves, in a real browser');
   // put a second one back in the pool so the director's screen has something in it
@@ -235,6 +267,9 @@ const CLEAN = `
       assert(/ZZMLD Whatsapp Aunty/.test(seen), 'the lead he typed in is listed on his own screen');
       assert(/With you/.test(seen),              'the one handed back to him reads "With you"');
       assert(/Waiting to be handed/.test(seen),  'the one still in the pool reads "Waiting to be handed"');
+      assert(/••/.test(seen), 'the handed-on lead shows a masked number on the screen itself');
+      assert(!/3211234567/.test(seen), 'and the real number is nowhere in the rendered page');
+      assert(/company pays for the ads/i.test(seen), 'the screen says WHY the number is hidden — a member who is not told assumes he is being cheated');
     }
     assert(R.errs.length === 0, 'the rep\'s screen throws nothing' + (R.errs.length ? ' — ' + R.errs[0] : ''));
 

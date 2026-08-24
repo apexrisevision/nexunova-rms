@@ -3055,7 +3055,7 @@ function _leadsRender(){
   if(!isMgr && canCreate){ if(!LEADV.own) LEADV.own='all'; html+=_seg([['all','All'],['received','Received'],['mine','Added by me']], LEADV.own, '_leadSetOwn'); }
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
   const _so=(v,lb)=>`<option value="${v}"${(LEADV.sort||'activity')===v?' selected':''}>${lb}</option>`;
-  html+=`<div class="lead-search has-sort">${srch}<input class="input" id="lead-q" placeholder="Search name or phone…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_clrToggle('lead-clr',this);_leadListRender()"><button class="lead-clr" id="lead-clr" style="display:${(LEADV.q||'')?'grid':'none'}" onclick="_leadSearchClear()" aria-label="Clear search" title="Clear search">✕</button><select class="lead-sort" title="Sort leads" onchange="LEADV.sort=this.value;_leadListRender()">${_so('activity','Recent activity')+_so('fu','Follow-up due')+_so('newest','Newest first')+_so('oldest','Oldest first')+_so('name','Name A–Z')}</select></div>`;
+  html+=`<div class="lead-search has-sort">${srch}<input class="input" id="lead-q" placeholder="Search by name…" value="${esc(LEADV.q||'')}" oninput="LEADV.q=this.value;_clrToggle('lead-clr',this);_leadListRender()"><button class="lead-clr" id="lead-clr" style="display:${(LEADV.q||'')?'grid':'none'}" onclick="_leadSearchClear()" aria-label="Clear search" title="Clear search">✕</button><select class="lead-sort" title="Sort leads" onchange="LEADV.sort=this.value;_leadListRender()">${_so('activity','Recent activity')+_so('fu','Follow-up due')+_so('newest','Newest first')+_so('oldest','Oldest first')+_so('name','Name A–Z')}</select></div>`;
   const chip=(k,lb,n)=>`<button onclick="_leadFilter('${k}')" class="lead-chip${LEADV.filter===k?' on':''}">${esc(lb)} <b>${n}</b></button>`;
   const toAssignN=isMgr?scoped.filter(_distributablePool).length:0;
   html+='<div class="lead-chips">'+chip('all','All',total)
@@ -6038,7 +6038,7 @@ function _distRow(l){
 
    It is a reader over get_my_entered_leads. Nothing is recorded to make it work.
    ═════════════════════════════════════════════════════════════════════════ */
-let MYENT={rows:[],today:0,waiting:0,with_me:0,filter:'all',q:''};
+let MYENT={rows:[],today:0,month:0,waiting:0,with_me:0,filter:'all',q:''};
 async function renderMyEntered(){
   $('app-body').innerHTML=_skel();
   let d;
@@ -6046,7 +6046,7 @@ async function renderMyEntered(){
   catch(e){ return _netErr(); }
   if(_loadFail(d)) return;
   _touch();
-  MYENT.rows=d.rows||[]; MYENT.today=Number(d.today||0);
+  MYENT.rows=d.rows||[]; MYENT.today=Number(d.today||0); MYENT.month=Number(d.month||0);
   MYENT.waiting=Number(d.waiting||0); MYENT.with_me=Number(d.with_me||0);
   _myEntRender();
 }
@@ -6056,16 +6056,24 @@ function _myEntFiltered(){
   if(MYENT.filter==='waiting') rows=rows.filter(r=>r.waiting);
   else if(MYENT.filter==='mine') rows=rows.filter(r=>r.with_me);
   if(!q) return rows;
-  return rows.filter(r=>String(r.name||'').toLowerCase().includes(q)||String(r.phone||'').replace(/\s/g,'').includes(q));
+  // name only — the phone is masked on every lead that is no longer his, so
+  // matching against it would quietly search a string of dots
+  return rows.filter(r=>String(r.name||'').toLowerCase().includes(q));
 }
 function _myEntSetFilter(f){ MYENT.filter=f; _myEntRender(); }
 function _myEntRender(){
   const total=(MYENT.rows||[]).length;
-  let html=_pageHead('Leads I entered','Every lead you typed in stays on your name here — and this is where each one went.');
+  let html=_pageHead('Leads I entered','Your record of every lead you handed in — and where each one went.');
+  // Say the rule out loud. A member who is not told why the number went grey
+  // assumes he is being cheated; one sentence is the difference.
+  html+=`<div class="card" style="padding:11px 13px;margin:0 0 12px;display:flex;gap:9px;align-items:flex-start">
+    <span style="color:var(--fk-text-muted);flex:none;margin-top:1px">${li('info',15,2)}</span>
+    <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.55">The company pays for the ads, so these leads belong to the company. Once one is handed on, the number is hidden here — the lead stays on your name and counts as yours either way.</div>
+  </div>`;
   html+=_numStrip([
-    {lbl:'Entered today',        val:String(MYENT.today)},
-    {lbl:'Waiting to be handed', val:String(MYENT.waiting)},
-    {lbl:'Back with you',        val:String(MYENT.with_me)}
+    {lbl:'Handed in this month', val:String(MYENT.month)},
+    {lbl:'Entered today',       val:String(MYENT.today)},
+    {lbl:'Back with you',       val:String(MYENT.with_me)}
   ]);
   const seg=[['all','All ('+total+')'],['waiting','Waiting ('+MYENT.waiting+')'],['mine','With me ('+MYENT.with_me+')']];
   html+='<div style="display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 4px">'
@@ -6073,7 +6081,7 @@ function _myEntRender(){
     + '</div>';
   if(total){
     const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
-    html+=`<div class="lead-search">${srch}<input class="input" id="myent-q" placeholder="Search name or phone…" value="${esc(MYENT.q||'')}" oninput="MYENT.q=this.value;_clrToggle('myent-clr',this);_myEntListRender()"><button class="lead-clr" id="myent-clr" style="display:${(MYENT.q||'')?'grid':'none'}" onclick="MYENT.q='';_myEntRender()" aria-label="Clear search" title="Clear search">✕</button></div>`;
+    html+=`<div class="lead-search">${srch}<input class="input" id="myent-q" placeholder="Search by name…" value="${esc(MYENT.q||'')}" oninput="MYENT.q=this.value;_clrToggle('myent-clr',this);_myEntListRender()"><button class="lead-clr" id="myent-clr" style="display:${(MYENT.q||'')?'grid':'none'}" onclick="MYENT.q='';_myEntRender()" aria-label="Clear search" title="Clear search">✕</button></div>`;
   }
   html+='<div class="dsec">Leads</div>';
   if(!total) html+=_emptyCard('Nothing entered yet','When a lead reaches you on WhatsApp or at the gate, tap “Add lead” on the Leads screen. It is recorded against your name here.');
@@ -6098,7 +6106,7 @@ function _myEntRow(r){
     ${_avatar(r.name,34)}
     <div style="flex:1;min-width:0">
       <div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</div>
-      <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${r.phone?esc(phDisp(r.phone))+' · ':''}${esc(_srcLabel(r.source))} · ${esc(fdate(r.created_at))}</span>${r.project_name?_projChip(r.project_name):''}</div>
+      <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${r.phone?(r.masked?esc(r.phone):esc(phDisp(r.phone)))+' · ':''}${esc(_srcLabel(r.source))} · ${esc(fdate(r.created_at))}</span>${r.project_name?_projChip(r.project_name):''}</div>
     </div>
     <span style="display:inline-flex;align-items:center;font-size:var(--ts-label);font-weight:600;color:${where[1]};background:${where[2]};border-radius:999px;padding:2px 9px;white-space:nowrap;flex:none">${esc(where[0])}</span>
   </div></div>`;
