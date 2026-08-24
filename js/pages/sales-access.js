@@ -12,6 +12,7 @@ let _saLimit = null;
 let _saSignupToken = null;
 let _saJoinCode = null;
 let _saPortal = null;   // main-portal (/crm) signup setting
+let _saIntake = null;   // where a member's own manual lead entry lands
 let _saCompanyCode = null;
 let _saUmbrella = null;
 let _saAnns = [];
@@ -115,6 +116,11 @@ async function rSalesAccess() {
     const { data: ps } = await supabase.rpc('admin_get_portal_signup', { p_company_id: cid });
     _saPortal = (ps && ps.success) ? ps : null;
   } catch (e) { _saPortal = null; }
+
+  try {
+    const { data: li } = await supabase.rpc('admin_get_lead_intake', { p_company_id: cid });
+    _saIntake = (li && li.success) ? li : null;
+  } catch (e) { _saIntake = null; }
 
   _saRender();
 }
@@ -232,7 +238,7 @@ function _saBodyHtml() {
     }), { header: { icon: 'users', tone: 'primary', title: 'Sales people' }, flush: true });
   }
 
-  return linkCard + _saPortalCardHtml() + _saJoinCardHtml() + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
+  return linkCard + _saPortalCardHtml() + _saIntakeCardHtml() + _saJoinCardHtml() + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
          `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
          _saPoolCardHtml() +
          _saNotifyCardHtml() +
@@ -458,6 +464,37 @@ function _saPortalCardHtml() {
      ${scopePick}${note}`;
   return `<div style="margin-top:var(--fk-sp-3)">` +
     NX.card(inner, { header: { icon: 'link', tone: 'primary', title: 'Main portal link' } }) + `</div>`;
+}
+// ── Where a member's own manual lead entry lands ──
+// A WhatsApp lead arrives on a sales person's own phone and never reaches the
+// CRM by itself, so somebody has to type it in. Whether that lead then belongs
+// to the person who typed it, or to the company that paid for the ad, is a
+// policy each company settles for itself — so it is a switch, not a rule.
+function _saIntakeCardHtml() {
+  const c = _saIntake; if (!c) return '';
+  const on = !!c.member_leads_to_director;
+  const note = on
+    ? `<div style="margin-top:10px;font-size:12px;color:var(--fk-text-muted)">On — a member's manual entry goes to the <strong>director's pool</strong> and is handed out from <strong>Assign leads</strong>. Directors are notified as it arrives, and the member keeps it on his name under <strong>Leads I entered</strong>.</div>`
+    : `<div style="margin-top:10px;font-size:12px;color:var(--fk-text-muted)">Off — a lead a member types in <strong>stays with that member</strong>. To move it you must pull it back first, then hand it over.</div>`;
+  const inner =
+    `<div style="font-size:13px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-2)">WhatsApp and walk-in leads do not reach the CRM on their own — a member types them in. This decides who they then belong to.</div>
+     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px">
+       <div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--fk-text)">Member-entered leads go to the director</div>
+         <div style="font-size:12px;color:var(--fk-text-muted)">The company paid for the ad, so the lead is the company's — the director hands it out</div></div>
+       <input type="checkbox" ${on ? 'checked' : ''} style="width:18px;height:18px;flex:0 0 auto;accent-color:var(--fk-primary);cursor:pointer" onchange="_saToggleIntake(this.checked)"></div>
+     ${note}`;
+  return `<div style="margin-top:var(--fk-sp-3)">` +
+    NX.card(inner, { header: { icon: 'user-plus', tone: 'primary', title: 'Manually entered leads' } }) + `</div>`;
+}
+async function _saToggleIntake(on) {
+  try {
+    const { data } = await supabase.rpc('admin_set_lead_intake', { p_company_id: S.cid, p_enabled: !!on });
+    if (data && data.success) {
+      _saIntake.member_leads_to_director = !!data.member_leads_to_director;
+      if (typeof toast === 'function') toast(on ? 'Member-entered leads now go to the director' : 'Member-entered leads stay with the member', 'ok');
+      _saRender();
+    } else if (typeof toast === 'function') toast('Could not update the setting.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not update the setting.', 'err'); }
 }
 async function _saTogglePortal(on) {
   const scope = (_saPortal && _saPortal.scope) || 'umbrella';

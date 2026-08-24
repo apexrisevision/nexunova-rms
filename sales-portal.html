@@ -1526,6 +1526,7 @@ button.mn-card:active{transform:scale(.985)}
         <div class="sb-grp-body">
           <a class="ni" data-tab="alerts" onclick="setTab('alerts')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="ni-lb">Alerts</span><span class="ni-bdg" id="nav-badge-alerts"></span></a>
           <a class="ni" data-tab="leads" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
+          <a class="ni" data-tab="myentered" onclick="setTab('myentered')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span><span class="ni-lb">Leads I entered</span></a>
           <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
           <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
           <a class="ni" data-tab="sharelink" data-dir style="display:none" onclick="setTab('sharelink')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Share link</span></a>
@@ -2272,7 +2273,7 @@ function _applyLeadAccess(){
 // which of the 5 bottom tabs a given screen belongs to (drives the active state)
 const _BTAB_OF={
   home:'home',
-  leads:'leads', distribute:'leads', alerts:'leads',
+  leads:'leads', distribute:'leads', alerts:'leads', myentered:'leads',
   board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
   more:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
@@ -2348,7 +2349,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -2381,6 +2382,7 @@ function setTab(t,_back){
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">This screen could not load. Please refresh.</div>'; }
   else if(t==='alerts'){ if(typeof renderAlerts==='function') renderAlerts();
     else $('app-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--fk-text-muted)">Alerts could not load. Please refresh.</div>'; }
+  else if(t==='myentered') renderMyEntered();
   else if(t==='mysales') renderMySales();
   else if(t==='profile') renderProfile();
   else if(t==='clients') renderClients();
@@ -2415,7 +2417,7 @@ const _GRP_OF={
   leadentry:'op-leads', myleads:'op-leads',
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
   dailyreport:'management', givenleads:'management',
-  alerts:'workspace', leads:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
+  alerts:'workspace', leads:'workspace', myentered:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
 };
@@ -3502,7 +3504,12 @@ async function _leadSave(force){
     interest:($('ld-interest')||{}).value||'', budget:(($('ld-budget')||{}).value||'').replace(/[^0-9.]/g,''), notes:($('ld-notes')||{}).value||'' };
   _busyFoot(true);
   try{ const {data}=await sb.rpc('create_lead',{p_session_token:TOKEN,p_payload:payload,p_force:!!force});
-    if(data&&data.success){ closeModal(); toast('Lead added','ok'); renderLeads(); return; }
+    // A pooled lead leaves the member's own list the moment he saves it. Saying
+    // "Lead added" and then showing him nothing is how a member learns to stop
+    // entering them — so say where it went and where he can still find it.
+    if(data&&data.success){ closeModal();
+      if(data.pooled) _pooledDialog(name.trim()); else { toast('Lead added','ok'); renderLeads(); }
+      return; }
     else if(data&&data.error==='session_expired'){ closeModal(); sessionGone(); return; }
     else if(data&&data.error==='duplicate_owned'){ closeModal(); _dupOwnedDialog(data); return; }    // it's in their visibility → offer to open it
     else if(data&&data.error==='duplicate_elsewhere'){ if(err){ err.style.display='block';            // cross-team → soft, no details; manager/director may force
@@ -3511,6 +3518,12 @@ async function _leadSave(force){
     else { if(err){err.style.display='block';err.textContent=(data&&data.message)||'Could not save.';} }
   }catch(e){ if(err){err.style.display='block';err.textContent='Could not save.';} }
   _busyFoot(false);
+}
+function _pooledDialog(name){
+  openModal('Lead recorded',
+    `<div style="font-size:var(--fk-fs-body);color:var(--fk-text);line-height:1.55"><b>${esc(name)}</b> has gone to your director to be handed out. The company paid for the ad, so the lead belongs to the company — not to the phone it arrived on.</div>
+     <div style="font-size:var(--fs-secondary);color:var(--fk-text-muted);line-height:1.55;margin-top:10px">It stays on your name in <b>Leads I entered</b>, and you will see there who ends up working it.</div>`,
+    `<button class="btn" onclick="closeModal();renderLeads()">Done</button><button class="btn btn-primary" onclick="closeModal();setTab('myentered')">Leads I entered</button>`);
 }
 function _dupOwnedDialog(d){
   openModal('Client already in your pipeline',
@@ -3532,6 +3545,13 @@ let CONNOV=null;      // connections overview / health snapshot
 function _leProjOpts(sel){ const own=(ME&&ME.company_name)||''; return '<option value="">— No project —</option>'+LE_PROJECTS.map(p=>{ const co=(p.company_name&&p.company_name!==own)?(' · '+p.company_name):''; return `<option value="${esc(p.id)}"${sel===p.id?' selected':''}>${esc(p.name)}${co?esc(co):(p.code?' ('+esc(p.code)+')':'')}</option>`; }).join(''); }
 function _resolveProjId(t){ t=String(t||'').trim().toLowerCase(); if(!t) return ''; const p=LE_PROJECTS.find(x=>String(x.name||'').toLowerCase()===t||String(x.code||'').toLowerCase()===t); return p?p.id:''; }
 function _projChip(name){ return name?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--ts-label);color:var(--fk-info);background:var(--fk-info-surface);border-radius:999px;padding:1px 8px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis">${li('home',11,1.9)}${esc(name)}</span>`:''; }
+// Who typed this lead in. A pooled lead has no owner to name yet, and this is
+// the one fact the director needs before deciding where it goes — the member who
+// found it is the obvious first choice, not an anonymous row.
+function _enteredChip(l){
+  const n=l&&l.entered_by_name; if(!n) return '';
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--ts-label);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:999px;padding:1px 8px;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis">${li('user',11,1.9)}Entered by ${esc(n)}</span>`;
+}
 // sources the SERVER accepts for this session (lead_role_config.create_sources via get_my_lead_config) — never hardcode
 const _LE_SRC_ORDER=['facebook','instagram','whatsapp','website','walkin','call','manual'];
 function _leSources(){ const s=((LEADCFG&&LEADCFG.sources)||[]).map(x=>[x.value,x.label]); const l=s.length?s:LE_SOURCES;
@@ -4830,8 +4850,29 @@ function _assignProjectStep(){
   openModal('Assign '+n+' lead'+(n==1?'':'s')+' — which project?',
     '<div class="lgroup">'+body+'</div>','<button class="btn btn-full" onclick="closeModal()">Cancel</button>');
 }
+// A lead can be sitting in more than one list depending on where the assign was
+// started from, so look in all of them before giving up.
+function _leadById(id){
+  const pools=[(typeof LEADS!=='undefined'&&LEADS)||[], (typeof DISTV!=='undefined'&&DISTV.leads)||[], (typeof TEAM_LEADS!=='undefined'&&TEAM_LEADS)||[]];
+  for(const p of pools){ const l=p.find(x=>x&&x.id===id); if(l) return l; }
+  return null;
+}
+// The member who typed these leads in, when it is one and the same member for
+// every lead in the selection. He does not get the leads — the director still
+// chooses — but he is offered first, because handing a lead back to whoever
+// found it is the ordinary answer and hunting for his name is not.
+function _assignEnteredBy(){
+  let uid=null;
+  for(const id of (ASSIGN.ids||[])){
+    const l=_leadById(id); const c=l&&l.created_by_sales_user_id;
+    if(!c) return null;
+    if(uid===null) uid=c; else if(uid!==c) return null;
+  }
+  return uid;
+}
 function _assignMemberStep(pid){
   ASSIGN.pid=pid;
+  const entered=_assignEnteredBy();
   const byLoad=(a,b)=>(Number(a.open_leads||0)-Number(b.open_leads||0))||String(a.name||'').localeCompare(String(b.name||''));
   const all=(ASSIGN.reps||[]).slice().sort(byLoad);                 // lightest load first
   // home_project_id is a LABEL, not a gate (see 20260812c). NULL means nobody has
@@ -4840,11 +4881,13 @@ function _assignMemberStep(pid){
   // invisible here for exactly this reason.
   const mine=(pid&&pid!=='none'&&pid!=='null')
     ? all.filter(u=>u.home_project_id===pid||!u.home_project_id) : all;
-  const list=mine.length?mine:all;
+  let list=mine.length?mine:all;
+  // the member who entered it goes to the top of the list wherever he is in it
+  if(entered && list.some(u=>u.id===entered)) list=list.slice().sort((a,b)=>(b.id===entered)-(a.id===entered));
   const n=ASSIGN.ids.length;
   const body=list.map(u=>`<div class="lrow tap" onclick="_assignRun('${u.id}')"><div class="lrow-top">
      ${_avatar(u.name,34)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:var(--fs-body)">${esc(u.name)}</div>
-     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):'<span class="tbd-tag none">No project</span>'}</div></div>
+     <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;gap:6px;flex-wrap:wrap"><span>${u.open_leads} open</span>${u.project_tag?_projChip(u.project_tag):'<span class="tbd-tag none">No project</span>'}${u.id===entered?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--ts-label);color:var(--fk-primary);background:var(--fk-primary-tint);border-radius:999px;padding:1px 8px;white-space:nowrap">'+li('user',11,1.9)+'Entered '+(n==1?'this lead':'these leads')+'</span>':''}</div></div>
      <span style="color:var(--fk-primary);font-weight:700">Assign →</span></div></div>`).join('');
   const more=(mine.length&&mine.length!==all.length)
     ? `<div style="text-align:center;margin-top:10px"><a href="#" onclick="_assignMemberStep(null);return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Show staff from other projects</a></div>`
@@ -5938,7 +5981,7 @@ function _distSelRow(l){
   return `<div class="lrow tap${on?' sel':''}" onclick="_distToggle('${l.id}')"><div class="lrow-top">
     <span class="dck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
     ${_avatar(l.name,34)}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(phDisp(l.phone))+' · ':''}${esc(_leadStageLabel(l.status))}</span>${l.project_name?_projChip(l.project_name):''}</div></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(phDisp(l.phone))+' · ':''}${esc(_leadStageLabel(l.status))}</span>${l.project_name?_projChip(l.project_name):''}${_enteredChip(l)}</div></div>
   </div></div>`;
 }
 function _distToggle(id){ const i=DISTV.sel.indexOf(id); if(i>=0) DISTV.sel.splice(i,1); else DISTV.sel.push(id); _distRender(); }
@@ -5977,8 +6020,87 @@ async function _distAutoRun(){
 function _distRow(l){
   return `<div class="lrow"><div class="lrow-top">
     ${_avatar(l.name,34)}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</div></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${l.phone?esc(l.phone)+' · ':''}${esc(_leadStageLabel(l.status))}</span>${_enteredChip(l)}</div></div>
     <button class="btn btn-primary btn-sm" onclick="openAssign('${l.id}')">Assign</button>
+  </div></div>`;
+}
+
+/* ══ Leads I entered — the member's own record of what he handed in ═════════
+   A WhatsApp lead reaches a sales person's own phone. The company paid for the
+   ad that produced it, so it belongs to the company: he types it in and it goes
+   to the director's pool to be handed out — possibly to somebody else.
+
+   That rule only survives if the member can SEE that his entry was counted.
+   Take the lead away and show him nothing, and he stops typing them in; the
+   register goes quiet and nobody can tell the difference between a slow week
+   and a hidden one. So this screen exists for one reason: every lead he entered
+   stays on his name here, with where it went.
+
+   It is a reader over get_my_entered_leads. Nothing is recorded to make it work.
+   ═════════════════════════════════════════════════════════════════════════ */
+let MYENT={rows:[],today:0,waiting:0,with_me:0,filter:'all',q:''};
+async function renderMyEntered(){
+  $('app-body').innerHTML=_skel();
+  let d;
+  try{ const r=await sb.rpc('get_my_entered_leads',{p_session_token:TOKEN}); d=r.data; }
+  catch(e){ return _netErr(); }
+  if(_loadFail(d)) return;
+  _touch();
+  MYENT.rows=d.rows||[]; MYENT.today=Number(d.today||0);
+  MYENT.waiting=Number(d.waiting||0); MYENT.with_me=Number(d.with_me||0);
+  _myEntRender();
+}
+function _myEntFiltered(){
+  const q=(MYENT.q||'').trim().toLowerCase();
+  let rows=MYENT.rows||[];
+  if(MYENT.filter==='waiting') rows=rows.filter(r=>r.waiting);
+  else if(MYENT.filter==='mine') rows=rows.filter(r=>r.with_me);
+  if(!q) return rows;
+  return rows.filter(r=>String(r.name||'').toLowerCase().includes(q)||String(r.phone||'').replace(/\s/g,'').includes(q));
+}
+function _myEntSetFilter(f){ MYENT.filter=f; _myEntRender(); }
+function _myEntRender(){
+  const total=(MYENT.rows||[]).length;
+  let html=_pageHead('Leads I entered','Every lead you typed in stays on your name here — and this is where each one went.');
+  html+=_numStrip([
+    {lbl:'Entered today',        val:String(MYENT.today)},
+    {lbl:'Waiting to be handed', val:String(MYENT.waiting)},
+    {lbl:'Back with you',        val:String(MYENT.with_me)}
+  ]);
+  const seg=[['all','All ('+total+')'],['waiting','Waiting ('+MYENT.waiting+')'],['mine','With me ('+MYENT.with_me+')']];
+  html+='<div style="display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 4px">'
+    + seg.map(s=>`<button class="pchip${MYENT.filter===s[0]?' on':''}" onclick="_myEntSetFilter('${s[0]}')">${esc(s[1])}</button>`).join('')
+    + '</div>';
+  if(total){
+    const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+    html+=`<div class="lead-search">${srch}<input class="input" id="myent-q" placeholder="Search name or phone…" value="${esc(MYENT.q||'')}" oninput="MYENT.q=this.value;_clrToggle('myent-clr',this);_myEntListRender()"><button class="lead-clr" id="myent-clr" style="display:${(MYENT.q||'')?'grid':'none'}" onclick="MYENT.q='';_myEntRender()" aria-label="Clear search" title="Clear search">✕</button></div>`;
+  }
+  html+='<div class="dsec">Leads</div>';
+  if(!total) html+=_emptyCard('Nothing entered yet','When a lead reaches you on WhatsApp or at the gate, tap “Add lead” on the Leads screen. It is recorded against your name here.');
+  else html+='<div id="myent-list"></div>';
+  $('app-body').innerHTML=html;
+  _myEntListRender();
+}
+function _myEntListRender(){
+  const el=$('myent-list'); if(!el) return;
+  const rows=_myEntFiltered();
+  el.innerHTML = rows.length
+    ? '<div class="lgroup">'+rows.map(_myEntRow).join('')+'</div>'
+    : '<div class="card"><div class="empty"><div class="et">Nothing here</div><div class="es">Change the filter or clear the search to see the rest.</div></div></div>';
+}
+// Where it went, in the words the member would use: still waiting on the
+// director, back with him, or with the colleague who is now working it.
+function _myEntRow(r){
+  const where = r.with_me ? ['With you','var(--fk-success)','var(--fk-success-surface)']
+              : r.waiting ? ['Waiting to be handed','var(--fk-warning)','var(--fk-warning-surface)']
+              : ['With '+(r.owner_name||'a colleague'),'var(--fk-text-muted)','var(--fk-bg-subtle)'];
+  return `<div class="lrow"><div class="lrow-top">
+    ${_avatar(r.name,34)}
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</div>
+      <div style="font-size:var(--fs-caption);color:var(--fk-text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>${r.phone?esc(phDisp(r.phone))+' · ':''}${esc(_srcLabel(r.source))} · ${esc(fdate(r.created_at))}</span>${r.project_name?_projChip(r.project_name):''}</div>
+    </div>
+    <span style="display:inline-flex;align-items:center;font-size:var(--ts-label);font-weight:600;color:${where[1]};background:${where[2]};border-radius:999px;padding:2px 9px;white-space:nowrap;flex:none">${esc(where[0])}</span>
   </div></div>`;
 }
 

@@ -55,7 +55,7 @@
   ];
   // Online Portal is one tab-set spanning four modules that call into each other.
   var PORTAL = [
-    'js/pages/sales-access.js?v=20260706pA',
+    'js/pages/sales-access.js?v=20260824intake',
     'js/pages/sale-submissions.js?v=20260617nom',
     'js/pages/reservations.js?v=20260615p2',
     'js/pages/dealer-agreement.js?v=20260618'
