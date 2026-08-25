@@ -1532,6 +1532,7 @@ button.mn-card:active{transform:scale(.985)}
           <a class="ni" data-tab="sharelink" data-dir style="display:none" onclick="setTab('sharelink')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Share link</span></a>
           <a class="ni" data-tab="mine" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
           <a class="ni" data-tab="money" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
+          <a class="ni" data-tab="myrecord" onclick="setTab('myrecord')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">My record</span></a>
           <a class="ni" data-tab="performance" onclick="setTab('performance')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ni-lb">My results</span></a>
         </div>
       </div>
@@ -2349,7 +2350,7 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
@@ -2387,6 +2388,7 @@ function setTab(t,_back){
   else if(t==='profile') renderProfile();
   else if(t==='clients') renderClients();
   else if(t==='performance') renderPerformance();
+  else if(t==='myrecord') renderMyRecord();
   else if(t==='recovery') renderRecovery();
   else if(t==='rank') renderLeaderboard();
   else if(t==='adroi') renderAdRoi();
@@ -7027,6 +7029,200 @@ function _perfRange(p){
   if(p==='last'){ return [iso(new Date(now.getFullYear(),now.getMonth()-1,1)), iso(new Date(now.getFullYear(),now.getMonth(),0))]; }
   return [null,null];
 }
+/* ════════════════════════════════════════════════════════════════════════
+   MY RECORD — attendance, letters and leave, from NexuAttend.
+
+   Everything here comes through ONE call to the attendance-bridge Edge
+   Function. The portal never talks to the attendance database directly and
+   holds no key to it: it sends the session token it already has, and the
+   bridge decides who that is.
+   ════════════════════════════════════════════════════════════════════════ */
+const MYREC_FN='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/attendance-bridge';
+let MYREC={month:null, data:null, sub:'attendance'};
+
+function _myrecMonth(){ return MYREC.month || new Date().toISOString().slice(0,7); }
+function _myrecShiftMonth(n){
+  const [y,m]=_myrecMonth().split('-').map(Number);
+  const d=new Date(Date.UTC(y, m-1+n, 1));
+  const now=new Date();
+  // no point offering months that have not happened
+  if(d > new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) return;
+  MYREC.month=d.toISOString().slice(0,7); MYREC.data=null; renderMyRecord();
+}
+function _myrecTab(k){ MYREC.sub=k; renderMyRecord(); }
+/* A small status chip. The portal has no shared one, so rather than invent a
+   class that lives only here it is drawn from the tokens. */
+function _myrecChip(text, tone){
+  const c = tone==='warn' ? ['var(--fk-warning-surface)','var(--fk-warning)']
+          : tone==='ok'   ? ['var(--fk-success-surface)','var(--fk-success)']
+          : tone==='bad'  ? ['var(--fk-danger-surface)','var(--fk-danger)']
+          : ['var(--fk-bg-subtle)','var(--fk-text-muted)'];
+  return '<span style="flex:none;padding:3px 10px;border-radius:100px;background:'+c[0]+';color:'+c[1]
+    +';font-size:var(--fs-caption);font-weight:600;white-space:nowrap">'+esc(text)+'</span>';
+}
+
+async function _myrecCall(body){
+  const r=await fetch(MYREC_FN,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({session_token:TOKEN},body))});
+  return r.json();
+}
+
+async function renderMyRecord(){
+  const b=$('app-body'); if(!b) return;
+  if(!MYREC.data){
+    b.innerHTML=_skel();
+    const ym=_myrecMonth();
+    const [y,m]=ym.split('-').map(Number);
+    const last=new Date(Date.UTC(y,m,0)).getUTCDate();
+    let out;
+    try{ out=await _myrecCall({action:'file',from:ym+'-01',to:ym+'-'+String(last).padStart(2,'0')}); }
+    catch(e){ return _netErr(); }
+    if(!out) return _netErr();
+    if(out.error==='session_invalid') return sessionGone();
+    MYREC.data=out;
+  }
+  const d=MYREC.data;
+  _touch();
+
+  let html='<div class="nx-dash">'+_pageHead('My record','Your attendance, letters and leave.');
+
+  // ── it could not be shown, and why ─────────────────────────────────────
+  if(!d.ok){
+    html+='<div class="card"><div class="empty">'
+      +'<div class="ei">'+li('info',20,1.8)+'</div>'
+      +'<div class="et">Your record is not available yet</div>'
+      +'<div class="es">'+esc(d.message||'Attendance is not connected for you yet.')+'</div>'
+      +'</div></div>';
+    b.innerHTML=html+'</div>';
+    if(window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const emp=d.employee||{}, days=d.days||[], punches=d.punches||[];
+  const notices=d.notices||[], leaves=d.leave_requests||[], bal=d.leave_balance||[];
+
+  // ── who this is, according to the attendance register ──────────────────
+  html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
+    +'<div style="font-weight:700;font-size:var(--fs-body)">'+esc(emp.full_name||'—')+'</div>'
+    +'<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:2px">'
+    +esc([emp.designation,emp.department,emp.employee_code].filter(Boolean).join(' · '))+'</div>'
+    +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px">'+esc(d.tenant||'')+'</div>'
+    +'</div></div>';
+
+  // ── the month, and what it added up to ─────────────────────────────────
+  const present=days.filter(x=>x.status==='present'||x.status==='late').length;
+  const late=days.filter(x=>(x.late_minutes||0)>0).length;
+  const absent=days.filter(x=>x.status==='absent').length;
+  const onleave=days.filter(x=>String(x.status||'').indexOf('leave')>-1).length;
+  const [yy,mm]=_myrecMonth().split('-').map(Number);
+  const monthName=['January','February','March','April','May','June','July','August','September','October','November','December'][mm-1]+' '+yy;
+
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px">'
+    +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(-1)">‹</button>'
+    +'<b style="font-size:var(--fs-body)">'+esc(monthName)+'</b>'
+    +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(1)">›</button></div>';
+
+  const stat=(n,l,c)=>'<div style="flex:1 1 0;min-width:74px;text-align:center;padding:12px 6px;'
+    +'border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card)">'
+    +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;color:'+(c||'var(--fk-text)')+'">'+n+'</div>'
+    +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+    +'font-weight:600;color:var(--fk-text-muted);margin-top:2px">'+esc(l)+'</div></div>';
+  html+='<div id="myrec-stats" style="display:flex;gap:8px;margin-bottom:16px">'
+       +stat(present,'Present','var(--fk-success)')+stat(late,'Late','var(--fk-warning)')
+       +stat(absent,'Absent',absent?'var(--fk-danger)':null)+stat(onleave,'Leave')+'</div>';
+
+  // ── the three lists ────────────────────────────────────────────────────
+  const tab=(k,l,n)=>'<button class="btn '+(MYREC.sub===k?'btn-primary':'btn-secondary')
+    +'" style="height:36px;padding:0 14px;font-size:var(--fs-secondary)" onclick="_myrecTab(\''+k+'\')">'
+    +esc(l)+(n?' ('+n+')':'')+'</button>';
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 12px">'
+    +tab('attendance','Attendance',days.length)+tab('letters','Letters',notices.length)
+    +tab('leave','Leave',leaves.length)+'</div>';
+
+  if(MYREC.sub==='attendance'){
+    if(!days.length){
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('calendar',20,1.8)+'</div>'
+        +'<div class="et">Nothing recorded this month</div>'
+        +'<div class="es">Days appear here as you punch in and out.</div></div></div>';
+    } else {
+      const t=iso=>iso?new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Karachi'}):'—';
+      html+='<div class="card" style="padding:6px 8px">';
+      days.slice().reverse().forEach(x=>{
+        const dd=new Date(x.date+'T00:00:00Z');
+        const st=String(x.status||'').replace(/_/g,' ');
+        const tone = /absent/.test(st) ? 'bad' : /leave/.test(st) ? 'warn' : 'ok';
+        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name">'+dd.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dd.getUTCMonth()]
+          +' <span style="color:var(--fk-text-muted);font-weight:500">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dd.getUTCDay()]+'</span></div>'
+          +'<div class="lr-sub"><span>'+t(x.first_in)+' — '+t(x.last_out)+'</span></div></div>'
+          +((x.late_minutes||0)>0?_myrecChip(x.late_minutes+'m late','warn'):'')
+          +_myrecChip(st, tone)+'</div>';
+      });
+      html+='</div>';
+      html+='<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin:10px 2px 0">'
+           +punches.length+' punches recorded this month.</div>';
+    }
+  }
+
+  if(MYREC.sub==='letters'){
+    if(!notices.length){
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('file-text',20,1.8)+'</div>'
+        +'<div class="et">Nothing on file</div>'
+        +'<div class="es">Warnings, circulars and letters issued to you appear here.</div></div></div>';
+    } else {
+      html+='<div class="card" style="padding:6px 8px">';
+      notices.forEach(n=>{
+        const when=n.issued_at?new Date(n.issued_at).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+        html+='<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name" style="white-space:normal">'+esc(n.subject||'')+'</div>'
+          +'<div class="lr-sub"><span>'+esc([n.reference_no,when].filter(Boolean).join(' · '))+'</span></div>'
+          +(n.to_me?'':'<div class="lr-sub"><span>Sent to all staff</span></div>')
+          +'</div>'+_myrecChip(n.kind||'', n.kind==='warning'?'warn':null)+'</div>';
+      });
+      html+='</div>';
+    }
+  }
+
+  if(MYREC.sub==='leave'){
+    html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+      +'<div style="font-weight:600;font-size:var(--fs-secondary);margin-bottom:8px">This year</div>';
+    bal.filter(x=>x.entitled).forEach(x=>{
+      const leftN=Number(x.entitled)-Number(x.taken||0);
+      html+='<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:var(--fs-secondary)">'
+        +'<span style="color:var(--fk-text-muted)">'+esc(x.type)+'</span>'
+        +'<b>'+leftN+' left <span style="color:var(--fk-text-muted);font-weight:500">of '+esc(String(x.entitled))+'</span></b></div>';
+    });
+    html+='</div></div>';
+
+    if(!leaves.length){
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('plane',20,1.8)+'</div>'
+        +'<div class="et">No applications yet</div>'
+        +'<div class="es">Leave you have asked for appears here with where it has reached.</div></div></div>';
+    } else {
+      // where it has reached, said the way the office actually says it
+      const WHERE={submitted:['With HR',''],returned:['Returned to you','warn'],
+        pending:['With the Head of Department',''],approved:['Approved','ok'],
+        rejected:['Refused','bad'],cancelled:['Withdrawn','']};
+      html+='<div class="card" style="padding:6px 8px">';
+      leaves.forEach(l=>{
+        const w=WHERE[l.status]||[l.status,''];
+        const from=new Date(l.start_date+'T00:00:00Z'), to=new Date(l.end_date+'T00:00:00Z');
+        const fmt=x=>x.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getUTCMonth()];
+        html+='<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name" style="white-space:normal">'+esc(l.type||'Leave')+' · '+fmt(from)+(l.start_date!==l.end_date?' – '+fmt(to):'')+'</div>'
+          +'<div class="lr-sub"><span>'+esc([l.application_no,(l.days||0)+' day'+((l.days||0)==1?'':'s')].filter(Boolean).join(' · '))+'</span></div>'
+          +(l.returned_note?'<div class="lr-sub"><span style="color:var(--fk-warning)">'+esc(l.returned_note)+'</span></div>':'')
+          +(l.rejected_reason?'<div class="lr-sub"><span style="color:var(--fk-danger)">'+esc(l.rejected_reason)+'</span></div>':'')
+          +'</div>'+_myrecChip(w[0], w[1])+'</div>';
+      });
+      html+='</div>';
+    }
+  }
+
+  b.innerHTML=html+'</div>';
+  if(window.lucide) lucide.createIcons();
+}
+
 async function renderPerformance(){
   $('app-body').innerHTML=_skel();
   const [from,to]=_perfRange(PERF_PERIOD);
