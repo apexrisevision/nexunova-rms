@@ -7125,18 +7125,24 @@ async function _myrecCall(body){
   return r.json();
 }
 
-// The KYC photo, read from the portal's own profile and remembered for the rest
-// of the session. undefined means "not asked yet", null means "asked, none on
-// file" — so somebody without a photo is not re-fetched on every month change.
-let MYREC_PHOTO;
-async function _myrecPhoto(){
-  if(MYREC_PHOTO!==undefined) return MYREC_PHOTO;
-  MYREC_PHOTO=null;
+/* The half of the file that the attendance register never had.
+   A personnel file is two halves and they live in two places: the register
+   knows the employment — code, department, joining, shift, service record —
+   and the portal knows the person, because that is what was collected at KYC
+   sign-up: the photograph, CNIC, father's name, address, bank. One person,
+   so the file shows both halves together.
+   Read once and remembered for the session: undefined means "not asked yet",
+   null means "asked, nothing on file", so somebody without a profile is not
+   re-fetched every time the month changes. */
+let MYREC_PROFILE;
+async function _myrecProfile(){
+  if(MYREC_PROFILE!==undefined) return MYREC_PROFILE;
+  MYREC_PROFILE=null;
   try{
     const r=await sb.rpc('get_my_profile',{p_session_token:TOKEN});
-    if(r&&r.data&&r.data.success) MYREC_PHOTO=(r.data.profile||{}).profile_photo_url||null;
+    if(r&&r.data&&r.data.success) MYREC_PROFILE=r.data.profile||null;
   }catch(e){}
-  return MYREC_PHOTO;
+  return MYREC_PROFILE;
 }
 
 async function renderMyRecord(){
@@ -7173,29 +7179,44 @@ async function renderMyRecord(){
   const emp=d.employee||{}, days=d.days||[], punches=d.punches||[];
   const notices=d.notices||[], leaves=d.leave_requests||[], bal=d.leave_balance||[];
 
-  // ── who this is, according to the attendance register ──────────────────
-  // The face is the only part of this card that does NOT come from attendance:
-  // the register has no photo, while the portal already holds the one taken at
-  // KYC sign-up. So the picture is read from here and everything beside it from
-  // there. Falls back to initials when somebody was added by the office rather
-  // than through sign-up, which is why the two directors have no photo.
+  /* ── the cover of the file ────────────────────────────────────────────
+     A file is recognised before it is read: a photograph pasted top-left, the
+     name beside it, and the file number on the cover. The portrait is 84×104
+     rather than a round avatar for exactly that reason — a round chip reads as
+     a chat contact, a rectangle reads as a document. The face comes from the
+     portal (KYC sign-up), everything beside it from the attendance register.
+     Initials stand in for anybody the office added by hand instead. */
+  const prof=await _myrecProfile()||{};
   const _mrIni=((emp.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
-  const _mrPhoto=await _myrecPhoto();
-  const _mrFace=_mrPhoto
-    ? '<img src="'+esc(_mrPhoto)+'" alt="" style="width:100%;height:100%;object-fit:cover">'
+  const _mrFace=prof.profile_photo_url
+    ? '<img src="'+esc(prof.profile_photo_url)+'" alt="" style="width:100%;height:100%;object-fit:cover">'
     : esc(_mrIni);
-  html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px;display:flex;align-items:center;gap:12px">'
-    +'<div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;'
-    +'background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;'
-    +'font-size:var(--fs-title);font-weight:700">'+_mrFace+'</div>'
-    +'<div style="flex:1;min-width:0">'
-    +'<div style="font-weight:700;font-size:var(--fs-body)">'+esc(emp.full_name||'—')+'</div>'
-    +'<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:2px">'
-    +esc([emp.designation,emp.department,emp.employee_code].filter(Boolean).join(' · '))+'</div>'
-    +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px">'+esc(d.tenant||'')+'</div>'
-    +'</div></div></div>';
+  const coverChips=[
+    emp.employee_code?_myrecChip('File '+emp.employee_code):'',
+    emp.shift?_myrecChip(emp.shift):'',
+    prof.kyc_status==='verified'?_myrecChip('Verified','ok'):''
+  ].filter(Boolean).join('');
+  html+='<div class="card" style="margin-bottom:14px;overflow:hidden">'
+    +'<div style="height:3px;background:var(--fk-primary)"></div>'
+    +'<div style="padding:16px;display:flex;align-items:flex-start;gap:14px">'
+    +'<div style="width:84px;height:104px;border-radius:10px;overflow:hidden;flex:none;'
+    +'border:1px solid var(--fk-border);background:var(--fk-primary-tint);color:var(--fk-primary);'
+    +'display:grid;place-items:center;font-size:var(--fs-title);font-weight:700">'+_mrFace+'</div>'
+    +'<div style="flex:1;min-width:0;padding-top:2px">'
+    +'<div style="font-size:var(--fs-title);font-weight:700;line-height:1.2">'+esc(emp.full_name||'—')+'</div>'
+    +'<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:4px;line-height:1.35">'
+    +esc(emp.designation||'—')+'</div>'
+    +(emp.department?'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:1px">'
+      +esc(emp.department)+'</div>':'')
+    +(coverChips?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">'+coverChips+'</div>':'')
+    +'</div></div>'
+    +'<div style="padding:9px 16px;border-top:1px solid var(--fk-hairline);background:var(--fk-bg-subtle);'
+    +'color:var(--fk-text-muted);font-size:var(--fs-caption)">'+esc(d.tenant||'')+'</div>'
+    +'</div>';
 
   // ── the month, and what it added up to ─────────────────────────────────
+  // Month and tallies belong to the attendance sheet, not to the file: leaving
+  // them above "My file" made August's late count look like part of the person.
   const present=days.filter(x=>x.status==='present'||x.status==='late').length;
   const late=days.filter(x=>(x.late_minutes||0)>0).length;
   const absent=days.filter(x=>x.status==='absent').length;
@@ -7203,19 +7224,21 @@ async function renderMyRecord(){
   const [yy,mm]=_myrecMonth().split('-').map(Number);
   const monthName=['January','February','March','April','May','June','July','August','September','October','November','December'][mm-1]+' '+yy;
 
-  html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px">'
-    +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(-1)">‹</button>'
-    +'<b style="font-size:var(--fs-body)">'+esc(monthName)+'</b>'
-    +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(1)">›</button></div>';
+  if(MYREC.sub==='attendance'){
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px">'
+      +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(-1)">‹</button>'
+      +'<b style="font-size:var(--fs-body)">'+esc(monthName)+'</b>'
+      +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(1)">›</button></div>';
 
-  const stat=(n,l,c)=>'<div style="flex:1 1 0;min-width:74px;text-align:center;padding:12px 6px;'
-    +'border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card)">'
-    +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;color:'+(c||'var(--fk-text)')+'">'+n+'</div>'
-    +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
-    +'font-weight:600;color:var(--fk-text-muted);margin-top:2px">'+esc(l)+'</div></div>';
-  html+='<div id="myrec-stats" style="display:flex;gap:8px;margin-bottom:16px">'
-       +stat(present,'Present','var(--fk-success)')+stat(late,'Late','var(--fk-warning)')
-       +stat(absent,'Absent',absent?'var(--fk-danger)':null)+stat(onleave,'Leave')+'</div>';
+    const stat=(n,l,c)=>'<div style="flex:1 1 0;min-width:74px;text-align:center;padding:12px 6px;'
+      +'border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card)">'
+      +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;color:'+(c||'var(--fk-text)')+'">'+n+'</div>'
+      +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+      +'font-weight:600;color:var(--fk-text-muted);margin-top:2px">'+esc(l)+'</div></div>';
+    html+='<div id="myrec-stats" style="display:flex;gap:8px;margin-bottom:16px">'
+         +stat(present,'Present','var(--fk-success)')+stat(late,'Late','var(--fk-warning)')
+         +stat(absent,'Absent',absent?'var(--fk-danger)':null)+stat(onleave,'Leave')+'</div>';
+  }
 
   // ── the three lists ────────────────────────────────────────────────────
   const tab=(k,l,n)=>'<button class="btn '+(MYREC.sub===k?'btn-primary':'btn-secondary')
@@ -7356,20 +7379,61 @@ async function renderMyRecord(){
       +'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-secondary)">'
       +'<span style="color:var(--fk-text-muted)">'+esc(k)+'</span><b style="text-align:right">'+esc(v)+'</b></div>'):'';
     const dt=x=>x?new Date(x+'T00:00:00Z').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+    /* Sections carry a numbered tab down the side, the way the dividers in a
+       paper file do. A section with nothing in it is not printed at all —
+       an empty "Bank" heading tells the reader less than no heading. */
+    let _sn=0;
+    const sec=(title,body)=>{
+      if(!body) return '';
+      _sn++;
+      return '<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+        +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+        +'<span style="width:20px;height:20px;border-radius:6px;flex:none;background:var(--fk-primary-tint);'
+        +'color:var(--fk-primary);display:grid;place-items:center;font-size:var(--fk-fs-label);'
+        +'font-weight:700;font-variant-numeric:tabular-nums">'+_sn+'</span>'
+        +'<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted)">'+esc(title)+'</span></div>'
+        +body+'</div></div>';
+    };
 
-    html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
-      +'<div style="font-weight:600;font-size:var(--fs-secondary);margin-bottom:6px">Your employment</div>'
-      +row('Employee no.',emp.employee_code)+row('Designation',emp.designation)
-      +row('Department',emp.department)+row('Joined',dt(emp.join_date))
-      +row('Confirmed',dt(emp.confirmation_date))
-      +row('Type',(emp.employment_type||'').replace(/_/g,' '))
-      +row('Shift',emp.shift)+row('Reports to',emp.reports_to)
-      +row('Notice period',emp.notice_period_days?emp.notice_period_days+' days':'')
-      +'</div></div>';
+    // The person, as they gave themselves at sign-up. No name row: the cover
+    // above already carries it, and printing it twice invites the reader to
+    // compare two spellings of the same person and wonder which is right.
+    html+=sec('Personal',
+        row('Father / husband name',prof.father_name)
+      + row('CNIC',prof.cnic)
+      + row('Blood group',emp.blood_group)
+      + row('Address',prof.address));
+
+    html+=sec('Contact',
+        row('Mobile',prof.phone||emp.phone)
+      + row('Email',prof.email||emp.email)
+      + row('Emergency contact',emp.emergency_name)
+      + row('Emergency number',emp.emergency_phone));
+
+    html+=sec('Employment',
+        row('Employee no.',emp.employee_code)+row('Designation',emp.designation)
+      + row('Department',emp.department)+row('Joined',dt(emp.join_date))
+      + row('Confirmed',dt(emp.confirmation_date))
+      + row('Type',(emp.employment_type||'').replace(/_/g,' '))
+      + row('Shift',emp.shift)+row('Reports to',emp.reports_to)
+      + row('Notice period',emp.notice_period_days?emp.notice_period_days+' days':''));
+
+    html+=sec('Bank',
+        row('Bank',prof.bank_name||emp.bank_name)
+      + row('Account title',prof.bank_account_title)
+      + row('Account number',prof.bank_account_no||emp.bank_account_no));
+
+    // What the office holds about this person's identity, and since when.
+    html+=sec('Verification',
+        row('CNIC on file',prof.kyc_status==='verified'?'Verified':(prof.kyc_status||''))
+      + row('Email',prof.email?(prof.email_verified?'Verified':'Not verified yet'):'')
+      + row('Portal since',prof.created_at?new Date(prof.created_at)
+          .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):''));
 
     if(hist.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Service record</div>';
+        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Service record</div>';
       hist.forEach(x=>{
         const what={joined:'Joined',transfer:'Transferred',promotion:'Promoted',increment:'Increment',
           salary_change:'Salary changed',confirmed:'Confirmed',exit:'Left',note:'Note'}[x.change]||x.change;
@@ -7386,7 +7450,7 @@ async function renderMyRecord(){
 
     if(docs.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Documents on file</div>';
+        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Documents on file</div>';
       docs.forEach(x=>{
         // The point of showing these is the expiry: a licence that ran out last
         // month is the one thing a person can actually act on.
@@ -7404,7 +7468,7 @@ async function renderMyRecord(){
 
     if(advances.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Advances</div>';
+        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Advances</div>';
       advances.forEach(x=>{
         html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
           +'<div class="lr-name">Rs '+Number(x.amount||0).toLocaleString('en-US')+'</div>'
@@ -7418,7 +7482,7 @@ async function renderMyRecord(){
 
     if(visits.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Gate passes</div>';
+        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Gate passes</div>';
       visits.slice(0,20).forEach(x=>{
         html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
           +'<div class="lr-name" style="white-space:normal">'+esc(x.purpose||x.location||'Out')+'</div>'
