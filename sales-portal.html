@@ -7125,6 +7125,20 @@ async function _myrecCall(body){
   return r.json();
 }
 
+// The KYC photo, read from the portal's own profile and remembered for the rest
+// of the session. undefined means "not asked yet", null means "asked, none on
+// file" — so somebody without a photo is not re-fetched on every month change.
+let MYREC_PHOTO;
+async function _myrecPhoto(){
+  if(MYREC_PHOTO!==undefined) return MYREC_PHOTO;
+  MYREC_PHOTO=null;
+  try{
+    const r=await sb.rpc('get_my_profile',{p_session_token:TOKEN});
+    if(r&&r.data&&r.data.success) MYREC_PHOTO=(r.data.profile||{}).profile_photo_url||null;
+  }catch(e){}
+  return MYREC_PHOTO;
+}
+
 async function renderMyRecord(){
   const b=$('app-body'); if(!b) return;
   if(!MYREC.data){
@@ -7160,12 +7174,26 @@ async function renderMyRecord(){
   const notices=d.notices||[], leaves=d.leave_requests||[], bal=d.leave_balance||[];
 
   // ── who this is, according to the attendance register ──────────────────
-  html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
+  // The face is the only part of this card that does NOT come from attendance:
+  // the register has no photo, while the portal already holds the one taken at
+  // KYC sign-up. So the picture is read from here and everything beside it from
+  // there. Falls back to initials when somebody was added by the office rather
+  // than through sign-up, which is why the two directors have no photo.
+  const _mrIni=((emp.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
+  const _mrPhoto=await _myrecPhoto();
+  const _mrFace=_mrPhoto
+    ? '<img src="'+esc(_mrPhoto)+'" alt="" style="width:100%;height:100%;object-fit:cover">'
+    : esc(_mrIni);
+  html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px;display:flex;align-items:center;gap:12px">'
+    +'<div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;'
+    +'background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;'
+    +'font-size:var(--fs-title);font-weight:700">'+_mrFace+'</div>'
+    +'<div style="flex:1;min-width:0">'
     +'<div style="font-weight:700;font-size:var(--fs-body)">'+esc(emp.full_name||'—')+'</div>'
     +'<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:2px">'
     +esc([emp.designation,emp.department,emp.employee_code].filter(Boolean).join(' · '))+'</div>'
     +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px">'+esc(d.tenant||'')+'</div>'
-    +'</div></div>';
+    +'</div></div></div>';
 
   // ── the month, and what it added up to ─────────────────────────────────
   const present=days.filter(x=>x.status==='present'||x.status==='late').length;
