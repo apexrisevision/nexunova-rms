@@ -7038,7 +7038,7 @@ function _perfRange(p){
    bridge decides who that is.
    ════════════════════════════════════════════════════════════════════════ */
 const MYREC_FN='https://itqxljtfbrppntgyfush.supabase.co/functions/v1/attendance-bridge';
-let MYREC={month:null, data:null, sub:'attendance'};
+let MYREC={month:null, data:null, sub:'attendance', types:null, asking:false, busy:false};
 
 function _myrecMonth(){ return MYREC.month || new Date().toISOString().slice(0,7); }
 function _myrecShiftMonth(n){
@@ -7059,6 +7059,64 @@ function _myrecChip(text, tone){
           : ['var(--fk-bg-subtle)','var(--fk-text-muted)'];
   return '<span style="flex:none;padding:3px 10px;border-radius:100px;background:'+c[0]+';color:'+c[1]
     +';font-size:var(--fs-caption);font-weight:600;white-space:nowrap">'+esc(text)+'</span>';
+}
+
+/* ── Asking for leave ─────────────────────────────────────────────────────
+   It lands as 'submitted': HR checks it and passes it up, and the Head of
+   Department decides. Nothing here approves anything, and the form says so,
+   because a button that looks like it grants the leave would be a lie the
+   first time somebody's is refused. */
+function _myrecAsk(){
+  MYREC.asking=true;
+  renderMyRecord();
+  // the leave types are the same all day; fetch once
+  if(!MYREC.types){
+    _myrecCall({action:'leave_types'}).then(r=>{
+      MYREC.types=(r&&r.leave_types)||[];
+      if(MYREC.asking) renderMyRecord();
+    }).catch(()=>{});
+  }
+}
+function _myrecCancelAsk(){ MYREC.asking=false; renderMyRecord(); }
+
+async function _myrecSubmit(){
+  if(MYREC.busy) return;
+  const type=document.getElementById('mr-type').value;
+  const from=document.getElementById('mr-from').value;
+  const to=document.getElementById('mr-to').value||from;
+  const part=document.getElementById('mr-part').value;
+  const reason=(document.getElementById('mr-reason').value||'').trim();
+  const contact=(document.getElementById('mr-contact').value||'').trim();
+  const err=document.getElementById('mr-err');
+  const show=m=>{ err.textContent=m; err.style.display='block'; };
+  err.style.display='none';
+
+  if(!type) return show('Choose what kind of leave you need.');
+  if(!from) return show('Choose the first day.');
+  if(to<from) return show('The last day cannot be before the first.');
+  if(!reason) return show('Please say why you need the leave — your manager will read this.');
+
+  MYREC.busy=true;
+  const btn=document.getElementById('mr-send'); if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  let out;
+  try{ out=await _myrecCall({action:'apply_leave',leave_type:type,from:from,to:to,
+        day_part:part,reason:reason,contact:contact}); }
+  catch(e){ out=null; }
+  MYREC.busy=false;
+  if(!out||!out.ok){
+    if(btn){ btn.disabled=false; btn.textContent='Send to HR'; }
+    return show((out&&out.message)||'That could not be sent. Please try again.');
+  }
+  MYREC.asking=false; MYREC.data=null;
+  toast('Sent to HR — '+out.application_no);
+  renderMyRecord();
+}
+
+async function _myrecWithdraw(id){
+  if(!confirm('Withdraw this application?')) return;
+  const out=await _myrecCall({action:'cancel_leave',request_id:id});
+  if(!out||!out.ok){ toast((out&&out.message)||'That could not be withdrawn'); return; }
+  MYREC.data=null; toast('Withdrawn'); renderMyRecord();
 }
 
 async function _myrecCall(body){
@@ -7084,7 +7142,7 @@ async function renderMyRecord(){
   const d=MYREC.data;
   _touch();
 
-  let html='<div class="nx-dash">'+_pageHead('My record','Your attendance, letters and leave.');
+  let html='<div class="nx-dash">'+_pageHead('My record','Your attendance, leave, letters and service record.');
 
   // ── it could not be shown, and why ─────────────────────────────────────
   if(!d.ok){
@@ -7135,9 +7193,10 @@ async function renderMyRecord(){
   const tab=(k,l,n)=>'<button class="btn '+(MYREC.sub===k?'btn-primary':'btn-secondary')
     +'" style="height:36px;padding:0 14px;font-size:var(--fs-secondary)" onclick="_myrecTab(\''+k+'\')">'
     +esc(l)+(n?' ('+n+')':'')+'</button>';
+  const hist=d.history||[], docs=d.documents||[], visits=d.visits||[], advances=d.advances||[];
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 12px">'
-    +tab('attendance','Attendance',days.length)+tab('letters','Letters',notices.length)
-    +tab('leave','Leave',leaves.length)+'</div>';
+    +tab('attendance','Attendance',days.length)+tab('leave','Leave',leaves.length)
+    +tab('letters','Letters',notices.length)+tab('file','My file',0)+'</div>';
 
   if(MYREC.sub==='attendance'){
     if(!days.length){
@@ -7166,7 +7225,7 @@ async function renderMyRecord(){
 
   if(MYREC.sub==='letters'){
     if(!notices.length){
-      html+='<div class="card"><div class="empty"><div class="ei">'+li('file-text',20,1.8)+'</div>'
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',20,1.8)+'</div>'
         +'<div class="et">Nothing on file</div>'
         +'<div class="es">Warnings, circulars and letters issued to you appear here.</div></div></div>';
     } else {
@@ -7194,8 +7253,44 @@ async function renderMyRecord(){
     });
     html+='</div></div>';
 
+    // ── the form ──────────────────────────────────────────────────────
+    if(MYREC.asking){
+      const opts=(MYREC.types||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)
+        +(t.is_paid?'':' (unpaid)')+'</option>').join('');
+      const today=new Date().toISOString().slice(0,10);
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
+        +'<div style="font-weight:700;font-size:var(--fs-body);margin-bottom:4px">Ask for leave</div>'
+        +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-bottom:12px">'
+        +'This goes to HR first. They pass it to the Head of Department, who decides.</div>'
+        +'<div id="mr-err" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:8px;'
+        +'background:var(--fk-danger-surface);color:var(--fk-danger);font-size:var(--fs-secondary)"></div>'
+        +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Kind of leave</label>'
+        +'<select id="mr-type" class="input" style="width:100%;margin-bottom:10px">'
+        +(opts||'<option value="">Loading…</option>')+'</select>'
+        +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+        +'<div style="flex:1"><label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">From</label>'
+        +'<input id="mr-from" class="input" type="date" style="width:100%" min="'+today+'"></div>'
+        +'<div style="flex:1"><label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">To</label>'
+        +'<input id="mr-to" class="input" type="date" style="width:100%" min="'+today+'"></div></div>'
+        +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Full day or half</label>'
+        +'<select id="mr-part" class="input" style="width:100%;margin-bottom:10px">'
+        +'<option value="full">Full day</option><option value="first_half">First half</option>'
+        +'<option value="second_half">Second half</option></select>'
+        +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Why you need it</label>'
+        +'<textarea id="mr-reason" class="input" rows="3" style="width:100%;margin-bottom:10px" maxlength="400" '
+        +'placeholder="Your manager will read this."></textarea>'
+        +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Where you can be reached (optional)</label>'
+        +'<input id="mr-contact" class="input" type="text" style="width:100%;margin-bottom:14px" maxlength="60" placeholder="0300…">'
+        +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" style="flex:1" onclick="_myrecSubmit()" id="mr-send">Send to HR</button>'
+        +'<button class="btn btn-secondary" onclick="_myrecCancelAsk()">Cancel</button></div>'
+        +'</div></div>';
+    } else {
+      html+='<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="_myrecAsk()">Ask for leave</button>';
+    }
+
     if(!leaves.length){
-      html+='<div class="card"><div class="empty"><div class="ei">'+li('plane',20,1.8)+'</div>'
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('calendar',20,1.8)+'</div>'
         +'<div class="et">No applications yet</div>'
         +'<div class="es">Leave you have asked for appears here with where it has reached.</div></div></div>';
     } else {
@@ -7213,9 +7308,102 @@ async function renderMyRecord(){
           +'<div class="lr-sub"><span>'+esc([l.application_no,(l.days||0)+' day'+((l.days||0)==1?'':'s')].filter(Boolean).join(' · '))+'</span></div>'
           +(l.returned_note?'<div class="lr-sub"><span style="color:var(--fk-warning)">'+esc(l.returned_note)+'</span></div>':'')
           +(l.rejected_reason?'<div class="lr-sub"><span style="color:var(--fk-danger)">'+esc(l.rejected_reason)+'</span></div>':'')
-          +'</div>'+_myrecChip(w[0], w[1])+'</div>';
+          +'</div>'
+          +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'
+          +_myrecChip(w[0], w[1])
+          // Withdrawing is only possible while nobody has decided; after that it
+          // is a record, not a request.
+          +(['submitted','returned','pending'].indexOf(l.status)>-1
+            ? '<button class="btn btn-secondary" style="height:28px;padding:0 10px;font-size:var(--fs-caption)" '
+              +'onclick="_myrecWithdraw(\''+esc(l.id)+'\')">Withdraw</button>' : '')
+          +'</div></div>';
       });
       html+='</div>';
+    }
+  }
+
+  // ── the rest of the file ────────────────────────────────────────────────
+  if(MYREC.sub==='file'){
+    const row=(k,v)=>v?('<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;'
+      +'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-secondary)">'
+      +'<span style="color:var(--fk-text-muted)">'+esc(k)+'</span><b style="text-align:right">'+esc(v)+'</b></div>'):'';
+    const dt=x=>x?new Date(x+'T00:00:00Z').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+
+    html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+      +'<div style="font-weight:600;font-size:var(--fs-secondary);margin-bottom:6px">Your employment</div>'
+      +row('Employee no.',emp.employee_code)+row('Designation',emp.designation)
+      +row('Department',emp.department)+row('Joined',dt(emp.join_date))
+      +row('Confirmed',dt(emp.confirmation_date))
+      +row('Type',(emp.employment_type||'').replace(/_/g,' '))
+      +row('Shift',emp.shift)+row('Reports to',emp.reports_to)
+      +row('Notice period',emp.notice_period_days?emp.notice_period_days+' days':'')
+      +'</div></div>';
+
+    if(hist.length){
+      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
+        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Service record</div>';
+      hist.forEach(x=>{
+        const what={joined:'Joined',transfer:'Transferred',promotion:'Promoted',increment:'Increment',
+          salary_change:'Salary changed',confirmed:'Confirmed',exit:'Left',note:'Note'}[x.change]||x.change;
+        const detail=[x.to_designation&&('to '+x.to_designation), x.to_department&&('to '+x.to_department),
+          (x.to_salary!=null&&x.from_salary!=null)&&('Rs '+Number(x.from_salary).toLocaleString('en-US')
+            +' \u2192 Rs '+Number(x.to_salary).toLocaleString('en-US')), x.note].filter(Boolean).join(' \u00b7 ');
+        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name">'+esc(what)+'</div>'
+          +(detail?'<div class="lr-sub"><span>'+esc(detail)+'</span></div>':'')
+          +'</div>'+_myrecChip(dt(x.date))+'</div>';
+      });
+      html+='</div>';
+    }
+
+    if(docs.length){
+      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
+        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Documents on file</div>';
+      docs.forEach(x=>{
+        // The point of showing these is the expiry: a licence that ran out last
+        // month is the one thing a person can actually act on.
+        const dleft=x.expires_in_days;
+        const tone = dleft==null ? null : dleft<0 ? 'bad' : dleft<=30 ? 'warn' : 'ok';
+        const label = dleft==null ? 'no expiry'
+          : dleft<0 ? 'expired' : dleft<=30 ? dleft+' days left' : dt(x.expiry_date);
+        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name">'+esc(x.title||x.doc_type||'Document')+'</div>'
+          +'<div class="lr-sub"><span>'+esc((x.doc_type||'').replace(/_/g,' '))+'</span></div>'
+          +'</div>'+_myrecChip(label,tone)+'</div>';
+      });
+      html+='</div>';
+    }
+
+    if(advances.length){
+      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
+        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Advances</div>';
+      advances.forEach(x=>{
+        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name">Rs '+Number(x.amount||0).toLocaleString('en-US')+'</div>'
+          +'<div class="lr-sub"><span>'+esc(dt(x.date))+(x.reason?' \u00b7 '+esc(x.reason):'')+'</span></div>'
+          +'</div>'+_myrecChip(Number(x.outstanding)>0
+            ? 'Rs '+Number(x.outstanding).toLocaleString('en-US')+' left' : 'cleared',
+            Number(x.outstanding)>0?'warn':'ok')+'</div>';
+      });
+      html+='</div>';
+    }
+
+    if(visits.length){
+      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
+        +'<div style="padding:8px 8px 4px;font-weight:600;font-size:var(--fs-secondary)">Gate passes</div>';
+      visits.slice(0,20).forEach(x=>{
+        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+          +'<div class="lr-name" style="white-space:normal">'+esc(x.purpose||x.location||'Out')+'</div>'
+          +'<div class="lr-sub"><span>'+esc(dt(x.date))+(x.approver?' \u00b7 approved by '+esc(x.approver):'')+'</span></div>'
+          +'</div>'+_myrecChip(x.type||'', x.type==='official'?null:'warn')+'</div>';
+      });
+      html+='</div>';
+    }
+
+    if(!hist.length && !docs.length && !advances.length && !visits.length){
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',20,1.8)+'</div>'
+        +'<div class="et">Nothing else on file yet</div>'
+        +'<div class="es">Your service record, documents and gate passes appear here as they are added.</div></div></div>';
     }
   }
 
