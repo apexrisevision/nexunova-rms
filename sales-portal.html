@@ -7424,12 +7424,25 @@ async function renderMyRecord(){
       + row('Account title',prof.bank_account_title)
       + row('Account number',prof.bank_account_no||emp.bank_account_no));
 
-    // What the office holds about this person's identity, and since when.
+    /* What the office holds about this person's identity, and since when.
+       The two CNIC scans were taken at sign-up and never shown back to the
+       person who handed them over; a file that claims "Verified" should be
+       able to show what it verified against. Card ratio, and tapping one opens
+       the full image — a thumbnail is too small to check a number on. */
+    const scan=(u,l)=>u?('<a href="'+esc(u)+'" target="_blank" rel="noopener" '
+      +'style="flex:1 1 0;min-width:0;text-decoration:none;color:inherit">'
+      +'<div style="aspect-ratio:1.585;border-radius:8px;overflow:hidden;'
+      +'border:1px solid var(--fk-border);background:var(--fk-bg-subtle)">'
+      +'<img src="'+esc(u)+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover"></div>'
+      +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+      +'font-weight:600;color:var(--fk-text-muted);margin-top:5px;text-align:center">'+esc(l)+'</div></a>'):'';
+    const scans=scan(prof.cnic_front_url,'CNIC front')+scan(prof.cnic_back_url,'CNIC back');
     html+=sec('Verification',
         row('CNIC on file',prof.kyc_status==='verified'?'Verified':(prof.kyc_status||''))
       + row('Email',prof.email?(prof.email_verified?'Verified':'Not verified yet'):'')
       + row('Portal since',prof.created_at?new Date(prof.created_at)
-          .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):''));
+          .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'')
+      + (scans?'<div style="display:flex;gap:10px;margin-top:12px">'+scans+'</div>':''));
 
     if(hist.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
