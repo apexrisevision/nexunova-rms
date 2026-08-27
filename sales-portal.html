@@ -7197,16 +7197,63 @@ async function _myrecProfile(){
    motorway is as often as a sale rep is, and until now the answer lived in
    somebody's head or a brochure on a desk.
 
-   Three depths and no more: the projects, one project, one part of it. Anything
-   deeper on a phone becomes a place people get lost in.
+   Three depths and no more: the projects, one project, one part of it. Deeper
+   than that on a phone is a place people get lost in.
 
-   The content is dictated by the office and read from project_profile — the
-   portal renders whatever it is given and invents nothing, so correcting a
-   figure is an edit to one row and not a deploy. */
+   It is built to be looked at, not just read. A list of grey rows is what every
+   other screen in this app already is, and a building deserves better than a
+   settings page — so: a hero that carries the name over its own skyline, the
+   one live number worth caring about drawn as a bar rather than printed as a
+   digit, and the sections as tiles a thumb can aim at.
+
+   The words come from project_profile and the counts from the units table. The
+   portal invents neither, so correcting a figure is an edit to one row rather
+   than a deploy. */
 let PRJ = { list: undefined, open: null, sec: null };
 
 function _prjOpen(id){ PRJ.open = id || null; PRJ.sec = null; renderProject(); }
 function _prjSec(key){ PRJ.sec = key || null; renderProject(); }
+
+// A skyline drawn rather than photographed. Until somebody uploads a picture of
+// the building this is what stands behind the name, and it is quiet enough at
+// this opacity to never fight the text.
+const _PRJ_SKYLINE =
+  '<svg viewBox="0 0 400 120" preserveAspectRatio="none" style="position:absolute;right:0;bottom:0;'
+  + 'width:100%;height:126px;opacity:.07;pointer-events:none" fill="currentColor">'
+  + '<rect x="14" y="66" width="34" height="54" rx="2"/><rect x="54" y="44" width="26" height="76" rx="2"/>'
+  + '<rect x="86" y="76" width="30" height="44" rx="2"/><rect x="122" y="26" width="44" height="94" rx="3"/>'
+  + '<rect x="172" y="58" width="28" height="62" rx="2"/><rect x="206" y="12" width="52" height="108" rx="3"/>'
+  + '<rect x="264" y="50" width="30" height="70" rx="2"/><rect x="300" y="72" width="38" height="48" rx="2"/>'
+  + '<rect x="344" y="36" width="30" height="84" rx="2"/>'
+  + '<g opacity=".55"><rect x="216" y="24" width="7" height="9"/><rect x="230" y="24" width="7" height="9"/>'
+  + '<rect x="244" y="24" width="7" height="9"/><rect x="216" y="42" width="7" height="9"/>'
+  + '<rect x="230" y="42" width="7" height="9"/><rect x="244" y="42" width="7" height="9"/>'
+  + '<rect x="132" y="38" width="7" height="9"/><rect x="146" y="38" width="7" height="9"/>'
+  + '<rect x="132" y="56" width="7" height="9"/><rect x="146" y="56" width="7" height="9"/></g></svg>';
+
+function _prjTile(icon, size){
+  size = size || 40;
+  return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:' + Math.round(size * 0.3) + 'px;'
+    + 'flex:none;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center">'
+    + li(icon, Math.round(size * 0.45), 1.8) + '</span>';
+}
+
+function _prjBack(label){
+  return '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);'
+    + 'margin-bottom:14px;display:inline-flex;align-items:center;gap:6px" onclick="_prjSec(null)">'
+    + li('arrow-left', 14, 2.2) + esc(label) + '</button>';
+}
+
+// The header every third-level page wears, so they all feel like one place.
+function _prjSecHead(icon, title, sub){
+  return '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:16px">'
+    + '<div style="height:3px;background:var(--fk-primary)"></div>'
+    + '<div style="padding:15px 16px;display:flex;align-items:center;gap:13px">' + _prjTile(icon, 44)
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:var(--fs-section);font-weight:700;line-height:1.2">' + esc(title) + '</div>'
+    + (sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">' + esc(sub) + '</div>' : '')
+    + '</div></div></div>';
+}
 
 async function renderProject(){
   const b = $('app-body'); if(!b) return;
@@ -7220,7 +7267,6 @@ async function renderProject(){
     }catch(e){ PRJ.list = null; }
   }
   _touch();
-
   if(PRJ.list === null) return _netErr();
   const list = PRJ.list || [];
 
@@ -7234,18 +7280,25 @@ async function renderProject(){
     return;
   }
 
-  // One project is the normal case here, so it opens rather than asking.
   if(!PRJ.open && list.length === 1) PRJ.open = list[0].project_id;
-
   const cur = PRJ.open ? list.find(x => x.project_id === PRJ.open) : null;
 
+  // ── all the projects ────────────────────────────────────────────────────
   if(!cur){
-    html += '<div class="card" style="padding:6px 8px">';
+    html += '<div style="display:grid;gap:12px">';
     list.forEach(p => {
-      html += '<div class="trow" onclick="_prjOpen(\'' + esc(p.project_id) + '\')"><div style="flex:1;min-width:0">'
-        + '<div class="lr-name">' + esc(p.project_name || '') + '</div>'
-        + '<div class="lr-sub"><span>' + esc([p.location, p.city].filter(Boolean).join(' · ')) + '</span></div>'
-        + '</div>' + li('arrow-right',16,2) + '</div>';
+      const iv = p.inventory || {};
+      html += '<div class="card" onclick="_prjOpen(\'' + esc(p.project_id) + '\')" '
+        + 'style="cursor:pointer;overflow:hidden;border-radius:16px;position:relative">'
+        + '<div style="position:relative;color:var(--fk-primary);background:linear-gradient(150deg,var(--fk-primary-tint),transparent 70%);padding:16px">'
+        + _PRJ_SKYLINE
+        + '<div style="position:relative">'
+        + '<div style="font-size:var(--fs-section);font-weight:700;color:var(--fk-text)">' + esc(p.project_name || '') + '</div>'
+        + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
+        + esc([p.location, p.city].filter(Boolean).join(' · ')) + '</div>'
+        + (iv.total ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:8px">'
+            + iv.available + ' of ' + iv.total + ' available</div>' : '')
+        + '</div></div></div>';
     });
     html += '</div>';
     b.innerHTML = html + '</div>';
@@ -7254,26 +7307,67 @@ async function renderProject(){
 
   const pf = cur.profile || {};
   const secs = pf.sections || [];
+  const inv = cur.inventory || null;
+
+  /* The one section nobody wrote. A count typed into a paragraph is wrong the
+     day a unit is split, sold or cancelled — and this project has had all
+     three — so the units answer for themselves. */
+  if(inv && PRJ.sec === 'inventory'){
+    const row = (name, sub, right, tone) =>
+      '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+      + '<div class="lr-name">' + esc(name) + '</div>'
+      + (sub ? '<div class="lr-sub"><span>' + esc(sub) + '</span></div>' : '')
+      + '</div><b style="font-variant-numeric:tabular-nums;font-size:var(--fs-body)'
+      + (tone ? ';color:' + tone : '') + '">' + esc(String(right)) + '</b></div>';
+    const grp = (title, rows) => rows.length
+      ? '<div class="card" style="margin-bottom:14px;padding:6px 8px;border-radius:16px">'
+        + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+        + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">' + esc(title) + '</div>'
+        + rows.join('') + '</div>' : '';
+
+    html += _prjBack(pf.headline || cur.project_name || 'Project');
+    html += _prjSecHead('layers', 'Units and availability',
+                        inv.available + ' of ' + inv.total + ' available right now');
+    html += grp('By status', (inv.statuses||[]).map(x =>
+      row(x.name, '', x.units, x.available ? 'var(--fk-success)' : null)));
+    html += grp('By type', (inv.types||[]).map(x =>
+      row(x.name, (x.min_area && x.max_area)
+        ? (x.min_area === x.max_area ? (x.min_area + ' ' + (x.unit||'sqft'))
+           : (x.min_area + ' – ' + x.max_area + ' ' + (x.unit||'sqft'))) : '', x.units)));
+    html += grp('By floor', (inv.floors||[]).map(x =>
+      row(x.name, x.available + ' available', x.units)));
+    b.innerHTML = html + '</div>';
+    return;
+  }
+
   const open = PRJ.sec ? secs.find(s => s.key === PRJ.sec) : null;
 
   // ── one part of it ──────────────────────────────────────────────────────
   if(open){
-    html += '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);margin-bottom:12px" '
-      + 'onclick="_prjSec(null)">' + li('arrow-left',14,2) + ' ' + esc(pf.headline || cur.project_name || 'Project') + '</button>';
-    html += '<div class="card" style="margin-bottom:14px;overflow:hidden">'
-      + '<div style="height:3px;background:var(--fk-primary)"></div>'
-      + '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px">'
-      + '<span style="width:40px;height:40px;border-radius:12px;flex:none;background:var(--fk-primary-tint);'
-      + 'color:var(--fk-primary);display:grid;place-items:center">' + li(open.icon,20,1.8) + '</span>'
-      + '<div style="flex:1;min-width:0"><div style="font-size:var(--fs-section);font-weight:700">' + esc(open.title || '') + '</div>'
-      + (open.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:2px">' + esc(open.sub) + '</div>' : '')
-      + '</div></div></div>';
+    html += _prjBack(pf.headline || cur.project_name || 'Project');
+    html += _prjSecHead(open.icon, open.title || '', open.sub || '');
 
-    html += '<div class="card" style="padding:6px 8px">';
+    // Amenities are a shopping list, not prose. Tiles let the eye sweep them.
+    if(open.key === 'amenities'){
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+      (open.items || []).forEach(it => {
+        html += '<div class="card" style="padding:14px 13px;border-radius:16px;text-align:center">'
+          + '<div style="display:flex;justify-content:center;margin-bottom:9px">' + _prjTile(it.icon, 42) + '</div>'
+          + '<div style="font-size:var(--fs-secondary);font-weight:600;line-height:1.25">' + esc(it.title || '') + '</div>'
+          + (it.detail ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:4px;line-height:1.35">'
+              + esc(it.detail) + '</div>' : '')
+          + '</div>';
+      });
+      html += '</div>';
+      b.innerHTML = html + '</div>';
+      return;
+    }
+
+    html += '<div class="card" style="padding:6px 8px;border-radius:16px">';
     (open.items || []).forEach(it => {
       html += '<div class="trow" style="cursor:default;align-items:flex-start">'
-        + '<span style="width:34px;height:34px;border-radius:10px;flex:none;background:var(--fk-bg-subtle);'
-        + 'color:var(--fk-text-muted);display:grid;place-items:center;margin-right:10px">' + li(it.icon,17,1.8) + '</span>'
+        + '<span style="width:34px;height:34px;border-radius:11px;flex:none;background:var(--fk-bg-subtle);'
+        + 'color:var(--fk-text-muted);display:grid;place-items:center;margin-right:11px">' + li(it.icon,17,1.8) + '</span>'
         + '<div style="flex:1;min-width:0">'
         + '<div class="lr-name" style="white-space:normal">' + esc(it.title || '') + '</div>'
         + (it.detail ? '<div class="lr-sub"><span style="white-space:normal">' + esc(it.detail) + '</span></div>' : '')
@@ -7286,52 +7380,80 @@ async function renderProject(){
 
   // ── the project ─────────────────────────────────────────────────────────
   if(list.length > 1){
-    html += '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);margin-bottom:12px" '
-      + 'onclick="_prjOpen(null)">' + li('arrow-left',14,2) + ' All projects</button>';
+    html += '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);'
+      + 'margin-bottom:14px;display:inline-flex;align-items:center;gap:6px" onclick="_prjOpen(null)">'
+      + li('arrow-left',14,2.2) + 'All projects</button>';
   }
 
-  html += '<div class="card" style="margin-bottom:14px;overflow:hidden">'
-    + '<div style="height:3px;background:var(--fk-primary)"></div>'
-    + '<div style="padding:16px">'
-    + '<div style="font-size:var(--fs-title);font-weight:700;line-height:1.2">' + esc(pf.headline || cur.project_name || '') + '</div>'
-    + (pf.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:4px">' + esc(pf.sub) + '</div>' : '')
+  // The hero. Name over its own skyline, and under it the only live number
+  // that matters drawn as a bar — a person reads a bar before they read a digit.
+  html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
+    + '<div style="position:relative;color:var(--fk-primary);background:linear-gradient(150deg,var(--fk-primary-tint),transparent 72%);padding:20px 18px 18px">'
+    + _PRJ_SKYLINE
+    + '<div style="position:relative">'
+    + '<div style="font-size:var(--fs-title);font-weight:700;line-height:1.15;color:var(--fk-text)">'
+    + esc(pf.headline || cur.project_name || '') + '</div>'
+    + (pf.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:5px">' + esc(pf.sub) + '</div>' : '')
     + ((pf.builder || pf.landowner)
-        ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:8px">'
-          + esc([pf.builder && ('Built by ' + pf.builder), pf.landowner && ('Land: ' + pf.landowner)].filter(Boolean).join(' · '))
+        ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:11px">'
+          + (pf.builder ? _myrecChip(pf.builder) : '')
+          + (pf.landowner ? _myrecChip('Land · ' + pf.landowner) : '')
           + '</div>' : '')
-    + '</div>';
+    + '</div></div>';
 
-  // The four facts a person repeats down a phone, kept where the thumb lands.
+  if(inv && inv.total){
+    const pct = Math.max(3, Math.round((Number(inv.available) / Number(inv.total)) * 100));
+    html += '<div style="padding:14px 18px 16px;border-top:1px solid var(--fk-hairline)">'
+      + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">'
+      + '<div><span style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;'
+      + 'color:var(--fk-success)">' + inv.available + '</span>'
+      + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-left:6px">available</span></div>'
+      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);font-variant-numeric:tabular-nums">'
+      + inv.total + ' units</div></div>'
+      + '<div style="height:7px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:9px;overflow:hidden">'
+      + '<div style="height:100%;width:' + pct + '%;border-radius:99px;background:var(--fk-success)"></div></div>'
+      + '</div>';
+  }
+
+  // The four facts somebody repeats down a telephone, kept where the thumb is.
   const hl = pf.highlights || [];
   if(hl.length){
     html += '<div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">';
     hl.forEach(h => {
-      html += '<div style="flex:1 1 46%;min-width:130px;background:var(--fk-bg-card);padding:11px 14px">'
-        + '<div style="display:flex;align-items:center;gap:6px;color:var(--fk-text-muted);font-size:var(--fk-fs-label);'
-        + 'text-transform:uppercase;letter-spacing:.06em;font-weight:600">' + li(h.icon,13,2) + esc(h.label || '') + '</div>'
-        + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px">' + esc(h.value || '') + '</div></div>';
+      html += '<div style="flex:1 1 46%;min-width:132px;background:var(--fk-bg-card);padding:12px 14px;'
+        + 'display:flex;align-items:center;gap:10px">' + _prjTile(h.icon, 30)
+        + '<div style="min-width:0">'
+        + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+        + 'letter-spacing:.06em;font-weight:600">' + esc(h.label || '') + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-secondary);margin-top:2px;white-space:nowrap;'
+        + 'overflow:hidden;text-overflow:ellipsis">' + esc(h.value || '') + '</div></div></div>';
     });
     html += '</div>';
   }
   html += '</div>';
 
-  html += '<div class="card" style="padding:6px 8px">';
+  // Tiles, not rows. A grid of things to aim at reads as an app; a column of
+  // grey rows reads as a settings page, which this is not.
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">';
+  if(inv && inv.total){
+    html += '<div class="card" onclick="_prjSec(\'inventory\')" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
+      + _prjTile('layers', 40)
+      + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">Units and availability</div>'
+      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
+      + inv.available + ' of ' + inv.total + ' · live</div></div>';
+  }
   secs.forEach(s => {
     const n = (s.items || []).length;
-    html += '<div class="trow" onclick="_prjSec(\'' + esc(s.key) + '\')">'
-      + '<span style="width:36px;height:36px;border-radius:11px;flex:none;background:var(--fk-primary-tint);'
-      + 'color:var(--fk-primary);display:grid;place-items:center;margin-right:11px">' + li(s.icon,18,1.8) + '</span>'
-      + '<div style="flex:1;min-width:0">'
-      + '<div class="lr-name">' + esc(s.title || '') + '</div>'
-      + (s.sub ? '<div class="lr-sub"><span style="white-space:normal">' + esc(s.sub) + '</span></div>' : '')
-      + '</div>'
-      + (n ? _myrecChip(String(n)) : '') + li('arrow-right',16,2) + '</div>';
+    html += '<div class="card" onclick="_prjSec(\'' + esc(s.key) + '\')" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
+      + _prjTile(s.icon, 40)
+      + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">' + esc(s.title || '') + '</div>'
+      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
+      + (n ? n + (s.key === 'amenities' ? ' amenities' : ' details') : esc(s.sub || '')) + '</div></div>';
   });
   html += '</div>';
 
   b.innerHTML = html + '</div>';
 }
-
 
 async function renderMyRecord(){
   const b=$('app-body'); if(!b) return;
