@@ -1535,6 +1535,7 @@ button.mn-card:active{transform:scale(.985)}
            by _sales_may_sell rather than by hiding a button. -->
       <a class="ni" data-tab="torecover" data-rec style="display:none" onclick="setTab('torecover')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="ni-lb">To recover</span></a>
       <a class="ni" data-tab="collection" data-acc style="display:none" onclick="setTab('collection')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg></span><span class="ni-lb">Collection</span></a>
+      <a class="ni" data-tab="site" data-eng style="display:none" onclick="setTab('site')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/><path d="M9 11h.01"/><path d="M15 11h.01"/></svg></span><span class="ni-lb">Site</span></a>
       <div class="ni-grp" data-grp="workspace" data-sell style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('workspace')"><span class="sb-grp-t">Workspace</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-workspace"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
@@ -2302,7 +2303,8 @@ function _applyLeadAccess(){
   const sell   = !isLE && !isExec && !isOff;                // rep / manager / director sell
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
   show('[data-rec]',      role==='recovery_officer');   // the officer's own book
-  show('[data-acc]',      role==='accounts');           // the accounts desk's day   // the officer's own book
+  show('[data-acc]',      role==='accounts');           // the accounts desk's day
+  show('[data-eng]',      role==='engineer');           // the site engineer's floors           // the accounts desk's day   // the officer's own book
   show('[data-le]',       isLE);                            // operator apps (Add lead / sources)
   show('[data-main]',     !isLE && !isOff);                 // Dashboard — sellers and leadership
   show('[data-sell]',     sell);                            // Workspace group
@@ -2322,7 +2324,7 @@ const _BTAB_OF={
   leads:'leads', distribute:'leads', alerts:'leads', myentered:'leads',
   board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
-  more:'more', project:'more', torecover:'money', collection:'money', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
+  more:'more', project:'more', torecover:'money', collection:'money', site:'board', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
   livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
 };
 function _syncBtabs(t){
@@ -2331,6 +2333,7 @@ function _syncBtabs(t){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&ME.role==='engineer'){ setTab('site'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   if(ME&&ME.role==='accounts'){ setTab('collection'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   if(ME&&ME.role==='recovery_officer'){ setTab('torecover'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   if(ME&&_isOfficeRole(ME.role)){ setTab('myrecord'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
@@ -2398,14 +2401,14 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',project:'Project',torecover:'To recover',collection:'Collection',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',project:'Project',torecover:'To recover',collection:'Collection',site:'Site',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','updates','profile','torecover','collection'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2444,6 +2447,7 @@ function setTab(t,_back){
   else if(t==='project') renderProject();
   else if(t==='torecover') renderToRecover();
   else if(t==='collection') renderCollection();
+  else if(t==='site') renderSite();
   else if(t==='recovery') renderRecovery();
   else if(t==='rank') renderLeaderboard();
   else if(t==='adroi') renderAdRoi();
@@ -7213,6 +7217,156 @@ async function _myrecProfile(){
   return MYREC_PROFILE;
 }
 
+/* ══ Site — the engineer's screen ═════════════════════════════════════════════
+   Every other role got a screen that shows them something RMS already knows.
+   The engineer had nothing to be shown: not one unit carries a handover status
+   or a possession date, and construction progress is zero on all three
+   projects. A screen built on that would be a page of zeros.
+
+   What is missing is not a report, it is the recording. Nobody has anywhere to
+   put "the seventh floor is at sixty per cent", so nobody writes it down and
+   everybody rings the site to ask. So this one writes: the engineer moves a
+   slider, and the Project screen — which every role already opens — shows it
+   to the whole company.
+
+   The floors are the building's own, read from the units table, so an engineer
+   fills in floors that exist instead of typing a list. */
+let ENG = { projects: undefined, pid: null, data: undefined, open: null, busy: false };
+
+function _engPick(id){ ENG.pid = id; ENG.data = undefined; ENG.open = null; renderSite(); }
+function _engOpen(fl){ ENG.open = (ENG.open === fl) ? null : fl; renderSite(); }
+
+async function _engSave(fl){
+  if(ENG.busy) return;
+  const sl = $('eng-pc-' + _engKey(fl)), nt = $('eng-nt-' + _engKey(fl));
+  if(!sl) return;
+  ENG.busy = true;
+  try{
+    const r = await sb.rpc('portal_progress_set', {
+      p_session_token: TOKEN, p_project_id: ENG.pid, p_floor: fl,
+      p_percent: Number(sl.value), p_note: nt ? nt.value : null });
+    if(r.error) throw r.error;
+    if(r.data && r.data.success){ toast('Saved', 'ok'); ENG.data = undefined; ENG.open = null; }
+    else toast((r.data && r.data.message) || 'Could not save that.', 'err');
+  }catch(e){ toast('Could not save that.', 'err'); }
+  ENG.busy = false;
+  renderSite();
+}
+
+// A floor label becomes part of an element id, so it has to survive that.
+function _engKey(s){ return String(s||'').replace(/[^a-zA-Z0-9]/g, '_'); }
+
+async function renderSite(){
+  const b = $('app-body'); if(!b) return;
+
+  if(ENG.projects === undefined){
+    b.innerHTML = _skel();
+    try{
+      const r = await sb.rpc('get_project_profiles', { p_session_token: TOKEN });
+      if(r.error) throw r.error;
+      if(r.data && r.data.error === 'session_expired') return sessionGone();
+      ENG.projects = (r.data && r.data.projects) || [];
+    }catch(e){ ENG.projects = null; }
+  }
+  if(ENG.projects === null) return _netErr();
+  if(!ENG.pid && ENG.projects.length) ENG.pid = ENG.projects[0].project_id;
+
+  if(ENG.data === undefined && ENG.pid){
+    b.innerHTML = _skel();
+    try{
+      const r = await sb.rpc('portal_progress', { p_session_token: TOKEN, p_project_id: ENG.pid });
+      if(r.error) throw r.error;
+      ENG.data = r.data || null;
+    }catch(e){ ENG.data = null; }
+  }
+  _touch();
+
+  let html = '<div class="nx-dash">' + _pageHead('Site', 'How far each floor has got.');
+
+  if(!ENG.projects.length){
+    html += '<div class="card"><div class="empty"><div class="et">No projects</div>'
+      + '<div class="es">Nothing has been set up for your company yet.</div></div></div>';
+    b.innerHTML = html + '</div>'; return;
+  }
+
+  if(ENG.projects.length > 1){
+    html += '<div class="projchips" style="margin-bottom:12px">'
+      + ENG.projects.map(p => '<div class="pchip' + (p.project_id === ENG.pid ? ' on' : '') + '" '
+        + 'onclick="_engPick(\'' + esc(p.project_id) + '\')">'
+        + esc(p.short_code || p.project_name) + '</div>').join('') + '</div>';
+  }
+
+  const d = ENG.data;
+  if(!d || !d.success){
+    html += '<div class="card"><div class="empty"><div class="et">Not available</div>'
+      + '<div class="es">' + esc((d && d.message) || 'This project could not be read.') + '</div></div></div>';
+    b.innerHTML = html + '</div>'; return;
+  }
+
+  const floors = d.floors || [];
+  const done = floors.filter(f => f.percent != null).length;
+  const overall = d.overall == null ? 0 : Number(d.overall);
+
+  html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
+    + '<div style="height:3px;background:var(--fk-primary)"></div>'
+    + '<div style="padding:17px 18px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">' + esc(d.project_name || '') + '</div>'
+    + '<div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">'
+    + '<span style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums">'
+    + overall + '%</span>'
+    + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption)">overall</span></div>'
+    + '<div style="height:7px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:9px;overflow:hidden">'
+    + '<div style="height:100%;width:' + Math.max(2, overall) + '%;border-radius:99px;background:var(--fk-primary)"></div></div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:7px">'
+    + done + ' of ' + floors.length + ' floors recorded</div>'
+    + '</div></div>';
+
+  html += '<div class="card" style="padding:6px 8px;border-radius:16px">';
+  floors.forEach(f => {
+    const k = _engKey(f.floor);
+    const pc = f.percent == null ? null : Number(f.percent);
+    const bar = '<div style="height:5px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:6px;overflow:hidden">'
+      + '<div style="height:100%;width:' + (pc == null ? 0 : Math.max(2, pc)) + '%;border-radius:99px;'
+      + 'background:' + (pc === 100 ? 'var(--fk-success)' : 'var(--fk-primary)') + '"></div></div>';
+    html += '<div class="trow" style="align-items:flex-start'
+      + (d.can_edit ? '' : ';cursor:default') + '"'
+      + (d.can_edit ? ' onclick="_engOpen(\'' + esc(f.floor) + '\')"' : '') + '>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div class="lr-name">' + esc(f.floor) + '</div>'
+      + '<div class="lr-sub"><span>' + (f.units || 0) + ' units'
+      + (f.note ? ' · ' + esc(f.note) : '') + '</span></div>'
+      + bar + '</div>'
+      + '<b style="font-variant-numeric:tabular-nums;margin-left:12px;color:'
+      + (pc == null ? 'var(--fk-text-muted)' : pc === 100 ? 'var(--fk-success)' : 'var(--fk-text)') + '">'
+      + (pc == null ? '—' : pc + '%') + '</b></div>';
+
+    if(d.can_edit && ENG.open === f.floor){
+      html += '<div style="padding:12px 10px 16px;border-bottom:1px solid var(--fk-hairline)">'
+        + '<input id="eng-pc-' + k + '" type="range" min="0" max="100" step="5" value="' + (pc == null ? 0 : pc) + '" '
+        + 'style="width:100%" oninput="var o=document.getElementById(\'eng-out-' + k + '\'); if(o) o.textContent=this.value+\'%\'">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px">'
+        + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption)">Drag to set</span>'
+        + '<b id="eng-out-' + k + '" style="font-variant-numeric:tabular-nums">' + (pc == null ? 0 : pc) + '%</b></div>'
+        + '<input id="eng-nt-' + k + '" class="input" type="text" maxlength="120" style="width:100%;margin-bottom:10px" '
+        + 'placeholder="What was done (optional)" value="' + esc(f.note || '') + '">'
+        + '<div style="display:flex;gap:8px">'
+        + '<button class="btn btn-primary" style="flex:1" onclick="_engSave(\'' + esc(f.floor) + '\')">Save</button>'
+        + '<button class="btn btn-secondary" onclick="_engOpen(null)">Cancel</button></div>'
+        + '</div>';
+    }
+  });
+  html += '</div>';
+
+  if(d.can_edit){
+    html += '<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin:12px 4px 0;line-height:1.5">'
+      + 'What you record here is what the whole company sees on the Project screen.</div>';
+  }
+
+  b.innerHTML = html + '</div>';
+}
+
+
 /* ══ Collection — the accounts desk's day ═════════════════════════════════════
    One number, and the list behind it, so the drawer and the screen can be made
    to agree before anybody goes home.
@@ -7608,6 +7762,30 @@ async function renderProject(){
   const pf = cur.profile || {};
   const secs = pf.sections || [];
   const inv = cur.inventory || null;
+  const prg = (cur.progress && cur.progress.overall != null) ? cur.progress : null;
+
+  /* What the site engineer records, shown to everyone who opens the project.
+     The person who walks the floors and the person who answers the phone should
+     be looking at the same number on the same day. */
+  if(prg && PRJ.sec === 'progress'){
+    html += _prjBack(pf.headline || cur.project_name || 'Project');
+    html += _prjSecHead('building', 'Construction', prg.overall + '% overall'
+      + (prg.updated ? ' · updated ' + esc(new Date(prg.updated).toLocaleDateString('en-US',{day:'numeric',month:'short'})) : ''));
+    html += '<div class="card" style="padding:6px 8px;border-radius:16px">';
+    (prg.floors||[]).forEach(f => {
+      const pc = Number(f.percent||0);
+      html += '<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
+        + '<div class="lr-name">' + esc(f.floor) + '</div>'
+        + (f.note ? '<div class="lr-sub"><span style="white-space:normal">' + esc(f.note) + '</span></div>' : '')
+        + '<div style="height:5px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:6px;overflow:hidden">'
+        + '<div style="height:100%;width:' + Math.max(2,pc) + '%;border-radius:99px;background:'
+        + (pc===100?'var(--fk-success)':'var(--fk-primary)') + '"></div></div>'
+        + '</div><b style="font-variant-numeric:tabular-nums;margin-left:12px">' + pc + '%</b></div>';
+    });
+    html += '</div>';
+    b.innerHTML = html + '</div>';
+    return;
+  }
 
   /* The one section nobody wrote. A count typed into a paragraph is wrong the
      day a unit is split, sold or cancelled — and this project has had all
@@ -7742,6 +7920,13 @@ async function renderProject(){
       + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">Units and availability</div>'
       + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
       + inv.available + ' of ' + inv.total + ' · live</div></div>';
+  }
+  if(prg){
+    html += '<div class="card" onclick="_prjSec(&#39;progress&#39;)" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
+      + _prjTile('building', 40)
+      + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">Construction</div>'
+      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
+      + prg.overall + '% overall · live</div></div>';
   }
   secs.forEach(s => {
     const n = (s.items || []).length;
