@@ -6196,9 +6196,12 @@ function _myEntRow(r){
 // ════ More (overflow hub — leaderboard · recovery · updates · account) ════
 // The office roles carry NexuAttend's own designation wording, so the same job
 // is not called two things in two apps.
-const OFFICE_ROLES=['accounts','recovery_officer','hr','reception','engineer'];
+// 'general' carries no screen of its own: the Dashboard, the projects, the units,
+// the map, their record and the messages. Nothing is hidden from it that is not
+// hidden from every office role, and nothing is added.
+const OFFICE_ROLES=['accounts','recovery_officer','hr','reception','engineer','general'];
 function _isOfficeRole(r){ return OFFICE_ROLES.indexOf(r)>-1; }
-function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director',lead_entry:'Lead Entry',accounts:'Accounts',recovery_officer:'Recovery Officer',hr:'HR',reception:'Receptionist',engineer:'Site Engineer'}[r])||'Sale Representative'; }
+function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director',lead_entry:'Lead Entry',accounts:'Accounts',recovery_officer:'Recovery Officer',hr:'HR',reception:'Receptionist',engineer:'Site Engineer',general:'General Staff'}[r])||'Sale Representative'; }
 // ════ My Profile — self-service (view / edit / change PIN) ════
 async function renderProfile(){
   $('app-body').innerHTML=_skel();

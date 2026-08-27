@@ -24,8 +24,10 @@ let _saNotify = null;   // company CRM notification master switches
 // The office roles carry NexuAttend's own designation wording, so one job is
 // not called two things in two apps. None of them handle leads — lead_role_config
 // says can_have_leads false and create_lead refuses them by name.
-const _SA_OFFICE_ROLES = ['accounts', 'recovery_officer', 'hr', 'reception', 'engineer'];
-const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director', lead_entry: 'Lead Entry', accounts: 'Accounts', recovery_officer: 'Recovery Officer', hr: 'HR', reception: 'Receptionist', engineer: 'Site Engineer' };
+// 'general' is an office role with no screen of its own — the generic portal
+// and nothing else. It sits here so it inherits every office restraint.
+const _SA_OFFICE_ROLES = ['accounts', 'recovery_officer', 'hr', 'reception', 'engineer', 'general'];
+const _SA_ROLE_LABELS = { sale_rep: 'Sale Representative', marketing_manager: 'Marketing Manager', admin: 'Admin', cfo: 'CFO', director: 'Director', lead_entry: 'Lead Entry', accounts: 'Accounts', recovery_officer: 'Recovery Officer', hr: 'HR', reception: 'Receptionist', engineer: 'Site Engineer', general: 'General Staff' };
 const _SA_ROLE_TONE = { sale_rep: 'muted', marketing_manager: 'primary', admin: 'warning', cfo: 'success', director: 'primary', lead_entry: 'info' };
 function _saRoleLabel(r) { return _SA_ROLE_LABELS[r] || 'Sale Representative'; }
 function _saRoleOptions() { return Object.keys(_SA_ROLE_LABELS).map(v => ({ value: v, label: _SA_ROLE_LABELS[v] })); }
@@ -785,7 +787,7 @@ function _saCloseModal() { document.querySelector('.nx-modal-overlay')?.remove()
 //   non-director → all active seniors that outrank that role (managers/directors), self excluded
 //   director     → none (a director has no team head)
 function _saParentOptsFor(memberId, selRole) {
-  const _SA_RANK = { lead_entry: 1, sale_rep: 1, accounts: 1, recovery_officer: 1, hr: 1, reception: 1, engineer: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
+  const _SA_RANK = { lead_entry: 1, sale_rep: 1, accounts: 1, recovery_officer: 1, hr: 1, reception: 1, engineer: 1, general: 1, marketing_manager: 2, cfo: 2, admin: 2, director: 3 };
   const myRank = _SA_RANK[selRole] || 1;
   return [{ value: '', label: '— none —' }].concat(
     (_saRows || []).filter(x => x.id !== memberId && x.status === 'active'
