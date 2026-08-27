@@ -1507,7 +1507,7 @@ button.mn-card:active{transform:scale(.985)}
           <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
         </div>
       </div>
-      <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
+      <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Home</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <!-- ══ lead-entry operator: manual leads ══ -->
       <div class="ni-grp" data-grp="op-leads" data-le style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('op-leads')"><span class="sb-grp-t">Leads</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
@@ -1585,8 +1585,8 @@ button.mn-card:active{transform:scale(.985)}
     <header class="appbar">
       <button class="appbar-btn sb-toggle" onclick="toggleSidebar()" title="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
       <button class="appbar-nav" id="appbar-back" onclick="goBack()" title="Go back" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg><span>Back</span></button>
-      <button class="appbar-nav" id="appbar-home" onclick="setTab('home')" title="Go to dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Dashboard</span></button>
-      <div class="appbar-title" id="appbar-title">Dashboard</div>
+      <button class="appbar-nav" id="appbar-home" onclick="setTab('home')" title="Go to home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
+      <div class="appbar-title" id="appbar-title">Home</div>
       <div style="flex:1"></div>
       <button class="appbar-btn" id="appbar-refresh" onclick="_appRefresh()" title="Refresh"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="appbar-btn" id="appbar-theme" onclick="toggleTheme()" title="Light / dark"></button>
@@ -2306,7 +2306,7 @@ function _applyLeadAccess(){
   show('[data-acc]',      role==='accounts');           // the accounts desk's day
   show('[data-eng]',      role==='engineer');           // the site engineer's floors           // the accounts desk's day   // the officer's own book
   show('[data-le]',       isLE);                            // operator apps (Add lead / sources)
-  show('[data-main]',     !isLE && !isOff);                 // Dashboard — sellers and leadership
+  show('[data-main]',     !isLE);                           // Home — everybody but the operator
   show('[data-sell]',     sell);                            // Workspace group
   show('[data-mgr]',      isMgr && !isOff);                           // Management group
   show('[data-dir]',      isDir);                           // Live Map / Facebook Leads
@@ -2336,7 +2336,7 @@ function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeSh
   if(ME&&ME.role==='engineer'){ setTab('site'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   if(ME&&ME.role==='accounts'){ setTab('collection'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   if(ME&&ME.role==='recovery_officer'){ setTab('torecover'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
-  if(ME&&_isOfficeRole(ME.role)){ setTab('myrecord'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&_isOfficeRole(ME.role)){ setTab('home'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   setTab(PENDING_TAB==='alerts'?'alerts':'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
@@ -2408,7 +2408,7 @@ function setTab(t,_back){
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2510,7 +2510,8 @@ function _syncNavGroups(t){
     let open;
     if(id===active) open=true;                                                   // group of the current page → always expanded
     else if(Object.prototype.hasOwnProperty.call(st,id)) open=!!st[id];          // saved arrangement always wins
-    else if(!active && id==='workspace' && sell) open=true;                       // ungrouped landing (Dashboard/Messages) → open Workspace for sellers (no stored pref)
+    else if(id==='company') open=true;                                           // the top group, and an office role's whole app → open unless they closed it
+    else if(!active && id==='workspace' && sell) open=true;                       // ungrouped landing (Home/Messages) → open Workspace for sellers (no stored pref)
     else open=false;                                                             // default: collapsed
     g.classList.toggle('open', open);
     g.classList.toggle('has-active', id===active);
@@ -2758,6 +2759,7 @@ function _roiHomeCard(roi){
       </div>`;
 }
 async function renderHome(){
+  if(ME && _isOfficeRole(ME.role)) return renderMyHome();                       // the office side has its own day
   if(ME && (ME.role==='admin'||ME.role==='cfo')) return renderExecHome();                        // exec — read-only org snapshot
   if(ME && (ME.role==='marketing_manager'||ME.role==='director')) return renderManagerHome();   // managers & directors get a team desk
   if(!_BG) $('app-body').innerHTML=_skel();
@@ -7217,6 +7219,208 @@ async function _myrecProfile(){
   return MYREC_PROFILE;
 }
 
+/* ══ Home — what an office day looks like when you open the app ═══════════════
+   A sale rep opens this app and sees their funnel. Everybody else was opening
+   it and seeing a list, which is the difference between a tool and a filing
+   cabinet.
+
+   So: are you marked in, what has this month come to, what is left of your
+   leave, what is the company building, and has anybody said anything. All of it
+   already exists behind screens they have; this puts the answers on the first
+   screen instead of making them go and look.
+
+   Four calls, made together rather than one after another, because a phone on a
+   weak signal should wait once. Any of them may fail without taking the page
+   with it — a missing attendance link is a common, ordinary state, not an
+   error, and the card says so in words. */
+let HOME = { loaded: false, file: null, pay: null, projects: [], news: [] };
+
+function _homeGreet(){
+  const h = Number(new Date().toLocaleString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Karachi' }));
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+function _homeFirst(n){ return String(n || '').trim().split(/\s+/)[0] || ''; }
+function _homeTime(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleTimeString('en-US',
+    { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Karachi' });
+}
+
+async function renderMyHome(){
+  const b = $('app-body'); if(!b) return;
+  if(!HOME.loaded){
+    b.innerHTML = _skel();
+    const ym = new Date().toISOString().slice(0, 7);
+    const today = new Date().toISOString().slice(0, 10);
+    const [f, p, pr] = await Promise.all([
+      _myrecCall({ action: 'file', from: ym + '-01', to: today }).catch(() => null),
+      _myrecCall({ action: 'earnings', to: today }).catch(() => null),
+      sb.rpc('get_project_profiles', { p_session_token: TOKEN }).then(r => r.data).catch(() => null),
+    ]);
+    try{ await loadAnnouncements(); }catch(e){}
+    HOME.file = f; HOME.pay = p;
+    HOME.projects = (pr && pr.projects) || [];
+    HOME.news = (typeof ANN !== 'undefined' && ANN.list) ? ANN.list.slice(0, 2) : [];
+    HOME.loaded = true;
+  }
+  _touch();
+
+  const f = HOME.file || {}, pay = HOME.pay || {};
+  const emp = f.employee || {};
+  const days = f.days || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const td = days.find(x => x.date === today) || null;
+
+  const rs  = n => '₨' + Number(n||0).toLocaleString('en-US');
+  const rsS = n => { n = Number(n||0);
+    return n >= 10000000 ? '₨' + (n/10000000).toFixed(2) + ' cr'
+         : n >= 100000   ? '₨' + (n/100000).toFixed(1) + ' lac' : rs(n); };
+
+  // The one thing worth knowing before anything else.
+  let stTxt, stTone, stSub;
+  if(!f.ok){
+    stTxt = 'Attendance not linked'; stTone = null;
+    stSub = f.message || 'Ask the office to join your portal login to your employee file.';
+  } else if(td && /leave/.test(String(td.status||''))){
+    stTxt = 'On leave today'; stTone = 'warn'; stSub = '';
+  } else if(td && td.first_in){
+    const late = Number(td.late_minutes||0);
+    stTxt = 'Marked in at ' + _homeTime(td.first_in);
+    stTone = late > 0 ? 'warn' : 'ok';
+    stSub = late > 0 ? (late + ' minutes after your shift started') : 'On time';
+  } else {
+    stTxt = 'Not marked in yet'; stTone = null; stSub = 'Your punch has not reached the office yet today.';
+  }
+
+  const name = _homeFirst((ME && ME.sales_user_name) || emp.full_name || '');
+  const dateLine = new Date().toLocaleDateString('en-US',
+    { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Karachi' });
+
+  let html = '<div class="nx-dash">';
+
+  html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
+    + '<div style="position:relative;color:var(--fk-primary);'
+    + 'background:linear-gradient(150deg,var(--fk-primary-tint),transparent 72%);padding:18px">'
+    + '<div style="font-size:var(--fs-title);font-weight:700;color:var(--fk-text);line-height:1.2">'
+    + esc(_homeGreet() + (name ? ', ' + name : '')) + '</div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:4px">'
+    + esc(dateLine) + ' · ' + esc(_portalRoleLabel(ME && ME.role)) + '</div>'
+    + '</div>'
+    + '<div style="padding:14px 18px;border-top:1px solid var(--fk-hairline);display:flex;'
+    + 'align-items:flex-start;gap:11px">'
+    + '<span style="width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;'
+    + 'background:var(--fk-bg-subtle);color:var(--fk-text-muted)">' + li('clock',18,1.9) + '</span>'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-weight:700;font-size:var(--fs-body)">' + esc(stTxt) + '</div>'
+    + (stSub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:2px;line-height:1.4">'
+        + esc(stSub) + '</div>' : '')
+    + '</div>'
+    + (stTone ? _myrecChip(stTone === 'ok' ? 'On time' : 'Late', stTone) : '')
+    + '</div></div>';
+
+  // The month so far, in the three numbers a person actually tracks.
+  if(f.ok){
+    const present = days.filter(x => x.status === 'present' || x.status === 'late').length;
+    /* Not a sum of every kind of leave. Added up, this company's list comes to
+       132 days, because ninety of them are maternity — a figure no receptionist
+       has "left". What a person tracks day to day is the everyday leave, so this
+       names the first paid type in HR's own order (Casual here); My record still
+       lists every type in full. */
+    const bal = (f.leave_balance || []).filter(x => x.entitled && x.is_paid !== false);
+    const lv = bal[0];
+    const left = lv ? Math.max(0, Number(lv.entitled) - Number(lv.taken || 0)) : null;
+    const cell = (label, value, tone) =>
+      '<div style="flex:1;background:var(--fk-bg-card);padding:13px 14px;min-width:96px">'
+      + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+      + 'letter-spacing:.06em;font-weight:600">' + esc(label) + '</div>'
+      + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums'
+      + (tone ? ';color:' + tone : '') + '">' + value + '</div></div>';
+    html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:16px">'
+      + '<div style="display:flex;gap:1px;background:var(--fk-hairline)">'
+      + cell('Days in', present)
+      + cell('Earned', pay && pay.ok ? rsS(pay.net_so_far) : '—', pay && pay.ok ? 'var(--fk-success)' : null)
+      + cell(lv ? lv.type + ' left' : 'Leave left', lv ? left : '—')
+      + '</div>'
+      + '<div onclick="setTab(\'myrecord\')" style="cursor:pointer;padding:11px 14px;'
+      + 'border-top:1px solid var(--fk-hairline);display:flex;align-items:center;justify-content:space-between;'
+      + 'color:var(--fk-primary);font-size:var(--fs-caption);font-weight:600">'
+      + '<span>Open my record</span>' + li('arrow-right',15,2) + '</div></div>';
+  }
+
+  // What the company is building — the same cards the Project screen opens with.
+  if(HOME.projects.length){
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 4px 8px">'
+      + '<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+      + 'font-weight:600;color:var(--fk-text-muted)">Our projects</span>'
+      + '<span onclick="setTab(\'project\')" style="cursor:pointer;color:var(--fk-primary);'
+      + 'font-size:var(--fs-caption);font-weight:600">See all</span></div>';
+    html += '<div style="display:flex;gap:11px;overflow-x:auto;padding:0 2px 4px;margin-bottom:16px;'
+      + '-webkit-overflow-scrolling:touch">';
+    HOME.projects.forEach(p => {
+      const iv = p.inventory || {}, pg = p.progress || {};
+      const pct = iv.total ? Math.max(2, Math.round((Number(iv.available)/Number(iv.total))*100)) : 0;
+      html += '<div class="card" onclick="setTab(\'project\')" style="cursor:pointer;flex:0 0 74%;max-width:280px;'
+        + 'padding:14px;border-radius:16px">'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<span style="font-weight:700;font-size:var(--fs-secondary);white-space:nowrap;overflow:hidden;'
+        + 'text-overflow:ellipsis">' + esc(p.project_name || '') + '</span>'
+        + (p.short_code ? _prjCode(p.short_code) : '') + '</div>'
+        + '<div style="display:flex;align-items:baseline;gap:6px;margin-top:9px">'
+        + '<span style="font-size:var(--fs-section);font-weight:700;font-variant-numeric:tabular-nums;'
+        + 'color:var(--fk-success)">' + (iv.available || 0) + '</span>'
+        + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption)">of ' + (iv.total || 0) + ' available</span></div>'
+        + '<div style="height:5px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:8px;overflow:hidden">'
+        + '<div style="height:100%;width:' + pct + '%;border-radius:99px;background:var(--fk-success)"></div></div>'
+        + (pg.overall != null
+            ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:8px">'
+              + 'Construction ' + pg.overall + '%</div>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Anything the office has said.
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 4px 8px">'
+    + '<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+    + 'font-weight:600;color:var(--fk-text-muted)">Messages</span>'
+    + '<span onclick="setTab(\'updates\')" style="cursor:pointer;color:var(--fk-primary);'
+    + 'font-size:var(--fs-caption);font-weight:600">Open inbox</span></div>';
+  html += '<div class="card" style="padding:6px 8px;border-radius:16px;margin-bottom:14px">';
+  if(!HOME.news.length){
+    html += '<div class="empty" style="padding:14px 8px 18px"><div class="et">Nothing new</div>'
+      + '<div class="es">Company notices appear here.</div></div>';
+  } else {
+    HOME.news.forEach(a => {
+      html += '<div class="trow" onclick="setTab(\'updates\')"><div style="flex:1;min-width:0">'
+        + '<div class="lr-name" style="white-space:normal">' + esc(a.title || 'Notice') + '</div>'
+        + '<div class="lr-sub"><span>' + esc(a.posted_by_name || a.created_by_name || '')
+        + (a.created_at ? (a.posted_by_name || a.created_by_name ? ' · ' : '')
+            + esc(new Date(a.created_at).toLocaleDateString('en-US',{day:'numeric',month:'short'})) : '')
+        + '</span></div></div>'
+        + (a.seen === false ? _myrecChip('New', 'warn') : '') + li('arrow-right',15,2) + '</div>';
+    });
+  }
+  html += '</div>';
+
+  // The two things an office person actually does from a phone.
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
+    + '<div class="card" onclick="_homeLeave()" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
+    + _prjTile('calendar', 38)
+    + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:10px">Ask for leave</div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:2px">Goes to HR first</div></div>'
+    + '<div class="card" onclick="setTab(\'project\')" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
+    + _prjTile('building', 38)
+    + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:10px">Our projects</div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:2px">What we are building</div></div>'
+    + '</div>';
+
+  b.innerHTML = html + '</div>';
+}
+
+// Straight to the leave form rather than to the tab it lives on.
+function _homeLeave(){ MYREC.sub = 'leave'; MYREC.asking = true; setTab('myrecord'); }
+
+
 /* ══ Site — the engineer's screen ═════════════════════════════════════════════
    Every other role got a screen that shows them something RMS already knows.
    The engineer had nothing to be shown: not one unit carries a handover status
@@ -9071,8 +9275,11 @@ async function loadBoard(){
   BOARD=data; _touch(); return true;
 }
 function _areaTxt(u){ const a=Number(u&&u.area||0); return a>0 ? a.toLocaleString('en-US')+' '+((u.area_unit||'sqft')) : ''; }
-// Units tab segmented control: All units (board) ⇄ My Bookings (reservations)
-function _unitsSeg(){ return '<div class="seg" style="margin:0 0 14px">'
+// Units tab segmented control: All units (board) ⇄ My Bookings (reservations).
+// An office role cannot reserve or sell — reserve_unit refuses them server-side —
+// so a bookings tab that could only ever be empty is not offered to them.
+function _unitsSeg(){ if(_isOfficeRole(ME&&ME.role)) return '';
+  return '<div class="seg" style="margin:0 0 14px">'
   +'<button class="so'+(TAB==='board'?' on':'')+'" onclick="setTab(\'board\')">All units</button>'
   +'<button class="so'+(TAB==='mine'?' on':'')+'" onclick="setTab(\'mine\')">My Bookings</button></div>'; }
 async function renderBoard(){

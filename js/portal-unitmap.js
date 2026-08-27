@@ -23,7 +23,7 @@
   // Styles ship with the module, so sales-portal.html stays a one-line change.
   (function () {
     var st = document.createElement('style');
-    st.textContent = ".umv-wrap{padding:12px 12px 90px}.umv-h{font-weight:700;margin:4px 2px 12px}.umv-load,.umv-msg{padding:24px;text-align:center;color:var(--fk-text-muted)}.umv-floors{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}.umv-floor{display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:13px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);color:var(--fk-text);font:inherit;cursor:pointer;text-align:left}.umv-floor.soon{opacity:.55;cursor:default}.umv-fl{font-weight:700}.umv-fu{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}.umv-top{display:flex;gap:10px;align-items:center;margin-bottom:9px}.umv-back{background:none;border:0;color:var(--fk-primary);font:inherit;cursor:pointer;padding:0}.umv-zoom{margin-left:auto;display:flex;gap:5px}.umv-zoom button{min-width:34px;height:30px;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);border-radius:7px;font:inherit;cursor:pointer}.umv-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:9px;font-size:var(--fs-caption)}.umv-chip{display:inline-flex;align-items:center;gap:5px;color:var(--fk-text-muted)}.umv-chip i{width:10px;height:10px;border-radius:3px;display:inline-block}.umv-stage{position:relative;overflow:hidden;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:#fff;touch-action:none;height:min(70vh,760px);min-height:320px}.umv-pan{position:absolute;left:0;top:0;width:100%;transform-origin:0 0;transition:transform .55s cubic-bezier(.22,.61,.36,1);line-height:0}@media (prefers-reduced-motion:reduce){.umv-pan{transition:none}}.umv-out{position:absolute;left:10px;top:10px;z-index:3;display:none;align-items:center;gap:6px;height:34px;padding:0 13px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(15,23,42,.18)}.umv-stage.focus .umv-out{display:inline-flex}.umv-pan img{width:100%;height:auto;display:block}.umv-pan svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.umv-soon{padding:40px 20px;text-align:center;border:1px dashed var(--fk-border);border-radius:var(--fk-radius-md)}.umv-soon-t{font-weight:700;font-size:var(--fs-section)}.umv-soon-s{color:var(--fk-text-muted);margin-top:6px}.umv-sheet-in{margin-top:12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);padding:13px 15px}.umv-sh-top{display:flex;align-items:center;gap:9px;margin-bottom:9px}.umv-dot{width:11px;height:11px;border-radius:50%}.umv-state{margin-left:auto;font-size:var(--fs-caption);font-weight:700}.umv-x{background:none;border:0;color:var(--fk-text-muted);font-size:15px;cursor:pointer}.umv-rows{display:flex;flex-direction:column}.umv-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--fk-border);font-size:var(--fs-caption)}.umv-row:last-child{border-bottom:0}.umv-row span:first-child{color:var(--fk-text-muted)}.umv-pend{color:#d97706;font-style:normal}.umv-res{margin-top:11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.umv-res-l{font-size:var(--fs-caption);color:var(--fk-text-muted)}.umv-res-b{display:flex;gap:7px;margin-left:auto}.umv-note{margin-top:11px;font-size:var(--fs-caption);color:var(--fk-text-muted)}";
+    st.textContent = ".umv-wrap{padding:12px 12px 90px}.umv-h{font-weight:700;margin:4px 2px 12px}.umv-load,.umv-msg{padding:24px;text-align:center;color:var(--fk-text-muted)}.umv-floors{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}.umv-floor{display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:13px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);color:var(--fk-text);font:inherit;cursor:pointer;text-align:left}.umv-floor.soon{opacity:.55;cursor:default}.umv-hd{margin:2px 2px 16px}.umv-hd-t{font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em}.umv-hd-s{color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:3px;font-weight:500}.umv-sec{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:16px 2px 8px}.umv-sec-t{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)}.umv-sec-c{font-size:var(--fs-caption);color:var(--fk-text-muted)}.umv-floor{position:relative;transition:border-color .14s,background .14s,transform .14s}.umv-floor:not(.soon):hover{border-color:var(--fk-primary);background:var(--fk-primary-tint);transform:translateY(-1px)}.umv-go{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--fk-text-muted);line-height:0}.umv-floor:not(.soon):hover .umv-go{color:var(--fk-primary)}.umv-blank{border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);padding:34px 24px;text-align:center}.umv-blank-i{width:48px;height:48px;margin:0 auto 12px;border-radius:14px;display:grid;place-items:center;background:var(--fk-bg-subtle);color:var(--fk-text-muted)}.umv-blank-t{font-weight:700;font-size:var(--fs-section)}.umv-blank-s{color:var(--fk-text-muted);margin:6px auto 0;max-width:44ch;line-height:1.5;font-size:var(--fs-secondary)}.umv-blank-b{margin-top:16px;height:36px;padding:0 18px;border:1px solid var(--fk-border);border-radius:9px;background:var(--fk-bg-subtle);color:var(--fk-text);font:inherit;font-weight:600;cursor:pointer}.umv-blank-b:hover{border-color:var(--fk-primary);color:var(--fk-primary)}.umv-fl{font-weight:700}.umv-fu{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}.umv-top{display:flex;gap:10px;align-items:center;margin-bottom:9px}.umv-back{background:none;border:0;color:var(--fk-primary);font:inherit;cursor:pointer;padding:0}.umv-zoom{margin-left:auto;display:flex;gap:5px}.umv-zoom button{min-width:34px;height:30px;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);border-radius:7px;font:inherit;cursor:pointer}.umv-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:9px;font-size:var(--fs-caption)}.umv-chip{display:inline-flex;align-items:center;gap:5px;color:var(--fk-text-muted)}.umv-chip i{width:10px;height:10px;border-radius:3px;display:inline-block}.umv-stage{position:relative;overflow:hidden;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:#fff;touch-action:none;height:min(70vh,760px);min-height:320px}.umv-pan{position:absolute;left:0;top:0;width:100%;transform-origin:0 0;transition:transform .55s cubic-bezier(.22,.61,.36,1);line-height:0}@media (prefers-reduced-motion:reduce){.umv-pan{transition:none}}.umv-out{position:absolute;left:10px;top:10px;z-index:3;display:none;align-items:center;gap:6px;height:34px;padding:0 13px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(15,23,42,.18)}.umv-stage.focus .umv-out{display:inline-flex}.umv-pan img{width:100%;height:auto;display:block}.umv-pan svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.umv-soon{padding:40px 20px;text-align:center;border:1px dashed var(--fk-border);border-radius:var(--fk-radius-md)}.umv-soon-t{font-weight:700;font-size:var(--fs-section)}.umv-soon-s{color:var(--fk-text-muted);margin-top:6px}.umv-sheet-in{margin-top:12px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-md);background:var(--fk-bg-card);padding:13px 15px}.umv-sh-top{display:flex;align-items:center;gap:9px;margin-bottom:9px}.umv-dot{width:11px;height:11px;border-radius:50%}.umv-state{margin-left:auto;font-size:var(--fs-caption);font-weight:700}.umv-x{background:none;border:0;color:var(--fk-text-muted);font-size:15px;cursor:pointer}.umv-rows{display:flex;flex-direction:column}.umv-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--fk-border);font-size:var(--fs-caption)}.umv-row:last-child{border-bottom:0}.umv-row span:first-child{color:var(--fk-text-muted)}.umv-pend{color:#d97706;font-style:normal}.umv-res{margin-top:11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.umv-res-l{font-size:var(--fs-caption);color:var(--fk-text-muted)}.umv-res-b{display:flex;gap:7px;margin-left:auto}.umv-note{margin-top:11px;font-size:var(--fs-caption);color:var(--fk-text-muted)}";
     document.head.appendChild(st);
   })();
 
@@ -48,17 +48,67 @@
     _floors();
   };
 
+  /* The picker used to be a bare grid under the words "Pick a floor", and when a
+     project had no drawing yet it said "No floors yet." and nothing else — a
+     dead end that reads as a broken screen rather than as work not yet done.
+
+     Two things changed. The floors are grouped under their project, because a
+     dealer-group login sees KBH's floors and FMH's floors in the same call and a
+     flat grid mixed them; and the empty case now says who publishes a floor plan
+     and where the same units can be seen meanwhile. */
   function _floors() {
-    var rows = MAP.floors.map(function (f) {
-      var soon = f.status !== 'published';
-      return '<button class="umv-floor' + (soon ? ' soon' : '') + '"' +
-        (soon ? ' disabled' : ' onclick="_umvOpen(\'' + f.id + '\')"') + '>' +
-        '<span class="umv-fl">' + esc(f.floor_label) + '</span>' +
-        '<span class="umv-fu">' + (soon ? 'Coming soon' : f.units + ' units') + '</span></button>';
+    var head = '<div class="umv-hd"><div class="umv-hd-t">Unit map</div>' +
+      '<div class="umv-hd-s">The floor drawing, coloured by what is available.</div></div>';
+
+    if (!MAP.floors.length) {
+      $('app-body').innerHTML = '<div class="umv-wrap">' + head +
+        '<div class="umv-blank">' +
+          '<div class="umv-blank-i"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" ' +
+            'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+            '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>' +
+            '<path d="M9 9v12"/><path d="M15 3v6"/></svg></div>' +
+          '<div class="umv-blank-t">No floor plan published yet</div>' +
+          '<div class="umv-blank-s">A floor appears here once the office uploads its drawing and ' +
+            'marks each apartment on it. Until then the same units are listed on the Units screen.</div>' +
+          '<button class="umv-blank-b" onclick="setTab(\'board\')">Open Units</button>' +
+        '</div></div>';
+      return;
+    }
+
+    // Group under the project they belong to, in the order the server sent.
+    var order = [], byProject = {};
+    MAP.floors.forEach(function (f) {
+      var k = f.project_name || 'Project';
+      if (!byProject[k]) { byProject[k] = []; order.push(k); }
+      byProject[k].push(f);
+    });
+    var many = order.length > 1;
+
+    var body = order.map(function (name) {
+      var live = byProject[name].filter(function (f) { return f.status === 'published'; }).length;
+      var sec = many
+        ? '<div class="umv-sec"><span class="umv-sec-t">' + esc(name) + '</span>' +
+          '<span class="umv-sec-c">' + live + ' of ' + byProject[name].length + ' ready</span></div>'
+        : '';
+      return sec + '<div class="umv-floors">' + byProject[name].map(function (f) {
+        var soon = f.status !== 'published';
+        return '<button class="umv-floor' + (soon ? ' soon' : '') + '"' +
+          (soon ? ' disabled' : ' onclick="_umvOpen(\'' + f.id + '\')"') + '>' +
+          '<span class="umv-fl">' + esc(f.floor_label) + '</span>' +
+          '<span class="umv-fu">' + (soon ? 'Coming soon' : f.units + ' units') + '</span>' +
+          (soon ? '' : '<span class="umv-go"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
+            'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="m9 18 6-6-6-6"/></svg></span>') +
+          '</button>';
+      }).join('') + '</div>';
     }).join('');
-    $('app-body').innerHTML =
-      '<div class="umv-wrap"><div class="umv-h">Pick a floor</div><div class="umv-floors">' +
-      (rows || '<div class="umv-msg">No floors yet.</div>') + '</div></div>';
+
+    $('app-body').innerHTML = '<div class="umv-wrap">' + head + body +
+      '<div class="umv-legend" style="margin:14px 2px 0">' +
+        '<span class="umv-chip"><i style="background:' + COLOR.available[0] + '"></i>Available</span>' +
+        '<span class="umv-chip"><i style="background:' + COLOR.reserved[0] + '"></i>Reserved</span>' +
+        '<span class="umv-chip"><i style="background:' + COLOR.sold[0] + '"></i>Sold</span>' +
+      '</div></div>';
   }
 
   window._umvOpen = async function (planId) {
