@@ -7049,7 +7049,9 @@ function _myrecShiftMonth(n){
   if(d > new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) return;
   MYREC.month=d.toISOString().slice(0,7); MYREC.data=null; MYREC.pay=undefined; renderMyRecord();
 }
-function _myrecTab(k){ MYREC.sub=k; renderMyRecord(); }
+function _myrecTab(k){ MYREC.sub=k; MYREC.slip=null; renderMyRecord(); }
+// Opening one payslip, or going back to the list.
+function _myrecSlip(id){ MYREC.slip=id||null; renderMyRecord(); }
 /* A small status chip. The portal has no shared one, so rather than invent a
    class that lives only here it is drawn from the tokens. */
 // "10:00" + 15 → "10:15". The minute the cutting starts is printed rather than
@@ -7234,7 +7236,7 @@ async function renderMyRecord(){
   // Pay is a month's worth of money, so it needs the same month arrows the
   // attendance sheet does — but not the present/late tallies, which belong to
   // the sheet alone.
-  if(MYREC.sub==='attendance'||MYREC.sub==='pay'){
+  if(MYREC.sub==='attendance'||(MYREC.sub==='pay'&&!MYREC.slip)){
     html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px">'
       +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(-1)">‹</button>'
       +'<b style="font-size:var(--fs-body)">'+esc(monthName)+'</b>'
@@ -7283,7 +7285,10 @@ async function renderMyRecord(){
       catch(e){ MYREC.pay={ok:false,message:'Could not work out this month.'}; }
     }
     const P=MYREC.pay||{};
-    if(!P.ok){
+    // A finished payslip is the whole screen while it is open: the running
+    // estimate beside it would be two answers to one question.
+    if(MYREC.slip){ /* estimate hidden */ }
+    else if(!P.ok){
       html+='<div class="card"><div class="empty">'+li('info',20,1.8)+''
         +'<div class="et">Pay is not available yet</div>'
         +'<div class="es">'+esc(P.message||'This month cannot be worked out yet.')+'</div></div></div>';
@@ -7357,6 +7362,95 @@ async function renderMyRecord(){
           +'These days are already left out of Earned above — they are not deducted a second time.</div>'
           +'</div></div>';
       }
+    }
+
+    /* ── the months that are already settled ───────────────────────────
+       The estimate above is this month arguing with itself. A payslip is
+       finished: HR issued it, it can carry an allowance or an advance that
+       no estimate could guess, and it is the number that was actually paid.
+       Drafts never arrive here — the attendance side refuses to send a run
+       that has not been finalized, because a figure HR is still editing is
+       not yet anybody else's. */
+    if(MYREC.slips===undefined){
+      MYREC.slips=null;
+      try{ const r=await _myrecCall({action:'payslips'}); MYREC.slips=(r&&r.ok)?(r.payslips||[]):[]; }
+      catch(e){ MYREC.slips=[]; }
+    }
+    const S9=MYREC.slips||[];
+    const rs9=n=>'₨'+Number(n||0).toLocaleString('en-US');
+    const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const line9=(k,v,tone)=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;'
+      +'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-secondary)">'
+      +'<span style="color:var(--fk-text-muted)">'+k+'</span>'
+      +'<b style="text-align:right;font-variant-numeric:tabular-nums'+(tone?';color:'+tone:'')+'">'+v+'</b></div>';
+
+    const open=MYREC.slip?S9.find(x=>x.id===MYREC.slip):null;
+    if(open){
+      const paid=open.status==='paid';
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
+        +'<button class="btn btn-secondary" style="height:32px;padding:0 12px;font-size:var(--fs-caption);margin-bottom:12px" '
+        +'onclick="_myrecSlip(null)">‹ Payslips</button>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
+        +'<div style="font-size:var(--fs-section);font-weight:700">'+esc(MON[(open.month||1)-1]+' '+open.year)+'</div>'
+        +_myrecChip(paid?'Paid':'Issued', paid?'ok':null)+'</div>'
+        +(open.paid_at?'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:3px">Paid '
+          +esc(new Date(open.paid_at).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}))
+          +(open.payment_method?' · '+esc(open.payment_method):'')+'</div>':'')
+        +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;margin-top:8px">'
+        +rs9(open.net_salary)+'</div>'
+        +'</div></div>';
+
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+        +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">Earnings</div>'
+        +line9('Basic', rs9(open.basic_salary))
+        +(Number(open.allowances)?line9('Allowances', rs9(open.allowances)):'')
+        +(Number(open.bonus)?line9('Bonus', rs9(open.bonus)):'')
+        +(Number(open.overtime_amount)?line9('Overtime', rs9(open.overtime_amount)):'')
+        +line9('Gross', rs9(open.gross_salary))
+        +'</div></div>';
+
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+        +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">Deductions</div>'
+        +(Number(open.absent_deduction)?line9('Absent', '− '+rs9(open.absent_deduction),'var(--fk-danger)'):'')
+        +(Number(open.late_deduction)?line9('Late', '− '+rs9(open.late_deduction),'var(--fk-danger)'):'')
+        +(Number(open.advance_deduction)?line9('Advance recovered', '− '+rs9(open.advance_deduction),'var(--fk-danger)'):'')
+        +(Number(open.loan_return)?line9('Loan return', '− '+rs9(open.loan_return),'var(--fk-danger)'):'')
+        +(Number(open.other_deductions)?line9('Other', '− '+rs9(open.other_deductions),'var(--fk-danger)'):'')
+        +line9('Total', '− '+rs9(open.total_deductions), Number(open.total_deductions)?'var(--fk-danger)':null)
+        +'<div style="display:flex;justify-content:space-between;gap:12px;padding:11px 0 2px;font-size:var(--fs-body)">'
+        +'<b>Net paid</b><b style="font-variant-numeric:tabular-nums">'+rs9(open.net_salary)+'</b></div>'
+        +'</div></div>';
+
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+        +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">The month</div>'
+        +line9('Working days', open.working_days)
+        +line9('Present', open.present_days)
+        +(Number(open.leave_days)?line9('Leave', open.leave_days):'')
+        +(Number(open.absent_days)?line9('Absent', open.absent_days):'')
+        +(Number(open.late_count)?line9('Late days', open.late_count):'')
+        +'</div></div>';
+    } else {
+      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
+        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+        +'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Payslips</div>';
+      if(!S9.length){
+        html+='<div class="empty" style="padding:14px 8px 18px"><div class="et">No payslip issued yet</div>'
+          +'<div class="es">Once the office finalises a month, its payslip appears here.</div></div>';
+      } else {
+        S9.forEach(s=>{
+          html+='<div class="trow" onclick="_myrecSlip(\''+esc(s.id)+'\')"><div style="flex:1;min-width:0">'
+            +'<div class="lr-name">'+esc(MON[(s.month||1)-1]+' '+s.year)+'</div>'
+            +'<div class="lr-sub"><span>'+esc((s.present_days||0)+' of '+(s.working_days||0)+' days')+'</span></div>'
+            +'</div>'
+            +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<b style="font-variant-numeric:tabular-nums">'+rs9(s.net_salary)+'</b>'
+            +_myrecChip(s.status==='paid'?'Paid':'Issued', s.status==='paid'?'ok':null)+'</div></div>';
+        });
+      }
+      html+='</div>';
     }
   }
 

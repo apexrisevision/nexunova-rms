@@ -36,9 +36,10 @@
 //      FMH and Awami Market are joined separately and a wrong mapping would
 //      show one office's staff another office's file.
 //
-// It reads the file, prices the month it is showing, and lets a person ask for
-// their own leave — which HR then forwards and the Head of Department decides.
-// It cannot decide anything and it cannot write to RMS at all.
+// It reads the file, prices the month it is showing, hands back the payslips
+// HR has issued, and lets a person ask for their own leave — which HR then
+// forwards and the Head of Department decides. It cannot decide anything and
+// it cannot write to RMS at all.
 // ============================================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -213,6 +214,20 @@ Deno.serve(async (req) => {
       if (error) throw error;
       if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
       if (data?.error) return json({ ok: false, error: data.error, message: WHY[data.error] || 'Your pay cannot be worked out yet.' });
+      return json({ tenant: ctx.attend_company_name, ...data });
+    }
+
+    if (action === 'payslips') {
+      // The finished months. What comes back is what HR issued, drafts
+      // excluded on the attendance side — a slip still being edited is not
+      // this person's business yet.
+      const { data, error } = await att.rpc('portal_my_payslips', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
+        p_cnic: ctx.cnic,
+      });
+      if (error) throw error;
+      if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
       return json({ tenant: ctx.attend_company_name, ...data });
     }
 
