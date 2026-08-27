@@ -1607,6 +1607,10 @@ const pkrFull=n=>'₨'+Number(n||0).toLocaleString('en-US',{maximumFractionDigit
 function pkrShort(n){ n=Number(n||0); if(!n) return ''; return '₨'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
 /* ── Lucide line-icons (kit law: no emoji in UI chrome) — single source of truth ── */
 const _LIP={
+  wallet:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="14" r="1.4"/><path d="M6 6V4.5A1.5 1.5 0 0 1 7.5 3H16"/>',
+  stairs:'<path d="M3 21h4v-4h4v-4h4V9h4V5h3"/><path d="M3 21v-2"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="11" r="2.4"/><path d="M8.5 16.5a4.5 4.5 0 0 1 7 0"/>',
+  'sun-solar':'<circle cx="12" cy="8" r="3"/><path d="M12 2v1"/><path d="M12 13v1"/><path d="m6.7 3.7.7.7"/><path d="m16.6 12.6.7.7"/><path d="M3 8h1"/><path d="M20 8h1"/><path d="M4 21h16l-2-5H6z"/>',
   car:'<path d="M19 17h2v-3.3a2 2 0 0 0-.3-1L19 9H5l-1.7 3.7a2 2 0 0 0-.3 1V17h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/>',
   store:'<path d="M3 9h18l-1-4H4z"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 20v-6h6v6"/>',
   ruler:'<path d="M3 15 15 3l6 6L9 21z"/><path d="m7 11 2 2"/><path d="m11 7 2 2"/><path d="m15 11 2 2"/>',
@@ -7231,6 +7235,13 @@ const _PRJ_SKYLINE =
   + '<rect x="132" y="38" width="7" height="9"/><rect x="146" y="38" width="7" height="9"/>'
   + '<rect x="132" y="56" width="7" height="9"/><rect x="146" y="56" width="7" height="9"/></g></svg>';
 
+function _prjCode(code){
+  if(!code) return '';
+  return '<span style="flex:none;padding:3px 9px;border-radius:7px;background:var(--fk-primary-tint);'
+    + 'color:var(--fk-primary);font-size:var(--fs-caption);font-weight:700;letter-spacing:.04em;'
+    + 'text-transform:uppercase;white-space:nowrap">' + esc(code) + '</span>';
+}
+
 function _prjTile(icon, size){
   size = size || 40;
   return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:' + Math.round(size * 0.3) + 'px;'
@@ -7293,7 +7304,9 @@ async function renderProject(){
         + '<div style="position:relative;color:var(--fk-primary);background:linear-gradient(150deg,var(--fk-primary-tint),transparent 70%);padding:16px">'
         + _PRJ_SKYLINE
         + '<div style="position:relative">'
-        + '<div style="font-size:var(--fs-section);font-weight:700;color:var(--fk-text)">' + esc(p.project_name || '') + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span style="font-size:var(--fs-section);font-weight:700;color:var(--fk-text)">' + esc(p.project_name || '') + '</span>'
+        + _prjCode(p.short_code) + '</div>'
         + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
         + esc([p.location, p.city].filter(Boolean).join(' · ')) + '</div>'
         + (iv.total ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:8px">'
@@ -7391,8 +7404,9 @@ async function renderProject(){
     + '<div style="position:relative;color:var(--fk-primary);background:linear-gradient(150deg,var(--fk-primary-tint),transparent 72%);padding:20px 18px 18px">'
     + _PRJ_SKYLINE
     + '<div style="position:relative">'
-    + '<div style="font-size:var(--fs-title);font-weight:700;line-height:1.15;color:var(--fk-text)">'
-    + esc(pf.headline || cur.project_name || '') + '</div>'
+    + '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">'
+    + '<span style="font-size:var(--fs-title);font-weight:700;line-height:1.15;color:var(--fk-text)">'
+    + esc(pf.headline || cur.project_name || '') + '</span>' + _prjCode(cur.short_code) + '</div>'
     + (pf.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:5px">' + esc(pf.sub) + '</div>' : '')
     + ((pf.builder || pf.landowner)
         ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:11px">'
