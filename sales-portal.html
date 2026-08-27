@@ -7584,7 +7584,14 @@ async function renderSite(){
    the actual cash — a day that would have read 13 million instead of 200,000.
    They are money moved on paper, not money received, so they sit under the
    total in their own line rather than inside it. */
-let ACC = { data: undefined, day: null };
+let ACC = { data: undefined, day: null, view: 'day', bill: undefined };
+
+/* The desk asks two questions and they are not the same question. "What came
+   in" counts cash on the day it arrived; "what was owed" counts instalments on
+   the day they fell due. A payment made in August against a July instalment is
+   August's cash and July's billing, so the two are kept as separate views
+   rather than reconciled into one figure that would be wrong in both. */
+function _accView(v){ ACC.view = v; renderCollection(); }
 
 function _accDay(){ return ACC.day || new Date().toISOString().slice(0,10); }
 function _accShift(n){
@@ -7609,7 +7616,11 @@ async function renderCollection(){
   if(ACC.data === null) return _netErr();
   const d = ACC.data;
 
-  let html = '<div class="nx-dash">' + _pageHead('Collection', 'What came in, and from whom.');
+  let html = '<div class="nx-dash">' + _pageHead('Collection',
+    ACC.view === 'month' ? 'What was owed this month, and how much of it settled.'
+                         : 'What came in, and from whom.');
+
+  if(d.success) html += _seg([['day','The day'],['month','This month']], ACC.view, '_accView');
 
   if(!d.success){
     html += '<div class="card"><div class="empty"><div class="ei">' + li('info',20,1.8) + '</div>'
@@ -7627,6 +7638,11 @@ async function renderCollection(){
   const METH = { cash:'Cash', bank_transfer:'Bank transfer', cheque:'Cheque', other:'Other', adjustment:'Adjustment' };
   const dayName = new Date(d.as_of + 'T00:00:00Z')
     .toLocaleDateString('en-US',{ weekday:'long', day:'numeric', month:'long' });
+
+  if(ACC.view === 'month'){
+    b.innerHTML = html + await _accMonth(rs, rsS) + '</div>';
+    return;
+  }
 
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px">'
     + '<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_accShift(-1)">‹</button>'
@@ -7715,6 +7731,108 @@ async function renderCollection(){
   html += '</div>';
 
   b.innerHTML = html + '</div>';
+}
+
+/* ── The month's billing ──────────────────────────────────────────────────────
+   Instalments that fell due between the first of the month and today, on the
+   projects this desk covers, with cancelled sales left out — on this group's
+   books they carry PKR 2,043,466 of "due" that nobody owes.
+
+   Three figures and a follow-up list. The gap is the one the desk is asked
+   about at month end, so it is given its own line rather than left to be
+   worked out from the other two. */
+async function _accMonth(rs, rsS){
+  if(ACC.bill === undefined){
+    try{
+      const r = await sb.rpc('portal_accounts_billing', { p_session_token: TOKEN, p_date: _accDay() });
+      if(r.error) throw r.error;
+      ACC.bill = r.data || null;
+    }catch(e){ ACC.bill = null; }
+  }
+  const m = ACC.bill;
+  if(!m || !m.success){
+    return '<div class="card"><div class="empty"><div class="et">Not available</div>'
+      + '<div class="es">' + esc((m && m.message) || 'The month could not be read.') + '</div></div></div>';
+  }
+
+  const monthName = new Date(m.as_of + 'T00:00:00Z')
+    .toLocaleDateString('en-US', { month:'long', year:'numeric' });
+  const pct = Number(m.billed) > 0 ? Math.round(Number(m.settled) / Number(m.billed) * 100) : 0;
+
+  const cell = (label, value, tone) =>
+    '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px;min-width:104px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">' + esc(label) + '</div>'
+    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums'
+    + (tone ? ';color:' + tone : '') + '">' + value + '</div></div>';
+
+  let h = '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
+    + '<div style="height:3px;background:var(--fk-primary)"></div>'
+    + '<div style="padding:17px 18px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">Billed in ' + esc(monthName) + '</div>'
+    + '<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px">'
+    + rs(m.billed) + '</div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
+    + (m.rows || 0) + ' instalment' + ((m.rows||0) === 1 ? '' : 's') + ' fell due up to today</div>'
+    // One bar: how much of what was billed has actually settled.
+    + '<div style="height:8px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:11px;overflow:hidden">'
+    + '<div style="height:100%;width:' + Math.max(2, Math.min(100, pct)) + '%;border-radius:99px;'
+    + 'background:var(--fk-success)"></div></div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px">'
+    + pct + '% settled</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
+    + cell('Settled', rsS(m.settled), Number(m.settled) > 0 ? 'var(--fk-success)' : null)
+    + cell('Still short', rsS(m.shortfall), Number(m.shortfall) > 0 ? 'var(--fk-warning)' : null)
+    + cell('Unsettled', (m.short_rows || 0))
+    + '</div></div>';
+
+  const projs = m.projects || [];
+  if(projs.length > 1){
+    h += '<div class="card" style="margin-bottom:14px;padding:6px 8px;border-radius:16px">'
+      + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+      + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">By project</div>';
+    projs.forEach(p => {
+      const pp = Number(p.billed) > 0 ? Math.round(Number(p.settled)/Number(p.billed)*100) : 0;
+      h += '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+        + '<div class="lr-name">' + esc(p.project_name || '') + '</div>'
+        + '<div class="lr-sub"><span>' + rsS(p.billed) + ' billed · ' + pp + '% settled</span></div>'
+        + '</div><b style="font-variant-numeric:tabular-nums;color:'
+        + (Number(p.shortfall) > 0 ? 'var(--fk-warning)' : 'var(--fk-text-muted)') + '">'
+        + rsS(p.shortfall) + '</b></div>';
+    });
+    h += '</div>';
+  }
+
+  const un = m.unpaid || [];
+  h += '<div class="card" style="padding:6px 8px;border-radius:16px">'
+    + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Not settled yet</div>';
+  if(!un.length){
+    h += '<div class="empty" style="padding:14px 8px 18px"><div class="et">Nothing outstanding</div>'
+      + '<div class="es">Every instalment that fell due this month has been settled.</div></div>';
+  } else {
+    un.forEach(x => {
+      const dt = x.due_date ? new Date(x.due_date + 'T00:00:00Z')
+        .toLocaleDateString('en-US', { day:'numeric', month:'short' }) : '';
+      h += '<div class="trow" style="cursor:default;align-items:flex-start">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="lr-name" style="white-space:normal">' + esc(x.client || '—') + '</div>'
+        + '<div class="lr-sub"><span>' + esc([x.unit, x.project].filter(Boolean).join(' · ')) + '</span></div>'
+        + '<div style="margin-top:5px;font-weight:700;font-variant-numeric:tabular-nums;font-size:var(--fs-secondary)">'
+        + rs(x.short) + (Number(x.billed) > Number(x.short)
+            ? '<span style="font-weight:500;color:var(--fk-text-muted)"> of ' + rs(x.billed) + '</span>' : '')
+        + '</div></div>'
+        + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
+        + (dt ? _myrecChip('due ' + dt) : '')
+        + (x.phone ? '<a class="btn btn-secondary" href="tel:' + esc(String(x.phone).replace(/[^0-9+]/g,'')) + '" '
+            + 'style="height:30px;padding:0 11px;font-size:var(--fs-caption);display:inline-flex;align-items:center;gap:5px;text-decoration:none">'
+            + li('phone',13,2) + 'Call</a>' : '')
+        + '</div></div>';
+    });
+  }
+  return h + '</div>';
 }
 
 
