@@ -1532,7 +1532,6 @@ button.mn-card:active{transform:scale(.985)}
           <a class="ni" data-tab="sharelink" data-dir style="display:none" onclick="setTab('sharelink')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Share link</span></a>
           <a class="ni" data-tab="mine" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
           <a class="ni" data-tab="money" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
-          <a class="ni" data-tab="myrecord" onclick="setTab('myrecord')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">My record</span></a>
           <a class="ni" data-tab="performance" onclick="setTab('performance')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ni-lb">My results</span></a>
         </div>
       </div>
@@ -1559,6 +1558,10 @@ button.mn-card:active{transform:scale(.985)}
       </div>
     </nav>
     <div class="sb-bottom" style="padding:8px 12px;border-top:1px solid var(--fk-hairline)">
+      <!-- Everybody has a record, a payslip and a leave balance; only some people -->
+      <!-- sell. So this sits with Messages in the always-on strip rather than in -->
+      <!-- the Workspace group, which the office roles never see. -->
+      <a class="ni" data-tab="myrecord" onclick="setTab('myrecord')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">My record</span></a>
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
     </div>
     <div class="sb-foot">
@@ -2256,16 +2259,21 @@ function _applyLeadAccess(){
   const isMgr  = role==='marketing_manager' || role==='director';
   const isDir  = role==='director';
   const isAdmin= role==='admin';
-  const sell   = !isLE && !isExec;                          // rep / manager / director sell
+  // The office side — accounts, recovery, HR, reception, site. They do not sell
+  // and they do not touch leads; the database says so too (lead_role_config has
+  // can_have_leads false for each, and create_lead refuses them by name), so
+  // this is the curtain rather than the lock.
+  const isOff  = _isOfficeRole(role);
+  const sell   = !isLE && !isExec && !isOff;                // rep / manager / director sell
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
   show('[data-le]',       isLE);                            // operator apps (Add lead / sources)
-  show('[data-main]',     !isLE);                           // Dashboard — everyone but the operator
+  show('[data-main]',     !isLE && !isOff);                 // Dashboard — sellers and leadership
   show('[data-sell]',     sell);                            // Workspace group
-  show('[data-mgr]',      isMgr);                           // Management group
+  show('[data-mgr]',      isMgr && !isOff);                           // Management group
   show('[data-dir]',      isDir);                           // Live Map / Facebook Leads
-  show('[data-cmd]',      isDir || isAdmin);                // Command Center
-  show('[data-ad]',       isDir || isExec);                 // Ad results
-  show('[data-lead-grp]', isDir || isExec);                 // Leadership group header
+  show('[data-cmd]',      (isDir || isAdmin) && !isOff);                // Command Center
+  show('[data-ad]',       (isDir || isExec) && !isOff);                 // Ad results
+  show('[data-lead-grp]', (isDir || isExec) && !isOff);                 // Leadership group header
   const ah=$('appbar-home'); if(ah) ah.style.display = isLE ? 'none' : '';
   const ab=$('appbar-bell'); if(ab) ab.style.display='';
   try{ _syncNavGroups(); }catch(e){}                         // apply accordion default-open once role gating has settled
@@ -2286,6 +2294,7 @@ function _syncBtabs(t){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&_isOfficeRole(ME.role)){ setTab('myrecord'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   setTab(PENDING_TAB==='alerts'?'alerts':'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
@@ -2354,6 +2363,10 @@ const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',mylead
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
+  // The office side has no selling screens to wander into. Their app is their
+  // own record, the company's notices and their profile — which for a guard or
+  // an office boy is not a lesser app, it is the whole one.
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','updates','profile'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -6115,7 +6128,11 @@ function _myEntRow(r){
 }
 
 // ════ More (overflow hub — leaderboard · recovery · updates · account) ════
-function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director',lead_entry:'Lead Entry'}[r])||'Sale Representative'; }
+// The office roles carry NexuAttend's own designation wording, so the same job
+// is not called two things in two apps.
+const OFFICE_ROLES=['accounts','recovery_officer','hr','reception','engineer'];
+function _isOfficeRole(r){ return OFFICE_ROLES.indexOf(r)>-1; }
+function _portalRoleLabel(r){ return ({sale_rep:'Sale Representative',marketing_manager:'Marketing Manager',admin:'Admin',cfo:'CFO',director:'Director',lead_entry:'Lead Entry',accounts:'Accounts',recovery_officer:'Recovery Officer',hr:'HR',reception:'Receptionist',engineer:'Site Engineer'}[r])||'Sale Representative'; }
 // ════ My Profile — self-service (view / edit / change PIN) ════
 async function renderProfile(){
   $('app-body').innerHTML=_skel();
@@ -8719,13 +8736,16 @@ function _ccBrief(b){
 function renderMore(){
   const role=(ME&&ME.role)||'sale_rep';
   const isExec=role==='admin'||role==='cfo';
-  const isMgr=role==='marketing_manager'||role==='director';
-  const isDir=role==='director';
+  // Unreachable for the office side today (setTab sends them to their record),
+  // but the curtain should read the same wherever it is drawn.
+  const isOff=_isOfficeRole(role);
+  const isMgr=(role==='marketing_manager'||role==='director')&&!isOff;
+  const isDir=role==='director'&&!isOff;
   const nm=(ME&&ME.sales_user_name)||'Sales';
   let html='<div class="nx-dash">'+_pageHead('More', esc(nm)+' · '+esc(_portalRoleLabel(role)));
   html+='<div class="more-list">';
   if(isDir||role==='admin') html+=_moreRow('bar-chart','Command Center','Live team dashboard, response times & pipeline',"setTab('command')");
-  if(!isExec) html+=_moreRow('trending-up','My results', isMgr?'Your team’s funnel & results':'Your funnel, activity & results',"setTab('performance')");
+  if(!isExec&&!isOff) html+=_moreRow('trending-up','My results', isMgr?'Your team’s funnel & results':'Your funnel, activity & results',"setTab('performance')");
   if(isMgr)  html+=_moreRow('users','My Team','Your full team, top to bottom',"setTab('team')");
   if(isMgr)  html+=_moreRow('target','Targets','Monthly goals for your team',"setTab('targets')");
   if(isDir)  html+=_moreRow('map-pin','Live Map','Where your team is right now',"setTab('livemap')");
