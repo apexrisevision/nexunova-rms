@@ -1499,6 +1499,7 @@ button.mn-card:active{transform:scale(.985)}
   <aside class="sb" id="sb">
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
     <nav class="sb-nav">
+      <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Home</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <div class="ni-grp" data-grp="company">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
@@ -1507,7 +1508,6 @@ button.mn-card:active{transform:scale(.985)}
           <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
         </div>
       </div>
-      <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Home</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <!-- ══ lead-entry operator: manual leads ══ -->
       <div class="ni-grp" data-grp="op-leads" data-le style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('op-leads')"><span class="sb-grp-t">Leads</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
@@ -7749,7 +7749,7 @@ async function renderToRecover(){
   if(REC.data === null) return _netErr();
   const d = REC.data;
 
-  let html = '<div class="nx-dash">' + _pageHead('To recover', 'Your book, today.');
+  let html = '<div class="nx-dash">' + _pageHead('To recover', 'This month, on the projects assigned to you.');
 
   if(!d.success){
     html += '<div class="card"><div class="empty"><div class="ei">' + li('info',20,1.8) + '</div>'
@@ -7766,34 +7766,37 @@ async function renderToRecover(){
          : n >= 100000   ? '₨' + (n/100000).toFixed(1) + ' lac'
          : rs(n); };
 
-  // Today first, because that is the number an officer is asked for.
+  /* The month, and nothing wider. The card used to headline a closing balance
+     that had been accumulating since 2023 — nineteen crore, a figure no officer
+     is answerable for this month and one that made the screen useless as a
+     measure of the work. What an officer is asked is what came in this month and
+     what fell due in it, so those are the two numbers, with today underneath. */
+  const _monthName = new Date(d.as_of + 'T00:00:00Z')
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const _dayName = new Date(d.as_of + 'T00:00:00Z')
+    .toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+  const cell = (label, value, tone) =>
+    '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px;min-width:104px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">' + esc(label) + '</div>'
+    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums'
+    + (tone ? ';color:' + tone : '') + '">' + value + '</div></div>';
+
   html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
     + '<div style="height:3px;background:var(--fk-success)"></div>'
     + '<div style="padding:17px 18px">'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
-    + 'letter-spacing:.06em;font-weight:600">Recovered today</div>'
+    + 'letter-spacing:.06em;font-weight:600">Recovered in ' + esc(_monthName) + '</div>'
     + '<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;'
-    + 'color:' + (Number(d.today) > 0 ? 'var(--fk-success)' : 'var(--fk-text)') + ';margin-top:4px">'
-    + rs(d.today) + '</div>'
+    + 'color:' + (Number(d.month) > 0 ? 'var(--fk-success)' : 'var(--fk-text)') + ';margin-top:4px">'
+    + rs(d.month) + '</div>'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
-    + esc(new Date(d.as_of + 'T00:00:00Z').toLocaleDateString('en-US',{weekday:'long', day:'numeric', month:'long'}))
-    + '</div></div>'
+    + 'up to ' + esc(_dayName) + '</div></div>'
     + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
-    + '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px">'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
-    + 'letter-spacing:.06em;font-weight:600">This month</div>'
-    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums">'
-    + rsS(d.month) + '</div></div>'
-    + '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px">'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
-    + 'letter-spacing:.06em;font-weight:600">Still out</div>'
-    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums">'
-    + rsS(d.outstanding) + '</div></div>'
-    + '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px">'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
-    + 'letter-spacing:.06em;font-weight:600">Clients</div>'
-    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums">'
-    + (d.clients || 0) + '</div></div></div></div>';
+    + cell('Today', rs(d.today), Number(d.today) > 0 ? 'var(--fk-success)' : null)
+    + cell('Overdue this month', rsS(d.due), Number(d.due) > 0 ? 'var(--fk-warning)' : null)
+    + cell('Clients', (d.clients || 0))
+    + '</div></div>';
 
   const projs = d.projects || [];
   if(projs.length > 1){
@@ -7803,10 +7806,11 @@ async function renderToRecover(){
     projs.forEach(p => {
       html += '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
         + '<div class="lr-name">' + esc(p.project_name || '') + '</div>'
-        + '<div class="lr-sub"><span>' + (p.clients || 0) + ' clients · ' + rsS(p.outstanding) + ' out</span></div>'
+        + '<div class="lr-sub"><span>' + (p.clients || 0) + ' clients · '
+        + rsS(p.due) + ' overdue this month</span></div>'
         + '</div><b style="font-variant-numeric:tabular-nums;color:'
-        + (Number(p.today) > 0 ? 'var(--fk-success)' : 'var(--fk-text-muted)') + '">'
-        + rs(p.today) + '</b></div>';
+        + (Number(p.month) > 0 ? 'var(--fk-success)' : 'var(--fk-text-muted)') + '">'
+        + rs(p.month) + '</b></div>';
     });
     html += '</div>';
   }
@@ -7828,8 +7832,12 @@ async function renderToRecover(){
         + '<div style="flex:1;min-width:0">'
         + '<div class="lr-name" style="white-space:normal">' + esc(x.client || '—') + '</div>'
         + '<div class="lr-sub"><span>' + esc([x.unit, x.project].filter(Boolean).join(' · ')) + '</span></div>'
-        + '<div style="margin-top:5px;font-weight:700;font-variant-numeric:tabular-nums;font-size:var(--fs-secondary)">'
-        + rs(x.outstanding) + '</div>'
+        // The month's due, not the whole balance — the same rule as the card above.
+        + (Number(x.due) > 0
+            ? '<div style="margin-top:5px;font-weight:700;font-variant-numeric:tabular-nums;font-size:var(--fs-secondary)">'
+              + rs(x.due) + '<span style="font-weight:500;color:var(--fk-text-muted)"> due this month</span></div>'
+            : '<div style="margin-top:5px;color:var(--fk-text-muted);font-size:var(--fs-caption)">'
+              + 'Nothing fell due this month</div>')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
         + (od ? _myrecChip(od + 'd overdue', tone) : '')
@@ -9303,22 +9311,37 @@ async function renderBoard(){
   if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:var(--fk-sp-3);border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-bold)">${li('tag',13,2)} Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
   if(projects.length>1){
     // Each chip is the PROJECT (e.g. KHUSHAL BAGH HEIGHTS / Awami Market); in an umbrella these span member companies.
-    html+=(BOARD.grouped?'<div class="es" style="margin:0 2px 6px;color:var(--fk-text-muted);font-size:var(--fk-fs-body)">Choose a project</div>':'')
-      +'<div class="projchips">'+projects.map((pp,i)=>'<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'+esc(pp.project_name||pp.company_name)+'</div>').join('')+'</div>';
+    // The company builds three towers, so the first question this screen answers
+    // is "which one" — asked out loud, with each project's own availability on
+    // the chip, rather than silently defaulting to the first.
+    html+='<div style="margin:0 2px 7px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+      +'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Choose a project</div>'
+      +'<div class="projchips">'+projects.map((pp,i)=>{
+        const cc=pp.counts||{};
+        return '<div class="pchip'+(i===BV.proj?' on':'')+'" onclick="_bvProj('+i+')">'
+          + esc(pp.project_name||pp.company_name)
+          + '<span style="opacity:.72;font-weight:500"> · '+(Number(cc.available)||0)+' free</span></div>';
+      }).join('')+'</div>';
   }
   // compact dashboard KPI cards (icon tile + label + value + slim sparkline + trend)
   const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const _AC={emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
   const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
   const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
+  // Reserved and Sold belong to the people who reserve and sell. An accounts
+  // clerk, a recovery officer, HR or the site engineer are shown the size of
+  // the building and what is still free — the commercial state of each unit is
+  // not their business, so they are not given it to count.
+  const _sells = !_isOfficeRole(ME && ME.role);
   html+='<div class="dgrid">'
+    + kpi('Total units', c.total, 'violet', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>')
     + kpi('Available', c.available, 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/>')
-    + kpi('Reserved', c.reserved, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>')
-    + kpi('Sold', c.sold, 'violet', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>')
+    + (_sells ? kpi('Reserved', c.reserved, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>') : '')
+    + (_sells ? kpi('Sold', c.sold, 'violet', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>') : '')
     + '</div>';
   // view mode + status filter → the light segmented control (same as Leads / Performance)
   html+=_seg([['detailed','Detailed view'],['floors','Floor wise']], (BV.mode==='floors'?'floors':'detailed'), '_bvMode');
-  html+='<div id="bv-filter">'+_seg([['all','All'],['available','Available'],['reserved','Reserved'],['sold','Sold']], BV.filter, '_bvFilter')+'</div>';
+  html+='<div id="bv-filter">'+_seg(_bvFilterSegs(), BV.filter, '_bvFilter')+'</div>';
   // search — matches the Leads search (Lucide icon + tokened input)
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
   html+=`<div class="lead-search" style="margin-bottom:var(--fk-sp-3)">${srch}<input class="input" id="bv-q" placeholder="Search unit no…" value="${esc(BV.q)}" oninput="_bvSearch(this.value)"></div>`;
@@ -9329,7 +9352,13 @@ async function renderBoard(){
 }
 function _bvMode(m){ BV.mode=m; BV.floor=null; renderBoard(); }
 function _bvProj(i){ BV.proj=i; BV.floor=null; BV.q=''; renderBoard(); }
-function _bvFilter(f){ BV.filter=f; const fb=$('bv-filter'); if(fb) fb.innerHTML=_seg([['all','All'],['available','Available'],['reserved','Reserved'],['sold','Sold']], BV.filter, '_bvFilter'); _bvRenderBody(); }
+// Same rule as the counters: only the people who sell get to sort by sold.
+function _bvFilterSegs(){
+  return _isOfficeRole(ME && ME.role)
+    ? [['all','All units'],['available','Available']]
+    : [['all','All'],['available','Available'],['reserved','Reserved'],['sold','Sold']];
+}
+function _bvFilter(f){ BV.filter=f; const fb=$('bv-filter'); if(fb) fb.innerHTML=_seg(_bvFilterSegs(), BV.filter, '_bvFilter'); _bvRenderBody(); }
 function _bvSearch(v){ BV.q=v; _bvRenderBody(); }
 function _bvSetFloor(label){ BV.floor=label; _bvRenderBody(); _syncNav(); try{$('app-body').scrollIntoView({block:'start'});}catch(e){} }
 function _bvBack(){ BV.floor=null; _bvRenderBody(); _syncNav(); }
@@ -9340,7 +9369,11 @@ function _bvFloorGroups(p){
 }
 function _bvCounts(units){ let a=0,r=0,s=0; units.forEach(u=>{const c=(u.status_code||'').toUpperCase(); if(u.is_available===true)a++; else if(c==='RESERVED')r++; else if(c==='SOLD')s++;}); return {a:a,r:r,s:s,total:units.length}; }
 function _bvMatch(u,f){ const c=(u.status_code||'').toUpperCase(); if(f==='available') return u.is_available===true; if(f==='reserved') return c==='RESERVED'; if(f==='sold') return c==='SOLD'; return true; }
-function _bvLegend(){ return '<div class="legend"><span><i style="background:var(--fk-success)"></i>Available</span><span><i style="background:var(--fk-warning)"></i>Reserved</span><span><i style="background:var(--fk-muted-fill)"></i>Sold / other</span></div>'; }
+function _bvLegend(){
+  if(_isOfficeRole(ME && ME.role))
+    return '<div class="legend"><span><i style="background:var(--fk-success)"></i>Available</span>'
+         + '<span><i style="background:var(--fk-muted-fill)"></i>Not available</span></div>';
+  return '<div class="legend"><span><i style="background:var(--fk-success)"></i>Available</span><span><i style="background:var(--fk-warning)"></i>Reserved</span><span><i style="background:var(--fk-muted-fill)"></i>Sold / other</span></div>'; }
 function _bvRenderBody(){
   const el=$('bv-body'); if(!el) return;
   const p=(BOARD.projects||[])[BV.proj]; if(!p){ el.innerHTML=''; return; }
@@ -9369,9 +9402,17 @@ function _bvDirectory(p){
   const lbl=(BV.filter==='reserved'?'reserved':BV.filter==='sold'?'sold':'available');
   return '<div class="lgroup">'+groups.map(g=>{
     const c=_bvCounts(g.units); const t=c.total||1;
+    // The office side sees one division — free or not — so the bar has two
+    // bands there rather than three it is not entitled to read.
+    const bar = _isOfficeRole(ME && ME.role)
+      ? '<i style="width:'+(c.a/t*100)+'%;background:var(--fk-success)"></i>'
+        +'<i style="width:'+((t-c.a)/t*100)+'%;background:var(--fk-muted-fill)"></i>'
+      : '<i style="width:'+(c.a/t*100)+'%;background:var(--fk-success)"></i>'
+        +'<i style="width:'+(c.r/t*100)+'%;background:var(--fk-warning)"></i>'
+        +'<i style="width:'+(c.s/t*100)+'%;background:var(--fk-muted-fill)"></i>';
     return '<div class="floorcard" data-fl="'+esc(g.label)+'" onclick="_bvSetFloor(this.dataset.fl)">'
       +'<div class="fc-name">'+esc(g.label)+'</div>'
-      +'<div class="fc-bar"><i style="width:'+(c.a/t*100)+'%;background:var(--fk-success)"></i><i style="width:'+(c.r/t*100)+'%;background:var(--fk-warning)"></i><i style="width:'+(c.s/t*100)+'%;background:var(--fk-muted-fill)"></i></div>'
+      +'<div class="fc-bar">'+bar+'</div>'
       +'<div class="fc-stat"><b class="'+tone+'">'+c[key]+'</b><span>'+lbl+'</span></div>'
       +'<div class="fc-chev">›</div></div>';
   }).join('')+'</div>';
@@ -9407,13 +9448,18 @@ function unitCell(u){
   if(isAvail){ cls+=' avail'; click='onclick="openReserve(\''+u.unit_id+'\',\''+esc(u.unit_no)+'\','+area+',\''+esc(aUnit)+'\','+price+')"'; }
   else if(isReserved){ cls+=' reserved'; click='onclick="showReservedInfo(\''+esc(u.unit_no)+'\','+JSON.stringify(JSON.stringify(u.reservation||{})).replace(/"/g,'&quot;')+')"'; }
   else { cls+=' sold'; }
-  const dotColor=isAvail?'var(--fk-success)':isReserved?'var(--fk-warning)':'var(--fk-muted-fill)';
-  // staff name on the card (never client): reserved -> reserver, sold -> agent/seller
+  const _sells = !_isOfficeRole(ME && ME.role);
+  const dotColor = !_sells ? (isAvail?'var(--fk-success)':'var(--fk-muted-fill)')
+                 : isAvail?'var(--fk-success)':isReserved?'var(--fk-warning)':'var(--fk-muted-fill)';
+  // Staff name on the card (never the client): reserved -> reserver, sold -> seller.
+  // Withheld from the office side along with the reserved/sold distinction — who
+  // sold what is the sales floor's business, not the front desk's.
   let by='';
-  if(isReserved && u.reservation && u.reservation.reserved_by_name) by='by '+u.reservation.reserved_by_name;
-  else if(code==='SOLD' && u.sold_by) by='by '+u.sold_by;
+  if(_sells && isReserved && u.reservation && u.reservation.reserved_by_name) by='by '+u.reservation.reserved_by_name;
+  else if(_sells && code==='SOLD' && u.sold_by) by='by '+u.sold_by;
   return '<div class="'+cls+'" '+click+'><span class="dot" style="background:'+dotColor+'"></span>'
-    +'<span class="uno">'+esc(u.unit_no)+'</span><span class="ust">'+esc(u.status_name||code||'—')+'</span>'
+    +'<span class="uno">'+esc(u.unit_no)+'</span><span class="ust">'
+    +esc(_sells ? (u.status_name||code||'—') : (isAvail?'Available':'Not available'))+'</span>'
     +(arLine?'<span class="uar">'+esc(arLine)+'</span>':'')
     +(price>0?'<span class="upr">'+esc(pkrShort(price))+'</span>':'')
     +(by?'<span class="uby">'+esc(by)+'</span>':'')+'</div>';

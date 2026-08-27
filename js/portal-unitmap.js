@@ -14,7 +14,7 @@
   'use strict';
 
   var MAP = { floors: [], plan: null, planId: null, sel: null, focus: null,
-              base: null, onResize: null, z: 1, tx: 0, ty: 0, drag: null };
+              base: null, onResize: null, z: 1, tx: 0, ty: 0, drag: null, proj: null, projects: null };
   var COLOR = { available: ['#0ea5e9', 'rgba(14,165,233,.22)'],
                 reserved:  ['#d97706', 'rgba(217,119,6,.28)'],
                 sold:      ['#059669', 'rgba(5,150,105,.30)'] };
@@ -45,6 +45,18 @@
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) { host.innerHTML = '<div class="umv-msg">Could not load the floors.</div>'; return; }
     MAP.floors = d.floors || [];
+
+    /* The company builds three towers and only one of them has a drawing so far.
+       Listing the projects that happen to have plans would silently answer
+       "which building am I looking at?" with the only one available — so the
+       chooser is built from every project the person can see, and a tower with
+       no drawing says so rather than being left out. */
+    if (MAP.projects === null) {
+      try {
+        var pr = await sb.rpc('get_project_profiles', { p_session_token: TOKEN });
+        MAP.projects = (pr.data && pr.data.projects) || [];
+      } catch (e) { MAP.projects = []; }
+    }
     _floors();
   };
 
@@ -60,8 +72,38 @@
     var head = '<div class="umv-hd"><div class="umv-hd-t">Unit map</div>' +
       '<div class="umv-hd-s">The floor drawing, coloured by what is available.</div></div>';
 
-    if (!MAP.floors.length) {
-      $('app-body').innerHTML = '<div class="umv-wrap">' + head +
+    // Every project the person can see, whether or not it has a drawing yet.
+    var order = [], byProject = {};
+    (MAP.projects || []).forEach(function (p) {
+      var k = p.project_name || 'Project';
+      if (!byProject[k]) { byProject[k] = []; order.push(k); }
+    });
+    MAP.floors.forEach(function (f) {
+      var k = f.project_name || 'Project';
+      if (!byProject[k]) { byProject[k] = []; order.push(k); }
+      byProject[k].push(f);
+    });
+    var many = order.length > 1;
+    if (many && order.indexOf(MAP.proj) < 0) {
+      // Open on a tower that actually has something to show.
+      var withPlans = order.filter(function (n) { return byProject[n].length; });
+      MAP.proj = withPlans.length ? withPlans[0] : order[0];
+    }
+    var chooser = !many ? '' :
+      '<div style="margin:0 2px 7px;font-size:var(--fk-fs-label);text-transform:uppercase;' +
+      'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Choose a project</div>' +
+      '<div class="projchips" style="margin-bottom:14px">' + order.map(function (name) {
+        var live = byProject[name].filter(function (f) { return f.status === 'published'; }).length;
+        return '<div class="pchip' + (name === MAP.proj ? ' on' : '') + '" ' +
+          'onclick="_umvProj(' + JSON.stringify(name).replace(/"/g, '&quot;') + ')">' +
+          esc(name) + '<span style="opacity:.72;font-weight:500"> · ' +
+          (live ? live + ' floor' + (live === 1 ? '' : 's') : 'no plan yet') + '</span></div>';
+      }).join('') + '</div>';
+
+    var shown = many ? (byProject[MAP.proj] || []) : MAP.floors;
+
+    if (!shown.length) {
+      $('app-body').innerHTML = '<div class="umv-wrap">' + head + chooser +
         '<div class="umv-blank">' +
           '<div class="umv-blank-i"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" ' +
             'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
@@ -75,16 +117,7 @@
       return;
     }
 
-    // Group under the project they belong to, in the order the server sent.
-    var order = [], byProject = {};
-    MAP.floors.forEach(function (f) {
-      var k = f.project_name || 'Project';
-      if (!byProject[k]) { byProject[k] = []; order.push(k); }
-      byProject[k].push(f);
-    });
-    var many = order.length > 1;
-
-    var body = order.map(function (name) {
+    var body = (many ? [MAP.proj] : order).map(function (name) {
       var live = byProject[name].filter(function (f) { return f.status === 'published'; }).length;
       var sec = many
         ? '<div class="umv-sec"><span class="umv-sec-t">' + esc(name) + '</span>' +
@@ -103,13 +136,16 @@
       }).join('') + '</div>';
     }).join('');
 
-    $('app-body').innerHTML = '<div class="umv-wrap">' + head + body +
+    $('app-body').innerHTML = '<div class="umv-wrap">' + head + chooser + body +
       '<div class="umv-legend" style="margin:14px 2px 0">' +
         '<span class="umv-chip"><i style="background:' + COLOR.available[0] + '"></i>Available</span>' +
         '<span class="umv-chip"><i style="background:' + COLOR.reserved[0] + '"></i>Reserved</span>' +
         '<span class="umv-chip"><i style="background:' + COLOR.sold[0] + '"></i>Sold</span>' +
       '</div></div>';
   }
+
+  // Picking a project redraws the floor list; the map itself is untouched.
+  window._umvProj = function (name) { MAP.proj = name; _floors(); };
 
   window._umvOpen = async function (planId) {
     MAP.planId = planId;
