@@ -7595,7 +7595,8 @@ function _accShift(n){
   const d = new Date(_accDay() + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
   if(d > new Date()) return;                 // tomorrow has not happened
-  ACC.day = d.toISOString().slice(0,10); ACC.data = undefined; renderCollection();
+  // The position is read for the same day, so it goes stale with the drawer.
+  ACC.day = d.toISOString().slice(0,10); ACC.data = undefined; ACC.bill = undefined; renderCollection();
 }
 
 async function renderCollection(){
@@ -7614,10 +7615,10 @@ async function renderCollection(){
   const d = ACC.data;
 
   let html = '<div class="nx-dash">' + _pageHead('Collection',
-    ACC.view === 'month' ? 'What was owed this month, and how much of it settled.'
+    ACC.view === 'month' ? 'The position statement, on your own project.'
                          : 'What came in, and from whom.');
 
-  if(d.success) html += _seg([['day','The day'],['month','This month']], ACC.view, '_accView');
+  if(d.success) html += _seg([['day','The day'],['month','Position']], ACC.view, '_accView');
 
   if(!d.success){
     html += '<div class="card"><div class="empty"><div class="ei">' + li('info',20,1.8) + '</div>'
@@ -7730,18 +7731,18 @@ async function renderCollection(){
   b.innerHTML = html + '</div>';
 }
 
-/* ── The month's billing ──────────────────────────────────────────────────────
-   Instalments that fell due between the first of the month and today, on the
-   projects this desk covers, with cancelled sales left out — on this group's
-   books they carry PKR 2,043,466 of "due" that nobody owes.
+/* ── Recovery Position (Grand Summary) ────────────────────────────────────────
+   The desktop report, called the same way, with two columns left off at
+   Rashid's word: Paid % and Risk. Everything else the report carries is here —
+   the five figures of the rollforward and the per-sale table.
 
-   Three figures and a follow-up list. The gap is the one the desk is asked
-   about at month end, so it is given its own line rather than left to be
-   worked out from the other two. */
+   Closing IS shown, unlike the recovery officer's cut of the same report. That
+   was left out there because an officer is measured on the month; an accounts
+   desk reading a position statement needs the balance it closes on. */
 async function _accMonth(rs, rsS){
   if(ACC.bill === undefined){
     try{
-      const r = await sb.rpc('portal_accounts_billing', { p_session_token: TOKEN, p_date: _accDay() });
+      const r = await sb.rpc('portal_accounts_position', { p_session_token: TOKEN, p_date: _accDay() });
       if(r.error) throw r.error;
       ACC.bill = r.data || null;
     }catch(e){ ACC.bill = null; }
@@ -7749,41 +7750,38 @@ async function _accMonth(rs, rsS){
   const m = ACC.bill;
   if(!m || !m.success){
     return '<div class="card"><div class="empty"><div class="et">Not available</div>'
-      + '<div class="es">' + esc((m && m.message) || 'The month could not be read.') + '</div></div></div>';
+      + '<div class="es">' + esc((m && m.message) || 'The position could not be read.') + '</div></div></div>';
   }
 
-  const monthName = new Date(m.as_of + 'T00:00:00Z')
-    .toLocaleDateString('en-US', { month:'long', year:'numeric' });
-  const pct = Number(m.billed) > 0 ? Math.round(Number(m.settled) / Number(m.billed) * 100) : 0;
+  const t = m.totals || {};
+  const dt = s => { try{ return new Date(s + 'T00:00:00Z')
+    .toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' }); }catch(e){ return s; } };
 
-  const cell = (label, value, tone) =>
-    '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px;min-width:104px">'
+  // The rollforward reads as a sentence: opening + due − recovered = closing.
+  const kpi = (label, value, sub, accent) =>
+    '<div class="card" style="padding:13px 15px;border-radius:14px'
+    + (accent ? ';border-color:var(--fk-primary)' : '') + '">'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
     + 'letter-spacing:.06em;font-weight:600">' + esc(label) + '</div>'
-    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums'
-    + (tone ? ';color:' + tone : '') + '">' + value + '</div></div>';
+    + '<div style="font-weight:700;font-size:var(--fs-section);margin-top:5px;font-variant-numeric:tabular-nums'
+    + (accent ? ';color:var(--fk-primary)' : '') + '">' + value + '</div>'
+    + (sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px;line-height:1.5">'
+        + sub + '</div>' : '') + '</div>';
 
-  let h = '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
-    + '<div style="height:3px;background:var(--fk-primary)"></div>'
-    + '<div style="padding:17px 18px">'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
-    + 'letter-spacing:.06em;font-weight:600">Billed in ' + esc(monthName) + '</div>'
-    + '<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px">'
-    + rs(m.billed) + '</div>'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
-    + (m.rows || 0) + ' instalment' + ((m.rows||0) === 1 ? '' : 's') + ' fell due up to today</div>'
-    // One bar: how much of what was billed has actually settled.
-    + '<div style="height:8px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:11px;overflow:hidden">'
-    + '<div style="height:100%;width:' + Math.max(2, Math.min(100, pct)) + '%;border-radius:99px;'
-    + 'background:var(--fk-success)"></div></div>'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px">'
-    + pct + '% settled</div>'
-    + '</div>'
-    + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
-    + cell('Settled', rsS(m.settled), Number(m.settled) > 0 ? 'var(--fk-success)' : null)
-    + cell('Still short', rsS(m.shortfall), Number(m.shortfall) > 0 ? 'var(--fk-warning)' : null)
-    + cell('Unsettled', (m.short_rows || 0))
-    + '</div></div>';
+  let h = '<div style="margin:0 2px 12px;color:var(--fk-text-muted);font-size:var(--fs-caption)">'
+    + esc(m.scope || '') + ' · ' + esc(dt(m.from)) + ' to ' + esc(dt(m.as_of))
+    + ' · ' + (t.row_count || 0) + ' active sales</div>';
+
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px">'
+    + kpi('Opening balance', rsS(t.opening),
+        'DP <b>' + rsS(t.opening_dp) + '</b> · Arrears <b>' + rsS(t.opening_arrears) + '</b>')
+    + kpi('+ Due this period', rsS(t.due), 'instalments due in range')
+    + kpi('− Recovered', rsS(t.received),
+        'DP <b>' + rsS(t.r_dp) + '</b> · Old <b>' + rsS(t.r_old) + '</b> · Curr <b>' + rsS(t.r_cur) + '</b>')
+    + kpi('= Closing balance', rsS(t.closing),
+        'DP <b>' + rsS(t.closing_dp) + '</b> · Old <b>' + rsS(t.closing_old) + '</b> · Curr <b>' + rsS(t.closing_current) + '</b>', true)
+    + kpi('Recovery %', (Number(t.recovery_pct) || 0).toFixed(1) + '%', 'Received ÷ (Opening + Due)')
+    + '</div>';
 
   const projs = m.projects || [];
   if(projs.length > 1){
@@ -7791,43 +7789,57 @@ async function _accMonth(rs, rsS){
       + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
       + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">By project</div>';
     projs.forEach(p => {
-      const pp = Number(p.billed) > 0 ? Math.round(Number(p.settled)/Number(p.billed)*100) : 0;
       h += '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
         + '<div class="lr-name">' + esc(p.project_name || '') + '</div>'
-        + '<div class="lr-sub"><span>' + rsS(p.billed) + ' billed · ' + pp + '% settled</span></div>'
-        + '</div><b style="font-variant-numeric:tabular-nums;color:'
-        + (Number(p.shortfall) > 0 ? 'var(--fk-warning)' : 'var(--fk-text-muted)') + '">'
-        + rsS(p.shortfall) + '</b></div>';
+        + '<div class="lr-sub"><span>' + rsS(p.due) + ' due · ' + rsS(p.received) + ' recovered</span></div>'
+        + '</div><b style="font-variant-numeric:tabular-nums">' + rsS(p.closing) + '</b></div>';
     });
     h += '</div>';
   }
 
-  const un = m.unpaid || [];
-  h += '<div class="card" style="padding:6px 8px;border-radius:16px">'
-    + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
-    + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Not settled yet</div>';
-  if(!un.length){
-    h += '<div class="empty" style="padding:14px 8px 18px"><div class="et">Nothing outstanding</div>'
-      + '<div class="es">Every instalment that fell due this month has been settled.</div></div>';
+  /* Eight columns will not fit a phone, so the table keeps its own horizontal
+     scroll rather than shrinking the figures, and the totals sit in a sticky
+     foot — the sum is what the rows above are read for. */
+  const rows = m.rows || [];
+  const th = (x, right) => '<th style="position:sticky;top:0;z-index:2;background:var(--fk-bg-card);'
+    + 'color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+    + 'font-weight:600;padding:10px 12px;border-bottom:1px solid var(--fk-hairline);white-space:nowrap;'
+    + 'text-align:' + (right ? 'right' : 'left') + '">' + esc(x) + '</th>';
+  const td = (v, right) => '<td style="padding:9px 12px;border-bottom:1px solid var(--fk-hairline);'
+    + 'white-space:nowrap;font-variant-numeric:tabular-nums;text-align:' + (right ? 'right' : 'left')
+    + '">' + v + '</td>';
+
+  h += '<div class="card" style="padding:0;border-radius:16px;overflow:hidden">'
+    + '<div style="padding:13px 14px 11px;display:flex;align-items:baseline;justify-content:space-between;gap:10px">'
+    + '<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+    + 'font-weight:600;color:var(--fk-text-muted)">Recovery Position — Grand Summary</span>'
+    + '<span style="font-size:var(--fs-caption);color:var(--fk-text-muted)">'
+    + rows.length + ' sale' + (rows.length === 1 ? '' : 's') + '</span></div>';
+
+  if(!rows.length){
+    h += '<div class="empty" style="padding:14px 14px 22px"><div class="et">Nothing to show</div>'
+      + '<div class="es">There is no active sale on your project in this period.</div></div>';
   } else {
-    un.forEach(x => {
-      const dt = x.due_date ? new Date(x.due_date + 'T00:00:00Z')
-        .toLocaleDateString('en-US', { day:'numeric', month:'short' }) : '';
-      h += '<div class="trow" style="cursor:default;align-items:flex-start">'
-        + '<div style="flex:1;min-width:0">'
-        + '<div class="lr-name" style="white-space:normal">' + esc(x.client || '—') + '</div>'
-        + '<div class="lr-sub"><span>' + esc([x.unit, x.project].filter(Boolean).join(' · ')) + '</span></div>'
-        + '<div style="margin-top:5px;font-weight:700;font-variant-numeric:tabular-nums;font-size:var(--fs-secondary)">'
-        + rs(x.short) + (Number(x.billed) > Number(x.short)
-            ? '<span style="font-weight:500;color:var(--fk-text-muted)"> of ' + rs(x.billed) + '</span>' : '')
-        + '</div></div>'
-        + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
-        + (dt ? _myrecChip('due ' + dt) : '')
-        + (x.phone ? '<a class="btn btn-secondary" href="tel:' + esc(String(x.phone).replace(/[^0-9+]/g,'')) + '" '
-            + 'style="height:30px;padding:0 11px;font-size:var(--fs-caption);display:inline-flex;align-items:center;gap:5px;text-decoration:none">'
-            + li('phone',13,2) + 'Call</a>' : '')
-        + '</div></div>';
+    h += '<div style="overflow-x:auto;max-height:70vh;overflow-y:auto">'
+      + '<table style="border-collapse:separate;border-spacing:0;width:100%;font-size:var(--fs-caption);min-width:820px">'
+      + '<thead><tr>' + th('S#') + th('Client') + th('Unit')
+      + th('Net Price', true) + th('Opening', true) + th('Due', true)
+      + th('Recovered', true) + th('Closing', true) + '</tr></thead><tbody>';
+    rows.forEach((x, i) => {
+      h += '<tr>' + td(i + 1) + td(esc(x.client || '—')) + td(esc(x.unit || '—'))
+        + td(rs(x.net_price), true) + td(rs(x.opening), true) + td(rs(x.due), true)
+        + td('<span style="color:' + (Number(x.received) > 0 ? 'var(--fk-success)' : 'var(--fk-text-muted)') + '">'
+            + rs(x.received) + '</span>', true)
+        + td('<b>' + rs(x.closing) + '</b>', true) + '</tr>';
     });
+    h += '</tbody><tfoot><tr style="position:sticky;bottom:0;background:var(--fk-bg-subtle)">'
+      + td('', false) + td('<b>Total</b>', false) + td('', false)
+      + td('<b>' + rs(t.net_price) + '</b>', true)
+      + td('<b>' + rs(t.opening) + '</b>', true)
+      + td('<b>' + rs(t.due) + '</b>', true)
+      + td('<b>' + rs(t.received) + '</b>', true)
+      + td('<b>' + rs(t.closing) + '</b>', true)
+      + '</tr></tfoot></table></div>';
   }
   return h + '</div>';
 }
