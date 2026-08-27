@@ -1521,14 +1521,24 @@ button.mn-card:active{transform:scale(.985)}
         </div>
       </div>
       <!-- ══ selling roles (rep / manager / director): workflow-grouped sidebar nav ══ -->
+      <!-- ══ everybody: what the company is selling and where ══ -->
+      <!-- Ungated on purpose. A receptionist is asked what is available as
+           often as a rep is, and the booking itself is refused server-side
+           by _sales_may_sell rather than by hiding a button. -->
+      <div class="ni-grp" data-grp="company">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="project" onclick="setTab('project')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/></svg></span><span class="ni-lb">Project</span></a>
+          <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
+          <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
+        </div>
+      </div>
       <div class="ni-grp" data-grp="workspace" data-sell style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('workspace')"><span class="sb-grp-t">Workspace</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-workspace"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
           <a class="ni" data-tab="alerts" onclick="setTab('alerts')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="ni-lb">Alerts</span><span class="ni-bdg" id="nav-badge-alerts"></span></a>
           <a class="ni" data-tab="leads" onclick="setTab('leads')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span><span class="ni-lb">Leads</span><span class="ni-bdg" id="nav-badge-leads"></span></a>
           <a class="ni" data-tab="myentered" onclick="setTab('myentered')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span><span class="ni-lb">Leads I entered</span></a>
-          <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
-          <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
           <a class="ni" data-tab="sharelink" data-dir style="display:none" onclick="setTab('sharelink')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="ni-lb">Share link</span></a>
           <a class="ni" data-tab="mine" onclick="setTab('mine')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg></span><span class="ni-lb">My Bookings</span></a>
           <a class="ni" data-tab="money" onclick="setTab('money')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></span><span class="ni-lb">Money</span></a>
@@ -1561,7 +1571,6 @@ button.mn-card:active{transform:scale(.985)}
       <!-- Everybody has a record, a payslip and a leave balance; only some people -->
       <!-- sell. So this sits with Messages in the always-on strip rather than in -->
       <!-- the Workspace group, which the office roles never see. -->
-      <a class="ni" data-tab="project" onclick="setTab('project')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/></svg></span><span class="ni-lb">Project</span></a>
       <a class="ni" data-tab="myrecord" onclick="setTab('myrecord')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">My record</span></a>
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
     </div>
@@ -2390,7 +2399,7 @@ function setTab(t,_back){
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','updates','profile'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','updates','profile'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2457,7 +2466,7 @@ const _GRP_OF={
   leadentry:'op-leads', myleads:'op-leads',
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
   dailyreport:'management', givenleads:'management',
-  alerts:'workspace', leads:'workspace', myentered:'workspace', board:'workspace', unitmap:'workspace', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
+  alerts:'workspace', leads:'workspace', myentered:'workspace', board:'company', unitmap:'company', project:'company', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
 };
@@ -8616,7 +8625,7 @@ async function renderBoard(){
   if(BV.proj>=projects.length) BV.proj=0;
   const p=projects[BV.proj]; const c=p.counts||{};
   BOARD_PROJ=p.project_name||p.company_name||'';
-  let html='<div class="nx-dash">'+_pageHead('Units','Reserve and sell available units across your projects.')+_unitsSeg();
+  let html='<div class="nx-dash">'+_pageHead('Units', (ME && _isOfficeRole(ME.role)) ? 'What is available across your projects.' : 'Reserve and sell available units across your projects.')+_unitsSeg();
   if(BOOK_LEAD){ html+=`<div class="card" style="padding:11px 14px;margin-bottom:var(--fk-sp-3);border-color:var(--fk-primary);background:var(--fk-primary-tint);display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="min-width:0"><div style="font-size:var(--fk-fs-body);font-weight:var(--fk-fw-bold)">${li('tag',13,2)} Booking for ${esc(BOOK_LEAD.name||'client')}</div><div style="font-size:var(--fk-fs-label);color:var(--fk-text-muted)">Tap an available unit to reserve it.</div></div><button class="btn btn-sm" style="flex:none" onclick="BOOK_LEAD=null;renderBoard()">Cancel</button></div>`; }
   if(projects.length>1){
     // Each chip is the PROJECT (e.g. KHUSHAL BAGH HEIGHTS / Awami Market); in an umbrella these span member companies.
@@ -8749,6 +8758,9 @@ function showReservedInfo(uno,resJson){
 
 // ════ reserve ════
 function openReserve(unitId,unitNo,area,areaUnit,price){
+  // The office side can look at the board; booking is not theirs. The server
+  // refuses it too (_sales_may_sell), so this only saves them a wasted form.
+  if(ME && _isOfficeRole(ME.role)){ toast('Your role does not book units.','err'); return; }
   RESERVE_UNIT={id:unitId,no:unitNo}; RESERVE_DAYS=7; RESERVE_TOKEN=false;
   area=Number(area)||0; price=Number(price)||0; areaUnit=areaUnit||'sqft';
   SHARE_CTX={unitNo:unitNo, area:area, areaUnit:areaUnit, price:price};
