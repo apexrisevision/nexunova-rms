@@ -897,8 +897,16 @@ button.mn-card:active{transform:scale(.985)}
 
 /* ════ smart board: project chips · filter · search · floor directory · drill-in ════ */
 .projchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.pchip{padding:7px 14px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);font-size:var(--fs-secondary);font-weight:500;color:var(--fk-text-muted);cursor:pointer}
-.pchip.on{background:var(--fk-primary-tint);border-color:var(--fk-primary);color:var(--fk-primary);font-weight:600}
+/* Same rule as .seg — a project chooser is a row of buttons, so it stands up. */
+.pchip{padding:8px 15px;border:1px solid var(--fk-border);border-radius:999px;background:var(--fk-bg-card);
+  font-size:var(--fs-secondary);font-weight:600;color:var(--fk-text);cursor:pointer;
+  box-shadow:0 2px 0 var(--fk-border),0 4px 10px rgba(2,6,23,.28);
+  transition:transform .1s ease,box-shadow .1s ease,background .12s ease;user-select:none}
+.pchip:hover{border-color:var(--fk-primary);color:var(--fk-primary)}
+.pchip:active{transform:translateY(2px);box-shadow:0 0 0 var(--fk-border),0 1px 3px rgba(2,6,23,.3)}
+.pchip.on{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff;
+  transform:translateY(2px);box-shadow:inset 0 2px 5px rgba(2,6,23,.45),0 0 0 var(--fk-border)}
+.pchip.on:hover{color:#fff}
 .bsearch{width:100%;height:42px;padding:0 14px;border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-card);
   color:var(--fk-text);font-family:var(--fk-font);font-size:var(--fs-body);margin-bottom:16px}
 .bsearch:focus{outline:none;border-color:var(--fk-primary);box-shadow:0 0 0 3px var(--fk-primary-tint)}
@@ -1053,10 +1061,23 @@ button.mn-card:active{transform:scale(.985)}
 .modal-title{font-size:var(--fs-section);font-weight:600}
 .modal-body{padding:18px}
 .modal-foot{padding:14px 18px;border-top:1px solid var(--fk-border);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--fk-bg-card)}
-.seg{display:flex;gap:6px}
-.seg .so{flex:1;text-align:center;padding:9px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);
-  font-size:var(--fs-secondary);font-weight:500;cursor:pointer;background:var(--fk-bg-subtle)}
-.seg .so.on{background:var(--fk-primary-tint);border-color:var(--fk-primary);color:var(--fk-primary);font-weight:600}
+/* Segmented control — a real button, not a tinted word.
+   A flat segment reads as a label, and a screen behind one may as well not
+   exist: the Grand Summary sat under "Position" for a day because the tab did
+   not look pressable. So the unselected segment stands up off the page with a
+   ledge and a shadow, the selected one is pushed in, and pressing any of them
+   moves. The two states differ in shape, not only in colour. */
+.seg{display:flex;gap:8px}
+.seg .so{flex:1;text-align:center;padding:10px 9px;font-family:inherit;line-height:1.25;border:1px solid var(--fk-border);
+  border-radius:var(--fk-radius-control);font-size:var(--fs-secondary);font-weight:600;
+  cursor:pointer;background:var(--fk-bg-card);color:var(--fk-text);
+  box-shadow:0 2px 0 var(--fk-border),0 4px 10px rgba(2,6,23,.28);
+  transition:transform .1s ease,box-shadow .1s ease,background .12s ease;user-select:none}
+.seg .so:hover{border-color:var(--fk-primary);color:var(--fk-primary)}
+.seg .so:active{transform:translateY(2px);box-shadow:0 0 0 var(--fk-border),0 1px 3px rgba(2,6,23,.3)}
+.seg .so.on{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff;
+  transform:translateY(2px);box-shadow:inset 0 2px 5px rgba(2,6,23,.45),0 0 0 var(--fk-border)}
+.seg .so.on:hover{color:#fff}
 .note{font-size:var(--fs-secondary);color:var(--fk-text-muted);background:var(--fk-bg-subtle);border:1px solid var(--fk-border);
   border-radius:var(--fk-radius-control);padding:9px 11px;margin-top:4px}
 .toggle-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -7014,10 +7035,16 @@ function _orgContact(id){
   openModal(esc(n.name), b);
 }
 // premium iOS-style segmented control — track + raised active segment (kit-consistent)
+/* One segmented control for the whole app. It used to paint itself with inline
+   styles — borderless words on a flat track — and a screen behind one of those
+   words may as well not exist: the Grand Summary went unfound for a day because
+   "Position" did not look like something you press. It now emits the same
+   .seg/.so buttons every other control uses, which stand up off the page and
+   sink when they are the chosen one. */
 function _seg(items, cur, onfn){
-  return '<div style="display:flex;gap:3px;padding:3px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:11px;margin-bottom:12px">'
+  return '<div class="seg" style="margin-bottom:12px">'
     + items.map(it=>{ const on=String(cur)===String(it[0]);
-        return `<button onclick="${onfn}('${it[0]}')" style="flex:1;border:0;background:${on?'var(--fk-bg-card)':'transparent'};color:${on?'var(--fk-primary)':'var(--fk-text-muted)'};border-radius:8px;padding:8px 6px;font-size:var(--fs-caption);font-weight:${on?'700':'600'};font-family:inherit;cursor:pointer;box-shadow:${on?'var(--fk-shadow)':'none'};transition:background .15s,color .15s">${it[1]}</button>`;
+        return `<button type="button" class="so${on?' on':''}" onclick="${onfn}('${it[0]}')">${it[1]}</button>`;
       }).join('') + '</div>';
 }
 function _setMemScope(s){ MEMBER_SCOPE=s; if(ORG_VIEW&&ORG_VIEW.view==='leads') renderMemberLeads(); else renderMemberPerf(); }
