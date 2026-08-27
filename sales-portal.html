@@ -7463,7 +7463,7 @@ function _homeLeave(){ MYREC.sub = 'leave'; MYREC.asking = true; setTab('myrecor
 
    The floors are the building's own, read from the units table, so an engineer
    fills in floors that exist instead of typing a list. */
-let ENG = { projects: undefined, pid: null, data: undefined, open: null, busy: false };
+let ENG = { projects: undefined, pid: null, data: undefined, open: null, busy: false, why: null };
 
 function _engPick(id){ ENG.pid = id; ENG.data = undefined; ENG.open = null; renderSite(); }
 function _engOpen(fl){ ENG.open = (ENG.open === fl) ? null : fl; renderSite(); }
@@ -7491,13 +7491,17 @@ function _engKey(s){ return String(s||'').replace(/[^a-zA-Z0-9]/g, '_'); }
 async function renderSite(){
   const b = $('app-body'); if(!b) return;
 
+  // Not every project in the group — the one this engineer is responsible for.
+  // portal_progress and portal_progress_set refuse any other one anyway, so a
+  // chooser offering three sites would be offering two dead ends.
   if(ENG.projects === undefined){
     b.innerHTML = _skel();
     try{
-      const r = await sb.rpc('get_project_profiles', { p_session_token: TOKEN });
+      const r = await sb.rpc('portal_site_projects', { p_session_token: TOKEN });
       if(r.error) throw r.error;
       if(r.data && r.data.error === 'session_expired') return sessionGone();
       ENG.projects = (r.data && r.data.projects) || [];
+      ENG.why = (r.data && !r.data.success) ? (r.data.message || null) : null;
     }catch(e){ ENG.projects = null; }
   }
   if(ENG.projects === null) return _netErr();
@@ -7516,8 +7520,9 @@ async function renderSite(){
   let html = '<div class="nx-dash">' + _pageHead('Site', 'How far each floor has got.');
 
   if(!ENG.projects.length){
-    html += '<div class="card"><div class="empty"><div class="et">No projects</div>'
-      + '<div class="es">Nothing has been set up for your company yet.</div></div></div>';
+    html += '<div class="card"><div class="empty"><div class="et">No site assigned</div>'
+      + '<div class="es">' + esc(ENG.why || 'The office has not put you on a project yet.')
+      + '</div></div></div>';
     b.innerHTML = html + '</div>'; return;
   }
 
