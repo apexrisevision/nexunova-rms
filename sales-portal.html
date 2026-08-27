@@ -1525,8 +1525,9 @@ button.mn-card:active{transform:scale(.985)}
       <!-- Ungated on purpose. A receptionist is asked what is available as
            often as a rep is, and the booking itself is refused server-side
            by _sales_may_sell rather than by hiding a button. -->
+      <a class="ni" data-tab="torecover" data-rec style="display:none" onclick="setTab('torecover')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="ni-lb">To recover</span></a>
       <div class="ni-grp" data-grp="company">
-        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
           <a class="ni" data-tab="project" onclick="setTab('project')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/></svg></span><span class="ni-lb">Project</span></a>
           <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
@@ -2299,6 +2300,7 @@ function _applyLeadAccess(){
   const isOff  = _isOfficeRole(role);
   const sell   = !isLE && !isExec && !isOff;                // rep / manager / director sell
   const show=(sel,on)=>document.querySelectorAll(sel).forEach(t=>{ t.style.display = on ? '' : 'none'; });
+  show('[data-rec]',      role==='recovery_officer');   // the officer's own book
   show('[data-le]',       isLE);                            // operator apps (Add lead / sources)
   show('[data-main]',     !isLE && !isOff);                 // Dashboard — sellers and leadership
   show('[data-sell]',     sell);                            // Workspace group
@@ -2318,7 +2320,7 @@ const _BTAB_OF={
   leads:'leads', distribute:'leads', alerts:'leads', myentered:'leads',
   board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
-  more:'more', project:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
+  more:'more', project:'more', torecover:'money', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
   livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
 };
 function _syncBtabs(t){
@@ -2327,6 +2329,7 @@ function _syncBtabs(t){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&ME.role==='recovery_officer'){ setTab('torecover'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   if(ME&&_isOfficeRole(ME.role)){ setTab('myrecord'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   setTab(PENDING_TAB==='alerts'?'alerts':'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
@@ -2392,14 +2395,14 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',project:'Project',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',project:'Project',torecover:'To recover',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','updates','profile'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','updates','profile','torecover'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2436,6 +2439,7 @@ function setTab(t,_back){
   else if(t==='performance') renderPerformance();
   else if(t==='myrecord') renderMyRecord();
   else if(t==='project') renderProject();
+  else if(t==='torecover') renderToRecover();
   else if(t==='recovery') renderRecovery();
   else if(t==='rank') renderLeaderboard();
   else if(t==='adroi') renderAdRoi();
@@ -7204,6 +7208,133 @@ async function _myrecProfile(){
   }catch(e){}
   return MYREC_PROFILE;
 }
+
+/* ══ To recover — the recovery officer's own day ══════════════════════════════
+   A rep's "To collect" is built from their own sales. An officer's book is not
+   theirs to sell — it is assigned, project by project, in RMS. So this asks a
+   different question of a different identity: the portal login is joined to a
+   desktop RMS user, and that user's project assignments decide whose money this
+   officer is chasing.
+
+   The arithmetic is not repeated here. get_recovery_position already decides
+   what received and closing mean and the desktop reports stand on it, so this
+   screen shows the same figures a manager sees — an officer and a manager
+   arguing about the same day is the one outcome worth engineering against.
+
+   What it opens with is what somebody actually wants at 9am: what came in
+   today, what is still out, and who to ring first. */
+let REC = { data: undefined };
+
+async function renderToRecover(){
+  const b = $('app-body'); if(!b) return;
+  if(REC.data === undefined){
+    b.innerHTML = _skel();
+    try{
+      const r = await sb.rpc('portal_recovery_summary', { p_session_token: TOKEN });
+      if(r.error) throw r.error;
+      if(r.data && r.data.error === 'session_expired') return sessionGone();
+      REC.data = r.data || null;
+    }catch(e){ REC.data = null; }
+  }
+  _touch();
+  if(REC.data === null) return _netErr();
+  const d = REC.data;
+
+  let html = '<div class="nx-dash">' + _pageHead('To recover', 'Your book, today.');
+
+  if(!d.success){
+    html += '<div class="card"><div class="empty"><div class="ei">' + li('info',20,1.8) + '</div>'
+      + '<div class="et">Not available yet</div>'
+      + '<div class="es">' + esc(d.message || 'This screen is not available for your role.') + '</div>'
+      + '</div></div>';
+    b.innerHTML = html + '</div>';
+    return;
+  }
+
+  const rs  = n => '₨' + Number(n||0).toLocaleString('en-US');
+  const rsS = n => { n = Number(n||0);
+    return n >= 10000000 ? '₨' + (n/10000000).toFixed(2) + ' cr'
+         : n >= 100000   ? '₨' + (n/100000).toFixed(1) + ' lac'
+         : rs(n); };
+
+  // Today first, because that is the number an officer is asked for.
+  html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
+    + '<div style="height:3px;background:var(--fk-success)"></div>'
+    + '<div style="padding:17px 18px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">Recovered today</div>'
+    + '<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;'
+    + 'color:' + (Number(d.today) > 0 ? 'var(--fk-success)' : 'var(--fk-text)') + ';margin-top:4px">'
+    + rs(d.today) + '</div>'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
+    + esc(new Date(d.as_of + 'T00:00:00Z').toLocaleDateString('en-US',{weekday:'long', day:'numeric', month:'long'}))
+    + '</div></div>'
+    + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
+    + '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">This month</div>'
+    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums">'
+    + rsS(d.month) + '</div></div>'
+    + '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">Still out</div>'
+    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums">'
+    + rsS(d.outstanding) + '</div></div>'
+    + '<div style="flex:1;background:var(--fk-bg-card);padding:12px 14px">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600">Clients</div>'
+    + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px;font-variant-numeric:tabular-nums">'
+    + (d.clients || 0) + '</div></div></div></div>';
+
+  const projs = d.projects || [];
+  if(projs.length > 1){
+    html += '<div class="card" style="margin-bottom:14px;padding:6px 8px;border-radius:16px">'
+      + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+      + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Your projects</div>';
+    projs.forEach(p => {
+      html += '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+        + '<div class="lr-name">' + esc(p.project_name || '') + '</div>'
+        + '<div class="lr-sub"><span>' + (p.clients || 0) + ' clients · ' + rsS(p.outstanding) + ' out</span></div>'
+        + '</div><b style="font-variant-numeric:tabular-nums;color:'
+        + (Number(p.today) > 0 ? 'var(--fk-success)' : 'var(--fk-text-muted)') + '">'
+        + rs(p.today) + '</b></div>';
+    });
+    html += '</div>';
+  }
+
+  // Who to ring first. Longest overdue at the top, and the number is a link,
+  // because the next thing an officer does with this screen is dial.
+  const q = d.queue || [];
+  html += '<div class="card" style="padding:6px 8px;border-radius:16px">'
+    + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+    + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Ring these first</div>';
+  if(!q.length){
+    html += '<div class="empty" style="padding:14px 8px 18px"><div class="et">Nothing overdue</div>'
+      + '<div class="es">Every client in your projects is clear.</div></div>';
+  } else {
+    q.forEach(x => {
+      const od = Number(x.overdue_days || 0);
+      const tone = od >= 60 ? 'bad' : od >= 30 ? 'warn' : null;
+      html += '<div class="trow" style="cursor:default;align-items:flex-start">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="lr-name" style="white-space:normal">' + esc(x.client || '—') + '</div>'
+        + '<div class="lr-sub"><span>' + esc([x.unit, x.project].filter(Boolean).join(' · ')) + '</span></div>'
+        + '<div style="margin-top:5px;font-weight:700;font-variant-numeric:tabular-nums;font-size:var(--fs-secondary)">'
+        + rs(x.outstanding) + '</div>'
+        + '</div>'
+        + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">'
+        + (od ? _myrecChip(od + 'd overdue', tone) : '')
+        + (x.phone ? '<a class="btn btn-secondary" href="tel:' + esc(String(x.phone).replace(/[^0-9+]/g,'')) + '" '
+            + 'style="height:30px;padding:0 11px;font-size:var(--fs-caption);display:inline-flex;align-items:center;gap:5px;text-decoration:none">'
+            + li('phone',13,2) + 'Call</a>' : '')
+        + '</div></div>';
+    });
+  }
+  html += '</div>';
+
+  b.innerHTML = html + '</div>';
+}
+
 
 /* ══ Project — what the building actually is ══════════════════════════════════
    Everybody's screen, whatever their role. A receptionist is asked how far the
