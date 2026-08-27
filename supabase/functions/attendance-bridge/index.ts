@@ -36,9 +36,9 @@
 //      FMH and Awami Market are joined separately and a wrong mapping would
 //      show one office's staff another office's file.
 //
-// It reads the file, and it lets a person ask for their own leave — which HR
-// then forwards and the Head of Department decides. It cannot decide anything
-// and it cannot write to RMS at all.
+// It reads the file, prices the month it is showing, and lets a person ask for
+// their own leave — which HR then forwards and the Head of Department decides.
+// It cannot decide anything and it cannot write to RMS at all.
 // ============================================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -78,6 +78,7 @@ const WHY: Record<string, string> = {
   not_signed_in: 'Sign in to the RMS admin app first — this is an office screen, not a portal one.',
   not_an_admin: 'Only an owner or administrator can open the staff register.',
   register_not_yours: 'That attendance register does not belong to your business.',
+  no_salary: 'Your salary is not set on your employee file yet, so this month cannot be worked out. Please ask HR.',
 };
 
 Deno.serve(async (req) => {
@@ -197,6 +198,22 @@ Deno.serve(async (req) => {
         to,
         ...data,
       });
+    }
+
+    if (action === 'earnings') {
+      // The same month the file is showing, priced. The arithmetic lives on the
+      // attendance side because that is where payroll's rule lives, and two
+      // places computing one salary is how a person ends up with two salaries.
+      const { data, error } = await att.rpc('portal_my_earnings', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
+        p_cnic: ctx.cnic,
+        p_upto: body.to || null,
+      });
+      if (error) throw error;
+      if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
+      if (data?.error) return json({ ok: false, error: data.error, message: WHY[data.error] || 'Your pay cannot be worked out yet.' });
+      return json({ tenant: ctx.attend_company_name, ...data });
     }
 
     if (action === 'leave_types') {
