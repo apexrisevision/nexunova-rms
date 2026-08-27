@@ -1561,6 +1561,7 @@ button.mn-card:active{transform:scale(.985)}
       <!-- Everybody has a record, a payslip and a leave balance; only some people -->
       <!-- sell. So this sits with Messages in the always-on strip rather than in -->
       <!-- the Workspace group, which the office roles never see. -->
+      <a class="ni" data-tab="project" onclick="setTab('project')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/></svg></span><span class="ni-lb">Project</span></a>
       <a class="ni" data-tab="myrecord" onclick="setTab('myrecord')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">My record</span></a>
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
     </div>
@@ -1606,6 +1607,25 @@ const pkrFull=n=>'₨'+Number(n||0).toLocaleString('en-US',{maximumFractionDigit
 function pkrShort(n){ n=Number(n||0); if(!n) return ''; return '₨'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
 /* ── Lucide line-icons (kit law: no emoji in UI chrome) — single source of truth ── */
 const _LIP={
+  car:'<path d="M19 17h2v-3.3a2 2 0 0 0-.3-1L19 9H5l-1.7 3.7a2 2 0 0 0-.3 1V17h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/>',
+  store:'<path d="M3 9h18l-1-4H4z"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 20v-6h6v6"/>',
+  ruler:'<path d="M3 15 15 3l6 6L9 21z"/><path d="m7 11 2 2"/><path d="m11 7 2 2"/><path d="m15 11 2 2"/>',
+  layers:'<path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
+  anchor:'<circle cx="12" cy="5" r="3"/><path d="M12 8v13"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/>',
+  columns:'<rect x="4" y="3" width="6" height="18" rx="1"/><rect x="14" y="3" width="6" height="18" rx="1"/>',
+  corridor:'<path d="M3 3v18"/><path d="M21 3v18"/><path d="M8 12h8"/><path d="m13 9 3 3-3 3"/>',
+  elevator:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="m8 9 2-2 2 2"/><path d="m12 15 2 2 2-2"/>',
+  sparkle:'<path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>',
+  mosque:'<path d="M12 2c2 2 3 3.5 3 5a3 3 0 0 1-6 0c0-1.5 1-3 3-5z"/><path d="M4 21V11a8 8 0 0 1 16 0v10"/><path d="M2 21h20"/><path d="M9 21v-4a3 3 0 0 1 6 0v4"/>',
+  trash:'<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6"/>',
+  zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+  cctv:'<path d="M3 7 20 4l1 4-17 3z"/><path d="M5 11v3a2 2 0 0 0 2 2h4"/><circle cx="13" cy="18" r="3"/>',
+  washing:'<rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><path d="M8 6h.01"/><path d="M12 6h.01"/>',
+  dumbbell:'<path d="M2 12h2"/><path d="M20 12h2"/><rect x="4" y="8" width="3" height="8" rx="1"/><rect x="17" y="8" width="3" height="8" rx="1"/><path d="M7 12h10"/>',
+  power:'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+  droplet:'<path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  flag:'<path d="M4 22V4"/><path d="M4 4h11l-1.5 4L15 12H4"/>',
+  building:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/>',
   smile:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
   home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
@@ -2285,7 +2305,7 @@ const _BTAB_OF={
   leads:'leads', distribute:'leads', alerts:'leads', myentered:'leads',
   board:'board', unitmap:'board', sharelink:'board', mine:'board',
   money:'money', recovery:'money', mysales:'money', clients:'money', teamrecovery:'money', rank:'money',
-  more:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
+  more:'more', project:'more', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
   livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
 };
 function _syncBtabs(t){
@@ -2359,14 +2379,14 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Home',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',project:'Project',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','updates','profile'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','updates','profile'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2402,6 +2422,7 @@ function setTab(t,_back){
   else if(t==='clients') renderClients();
   else if(t==='performance') renderPerformance();
   else if(t==='myrecord') renderMyRecord();
+  else if(t==='project') renderProject();
   else if(t==='recovery') renderRecovery();
   else if(t==='rank') renderLeaderboard();
   else if(t==='adroi') renderAdRoi();
@@ -7170,6 +7191,147 @@ async function _myrecProfile(){
   }catch(e){}
   return MYREC_PROFILE;
 }
+
+/* ══ Project — what the building actually is ══════════════════════════════════
+   Everybody's screen, whatever their role. A receptionist is asked how far the
+   motorway is as often as a sale rep is, and until now the answer lived in
+   somebody's head or a brochure on a desk.
+
+   Three depths and no more: the projects, one project, one part of it. Anything
+   deeper on a phone becomes a place people get lost in.
+
+   The content is dictated by the office and read from project_profile — the
+   portal renders whatever it is given and invents nothing, so correcting a
+   figure is an edit to one row and not a deploy. */
+let PRJ = { list: undefined, open: null, sec: null };
+
+function _prjOpen(id){ PRJ.open = id || null; PRJ.sec = null; renderProject(); }
+function _prjSec(key){ PRJ.sec = key || null; renderProject(); }
+
+async function renderProject(){
+  const b = $('app-body'); if(!b) return;
+  if(PRJ.list === undefined){
+    b.innerHTML = _skel();
+    try{
+      const r = await sb.rpc('get_project_profiles', { p_session_token: TOKEN });
+      if(r.error) throw r.error;
+      if(r.data && r.data.error === 'session_expired') return sessionGone();
+      PRJ.list = (r.data && r.data.projects) || [];
+    }catch(e){ PRJ.list = null; }
+  }
+  _touch();
+
+  if(PRJ.list === null) return _netErr();
+  const list = PRJ.list || [];
+
+  let html = '<div class="nx-dash">' + _pageHead('Project', 'What the building is, floor by floor.');
+
+  if(!list.length){
+    html += '<div class="card"><div class="empty"><div class="ei">' + li('building',20,1.8) + '</div>'
+      + '<div class="et">No project details yet</div>'
+      + '<div class="es">Once the office writes up a project, it appears here.</div></div></div>';
+    b.innerHTML = html + '</div>';
+    return;
+  }
+
+  // One project is the normal case here, so it opens rather than asking.
+  if(!PRJ.open && list.length === 1) PRJ.open = list[0].project_id;
+
+  const cur = PRJ.open ? list.find(x => x.project_id === PRJ.open) : null;
+
+  if(!cur){
+    html += '<div class="card" style="padding:6px 8px">';
+    list.forEach(p => {
+      html += '<div class="trow" onclick="_prjOpen(\'' + esc(p.project_id) + '\')"><div style="flex:1;min-width:0">'
+        + '<div class="lr-name">' + esc(p.project_name || '') + '</div>'
+        + '<div class="lr-sub"><span>' + esc([p.location, p.city].filter(Boolean).join(' · ')) + '</span></div>'
+        + '</div>' + li('arrow-right',16,2) + '</div>';
+    });
+    html += '</div>';
+    b.innerHTML = html + '</div>';
+    return;
+  }
+
+  const pf = cur.profile || {};
+  const secs = pf.sections || [];
+  const open = PRJ.sec ? secs.find(s => s.key === PRJ.sec) : null;
+
+  // ── one part of it ──────────────────────────────────────────────────────
+  if(open){
+    html += '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);margin-bottom:12px" '
+      + 'onclick="_prjSec(null)">' + li('arrow-left',14,2) + ' ' + esc(pf.headline || cur.project_name || 'Project') + '</button>';
+    html += '<div class="card" style="margin-bottom:14px;overflow:hidden">'
+      + '<div style="height:3px;background:var(--fk-primary)"></div>'
+      + '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px">'
+      + '<span style="width:40px;height:40px;border-radius:12px;flex:none;background:var(--fk-primary-tint);'
+      + 'color:var(--fk-primary);display:grid;place-items:center">' + li(open.icon,20,1.8) + '</span>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:var(--fs-section);font-weight:700">' + esc(open.title || '') + '</div>'
+      + (open.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:2px">' + esc(open.sub) + '</div>' : '')
+      + '</div></div></div>';
+
+    html += '<div class="card" style="padding:6px 8px">';
+    (open.items || []).forEach(it => {
+      html += '<div class="trow" style="cursor:default;align-items:flex-start">'
+        + '<span style="width:34px;height:34px;border-radius:10px;flex:none;background:var(--fk-bg-subtle);'
+        + 'color:var(--fk-text-muted);display:grid;place-items:center;margin-right:10px">' + li(it.icon,17,1.8) + '</span>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="lr-name" style="white-space:normal">' + esc(it.title || '') + '</div>'
+        + (it.detail ? '<div class="lr-sub"><span style="white-space:normal">' + esc(it.detail) + '</span></div>' : '')
+        + '</div></div>';
+    });
+    html += '</div>';
+    b.innerHTML = html + '</div>';
+    return;
+  }
+
+  // ── the project ─────────────────────────────────────────────────────────
+  if(list.length > 1){
+    html += '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);margin-bottom:12px" '
+      + 'onclick="_prjOpen(null)">' + li('arrow-left',14,2) + ' All projects</button>';
+  }
+
+  html += '<div class="card" style="margin-bottom:14px;overflow:hidden">'
+    + '<div style="height:3px;background:var(--fk-primary)"></div>'
+    + '<div style="padding:16px">'
+    + '<div style="font-size:var(--fs-title);font-weight:700;line-height:1.2">' + esc(pf.headline || cur.project_name || '') + '</div>'
+    + (pf.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:4px">' + esc(pf.sub) + '</div>' : '')
+    + ((pf.builder || pf.landowner)
+        ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:8px">'
+          + esc([pf.builder && ('Built by ' + pf.builder), pf.landowner && ('Land: ' + pf.landowner)].filter(Boolean).join(' · '))
+          + '</div>' : '')
+    + '</div>';
+
+  // The four facts a person repeats down a phone, kept where the thumb lands.
+  const hl = pf.highlights || [];
+  if(hl.length){
+    html += '<div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">';
+    hl.forEach(h => {
+      html += '<div style="flex:1 1 46%;min-width:130px;background:var(--fk-bg-card);padding:11px 14px">'
+        + '<div style="display:flex;align-items:center;gap:6px;color:var(--fk-text-muted);font-size:var(--fk-fs-label);'
+        + 'text-transform:uppercase;letter-spacing:.06em;font-weight:600">' + li(h.icon,13,2) + esc(h.label || '') + '</div>'
+        + '<div style="font-weight:700;font-size:var(--fs-body);margin-top:3px">' + esc(h.value || '') + '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="card" style="padding:6px 8px">';
+  secs.forEach(s => {
+    const n = (s.items || []).length;
+    html += '<div class="trow" onclick="_prjSec(\'' + esc(s.key) + '\')">'
+      + '<span style="width:36px;height:36px;border-radius:11px;flex:none;background:var(--fk-primary-tint);'
+      + 'color:var(--fk-primary);display:grid;place-items:center;margin-right:11px">' + li(s.icon,18,1.8) + '</span>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div class="lr-name">' + esc(s.title || '') + '</div>'
+      + (s.sub ? '<div class="lr-sub"><span style="white-space:normal">' + esc(s.sub) + '</span></div>' : '')
+      + '</div>'
+      + (n ? _myrecChip(String(n)) : '') + li('arrow-right',16,2) + '</div>';
+  });
+  html += '</div>';
+
+  b.innerHTML = html + '</div>';
+}
+
 
 async function renderMyRecord(){
   const b=$('app-body'); if(!b) return;
