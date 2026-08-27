@@ -122,6 +122,11 @@ async function rSalesAccess() {
     _saIntake = (li && li.success) ? li : null;
   } catch (e) { _saIntake = null; }
 
+  // Crosses to the attendance system, so it is the slowest thing on the page
+  // and the only one that can be down while everything else is fine. It fails
+  // to a card that says so rather than taking the page with it.
+  try { await _saLinkLoad(); } catch (e) { _saLink.registers = []; }
+
   _saRender();
 }
 
@@ -240,6 +245,7 @@ function _saBodyHtml() {
 
   return linkCard + _saPortalCardHtml() + _saIntakeCardHtml() + _saJoinCardHtml() + (pendingCard ? `<div style="margin-top:var(--fk-sp-3)">${pendingCard}</div>` : '') +
          `<div style="margin-top:var(--fk-sp-3)">${peopleCard}</div>` +
+         _saLinkCardHtml() +
          _saPoolCardHtml() +
          _saNotifyCardHtml() +
          `<div style="margin-top:var(--fk-sp-3)">${_saAnnCardHtml()}</div>`;
@@ -973,4 +979,191 @@ async function _saDeactivate(id, name) {
       if (typeof toast === 'function') toast(t, 'ok'); rSalesAccess();
     } else if (typeof toast === 'function') toast('Could not deactivate.', 'err');
   } catch (e) { if (typeof toast === 'function') toast('Could not deactivate.', 'err'); }
+}
+
+/* ══ Attendance link — which portal login is which employee ═══════════════════
+   Two systems hold the same people and neither knows it. The portal knows who
+   can sign in; the attendance register knows who works here. Until somebody
+   says which row is which person, the two are joined by CNIC alone — and a CNIC
+   is one mistyped digit away from joining nobody. This card is where that gets
+   settled, once, by a person.
+
+   It lives here rather than in NexuAttend because the portal logins are already
+   on this page, and because the bridge only runs in this direction. Nobody
+   needs a new login for it: whoever approves sales access already has one. */
+let _saLink = { users: [], registers: [], reg: null, roster: [], err: null };
+
+// The bridge's office door wants a real Supabase Auth session, not a PIN token.
+function _saBridge(body) {
+  return supabase.auth.getSession().then(function (r) {
+    const tok = r && r.data && r.data.session && r.data.session.access_token;
+    const h = { 'Content-Type': 'application/json' };
+    if (tok) h.Authorization = 'Bearer ' + tok;
+    return fetch(SUPABASE_URL + '/functions/v1/attendance-bridge',
+      { method: 'POST', headers: h, body: JSON.stringify(body) }).then(function (x) { return x.json(); });
+  });
+}
+
+async function _saLinkLoad() {
+  _saLink.err = null;
+  try {
+    const { data } = await supabase.rpc('admin_link_overview');
+    _saLink.users = (data && data.success) ? (data.users || []) : [];
+  } catch (e) { _saLink.users = []; }
+  try {
+    const r = await _saBridge({ action: 'employees' });
+    if (r && r.ok) _saLink.registers = r.registers || [];
+    else { _saLink.registers = []; _saLink.err = (r && r.message) || null; }
+  } catch (e) { _saLink.registers = []; _saLink.err = 'Could not reach the attendance system.'; }
+  // One register is the normal case. Open it rather than asking a question
+  // whose answer is already known.
+  if (_saLink.registers.length === 1) await _saLinkPick(_saLink.registers[0].project_id, true);
+}
+
+async function _saLinkPick(projectId, quiet) {
+  _saLink.reg = _saLink.registers.find(function (x) { return x.project_id === projectId; }) || null;
+  _saLink.roster = [];
+  if (!_saLink.reg) { if (!quiet) _saRender(); return; }
+  try {
+    const r = await _saBridge({ action: 'employees', project_id: projectId });
+    if (r && r.ok) { _saLink.roster = r.employees || []; _saLink.err = null; }
+    else _saLink.err = (r && r.message) || 'Could not read the staff register.';
+  } catch (e) { _saLink.err = 'Could not reach the attendance system.'; }
+  if (!quiet) _saRender();
+}
+
+// Names are compared with the punctuation taken out, because "Alyan ali shah"
+// and "Alyan Khan" must be allowed to be one person while still being flagged
+// as worth a second look.
+function _saNameKey(s) { return String(s || '').toLowerCase().replace(/[^a-z]/g, ''); }
+function _saNamesAgree(a, b) {
+  const x = _saNameKey(a), y = _saNameKey(b);
+  if (!x || !y) return true;
+  return x === y || x.indexOf(y) > -1 || y.indexOf(x) > -1;
+}
+
+async function _saLinkWrite(userId, employeeId, okWord) {
+  try {
+    const { data } = await supabase.rpc('admin_link_sales_user', {
+      p_sales_user_id: userId,
+      p_employee_id: employeeId,
+      p_project_id: _saLink.reg ? _saLink.reg.project_id : null
+    });
+    if (data && data.success) {
+      if (typeof toast === 'function') toast(okWord, 'ok');
+      await _saLinkLoad();
+      _saRender();
+      return true;
+    }
+    if (typeof toast === 'function') toast((data && data.message) || 'Could not save that.', 'err');
+  } catch (e) { if (typeof toast === 'function') toast('Could not save that.', 'err'); }
+  return false;
+}
+
+function _saLinkSave(userId) {
+  const sel = document.getElementById('salink-' + userId);
+  const empId = sel && sel.value;
+  if (!empId) { if (typeof toast === 'function') toast('Pick the employee first.', 'err'); return; }
+  return _saLinkWrite(userId, empId, 'Linked.');
+}
+
+// Confirming keeps the same employee and only stamps who-said-so, which is the
+// difference between a script's guess and a person's decision.
+function _saLinkConfirm(userId) {
+  const u = _saLink.users.find(function (x) { return x.id === userId; });
+  if (!u || !u.attend_employee_id) return;
+  return _saLinkWrite(userId, u.attend_employee_id, 'Confirmed.');
+}
+
+function _saLinkClear(userId, name) {
+  if (!confirm('Unlink ' + name + ' from their employee file?\n\nTheir attendance and leave will stop showing in the portal until they are linked again.')) return;
+  return _saLinkWrite(userId, null, 'Unlinked.');
+}
+
+function _saLinkCardHtml() {
+  const L = _saLink;
+  const head = {
+    icon: 'user-check', tone: 'primary', title: 'Attendance link',
+    sub: 'Which portal login is which employee'
+  };
+
+  if (!L.registers.length) {
+    return '<div id="sa-linkcard" style="margin-top:var(--fk-sp-3)">' + NX.card(
+      NX.banner(L.err || 'No attendance register is connected to this company yet, so portal logins cannot be matched to employee files.', 'info'),
+      { header: head }) + '</div>';
+  }
+
+  const byId = {}, byCnic = {}, taken = {};
+  L.roster.forEach(function (e) { byId[e.id] = e; if (e.cnic_digits) byCnic[e.cnic_digits] = e; });
+  L.users.forEach(function (u) { if (u.attend_employee_id) taken[u.attend_employee_id] = u.full_name; });
+
+  const linkedCount = L.users.filter(function (u) { return u.attend_employee_id; }).length;
+  const confirmed = L.users.filter(function (u) { return u.attend_linked_at; }).length;
+
+  const picker = L.registers.length > 1
+    ? '<div style="margin-bottom:var(--fk-sp-3)"><select class="nx-input" style="max-width:340px" onchange="_saLinkPick(this.value)">'
+      + L.registers.map(function (r) {
+        return '<option value="' + esc(r.project_id) + '"' + (L.reg && L.reg.project_id === r.project_id ? ' selected' : '') + '>'
+          + esc(r.attend_company_name) + ' — ' + esc(r.project_name) + '</option>';
+      }).join('') + '</select></div>'
+    : '<div style="font-size:12.5px;color:var(--fk-text-muted);margin-bottom:var(--fk-sp-3)">Register: <strong>'
+      + esc((L.reg && L.reg.attend_company_name) || '') + '</strong> · '
+      + esc((L.reg && L.reg.project_name) || '') + ' · ' + L.roster.length + ' employees on file</div>';
+
+  const rows = L.users.map(function (u) {
+    const emp = u.attend_employee_id ? byId[u.attend_employee_id] : null;
+    const who = '<b>' + esc(u.full_name) + '</b><div style="font-size:11px;color:var(--fk-text-muted)">'
+      + esc(u.phone || '') + ' · ' + esc(_saRoleLabel(u.role)) + '</div>';
+    const cnic = u.cnic ? esc(u.cnic) : '<span style="color:var(--fk-text-muted)">No CNIC on file</span>';
+
+    if (u.attend_employee_id) {
+      const state = !emp
+        ? NX.badge('Linked to a record not in this register', 'warning')
+        : (u.attend_linked_at ? NX.badge('Confirmed', 'success', { dot: true })
+                              : NX.badge('Matched, not confirmed', 'warning'));
+      const detail = emp
+        ? '<div style="font-size:11px;color:var(--fk-text-muted)">' + esc(emp.name) + ' · ' + esc(emp.code || '')
+          + (emp.designation ? ' · ' + esc(emp.designation) : '') + '</div>'
+          + (_saNamesAgree(u.full_name, emp.name) ? ''
+             : '<div style="font-size:11px;color:var(--fk-warning)">Written differently on the two sides</div>')
+        : '';
+      const act = (u.attend_linked_at ? ''
+        : NX.button('Confirm', { variant: 'primary', size: 'sm', icon: 'check', onclick: "_saLinkConfirm('" + u.id + "')" }) + ' ')
+        + NX.button('Unlink', { variant: 'ghost', size: 'sm', onclick: "_saLinkClear('" + u.id + "','" + esc(u.full_name) + "')" });
+      return [who, cnic, state + detail, act];
+    }
+
+    // Not linked: offer the register, with the CNIC match already chosen when
+    // there is one and nobody else has claimed it.
+    const suggest = u.cnic_digits ? byCnic[u.cnic_digits] : null;
+    const pick = (suggest && !taken[suggest.id]) ? suggest.id : '';
+    const opts = ['<option value="">— pick the employee —</option>'].concat(
+      L.roster.map(function (e) {
+        const claimed = taken[e.id];
+        return '<option value="' + esc(e.id) + '"' + (e.id === pick ? ' selected' : '') + (claimed ? ' disabled' : '') + '>'
+          + esc(e.name) + (e.code ? ' · ' + esc(e.code) : '')
+          + (e.active ? '' : ' (former)')
+          + (claimed ? ' — already ' + esc(claimed) : '') + '</option>';
+      })).join('');
+    const hint = suggest
+      ? (taken[suggest.id]
+          ? '<div style="font-size:11px;color:var(--fk-warning)">CNIC matches ' + esc(suggest.name) + ', already linked to ' + esc(taken[suggest.id]) + '</div>'
+          : '<div style="font-size:11px;color:var(--fk-success)">CNIC matches ' + esc(suggest.name) + (suggest.code ? ' · ' + esc(suggest.code) : '') + '</div>')
+      : (u.cnic_digits ? '<div style="font-size:11px;color:var(--fk-text-muted)">No employee carries this CNIC</div>' : '');
+    const cell = '<select class="nx-input" id="salink-' + esc(u.id) + '" style="min-width:240px;font-size:12px">'
+      + opts + '</select>' + hint;
+    return [who, cnic, cell,
+      NX.button('Link', { variant: 'primary', size: 'sm', icon: 'link', onclick: "_saLinkSave('" + u.id + "')" })];
+  });
+
+  const body = picker + NX.table({
+    cols: [{ label: 'Portal login' }, { label: 'CNIC (portal)' }, { label: 'Employee file' }, { label: '' }],
+    rows: rows, flush: true
+  });
+
+  const sub = confirmed + ' confirmed · ' + (linkedCount - confirmed) + ' matched but unconfirmed · '
+            + (L.users.length - linkedCount) + ' not linked';
+  return '<div id="sa-linkcard" style="margin-top:var(--fk-sp-3)">'
+    + NX.card(body, { header: { icon: head.icon, tone: head.tone, title: head.title, sub: sub }, flush: true })
+    + '</div>';
 }

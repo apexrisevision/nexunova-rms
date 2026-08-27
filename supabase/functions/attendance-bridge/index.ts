@@ -11,15 +11,23 @@
 //      NexuAttend's service key — that key bypasses row-level security on every
 //      table there, which is far more than five questions about one person
 //      needs. It presents the publishable key, which opens nothing by itself,
-//      plus a bridge secret that unlocks exactly the five portal functions.
-//      If this function were ever compromised, that is the whole of what goes
-//      with it.
+//      plus a bridge secret that unlocks exactly the portal_* functions and
+//      nothing else. If this function were ever compromised, that is the whole
+//      of what goes with it.
 //
 //   2. THE CALLER DOES NOT SAY WHO THEY ARE. They present the session token
 //      they already have. RMS resolves it to one sales user and hands back that
 //      user's own CNIC and the attendance tenant their company is linked to.
 //      There is no employee_id in this request and no way to ask about anybody
 //      else.
+//      There is exactly one exception and it is deliberate: the 'employees'
+//      action, which reads a whole staff roster for the screen where an
+//      administrator says which portal login is which employee. Linking is the
+//      moment BEFORE the CNIC can be trusted, so that call cannot be answered
+//      on a CNIC. It demands a real Supabase Auth session instead, verifies it
+//      here, and asks RMS whether that person is an administrator and which
+//      registers their own business already reaches. A PIN session cannot
+//      reach it.
 //
 //   3. ONE PROJECT, ONE TENANT, OFF BY DEFAULT. The portal is an umbrella —
 //      every sales user shares one company row — so it is the PROJECT that
@@ -67,6 +75,9 @@ const WHY: Record<string, string> = {
   not_matched: 'No attendance record is registered against your CNIC. Please ask HR to add it to your employee file.',
   cnic_duplicated: 'Two employee records carry your CNIC, so it is not clear which one is yours. Please ask HR to correct it.',
   cnic_missing: 'The CNIC on your profile does not look complete.',
+  not_signed_in: 'Sign in to the RMS admin app first — this is an office screen, not a portal one.',
+  not_an_admin: 'Only an owner or administrator can open the staff register.',
+  register_not_yours: 'That attendance register does not belong to your business.',
 };
 
 Deno.serve(async (req) => {
@@ -76,12 +87,56 @@ Deno.serve(async (req) => {
   let body: {
     session_token?: string; action?: string; from?: string; to?: string;
     leave_type?: string; reason?: string; day_part?: string;
-    contact?: string; request_id?: string;
+    contact?: string; request_id?: string; project_id?: string;
   };
   try {
     body = await req.json();
   } catch {
     return json({ ok: false, error: 'bad_request' }, 400);
+  }
+
+  /* ── the office side ─────────────────────────────────────────────────────
+     Every other action here answers for ONE person about themselves, on a PIN
+     session, and rule 2 above holds: the caller does not say who they are.
+     This one is a different animal — it hands back a whole company's staff
+     list — so it is not a portal call at all and must not accept a portal
+     token. It exists for one screen: the one where an administrator sits with
+     two lists and says which login is which employee. Linking is precisely the
+     moment before you can trust the CNIC, so the CNIC cannot be the ticket in.
+     A real Supabase Auth session is, and it is verified here rather than
+     believed: RMS is asked whether that auth user is an administrator, and
+     which registers their own business already reaches. A rep has no such
+     session and cannot get past this line. */
+  if (body.action === 'employees') {
+    const rms = createClient(RMS_URL, RMS_SERVICE, { auth: { persistSession: false } });
+    const jwt = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
+    if (!jwt) return json({ ok: false, error: 'not_signed_in', message: WHY.not_signed_in }, 401);
+
+    const { data: who, error: whoErr } = await rms.auth.getUser(jwt);
+    if (whoErr || !who?.user) return json({ ok: false, error: 'not_signed_in', message: WHY.not_signed_in }, 401);
+
+    const { data: actx, error: actxErr } = await rms.rpc('admin_attendance_context', {
+      p_auth_user_id: who.user.id,
+      p_project_id: body.project_id ?? null,
+    });
+    if (actxErr) return json({ ok: false, error: 'context_failed', message: actxErr.message }, 500);
+    if (!actx?.ok) {
+      const reason = actx?.reason || 'not_an_admin';
+      return json({ ok: false, error: reason, message: WHY[reason] || 'Not allowed.' },
+                  reason === 'not_signed_in' ? 401 : 403);
+    }
+    // Asked without naming one: answer which registers may be opened at all,
+    // so the screen can offer them instead of guessing.
+    if (!body.project_id) return json({ ok: true, registers: actx.registers });
+
+    const att = createClient(ATT_URL, ATT_ANON, { auth: { persistSession: false } });
+    const { data, error } = await att.rpc('portal_list_employees', {
+      p_secret: ATT_SECRET,
+      p_company: actx.attend_company_id,
+    });
+    if (error) return json({ ok: false, error: 'register_failed', message: error.message }, 500);
+    if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
+    return json({ ok: true, tenant: actx.attend_company_name, ...data });
   }
 
   const token = (body.session_token || '').trim();
