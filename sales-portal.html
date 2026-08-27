@@ -1499,6 +1499,14 @@ button.mn-card:active{transform:scale(.985)}
   <aside class="sb" id="sb">
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
     <nav class="sb-nav">
+      <div class="ni-grp" data-grp="company">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="project" onclick="setTab('project')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/></svg></span><span class="ni-lb">Project</span></a>
+          <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
+          <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
+        </div>
+      </div>
       <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
       <!-- ══ lead-entry operator: manual leads ══ -->
       <div class="ni-grp" data-grp="op-leads" data-le style="display:none">
@@ -1527,14 +1535,6 @@ button.mn-card:active{transform:scale(.985)}
            by _sales_may_sell rather than by hiding a button. -->
       <a class="ni" data-tab="torecover" data-rec style="display:none" onclick="setTab('torecover')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="ni-lb">To recover</span></a>
       <a class="ni" data-tab="collection" data-acc style="display:none" onclick="setTab('collection')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg></span><span class="ni-lb">Collection</span></a>
-      <div class="ni-grp" data-grp="company">
-        <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
-        <div class="sb-grp-body">
-          <a class="ni" data-tab="project" onclick="setTab('project')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h.01"/><path d="M15 7h.01"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M10 22v-4h4v4"/></svg></span><span class="ni-lb">Project</span></a>
-          <a class="ni" data-tab="board" onclick="setTab('board')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/></svg></span><span class="ni-lb">Units</span></a>
-          <a class="ni" data-tab="unitmap" onclick="setTab('unitmap')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="M15 3v6"/></svg></span><span class="ni-lb">Unit map</span></a>
-        </div>
-      </div>
       <div class="ni-grp" data-grp="workspace" data-sell style="display:none">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('workspace')"><span class="sb-grp-t">Workspace</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-workspace"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
