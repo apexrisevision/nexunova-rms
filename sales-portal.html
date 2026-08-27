@@ -7331,10 +7331,15 @@ async function renderMyRecord(){
         +line('Shift starts', String(P.shift_start||'').slice(0,5))
         +line('Grace', P.grace_minutes+' min — cutting starts after '
               +esc(_myrecAddMin(P.shift_start,P.grace_minutes)))
+        +line('Half day after', String(P.half_day_after_time||'').slice(0,5)
+              +' — more than '+Math.round((P.half_day_after_minutes||180)/60)+' hours late')
         +line('Late minutes this month', P.late_minutes_raw)
         +line('Charged after grace', P.late_minutes_charged+' min')
         +line('Rate', rs2(P.per_minute)+' per minute')
         +line('Cutting', '− '+rs(P.late_deduction), P.late_deduction?'var(--fk-danger)':null)
+        +(P.half_days?'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:8px">'
+          +'Past three hours it stops being lateness: '+P.half_days+' day'+(P.half_days>1?'s':'')
+          +' counted as half a day instead, and those minutes are not charged again.</div>':'')
         +'</div></div>';
 
       if(P.deduct_days>0){
@@ -7344,6 +7349,7 @@ async function renderMyRecord(){
           +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
           +'font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">Days not paid</div>'
           +line('Absent', P.absent_days)
+          +(P.half_days?line('Half days (more than 3 hours late)', P.half_days,'var(--fk-warning)'):'')
           +(P.unpaid_leave_days?line('Unpaid leave', P.unpaid_leave_days):'')
           +(P.paid_leave_days?line('Paid leave (still paid)', P.paid_leave_days,'var(--fk-success)'):'')
           +line('Worth', rs(P.absent_deduction))
