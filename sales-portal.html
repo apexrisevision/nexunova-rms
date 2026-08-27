@@ -7287,7 +7287,11 @@ async function renderMyHome(){
     const late = Number(td.late_minutes||0);
     stTxt = 'Marked in at ' + _homeTime(td.first_in);
     stTone = late > 0 ? 'warn' : 'ok';
-    stSub = late > 0 ? (late + ' minutes after your shift started') : 'On time';
+    // The chip on the right already says "On time" — the line under the time is
+    // spent on what it does not know: whether they have gone home yet.
+    stSub = late > 0 ? (late + ' minutes after your shift started')
+          : td.last_out ? ('Marked out at ' + _homeTime(td.last_out))
+          : 'Still in';
   } else {
     stTxt = 'Not marked in yet'; stTone = null; stSub = 'Your punch has not reached the office yet today.';
   }
