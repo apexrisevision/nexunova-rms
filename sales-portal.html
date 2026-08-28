@@ -2005,21 +2005,38 @@ function capSlot(key,label,kind){
     +'</div></div>';
 }
 
-function _capDone(key,url){
-  CAP[key]=url;
-  const prev=$('cap-'+key+'-prev'); if(prev){ prev.classList.remove('busy'); prev.innerHTML='<img src="'+url+'" alt="">'; }
+/* One widget, two very different callers.
+     • An APPLICANT, not signed in, photographing their own CNIC. Their file goes
+       to signup-uploads, which is write-only to a stranger and cannot be read
+       back at all, and what we keep is the path.
+     • A signed-in REP attaching a buyer's papers. Nothing about that changes
+       here; it keeps the public address it has always kept.
+   The two are told apart the way they always were — by which token is in hand. */
+function _capDone(key,ref,blob){
+  CAP[key]=ref;
+  const prev=$('cap-'+key+'-prev');
+  if(prev){
+    prev.classList.remove('busy');
+    prev.innerHTML='<img alt="">';
+    // drawn from the file in your hand: the applicant's copy cannot be read back,
+    // and this appears instantly for everyone else too
+    try{ prev.firstChild.src=(blob?URL.createObjectURL(blob):ref); }catch(e){ prev.firstChild.src=ref; }
+  }
   const wrap=$('cap-'+key); if(wrap) wrap.querySelectorAll('.cap-btn').forEach(b=>b.classList.add('done'));
 }
 async function _capPut(blob,key,ext){
+  const signup=!!SIGNUP_TOKEN;
   const tok=SIGNUP_TOKEN||UPLOAD_TOKEN;
   if(!tok){ _capShowErr('Upload not available — please sign in again.'); return; }
   const prev=$('cap-'+key+'-prev');
   if(prev){ prev.classList.add('busy'); prev.textContent='…'; }
   try{
+    const bucket=signup?'signup-uploads':'rms-documents';
     const path='sales-signup/'+tok+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+(ext||'jpg');
-    const up=await sb.storage.from('rms-documents').upload(path,blob,{upsert:false,contentType:blob.type||'image/jpeg'});
+    const up=await sb.storage.from(bucket).upload(path,blob,{upsert:false,contentType:blob.type||'image/jpeg'});
     if(up.error) throw up.error;
-    _capDone(key, sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl);
+    if(signup) _capDone(key, path, blob);
+    else        _capDone(key, sb.storage.from(bucket).getPublicUrl(path).data.publicUrl, blob);
   }catch(e){
     if(prev){ prev.classList.remove('busy'); prev.textContent='!'; }
     _capShowErr('Could not upload image. Try again or use Browse.');
@@ -2089,7 +2106,7 @@ async function doRegister(){
   const btn=$('reg-btn'); btn.disabled=true; btn.textContent='Submitting…';
   try{
     const {data,error}=await sb.rpc('sales_register',{p_signup_token:SIGNUP_TOKEN,p_name:name,p_father_name:father,p_phone:ph,p_pin:pin,p_cnic:cnic,
-      p_profile_photo_url:CAP.photo,p_cnic_front_url:CAP.cf,p_cnic_back_url:CAP.cb,
+      p_profile_photo_path:CAP.photo,p_cnic_front_path:CAP.cf,p_cnic_back_path:CAP.cb,
       p_email:email||null,p_address:address||null,p_signature_name:sign});
     if(error) throw error;
     if(!data||!data.success){ err.textContent=(data&&data.message)||'Could not register.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; return; }

@@ -112,13 +112,22 @@ function docHref(d) {                              // an <a> that resolves on de
   return d.path ? `data-doc-open="${esc(d.path)}" href="#"` : `href="${esc(d.url)}" target="_blank" rel="noopener"`;
 }
 
+// Two private buckets, and the path says which. A staff document sits under
+// identity/ or profile/; an application that has not been approved yet sits
+// under sales-signup/, in the room a stranger is allowed to post into. Reading
+// them is the same act with the same rule — an administrator of that business —
+// so the screens should not have to know the difference.
+function docBucket(path) {
+  return String(path || '').startsWith('sales-signup/') ? 'signup-uploads' : 'employee-private';
+}
+
 // One document, one link — for the places that hold on to a fixed element (a
 // form preview, a page about to be printed) and cannot have it replaced.
 async function docResolve(d) {
   if (!d) return null;
   if (d.url) return d.url;
   try {
-    const { data } = await supabase.storage.from('employee-private').createSignedUrl(d.path, 300);
+    const { data } = await supabase.storage.from(docBucket(d.path)).createSignedUrl(d.path, 300);
     return (data && data.signedUrl) || null;
   } catch (e) { return null; }
 }
@@ -129,10 +138,16 @@ async function docHydrate(root) {
   if (!els.length) return;
   const paths = Array.from(new Set(els.map(e => e.dataset.doc || e.dataset.docOpen).filter(Boolean)));
   let map = {};
-  try {
-    const { data } = await supabase.storage.from('employee-private').createSignedUrls(paths, 300);
-    (data || []).forEach(d => { if (d && d.signedUrl) map[d.path] = d.signedUrl; });
-  } catch (e) { /* falls through to the "cannot open" state below */ }
+  // grouped by the bucket each path belongs to, so it is still one request per
+  // bucket rather than one per picture
+  const byBucket = {};
+  paths.forEach(p => { (byBucket[docBucket(p)] = byBucket[docBucket(p)] || []).push(p); });
+  await Promise.all(Object.keys(byBucket).map(async b => {
+    try {
+      const { data } = await supabase.storage.from(b).createSignedUrls(byBucket[b], 300);
+      (data || []).forEach(d => { if (d && d.signedUrl) map[d.path] = d.signedUrl; });
+    } catch (e) { /* falls through to the "cannot open" state below */ }
+  }));
 
   els.forEach(el => {
     const p = el.dataset.doc || el.dataset.docOpen;
