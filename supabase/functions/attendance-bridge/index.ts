@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
   let body: {
     session_token?: string; action?: string; from?: string; to?: string;
     leave_type?: string; reason?: string; day_part?: string;
-    contact?: string; request_id?: string; project_id?: string;
+    contact?: string; request_id?: string; project_id?: string; year?: number;
   };
   try {
     body = await req.json();
@@ -214,6 +214,20 @@ Deno.serve(async (req) => {
       if (error) throw error;
       if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
       if (data?.error) return json({ ok: false, error: data.error, message: WHY[data.error] || 'Your pay cannot be worked out yet.' });
+      return json({ tenant: ctx.attend_company_name, ...data });
+    }
+
+    if (action === 'holidays') {
+      // The company calendar. The dashboard wants the next one, the Leave page
+      // wants the year — one call answers both rather than two shapes of the
+      // same list. No CNIC: a holiday is not personal.
+      const { data, error } = await att.rpc('portal_holidays', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
+        p_year: body.year ?? null,
+      });
+      if (error) throw error;
+      if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
       return json({ tenant: ctx.attend_company_name, ...data });
     }
 
