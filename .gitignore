@@ -23,7 +23,11 @@ demo-react/
 *.swp
 
 # ── MCP local config (contains Supabase access token) ────
+# .mcp.json holds an access token. So does any copy of it — a .backup left
+# behind by an edit is the same secret with a different name, and was one
+# "git add ." away from being published.
 .mcp.json
+.mcp.json.*
 
 # ── OS noise ─────────────────────────────────────────────
 .DS_Store

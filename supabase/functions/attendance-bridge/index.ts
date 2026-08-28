@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
     contact?: string; request_id?: string; project_id?: string; year?: number;
     attachment_name?: string; attachment_path?: string;
     path?: string; ext?: string; content_type?: string;
+    ticket?: string;
   };
   try {
     body = await req.json();
@@ -246,8 +247,11 @@ Deno.serve(async (req) => {
 
     if (action === 'doc_url') {
       const path = String(body.path || '');
-      const mine = `leave/${ctx.sales_user_id}/`;
-      if (!path.startsWith(mine)) {
+      // Three kinds of document, one rule: the caller's own id is the second
+      // segment of the path, or the answer is no. A sick note, an identity card
+      // and a photograph are all somebody's own and nobody else's.
+      const mine = ['leave', 'identity', 'profile'].map((k) => `${k}/${ctx.sales_user_id}/`);
+      if (!mine.some((m) => path.startsWith(m))) {
         return json({ ok: false, error: 'not_yours', message: 'That document is not yours.' }, 403);
       }
       const { data, error } = await rms.storage.from('employee-private').createSignedUrl(path, 120);

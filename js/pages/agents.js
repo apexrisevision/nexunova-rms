@@ -109,9 +109,13 @@ function _agModalHost() {
 }
 
 function _agAvatar(agent, size = 40) {
-  if (agent.profile_photo_url) {
-    return `<img src="${esc(agent.profile_photo_url)}" alt="${esc(agent.full_name)}"
-      style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
+  // The photograph is somebody's identity document, kept in a bucket that
+  // answers nobody. The frame goes out with the path on it; docHydrate() puts a
+  // five-minute link in once the card is on the page.
+  const d = docSrc(agent.profile_photo_path, agent.profile_photo_url);
+  if (d) {
+    return docImg(d, `alt="${esc(agent.full_name)}"
+      style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0"`);
   }
   const initials = ini(agent.full_name);
   return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:var(--fk-primary-tint);color:var(--fk-primary);
@@ -245,6 +249,7 @@ function _renderAgentGrid(agents) {
     return;
   }
 
+  setTimeout(() => docHydrate(grid), 0);   // the photographs, once the cards exist
   grid.innerHTML = `<div class="agc-grid">${agents.map((a, idx) => {
     const pending = Number(a.total_commission_pending || 0);
     const earned  = Number(a.total_commission_earned  || 0);
@@ -418,13 +423,16 @@ function _renderAgentDetail(a, sales, ext, commPays, subAgents, parentAgent) {
       : `<div class="agd-op"><div><div class="agd-op-t">Reactivate agent</div><div class="agd-op-s">Restore this agent to active status</div></div>${NX.button('Reactivate',{variant:'secondary',size:'sm',onclick:`reactivateAgent('${a.id}')`})}</div>`}
     <div class="agd-op"><div><div class="agd-op-t" style="color:var(--fk-danger)">Delete agent</div><div class="agd-op-s">Permanent — only if no sales on record</div></div>${NX.button('Delete',{variant:'danger-soft',size:'sm',icon:'trash-2',onclick:`deleteAgentConfirm('${a.id}')`})}</div>` : '';
 
-  const docsBody = (a.cnic_front_url || a.cnic_back_url || ext.contract_doc_url) ? `
-    ${(a.cnic_front_url || a.cnic_back_url) ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
-      ${a.cnic_front_url ? `<div style="flex:1;min-width:110px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">CNIC Front</div><a href="${esc(a.cnic_front_url)}" target="_blank"><img class="ag-doc-img" src="${esc(a.cnic_front_url)}"></a></div>` : ''}
-      ${a.cnic_back_url ? `<div style="flex:1;min-width:110px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">CNIC Back</div><a href="${esc(a.cnic_back_url)}" target="_blank"><img class="ag-doc-img" src="${esc(a.cnic_back_url)}"></a></div>` : ''}
+  const dFront = docSrc(a.cnic_front_path, a.cnic_front_url);
+  const dBack  = docSrc(a.cnic_back_path,  a.cnic_back_url);
+  const docsBody = (dFront || dBack || ext.contract_doc_url) ? `
+    ${(dFront || dBack) ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${dFront ? `<div style="flex:1;min-width:110px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">CNIC Front</div><a ${docHref(dFront)}>${docImg(dFront, 'class="ag-doc-img"')}</a></div>` : ''}
+      ${dBack ? `<div style="flex:1;min-width:110px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">CNIC Back</div><a ${docHref(dBack)}>${docImg(dBack, 'class="ag-doc-img"')}</a></div>` : ''}
     </div>` : ''}
     ${ext.contract_doc_url ? `<div style="margin-top:12px"><div style="font-size:11px;color:var(--fk-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Agent Contract</div><a href="${esc(ext.contract_doc_url)}" target="_blank" class="nx-btn nx-btn--secondary nx-btn--sm">${NX.icon('file-text',15)}<span>View contract</span></a></div>` : ''}` : '';
 
+  setTimeout(() => docHydrate(pg), 0);   // the photograph and the two sides of the card
   pg.innerHTML = `<div class="ani">
     <div id="ad-form-nav"></div>
     <div class="pd-actions no-p" style="margin-bottom:16px">${NX.button('Back',{variant:'ghost',icon:'arrow-left',onclick:"nav('agents')"})}</div>
@@ -688,7 +696,10 @@ async function openAgentModal(agentId) {
       sv('af-address', a.address); sv('af-notes', a.notes); sv('af-bank-name', a.bank_name);
       sv('af-bank-acct', a.bank_account_no); sv('af-bank-title', a.bank_account_title); sv('af-join-date', a.join_date || '');
       const prevPhoto = document.getElementById('af-photo-preview');
-      if (a.profile_photo_url && prevPhoto) { prevPhoto.src = a.profile_photo_url; prevPhoto.style.display = 'block'; }
+      const dPhoto = docSrc(a.profile_photo_path, a.profile_photo_url);
+      if (dPhoto && prevPhoto) {
+        docResolve(dPhoto).then(u => { if (u) { prevPhoto.src = u; prevPhoto.style.display = 'block'; } });
+      }
     }
     try {
       const { data: ext } = await supabase.rpc('get_agent_extended', { p_id: agentId, p_company_id: S.cid });
@@ -1661,9 +1672,12 @@ async function printAgentStatement(agentId) {
 }
 
 // ── Print Agent Profile ──────────────────────────────────────────────
-function printAgentProfile() {
+async function printAgentProfile() {
   if (!_agPrintData) { toast('No agent data loaded', 'warn'); return; }
   const { a, ext, sales, commPays } = _agPrintData;
+  // The print window is built as one string and handed over — nothing runs in
+  // it afterwards — so the photograph's link has to be in hand before we start.
+  const photoUrl = await docResolve(docSrc(a.profile_photo_path, a.profile_photo_url));
 
   const commPaidTotal = commPays.reduce((s, p) => s + Number(p.amount || 0), 0);
   const commEarned    = Number(a.total_commission_earned || 0);
@@ -1676,8 +1690,8 @@ function printAgentProfile() {
        </tr>`
     : '';
 
-  const photoHtml = a.profile_photo_url
-    ? `<img src="${a.profile_photo_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;float:right;margin:0 0 10px 16px;border:2px solid #C9A84C">`
+  const photoHtml = photoUrl
+    ? `<img src="${esc(photoUrl)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;float:right;margin:0 0 10px 16px;border:2px solid #C9A84C">`
     : '';
 
   const salesRows = sales.length > 0

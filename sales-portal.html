@@ -6243,7 +6243,8 @@ async function renderProfile(){
   _touch();
   const p=data.profile||{}; PROFILE=p;
   const initials=((p.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
-  const avatar=p.profile_photo_url?`<img src="${esc(p.profile_photo_url)}" style="width:100%;height:100%;object-fit:cover">`:esc(initials);
+  const _pFace=_pdoc(p.profile_photo_path,p.profile_photo_url);
+  const avatar=_pFace?_pdocImg(_pFace,'style="width:100%;height:100%;object-fit:cover"'):esc(initials);
   const kyc = p.kyc_status==='verified'
     ? '<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success);flex:none"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><path d="M20 6 9 17l-5-5"/></svg>Verified</span>'
     : '<span class="spill" style="flex:none">KYC '+esc(p.kyc_status||'pending')+'</span>';
@@ -6270,6 +6271,7 @@ async function renderProfile(){
   if(_installEligible()) html+=`<button class="btn btn-sm btn-primary btn-full" style="margin-top:8px" onclick="_installNow()">${_svgDownload(14)} Install app</button>`;
   html+=`<button class="btn btn-sm btn-full btn-danger-soft" style="margin-top:8px" onclick="doLogout()">Sign out</button>`;
   $('app-body').innerHTML=html;
+  _pdocFill($('app-body'));           // your own photograph, on a link that expires
   if(ME&&ME.role==='director') _renderMyLocCard();
   _renderNotifCard();
 }
@@ -7263,6 +7265,54 @@ async function _lvOpenDoc(el, path){
     window.open(r.url, '_blank', 'noopener');
   }catch(e){ toast('Could not open that document.', 'err'); }
   el.textContent = was;
+}
+
+/* ── your own identity documents ─────────────────────────────────────────────
+   The photograph and the two sides of the card are kept in a bucket that
+   answers nobody, and the portal holds no key of its own. So a screen draws the
+   frame with the path on it and asks the bridge for a link — which the bridge
+   gives only when this person's own id is in the path. Nobody else's document
+   has a path that would pass, so there is nothing worth guessing.
+
+   Records signed up before the move still carry an ordinary address; those are
+   shown as they were, so a half-finished move blanks nobody's file. */
+const _pdoc = (path, url) => path ? { path } : (url ? { url } : null);
+
+function _pdocImg(d, attr){
+  if(!d) return '';
+  return d.path ? '<img data-doc="' + esc(d.path) + '" ' + (attr || '') + '>'
+                : '<img src="' + esc(d.url) + '" ' + (attr || '') + '>';
+}
+function _pdocHref(d){
+  if(!d) return '';
+  return d.path ? 'data-doc-open="' + esc(d.path) + '" href="#"'
+                : 'href="' + esc(d.url) + '" target="_blank" rel="noopener"';
+}
+async function _pdocFill(root){
+  root = root || document;
+  const els = Array.prototype.slice.call(root.querySelectorAll('[data-doc],[data-doc-open]'));
+  if(!els.length) return;
+  const want = [];
+  els.forEach(e => { const p = e.getAttribute('data-doc') || e.getAttribute('data-doc-open');
+                     if(p && want.indexOf(p) < 0) want.push(p); });
+  const map = {};
+  await Promise.all(want.map(async p => {
+    try{ const r = await _myrecCall({ action: 'doc_url', path: p }); if(r && r.ok && r.url) map[p] = r.url; }
+    catch(e){ /* stays unresolved, and says so below */ }
+  }));
+  els.forEach(el => {
+    const p = el.getAttribute('data-doc') || el.getAttribute('data-doc-open');
+    const u = map[p];
+    if(el.hasAttribute('data-doc')){
+      if(u){ el.src = u; el.removeAttribute('data-doc'); }
+      else { el.style.display = 'none'; }
+    } else if(u){
+      el.setAttribute('data-doc-url', u);
+      el.onclick = ev => { ev.preventDefault(); window.open(el.getAttribute('data-doc-url'), '_blank', 'noopener'); };
+    } else {
+      el.onclick = ev => ev.preventDefault();
+    }
+  });
 }
 
 function _lvOpen(id){ MYREC.leaveOpen = (MYREC.leaveOpen === id) ? null : id; renderMyRecord(); }
@@ -8893,8 +8943,9 @@ async function renderMyRecord(){
      Initials stand in for anybody the office added by hand instead. */
   const prof=await _myrecProfile()||{};
   const _mrIni=((emp.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
-  const _mrFace=prof.profile_photo_url
-    ? '<img src="'+esc(prof.profile_photo_url)+'" alt="" style="width:100%;height:100%;object-fit:cover">'
+  const _mrPic=_pdoc(prof.profile_photo_path,prof.profile_photo_url);
+  const _mrFace=_mrPic
+    ? _pdocImg(_mrPic,'alt="" style="width:100%;height:100%;object-fit:cover"')
     : esc(_mrIni);
   const coverChips=[
     emp.employee_code?_myrecChip('File '+emp.employee_code):'',
@@ -9420,14 +9471,15 @@ async function renderMyRecord(){
        person who handed them over; a file that claims "Verified" should be
        able to show what it verified against. Card ratio, and tapping one opens
        the full image — a thumbnail is too small to check a number on. */
-    const scan=(u,l)=>u?('<a href="'+esc(u)+'" target="_blank" rel="noopener" '
+    const scan=(d,l)=>d?('<a '+_pdocHref(d)+' '
       +'style="flex:1 1 0;min-width:0;text-decoration:none;color:inherit">'
       +'<div style="aspect-ratio:1.585;border-radius:8px;overflow:hidden;'
       +'border:1px solid var(--fk-border);background:var(--fk-bg-subtle)">'
-      +'<img src="'+esc(u)+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover"></div>'
+      +_pdocImg(d,'alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover"')+'</div>'
       +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
       +'font-weight:600;color:var(--fk-text-muted);margin-top:5px;text-align:center">'+esc(l)+'</div></a>'):'';
-    const scans=scan(prof.cnic_front_url,'CNIC front')+scan(prof.cnic_back_url,'CNIC back');
+    const scans=scan(_pdoc(prof.cnic_front_path,prof.cnic_front_url),'CNIC front')
+              + scan(_pdoc(prof.cnic_back_path,prof.cnic_back_url),'CNIC back');
     html+=sec('Verification',
         row('CNIC on file',prof.kyc_status==='verified'?'Verified':(prof.kyc_status||''))
       + row('Email',prof.email?(prof.email_verified?'Verified':'Not verified yet'):'')
@@ -9505,6 +9557,7 @@ async function renderMyRecord(){
 
   b.innerHTML=html+'</div>';
   if(window.lucide) lucide.createIcons();
+  _pdocFill(b);                       // the photograph and the two sides of the card
 }
 
 async function renderPerformance(){

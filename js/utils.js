@@ -84,3 +84,70 @@ document.addEventListener('input',function(e){
   const raw=el.value.replace(/[^0-9]/g,'');
   el.value=raw?Number(raw).toLocaleString('en-US'):'';
 });
+
+/* ── documents that belong to a person ────────────────────────────────────────
+   A CNIC scan is not a picture on a page. It lives in a bucket that answers
+   nobody — no address, public or guessed, opens it — so a screen cannot put a
+   src on an <img> and be done. It renders the frame with the PATH on it, and
+   asks here for a link that works for five minutes and then stops.
+
+   One request for the whole screen, not one per picture: an application panel
+   opens with a photograph and two sides of a card, and three round trips would
+   be three times the wait for nothing.
+
+   Records that have not been moved yet still carry a plain URL. Those are shown
+   as they were — a half-finished migration must not blank out a document that
+   an administrator can still legitimately see. */
+function docSrc(path, url) {                       // what to render the frame with
+  return path ? { path } : (url ? { url } : null);
+}
+function docImg(d, attr) {                         // an <img> that fills itself in
+  if (!d) return '';
+  return d.path
+    ? `<img data-doc="${esc(d.path)}" ${attr || ''}>`
+    : `<img src="${esc(d.url)}" ${attr || ''}>`;
+}
+function docHref(d) {                              // an <a> that resolves on demand
+  if (!d) return '';
+  return d.path ? `data-doc-open="${esc(d.path)}" href="#"` : `href="${esc(d.url)}" target="_blank" rel="noopener"`;
+}
+
+// One document, one link — for the places that hold on to a fixed element (a
+// form preview, a page about to be printed) and cannot have it replaced.
+async function docResolve(d) {
+  if (!d) return null;
+  if (d.url) return d.url;
+  try {
+    const { data } = await supabase.storage.from('employee-private').createSignedUrl(d.path, 300);
+    return (data && data.signedUrl) || null;
+  } catch (e) { return null; }
+}
+
+async function docHydrate(root) {
+  root = root || document;
+  const els = Array.from(root.querySelectorAll('[data-doc],[data-doc-open]'));
+  if (!els.length) return;
+  const paths = Array.from(new Set(els.map(e => e.dataset.doc || e.dataset.docOpen).filter(Boolean)));
+  let map = {};
+  try {
+    const { data } = await supabase.storage.from('employee-private').createSignedUrls(paths, 300);
+    (data || []).forEach(d => { if (d && d.signedUrl) map[d.path] = d.signedUrl; });
+  } catch (e) { /* falls through to the "cannot open" state below */ }
+
+  els.forEach(el => {
+    const p = el.dataset.doc || el.dataset.docOpen;
+    const u = map[p];
+    if (el.hasAttribute('data-doc')) {
+      if (u) { el.src = u; el.removeAttribute('data-doc'); }
+      else { el.replaceWith(Object.assign(document.createElement('div'), {
+        style: 'width:100%;height:100%;display:grid;place-items:center;font-size:11px;color:var(--fk-text-muted)',
+        textContent: 'Cannot open' })); }
+    } else if (u) {
+      // opened through the same short-lived link, in a new tab, on the click
+      el.dataset.docUrl = u;
+      el.onclick = ev => { ev.preventDefault(); window.open(el.dataset.docUrl, '_blank', 'noopener'); };
+    } else {
+      el.onclick = ev => ev.preventDefault();
+    }
+  });
+}
