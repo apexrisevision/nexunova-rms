@@ -9596,14 +9596,27 @@ async function renderMyRecord(){
               +'what was deducted and what was paid.')
           +'</div></div>';
       } else {
+        /* A month at a glance: what it came to, what came off it, and what was
+           left. Net alone made every month look the same size — the gross and
+           the deductions are what tell one from another. Wrapped rather than
+           tabulated, so a phone gets the same three numbers as a desktop. */
         S9.forEach(s=>{
-          html+='<div class="trow" onclick="_myrecSlip(\''+esc(s.id)+'\')"><div style="flex:1;min-width:0">'
-            +'<div class="lr-name">'+esc(MON[(s.month||1)-1]+' '+s.year)+'</div>'
-            +'<div class="lr-sub"><span>'+esc((s.present_days||0)+' of '+(s.working_days||0)+' days')+'</span></div>'
-            +'</div>'
-            +'<div style="display:flex;align-items:center;gap:8px">'
+          const ded = Number(s.total_deductions || 0);
+          html+='<div class="att-row" style="grid-template-columns:1fr auto;cursor:pointer" '
+            +'onclick="_myrecSlip(\''+esc(s.id)+'\')">'
+            +'<div style="min-width:0">'
+            +'<div class="att-day">'+esc(MON[(s.month||1)-1]+' '+s.year)+'</div>'
+            +'<div class="att-meta">'
+              +'<span>Gross <b>'+rs9(s.gross_salary)+'</b></span>'
+              +(ded?'<span>Deductions <b>− '+rs9(ded)+'</b></span>':'')
+              +'<span>'+esc((s.present_days||0)+' of '+(s.working_days||0)+' days')+'</span>'
+            +'</div></div>'
+            +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">'
             +'<b style="font-variant-numeric:tabular-nums">'+rs9(s.net_salary)+'</b>'
-            +_myrecChip(s.status==='paid'?'Paid':'Issued', s.status==='paid'?'ok':null)+'</div></div>';
+            +_myrecChip(s.status==='paid'?'Paid':'Issued', s.status==='paid'?'ok':null)
+            +'<button type="button" class="btn btn-secondary" style="height:30px;padding:0 11px;'
+            +'font-size:var(--fs-caption)" onclick="event.stopPropagation();_myrecSlip(\''+esc(s.id)+'\')">View</button>'
+            +'</div></div>';
         });
         // a month already under way, named but not priced
         if(PEND.length){
