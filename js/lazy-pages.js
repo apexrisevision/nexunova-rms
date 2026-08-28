@@ -33,7 +33,7 @@
   var SALES        = ['js/pages/sales.js?v=20260817disc'];
   var PROJECTS     = ['js/pages/projects.js?v=20260613ps'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
-  var AGENTS       = ['js/pages/agents.js?v=20260721clean'];
+  var AGENTS       = ['js/pages/agents.js?v=20260828priv'];
   var REPORTS      = ['js/pages/reports.js?v=20260805balfinal'];
   var AUDIT        = ['js/pages/audit.js?v=20260706p2b'];
   var ADMIN        = ['js/pages/admin.js?v=20260706p1b'];
@@ -55,7 +55,7 @@
   ];
   // Online Portal is one tab-set spanning four modules that call into each other.
   var PORTAL = [
-    'js/pages/sales-access.js?v=20260827roles',
+    'js/pages/sales-access.js?v=20260828priv',
     'js/pages/sale-submissions.js?v=20260617nom',
     'js/pages/reservations.js?v=20260615p2',
     'js/pages/dealer-agreement.js?v=20260618'
