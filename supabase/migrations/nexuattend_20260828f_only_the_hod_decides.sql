@@ -1,0 +1,20 @@
+-- NexuAttend (attendance project) — applied there, recorded here.
+--
+-- Two changes, one rule: only the Head of Department decides anything.
+--
+-- 1. portal_apply_leave now writes status 'pending' instead of 'submitted'.
+--    'submitted' is the status that shows HR's "Approve & send up" button on
+--    leave.html; the HOD's Decision button only appears on 'pending'. So a
+--    leave sent from the portal was never reaching the person who decides it
+--    until HR forwarded it. HR raising one inside the app always wrote
+--    'pending' directly — this makes both doors lead to the same place.
+--    The overlap check still counts 'submitted', so applications raised before
+--    the change are not forgotten.
+--
+-- 2. guard_visit_decision — the same lock leave has had, on visits. It refuses
+--    the decision to anybody who is not 'manager' (admin deliberately included)
+--    and stamps decided_by_user/decided_at from auth.uid(), never from the
+--    browser. Withdrawing (the employee) and recording the gate times (the
+--    front desk) are explicitly not decisions and are left alone.
+--
+--    Verified by impersonation: hr refused, admin refused, manager approved.

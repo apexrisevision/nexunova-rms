@@ -1331,6 +1331,40 @@ button.mn-card:active{transform:scale(.985)}
 .tbd-c.blocked{box-shadow:inset 3px 0 0 var(--fk-danger)}
 .tbd-chip.blk{background:var(--fk-danger);color:#fff;border-color:transparent;font-weight:var(--fk-fw-bold)}
 
+/* ── the notification centre ──────────────────────────────────────────────────
+   A bell with a red number on it, and a panel that drops from it. Each line is
+   a thing that happened and a place to go; tapping one takes you there and
+   nowhere else.
+
+   The count is red and not the brand colour on purpose: this is the one badge
+   in the portal that means "somebody answered you", and it should not be
+   mistaken for the ordinary blue chrome around it. */
+.nbell{position:absolute;top:2px;right:0;min-width:17px;height:17px;padding:0 4px;border-radius:999px;
+  background:var(--fk-danger);color:#fff;font-size:10px;font-weight:var(--fk-fw-bold);line-height:17px;
+  text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--fk-bar);display:none}
+.nbell.show{display:block}
+.npanel{position:fixed;top:56px;right:10px;width:min(370px,calc(100vw - 20px));max-height:min(70vh,520px);
+  overflow:auto;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:14px;
+  box-shadow:0 18px 48px rgba(0,0,0,.32);z-index:60;display:none}
+.npanel.show{display:block}
+.nhead{position:sticky;top:0;background:var(--fk-bg-card);border-bottom:1px solid var(--fk-hairline);
+  padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.nhead b{font-size:var(--fs-body)}
+.nrow{display:flex;gap:11px;padding:11px 14px;border-bottom:1px solid var(--fk-hairline);cursor:pointer;
+  align-items:flex-start}
+.nrow:last-child{border-bottom:0}
+.nrow:hover{background:var(--fk-bg-subtle)}
+.nrow.unseen{background:var(--fk-primary-tint)}
+.nrow .nic{width:32px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+.nrow .ntx{min-width:0;flex:1}
+.nrow .ntx{display:flex;flex-direction:column}
+.nrow .ntt{display:block;font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);line-height:1.35;overflow-wrap:anywhere}
+.nrow .nsb{display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:2px;line-height:1.45;
+  overflow-wrap:anywhere}
+.nrow .ndot{width:8px;height:8px;border-radius:50%;background:var(--fk-danger);flex:none;margin-top:6px}
+.nempty{padding:26px 16px;text-align:center;color:var(--fk-text-muted);font-size:var(--fs-secondary)}
+
 /* ── the attendance sheet ─────────────────────────────────────────────────────
    A month of days, read on a phone. Not a table squeezed down: a table with
    eight columns at 412px is either unreadable or scrolls sideways, and both are
@@ -1676,6 +1710,7 @@ button.mn-card:active{transform:scale(.985)}
         <div class="sb-grp-body">
           <a class="ni" data-tab="ess-att" onclick="setTab('ess-att')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">Attendance</span></a>
           <a class="ni" data-tab="ess-leave" onclick="setTab('ess-leave')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg></span><span class="ni-lb">Leave</span></a>
+          <a class="ni" data-tab="ess-visit" onclick="setTab('ess-visit')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v12"/><path d="M3 21h18"/><path d="M5 21V11l7-6 7 6v10"/></svg></span><span class="ni-lb">Official visit</span></a>
           <a class="ni" data-tab="ess-pay" onclick="setTab('ess-pay')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg></span><span class="ni-lb">Payroll</span></a>
           <a class="ni" data-tab="ess-docs" onclick="setTab('ess-docs')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></span><span class="ni-lb">Documents</span></a>
           <a class="ni" data-tab="ess-file" onclick="setTab('ess-file')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="ni-lb">My file</span></a>
@@ -1697,9 +1732,10 @@ button.mn-card:active{transform:scale(.985)}
       <div style="flex:1"></div>
       <button class="appbar-btn" id="appbar-refresh" onclick="_appRefresh()" title="Refresh"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="appbar-btn" id="appbar-theme" onclick="toggleTheme()" title="Light / dark"></button>
-      <button class="appbar-btn" id="appbar-bell" onclick="setTab('updates')" title="Messages" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="btab-badge" id="ann-badge"></span></button>
+      <button class="appbar-btn" id="appbar-bell" onclick="_notifToggle(event)" title="Notifications" style="position:relative" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="btab-badge" id="ann-badge"></span><span class="nbell" id="nbell"></span></button>
       <div class="top-av" id="top-av" onclick="setTab('profile')" title="My profile">RM</div>
     </header>
+    <div class="npanel" id="npanel" role="dialog" aria-label="Notifications"></div>
     <main class="appbody"><div id="app-body"></div></main>
   </div>
  </div>
@@ -2460,9 +2496,9 @@ function _syncBtabs(t){
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
   if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
-  if(ME&&_isOfficeRole(ME.role)){ setTab('home'); try{ loadAnnouncements(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&_isOfficeRole(ME.role)){ setTab('home'); try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   setTab(PENDING_TAB==='alerts'?'alerts':'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
-  try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
+  try{ _notifLoad(); }catch(e){} try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
   if(!ME || !ME.sales_user_name){
@@ -2532,7 +2568,7 @@ function setTab(t,_back){
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2572,6 +2608,7 @@ function setTab(t,_back){
   // arrives with its own section chosen, its own title and its own nav entry.
   else if(t==='ess-att'){   MYREC.sub='attendance'; MYREC.slip=null; renderMyRecord(); }
   else if(t==='ess-leave'){ MYREC.sub='leave';      MYREC.slip=null; renderMyRecord(); }
+  else if(t==='ess-visit'){ MYREC.sub='visit';      MYREC.slip=null; renderMyRecord(); }
   else if(t==='ess-pay'){   MYREC.sub='pay';        MYREC.slip=null; renderMyRecord(); }
   else if(t==='ess-docs'){  MYREC.sub='letters';    MYREC.slip=null; renderMyRecord(); }
   else if(t==='ess-file'){  MYREC.sub='file';       MYREC.slip=null; renderMyRecord(); }
@@ -2610,7 +2647,7 @@ const _GRP_OF={
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
   dailyreport:'management', givenleads:'management',
   alerts:'workspace', leads:'workspace', myentered:'workspace', board:'company', unitmap:'company', project:'company', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
-  'ess-att':'self', 'ess-leave':'self', 'ess-pay':'self', 'ess-docs':'self', 'ess-file':'self', profile:'self',
+  'ess-att':'self', 'ess-leave':'self', 'ess-visit':'self', 'ess-pay':'self', 'ess-docs':'self', 'ess-file':'self', profile:'self',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
 };
@@ -7719,6 +7756,314 @@ function _essIdentity(emp, prof, tenant){
     + '</div>';
 }
 
+/* ── waiting is a state, and it should look like one ─────────────────────────
+   A request that has been sent and not yet answered is the single most
+   misreadable thing in this portal: the person has done everything they can,
+   the screen goes quiet, and quiet reads as yes. So while anything is still
+   undecided it is said plainly, in amber, at the top of the list — with the
+   count, so two pending requests are not mistaken for one.
+
+   Statuses come from the register, not from here: leave travels
+   submitted → returned → pending → approved/rejected/cancelled, a visit
+   requested → forwarded → approved/rejected/cancelled. Everything before a
+   decision is "waiting". */
+const _ESS_WAITING = ['submitted', 'returned', 'pending', 'requested', 'forwarded'];
+
+function _essPendingBanner(rows, what){
+  const open = (rows || []).filter(r => _ESS_WAITING.indexOf(String(r.status || '').toLowerCase()) > -1);
+  if(!open.length) return '';
+  const noun = what === 'visit' ? 'visit request' : 'leave application';
+  return '<div style="margin-bottom:12px;padding:12px 14px;border-radius:12px;'
+    + 'background:var(--fk-warning-surface);border:1px solid var(--fk-warning);'
+    + 'display:flex;gap:11px;align-items:flex-start">'
+    + '<span style="flex:none;color:var(--fk-warning);margin-top:1px">' + li('clock', 17, 2) + '</span>'
+    + '<div style="min-width:0">'
+    + '<div style="font-weight:700;font-size:var(--fs-secondary);color:var(--fk-warning)">'
+    + esc(open.length === 1 ? 'Your ' + noun + ' is still waiting for a decision'
+                            : open.length + ' ' + noun + 's are still waiting for a decision') + '</div>'
+    + '<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:3px;line-height:1.5">'
+    + 'This is <b>not</b> approval. Please carry on as normal until your Head of Department decides — '
+    + 'you will be told here as soon as they do.</div>'
+    + '</div></div>';
+}
+
+/* ── asking to go out ────────────────────────────────────────────────────────
+   The mirror of the leave form, and deliberately no more than that: it raises
+   a request and withdraws one that has not been answered. It cannot approve
+   anything, and it cannot say what time somebody actually left — that is the
+   gate's record, kept by the front desk. */
+function _ovAsk(){ MYREC.askingVisit = true; renderMyRecord(); }
+function _ovCancelAsk(){ MYREC.askingVisit = false; renderMyRecord(); }
+
+// "Who you are meeting" is required for company business and meaningless for a
+// personal errand — the register itself insists on it, so the form does too.
+function _ovType(){
+  const t = ($('ov-type') || {}).value, w = $('ov-meet-wrap');
+  if(w) w.style.display = (t === 'personal') ? 'none' : '';
+}
+
+// a time on the chosen day, as an instant, or nothing
+function _ovAt(date, hhmm){
+  if(!date || !hhmm) return null;
+  try{ return new Date(date + 'T' + hhmm + ':00+05:00').toISOString(); }catch(e){ return null; }
+}
+
+async function _ovSubmit(){
+  const err = $('ov-err');
+  const show = m => { if(err){ err.textContent = m; err.style.display = 'block'; } };
+  if(err) err.style.display = 'none';
+  if(MYREC.busy) return;
+
+  const type = ($('ov-type') || {}).value || 'official';
+  const date = ($('ov-date') || {}).value || '';
+  const loc  = (($('ov-loc') || {}).value || '').trim();
+  const meet = (($('ov-meet') || {}).value || '').trim();
+  const why  = (($('ov-reason') || {}).value || '').trim();
+
+  if(!date) return show('Pick the date you need to go out.');
+  if(!loc)  return show('Say where you are going.');
+  if(type === 'official' && !meet) return show('Say who you are meeting — an official visit needs a name.');
+  if(!why)  return show('Please say why you need to go.');
+
+  MYREC.busy = true;
+  const btn = $('ov-send'); if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+  let out;
+  try{
+    out = await _myrecCall({ action:'request_visit', visit_type:type, date:date,
+      expected_out:_ovAt(date, ($('ov-out')||{}).value),
+      expected_in: _ovAt(date, ($('ov-in') ||{}).value),
+      location:loc, meeting_with:meet || null, reason:why });
+  }catch(e){ out = null; }
+  MYREC.busy = false;
+
+  if(!out || !out.ok){
+    if(btn){ btn.disabled = false; btn.textContent = 'Send for approval'; }
+    return show((out && out.message) || 'That could not be sent. Please try again.');
+  }
+  MYREC.askingVisit = false; MYREC.data = null;
+  toast('Sent for approval — ' + out.request_no);
+  renderMyRecord();
+}
+
+async function _ovWithdraw(id){
+  if(!confirm('Withdraw this request?')) return;
+  let out;
+  try{ out = await _myrecCall({ action:'cancel_visit', request_id:id }); }catch(e){ out = null; }
+  if(!out || !out.ok){ toast((out && out.message) || 'Could not withdraw it.', 'err'); return; }
+  MYREC.data = null; toast('Withdrawn');
+  renderMyRecord();
+}
+
+/* ══ the notification centre ═══════════════════════════════════════════════
+   A bell with a red number, and a panel that drops from it. Tapping a line
+   takes you to the thing it is about.
+
+   Nothing here is stored as a notification. It could not be: a leave and a
+   visit are decided in the attendance system, which is a different database and
+   has no business writing into this one. So the centre is DERIVED from what the
+   portal already reads — a request that now has a decision on it, a letter that
+   has been issued, an announcement not yet opened — and one timestamp on the
+   employee's own row remembers when they last looked. Anything newer than that
+   is unread.
+
+   The consequence worth knowing: this is honest but not instant. A decision
+   appears the next time the portal fetches, not the second it is made. Saying
+   so is better than a badge that pretends to be live and quietly is not. */
+const NOTIF = { open: false, seenAt: null, items: [] };
+
+function _notifTime(ts){
+  if(!ts) return '';
+  const d = new Date(ts), diff = (Date.now() - d.getTime()) / 1000;
+  if(diff < 60)    return 'just now';
+  if(diff < 3600)  return Math.floor(diff / 60) + 'm ago';
+  if(diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if(diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+  return d.toLocaleDateString('en-US', { day:'numeric', month:'short' });
+}
+
+function _notifBuild(){
+  const out = [];
+  const seen = NOTIF.seenAt ? new Date(NOTIF.seenAt).getTime() : 0;
+  const d = MYREC.data || {};
+  const MONN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  // ── a decision on something you asked for ───────────────────────────────
+  (d.leave_requests || []).forEach(l => {
+    const st = String(l.status || '').toLowerCase();
+    if(st !== 'approved' && st !== 'rejected') return;
+    const when = l.decided_at || l.updated_at || l.created_at;
+    out.push({
+      at: when, unseen: when ? new Date(when).getTime() > seen : false,
+      icon: st === 'approved' ? 'check' : 'x', tone: st === 'approved' ? 'ok' : 'bad',
+      title: 'Leave ' + (st === 'approved' ? 'approved' : 'not approved'),
+      sub: [l.type, _lvFmt(l.start_date, true), l.rejected_reason].filter(Boolean).join(' · '),
+      go: 'ess-leave',
+    });
+  });
+
+  (d.visits || []).forEach(v => {
+    const st = String(v.status || '').toLowerCase();
+    if(st !== 'approved' && st !== 'rejected') return;
+    const when = v.decided_at || v.submitted_at;
+    out.push({
+      at: when, unseen: when ? new Date(when).getTime() > seen : false,
+      icon: st === 'approved' ? 'check' : 'x', tone: st === 'approved' ? 'ok' : 'bad',
+      title: 'Official visit ' + (st === 'approved' ? 'approved' : 'not approved'),
+      sub: [v.location, _lvFmt(v.date, true), v.rejected_reason].filter(Boolean).join(' · '),
+      go: 'ess-visit',
+    });
+  });
+
+  // ── a letter the office issued to you ───────────────────────────────────
+  (d.notices || []).forEach(n => {
+    out.push({
+      at: n.issued_at, unseen: n.issued_at ? new Date(n.issued_at).getTime() > seen : false,
+      icon: n.kind === 'warning' ? 'alert' : 'inbox', tone: n.kind === 'warning' ? 'bad' : null,
+      title: n.subject || 'A letter from the office',
+      sub: [n.kind, n.to_me ? 'Addressed to you' : 'Sent to all staff'].filter(Boolean).join(' · '),
+      go: 'updates', tab: 'hr',
+    });
+  });
+
+  // ── a payslip, once one is actually issued ──────────────────────────────
+  ((MYREC.slips) || []).slice(0, 3).forEach(sl => {
+    const when = sl.paid_at || sl.finalized_at;
+    if(!when) return;
+    out.push({
+      at: when, unseen: new Date(when).getTime() > seen,
+      icon: 'wallet', tone: 'ok',
+      title: 'Payslip for ' + MONN[(sl.month || 1) - 1] + ' ' + sl.year,
+      sub: sl.status === 'paid' ? 'Paid' : 'Issued',
+      go: 'ess-pay',
+    });
+  });
+
+  // ── announcements the company posted, still unopened ────────────────────
+  // These carry a real read state of their own, so theirs is used rather than
+  // the timestamp: an announcement you opened is read even if it is recent.
+  ((typeof ANN !== 'undefined' && ANN.list) || []).forEach(a => {
+    if(a.is_author || a.seen) return;
+    out.push({
+      at: a.created_at, unseen: true,
+      icon: a.requires_ack ? 'alert' : 'message', tone: a.requires_ack ? 'bad' : null,
+      title: a.title || 'Announcement',
+      sub: a.requires_ack ? 'Needs your acknowledgement' : ('From ' + (a.author_name || 'the company')),
+      go: 'updates', id: a.id,
+    });
+  });
+
+  out.sort((x, y) => new Date(y.at || 0) - new Date(x.at || 0));
+  NOTIF.items = out.slice(0, 40);
+  return NOTIF.items;
+}
+
+function _notifCount(){ return _notifBuild().filter(x => x.unseen).length; }
+
+function _notifBadge(){
+  const b = $('nbell'); if(!b) return;
+  const n = _notifCount();
+  if(n > 0){ b.textContent = n > 99 ? '99+' : String(n); b.classList.add('show'); }
+  else b.classList.remove('show');
+}
+
+function _notifPaint(){
+  const p = $('npanel'); if(!p) return;
+  const items = _notifBuild();
+  const unseen = items.filter(x => x.unseen).length;
+  let h = '<div class="nhead"><b>Notifications</b>'
+    + (unseen ? '<button class="btn btn-secondary" style="height:28px;padding:0 10px;font-size:var(--fs-caption)" '
+        + 'onclick="_notifMarkAll()">Mark all read</button>' : '')
+    + '</div>';
+  if(!items.length){
+    h += '<div class="nempty">Nothing yet.<br>Decisions on your requests, letters and announcements appear here.</div>';
+  } else {
+    items.forEach((x, i) => {
+      const col = x.tone === 'ok' ? 'var(--fk-success)' : x.tone === 'bad' ? 'var(--fk-danger)' : 'var(--fk-text-muted)';
+      h += '<div class="nrow' + (x.unseen ? ' unseen' : '') + '" onclick="_notifGo(' + i + ')">'
+        + '<span class="nic" style="color:' + col + '">' + li(x.icon, 16, 2) + '</span>'
+        + '<span class="ntx"><span class="ntt">' + esc(x.title) + '</span>'
+        + (x.sub ? '<span class="nsb">' + esc(x.sub) + '</span>' : '')
+        + '<span class="nsb">' + esc(_notifTime(x.at)) + '</span></span>'
+        + (x.unseen ? '<span class="ndot"></span>' : '')
+        + '</div>';
+    });
+  }
+  p.innerHTML = h;
+  if(window.lucide) lucide.createIcons();
+}
+
+function _notifToggle(ev){
+  if(ev) ev.stopPropagation();
+  const p = $('npanel'); if(!p) return;
+  NOTIF.open = !NOTIF.open;
+  const bell = $('appbar-bell'); if(bell) bell.setAttribute('aria-expanded', String(NOTIF.open));
+  if(NOTIF.open){ _notifPaint(); p.classList.add('show'); }
+  else p.classList.remove('show');
+}
+function _notifClose(){
+  const p = $('npanel'); if(p) p.classList.remove('show');
+  NOTIF.open = false;
+  const bell = $('appbar-bell'); if(bell) bell.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', function(e){
+  if(!NOTIF.open) return;
+  const p = $('npanel'), b = $('appbar-bell');
+  if(p && !p.contains(e.target) && b && !b.contains(e.target)) _notifClose();
+});
+
+// Tapping one takes you to the thing it is about, and nowhere else.
+function _notifGo(i){
+  const x = NOTIF.items[i]; if(!x) return;
+  _notifClose();
+  _notifMarkAll(true);
+  if(x.go === 'updates'){
+    if(typeof ANN !== 'undefined'){ ANN.tab = x.tab || 'announcement'; ANN.open = x.id || null; }
+    setTab('updates');
+    return;
+  }
+  setTab(x.go);
+}
+
+async function _notifMarkAll(quiet){
+  NOTIF.seenAt = new Date().toISOString();
+  /* An announcement carries its own read state on the server — it is read when
+     you open it, not when a timestamp passes it. So "Mark all read" has to
+     actually mark them, or the count would sit at one forever and make a liar
+     of the button. */
+  const unread = ((typeof ANN !== 'undefined' && ANN.list) || []).filter(a => !a.seen && !a.is_author);
+  unread.forEach(a => { a.seen = true; });
+  if(typeof ANN !== 'undefined'){ ANN.unread = 0; ANN.unreadAnn = 0; }
+  try{ _annUpdateBadge(); }catch(e){}
+  _notifBadge();
+  if(!quiet) _notifPaint();
+  try{
+    await Promise.all([
+      sb.rpc('mark_notifications_seen', { p_session_token: TOKEN }),
+      ...unread.map(a => sb.rpc('mark_announcement_seen',
+        { p_session_token: TOKEN, p_announcement_id: a.id }).catch(() => {})),
+    ]);
+  }catch(e){}
+}
+
+/* The centre needs the file (leave, visits, letters) even on screens that never
+   open it, or the bell would only start counting once you visited My record.
+   Fetched once, quietly, and reused by every page that already reads it. */
+async function _notifLoad(){
+  try{
+    const prof = await _myrecProfile();
+    NOTIF.seenAt = (prof && prof.notifications_seen_at) || null;
+  }catch(e){}
+  if(!MYREC.data){
+    try{
+      const ym = _myrecMonth(), [y0, m0] = ym.split('-').map(Number);
+      const last0 = new Date(Date.UTC(y0, m0, 0)).getUTCDate();
+      const f = await _myrecCall({ action:'file', from: ym + '-01', to: ym + '-' + String(last0).padStart(2, '0') });
+      if(f && f.ok !== false) MYREC.data = f;
+    }catch(e){}
+  }
+  _notifBadge();
+}
+
 function _myrecTab(k){ MYREC.sub=k; MYREC.slip=null; renderMyRecord(); }
 
 /* Documents: filtering and reading.
@@ -7871,11 +8216,14 @@ async function _myrecSubmit(){
   catch(e){ out=null; }
   MYREC.busy=false;
   if(!out||!out.ok){
-    if(btn){ btn.disabled=false; btn.textContent='Send to HR'; }
+    if(btn){ btn.disabled=false; btn.textContent='Send for approval'; }
     return show((out&&out.message)||'That could not be sent. Please try again.');
   }
   MYREC.asking=false; MYREC.data=null;
-  toast('Sent to HR — '+out.application_no);
+  // "Sent" is not "granted", and the difference is the whole point of the
+  // message: somebody who reads "Sent to HR" and stays home has misread it.
+  MYREC.justSent = { kind:'leave', no: out.application_no };
+  toast('Sent for approval — '+out.application_no);
   renderMyRecord();
 }
 
@@ -9264,6 +9612,7 @@ async function renderMyRecord(){
   const _HD={
     attendance:['Attendance','Every day of the month, as the register has it.'],
     leave:     ['Leave','What you have left, what you asked for, and how it went.'],
+    visit:     ['Official visit','Going out on company business — ask before you go, and see where the request has reached.'],
     pay:       ['Payroll','What the month has come to, and every payslip you have been given.'],
     letters:   ['Documents','Your identity papers, letters from the office, and anything held on your file.'],
     file:      ['My file','Your service record — postings, papers and what is on account.']
@@ -9690,6 +10039,112 @@ async function renderMyRecord(){
 
      Raw paths never appear on the screen; they sit in a data attribute and are
      exchanged for a signed link at the moment of the click. */
+  /* ── Official visit ──────────────────────────────────────────────────────
+     Going out on the company's business, asked for by the person going.
+
+     Built to the same shape as Leave on purpose: the same form, the same
+     waiting banner, the same list of what you asked for and where it reached.
+     A person should not have to learn two ways of asking the office for
+     something.
+
+     The decision is the Head of Department's and nobody else's. This screen
+     can raise a request and withdraw one that has not been answered — it can
+     never mark anything approved, and the times actually out and back are the
+     front desk's to record at the gate, not the employee's to claim. */
+  if(MYREC.sub==='visit'){
+    const dtV=x=>x?new Date(x.length>10?x:x+'T00:00:00Z')
+      .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+    const tmV=x=>x?new Date(x).toLocaleTimeString('en-US',
+      {hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Karachi'}):'';
+    const VST={ requested:['Waiting for approval','warn'], forwarded:['With your HOD','warn'],
+                approved:['Approved','ok'], rejected:['Not approved','bad'],
+                cancelled:['Withdrawn',null], logged:['Recorded at the gate',null] };
+
+    if(MYREC.askingVisit){
+      const today=new Date().toISOString().slice(0,10);
+      const lab=t=>'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">'+t+'</label>';
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
+        +'<div style="font-weight:700;font-size:var(--fs-body);margin-bottom:4px">Ask to go out</div>'
+        +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-bottom:12px">'
+        +'This goes straight to your Head of Department, who decides it. '
+        +'Sending it is not approval — wait until you are told before you leave.</div>'
+        +'<div id="ov-err" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:8px;'
+        +'background:var(--fk-danger-surface);color:var(--fk-danger);font-size:var(--fs-secondary)"></div>'
+        +lab('Kind of visit')
+        +'<select id="ov-type" class="input" style="width:100%;margin-bottom:10px" onchange="_ovType()">'
+        +'<option value="official">Company business</option>'
+        +'<option value="personal">Personal</option></select>'
+        +lab('Date')
+        +'<input id="ov-date" class="input" type="date" style="width:100%;margin-bottom:10px" min="'+today+'">'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+        +'<div style="flex:1;min-width:130px">'+lab('Expected out')
+        +'<input id="ov-out" class="input" type="time" style="width:100%"></div>'
+        +'<div style="flex:1;min-width:130px">'+lab('Expected back')
+        +'<input id="ov-in" class="input" type="time" style="width:100%"></div></div>'
+        +lab('Where you are going')
+        +'<input id="ov-loc" class="input" type="text" style="width:100%;margin-bottom:10px" maxlength="120" '
+        +'placeholder="Office, site or address">'
+        +'<div id="ov-meet-wrap">'+lab('Who you are meeting')
+        +'<input id="ov-meet" class="input" type="text" style="width:100%;margin-bottom:10px" maxlength="120" '
+        +'placeholder="Name — required for company business"></div>'
+        +lab('Why you need to go')
+        +'<textarea id="ov-reason" class="input" rows="3" style="width:100%;margin-bottom:14px" maxlength="400" '
+        +'placeholder="Your Head of Department will read this."></textarea>'
+        +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" style="flex:1" onclick="_ovSubmit()" id="ov-send">Send for approval</button>'
+        +'<button class="btn btn-secondary" onclick="_ovCancelAsk()">Cancel</button></div>'
+        +'</div></div>';
+    } else {
+      html+='<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="_ovAsk()">'
+        +'+ Request an official visit</button>';
+    }
+
+    html+='<div style="margin:2px 2px 8px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+      +'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">My visit requests</div>';
+    html+=_essPendingBanner(visits, 'visit');
+
+    if(!visits.length){
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('compass',20,1.8)+'</div>'
+        +'<div class="et">No visit requests yet</div>'
+        +'<div class="es">Ask before you go out on company business. Your request and its decision '
+        +'appear here.</div></div></div>';
+    } else {
+      html+='<div class="card" style="padding:2px 6px">';
+      visits.forEach(v=>{
+        const st=VST[String(v.status||'')]||[String(v.status||'').replace(/_/g,' '),null];
+        const meta=[];
+        if(v.location)                       meta.push(esc(v.location));
+        if(v.meeting_with)                   meta.push('Meeting <b>'+esc(v.meeting_with)+'</b>');
+        if(v.expected_out||v.expected_in)    meta.push('Out '+esc(tmV(v.expected_out)||'—')
+                                                       +' · back '+esc(tmV(v.expected_in)||'—'));
+        // What actually happened, once the front desk has written it down.
+        if(v.out)                            meta.push('Left <b>'+esc(tmV(v.out))+'</b>');
+        if(v.in)                             meta.push('Returned <b>'+esc(tmV(v.in))+'</b>');
+        else if(v.out)                       meta.push('Not marked back yet');
+        if(v.request_no)                     meta.push(esc(v.request_no));
+        if(v.rejected_reason)                meta.push('Reason: '+esc(v.rejected_reason));
+
+        html+='<div class="att-row" style="grid-template-columns:1fr auto">'
+          +'<div style="min-width:0">'
+          +'<div class="att-day">'+esc(dtV(v.date))
+          +(v.type==='personal'?' <span style="font-weight:500;color:var(--fk-text-muted)">· personal</span>':'')
+          +'</div>'
+          +(meta.length?'<div class="att-meta"><span>'+meta.join('</span><span>')+'</span></div>':'')
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end">'
+          +_myrecChip(st[0], st[1])
+          +(String(v.status||'')==='requested' && v.id
+            ? '<button class="btn btn-secondary" style="height:30px;padding:0 11px;font-size:var(--fs-caption)" '
+              +'onclick="_ovWithdraw(&#39;'+esc(v.id)+'&#39;)">Withdraw</button>' : '')
+          +'</div></div>';
+      });
+      html+='</div>';
+      html+='<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin:10px 2px 0;line-height:1.55">'
+        +'The times you actually left and came back are entered at the gate by reception — '
+        +'not here — so the record stays the office’s.</div>';
+    }
+  }
+
   if(MYREC.sub==='letters'){
     const dtD=x=>x?new Date(x.length>10?x:x+'T00:00:00Z')
       .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
@@ -9852,7 +10307,8 @@ async function renderMyRecord(){
       html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
         +'<div style="font-weight:700;font-size:var(--fs-body);margin-bottom:4px">Apply for leave</div>'
         +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-bottom:12px">'
-        +'This goes to HR first. They pass it to the Head of Department, who decides.</div>'
+        +'This goes straight to your Head of Department, who decides it. '
+        +'Sending it is not approval — you will be told when a decision is made.</div>'
         +'<div id="mr-err" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:8px;'
         +'background:var(--fk-danger-surface);color:var(--fk-danger);font-size:var(--fs-secondary)"></div>'
         +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Kind of leave</label>'
@@ -9885,7 +10341,7 @@ async function renderMyRecord(){
         +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:7px">A photo or a PDF, up to 5 MB. A sick note, for example.</div>'
         +'</div>'
         +'<div style="display:flex;gap:8px">'
-        +'<button class="btn btn-primary" style="flex:1" onclick="_myrecSubmit()" id="mr-send">Send to HR</button>'
+        +'<button class="btn btn-primary" style="flex:1" onclick="_myrecSubmit()" id="mr-send">Send for approval</button>'
         +'<button class="btn btn-secondary" onclick="_myrecCancelAsk()">Cancel</button></div>'
         +'</div></div>';
     } else {
@@ -9897,6 +10353,13 @@ async function renderMyRecord(){
        cannot be read on a phone and this list is read on a phone. */
     html += '<div style="margin:2px 2px 8px;font-size:var(--fk-fs-label);text-transform:uppercase;'
       + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">My leave requests</div>';
+
+    /* Sent is not granted. A toast says so for three seconds and then the
+       screen looks exactly as it did, which is how somebody ends up staying
+       home on a day nobody approved. This stays on the page until the office
+       answers, and says in words that it is not permission. */
+    html += _essPendingBanner(leaves, 'leave');
+
     if(!leaves.length){
       html+='<div class="card" style="margin-bottom:14px"><div class="empty"><div class="ei">'+li('calendar',20,1.8)+'</div>'
         +'<div class="et">No leave requests yet</div>'
@@ -10102,6 +10565,7 @@ async function renderMyRecord(){
   b.innerHTML=html+'</div>';
   if(window.lucide) lucide.createIcons();
   _pdocFill(b);                       // the photograph and the two sides of the card
+  try{ _notifBadge(); }catch(e){}     // the file was just re-read; the count may have moved
 }
 
 async function renderPerformance(){

@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
     attachment_name?: string; attachment_path?: string;
     path?: string; ext?: string; content_type?: string;
     ticket?: string;
+    date?: string; expected_out?: string; expected_in?: string;
+    location?: string; meeting_with?: string; purpose?: string; visit_type?: string;
+    kind?: string; id?: string;
   };
   try {
     body = await req.json();
@@ -142,6 +145,47 @@ Deno.serve(async (req) => {
     if (error) return json({ ok: false, error: 'register_failed', message: error.message }, 500);
     if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
     return json({ ok: true, tenant: actx.attend_company_name, ...data });
+  }
+
+  /* ── telling somebody their request was decided ────────────────────────
+     The decision is made in the attendance app; the phone that should buzz
+     belongs to the portal. Two databases, and the attendance side has no way to
+     reach this one — it has no outbound HTTP at all. So the browser that just
+     made the decision says so here, and this does the crossing.
+
+     There is no session on this call, and it does not need one, because nothing
+     the caller says is used. It sends an id; the TEXT and the RECIPIENT are both
+     read back from the attendance register, and only for a row that is actually
+     decided. The most anyone can do by calling it is re-send a real decision to
+     the person it was really about — and even that lands once, because the push
+     itself is deduplicated by the row's id. */
+  if (body.action === 'notify_decision') {
+    const kind = body.kind === 'leave' ? 'leave' : 'visit';
+    const id = String(body.id || '');
+    if (!/^[0-9a-f-]{36}$/.test(id)) return json({ ok: false, error: 'bad_id' }, 400);
+
+    const att0 = createClient(ATT_URL, ATT_ANON, { auth: { persistSession: false } });
+    const { data: notice, error: nErr } = await att0.rpc('portal_decision_notice', {
+      p_secret: ATT_SECRET, p_kind: kind, p_id: id,
+    });
+    if (nErr) return json({ ok: false, error: 'lookup_failed', message: nErr.message }, 502);
+    if (!notice?.ok) return json({ ok: false, error: notice?.error || 'not_notifiable' });
+
+    // CNIC is the key between the two systems, as everywhere else here.
+    const rms0 = createClient(RMS_URL, RMS_SERVICE, { auth: { persistSession: false } });
+    const { data: who } = await rms0.rpc('portal_user_by_cnic', { p_cnic: notice.cnic });
+    if (!who?.ok) return json({ ok: false, error: who?.error || 'no_portal_account' });
+
+    const { data: sent } = await rms0.rpc('_crm_send_push', {
+      p_company: who.company_id,
+      p_uid: who.sales_user_id,
+      p_title: notice.title,
+      p_body: notice.body,
+      p_url: kind === 'leave' ? '/crm?tab=ess-leave' : '/crm?tab=ess-visit',
+      p_dedup: kind + '-decided-' + id,
+      p_ignore_quiet: false,
+    });
+    return json({ ok: true, pushed: sent === true });
   }
 
   const token = (body.session_token || '').trim();
@@ -321,6 +365,46 @@ Deno.serve(async (req) => {
 
     if (action === 'cancel_leave') {
       const { data, error } = await att.rpc('portal_cancel_leave', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
+        p_cnic: ctx.cnic,
+        p_id: body.request_id,
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
+    /* ── going out on the company's business ──────────────────────────────
+       The same two rules as leave, for the same reason. The employee is not
+       named in the request: the attendance side resolves them from the CNIC
+       this session already proved, so there is no id here to forge. And the
+       decision is nobody's but the Head of Department's — this door only
+       raises a request and withdraws one that has not been answered yet. */
+    if (action === 'request_visit') {
+      const { data, error } = await att.rpc('portal_request_visit', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
+        p_cnic: ctx.cnic,
+        // Every parameter is sent, even when empty. Leaving one out makes
+        // PostgREST look for a function with a different signature, fail to
+        // find it, and hand back "something went wrong" — when what actually
+        // happened is that the person forgot to type a reason, which the
+        // register would have said in words.
+        p_date: body.date ?? null,
+        p_out: body.expected_out || null,
+        p_in: body.expected_in || null,
+        p_location: body.location ?? null,
+        p_meeting_with: body.meeting_with || null,
+        p_purpose: body.purpose || null,
+        p_reason: body.reason ?? null,
+        p_visit_type: body.visit_type || 'official',
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
+    if (action === 'cancel_visit') {
+      const { data, error } = await att.rpc('portal_cancel_visit', {
         p_secret: ATT_SECRET,
         p_company: ctx.attend_company_id,
         p_cnic: ctx.cnic,

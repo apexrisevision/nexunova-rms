@@ -1,0 +1,20 @@
+-- NexuAttend (attendance project) — applied there, recorded here.
+--
+-- Going out on the company's business, asked for by the person going.
+-- staff_visits has carried the whole shape of a request since it was built —
+-- status, request_no, reason, expected_out/in, decided_by_user, raised_by_self
+-- — and nothing had ever written any of it. Every visit on record was a
+-- 'logged' row the front desk typed at the gate. This does not invent a
+-- workflow; it starts using the one already there.
+--
+-- Full text of the three functions is in the NexuAttend migration history:
+--   generate_visit_request_no(company)      OV-YYMM-#### , mirrors the leave one
+--   portal_request_visit(...)               status 'requested', raised_by_self
+--   portal_cancel_visit(secret,co,cnic,id)  only while still 'requested'
+--
+-- and portal_my_file's visits block now carries id, status, request_no, reason,
+-- expected_out/in, raised_by_self, submitted_at, decided_at, rejected_reason.
+--
+-- The rule they all obey is the one the bridge obeys: the caller does not say
+-- who they are. The employee is resolved from the CNIC on their portal session,
+-- so there is no employee_id in the request to forge.

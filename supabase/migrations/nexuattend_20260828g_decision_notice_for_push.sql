@@ -1,0 +1,13 @@
+-- NexuAttend (attendance project) — applied there, recorded here.
+--
+-- portal_decision_notice(secret, kind, id) — what the bridge asks for when a
+-- decision has been made, so the portal can push it to the right phone.
+--
+-- It returns the employee's CNIC and a line of text, and ONLY for a row that is
+-- genuinely 'approved' or 'rejected'. Both the recipient and the wording come
+-- from the register, so a caller cannot choose either — which is what makes the
+-- bridge action safe without a session.
+--
+-- This crossing exists because NexuAttend has pg_cron but NOT pg_net or http:
+-- its database cannot call out at all. The browser that made the decision
+-- carries the news instead.
