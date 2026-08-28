@@ -1595,7 +1595,23 @@ button.mn-card:active{transform:scale(.985)}
       <!-- Everybody has a record, a payslip and a leave balance; only some people -->
       <!-- sell. So this sits with Messages in the always-on strip rather than in -->
       <!-- the Workspace group, which the office roles never see. -->
-      <a class="ni" data-tab="myrecord" onclick="setTab('myrecord')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">My record</span></a>
+      <!-- ══ Self service — everything a person owns about themselves ══════ -->
+      <!-- These five were tabs inside "My record". They are separate things in  -->
+      <!-- an employee's head — my attendance, my leave, my pay, my papers — so  -->
+      <!-- they are separate places in the rail. Same renderer underneath;       -->
+      <!-- nothing was rebuilt, only given its own door. Every role has them:    -->
+      <!-- a rep clocks in and takes leave exactly like the front desk does.     -->
+      <div class="ni-grp" data-grp="self">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('self')"><span class="sb-grp-t">Self service</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="ess-att" onclick="setTab('ess-att')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">Attendance</span></a>
+          <a class="ni" data-tab="ess-leave" onclick="setTab('ess-leave')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg></span><span class="ni-lb">Leave</span></a>
+          <a class="ni" data-tab="ess-pay" onclick="setTab('ess-pay')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg></span><span class="ni-lb">Payroll</span></a>
+          <a class="ni" data-tab="ess-docs" onclick="setTab('ess-docs')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></span><span class="ni-lb">Documents</span></a>
+          <a class="ni" data-tab="ess-file" onclick="setTab('ess-file')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="ni-lb">My file</span></a>
+          <a class="ni" data-tab="profile" onclick="setTab('profile')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="ni-lb">My profile</span></a>
+        </div>
+      </div>
       <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
     </div>
     <div class="sb-foot">
@@ -2422,14 +2438,14 @@ async function doDeclineAgreement(){
 }
 
 // ════ navigation (5 fixed bottom tabs: Home · Leads · Units · Money · More) ════
-const TAB_TITLES={home:'Dashboard',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record',project:'Project',torecover:'Recovery Position',collection:'Collection',site:'Site',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
+const TAB_TITLES={home:'Dashboard',alerts:'Alerts',leadentry:'Add Manual Lead',myleads:'My Leads',myentered:'Leads I entered',conn:'Connections',fbconnect:'Connect Facebook',webleads:'Website Leads',whatsapp:'WhatsApp',igdm:'Instagram',adspend:'Ad Spend',leads:'Leads',board:'Units',unitmap:'Unit map',sharelink:'Share link',mine:'My Bookings',mysales:'My sales',clients:'Clients',recovery:'To collect',money:'Money',more:'More',performance:'My results',myrecord:'My record','ess-att':'Attendance','ess-leave':'Leave','ess-pay':'Payroll','ess-docs':'Documents','ess-file':'My file',project:'Project',torecover:'Recovery Position',collection:'Collection',site:'Site',rank:'My sales',adroi:'Ad results',updates:'Messages',profile:'My Profile',team:'My Team',dailyreport:'Team report',givenleads:'Leads I gave',distribute:'Assign leads',targets:'Targets',teamrecovery:'Team Recovery',teamperf:'My results',livemap:'Live Map',org:'Full team',fbsettings:'Facebook Leads'};
 let NAV_HIST=[];   // section history so the appbar Back works on every page
 function setTab(t,_back){
   if(ME && ME.role==='lead_entry' && !['leadentry','myleads','conn','fbconnect','webleads','whatsapp','igdm','adspend','profile','updates'].includes(t)) t='leadentry';   // operator: own apps + profile + read-only Updates
   // The office side has no selling screens to wander into. Their app is their
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
-  if(ME && _isOfficeRole(ME.role) && !['myrecord','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
+  if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -2465,6 +2481,13 @@ function setTab(t,_back){
   else if(t==='clients') renderClients();
   else if(t==='performance') renderPerformance();
   else if(t==='myrecord') renderMyRecord();
+  // The self-service pages. One renderer, because they are one file — but each
+  // arrives with its own section chosen, its own title and its own nav entry.
+  else if(t==='ess-att'){   MYREC.sub='attendance'; MYREC.slip=null; renderMyRecord(); }
+  else if(t==='ess-leave'){ MYREC.sub='leave';      MYREC.slip=null; renderMyRecord(); }
+  else if(t==='ess-pay'){   MYREC.sub='pay';        MYREC.slip=null; renderMyRecord(); }
+  else if(t==='ess-docs'){  MYREC.sub='letters';    MYREC.slip=null; renderMyRecord(); }
+  else if(t==='ess-file'){  MYREC.sub='file';       MYREC.slip=null; renderMyRecord(); }
   else if(t==='project') renderProject();
   else if(t==='torecover') renderToRecover();
   else if(t==='collection') renderCollection();
@@ -2500,6 +2523,7 @@ const _GRP_OF={
   conn:'op-sources', fbconnect:'op-sources', webleads:'op-sources', whatsapp:'op-sources', igdm:'op-sources', adspend:'op-sources',
   dailyreport:'management', givenleads:'management',
   alerts:'workspace', leads:'workspace', myentered:'workspace', board:'company', unitmap:'company', project:'company', sharelink:'workspace', mine:'workspace', money:'workspace', performance:'workspace',
+  'ess-att':'self', 'ess-leave':'self', 'ess-pay':'self', 'ess-docs':'self', 'ess-file':'self', profile:'self',
   team:'management', distribute:'management', targets:'management',
   command:'leadership', livemap:'leadership', fbsettings:'leadership', adroi:'leadership'
 };
@@ -2531,7 +2555,7 @@ function _syncNavGroups(t){
     let open;
     if(id===active) open=true;                                                   // group of the current page → always expanded
     else if(Object.prototype.hasOwnProperty.call(st,id)) open=!!st[id];          // saved arrangement always wins
-    else if(id==='company') open=true;                                           // the top group, and an office role's whole app → open unless they closed it
+    else if(id==='company' || id==='self') open=true;                            // the company's work and the person's own drawer — both open unless they closed them
     else if(!active && id==='workspace' && sell) open=true;                       // ungrouped landing (Home/Messages) → open Workspace for sellers (no stored pref)
     else open=false;                                                             // default: collapsed
     g.classList.toggle('open', open);
@@ -7379,7 +7403,7 @@ async function renderMyHome(){
       + cell('Earned', pay && pay.ok ? rsS(pay.net_so_far) : '—', pay && pay.ok ? 'var(--fk-success)' : null)
       + cell(lv ? lv.type + ' left' : 'Leave left', lv ? left : '—')
       + '</div>'
-      + '<div onclick="setTab(\'myrecord\')" style="cursor:pointer;padding:11px 14px;'
+      + '<div onclick="setTab(\'ess-att\')" style="cursor:pointer;padding:11px 14px;'
       + 'border-top:1px solid var(--fk-hairline);display:flex;align-items:center;justify-content:space-between;'
       + 'color:var(--fk-primary);font-size:var(--fs-caption);font-weight:600">'
       + '<span>Open my record</span>' + li('arrow-right',15,2) + '</div></div>';
@@ -7456,7 +7480,7 @@ async function renderMyHome(){
 }
 
 // Straight to the leave form rather than to the tab it lives on.
-function _homeLeave(){ MYREC.sub = 'leave'; MYREC.asking = true; setTab('myrecord'); }
+function _homeLeave(){ MYREC.asking = true; setTab('ess-leave'); }
 
 /* ── The same strip, on a seller's dashboard ────────────────────────────────
    The portal is the company's app, not the sales floor's tool: a rep clocks in,
@@ -7521,7 +7545,7 @@ async function _meStrip(){
       + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
       + '<div onclick="_homeLeave()" style="flex:1;background:var(--fk-bg-card);cursor:pointer;padding:10px 14px;'
       + 'color:var(--fk-primary);font-size:var(--fs-caption);font-weight:600">Ask for leave</div>'
-      + '<div onclick="setTab(&#39;myrecord&#39;)" style="flex:1;background:var(--fk-bg-card);cursor:pointer;'
+      + '<div onclick="setTab(&#39;ess-att&#39;)" style="flex:1;background:var(--fk-bg-card);cursor:pointer;'
       + 'padding:10px 14px;color:var(--fk-primary);font-size:var(--fs-caption);font-weight:600;text-align:right">'
       + 'My record</div></div></div>';
   }catch(e){ return ''; }
@@ -8436,7 +8460,18 @@ async function renderMyRecord(){
   const d=MYREC.data;
   _touch();
 
-  let html='<div class="nx-dash">'+_pageHead('My record','Your attendance, leave, letters and service record.');
+  // Five pages, one renderer — so the head has to say which page this is. It
+  // used to read "My record" on all of them, which was true when they were tabs
+  // and is wrong now that each has its own door.
+  const _HD={
+    attendance:['Attendance','Every day of the month, as the register has it.'],
+    leave:     ['Leave','What you have left, what you asked for, and how it went.'],
+    pay:       ['Payroll','What the month has come to, and every payslip you have been given.'],
+    letters:   ['Documents','Letters and notices the company has issued to you.'],
+    file:      ['My file','Your service record — postings, papers and what is on account.']
+  };
+  const _hd=_HD[MYREC.sub]||['My record','Your attendance, leave, letters and service record.'];
+  let html='<div class="nx-dash">'+_pageHead(_hd[0],_hd[1]);
 
   // ── it could not be shown, and why ─────────────────────────────────────
   if(!d.ok){
@@ -8524,10 +8559,10 @@ async function renderMyRecord(){
     +'" style="height:36px;padding:0 14px;font-size:var(--fs-secondary)" onclick="_myrecTab(\''+k+'\')">'
     +esc(l)+(n?' ('+n+')':'')+'</button>';
   const hist=d.history||[], docs=d.documents||[], visits=d.visits||[], advances=d.advances||[];
-  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 12px">'
-    +tab('attendance','Attendance',days.length)+tab('leave','Leave',leaves.length)
-    +tab('pay','Pay',0)
-    +tab('letters','Letters',notices.length)+tab('file','My file',0)+'</div>';
+  // The row of buttons that used to switch between these five is gone: each is a
+  // page in the rail now, so repeating the same navigation inside the page would
+  // be two ways to do one thing. _myrecTab stays — the payslip view still uses it
+  // to come back — and the old myrecord tab still opens on Attendance.
 
   /* ── what the month has come to so far ────────────────────────────────
      The days and the minutes are already on this screen; this is the only
