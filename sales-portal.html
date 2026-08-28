@@ -7172,6 +7172,179 @@ function _myrecShiftMonth(n){
   if(d > new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))) return;
   MYREC.month=d.toISOString().slice(0,7); MYREC.data=null; MYREC.pay=undefined; renderMyRecord();
 }
+/* ══ Leave — the pieces the page is built from ════════════════════════════════
+
+   THE WORKING WEEK HERE. Sunday is the weekly day off and nothing else is.
+   Saturday is a working day. Friday is a working day. No day is treated as an
+   off day because of its name — the only other days that do not count are the
+   ones the company has actually declared, which arrive from portal_holidays and
+   from nowhere else.
+
+   The count shown while somebody fills the form is an ESTIMATE and says so. The
+   register decides what a leave day finally costs, and the application carries
+   the dates rather than a number, so this can never overrule it. */
+
+const _LV_DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const _LV_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _lvFmt(d, withYear){
+  if(!d) return '';
+  try{
+    const x = new Date(d + 'T00:00:00Z');
+    return x.getUTCDate() + ' ' + _LV_MON[x.getUTCMonth()] + (withYear ? ' ' + x.getUTCFullYear() : '');
+  }catch(e){ return String(d); }
+}
+
+// Working days between two dates: everything except Sunday, minus any day the
+// company has declared a holiday. Returns the count and what it skipped, so the
+// form can show its working rather than just its answer.
+function _lvWorkingDays(from, to){
+  const out = { days: 0, sundays: 0, holidays: [] };
+  if(!from || !to) return out;
+  const a = new Date(from + 'T00:00:00Z'), b = new Date(to + 'T00:00:00Z');
+  if(isNaN(a) || isNaN(b) || b < a) return out;
+  const hol = {};
+  ((MYREC.hol && MYREC.hol.holidays) || []).forEach(h => { hol[h.date] = h.name || 'Company holiday'; });
+  for(let d = new Date(a); d <= b; d.setUTCDate(d.getUTCDate() + 1)){
+    const iso = d.toISOString().slice(0, 10);
+    if(d.getUTCDay() === 0){ out.sundays++; continue; }        // Sunday, and only Sunday
+    if(hol[iso]){ out.holidays.push(_lvFmt(iso) + ' · ' + hol[iso]); continue; }
+    out.days++;
+  }
+  return out;
+}
+
+// Live under the date fields.
+function _lvDur(){
+  const box = $('mr-dur'); if(!box) return;
+  const from = ($('mr-from') || {}).value || '', to = ($('mr-to') || {}).value || '';
+  if(!from || !to){ box.style.display = 'none'; return; }
+  if(to < from){
+    box.style.display = 'block';
+    box.innerHTML = '<b style="color:var(--fk-danger)">The last day is before the first day.</b>';
+    return;
+  }
+  const w = _lvWorkingDays(from, to);
+  const part = (($('mr-part') || {}).value) || 'full';
+  const half = part !== 'full' && from === to;
+  const n = half ? 0.5 : w.days;
+  let s = '<b style="color:var(--fk-text)">' + n + ' working day' + (n === 1 ? '' : 's') + '</b>';
+  if(half) s += ' · half day';
+  const skipped = [];
+  if(w.sundays) skipped.push(w.sundays + ' Sunday' + (w.sundays === 1 ? '' : 's'));
+  if(w.holidays.length) skipped.push(w.holidays.length + ' company holiday' + (w.holidays.length === 1 ? '' : 's'));
+  if(skipped.length) s += '<br>Not counted: ' + esc(skipped.join(' · '));
+  if(w.holidays.length) s += '<br>' + esc(w.holidays.join(' · '));
+  s += '<br><span style="opacity:.8">Saturday is a working day here. HR confirms the final count.</span>';
+  box.style.display = 'block';
+  box.innerHTML = s;
+}
+
+// Where a request has reached, said the way the office says it. These are the
+// backend's own statuses — no stage is invented.
+const _LV_WHERE = {
+  draft:     ['Draft', ''],
+  submitted: ['With HR', ''],
+  returned:  ['Returned to you', 'warn'],
+  pending:   ['With the Head of Department', 'warn'],
+  approved:  ['Approved', 'ok'],
+  rejected:  ['Refused', 'bad'],
+  cancelled: ['Withdrawn', '']
+};
+
+function _lvOpen(id){ MYREC.leaveOpen = (MYREC.leaveOpen === id) ? null : id; renderMyRecord(); }
+
+function _lvRow(l){
+  const w = _LV_WHERE[l.status] || [l.status, ''];
+  const same = l.start_date === l.end_date;
+  const open = MYREC.leaveOpen === l.id;
+  return '<div class="trow" style="align-items:flex-start" onclick="_lvOpen(\'' + esc(l.id) + '\')">'
+    + '<div style="flex:1;min-width:0">'
+    + '<div class="lr-name" style="white-space:normal">' + esc(l.type || 'Leave') + '</div>'
+    + '<div class="lr-sub"><span>' + esc(_lvFmt(l.start_date) + (same ? '' : ' – ' + _lvFmt(l.end_date))
+        + ' · ' + (l.days || 0) + ' day' + ((l.days || 0) == 1 ? '' : 's')) + '</span></div>'
+    + (l.created_at ? '<div class="lr-sub"><span>Applied ' + esc(_lvFmt(String(l.created_at).slice(0,10))) + '</span></div>' : '')
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'
+    + _myrecChip(w[0], w[1])
+    + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption)">' + (open ? 'Hide' : 'Details') + '</span>'
+    + '</div></div>';
+}
+
+/* The detail. Only what the record actually holds — application number, dates,
+   the reason, who decided and what they said. The little timeline shows the
+   stages this backend really has (raised → HR → Head of Department) and marks
+   how far this one has come; no stage is drawn that the workflow does not run. */
+function _lvDetail(l){
+  const row = (k, v) => v ? ('<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;'
+    + 'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-caption)">'
+    + '<span style="color:var(--fk-text-muted)">' + esc(k) + '</span>'
+    + '<b style="text-align:right;font-weight:600">' + esc(v) + '</b></div>') : '';
+
+  const decided = ['approved','rejected'].indexOf(l.status) > -1;
+  const stage = l.status === 'cancelled' ? 0
+              : decided ? 3
+              : l.status === 'pending' ? 2 : 1;
+  const dot = (n, label) => '<div style="display:flex;align-items:center;gap:8px;padding:4px 0">'
+    + '<span style="width:9px;height:9px;border-radius:50%;flex:none;background:'
+    + (stage >= n ? (l.status === 'rejected' && n === 3 ? 'var(--fk-danger)' : 'var(--fk-primary)')
+                  : 'var(--fk-border)') + '"></span>'
+    + '<span style="font-size:var(--fs-caption);color:'
+    + (stage >= n ? 'var(--fk-text)' : 'var(--fk-text-muted)') + '">' + esc(label) + '</span></div>';
+
+  return '<div style="padding:2px 14px 16px;border-bottom:1px solid var(--fk-hairline)">'
+    + row('Request', l.application_no || '—')
+    + row('Leave type', l.type || '—')
+    + row('From', _lvFmt(l.start_date, true))
+    + row('To', _lvFmt(l.end_date, true))
+    + row('Duration', (l.days || 0) + ' day' + ((l.days || 0) == 1 ? '' : 's')
+        + (l.day_part && l.day_part !== 'full' ? ' · ' + String(l.day_part).replace('_', ' ') : ''))
+    + row('Applied on', l.created_at ? _lvFmt(String(l.created_at).slice(0,10), true) : '')
+    + row('Reason', l.reason || '')
+    + (l.attachment_url
+        ? '<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;'
+          + 'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-caption)">'
+          + '<span style="color:var(--fk-text-muted)">Attachment</span>'
+          + '<a href="' + esc(l.attachment_url) + '" target="_blank" rel="noopener" '
+          + 'onclick="event.stopPropagation()" style="color:var(--fk-primary);text-decoration:none;font-weight:600">'
+          + esc(l.attachment_name || 'Open document') + '</a></div>'
+        : row('Attachment', 'No attachment'))
+    + row('Decided by', l.approver_name || '')
+    + row('Comment', l.approver_comment || '')
+    + (l.returned_note ? '<div style="padding:8px 0;color:var(--fk-warning);font-size:var(--fs-caption)">'
+        + esc(l.returned_note) + '</div>' : '')
+    + (l.rejected_reason ? '<div style="padding:8px 0;color:var(--fk-danger);font-size:var(--fs-caption)">'
+        + esc(l.rejected_reason) + '</div>' : '')
+    + '<div style="margin-top:10px">'
+    + dot(1, 'Submitted') + dot(2, 'With the Head of Department')
+    + dot(3, l.status === 'rejected' ? 'Refused' : 'Approved')
+    + '</div>'
+    // Withdrawing is only possible while nobody has decided; after that it is a
+    // record, not a request.
+    + (['submitted','returned','pending'].indexOf(l.status) > -1
+        ? '<button class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:var(--fs-caption);margin-top:8px" '
+          + 'onclick="event.stopPropagation();_myrecWithdraw(\'' + esc(l.id) + '\')">Withdraw this request</button>'
+        : '')
+    + '</div>';
+}
+
+// Year navigation on the calendar. Same reader, different year — the dashboard
+// keeps asking for the current one and the two never diverge because there is
+// only one function answering.
+function _lvYear(step){
+  const y = (MYREC.holYear || new Date().getFullYear()) + step;
+  MYREC.holYear = y; MYREC.hol = undefined;
+  renderMyRecord();
+  _lvLoadHolidays();
+}
+async function _lvLoadHolidays(){
+  const y = MYREC.holYear || new Date().getFullYear();
+  try{
+    const r = await _myrecCall({ action: 'holidays', year: y });
+    MYREC.hol = (r && r.ok) ? r : null;
+  }catch(e){ MYREC.hol = null; }
+  if(TAB === 'ess-leave' || MYREC.sub === 'leave') renderMyRecord();
+}
+
 function _myrecTab(k){ MYREC.sub=k; MYREC.slip=null; renderMyRecord(); }
 // Opening one payslip, or going back to the list.
 function _myrecSlip(id){ MYREC.slip=id||null; renderMyRecord(); }
@@ -7199,6 +7372,9 @@ function _myrecChip(text, tone){
    because a button that looks like it grants the leave would be a lie the
    first time somebody's is refused. */
 function _myrecAsk(){
+  // A fresh form starts with no attachment. Leaving the last one selected would
+  // quietly staple somebody's old sick note to a new application.
+  LV_FILE=null;
   MYREC.asking=true;
   renderMyRecord();
   // the leave types are the same all day; fetch once
@@ -7210,6 +7386,69 @@ function _myrecAsk(){
   }
 }
 function _myrecCancelAsk(){ MYREC.asking=false; renderMyRecord(); }
+
+/* ── the attachment ───────────────────────────────────────────────────────────
+   A sick note, mostly. The file goes to the bucket the portal already uploads
+   to, in its own folder, under the same token check that guards the sign-up
+   documents — a person who has not signed in cannot write there at all.
+
+   Nothing is faked. The file is uploaded BEFORE the application is sent, and if
+   the upload fails the application is not sent either: an attachment that was
+   never stored must not be recorded as attached. */
+const _LV_MAX = 5 * 1024 * 1024;                       // 5 MB — a photo of a note
+const _LV_OK  = ['image/jpeg','image/jpg','image/png','image/webp','application/pdf'];
+let LV_FILE = null;                                    // {name,size,type,url}
+
+function _lvSize(b){
+  b = Number(b) || 0;
+  return b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(0) + ' KB' : (b/1048576).toFixed(1) + ' MB';
+}
+function _lvAttBox(){
+  const el = $('mr-att-state'); if(!el) return;
+  if(!LV_FILE){ el.innerHTML = '<span style="color:var(--fk-text-muted)">No attachment</span>'; return; }
+  if(LV_FILE.busy){ el.innerHTML = '<span style="color:var(--fk-text-muted)">Uploading ' + esc(LV_FILE.name) + '…</span>'; return; }
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:9px;min-width:0">'
+    + '<span style="flex:none;color:var(--fk-primary)">' + li('paperclip',14,2) + '</span>'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:var(--fs-caption);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+    + esc(LV_FILE.name) + '</div>'
+    + '<div style="font-size:var(--fs-caption);color:var(--fk-text-muted)">'
+    + esc((LV_FILE.type || '').replace('application/', '').replace('image/', '').toUpperCase() + ' · ' + _lvSize(LV_FILE.size))
+    + '</div></div>'
+    + '<button type="button" class="btn btn-secondary" style="height:28px;padding:0 10px;font-size:var(--fs-caption)" '
+    + 'onclick="_lvAttClear()">Remove</button></div>';
+}
+function _lvAttClear(){ LV_FILE = null; const i = $('mr-att'); if(i) i.value = ''; _lvAttBox(); }
+
+async function _lvAttPick(input){
+  const file = input.files && input.files[0];
+  input.value = '';
+  if(!file) return;
+  const err = $('mr-err');
+  const bad = m => { if(err){ err.textContent = m; err.style.display = 'block'; } };
+  if(err) err.style.display = 'none';
+
+  if(_LV_OK.indexOf(file.type) < 0) return bad('Attach a photo or a PDF — that file type is not accepted.');
+  if(file.size > _LV_MAX)          return bad('That file is larger than 5 MB. Please attach a smaller one.');
+
+  const tok = SIGNUP_TOKEN || UPLOAD_TOKEN;
+  if(!tok) return bad('Attachments are not available on this session — please sign in again.');
+
+  LV_FILE = { name: file.name, size: file.size, type: file.type, busy: true };
+  _lvAttBox();
+  try{
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = 'leave/' + tok + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    const up = await sb.storage.from('rms-documents').upload(path, file, { upsert: false, contentType: file.type });
+    if(up.error) throw up.error;
+    LV_FILE.url = sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
+    LV_FILE.busy = false;
+  }catch(e){
+    LV_FILE = null;
+    bad('Could not upload that file. Please try again.');
+  }
+  _lvAttBox();
+}
 
 async function _myrecSubmit(){
   if(MYREC.busy) return;
@@ -7227,12 +7466,16 @@ async function _myrecSubmit(){
   if(!from) return show('Choose the first day.');
   if(to<from) return show('The last day cannot be before the first.');
   if(!reason) return show('Please say why you need the leave — your manager will read this.');
+  // An attachment still on its way is not an attachment. Better to wait than to
+  // file an application that claims a document nobody can open.
+  if(LV_FILE && LV_FILE.busy) return show('The attachment is still uploading — one moment.');
 
   MYREC.busy=true;
   const btn=document.getElementById('mr-send'); if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   let out;
   try{ out=await _myrecCall({action:'apply_leave',leave_type:type,from:from,to:to,
-        day_part:part,reason:reason,contact:contact}); }
+        day_part:part,reason:reason,contact:contact,
+        attachment_url:(LV_FILE&&LV_FILE.url)||null, attachment_name:(LV_FILE&&LV_FILE.name)||null}); }
   catch(e){ out=null; }
   MYREC.busy=false;
   if(!out||!out.ok){
@@ -8927,23 +9170,62 @@ async function renderMyRecord(){
   }
 
   if(MYREC.sub==='leave'){
-    html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
-      +'<div style="font-weight:600;font-size:var(--fs-secondary);margin-bottom:8px">This year</div>';
-    bal.filter(x=>x.entitled).forEach(x=>{
-      const leftN=Number(x.entitled)-Number(x.taken||0);
-      html+='<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:var(--fs-secondary)">'
-        +'<span style="color:var(--fk-text-muted)">'+esc(x.type)+'</span>'
-        +'<b>'+leftN+' left <span style="color:var(--fk-text-muted);font-weight:500">of '+esc(String(x.entitled))+'</span></b></div>';
-    });
-    html+='</div></div>';
+    /* The calendar is fetched once, the first time this page is opened, and it
+       re-renders itself when the answer lands. undefined means "not asked yet",
+       null means "asked and got nothing" — so a year with no holidays is not
+       fetched over and over. */
+    if(MYREC.hol === undefined){
+      if(!MYREC.holYear) MYREC.holYear = new Date().getFullYear();
+      _lvLoadHolidays();
+    }
 
-    // ── the form ──────────────────────────────────────────────────────
+    /* ── balances, one card per kind ──────────────────────────────────────
+       Never one combined figure. This company's seven kinds add up to 132
+       days and ninety of those are maternity — a number that would tell an
+       employee nothing true about what they can take on Monday. Every kind
+       stands on its own, drawn from whatever the register returns, so a kind
+       added later appears here without a line being written. */
+    const _lvBal = bal.filter(x => x.entitled);
+    html += '<div style="margin:0 2px 8px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+      + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Leave balance · this year</div>';
+    if(!_lvBal.length){
+      html += '<div class="card" style="margin-bottom:14px"><div class="empty" style="padding:18px 14px">'
+        + '<div class="et">Balance unavailable</div>'
+        + '<div class="es">No leave entitlement is set on your employee file yet. Please ask HR.</div></div></div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin-bottom:14px">';
+      _lvBal.forEach(x => {
+        const tot = Number(x.entitled) || 0;
+        const used = Number(x.taken || 0);
+        const left = Math.max(0, tot - used);
+        const pct = tot > 0 ? Math.round(used / tot * 100) : 0;
+        html += '<div class="card" style="padding:13px 15px;border-radius:14px">'
+          + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
+          + '<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+          + 'font-weight:600;color:var(--fk-text-muted)">' + esc(x.type) + '</span>'
+          + (x.is_paid === false ? _myrecChip('unpaid') : '') + '</div>'
+          + '<div style="display:flex;align-items:baseline;gap:6px;margin-top:5px">'
+          + '<span style="font-size:var(--fs-section);font-weight:700;font-variant-numeric:tabular-nums;'
+          + 'color:' + (left > 0 ? 'var(--fk-success)' : 'var(--fk-text-muted)') + '">' + left + '</span>'
+          + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption)">available</span></div>'
+          // The bar fills with what has been USED, so a full bar reads as
+          // "spent" rather than "earned".
+          + '<div style="height:6px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:9px;overflow:hidden">'
+          + '<div style="height:100%;width:' + Math.min(100, pct) + '%;border-radius:99px;'
+          + 'background:' + (pct >= 100 ? 'var(--fk-warning)' : 'var(--fk-primary)') + '"></div></div>'
+          + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:6px">'
+          + 'Used ' + used + ' of ' + tot + '</div></div>';
+      });
+      html += '</div>';
+    }
+
+    // ── the form ────────────────────────────────────────────
     if(MYREC.asking){
       const opts=(MYREC.types||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)
         +(t.is_paid?'':' (unpaid)')+'</option>').join('');
       const today=new Date().toISOString().slice(0,10);
       html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
-        +'<div style="font-weight:700;font-size:var(--fs-body);margin-bottom:4px">Ask for leave</div>'
+        +'<div style="font-weight:700;font-size:var(--fs-body);margin-bottom:4px">Apply for leave</div>'
         +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-bottom:12px">'
         +'This goes to HR first. They pass it to the Head of Department, who decides.</div>'
         +'<div id="mr-err" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:8px;'
@@ -8951,58 +9233,109 @@ async function renderMyRecord(){
         +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Kind of leave</label>'
         +'<select id="mr-type" class="input" style="width:100%;margin-bottom:10px">'
         +(opts||'<option value="">Loading…</option>')+'</select>'
-        +'<div style="display:flex;gap:8px;margin-bottom:10px">'
-        +'<div style="flex:1"><label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">From</label>'
-        +'<input id="mr-from" class="input" type="date" style="width:100%" min="'+today+'"></div>'
-        +'<div style="flex:1"><label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">To</label>'
-        +'<input id="mr-to" class="input" type="date" style="width:100%" min="'+today+'"></div></div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+        +'<div style="flex:1;min-width:130px"><label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">From</label>'
+        +'<input id="mr-from" class="input" type="date" style="width:100%" min="'+today+'" onchange="_lvDur()"></div>'
+        +'<div style="flex:1;min-width:130px"><label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">To</label>'
+        +'<input id="mr-to" class="input" type="date" style="width:100%" min="'+today+'" onchange="_lvDur()"></div></div>'
         +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Full day or half</label>'
-        +'<select id="mr-part" class="input" style="width:100%;margin-bottom:10px">'
+        +'<select id="mr-part" class="input" style="width:100%;margin-bottom:10px" onchange="_lvDur()">'
         +'<option value="full">Full day</option><option value="first_half">First half</option>'
         +'<option value="second_half">Second half</option></select>'
+        // Worked out in front of the person rather than after they submit.
+        +'<div id="mr-dur" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:8px;'
+        +'background:var(--fk-bg-subtle);border:1px solid var(--fk-hairline);font-size:var(--fs-caption);'
+        +'color:var(--fk-text-muted)"></div>'
         +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Why you need it</label>'
         +'<textarea id="mr-reason" class="input" rows="3" style="width:100%;margin-bottom:10px" maxlength="400" '
         +'placeholder="Your manager will read this."></textarea>'
         +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Where you can be reached (optional)</label>'
-        +'<input id="mr-contact" class="input" type="text" style="width:100%;margin-bottom:14px" maxlength="60" placeholder="0300…">'
+        +'<input id="mr-contact" class="input" type="text" style="width:100%;margin-bottom:10px" maxlength="60" placeholder="0300…">'
+        +'<label style="display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);margin-bottom:4px">Attachment (optional)</label>'
+        +'<div style="border:1px solid var(--fk-border);border-radius:var(--fk-radius-control);padding:10px 12px;margin-bottom:14px">'
+        +'<div id="mr-att-state" style="font-size:var(--fs-caption);margin-bottom:9px"><span style="color:var(--fk-text-muted)">No attachment</span></div>'
+        +'<input id="mr-att" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none" onchange="_lvAttPick(this)">'
+        +'<button type="button" class="btn btn-secondary" style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
+        +'onclick="document.getElementById(&#39;mr-att&#39;).click()">Choose a file</button>'
+        +'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:7px">A photo or a PDF, up to 5 MB. A sick note, for example.</div>'
+        +'</div>'
         +'<div style="display:flex;gap:8px">'
         +'<button class="btn btn-primary" style="flex:1" onclick="_myrecSubmit()" id="mr-send">Send to HR</button>'
         +'<button class="btn btn-secondary" onclick="_myrecCancelAsk()">Cancel</button></div>'
         +'</div></div>';
     } else {
-      html+='<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="_myrecAsk()">Ask for leave</button>';
+      html+='<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="_myrecAsk()">+ Apply Leave</button>';
     }
 
+    /* ── my leave requests ────────────────────────────────────────────────
+       A card per request rather than a table, because a table of six columns
+       cannot be read on a phone and this list is read on a phone. */
+    html += '<div style="margin:2px 2px 8px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+      + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">My leave requests</div>';
     if(!leaves.length){
-      html+='<div class="card"><div class="empty"><div class="ei">'+li('calendar',20,1.8)+'</div>'
-        +'<div class="et">No applications yet</div>'
+      html+='<div class="card" style="margin-bottom:14px"><div class="empty"><div class="ei">'+li('calendar',20,1.8)+'</div>'
+        +'<div class="et">No leave requests yet</div>'
         +'<div class="es">Leave you have asked for appears here with where it has reached.</div></div></div>';
     } else {
-      // where it has reached, said the way the office actually says it
-      const WHERE={submitted:['With HR',''],returned:['Returned to you','warn'],
-        pending:['With the Head of Department',''],approved:['Approved','ok'],
-        rejected:['Refused','bad'],cancelled:['Withdrawn','']};
-      html+='<div class="card" style="padding:6px 8px">';
-      leaves.forEach(l=>{
-        const w=WHERE[l.status]||[l.status,''];
-        const from=new Date(l.start_date+'T00:00:00Z'), to=new Date(l.end_date+'T00:00:00Z');
-        const fmt=x=>x.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getUTCMonth()];
-        html+='<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
-          +'<div class="lr-name" style="white-space:normal">'+esc(l.type||'Leave')+' · '+fmt(from)+(l.start_date!==l.end_date?' – '+fmt(to):'')+'</div>'
-          +'<div class="lr-sub"><span>'+esc([l.application_no,(l.days||0)+' day'+((l.days||0)==1?'':'s')].filter(Boolean).join(' · '))+'</span></div>'
-          +(l.returned_note?'<div class="lr-sub"><span style="color:var(--fk-warning)">'+esc(l.returned_note)+'</span></div>':'')
-          +(l.rejected_reason?'<div class="lr-sub"><span style="color:var(--fk-danger)">'+esc(l.rejected_reason)+'</span></div>':'')
-          +'</div>'
-          +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'
-          +_myrecChip(w[0], w[1])
-          // Withdrawing is only possible while nobody has decided; after that it
-          // is a record, not a request.
-          +(['submitted','returned','pending'].indexOf(l.status)>-1
-            ? '<button class="btn btn-secondary" style="height:28px;padding:0 10px;font-size:var(--fs-caption)" '
-              +'onclick="_myrecWithdraw(\''+esc(l.id)+'\')">Withdraw</button>' : '')
-          +'</div></div>';
+      html += '<div class="card" style="padding:6px 8px;margin-bottom:14px">';
+      leaves.forEach(l => {
+        html += _lvRow(l);
+        if(MYREC.leaveOpen === l.id) html += _lvDetail(l);
       });
-      html+='</div>';
+      html += '</div>';
+    }
+
+    /* ── holiday calendar ─────────────────────────────────────────────────
+       The SAME reader the dashboard's upcoming holiday uses — portal_holidays,
+       fetched once into MYREC.hol. There is no second query and nothing is
+       hard-coded, so the two can never disagree.
+
+       It is a COMPANY holiday calendar and only that. Sunday is the weekly
+       day off here, but a Sunday is not a company holiday and is not listed
+       as one; a Saturday appears only if a Saturday is actually configured.
+       Nothing is inferred from the name of a weekday. */
+    html += '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 2px 8px">'
+      + '<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+      + 'font-weight:600;color:var(--fk-text-muted)">Holiday calendar</span>'
+      + '<span style="display:flex;align-items:center;gap:8px">'
+      + '<button class="btn btn-secondary" style="height:30px;padding:0 11px;font-size:var(--fs-caption)" '
+      + 'onclick="_lvYear(-1)">‹</button>'
+      + '<b style="font-size:var(--fs-secondary);font-variant-numeric:tabular-nums">' + esc(String(MYREC.holYear || new Date().getFullYear())) + '</b>'
+      + '<button class="btn btn-secondary" style="height:30px;padding:0 11px;font-size:var(--fs-caption)" '
+      + 'onclick="_lvYear(1)">›</button></span></div>';
+
+    const H = MYREC.hol;
+    if(H === undefined){
+      html += '<div class="card"><div class="empty" style="padding:18px 14px"><div class="es">Loading the calendar…</div></div></div>';
+    } else if(!H || !H.ok || !(H.holidays || []).length){
+      html += '<div class="card"><div class="empty" style="padding:18px 14px">'
+        + '<div class="et">No holidays available</div>'
+        + '<div class="es">No company holiday is set for this year. Sunday remains the weekly day off.</div></div></div>';
+    } else {
+      const DAYN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const MONN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+      let lastMon = -1;
+      html += '<div class="card" style="padding:6px 8px">';
+      (H.holidays || []).forEach(h => {
+        const d = new Date(h.date + 'T00:00:00Z');
+        const mo = d.getUTCMonth();
+        if(mo !== lastMon){
+          lastMon = mo;
+          html += '<div style="padding:10px 8px 4px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+            + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">' + esc(MONN[mo]) + '</div>';
+        }
+        const away = Number(h.days_away || 0);
+        html += '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+          + '<div class="lr-name" style="white-space:normal">' + esc(h.name || 'Holiday') + '</div>'
+          + '<div class="lr-sub"><span>' + esc(d.getUTCDate() + ' ' + MONN[mo].slice(0,3) + ' · ' + DAYN[d.getUTCDay()])
+          + (h.optional ? ' · optional' : '') + '</span></div></div>'
+          + (away === 0 ? _myrecChip('Today','ok') : away > 0 ? _myrecChip(away + 'd away') : '')
+          + '</div>';
+      });
+      html += '</div>';
+      html += '<div style="margin:10px 2px 0;color:var(--fk-text-muted);font-size:var(--fs-caption);line-height:1.5">'
+        + 'Sunday is the weekly day off and is not listed here. Only days the company has actually '
+        + 'declared appear on this calendar.</div>';
     }
   }
 

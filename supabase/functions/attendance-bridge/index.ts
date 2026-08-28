@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
     session_token?: string; action?: string; from?: string; to?: string;
     leave_type?: string; reason?: string; day_part?: string;
     contact?: string; request_id?: string; project_id?: string; year?: number;
+    attachment_url?: string; attachment_name?: string;
   };
   try {
     body = await req.json();
@@ -265,6 +266,10 @@ Deno.serve(async (req) => {
         p_reason: body.reason,
         p_day_part: body.day_part || 'full',
         p_contact: body.contact || null,
+        // The document, if one was attached. It is uploaded by the portal to the
+        // bucket it already uses; only the address travels through here.
+        p_attachment_url: body.attachment_url || null,
+        p_attachment_name: body.attachment_name || null,
       });
       if (error) throw error;
       return json(data);
