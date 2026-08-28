@@ -2803,6 +2803,8 @@ async function renderHome(){
   const nm=(ME&&ME.sales_user_name)||'', _fn=nm?esc(String(nm).split(' ')[0]):'';
   let html='<div class="nx-dash">';
   html+=`<div style="margin:0 2px 14px"><div style="font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:3px;font-weight:500">Here’s your list for today.</div></div>`;
+  // Their own day comes before their numbers — same card the office side opens with.
+  html += await _meStrip();
   html+=_numStrip([{lbl:'This month sold',val:pkrShort(sold)||'₨0',onclick:"setTab('money')"},{lbl:'To collect',val:pkrShort(collect)||'₨0',onclick:"setTab('money')"}]);
   const total=overdue.length+today.length+news.length;
   html+=`<div class="dsec">Today${total?` <span class="nb">${total}</span>`:''}</div>`;
@@ -3032,6 +3034,8 @@ async function renderManagerHome(){
   const isDir=ME&&ME.role==='director'; const roleLbl=isDir?'Director':'Manager'; const unit=isDir?'manager':'agent';
   let html='<div class="nx-dash">';
   html+=`<div style="margin:0 2px 14px"><div style="font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:3px;font-weight:500">${roleLbl} · ${team.length} ${unit}${team.length==1?'':'s'} in your team.</div></div>`;
+  // Marketing managers only; Rashid asked that directors be left as they were.
+  if(ME && ME.role === 'marketing_manager') html += await _meStrip();
   html+=_numStrip([{lbl:'Team sold this month',val:pkrShort(sold)||'₨0',onclick:"setTab('money')"},{lbl:'Team to collect',val:pkrShort(collect)||'₨0',onclick:"setTab('money')"}]);
   html+='<div class="dsec">Your team</div><div id="tbd-wrap">'+_skel()+'</div>';
   if(toAssign>0){
@@ -7453,6 +7457,75 @@ async function renderMyHome(){
 
 // Straight to the leave form rather than to the tab it lives on.
 function _homeLeave(){ MYREC.sub = 'leave'; MYREC.asking = true; setTab('myrecord'); }
+
+/* ── The same strip, on a seller's dashboard ────────────────────────────────
+   The portal is the company's app, not the sales floor's tool: a rep clocks in,
+   takes leave and draws a salary exactly like the front desk does. All of that
+   was already in My record for every role — it simply was not on the page they
+   open first, and a thing that is not on the first page is, for half the staff,
+   not there at all.
+
+   So this is the office dashboard's attendance card, cut down to one line and
+   put ABOVE the rep's own numbers. Nothing of theirs is moved or removed. It
+   returns empty rather than an error when attendance is not linked — a rep who
+   is not on the register should see their leads, not a complaint. */
+async function _meStrip(){
+  try{
+    if(!HOME.loaded){
+      const ym = new Date().toISOString().slice(0, 7);
+      const today = new Date().toISOString().slice(0, 10);
+      const [f, p] = await Promise.all([
+        _myrecCall({ action: 'file', from: ym + '-01', to: today }).catch(() => null),
+        _myrecCall({ action: 'earnings', to: today }).catch(() => null),
+      ]);
+      HOME.file = f; HOME.pay = p; HOME.loaded = true;
+    }
+    const f = HOME.file || {}, pay = HOME.pay || {};
+    if(!f.ok) return '';                                  // not on the register — say nothing
+
+    const today = new Date().toISOString().slice(0, 10);
+    const td = (f.days || []).find(x => x.date === today) || null;
+    const present = (f.days || []).filter(x => x.status === 'present' || x.status === 'late').length;
+    const bal = (f.leave_balance || []).filter(x => x.entitled && x.is_paid !== false);
+    const lv = bal[0];
+    const rsS = n => { n = Number(n||0);
+      return n >= 10000000 ? '₨' + (n/10000000).toFixed(2) + ' cr'
+           : n >= 100000   ? '₨' + (n/100000).toFixed(1) + ' lac'
+           : '₨' + Number(n||0).toLocaleString('en-US'); };
+
+    let mark, tone = null;
+    if(td && /leave/.test(String(td.status||''))){ mark = 'On leave today'; tone = 'warn'; }
+    else if(td && td.first_in){ mark = 'In at ' + _homeTime(td.first_in);
+                                tone = Number(td.late_minutes||0) > 0 ? 'warn' : 'ok'; }
+    else mark = 'Not marked in yet';
+
+    const cell = (label, value) =>
+      '<div style="flex:1;background:var(--fk-bg-card);padding:11px 13px;min-width:92px">'
+      + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
+      + 'letter-spacing:.06em;font-weight:600">' + esc(label) + '</div>'
+      + '<div style="font-weight:700;font-size:var(--fs-secondary);margin-top:2px;'
+      + 'font-variant-numeric:tabular-nums">' + value + '</div></div>';
+
+    return '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:16px">'
+      + '<div style="padding:12px 14px;display:flex;align-items:center;gap:10px">'
+      + '<span style="width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;'
+      + 'background:var(--fk-bg-subtle);color:var(--fk-text-muted)">' + li('clock',15,1.9) + '</span>'
+      + '<b style="flex:1;min-width:0;font-size:var(--fs-secondary)">' + esc(mark) + '</b>'
+      + (tone ? _myrecChip(tone === 'ok' ? 'On time' : 'Late', tone) : '')
+      + '</div>'
+      + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
+      + cell('Days in', present)
+      + cell('Earned', pay && pay.ok ? rsS(pay.net_so_far) : '—')
+      + cell(lv ? lv.type + ' left' : 'Leave left', lv ? Math.max(0, Number(lv.entitled) - Number(lv.taken||0)) : '—')
+      + '</div>'
+      + '<div style="display:flex;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">'
+      + '<div onclick="_homeLeave()" style="flex:1;background:var(--fk-bg-card);cursor:pointer;padding:10px 14px;'
+      + 'color:var(--fk-primary);font-size:var(--fs-caption);font-weight:600">Ask for leave</div>'
+      + '<div onclick="setTab(&#39;myrecord&#39;)" style="flex:1;background:var(--fk-bg-card);cursor:pointer;'
+      + 'padding:10px 14px;color:var(--fk-primary);font-size:var(--fs-caption);font-weight:600;text-align:right">'
+      + 'My record</div></div></div>';
+  }catch(e){ return ''; }
+}
 
 
 /* ══ Site — the engineer's screen ═════════════════════════════════════════════
