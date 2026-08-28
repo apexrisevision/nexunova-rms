@@ -9735,8 +9735,12 @@ async function renderMyRecord(){
     if(!items.length){
       html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',20,1.8)+'</div>'
         +'<div class="et">No documents available yet</div>'
-        +'<div class="es">Your identity documents, letters from the office and any papers held on '
-        +'your file appear here as they are added.</div></div></div>';
+        // Letters moved to Messages in Pass 7; promising them here would send
+        // somebody looking in the wrong place for something that does exist.
+        +'<div class="es">Your identity documents and any papers held on your file appear here as '
+        +'they are added. Letters from the office are under '
+        +'<a onclick="setTab(&#39;updates&#39;)" style="color:var(--fk-primary);cursor:pointer">Messages</a>.'
+        +'</div></div></div>';
     } else if(!shown.length){
       html+='<div class="card"><div class="empty"><div class="et">Nothing matches “'+esc(MYREC.docQ||'')+'”</div>'
         +'<div class="es">Try part of a document name.</div></div></div>';
