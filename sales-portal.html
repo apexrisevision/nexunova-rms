@@ -6378,7 +6378,7 @@ async function renderProfile(){
       const ym=_myrecMonth(), [yy0,mm0]=ym.split('-').map(Number);
       const last0=new Date(Date.UTC(yy0,mm0,0)).getUTCDate();
       const f=await _myrecCall({action:'file',from:ym+'-01',to:ym+'-'+String(last0).padStart(2,'0')});
-      if(f && f.ok!==false){ MYREC.data=f; empP=f.employee||{}; }
+      if(f && f.ok!==false){ MYREC.data=f; MYREC.at=Date.now(); empP=f.employee||{}; }
     }catch(e){ empP=null; }
   }
   let html=_pageHead('My Profile','Your details, bank & security.');
@@ -8000,6 +8000,20 @@ function _notifToggle(ev){
   if(NOTIF.open){ _notifPaint(); p.classList.add('show'); }
   else p.classList.remove('show');
 }
+/* Coming back to the app — unlocking the phone, switching back to the tab — is
+   exactly the moment somebody expects to find out. The cached file is dropped
+   so the next screen re-reads it, and the bell is recounted straight away. */
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState !== 'visible') return;
+  if(typeof TOKEN === 'undefined' || !TOKEN) return;
+  MYREC.data = null;
+  try{ _notifLoad(); }catch(e){}
+  try{ loadAnnouncements().then(function(){ try{ _notifBadge(); }catch(e){} }); }catch(e){}
+  if(['ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file'].indexOf(TAB) > -1){
+    try{ renderMyRecord(); }catch(e){}
+  }
+});
+
 function _notifClose(){
   const p = $('npanel'); if(p) p.classList.remove('show');
   NOTIF.open = false;
@@ -8058,7 +8072,7 @@ async function _notifLoad(){
       const ym = _myrecMonth(), [y0, m0] = ym.split('-').map(Number);
       const last0 = new Date(Date.UTC(y0, m0, 0)).getUTCDate();
       const f = await _myrecCall({ action:'file', from: ym + '-01', to: ym + '-' + String(last0).padStart(2, '0') });
-      if(f && f.ok !== false) MYREC.data = f;
+      if(f && f.ok !== false){ MYREC.data = f; MYREC.at = Date.now(); }
     }catch(e){}
   }
   _notifBadge();
@@ -9591,6 +9605,12 @@ async function renderProject(){
 
 async function renderMyRecord(){
   const b=$('app-body'); if(!b) return;
+  /* The office answers while this page is sitting open. Holding the first
+     answer forever is why an approved application went on saying "waiting":
+     nothing here was wrong except that nobody had asked again. So the file is
+     re-read when it is older than a minute, and the screen a person comes back
+     to is the screen that is true. */
+  if(MYREC.data && (Date.now() - (MYREC.at || 0)) > 60000) MYREC.data = null;
   if(!MYREC.data){
     b.innerHTML=_skel();
     const ym=_myrecMonth();
@@ -9601,7 +9621,7 @@ async function renderMyRecord(){
     catch(e){ return _netErr(); }
     if(!out) return _netErr();
     if(out.error==='session_invalid') return sessionGone();
-    MYREC.data=out;
+    MYREC.data=out; MYREC.at=Date.now();
   }
   const d=MYREC.data;
   _touch();
@@ -10812,7 +10832,7 @@ async function _annLoadHr(){
     const ym=_myrecMonth(), [y0,m0]=ym.split('-').map(Number);
     const last0=new Date(Date.UTC(y0,m0,0)).getUTCDate();
     const f=await _myrecCall({action:'file',from:ym+'-01',to:ym+'-'+String(last0).padStart(2,'0')});
-    if(f && f.ok!==false){ MYREC.data=f; ANN.hr=f.notices||[]; }
+    if(f && f.ok!==false){ MYREC.data=f; MYREC.at=Date.now(); ANN.hr=f.notices||[]; }
     else ANN.hr=[];
   }catch(e){ ANN.hr=[]; }
 }
