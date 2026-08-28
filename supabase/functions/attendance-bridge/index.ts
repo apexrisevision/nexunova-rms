@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
     session_token?: string; action?: string; from?: string; to?: string;
     leave_type?: string; reason?: string; day_part?: string;
     contact?: string; request_id?: string; project_id?: string; year?: number;
-    attachment_url?: string; attachment_name?: string;
+    attachment_name?: string; attachment_path?: string;
+    path?: string; ext?: string; content_type?: string;
   };
   try {
     body = await req.json();
@@ -218,6 +219,42 @@ Deno.serve(async (req) => {
       return json({ tenant: ctx.attend_company_name, ...data });
     }
 
+    /* ── documents that belong to one person ───────────────────────────
+       employee-private has no storage policy at all: anon cannot read it, write
+       to it or list it. Everything goes through here, with the service key, and
+       the two rules that make it safe are:
+
+         THE SERVER CHOOSES THE PATH. The browser never says where to put a
+         file. It asks for somewhere to put one, and gets back a path with the
+         caller's own id in it, signed for a single upload. A forged path is not
+         possible because no path is accepted.
+
+         THE OWNER IS IN THE PATH. A download is signed only when the path
+         begins with this caller's id. Another employee's document has another
+         id in it and is refused — there is nothing to guess, because guessing
+         correctly still fails the comparison.
+
+       Links are short-lived. A signed URL is for opening a document now, not
+       for keeping. */
+    if (action === 'doc_upload_url') {
+      const ext = String(body.ext || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) || 'bin';
+      const path = `leave/${ctx.sales_user_id}/${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await rms.storage.from('employee-private').createSignedUploadUrl(path);
+      if (error) return json({ ok: false, error: 'upload_url_failed', message: error.message }, 500);
+      return json({ ok: true, path, signedUrl: data.signedUrl, token: data.token });
+    }
+
+    if (action === 'doc_url') {
+      const path = String(body.path || '');
+      const mine = `leave/${ctx.sales_user_id}/`;
+      if (!path.startsWith(mine)) {
+        return json({ ok: false, error: 'not_yours', message: 'That document is not yours.' }, 403);
+      }
+      const { data, error } = await rms.storage.from('employee-private').createSignedUrl(path, 120);
+      if (error) return json({ ok: false, error: 'sign_failed', message: error.message }, 500);
+      return json({ ok: true, url: data.signedUrl, expires_in: 120 });
+    }
+
     if (action === 'holidays') {
       // The company calendar. The dashboard wants the next one, the Leave page
       // wants the year — one call answers both rather than two shapes of the
@@ -268,8 +305,11 @@ Deno.serve(async (req) => {
         p_contact: body.contact || null,
         // The document, if one was attached. It is uploaded by the portal to the
         // bucket it already uses; only the address travels through here.
-        p_attachment_url: body.attachment_url || null,
+        // The path inside the private bucket, never a URL — there is no public
+        // address to keep. attachment_url is left for the legacy column only.
+        p_attachment_url: null,
         p_attachment_name: body.attachment_name || null,
+        p_attachment_path: body.attachment_path || null,
       });
       if (error) throw error;
       return json(data);

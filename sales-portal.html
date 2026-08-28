@@ -7251,6 +7251,20 @@ const _LV_WHERE = {
   cancelled: ['Withdrawn', '']
 };
 
+/* Opening a private document: the link is fetched at the moment of pressing
+   and thrown away after. Nothing durable is put in the page, so a screenshot of
+   the DOM is not a key to somebody's medical note. */
+async function _lvOpenDoc(el, path){
+  const was = el.textContent;
+  el.textContent = 'Opening…';
+  try{
+    const r = await _myrecCall({ action: 'doc_url', path: path });
+    if(!r || !r.ok || !r.url) throw new Error((r && r.message) || 'no link');
+    window.open(r.url, '_blank', 'noopener');
+  }catch(e){ toast('Could not open that document.', 'err'); }
+  el.textContent = was;
+}
+
 function _lvOpen(id){ MYREC.leaveOpen = (MYREC.leaveOpen === id) ? null : id; renderMyRecord(); }
 
 function _lvRow(l){
@@ -7300,12 +7314,16 @@ function _lvDetail(l){
         + (l.day_part && l.day_part !== 'full' ? ' · ' + String(l.day_part).replace('_', ' ') : ''))
     + row('Applied on', l.created_at ? _lvFmt(String(l.created_at).slice(0,10), true) : '')
     + row('Reason', l.reason || '')
-    + (l.attachment_url
+    /* No link is drawn into the page. The document lives in a private bucket
+       with no public address; pressing this asks the bridge for a link that
+       lasts two minutes and is only signed if the path is this person's own. */
+    + (l.attachment_path
         ? '<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;'
           + 'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-caption)">'
           + '<span style="color:var(--fk-text-muted)">Attachment</span>'
-          + '<a href="' + esc(l.attachment_url) + '" target="_blank" rel="noopener" '
-          + 'onclick="event.stopPropagation()" style="color:var(--fk-primary);text-decoration:none;font-weight:600">'
+          + '<a href="#" onclick="event.preventDefault();event.stopPropagation();'
+          + '_lvOpenDoc(this,&#39;' + esc(l.attachment_path) + '&#39;)" '
+          + 'style="color:var(--fk-primary);text-decoration:none;font-weight:600">'
           + esc(l.attachment_name || 'Open document') + '</a></div>'
         : row('Attachment', 'No attachment'))
     + row('Decided by', l.approver_name || '')
@@ -7431,17 +7449,24 @@ async function _lvAttPick(input){
   if(_LV_OK.indexOf(file.type) < 0) return bad('Attach a photo or a PDF — that file type is not accepted.');
   if(file.size > _LV_MAX)          return bad('That file is larger than 5 MB. Please attach a smaller one.');
 
-  const tok = SIGNUP_TOKEN || UPLOAD_TOKEN;
-  if(!tok) return bad('Attachments are not available on this session — please sign in again.');
-
   LV_FILE = { name: file.name, size: file.size, type: file.type, busy: true };
   _lvAttBox();
   try{
+    /* The browser does not decide where the file goes. It asks the bridge for
+       somewhere to put one and is handed a path with its own id in it, signed
+       for a single upload — so a path cannot be forged and nothing lands
+       anywhere that is not this person's own folder. What is kept afterwards is
+       the PATH, never a URL: the bucket is private and has no public address. */
     const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const path = 'leave/' + tok + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-    const up = await sb.storage.from('rms-documents').upload(path, file, { upsert: false, contentType: file.type });
-    if(up.error) throw up.error;
-    LV_FILE.url = sb.storage.from('rms-documents').getPublicUrl(path).data.publicUrl;
+    const slot = await _myrecCall({ action: 'doc_upload_url', ext: ext });
+    if(!slot || !slot.ok) throw new Error((slot && slot.message) || 'no upload slot');
+    const put = await fetch(slot.signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file
+    });
+    if(!put.ok) throw new Error('upload ' + put.status);
+    LV_FILE.path = slot.path;
     LV_FILE.busy = false;
   }catch(e){
     LV_FILE = null;
@@ -7475,7 +7500,7 @@ async function _myrecSubmit(){
   let out;
   try{ out=await _myrecCall({action:'apply_leave',leave_type:type,from:from,to:to,
         day_part:part,reason:reason,contact:contact,
-        attachment_url:(LV_FILE&&LV_FILE.url)||null, attachment_name:(LV_FILE&&LV_FILE.name)||null}); }
+        attachment_path:(LV_FILE&&LV_FILE.path)||null, attachment_name:(LV_FILE&&LV_FILE.name)||null}); }
   catch(e){ out=null; }
   MYREC.busy=false;
   if(!out||!out.ok){
