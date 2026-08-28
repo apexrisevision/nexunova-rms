@@ -359,6 +359,11 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 #appbar-home{color:var(--fk-primary)}
 .sb-toggle{display:none}
 @media(max-width:560px){.appbar-title{display:none}}
+/* On a 412px phone the bar's own padding was the last 10px the avatar needed,
+   so it sat outside the viewport and the whole page could be dragged sideways.
+   Nothing in the bar may shrink — they are all fixed-size controls — so the
+   room comes out of the margins instead. */
+@media(max-width:440px){.appbar{padding:0 10px;gap:4px}}
 .appbody{flex:1;min-width:0;padding:24px;max-width:1120px;width:100%;margin:0 auto}
 #app-body.rise{animation:fadeup .26s cubic-bezier(.2,.7,.3,1) both}
 @keyframes fadeup{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -789,6 +794,12 @@ button.mn-card:active{transform:scale(.985)}
 .intop{display:flex;align-items:baseline;gap:8px}
 .insubj{flex:1;min-width:0;font-size:var(--fs-body);font-weight:600;color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .inrow.unread .insubj{font-weight:700}
+/* On a phone one line of an inbox subject is about four words, and "Welcome to
+   Fourteen Group of Com…" tells nobody anything. Two lines is still a list. */
+@media(max-width:520px){
+  .insubj{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    line-clamp:2;overflow:hidden}
+}
 .indate{flex:none;font-size:var(--fs-caption);color:var(--fk-text-muted);font-variant-numeric:tabular-nums}
 .insnip{font-size:var(--fs-secondary);color:var(--fk-text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .inrow.unread .insnip{color:var(--fk-text)}
@@ -1319,6 +1330,65 @@ button.mn-card:active{transform:scale(.985)}
 .lead-lock{display:inline-flex;align-items:center;gap:4px;font-size:var(--fk-fs-label);color:var(--fk-danger);background:var(--fk-danger-surface);border-radius:var(--fk-radius-pill);padding:1px 8px;white-space:nowrap}
 .tbd-c.blocked{box-shadow:inset 3px 0 0 var(--fk-danger)}
 .tbd-chip.blk{background:var(--fk-danger);color:#fff;border-color:transparent;font-weight:var(--fk-fw-bold)}
+
+/* ── the attendance sheet ─────────────────────────────────────────────────────
+   A month of days, read on a phone. Not a table squeezed down: a table with
+   eight columns at 412px is either unreadable or scrolls sideways, and both are
+   worse than the same facts laid out as a row you can take in at a glance.
+
+   The date sits in its own block on the left because that is what the eye looks
+   for first when finding a day. What the day is worth — hours, lateness — goes
+   underneath in words, so nobody has to know that "OT" meant overtime. */
+.att-row{display:grid;grid-template-columns:46px 1fr auto;gap:11px;align-items:start;
+  padding:11px 9px;border-bottom:1px solid var(--fk-hairline)}
+.att-row:last-child{border-bottom:0}
+.att-d{text-align:center;border-radius:10px;padding:4px 0;background:var(--fk-bg-subtle);
+  border:1px solid var(--fk-border)}
+.att-d b{display:block;font-size:var(--fs-body);font-weight:var(--fk-fw-bold);
+  font-variant-numeric:tabular-nums;line-height:1.15}
+.att-d span{display:block;font-size:var(--fk-fs-label);color:var(--fk-text-muted);
+  text-transform:uppercase;letter-spacing:.05em}
+.att-day{font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold)}
+.att-time{font-size:var(--fs-secondary);color:var(--fk-text-muted);
+  font-variant-numeric:tabular-nums;margin-top:1px}
+.att-meta{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;
+  font-size:var(--fs-caption);color:var(--fk-text-muted)}
+.att-meta b{color:var(--fk-text);font-variant-numeric:tabular-nums;font-weight:var(--fk-fw-bold)}
+/* a day nobody worked is quieter than one they did */
+.att-row.att-quiet .att-day{color:var(--fk-text-muted);font-weight:600}
+.att-row.att-quiet .att-d{background:transparent}
+/* The tallies at the top of a self-service page — Attendance and Payroll share
+   them, so a month reads the same way whichever page you came in by. auto-fit
+   rather than a fixed count, so four tiles and seven both land without a
+   stranded one on its own row. */
+.ess-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;margin-bottom:15px}
+.ess-tile{border:1px solid var(--fk-border);border-radius:13px;background:var(--fk-bg-card);
+  padding:12px 13px}
+.ess-tile .v{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-bold);
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.ess-tile .k{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;
+  font-weight:var(--fk-fw-bold);color:var(--fk-text-muted);margin-top:3px}
+@media(max-width:400px){
+  .att-row{grid-template-columns:42px 1fr;gap:9px}
+  .att-row>.att-chip{grid-column:2;justify-self:start;margin-top:5px}
+}
+
+/* ── the payslip ──────────────────────────────────────────────────────────────
+   A salary statement, not a screen of numbers. It says whose it is and which
+   month before it says anything about money, because that is what makes a
+   document a document — and it is the part somebody prints and keeps. */
+.ps-head{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px 18px;
+  padding:13px 0 2px;border-top:1px solid var(--fk-hairline);margin-top:12px}
+.ps-f .k{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;
+  font-weight:var(--fk-fw-bold);color:var(--fk-text-muted)}
+.ps-f .v{font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);margin-top:2px;
+  overflow-wrap:anywhere}
+@media print{
+  .appbar,.sidebar,.sb,.nav,.btn,.pwa,#app-nav{display:none!important}
+  body,#app,#app-body{background:#fff!important;color:#000!important}
+  .card{border:1px solid #ccc!important;box-shadow:none!important;break-inside:avoid}
+  .ess-tile{border:1px solid #ccc!important}
+}
 </style>
 </head>
 <body>
@@ -6259,19 +6329,23 @@ async function renderProfile(){
   if(_loadFail(data)) return;
   _touch();
   const p=data.profile||{}; PROFILE=p;
-  const initials=((p.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
-  const _pFace=_pdoc(p.profile_photo_path,p.profile_photo_url);
-  const avatar=_pFace?_pdocImg(_pFace,'style="width:100%;height:100%;object-fit:cover"'):esc(initials);
-  const kyc = p.kyc_status==='verified'
-    ? '<span class="spill" style="background:var(--fk-success-surface);border-color:transparent;color:var(--fk-success);flex:none"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><path d="M20 6 9 17l-5-5"/></svg>Verified</span>'
-    : '<span class="spill" style="flex:none">KYC '+esc(p.kyc_status||'pending')+'</span>';
+  /* The same identity card every other self-service page carries. This screen
+     used to draw its own small round avatar from its own data — two headers
+     about one person, free to disagree. The employment facts (file number,
+     designation, department, shift) live on the attendance register, so they
+     are taken from the file reader's answer if it has already been fetched this
+     session, and fetched once if not. There is no second query either way. */
+  let empP = (MYREC.data && MYREC.data.employee) || null;
+  if(!empP){
+    try{
+      const ym=_myrecMonth(), [yy0,mm0]=ym.split('-').map(Number);
+      const last0=new Date(Date.UTC(yy0,mm0,0)).getUTCDate();
+      const f=await _myrecCall({action:'file',from:ym+'-01',to:ym+'-'+String(last0).padStart(2,'0')});
+      if(f && f.ok!==false){ MYREC.data=f; empP=f.employee||{}; }
+    }catch(e){ empP=null; }
+  }
   let html=_pageHead('My Profile','Your details, bank & security.');
-  // compact header: avatar + name/role inline + KYC chip
-  html+=`<div class="card" style="padding:11px 13px;display:flex;align-items:center;gap:11px">
-    <div style="width:50px;height:50px;border-radius:50%;overflow:hidden;flex:none;background:var(--fk-primary-tint);color:var(--fk-primary);display:grid;place-items:center;font-size:var(--fs-title);font-weight:700">${avatar}</div>
-    <div style="flex:1;min-width:0"><div style="font-size:var(--fs-section);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.full_name||'')}</div><div style="color:var(--fk-text-muted);font-size:var(--fs-caption);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(_portalRoleLabel(p.role))} · ${esc(p.company_name||'')}</div></div>
-    ${kyc}
-  </div>`;
+  html+=_essIdentity(empP||{}, p, (MYREC.data&&MYREC.data.tenant)||p.company_name);
   const fld=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-caption)"><span style="color:var(--fk-text-muted)">${esc(l)}</span><span style="font-weight:600;text-align:right;word-break:break-word">${v?esc(v):'—'}</span></div>`;
   const lbl=(t)=>`<div style="font-size:var(--fs-caption);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--fk-text-muted);margin:12px 2px 5px">${t}</div>`;
   const emBadge = p.email_verified
@@ -6280,6 +6354,23 @@ async function renderProfile(){
   const emBtn = p.email_verified ? '' : `<button class="btn btn-sm" style="padding:2px 10px;font-size:var(--fs-caption)" onclick="openEmailVerify()">${p.email?'Verify':'Add'}</button>`;
   const emailRow = `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-caption);align-items:center"><span style="color:var(--fk-text-muted)">Email</span><span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end">${p.email?('<span style="font-weight:600;word-break:break-word">'+esc(p.email)+'</span>'):''}${emBadge}${emBtn}</span></div>`;
   html+=lbl('Details')+`<div class="card" style="padding:3px 13px">`+fld('Phone',p.phone)+fld('CNIC',p.cnic)+fld('Father / Husband',p.father_name)+emailRow+fld('Address',p.address)+`</div>`;
+  /* What the company holds about the job. All of it is read-only and says so:
+     these are the office's to change, not the employee's, and a field that
+     looks editable but is not is worse than one that plainly is not.
+     Nothing is printed that the register did not answer. */
+  if(empP){
+    const dtP=x=>x?new Date(x+'T00:00:00Z').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+    const empRows = fld('Employee no.',empP.employee_code)+fld('Designation',empP.designation)
+      + fld('Department',empP.department)+fld('Joined',dtP(empP.join_date))
+      + fld('Confirmed',dtP(empP.confirmation_date))
+      + fld('Type',(empP.employment_type||'').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()))
+      + fld('Shift',empP.shift)+fld('Reports to',empP.reports_to);
+    if(/[A-Za-z0-9]/.test(empRows.replace(/—/g,''))){
+      html+=lbl('Employment — held by the office')
+        +`<div class="card" style="padding:3px 13px">`+empRows+`</div>`;
+    }
+  }
+
   html+=lbl('Bank — for payouts')+`<div class="card" style="padding:3px 13px">`+fld('Bank',p.bank_name)+fld('Account #',p.bank_account_no)+fld('Title',p.bank_account_title)+`</div>`;
   if(ME&&ME.role==='director') html+=lbl('My location')+`<div id="loc-card"></div>`;
   html+=lbl('Notifications')+`<div id="notif-card" class="card" style="padding:3px 13px"><div style="padding:8px 0;font-size:var(--fs-caption);color:var(--fk-text-muted)">Loading…</div></div>`;
@@ -7216,20 +7307,169 @@ function _lvFmt(d, withYear){
 // Working days between two dates: everything except Sunday, minus any day the
 // company has declared a holiday. Returns the count and what it skipped, so the
 // form can show its working rather than just its answer.
-function _lvWorkingDays(from, to){
+/* Which days the company expected somebody at work.
+   Sunday is the weekly day off and nothing else is — Saturday is a working day.
+
+   A date being ON the holiday calendar does not by itself make it a day off.
+   The calendar carries occasions as well as closures, and the two are told
+   apart by one flag: a holiday marked NOT optional is a closure the company has
+   declared, and comes out of the working days. An optional one is an occasion —
+   the office is open, and somebody who wants the day takes leave for it like
+   any other day. Treating every entry as a closure was quietly excusing
+   absences the company still expects to be explained. */
+function _lvClosures(holidays){
+  const off = {};
+  // The Dashboard keeps its own copy of the calendar, so it can hand one in;
+  // everybody else uses the one the Leave page fetched.
+  (holidays || (MYREC.hol && MYREC.hol.holidays) || []).forEach(h => {
+    if(h && h.optional === false) off[h.date] = h.name || 'Company holiday';
+  });
+  return off;
+}
+function _lvAllHolidays(holidays){
+  const all = {};
+  (holidays || (MYREC.hol && MYREC.hol.holidays) || []).forEach(h => {
+    if(h && h.date) all[h.date] = h.name || 'Company holiday';
+  });
+  return all;
+}
+
+function _lvWorkingDays(from, to, holidays){
   const out = { days: 0, sundays: 0, holidays: [] };
   if(!from || !to) return out;
   const a = new Date(from + 'T00:00:00Z'), b = new Date(to + 'T00:00:00Z');
   if(isNaN(a) || isNaN(b) || b < a) return out;
-  const hol = {};
-  ((MYREC.hol && MYREC.hol.holidays) || []).forEach(h => { hol[h.date] = h.name || 'Company holiday'; });
+  const off = _lvClosures(holidays);
   for(let d = new Date(a); d <= b; d.setUTCDate(d.getUTCDate() + 1)){
     const iso = d.toISOString().slice(0, 10);
     if(d.getUTCDay() === 0){ out.sundays++; continue; }        // Sunday, and only Sunday
-    if(hol[iso]){ out.holidays.push(_lvFmt(iso) + ' · ' + hol[iso]); continue; }
+    if(off[iso]){ out.holidays.push(_lvFmt(iso) + ' · ' + off[iso]); continue; }
     out.days++;
   }
   return out;
+}
+
+/* ── the month, day by day ───────────────────────────────────────────────────
+   The register only writes a row when somebody punches. So a month read
+   straight off it is a list of the days they came in, which is not the same
+   thing as their attendance: the days they did not come in are exactly the ones
+   worth seeing, and they are not in the data at all.
+
+   Every day is therefore accounted for, and the order the questions are asked
+   in is the whole of the rule:
+
+     did the register record this day        → it says what happened, not us
+     is it a Sunday                          → the weekly day off, and only Sunday
+     has the company declared it a holiday   → from the shared calendar, never invented
+     is there approved leave covering it     → from their own approved requests
+     otherwise                               → absent
+
+   The record is asked FIRST, so a person who worked a Sunday or came in on a
+   holiday is shown as having worked, not as having been off. And nothing after
+   today is judged: a day that has not happened yet is not an absence. */
+const _ATT_KIND = {
+  present: ['Present',    'ok'],
+  late:    ['Late',       'warn'],
+  leave:   ['Approved leave', null],
+  holiday: ['Holiday',        null],
+  off:     ['Weekly off', null],
+  absent:  ['Absent',     'bad'],
+};
+
+function _attMonthDays(days, leaves, ym, holidays){
+  const rec = {};
+  (days || []).forEach(x => { if(x && x.date) rec[x.date] = x; });
+
+  // Two calendars, deliberately: `off` is what actually excuses a day (a closure
+  // the company declared), `named` is every entry including the optional ones,
+  // which are shown beside the date as information and never as an excuse.
+  const off = _lvClosures(holidays);
+  const named = _lvAllHolidays(holidays);
+
+  const lv = {};
+  (leaves || []).filter(l => l.status === 'approved' && l.start_date && l.end_date).forEach(l => {
+    const b = new Date(l.end_date + 'T00:00:00Z');
+    for(let d = new Date(l.start_date + 'T00:00:00Z'); d <= b; d.setUTCDate(d.getUTCDate() + 1))
+      lv[d.toISOString().slice(0, 10)] = l.type || 'Leave';
+  });
+
+  const [y, m] = String(ym).split('-').map(Number);
+  if(!y || !m) return [];
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  // Pakistan's date, not the browser's: a phone in another timezone must not
+  // decide that today has not happened yet, or lose a day off the end.
+  const today = _todayPKT();
+  const out = [];
+  for(let i = 1; i <= last; i++){
+    const iso = ym + '-' + String(i).padStart(2, '0');
+    if(iso > today) break;
+    /* The order is the whole rule, and it is asked in exactly this sequence:
+
+         the register recorded the day  → it says what happened, not us
+         Sunday                         → the weekly day off, and only Sunday
+         a declared closure             → Holiday   (is_optional = false only)
+         approved leave covers it       → Approved leave
+         otherwise                      → Absent
+
+       An optional holiday reaches none of those branches. It is an occasion on
+       the calendar, not a day off: somebody who did not come in and did not
+       apply for leave is absent that day, exactly as on any other working day.
+       Only approved leave turns an absence into leave — the calendar never
+       does it on the employee's behalf. */
+    const r = rec[iso], dow = new Date(iso + 'T00:00:00Z').getUTCDay();
+    let kind, note = '';
+    if(r && r.status)      kind = String(r.status);
+    else if(dow === 0)     kind = 'off';
+    else if(off[iso])      kind = 'holiday';
+    else if(lv[iso])       kind = 'leave';
+    else                   kind = 'absent';
+
+    /* Why a day was what it was, when the badge alone would not say. Somebody
+       who came in on Eid shows as Present, and the occasion is named beside it.
+       An optional holiday somebody missed shows as Absent, and is named too —
+       so the date is recognisable without the name being taken for an excuse. */
+    if(named[iso])                                note = named[iso];
+    else if(dow === 0 && kind !== 'off')          note = 'Worked on the weekly day off';
+    else if(kind === 'leave')                     note = lv[iso];
+    out.push({ date: iso, dow: dow, kind: kind, note: note, rec: r || null });
+  }
+  return out;
+}
+
+/* What the month came to. Late is its own count, never folded into Present —
+   somebody who was late eleven times has not had eleven ordinary days.
+   A working day is one they were expected: Sundays and company holidays are
+   not, leave is (it is a working day they were allowed to miss). */
+function _attTotals(model, holidays){
+  const t = { working: 0, present: 0, late: 0, absent: 0, leave: 0, holiday: 0, off: 0,
+              minutes: 0, lateMinutes: 0, overtime: 0 };
+  /* Working days come from the calendar, not from what happened: they are the
+     days the company expected somebody in. Counting them from the statuses
+     instead would make a holiday somebody chose to work into a working day, and
+     would quietly disagree with the Leave page, which asks the same question of
+     the same rule. So the rule is asked once, in _lvWorkingDays, and both pages
+     get the same answer. */
+  if(model.length){
+    const w = _lvWorkingDays(model[0].date, model[model.length - 1].date, holidays);
+    t.working = w.days;
+  }
+  model.forEach(x => {
+    if(t[x.kind] !== undefined) t[x.kind]++;
+    if(x.rec){
+      t.minutes     += Number(x.rec.minutes || 0);
+      t.lateMinutes += Number(x.rec.late_minutes || 0);
+      t.overtime    += Number(x.rec.overtime_minutes || 0);
+    }
+  });
+  return t;
+}
+
+// "8h 48m". Minutes alone are how the database thinks; nobody reads a payslip
+// in minutes.
+function _attHrs(mins){
+  const n = Math.max(0, Math.round(Number(mins) || 0));
+  const h = Math.floor(n / 60), m = n % 60;
+  return h ? (h + 'h' + (m ? ' ' + m + 'm' : '')) : (m + 'm');
 }
 
 // Live under the date fields.
@@ -7427,10 +7667,70 @@ async function _lvLoadHolidays(){
     const r = await _myrecCall({ action: 'holidays', year: y });
     MYREC.hol = (r && r.ok) ? r : null;
   }catch(e){ MYREC.hol = null; }
-  if(TAB === 'ess-leave' || MYREC.sub === 'leave') renderMyRecord();
+  // The attendance sheet needs the calendar as much as the Leave page does — a
+  // holiday it has not heard about is counted as a working day the person did
+  // not turn up for. Both pages redraw when the answer lands.
+  if(TAB === 'ess-leave' || TAB === 'ess-att'
+     || MYREC.sub === 'leave' || MYREC.sub === 'attendance') renderMyRecord();
+}
+
+/* ── who this portal belongs to ──────────────────────────────────────────────
+   One identity card, drawn once and used on every self-service page, so a
+   person sees the same face, the same name and the same file number wherever
+   they are. It used to exist only inside the file screen while Profile drew its
+   own version from its own data — two headers about one person, free to
+   disagree, and one of them eventually would.
+
+   The portrait is 84×104 rather than a round avatar on purpose: a round chip
+   reads as a chat contact, a rectangle reads as a document. The face comes from
+   the portal's own sign-up, everything beside it from the attendance register,
+   and initials stand in for anybody the office added by hand.               */
+function _essIdentity(emp, prof, tenant){
+  emp = emp || {}; prof = prof || {};
+  const name = emp.full_name || (prof.full_name) || (ME && ME.sales_user_name) || '—';
+  const ini  = ((name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
+  const pic  = _pdoc(prof.profile_photo_path, prof.profile_photo_url);
+  const face = pic ? _pdocImg(pic, 'alt="" style="width:100%;height:100%;object-fit:cover"') : esc(ini);
+  const chips = [
+    emp.employee_code ? _myrecChip('File ' + emp.employee_code) : '',
+    emp.shift ? _myrecChip(emp.shift) : '',
+    prof.kyc_status === 'verified' ? _myrecChip('Verified', 'ok') : ''
+  ].filter(Boolean).join('');
+  const sub = emp.designation || _portalRoleLabel(ME && ME.role) || '';
+  return '<div class="card" style="margin-bottom:14px;overflow:hidden">'
+    + '<div style="height:3px;background:var(--fk-primary)"></div>'
+    + '<div style="padding:16px;display:flex;align-items:flex-start;gap:14px">'
+    + '<div style="width:84px;height:104px;border-radius:10px;overflow:hidden;flex:none;'
+    + 'border:1px solid var(--fk-border);background:var(--fk-primary-tint);color:var(--fk-primary);'
+    + 'display:grid;place-items:center;font-size:var(--fs-title);font-weight:700">' + face + '</div>'
+    + '<div style="flex:1;min-width:0;padding-top:2px">'
+    // a long name wraps rather than pushing the card sideways on a phone
+    + '<div style="font-size:var(--fs-title);font-weight:700;line-height:1.2;overflow-wrap:anywhere">'
+    + esc(name) + '</div>'
+    + (sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:4px;'
+      + 'line-height:1.35;overflow-wrap:anywhere">' + esc(sub) + '</div>' : '')
+    + (emp.department ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:1px;'
+      + 'overflow-wrap:anywhere">' + esc(emp.department) + '</div>' : '')
+    + (chips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">' + chips + '</div>' : '')
+    + '</div></div>'
+    + (tenant ? '<div style="padding:9px 16px;border-top:1px solid var(--fk-hairline);'
+      + 'background:var(--fk-bg-subtle);color:var(--fk-text-muted);font-size:var(--fs-caption);'
+      + 'overflow-wrap:anywhere">' + esc(tenant) + '</div>' : '')
+    + '</div>';
 }
 
 function _myrecTab(k){ MYREC.sub=k; MYREC.slip=null; renderMyRecord(); }
+
+/* Documents: filtering and reading.
+   The page redraws on every keystroke, so the box has to be handed back its
+   focus and its caret afterwards — otherwise the second letter you type goes
+   nowhere and it feels broken. */
+async function _docSearch(v){
+  MYREC.docQ = v;
+  await renderMyRecord();
+  const el = $('doc-q');
+  if(el){ el.focus(); try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){} }
+}
 // Opening one payslip, or going back to the list.
 function _myrecSlip(id){ MYREC.slip=id||null; renderMyRecord(); }
 /* A small status chip. The portal has no shared one, so rather than invent a
@@ -7729,19 +8029,38 @@ async function renderMyHome(){
      Attendance page opens with, so the two read as one product. It falls back to
      the portal's own role label when the register has nothing, rather than
      leaving a blank line. */
+  /* The same face the rest of the portal opens with. This screen greets rather
+     than files, so the portrait is smaller — but it is the same rectangle, from
+     the same reader, and a Dashboard that showed no photograph while every
+     other page did was the last thing making this feel like separate screens.
+     The profile is cached, so it is fetched once for the whole session. */
+  const hProf = (await _myrecProfile()) || {};
+  const hPic  = _pdoc(hProf.profile_photo_path, hProf.profile_photo_url);
+  const hIni  = ((emp.full_name || (ME && ME.sales_user_name) || '?').trim()
+                 .split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
+
   let html = '<div class="nx-dash">';
   html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
-    + '<div style="background:linear-gradient(150deg,var(--fk-primary-tint),transparent 72%);padding:18px">'
-    + '<div style="font-size:var(--fs-title);font-weight:700;color:var(--fk-text);line-height:1.2">'
+    + '<div style="background:linear-gradient(150deg,var(--fk-primary-tint),transparent 72%);padding:18px;'
+    + 'display:flex;align-items:flex-start;gap:13px">'
+    + '<div style="width:54px;height:66px;border-radius:9px;overflow:hidden;flex:none;'
+    + 'border:1px solid var(--fk-border);background:var(--fk-primary-tint);color:var(--fk-primary);'
+    + 'display:grid;place-items:center;font-size:var(--fs-section);font-weight:700">'
+    + (hPic ? _pdocImg(hPic, 'alt="" style="width:100%;height:100%;object-fit:cover"') : esc(hIni))
+    + '</div>'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:var(--fs-title);font-weight:700;color:var(--fk-text);line-height:1.2;'
+    + 'overflow-wrap:anywhere">'
     + esc(_homeGreet() + (name ? ', ' + name : '')) + '</div>'
-    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:5px;line-height:1.45">'
+    + '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:5px;line-height:1.45;'
+    + 'overflow-wrap:anywhere">'
     + esc([emp.designation || _portalRoleLabel(ME && ME.role), emp.department].filter(Boolean).join(' · '))
     + '</div>'
     + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">'
     + (emp.employee_code ? _myrecChip('Employee ID ' + emp.employee_code) : '')
     + (emp.shift ? _myrecChip(emp.shift) : '')
     + _myrecChip(dateLine)
-    + '</div></div></div>';
+    + '</div></div></div></div>';
 
   /* ── 1. today's attendance ────────────────────────────────────────────────
      Read from the ERP through the bridge. The device records it; this shows it.
@@ -7787,42 +8106,49 @@ async function renderMyHome(){
     const totEnt = bal.reduce((s, x) => s + Number(x.entitled || 0), 0);
     const totUsed = bal.reduce((s, x) => s + Number(x.taken || 0), 0);
 
+    /* There is deliberately no single "days available" figure.
+       Adding this company's seven kinds together gives 132, and ninety of those
+       are maternity — a number that answers the question "how many days can I
+       take?" with something that is arithmetically true and practically a lie.
+       Each kind stands on its own in the chips below, which is the only form of
+       the answer a person can act on. */
     html += _homeCard('Leave balance', _homeLink('Leave', 'ess-leave'),
       _homeCells([
-        ['Available', Math.max(0, totEnt - totUsed), 'var(--fk-success)'],
-        ['Used', totUsed],
-        ['Pending', pend.length, pend.length ? 'var(--fk-warning)' : null]
+        ['Used this year', totUsed],
+        ['Awaiting a decision', pend.length, pend.length ? 'var(--fk-warning)' : null]
       ])
-      // Type by type, because a single total across seven kinds is a number
-      // nobody can act on: this company's seven come to 132 days, ninety of
-      // which are maternity. The chips are what a person actually reads, and
-      // the line under them says plainly what the total is made of.
       + (bal.length
           ? '<div style="padding:11px 15px 6px;display:flex;gap:7px;flex-wrap:wrap;'
             + 'border-top:1px solid var(--fk-hairline)">'
             + bal.map(x => _myrecChip(x.type + ' ' + Math.max(0, Number(x.entitled) - Number(x.taken || 0))
                 + '/' + x.entitled)).join('') + '</div>'
             + '<div style="padding:0 15px 13px;color:var(--fk-text-muted);font-size:var(--fs-caption)">'
-            + 'Available is every kind added together, including the ones kept for an occasion.</div>'
+            + 'Each kind of leave stands on its own — they are not one pot to draw from.</div>'
           : ''));
 
-    const cnt = k => days.filter(x => String(x.status || '') === k).length;
-    const late = days.filter(x => Number(x.late_minutes || 0) > 0).length;
-    const lateMin = days.reduce((s, x) => s + Number(x.late_minutes || 0), 0);
-    const worked = days.reduce((s, x) => s + Number(x.minutes || 0), 0);
+    /* The same month, counted by the same rule the Attendance page uses.
+       It used to be counted here separately, off the register's rows alone,
+       and got two things wrong that a person would notice: Present quietly
+       included the late days, so the two screens disagreed by three; and
+       Absent read the register for a status it never writes, so it was always
+       zero — a comforting number that was not true. */
+    const _dModel = _attMonthDays(days, f.leave_requests || [],
+                                  new Date().toISOString().slice(0, 7),
+                                  (HOME.hol && HOME.hol.holidays) || []);
+    const _dT = _attTotals(_dModel, (HOME.hol && HOME.hol.holidays) || []);
     const monthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     html += _homeCard('This month · ' + esc(monthName), _homeLink('Attendance', 'ess-att'),
       _homeCells([
-        ['Present', cnt('present') + late, 'var(--fk-success)'],
-        ['Late', late, late ? 'var(--fk-warning)' : null],
-        ['Absent', cnt('absent'), cnt('absent') ? 'var(--fk-danger)' : null],
-        ['Leave', cnt('leave') || days.filter(x => /leave/.test(String(x.status||''))).length]
+        ['Present', _dT.present, _dT.present ? 'var(--fk-success)' : null],
+        ['Late', _dT.late, _dT.late ? 'var(--fk-warning)' : null],
+        ['Absent', _dT.absent, _dT.absent ? 'var(--fk-danger)' : null],
+        ['Leave', _dT.leave]
       ])
       + '<div style="padding:11px 15px 13px;border-top:1px solid var(--fk-hairline);'
       + 'color:var(--fk-text-muted);font-size:var(--fs-caption)">'
-      + _homeHrs(worked) + ' worked'
-      + (lateMin ? ' · ' + lateMin + ' late minutes' : '')
+      + _homeHrs(_dT.minutes) + ' worked'
+      + (_dT.lateMinutes ? ' · ' + _dT.lateMinutes + ' late minutes' : '')
       + (pay && pay.ok ? ' · ' + rs(pay.net_so_far) + ' earned so far' : '')
       + '</div>');
   }
@@ -7897,7 +8223,11 @@ async function renderMyHome(){
       + '<div style="flex:1;min-width:150px">'
       + '<div style="font-weight:700;font-size:var(--fs-body)">' + esc(h.name || 'Holiday') + '</div>'
       + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:2px">'
-      + esc(_homeDate(h.date, true)) + (h.optional ? ' · optional' : '') + '</div></div>'
+      + esc(_homeDate(h.date, true))
+      // Sunday is the weekly day off no matter what else falls on it
+      + (new Date(h.date + 'T00:00:00Z').getUTCDay() === 0 ? ' · the weekly day off'
+         : h.optional === false ? ' · office closed' : ' · the office is open')
+      + '</div></div>'
       + _myrecChip(away === 0 ? 'Today' : away === 1 ? 'Tomorrow' : away + ' days away')
       + '</div>');
   }
@@ -7910,10 +8240,14 @@ async function renderMyHome(){
     const acts = [];
     days.slice().reverse().slice(0, 3).forEach(d0 => {
       const lateM = Number(d0.late_minutes || 0);
+      // the register's own word for a day is "present"/"late"; the screen says
+      // it the way the Attendance page does, so one status is not written two
+      // ways in two places
+      const st = (_ATT_KIND[String(d0.status || 'present')] || ['Present'])[0];
       acts.push([d0.date, 'ess-att',
         _homeDate(d0.date) + ' · ' + (d0.first_in ? _homeTime(d0.first_in) : '—')
-          + (d0.last_out ? ' – ' + _homeTime(d0.last_out) : ''),
-        lateM > 0 ? lateM + ' minutes late' : (d0.status || 'present')]);
+          + (d0.last_out && d0.last_out !== d0.first_in ? ' – ' + _homeTime(d0.last_out) : ''),
+        lateM > 0 ? st + ' · ' + lateM + ' min late' : st]);
     });
     (f.leave_requests || []).slice(0, 2).forEach(x => acts.push([x.created_at || x.start_date, 'ess-leave',
       (x.type || 'Leave') + ' · ' + _homeDate(x.start_date),
@@ -7933,6 +8267,7 @@ async function renderMyHome(){
   }
 
   b.innerHTML = html + '</div>';
+  _pdocFill(b);                       // the greeting's photograph, on a link that expires
 }
 
 // Opening a payslip from the dashboard lands on the Payroll page with that slip
@@ -8930,7 +9265,7 @@ async function renderMyRecord(){
     attendance:['Attendance','Every day of the month, as the register has it.'],
     leave:     ['Leave','What you have left, what you asked for, and how it went.'],
     pay:       ['Payroll','What the month has come to, and every payslip you have been given.'],
-    letters:   ['Documents','Letters and notices the company has issued to you.'],
+    letters:   ['Documents','Your identity papers, letters from the office, and anything held on your file.'],
     file:      ['My file','Your service record — postings, papers and what is on account.']
   };
   const _hd=_HD[MYREC.sub]||['My record','Your attendance, leave, letters and service record.'];
@@ -8948,8 +9283,11 @@ async function renderMyRecord(){
     return;
   }
 
-  const emp=d.employee||{}, days=d.days||[], punches=d.punches||[];
-  const notices=d.notices||[], leaves=d.leave_requests||[], bal=d.leave_balance||[];
+  const emp=d.employee||{}, days=d.days||[];
+  // notices are not read here any more — they are letters, and letters live on
+  // Messages since Pass 7
+  const leaves=d.leave_requests||[], bal=d.leave_balance||[];
+  const corrections=d.corrections||[];
 
   /* ── the cover of the file ────────────────────────────────────────────
      A file is recognised before it is read: a photograph pasted top-left, the
@@ -8959,41 +9297,13 @@ async function renderMyRecord(){
      portal (KYC sign-up), everything beside it from the attendance register.
      Initials stand in for anybody the office added by hand instead. */
   const prof=await _myrecProfile()||{};
-  const _mrIni=((emp.full_name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')||'?').toUpperCase();
-  const _mrPic=_pdoc(prof.profile_photo_path,prof.profile_photo_url);
-  const _mrFace=_mrPic
-    ? _pdocImg(_mrPic,'alt="" style="width:100%;height:100%;object-fit:cover"')
-    : esc(_mrIni);
-  const coverChips=[
-    emp.employee_code?_myrecChip('File '+emp.employee_code):'',
-    emp.shift?_myrecChip(emp.shift):'',
-    prof.kyc_status==='verified'?_myrecChip('Verified','ok'):''
-  ].filter(Boolean).join('');
-  html+='<div class="card" style="margin-bottom:14px;overflow:hidden">'
-    +'<div style="height:3px;background:var(--fk-primary)"></div>'
-    +'<div style="padding:16px;display:flex;align-items:flex-start;gap:14px">'
-    +'<div style="width:84px;height:104px;border-radius:10px;overflow:hidden;flex:none;'
-    +'border:1px solid var(--fk-border);background:var(--fk-primary-tint);color:var(--fk-primary);'
-    +'display:grid;place-items:center;font-size:var(--fs-title);font-weight:700">'+_mrFace+'</div>'
-    +'<div style="flex:1;min-width:0;padding-top:2px">'
-    +'<div style="font-size:var(--fs-title);font-weight:700;line-height:1.2">'+esc(emp.full_name||'—')+'</div>'
-    +'<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:4px;line-height:1.35">'
-    +esc(emp.designation||'—')+'</div>'
-    +(emp.department?'<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:1px">'
-      +esc(emp.department)+'</div>':'')
-    +(coverChips?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">'+coverChips+'</div>':'')
-    +'</div></div>'
-    +'<div style="padding:9px 16px;border-top:1px solid var(--fk-hairline);background:var(--fk-bg-subtle);'
-    +'color:var(--fk-text-muted);font-size:var(--fs-caption)">'+esc(d.tenant||'')+'</div>'
-    +'</div>';
+  html+=_essIdentity(emp, prof, d.tenant);
 
-  // ── the month, and what it added up to ─────────────────────────────────
-  // Month and tallies belong to the attendance sheet, not to the file: leaving
-  // them above "My file" made August's late count look like part of the person.
-  const present=days.filter(x=>x.status==='present'||x.status==='late').length;
-  const late=days.filter(x=>(x.late_minutes||0)>0).length;
-  const absent=days.filter(x=>x.status==='absent').length;
-  const onleave=days.filter(x=>String(x.status||'').indexOf('leave')>-1).length;
+  // ── the month ──────────────────────────────────────────────────────────
+  // The tallies used to be counted here, off the register's rows alone, which
+  // could only ever see the days somebody came in. They are worked out in
+  // _attTotals now, over every day of the month — including the ones with no
+  // row, which are exactly the ones worth counting.
   const [yy,mm]=_myrecMonth().split('-').map(Number);
   const monthName=['January','February','March','April','May','June','July','August','September','October','November','December'][mm-1]+' '+yy;
 
@@ -9008,14 +9318,33 @@ async function renderMyRecord(){
   }
 
   if(MYREC.sub==='attendance'){
-    const stat=(n,l,c)=>'<div style="flex:1 1 0;min-width:74px;text-align:center;padding:12px 6px;'
-      +'border:1px solid var(--fk-border);border-radius:12px;background:var(--fk-bg-card)">'
-      +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;color:'+(c||'var(--fk-text)')+'">'+n+'</div>'
-      +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
-      +'font-weight:600;color:var(--fk-text-muted);margin-top:2px">'+esc(l)+'</div></div>';
-    html+='<div id="myrec-stats" style="display:flex;gap:8px;margin-bottom:16px">'
-         +stat(present,'Present','var(--fk-success)')+stat(late,'Late','var(--fk-warning)')
-         +stat(absent,'Absent',absent?'var(--fk-danger)':null)+stat(onleave,'Leave')+'</div>';
+    /* The company calendar decides which empty days were holidays, so it has to
+       be here before the month can be added up. It is the same reader the Leave
+       page uses and the same cache — asked once a year, not once a page. */
+    if(MYREC.hol === undefined){
+      if(!MYREC.holYear) MYREC.holYear = new Date().getFullYear();
+      _lvLoadHolidays();
+    }
+    const _aM = _attMonthDays(days, leaves, _myrecMonth());
+    const _aT = _attTotals(_aM);
+    MYREC._att = _aM;                       // the list below reads the same model
+
+    const tile=(v,k,c)=>'<div class="ess-tile"><div class="v"'+(c?' style="color:'+c+'"':'')+'>'+v+'</div>'
+      +'<div class="k">'+esc(k)+'</div></div>';
+    html+='<div class="ess-sum">'
+      + tile(_aT.working,'Working days')
+      + tile(_aT.present,'Present', _aT.present?'var(--fk-success)':null)
+      + tile(_aT.late,'Late', _aT.late?'var(--fk-warning)':null)
+      + tile(_aT.absent,'Absent', _aT.absent?'var(--fk-danger)':null)
+      + tile(_attHrs(_aT.minutes),'Hours worked')
+      + tile(_aT.lateMinutes?_aT.lateMinutes+'m':'—','Late minutes', _aT.lateMinutes?'var(--fk-warning)':null)
+      /* Overtime is a real column on the register and it has never once been
+         filled in. A tile permanently reading zero would look like a fault in
+         the page rather than an absence of overtime, so it appears only in a
+         month that actually has some. */
+      + (_aT.overtime ? tile(_attHrs(_aT.overtime),'Overtime') : '')
+      + (_aT.leave ? tile(_aT.leave,'On leave') : '')
+      + '</div>';
   }
 
   // ── the three lists ────────────────────────────────────────────────────
@@ -9078,6 +9407,23 @@ async function renderMyRecord(){
         +'Your payslip at month end is the final word — it can also carry overtime, bonus and advances.</div>'
         +'</div></div>';
 
+      /* The same four figures the payslip will one day carry, so the estimate
+         and the document read the same way. Every one of them is worked out on
+         the attendance side by payroll's own rule — nothing here is a second
+         opinion about somebody's salary. Deductions are shown only when there
+         are some: a permanent "₨0 deducted" is a claim, not a blank. */
+      const _pdDed = Number(P.late_deduction || 0);
+      html += '<div class="ess-sum">'
+        + '<div class="ess-tile"><div class="v" style="font-size:var(--fs-body)">'
+          + esc(monthName) + '</div><div class="k">Pay period</div></div>'
+        + '<div class="ess-tile"><div class="v">' + rs(P.earned) + '</div>'
+          + '<div class="k">Earned so far</div></div>'
+        + (_pdDed ? '<div class="ess-tile"><div class="v" style="color:var(--fk-danger)">− '
+          + rs(_pdDed) + '</div><div class="k">Late deduction</div></div>' : '')
+        + '<div class="ess-tile"><div class="v" style="color:var(--fk-success)">' + rs(P.net_so_far)
+          + '</div><div class="k">Net so far</div></div>'
+        + '</div>';
+
       html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
         +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
         +'font-weight:600;color:var(--fk-text-muted);margin-bottom:4px">How it adds up</div>'
@@ -9136,9 +9482,16 @@ async function renderMyRecord(){
        that has not been finalized, because a figure HR is still editing is
        not yet anybody else's. */
     if(MYREC.slips===undefined){
-      MYREC.slips=null;
-      try{ const r=await _myrecCall({action:'payslips'}); MYREC.slips=(r&&r.ok)?(r.payslips||[]):[]; }
-      catch(e){ MYREC.slips=[]; }
+      MYREC.slips=null; MYREC.pending=[];
+      try{
+        const r=await _myrecCall({action:'payslips'});
+        MYREC.slips=(r&&r.ok)?(r.payslips||[]):[];
+        // Periods HR has started but not finished. The register sends the month
+        // and nothing else — no basic, no gross, no net — so this can say a
+        // payslip is coming without ever being one.
+        MYREC.pending=(r&&r.ok)?(r.pending||[]):[];
+      }
+      catch(e){ MYREC.slips=[]; MYREC.pending=[]; }
     }
     const S9=MYREC.slips||[];
     const rs9=n=>'₨'+Number(n||0).toLocaleString('en-US');
@@ -9151,18 +9504,44 @@ async function renderMyRecord(){
     const open=MYREC.slip?S9.find(x=>x.id===MYREC.slip):null;
     if(open){
       const paid=open.status==='paid';
+      const dt=v=>v?new Date(v).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+      /* Whose it is, and for which month, before a single figure. A statement
+         that opens with a number is a receipt; one that opens with a name is a
+         document, and this is the page people print and keep.
+         Every field here is one the register actually holds — there is no slip
+         reference number in this system, so none is shown. */
+      const f=(k,v)=>v?'<div class="ps-f"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>':'';
       html+='<div class="card" style="margin-bottom:14px"><div style="padding:14px 16px">'
-        +'<button class="btn btn-secondary" style="height:32px;padding:0 12px;font-size:var(--fs-caption);margin-bottom:12px" '
+        +'<div class="no-p" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+        +'<button class="btn btn-secondary" style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
         +'onclick="_myrecSlip(null)">‹ Payslips</button>'
+        +'<button class="btn btn-secondary" style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
+        +'onclick="window.print()">Print</button></div>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
-        +'<div style="font-size:var(--fs-section);font-weight:700">'+esc(MON[(open.month||1)-1]+' '+open.year)+'</div>'
+        +'<div><div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted)">Salary statement</div>'
+        +'<div style="font-size:var(--fs-section);font-weight:700">'+esc(MON[(open.month||1)-1]+' '+open.year)+'</div></div>'
         +_myrecChip(paid?'Paid':'Issued', paid?'ok':null)+'</div>'
-        +(open.paid_at?'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:3px">Paid '
-          +esc(new Date(open.paid_at).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}))
-          +(open.payment_method?' · '+esc(open.payment_method):'')+'</div>':'')
-        +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;margin-top:8px">'
-        +rs9(open.net_salary)+'</div>'
-        +'</div></div>';
+        +'<div class="ps-head">'
+        + f('Employee', emp.full_name || (ME && ME.sales_user_name))
+        + f('File number', emp.employee_code)
+        + f('Department', emp.department)
+        + f('Designation', emp.designation)
+        + f('Pay period', MON[(open.month||1)-1] + ' ' + open.year)
+        + f('Issued', dt(open.finalized_at))
+        + f('Paid on', dt(open.paid_at))
+        + f('Paid by', open.payment_method)
+        + f('Employer', d.tenant)
+        + '</div></div></div>';
+
+      // the three figures that matter, said before the working that produced them
+      html+='<div class="ess-sum">'
+        +'<div class="ess-tile"><div class="v">'+rs9(open.gross_salary)+'</div><div class="k">Gross earnings</div></div>'
+        +(Number(open.total_deductions)?'<div class="ess-tile"><div class="v" style="color:var(--fk-danger)">− '
+          +rs9(open.total_deductions)+'</div><div class="k">Deductions</div></div>':'')
+        +'<div class="ess-tile"><div class="v" style="color:var(--fk-success)">'+rs9(open.net_salary)
+        +'</div><div class="k">'+(paid?'Net paid':'Net payable')+'</div></div>'
+        +'</div>';
 
       html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
         +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
@@ -9200,9 +9579,22 @@ async function renderMyRecord(){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
         +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
         +'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Payslips</div>';
+      const PEND=MYREC.pending||[];
       if(!S9.length){
-        html+='<div class="empty" style="padding:14px 8px 18px"><div class="et">No payslip issued yet</div>'
-          +'<div class="es">Once the office finalises a month, its payslip appears here.</div></div>';
+        /* "None yet" and "one is being prepared" are different answers, and the
+           second is the true one here. The month is named; the figures are not,
+           because they are still HR's to change. */
+        html+='<div class="empty" style="padding:14px 8px 18px">'
+          +'<div class="et">No payslip issued yet</div>'
+          +'<div class="es">'
+          +(PEND.length
+            ? esc(PEND.map(x=>MON[(x.month||1)-1]+' '+x.year).join(', '))
+              +' '+(PEND.length===1?'is':'are')+' being prepared by the office. '
+              +'Your payslip appears here once payroll is finalised — until then the figures can still change, '
+              +'so they are not shown.'
+            : 'Once the office finalises a month, its payslip appears here with what was earned, '
+              +'what was deducted and what was paid.')
+          +'</div></div>';
       } else {
         S9.forEach(s=>{
           html+='<div class="trow" onclick="_myrecSlip(\''+esc(s.id)+'\')"><div style="flex:1;min-width:0">'
@@ -9213,50 +9605,173 @@ async function renderMyRecord(){
             +'<b style="font-variant-numeric:tabular-nums">'+rs9(s.net_salary)+'</b>'
             +_myrecChip(s.status==='paid'?'Paid':'Issued', s.status==='paid'?'ok':null)+'</div></div>';
         });
+        // a month already under way, named but not priced
+        if(PEND.length){
+          html+='<div style="padding:10px 8px 12px;font-size:var(--fs-caption);color:var(--fk-text-muted);line-height:1.55">'
+            +esc(PEND.map(x=>MON[(x.month||1)-1]+' '+x.year).join(', '))
+            +' '+(PEND.length===1?'is':'are')+' still being prepared — not yet finalised, so not shown here.</div>';
+        }
       }
       html+='</div>';
     }
   }
 
   if(MYREC.sub==='attendance'){
-    if(!days.length){
+    const _aM = MYREC._att || [];
+    if(!_aM.length){
       html+='<div class="card"><div class="empty"><div class="ei">'+li('calendar',20,1.8)+'</div>'
-        +'<div class="et">Nothing recorded this month</div>'
-        +'<div class="es">Days appear here as you punch in and out.</div></div></div>';
+        +'<div class="et">Nothing to show for this month</div>'
+        +'<div class="es">Days appear here from the day the month begins, as you punch in and out.</div></div></div>';
     } else {
       const t=iso=>iso?new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Karachi'}):'—';
-      html+='<div class="card" style="padding:6px 8px">';
-      days.slice().reverse().forEach(x=>{
+      html+='<div class="card" style="padding:2px 6px">';
+      // newest first: the day you are looking for is nearly always a recent one
+      _aM.slice().reverse().forEach(x=>{
         const dd=new Date(x.date+'T00:00:00Z');
-        const st=String(x.status||'').replace(/_/g,' ');
-        const tone = /absent/.test(st) ? 'bad' : /leave/.test(st) ? 'warn' : 'ok';
-        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
-          +'<div class="lr-name">'+dd.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dd.getUTCMonth()]
-          +' <span style="color:var(--fk-text-muted);font-weight:500">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dd.getUTCDay()]+'</span></div>'
-          +'<div class="lr-sub"><span>'+t(x.first_in)+' — '+t(x.last_out)+'</span></div></div>'
-          +((x.late_minutes||0)>0?_myrecChip(x.late_minutes+'m late','warn'):'')
-          +_myrecChip(st, tone)+'</div>';
+        const worked = !!(x.rec && (x.rec.first_in || x.rec.last_out));
+        const label = (_ATT_KIND[x.kind] || [String(x.kind).replace(/_/g,' '), null]);
+        const meta=[];
+        if(x.rec && x.rec.minutes)               meta.push('Worked <b>'+_attHrs(x.rec.minutes)+'</b>');
+        if(x.rec && (x.rec.late_minutes||0) > 0) meta.push('Late by <b>'+x.rec.late_minutes+' min</b>');
+        if(x.rec && (x.rec.overtime_minutes||0) > 0) meta.push('Overtime <b>'+_attHrs(x.rec.overtime_minutes)+'</b>');
+        if(x.note)                               meta.push(esc(x.note));
+
+        html+='<div class="att-row'+(worked?'':' att-quiet')+'">'
+          +'<div class="att-d"><b>'+dd.getUTCDate()+'</b><span>'+_LV_MON[dd.getUTCMonth()]+'</span></div>'
+          +'<div style="min-width:0">'
+          +'<div class="att-day">'+_LV_DAY[x.dow]+'</div>'
+          /* One punch and one time is a real thing that happens — somebody
+             forgot to punch out. Printing "09:38 → 09:38" reads as a fault in
+             the page; saying so reads as what it is. */
+          +'<div class="att-time">'+(!worked ? '—'
+              : (x.rec.last_out && x.rec.last_out !== x.rec.first_in)
+                ? esc(t(x.rec.first_in))+' → '+esc(t(x.rec.last_out))
+                : esc(t(x.rec.first_in || x.rec.last_out))
+                  +' <span style="opacity:.75">· no punch out</span>')+'</div>'
+          +(meta.length?'<div class="att-meta"><span>'+meta.join('</span><span>')+'</span></div>':'')
+          +'</div>'
+          +'<span class="att-chip">'+_myrecChip(label[0], label[1])+'</span>'
+          +'</div>';
       });
       html+='</div>';
-      html+='<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin:10px 2px 0">'
-           +punches.length+' punches recorded this month.</div>';
+      html+='<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin:10px 2px 0;line-height:1.55">'
+           +'Taken from the biometric machine. Sunday is the weekly day off; Saturday is a working day. '
+           +'If a day looks wrong, ask the office to raise an attendance correction.</div>';
     }
   }
 
+  /* ── Documents ───────────────────────────────────────────────────────────
+     Everything a person can actually open, in one place, instead of scattered
+     across the file. Four kinds, and each one is only listed because it really
+     exists — nothing is drawn for a category the register has nothing in.
+
+       Identity   the two sides of the card and the photograph they handed over
+                  at sign-up. Private bucket; the bridge signs a link that lasts
+                  two minutes.
+       Letters    warnings and circulars HR has issued. Text, not files, so they
+                  open in place rather than in a tab.
+       On file    papers the office holds — passport, licence — and, more to the
+                  point, when they expire.
+       Leave      a sick note attached to a leave application. Same private
+                  bucket, same short-lived link.
+
+     Raw paths never appear on the screen; they sit in a data attribute and are
+     exchanged for a signed link at the moment of the click. */
   if(MYREC.sub==='letters'){
-    if(!notices.length){
+    const dtD=x=>x?new Date(x.length>10?x:x+'T00:00:00Z')
+      .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+    const items=[];
+
+    const _idDoc=(d,name)=>{ if(d) items.push({cat:'Identity',name:name,when:'',doc:d,kind:'image'}); };
+    _idDoc(_pdoc(prof.cnic_front_path,prof.cnic_front_url),'CNIC — front');
+    _idDoc(_pdoc(prof.cnic_back_path,prof.cnic_back_url),'CNIC — back');
+    _idDoc(_pdoc(prof.profile_photo_path,prof.profile_photo_url),'Photograph');
+
+    /* Letters used to be listed here. They moved to Messages in Pass 7: a
+       warning is something the company said to you, not a file you keep, and
+       listing it in both places would be two doors to one letter. */
+
+    docs.forEach(x=>{
+      const dleft=x.expires_in_days;
+      items.push({cat:'On file',name:x.title||x.doc_type||'Document',
+        when:dtD(x.issue_date), sub:(x.doc_type||'').replace(/_/g,' '),
+        badge:dleft==null?'no expiry':dleft<0?'expired':dleft<=30?dleft+' days left':dtD(x.expiry_date),
+        tone:dleft==null?null:dleft<0?'bad':dleft<=30?'warn':'ok',
+        // The office keeps these in the attendance system's own storage, which
+        // this portal holds no key to. It can say what is held, not open it.
+        heldByOffice:true});
+    });
+
+    leaves.filter(l=>l.attachment_path).forEach(l=>items.push({cat:'Leave',
+      name:l.attachment_name||'Attachment', when:dtD(l.start_date),
+      sub:(l.type||'Leave')+(l.application_no?' · '+l.application_no:''),
+      path:l.attachment_path, kind:'file'}));
+
+    // Search earns its place only once there is enough to search. Below that it
+    // is a box that finds what you can already see.
+    const q=(MYREC.docQ||'').trim().toLowerCase();
+    if(items.length>=8){
+      html+='<div style="margin:0 2px 12px"><input id="doc-q" type="search" placeholder="Search your documents"'
+        +' value="'+esc(MYREC.docQ||'')+'" oninput="_docSearch(this.value)" autocomplete="off"'
+        +' style="width:100%;height:40px;padding:0 13px;border-radius:11px;border:1px solid var(--fk-border);'
+        +'background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-secondary)"></div>';
+    }
+    const shown=q?items.filter(x=>(x.name+' '+x.cat+' '+(x.sub||'')+' '+(x.badge||''))
+      .toLowerCase().indexOf(q)>-1):items;
+
+    if(!items.length){
       html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',20,1.8)+'</div>'
-        +'<div class="et">Nothing on file</div>'
-        +'<div class="es">Warnings, circulars and letters issued to you appear here.</div></div></div>';
+        +'<div class="et">No documents available yet</div>'
+        +'<div class="es">Your identity documents, letters from the office and any papers held on '
+        +'your file appear here as they are added.</div></div></div>';
+    } else if(!shown.length){
+      html+='<div class="card"><div class="empty"><div class="et">Nothing matches “'+esc(MYREC.docQ||'')+'”</div>'
+        +'<div class="es">Try part of a document name.</div></div></div>';
     } else {
-      html+='<div class="card" style="padding:6px 8px">';
-      notices.forEach(n=>{
-        const when=n.issued_at?new Date(n.issued_at).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
-        html+='<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
-          +'<div class="lr-name" style="white-space:normal">'+esc(n.subject||'')+'</div>'
-          +'<div class="lr-sub"><span>'+esc([n.reference_no,when].filter(Boolean).join(' · '))+'</span></div>'
-          +(n.to_me?'':'<div class="lr-sub"><span>Sent to all staff</span></div>')
-          +'</div>'+_myrecChip(n.kind||'', n.kind==='warning'?'warn':null)+'</div>';
+      ['Identity','On file','Leave'].forEach(cat=>{
+        const grp=shown.filter(x=>x.cat===cat);
+        if(!grp.length) return;                     // an empty heading says less than none
+        html+='<div style="margin:0 2px 7px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+          +'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">'+esc(cat)+'</div>'
+          +'<div class="card" style="margin-bottom:14px;padding:2px 6px">';
+        grp.forEach(x=>{
+          const act = x.doc ? '<a '+_pdocHref(x.doc)+' class="btn btn-secondary" style="height:30px;padding:0 11px;'
+                              +'font-size:var(--fs-caption);text-decoration:none;display:inline-flex;'
+                              +'align-items:center">View</a>'
+                    : x.path ? '<button class="btn btn-secondary" style="height:30px;padding:0 11px;'
+                              +'font-size:var(--fs-caption)" onclick="_lvOpenDoc(this,&#39;'+esc(x.path)+'&#39;)">View</button>'
+                    : '';
+          html+='<div class="att-row" style="grid-template-columns:1fr auto">'
+            +'<div style="min-width:0">'
+            +'<div class="att-day" style="white-space:normal;overflow-wrap:anywhere">'+esc(x.name)+'</div>'
+            +'<div class="att-meta">'
+              +(x.sub?'<span>'+esc(x.sub)+'</span>':'')
+              +(x.when?'<span>'+esc(x.when)+'</span>':'')
+              +(x.badge?'<span>'+esc(x.badge)+'</span>':'')
+              +(x.heldByOffice?'<span>Held by the office</span>':'')
+            +'</div>'
+            +'</div>'
+            +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end">'
+            +(x.tone?_myrecChip(x.badge||'',x.tone):'')+act+'</div>'
+            +'</div>';
+        });
+        html+='</div>';
+      });
+    }
+
+    // Requests the office has already raised about this person's attendance —
+    // shown because the register returns them, not because the portal can make
+    // one. There is no way to raise a request from here and none was built.
+    if(corrections.length){
+      html+='<div style="margin:0 2px 7px;font-size:var(--fk-fs-label);text-transform:uppercase;'
+        +'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Attendance corrections</div>'
+        +'<div class="card" style="margin-bottom:14px;padding:2px 6px">';
+      corrections.forEach(c=>{
+        html+='<div class="att-row" style="grid-template-columns:1fr auto"><div style="min-width:0">'
+          +'<div class="att-day">'+esc(dtD(c.work_date))+'</div>'
+          +'<div class="att-meta">'+(c.reason?'<span>'+esc(c.reason)+'</span>':'')
+          +(c.decision_note?'<span>'+esc(c.decision_note)+'</span>':'')+'</div></div>'
+          +_myrecChip(c.status||'', c.status==='approved'?'ok':c.status==='rejected'?'bad':'warn')+'</div>';
       });
       html+='</div>';
     }
@@ -9420,15 +9935,25 @@ async function renderMyRecord(){
         const away = Number(h.days_away || 0);
         html += '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
           + '<div class="lr-name" style="white-space:normal">' + esc(h.name || 'Holiday') + '</div>'
-          + '<div class="lr-sub"><span>' + esc(d.getUTCDate() + ' ' + MONN[mo].slice(0,3) + ' · ' + DAYN[d.getUTCDay()])
-          + (h.optional ? ' · optional' : '') + '</span></div></div>'
+          /* An entry on this calendar is not automatically a day off. The ones
+             the company has actually declared closed say so; the rest are
+             occasions the office stays open for, and are marked plainly so
+             nobody plans a day off around one and is marked absent for it. */
+          + '<div class="lr-sub"><span style="white-space:normal">'
+          + esc(d.getUTCDate() + ' ' + MONN[mo].slice(0,3) + ' · ' + DAYN[d.getUTCDay()])
+          // Sunday is the weekly day off whatever else falls on it — a holiday
+          // landing on a Sunday must not be described as a working day.
+          + (d.getUTCDay() === 0 ? ' · the weekly day off'
+             : h.optional === false ? ' · office closed'
+             : ' · a normal working day') + '</span></div></div>'
           + (away === 0 ? _myrecChip('Today','ok') : away > 0 ? _myrecChip(away + 'd away') : '')
           + '</div>';
       });
       html += '</div>';
       html += '<div style="margin:10px 2px 0;color:var(--fk-text-muted);font-size:var(--fs-caption);line-height:1.5">'
-        + 'Sunday is the weekly day off and is not listed here. Only days the company has actually '
-        + 'declared appear on this calendar.</div>';
+        + 'Sunday is the weekly day off and is not listed here. A date on this calendar is not '
+        + 'automatically a day off — only the ones marked <b>office closed</b> are. For any other '
+        + 'occasion, apply for leave if you want the day.</div>';
     }
   }
 
@@ -9474,7 +9999,7 @@ async function renderMyRecord(){
         row('Employee no.',emp.employee_code)+row('Designation',emp.designation)
       + row('Department',emp.department)+row('Joined',dt(emp.join_date))
       + row('Confirmed',dt(emp.confirmation_date))
-      + row('Type',(emp.employment_type||'').replace(/_/g,' '))
+      + row('Type',(emp.employment_type||'').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()))
       + row('Shift',emp.shift)+row('Reports to',emp.reports_to)
       + row('Notice period',emp.notice_period_days?emp.notice_period_days+' days':''));
 
@@ -9484,25 +10009,20 @@ async function renderMyRecord(){
       + row('Account number',prof.bank_account_no||emp.bank_account_no));
 
     /* What the office holds about this person's identity, and since when.
-       The two CNIC scans were taken at sign-up and never shown back to the
-       person who handed them over; a file that claims "Verified" should be
-       able to show what it verified against. Card ratio, and tapping one opens
-       the full image — a thumbnail is too small to check a number on. */
-    const scan=(d,l)=>d?('<a '+_pdocHref(d)+' '
-      +'style="flex:1 1 0;min-width:0;text-decoration:none;color:inherit">'
-      +'<div style="aspect-ratio:1.585;border-radius:8px;overflow:hidden;'
-      +'border:1px solid var(--fk-border);background:var(--fk-bg-subtle)">'
-      +_pdocImg(d,'alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover"')+'</div>'
-      +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
-      +'font-weight:600;color:var(--fk-text-muted);margin-top:5px;text-align:center">'+esc(l)+'</div></a>'):'';
-    const scans=scan(_pdoc(prof.cnic_front_path,prof.cnic_front_url),'CNIC front')
-              + scan(_pdoc(prof.cnic_back_path,prof.cnic_back_url),'CNIC back');
+       The scans themselves used to be printed here as well as on Documents.
+       Two places showing the same two pictures is two places to keep right, so
+       this says what was verified and sends you to the one place that holds
+       the documents. */
+    const _hasScans = !!(prof.cnic_front_path || prof.cnic_front_url
+                      || prof.cnic_back_path  || prof.cnic_back_url);
     html+=sec('Verification',
         row('CNIC on file',prof.kyc_status==='verified'?'Verified':(prof.kyc_status||''))
       + row('Email',prof.email?(prof.email_verified?'Verified':'Not verified yet'):'')
       + row('Portal since',prof.created_at?new Date(prof.created_at)
           .toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'')
-      + (scans?'<div style="display:flex;gap:10px;margin-top:12px">'+scans+'</div>':''));
+      + (_hasScans?'<div style="margin-top:11px"><button class="btn btn-secondary" '
+          +'style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
+          +'onclick="setTab(&#39;ess-docs&#39;)">Open my documents</button></div>':''));
 
     if(hist.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
@@ -9513,31 +10033,20 @@ async function renderMyRecord(){
         const detail=[x.to_designation&&('to '+x.to_designation), x.to_department&&('to '+x.to_department),
           (x.to_salary!=null&&x.from_salary!=null)&&('Rs '+Number(x.from_salary).toLocaleString('en-US')
             +' \u2192 Rs '+Number(x.to_salary).toLocaleString('en-US')), x.note].filter(Boolean).join(' \u00b7 ');
-        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
+        // a promotion's detail runs long — it wraps rather than being cut off
+        // mid-word, which is what a one-line list row would do to it
+        html+='<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
           +'<div class="lr-name">'+esc(what)+'</div>'
-          +(detail?'<div class="lr-sub"><span>'+esc(detail)+'</span></div>':'')
+          +(detail?'<div class="lr-sub"><span style="white-space:normal;overflow:visible">'
+            +esc(detail)+'</span></div>':'')
           +'</div>'+_myrecChip(dt(x.date))+'</div>';
       });
       html+='</div>';
     }
 
-    if(docs.length){
-      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Documents on file</div>';
-      docs.forEach(x=>{
-        // The point of showing these is the expiry: a licence that ran out last
-        // month is the one thing a person can actually act on.
-        const dleft=x.expires_in_days;
-        const tone = dleft==null ? null : dleft<0 ? 'bad' : dleft<=30 ? 'warn' : 'ok';
-        const label = dleft==null ? 'no expiry'
-          : dleft<0 ? 'expired' : dleft<=30 ? dleft+' days left' : dt(x.expiry_date);
-        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
-          +'<div class="lr-name">'+esc(x.title||x.doc_type||'Document')+'</div>'
-          +'<div class="lr-sub"><span>'+esc((x.doc_type||'').replace(/_/g,' '))+'</span></div>'
-          +'</div>'+_myrecChip(label,tone)+'</div>';
-      });
-      html+='</div>';
-    }
+    /* The papers on file, and the expiry that is the point of them, moved to
+       Documents in Pass 6 — they belong with the things you can look at, not
+       with the record. Nothing is listed twice. */
 
     if(advances.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
@@ -9565,10 +10074,11 @@ async function renderMyRecord(){
       html+='</div>';
     }
 
-    if(!hist.length && !docs.length && !advances.length && !visits.length){
+    if(!hist.length && !advances.length && !visits.length){
       html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',20,1.8)+'</div>'
         +'<div class="et">Nothing else on file yet</div>'
-        +'<div class="es">Your service record, documents and gate passes appear here as they are added.</div></div></div>';
+        +'<div class="es">Your service record, advances and gate passes appear here as they are added. '
+        +'Papers and letters are under Documents.</div></div></div>';
     }
   }
 
@@ -9805,8 +10315,28 @@ async function renderUpdates(){
   if(ANN.open){ return renderAnnDetail(ANN.open); }   // email-style detail view
   $('app-body').innerHTML=_skel();
   const ok=await loadAnnouncements(); if(!ok&&!ANN.loaded){ return _netErr(); }
+  await _annLoadHr();
   _touch(); _annPaint();
 }
+
+/* HR's letters. The register already sends them inside the file answer, so if
+   that has been fetched this session it is reused as it stands and nothing goes
+   over the wire; otherwise it is fetched once and kept. Either way there is one
+   reader, and it is the one that already decides which letters belong to this
+   person — a letter naming somebody else never arrives here to be filtered. */
+async function _annLoadHr(){
+  if(ANN.hr) return;
+  if(MYREC.data){ ANN.hr = MYREC.data.notices || []; return; }
+  try{
+    const ym=_myrecMonth(), [y0,m0]=ym.split('-').map(Number);
+    const last0=new Date(Date.UTC(y0,m0,0)).getUTCDate();
+    const f=await _myrecCall({action:'file',from:ym+'-01',to:ym+'-'+String(last0).padStart(2,'0')});
+    if(f && f.ok!==false){ MYREC.data=f; ANN.hr=f.notices||[]; }
+    else ANN.hr=[];
+  }catch(e){ ANN.hr=[]; }
+}
+function _annHrOpen(i){ ANN.hrOpen = (ANN.hrOpen===i) ? null : i; _annPaint(); }
+
 function _annTab(t){ if(t==='scheduled'){ return _annLoadScheduled(); } ANN.tab=t; _annPaint(); }
 // filter to the active tab, then sort: urgent-unacked pinned → unread → read; newest within
 function _annVisible(){
@@ -9822,14 +10352,23 @@ function _annVisible(){
 function _annPaint(){
   const isDir = ME&&ME.role==='director';
   if(!ANN.tab) ANN.tab='announcement';
-  let html=_pageHead('Messages', isDir?'Post notices to your team and track who read & acknowledged.':'Notices from your director — tap to read.');
+  let html=_pageHead('Messages', isDir
+    ?'Post notices to your team and track who read & acknowledged.'
+    :'Announcements from your company and letters from the office — tap to read.');
   if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
   const isDirAdmin = ME&&(ME.role==='director'||ME.role==='admin');
   const all=ANN.list||[];
   const annN=all.filter(a=>a.kind==='announcement').length;
   const brN=all.filter(a=>a.kind==='brief').length;
   const sysN=all.filter(a=>a.kind!=='announcement'&&a.kind!=='brief').length;
+  // Letters HR has issued — warnings, circulars — arrive from the attendance
+  // register rather than from RMS, but to the person reading them they are the
+  // same thing: a message from the company. They were listed under Documents
+  // until this pass; a letter is something you read, not a file you open, and
+  // it belongs in one place only.
+  const hrN=(ANN.hr||[]).length;
   const segs=[['announcement','Announcements'+(annN?' · '+annN:'')]];
+  if(hrN) segs.push(['hr','From HR · '+hrN]);
   if(isDirAdmin) segs.push(['brief','Briefs'+(brN?' · '+brN:'')]);
   segs.push(['system','System'+(sysN?' · '+sysN:'')],['all','All']);
   if(isDir) segs.push(['scheduled','Scheduled'+((ANN.scheduled&&ANN.scheduled.length)?' · '+ANN.scheduled.length:'')]);
@@ -9840,6 +10379,48 @@ function _annPaint(){
     else html+='<div class="inbox">'+s.map(_annSchedRow).join('')+'</div>';
     $('app-body').innerHTML=html; return;
   }
+  /* The HR letters, on their own tab. They carry no read state on the register
+     — nothing there records who opened what — so none is invented: they open
+     in place, newest first, and say plainly whether the letter names this
+     person or was sent to everybody. */
+  if(ANN.tab==='hr'){
+    const L=ANN.hr||[];
+    if(!L.length){
+      html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',22,1.7)+'</div>'
+        +'<div class="et">No letters</div>'
+        +'<div class="es">Warnings, circulars and letters issued to you appear here.</div></div></div>';
+    } else {
+      html+='<div class="card" style="padding:2px 6px">';
+      L.forEach((n,i)=>{
+        const open=ANN.hrOpen===i;
+        const when=n.issued_at?new Date(n.issued_at).toLocaleDateString('en-US',
+          {day:'numeric',month:'short',year:'numeric'}):'';
+        html+='<div class="att-row" style="grid-template-columns:1fr auto">'
+          +'<div style="min-width:0">'
+          +'<div class="att-day" style="white-space:normal;overflow-wrap:anywhere">'+esc(n.subject||'Letter')+'</div>'
+          +'<div class="att-meta">'
+            +(when?'<span>'+esc(when)+'</span>':'')
+            +(n.reference_no?'<span>'+esc(n.reference_no)+'</span>':'')
+            +'<span>'+(n.to_me?'Addressed to you':'Sent to all staff')+'</span>'
+          +'</div>'
+          +(open?'<div style="margin-top:9px;padding:11px 13px;border-radius:10px;background:var(--fk-bg-subtle);'
+            +'border:1px solid var(--fk-border);font-size:var(--fs-secondary);line-height:1.6;'
+            +'white-space:pre-wrap;overflow-wrap:anywhere">'+esc(n.body||'')
+            +(n.hod_name?'<div style="margin-top:10px;color:var(--fk-text-muted);font-size:var(--fs-caption)">'
+              +'Approved by '+esc(n.hod_name)+'</div>':'')
+            +'</div>':'')
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end">'
+          +_myrecChip(n.kind||'', n.kind==='warning'?'warn':null)
+          +'<button class="btn btn-secondary" style="height:30px;padding:0 11px;font-size:var(--fs-caption)" '
+          +'onclick="_annHrOpen('+i+')">'+(open?'Close':'Read')+'</button></div>'
+          +'</div>';
+      });
+      html+='</div>';
+    }
+    $('app-body').innerHTML=html; return;
+  }
+
   const rows=_annVisible();
   if(!rows.length){
     const msg = ANN.tab==='announcement' ? (isDir?'Compose one above to notify your team.':'No announcements from your director yet.')
