@@ -1411,7 +1411,7 @@ button.mn-card:active{transform:scale(.985)}
       <div><div class="brand-name">Nexunova CRM</div><div class="brand-sub">Reset your PIN</div></div>
     </div>
     <div class="auth-title">Enter your reset code</div>
-    <div class="auth-sub">We emailed a 6-digit code to <b id="rp-hint" style="color:var(--fk-text)">your email</b>. Enter it below and choose a new PIN. The code is valid for 10 minutes.</div>
+    <div class="auth-sub">We emailed a 6-digit code to <b id="rp-hint" style="color:var(--fk-text)">your email</b>. Enter it below and choose a new PIN. The code is valid for 10 minutes. <b style="color:var(--fk-warning)">If it is not in your inbox, check the spam folder.</b></div>
     <div class="field"><label class="label">Reset code</label><input class="input" id="rp-otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"></div>
     <div class="field"><label class="label">New PIN</label><input class="input" id="rp-pin" type="password" inputmode="numeric" maxlength="6" placeholder="6 digits" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"></div>
     <div class="field"><label class="label">Confirm new PIN</label><input class="input" id="rp-pin2" type="password" inputmode="numeric" maxlength="6" placeholder="Re-enter PIN" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"><div class="note" style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:4px">6 digits. Avoid easy ones like 123456 or 111111.</div></div>
@@ -2204,7 +2204,10 @@ async function _vgSend(){
 function _vgRenderOtp(hint){
   $('vg-card').innerHTML=_vgIcon()
     +'<div class="auth-title">Enter your code</div>'
-    +'<div class="auth-sub">We emailed a 6-digit code to <b style="color:var(--fk-text)">'+esc(hint)+'</b>. Enter it below — the code is valid for 10 minutes.</div>'
+    +'<div class="auth-sub">We emailed a 6-digit code to <b style="color:var(--fk-text)">'+esc(hint)+'</b>. Enter it below — the code is valid for 10 minutes.'
+    // The mail is accepted by the provider and then filtered: on 28 August three
+    // codes were sent, accepted, and only the person who looked in spam found one.
+    +' <b style="color:var(--fk-warning)">If it is not in your inbox, check the spam folder.</b></div>'
     +'<div class="field"><label class="label">Verification code</label><input class="input" id="vg-otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,6)"></div>'
     +'<button class="btn btn-primary btn-full" id="vg-vbtn" onclick="_vgVerify()">Verify email</button>'
     +'<div class="err" id="vg-err"></div>'
@@ -2259,7 +2262,7 @@ async function _emailVerifySend(){
 }
 function _emailVerifyStep2(hint){
   openModal('Enter your code',
-    '<div style="font-size:var(--fs-secondary);color:var(--fk-text-muted);margin-bottom:12px">We emailed a 6-digit code to <b style="color:var(--fk-text)">'+esc(hint)+'</b>. Enter it below. The code is valid for 10 minutes.</div>'
+    '<div style="font-size:var(--fs-secondary);color:var(--fk-text-muted);margin-bottom:12px">We emailed a 6-digit code to <b style="color:var(--fk-text)">'+esc(hint)+'</b>. Enter it below. The code is valid for 10 minutes. <b style="color:var(--fk-warning)">If it is not in your inbox, check the spam folder.</b></div>'
     +'<div class="field"><label class="label">Verification code</label><input class="input" id="ev-otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,6)"></div>'
     +'<div id="ev-err" style="display:none;color:var(--fk-danger);font-size:var(--fs-secondary);margin-top:6px"></div>'
     +'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:8px">Didn’t get it? <a href="#" onclick="_emailVerifyResend();return false" style="color:var(--fk-primary);text-decoration:none">Resend code</a></div>',
