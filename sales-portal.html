@@ -339,7 +339,22 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 /* expanded group → faint shaded well + a straight indigo left line, so its items
    clearly read as belonging INSIDE this menu (matches the RMS admin sidebar). */
 .ni-grp.open>.ni-sub{background:var(--fk-bg-subtle);border-left:2px solid var(--fk-primary);border-radius:0 8px 8px 0;margin:2px 0 8px 8px;padding:3px 5px 3px 6px}
-.sb-foot{border-top:1px solid var(--fk-hairline);padding:10px 12px}
+/* ── whose portal this is ──────────────────────────────────────────────────
+   The first row of the rail, the way a person's own name is the first row of
+   theirs. Bigger than a nav item on purpose: it is not one of the places you
+   go, it is the answer to "am I signed in as me". */
+.sb-me{display:flex;align-items:center;gap:11px;margin:10px 10px 4px;padding:9px 10px;border-radius:12px;
+  cursor:pointer;transition:background .14s}
+.sb-me:hover{background:var(--fk-bg-subtle)}
+.sb-me-av{width:38px;height:38px;flex:none;border-radius:50%;background:var(--fk-primary);color:#fff;
+  display:grid;place-items:center;font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);
+  overflow:hidden;letter-spacing:-.02em}
+.sb-me-av img{width:100%;height:100%;object-fit:cover}
+.sb-me-t{min-width:0}
+.sb-me-t b{display:block;font-size:var(--fs-body);font-weight:var(--fk-fw-bold);color:var(--fk-text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.sb-me-t span{display:block;font-size:var(--fs-caption);color:var(--fk-text-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user{display:flex;align-items:center;gap:10px;padding:7px;border-radius:9px;cursor:pointer;transition:background .14s}
 .sb-user:hover{background:var(--fk-bg-subtle)}
 .sb-user-meta{min-width:0}
@@ -348,8 +363,15 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .appmain{flex:1;min-width:0;display:flex;flex-direction:column}
 .appbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:6px;height:58px;padding:0 18px;background:var(--fk-bar);-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);border-bottom:1px solid var(--fk-border)}
 .appbar-title{font-size:var(--fs-body);font-weight:700;color:var(--fk-text);letter-spacing:-.02em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
-.appbar-btn{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;background:transparent;color:var(--fk-text-muted);border-radius:8px;cursor:pointer;transition:background .12s,color .12s}
-.appbar-btn:hover{background:var(--fk-bg-subtle);color:var(--fk-text)}
+/* Round, and sitting on their own quiet disc. A row of bare glyphs reads as
+   decoration; the same glyphs on a circle read as things you can press, which
+   is the whole difference between a toolbar and a smudge. */
+.appbar-btn{width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;
+  background:var(--fk-bg-subtle);color:var(--fk-text-muted);border-radius:50%;cursor:pointer;
+  transition:background .14s,color .14s,transform .08s}
+.appbar-btn:hover{background:var(--fk-border);color:var(--fk-text)}
+.appbar-btn:active{transform:scale(.94)}
+.appbar-btn.on{background:var(--fk-primary-tint);color:var(--fk-primary)}
 .appbar-btn.spin svg{animation:nxspin .6s linear}
 @keyframes nxspin{to{transform:rotate(360deg)}}
 .appbar-btn svg{width:19px;height:19px}
@@ -357,8 +379,9 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .appbar-nav:hover{background:var(--fk-bg-subtle);border-color:var(--fk-text-muted)}
 .appbar-nav svg{width:17px;height:17px}
 #appbar-home{color:var(--fk-primary)}
+#appbar-home.gone,#appbar-home.here{display:none}
 .sb-toggle{display:none}
-@media(max-width:560px){.appbar-title{display:none}}
+@media(max-width:560px){.appbar-title{display:none}.appbar-nav span{display:none}.appbar-nav{width:34px;padding:0;justify-content:center}.appbar-btn{width:34px;height:34px}.top-av{width:34px;height:34px}.appbar{padding-left:8px;padding-right:8px}}
 /* On a 412px phone the bar's own padding was the last 10px the avatar needed,
    so it sat outside the viewport and the whole page could be dragged sideways.
    Nothing in the bar may shrink — they are all fixed-size controls — so the
@@ -370,7 +393,13 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 @media(prefers-reduced-motion:reduce){#app-body.rise{animation:none}}
 .sb-scrim{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:55;opacity:0;visibility:hidden;transition:opacity .2s}
 .sb-scrim.show{opacity:1;visibility:visible}
-.top-av{width:34px;height:34px;flex:none;border-radius:50%;background:var(--fk-primary);color:#fff;display:grid;place-items:center;font-size:var(--fs-secondary);font-weight:700;cursor:pointer;letter-spacing:-.02em}
+.top-av{width:36px;height:36px;flex:none;border-radius:50%;background:var(--fk-primary);color:#fff;display:grid;place-items:center;font-size:var(--fs-secondary);font-weight:700;cursor:pointer;letter-spacing:-.02em;overflow:hidden;transition:transform .08s}
+.top-av:hover{filter:brightness(1.06)}
+.top-av:active{transform:scale(.94)}
+.top-av img{width:100%;height:100%;object-fit:cover}
+/* the cluster breathes a little at the right-hand end */
+.appbar-btn + .appbar-btn{margin-left:2px}
+.appbar .top-av{margin-left:6px}
 @media(max-width:860px){
   .sb{position:fixed;left:0;top:0;height:100vh;transform:translateX(-100%);transition:transform .24s cubic-bezier(.2,.7,.3,1);box-shadow:var(--fk-shadow-raised)}
   .sb.open{transform:none}
@@ -1623,8 +1652,33 @@ button.mn-card:active{transform:scale(.985)}
  <div class="appshell">
   <aside class="sb" id="sb">
     <div class="sb-brand"><span class="sb-mark">N</span><span class="sb-brand-t">Nexunova <em>CRM</em></span></div>
+    <!-- Whose portal this is, said first. It sat at the very bottom before,
+         under everything, which is the one place a person does not look for
+         themselves. Tapping it opens their profile. -->
+    <div class="sb-me" onclick="setTab('profile')" title="My profile">
+      <div class="sb-me-av" id="sb-av">RM</div>
+      <div class="sb-me-t"><b id="sb-uname">—</b><span id="sb-urole">—</span></div>
+    </div>
     <nav class="sb-nav">
       <a class="ni" data-tab="home" data-main onclick="setTab('home')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="ni-lb">Dashboard</span><span class="ni-bdg" id="nav-badge-followups"></span></a>
+      <!-- ══ Self service — everything a person owns about themselves ══════ -->
+      <!-- These five were tabs inside "My record". They are separate things in  -->
+      <!-- an employee's head — my attendance, my leave, my pay, my papers — so  -->
+      <!-- they are separate places in the rail. Same renderer underneath;       -->
+      <!-- nothing was rebuilt, only given its own door. Every role has them:    -->
+      <!-- a rep clocks in and takes leave exactly like the front desk does.     -->
+      <div class="ni-grp" data-grp="self">
+        <button type="button" class="sb-grp" data-grp-btn aria-expanded="false" onclick="toggleGroup('self')"><span class="sb-grp-t">Self service</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
+        <div class="sb-grp-body">
+          <a class="ni" data-tab="ess-att" onclick="setTab('ess-att')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">Attendance</span></a>
+          <a class="ni" data-tab="ess-leave" onclick="setTab('ess-leave')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg></span><span class="ni-lb">Leave</span></a>
+          <a class="ni" data-tab="ess-visit" onclick="setTab('ess-visit')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v12"/><path d="M3 21h18"/><path d="M5 21V11l7-6 7 6v10"/></svg></span><span class="ni-lb">Official visit</span></a>
+          <a class="ni" data-tab="ess-pay" onclick="setTab('ess-pay')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg></span><span class="ni-lb">Payroll</span></a>
+          <a class="ni" data-tab="ess-docs" onclick="setTab('ess-docs')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></span><span class="ni-lb">Documents</span></a>
+          <a class="ni" data-tab="ess-file" onclick="setTab('ess-file')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="ni-lb">My file</span></a>
+          <a class="ni" data-tab="profile" onclick="setTab('profile')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="ni-lb">My profile</span></a>
+        </div>
+      </div>
       <div class="ni-grp" data-grp="company">
         <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('company')"><span class="sb-grp-t">Company</span><span class="ni-bdg sb-grp-bdg" id="grp-badge-company"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
         <div class="sb-grp-body">
@@ -1699,28 +1753,9 @@ button.mn-card:active{transform:scale(.985)}
       <!-- Everybody has a record, a payslip and a leave balance; only some people -->
       <!-- sell. So this sits with Messages in the always-on strip rather than in -->
       <!-- the Workspace group, which the office roles never see. -->
-      <!-- ══ Self service — everything a person owns about themselves ══════ -->
-      <!-- These five were tabs inside "My record". They are separate things in  -->
-      <!-- an employee's head — my attendance, my leave, my pay, my papers — so  -->
-      <!-- they are separate places in the rail. Same renderer underneath;       -->
-      <!-- nothing was rebuilt, only given its own door. Every role has them:    -->
-      <!-- a rep clocks in and takes leave exactly like the front desk does.     -->
-      <div class="ni-grp" data-grp="self">
-        <button type="button" class="sb-grp" data-grp-btn aria-expanded="true" onclick="toggleGroup('self')"><span class="sb-grp-t">Self service</span><span class="ni-bdg sb-grp-bdg"></span><span class="ni-cv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>
-        <div class="sb-grp-body">
-          <a class="ni" data-tab="ess-att" onclick="setTab('ess-att')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><span class="ni-lb">Attendance</span></a>
-          <a class="ni" data-tab="ess-leave" onclick="setTab('ess-leave')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg></span><span class="ni-lb">Leave</span></a>
-          <a class="ni" data-tab="ess-visit" onclick="setTab('ess-visit')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v12"/><path d="M3 21h18"/><path d="M5 21V11l7-6 7 6v10"/></svg></span><span class="ni-lb">Official visit</span></a>
-          <a class="ni" data-tab="ess-pay" onclick="setTab('ess-pay')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg></span><span class="ni-lb">Payroll</span></a>
-          <a class="ni" data-tab="ess-docs" onclick="setTab('ess-docs')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></span><span class="ni-lb">Documents</span></a>
-          <a class="ni" data-tab="ess-file" onclick="setTab('ess-file')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="ni-lb">My file</span></a>
-          <a class="ni" data-tab="profile" onclick="setTab('profile')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="ni-lb">My profile</span></a>
-        </div>
-      </div>
-      <a class="ni" data-tab="updates" onclick="setTab('updates')"><span class="ni-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span class="ni-lb">Messages</span><span class="ni-bdg" id="nav-badge-updates"></span></a>
-    </div>
-    <div class="sb-foot">
-      <div class="sb-user" onclick="setTab('profile')"><div class="top-av" id="sb-av">RM</div><div class="sb-user-meta"><b id="sb-uname">—</b><span id="sb-urole">—</span></div></div>
+      <!-- Messages moved to the top bar, beside the bell. Keeping it here as
+           well would be two doors to one room, and the rail is for places you
+           go, not things that arrive. -->
     </div>
   </aside>
   <div class="appmain">
@@ -1732,6 +1767,10 @@ button.mn-card:active{transform:scale(.985)}
       <div style="flex:1"></div>
       <button class="appbar-btn" id="appbar-refresh" onclick="_appRefresh()" title="Refresh"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="appbar-btn" id="appbar-theme" onclick="toggleTheme()" title="Light / dark"></button>
+      <!-- Messages and notifications are the two things a person checks without
+           being asked, so they live where the eye already goes: top right, in
+           reach, each carrying its own count. -->
+      <button class="appbar-btn" id="appbar-msg" onclick="setTab('updates')" title="Messages" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="nbell" id="msg-badge"></span></button>
       <button class="appbar-btn" id="appbar-bell" onclick="_notifToggle(event)" title="Notifications" style="position:relative" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="btab-badge" id="ann-badge"></span><span class="nbell" id="nbell"></span></button>
       <div class="top-av" id="top-av" onclick="setTab('profile')" title="My profile">RM</div>
     </header>
@@ -2476,7 +2515,7 @@ function _applyLeadAccess(){
   show('[data-cmd]',      (isDir || isAdmin) && !isOff);                // Command Center
   show('[data-ad]',       (isDir || isExec) && !isOff);                 // Ad results
   show('[data-lead-grp]', (isDir || isExec) && !isOff);                 // Leadership group header
-  const ah=$('appbar-home'); if(ah) ah.style.display = isLE ? 'none' : '';
+  const ah=$('appbar-home'); if(ah) ah.classList.toggle('gone', !!isLE);   // operator never gets it
   const ab=$('appbar-bell'); if(ab) ab.style.display='';
   try{ _syncNavGroups(); }catch(e){}                         // apply accordion default-open once role gating has settled
   if(isLE){ try{ loadAnnouncements(); }catch(e){} }
@@ -2679,7 +2718,10 @@ function _syncNavGroups(t){
     let open;
     if(id===active) open=true;                                                   // group of the current page → always expanded
     else if(Object.prototype.hasOwnProperty.call(st,id)) open=!!st[id];          // saved arrangement always wins
-    else if(id==='company' || id==='self') open=true;                            // the company's work and the person's own drawer — both open unless they closed them
+    else if(id==='company') open=true;                                           // the company's work, open unless they closed it
+    // 'self' sits at the top of the rail and stays SHUT until somebody opens it:
+    // it is seven items a person visits now and then, and left open it pushed
+    // the work they came here to do below the fold.
     else if(!active && id==='workspace' && sell) open=true;                       // ungrouped landing (Home/Messages) → open Workspace for sellers (no stored pref)
     else open=false;                                                             // default: collapsed
     g.classList.toggle('open', open);
@@ -2719,8 +2761,27 @@ function _avInit(){ const nm=(ME&&ME.sales_user_name)||''; return ((String(nm).t
 function _syncNav(){
   const b=$('appbar-back'); if(b) b.style.display=_canGoBack()?'':'none';
   const ini=_avInit();
-  ['top-av','sb-av'].forEach(id=>{ const e=$(id); if(e) e.textContent=ini; });
+  ['top-av','sb-av'].forEach(id=>{ const e=$(id); if(e && !e.querySelector('img')) e.textContent=ini; });
+  /* A person recognises their own face faster than their own initials. The
+     photograph is the same private one every other screen signs for, so it is
+     asked for once and put in both places; initials stay until it arrives, and
+     stay for good if there is no photograph. */
+  _myrecProfile().then(pr=>{
+    const d0=_pdoc(pr&&pr.profile_photo_path, pr&&pr.profile_photo_url);
+    if(!d0) return;
+    ['top-av','sb-av'].forEach(id=>{
+      const e=$(id); if(!e || e.querySelector('img')) return;
+      e.innerHTML = _pdocImg(d0, 'alt="" style="width:100%;height:100%;object-fit:cover"');
+      _pdocFill(e);
+    });
+  }).catch(()=>{});
   const un=$('sb-uname'); if(un) un.textContent=(ME&&ME.sales_user_name)||'Sales';
+  // Messages has no row in the rail any more, so the envelope itself has to
+  // show that you are standing in it.
+  const mb=$('appbar-msg'); if(mb) mb.classList.toggle('on', TAB==='updates');
+  const av=$('top-av'); if(av) av.classList.toggle('on', TAB==='profile');
+  // standing on the dashboard, the 'Dashboard' button only repeats the title
+  const ah2=$('appbar-home'); if(ah2) ah2.classList.toggle('here', TAB==='home');
   const ur=$('sb-urole'); if(ur) ur.textContent=_portalRoleLabel(ME&&ME.role)||'';
 }
 function goBack(){
@@ -10766,7 +10827,9 @@ function _saleRow(s){
 // ════ updates (company notices — email-style inbox; undeletable record) ════
 // badge counts unread ANNOUNCEMENTS (director messages) so they're never drowned by system noise
 function _annUpdateBadge(){ const n=Number(ANN.unreadAnn||0);
-  [$('ann-badge'),$('nav-badge-updates')].forEach(b=>{ if(!b) return;
+  // the same count, wherever Messages appears: the rail, the old bell badge,
+  // and now the envelope in the top bar
+  [$('ann-badge'),$('nav-badge-updates'),$('msg-badge')].forEach(b=>{ if(!b) return;
     if(n>0){ b.textContent=n>99?'99+':String(n); b.classList.add('show'); } else b.classList.remove('show'); }); }
 async function loadAnnouncements(){
   try{ const {data}=await sb.rpc('get_sales_announcements',{p_session_token:TOKEN});
