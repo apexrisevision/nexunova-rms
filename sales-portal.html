@@ -8523,7 +8523,7 @@ async function renderMyHome(){
      Both out of the same file the Attendance page reads. Pending is counted
      from this person's own applications — not a separate leave source. */
   if(f.ok){
-    const bal = (f.leave_balance || []).filter(x => x.entitled && x.is_paid !== false);
+    const bal = (f.leave_balance || []).filter(x => x.entitled != null && x.is_paid !== false);
     const reqs = f.leave_requests || [];
     const pend = reqs.filter(x => String(x.status || '').toLowerCase() === 'pending');
     const totEnt = bal.reduce((s, x) => s + Number(x.entitled || 0), 0);
@@ -8731,7 +8731,7 @@ async function _meStrip(){
     const today = new Date().toISOString().slice(0, 10);
     const td = (f.days || []).find(x => x.date === today) || null;
     const present = (f.days || []).filter(x => x.status === 'present' || x.status === 'late').length;
-    const bal = (f.leave_balance || []).filter(x => x.entitled && x.is_paid !== false);
+    const bal = (f.leave_balance || []).filter(x => x.entitled != null && x.is_paid !== false);
     const lv = bal[0];
     const rsS = n => { n = Number(n||0);
       return n >= 10000000 ? '₨' + (n/10000000).toFixed(2) + ' cr'
@@ -10346,7 +10346,7 @@ async function renderMyRecord(){
        employee nothing true about what they can take on Monday. Every kind
        stands on its own, drawn from whatever the register returns, so a kind
        added later appears here without a line being written. */
-    const _lvBal = bal.filter(x => x.entitled);
+    const _lvBal = bal.filter(x => x.entitled != null);   // zero is a real entitlement, not an absent one
     html += '<div style="margin:0 2px 8px;font-size:var(--fk-fs-label);text-transform:uppercase;'
       + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Leave balance · this year</div>';
     if(!_lvBal.length){
