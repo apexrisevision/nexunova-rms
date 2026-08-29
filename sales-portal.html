@@ -1509,6 +1509,35 @@ button.mn-card:active{transform:scale(.985)}
 .eh-say .d{width:6px;height:6px;border-radius:50%;flex:none;background:var(--fk-text-muted)}
 .eh-say.ok .d{background:var(--fk-success)} .eh-say.wn .d{background:var(--fk-warning)}
 .eh-say.bd .d{background:var(--fk-danger)}
+/* the one thing waiting, under the identity — a row, not a banner */
+.eh-act{display:flex;align-items:center;gap:10px;margin-top:13px;padding:9px 11px;cursor:pointer;
+        border:1px solid var(--fk-border);border-radius:10px;background:var(--fk-bg-card);
+        transition:border-color .16s ease,background .16s ease}
+.eh-act:hover,.eh-act:focus-visible{border-color:color-mix(in srgb,var(--fk-primary) 34%,var(--fk-border));
+        background:var(--fk-subtle-hover);outline:none}
+.eh-act>svg{width:14px;height:14px;flex:none;color:var(--fk-text-muted)}
+.eh-act .i{width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;
+           background:var(--fk-bg-subtle);color:var(--fk-text-muted)}
+.eh-act.wn .i{background:var(--fk-warning-surface);color:var(--fk-warning)}
+.eh-act.bd .i{background:var(--fk-danger-surface);color:var(--fk-danger)}
+.eh-act .i svg{width:14px;height:14px}
+.eh-act .t{flex:1;min-width:0;font-size:var(--fk-fs-label);color:var(--fk-text-muted);line-height:1.4}
+.eh-act .t b{display:block;font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);
+             color:var(--fk-text);overflow-wrap:anywhere}
+.eh-act .n{flex:none;font-size:var(--fk-fs-label);color:var(--fk-text-muted);
+           background:var(--fk-bg-subtle);border-radius:var(--fk-radius-pill);padding:1px 7px}
+
+/* one day, answered in place — no request, no navigation, no modal */
+.edaypop{position:fixed;z-index:9500;max-width:230px;padding:10px 12px;border-radius:11px;
+         background:var(--fk-bg-card);border:1px solid var(--fk-border);box-shadow:var(--nx-card-sh-hi);
+         font-size:var(--fk-fs-label);color:var(--fk-text-muted);line-height:1.55;pointer-events:none;
+         opacity:0;transform:translateY(3px);transition:opacity .13s ease,transform .13s ease}
+.edaypop.show{opacity:1;transform:none}
+.edaypop b{display:block;font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);
+           color:var(--fk-text);margin-bottom:3px}
+.edaypop i{display:block;font-style:normal;font-variant-numeric:tabular-nums}
+.eday:focus-visible{outline:2px solid var(--fk-primary);outline-offset:1px}
+@media(prefers-reduced-motion:reduce){ .edaypop{transition:none} }
 
 /* today, in the right half of the hero, divided by a hairline not a gap */
 .eh-today{border-left:1px solid var(--fk-hairline);padding:20px;display:flex;flex-direction:column;gap:14px;
@@ -8745,6 +8774,28 @@ async function renderMyHome(){
   /* Working days still ahead this month, from the same rule the Leave page
      asks. Nothing else on the screen looks forward, and a person planning a
      day off wants exactly this. */
+  /* What is actually waiting on this person. Worked out once and used twice:
+     the hero leads with the first of them, the panel further down lists them
+     all. Every row is something that genuinely exists — a request nobody has
+     decided, a notice demanding an acknowledgement, an unread message. */
+  const attn = [];
+  {
+    const reqs = f.leave_requests || [];
+    reqs.filter(x => _ESS_WAITING.indexOf(String(x.status || '').toLowerCase()) > -1)
+      .forEach(x => attn.push(['ess-leave', 'wn', I.plane,
+        (x.type || 'Leave') + ' · ' + _homeDate(x.start_date), 'Waiting for a decision']));
+    (f.visits || []).filter(v => _ESS_WAITING.indexOf(String(v.status || '').toLowerCase()) > -1)
+      .forEach(v => attn.push(['ess-visit', 'wn', I.brief,
+        'Official visit · ' + _homeDate(v.visit_date), 'Waiting for a decision']));
+    const ack = (typeof ANN !== 'undefined' && ANN.list ? ANN.list : [])
+      .filter(a => a.requires_ack && !a.acknowledged && !a.is_author);
+    ack.forEach(a => attn.push(['updates', 'bd', I.bell, a.title || 'Notice',
+      'Needs your acknowledgement']));
+    const unread = (typeof ANN !== 'undefined' ? Number(ANN.unread || 0) : 0);
+    if(unread && !ack.length) attn.push(['updates', '', I.inbox,
+      unread + ' unread message' + (unread === 1 ? '' : 's'), 'In your inbox']);
+  }
+
   let aheadTxt = '';
   if(f.ok){
     const mEnd = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0))
@@ -8782,6 +8833,15 @@ async function renderMyHome(){
         : '')
     + (aheadTxt ? '<div class="eh-say" style="margin-top:7px"><span class="d"></span>'
          + esc(aheadTxt) + '</div>' : '')
+    // the first thing waiting, said quietly. Nothing appears here when nothing
+    // is waiting — an empty "all clear" badge is noise pretending to be news.
+    + (attn.length
+        ? '<div class="eh-act ' + esc(attn[0][1]) + '" ' + goto(attn[0][0]) + ' role="button" tabindex="0">'
+          + '<span class="i">' + ic(attn[0][2]) + '</span>'
+          + '<span class="t"><b>' + esc(attn[0][3]) + '</b>' + esc(attn[0][4]) + '</span>'
+          + (attn.length > 1 ? '<span class="n">+' + (attn.length - 1) + '</span>' : '')
+          + ic('<path d="m9 18 6-6-6-6"/>') + '</div>'
+        : '')
     + '</div></div>';
 
   /* today, in the hero's right half */
@@ -8891,8 +8951,22 @@ async function renderMyHome(){
           () => '<div class="eday pad"></div>').join('')
       + mAll.map(d0 => {
           const t = (_ATT_KIND[d0.kind] || ['Day'])[0];
-          return '<div class="eday ' + esc(d0.kind) + (d0.date === today ? ' now' : '') + '" ' + goto('ess-att')
-            + ' title="' + esc(_homeDate(d0.date) + ' · ' + t + (d0.note ? ' · ' + d0.note : '')) + '">'
+          /* Everything a day can say is already in this model, so the detail
+             costs nothing to fetch and nothing to keep in step: it is read off
+             the cell when somebody asks for it. */
+          const r0 = d0.rec || {};
+          const detail = [
+            t + (d0.note ? ' · ' + d0.note : ''),
+            r0.first_in ? (_homeTime(r0.first_in)
+              + (r0.last_out && r0.last_out !== r0.first_in ? ' – ' + _homeTime(r0.last_out)
+                 : ' · no punch out')) : '',
+            Number(r0.minutes) > 0 ? _homeHrs(r0.minutes) + ' worked' : '',
+            Number(r0.late_minutes) > 0 ? r0.late_minutes + ' minutes late' : '',
+          ].filter(Boolean);
+          return '<div class="eday ' + esc(d0.kind) + (d0.date === today ? ' now' : '') + '"'
+            + ' tabindex="0" role="button"'
+            + ' data-d="' + esc(_homeDate(d0.date, true)) + '"'
+            + ' data-x="' + esc(detail.join('\n')) + '">'
             + Number(d0.date.slice(8)) + '</div>';
         }).join('')
       + '</div>'
@@ -8953,22 +9027,10 @@ async function renderMyHome(){
 
   /* ══ NEEDS YOU ══════════════════════════════════════════════════════════
      Only things that genuinely exist and genuinely wait. Nothing is invented
-     to fill the panel; when there is nothing it says so. */
-  {
-    const reqs = f.leave_requests || [];
-    const pend = reqs.filter(x => _ESS_WAITING.indexOf(String(x.status || '').toLowerCase()) > -1);
-    const vpend = (f.visits || []).filter(v => _ESS_WAITING.indexOf(String(v.status || '').toLowerCase()) > -1);
-    const ack = (typeof ANN !== 'undefined' && ANN.list ? ANN.list : [])
-      .filter(a => a.requires_ack && !a.acknowledged && !a.is_author);
-    const unread = (typeof ANN !== 'undefined' ? Number(ANN.unread || 0) : 0);
-    const rows = [];
-    pend.forEach(x => rows.push(['ess-leave', 'wn', I.plane,
-      (x.type || 'Leave') + ' · ' + _homeDate(x.start_date), 'Waiting for a decision']));
-    vpend.forEach(v => rows.push(['ess-visit', 'wn', I.brief,
-      'Official visit · ' + _homeDate(v.visit_date), 'Waiting for a decision']));
-    ack.forEach(a => rows.push(['updates', 'bd', I.bell, a.title || 'Notice', 'Needs your acknowledgement']));
-    if(unread && !ack.length) rows.push(['updates', '', I.inbox,
-      unread + ' unread message' + (unread === 1 ? '' : 's'), 'In your inbox']);
+     to fill the panel; when there is nothing it says so. The list itself was
+     worked out before the hero, because the hero leads with the first of them. */
+  if(attn.length !== 1){
+    const rows = attn;
 
     S += '<div class="ep nx-rise">'
       + '<div class="ep-h"><span class="ep-t">Needs you</span>'
@@ -9120,7 +9182,75 @@ async function renderMyHome(){
     + '</div></div></div>';
 
   b.innerHTML = html + '</div></div>';
+  _essDayPop(b);                      // the calendar answers for a single day
   _pdocFill(b);                       // the greeting's photograph, on a link that expires
+}
+
+/* A day, answered where it is. Everything shown was already loaded with the
+   month, so this asks the server for nothing and cannot drift from the cells
+   it explains. Hover answers on a mouse, tap answers on a phone, Escape and a
+   tap elsewhere put it away. It is deliberately not a modal and deliberately
+   does not navigate: the panel heading already carries the way to Attendance. */
+function _essDayPop(root){
+  if(!root) return;
+  let pop = document.getElementById('eday-pop');
+  if(!pop){
+    pop = document.createElement('div');
+    pop.id = 'eday-pop'; pop.className = 'edaypop';
+    document.body.appendChild(pop);
+  }
+  const hide = () => { pop.classList.remove('show'); pop._for = null; };
+  const show = (cell) => {
+    const d = cell.getAttribute('data-d') || '', x = cell.getAttribute('data-x') || '';
+    if(!d) return;
+    pop.innerHTML = '<b>' + esc(d) + '</b>'
+      + x.split('\n').filter(Boolean).map(l => '<i>' + esc(l) + '</i>').join('');
+    pop.classList.add('show'); pop._for = cell;
+    place(cell);
+  };
+  // measured after it is drawn, then kept inside the window on every edge
+  const place = (cell) => {
+    const r = cell.getBoundingClientRect(), p = pop.getBoundingClientRect();
+    let left = r.left + r.width / 2 - p.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - p.width - 8));
+    let top = r.top - p.height - 8;
+    if(top < 8) top = r.bottom + 8;
+    pop.style.left = Math.round(left) + 'px';
+    pop.style.top  = Math.round(top) + 'px';
+  };
+
+  root.addEventListener('mouseover', e => {
+    const c = e.target.closest('.eday[data-d]'); if(c) show(c);
+  });
+  root.addEventListener('mouseout', e => {
+    const c = e.target.closest('.eday[data-d]');
+    if(c && pop._for === c && !c.contains(e.relatedTarget)) hide();
+  });
+  root.addEventListener('focusin', e => {
+    const c = e.target.closest('.eday[data-d]'); if(c) show(c);
+  });
+  root.addEventListener('focusout', e => {
+    const c = e.target.closest('.eday[data-d]'); if(c && pop._for === c) hide();
+  });
+  /* A phone has no hover, so the tap is the question and tapping again puts
+     it away. With a mouse the hover has already answered, so a click that
+     toggled would close what the pointer just opened — there it only ever
+     opens, and moving away or tapping elsewhere closes it. */
+  const hasHover = !!(window.matchMedia && window.matchMedia('(hover: hover)').matches);
+  root.addEventListener('click', e => {
+    const c = e.target.closest('.eday[data-d]');
+    if(!c) return;
+    e.stopPropagation();
+    if(!hasHover && pop._for === c) hide(); else show(c);
+  });
+  document.addEventListener('click', () => hide());
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') hide(); });
+  window.addEventListener('scroll', () => {
+    const c = pop._for; if(!c) return;
+    const r = c.getBoundingClientRect();
+    if(r.bottom < 0 || r.top > window.innerHeight) return hide();
+    place(c);
+  }, true);
 }
 
 // Opening a payslip from the dashboard lands on the Payroll page with that slip
