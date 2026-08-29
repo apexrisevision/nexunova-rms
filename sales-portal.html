@@ -1713,6 +1713,44 @@ button.mn-card:active{transform:scale(.985)}
 .elv .bar>i{display:block;height:100%;background:var(--fk-primary)}
 .elv .ct{flex:none;font-variant-numeric:tabular-nums;color:var(--fk-text-muted);font-size:var(--fk-fs-label)}
 
+/* units — the controls, the floor index and the tiles, in the house language */
+/* The mode and the filter were two full-width segmented controls stacked on
+   top of each other; they read as four primary buttons, which is what a person
+   presses when they mean to do something, not when they mean to look. Scoped
+   to this row only — the same control elsewhere is not touched. */
+.unt-ctl{display:flex;align-items:center;gap:var(--fk-sp-2);flex-wrap:wrap;
+         margin-bottom:var(--fk-sp-3)}
+.unt-ctl .seg{margin:0 !important;flex:none;width:auto}
+.unt-ctl .seg .so{flex:none;padding:0 13px;white-space:nowrap}
+.unt-ctl .unt-q{flex:1 1 200px;min-width:0;margin:0}
+@media(max-width:560px){ .unt-ctl .unt-q{flex:1 1 100%} }
+
+/* the floor index reads like every other list on the dashboard */
+.nx-dash .lgroup{border-radius:var(--nx-radius);box-shadow:var(--nx-card-sh)}
+.floorcard{gap:12px;padding:12px 15px}
+.fc-name{font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);letter-spacing:-.01em;
+         min-width:92px}
+.fc-bar{height:6px;border-radius:var(--fk-radius-pill)}
+.fc-stat b{font-variant-numeric:tabular-nums}
+.fc-chev{color:var(--fk-text-muted)}
+
+/* a grid whose rows are all the same height, so a long area does not push one
+   tile taller than the six beside it */
+.units{grid-auto-rows:1fr;gap:8px}
+.unit{border-radius:10px;padding:9px 8px;gap:1px;min-height:62px}
+.unit .uno{font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);letter-spacing:-.01em}
+.unit .ust{font-size:var(--fk-fs-label);letter-spacing:.06em}
+.unit.avail:hover{transform:translateY(-2px);box-shadow:var(--nx-card-sh)}
+.unit:focus-visible{outline:2px solid var(--fk-primary);outline-offset:2px}
+.fdetail-hd{display:flex;align-items:center;gap:var(--fk-sp-3);margin-bottom:var(--fk-sp-3)}
+.fdetail-hd .backbtn{height:32px;padding:0 11px;font-size:var(--fk-fs-label);
+  border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);
+  border-radius:var(--fk-radius-control);box-shadow:var(--fk-shadow);cursor:pointer;
+  transition:border-color .16s ease,background .16s ease}
+.fdetail-hd .backbtn:hover{background:var(--fk-subtle-hover);border-color:var(--fk-text-muted)}
+.fdetail-hd .backbtn:active{box-shadow:inset 0 1px 2px rgba(15,23,42,.12)}
+.fd-title{font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);color:var(--fk-text)}
+
 /* project */
 .pj-name{font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);color:var(--fk-text);
          line-height:1.3;letter-spacing:-.01em;overflow-wrap:anywhere}
@@ -2235,7 +2273,11 @@ let TOKEN=null, ME=null, BOARD=null, TAB='board', RESERVE_UNIT=null, RESERVE_DAY
 let ANN={list:[], unread:0, unreadAnn:0, loaded:false, open:null, tab:'announcement', scheduled:[], schedLoaded:false};
 // board view: mode (detailed=expanded all floors [default] | floors=summary directory),
 // which project, which floor is open (floors mode), status filter, search
-let BV={proj:0, floor:null, filter:'all', q:'', mode:'detailed'};
+/* Awami has 1,467 units and the detailed view drew every one of them — a page
+   fourteen thousand pixels tall that nobody can use. The floor index already
+   existed and answers "where is there something free" in one screen; every
+   unit is still one tap away. */
+let BV={proj:0, floor:null, filter:'all', q:'', mode:'floors'};
 
 function _coRemembered(){ try{return localStorage.getItem('rms.sales.co')}catch(e){return null} }
 function _coNameRemembered(){ try{return localStorage.getItem('rms.sales.coName')}catch(e){return null} }
@@ -12032,28 +12074,46 @@ async function renderBoard(){
           + '<span style="opacity:.72;font-weight:500"> · '+(Number(cc.available)||0)+' free</span></div>';
       }).join('')+'</div>';
   }
-  // compact dashboard KPI cards (icon tile + label + value + slim sparkline + trend)
-  const ic=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  const _AC={emerald:'var(--fk-success)',amber:'var(--fk-warning)',violet:'var(--nx-violet)'};
-  const numv=(n)=>`<span data-countup data-to="${Number(n)||0}" data-fmt="int">${Number(n)||0}</span>`;
-  const kpi=(label,val,accent,iconPath)=>`<div class="dkpi nx-rise" style="cursor:default"><div class="kpi-top"><span class="kpi-head"><span class="kpitile ${accent}">${ic(iconPath)}</span><span class="kpi-lbl">${esc(label)}</span></span>${_trend(null)}</div><div class="kpi-val">${numv(val)}</div><div class="kpi-spark">${_spark(_AC[accent])}</div></div>`;
-  // Reserved and Sold belong to the people who reserve and sell. An accounts
-  // clerk, a recovery officer, HR or the site engineer are shown the size of
-  // the building and what is still free — the commercial state of each unit is
-  // not their business, so they are not given it to count.
+  /* Reserved and Sold belong to the people who reserve and sell. An accounts
+     clerk, a recovery officer, HR or the site engineer are shown the size of
+     the building and what is still free — the commercial state of each unit is
+     not their business, so they are not given it to count. */
   const _sells = !_isOfficeRole(ME && ME.role);
-  html+='<div class="dgrid">'
-    + kpi('Total units', c.total, 'violet', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>')
-    + kpi('Available', c.available, 'emerald', '<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/>')
-    + (_sells ? kpi('Reserved', c.reserved, 'amber', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>') : '')
-    + (_sells ? kpi('Sold', c.sold, 'violet', '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>') : '')
-    + '</div>';
+  const _tot = Number(c.total) || 0, _av = Number(c.available) || 0;
+  const _rs = Number(c.reserved) || 0, _so = Number(c.sold) || 0;
+  /* Two enormous cards carrying one number each, over an empty dotted line
+     where a sparkline would go if there were anything to draw. The figures now
+     sit in the house strip above the bar they are a description of, so the
+     shape of the building is read before the digits are. */
+  const _sg = (v, col) => (v > 0 && _tot) ? '<i style="width:' + (v / _tot * 100) + '%;background:' + col + '"></i>' : '';
+  html += '<div class="ep nx-rise" style="margin-bottom:var(--fk-sp-3)">'
+    + '<div class="ep-h"><span class="ep-t">' + esc(p.project_name || p.company_name || 'Units') + '</span>'
+    + (_tot ? '<span class="ep-sub">' + Math.round(_av / _tot * 100) + '% of ' + _tot + ' still free</span>' : '')
+    + '</div>'
+    + '<div class="ep-b tight">'
+    + '<div class="eseg">' + _sg(_av, 'var(--fk-success)')
+    + (_sells ? _sg(_rs, 'var(--fk-warning)') : '')
+    + _sg(_tot - _av - (_sells ? _rs : 0), 'var(--fk-muted-fill)') + '</div>'
+    + '<div class="eleg"><span><i style="background:var(--fk-success)"></i>Available</span>'
+    + (_sells ? '<span><i style="background:var(--fk-warning)"></i>Reserved</span>'
+                + '<span><i style="background:var(--fk-muted-fill)"></i>Sold / other</span>'
+              : '<span><i style="background:var(--fk-muted-fill)"></i>Not available</span>')
+    + '</div></div>'
+    + '<div class="efig">'
+    + '<div><div class="n">' + _tot + '</div><div class="k">Total units</div></div>'
+    + '<div><div class="n ok">' + _av + '</div><div class="k">Available</div></div>'
+    + (_sells ? '<div><div class="n ' + (_rs ? 'wn' : 'mu') + '">' + _rs + '</div><div class="k">Reserved</div></div>' : '')
+    + (_sells ? '<div><div class="n mu">' + _so + '</div><div class="k">Sold</div></div>' : '')
+    + '</div></div>';
   // view mode + status filter → the light segmented control (same as Leads / Performance)
-  html+=_seg([['detailed','Detailed view'],['floors','Floor wise']], (BV.mode==='floors'?'floors':'detailed'), '_bvMode');
-  html+='<div id="bv-filter">'+_seg(_bvFilterSegs(), BV.filter, '_bvFilter')+'</div>';
-  // search — matches the Leads search (Lucide icon + tokened input)
+  /* One row of controls that read as controls: the same segmented control the
+     rest of the app uses, only not stretched to half the screen each. */
   const srch='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
-  html+=`<div class="lead-search" style="margin-bottom:var(--fk-sp-3)">${srch}<input class="input" id="bv-q" placeholder="Search unit no…" value="${esc(BV.q)}" oninput="_bvSearch(this.value)"></div>`;
+  html += '<div class="unt-ctl">'
+    + _seg([['floors','By floor'],['detailed','Every unit']], (BV.mode==='detailed'?'detailed':'floors'), '_bvMode')
+    + '<span id="bv-filter">' + _seg(_bvFilterSegs(), BV.filter, '_bvFilter') + '</span>'
+    + `<div class="lead-search unt-q">${srch}<input class="input" id="bv-q" placeholder="Search unit no…" value="${esc(BV.q)}" oninput="_bvSearch(this.value)"></div>`
+    + '</div>';
   html+='<div id="bv-body"></div></div>';
   $('app-body').innerHTML=html;
   _runCountUps();
@@ -12133,7 +12193,7 @@ function _bvDetail(p){
   if(BV.filter!=='all') units=units.filter(u=>_bvMatch(u,BV.filter));
   const grid=units.length? '<div class="units">'+units.map(unitCell).join('')+'</div>'
     : '<div class="empty" style="padding:24px"><div class="es">No '+esc(BV.filter)+' units on this floor.</div></div>';
-  return '<div class="fdetail-hd"><button class="backbtn" onclick="_bvBack()">‹ Floors</button><div class="fd-title">'+esc(g.label)+'</div></div>'+_bvLegend()+grid;
+  return '<div class="fdetail-hd"><button class="backbtn" onclick="_bvBack()">‹ Floors</button><div class="fd-title">'+esc(g.label)+'</div></div>'+grid;
 }
 function _bvSearchResults(p){
   const q=BV.q.trim().toLowerCase();
