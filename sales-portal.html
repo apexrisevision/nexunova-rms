@@ -1470,13 +1470,24 @@ button.mn-card:active{transform:scale(.985)}
 .ess-6{grid-column:span 6}
 .ess-7{grid-column:span 7}
 .ess-5{grid-column:span 5}
+.ess-4{grid-column:span 4}
 .ess-12{grid-column:span 12}
+@media(max-width:1100px){ .ess-4{grid-column:span 6} }
 @media(max-width:900px){ .ess>*{grid-column:1/-1} }
 .ecol{display:flex;flex-direction:column;gap:var(--fk-sp-3);min-width:0}
 
 /* a panel: the shared card, with its own quiet heading row */
 .ep{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--nx-radius);
     box-shadow:var(--nx-card-sh);overflow:hidden}
+.ep.tap{cursor:pointer;display:flex;flex-direction:column;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.ep.tap>.ep-b{flex:1;display:flex;flex-direction:column}
+.ep.tap .pj-avail{margin-top:auto;padding-top:14px}
+.ess.stretch{align-items:stretch}
+.ep.tap:hover{transform:translateY(-2px);box-shadow:var(--nx-card-sh-hi);
+  border-color:color-mix(in srgb,var(--fk-primary) 30%,var(--fk-border))}
+.ep.tap:active{transform:translateY(0)}
+.ep.tap:focus-visible{outline:2px solid var(--fk-primary);outline-offset:2px}
 .ep-h{display:flex;align-items:center;gap:var(--fk-sp-2);padding:14px 16px 0}
 .ep-t{font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);color:var(--fk-text);letter-spacing:-.01em}
 .ep-sub{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-left:auto;white-space:nowrap}
@@ -1613,6 +1624,7 @@ button.mn-card:active{transform:scale(.985)}
          font-weight:var(--fk-fw-medium);color:var(--fk-text)}
 .efig .k{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted);
          margin-top:3px}
+.efig.wide{grid-template-columns:repeat(auto-fit,minmax(136px,1fr))}
 .efig .n.ok{color:var(--fk-success)} .efig .n.wn{color:var(--fk-warning)}
 .erate{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .erate .pc{font-size:var(--fs-section);letter-spacing:-.02em;font-variant-numeric:tabular-nums;
@@ -1696,10 +1708,39 @@ button.mn-card:active{transform:scale(.985)}
 .elv .nm{flex:1;min-width:0;color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .elv .bar{flex:none;width:74px;height:5px;border-radius:var(--fk-radius-pill);background:var(--fk-bg-subtle);
           overflow:hidden}
+.wide-bars .elv .bar{flex:1 1 auto;width:auto;min-width:60px;max-width:none}
+.wide-bars .elv .ct{min-width:66px;text-align:right}
 .elv .bar>i{display:block;height:100%;background:var(--fk-primary)}
 .elv .ct{flex:none;font-variant-numeric:tabular-nums;color:var(--fk-text-muted);font-size:var(--fk-fs-label)}
 
+/* project */
+.pj-name{font-size:var(--fs-secondary);font-weight:var(--fk-fw-medium);color:var(--fk-text);
+         line-height:1.3;letter-spacing:-.01em;overflow-wrap:anywhere}
+.pj-where{font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:3px;line-height:1.45;
+          overflow-wrap:anywhere}
+.pj-big{font-size:var(--fs-section);letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+        font-weight:var(--fk-fw-medium);color:var(--fk-success)}
+.pj-foot{margin-top:11px;padding-top:10px;border-top:1px solid var(--fk-hairline);
+         font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
+.pj-note{display:block;font-size:var(--fk-fs-label);color:var(--fk-text-muted);margin-top:2px;
+         line-height:1.45;white-space:normal}
+.pj-back{height:32px;padding:0 11px;font-size:var(--fk-fs-label);margin-bottom:var(--fk-sp-3);
+         display:inline-flex;align-items:center;gap:6px}
+/* the section tiles carry two lines, so they are taller than a quick action */
+.pj-tiles{grid-template-columns:repeat(auto-fit,minmax(216px,1fr))}
+.eq.pj-tile{align-items:flex-start;min-height:0;padding:11px 12px}
+.eq.pj-tile .l{display:block;line-height:1.35;flex:1;min-width:0}
+.eq.pj-tile .l b{display:block;font-weight:var(--fk-fw-medium);color:var(--fk-text)}
+.eq.pj-tile .l i{display:block;font-style:normal;font-size:var(--fk-fs-label);
+                 color:var(--fk-text-muted);margin-top:1px}
+.eq.pj-tile>svg{width:14px;height:14px;flex:none;color:var(--fk-text-muted);margin-top:3px}
+.pj-am{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:var(--fk-sp-2)}
+.pj-amc{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-radius:10px;
+        border:1px solid var(--fk-border);background:var(--fk-bg-card)}
+.pj-amt{font-size:var(--fs-secondary);color:var(--fk-text);line-height:1.3;overflow-wrap:anywhere}
+
 @media(prefers-reduced-motion:reduce){
+  .ep.tap:hover{transform:none}
   .eday:hover,.eq:hover{transform:none}
   .et-live::after{animation:none}
 }
@@ -8743,17 +8784,7 @@ async function renderMyHome(){
 
   const goto = t => 'onclick="setTab(\'' + t + '\')"';
 
-  /* A ring is worth drawing only because it carries a number. r=27 on a 64px
-     box; the circumference is the whole shift, the gap is what is left of it. */
-  const ring = (pc, cls, label) => {
-    const C = 2 * Math.PI * 27, p = Math.max(0, Math.min(100, pc));
-    return '<div class="ering"><svg viewBox="0 0 64 64" width="58" height="58">'
-      + '<circle class="tr" cx="32" cy="32" r="27" fill="none" stroke-width="5"/>'
-      + '<circle class="fg ' + cls + '" cx="32" cy="32" r="27" fill="none" stroke-width="5"'
-      + ' stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="'
-      + (C * (1 - p / 100)).toFixed(1) + '"/></svg>'
-      + '<b' + (cls === 'none' ? ' class="mute"' : '') + '>' + label + '</b></div>';
-  };
+  const ring = _essRing;
 
   /* ══ HERO ═══════════════════════════════════════════════════════════════
      Identity on the left, today on the right, one panel, one hairline
@@ -9249,6 +9280,20 @@ function _essKeys(root){
     e.preventDefault();
     el.click();
   });
+}
+
+/* A ring is worth drawing only because it carries a number: how much of a
+   shift is behind you, how much of a building is still for sale. r=27 on a 64
+   viewBox drawn at 58; the circumference is the whole, the gap is what is left.
+   One drawing, so the two screens that use it cannot look like two products. */
+function _essRing(pc, cls, label){
+  const C = 2 * Math.PI * 27, p = Math.max(0, Math.min(100, Number(pc) || 0));
+  return '<div class="ering"><svg viewBox="0 0 64 64" width="58" height="58">'
+    + '<circle class="tr" cx="32" cy="32" r="27" fill="none" stroke-width="5"/>'
+    + '<circle class="fg ' + (cls || '') + '" cx="32" cy="32" r="27" fill="none" stroke-width="5"'
+    + ' stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="'
+    + (C * (1 - p / 100)).toFixed(1) + '"/></svg>'
+    + '<b' + (cls === 'none' ? ' class="mute"' : '') + '>' + label + '</b></div>';
 }
 
 function _essDayPop(root){
@@ -10050,27 +10095,64 @@ function _prjSecHead(icon, title, sub){
     + '</div></div></div>';
 }
 
+/* ── The project, in the same language the dashboard speaks ──────────────────
+   Same panels, same figures, same ring, same tiles. A person who has read one
+   screen should not have to learn another.
+
+   Nothing new is fetched. get_project_profiles is the one reader, and the
+   Dashboard has usually already called it — so its answer is borrowed rather
+   than asked for a second time. Every number below (available, total, by
+   status, by floor, construction) comes back inside that one answer; none of
+   it is counted here and none of it is written down anywhere. */
 async function renderProject(){
   const b = $('app-body'); if(!b) return;
+
   if(PRJ.list === undefined){
-    b.innerHTML = _skel();
-    try{
-      const r = await sb.rpc('get_project_profiles', { p_session_token: TOKEN });
-      if(r.error) throw r.error;
-      if(r.data && r.data.error === 'session_expired') return sessionGone();
-      PRJ.list = (r.data && r.data.projects) || [];
-    }catch(e){ PRJ.list = null; }
+    // the Dashboard asks the same question on load; if it has, use its answer
+    if(HOME && HOME.loaded && Array.isArray(HOME.projects) && HOME.projects.length){
+      PRJ.list = HOME.projects;
+    } else {
+      b.innerHTML = _skel();
+      try{
+        const r = await sb.rpc('get_project_profiles', { p_session_token: TOKEN });
+        if(r.error) throw r.error;
+        if(r.data && r.data.error === 'session_expired') return sessionGone();
+        PRJ.list = (r.data && r.data.projects) || [];
+      }catch(e){ PRJ.list = null; }
+    }
   }
   _touch();
   if(PRJ.list === null) return _netErr();
   const list = PRJ.list || [];
 
-  let html = '<div class="nx-dash">' + _pageHead('Project', 'What the building is, floor by floor.');
+  const ic = p => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" '
+    + 'stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+  const CHEV = ic('<path d="m9 18 6-6-6-6"/>');
+  const n0 = v => Number(v) || 0;
+
+  /* One bar, cut the way the units actually stand. The register returns the
+     statuses; whatever it does not name is left as the remainder rather than
+     guessed at. */
+  const invBar = (inv) => {
+    const tot = n0(inv.total); if(!tot) return '';
+    const st = inv.statuses || [];
+    const avail = n0(inv.available);
+    const sold = st.filter(x => !x.available).reduce((a, x) => a + n0(x.units), 0);
+    const rest = Math.max(0, tot - avail - sold);
+    const seg = (v, col) => v > 0 ? '<i style="width:' + (v / tot * 100) + '%;background:' + col + '"></i>' : '';
+    return '<div class="eseg">'
+      + seg(avail, 'var(--fk-success)')
+      + seg(sold,  'var(--fk-primary)')
+      + seg(rest,  'var(--fk-muted-fill)')
+      + '</div>';
+  };
+
+  let html = '<div class="nx-dash">';
 
   if(!list.length){
-    html += '<div class="card"><div class="empty"><div class="ei">' + li('building',20,1.8) + '</div>'
-      + '<div class="et">No project details yet</div>'
-      + '<div class="es">Once the office writes up a project, it appears here.</div></div></div>';
+    html += _pageHead('Projects', 'What the company is building.')
+      + '<div class="ep"><div class="ep-b">' + _emptyMini('building', 'No project details yet',
+          'Once the office writes up a project, it appears here.') + '</div></div>';
     b.innerHTML = html + '</div>';
     return;
   }
@@ -10078,210 +10160,219 @@ async function renderProject(){
   if(!PRJ.open && list.length === 1) PRJ.open = list[0].project_id;
   const cur = PRJ.open ? list.find(x => x.project_id === PRJ.open) : null;
 
-  // ── all the projects ────────────────────────────────────────────────────
+  /* ══ every project ══════════════════════════════════════════════════════
+     A card each, side by side on a laptop rather than a column of wide
+     letterboxes with a screen of nothing under them. The live figure leads. */
   if(!cur){
-    html += '<div style="display:grid;gap:12px">';
+    html += _pageHead('Projects', list.length + ' project' + (list.length === 1 ? '' : 's')
+      + ' — what is being built, and what is still available.');
+    html += '<div class="ess stretch">';
     list.forEach(p => {
       const iv = p.inventory || {};
-      html += '<div class="card" onclick="_prjOpen(\'' + esc(p.project_id) + '\')" '
-        + 'style="cursor:pointer;overflow:hidden;border-radius:16px;position:relative">'
-        + '<div style="position:relative;color:var(--fk-primary);background:linear-gradient(150deg,var(--fk-primary-tint),transparent 70%);padding:16px">'
-        + _PRJ_SKYLINE
-        + '<div style="position:relative">'
-        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        + '<span style="font-size:var(--fs-section);font-weight:700;color:var(--fk-text)">' + esc(p.project_name || '') + '</span>'
-        + _prjCode(p.short_code) + '</div>'
-        + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
-        + esc([p.location, p.city].filter(Boolean).join(' · ')) + '</div>'
-        + (iv.total ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:8px">'
-            + iv.available + ' of ' + iv.total + ' available</div>' : '')
-        + '</div></div></div>';
-    });
-    html += '</div>';
-    b.innerHTML = html + '</div>';
-    return;
-  }
-
-  const pf = cur.profile || {};
-  const secs = pf.sections || [];
-  const inv = cur.inventory || null;
-  const prg = (cur.progress && cur.progress.overall != null) ? cur.progress : null;
-
-  /* What the site engineer records, shown to everyone who opens the project.
-     The person who walks the floors and the person who answers the phone should
-     be looking at the same number on the same day. */
-  if(prg && PRJ.sec === 'progress'){
-    html += _prjBack(pf.headline || cur.project_name || 'Project');
-    html += _prjSecHead('building', 'Construction', prg.overall + '% overall'
-      + (prg.updated ? ' · updated ' + esc(new Date(prg.updated).toLocaleDateString('en-US',{day:'numeric',month:'short'})) : ''));
-    html += '<div class="card" style="padding:6px 8px;border-radius:16px">';
-    (prg.floors||[]).forEach(f => {
-      const pc = Number(f.percent||0);
-      html += '<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
-        + '<div class="lr-name">' + esc(f.floor) + '</div>'
-        + (f.note ? '<div class="lr-sub"><span style="white-space:normal">' + esc(f.note) + '</span></div>' : '')
-        + '<div style="height:5px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:6px;overflow:hidden">'
-        + '<div style="height:100%;width:' + Math.max(2,pc) + '%;border-radius:99px;background:'
-        + (pc===100?'var(--fk-success)':'var(--fk-primary)') + '"></div></div>'
-        + '</div><b style="font-variant-numeric:tabular-nums;margin-left:12px">' + pc + '%</b></div>';
-    });
-    html += '</div>';
-    b.innerHTML = html + '</div>';
-    return;
-  }
-
-  /* The one section nobody wrote. A count typed into a paragraph is wrong the
-     day a unit is split, sold or cancelled — and this project has had all
-     three — so the units answer for themselves. */
-  if(inv && PRJ.sec === 'inventory'){
-    const row = (name, sub, right, tone) =>
-      '<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
-      + '<div class="lr-name">' + esc(name) + '</div>'
-      + (sub ? '<div class="lr-sub"><span>' + esc(sub) + '</span></div>' : '')
-      + '</div><b style="font-variant-numeric:tabular-nums;font-size:var(--fs-body)'
-      + (tone ? ';color:' + tone : '') + '">' + esc(String(right)) + '</b></div>';
-    const grp = (title, rows) => rows.length
-      ? '<div class="card" style="margin-bottom:14px;padding:6px 8px;border-radius:16px">'
-        + '<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;'
-        + 'letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">' + esc(title) + '</div>'
-        + rows.join('') + '</div>' : '';
-
-    html += _prjBack(pf.headline || cur.project_name || 'Project');
-    html += _prjSecHead('layers', 'Units and availability',
-                        inv.available + ' of ' + inv.total + ' available right now');
-    html += grp('By status', (inv.statuses||[]).map(x =>
-      row(x.name, '', x.units, x.available ? 'var(--fk-success)' : null)));
-    html += grp('By type', (inv.types||[]).map(x =>
-      row(x.name, (x.min_area && x.max_area)
-        ? (x.min_area === x.max_area ? (x.min_area + ' ' + (x.unit||'sqft'))
-           : (x.min_area + ' – ' + x.max_area + ' ' + (x.unit||'sqft'))) : '', x.units)));
-    html += grp('By floor', (inv.floors||[]).map(x =>
-      row(x.name, x.available + ' available', x.units)));
-    b.innerHTML = html + '</div>';
-    return;
-  }
-
-  const open = PRJ.sec ? secs.find(s => s.key === PRJ.sec) : null;
-
-  // ── one part of it ──────────────────────────────────────────────────────
-  if(open){
-    html += _prjBack(pf.headline || cur.project_name || 'Project');
-    html += _prjSecHead(open.icon, open.title || '', open.sub || '');
-
-    // Amenities are a shopping list, not prose. Tiles let the eye sweep them.
-    if(open.key === 'amenities'){
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-      (open.items || []).forEach(it => {
-        html += '<div class="card" style="padding:14px 13px;border-radius:16px;text-align:center">'
-          + '<div style="display:flex;justify-content:center;margin-bottom:9px">' + _prjTile(it.icon, 42) + '</div>'
-          + '<div style="font-size:var(--fs-secondary);font-weight:600;line-height:1.25">' + esc(it.title || '') + '</div>'
-          + (it.detail ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:4px;line-height:1.35">'
-              + esc(it.detail) + '</div>' : '')
-          + '</div>';
-      });
-      html += '</div>';
-      b.innerHTML = html + '</div>';
-      return;
-    }
-
-    html += '<div class="card" style="padding:6px 8px;border-radius:16px">';
-    (open.items || []).forEach(it => {
-      html += '<div class="trow" style="cursor:default;align-items:flex-start">'
-        + '<span style="width:34px;height:34px;border-radius:11px;flex:none;background:var(--fk-bg-subtle);'
-        + 'color:var(--fk-text-muted);display:grid;place-items:center;margin-right:11px">' + li(it.icon,17,1.8) + '</span>'
+      const pg = (p.progress && p.progress.overall != null) ? p.progress : null;
+      const tot = n0(iv.total), av = n0(iv.available);
+      const pct = tot ? Math.round(av / tot * 100) : 0;
+      html += '<div class="ess-4 ep tap nx-rise" onclick="_prjOpen(\'' + esc(p.project_id) + '\')"'
+        + ' role="button" tabindex="0">'
+        + '<div class="ep-b">'
+        + '<div style="display:flex;align-items:flex-start;gap:9px">'
         + '<div style="flex:1;min-width:0">'
-        + '<div class="lr-name" style="white-space:normal">' + esc(it.title || '') + '</div>'
-        + (it.detail ? '<div class="lr-sub"><span style="white-space:normal">' + esc(it.detail) + '</span></div>' : '')
+        + '<div class="pj-name">' + esc(p.project_name || '') + '</div>'
+        + '<div class="pj-where">' + esc([p.location, p.city].filter(Boolean).join(' · ')) + '</div>'
+        + '</div>' + _prjCode(p.short_code) + '</div>'
+        + (tot
+            ? '<div class="pj-avail">'
+              + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
+              + '<span><span class="pj-big">' + av + '</span>'
+              + '<span class="eof" style="margin-left:6px">available</span></span>'
+              + '<span class="eof">' + pct + '% of ' + tot + '</span></div>'
+              + '<div style="margin-top:8px">' + invBar(iv) + '</div></div>'
+            : '<div class="pj-avail eof">Units not listed yet</div>')
+        + (pg ? '<div class="pj-foot">Construction ' + n0(pg.overall) + '% overall</div>' : '')
         + '</div></div>';
     });
     html += '</div>';
     b.innerHTML = html + '</div>';
+    _essKeys(b);
     return;
   }
 
-  // ── the project ─────────────────────────────────────────────────────────
-  if(list.length > 1){
-    html += '<button class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:var(--fs-caption);'
-      + 'margin-bottom:14px;display:inline-flex;align-items:center;gap:6px" onclick="_prjOpen(null)">'
-      + li('arrow-left',14,2.2) + 'All projects</button>';
+  const pf   = cur.profile || {};
+  const secs = pf.sections || [];
+  const inv  = cur.inventory || null;
+  const prg  = (cur.progress && cur.progress.overall != null) ? cur.progress : null;
+  const title = pf.headline || cur.project_name || 'Project';
+
+  /* ══ construction, floor by floor ═══════════════════════════════════════ */
+  if(prg && PRJ.sec === 'progress'){
+    html += _prjBack(title)
+      + '<div class="ep"><div class="ep-h"><span class="ep-t">Construction</span>'
+      + '<span class="ep-sub">' + n0(prg.overall) + '% overall'
+      + (prg.updated ? ' · updated ' + esc(new Date(prg.updated)
+          .toLocaleDateString('en-US', { day: 'numeric', month: 'short' })) : '') + '</span></div>'
+      + '<div class="ep-b">'
+      + (prg.floors || []).map(f => {
+          const pc = n0(f.percent);
+          return '<div class="elv" style="align-items:flex-start">'
+            + '<span class="nm" style="white-space:normal">' + esc(f.floor)
+            + (f.note ? '<span class="pj-note">' + esc(f.note) + '</span>' : '') + '</span>'
+            + '<span class="bar" style="margin-top:6px"><i style="width:' + Math.max(2, pc) + '%;background:'
+            + (pc === 100 ? 'var(--fk-success)' : 'var(--fk-primary)') + '"></i></span>'
+            + '<span class="ct" style="margin-top:4px">' + pc + '%</span></div>';
+        }).join('')
+      + '</div></div>';
+    b.innerHTML = html + '</div>';
+    _essKeys(b);
+    return;
   }
 
-  // The hero. Name over its own skyline, and under it the only live number
-  // that matters drawn as a bar — a person reads a bar before they read a digit.
-  html += '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:18px">'
-    + '<div style="position:relative;color:var(--fk-primary);background:linear-gradient(150deg,var(--fk-primary-tint),transparent 72%);padding:20px 18px 18px">'
-    + _PRJ_SKYLINE
-    + '<div style="position:relative">'
-    + '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">'
-    + '<span style="font-size:var(--fs-title);font-weight:700;line-height:1.15;color:var(--fk-text)">'
-    + esc(pf.headline || cur.project_name || '') + '</span>' + _prjCode(cur.short_code) + '</div>'
-    + (pf.sub ? '<div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:5px">' + esc(pf.sub) + '</div>' : '')
-    + ((pf.builder || pf.landowner)
-        ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:11px">'
-          + (pf.builder ? _myrecChip(pf.builder) : '')
-          + (pf.landowner ? _myrecChip('Land · ' + pf.landowner) : '')
-          + '</div>' : '')
-    + '</div></div>';
+  /* ══ units, as the register has them ════════════════════════════════════ */
+  if(inv && PRJ.sec === 'inventory'){
+    const grp = (t, rows) => rows.length
+      ? '<div class="ess-6 ep"><div class="ep-h"><span class="ep-t">' + esc(t) + '</span></div>'
+        + '<div class="ep-b">' + rows.join('') + '</div></div>' : '';
+    const line = (name, sub, right, tone) =>
+      '<div class="elv"><span class="nm" style="white-space:normal">' + esc(name)
+      + (sub ? '<span class="pj-note">' + esc(sub) + '</span>' : '') + '</span>'
+      + '<span class="ct"' + (tone ? ' style="color:' + tone + '"' : '') + '>' + esc(String(right)) + '</span></div>';
+    const bars = (name, avail, units) => {
+      const u = n0(units), a = n0(avail);
+      return '<div class="elv"><span class="nm">' + esc(name) + '</span>'
+        + '<span class="bar"><i style="width:' + (u ? a / u * 100 : 0)
+        + '%;background:var(--fk-success)"></i></span>'
+        + '<span class="ct">' + a + ' of ' + u + '</span></div>';
+    };
 
-  if(inv && inv.total){
-    const pct = Math.max(3, Math.round((Number(inv.available) / Number(inv.total)) * 100));
-    html += '<div style="padding:14px 18px 16px;border-top:1px solid var(--fk-hairline)">'
-      + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">'
-      + '<div><span style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;'
-      + 'color:var(--fk-success)">' + inv.available + '</span>'
-      + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-left:6px">available</span></div>'
-      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);font-variant-numeric:tabular-nums">'
-      + inv.total + ' units</div></div>'
-      + '<div style="height:7px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:9px;overflow:hidden">'
-      + '<div style="height:100%;width:' + pct + '%;border-radius:99px;background:var(--fk-success)"></div></div>'
+    html += _prjBack(title)
+      + '<div class="ess">'
+      + '<div class="ess-12 ep"><div class="ep-h"><span class="ep-t">Units and availability</span>'
+      + '<span class="ep-sub">' + n0(inv.available) + ' of ' + n0(inv.total) + ' available right now</span></div>'
+      + '<div class="ep-b tight">' + invBar(inv)
+      + '<div class="eleg">'
+      + '<span><i style="background:var(--fk-success)"></i>Available</span>'
+      + '<span><i style="background:var(--fk-primary)"></i>Taken</span>'
+      + '<span><i style="background:var(--fk-muted-fill)"></i>Other</span></div></div>'
+      + ((inv.statuses || []).length
+          ? '<div class="efig">' + inv.statuses.map(x =>
+              '<div><div class="n' + (x.available ? ' ok' : '') + '">' + n0(x.units) + '</div>'
+              + '<div class="k">' + esc(x.name) + '</div></div>').join('') + '</div>'
+          : '')
+      + '</div>'
+      + grp('By type', (inv.types || []).map(x =>
+          line(x.name, (x.min_area && x.max_area)
+            ? (x.min_area === x.max_area ? (x.min_area + ' ' + (x.unit || 'sqft'))
+               : (x.min_area + ' – ' + x.max_area + ' ' + (x.unit || 'sqft'))) : '', x.units)))
+      + (inv.floors && inv.floors.length
+          ? '<div class="ess-6 ep"><div class="ep-h"><span class="ep-t">By floor</span>'
+            + '<span class="ep-sub">available of built</span></div>'
+            + '<div class="ep-b wide-bars">'
+            + inv.floors.map(x => bars(x.name, x.available, x.units)).join('')
+            + '</div></div>' : '')
       + '</div>';
+    b.innerHTML = html + '</div>';
+    _essKeys(b);
+    return;
   }
 
-  // The four facts somebody repeats down a telephone, kept where the thumb is.
+  /* ══ one written section ════════════════════════════════════════════════ */
+  const open = PRJ.sec ? secs.find(s => s.key === PRJ.sec) : null;
+  if(open){
+    html += _prjBack(title)
+      + '<div class="ep"><div class="ep-h"><span class="ep-t">' + esc(open.title || '') + '</span>'
+      + (open.sub ? '<span class="ep-sub">' + esc(open.sub) + '</span>' : '') + '</div>'
+      + '<div class="ep-b">';
+    if(open.key === 'amenities'){
+      html += '<div class="pj-am">'
+        + (open.items || []).map(it =>
+            '<div class="pj-amc">' + _prjTile(it.icon, 34)
+            + '<div style="min-width:0"><div class="pj-amt">' + esc(it.title || '') + '</div>'
+            + (it.detail ? '<div class="pj-note" style="margin-top:2px">' + esc(it.detail) + '</div>' : '')
+            + '</div></div>').join('')
+        + '</div>';
+    } else {
+      html += (open.items || []).map(it =>
+        '<div class="eatt" style="cursor:default;align-items:flex-start">'
+        + '<span class="ic">' + li(it.icon, 15, 1.9) + '</span>'
+        + '<span class="tx"><b>' + esc(it.title || '') + '</b>'
+        + (it.detail ? '<i>' + esc(it.detail) + '</i>' : '') + '</span></div>').join('');
+    }
+    html += '</div></div>';
+    b.innerHTML = html + '</div>';
+    _essKeys(b);
+    return;
+  }
+
+  /* ══ the project itself ═════════════════════════════════════════════════ */
+  if(list.length > 1){
+    html += '<button class="btn btn-secondary pj-back" onclick="_prjOpen(null)">'
+      + li('arrow-left', 14, 2.2) + 'All projects</button>';
+  }
+
+  const tot = inv ? n0(inv.total) : 0, av = inv ? n0(inv.available) : 0;
+  const pct = tot ? Math.round(av / tot * 100) : 0;
+  const sold = inv ? (inv.statuses || []).filter(x => !x.available)
+                       .reduce((a, x) => a + n0(x.units), 0) : 0;
+
+  html += '<div class="ess">';
+
+  // the hero, built like the dashboard's: who this is on the left, the one
+  // live figure on the right
+  html += '<div class="ess-12 ep herometric nx-rise"><div class="eh">'
+    + '<div class="eh-id" style="gap:0">'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">'
+    + '<span class="eh-greet">' + esc(title) + '</span>' + _prjCode(cur.short_code) + '</div>'
+    + (pf.sub ? '<div class="eh-role">' + esc(pf.sub) + '</div>' : '')
+    + '<div class="eh-meta">'
+    + ((!pf.sub && [cur.location, cur.city].filter(Boolean).length)
+        ? _myrecChip([cur.location, cur.city].filter(Boolean).join(' · ')) : '')
+    + (pf.builder ? _myrecChip(pf.builder) : '')
+    + (pf.landowner ? _myrecChip('Land · ' + pf.landowner) : '')
+    + '</div></div></div>';
+
+  if(tot){
+    html += '<div class="eh-today">'
+      + '<div class="et-k">Availability</div>'
+      + '<div class="et-main">'
+      + _essRing(pct, pct === 0 ? 'none' : '', pct + '%')
+      + '<div style="min-width:0">'
+      + '<div class="et-state"><span class="et-word">' + av + ' available</span></div>'
+      + '<div class="et-sub">of ' + tot + ' units'
+      + (sold ? ' · ' + sold + ' taken' : '') + '</div>'
+      + '</div></div>'
+      + '<div>' + invBar(inv) + '</div></div>';
+  }
+  html += '</div></div>';
+
+  // the four facts somebody repeats down a telephone
   const hl = pf.highlights || [];
   if(hl.length){
-    html += '<div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--fk-hairline);border-top:1px solid var(--fk-hairline)">';
-    hl.forEach(h => {
-      html += '<div style="flex:1 1 46%;min-width:132px;background:var(--fk-bg-card);padding:12px 14px;'
-        + 'display:flex;align-items:center;gap:10px">' + _prjTile(h.icon, 30)
-        + '<div style="min-width:0">'
-        + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
-        + 'letter-spacing:.06em;font-weight:600">' + esc(h.label || '') + '</div>'
-        + '<div style="font-weight:700;font-size:var(--fs-secondary);margin-top:2px;white-space:nowrap;'
-        + 'overflow:hidden;text-overflow:ellipsis">' + esc(h.value || '') + '</div></div></div>';
-    });
-    html += '</div>';
+    html += '<div class="ess-12 ep"><div class="efig wide" style="border-top:0">'
+      + hl.map(h => '<div><div class="n" style="font-size:var(--fs-secondary)">'
+          + esc(h.value || '') + '</div><div class="k">' + esc(h.label || '') + '</div></div>').join('')
+      + '</div></div>';
   }
-  html += '</div>';
 
-  // Tiles, not rows. A grid of things to aim at reads as an app; a column of
-  // grey rows reads as a settings page, which this is not.
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">';
-  if(inv && inv.total){
-    html += '<div class="card" onclick="_prjSec(\'inventory\')" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
-      + _prjTile('layers', 40)
-      + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">Units and availability</div>'
-      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
-      + inv.available + ' of ' + inv.total + ' · live</div></div>';
-  }
-  if(prg){
-    html += '<div class="card" onclick="_prjSec(&#39;progress&#39;)" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
-      + _prjTile('building', 40)
-      + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">Construction</div>'
-      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
-      + prg.overall + '% overall · live</div></div>';
-  }
-  secs.forEach(s => {
-    const n = (s.items || []).length;
-    html += '<div class="card" onclick="_prjSec(\'' + esc(s.key) + '\')" style="cursor:pointer;padding:15px 14px;border-radius:16px">'
-      + _prjTile(s.icon, 40)
-      + '<div style="font-size:var(--fs-secondary);font-weight:600;margin-top:11px">' + esc(s.title || '') + '</div>'
-      + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
-      + (n ? n + (s.key === 'amenities' ? ' amenities' : ' details') : esc(s.sub || '')) + '</div></div>';
-  });
-  html += '</div>';
+  // the two live things first, then everything that was written down
+  const tile = (key, icon, name, sub) =>
+    '<div class="eq pj-tile" onclick="_prjSec(\'' + esc(key) + '\')" role="button" tabindex="0">'
+    + '<span class="i">' + li(icon, 15, 1.9) + '</span>'
+    + '<span class="l"><b>' + esc(name) + '</b><i>' + esc(sub) + '</i></span>' + CHEV + '</div>';
 
+  html += '<div class="ess-12 ep"><div class="ep-h"><span class="ep-t">About this project</span></div>'
+    + '<div class="ep-b"><div class="eqa pj-tiles">'
+    + (inv && tot ? tile('inventory', 'layers', 'Units and availability', av + ' of ' + tot + ' · live') : '')
+    + (prg ? tile('progress', 'building', 'Construction', n0(prg.overall) + '% overall · live') : '')
+    + secs.map(s0 => {
+        const n = (s0.items || []).length;
+        return tile(s0.key, s0.icon, s0.title || '',
+          n ? n + (s0.key === 'amenities' ? ' amenities' : ' details') : (s0.sub || ''));
+      }).join('')
+    + '</div></div></div>';
+
+  html += '</div>';
   b.innerHTML = html + '</div>';
+  _essKeys(b);
 }
 
 async function renderMyRecord(){
