@@ -9879,7 +9879,7 @@ async function renderMyRecord(){
         +line('Half day after', String(P.half_day_after_time||'').slice(0,5)
               +' — more than '+Math.round((P.half_day_after_minutes||180)/60)+' hours late')
         +line('Late minutes this month', P.late_minutes_raw)
-        +line('Charged after grace', P.late_minutes_charged+' min')
+        +line('Charged', P.late_minutes_charged+' min')
         +line('Rate', rs2(P.per_minute)+' per minute')
         +line('Cutting', '− '+rs(P.late_deduction), P.late_deduction?'var(--fk-danger)':null)
         +(P.half_days?'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:8px">'
