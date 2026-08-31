@@ -409,7 +409,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 /* home — flat "money picture" hero + nav list (kit: no gradients, radius ≤12, Inter, indigo) */
 .herometric{background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);box-shadow:var(--fk-shadow);padding:var(--fk-sp-4)}
 .hm-eyebrow{font-size:var(--fs-caption);letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--fk-text-muted)}
-.hm-big{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;margin-top:7px;line-height:1.05;color:var(--fk-text);font-variant-numeric:tabular-nums}
+.hm-big{font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;margin-top:7px;line-height:1.15;color:var(--fk-text);font-variant-numeric:tabular-nums}
 .hm-sub{color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:6px;font-weight:500}
 .hm-foot{display:flex;align-items:stretch;margin-top:16px;padding-top:14px;border-top:1px solid var(--fk-border)}
 .hm-stat{flex:1}
@@ -442,7 +442,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .dkpi-l{font-size:var(--fs-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fk-text-muted);display:flex;align-items:center;gap:7px}
 .dkpi-l .dch{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--fk-accent-tint);color:var(--fk-accent)}
 .dkpi-l .dch svg{width:14px;height:14px}
-.dkpi-v{font-size:var(--fs-kpi);font-weight:700;color:var(--fk-text);margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.dkpi-v{font-size:var(--fs-section);font-weight:var(--fk-fw-medium);color:var(--fk-text);margin-top:7px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .dsec{font-size:var(--fs-caption);letter-spacing:.06em;text-transform:uppercase;color:var(--fk-text-muted);font-weight:600;margin:18px 2px 8px;display:flex;align-items:center;gap:8px}
 .dsec .nb{background:var(--fk-primary);color:#fff;border-radius:999px;font-size:var(--fs-caption);font-weight:700;padding:0 7px;line-height:18px}
 /* ════ PREMIUM DASHBOARD (module-local) — VISIBLE depth · colour · data-viz on a calm slate page ════ */
@@ -469,7 +469,7 @@ body{background:var(--nx-page)}
 .kpitile.amber{background:var(--fk-warning-chip);color:var(--fk-warning)}
 .kpitile.violet{background:var(--nx-violet-soft);color:var(--nx-violet)}
 .kpitile.emerald{background:var(--fk-success-chip);color:var(--fk-success)}
-.kpi-val{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-semibold);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--fk-text)}
+.kpi-val{font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--fk-text)}
 .kpi-lbl{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:var(--fk-fw-semibold);color:var(--fk-text-muted)}
 .kpi-spark{margin-top:auto;padding-top:var(--fk-sp-2);line-height:0}
 .kpi-spark svg{display:block;width:100%;height:calc(var(--fk-sp-6) + var(--fk-sp-2))}
@@ -594,7 +594,7 @@ body{background:var(--nx-page)}
 .lead-search .lead-sort{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--fk-text-muted);font-family:inherit;font-size:var(--fs-caption);font-weight:600;cursor:pointer;height:34px;max-width:118px}
 .lead-search.has-sort .input{padding-right:124px}
 /* clear (×) inside the search field — standard, and stops people deleting 20 chars by hand */
-.lead-search .lead-clr{position:absolute;top:50%;transform:translateY(-50%);right:128px;width:26px;height:26px;
+.lead-search .lead-clr{position:absolute;top:50%;transform:translateY(-50%);right:128px;width:26px;height:26px;font-size:var(--fs-secondary);line-height:1;
   border:0;background:var(--fk-muted-fill);color:var(--fk-text-muted);border-radius:50%;cursor:pointer;
   display:grid;place-items:center;font-family:inherit;line-height:1;padding:0}
 .lead-search .lead-clr:hover{background:var(--fk-subtle-hover);color:var(--fk-text)}
@@ -630,7 +630,7 @@ body.selecting .appbody{padding-bottom:calc(150px + env(safe-area-inset-bottom,0
 /* a member nobody has tagged to a project: shown, never hidden, and marked so the
    tag gets set instead of the person quietly disappearing from a project tab */
 .tbd-tag.none{color:var(--fk-warning);background:var(--fk-warning-surface)}
-.tbd-big{font-size:var(--fs-kpi);font-weight:700;line-height:1.05;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.tbd-big{font-size:var(--fs-section);font-weight:var(--fk-fw-medium);line-height:1.15;margin:8px 0 2px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .tbd-sub{font-size:var(--fk-fs-label);color:var(--fk-text-muted)}
 .tbd-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--fk-muted-fill);margin:9px 0 7px}
 .tbd-chips{display:flex;gap:5px;flex-wrap:wrap}
@@ -763,10 +763,10 @@ body.mode-tabs .toastbar{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
 .mn-card{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;gap:4px;padding:13px 14px;border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);background:var(--fk-bg-card);font-family:inherit;cursor:pointer}
 .mn-card:last-child{cursor:pointer}
 button.mn-card:active{transform:scale(.985)}
-.mn-lbl{font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.03em}
-.mn-val{font-size:var(--fs-kpi);font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--fk-text)}
+.mn-lbl{font-size:var(--fk-fs-label);color:var(--fk-text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.mn-val{font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--fk-text)}
 /* dashboard hero pair (home only) gets the one sanctioned display step; Money tab stays capped at 20 */
-.hero-nums .mn-val{font-size:var(--fs-display)}
+.hero-nums .mn-val{font-size:var(--fs-section)}
 /* Home worklist */
 .wl{display:flex;flex-direction:column;background:var(--fk-bg-card);border:1px solid var(--fk-border);border-radius:var(--fk-radius-card);overflow:hidden}
 .wl-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--fk-hairline);cursor:pointer;transition:background .12s}
@@ -961,7 +961,7 @@ button.mn-card:active{transform:scale(.985)}
 .fc-stat b{font-size:var(--fs-title);font-weight:700;display:block}
 .fc-stat b.green{color:var(--fk-success)} .fc-stat b.amber{color:var(--fk-warning)} .fc-stat b.muted{color:var(--fk-text-muted)}
 .fc-stat span{font-size:var(--fs-caption);text-transform:uppercase;letter-spacing:.4px;color:var(--fk-text-muted)}
-.fc-chev{font-size:var(--fs-kpi);color:var(--fk-text-muted);line-height:1}
+.fc-chev{font-size:var(--fs-title);color:var(--fk-text-muted);line-height:1}
 .fdetail-hd{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .backbtn{height:34px;padding:0 13px;border:1px solid var(--fk-border);border-radius:8px;background:var(--fk-bg-subtle);
   color:var(--fk-text);font-size:var(--fs-secondary);font-weight:500;cursor:pointer}
@@ -1263,7 +1263,7 @@ button.mn-card:active{transform:scale(.985)}
 /* ══ ONE TYPE SCALE for the whole operator interface (no per-page sizes) ══
    h1 page title · h2 section/card · stat display number · body · small · label */
 /* Consistency Spec v1: legacy --ts-* scale re-pointed onto the ONE portal scale. */
-:root{ --ts-h1:var(--fs-title); --ts-h2:var(--fs-section); --ts-stat:var(--fs-kpi); --ts-body:var(--fs-body); --ts-small:var(--fs-secondary); --ts-label:var(--fs-caption); }
+:root{ --ts-h1:var(--fs-title); --ts-h2:var(--fs-section); --ts-stat:var(--fs-section); --ts-body:var(--fs-body); --ts-small:var(--fs-secondary); --ts-label:var(--fs-caption); }
 .wzs-kicker{font-size:var(--ts-label);font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fk-primary);margin-bottom:7px}
 .wzs-title{font-size:var(--ts-h2);font-weight:700;letter-spacing:-.2px;color:var(--fk-text);margin:0 0 12px;line-height:1.25}
 .wzs-text{font-size:var(--ts-body);line-height:1.65;color:var(--fk-text);margin:0 0 14px}
@@ -1427,7 +1427,7 @@ button.mn-card:active{transform:scale(.985)}
 .ess-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;margin-bottom:15px}
 .ess-tile{border:1px solid var(--fk-border);border-radius:13px;background:var(--fk-bg-card);
   padding:12px 13px}
-.ess-tile .v{font-size:var(--fk-fs-kpi);font-weight:var(--fk-fw-bold);
+.ess-tile .v{font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;
   font-variant-numeric:tabular-nums;line-height:1.1}
 .ess-tile .k{font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;
   font-weight:var(--fk-fw-bold);color:var(--fk-text-muted);margin-top:3px}
@@ -3387,27 +3387,40 @@ async function renderHome(){
   _touch();
   const nm=(ME&&ME.sales_user_name)||'', _fn=nm?esc(String(nm).split(' ')[0]):'';
   let html='<div class="nx-dash">';
-  html+=`<div style="margin:0 2px 14px"><div style="font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em">Welcome${_fn?' '+_fn:''}</div><div style="color:var(--fk-text-muted);font-size:var(--fs-secondary);margin-top:3px;font-weight:500">Here’s your list for today.</div></div>`;
+  html+=_pageHead('Welcome'+(_fn?' '+_fn:''), 'Here’s your list for today.');
   // Their own day comes before their numbers — same card the office side opens with.
   html += await _meStrip();
-  html+=_numStrip([{lbl:'This month sold',val:pkrShort(sold)||'₨0',onclick:"setTab('money')"},{lbl:'To collect',val:pkrShort(collect)||'₨0',onclick:"setTab('money')"}]);
+  html+='<div class="ess">';
+  html+='<div class="ep ess-12">'
+    +'<div class="ep-h"><span class="ep-t">Your month</span>'
+    +'<span class="ep-a" onclick="setTab(\'money\')">Money'+li('chevron-right',14,2)+'</span></div>'
+    +'<div class="efig wide">'
+    +'<div><div class="n">'+(pkrShort(sold)||'₨0')+'</div><div class="k">Sold this month</div></div>'
+    +'<div><div class="n'+(collect>0?' wn':' mu')+'">'+(pkrShort(collect)||'₨0')+'</div>'
+    +'<div class="k">To collect</div></div>'
+    +'</div></div>';
   const total=overdue.length+today.length+news.length;
-  html+=`<div class="dsec">Today${total?` <span class="nb">${total}</span>`:''}</div>`;
-  if(!total){ html+=_emptyRow('check',"You’re all caught up — no follow-ups due and no new leads."); }
+  html+='<div class="ep ess-12">'
+    +'<div class="ep-h"><span class="ep-t">Today</span>'
+    +'<span class="ep-sub">'+(total?total+' to do':'nothing due')+'</span></div>';
+  if(!total){ html+='<div class="ep-b">'+_emptyRow('check',"You’re all caught up — no follow-ups due and no new leads.")+'</div>'; }
   else {
     // at-a-glance shape of the day, before the list itself
-    const pill=(lb,n,col,bg)=>n?`<div style="flex:1;min-width:84px;text-align:center;padding:9px 6px;border-radius:10px;background:${bg}"><div style="font-size:var(--fs-title);font-weight:700;color:${col};font-variant-numeric:tabular-nums">${n}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:2px">${lb}</div></div>`:'';
-    const strip=pill('Late',overdue.length,'var(--fk-danger)','var(--fk-danger-surface)')
-              + pill('Due today',today.length,'var(--fk-warning)','var(--fk-warning-surface)')
-              + pill('New leads',news.length,'var(--fk-primary)','var(--fk-primary-tint)');
-    if(strip) html+=`<div style="display:flex;gap:8px;margin:0 2px 10px">${strip}</div>`;
-    html+='<div class="wl">'
+    const pill=(lb,n,tone)=>n?'<div><div class="n'+(tone?' '+tone:'')+'">'+n+'</div>'
+      +'<div class="k">'+lb+'</div></div>':'';
+    const strip=pill('Late',overdue.length,'bd')
+              + pill('Due today',today.length,'wn')
+              + pill('New leads',news.length,'');
+    if(strip) html+='<div class="efig">'+strip+'</div>';
+    html+='<div class="ep-b" style="padding:0"><div class="wl">'
       + overdue.map(l=>_wlRow(l,'overdue')).join('')
       + today.map(l=>_wlRow(l,'today')).join('')
       + news.map(l=>_wlRow(l,'new')).join('')
-      + '</div>';
+      + '</div></div>';
   }
-  html+='</div>';
+  html+='</div>';   // .ep — Today
+  html+='</div>';   // .ess
+  html+='</div>';   // .nx-dash
   $('app-body').innerHTML=html;
   _annUpdateBadge();
 }
@@ -4773,7 +4786,7 @@ async function _leadImportRun(){
   const skipped=(data.results||[]).filter(x=>x.status!=='imported');
   const skList=skipped.length? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;font-size:var(--fs-secondary)">Skipped rows (${skipped.length})</summary>
      <div style="overflow:auto;max-height:36vh;margin-top:8px">${skipped.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-top:1px solid var(--fk-hairline);font-size:var(--fs-secondary)"><span>#${x.row} ${esc(x.name||'—')}</span><span style="color:var(--fk-text-muted)">${esc(x.reason||x.status)}</span></div>`).join('')}</div></details>`:'';
-  const stat=(n,lbl,col)=>`<div style="flex:1;text-align:center;padding:10px 6px;border-radius:var(--fk-radius-card);background:${col}"><div style="font-size:var(--fs-kpi);font-weight:700;font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${lbl}</div></div>`;
+  const stat=(n,lbl,col)=>`<div style="flex:1;text-align:center;padding:10px 6px;border-radius:var(--fk-radius-card);background:${col}"><div style="font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${lbl}</div></div>`;
   openModal('Import complete',
     `<div style="display:flex;gap:8px;margin-bottom:4px">
        ${stat(data.imported,'Imported','var(--fk-success-surface)')}
@@ -8841,7 +8854,7 @@ function _homeDate(d, withYear){
 // One card shell, so every panel on this page has the same edge, radius and
 // heading. Repeating the markup is how a dashboard drifts into six styles.
 function _homeCard(title, action, body, accent){
-  return '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:16px'
+  return '<div class="card" style="margin-bottom:14px;overflow:hidden'
     + (accent ? ';border-color:var(--fk-primary)' : '') + '">'
     + (title
         ? '<div style="padding:13px 15px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:10px">'
@@ -9585,7 +9598,7 @@ async function _meStrip(){
       + '<div style="font-weight:700;font-size:var(--fs-secondary);margin-top:2px;'
       + 'font-variant-numeric:tabular-nums">' + value + '</div></div>';
 
-    return '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:16px">'
+    return '<div class="card" style="margin-bottom:14px;overflow:hidden">'
       + '<div style="padding:12px 14px;display:flex;align-items:center;gap:10px">'
       + '<span style="width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;'
       + 'background:var(--fk-bg-subtle);color:var(--fk-text-muted)">' + li('clock',15,1.9) + '</span>'
@@ -9708,7 +9721,7 @@ async function renderSite(){
     + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
     + 'letter-spacing:.06em;font-weight:600">' + esc(d.project_name || '') + '</div>'
     + '<div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">'
-    + '<span style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums">'
+    + '<span style="font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums">'
     + overall + '%</span>'
     + '<span style="color:var(--fk-text-muted);font-size:var(--fs-caption)">overall</span></div>'
     + '<div style="height:7px;border-radius:99px;background:var(--fk-bg-subtle);margin-top:9px;overflow:hidden">'
@@ -9842,7 +9855,7 @@ async function renderCollection(){
     + '<div style="padding:17px 18px">'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
     + 'letter-spacing:.06em;font-weight:600">Collected</div>'
-    + '<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;'
+    + '<div style="font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums;'
     + 'color:' + (Number(d.today) > 0 ? 'var(--fk-success)' : 'var(--fk-text)') + ';margin-top:4px">'
     + rs(d.today) + '</div>'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
@@ -10102,7 +10115,7 @@ async function renderToRecover(){
     + '<div style="padding:17px 18px">'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fk-fs-label);text-transform:uppercase;'
     + 'letter-spacing:.06em;font-weight:600">Recovered</div>'
-    + '<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;'
+    + '<div style="font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums;'
     + 'color:' + (Number(d.received) > 0 ? 'var(--fk-success)' : 'var(--fk-text)') + ';margin-top:4px">'
     + rs(d.received) + '</div>'
     + '<div style="color:var(--fk-text-muted);font-size:var(--fs-caption);margin-top:3px">'
@@ -10255,7 +10268,7 @@ function _prjBack(label){
 
 // The header every third-level page wears, so they all feel like one place.
 function _prjSecHead(icon, title, sub){
-  return '<div class="card" style="margin-bottom:14px;overflow:hidden;border-radius:16px">'
+  return '<div class="card" style="margin-bottom:14px;overflow:hidden">'
     + '<div style="height:3px;background:var(--fk-primary)"></div>'
     + '<div style="padding:15px 16px;display:flex;align-items:center;gap:13px">' + _prjTile(icon, 44)
     + '<div style="flex:1;min-width:0">'
@@ -10715,7 +10728,7 @@ async function renderMyRecord(){
         +'font-weight:600;color:var(--fk-text-muted)">Earned up to '
         +esc(new Date(P.upto+'T00:00:00Z').toLocaleDateString('en-US',{day:'numeric',month:'long'}))+'</span>'
         +_myrecChip('Estimate','warn')+'</div>'
-        +'<div style="font-size:var(--fk-fs-kpi);font-weight:700;font-variant-numeric:tabular-nums;margin-top:6px">'
+        +'<div style="font-size:var(--fs-section);font-weight:var(--fk-fw-medium);letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:6px">'
         +rs(P.net_so_far)+'</div>'
         +'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:4px">'
         +'Your payslip at month end is the final word — it can also carry overtime, bonus and advances.</div>'
@@ -12675,7 +12688,7 @@ function _ccPaint(d){
 function _ccSnapshot(s){
   const by=s.new_by_source||{}; const known=_CC_SRC.reduce((a,x)=>a+(Number(by[x[0]])||0),0);
   const total=Object.values(by).reduce((a,n)=>a+(Number(n)||0),0); const other=total-known;
-  const tile=(label,n,col)=>`<div style="flex:1;min-width:72px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:12px;padding:10px 12px"><div style="font-size:var(--fs-kpi);font-weight:700;line-height:1;font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:4px;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex:none"></span>${esc(label)}</div></div>`;
+  const tile=(label,n,col)=>`<div style="flex:1;min-width:72px;background:var(--fk-bg-subtle);border:1px solid var(--fk-border);border-radius:12px;padding:10px 12px"><div style="font-size:var(--fs-section);font-weight:var(--fk-fw-medium);line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:4px;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex:none"></span>${esc(label)}</div></div>`;
   const fu=s.followups||{};
   const fchip=(label,n,col,bg)=>`<div style="flex:1;text-align:center;padding:9px 6px;border-radius:10px;background:${bg};border:1px solid transparent"><div style="font-size:var(--fs-title);font-weight:700;color:${col};font-variant-numeric:tabular-nums">${Number(n)||0}</div><div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:2px">${label}</div></div>`;
   let un='';
