@@ -8159,6 +8159,91 @@ async function _lvLoadHolidays(){
    reads as a chat contact, a rectangle reads as a document. The face comes from
    the portal's own sign-up, everything beside it from the attendance register,
    and initials stand in for anybody the office added by hand.               */
+/* ══ THE FILE ══════════════════════════════════════════════════════════════
+   A personnel file is a physical object before it is a record, and it is
+   recognised in that order: the cover, the photograph clipped to it, the file
+   number written in the corner, then the dividers, then the papers. The screen
+   is built the same way round.
+
+   The photograph is set at 35×45mm — the passport ratio every one of these
+   forms is printed for — so it reads as a document photo and not an avatar.
+   Where there is no photograph the box is left empty and dashed, exactly as a
+   blank form would be, rather than being filled with initials: an empty box on
+   a form says "this is missing", and initials say "this is done". */
+function _fileFld(label, value, wide){
+  return '<div style="' + (wide ? 'grid-column:1/-1;' : '') + 'min-width:0">'
+    + '<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);'
+    + 'text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">' + esc(label) + '</div>'
+    + '<div style="font-size:var(--fs-secondary);font-weight:600;'
+    + 'border-bottom:1px dotted var(--fk-border);padding-bottom:5px;min-height:22px;'
+    // break BETWEEN words: 'anywhere' split Marketing/Sales into 'Marketing/Sal es'
+    // in a narrow column, which reads as a typing mistake rather than a wrap
+    + 'overflow-wrap:break-word">' + (value ? esc(value) : '<span style="color:var(--fk-text-muted);'
+    + 'font-weight:400">\u2014</span>') + '</div></div>';
+}
+
+function _fileCover(emp, prof, d){
+  emp = emp || {}; prof = prof || {}; d = d || {};
+  const name = emp.full_name || prof.full_name || (ME && ME.sales_user_name) || '\u2014';
+  const pic  = _pdoc(prof.profile_photo_path, prof.profile_photo_url);
+  const dt   = x => x ? new Date(x + 'T00:00:00Z').toLocaleDateString('en-US',
+                    { day:'numeric', month:'short', year:'numeric' }) : '';
+
+  // 35×45mm at a readable size on a phone, and the same shape on a desktop
+  const photo = pic
+    ? '<div style="width:96px;height:123px;border:1px solid var(--fk-border);border-radius:4px;'
+      + 'overflow:hidden;flex:none;background:var(--fk-bg-subtle)">'
+      + _pdocImg(pic, 'alt="" style="width:100%;height:100%;object-fit:cover;display:block"') + '</div>'
+    : '<div style="width:96px;height:123px;border:1px dashed var(--fk-border);border-radius:4px;'
+      + 'flex:none;display:grid;place-items:center;text-align:center;padding:6px;'
+      + 'color:var(--fk-text-muted);font-size:var(--fs-caption);line-height:1.35">'
+      + 'Photograph<br>not on file</div>';
+
+  const stamp = (txt, tone) =>
+    '<span style="display:inline-block;padding:3px 10px;border-radius:4px;'
+    + 'border:1px solid var(' + (tone === 'ok' ? '--fk-success' : '--fk-border') + ');'
+    + 'color:var(' + (tone === 'ok' ? '--fk-success' : '--fk-text-muted') + ');'
+    + 'font-size:var(--fs-caption);font-weight:700;text-transform:uppercase;'
+    + 'letter-spacing:.08em">' + esc(txt) + '</span>';
+
+  return '<div class="card" style="margin-bottom:14px;overflow:hidden">'
+    // the band across the top of the cover
+    + '<div style="padding:11px 16px;background:var(--fk-primary);color:#fff;'
+    + 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+    + '<div style="min-width:0"><div style="font-size:var(--fs-caption);opacity:.85;'
+    + 'text-transform:uppercase;letter-spacing:.08em">' + esc(d.tenant || '') + '</div>'
+    + '<div style="font-size:var(--fs-secondary);font-weight:700;letter-spacing:.02em">'
+    + 'Employee Record File</div></div>'
+    + '<div style="text-align:right;flex:none"><div style="font-size:var(--fs-caption);opacity:.85;'
+    + 'text-transform:uppercase;letter-spacing:.08em">File no.</div>'
+    + '<div style="font-size:var(--fs-secondary);font-weight:700;font-variant-numeric:tabular-nums">'
+    + esc(emp.employee_code || '\u2014') + '</div></div></div>'
+
+    // the form itself, photograph on the right the way it is pasted on paper
+    + '<div style="padding:16px;display:flex;gap:16px;align-items:flex-start">'
+    // auto-fit rather than a fixed two: beside a 96px photograph on a phone,
+    // two columns leave 90px each and every value wraps
+    + '<div style="flex:1;min-width:0;display:grid;'
+    + 'grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 16px">'
+    + _fileFld('Name', name, true)
+    + _fileFld('Father / husband name', prof.father_name)
+    + _fileFld('CNIC', prof.cnic)
+    + _fileFld('Designation', emp.designation)
+    + _fileFld('Department', emp.department)
+    + _fileFld('Date of joining', dt(emp.join_date))
+    + _fileFld('Blood group', emp.blood_group)
+    + '</div>' + photo + '</div>'
+
+    // and the stamps along the bottom, where they go on a real cover
+    + '<div style="padding:11px 16px;border-top:1px solid var(--fk-hairline);'
+    + 'background:var(--fk-bg-subtle);display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    + stamp(emp.confirmation_date ? 'Confirmed' : 'On probation', emp.confirmation_date ? 'ok' : null)
+    + (prof.kyc_status === 'verified' ? stamp('CNIC verified', 'ok') : '')
+    + (emp.employment_type ? stamp(String(emp.employment_type).replace(/_/g, ' ')) : '')
+    + (emp.shift ? stamp(emp.shift) : '')
+    + '</div></div>';
+}
+
 function _essIdentity(emp, prof, tenant){
   emp = emp || {}; prof = prof || {};
   const name = emp.full_name || (prof.full_name) || (ME && ME.sales_user_name) || '—';
@@ -10522,7 +10607,11 @@ async function renderMyRecord(){
      portal (KYC sign-up), everything beside it from the attendance register.
      Initials stand in for anybody the office added by hand instead. */
   const prof=await _myrecProfile()||{};
-  html+=_essIdentity(emp, prof, d.tenant);
+  /* Every other page in here is a screen, so the shared strip is right for
+     them. My file is not a screen, it is a FILE — and a file is known by its
+     cover: a form with the photograph pasted on it and the file number in the
+     corner. It gets that instead. */
+  html += (MYREC.sub === 'file') ? _fileCover(emp, prof, d) : _essIdentity(emp, prof, d.tenant);
 
   // ── the month ──────────────────────────────────────────────────────────
   // The tallies used to be counted here, off the register's rows alone, which
@@ -11317,8 +11406,11 @@ async function renderMyRecord(){
   if(MYREC.sub==='file'){
     const row=(k,v)=>v?('<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;'
       +'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-secondary)">'
-      +'<span style="color:var(--fk-text-muted)">'+esc(k)+'</span><b style="text-align:right">'+esc(v)+'</b></div>'):'';
+      +'<span style="color:var(--fk-text-muted)">'+esc(k)+'</span><b style="text-align:right;'
+      +'overflow-wrap:anywhere">'+esc(v)+'</b></div>'):'';
     const dt=x=>x?new Date(x+'T00:00:00Z').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
+    const notices=(d.notices||[]);
+
     /* Sections carry a numbered tab down the side, the way the dividers in a
        paper file do. A section with nothing in it is not printed at all —
        an empty "Bank" heading tells the reader less than no heading. */
@@ -11335,6 +11427,65 @@ async function renderMyRecord(){
         +'font-weight:600;color:var(--fk-text-muted)">'+esc(title)+'</span></div>'
         +body+'</div></div>';
     };
+
+    /* A register, which is what most of a personnel file actually is: numbered
+       papers in date order with the outcome written against each. The number is
+       the point — "my leave application" is an argument, LV-2026-0007 is a
+       fact — so it is printed even when the row is otherwise thin. */
+    const reg=(title,rows,fmt)=>{
+      if(!rows.length) return '';
+      let h='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
+        +'<div style="padding:9px 8px 5px;display:flex;align-items:baseline;justify-content:space-between;gap:10px">'
+        +'<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted)">'+esc(title)+'</span>'
+        +'<span style="font-size:var(--fs-caption);color:var(--fk-text-muted);'
+        +'font-variant-numeric:tabular-nums">'+rows.length+'</span></div>';
+      rows.forEach(x=>{ h+=fmt(x); });
+      h+='</div>';
+      return h;
+    };
+    const regRow=(no,title,sub,chip)=>
+      '<div class="trow" style="cursor:default;align-items:flex-start"><div style="flex:1;min-width:0">'
+      +(no?'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);'
+        +'font-variant-numeric:tabular-nums;letter-spacing:.02em">'+esc(no)+'</div>':'')
+      +'<div class="lr-name" style="white-space:normal">'+esc(title)+'</div>'
+      +(sub?'<div class="lr-sub"><span style="white-space:normal;overflow:visible">'+esc(sub)+'</span></div>':'')
+      +'</div>'+(chip||'')+'</div>';
+    const tone=st=>{ st=String(st||'').toLowerCase();
+      return st==='approved'||st==='acknowledged'?'ok'
+        : (st==='rejected'||st==='cancelled')?'danger'
+        : _ESS_WAITING.indexOf(st)>-1?'warn':null; };
+
+    /* ── what is IN the file ──────────────────────────────────────────────
+       The index of a physical file: the dividers and how many papers sit
+       behind each. It is the first thing anybody checks, and it was the one
+       thing this screen never said — you could not tell how many leave
+       applications you had made without counting them by eye. Empty dividers
+       are shown too, greyed: "no warnings on file" is worth reading. */
+    const idx=[
+      {n:leaves.length,      t:'Leave applications', go:'ess-leave'},
+      {n:visits.length,      t:'Official visits',    go:'ess-visit'},
+      {n:notices.length,     t:'Letters on file',    go:'updates'},
+      {n:docs.length,        t:'Documents',          go:'ess-docs'},
+      {n:corrections.length, t:'Corrections',        go:null},
+      {n:hist.length,        t:'Service entries',    go:null},
+      {n:advances.length,    t:'Advances',           go:null},
+    ];
+    html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+      +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+      +'font-weight:600;color:var(--fk-text-muted);margin-bottom:10px">In this file</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px">';
+    idx.forEach(x=>{
+      const on=x.n>0, click=(on&&x.go)?' onclick="setTab(&#39;'+x.go+'&#39;)"':'';
+      html+='<div'+click+' style="border:1px solid var(--fk-border);border-radius:10px;padding:10px 12px;'
+        +'background:var(--fk-bg-card);'+((on&&x.go)?'cursor:pointer;':'')
+        +(on?'':'opacity:.55;')+'min-width:0">'
+        +'<div style="font-size:var(--fs-title);font-weight:700;font-variant-numeric:tabular-nums;'
+        +'line-height:1.1;color:var('+(on?'--fk-text':'--fk-text-muted')+')">'+x.n+'</div>'
+        +'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:3px;'
+        +'line-height:1.3">'+esc(x.t)+'</div></div>';
+    });
+    html+='</div></div></div>';
 
     // The person, as they gave themselves at sign-up. No name row: the cover
     // above already carries it, and printing it twice invites the reader to
@@ -11380,9 +11531,68 @@ async function renderMyRecord(){
           +'style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
           +'onclick="setTab(&#39;ess-docs&#39;)">Open my documents</button></div>':''));
 
+    // ── the leave this year, as a balance rather than a list of applications
+    if(bal.length){
+      const b2=bal.filter(x=>x.entitled!=null);
+      if(b2.length){
+        html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+          +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+          +'font-weight:600;color:var(--fk-text-muted);margin-bottom:8px">Leave balance \u00b7 this year</div>';
+        b2.forEach(x=>{
+          const ent=Number(x.entitled)||0, tk=Number(x.taken)||0, left=Math.max(0,ent-tk);
+          html+='<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;'
+            +'border-bottom:1px solid var(--fk-hairline);font-size:var(--fs-secondary)">'
+            +'<span style="color:var(--fk-text-muted);min-width:0;overflow-wrap:anywhere">'+esc(x.type)
+            +(x.is_paid===false?' <span style="font-size:var(--fs-caption)">(unpaid)</span>':'')+'</span>'
+            +'<b style="text-align:right;flex:none;font-variant-numeric:tabular-nums">'
+            +tk+' / '+ent+' <span style="color:var(--fk-text-muted);font-weight:400">used</span>'
+            +'</b></div>';
+          void left;
+        });
+        html+='</div></div>';
+      }
+    }
+
+    // ── the registers, in the order a file is tabbed ──────────────────────
+    html+=reg('Leave applications',leaves,x=>regRow(
+      x.application_no||'', (x.type||'Leave')+' \u00b7 '+(x.days||0)+' day'+((x.days||0)===1?'':'s'),
+      dt(x.start_date)+(x.end_date&&x.end_date!==x.start_date?' \u2192 '+dt(x.end_date):'')
+        +(x.reason?' \u00b7 '+x.reason:''),
+      _myrecChip(x.status||'', tone(x.status))));
+
+    html+=reg('Official visits',visits,x=>regRow(
+      x.request_no||'', x.purpose||x.location||'Out',
+      dt(x.date)+(x.approver?' \u00b7 approved by '+x.approver:''),
+      _myrecChip(x.status||x.type||'', tone(x.status))));
+
+    html+=reg('Attendance corrections',corrections,x=>regRow(
+      '', 'Correction for '+dt(x.work_date),
+      (x.reason||'')+(x.decision_note?' \u00b7 '+x.decision_note:''),
+      _myrecChip(x.status||'', tone(x.status))));
+
+    html+=reg('Letters on file',notices,x=>regRow(
+      x.reference_no||'', x.subject||x.kind||'Letter',
+      dt((x.issued_at||'').slice(0,10))+(x.hod_name?' \u00b7 '+x.hod_name:'')
+        +(x.to_me?'':' \u00b7 circular'),
+      _myrecChip(x.acknowledged_at?'acknowledged':(x.status||''),
+        x.acknowledged_at?'ok':tone(x.status))));
+
+    html+=reg('Papers held on file',docs,x=>regRow(
+      '', x.title||x.doc_type||'Document',
+      [x.issue_date?'issued '+dt(x.issue_date):'', x.expiry_date?'expires '+dt(x.expiry_date):'']
+        .filter(Boolean).join(' \u00b7 '),
+      x.expires_in_days==null?'' : _myrecChip(
+        x.expires_in_days<0 ? 'expired'
+          : x.expires_in_days<=60 ? x.expires_in_days+'d left' : 'valid',
+        x.expires_in_days<0 ? 'danger' : x.expires_in_days<=60 ? 'warn' : 'ok')));
+
     if(hist.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Service record</div>';
+        +'<div style="padding:9px 8px 5px;display:flex;align-items:baseline;justify-content:space-between;gap:10px">'
+        +'<span style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted)">Service record</span>'
+        +'<span style="font-size:var(--fs-caption);color:var(--fk-text-muted);'
+        +'font-variant-numeric:tabular-nums">'+hist.length+'</span></div>';
       hist.forEach(x=>{
         const what={joined:'Joined',transfer:'Transferred',promotion:'Promoted',increment:'Increment',
           salary_change:'Salary changed',confirmed:'Confirmed',exit:'Left',note:'Note'}[x.change]||x.change;
@@ -11400,10 +11610,6 @@ async function renderMyRecord(){
       html+='</div>';
     }
 
-    /* The papers on file, and the expiry that is the point of them, moved to
-       Documents in Pass 6 — they belong with the things you can look at, not
-       with the record. Nothing is listed twice. */
-
     if(advances.length){
       html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
         +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Advances</div>';
@@ -11418,24 +11624,14 @@ async function renderMyRecord(){
       html+='</div>';
     }
 
-    if(visits.length){
-      html+='<div class="card" style="margin-bottom:14px;padding:6px 8px">'
-        +'<div style="padding:9px 8px 5px;font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--fk-text-muted)">Gate passes</div>';
-      visits.slice(0,20).forEach(x=>{
-        html+='<div class="trow" style="cursor:default"><div style="flex:1;min-width:0">'
-          +'<div class="lr-name" style="white-space:normal">'+esc(x.purpose||x.location||'Out')+'</div>'
-          +'<div class="lr-sub"><span>'+esc(dt(x.date))+(x.approver?' \u00b7 approved by '+esc(x.approver):'')+'</span></div>'
-          +'</div>'+_myrecChip(x.type||'', x.type==='official'?null:'warn')+'</div>';
-      });
-      html+='</div>';
-    }
-
-    if(!hist.length && !advances.length && !visits.length){
-      html+='<div class="card"><div class="empty"><div class="ei">'+li('inbox',20,1.8)+'</div>'
-        +'<div class="et">Nothing else on file yet</div>'
-        +'<div class="es">Your service record, advances and gate passes appear here as they are added. '
-        +'Papers and letters are under Documents.</div></div></div>';
-    }
+    /* A file that cannot be put on paper is not really a file. The office asks
+       for a printed copy often enough — a bank, a visa, a new posting — and
+       until now that meant asking HR for it. */
+    html+='<div style="margin:2px 2px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      +'<button class="btn btn-secondary" onclick="window.print()">'+li('printer',16,1.8)
+      +' Print this file</button>'
+      +'<span style="font-size:var(--fs-caption);color:var(--fk-text-muted)">'
+      +'Anything wrong here is corrected by the office \u2014 tell your Head of Department.</span></div>';
   }
 
   b.innerHTML=html+'</div>';
