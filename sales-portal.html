@@ -11423,6 +11423,7 @@ async function renderMyRecord(){
       +'overflow-wrap:anywhere">'+esc(v)+'</b></div>'):'';
     const dt=x=>x?new Date(x+'T00:00:00Z').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'';
     const notices=(d.notices||[]);
+    const comp=(d.comp_off||{}), misses=(d.checkout_misses||[]);
 
     /* Sections carry a numbered tab down the side, the way the dividers in a
        paper file do. A section with nothing in it is not printed at all —
@@ -11483,6 +11484,7 @@ async function renderMyRecord(){
       {n:corrections.length, t:'Corrections',        go:null},
       {n:hist.length,        t:'Service entries',    go:null},
       {n:advances.length,    t:'Advances',           go:null},
+      {n:misses.length,      t:'Check-out missed',  go:null},
     ];
     html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
       +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
@@ -11544,6 +11546,31 @@ async function renderMyRecord(){
           +'style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
           +'onclick="setTab(&#39;ess-docs&#39;)">Open my documents</button></div>':''));
 
+    // ── days earned by working a day off ────────────────────────────────
+    if(Number(comp.earned)>0){
+      const left=Number(comp.left)||0;
+      html+='<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px">'
+        +'<div style="font-size:var(--fk-fs-label);text-transform:uppercase;letter-spacing:.06em;'
+        +'font-weight:600;color:var(--fk-text-muted);margin-bottom:8px">Compensatory off</div>'
+        +'<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline">'
+        +'<div><div class="mn-val">'+left+'</div><div class="mn-lbl">days left</div></div>'
+        +'<div><div class="mn-val">'+(Number(comp.earned)||0)+'</div><div class="mn-lbl">earned</div></div>'
+        +'<div><div class="mn-val">'+(Number(comp.taken)||0)+'</div><div class="mn-lbl">used</div></div>'
+        +'</div>'
+        +'<div style="font-size:var(--fs-caption);color:var(--fk-text-muted);margin-top:10px;line-height:1.5">'
+        +'You worked '+(Number(comp.earned)||0)+' day'+((Number(comp.earned)||0)===1?'':'s')
+        +' that were a weekly off or a company closure. '
+        +(left>0
+          ? 'Apply under <b>Compensatory off</b> and your Head of Department can give '
+            +(left===1?'that day':'those days')+' back without any deduction.'
+          : 'You have used all of them.')
+        +'</div>'
+        +(left>0?'<div style="margin-top:11px"><button class="btn btn-secondary" '
+          +'style="height:32px;padding:0 12px;font-size:var(--fs-caption)" '
+          +'onclick="setTab(&#39;ess-leave&#39;)">Ask for a day</button></div>':'')
+        +'</div></div>';
+    }
+
     // ── the leave this year, as a balance rather than a list of applications
     if(bal.length){
       const b2=bal.filter(x=>x.entitled!=null);
@@ -11589,6 +11616,19 @@ async function renderMyRecord(){
         +(x.to_me?'':' \u00b7 circular'),
       _myrecChip(x.acknowledged_at?'acknowledged':(x.status||''),
         x.acknowledged_at?'ok':tone(x.status))));
+
+    html+=reg('Check-out missed',misses,x=>regRow(
+      'Warning '+x.strike_no,
+      x.strike_no%3===0 ? 'Third missed check-out \u2014 a day\u2019s pay was proposed'
+        : 'You checked in and never checked out',
+      dt(x.work_date)
+        +(x.strike_no%3!==0 && x.strike_no%3===2 ? ' \u00b7 one more and a day\u2019s pay is proposed' : '')
+        +(x.decision_note?' \u00b7 '+x.decision_note:''),
+      x.deduction_status
+        ? _myrecChip({proposed:'waiting on your HOD',approved:'a day deducted',waived:'let go'}[x.deduction_status]
+            || x.deduction_status,
+            x.deduction_status==='approved'?'danger':x.deduction_status==='waived'?'ok':'warn')
+        : _myrecChip('warning','warn')));
 
     html+=reg('Papers held on file',docs,x=>regRow(
       '', x.title||x.doc_type||'Document',
@@ -11917,13 +11957,14 @@ function _annVisible(){
                   if(!a.seen && !a.is_author) return 1; return 2; };
   return rows.slice().sort((a,b)=> rank(a)-rank(b) || (new Date(b.created_at)-new Date(a.created_at)));
 }
+function _annCanPost(){ return !!(ME && (ME.role==='director' || ME.role==='marketing_manager')); }
 function _annPaint(){
-  const isDir = ME&&ME.role==='director';
+  const isDir = _annCanPost();
   if(!ANN.tab) ANN.tab='announcement';
   let html=_pageHead('Messages', isDir
-    ?'Post notices to your team and track who read & acknowledged.'
+    ?'Write to your team and see who read and acknowledged it.'
     :'Announcements from your company and letters from the office — tap to read.');
-  if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Compose announcement</button>`; }
+  if(isDir){ html+=`<button class="btn btn-primary btn-full" style="margin-bottom:12px" onclick="openAnnCompose()">${li('plus',15,2.2)} Write a message</button>`; }
   const isDirAdmin = ME&&(ME.role==='director'||ME.role==='admin');
   const all=ANN.list||[];
   const annN=all.filter(a=>a.kind==='announcement').length;
