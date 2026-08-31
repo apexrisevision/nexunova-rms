@@ -2304,16 +2304,54 @@ function setCompanyContext(data){
 }
 function goLogin(){ applyLoginCompany(); showScreen('screen-login'); }
 
-// ════ session: persists across refreshes; signs out only after 30 min idle ════
-const IDLE_MS=30*60*1000;
+// ════ session: signs out after a week of NOT BEING USED ═════════════════════
+// Two clocks were running and neither measured disuse. This one gave up after
+// thirty minutes idle — and its idle clock was reset only by _touch(), which
+// was called when somebody NAVIGATED. Reading one screen for half an hour was
+// therefore indistinguishable from walking away. The other clock is on the
+// server: sales_login stamped the session with a fixed eight hours from
+// sign-in, so a full day's work still ended in a sign-out at the eight-hour
+// mark no matter how busy it was. Both now run for seven days, and both slide
+// forward while the portal is in use.
+const IDLE_MS=7*24*60*60*1000;
 const ACT_KEY='rms.sales.active';
+const SRV_KEY='rms.sales.touched';        // when the SERVER's window was last pushed out
+const SRV_EVERY=6*60*60*1000;             // ...which is worth doing this often, no more
 function _saveSession(tok){ try{ localStorage.setItem(TOK_KEY,tok); localStorage.setItem(ACT_KEY,String(Date.now())); }catch(e){} }
-function _touch(){ try{ if(localStorage.getItem(TOK_KEY)) localStorage.setItem(ACT_KEY,String(Date.now())); }catch(e){} }
-function _clearSession(){ try{ localStorage.removeItem(TOK_KEY); localStorage.removeItem(ACT_KEY); localStorage.removeItem('rms.sales.uptok'); }catch(e){} }
+function _touch(){ try{ if(localStorage.getItem(TOK_KEY)){ localStorage.setItem(ACT_KEY,String(Date.now())); _touchServer(); } }catch(e){} }
+
+// The browser's clock is only half of it. Every one of the portal's RPCs checks
+// sales_sessions.expires_at itself, so if the server's window does not slide
+// too, the portal signs somebody out mid-sentence however alive the tab is.
+// Debounced hard on purpose: the window is a week, so renewing it once per six
+// hours of use is already generous, and it costs one tiny call.
+let _srvTouching=false;
+async function _touchServer(force){
+  if(!TOKEN || _srvTouching) return;
+  let last=0; try{ last=Number(localStorage.getItem(SRV_KEY)||0); }catch(e){}
+  if(!force && (Date.now()-last)<SRV_EVERY) return;
+  _srvTouching=true;
+  try{
+    const {data}=await sb.rpc('sales_touch_session',{p_session_token:TOKEN});
+    if(data&&data.success===true){ try{ localStorage.setItem(SRV_KEY,String(Date.now())); }catch(e){} }
+    // Only an explicit server verdict signs anyone out. A network blip throws
+    // below and is ignored — the same fail-open rule _refreshProfile follows.
+    else if(data&&data.error==='session_expired'){ sessionGone(); }
+  }catch(e){}
+  finally{ _srvTouching=false; }
+}
+function _clearSession(){ try{ localStorage.removeItem(TOK_KEY); localStorage.removeItem(ACT_KEY); localStorage.removeItem(SRV_KEY); localStorage.removeItem('rms.sales.uptok'); }catch(e){} }
 function _validSession(){ try{ const t=localStorage.getItem(TOK_KEY); const a=Number(localStorage.getItem(ACT_KEY)||0);
   if(t && (Date.now()-a)<IDLE_MS) return t; }catch(e){} return null; }
 let _idleTimer=null;
-function _startIdleWatch(){ if(_idleTimer) return; _idleTimer=setInterval(()=>{ if(TOKEN && !_validSession()) doLogout(); },60000); }
+function _startIdleWatch(){ if(_idleTimer) return;
+  _idleTimer=setInterval(()=>{ if(TOKEN && !_validSession()) doLogout(); },60000);
+  // Reading counts. The clock used to move only when a screen was opened, which
+  // is why sitting on one page looked exactly like having gone home.
+  ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,_touch,{passive:true,capture:true}));
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) _touch(); });
+  _touchServer(true);        // and opening the portal renews it straight away
+}
 // live role/hierarchy refresh — so a role change reflects without re-login (debounced; only re-applies on real change)
 let _profWatch=false, _lastProfChk=0;
 async function _refreshProfile(){
@@ -2807,7 +2845,11 @@ async function _emailVerifyConfirm(){
   }catch(e){ _evErr('Could not verify. Please try again.'); _busyFoot(false); }
 }
 function onLogin(data){
-  TOKEN=data.session_token; _saveSession(TOKEN); _startIdleWatch();
+  TOKEN=data.session_token; _saveSession(TOKEN);
+  // a new session is already seven days old-fashioned-fresh; record that so the
+  // debounce does not fire a pointless renewal on the first click
+  try{ localStorage.setItem(SRV_KEY,String(Date.now())); }catch(e){}
+  _startIdleWatch();
   ME=data;
   UPLOAD_TOKEN=data.upload_token||null; try{ localStorage.setItem('rms.sales.uptok',UPLOAD_TOKEN||''); }catch(e){}
   try{ if(data.company_name)localStorage.setItem('rms.sales.coName',data.company_name); }catch(e){}
