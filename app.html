@@ -228,21 +228,61 @@
      they were already sitting there and nothing was seen to happen. Now it is
      one thing after another: the logo settles, then RMS, then the portal, then
      HRMS, each rising with its own thread of colour lighting as it comes. */
+  /* ── how a door arrives ────────────────────────────────────────────────
+     Not a slide. Four things happen to each one, slightly apart, and the three
+     doors are a beat and a bit behind each other: the card comes in from the
+     left out of a soft blur and settles; its coloured edge draws down; a light
+     passes across it once; and the tile lands last with a small overshoot, the
+     way something with weight does.
+
+     Every one of these is animation-fill-mode: BACKWARDS, never both. Backwards
+     holds the opening frame through the delay and then lets go, so once a door
+     has arrived its transform is its own again — with "both" the final frame
+     stays applied and outranks the hover, and the doors would sit dead under
+     the cursor for ever after. The resting state is declared below instead. */
   .wrap .card{opacity:0}
-  .wrap.landed .card{animation:doorIn .34s cubic-bezier(.22,1,.36,1) both}
+  .wrap.landed .card{opacity:1;animation:doorIn .70s cubic-bezier(.16,1,.3,1) backwards}
   .wrap.landed .card:nth-of-type(1){animation-delay:0s}
-  .wrap.landed .card:nth-of-type(2){animation-delay:.07s}
-  .wrap.landed .card:nth-of-type(3){animation-delay:.14s}
+  .wrap.landed .card:nth-of-type(2){animation-delay:.14s}
+  .wrap.landed .card:nth-of-type(3){animation-delay:.28s}
   @keyframes doorIn{
-    from{opacity:0;transform:translateX(-38px)}
-    to{opacity:1;transform:none}}
-  /* the coloured edge draws itself down just behind its door */
-  .wrap.landed .card::after{animation:threadIn .3s cubic-bezier(.22,1,.36,1) both}
-  .wrap.landed .card:nth-of-type(1)::after{animation-delay:.14s}
-  .wrap.landed .card:nth-of-type(2)::after{animation-delay:.21s}
-  .wrap.landed .card:nth-of-type(3)::after{animation-delay:.28s}
-  @keyframes threadIn{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+    0%{opacity:0;transform:translateX(-64px) scale(.965);filter:blur(4px)}
+    50%{opacity:1}
+    100%{opacity:1;transform:none;filter:blur(0)}}
+
+  /* the coloured edge draws itself down, just behind its door */
   .card::after{transform-origin:50% 0}
+  .wrap.landed .card::after{animation:threadIn .45s cubic-bezier(.16,1,.3,1) backwards}
+  .wrap.landed .card:nth-of-type(1)::after{animation-delay:.22s}
+  .wrap.landed .card:nth-of-type(2)::after{animation-delay:.36s}
+  .wrap.landed .card:nth-of-type(3)::after{animation-delay:.50s}
+  @keyframes threadIn{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+
+  /* one pass of light, left to right, as the door comes to rest */
+  .card>.sh{position:absolute;inset:0;z-index:2;border-radius:inherit;
+    overflow:hidden;pointer-events:none;opacity:0}
+  .card>.sh::before{content:'';position:absolute;top:-60%;bottom:-60%;left:-45%;width:36%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.16),transparent);
+    transform:skewX(-18deg)}
+  .wrap.landed .card>.sh{animation:sheen .85s cubic-bezier(.4,0,.2,1) backwards}
+  .wrap.landed .card>.sh::before{animation:sheenSweep .85s cubic-bezier(.4,0,.2,1) backwards}
+  .wrap.landed .card:nth-of-type(1)>.sh,
+  .wrap.landed .card:nth-of-type(1)>.sh::before{animation-delay:.18s}
+  .wrap.landed .card:nth-of-type(2)>.sh,
+  .wrap.landed .card:nth-of-type(2)>.sh::before{animation-delay:.32s}
+  .wrap.landed .card:nth-of-type(3)>.sh,
+  .wrap.landed .card:nth-of-type(3)>.sh::before{animation-delay:.46s}
+  @keyframes sheen{0%{opacity:0}22%{opacity:1}100%{opacity:0}}
+  @keyframes sheenSweep{from{left:-45%}to{left:118%}}
+
+  /* the tile lands last, and overshoots a little */
+  .wrap.landed .card .ic{animation:icIn .55s cubic-bezier(.34,1.56,.64,1) backwards}
+  .wrap.landed .card:nth-of-type(1) .ic{animation-delay:.12s}
+  .wrap.landed .card:nth-of-type(2) .ic{animation-delay:.26s}
+  .wrap.landed .card:nth-of-type(3) .ic{animation-delay:.40s}
+  @keyframes icIn{
+    0%{opacity:0;transform:scale(.55) rotate(-14deg)}
+    100%{opacity:1;transform:none}}
 
   /* very short phones: give the mark less room rather than a scrollbar */
   @media (max-height:700px){
@@ -295,6 +335,7 @@
   <div class="sub" id="sub">Which one are you opening?</div>
 
   <button class="card c-rms" id="c-rms" onclick="go('rms')">
+    <span class="sh" aria-hidden="true"></span>
     <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></span>
     <span class="tx">
       <span class="tt">RMS</span>
@@ -306,6 +347,7 @@
   </button>
 
   <button class="card c-portal" id="c-portal" onclick="go('portal')">
+    <span class="sh" aria-hidden="true"></span>
     <span class="ic"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
     <span class="tx">
       <span class="tt">CRM</span>
@@ -317,6 +359,7 @@
   </button>
 
   <button class="card c-attend" id="c-attend" onclick="go('attend')">
+    <span class="sh" aria-hidden="true"></span>
     <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
     <span class="tx">
       <span class="tt">HRMS</span>
