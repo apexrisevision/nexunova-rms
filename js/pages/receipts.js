@@ -367,10 +367,13 @@ function _rvEntryFormHtml() {
       // It used to be typed into Reference; it now has its own column.
       NX.field({ label:'Manual receipt no', name:'rve-manual', placeholder:'Number on the receipt book slip' }) +
       NX.field({ label:'Reference / Txn no', name:'rve-ref', placeholder:'Bank / transaction reference (optional)' }) +
+      // Bank stays on the form for every voucher type — cash gets banked too, and
+      // hiding it meant the officer could not say where the money went.
+      NX.field({ label:'Bank', name:'rve-bank', placeholder:'Bank the money went to (optional)' }) +
     '</div>' +
+    // Cheque-only box: the number and the date that decide PDC vs booked payment.
     '<div id="rve-bankbox" style="display:none;margin-top:var(--fk-sp-3)">' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--fk-sp-3)">' +
-        NX.field({ label:'Bank', name:'rve-bank' }) +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--fk-sp-3)">' +
         NX.field({ label:'Cheque no', name:'rve-chqno' }) +
         NX.field({ label:'Cheque date', name:'rve-chqdate', type:'date', value:today, attrs:'onchange="_rvEntryModeChange()"' }) +
       '</div>' +
@@ -446,12 +449,11 @@ function _rvEntryModeChange() {
   const mode = document.getElementById('rve-mode')?.value;
   const box  = document.getElementById('rve-bankbox');
   const chqOnly = (mode === 'cheque');
-  const showBank = (mode === 'bank_transfer' || mode === 'cheque');
-  if (box) box.style.display = showBank ? 'block' : 'none';
+  // Bank now lives in the main grid and is always shown; this box holds only the
+  // cheque number and date, so it follows the cheque mode alone.
+  if (box) box.style.display = chqOnly ? 'block' : 'none';
   const adjBox = document.getElementById('rve-adjbox');
   if (adjBox) adjBox.style.display = (mode === 'adjustment') ? 'block' : 'none';
-  // hide cheque-only fields when plain bank transfer
-  ['rve-chqno','rve-chqdate'].forEach(id => { const f = document.getElementById(id); if (f) f.closest('.nx-field').style.display = chqOnly ? '' : 'none'; });
   const today = _rvToday();
   const chqDate = document.getElementById('rve-chqdate')?.value;
   const isPDC = chqOnly && chqDate && chqDate > today;
