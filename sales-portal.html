@@ -2443,6 +2443,32 @@ async function bootstrap(){
     _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   if(joinCode){ return openJoinLink(joinCode); }
+
+  /* ── the hub, without waiting for Chrome ────────────────────────────────
+     Every phone that already has this installed opens /sales-portal.html,
+     because that is the start_url frozen into its install. The manifest now
+     points at the hub, but Chrome re-reads a manifest on ITS schedule — a
+     launch or two, sometimes a day — and until it does, the icon lands here
+     and the hub may as well not exist for the people it was built for.
+
+     So this page hands over itself. Only on a cold start with NO session and
+     NO door ever chosen: somebody already signed in is not interrupted, and
+     once a door has been chosen the key is set and this never fires again —
+     which is also what stops the hub and this page bouncing off each other,
+     since choosing "Self Service Portal" is precisely what sets it.
+
+     A link carrying an invitation, a join code or a deep link is left alone;
+     those name their destination and are not a plain launch. */
+  try{
+    // /crm is the link the office hands out — it names the portal, so it opens
+    // the portal. Only a bare launch of this page is treated as "the icon".
+    const _named = location.pathname !== '/sales-portal.html';
+    if(!_named && !localStorage.getItem('nx.hub.app')
+       && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
+      location.replace('/app.html'); return;
+    }
+  }catch(e){}
+
   return openPortalDefault();
 }
 // Bare /crm (no ?signup, no /join): if the company enabled main-portal signup,
