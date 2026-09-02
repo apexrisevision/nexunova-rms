@@ -8,6 +8,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/assets/icon-192.png">
 <link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="preload" as="image" href="/assets/icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -30,6 +31,11 @@
      app and simply updates start_url. An employee's icon behaves exactly as it
      did — it lands them in the portal — because the hub remembers.
 
+     THE SPLASH is the desktop app's splash, rebuilt for the web: the same
+     breathing logo, the same two counter-rotating arcs, the same pulse rings
+     and the same typed NEXUNOVA. On the remembered path it is not decoration —
+     it IS the loading screen, covering the hop to the app instead of a spinner.
+
      WHY NOT ONE LOGIN. RMS signs in with a company code, a username and a
      password; the portal with a phone and a PIN; attendance with an email and
      a password on a different database entirely. They are three identity
@@ -38,12 +44,11 @@
      its own login — which is what was asked for.
      ═══════════════════════════════════════════════════════════════════════ -->
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   :root{
     --bg:#0b1020; --card:#141a2e; --card-h:#1a2138; --line:rgba(255,255,255,.09);
     --t1:#eef1f8; --t2:#a6b0c8; --t3:#6f7b96;
-    --brand:#6366f1; --brand2:#8b5cf6; --ok:#22c55e;
-    --sh:0 10px 34px rgba(0,0,0,.42);
+    --brand:#6366f1; --ok:#22c55e; --sh:0 10px 34px rgba(0,0,0,.42);
   }
   html,body{min-height:100%}
   body{
@@ -52,34 +57,86 @@
       radial-gradient(900px 520px at 92% 4%, rgba(139,92,246,.16), transparent 60%),
       var(--bg);
     color:var(--t1); font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;
-    -webkit-font-smoothing:antialiased;
+    -webkit-font-smoothing:antialiased; user-select:none;
     display:flex; align-items:center; justify-content:center;
     padding:24px 18px calc(24px + env(safe-area-inset-bottom));
-    min-height:100dvh;
+    min-height:100dvh; overflow:hidden;
   }
-  .wrap{width:100%; max-width:460px}
 
-  .brand{display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:6px}
+  /* ══ SPLASH — the desktop app's, on the web ══════════════════════════ */
+  #splash{
+    position:fixed; inset:0; z-index:10; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; gap:26px;
+    background:inherit;
+  }
+  #splash.out{animation:wrapOut .55s cubic-bezier(.4,0,1,1) forwards}
+  @keyframes wrapOut{to{opacity:0;transform:translateY(-10px) scale(.96)}}
+  .sp-in{
+    display:flex;flex-direction:column;align-items:center;gap:26px;opacity:0;
+    animation:wrapIn .65s cubic-bezier(.22,1,.36,1) .05s forwards;
+  }
+  @keyframes wrapIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+  .logo-shell{position:relative;width:min(230px,54vw);height:min(230px,54vw);
+    display:flex;align-items:center;justify-content:center}
+  .ring-spin{position:absolute;inset:-14px;border-radius:50%;
+    background:conic-gradient(from 0deg,transparent 0%,rgba(56,189,248,.90) 18%,rgba(129,140,248,.70) 30%,rgba(192,132,252,.50) 40%,transparent 55%);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#fff calc(100% - 2px));
+            mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#fff calc(100% - 2px));
+    animation:spinRing 2.4s linear infinite}
+  .ring-spin-2{position:absolute;inset:-26px;border-radius:50%;
+    background:conic-gradient(from 180deg,transparent 0%,rgba(192,132,252,.55) 14%,rgba(56,189,248,.30) 24%,transparent 38%);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#fff calc(100% - 1px));
+            mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#fff calc(100% - 1px));
+    animation:spinRing 3.8s linear infinite reverse}
+  @keyframes spinRing{to{transform:rotate(360deg)}}
+  .logo-aura{position:absolute;inset:-40px;border-radius:50%;
+    background:radial-gradient(circle,rgba(56,189,248,.18) 0%,rgba(168,85,247,.12) 45%,transparent 70%);
+    filter:blur(22px);animation:aura 3.6s ease-in-out infinite}
+  @keyframes aura{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.20);opacity:1}}
+  .ring-pulse,.ring-pulse-2{position:absolute;inset:-6px;border-radius:50%;animation:pulse 2.8s ease-out infinite}
+  .ring-pulse{border:1px solid rgba(56,189,248,.25)}
+  .ring-pulse-2{border:1px solid rgba(168,85,247,.20);animation-delay:1.4s}
+  @keyframes pulse{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.55);opacity:0}}
+  .logo{width:100%;height:100%;object-fit:contain;position:relative;z-index:1;
+    filter:drop-shadow(0 0 28px rgba(56,189,248,.65)) drop-shadow(0 0 65px rgba(168,85,247,.42));
+    animation:logoBreathe 3.6s ease-in-out infinite}
+  @keyframes logoBreathe{
+    0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 28px rgba(56,189,248,.65)) drop-shadow(0 0 65px rgba(168,85,247,.42))}
+    50%{transform:scale(1.03) translateY(-6px);filter:drop-shadow(0 0 42px rgba(56,189,248,.85)) drop-shadow(0 0 88px rgba(168,85,247,.58))}}
+  .typewriter{font-size:clamp(16px,4.6vw,21px);font-weight:800;letter-spacing:.38em;
+    min-height:32px;text-align:center;text-indent:.38em;
+    background:linear-gradient(90deg,#38bdf8 0%,#818cf8 50%,#c084fc 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+    filter:drop-shadow(0 0 10px rgba(56,189,248,.38))}
+  .sp-note{font-size:12px;color:var(--t3);letter-spacing:.02em;min-height:16px}
+
+  /* the moment somebody presses a door, the splash comes back as the hop */
+  @media (prefers-reduced-motion:reduce){
+    .ring-spin,.ring-spin-2,.logo-aura,.ring-pulse,.ring-pulse-2,.logo{animation:none!important}
+    .sp-in{animation-duration:.01s}
+  }
+
+  /* ══ THE DOORS ═══════════════════════════════════════════════════════ */
+  .wrap{width:100%;max-width:460px;opacity:0;transition:opacity .45s ease}
+  .wrap.show{opacity:1}
+  .brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:6px}
   .brand img{width:38px;height:38px;object-fit:contain;border-radius:9px}
   .brand .n{font-size:19px;font-weight:800;letter-spacing:-.2px}
   .brand .n span{background:linear-gradient(120deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   .sub{text-align:center;color:var(--t2);font-size:13.5px;margin-bottom:22px}
 
-  .card{
-    display:flex; align-items:center; gap:14px; width:100%;
-    background:var(--card); border:1px solid var(--line); border-radius:15px;
-    padding:15px 16px; margin-bottom:11px; cursor:pointer; text-align:left;
-    color:inherit; font:inherit; box-shadow:var(--sh);
-    transition:transform .16s ease, background .16s ease, border-color .16s ease;
-  }
-  .card:hover{background:var(--card-h); border-color:rgba(255,255,255,.16); transform:translateY(-1px)}
+  .card{display:flex;align-items:center;gap:14px;width:100%;
+    background:var(--card);border:1px solid var(--line);border-radius:15px;
+    padding:15px 16px;margin-bottom:11px;cursor:pointer;text-align:left;
+    color:inherit;font:inherit;box-shadow:var(--sh);
+    transition:transform .16s ease,background .16s ease,border-color .16s ease}
+  .card:hover{background:var(--card-h);border-color:rgba(255,255,255,.16);transform:translateY(-1px)}
   .card:active{transform:translateY(0) scale(.995)}
-  .card:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
-  .ic{
-    width:44px;height:44px;flex:0 0 44px;border-radius:11px;display:grid;place-items:center;
+  .card:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .ic{width:44px;height:44px;flex:0 0 44px;border-radius:11px;display:grid;place-items:center;
     background:linear-gradient(140deg,rgba(99,102,241,.24),rgba(139,92,246,.16));
-    border:1px solid rgba(255,255,255,.10);
-  }
+    border:1px solid rgba(255,255,255,.10)}
   .ic svg{width:21px;height:21px;stroke:#c7d2fe;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
   /* the label parts are spans (a button may not contain divs), so they are
      told to stack — left inline they run together into one sentence */
@@ -88,32 +145,32 @@
   .ds{display:block;font-size:12.5px;color:var(--t3);margin-top:2px;line-height:1.35}
   .go{color:var(--t3);flex:0 0 auto}
   .go svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-  .who{
-    display:flex;align-items:center;gap:5px;margin-top:5px;
-    font-size:11.5px;font-weight:600;color:var(--ok);
-  }
+  .who{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:600;color:var(--ok)}
   .who[hidden]{display:none}
-  .who i{width:5px;height:5px;border-radius:50%;background:var(--ok);display:inline-block}
-
   .foot{margin-top:16px;text-align:center;color:var(--t3);font-size:11.5px;line-height:1.6}
-  .foot b{color:var(--t2);font-weight:600}
-  /* Shown only while the hub is bouncing somebody straight through. */
-  .hop{display:none;text-align:center;padding:40px 0}
-  .hop .r{width:26px;height:26px;margin:0 auto 12px;border-radius:50%;
-    border:2.5px solid rgba(255,255,255,.14);border-top-color:#a5b4fc;animation:sp .7s linear infinite}
-  @keyframes sp{to{transform:rotate(360deg)}}
-  body.going .wrap>*:not(.hop){display:none}
-  body.going .hop{display:block}
 </style>
 </head>
 <body>
 
-<div class="wrap">
-  <div class="hop" id="hop">
-    <div class="r"></div>
-    <div style="color:var(--t2);font-size:13px" id="hop-t">Opening…</div>
+<!-- The splash covers everything until the doors are ready, and comes back over
+     them the moment one is pressed — so the last thing seen before an app loads
+     is the same logo the desktop app shows. -->
+<div id="splash">
+  <div class="sp-in">
+    <div class="logo-shell">
+      <div class="logo-aura"></div>
+      <div class="ring-spin-2"></div>
+      <div class="ring-spin"></div>
+      <div class="ring-pulse"></div>
+      <div class="ring-pulse-2"></div>
+      <img class="logo" src="/assets/icon-512.png" alt="">
+    </div>
+    <div class="typewriter" id="tw"></div>
+    <div class="sp-note" id="sp-note"></div>
   </div>
+</div>
 
+<div class="wrap" id="wrap">
   <div class="brand">
     <img src="/assets/icon-192.png" alt="">
     <div class="n">Nexu<span>nova</span></div>
@@ -149,7 +206,7 @@
     <span class="go"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
   </button>
 
-  <div class="foot" id="foot">
+  <div class="foot">
     Each one keeps its own sign-in.<br>
     This screen appears again after you sign out.
   </div>
@@ -165,51 +222,65 @@
     portal: { url: '/sales-portal.html', name: 'Self Service Portal' },
     attend: { url: 'https://attend.nexunova.com/login.html', name: 'Attendance' }
   };
+  var splash = document.getElementById('splash');
+  var note   = document.getElementById('sp-note');
 
   function ls(fn, dflt) { try { return fn(); } catch (e) { return dflt; } }
   var params = new URLSearchParams(location.search);
 
   /* Asked again on purpose in exactly two cases: nothing remembered (first
-     run), and ?choose — which is what a sign-out and the Switch link both send
-     you to. Every other visit goes straight through. */
+     run), and ?choose / ?logout — which is where a sign-out lands. Every other
+     visit goes straight through. */
   var remembered = ls(function () { return localStorage.getItem(KEY); }, null);
-  var mustAsk = params.has('choose') || params.has('logout');
-  if (mustAsk) { ls(function () { localStorage.removeItem(KEY); }); remembered = null; }
+  if (params.has('choose') || params.has('logout')) {
+    ls(function () { localStorage.removeItem(KEY); });
+    remembered = null;
+  }
+
+  // ── the typed word, exactly as the desktop splash types it ──────────────
+  var WORD = 'NEXUNOVA', tw = document.getElementById('tw'), i = 0, done = null;
+  (function typeNext() {
+    if (i <= WORD.length) { tw.textContent = WORD.slice(0, i); i++; return setTimeout(typeNext, i <= 1 ? 80 : 60); }
+    setTimeout(function () { if (done) done(); }, 300);
+  })();
+
+  function reveal() {
+    splash.classList.add('out');
+    setTimeout(function () {
+      splash.style.display = 'none';
+      document.getElementById('wrap').classList.add('show');
+    }, 380);
+  }
 
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
     ls(function () { localStorage.setItem(KEY, which); });
-    document.getElementById('hop-t').textContent = 'Opening ' + a.name + '…';
-    document.body.classList.add('going');
+    // the splash returns as the hop, so the last thing seen is the logo
+    note.textContent = 'Opening ' + a.name + '…';
+    splash.classList.remove('out');
+    splash.style.display = 'flex';
     location.href = a.url;
   };
 
   if (remembered && APPS[remembered]) {
-    // Straight through — the whole point of remembering.
-    document.getElementById('hop-t').textContent = 'Opening ' + APPS[remembered].name + '…';
-    document.body.classList.add('going');
-    location.replace(APPS[remembered].url);
+    // Straight through — the splash IS the loading screen, no doors, no spinner.
+    note.textContent = 'Opening ' + APPS[remembered].name + '…';
+    done = function () { location.replace(APPS[remembered].url); };
     return;
   }
 
-  if (params.has('logout')) {
-    document.getElementById('sub').textContent = 'Signed out. Which one now?';
-  }
+  if (params.has('logout')) document.getElementById('sub').textContent = 'Signed out. Which one now?';
+  done = reveal;
 
   /* A small courtesy, and only where it is honest: RMS and the portal are on
      this same origin, so a live session here is readable. Attendance is a
      different site and a different database — nothing is claimed about it. */
   function say(id, txt) {
-    var el = document.getElementById(id); if (!el || !txt) return;
-    el.querySelector('span').textContent = txt;
-    el.hidden = false;
+    var el = document.getElementById(id); if (!el) return;
+    el.querySelector('span').textContent = txt; el.hidden = false;
   }
-  ls(function () {
-    if (localStorage.getItem('rms.sales.token')) say('w-portal', 'Already signed in');
-  });
-  ls(function () {
-    if (sessionStorage.getItem('nxn_sess')) say('w-rms', 'Already signed in');
-  });
+  ls(function () { if (localStorage.getItem('rms.sales.token')) say('w-portal', 'Already signed in'); });
+  ls(function () { if (sessionStorage.getItem('nxn_sess'))      say('w-rms',    'Already signed in'); });
 })();
 </script>
 </body>
