@@ -420,12 +420,17 @@
      picture, then the typing, then the floor. */
   setTimeout(reveal, 6000);
 
-  /* A same-origin door is opened with #hub on it. The portal's installed
-     start_url still points at the portal itself, so that page sends a plain
-     launch back here — which is what makes the splash play on every open. The
-     marker is how it knows the hub has ALREADY played and it should stay put;
-     without it the two would bounce off each other forever. */
-  function land(url) { return url.charAt(0) === '/' ? url + '#hub' : url; }
+  /* Every door is opened with #hub on it. It does two jobs. The portal's
+     installed start_url still points at the portal itself, so that page sends a
+     plain launch back here — the marker is how it knows the hub has ALREADY
+     played and it should stay put, and without it the two would bounce off each
+     other forever. And on all three it is how a sign-in knows it was opened
+     from here, so it can answer the phone's back key by returning to these
+     doors rather than letting the app be closed.
+     NexuAttend was left out of this at first because it is a different site and
+     the marker was only put on same-origin addresses — which is exactly why its
+     back key still walked out while the other two came back. */
+  function land(url) { return url + '#hub'; }
 
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
