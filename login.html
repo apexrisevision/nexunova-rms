@@ -556,11 +556,29 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           else if(!open && pushed){ pushed = false; try{ history.back(); }catch(e){} }
         });
         away.concat([login]).forEach(function(el){ obs.observe(el, { attributes: true, attributeFilter: ['class'] }); });
+
+        /* Standing on the sign-in there is nothing of ours on the history, so
+           the back press is the platform's to answer — and a standalone app
+           answers it by leaving. One entry of our own means the press comes
+           back as a popstate and we decide where it goes.
+           Armed only when the hub sent us here (#hub), and never in the desktop
+           app, which IS the RMS door and has no hub behind it. Somebody who
+           reached this page by their own link has a real page behind them, and
+           back belongs to that. */
+        var cameFromHub = location.hash === '#hub' && !/Electron/i.test(navigator.userAgent || '');
+        if(cameFromHub && login.classList.contains('on')){
+          try{ history.pushState({ nxLogin: 1 }, ''); }catch(e){}
+        }
         window.addEventListener('popstate', function(){
-          if(!isOpen()) return;
-          pushed = false;
-          away.forEach(function(el){ el.classList.remove('on'); });
-          login.classList.add('on');
+          var app = document.getElementById('s-app');
+          if(app && app.classList.contains('on')) return;   // the app owns the key
+          if(isOpen()){
+            pushed = false;
+            away.forEach(function(el){ el.classList.remove('on'); });
+            login.classList.add('on');
+            return;
+          }
+          if(cameFromHub) location.replace('/sales-portal.html/hub');
         });
       });
 

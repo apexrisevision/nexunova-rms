@@ -2251,12 +2251,29 @@ function showScreen(id, viaBack){ document.querySelectorAll('.screen').forEach(s
   if(!viaBack && _navReady && id!=='screen-login' && id!=='screen-app'){
     try{ history.pushState({nxScreen:id}, ''); }catch(e){}
   } }
+/* Standing on the sign-in there is nothing of ours on the history, so the back
+   press is the platform's to answer — and a standalone app answers it by
+   leaving. One entry of our own means the press comes back as a popstate and we
+   decide where it goes. Armed only when the hub sent us here (#hub); somebody
+   who reached this page by their own link has a real page behind them and back
+   belongs to that, not to us. */
+const _CAME_FROM_HUB = (location.hash === '#hub');
+const _HUB = '/sales-portal.html/hub';
+function _armBack(){
+  if(!_CAME_FROM_HUB) return;
+  const app = document.getElementById('screen-app');
+  if(app && app.classList.contains('active')) return;
+  try{ history.pushState({nxScreen:'screen-login'}, ''); }catch(e){}
+}
 window.addEventListener('popstate', function(e){
   // inside the app itself the key belongs to the app, not to this
   const app = document.getElementById('screen-app');
   if(app && app.classList.contains('active')) return;
-  const id = (e.state && e.state.nxScreen) || 'screen-login';
-  if(document.getElementById(id)) showScreen(id, true);
+  const st = e.state;
+  if(st && st.nxScreen && document.getElementById(st.nxScreen)){ showScreen(st.nxScreen, true); return; }
+  // popped past everything of ours — from the sign-in that means the doors
+  if(_CAME_FROM_HUB){ location.replace(_HUB); return; }
+  showScreen('screen-login', true);
 });
 function _themeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   return dark
@@ -13801,7 +13818,7 @@ _pwaInit();
 ['click','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,_touch,{passive:true}));
 // The first screen is where the launch put somebody, not somewhere they walked
 // to, so it must not leave an entry of its own. Everything after it does.
-bootstrap().finally(function(){ _navReady = true; });
+bootstrap().finally(function(){ _navReady = true; _armBack(); });
 </script>
 <script defer src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="js/portal-quote-pdf.js?v=20260816quote"></script>

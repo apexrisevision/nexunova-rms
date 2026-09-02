@@ -229,19 +229,18 @@
      one thing after another: the logo settles, then RMS, then the portal, then
      HRMS, each rising with its own thread of colour lighting as it comes. */
   .wrap .card{opacity:0}
-  .wrap.landed .card{animation:doorIn .62s cubic-bezier(.22,1,.36,1) both}
-  .wrap.landed .card:nth-of-type(1){animation-delay:.02s}
-  .wrap.landed .card:nth-of-type(2){animation-delay:.16s}
-  .wrap.landed .card:nth-of-type(3){animation-delay:.30s}
+  .wrap.landed .card{animation:doorIn .34s cubic-bezier(.22,1,.36,1) both}
+  .wrap.landed .card:nth-of-type(1){animation-delay:0s}
+  .wrap.landed .card:nth-of-type(2){animation-delay:.07s}
+  .wrap.landed .card:nth-of-type(3){animation-delay:.14s}
   @keyframes doorIn{
-    0%{opacity:0;transform:translateY(20px) scale(.97)}
-    60%{opacity:1}
-    100%{opacity:1;transform:none}}
-  /* the coloured edge draws itself down as the door arrives */
-  .wrap.landed .card::after{animation:threadIn .5s cubic-bezier(.22,1,.36,1) both;animation-delay:inherit}
-  .wrap.landed .card:nth-of-type(1)::after{animation-delay:.20s}
-  .wrap.landed .card:nth-of-type(2)::after{animation-delay:.34s}
-  .wrap.landed .card:nth-of-type(3)::after{animation-delay:.48s}
+    from{opacity:0;transform:translateX(-38px)}
+    to{opacity:1;transform:none}}
+  /* the coloured edge draws itself down just behind its door */
+  .wrap.landed .card::after{animation:threadIn .3s cubic-bezier(.22,1,.36,1) both}
+  .wrap.landed .card:nth-of-type(1)::after{animation-delay:.14s}
+  .wrap.landed .card:nth-of-type(2)::after{animation-delay:.21s}
+  .wrap.landed .card:nth-of-type(3)::after{animation-delay:.28s}
   @keyframes threadIn{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
   .card::after{transform-origin:50% 0}
 
