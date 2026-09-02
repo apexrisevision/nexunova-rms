@@ -82,6 +82,7 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
      stylesheet (incl. foundation components + shell chrome) so its media-query rules win cascade
      ties without needing !important everywhere. Keep this the last <link> in <head>. ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260622c">
+<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubA">  <!-- the hub's skin, loaded last -->
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -2453,7 +2454,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/login-animations.js"></script>
 
 <!-- 11. Three.js particle background -->
-<script src="js/login-bg.js?v=20260614w3"></script>
+<script src="js/login-bg.js?v=20260902hub"></script>
 
 <!-- 12. Nexunova logo — Phase 2 F: the 144KB base64 + runtime canvas matte was baked
      offline into assets/img/nexunova-logo.png (transparent) and the 5 logo <img> now point

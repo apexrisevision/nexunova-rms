@@ -33,7 +33,10 @@
     var geo       = new THREE.BufferGeometry();
     var positions = new Float32Array(count * 3);
     var colors    = new Float32Array(count * 3);
-    var palette   = [[0, 0.85, 1], [0.66, 0.33, 0.97], [0.055, 0.647, 0.914]];
+    // The hub's indigo and violet. The field itself — count, size, drift, the
+    // linking lines — is untouched; only the three colours it draws with move off
+    // the old cyan, so this screen belongs to the same family as the hub.
+    var palette   = [[0.388, 0.400, 0.945], [0.545, 0.361, 0.965], [0.647, 0.706, 0.988]];
     for (var i = 0; i < count; i++) {
       var i3 = i * 3;
       positions[i3]   = (Math.random() - 0.5) * 18;

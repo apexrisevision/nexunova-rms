@@ -1,0 +1,288 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUTH — the hub's skin (RMS + Self Service Portal)
+   ───────────────────────────────────────────────────────────────────────────
+   Three products now open behind one front door, and a door that hands you
+   into three differently-dressed rooms is not one door. These two sign-ins are
+   dressed like the hub — the same near-black ground, the same indigo and
+   violet, the same card, the same raised control. NexuAttend carries the same
+   file on its own site.
+
+   This RE-SKINS. It deletes nothing. RMS keeps its particle field, its orbs,
+   its headline, its three feature rows and its footer; the portal keeps its
+   logo, its company pill, its trust chips and its "Request access" line. Only
+   surfaces and palette move, which is why this is a separate file loaded last
+   rather than edits scattered through login.css and the portal's own styles:
+   take the two <link> hooks out and the old looks return intact.
+
+   Scope: #s-login (RMS sign-in), and on the portal every auth screen —
+   .screen:not(#screen-app) is exactly the six of them: sign-in, forgot, reset,
+   request access, pending and agreement — plus the two fixed panels behind
+   them. The sign-up wizard, #s-signup, is deliberately NOT here; see the note
+   at the foot of this file.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#s-login, .screen:not(#screen-app) {
+  --hub-bg:     #0b1020;
+  --hub-card:   #141a2e;
+  --hub-line:   rgba(255, 255, 255, .09);
+  --hub-t1:     #eef1f8;
+  --hub-t2:     #a6b0c8;
+  --hub-t3:     #6f7b96;
+  --hub-brand:  #6366f1;
+  --hub-brand2: #8b5cf6;
+  --hub-shadow: 0 10px 34px rgba(0, 0, 0, .42);
+}
+
+/* ══ RMS ═══════════════════════════════════════════════════════════════════
+   It was already dark, but a cyan-and-black dark that belongs to a different
+   family than the hub's. The ground, the glows and the accents move over; the
+   particle canvas, the orbs and the whole left-hand story stay where they are. */
+#s-login {
+  background:
+    radial-gradient(1100px 620px at 12% -8%, rgba(99,102,241,.20), transparent 62%),
+    radial-gradient(900px 520px at 92% 4%, rgba(139,92,246,.16), transparent 60%),
+    var(--hub-bg);
+}
+#s-login .lx-brand-label,
+#s-login .lx-form-logo-sub,
+#s-login .lx-stat-lbl,
+#s-login .lx-feat-desc,
+#s-login .lx-form-sub { color: var(--hub-t3); }
+#s-login .lx-desc { color: var(--hub-t2); }
+#s-login .lx-headline, #s-login .lx-form-title,
+#s-login .lx-feat-title, #s-login .lx-stat-val,
+#s-login .lx-form-logo-text { color: var(--hub-t1); }
+#s-login .lx-headline-grad,
+#s-login .lx-form-logo-text {
+  background: linear-gradient(120deg, #a5b4fc, #c4b5fd);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+#s-login .lx-feat-icon {
+  background: linear-gradient(140deg, rgba(99,102,241,.24), rgba(139,92,246,.16));
+  border: 1px solid rgba(255,255,255,.10);
+  color: #c7d2fe;
+}
+#s-login .lx-feat-icon svg { stroke: currentColor; }
+
+#s-login .lx-label { color: var(--hub-t2); }
+#s-login .lx-input {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--hub-line);
+  color: var(--hub-t1);
+}
+#s-login .lx-input::placeholder { color: var(--hub-t3); }
+#s-login .lx-input:focus {
+  border-color: var(--hub-brand);
+  box-shadow: 0 0 0 3px rgba(99,102,241,.28);
+  background: rgba(255,255,255,.06);
+}
+/* Raised, the way every control in this house is: an edge above, a shadow
+   below, and it presses IN when touched. */
+#s-login .lx-btn {
+  background: linear-gradient(135deg, var(--hub-brand), var(--hub-brand2));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 8px 20px rgba(76,29,149,.38);
+  color: #fff;
+}
+#s-login .lx-btn::before { display: none; }        /* its old cyan sheen */
+#s-login .lx-btn span, #s-login .lx-btn svg { color: #fff; stroke: currentColor; }
+#s-login .lx-btn:hover  { filter: brightness(1.07); box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 10px 26px rgba(76,29,149,.46); }
+#s-login .lx-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255,255,255,.10) inset, 0 3px 10px rgba(76,29,149,.34); }
+#s-login .lx-forgot-link, #s-login .lx-signup-link { color: #a5b4fc; }
+#s-login .lx-forgot-link:hover, #s-login .lx-signup-link:hover { color: #c7d2fe; }
+#s-login .lx-hint, #s-login .lx-footer, #s-login .lx-signup-row { color: var(--hub-t3); }
+
+/* The orbs, the grid, the divider and the panel edge were all lit #00D9FF.
+   They keep their sizes, their animations and their positions; only the hue
+   moves. */
+#s-login .lx-orb-1 { background: rgba(99,102,241,.09); }
+#s-login .lx-orb-2 { background: rgba(139,92,246,.09); }
+#s-login .lx-orb-3 { background: rgba(124,58,237,.07); }
+#s-login .lx-grid-lines {
+  background-image:
+    linear-gradient(rgba(139,92,246,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139,92,246,.035) 1px, transparent 1px);
+}
+#s-login .lx-right {
+  background: rgba(255,255,255,.02);
+  border-left: 1px solid var(--hub-line);
+}
+#s-login .lx-right-line {
+  background: linear-gradient(180deg, transparent, rgba(99,102,241,.28), rgba(139,92,246,.28), transparent);
+}
+
+/* The card's travelling border, the icon pulse and the logo scanline are all
+   cyan-to-violet sweeps. They keep their timing and their motion; a @keyframes
+   redeclared under the same name after the original simply replaces it, which
+   is how the pulse moves hue without touching login.css. */
+#s-login .lx-form-card::before {
+  background: linear-gradient(var(--lx-scan-deg, 0deg),
+    transparent 30%, rgba(99,102,241,.60) 50%, rgba(139,92,246,.60) 60%, transparent 70%);
+}
+@keyframes lxIconGlow {
+  0%,100% { box-shadow: none; background: linear-gradient(140deg, rgba(99,102,241,.24), rgba(139,92,246,.16)); }
+  50%     { box-shadow: 0 0 20px rgba(99,102,241,.45), 0 0 8px rgba(139,92,246,.30);
+            background: linear-gradient(140deg, rgba(99,102,241,.40), rgba(139,92,246,.30)); }
+}
+#s-login .lx-logo-scanline {
+  background: linear-gradient(90deg, transparent, rgba(165,180,252,.9), rgba(139,92,246,.7), transparent);
+}
+/* The download line is written inline on the element, so only !important
+   reaches it — including the hover handler that rewrites that same style. */
+#s-login .lx-footer a[href*="download"] {
+  color: rgba(165,180,252,.72) !important;
+  -webkit-text-fill-color: rgba(165,180,252,.72) !important;
+}
+#s-login .lx-footer a[href*="download"]:hover {
+  color: #c7d2fe !important; -webkit-text-fill-color: #c7d2fe !important;
+}
+#s-login .lx-footer svg { stroke: #a5b4fc; }
+/* app.css states this one at #s-login .lx-signup-row .lx-signup-link with
+   !important, so this has to match on both counts. */
+#s-login .lx-signup-row .lx-signup-link {
+  color: #a5b4fc !important; -webkit-text-fill-color: #a5b4fc !important;
+}
+#s-login .lx-signup-row .lx-signup-link:hover {
+  color: #c7d2fe !important; -webkit-text-fill-color: #c7d2fe !important;
+}
+#s-login .lx-footer a, #s-login .lx-footer-link, #s-login a { color: #a5b4fc; }
+#s-login a:hover { color: #c7d2fe; }
+
+/* ══ SELF SERVICE PORTAL ═══════════════════════════════════════════════════
+   This one was white. Everything it carries — the 3D logo, the wordmark, the
+   company pill, the trust chips, "Request access" — stays; it simply moves
+   from day to night.
+
+   The ground is painted on .auth-bg and .auth-hero, and those are SIBLINGS of
+   the screens rather than children, so they are addressed directly. Both
+   exist only to dress the sign-in screen (fixed, z-index 0 and 1, hidden the
+   moment the app itself opens), so this reaches nothing else. And the hero is
+   a 58%-wide panel: give it the same gradient as the page and you get a seam,
+   because a radial sized to that box does not line up with one sized to the
+   viewport — so only .auth-bg carries a ground. */
+:root { --auth-surface: #0b1020; }
+.auth-bg, .auth-hero {
+  --hub-line: rgba(255,255,255,.09);
+  --hub-t1: #eef1f8; --hub-t2: #a6b0c8; --hub-t3: #6f7b96;
+  color: var(--hub-t1);
+}
+.auth-hero { background: transparent; }
+.auth-bg {
+  background:
+    radial-gradient(1100px 620px at 12% -8%, rgba(99,102,241,.20), transparent 62%),
+    radial-gradient(900px 520px at 92% 4%, rgba(139,92,246,.16), transparent 60%),
+    #0b1020;
+}
+.screen:not(#screen-app) { color: var(--hub-t1); }
+.auth-hero .hero-copy h1 { color: var(--hub-t1); }
+.auth-hero .hero-copy h1 .grad {
+  background: linear-gradient(120deg, #a5b4fc, #c4b5fd);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.auth-hero .hero-copy .eyebrow { color: #a5b4fc; }
+.auth-hero .hero-copy p { color: var(--hub-t2); }
+.auth-hero .hero-wordmark .hwt { color: var(--hub-t3); }
+.auth-hero .hero-foot .t { color: var(--hub-t2); }
+.auth-hero .hero-foot .c { color: var(--hub-t3); }
+
+/* The three floating cards were glass over white. Glass over near-black is a
+   different material — it needs its own light, not a lower opacity. The pane
+   is on ::before, not on the element, so a background on .feat does nothing. */
+.auth-hero .feat::before {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--hub-line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 14px 32px rgba(0,0,0,.42);
+}
+.auth-hero .feat:hover::before {
+  background: rgba(255,255,255,.085);
+  border-color: rgba(255,255,255,.16);
+  box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 26px 52px rgba(0,0,0,.52);
+}
+.auth-hero .feat .fi {
+  background: linear-gradient(140deg, rgba(99,102,241,.24), rgba(139,92,246,.16));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: none;
+}
+.auth-hero .feat .fi svg,
+.auth-hero .feat:nth-child(1) .fi svg,
+.auth-hero .feat:nth-child(2) .fi svg,
+.auth-hero .feat:nth-child(3) .fi svg { color: #c7d2fe; }
+.auth-hero .feat .ft-h { color: var(--hub-t1); }
+.auth-hero .feat .ft-s { color: var(--hub-t3); }
+.auth-hero .feat .ft-d > span { color: var(--hub-t2); }
+
+/* The card declares its own light palette — "the card is ALWAYS a light
+   island". It is a dark island now, and repointing those same variables is
+   what carries every nested component with it instead of chasing them one at
+   a time. */
+.screen:not(#screen-app) .auth-card {
+  --fk-bg-card: var(--hub-card);
+  --fk-bg-subtle: rgba(255,255,255,.05);
+  --fk-subtle-hover: rgba(255,255,255,.09);
+  --fk-border: var(--hub-line);
+  --fk-text: var(--hub-t1);
+  --fk-text-muted: var(--hub-t2);
+  --fk-muted-fill: var(--hub-t3);
+  --fk-primary: var(--hub-brand);
+  --fk-primary-tint: rgba(99,102,241,.14);
+  background: var(--hub-card);
+  color: var(--hub-t1);
+  border: 1px solid var(--hub-line);
+  border-radius: 15px;
+  box-shadow: var(--hub-shadow);
+}
+.screen:not(#screen-app) .brand-name, .screen:not(#screen-app) .auth-title { color: var(--hub-t1); }
+.screen:not(#screen-app) .brand-sub, .screen:not(#screen-app) .auth-sub,
+.screen:not(#screen-app) .hint, .screen:not(#screen-app) .note, .screen:not(#screen-app) .auth-switch { color: var(--hub-t2); }
+.screen:not(#screen-app) .label { color: var(--hub-t2); }
+.screen:not(#screen-app) .brand-mark {
+  background: linear-gradient(135deg, var(--hub-brand), var(--hub-brand2));
+  border: 1px solid rgba(255,255,255,.10);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(76,29,149,.38);
+}
+.screen:not(#screen-app) .co-name {
+  background: rgba(99,102,241,.14);
+  border: 1px solid rgba(99,102,241,.30);
+  color: #c7d2fe;
+}
+.screen:not(#screen-app) .input {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--hub-line);
+  color: var(--hub-t1);
+}
+.screen:not(#screen-app) .input::placeholder { color: var(--hub-t3); }
+.screen:not(#screen-app) .input:focus {
+  border-color: var(--hub-brand);
+  box-shadow: 0 0 0 3px rgba(99,102,241,.28);
+  background: rgba(255,255,255,.06);
+}
+.screen:not(#screen-app) .btn-primary {
+  background: linear-gradient(135deg, var(--hub-brand), var(--hub-brand2));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 8px 20px rgba(76,29,149,.38);
+  color: #fff;
+}
+.screen:not(#screen-app) .btn-primary:hover  { filter: brightness(1.07); }
+.screen:not(#screen-app) .btn-primary:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255,255,255,.10) inset, 0 3px 10px rgba(76,29,149,.34); }
+.screen:not(#screen-app) .auth-link { color: #a5b4fc; }
+.screen:not(#screen-app) .auth-link:hover { color: #c7d2fe; }
+/* the trust chips were tinted for a white card */
+.screen:not(#screen-app) .trust .pill {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--hub-line);
+  color: var(--hub-t2);
+}
+
+/* an error still has to be loud against a dark card */
+#s-login .lx-err, .screen:not(#screen-app) .err {
+  background: rgba(239,68,68,.12);
+  border: 1px solid rgba(239,68,68,.34);
+  color: #fecaca;
+}
+
+/* ── Why the sign-up wizard is not in here ─────────────────────────────────
+   #s-signup shares login.html but is a five-step wizard with its own 1,100-line
+   stylesheet and about ninety cyan accents of its own. Dressing only the parts
+   it borrows from the sign-in would leave a hub-dark page wrapped around a cyan
+   form, which is worse than leaving it whole. It stays exactly as it was. */
