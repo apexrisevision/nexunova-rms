@@ -647,7 +647,14 @@ function doLogout(reason){
      not that — the person did not choose to leave, and throwing them at a menu
      instead of the login they were about to use would be an obstacle, not a
      courtesy. Hence the reason check. */
-  if(!reason || reason === 'logout'){
+  /* NOT inside the desktop app. "Nexunova RMS" on Windows is an Electron shell
+     around this page: it asks for the company code, username and password in a
+     native window and hands them straight here. Sending it to a hub offering the
+     Self Service Portal and Attendance would answer a question its user never
+     asked — that app IS the RMS door. It signs out to its own login screen, the
+     way it always has. */
+  const _isDesktop = /Electron/i.test(navigator.userAgent || '');
+  if((!reason || reason === 'logout') && !_isDesktop){
     try{ localStorage.removeItem('nx.hub.app'); }catch(_){ }
     setTimeout(()=>{ location.href = '/app.html?logout=1'; }, 120);
   }
