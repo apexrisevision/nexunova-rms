@@ -28,8 +28,11 @@
 
      It is also why the installed app can become this without anybody
      reinstalling: the manifest keeps its id, so Chrome treats it as the same
-     app and simply updates start_url. An employee's icon behaves exactly as it
-     did — it lands them in the portal — because the hub remembers.
+     app and simply updates start_url. An employee's icon still lands them in
+     the portal, because the hub remembers — it just plays the splash on the
+     way, which the portal itself never did. And the portal sends a plain
+     launch here even on installs whose start_url has not been rewritten yet,
+     so this is what happens on every open, today, without a reinstall.
 
      THE SPLASH is the desktop app's splash, rebuilt for the web: the same
      breathing logo, the same two counter-rotating arcs, the same pulse rings
@@ -260,18 +263,25 @@
     }, 380);
   }
 
+  /* A same-origin door is opened with #hub on it. The portal's installed
+     start_url still points at the portal itself, so that page sends a plain
+     launch back here — which is what makes the splash play on every open. The
+     marker is how it knows the hub has ALREADY played and it should stay put;
+     without it the two would bounce off each other forever. */
+  function land(url) { return url.charAt(0) === '/' ? url + '#hub' : url; }
+
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
     ls(function () { localStorage.setItem(KEY, which); });
     // the splash returns as the hop, so the last thing seen is the logo
     splash.classList.remove('out');
     splash.style.display = 'flex';
-    location.href = a.url;
+    location.href = land(a.url);
   };
 
   if (remembered && APPS[remembered]) {
     // Straight through — the splash IS the loading screen, no doors, no spinner.
-    done = function () { location.replace(APPS[remembered].url); };
+    done = function () { location.replace(land(APPS[remembered].url)); };
     return;
   }
 

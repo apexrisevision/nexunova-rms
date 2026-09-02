@@ -2435,6 +2435,43 @@ async function bootstrap(){
   PENDING_TAB=params.get('tab')||null;      // push notifications deep-link here
   PENDING_ANN=params.get('ann')||null;
   PENDING_BRIEF=!!params.get('brief');
+
+  /* ── the hub, without waiting for Chrome ────────────────────────────────
+     Every phone that already has this installed opens /sales-portal.html,
+     because that is the start_url frozen into its install. The manifest now
+     points at the hub, but Chrome re-reads a manifest on ITS schedule — a
+     launch or two, sometimes a day — and until it does, the icon lands here
+     and the hub may as well not exist for the people it was built for.
+
+     So this page hands over itself, on EVERY plain launch — which is what
+     makes the splash the first thing seen each time the app opens, the way
+     the desktop app opens. The hub plays it, then comes straight back here
+     because it remembers the door; it does not ask again.
+
+     The hop happens before the session is restored, so it costs one page load
+     and never a sign-out: the token lives in localStorage and is still there
+     when we land back.
+
+     #hub is how the loop is broken. The hub puts it on the URL it sends us to,
+     so a launch carrying it knows the splash has already played and stays. A
+     launch without it — the icon, a fresh window — goes to the hub first.
+
+     A link that NAMES where it is going is left alone: /crm, /join/<code>, an
+     invitation, or a push notification's deep link. Those are not the icon. */
+  try{
+    const _named   = location.pathname !== '/sales-portal.html';
+    const _fromHub = location.hash === '#hub';
+    // belt as well as braces: even if the fragment were ever lost in transit,
+    // this hop can happen at most once per browsing session, so the two pages
+    // can never ping-pong.
+    let _bounced=null; try{ _bounced=sessionStorage.getItem('nx.hub.bounce'); }catch(e){}
+    if(!_named && !_fromHub && !_bounced
+       && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
+      try{ sessionStorage.setItem('nx.hub.bounce','1'); }catch(e){}
+      location.replace('/app.html'); return;
+    }
+  }catch(e){}
+
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
   if(saved){ TOKEN=saved; try{ UPLOAD_TOKEN=localStorage.getItem('rms.sales.uptok')||null; }catch(e){}
@@ -2444,31 +2481,6 @@ async function bootstrap(){
     _clearSession(); }
   if(signup){ SIGNUP_TOKEN=signup; return openSignupLink(signup); }
   if(joinCode){ return openJoinLink(joinCode); }
-
-  /* ── the hub, without waiting for Chrome ────────────────────────────────
-     Every phone that already has this installed opens /sales-portal.html,
-     because that is the start_url frozen into its install. The manifest now
-     points at the hub, but Chrome re-reads a manifest on ITS schedule — a
-     launch or two, sometimes a day — and until it does, the icon lands here
-     and the hub may as well not exist for the people it was built for.
-
-     So this page hands over itself. Only on a cold start with NO session and
-     NO door ever chosen: somebody already signed in is not interrupted, and
-     once a door has been chosen the key is set and this never fires again —
-     which is also what stops the hub and this page bouncing off each other,
-     since choosing "Self Service Portal" is precisely what sets it.
-
-     A link carrying an invitation, a join code or a deep link is left alone;
-     those name their destination and are not a plain launch. */
-  try{
-    // /crm is the link the office hands out — it names the portal, so it opens
-    // the portal. Only a bare launch of this page is treated as "the icon".
-    const _named = location.pathname !== '/sales-portal.html';
-    if(!_named && !localStorage.getItem('nx.hub.app')
-       && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
-      location.replace('/app.html'); return;
-    }
-  }catch(e){}
 
   return openPortalDefault();
 }
