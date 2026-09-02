@@ -64,7 +64,7 @@
   var AGENTTX = ['js/pages/agenttransactions.js?v=20260713a'].concat(AGENTS);
   // Change Unit is built on the same rops-* system as Transfer and borrows its
   // _opsWarmCSS bridge, so transfers.js must load with it.
-  var UNITCHANGE = ['js/pages/unitchange.js?v=20260713b'].concat(TRANSFERS);
+  var UNITCHANGE = ['js/pages/unitchange.js?v=20260902words'].concat(TRANSFERS);
 
   // ── nav-key → script srcs ────────────────────────────────────────────────
   var M = {
@@ -82,7 +82,7 @@
 
     recovery: ['js/pages/recovery.js?v=20260614rec'],
     addpayment: ['js/pages/payments.js?v=20260721shift'],
-    receipts: ['js/pages/receipts.js?v=20260902bank'],
+    receipts: ['js/pages/receipts.js?v=20260902words'],
     pdc: ['js/pages/pdc.js?v=20260613ps'],
     cancelledunits: ['js/pages/cancelled.js?v=20260720cxl'],
     transferunits: ['js/pages/transferred.js?v=20260613ps'],

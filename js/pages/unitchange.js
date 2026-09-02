@@ -497,7 +497,10 @@ function _ucSecChargesHTML() {
           </div>
           <div class="rops-fr">
             <label class="rops-fl">Documentation</label>
-            <input type="text" inputmode="numeric" class="rops-inp" value="0"
+            <!-- data-words: the label alone does not say "charges", so the
+                 amount-in-words rule needs telling — its two neighbours qualify
+                 on their own and the row would otherwise read unevenly. -->
+            <input type="text" inputmode="numeric" class="rops-inp" value="0" data-words
                    oninput="_ucData.docCharges=this.value; _ucUpdateSummary()">
           </div>
           <div class="rops-fr">

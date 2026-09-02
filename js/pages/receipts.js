@@ -69,7 +69,9 @@ function rReceipts(receiveUnitId) {
           '<div class="nx-field" style="margin:0"><label class="nx-label">Status</label>' +
             '<select class="nx-select" onchange="_rvFilter.status=this.value;_rvApplyFilter()">' + statusOpts + '</select></div>' +
           '<div class="nx-field" style="margin:0;min-width:110px"><label class="nx-label">Amount</label>' +
-            '<input class="nx-input num" type="text" placeholder="50,000" oninput="_rvFilter.amount=this.value;clearTimeout(_rvSearchTimer);_rvSearchTimer=setTimeout(_rvApplyFilter,220)"></div>' +
+            // data-no-words: this is a search box, not a figure being entered —
+            // spelling it out would only make the filter bar taller.
+            '<input class="nx-input num" type="text" placeholder="50,000" data-no-words oninput="_rvFilter.amount=this.value;clearTimeout(_rvSearchTimer);_rvSearchTimer=setTimeout(_rvApplyFilter,220)"></div>' +
           '<div style="display:flex;align-items:flex-end">' +
             NX.button('Reset', { variant:'ghost', size:'sm', onclick:"_rvFilter={voucherNo:'',client:'',fr:'',to:'',mode:'All',amount:'',status:'All'};rReceipts()" }) + '</div>' +
         '</div>', { compact:true }) +

@@ -247,6 +247,13 @@
 .nx-field--error .nx-textarea{ border-color: var(--fk-danger); }
 .nx-error{ font-size: var(--fk-fs-label); color: var(--fk-danger); min-height: 14px; }
 
+/* Amount in words, under a money field — js/foundation/amount-words.js.
+   Quiet on purpose: it confirms the figure, it does not compete with it. */
+.nx-amt-words{
+  font-size: var(--fk-fs-label); color: var(--fk-text-muted);
+  letter-spacing: .2px; line-height: 1.4;
+}
+
 
 /* ── 6. BADGE / CHIP ──────────────────────────────────────────────────── */
 /* <span class="nx-badge nx-badge--success">Active</span> */
