@@ -4,8 +4,13 @@
 // (always the latest app when online) with an offline fallback to the cached shell.
 // Scoped to /sales-portal.html only (registered with that scope) so the admin app
 // (login.html) is never controlled. API/POST traffic is left untouched.
-const CACHE = 'nxcrm-portal-v1';
+const CACHE = 'nxcrm-portal-v2';
 const SHELL = '/sales-portal.html';
+// The hub is served at /sales-portal.html/hub — inside this worker's scope, on
+// purpose, because that is the only scope the already-installed app has. It is
+// a DIFFERENT page from the shell, so it must never be written over the shell's
+// cache entry, or an offline launch would show the hub in the portal's place.
+const HUB = '/sales-portal.html/hub';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -24,9 +29,15 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;                      // never touch POST/API mutations
   if (req.mode === 'navigate') {                          // page load → fresh, cache as offline fallback
+    const isHub = new URL(req.url).pathname === HUB;
     e.respondWith(
       fetch(req)
-        .then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(SHELL, cp)).catch(() => {}); return r; })
+        .then(r => {
+          if (!isHub) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(SHELL, cp)).catch(() => {}); }
+          return r;
+        })
+        // offline: the hub cannot be reached, so open the portal itself rather
+        // than nothing at all
         .catch(() => caches.match(SHELL))
     );
     return;

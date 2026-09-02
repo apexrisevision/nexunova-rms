@@ -9,6 +9,10 @@
       "destination": "/app.html"
     },
     {
+      "source": "/sales-portal.html/hub",
+      "destination": "/app.html"
+    },
+    {
       "source": "/crm",
       "destination": "/sales-portal.html"
     },
@@ -86,6 +90,15 @@
     },
     {
       "source": "/app.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/sales-portal.html/hub",
       "headers": [
         {
           "key": "Cache-Control",

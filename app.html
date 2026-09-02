@@ -248,13 +248,20 @@
     setTimeout(function () { if (done) done(); }, 300);
   })();
 
+  var revealed = false;
   function reveal() {
+    if (revealed) return; revealed = true;
     splash.classList.add('out');
     setTimeout(function () {
       splash.style.display = 'none';
       document.getElementById('wrap').classList.add('show');
     }, 380);
   }
+  /* The doors are the whole point of this page, so nothing is allowed to leave
+     somebody staring at a splash that never lifts — not a stalled timer, not a
+     throw further down this file. Two and a half seconds and they open,
+     whatever else happened. */
+  setTimeout(reveal, 2500);
 
   /* A same-origin door is opened with #hub on it. The portal's installed
      start_url still points at the portal itself, so that page sends a plain

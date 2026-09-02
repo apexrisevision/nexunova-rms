@@ -2451,12 +2451,20 @@ async function bootstrap(){
      and never a sign-out: the token lives in localStorage and is still there
      when we land back.
 
+     WHERE the hub is matters. The manifest frozen into the phones that already
+     have this installed says scope /sales-portal.html, and a standalone window
+     will not navigate itself outside its own scope — sending it to /app.html
+     left it sitting on a blank screen, which is the "app stuck" that was
+     reported. A scope is matched as a plain string prefix, so
+     /sales-portal.html/hub is INSIDE it; a rewrite serves the same hub there.
+
      #hub is how the loop is broken. The hub puts it on the URL it sends us to,
      so a launch carrying it knows the splash has already played and stays. A
      launch without it — the icon, a fresh window — goes to the hub first.
 
      A link that NAMES where it is going is left alone: /crm, /join/<code>, an
      invitation, or a push notification's deep link. Those are not the icon. */
+  let _hopped=false;
   try{
     const _named   = location.pathname !== '/sales-portal.html';
     const _fromHub = location.hash === '#hub';
@@ -2467,9 +2475,15 @@ async function bootstrap(){
     if(!_named && !_fromHub && !_bounced
        && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
       try{ sessionStorage.setItem('nx.hub.bounce','1'); }catch(e){}
-      location.replace('/app.html'); return;
+      location.replace('/sales-portal.html/hub'); _hopped=true;
     }
   }catch(e){}
+  /* A navigation that takes tears this page down, so nothing below this line
+     ever runs on the normal path. If it DOES run, the hop did not happen —
+     and whatever the reason, the one thing this must never do is leave an
+     employee looking at a blank screen. Wait a moment for the navigation, then
+     carry on and open the portal exactly as it always did. */
+  if(_hopped) await new Promise(r=>setTimeout(r,2500));
 
   // restore an active session FIRST so refreshing the link does not log anyone out
   const saved=_validSession();
