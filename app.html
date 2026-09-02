@@ -8,7 +8,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/assets/icon-192.png">
 <link rel="apple-touch-icon" href="/assets/icon-192.png">
-<link rel="preload" as="image" href="/assets/icon-512.png">
+<link rel="preload" as="image" href="/assets/nexunova-splash.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -63,11 +63,20 @@
     min-height:100dvh; overflow:hidden;
   }
 
-  /* ══ SPLASH — the desktop app's, on the web ══════════════════════════ */
+  /* ══ SPLASH ══════════════════════════════════════════════════════════
+     A copy of electron/splash.html, not an interpretation of it. Every value
+     below — 260px, 26px, 21px, 0.38em, every inset, every duration and every
+     rgba — is the desktop app's own. The only thing that could not cross over
+     is the transparent window: on Windows the desktop shows through behind the
+     logo, and a web page has no such thing, so it sits on this page's own
+     background instead. Nothing else differs, including the logo, which is the
+     identical 2290px file copied byte for byte out of the desktop build.
+     ══════════════════════════════════════════════════════════════════════ */
   #splash{
     position:fixed; inset:0; z-index:10; display:flex;
     flex-direction:column; align-items:center; justify-content:center; gap:26px;
     background:inherit;
+    font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
   }
   #splash.out{animation:wrapOut .55s cubic-bezier(.4,0,1,1) forwards}
   @keyframes wrapOut{to{opacity:0;transform:translateY(-10px) scale(.96)}}
@@ -77,7 +86,9 @@
   }
   @keyframes wrapIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-  .logo-shell{position:relative;width:min(230px,54vw);height:min(230px,54vw);
+  /* 260px, exactly as on the desktop. On a narrow phone it steps down only far
+     enough to stay on the screen — never smaller than it has to be. */
+  .logo-shell{position:relative;width:260px;height:260px;max-width:82vw;max-height:82vw;
     display:flex;align-items:center;justify-content:center}
   .ring-spin{position:absolute;inset:-14px;border-radius:50%;
     background:conic-gradient(from 0deg,transparent 0%,rgba(56,189,248,.90) 18%,rgba(129,140,248,.70) 30%,rgba(192,132,252,.50) 40%,transparent 55%);
@@ -104,12 +115,11 @@
   @keyframes logoBreathe{
     0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 28px rgba(56,189,248,.65)) drop-shadow(0 0 65px rgba(168,85,247,.42))}
     50%{transform:scale(1.03) translateY(-6px);filter:drop-shadow(0 0 42px rgba(56,189,248,.85)) drop-shadow(0 0 88px rgba(168,85,247,.58))}}
-  .typewriter{font-size:clamp(16px,4.6vw,21px);font-weight:800;letter-spacing:.38em;
+  .typewriter{font-size:21px;font-weight:800;letter-spacing:.38em;
     min-height:32px;text-align:center;text-indent:.38em;
     background:linear-gradient(90deg,#38bdf8 0%,#818cf8 50%,#c084fc 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
     filter:drop-shadow(0 0 10px rgba(56,189,248,.38))}
-  .sp-note{font-size:12px;color:var(--t3);letter-spacing:.02em;min-height:16px}
 
   /* the moment somebody presses a door, the splash comes back as the hop */
   @media (prefers-reduced-motion:reduce){
@@ -163,10 +173,9 @@
       <div class="ring-spin"></div>
       <div class="ring-pulse"></div>
       <div class="ring-pulse-2"></div>
-      <img class="logo" src="/assets/icon-512.png" alt="">
+      <img class="logo" src="/assets/nexunova-splash.png" alt="">
     </div>
     <div class="typewriter" id="tw"></div>
-    <div class="sp-note" id="sp-note"></div>
   </div>
 </div>
 
@@ -223,7 +232,6 @@
     attend: { url: 'https://attend.nexunova.com/login.html', name: 'Attendance' }
   };
   var splash = document.getElementById('splash');
-  var note   = document.getElementById('sp-note');
 
   function ls(fn, dflt) { try { return fn(); } catch (e) { return dflt; } }
   var params = new URLSearchParams(location.search);
@@ -256,7 +264,6 @@
     var a = APPS[which]; if (!a) return;
     ls(function () { localStorage.setItem(KEY, which); });
     // the splash returns as the hop, so the last thing seen is the logo
-    note.textContent = 'Opening ' + a.name + '…';
     splash.classList.remove('out');
     splash.style.display = 'flex';
     location.href = a.url;
@@ -264,7 +271,6 @@
 
   if (remembered && APPS[remembered]) {
     // Straight through — the splash IS the loading screen, no doors, no spinner.
-    note.textContent = 'Opening ' + APPS[remembered].name + '…';
     done = function () { location.replace(APPS[remembered].url); };
     return;
   }
