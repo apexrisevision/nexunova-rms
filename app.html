@@ -8,7 +8,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/assets/icon-192.png">
 <link rel="apple-touch-icon" href="/assets/icon-192.png">
-<link rel="preload" as="image" href="/assets/nexunova-splash.png">
+<link rel="preload" as="image" href="/assets/nexunova-splash.png?v=1024">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -141,52 +141,104 @@
   }
 
   /* Where the mark lands. It is the identical shell — same image, same two
-     arcs, same pulses, same aura, same breathing — held at 46px by one scale on
-     the shell itself, so every inset and every blur shrinks with it rather than
-     being redrawn by hand at a small size. It is invisible until the flying
-     copy arrives on top of it, and the swap happens with the two at the same
-     size in the same place. */
-  .logo-mini{position:relative;width:46px;height:46px;flex:0 0 46px;
+     arcs, same pulses, same aura, same breathing — held at one size by a single
+     scale on the shell itself, so every inset and every blur shrinks with it
+     rather than being redrawn by hand at a small size. It is invisible until
+     the flying copy arrives on top of it, and the swap happens with the two at
+     the same size in the same place.
+     116px, not 46: at 46 the mark read as a speck beside the wordmark and the
+     whole point of keeping the logo was lost. 116/260 = .4462. */
+  .logo-mini{position:relative;width:116px;height:116px;flex:0 0 116px;margin:0 auto;
     opacity:0;transition:opacity .2s ease}
   .wrap.landed .logo-mini{opacity:1}
   .logo-mini .logo-shell{position:absolute;left:50%;top:50%;
     width:260px;height:260px;max-width:none;max-height:none;
-    transform:translate(-50%,-50%) scale(.1769);transform-origin:50% 50%}
+    transform:translate(-50%,-50%) scale(.4462);transform-origin:50% 50%}
 
-  /* ══ THE DOORS ═══════════════════════════════════════════════════════ */
-  .wrap{width:100%;max-width:460px;opacity:0;transition:opacity .45s ease}
+  /* ══ THE DOORS ═══════════════════════════════════════════════════════
+     The mark comes to rest at the top and the wordmark sits under it, the same
+     stack the splash had — so the screen the flight lands on is recognisably
+     the screen it left, only opened out. Everything below that is three doors
+     and nothing else. */
+  .wrap{width:100%;max-width:452px;opacity:0;transition:opacity .45s ease;position:relative;z-index:1}
   .wrap.show{opacity:1}
-  .brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:6px}
+  .brand{display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
   /* .brand img used to size the flat 38px icon that sat here. The mark is the
      splash's own shell now, and that rule outranked .logo's width:100% — it
      squeezed the image to 38px inside a 260px shell that is then scaled down,
      so the logo arrived as a seven-pixel speck. The shell sizes itself. */
-  .brand .n{font-size:19px;font-weight:800;letter-spacing:-.2px}
-  .brand .n span{background:linear-gradient(120deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .sub{text-align:center;color:var(--t2);font-size:13.5px;margin-bottom:22px}
+  .brand .n{margin-top:10px;font-size:27px;font-weight:800;
+    letter-spacing:.30em;text-indent:.30em;line-height:1;
+    background:linear-gradient(90deg,#38bdf8 0%,#818cf8 50%,#c084fc 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+    filter:drop-shadow(0 0 12px rgba(56,189,248,.30))}
+  .brand .nt{margin-top:9px;font-size:10px;font-weight:600;letter-spacing:.34em;
+    text-indent:.34em;text-transform:uppercase;color:var(--t3)}
+  .sub{text-align:center;color:var(--t2);font-size:13.5px;margin:20px 0 16px}
 
-  .card{display:flex;align-items:center;gap:14px;width:100%;
-    background:var(--card);border:1px solid var(--line);border-radius:15px;
-    padding:15px 16px;margin-bottom:11px;cursor:pointer;text-align:left;
-    color:inherit;font:inherit;box-shadow:var(--sh);
-    transition:transform .16s ease,background .16s ease,border-color .16s ease}
-  .card:hover{background:var(--card-h);border-color:rgba(255,255,255,.16);transform:translateY(-1px)}
-  .card:active{transform:translateY(0) scale(.995)}
-  .card:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .ic{width:44px;height:44px;flex:0 0 44px;border-radius:11px;display:grid;place-items:center;
-    background:linear-gradient(140deg,rgba(99,102,241,.24),rgba(139,92,246,.16));
-    border:1px solid rgba(255,255,255,.10)}
-  .ic svg{width:21px;height:21px;stroke:#c7d2fe;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  /* Each door owns a colour. It is never loud — a thread down the left edge, a
+     lit tile, and a bloom that only wakes when the door is under the cursor. */
+  .card{position:relative;overflow:hidden;
+    display:flex;align-items:center;gap:15px;width:100%;
+    background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.022));
+    border:1px solid rgba(255,255,255,.09);border-radius:18px;
+    padding:17px 18px;margin-bottom:12px;cursor:pointer;text-align:left;
+    color:inherit;font:inherit;
+    box-shadow:0 1px 0 rgba(255,255,255,.07) inset,0 12px 30px rgba(0,0,0,.40);
+    transition:transform .18s cubic-bezier(.22,1,.36,1),border-color .18s ease,box-shadow .18s ease}
+  .card::before{content:'';position:absolute;inset:-60% -20% auto -20%;height:200%;
+    background:radial-gradient(52% 52% at 16% 0%,var(--tint),transparent 72%);
+    opacity:.45;transition:opacity .28s ease;pointer-events:none}
+  .card::after{content:'';position:absolute;left:0;top:15px;bottom:15px;width:3px;
+    border-radius:0 3px 3px 0;background:linear-gradient(180deg,var(--c1),var(--c2));
+    box-shadow:0 0 14px var(--tint)}
+  .card>*{position:relative;z-index:1}
+  .card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.20);
+    box-shadow:0 1px 0 rgba(255,255,255,.10) inset,0 20px 44px rgba(0,0,0,.52)}
+  .card:hover::before{opacity:1}
+  .card:active{transform:translateY(-1px) scale(.994)}
+  .card:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  .c-rms{--c1:#60a5fa;--c2:#6366f1;--tint:rgba(99,102,241,.26)}
+  .c-portal{--c1:#a78bfa;--c2:#8b5cf6;--tint:rgba(139,92,246,.26)}
+  .c-attend{--c1:#38bdf8;--c2:#22d3ee;--tint:rgba(34,211,238,.22)}
+
+  .ic{width:48px;height:48px;flex:0 0 48px;border-radius:14px;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--c1),var(--c2));
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 8px 20px var(--tint);
+    transition:transform .18s cubic-bezier(.22,1,.36,1)}
+  .card:hover .ic{transform:scale(1.06)}
+  .ic svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
   /* the label parts are spans (a button may not contain divs), so they are
      told to stack — left inline they run together into one sentence */
   .tx{flex:1;min-width:0;display:block}
-  .tt{display:block;font-size:15px;font-weight:700;letter-spacing:-.1px}
-  .ds{display:block;font-size:12.5px;color:var(--t3);margin-top:2px;line-height:1.35}
-  .go{color:var(--t3);flex:0 0 auto}
-  .go svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .tt{display:block;font-size:16px;font-weight:700;letter-spacing:-.15px}
+  .ds{display:block;font-size:12.5px;color:var(--t3);margin-top:3px;line-height:1.38}
+  .go{color:var(--t3);flex:0 0 auto;transition:transform .18s cubic-bezier(.22,1,.36,1),color .18s ease}
+  .card:hover .go{transform:translateX(3px);color:var(--t1)}
+  .go svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
   .who{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:600;color:var(--ok)}
   .who[hidden]{display:none}
-  .foot{margin-top:16px;text-align:center;color:var(--t3);font-size:11.5px;line-height:1.6}
+  .foot{margin-top:18px;text-align:center;color:var(--t3);font-size:11.5px;line-height:1.65}
+
+  /* the doors arrive one after another rather than all at once — the same
+     unhurried feeling the splash has */
+  .wrap.show .card{animation:doorIn .5s cubic-bezier(.22,1,.36,1) both}
+  .wrap.show .card:nth-of-type(1){animation-delay:.06s}
+  .wrap.show .card:nth-of-type(2){animation-delay:.13s}
+  .wrap.show .card:nth-of-type(3){animation-delay:.20s}
+  @keyframes doorIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* very short phones: give the mark less room rather than a scrollbar */
+  @media (max-height:700px){
+    .logo-mini{width:88px;height:88px;flex:0 0 88px}
+    .logo-mini .logo-shell{transform:translate(-50%,-50%) scale(.3385)}
+    .brand .n{font-size:23px}
+    .sub{margin:15px 0 13px}
+    .card{padding:14px 16px;margin-bottom:10px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .wrap.show .card{animation:none}
+  }
 </style>
 </head>
 <body>
@@ -202,7 +254,7 @@
       <div class="ring-spin"></div>
       <div class="ring-pulse"></div>
       <div class="ring-pulse-2"></div>
-      <img class="logo" src="/assets/nexunova-splash.png" alt="">
+      <img class="logo" src="/assets/nexunova-splash.png?v=1024" alt="">
     </div>
     <div class="typewriter" id="tw"></div>
   </div>
@@ -218,14 +270,15 @@
         <span class="ring-spin"></span>
         <span class="ring-pulse"></span>
         <span class="ring-pulse-2"></span>
-        <img class="logo" src="/assets/nexunova-splash.png" alt="">
+        <img class="logo" src="/assets/nexunova-splash.png?v=1024" alt="">
       </span>
     </span>
-    <div class="n">Nexu<span>nova</span></div>
+    <div class="n">NEXUNOVA</div>
+    <div class="nt">Innovate · Automate · Elevate</div>
   </div>
   <div class="sub" id="sub">Which one are you opening?</div>
 
-  <button class="card" id="c-rms" onclick="go('rms')">
+  <button class="card c-rms" id="c-rms" onclick="go('rms')">
     <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></span>
     <span class="tx">
       <span class="tt">RMS</span>
@@ -235,7 +288,7 @@
     <span class="go"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
   </button>
 
-  <button class="card" id="c-portal" onclick="go('portal')">
+  <button class="card c-portal" id="c-portal" onclick="go('portal')">
     <span class="ic"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
     <span class="tx">
       <span class="tt">Self Service Portal</span>
@@ -245,7 +298,7 @@
     <span class="go"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
   </button>
 
-  <button class="card" id="c-attend" onclick="go('attend')">
+  <button class="card c-attend" id="c-attend" onclick="go('attend')">
     <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
     <span class="tx">
       <span class="tt">Attendance</span>
@@ -279,19 +332,39 @@
      cleared on the way past rather than left to sit in people's browsers. */
   ls(function () { localStorage.removeItem('nx.hub.app'); });
 
-  // ── the typed word, exactly as the desktop splash types it ──────────────
+  /* ── when the splash starts, and how long it stays ──────────────────────
+     The typing used to begin the moment this script was parsed, which on a cold
+     launch is well before the logo — a 2290px file — has arrived. So the word
+     typed itself and the mark flew away over an empty circle, and the splash
+     seemed to vanish the instant the app opened. It waits for the picture now,
+     and once it has one it stays on screen for a set time whether the typing
+     took long or not. Coming back from a door is a warm load: the file is
+     cached, so it starts at once and the floor is what holds it. */
+  var MIN_SPLASH = 1900;                  // it is meant to be watched
+  var t0 = Date.now(), typed = false;
+
   var WORD = 'NEXUNOVA', tw = document.getElementById('tw'), i = 0, done = null;
-  (function typeNext() {
+  function typeNext() {
     if (i <= WORD.length) { tw.textContent = WORD.slice(0, i); i++; return setTimeout(typeNext, i <= 1 ? 80 : 60); }
-    setTimeout(function () { if (done) done(); }, 300);
-  })();
+    typed = true;
+    var left = Math.max(300, MIN_SPLASH - (Date.now() - t0));
+    setTimeout(function () { if (done) done(); }, left);
+  }
+
+  (function whenLogoIsThere(start) {
+    var img = splash.querySelector('.logo');
+    if (img && img.complete && img.naturalWidth) return start();
+    var went = false, go = function () { if (went) return; went = true; start(); };
+    if (img) { img.addEventListener('load', go); img.addEventListener('error', go); }
+    setTimeout(go, 2600);                 // never hang on a bad connection
+  })(typeNext);
 
   var wrap  = document.getElementById('wrap');
   var shell = splash.querySelector('.logo-shell');
   var mini  = document.getElementById('mini');
   var slow  = !window.matchMedia || !matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* Where the mark has to end up: the centre of the 46px slot at the top of the
+  /* Where the mark has to end up: the centre of the slot at the top of the
      doors, and the size of it. Measured rather than assumed, because the shell
      is 260px on a desk and 82vw on a narrow phone, and the slot moves with the
      text beside it. */
@@ -323,9 +396,10 @@
   }
   /* The doors are the whole point of this page, so nothing is allowed to leave
      somebody staring at a splash that never lifts — not a stalled timer, not a
-     throw further down this file. Two and a half seconds and they open,
-     whatever else happened. */
-  setTimeout(reveal, 2500);
+     throw further down this file. This is a last resort and nothing else, so it
+     sits well past the longest honest splash: up to 2.6s waiting for the
+     picture, then the typing, then the floor. */
+  setTimeout(reveal, 6000);
 
   /* A same-origin door is opened with #hub on it. The portal's installed
      start_url still points at the portal itself, so that page sends a plain
