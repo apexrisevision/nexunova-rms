@@ -2910,9 +2910,18 @@ function _syncBtabs(t){
   document.querySelectorAll('#btabs .btab').forEach(b=>b.classList.toggle('on', b.getAttribute('data-btab')===base));
 }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
-  if(ME&&ME.role==='lead_entry'){ setTab('leadentry'); try{ _startProfileWatch(); }catch(e){} return; }
-  if(ME&&_isOfficeRole(ME.role)){ setTab('home'); try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
-  setTab(PENDING_TAB==='alerts'?'alerts':'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
+  if(ME&&ME.role==='lead_entry'){ setTab(PENDING_TAB||'leadentry'); PENDING_TAB=null; try{ _startProfileWatch(); }catch(e){} return; }
+  /* The office side returns early, and it used to hardcode 'home' — so a deep
+     link from a notification was thrown away for exactly the people the
+     notifications are sent to. It honours ?tab= like every other role now;
+     setTab still applies its own permission check on the way through. */
+  if(ME&&_isOfficeRole(ME.role)){ setTab(PENDING_TAB||'home'); PENDING_TAB=null; try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
+  /* ?tab= is honoured for ANY screen, not only alerts. It used to read
+     PENDING_TAB==='alerts'?'alerts':'home', so every other deep link was
+     silently swallowed and the person landed on the dashboard wondering what
+     the notification had been about. setTab does its own permission check, so
+     a tab somebody may not open still falls back safely. */
+  setTab(PENDING_TAB || 'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ _notifLoad(); }catch(e){} try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
@@ -8167,6 +8176,8 @@ async function _myrecLoadDailyReport(){
     const r = await _myrecCall({ action: 'daily_report' });
     MYREC.rep = (r && r.ok !== false && r.report) ? r : null;
   }catch(e){ MYREC.rep = null; }
+  // The card lives on two screens now, so the answer has to reach both.
+  if(TAB === 'home') { try{ renderMyHome(); }catch(e){} return; }
   if(TAB === 'ess-att' || MYREC.sub === 'attendance') renderMyRecord();
 }
 
@@ -8176,6 +8187,10 @@ async function _myrecLoadDailyReport(){
    opens it. The register freezes the names WITH the figures at 10:45, so what
    prints is the morning and not whatever the device has sent since. */
 async function _myrecOpenSheet(){
+  /* The card is on the Dashboard as well as on Attendance, and the sheet is
+     drawn by renderMyRecord — so pressing it from the Dashboard has to move to
+     the page that can draw it, or nothing happens at all. */
+  if(TAB !== 'ess-att'){ MYREC.sub = 'attendance'; MYREC.sheetOpen = true; setTab('ess-att'); return; }
   MYREC.sheetOpen = true;
   if(MYREC.sheet === undefined){
     MYREC.sheet = null;
@@ -9175,6 +9190,16 @@ async function renderMyHome(){
   }
 
   let html = '<div class="nx-dash"><div class="ess">';
+
+  /* The register's morning, on the screen this person actually lands on.
+     It was only on the Attendance page, which meant the notification fired and
+     then the report was nowhere to be found — an office role opens on THIS
+     screen and would have had to go looking for it. Same permission, same
+     reader, same card; it simply also appears where the day starts. */
+  if(MYREC.rep === undefined) _myrecLoadDailyReport();
+  if(MYREC.rep && MYREC.rep.report){
+    html += '<div class="ess-12">' + _myrecDailyReportHTML() + '</div>';
+  }
 
   html += '<div class="ess-12 ep herometric nx-rise"><div class="eh">'
     + '<div class="eh-id">'
@@ -10778,6 +10803,8 @@ async function renderMyRecord(){
      put this person's own month and identity card onto a sheet meant to be
      forwarded to a group, so it replaces rather than joins. */
   if(MYREC.sub==='attendance' && MYREC.sheetOpen){
+    // Arriving here from the Dashboard, the sheet has not been asked for yet.
+    if(MYREC.sheet === undefined) _myrecOpenSheet();
     // Deliberately NOT the accumulated html: no page head, no identity card —
     // only the thing being forwarded.
     b.innerHTML = '<div class="nx-dash">' + _myrecSheetPageHTML() + '</div>';

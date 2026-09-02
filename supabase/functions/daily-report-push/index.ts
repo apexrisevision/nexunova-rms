@@ -74,7 +74,10 @@ Deno.serve(async (req) => {
             payload: {
               title: `${t.attend_company_name ?? 'Attendance'} — today`,
               body,
-              url: 'https://rms.nexunova.com/sales-portal.html',
+              // ?tab= lands ON the report. Without it the service worker
+              // navigates an already-open portal to the URL it is already on,
+              // which looks exactly like a notification that does nothing.
+              url: 'https://rms.nexunova.com/sales-portal.html?tab=ess-att',
             },
           }),
         });
