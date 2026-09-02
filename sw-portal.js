@@ -29,15 +29,15 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;                      // never touch POST/API mutations
   if (req.mode === 'navigate') {                          // page load → fresh, cache as offline fallback
-    const isHub = new URL(req.url).pathname === HUB;
+    // The hub only lives inside this worker's scope because that is the one
+    // scope the already-installed app has; it is not this worker's business.
+    // Handing it back to the browser untouched keeps the browser's own timeouts
+    // and error page — a fetch() here has neither, and a stalled one is a
+    // spinner that never ends on the way back to the doors.
+    if (new URL(req.url).pathname === HUB) return;
     e.respondWith(
       fetch(req)
-        .then(r => {
-          if (!isHub) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(SHELL, cp)).catch(() => {}); }
-          return r;
-        })
-        // offline: the hub cannot be reached, so open the portal itself rather
-        // than nothing at all
+        .then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(SHELL, cp)).catch(() => {}); return r; })
         .catch(() => caches.match(SHELL))
     );
     return;

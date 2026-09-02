@@ -286,3 +286,29 @@
    stylesheet and about ninety cyan accents of its own. Dressing only the parts
    it borrows from the sign-in would leave a hub-dark page wrapped around a cyan
    form, which is worse than leaving it whole. It stays exactly as it was. */
+
+/* ══ THE WAY BACK ══════════════════════════════════════════════════════════
+   Three doors are only a choice if you can change your mind. A standalone app
+   has no browser back button, and the phone's own back key leaves the app
+   rather than stepping back through it, so the way back to the doors has to be
+   on the page itself. It sits at the top of the sign-in card, small, the same
+   shape in all three apps. */
+.hub-back {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: -6px 0 14px; padding: 6px 11px 6px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.09);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 3px 10px rgba(0,0,0,.28);
+  color: #a6b0c8;
+  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  text-decoration: none; -webkit-text-fill-color: currentColor;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease;
+}
+.hub-back svg { width: 13px; height: 13px; flex: none; stroke: currentColor; }
+.hub-back:hover {
+  background: rgba(255,255,255,.09);
+  border-color: rgba(255,255,255,.16);
+  color: #eef1f8; -webkit-text-fill-color: currentColor;
+}
+.hub-back:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 2px 6px rgba(0,0,0,.26); }

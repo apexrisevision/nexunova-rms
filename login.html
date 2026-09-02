@@ -82,7 +82,7 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
      stylesheet (incl. foundation components + shell chrome) so its media-query rules win cascade
      ties without needing !important everywhere. Keep this the last <link> in <head>. ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260622c">
-<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubA">  <!-- the hub's skin, loaded last -->
+<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubB">  <!-- the hub's skin, loaded last -->
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -462,6 +462,14 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
   <div class="lx-right">
     <div class="lx-right-line"></div>
     <div class="lx-form-card lx-reveal from-right" style="transition-delay:0.2s">
+
+      <!-- Back to the three doors. A door you cannot walk back out of is a
+           trap: the phone's back key leaves a standalone app rather than
+           returning, so the way back has to be on the page. -->
+      <a class="hub-back" href="/sales-portal.html/hub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>All apps</span>
+      </a>
 
       <!-- Small logo + brand -->
       <div class="lx-form-logo">

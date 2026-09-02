@@ -1783,7 +1783,7 @@ button.mn-card:active{transform:scale(.985)}
   .et-live::after{animation:none}
 }
 </style>
-<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubA">  <!-- the hub's skin, loaded last -->
+<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubB">  <!-- the hub's skin, loaded last -->
 </head>
 <body>
 
@@ -1828,6 +1828,13 @@ button.mn-card:active{transform:scale(.985)}
 <!-- ════════ LOGIN ════════ -->
 <div id="screen-login" class="screen active">
   <div class="auth-wrap"><div class="auth-card">
+    <!-- Back to the three doors. A door you cannot walk back out of is a trap:
+         the phone's back key leaves a standalone app rather than returning, so
+         the way back has to be on the page. -->
+    <a class="hub-back" href="/sales-portal.html/hub">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>All apps</span>
+    </a>
     <div class="brand">
       <div class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
       <div><div class="brand-name">Nexunova CRM</div><div class="brand-sub">Your sales workspace</div></div>
