@@ -8170,6 +8170,93 @@ async function _myrecLoadDailyReport(){
   if(TAB === 'ess-att' || MYREC.sub === 'attendance') renderMyRecord();
 }
 
+/* THE SHEET — the same morning named person by person, which is the thing that
+   actually gets forwarded. Loaded only when asked for: the card is what the
+   page needs, the sheet is what a WhatsApp group needs, and most days nobody
+   opens it. The register freezes the names WITH the figures at 10:45, so what
+   prints is the morning and not whatever the device has sent since. */
+async function _myrecOpenSheet(){
+  MYREC.sheetOpen = true;
+  if(MYREC.sheet === undefined){
+    MYREC.sheet = null;
+    renderMyRecord();                       // show the page with its skeleton first
+    try{
+      const r = await _myrecCall({ action: 'daily_sheet' });
+      MYREC.sheet = (r && r.ok !== false) ? r : null;
+    }catch(e){ MYREC.sheet = null; }
+  }
+  renderMyRecord();
+}
+function _myrecCloseSheet(){ MYREC.sheetOpen = false; renderMyRecord(); }
+
+/* One page, nothing else on it. Printing the whole Attendance screen would put
+   somebody's own month and identity card on a sheet meant for a group, so the
+   sheet replaces the page rather than being appended to it. */
+function _myrecSheetPageHTML(){
+  const S0 = MYREC.sheet;
+  const bar = '<div class="no-p" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 12px">'
+    + '<button class="btn btn-secondary" style="height:34px;padding:0 12px" onclick="_myrecCloseSheet()">‹ Back</button>'
+    + (S0 ? '<button class="btn btn-primary" style="height:34px;padding:0 14px" onclick="window.print()">'
+            + li('printer',15,1.8) + ' Save as PDF</button>' : '')
+    + '</div>';
+  if(!S0) return bar + '<div class="card"><div class="empty"><div class="et">Loading the day…</div></div></div>';
+
+  const rows = S0.rows || [];
+  const t = S0.totals || (function(){
+    const c = { headcount: rows.length, present: 0, late: 0, absent: 0, on_leave: 0 };
+    rows.forEach(r => { if(r.status==='late'){ c.late++; c.present++; }
+                        else if(r.status==='present') c.present++;
+                        else if(r.status==='leave') c.on_leave++; else c.absent++; });
+    return c;
+  })();
+  const LBL = { present:'Present', late:'Late', absent:'Absent', leave:'On leave' };
+  const COL = { present:'#16a34a', late:'#d97706', absent:'#dc2626', leave:'#6b7280' };
+  const when = S0.generated_at ? new Date(S0.generated_at) : null;
+  const at = when ? (String(when.getHours()).padStart(2,'0')+':'+String(when.getMinutes()).padStart(2,'0')) : '';
+
+  let h = bar + '<div class="card" id="att-sheet" style="padding:18px">'
+    + '<div style="text-align:center;margin-bottom:14px">'
+      + '<div style="font-size:var(--fs-section);font-weight:800">'+esc(S0.company||S0.tenant||'Attendance')+'</div>'
+      + '<div style="font-size:var(--fs-body);margin-top:2px">Daily attendance — '+esc(fdate(S0.date))+'</div>'
+      /* Said plainly rather than hidden: a sheet rebuilt after the fact is not
+         the morning, and anybody forwarding it should know which one they hold. */
+      + '<div class="nx-kpi-label" style="text-transform:none;margin-top:3px">'
+        + (S0.live ? ('Figures as of '+esc(at)+' — this day was not snapshotted')
+                   : ('As at '+esc(at)))
+      + '</div></div>'
+    + '<div class="ess-sum" style="margin-bottom:14px">'
+      + '<div class="ess-tile"><div class="v">'+(t.present||0)+' of '+(t.headcount||0)+'</div><div class="k">In</div></div>'
+      + '<div class="ess-tile"><div class="v" style="color:'+COL.late+'">'+(t.late||0)+'</div><div class="k">Late</div></div>'
+      + '<div class="ess-tile"><div class="v" style="color:'+COL.absent+'">'+(t.absent||0)+'</div><div class="k">Absent</div></div>'
+      + '<div class="ess-tile"><div class="v">'+(t.on_leave||0)+'</div><div class="k">On leave</div></div>'
+    + '</div>'
+    + '<table class="att-sheet-t" style="width:100%;border-collapse:collapse;font-size:var(--fs-caption)">'
+    + '<thead><tr>'
+      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">#</th>'
+      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Name</th>'
+      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Dept</th>'
+      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">In</th>'
+      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Out</th>'
+      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Status</th>'
+    + '</tr></thead><tbody>';
+  rows.forEach((r,i)=>{
+    h += '<tr>'
+      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+(i+1)+'</td>'
+      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)"><b>'+esc(r.name||'—')+'</b>'
+        + (r.code?'<div class="nx-kpi-label" style="text-transform:none">'+esc(r.code)+'</div>':'')+'</td>'
+      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+esc(r.department||'—')+'</td>'
+      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+esc(r.first_in||'—')+'</td>'
+      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+esc(r.last_out||'—')+'</td>'
+      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25);color:'+(COL[r.status]||'inherit')+'">'
+        + esc(LBL[r.status]||r.status||'—')
+        + (r.status==='late' && r.late_minutes ? ' ('+r.late_minutes+'m)' : '') + '</td>'
+    + '</tr>';
+  });
+  if(!rows.length) h += '<tr><td colspan="6" style="padding:14px;text-align:center">Nobody on the register for this day.</td></tr>';
+  h += '</tbody></table></div>';
+  return h;
+}
+
 /* The card itself. Absent people are the point of a morning report, so that is
    the figure carrying the colour; "in" is stated against the headcount because
    nine present means nothing until you know whether the company is ten or a
@@ -8187,6 +8274,9 @@ function _myrecDailyReportHTML(){
       + '<b style="font-size:var(--fs-body)">'+esc(R.tenant||'The register')+' — '+esc(day)+'</b>'
       + '<span class="nx-kpi-label" style="text-transform:none">'+(at?('as at '+esc(at)):'')+'</span>'
     + '</div>'
+    + '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
+      + '<button class="btn btn-secondary" style="height:30px;padding:0 11px;font-size:var(--fs-caption)" '
+      + 'onclick="_myrecOpenSheet()">'+li('printer',14,1.8)+' Full sheet / PDF</button></div>'
     + '<div class="ess-sum">'
       + tile((rep.present||0)+' of '+(rep.headcount||0),'In')
       + tile(rep.late||0,'Late', rep.late?'var(--fk-warning)':null)
@@ -10684,6 +10774,16 @@ async function renderMyRecord(){
   // Pay is a month's worth of money, so it needs the same month arrows the
   // attendance sheet does — but not the present/late tallies, which belong to
   // the sheet alone.
+  /* The full sheet takes the whole page. Printing the Attendance screen would
+     put this person's own month and identity card onto a sheet meant to be
+     forwarded to a group, so it replaces rather than joins. */
+  if(MYREC.sub==='attendance' && MYREC.sheetOpen){
+    // Deliberately NOT the accumulated html: no page head, no identity card —
+    // only the thing being forwarded.
+    b.innerHTML = '<div class="nx-dash">' + _myrecSheetPageHTML() + '</div>';
+    _touch(); return;
+  }
+
   /* The register's morning, for the handful of accounts it is switched on for.
      Asked once a session, and drawn ABOVE the month strip on purpose: it is
      about today, not about whichever month is being browsed, and on the day it

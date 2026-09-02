@@ -339,6 +339,25 @@ Deno.serve(async (req) => {
       return json({ tenant: ctx.attend_company_name, ...data });
     }
 
+    if (action === 'daily_sheet') {
+      /* The same morning, named person by person — what gets printed and
+         forwarded. Same permission as the figures above, for the same reason,
+         and the register is again the caller's own. The date is accepted so a
+         previous day can be reprinted; the reader itself refuses nothing, it
+         simply has no snapshot for a day that was never reported and says so. */
+      if (!ctx.may_see_daily_report) {
+        return json({ ok: false, error: 'not_allowed', message: WHY.not_allowed }, 200);
+      }
+      const { data, error } = await att.rpc('portal_daily_sheet', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
+        p_date: body.date ?? null,
+      });
+      if (error) throw error;
+      if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
+      return json({ tenant: ctx.attend_company_name, ...data });
+    }
+
     if (action === 'payslips') {
       // The finished months. What comes back is what HR issued, drafts
       // excluded on the attendance side — a slip still being edited is not
