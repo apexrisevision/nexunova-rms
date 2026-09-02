@@ -211,8 +211,11 @@
   /* the label parts are spans (a button may not contain divs), so they are
      told to stack — left inline they run together into one sentence */
   .tx{flex:1;min-width:0;display:block}
-  .tt{display:block;font-size:16px;font-weight:700;letter-spacing:-.15px}
-  .ds{display:block;font-size:12.5px;color:var(--t3);margin-top:3px;line-height:1.38}
+  /* The short name is what the eye finds; the full one sits under it so nobody
+     has to already know what the letters stand for. */
+  .tt{display:block;font-size:16px;font-weight:800;letter-spacing:.02em}
+  .fn{display:block;font-size:12.5px;font-weight:600;color:var(--t2);margin-top:2px;line-height:1.3}
+  .ds{display:block;font-size:11.5px;color:var(--t3);margin-top:2px;line-height:1.35}
   .go{color:var(--t3);flex:0 0 auto;transition:transform .18s cubic-bezier(.22,1,.36,1),color .18s ease}
   .card:hover .go{transform:translateX(3px);color:var(--t1)}
   .go svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
@@ -220,13 +223,27 @@
   .who[hidden]{display:none}
   .foot{margin-top:18px;text-align:center;color:var(--t3);font-size:11.5px;line-height:1.65}
 
-  /* the doors arrive one after another rather than all at once — the same
-     unhurried feeling the splash has */
-  .wrap.show .card{animation:doorIn .5s cubic-bezier(.22,1,.36,1) both}
-  .wrap.show .card:nth-of-type(1){animation-delay:.06s}
-  .wrap.show .card:nth-of-type(2){animation-delay:.13s}
-  .wrap.show .card:nth-of-type(3){animation-delay:.20s}
-  @keyframes doorIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* Each door arrives on its own, and only once the mark has come to rest —
+     they used to start while it was still in the air, so by the time it landed
+     they were already sitting there and nothing was seen to happen. Now it is
+     one thing after another: the logo settles, then RMS, then the portal, then
+     HRMS, each rising with its own thread of colour lighting as it comes. */
+  .wrap .card{opacity:0}
+  .wrap.landed .card{animation:doorIn .62s cubic-bezier(.22,1,.36,1) both}
+  .wrap.landed .card:nth-of-type(1){animation-delay:.02s}
+  .wrap.landed .card:nth-of-type(2){animation-delay:.16s}
+  .wrap.landed .card:nth-of-type(3){animation-delay:.30s}
+  @keyframes doorIn{
+    0%{opacity:0;transform:translateY(20px) scale(.97)}
+    60%{opacity:1}
+    100%{opacity:1;transform:none}}
+  /* the coloured edge draws itself down as the door arrives */
+  .wrap.landed .card::after{animation:threadIn .5s cubic-bezier(.22,1,.36,1) both;animation-delay:inherit}
+  .wrap.landed .card:nth-of-type(1)::after{animation-delay:.20s}
+  .wrap.landed .card:nth-of-type(2)::after{animation-delay:.34s}
+  .wrap.landed .card:nth-of-type(3)::after{animation-delay:.48s}
+  @keyframes threadIn{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+  .card::after{transform-origin:50% 0}
 
   /* very short phones: give the mark less room rather than a scrollbar */
   @media (max-height:700px){
@@ -282,6 +299,7 @@
     <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></span>
     <span class="tx">
       <span class="tt">RMS</span>
+      <span class="fn">Recovery Management System</span>
       <span class="ds">Sales, recovery, payments and reports</span>
       <span class="who" id="w-rms" hidden><i></i><span></span></span>
     </span>
@@ -291,7 +309,8 @@
   <button class="card c-portal" id="c-portal" onclick="go('portal')">
     <span class="ic"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
     <span class="tx">
-      <span class="tt">Self Service Portal</span>
+      <span class="tt">CRM</span>
+      <span class="fn">Self Service Portal</span>
       <span class="ds">Your leads, attendance, leave and payslips</span>
       <span class="who" id="w-portal" hidden><i></i><span></span></span>
     </span>
@@ -301,8 +320,9 @@
   <button class="card c-attend" id="c-attend" onclick="go('attend')">
     <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
     <span class="tx">
-      <span class="tt">Attendance</span>
-      <span class="ds">Register, gate log, leave and payroll</span>
+      <span class="tt">HRMS</span>
+      <span class="fn">Human Resource Management System</span>
+      <span class="ds">Attendance, gate log, leave and payroll</span>
     </span>
     <span class="go"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
   </button>

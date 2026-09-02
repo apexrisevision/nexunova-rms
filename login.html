@@ -82,7 +82,7 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
      stylesheet (incl. foundation components + shell chrome) so its media-query rules win cascade
      ties without needing !important everywhere. Keep this the last <link> in <head>. ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260622c">
-<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubC">  <!-- the hub's skin, loaded last -->
+<link rel="stylesheet" href="css/auth-hub.css?v=20260903b">  <!-- the hub's skin, loaded last -->
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -382,6 +382,15 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 ════════════════════════════════════════════ -->
 <canvas id="lx-cursor-canvas"></canvas>
 <div id="s-login" class="scr on">
+  <!-- The way back to the three doors. It sits in the same corner in RMS, the
+       Self Service Portal and NexuAttend — a control that moves between apps
+       must not move around the screen. Outside the sign-in card on purpose: the
+       card animates with a transform, and a fixed child of a transformed
+       element is positioned against that element instead of the window. -->
+  <a class="hub-back" href="/sales-portal.html/hub">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    <span>All apps</span>
+  </a>
 
   <!-- Background canvas & effects -->
   <canvas id="lx-canvas"></canvas>
@@ -463,14 +472,6 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
     <div class="lx-right-line"></div>
     <div class="lx-form-card lx-reveal from-right" style="transition-delay:0.2s">
 
-      <!-- Back to the three doors. A door you cannot walk back out of is a
-           trap: the phone's back key leaves a standalone app rather than
-           returning, so the way back has to be on the page. -->
-      <a class="hub-back" href="/sales-portal.html/hub">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        <span>All apps</span>
-      </a>
-
       <!-- Small logo + brand -->
       <div class="lx-form-logo">
         <img id="lx-form-logo-img" src="assets/img/nexunova-logo.png?v=20260612a" alt="Nexunova">
@@ -529,6 +530,40 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       </form>
 
       <script>
+      /* The phone's back key on this page. The sign-up wizard and the password
+         reset are screens swapped in place from three different files, with no
+         single switch to hook, so this watches for one of them opening and
+         leaves a history entry behind it. Back then closes it and returns to
+         the sign-in; back again leaves for the hub, which is where the sign-in
+         came from. When one is closed by its own link instead, the entry is
+         spent so a later press is not swallowed doing nothing.
+         The observer is bound to these three elements, never to the document —
+         after sign-in this page is a whole app changing classes constantly. */
+      (function(ready){
+        // #s-signup and #s-forgot are further down this file than this script,
+        // so binding straight away found nothing and the key kept leaving.
+        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+        else ready();
+      })(function(){
+        var login = document.getElementById('s-login');
+        var away  = ['s-signup','s-forgot'].map(function(id){ return document.getElementById(id); }).filter(Boolean);
+        if(!login || !away.length) return;
+        var pushed = false;
+        function isOpen(){ return away.some(function(el){ return el.classList.contains('on'); }); }
+        var obs = new MutationObserver(function(){
+          var open = isOpen();
+          if(open && !pushed){ pushed = true; try{ history.pushState({ nxAway: 1 }, ''); }catch(e){} }
+          else if(!open && pushed){ pushed = false; try{ history.back(); }catch(e){} }
+        });
+        away.concat([login]).forEach(function(el){ obs.observe(el, { attributes: true, attributeFilter: ['class'] }); });
+        window.addEventListener('popstate', function(){
+          if(!isOpen()) return;
+          pushed = false;
+          away.forEach(function(el){ el.classList.remove('on'); });
+          login.classList.add('on');
+        });
+      });
+
       /* Remember me — the username, and only the username.
          The password is the device's password manager's job, not this page's:
          Chrome and Android offer to save it the moment a real form with a

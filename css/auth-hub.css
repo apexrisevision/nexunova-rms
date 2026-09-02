@@ -291,27 +291,39 @@
    Three doors are only a choice if you can change your mind. A standalone app
    has no browser back button, and the phone's own back key leaves the app
    rather than stepping back through it, so the way back to the doors has to be
-   on the page itself. It sits at the top of the sign-in card, small, the same
-   shape in all three apps. */
+   on the page itself.
+
+   It sits in the SAME corner in all three apps. It used to ride at the top of
+   whichever sign-in card it was in, which put it in three different places —
+   a control for moving between apps that itself moves around is worse than no
+   control. Fixed to the top-left of the window, clear of the notch, and placed
+   outside the card in the markup because a fixed child of a transformed
+   element is positioned against that element rather than the window, and every
+   one of these cards animates in with a transform. */
 .hub-back {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top));
+  left: calc(14px + env(safe-area-inset-left));
+  z-index: 60;
   display: inline-flex; align-items: center; gap: 5px;
-  margin: -6px 0 14px; padding: 6px 11px 6px 8px;
+  padding: 7px 12px 7px 9px;
   border-radius: 999px;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.09);
-  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 3px 10px rgba(0,0,0,.28);
+  background: rgba(20, 26, 46, .72);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: 0 1px 0 rgba(255,255,255,.07) inset, 0 6px 18px rgba(0,0,0,.38);
   color: #a6b0c8;
-  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  font-size: 12px; font-weight: 600; letter-spacing: .01em; line-height: 1.35;
   text-decoration: none; -webkit-text-fill-color: currentColor;
   transition: background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease;
 }
 .hub-back svg { width: 13px; height: 13px; flex: none; stroke: currentColor; }
 .hub-back:hover {
-  background: rgba(255,255,255,.09);
-  border-color: rgba(255,255,255,.16);
+  background: rgba(30, 38, 66, .88);
+  border-color: rgba(255,255,255,.18);
   color: #eef1f8; -webkit-text-fill-color: currentColor;
 }
-.hub-back:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 2px 6px rgba(0,0,0,.26); }
+.hub-back:active { transform: translateY(1px); }
 
 /* ══ REMEMBER ME ═══════════════════════════════════════════════════════════
    It remembers the name you sign in with. The secret is left to the device's

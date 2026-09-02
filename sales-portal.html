@@ -1783,7 +1783,7 @@ button.mn-card:active{transform:scale(.985)}
   .et-live::after{animation:none}
 }
 </style>
-<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubC">  <!-- the hub's skin, loaded last -->
+<link rel="stylesheet" href="css/auth-hub.css?v=20260903b">  <!-- the hub's skin, loaded last -->
 </head>
 <body>
 
@@ -1827,14 +1827,16 @@ button.mn-card:active{transform:scale(.985)}
 
 <!-- ════════ LOGIN ════════ -->
 <div id="screen-login" class="screen active">
+  <!-- The way back to the three doors. It sits in the same corner in RMS, the
+       Self Service Portal and NexuAttend — a control that moves between apps
+       must not move around the screen. Outside the sign-in card on purpose: the
+       card animates with a transform, and a fixed child of a transformed
+       element is positioned against that element instead of the window. -->
+  <a class="hub-back" href="/sales-portal.html/hub">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    <span>All apps</span>
+  </a>
   <div class="auth-wrap"><div class="auth-card">
-    <!-- Back to the three doors. A door you cannot walk back out of is a trap:
-         the phone's back key leaves a standalone app rather than returning, so
-         the way back has to be on the page. -->
-    <a class="hub-back" href="/sales-portal.html/hub">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      <span>All apps</span>
-    </a>
     <div class="brand">
       <div class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></div>
       <div><div class="brand-name">Nexunova CRM</div><div class="brand-sub">Your sales workspace</div></div>
@@ -2235,10 +2237,27 @@ function fdateShort(d){ if(!d) return ''; const x=new Date(d); if(isNaN(x)) retu
 function countdown(d){ if(!d) return {t:'—',c:'muted'}; const ms=new Date(d)-new Date();
   if(ms<=0) return {t:'Expired',c:'red'}; const h=Math.floor(ms/3.6e6);
   if(h<24) return {t:h+'h left',c:'amber'}; return {t:Math.floor(h/24)+'d left',c:'green'}; }
-function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active');
+/* The phone's back key. These screens swap in place, so nothing was ever put on
+   the history for it to step back through: pressing back from "Request access"
+   or from a PIN reset walked straight out of the app instead of returning to
+   the sign-in. Each screen away from sign-in now leaves an entry behind it, and
+   back walks them in order. Once the entries run out, back leaves for the hub,
+   which is where it should go from the sign-in itself. */
+let _navReady = false;
+function showScreen(id, viaBack){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active');
   // the sign-in screen is reached from several places — session expiry, a PIN
   // reset, a sign-out — so what it remembers is filled in here, once
-  if(id==='screen-login'){ try{ _rmApply(); }catch(e){} } }
+  if(id==='screen-login'){ try{ _rmApply(); }catch(e){} }
+  if(!viaBack && _navReady && id!=='screen-login' && id!=='screen-app'){
+    try{ history.pushState({nxScreen:id}, ''); }catch(e){}
+  } }
+window.addEventListener('popstate', function(e){
+  // inside the app itself the key belongs to the app, not to this
+  const app = document.getElementById('screen-app');
+  if(app && app.classList.contains('active')) return;
+  const id = (e.state && e.state.nxScreen) || 'screen-login';
+  if(document.getElementById(id)) showScreen(id, true);
+});
 function _themeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   return dark
     ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'
@@ -13780,7 +13799,9 @@ _pwaInit();
 
 // any interaction counts as activity → keeps the 30-min session alive
 ['click','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,_touch,{passive:true}));
-bootstrap();
+// The first screen is where the launch put somebody, not somewhere they walked
+// to, so it must not leave an entry of its own. Everything after it does.
+bootstrap().finally(function(){ _navReady = true; });
 </script>
 <script defer src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="js/portal-quote-pdf.js?v=20260816quote"></script>
