@@ -8148,6 +8148,53 @@ function _lvYear(step){
   renderMyRecord();
   _lvLoadHolidays();
 }
+/* THE REGISTER'S MORNING — the whole company's attendance for today, on the
+   Attendance page of the person who runs the place.
+
+   It is not a self-service figure and it is not pretending to be one: it sits
+   above the personal month, clearly labelled with the register's name, and only
+   appears for an account the office has switched it on for. The permission is
+   decided server-side (sales_users.attend_daily_report → the bridge), so a
+   browser that asks without it is told no rather than shown a blank card.
+
+   undefined means not asked yet, null means asked and there is nothing to show
+   — either it is not switched on for this person, or no report has been made
+   (a weekly off, a declared closure, or the hour has not come round yet). */
+async function _myrecLoadDailyReport(){
+  if(MYREC.rep !== undefined) return;
+  MYREC.rep = null;                          // so it is asked once, not on every redraw
+  try{
+    const r = await _myrecCall({ action: 'daily_report' });
+    MYREC.rep = (r && r.ok !== false && r.report) ? r : null;
+  }catch(e){ MYREC.rep = null; }
+  if(TAB === 'ess-att' || MYREC.sub === 'attendance') renderMyRecord();
+}
+
+/* The card itself. Absent people are the point of a morning report, so that is
+   the figure carrying the colour; "in" is stated against the headcount because
+   nine present means nothing until you know whether the company is ten or a
+   hundred. */
+function _myrecDailyReportHTML(){
+  const R = MYREC.rep, rep = R && R.report;
+  if(!rep) return '';
+  const when = rep.generated_at ? new Date(rep.generated_at) : null;
+  const at = when ? (String(when.getHours()).padStart(2,'0')+':'+String(when.getMinutes()).padStart(2,'0')) : '';
+  const day = rep.is_today ? "Today" : fdateShort(rep.date);
+  const tile=(v,k,c)=>'<div class="ess-tile"><div class="v"'+(c?' style="color:'+c+'"':'')+'>'+v+'</div>'
+    +'<div class="k">'+esc(k)+'</div></div>';
+  return '<div class="card" style="margin:0 2px 14px">'
+    + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+      + '<b style="font-size:var(--fs-body)">'+esc(R.tenant||'The register')+' — '+esc(day)+'</b>'
+      + '<span class="nx-kpi-label" style="text-transform:none">'+(at?('as at '+esc(at)):'')+'</span>'
+    + '</div>'
+    + '<div class="ess-sum">'
+      + tile((rep.present||0)+' of '+(rep.headcount||0),'In')
+      + tile(rep.late||0,'Late', rep.late?'var(--fk-warning)':null)
+      + tile(rep.absent||0,'Absent', rep.absent?'var(--fk-danger)':null)
+      + tile(rep.on_leave||0,'On leave')
+    + '</div></div>';
+}
+
 async function _lvLoadHolidays(){
   const y = MYREC.holYear || new Date().getFullYear();
   try{
@@ -10637,6 +10684,15 @@ async function renderMyRecord(){
   // Pay is a month's worth of money, so it needs the same month arrows the
   // attendance sheet does — but not the present/late tallies, which belong to
   // the sheet alone.
+  /* The register's morning, for the handful of accounts it is switched on for.
+     Asked once a session, and drawn ABOVE the month strip on purpose: it is
+     about today, not about whichever month is being browsed, and on the day it
+     matters it is the first thing that should be read. */
+  if(MYREC.sub==='attendance'){
+    if(MYREC.rep === undefined) _myrecLoadDailyReport();
+    html += _myrecDailyReportHTML();
+  }
+
   if(MYREC.sub==='attendance'||(MYREC.sub==='pay'&&!MYREC.slip)){
     html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px">'
       +'<button class="btn btn-secondary" style="height:36px;padding:0 14px" onclick="_myrecShiftMonth(-1)">‹</button>'

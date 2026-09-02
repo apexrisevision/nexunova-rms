@@ -80,6 +80,7 @@ const WHY: Record<string, string> = {
   not_an_admin: 'Only an owner or administrator can open the staff register.',
   register_not_yours: 'That attendance register does not belong to your business.',
   no_salary: 'Your salary is not set on your employee file yet, so this month cannot be worked out. Please ask HR.',
+  not_allowed: 'The day\'s company attendance report is not switched on for your account.',
 };
 
 Deno.serve(async (req) => {
@@ -311,6 +312,27 @@ Deno.serve(async (req) => {
         p_secret: ATT_SECRET,
         p_company: ctx.attend_company_id,
         p_year: body.year ?? null,
+      });
+      if (error) throw error;
+      if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
+      return json({ tenant: ctx.attend_company_name, ...data });
+    }
+
+    if (action === 'daily_report') {
+      /* The register's MORNING — how many of the whole company came, were late,
+         or did not come. Every other portal action here answers for one person
+         about themselves; this one does not, so it does not travel on the same
+         assumption. The permission is explicit and per person
+         (sales_users.attend_daily_report, off for everybody by default) and is
+         decided on the RMS side in portal_attendance_context, before this. The
+         caller cannot ask for another company: the company is the one their own
+         context resolved to, exactly as with holidays. */
+      if (!ctx.may_see_daily_report) {
+        return json({ ok: false, error: 'not_allowed', message: WHY.not_allowed }, 200);
+      }
+      const { data, error } = await att.rpc('portal_daily_report', {
+        p_secret: ATT_SECRET,
+        p_company: ctx.attend_company_id,
       });
       if (error) throw error;
       if (data?.error === 'bad_secret') return json({ ok: false, error: 'bad_secret', message: WHY.bad_secret }, 500);
