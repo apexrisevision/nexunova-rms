@@ -2443,10 +2443,9 @@ async function bootstrap(){
      launch or two, sometimes a day — and until it does, the icon lands here
      and the hub may as well not exist for the people it was built for.
 
-     So this page hands over itself, on EVERY plain launch — which is what
-     makes the splash the first thing seen each time the app opens, the way
-     the desktop app opens. The hub plays it, then comes straight back here
-     because it remembers the door; it does not ask again.
+     So this page hands over itself, on EVERY plain launch. That is what makes
+     the shape the same every time the app opens: the splash, then the three
+     doors, then the sign-in of whichever was chosen.
 
      The hop happens before the session is restored, so it costs one page load
      and never a sign-out: the token lives in localStorage and is still there
@@ -2468,12 +2467,7 @@ async function bootstrap(){
     if(!_named && !_fromHub && !_bounced
        && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
       try{ sessionStorage.setItem('nx.hub.bounce','1'); }catch(e){}
-      // ?from=portal: this launch came off the Self Service Portal's OWN icon,
-      // so it means the portal — not "whatever was opened last". Without it a
-      // person who had once opened RMS from the hub found the portal icon
-      // taking them to the RMS login every time. The hub plays the splash and
-      // brings them back here.
-      location.replace('/app.html?from=portal'); return;
+      location.replace('/app.html'); return;
     }
   }catch(e){}
 
@@ -2901,11 +2895,9 @@ function onLogin(data){
     const wc=$('who-co'); if(wc) wc.textContent=data.company_name||''; }
   enterApp();
 }
-/* Signing out is the one moment the choice of app is genuinely open again, so
-   it is the one moment the hub forgets and asks. Everything else — closing the
-   app, coming back tomorrow — goes straight back in here. */
+/* Signing out lands on the hub, the same three doors every launch shows —
+   ?logout=1 only changes the line under them to say so. */
 function doLogout(){ _clearSession(); TOKEN=null; try{ sessionStorage.removeItem('nx.push.nudged'); }catch(e){}
-  try{ localStorage.removeItem('nx.hub.app'); }catch(e){}
   location.href='/app.html?logout=1'; }
 function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
   const err=$('login-err'); err.textContent='Your session expired. Please sign in again.'; err.classList.add('show'); }

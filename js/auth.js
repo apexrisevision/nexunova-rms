@@ -655,7 +655,6 @@ function doLogout(reason){
      way it always has. */
   const _isDesktop = /Electron/i.test(navigator.userAgent || '');
   if((!reason || reason === 'logout') && !_isDesktop){
-    try{ localStorage.removeItem('nx.hub.app'); }catch(_){ }
     setTimeout(()=>{ location.href = '/app.html?logout=1'; }, 120);
   }
 }

@@ -19,25 +19,23 @@
      Three products, three separate logins, and until now three URLs somebody
      had to know by heart. This is the layer in front of them.
 
-     IT REMEMBERS. Opening it a second time does NOT ask again — it goes
-     straight to whichever app you were last in, so the person who only ever
-     uses one app never pays a tap for the other two. The question is asked
-     exactly twice: the first time, and after a logout. That is what a logout
-     means here — "I am done with this one", which is the only moment the
-     choice is genuinely open again.
+     IT ASKS EVERY TIME. Open the app, watch the splash, choose one of the
+     three, sign in — that is the whole shape of it, on every launch. It was
+     built to remember instead, and that turned out to be the wrong thing: one
+     memory cannot serve three products, so the person who had last opened RMS
+     found the Self Service Portal's own icon opening the RMS login. Three
+     doors on every open costs one tap and can never send anybody to the wrong
+     place.
 
-     It is also why the installed app can become this without anybody
-     reinstalling: the manifest keeps its id, so Chrome treats it as the same
-     app and simply updates start_url. An employee's icon still lands them in
-     the portal, because the hub remembers — it just plays the splash on the
-     way, which the portal itself never did. And the portal sends a plain
-     launch here even on installs whose start_url has not been rewritten yet,
-     so this is what happens on every open, today, without a reinstall.
+     It reaches the installed app without anybody reinstalling: the manifest
+     keeps its id, so Chrome treats it as the same app and simply updates
+     start_url. And the portal sends a plain launch here even on installs whose
+     start_url has not been rewritten yet, so this is what happens on every
+     open, today, without a reinstall.
 
      THE SPLASH is the desktop app's splash, rebuilt for the web: the same
      breathing logo, the same two counter-rotating arcs, the same pulse rings
-     and the same typed NEXUNOVA. On the remembered path it is not decoration —
-     it IS the loading screen, covering the hop to the app instead of a spinner.
+     and the same typed NEXUNOVA. It plays first and hands over to the doors.
 
      WHY NOT ONE LOGIN. RMS signs in with a company code, a username and a
      password; the portal with a phone and a PIN; attendance with an email and
@@ -228,7 +226,6 @@
 (function () {
   'use strict';
 
-  var KEY = 'nx.hub.app';                    // which door was last used
   var APPS = {
     rms:    { url: '/login.html',        name: 'RMS' },
     portal: { url: '/sales-portal.html', name: 'Self Service Portal' },
@@ -239,23 +236,10 @@
   function ls(fn, dflt) { try { return fn(); } catch (e) { return dflt; } }
   var params = new URLSearchParams(location.search);
 
-  /* Asked again on purpose in exactly two cases: nothing remembered (first
-     run), and ?choose / ?logout — which is where a sign-out lands. Every other
-     visit goes straight through. */
-  var remembered = ls(function () { return localStorage.getItem(KEY); }, null);
-  if (params.has('choose') || params.has('logout')) {
-    ls(function () { localStorage.removeItem(KEY); });
-    remembered = null;
-  }
-
-  /* An icon that says "Self Service Portal" must open the Self Service Portal.
-     Existing installs still launch at /sales-portal.html, that page sends the
-     launch here so the splash plays, and it says where it came from — so this
-     launch means the portal even if RMS was the last thing opened. The memory
-     is for launches that start AT the hub; it is neither read nor rewritten
-     here, so the person who lives in RMS still finds RMS on their own icon. */
-  var from = params.get('from');
-  if (from && APPS[from]) remembered = from;
+  /* Nothing is remembered and nothing is skipped: every launch shows the
+     doors. An old install may still carry the key this once wrote, so it is
+     cleared on the way past rather than left to sit in people's browsers. */
+  ls(function () { localStorage.removeItem('nx.hub.app'); });
 
   // ── the typed word, exactly as the desktop splash types it ──────────────
   var WORD = 'NEXUNOVA', tw = document.getElementById('tw'), i = 0, done = null;
@@ -281,18 +265,11 @@
 
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
-    ls(function () { localStorage.setItem(KEY, which); });
     // the splash returns as the hop, so the last thing seen is the logo
     splash.classList.remove('out');
     splash.style.display = 'flex';
     location.href = land(a.url);
   };
-
-  if (remembered && APPS[remembered]) {
-    // Straight through — the splash IS the loading screen, no doors, no spinner.
-    done = function () { location.replace(land(APPS[remembered].url)); };
-    return;
-  }
 
   if (params.has('logout')) document.getElementById('sub').textContent = 'Signed out. Which one now?';
   done = reveal;
