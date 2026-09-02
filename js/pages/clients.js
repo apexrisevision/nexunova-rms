@@ -610,7 +610,7 @@ async function _cdLoadActivity(clientId, c) {
     if (el) el.innerHTML = pays.length ? pays.map(p =>
       '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--fk-border)">' +
         '<div><div style="font-size:13px">' + esc((p.description||'Payment').replace('Payment Received — ','')) + '</div>' +
-        '<div class="nx-kpi-label" style="text-transform:none">' + fD(p.entry_date) + (p.voucher_no?' · '+esc(p.voucher_no):'') + (p.chq_no?' · Chq '+esc(p.chq_no):'') + '</div></div>' +
+        '<div class="nx-kpi-label" style="text-transform:none">' + fD(p.entry_date) + (p.voucher_no?' · '+esc(p.voucher_no):'') + (p.manual_no?' · Manual '+esc(p.manual_no):'') + (p.chq_no?' · Chq '+esc(p.chq_no):'') + '</div></div>' +
         '<div style="color:var(--fk-success);font-weight:var(--fk-fw-semibold);white-space:nowrap">' + fMF(p.credit) + '</div></div>'
     ).join('') : NX.empty({ message:'No payments recorded yet.' });
   } catch (e) {}
@@ -1227,7 +1227,7 @@ async function _cdLoadLedger(clientId) {
         <td style="font-size:11px;color:var(--t3);white-space:nowrap">${fD(r.entry_date)}</td>
         <td style="font-size:12px">
           ${esc(r.description)}
-          ${r.sale_number ? `<div style="font-size:10px;color:var(--t3);margin-top:1px">${esc(r.sale_number)}</div>` : ''}
+          ${(r.sale_number || r.manual_no) ? `<div style="font-size:10px;color:var(--t3);margin-top:1px">${esc(r.sale_number || '')}${r.manual_no ? (r.sale_number ? ' · ' : '') + 'Manual # ' + esc(r.manual_no) : ''}</div>` : ''}
         </td>
         <td class="r" style="font-size:12px;font-weight:${dr?'700':'400'};color:${dr?'var(--err)':'var(--t3)'}">${dr ? 'PKR '+fM(dr) : '—'}</td>
         <td class="r" style="font-size:12px;font-weight:${cr?'700':'400'};color:${cr?'var(--ok)':'var(--t3)'}">${cr ? 'PKR '+fM(cr) : '—'}</td>

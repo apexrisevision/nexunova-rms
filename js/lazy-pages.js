@@ -34,7 +34,7 @@
   var PROJECTS     = ['js/pages/projects.js?v=20260613ps'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
   var AGENTS       = ['js/pages/agents.js?v=20260828priv'];
-  var REPORTS      = ['js/pages/reports.js?v=20260805balfinal'];
+  var REPORTS      = ['js/pages/reports.js?v=20260902manual'];
   var AUDIT        = ['js/pages/audit.js?v=20260706p2b'];
   var ADMIN        = ['js/pages/admin.js?v=20260706p1b'];
   var APPROVALS    = ['js/pages/approvals.js?v=20260714uc'];
@@ -48,7 +48,7 @@
   // clients cluster — clientdetail tabs call rHealthCenter/rBlacklist (guarded)
   // and _cdLoadPromises (unguarded) at sync render, so its siblings ride along.
   var CLIENTS = [
-    'js/pages/clients.js?v=20260614w4',
+    'js/pages/clients.js?v=20260902manual',
     'js/pages/health-center.js?v=20260604a',
     'js/pages/blacklist.js?v=20260604a',
     'js/pages/promises.js?v=20260614w4'
@@ -82,13 +82,13 @@
 
     recovery: ['js/pages/recovery.js?v=20260614rec'],
     addpayment: ['js/pages/payments.js?v=20260721shift'],
-    receipts: ['js/pages/receipts.js?v=20260724editvoucher'],
+    receipts: ['js/pages/receipts.js?v=20260902manual'],
     pdc: ['js/pages/pdc.js?v=20260613ps'],
     cancelledunits: ['js/pages/cancelled.js?v=20260720cxl'],
     transferunits: ['js/pages/transferred.js?v=20260613ps'],
     officerledger: ['js/pages/officerledger.js?v=20260613ps'],
     receivingledger: ['js/pages/receivingledger.js?v=20260613ps'],
-    'ledger-client': ['js/pages/ledger-client.js?v=20260514e'],
+    'ledger-client': ['js/pages/ledger-client.js?v=20260902manual'],
     'ledger-unit': ['js/pages/ledger-unit.js?v=20260616'],
     'ledger-agent': ['js/pages/ledger-agent.js?v=20260514e'],
     'ledger-project': ['js/pages/ledger-project.js?v=20260514e'],

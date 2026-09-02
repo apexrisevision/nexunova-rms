@@ -49,7 +49,9 @@ function _ldgclRender(d, ctx, fromDate, toDate) {
   const project    = info.projects    || '—';
 
   const hdr   = _ldgCrystalHdr({ entityName, entityCode, project, fromDate, toDate });
-  const table = _ldgCrystalTable(rows, ob, fromDate);
+  // Manual # column on: a client asking about a payment quotes the number on
+  // the receipt-book slip he was handed, not our PRV-/PAY- code.
+  const table = _ldgCrystalTable(rows, ob, fromDate, { manualCol: true });
 
   return `
   ${_ldgPrintBtn()}

@@ -115,8 +115,9 @@ function _rvApplyFilter() {
   const st =  _rvFilter.status;
 
   _rvFiltered = _rvList.filter(r => {
-    // match system voucher code OR the physical receipt/book number (R#) stored in reference_no
-    if (vn && !((r.voucher_code || '') + ' ' + (r.payment_code || '') + ' ' + (r.reference_no || '')).toLowerCase().includes(vn)) return false;
+    // match system voucher code OR the manual receipt-book number (its own column
+    // now; older rows still carry it in reference_no, so search both)
+    if (vn && !((r.voucher_code || '') + ' ' + (r.payment_code || '') + ' ' + (r.manual_number || '') + ' ' + (r.reference_no || '')).toLowerCase().includes(vn)) return false;
     if (cl) {
       const cn = (gclient(r.client_id)?.fullName || gclient(r.client_id)?.name || '').toLowerCase();
       if (!cn.includes(cl)) return false;
@@ -166,7 +167,9 @@ function _rvRender() {
     const strike = cancelled ? 'text-decoration:line-through;color:var(--fk-text-muted)' : '';
     return '<tr style="cursor:pointer' + (cancelled ? ';opacity:.6' : '') + '" onclick="_rvShowDetail(\'' + r.id + '\')">' +
       '<td><span class="num" style="' + (cancelled ? strike : 'color:var(--fk-primary)') + '">' + NX.esc(code) + '</span></td>' +
-      '<td><span class="num">' + NX.esc(r.reference_no || '—') + '</span></td>' +
+      // Book # = the manual receipt-book number. Older rows have it typed into
+      // Reference (there was nowhere else to put it), so fall back to that.
+      '<td><span class="num">' + NX.esc(r.manual_number || r.reference_no || '—') + '</span></td>' +
       '<td>' + fD(r.payment_date) + '</td>' +
       '<td>' + NX.esc(cName) + '</td>' +
       '<td><span style="color:var(--fk-text-muted)">' + NX.esc(unitLbl) + '</span></td>' +
@@ -279,6 +282,7 @@ function _rvShowDetail(paymentId) {
         '<div style="display:flex;flex-wrap:wrap;gap:var(--fk-sp-4)">' +
           detailItem('Mode', NX.esc(mode)) +
           (r.payment_category && r.payment_category !== 'regular' ? detailItem('Category', NX.esc(r.payment_category), 'color:var(--fk-warning);text-transform:capitalize') : '') +
+          (r.manual_number ? detailItem('Manual receipt no', '<span class="num">' + NX.esc(r.manual_number) + '</span>') : '') +
           (r.reference_no ? detailItem('Reference no', '<span class="num">' + NX.esc(r.reference_no) + '</span>') : '') +
           (r.bank_name ? detailItem('Bank', NX.esc(r.bank_name)) : '') +
         '</div>' +
@@ -358,6 +362,10 @@ function _rvEntryFormHtml() {
       NX.field({ label:'Voucher type', name:'rve-mode', el:'select', value:'cash', options:_RVE_MODES, attrs:'onchange="_rvEntryModeChange()"' }) +
       NX.field({ label:'Amount (PKR)', name:'rve-amount', type:'number', required:true, attrs:'min="1" step="0.01" class="nx-input num"' }) +
       NX.field({ label:'Date', name:'rve-date', type:'date', value:today, required:true }) +
+      // The number on the slip torn from the physical receipt book the officer
+      // hands the client in the field — the only reference the client holds.
+      // It used to be typed into Reference; it now has its own column.
+      NX.field({ label:'Manual receipt no', name:'rve-manual', placeholder:'Number on the receipt book slip' }) +
       NX.field({ label:'Reference / Txn no', name:'rve-ref', placeholder:'Bank / transaction reference (optional)' }) +
     '</div>' +
     '<div id="rve-bankbox" style="display:none;margin-top:var(--fk-sp-3)">' +
@@ -462,6 +470,7 @@ async function _rvEntrySave() {
   const amount = parseFloat(document.getElementById('rve-amount')?.value || '0');
   const date   = document.getElementById('rve-date')?.value;
   const ref    = (document.getElementById('rve-ref')?.value || '').trim();
+  const manual = (document.getElementById('rve-manual')?.value || '').trim();
   const bank   = (document.getElementById('rve-bank')?.value || '').trim();
   const chqNo  = (document.getElementById('rve-chqno')?.value || '').trim();
   const chqDt  = document.getElementById('rve-chqdate')?.value;
@@ -496,7 +505,8 @@ async function _rvEntrySave() {
       p_bank_name: bank || null,
       p_notes: (_isAdj && adjAgainst ? ('Adjustment against: ' + adjAgainst + (notes ? (' — ' + notes) : '')) : (notes || null)),
       p_created_by: S.userId || null,
-      p_cheque_date: mode === 'cheque' ? chqDt : null, p_bank_id: null
+      p_cheque_date: mode === 'cheque' ? chqDt : null, p_bank_id: null,
+      p_manual_number: manual || null
     });
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error || data?.message || 'Payment failed');

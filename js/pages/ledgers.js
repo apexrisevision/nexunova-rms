@@ -431,11 +431,18 @@ function _ldgPrintBtn() {
 // rows:  array of row objects (mixed field names handled)
 // ob:    opening balance (number)
 // fromDate: 'YYYY-MM-DD'
-// opts:  { debitLabel, creditLabel }
+// opts:  { debitLabel, creditLabel, manualCol }
+// manualCol adds a "Manual #" column (the physical receipt-book number the
+// officer handed the client). Off by default so the other ledgers in this
+// family keep their seven columns and their colspans untouched.
 function _ldgCrystalTable(rows, ob, fromDate, opts) {
   const o   = opts || {};
   const dLbl = o.debitLabel  || 'Debit';
   const cLbl = o.creditLabel || 'Credit';
+  const man  = o.manualCol === true;
+  const nCol = man ? 8 : 7;          // month-header colspan
+  const nLbl = man ? 5 : 4;          // "…Total :" label colspan
+  const manTd = v => man ? `<td>${esc(v || '')}</td>` : '';
 
   // Normalize each row to a consistent shape
   const norm = (rows || []).map(r => {
@@ -446,6 +453,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
       entry_date:  dateStr,
       description: r.description || r.particulars  || '',
       chq_no:      r.chq_no || (isPdc ? (r.reference_no || '') : ''),
+      manual_no:   r.manual_no || r.manual_number || '',
       debit:  +(r.debit  || r.earned || 0),
       credit: +(r.credit || r.paid   || r.amount || 0),
     };
@@ -478,7 +486,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
     const mLabel = _ldgMonthLabel(mk + '-01');
     let mD = 0, mC = 0;
 
-    tbody += `<tr class="lc-mhdr"><td colspan="7">${mLabel}</td></tr>`;
+    tbody += `<tr class="lc-mhdr"><td colspan="${nCol}">${mLabel}</td></tr>`;
 
     // Opening balance row (first month only)
     if (mIdx === 0) {
@@ -487,7 +495,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
         <td>OP-0</td>
         <td class="num" style="text-align:left">${_ldgFmtDate(fromDate)}</td>
         <td>**** Opening Balance ****</td>
-        <td></td><td class="num"></td><td class="num"></td>
+        <td></td>${manTd('')}<td class="num"></td><td class="num"></td>
         <td class="num"><span class="${bcls(runBal)}">${b.text}</span></td>
       </tr>`;
     }
@@ -504,6 +512,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
         <td class="num" style="text-align:left">${_ldgFmtDate(r.entry_date)}</td>
         <td>${esc(r.description || '—')}</td>
         <td>${esc(r.chq_no)}</td>
+        ${manTd(r.manual_no)}
         <td class="num">${dr ? `<span class="lc-dr">${fMF(dr)}</span>` : ''}</td>
         <td class="num">${cr ? `<span class="lc-cr">${fMF(cr)}</span>` : ''}</td>
         <td class="num"><span class="${bcls(runBal)}">${b.text}</span></td>
@@ -512,7 +521,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
 
     // Monthly total
     tbody += `<tr class="lc-mtot">
-      <td colspan="4" class="num">Monthly Total :</td>
+      <td colspan="${nLbl}" class="num">Monthly Total :</td>
       <td class="num"><span class="lc-dr">${fMF(mD)}</span></td>
       <td class="num"><span class="lc-cr">${fMF(mC)}</span></td>
       <td></td>
@@ -523,7 +532,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
   const closing = (+ob || 0) + totalD - totalC;
   const fb = _ldgBalStr(closing);
   tbody += `<tr class="lc-gtot">
-    <td colspan="4" class="num">Grand Total :</td>
+    <td colspan="${nLbl}" class="num">Grand Total :</td>
     <td class="num"><span class="lc-dr">${fMF(totalD)}</span></td>
     <td class="num"><span class="lc-cr">${fMF(totalC)}</span></td>
     <td class="num"><span class="${bcls(closing)}">${fb.text}</span></td>
@@ -553,6 +562,7 @@ function _ldgCrystalTable(rows, ob, fromDate, opts) {
           <th style="width:96px">Date</th>
           <th>Description</th>
           <th style="width:96px">Cheque/Ref</th>
+          ${man ? '<th style="width:90px">Manual #</th>' : ''}
           <th class="num" style="width:120px">${esc(dLbl)}</th>
           <th class="num" style="width:120px">${esc(cLbl)}</th>
           <th class="num" style="width:130px">Balance</th>

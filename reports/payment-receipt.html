@@ -231,6 +231,9 @@ async function loadReport(){
         <div class="vcell"><div class="vlabel">Receipt #</div><div class="vval vmono">${esc(rcptNo)}</div></div>
         <div class="vcell"><div class="vlabel">Date</div><div class="vval">${fmtD(p.payment_date)}</div></div>
       </div>
+      ${p.manual_number ? `<div class="vgrid2" style="grid-template-columns:1fr">
+        <div class="vcell" style="margin-right:0"><div class="vlabel">Manual Receipt # (receipt book)</div><div class="vval vmono">${esc(p.manual_number)}</div></div>
+      </div>` : ''}
       <div class="vgrid2">
         <div class="vcell"><div class="vlabel">Booking No.</div><div class="vval">${esc(s.sale_number||'—')}</div></div>
         <div class="vcell"><div class="vlabel">Name</div><div class="vval">${esc(s.client_name||'—')}</div></div>

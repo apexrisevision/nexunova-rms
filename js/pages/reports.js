@@ -121,8 +121,10 @@ const REPORTS = {
       },
       transform: (data, f) => {
         const pays = (data.pays || []).slice().sort((a, b) => String(a.payment_date || '').localeCompare(String(b.payment_date || '')));
-        const columns = [{ key: 'date', label: 'Date', fmt: 'date' }, { key: 'receipt', label: 'Receipt #' }, { key: 'client', label: 'Client' }, { key: 'unit', label: 'Unit' }, { key: 'mode', label: 'Mode' }, { key: 'amount', label: 'Amount', num: true, fmt: 'money' }];
-        const mk = p => ({ date: p.payment_date, receipt: p.voucher_code || p.payment_code || '—', client: _rClientName(p.client_id) || '—', unit: _rUnitNo(data.unitMap[p.sale_id]) || '—', mode: _rMode(p.payment_method), amount: Number(p.amount || 0) });
+        // Manual # = the physical receipt-book number the officer gave the client;
+        // it is what the client quotes back, so it sits next to the system receipt.
+        const columns = [{ key: 'date', label: 'Date', fmt: 'date' }, { key: 'receipt', label: 'Receipt #' }, { key: 'manual', label: 'Manual #' }, { key: 'client', label: 'Client' }, { key: 'unit', label: 'Unit' }, { key: 'mode', label: 'Mode' }, { key: 'amount', label: 'Amount', num: true, fmt: 'money' }];
+        const mk = p => ({ date: p.payment_date, receipt: p.voucher_code || p.payment_code || '—', manual: p.manual_number || '—', client: _rClientName(p.client_id) || '—', unit: _rUnitNo(data.unitMap[p.sale_id]) || '—', mode: _rMode(p.payment_method), amount: Number(p.amount || 0) });
         // daily groups with subtotals
         const byDay = {}; pays.forEach(p => { (byDay[p.payment_date] = byDay[p.payment_date] || []).push(p); });
         const groups = Object.keys(byDay).sort().map(d => { const rs = byDay[d].map(mk); const sub = rs.reduce((s, r) => s + r.amount, 0); return { label: fD(d), rows: rs, subtotal: { amount: sub } }; });
@@ -377,9 +379,11 @@ function _ledgerTransform(data, f) {
   const opening = Number((data && data.opening_balance) || 0);
   const raw = ((data && data.rows) || []).slice().sort((a, b) => String(a.entry_date || '').localeCompare(String(b.entry_date || '')) || (Number(a.row_order || 0) - Number(b.row_order || 0)));
   let bal = opening;
-  const mapped = raw.map(r => { const dr = Number(r.debit || 0), cr = Number(r.credit || 0); bal += dr - cr; return { date: r.entry_date, particulars: r.description || '', voucher: r.voucher_no || r.chq_no || '', debit: dr || '', credit: cr || '', balance: bal }; });
-  const all = [{ date: f.from || '', particulars: 'Opening Balance', voucher: '', debit: '', credit: '', balance: opening }, ...mapped];
-  const columns = [{ key: 'date', label: 'Date', fmt: 'date' }, { key: 'particulars', label: 'Particulars' }, { key: 'voucher', label: 'Voucher' }, { key: 'debit', label: 'Debit', num: true, fmt: 'money' }, { key: 'credit', label: 'Credit', num: true, fmt: 'money' }, { key: 'balance', label: 'Balance', num: true, fmt: 'money' }];
+  // manual_no rides on the payment (CR) rows only — the receipt-book number the
+  // officer handed over. Dues and shift adjustments never carry one.
+  const mapped = raw.map(r => { const dr = Number(r.debit || 0), cr = Number(r.credit || 0); bal += dr - cr; return { date: r.entry_date, particulars: r.description || '', voucher: r.voucher_no || r.chq_no || '', manual: r.manual_no || '', debit: dr || '', credit: cr || '', balance: bal }; });
+  const all = [{ date: f.from || '', particulars: 'Opening Balance', voucher: '', manual: '', debit: '', credit: '', balance: opening }, ...mapped];
+  const columns = [{ key: 'date', label: 'Date', fmt: 'date' }, { key: 'particulars', label: 'Particulars' }, { key: 'voucher', label: 'Voucher' }, { key: 'manual', label: 'Manual #' }, { key: 'debit', label: 'Debit', num: true, fmt: 'money' }, { key: 'credit', label: 'Credit', num: true, fmt: 'money' }, { key: 'balance', label: 'Balance', num: true, fmt: 'money' }];
   const totDr = mapped.reduce((s, r) => s + Number(r.debit || 0), 0), totCr = mapped.reduce((s, r) => s + Number(r.credit || 0), 0);
   const closing = Number((data && data.closing_balance != null) ? data.closing_balance : bal);
   return { columns, rows: all, totals: { debit: totDr, credit: totCr, balance: closing }, totalsLabel: 'CLOSING', summary: [{ label: 'Opening', value: opening, money: true }, { label: 'Total Due (Dr)', value: totDr, money: true }, { label: 'Received (Cr)', value: totCr, money: true }, { label: 'Closing Balance', value: closing, money: true }] };
