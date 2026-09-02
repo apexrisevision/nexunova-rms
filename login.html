@@ -82,7 +82,7 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
      stylesheet (incl. foundation components + shell chrome) so its media-query rules win cascade
      ties without needing !important everywhere. Keep this the last <link> in <head>. ── -->
 <link rel="stylesheet" href="css/mobile.css?v=20260622c">
-<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubB">  <!-- the hub's skin, loaded last -->
+<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubC">  <!-- the hub's skin, loaded last -->
 
 <!-- ══ CRITICAL OVERRIDES — inline, never cached, always wins ══ -->
 <style id="x-fixes">
@@ -490,10 +490,14 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 
       <div class="lx-err" id="lerr" role="alert" aria-live="assertive">Invalid credentials — please check and try again</div>
 
-      <form id="lx-login-form" autocomplete="off" onsubmit="doLogin();return false;">
+      <!-- autocomplete was "off" on both the form and the username, which is
+           exactly what tells a browser and an Android password manager NOT to
+           offer to save this login. It is on, and the fields are named the way
+           a password manager reads them: username, then current-password. -->
+      <form id="lx-login-form" autocomplete="on" onsubmit="doLogin();return false;">
       <div class="lx-field">
         <label class="lx-label" for="li-u">Username</label>
-        <input id="li-u" name="username" class="lx-input" placeholder="username@COMPANYCODE" autocomplete="off" aria-describedby="li-u-hint">
+        <input id="li-u" name="username" class="lx-input" placeholder="username@COMPANYCODE" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" aria-describedby="li-u-hint">
         <div class="lx-hint" id="li-u-hint">Format: <code style="font-family:inherit;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;">username@COMPANYCODE</code></div>
       </div>
       <div class="lx-field">
@@ -510,6 +514,11 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
         <div class="lx-caps" id="li-caps" role="status">⇪ Caps Lock is on</div>
       </div>
 
+      <label class="lx-remember" for="li-remember">
+        <input type="checkbox" id="li-remember" checked>
+        <span>Remember me on this device</span>
+      </label>
+
       <button class="lx-btn" type="submit" id="lx-signin-btn">
         <div class="lx-btn-shimmer" id="lx-shimmer"></div>
         <span>Sign In</span>
@@ -518,6 +527,42 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
         </svg>
       </button>
       </form>
+
+      <script>
+      /* Remember me — the username, and only the username.
+         The password is the device's password manager's job, not this page's:
+         Chrome and Android offer to save it the moment a real form with a
+         current-password field is submitted, and they keep it where the OS
+         keeps secrets. Writing it into localStorage instead would put every
+         employee's password in plain text in a file any script on the origin
+         can read, so this does not do that. */
+      (function(){
+        var KEY='nx.rms.user', FLAG='nx.rms.remember';
+        var u=document.getElementById('li-u'), cb=document.getElementById('li-remember');
+        var f=document.getElementById('lx-login-form');
+        if(!u||!cb||!f) return;
+        function ls(fn,d){ try{ return fn(); }catch(e){ return d; } }
+        var on = ls(function(){ return localStorage.getItem(FLAG); }, null);
+        cb.checked = (on === null) ? true : on === '1';       // on unless turned off
+        if(cb.checked){
+          var saved = ls(function(){ return localStorage.getItem(KEY); }, null);
+          if(saved && !u.value) u.value = saved;
+        }
+        f.addEventListener('submit', function(){
+          ls(function(){
+            localStorage.setItem(FLAG, cb.checked ? '1' : '0');
+            if(cb.checked) localStorage.setItem(KEY, u.value.trim());
+            else localStorage.removeItem(KEY);
+          });
+        });
+        cb.addEventListener('change', function(){
+          ls(function(){
+            localStorage.setItem(FLAG, cb.checked ? '1' : '0');
+            if(!cb.checked) localStorage.removeItem(KEY);
+          });
+        });
+      })();
+      </script>
 
       <div class="lx-signup-row">
         Don't have an account?
@@ -2409,7 +2454,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/recovery-bell.js?v=20260614rec2"></script>
 
 <!-- 5. Auth: login/logout -->
-<script src="js/auth.js?v=20260902hub"></script>
+<script src="js/auth.js?v=20260902rem"></script>
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js?v=20260528b"></script>

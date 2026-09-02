@@ -27,31 +27,42 @@ function initLogin(){
     const _sbSvg = _sb.querySelector('svg'); if(_sbSvg) _sbSvg.style.opacity = '';
   }
 
-  // Clear any browser autofill so doLogin() doesn't trigger on stale values
+  /* This used to fight the browser's password manager on purpose: it emptied
+     both fields, set autocomplete to "off" and "new-password", and held them
+     readonly until focus. That is precisely why no phone ever offered to save
+     this login, and saving it is what was asked for. The suppression is gone
+     and the fields keep the tokens the markup gives them — username and
+     current-password.
+
+     The worry behind it was that an autofill could fire doLogin() with values
+     the person never chose. That worry is answered by _loginReadyAt below,
+     which was already here: a sign-in attempt in the first moment and a half
+     after the screen is built is ignored. Autofill lands inside that window;
+     a person reaching for the button does not. */
   const u = document.getElementById('li-u');
   const p = document.getElementById('li-p');
-  if(u) u.value = '';
-  if(p) p.value = '';
-
-  // Strongly discourage browser autofill
   if(u){
-    u.setAttribute('autocomplete', 'off');
+    u.setAttribute('autocomplete', 'username');
     u.setAttribute('autocorrect', 'off');
     u.setAttribute('spellcheck', 'false');
-    u.setAttribute('readonly', 'readonly');
-    // Remove readonly when user actually focuses (allows real typing)
-    u.addEventListener('focus', function onFocus(){
-      u.removeAttribute('readonly');
-      u.removeEventListener('focus', onFocus);
-    });
+    u.removeAttribute('readonly');
   }
   if(p){
-    p.setAttribute('autocomplete', 'new-password');
-    p.setAttribute('readonly', 'readonly');
-    p.addEventListener('focus', function onFocus(){
-      p.removeAttribute('readonly');
-      p.removeEventListener('focus', onFocus);
-    });
+    p.setAttribute('autocomplete', 'current-password');
+    p.removeAttribute('readonly');
+    p.value = '';                 // never carry a password across a sign-out
+  }
+  /* The login screen is built again after a sign-out, so the remembered name
+     is put back here as well as on first paint. Only the name — the password
+     manager holds the secret. */
+  if(u && !u.value){
+    try{
+      const flag = localStorage.getItem('nx.rms.remember');
+      if(flag === null || flag === '1'){
+        const saved = localStorage.getItem('nx.rms.user');
+        if(saved) u.value = saved;
+      }
+    }catch(_){ }
   }
 
   // Mark when login is actually ready for user input

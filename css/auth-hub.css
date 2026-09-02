@@ -312,3 +312,47 @@
   color: #eef1f8; -webkit-text-fill-color: currentColor;
 }
 .hub-back:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 2px 6px rgba(0,0,0,.26); }
+
+/* ══ REMEMBER ME ═══════════════════════════════════════════════════════════
+   It remembers the name you sign in with. The secret is left to the device's
+   own password manager, which is what actually offers to save it — this is the
+   switch for the half the page is entitled to keep. */
+#s-login .lx-remember,
+.screen:not(#screen-app) .remember-me {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 16px;
+  font-size: 13px; font-weight: 500;
+  color: var(--hub-t2);
+  cursor: pointer; user-select: none;
+}
+#s-login .lx-remember input,
+.screen:not(#screen-app) .remember-me input {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; flex: none; margin: 0;
+  border-radius: 5px;
+  border: 1px solid var(--hub-line);
+  background: rgba(255,255,255,.04);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
+}
+#s-login .lx-remember input:checked,
+.screen:not(#screen-app) .remember-me input:checked {
+  background: linear-gradient(135deg, var(--hub-brand), var(--hub-brand2)) no-repeat center;
+  border-color: transparent;
+  box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 3px 9px rgba(76,29,149,.36);
+}
+/* the tick, drawn rather than fetched */
+#s-login .lx-remember input:checked::after,
+.screen:not(#screen-app) .remember-me input:checked::after {
+  content: ''; display: block;
+  width: 4px; height: 8px; margin: 2px 0 0 5px;
+  border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+#s-login .lx-remember input:focus-visible,
+.screen:not(#screen-app) .remember-me input:focus-visible {
+  outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,.28);
+}
+#s-login .lx-remember:hover,
+.screen:not(#screen-app) .remember-me:hover { color: var(--hub-t1); }

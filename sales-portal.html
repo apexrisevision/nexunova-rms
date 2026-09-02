@@ -1783,7 +1783,7 @@ button.mn-card:active{transform:scale(.985)}
   .et-live::after{animation:none}
 }
 </style>
-<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubB">  <!-- the hub's skin, loaded last -->
+<link rel="stylesheet" href="css/auth-hub.css?v=20260902hubC">  <!-- the hub's skin, loaded last -->
 </head>
 <body>
 
@@ -1842,11 +1842,22 @@ button.mn-card:active{transform:scale(.985)}
     <div class="co-name" id="login-co" style="display:none"></div>
     <div class="auth-title">Welcome back</div>
     <div class="auth-sub">Sign in with your mobile number and PIN.</div>
-    <div class="field" id="co-field"><label class="label">Company code</label><input class="input" id="i-co" autocapitalize="off" autocomplete="off"></div>
-    <div class="field"><label class="label">Mobile number</label><input class="input" id="i-phone" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="off"></div>
-    <div class="field"><label class="label">PIN</label><input class="input" id="i-pin" type="password" inputmode="numeric" autocomplete="off"></div>
+    <!-- These three were loose inputs with autocomplete="off" and a button that
+         called doLogin() on click. A password manager has nothing to save in
+         that: it looks for a real form carrying a username and a
+         current-password, submitted. So this is a form now, and the fields are
+         named the way a manager reads them. -->
+    <form id="login-form" autocomplete="on" onsubmit="doLogin();return false">
+    <div class="field" id="co-field"><label class="label" for="i-co">Company code</label><input class="input" id="i-co" name="organization" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="organization"></div>
+    <div class="field"><label class="label" for="i-phone">Mobile number</label><input class="input" id="i-phone" name="username" inputmode="numeric" maxlength="13" value="+92" oninput="this.value=fmtPhone(this.value)" autocomplete="username"></div>
+    <div class="field"><label class="label" for="i-pin">PIN</label><input class="input" id="i-pin" name="password" type="password" inputmode="numeric" autocomplete="current-password"></div>
     <div style="text-align:right;margin:-4px 2px 10px"><a href="#" class="auth-link" onclick="goForgot();return false" style="font-size:var(--fs-caption);color:var(--fk-primary);text-decoration:none">Forgot PIN?</a></div>
-    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign in</button>
+    <label class="remember-me" for="i-remember">
+      <input type="checkbox" id="i-remember" checked>
+      <span>Remember me on this device</span>
+    </label>
+    <button class="btn btn-primary btn-full" id="login-btn" type="submit">Sign in</button>
+    </form>
     <div class="err" id="login-err"></div>
     <div class="trust">
       <span class="pill"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secure PIN sign-in</span>
@@ -2224,7 +2235,10 @@ function fdateShort(d){ if(!d) return ''; const x=new Date(d); if(isNaN(x)) retu
 function countdown(d){ if(!d) return {t:'—',c:'muted'}; const ms=new Date(d)-new Date();
   if(ms<=0) return {t:'Expired',c:'red'}; const h=Math.floor(ms/3.6e6);
   if(h<24) return {t:h+'h left',c:'amber'}; return {t:Math.floor(h/24)+'d left',c:'green'}; }
-function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active');
+  // the sign-in screen is reached from several places — session expiry, a PIN
+  // reset, a sign-out — so what it remembers is filled in here, once
+  if(id==='screen-login'){ try{ _rmApply(); }catch(e){} } }
 function _themeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   return dark
     ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'
@@ -2689,6 +2703,29 @@ async function doRegister(){
     showScreen('screen-pending');
   }catch(e){ err.textContent='Could not register. Please try again.'; err.classList.add('show'); btn.disabled=false; btn.textContent='Request access'; }
 }
+/* Remember me — the mobile number and the company code, and only those.
+   The PIN is the device's password manager's job, not this page's: Chrome and
+   Android offer to save it the moment a real form with a current-password
+   field is submitted, and they keep it where the OS keeps secrets. Writing it
+   into localStorage instead would put every agent's PIN in plain text in a
+   file any script on this origin can read, so this does not do that. */
+const _RM_FLAG='nx.portal.remember', _RM_PHONE='nx.portal.phone';
+function _rmOn(){ try{ const v=localStorage.getItem(_RM_FLAG); return v===null?true:v==='1'; }catch(e){ return true; } }
+function _rmApply(){
+  const cb=$('i-remember'); if(cb) cb.checked=_rmOn();
+  if(!_rmOn()) return;
+  try{
+    const ph=localStorage.getItem(_RM_PHONE);
+    const f=$('i-phone'); if(ph && f && (!f.value || f.value==='+92')) f.value=ph;
+  }catch(e){}
+}
+function _rmSave(ph){
+  const cb=$('i-remember'); const on=cb?cb.checked:true;
+  try{
+    localStorage.setItem(_RM_FLAG, on?'1':'0');
+    if(on) localStorage.setItem(_RM_PHONE, ph); else localStorage.removeItem(_RM_PHONE);
+  }catch(e){}
+}
 async function doLogin(){
   const co=($('i-co').value||SALES_CO||_coRemembered()||'').trim(), ph=$('i-phone').value.trim(), pin=$('i-pin').value.trim();
   const err=$('login-err'); err.classList.remove('show');
@@ -2701,6 +2738,7 @@ async function doLogin(){
     if(error) throw error;
     if(!data||!data.success){ err.textContent=(data&&data.message)||(data&&data.error)||'Sign in failed'; err.classList.add('show'); return; }
     try{localStorage.setItem('rms.sales.co',co)}catch(e){}
+    _rmSave(ph);
     onLogin(data);
   }catch(e){ err.textContent=e.message||'Sign in failed'; err.classList.add('show'); }
   finally{ btn.disabled=false; btn.textContent='Sign in'; }
