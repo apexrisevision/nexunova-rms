@@ -2857,7 +2857,12 @@ function onLogin(data){
     const wc=$('who-co'); if(wc) wc.textContent=data.company_name||''; }
   enterApp();
 }
-function doLogout(){ _clearSession(); TOKEN=null; try{ sessionStorage.removeItem('nx.push.nudged'); }catch(e){} location.href=location.pathname; }
+/* Signing out is the one moment the choice of app is genuinely open again, so
+   it is the one moment the hub forgets and asks. Everything else — closing the
+   app, coming back tomorrow — goes straight back in here. */
+function doLogout(){ _clearSession(); TOKEN=null; try{ sessionStorage.removeItem('nx.push.nudged'); }catch(e){}
+  try{ localStorage.removeItem('nx.hub.app'); }catch(e){}
+  location.href='/app.html?logout=1'; }
 function sessionGone(){ _clearSession(); TOKEN=null; applyLoginCompany(); showScreen('screen-login');
   const err=$('login-err'); err.textContent='Your session expired. Please sign in again.'; err.classList.add('show'); }
 

@@ -641,6 +641,16 @@ function doLogout(reason){
   const err=document.getElementById('lerr');
   if(err){err.style.display='none';}
   initLogin();
+
+  /* A DELIBERATE sign-out is the one moment the choice of app is open again,
+     so the hub forgets and asks. An expiry or a session taken over elsewhere is
+     not that — the person did not choose to leave, and throwing them at a menu
+     instead of the login they were about to use would be an obstacle, not a
+     courtesy. Hence the reason check. */
+  if(!reason || reason === 'logout'){
+    try{ localStorage.removeItem('nx.hub.app'); }catch(_){ }
+    setTimeout(()=>{ location.href = '/app.html?logout=1'; }, 120);
+  }
 }
 
 // ── Fix 6: Session validity polling ──────────────────────────────────
