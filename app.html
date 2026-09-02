@@ -78,9 +78,20 @@
     flex-direction:column; align-items:center; justify-content:center; gap:26px;
     background:inherit;
     font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
+    transition:background-color .5s ease;
   }
-  #splash.out{animation:wrapOut .55s cubic-bezier(.4,0,1,1) forwards}
-  @keyframes wrapOut{to{opacity:0;transform:translateY(-10px) scale(.96)}}
+  /* ── the logo does not leave; it shrinks into the doors ──────────────────
+     It used to fade out and the doors faded in behind it, two things dissolving
+     past each other. Now the ground under it turns clear, the doors rise behind
+     it, and the mark itself flies down to the top of them and stays — the same
+     mark, still breathing, still turning, only smaller. The flight is a plain
+     transform on the shell, so nothing reflows while it moves and the rings and
+     the aura come along at exactly their own proportions. */
+  #splash.zoom{background-color:transparent;pointer-events:none}
+  #splash.zoom .typewriter{opacity:0}
+  .typewriter{transition:opacity .3s ease}
+  #splash .logo-shell{transition:transform .95s cubic-bezier(.22,1,.36,1)}
+  #splash.gone{display:none}
   .sp-in{
     display:flex;flex-direction:column;align-items:center;gap:26px;opacity:0;
     animation:wrapIn .65s cubic-bezier(.22,1,.36,1) .05s forwards;
@@ -126,13 +137,30 @@
   @media (prefers-reduced-motion:reduce){
     .ring-spin,.ring-spin-2,.logo-aura,.ring-pulse,.ring-pulse-2,.logo{animation:none!important}
     .sp-in{animation-duration:.01s}
+    #splash .logo-shell{transition:none!important}
   }
+
+  /* Where the mark lands. It is the identical shell — same image, same two
+     arcs, same pulses, same aura, same breathing — held at 46px by one scale on
+     the shell itself, so every inset and every blur shrinks with it rather than
+     being redrawn by hand at a small size. It is invisible until the flying
+     copy arrives on top of it, and the swap happens with the two at the same
+     size in the same place. */
+  .logo-mini{position:relative;width:46px;height:46px;flex:0 0 46px;
+    opacity:0;transition:opacity .2s ease}
+  .wrap.landed .logo-mini{opacity:1}
+  .logo-mini .logo-shell{position:absolute;left:50%;top:50%;
+    width:260px;height:260px;max-width:none;max-height:none;
+    transform:translate(-50%,-50%) scale(.1769);transform-origin:50% 50%}
 
   /* ══ THE DOORS ═══════════════════════════════════════════════════════ */
   .wrap{width:100%;max-width:460px;opacity:0;transition:opacity .45s ease}
   .wrap.show{opacity:1}
   .brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:6px}
-  .brand img{width:38px;height:38px;object-fit:contain;border-radius:9px}
+  /* .brand img used to size the flat 38px icon that sat here. The mark is the
+     splash's own shell now, and that rule outranked .logo's width:100% — it
+     squeezed the image to 38px inside a 260px shell that is then scaled down,
+     so the logo arrived as a seven-pixel speck. The shell sizes itself. */
   .brand .n{font-size:19px;font-weight:800;letter-spacing:-.2px}
   .brand .n span{background:linear-gradient(120deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   .sub{text-align:center;color:var(--t2);font-size:13.5px;margin-bottom:22px}
@@ -182,7 +210,17 @@
 
 <div class="wrap" id="wrap">
   <div class="brand">
-    <img src="/assets/icon-192.png" alt="">
+    <!-- the same shell as the splash, at 46px — this is where the mark lands -->
+    <span class="logo-mini" id="mini" aria-hidden="true">
+      <span class="logo-shell">
+        <span class="logo-aura"></span>
+        <span class="ring-spin-2"></span>
+        <span class="ring-spin"></span>
+        <span class="ring-pulse"></span>
+        <span class="ring-pulse-2"></span>
+        <img class="logo" src="/assets/nexunova-splash.png" alt="">
+      </span>
+    </span>
     <div class="n">Nexu<span>nova</span></div>
   </div>
   <div class="sub" id="sub">Which one are you opening?</div>
@@ -248,14 +286,40 @@
     setTimeout(function () { if (done) done(); }, 300);
   })();
 
+  var wrap  = document.getElementById('wrap');
+  var shell = splash.querySelector('.logo-shell');
+  var mini  = document.getElementById('mini');
+  var slow  = !window.matchMedia || !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Where the mark has to end up: the centre of the 46px slot at the top of the
+     doors, and the size of it. Measured rather than assumed, because the shell
+     is 260px on a desk and 82vw on a narrow phone, and the slot moves with the
+     text beside it. */
+  function flightTo(el) {
+    var a = shell.getBoundingClientRect(), b = el.getBoundingClientRect();
+    if (!a.width || !b.width) return null;
+    return 'translate(' + ((b.left + b.width / 2) - (a.left + a.width / 2)) + 'px,' +
+                          ((b.top + b.height / 2) - (a.top + a.height / 2)) + 'px)' +
+           ' scale(' + (b.width / a.width) + ')';
+  }
+
   var revealed = false;
   function reveal() {
     if (revealed) return; revealed = true;
-    splash.classList.add('out');
-    setTimeout(function () {
-      splash.style.display = 'none';
-      document.getElementById('wrap').classList.add('show');
-    }, 380);
+    // the ground turns clear and the doors rise behind the mark, not after it
+    splash.classList.add('zoom');
+    wrap.classList.add('show');
+    var to = slow ? flightTo(mini) : null;
+    if (!to) {                       // reduced motion, or nothing to measure
+      wrap.classList.add('landed');
+      splash.classList.add('gone');
+      return;
+    }
+    requestAnimationFrame(function () { shell.style.transform = to; });
+    // it arrives, the one that lives there fades up underneath it, and the
+    // flying copy is taken away — same mark, same size, same place, no blink
+    setTimeout(function () { wrap.classList.add('landed'); }, 820);
+    setTimeout(function () { splash.classList.add('gone'); }, 1050);
   }
   /* The doors are the whole point of this page, so nothing is allowed to leave
      somebody staring at a splash that never lifts — not a stalled timer, not a
@@ -272,10 +336,28 @@
 
   window.go = function (which) {
     var a = APPS[which]; if (!a) return;
-    // the splash returns as the hop, so the last thing seen is the logo
-    splash.classList.remove('out');
-    splash.style.display = 'flex';
-    location.href = land(a.url);
+    var url = land(a.url);
+    /* The mark grows back out of the header to cover the hop, so the last thing
+       seen before an app loads is the same logo the desktop app shows. It is
+       the flight run backwards: the flying copy is put back exactly where the
+       small one sits, then let go. */
+    if (!shell.style.transform) {
+      // never flew (still on the splash, or reduced motion) — the splash simply
+      // comes back over the doors, which is what covered the hop before
+      if (revealed) { splash.classList.remove('gone', 'zoom'); }
+      location.href = url; return;
+    }
+    wrap.classList.remove('landed');
+    splash.classList.remove('gone');
+    shell.style.transition = 'transform .42s cubic-bezier(.22,1,.36,1)';
+    // the ground has to be solid again before the page changes under it, so it
+    // comes back quicker than it went
+    splash.style.transition = 'background-color .26s ease';
+    requestAnimationFrame(function () {
+      splash.classList.remove('zoom');   // the ground comes back under it
+      shell.style.transform = '';        // and it returns to the centre, full size
+    });
+    setTimeout(function () { location.href = url; }, 330);
   };
 
   if (params.has('logout')) document.getElementById('sub').textContent = 'Signed out. Which one now?';
