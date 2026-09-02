@@ -2468,7 +2468,12 @@ async function bootstrap(){
     if(!_named && !_fromHub && !_bounced
        && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
       try{ sessionStorage.setItem('nx.hub.bounce','1'); }catch(e){}
-      location.replace('/app.html'); return;
+      // ?from=portal: this launch came off the Self Service Portal's OWN icon,
+      // so it means the portal — not "whatever was opened last". Without it a
+      // person who had once opened RMS from the hub found the portal icon
+      // taking them to the RMS login every time. The hub plays the splash and
+      // brings them back here.
+      location.replace('/app.html?from=portal'); return;
     }
   }catch(e){}
 

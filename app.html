@@ -248,6 +248,15 @@
     remembered = null;
   }
 
+  /* An icon that says "Self Service Portal" must open the Self Service Portal.
+     Existing installs still launch at /sales-portal.html, that page sends the
+     launch here so the splash plays, and it says where it came from — so this
+     launch means the portal even if RMS was the last thing opened. The memory
+     is for launches that start AT the hub; it is neither read nor rewritten
+     here, so the person who lives in RMS still finds RMS on their own icon. */
+  var from = params.get('from');
+  if (from && APPS[from]) remembered = from;
+
   // ── the typed word, exactly as the desktop splash types it ──────────────
   var WORD = 'NEXUNOVA', tw = document.getElementById('tw'), i = 0, done = null;
   (function typeNext() {
