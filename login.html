@@ -77,7 +77,7 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
      wins over legacy shell CSS without !important. Page-level nx- classes are additive. ── -->
 <link rel="stylesheet" href="css/foundation/components.css?v=20260902words">
 <!-- ── SHELL CHROME (Nav phase) — thin utility topbar + "+ New"/menus + sidebar "More" tier. Loaded after components.css so it wins without !important. ── -->
-<link rel="stylesheet" href="css/foundation/shell.css?v=20260617e">
+<link rel="stylesheet" href="css/foundation/shell.css?v=20260903a">
 <!-- ── MOBILE RESPONSIVE — comprehensive overrides for all pages. MUST load AFTER every other
      stylesheet (incl. foundation components + shell chrome) so its media-query rules win cascade
      ties without needing !important everywhere. Keep this the last <link> in <head>. ── -->
@@ -1438,6 +1438,16 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </button>
 
+        <!-- Sign out, in the open. It was only ever inside the avatar menu, one
+             tap in and easy to miss; NexuAttend has had a plain button on its
+             top bar all along. Same place in all three now. The menu keeps its
+             own entry, so nobody who learned that way has to relearn. -->
+        <button id="tb-signout" class="nx-tb-icon nx-tb-signout" type="button"
+                title="Sign out" aria-label="Sign out" onclick="doLogout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          <span>Sign out</span>
+        </button>
+
         <!-- User menu — relocated from the sidebar footer (ids preserved so
              auth.js / init.js keep populating #sb-av / #sb-un / #sb-ur). -->
         <div class="nx-tb-user-wrap" id="sb-user-zone" onclick="_sbToggleUserMenu(event)">
@@ -2507,7 +2517,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/recovery-bell.js?v=20260614rec2"></script>
 
 <!-- 5. Auth: login/logout -->
-<script src="js/auth.js?v=20260902rem"></script>
+<script src="js/auth.js?v=20260903sess"></script>
 
 <!-- 5.5. Signup & onboarding -->
 <script src="js/pages/signup-validation.js?v=20260528b"></script>
@@ -2549,7 +2559,7 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
 <script src="js/modals-log-call.js?v=20260614rec2"></script>
 
 <!-- 8. App init + toast + populateLoginStats -->
-<script src="js/init.js?v=20260724authguard"></script>
+<script src="js/init.js?v=20260903sess"></script>
 
 <!-- XLSX + Chart.js are now lazy-loaded on demand via window.ensureXLSX() / window.ensureChart() — see head loader (perf Wins #3/#4). -->
 <!-- chart.js consumers: js/pages/forecasting.js, promises.js, clients.js (Health). Dashboard/NX viz are inline SVG. -->

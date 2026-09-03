@@ -334,7 +334,9 @@ async function _completeLogin(user, company) {
   // Record WHICH Supabase auth user this tab is bound to, so the cross-tab guard
   // can detect if the shared (localStorage) token gets swapped by another tab.
   try { const { data: { session: _sbSess } } = await supabase.auth.getSession(); S.authUid = (_sbSess && _sbSess.user && _sbSess.user.id) || null; } catch(_) { S.authUid = null; }
-  sessionStorage.setItem('nxn_sess', JSON.stringify(S));
+  localStorage.setItem('nxn_sess', JSON.stringify(S));
+  // the week starts counting from the moment of signing in
+  try{ localStorage.setItem('nxn_active', String(Date.now())); }catch(_){}
   _installAuthGuard();
 
   const _blockedStatuses = ['pending_payment','payment_under_review','expired','cancelled','past_due'];
@@ -437,7 +439,7 @@ async function _loadRoleContext(companyId, userId, role) {
     } catch(_) { S.assignedProjectIds = []; S.isProjectAdmin = false; }
   }
   // Persist updated S
-  try { sessionStorage.setItem('nxn_sess', JSON.stringify(S)); } catch(_){}
+  try { localStorage.setItem('nxn_sess', JSON.stringify(S)); } catch(_){}
 }
 
 // Global helper: does the caller currently have access to a given project_id?
@@ -500,7 +502,7 @@ async function _registerSession() {
     }});
     if (data?.success && data.id && S) {
       S.sessionRowId = data.id;
-      sessionStorage.setItem('nxn_sess', JSON.stringify(S));
+      localStorage.setItem('nxn_sess', JSON.stringify(S));
     }
   } catch(_) {}
 }
@@ -631,7 +633,7 @@ function doLogout(reason){
   _stopIdleTimer();
   _stopSessionHeartbeat();
   S=null;_coid=null;_navStack=[];_navBack=false;
-  sessionStorage.removeItem('nxn_sess');
+  localStorage.removeItem('nxn_sess');
   window._featureFlags = null;
   window._cobranding   = null;
   window._subscription = null;
@@ -717,7 +719,7 @@ function _applyLivePermissions(data) {
 
   S.permissions = nextPerms;
   S.role        = nextRole;
-  try { sessionStorage.setItem('nxn_sess', JSON.stringify(S)); } catch(_) {}
+  try { localStorage.setItem('nxn_sess', JSON.stringify(S)); } catch(_) {}
   if (typeof buildSB === 'function') buildSB();
   if (typeof notify !== 'undefined' && notify.info) {
     notify.info('Your access was updated', { detail: 'New modules now appear in the menu.', duration: 4000 });
@@ -811,6 +813,7 @@ function _stopIdleTimer() {
 
 function _resetIdleTimer() {
   if (!_idleActive || !S) return;
+  _stampActive();
   clearTimeout(_idleTimer);
   clearTimeout(_idleWarnTimer);
   const warn = document.getElementById('_idle-warn-bar');
@@ -856,13 +859,44 @@ function _onIdleExpire() {
   setTimeout(() => doLogout('session_expired'), 800);
 }
 
+/* Nobody is signed out for being busy. The default was thirty minutes of no
+   mouse movement, which on a phone left in a pocket is no time at all — and
+   with the profile cache now kept across app closes, an app reopened the next
+   morning is meant to still be signed in.
+   A WEEK of not using it signs you out. That is the same rule the Self Service
+   Portal already runs on, so all three behave alike.
+   A company that has deliberately set its own timeout in Admin → Security
+   keeps it: that is a decision somebody made, and this only changes what
+   happens when nobody has made one. */
+const _IDLE_DEFAULT_MIN = 7 * 24 * 60;        // one week
 function _getIdleTimeoutMin() {
-  if (!S || !S.cid) return 120;
+  if (!S || !S.cid) return _IDLE_DEFAULT_MIN;
   try {
     const stored = localStorage.getItem('rms.sec.timeout.' + S.cid);
     if (stored !== null) return parseInt(stored, 10);
   } catch(_) {}
-  return 30;
+  return _IDLE_DEFAULT_MIN;
+}
+
+/* A timer only runs while the page is open, so on its own it would never
+   notice a week spent with the app closed. The last moment of use is written
+   down instead, and checked when the app opens again. */
+const _ACTIVE_KEY = 'nxn_active';
+let _lastStamp = 0;
+function _stampActive() {
+  const now = Date.now();
+  if (now - _lastStamp < 60000) return;        // once a minute is plenty
+  _lastStamp = now;
+  try { localStorage.setItem(_ACTIVE_KEY, String(now)); } catch(_) {}
+}
+function _idleTooLong() {
+  try {
+    const last = parseInt(localStorage.getItem(_ACTIVE_KEY) || '0', 10);
+    if (!last) return false;                   // never stamped — do not evict
+    const mins = _getIdleTimeoutMin();
+    if (!mins || mins <= 0) return false;      // the company turned it off
+    return (Date.now() - last) > mins * 60000;
+  } catch(_) { return false; }
 }
 
 function _setIdleTimeoutMin(min) {

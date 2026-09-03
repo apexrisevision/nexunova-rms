@@ -415,7 +415,7 @@ function _startResendCooldown() {
 // ── Shared: exchange PKCE code from magic-link reset email ────────────
 function _handleResetCode(code) {
   if (window.__nxnEmailConfirm) return;   // confirm landing is authoritative — never show reset over it
-  sessionStorage.removeItem('nxn_sess');
+  localStorage.removeItem('nxn_sess');
   document.querySelectorAll('.scr.on').forEach(s => s.classList.remove('on'));
   const resetEl = document.getElementById('s-reset');
   if (!resetEl) return;
@@ -464,7 +464,7 @@ function _handleResetCode(code) {
 // ── Email confirmation after signup ──────────────────────────────────
 async function _handleEmailConfirm(code) {
   window.__nxnEmailConfirm = true;
-  sessionStorage.removeItem('nxn_sess');
+  localStorage.removeItem('nxn_sess');
   const el = _showOnlyAuthScreen('s-email-confirm');
   if (!el) { window.__nxnEmailConfirm = false; _handleResetCode(code); return; }
 
@@ -502,7 +502,7 @@ async function _handleEmailConfirm(code) {
 // init.js can't flash the app shell / attempt an auto-login.
 async function _showEmailConfirmed() {
   window.__nxnEmailConfirm = true;
-  sessionStorage.removeItem('nxn_sess');
+  localStorage.removeItem('nxn_sess');
   const el = _showOnlyAuthScreen('s-email-confirm');
   if (!el) { document.getElementById('s-login')?.classList.add('on'); return; }
   const loadEl = document.getElementById('ec-loading');

@@ -37,8 +37,20 @@ async function tryRestoreSession(){
     // #2 — validate a real Supabase session before rendering from storage.
     // Forged/stale nxn_sess must not render the app shell on its own.
     const { data: { session: _sess } } = await supabase.auth.getSession();
-    if(!_sess){ sessionStorage.removeItem('nxn_sess'); document.getElementById('s-login').classList.add('on'); return; }
-    const raw=sessionStorage.getItem('nxn_sess');
+    if(!_sess){ localStorage.removeItem('nxn_sess'); document.getElementById('s-login').classList.add('on'); return; }
+    /* The week. A timer cannot see time that passed while the app was closed,
+       so the last moment of use was written down; if that was longer ago than
+       the timeout allows, this is where the session ends. Signing out here
+       rather than rendering first means nothing of the account is ever shown
+       to somebody the rule says should be asked again. */
+    if(typeof _idleTooLong==='function' && _idleTooLong()){
+      localStorage.removeItem('nxn_sess');
+      try{ localStorage.removeItem('nxn_active'); }catch(_){}
+      try{ await supabase.auth.signOut(); }catch(_){}
+      document.getElementById('s-login').classList.add('on');
+      return;
+    }
+    const raw=localStorage.getItem('nxn_sess');
     if(!raw)return;
     const sess=JSON.parse(raw);
     if(!sess?.cid)return;
@@ -47,7 +59,7 @@ async function tryRestoreSession(){
     // as a different account, the token was swapped — force a clean login here so we
     // never render company A while authenticating as company B.
     if(sess.authUid && _sess.user && _sess.user.id !== sess.authUid){
-      sessionStorage.removeItem('nxn_sess');
+      localStorage.removeItem('nxn_sess');
       document.getElementById('s-login').classList.add('on');
       return;
     }
@@ -90,7 +102,7 @@ async function tryRestoreSession(){
     else{nav(effectiveRole()==='recovery'?'recovery-dashboard':'dashboard');if(typeof TUT!=='undefined')TUT.maybeShow();}
   }catch(e){
     console.warn('[tryRestoreSession]',e);
-    sessionStorage.removeItem('nxn_sess');
+    localStorage.removeItem('nxn_sess');
     document.getElementById('s-login').classList.add('on');
     document.getElementById('s-app')?.classList.remove('on');
     document.getElementById('s-payment-wall')?.classList.remove('on');
