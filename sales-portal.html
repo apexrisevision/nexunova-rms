@@ -2538,7 +2538,16 @@ async function bootstrap(){
     // this hop can happen at most once per browsing session, so the two pages
     // can never ping-pong.
     let _bounced=null; try{ _bounced=sessionStorage.getItem('nx.hub.bounce'); }catch(e){}
-    if(!_named && !_fromHub && !_bounced
+    /* ALREADY SIGNED IN — do not ask again. The doors are a question about
+       WHICH sign-in you want, and somebody holding a live session here has
+       answered it. Sending them round the hub anyway is what made this app look
+       like it kept restarting and signing itself out: Android drops a
+       backgrounded app and relaunches it at its start_url, which is a plain
+       launch, which was another splash and another three doors — several times
+       an hour, with the session never once in danger. Signing out still lands
+       on the doors, which is the moment the question is real again. */
+    const _signedIn = !!_validSession();
+    if(!_named && !_fromHub && !_bounced && !_signedIn
        && !PENDING_LEAD && !PENDING_TAB && !PENDING_ANN && !PENDING_BRIEF){
       try{ sessionStorage.setItem('nx.hub.bounce','1'); }catch(e){}
       location.replace('/sales-portal.html/hub'); _hopped=true;
