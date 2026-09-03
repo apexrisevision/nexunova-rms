@@ -3820,7 +3820,16 @@ async function renderManagerHome(){
 // ════ Leads (CRM top-of-funnel — capture & pipeline; owner-stamped) ════
 let LEADS=[], LEADCOUNTS={}, LEADV={filter:'all'}, LEAD_UNCHECKED=0;
 // a lead is "delegated/assigned" when it sits with a manager/rep (left the director/exec pool)
-function _leadAssigned(l){ return !!(l && l.owner_role && ['director','admin','cfo'].indexOf(l.owner_role)===-1); }
+/* "Assigned" means it is with SOMEBODY ELSE. It used to mean only that the
+   holder was not a director, which is the same thing right up until the holder
+   is you: a marketing_manager holds his own leads, so every one of them looked
+   assigned-away to him and none could be picked. He was told "Already with
+   Abubakkar — pull it back first" about leads that were his to hand on.
+   The server had the identical mistake in assign_lead/assign_leads_bulk and was
+   fixed the same way, by asking who is holding it rather than only what their
+   role is. Both halves had to move; fixing the server alone changed nothing on
+   screen, because this check runs first and the request never left the page. */
+function _leadAssigned(l){ return !!(l && l.owner_role && ['director','admin','cfo'].indexOf(l.owner_role)===-1 && !l.is_mine); }
 const LEAD_STAGES=[['new','New'],['contacted','Contacted'],['visit','Visit'],['negotiation','Negotiation'],['won','Won'],['lost','Lost']];
 const LEAD_SOURCES=['Walk-in','Call','Referral','Online','Banner','Other'];
 const _LEAD_TONE={new:'var(--fk-primary)',contacted:'var(--fk-warning)',visit:'var(--fk-info)',negotiation:'var(--nx-violet)',won:'var(--fk-success)',lost:'var(--fk-danger)'};
@@ -4116,9 +4125,11 @@ function _leadRowClick(ev,id){
   if(LEADSEL.on) return _leadSelToggle(id);
   openLead(id);
 }
-// A lead that already sits with a team member is out of bounds: it can't be
-// picked, can't be swept up by Select all, and the assign pool hides it. The way
-// to move it is Pull back (explicit + logged), never a silent re-assign.
+// A lead that sits with SOMEBODY ELSE is out of bounds: it can't be picked,
+// can't be swept up by Select all, and the assign pool hides it. The way to move
+// it is Pull back (explicit + logged), never a silent re-assign. A lead you are
+// holding yourself is not that — handing it down is the whole job of whoever
+// holds it, and for a manager it is the only job.
 function _leadPickable(l){ return !!l && !_leadAssigned(l); }
 function _leadSelToggle(id){
   const l=LEADS.find(x=>x.id===id);
