@@ -41,6 +41,10 @@ npm-debug.log*
 # ── Internal docs (not for public repo) ──────────────────
 *.docx
 BLUEPRINT.md
+# …but the rule above was written for the root BLUEPRINT.md and, being
+# unanchored, it also swallows every BLUEPRINT.md at any depth. Module specs
+# under docs/ are deliverables and must be tracked.
+!docs/*/BLUEPRINT.md
 REPORT.md
 STEP_*_REPORT.md
 
