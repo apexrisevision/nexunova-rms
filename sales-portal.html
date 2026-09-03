@@ -1451,10 +1451,89 @@ button.mn-card:active{transform:scale(.985)}
 .ps-f .v{font-size:var(--fs-secondary);font-weight:var(--fk-fw-bold);margin-top:2px;
   overflow-wrap:anywhere}
 @media print{
-  .appbar,.sidebar,.sb,.nav,.btn,.pwa,#app-nav{display:none!important}
+  /* Anything that is the APP rather than the DOCUMENT. #verify-gate and the
+     install prompt are overlays that sit on top of everything, so without this
+     the sheet somebody forwards to a group carries a 'Verify your email' card
+     across the middle of it. Found by printing the page as Amar and looking at
+     what came out. */
+  .appbar,.sidebar,.sb,.nav,.btn,.pwa,#app-nav,
+  #verify-gate,.vg,#pwa-bar,.pwa-prompt,.nx-toast,.toast,#npanel,.sheet-backdrop{display:none!important}
+  /* the paper is white — the app's own dark ground is not part of the document */
+  html{background:#fff!important}
   body,#app,#app-body{background:#fff!important;color:#000!important}
   .card{border:1px solid #ccc!important;box-shadow:none!important;break-inside:avoid}
   .ess-tile{border:1px solid #ccc!important}
+}
+
+/* ════ THE MORNING SHEET — the one that gets forwarded ════════════════════
+   This is the only thing in the portal that leaves it. Somebody saves it and
+   drops it into a group, and what lands there IS the company for everyone who
+   reads it — so it is designed as a document, not as a screen that happens to
+   be printable.
+
+   It came out black and white, and there were two reasons rather than one.
+   The rule above paints #app-body #000 for print, and every browser drops
+   background colours from a print unless it is told not to; between them the
+   colour that means something on screen — green in, amber late, red absent —
+   was gone by the time it reached the group.
+
+   print-color-adjust is the instruction not to drop them. Everything below is
+   scoped to #att-sheet, so no other page changes and the rule above still
+   governs everything else. Screen and paper share these styles on purpose:
+   what he checks before sending is what the group receives. */
+#att-sheet{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+#att-sheet *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+.ash-head{border-radius:14px;padding:16px 18px;margin:-4px -4px 16px;color:#fff;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed 55%,#a855f7)}
+.ash-co{font-size:19px;font-weight:800;letter-spacing:-.2px;line-height:1.15}
+.ash-dt{font-size:13.5px;font-weight:600;margin-top:3px;opacity:.95}
+.ash-as{font-size:11.5px;margin-top:5px;opacity:.82}
+
+/* the four figures, each carrying its own colour rather than a shared grey */
+.ash-heroes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.ash-hero{position:relative;overflow:hidden;border-radius:12px;padding:12px 12px 11px;
+  border:1px solid rgba(0,0,0,.07);background:var(--tint)}
+.ash-hero::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ink)}
+.ash-hero .v{font-size:22px;font-weight:800;line-height:1;color:var(--ink);letter-spacing:-.5px}
+.ash-hero .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  margin-top:5px;color:var(--ink);opacity:.72}
+.ash-in{--ink:#15803d;--tint:#dcfce7}
+.ash-late{--ink:#b45309;--tint:#fef3c7}
+.ash-abs{--ink:#b91c1c;--tint:#fee2e2}
+.ash-lv{--ink:#4338ca;--tint:#e0e7ff}
+
+.ash-t{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+.ash-t thead th{background:#eef2ff;color:#312e81;font-size:10.5px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:8px 8px;
+  border-bottom:2px solid #c7d2fe}
+.ash-t tbody td{padding:7px 8px;border-bottom:1px solid #e9edf5;vertical-align:top;color:#0f172a}
+.ash-t tbody tr:nth-child(even) td{background:#f8fafc}
+.ash-t .num{color:#94a3b8;font-variant-numeric:tabular-nums}
+.ash-t .nm{font-weight:700}
+.ash-t .cd{font-size:10px;color:#94a3b8;margin-top:1px}
+.ash-t .tm{font-variant-numeric:tabular-nums}
+.ash-pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:800;
+  background:var(--tint);color:var(--ink);white-space:nowrap}
+.ash-p-present{--ink:#15803d;--tint:#dcfce7}
+.ash-p-late{--ink:#b45309;--tint:#fef3c7}
+.ash-p-absent{--ink:#b91c1c;--tint:#fee2e2}
+.ash-p-leave{--ink:#4338ca;--tint:#e0e7ff}
+.ash-foot{margin-top:12px;font-size:10.5px;color:#94a3b8;text-align:center}
+
+@media (max-width:620px){
+  .ash-heroes{grid-template-columns:repeat(2,1fr)}
+  .ash-t{font-size:11px}
+  .ash-t tbody td,.ash-t thead th{padding:6px 5px}
+}
+@media print{
+  /* a document, not a screenshot of an app */
+  @page{ margin:12mm 10mm; }
+  #att-sheet{border:0!important;box-shadow:none!important;padding:0!important;background:#fff!important}
+  #att-sheet .ash-t thead{display:table-header-group}   /* the header repeats on every page */
+  #att-sheet .ash-t tr{break-inside:avoid}
+  #att-sheet .ash-head,#att-sheet .ash-heroes{break-inside:avoid;break-after:avoid}
+  #att-sheet .ash-hero{border-color:rgba(0,0,0,.10)!important}
 }
 
 /* ════ EMPLOYEE SELF-SERVICE DASHBOARD ════════════════════════════════════
@@ -8394,46 +8473,43 @@ function _myrecSheetPageHTML(){
   const when = S0.generated_at ? new Date(S0.generated_at) : null;
   const at = when ? (String(when.getHours()).padStart(2,'0')+':'+String(when.getMinutes()).padStart(2,'0')) : '';
 
+  const PILL = { present:'ash-p-present', late:'ash-p-late', absent:'ash-p-absent', leave:'ash-p-leave' };
   let h = bar + '<div class="card" id="att-sheet" style="padding:18px">'
-    + '<div style="text-align:center;margin-bottom:14px">'
-      + '<div style="font-size:var(--fs-section);font-weight:800">'+esc(S0.company||S0.tenant||'Attendance')+'</div>'
-      + '<div style="font-size:var(--fs-body);margin-top:2px">Daily attendance — '+esc(fdate(S0.date))+'</div>'
+    + '<div class="ash-head">'
+      + '<div class="ash-co">' + esc(S0.company||S0.tenant||'Attendance') + '</div>'
+      + '<div class="ash-dt">Daily attendance — ' + esc(fdate(S0.date)) + '</div>'
       /* Said plainly rather than hidden: a sheet rebuilt after the fact is not
          the morning, and anybody forwarding it should know which one they hold. */
-      + '<div class="nx-kpi-label" style="text-transform:none;margin-top:3px">'
-        + (S0.live ? ('Figures as of '+esc(at)+' — this day was not snapshotted')
-                   : ('As at '+esc(at)))
-      + '</div></div>'
-    + '<div class="ess-sum" style="margin-bottom:14px">'
-      + '<div class="ess-tile"><div class="v">'+(t.present||0)+' of '+(t.headcount||0)+'</div><div class="k">In</div></div>'
-      + '<div class="ess-tile"><div class="v" style="color:'+COL.late+'">'+(t.late||0)+'</div><div class="k">Late</div></div>'
-      + '<div class="ess-tile"><div class="v" style="color:'+COL.absent+'">'+(t.absent||0)+'</div><div class="k">Absent</div></div>'
-      + '<div class="ess-tile"><div class="v">'+(t.on_leave||0)+'</div><div class="k">On leave</div></div>'
+      + '<div class="ash-as">'
+        + (S0.live ? ('Figures as of ' + esc(at) + ' — this day was not snapshotted')
+                   : ('As at ' + esc(at)))
+      + '</div>'
     + '</div>'
-    + '<table class="att-sheet-t" style="width:100%;border-collapse:collapse;font-size:var(--fs-caption)">'
-    + '<thead><tr>'
-      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">#</th>'
-      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Name</th>'
-      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Dept</th>'
-      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">In</th>'
-      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Out</th>'
-      + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid currentColor">Status</th>'
-    + '</tr></thead><tbody>';
+    + '<div class="ash-heroes">'
+      + '<div class="ash-hero ash-in"><div class="v">' + (t.present||0) + ' <span style="font-size:13px;font-weight:700;opacity:.7">of ' + (t.headcount||0) + '</span></div><div class="k">In</div></div>'
+      + '<div class="ash-hero ash-late"><div class="v">' + (t.late||0) + '</div><div class="k">Late</div></div>'
+      + '<div class="ash-hero ash-abs"><div class="v">' + (t.absent||0) + '</div><div class="k">Absent</div></div>'
+      + '<div class="ash-hero ash-lv"><div class="v">' + (t.on_leave||0) + '</div><div class="k">On leave</div></div>'
+    + '</div>'
+    + '<table class="ash-t">'
+    + '<thead><tr><th>#</th><th>Name</th><th>Dept</th><th>In</th><th>Out</th><th>Status</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
     h += '<tr>'
-      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+(i+1)+'</td>'
-      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)"><b>'+esc(r.name||'—')+'</b>'
-        + (r.code?'<div class="nx-kpi-label" style="text-transform:none">'+esc(r.code)+'</div>':'')+'</td>'
-      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+esc(r.department||'—')+'</td>'
-      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+esc(r.first_in||'—')+'</td>'
-      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25)">'+esc(r.last_out||'—')+'</td>'
-      + '<td style="padding:5px 4px;border-bottom:1px solid rgba(128,128,128,.25);color:'+(COL[r.status]||'inherit')+'">'
+      + '<td class="num">' + (i+1) + '</td>'
+      + '<td><div class="nm">' + esc(r.name||'—') + '</div>'
+        + (r.code ? '<div class="cd">' + esc(r.code) + '</div>' : '') + '</td>'
+      + '<td>' + esc(r.department||'—') + '</td>'
+      + '<td class="tm">' + esc(r.first_in||'—') + '</td>'
+      + '<td class="tm">' + esc(r.last_out||'—') + '</td>'
+      + '<td><span class="ash-pill ' + (PILL[r.status]||'ash-p-leave') + '">'
         + esc(LBL[r.status]||r.status||'—')
-        + (r.status==='late' && r.late_minutes ? ' ('+r.late_minutes+'m)' : '') + '</td>'
+        + (r.status==='late' && r.late_minutes ? ' · ' + r.late_minutes + 'm' : '') + '</span></td>'
     + '</tr>';
   });
-  if(!rows.length) h += '<tr><td colspan="6" style="padding:14px;text-align:center">Nobody on the register for this day.</td></tr>';
-  h += '</tbody></table></div>';
+  if(!rows.length) h += '<tr><td colspan="6" style="padding:16px;text-align:center;color:#94a3b8">Nobody on the register for this day.</td></tr>';
+  h += '</tbody></table>'
+    + '<div class="ash-foot">' + esc(S0.company||S0.tenant||'') + ' · generated from the attendance register</div>'
+    + '</div>';
   return h;
 }
 
