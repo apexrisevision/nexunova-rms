@@ -511,7 +511,7 @@ Detailed mapping proposals are at the end of RULES.md; this is the index.
 | 1 | REST API `/api/projects/{id}/daily-closing/…` with HTTP status codes | No HTTP tier exists. Everything is `supabase.rpc()` returning `jsonb {success,error}` | **Structural** |
 | 2 | `DECIMAL(18,2)` | Every money column is bare `numeric` | High |
 | 3 | `business_date` in Asia/Karachi | `td()` and `CURRENT_DATE` are both UTC | **High — correctness** |
-| 4 | PdfEngine renders and stores a versioned Director PDF | No PDF engine; browser print only, nothing stored. **Owner confirmed generated+stored+versioned; engine proposed — Deno edge function + `pdf-lib` (RULES §0.5), pending approval** | **Structural** |
+| 4 | PdfEngine renders and stores a versioned Director PDF | No PDF engine; browser print only, nothing stored. **Resolved (RULES §0.5, approved):** new Deno edge function `daily-closing-pdf` + `pdf-lib` + Inter embedded, writing to a private `daily-closing` bucket and the `day_documents` row in one call. Hand-placed coordinates accepted for reproducibility | Resolved — new build |
 | 5 | Domain events + handlers | No event bus. Triggers and `pg_cron` are the only async | Medium |
 | 6 | `--dc-navy-900/700` as primary | Brand is indigo `--fk-primary #4F46E5`; `#2563EB` is reserved as `--fk-info` | Medium |
 | 7 | 40 px hero figures, 12 px labels, 40 px inputs | Type ceiling 30 px, labels 11 px, inputs 36 px | Low |

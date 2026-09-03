@@ -54,7 +54,7 @@ commission clawback, deductions — stays in QuickBooks and stays out of RMS.
 
 Confirmed as the **primary Phase-1 deliverable**. It must be reproducible, auditable and
 shareable, so it is rendered server-side and retained — not printed from a browser.
-Proposed engine in §0.5. **Nothing is added until that proposal is approved.**
+Engine **approved** — see §0.5. Letterhead wording is fixed by §0.7.
 
 ### 0.3 Roles
 
@@ -102,11 +102,16 @@ in `ARCHITECTURE_NOTES.md` §3.4; the SQL side goes in
 > Note `app_users.role` is `text NOT NULL` with **no CHECK constraint**, so the DB accepts
 > `'cfo'` today. The work is entirely in the five code sites, not in the schema.
 
-### 0.5 PDF engine — proposal (approval required before anything is added)
+### 0.5 PDF engine — **APPROVED** (owner, 2026-09-03)
 
-**Proposed: a Supabase Edge Function `daily-closing-pdf` (Deno) using `pdf-lib`
-(+ `@pdf-lib/fontkit` to embed Inter), writing the file to a new private Storage bucket and
-inserting the `day_documents` version row in the same call.**
+**A Supabase Edge Function `daily-closing-pdf` (Deno) using `pdf-lib`
+(+ `@pdf-lib/fontkit` to embed Inter), writing the file to a new private Storage bucket
+`daily-closing` and inserting the `day_documents` version row in the same call.**
+Hand-placed coordinates are an **accepted cost**, taken deliberately in exchange for
+reproducibility. Deploy with `--no-verify-jwt` (§0.5 footnote below).
+
+The rejected alternatives are kept below because the reasoning is the reason the accepted
+cost is worth paying — do not revisit them in a later prompt without new information.
 
 Why this and not the alternatives:
 
@@ -117,13 +122,13 @@ Why this and not the alternatives:
 | Headless Chrome (`puppeteer` + `@sparticuz/chromium` on Vercel) | **Rejected for Phase 1.** ~50 MB bundle, cold starts, and RMS has no Node runtime in production — `puppeteer-core` is a **devDependency** used only by the test scripts (`package.json`). It would be the single heaviest thing in the stack, for one A4 page. |
 | Gotenberg / an external PDF API | **Rejected.** Adds an external dependency and sends cash figures off-platform. |
 
-Cost of the proposal, stated honestly: §A13 is laid out as a fixed single-page A4 document —
-navy band, two hero figures, a 4×2 summary table, three list blocks, a footer — so it maps
-cleanly onto `pdf-lib`'s drawing primitives. But it **is** hand-placed coordinates, not
-HTML/CSS. Budget roughly a day for the layout and expect the first version to need nudging
-against a printed proof.
+Cost, stated honestly and accepted: §A13 is a fixed single-page A4 document — navy band, two
+hero figures, a 4×2 summary table, three list blocks, a footer — so it maps cleanly onto
+`pdf-lib`'s drawing primitives. But it **is** hand-placed coordinates, not HTML/CSS. Budget
+roughly a day for the layout and expect the first version to need nudging against a printed
+proof.
 
-Two things that must be in the same commit if this is approved:
+Two things that must be in the same commit:
 - deploy with **`supabase functions deploy daily-closing-pdf --no-verify-jwt` via the CLI** —
   deploying an edge function through MCP silently resets `verify_jwt` to `true`;
 - a private bucket `daily-closing` (RMS's default habit of public buckets + stored public
@@ -141,7 +146,7 @@ Found in the live RMS project; **use these ids, do not provision anything new**:
 | `companies.id` | `96d210e7-e63b-4ef0-b1d0-74e622eac7ce` |
 | `companies.company_code` | `awami` |
 | `companies.company_name` | `Awami Market` |
-| `companies.display_name` | `Fourteen Group of Companies` — this is the outward brand, and the name that belongs on the Director PDF's letterhead band (§A13 reads "FOURTEEN GROUP · AWAMI MARKET") |
+| `companies.display_name` | `Fourteen Group of Companies` — **do NOT source the letterhead from this**, see §0.7 |
 | `projects.id` | `59ded55b-9bc2-45b2-a372-49fc31807fa9` |
 | `projects.project_code` / `short_code` | `AM` / `Awami` |
 | Status | `active` |
@@ -157,7 +162,75 @@ Two things to know about this tenant before building on it:
   two tenant rows. Do not conflate them.
 - The company id `96d210e7-…` is already hard-coded as the Awami tenant in
   `scripts/smoke-portal.js:32` — the sales portal and lead pipeline run on it. So the tenant
-  is not idle; only its *RMS transaction* side is empty.
+  is not idle; only its *RMS transaction* side is empty. **Neither that constant nor the two
+  tenant rows may be touched or refactored** — see §0.8.
+
+### 0.7 Director PDF letterhead — where the two names come from
+
+§A13's band reads **`FOURTEEN GROUP · AWAMI MARKET`**. Both halves are sourced from the
+**project**, never from the tenant:
+
+| Half of the band | Source | Value at the pilot |
+|---|---|---|
+| `FOURTEEN GROUP` | the group/brand line, held against the project | — |
+| `AWAMI MARKET` | **`projects.project_name`** (`short_code` = `Awami`, `project_code` = `AM`) | `Awami Market` |
+
+**Do not read `companies.display_name`.** Two tenant rows —
+`96d210e7-…` (`company_name: Awami Market`) and `3249e3b5-…`
+(`company_name: Fourteen Group of companies`, the tenant KBH sits under) — carry the same
+brand string. A letterhead sourced from `display_name` cannot tell the two apart, and would
+print the same header for a Khushal Bagh day as for an Awami day. `projects.id` is the only
+unambiguous key, and it is what this module scopes on anyway (§0.8).
+
+Practical consequence: `coDisplayName()` (`js/helpers.js:309`) is the wrong helper here even
+though it is the right helper everywhere else in RMS. The renderer takes
+`project_id → projects.project_name`, and the group line comes from project-level branding —
+if no project-level brand field exists yet, that is a small addition in P1, **not** a licence
+to fall back to `display_name`.
+
+### 0.8 Scope guard — the sales portal is out of scope
+
+The module scopes **strictly** to `projects.id = 59ded55b-9bc2-45b2-a372-49fc31807fa9`.
+Everything else on the Awami tenant — the sales portal, leads, `sales_users`,
+`sales_sessions`, announcements, the FB pipeline — is **out of scope and must not be
+touched**. Specifically:
+
+- **Do not** edit or refactor `scripts/smoke-portal.js` (including the hard-coded
+  `COMPANY = '96d210e7-…'` at line 32).
+- **Do not** merge, rename or "tidy" the two tenant rows that share the Fourteen Group brand.
+- **Do not** add cash-book concerns to `sales-portal.html` or `js/portal-*.js`.
+
+> **Standing instruction:** if any part of the cash book turns out to *require* a change in
+> portal behaviour to work, **stop and flag it** — do not make the change and do not design
+> around it silently. Note that the portal's push gate (`.githooks/pre-push` runs
+> `scripts/smoke-portal.js`) means portal breakage will block the push anyway; a green gate
+> is the evidence this guard held.
+
+### 0.9 Accounts to create in Awami — both roles, from day one
+
+The CFO is the day-to-day recorder for P1; a site cashier joins later as volume grows.
+**Both accounts are created regardless**, because the §A10 RBAC matrix and the role×action
+test suite in P10 cannot be validated from a single account — a permission model with one
+user is a permission model that has never been tested.
+
+| Account | Role | Project assignment | Module grant |
+|---|---|---|---|
+| CFO | `cfo` (new, §0.4) | `user_project_assignments` → `59ded55b-…`, `is_active` | `dailyclosing` |
+| Site cashier | `staff` | same project, `is_active` | `dailyclosing` |
+
+**Do not simplify the permission model because only one person uses it today.** Every
+CFO-only action (setup opening · close day · adjustments · allocation approve/reject ·
+QuickBooks export · PDC clear/bounce) must be built gated from the start, and
+`scripts/verify-daily-closing.js` must prove the negative: the cashier account attempting
+each of those and being refused **server-side**, not merely not seeing the button.
+
+Sequencing note: these are created **with P1's role migration**
+(`<date>e_closing_the_day_is_not_an_everyday_permission.sql`), not before it. A `cfo` account
+made today is not inert — the fallback sidebar at `js/ui.js:703` is permission-driven, so
+explicit `module_permissions` would light it up — but `dailyclosing` is not a module yet and
+no RPC tests `role = 'cfo'` yet, so the account would carry a real password and no meaning.
+Creation needs two full names, two usernames and a password decision from the owner
+(`create_app_user` takes `p_password` — `js/pages/users.js:511-520`).
 
 ---
 
@@ -417,8 +490,8 @@ Two things to know about this tenant before building on it:
    helper, and the existing `todayPK()` must not be re-implemented per file.
 3. **There is no PDF engine, and the Director PDF is the whole point of Phase 1.** Today
    every "PDF" in RMS is a browser print dialog and nothing is stored. **Confirmed as the
-   primary Phase-1 deliverable (§0.2); engine proposed in §0.5 — Deno edge function +
-   `pdf-lib`, pending approval.** Residual risk: this is the one genuinely new piece of
+   primary Phase-1 deliverable (§0.2); engine approved in §0.5 — Deno edge function +
+   `pdf-lib`.** Residual risk: this is the one genuinely new piece of
    infrastructure in the module, it is hand-placed coordinates rather than HTML/CSS, and it
    is the deliverable everything else is judged by. Expect the first proof to need nudging,
    and deploy it via the CLI with `--no-verify-jwt` or it ships unreachable.
@@ -494,50 +567,61 @@ codebase raises, are below.
   `96d210e7-e63b-4ef0-b1d0-74e622eac7ce` / project `59ded55b-9bc2-45b2-a372-49fc31807fa9`.
   0 sales, 0 payments, 0 clients, 1,467 units. Do not create a tenant. §0.6.
 
+- **PDF engine.** → **Approved.** Deno edge function + `pdf-lib` + Inter embedded + private
+  `daily-closing` bucket + the `day_documents` version row in the same call, deployed with
+  `--no-verify-jwt`. Hand-placed coordinates accepted for reproducibility. §0.5.
+- **Letterhead source.** → **`projects`, not `companies.display_name`** — two tenant rows
+  share the brand string. §0.7.
+- **Who records day-to-day?** → **The CFO initially**, cashier later as volume grows. Both
+  accounts are created anyway so the RBAC matrix and the P10 role×action suite can be
+  validated; the permission model is **not** simplified for a single user. §0.9.
+- **Portal scope.** → Module scopes strictly to `projects.id = 59ded55b-…`. The sales portal
+  is out of scope; `smoke-portal.js` and the two tenant rows are not to be touched. **Stop
+  and flag** if the cash book would ever need portal behaviour to change. §0.8.
+
 **Still open — need the owner**
 
-1. **Approve the PDF engine (§0.5)** — Deno edge function + `pdf-lib` + private
-   `daily-closing` bucket. Nothing is added until this is approved.
-2. **A16 Q1's other half — who *physically* records entries at Awami day-to-day?** The role
-   mapping is settled; the staffing is not. Awami currently has **exactly one user account**
-   (`awami`, role `owner`). At minimum a `cfo` account and a `staff` cashier account have to
-   exist before P1 can be tested end-to-end. Who are they?
-3. **A16 Q3 — Bank accounts per project, now and expected?** RMS has **two** competing
+1. **Two names and a password decision for the §0.9 accounts.** Needed: the CFO's full name
+   and username, the cashier's full name and username, and whether I set an initial password
+   (then `needs_password_reset`) or you create both yourself in Users & Roles. Nothing else
+   about P1 is blocked on this — it is needed at the point the P1 role migration lands, not
+   before.
+2. **A16 Q3 — Bank accounts per project, now and expected?** RMS has **two** competing
    tables: `banks` (company-scoped, has a UI at `js/pages/banks.js`, RPCs `list_banks` /
    `upsert_bank` / `delete_bank`) and `project_bank_accounts` (project-scoped, correct shape,
    **no UI and no RPC**). The blueprint's `cash_accounts` is a third. Which one wins?
    *Recommendation:* extend `project_bank_accounts` and give it the UI it never got.
-4. **A16 Q5's remaining half — Director PDF per project, consolidated, or both?** The
-   *format* is settled (§0.2); the *grain* is not. Awami has one project, so Phase 1 is
-   per-project either way — but the answer decides whether §A12 S8's Group Position (Phase 4)
-   is a second document or a second page.
-5. **Which company name goes on the letterhead?** The pilot tenant's `company_name` is
-   `Awami Market` but its `display_name` is `Fourteen Group of Companies`, and §A13 wants
-   both ("FOURTEEN GROUP · AWAMI MARKET"). RMS already distinguishes these:
-   `coLegalName()` vs `coDisplayName()` (`js/helpers.js:308-309`), where display_name is the
-   outward brand. Confirm: band reads `{display_name} · {project_name}`?
-6. **Physical voucher books — one series per project, or per company?** The blueprint says
+3. **A16 Q5's remaining half — Director PDF per project, consolidated, or both?** The
+   *format* is settled (§0.2) and the letterhead source is settled (§0.7); the *grain* is
+   not. Awami has one project, so Phase 1 is per-project either way — but the answer decides
+   whether §A12 S8's Group Position (Phase 4) is a second document or a second page.
+4. **Where does the `FOURTEEN GROUP` half of the letterhead actually live?** §0.7 rules that
+   both halves come from the project, and `projects.project_name` supplies `AWAMI MARKET`.
+   But `projects` has no group/brand column today — the closest is `builder_name`, which is
+   not the same thing. Confirm: add a project-level brand field in P1, or is the group line
+   a constant for this deployment?
+5. **Physical voucher books — one series per project, or per company?** The blueprint says
    `UNIQUE(project, voucher_type, voucher_no)`. RMS's existing `voucher_sequences` is keyed
    `(company_id, prefix, year)` — company-wide, fiscal-year-labelled `2627`. Two different
    grains. Which is the truth on the ground?
-7. **Does the client receipt replace, or duplicate, the existing one?**
+6. **Does the client receipt replace, or duplicate, the existing one?**
    `reports/payment-receipt.html` already prints a client receipt from a `payments` row, and
    `payments.manual_number` already carries the physical receipt-book number (shipped
    2026-09-02). Phase 2's `client_receipts` + gapless `{SLUG}-R-{YYYY}-{000001}` would be a
    *second* receipt series for the same money. Confirm the intent.
-8. **Reuse `pdc_cheques`, or build `pdc_register`?** RMS already has a working PDC register
+7. **Reuse `pdc_cheques`, or build `pdc_register`?** RMS already has a working PDC register
    with a page, feature flag, and clear/bounce/replace RPCs
    (`js/pages/pdc.js`, `mark_pdc_cleared` creates the payment). Two registers for one drawer
    of cheques is a reconciliation problem waiting to happen.
    *Recommendation:* extend `pdc_cheques` with `kind` and `cleared_entry_id`.
-9. **Paisa: displayed or not?** Every RMS formatter rounds to 0 fraction digits
+8. **Paisa: displayed or not?** Every RMS formatter rounds to 0 fraction digits
    (`js/utils.js:11-28`). §A7 wants paisa shown when non-zero, and the variance example is
    `Rs (3)`. A 3-rupee variance is fine; a 0.50 variance would currently render as `Rs 1`.
-10. **Do cash entries have to reconcile against `payments` on day one?** If a CLIENT_RECEIPT
-    is recorded in the cash book *and* somebody records the same money through
-    Record Payment (`js/pages/receipts.js`), the client is credited twice. Phase 1 ships the
-    cash book while RMS's own payment entry stays live — what stops the double entry during
-    the 14-day parallel run?
+9. **Do cash entries have to reconcile against `payments` on day one?** If a CLIENT_RECEIPT
+   is recorded in the cash book *and* somebody records the same money through
+   Record Payment (`js/pages/receipts.js`), the client is credited twice. Phase 1 ships the
+   cash book while RMS's own payment entry stays live — what stops the double entry during
+   the 14-day parallel run?
 
 ---
 
