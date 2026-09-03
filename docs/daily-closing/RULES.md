@@ -9,21 +9,23 @@ lives in a DB constraint, trigger or `SECURITY DEFINER` RPC, and the UI only mir
 
 **Proposed file names** (following `supabase/migrations/YYYYMMDD<x>_a_sentence_in_words.sql`):
 
-| Slot | File |
-|---|---|
-| Schema | `supabase/migrations/<date>a_a_day_of_cash_has_a_shape.sql` |
-| Immutability + audit triggers | `supabase/migrations/<date>b_a_saved_entry_is_a_fact.sql` |
-| Write RPCs | `supabase/migrations/<date>c_opening_recording_and_closing_a_day.sql` |
-| Read RPCs | `supabase/migrations/<date>d_what_the_day_looks_like.sql` |
-| Page | `js/pages/daily-closing.js` |
-| Page styles | `css/daily-closing.css` (+ `--dc-*` aliases) |
-| Page container | `login.html` → `<div class="pg" id="pg-dailyclosing">` |
-| Lazy manifest | `js/lazy-pages.js` → `dailyclosing: ['js/pages/daily-closing.js?v=…']` |
-| Nav + router + gate | `js/ui.js` (`buildSB` group, `ts` title map, `fns` dispatch, `nav()` allow-list) |
-| Director document | `reports/daily-closing.html` |
-| Test driver | `scripts/verify-daily-closing.js` |
-| New CFO role | `supabase/migrations/<date>e_closing_the_day_is_not_an_everyday_permission.sql` |
-| Director PDF renderer | `supabase/functions/daily-closing-pdf/index.ts` (Deno + `pdf-lib`) |
+| Slot | File | Status |
+|---|---|---|
+| Schema | `supabase/migrations/20260903e_a_day_of_cash_has_a_shape.sql` | **P1 — written, proven, not applied** |
+| Immutability + audit triggers | `supabase/migrations/20260903f_a_saved_entry_is_a_fact.sql` | **P1 — written, proven, not applied** |
+| New CFO privilege | `supabase/migrations/20260903g_closing_the_day_is_not_an_everyday_permission.sql` | **P1 — written, proven, not applied** |
+| Rollback | `supabase/migrations/20260903r_rollback_the_cash_book.sql` | **P1 — written, proven** |
+| Schema doc | `docs/daily-closing/SCHEMA.md` | **P1 — written** |
+| Schema test | `scripts/verify-daily-closing-schema.js` | **P1 — passing** |
+| Write RPCs | `supabase/migrations/<date>_opening_recording_and_closing_a_day.sql` | P2 |
+| Read RPCs | `supabase/migrations/<date>_what_the_day_looks_like.sql` | P2 |
+| Director PDF renderer | `supabase/functions/daily-closing-pdf/index.ts` (Deno + `pdf-lib`) | P2 — carries `DC_BRAND_NAME` (§0.7) |
+| Page | `js/pages/daily-closing.js` | later |
+| Page styles | `css/daily-closing.css` (+ `--dc-*` aliases) | later |
+| Page container | `login.html` → `<div class="pg" id="pg-dailyclosing">` | later |
+| Lazy manifest | `js/lazy-pages.js` → `dailyclosing: ['js/pages/daily-closing.js?v=…']` | later |
+| Nav + router + gate | `js/ui.js` (`buildSB` group, `ts` title map, `fns` dispatch, `nav()` allow-list) | later |
+| End-to-end test driver | `scripts/verify-daily-closing.js` | P10 |
 
 ---
 
@@ -93,11 +95,27 @@ wrong measure, and the ruling is **create a distinct `cfo` role**, for three rea
    when the site cashier is added.
 
 **Therefore:** add `cfo` as a role. Close Day · setup opening · adjustments · allocation
-approve/reject · QuickBooks export · PDC clear/bounce are gated on
-`v_me.role = 'cfo' OR _rms_is_admin(v_me)` — `owner` keeps access as the account of last
-resort, plain `admin` does **not**. The five places a new role must be registered are listed
-in `ARCHITECTURE_NOTES.md` §3.4; the SQL side goes in
-`<date>e_closing_the_day_is_not_an_everyday_permission.sql`.
+approve/reject · QuickBooks export · PDC clear/bounce are gated on **`public._dc_is_cfo()`**,
+shipped in `20260903g_closing_the_day_is_not_an_everyday_permission.sql`:
+
+```sql
+COALESCE(is_super_admin, false)
+  OR role IN ('cfo', 'owner')
+  OR companies.owner_user_id = app_users.id
+```
+
+> **Correction to the first draft of this section.** It originally wrote the gate as
+> `role = 'cfo' OR _rms_is_admin(v_me)`. That is wrong and would have shipped the exact hole
+> this decision exists to close: `_rms_is_admin()` returns true for `role = 'admin'`
+> (`20260526_phase1_rpcs.sql:28-36`), so every filling clerk would have passed. `_dc_is_cfo()`
+> is **not** a superset of `_rms_is_admin()` — it is a narrower set that merely overlaps, and
+> `admin` is absent from it deliberately. Asserted by tests 21 and 22 in
+> `scripts/verify-daily-closing-schema.js`.
+
+`owner` and `is_super_admin` are kept as the account of last resort: a company whose CFO has
+left must still be able to close its books. The five places a new role must be registered on
+the front end are listed in `ARCHITECTURE_NOTES.md` §3.4 — those belong to the UI prompt, not
+to the schema.
 
 > Note `app_users.role` is `text NOT NULL` with **no CHECK constraint**, so the DB accepts
 > `'cfo'` today. The work is entirely in the five code sites, not in the schema.
@@ -184,9 +202,20 @@ unambiguous key, and it is what this module scopes on anyway (§0.8).
 
 Practical consequence: `coDisplayName()` (`js/helpers.js:309`) is the wrong helper here even
 though it is the right helper everywhere else in RMS. The renderer takes
-`project_id → projects.project_name`, and the group line comes from project-level branding —
-if no project-level brand field exists yet, that is a small addition in P1, **not** a licence
-to fall back to `display_name`.
+`project_id → projects.project_name`.
+
+**The group line is a constant, not a column** (owner, 2026-09-03):
+
+```
+DC_BRAND_NAME = "FOURTEEN GROUP"
+```
+
+Defined once in the module's constants and read by exactly two things — the Director PDF
+header and the Phase-4 group-position document. It is presentation text, one brand across all
+projects, not project data. **No schema field is added**: promoting a constant to a column
+later is a small change, while an unused column now is not. This is why P1 creates no
+group/brand column, and why RULES (b) Q4 is closed. The constant itself ships with the
+`daily-closing-pdf` renderer, since P1 creates no code files at all.
 
 ### 0.8 Scope guard — the sales portal is out of scope
 
@@ -225,7 +254,7 @@ QuickBooks export · PDC clear/bounce) must be built gated from the start, and
 each of those and being refused **server-side**, not merely not seeing the button.
 
 Sequencing note: these are created **with P1's role migration**
-(`<date>e_closing_the_day_is_not_an_everyday_permission.sql`), not before it. A `cfo` account
+(`20260903g_closing_the_day_is_not_an_everyday_permission.sql`), not before it. A `cfo` account
 made today is not inert — the fallback sidebar at `js/ui.js:703` is permission-driven, so
 explicit `module_permissions` would light it up — but `dailyclosing` is not a module yet and
 no RPC tests `role = 'cfo'` yet, so the account would carry a real password and no meaning.
@@ -249,7 +278,7 @@ Creation needs two full names, two usernames and a password decision from the ow
      BEFORE UPDATE OR DELETE ON public.cash_entries
      FOR EACH ROW EXECUTE FUNCTION public.cash_entries_immutable();
    ```
-   *File:* `<date>b_a_saved_entry_is_a_fact.sql`.
+   *File:* `20260903f_a_saved_entry_is_a_fact.sql`.
    Compare `to_jsonb(OLD)` / `to_jsonb(NEW)` per key, the way
    `audit_trigger_function()` already builds `changed_fields`
    (`supabase/migrations/20260706_phase2b_audit_hardening.sql:44-47`).
@@ -262,7 +291,7 @@ Creation needs two full names, two usernames and a password decision from the ow
    `rls_enabled: true`).
 4. **Service layer.** `void_cash_entry(p_entry_id, p_reason)` inserts a *reversing* row with
    `is_adjustment=true`, `adjusts_entry_id`, opposite `direction` — it never updates the
-   original. *File:* `<date>c_…sql`.
+   original. *File:* `the P2 write-RPC migration`.
 5. **UI.** `js/pages/daily-closing.js` renders saved rows read-only; the only row action is
    `Void`, which opens a reason dialog. Voided rows render struck-through with a link to the
    reversal (`LedgerTable` spec, BLUEPRINT §A11).
@@ -279,7 +308,7 @@ Creation needs two full names, two usernames and a password decision from the ow
 1. **RPC, not client input.** `open_cash_day(p_company_id, p_project_id, p_business_date)`
    computes `opening_cash` / `opening_bank` by selecting the most recent
    `cash_days` row with `status='CLOSED'` for that project. The caller **cannot pass**
-   opening figures — there is no parameter for them. *File:* `<date>c_…sql`.
+   opening figures — there is no parameter for them. *File:* `the P2 write-RPC migration`.
 2. **Guard.** If no prior CLOSED day and no setup-opening row exists → return
    `{'success':false,'error':'SETUP_OPENING_REQUIRED'}`. If a prior day exists in `OPEN` →
    `PREVIOUS_DAY_OPEN`. Same `jsonb` error-code shape as every RMS RPC
@@ -295,7 +324,7 @@ Creation needs two full names, two usernames and a password decision from the ow
    CREATE UNIQUE INDEX cash_days_one_open_per_project
      ON public.cash_days (project_id) WHERE status = 'OPEN';
    ```
-   *File:* `<date>a_a_day_of_cash_has_a_shape.sql`.
+   *File:* `20260903e_a_day_of_cash_has_a_shape.sql`.
 5. **Role.** `set_setup_opening(...)` is admin-only via `_rms_is_admin(v_me)` (see
    invariant 8 and Question 1 on the role mapping).
 6. **UI.** The opening figures are display-only on S1/S2 — no input element exists for them.
@@ -319,7 +348,7 @@ Creation needs two full names, two usernames and a password decision from the ow
    `NEW.is_adjustment = true`.
 3. **`CHECK (is_adjustment = FALSE OR adjustment_reason IS NOT NULL)`** on `cash_entries` —
    a reasonless adjustment cannot exist even if an RPC forgets to ask.
-   *File:* `<date>a_…sql`.
+   *File:* `20260903e_…sql`.
 4. **`cash_days` is closed once.** `close_cash_day(...)` guards `status='OPEN'` and uses the
    `version` optimistic lock → `VERSION_CONFLICT`.
 5. **UI.** When `status='CLOSED'`, `js/pages/daily-closing.js` replaces the composer with
@@ -341,7 +370,7 @@ Creation needs two full names, two usernames and a password decision from the ow
    transaction, and stamps `qb_export_id`.
 2. **DB constraint.** `CREATE UNIQUE INDEX qb_exports_one_per_day ON public.qb_exports
    (cash_day_id);` → a second export attempt returns `ALREADY_EXPORTED` rather than writing
-   a second file. *File:* `<date>a_…sql`.
+   a second file. *File:* `20260903e_…sql`.
 3. **Idempotency.** `export_cash_day` is idempotent by day: a repeat call returns the
    existing `qb_exports` row (file name, checksum, count) instead of re-generating —
    mirroring `_rms_insert_simple_payment`'s "duplicate returns the original" contract.
@@ -365,21 +394,25 @@ Creation needs two full names, two usernames and a password decision from the ow
 **Enforced by:**
 
 1. **Defaults table, not code.** `entry_type_defaults(entry_type, default_qb_account_id,
-   suggested_qb_types)` seeded so `CLIENT_RECEIPT → 2020`. Seeded in `<date>a_…sql`
+   suggested_qb_types)` seeded so `CLIENT_RECEIPT → 2020`. Seeded in `20260903e_…sql`
    alongside the `qb_accounts` master (52 rows, BLUEPRINT §A14).
 2. **Server-side default.** `record_cash_entry` resolves `qb_account_id` from
    `entry_type_defaults` when the caller sends none, and **requires**
    `qb_override_reason` when the caller sends a different account →
    `OVERRIDE_REASON_REQUIRED`. This is the same shape as the existing mandatory-reason gate
    on `cancel_payment` (`20260706_phase2b_audit_hardening.sql:105-110`, min 10 chars).
-3. **DB constraint.**
+3. **⚠️ NOT YET ENFORCED AT THE DB LAYER — deferred to P2.**
    `CHECK (qb_account_id = default_for_type OR qb_override_reason IS NOT NULL)` cannot be
-   expressed directly (it needs a lookup), so it is a **trigger** in `<date>b_…sql` rather
-   than a CHECK — noted so it is not silently dropped.
-4. **4010 is fenced.** A trigger rejects any `cash_entries` row citing account `4010` unless
-   `entry_type='OTHER' AND is_adjustment` and the row was created by
-   `recognize_revenue(p_unit_id)` (Phase 3). Until that RPC exists, `4010` is simply
-   unreachable from the composer.
+   written as a CHECK: it needs a lookup against `entry_type_defaults`, and CHECK constraints
+   cannot query another table. It therefore has to be a trigger, and P1 did **not** build it —
+   P1 shipped the shape and the immutability guards only. Until P2 adds it, the schema will
+   accept any QuickBooks head on any entry type. Recorded here and in `SCHEMA.md` so it is
+   not mistaken for done.
+4. **4010 is fenced** — also P2. A trigger rejects any `cash_entries` row citing account
+   `4010` unless `entry_type='OTHER' AND is_adjustment` and the row was created by
+   `recognize_revenue(p_unit_id)` (Phase 3). Until that RPC exists, `4010` is unreachable from
+   the composer in practice, because no UI offers it — but that is a UI accident, not a
+   guarantee.
 5. **UI.** `SuggestedField` shows the resolved account with a `Suggested` tag; changing it
    reveals a required `Reason for override` (BLUEPRINT §A11).
 
@@ -393,7 +426,7 @@ Creation needs two full names, two usernames and a password decision from the ow
 
 1. **Foreign keys.** `cash_entries.payee_id → payees(id)` and
    `cash_entries.qb_account_id → qb_accounts(id)`, both `NOT NULL` for their entry types.
-   There is no free-text payee column. *File:* `<date>a_…sql`.
+   There is no free-text payee column. *File:* `20260903e_…sql`.
 2. **Active-only guard.** `record_cash_entry` returns `PAYEE_INACTIVE` / `ACCOUNT_INACTIVE`
    when the referenced master row has `is_active = false`.
 3. **Uniqueness on the master.**
@@ -437,7 +470,7 @@ Creation needs two full names, two usernames and a password decision from the ow
 4. **Sensitivity.** Extend the `is_sensitive` rules in `audit_trigger_function()` so a
    `cash_days` close and any `cash_entries` adjustment are flagged, matching the existing
    `payments.amount` / `pdc_cheques.status='bounced'` rules (lines 51-58).
-   *File:* `<date>b_…sql` (a `CREATE OR REPLACE` of the trigger function — **dump the live
+   *File:* `20260903f_…sql` (a `CREATE OR REPLACE` of the trigger function — **dump the live
    body first**; the repo copy may be stale, memory `rpcs_not_in_repo`).
 5. **Viewer.** The existing Audit Trail page (`js/pages/audit.js`, nav key `audit`,
    director-only) shows the new rows with no work, because it reads `audit_logs` generically.
@@ -453,7 +486,7 @@ Creation needs two full names, two usernames and a password decision from the ow
 1. **Schema.** `project_id uuid NOT NULL` **and** `company_id uuid NOT NULL` on every new
    table. RMS is multi-tenant *and* multi-site: `company_id` is the tenant, `project_id` is
    the site. Every existing domain table carries both (`clients.project_id NOT NULL`,
-   `units.project_id NOT NULL`). *File:* `<date>a_…sql`.
+   `units.project_id NOT NULL`). *File:* `20260903e_…sql`.
 2. **Server-side scope guard in every RPC** — the canonical chain, copied verbatim from
    `20260902a_the_number_from_the_receipt_book.sql:100-137`:
    `_rms_caller()` → `wrong_tenant` on company mismatch → `_rms_is_admin()` → else require an
@@ -595,29 +628,24 @@ codebase raises, are below.
    *format* is settled (§0.2) and the letterhead source is settled (§0.7); the *grain* is
    not. Awami has one project, so Phase 1 is per-project either way — but the answer decides
    whether §A12 S8's Group Position (Phase 4) is a second document or a second page.
-4. **Where does the `FOURTEEN GROUP` half of the letterhead actually live?** §0.7 rules that
-   both halves come from the project, and `projects.project_name` supplies `AWAMI MARKET`.
-   But `projects` has no group/brand column today — the closest is `builder_name`, which is
-   not the same thing. Confirm: add a project-level brand field in P1, or is the group line
-   a constant for this deployment?
-5. **Physical voucher books — one series per project, or per company?** The blueprint says
+4. **Physical voucher books — one series per project, or per company?** The blueprint says
    `UNIQUE(project, voucher_type, voucher_no)`. RMS's existing `voucher_sequences` is keyed
    `(company_id, prefix, year)` — company-wide, fiscal-year-labelled `2627`. Two different
    grains. Which is the truth on the ground?
-6. **Does the client receipt replace, or duplicate, the existing one?**
+5. **Does the client receipt replace, or duplicate, the existing one?**
    `reports/payment-receipt.html` already prints a client receipt from a `payments` row, and
    `payments.manual_number` already carries the physical receipt-book number (shipped
    2026-09-02). Phase 2's `client_receipts` + gapless `{SLUG}-R-{YYYY}-{000001}` would be a
    *second* receipt series for the same money. Confirm the intent.
-7. **Reuse `pdc_cheques`, or build `pdc_register`?** RMS already has a working PDC register
+6. **Reuse `pdc_cheques`, or build `pdc_register`?** RMS already has a working PDC register
    with a page, feature flag, and clear/bounce/replace RPCs
    (`js/pages/pdc.js`, `mark_pdc_cleared` creates the payment). Two registers for one drawer
    of cheques is a reconciliation problem waiting to happen.
    *Recommendation:* extend `pdc_cheques` with `kind` and `cleared_entry_id`.
-8. **Paisa: displayed or not?** Every RMS formatter rounds to 0 fraction digits
+7. **Paisa: displayed or not?** Every RMS formatter rounds to 0 fraction digits
    (`js/utils.js:11-28`). §A7 wants paisa shown when non-zero, and the variance example is
    `Rs (3)`. A 3-rupee variance is fine; a 0.50 variance would currently render as `Rs 1`.
-9. **Do cash entries have to reconcile against `payments` on day one?** If a CLIENT_RECEIPT
+8. **Do cash entries have to reconcile against `payments` on day one?** If a CLIENT_RECEIPT
    is recorded in the cash book *and* somebody records the same money through
    Record Payment (`js/pages/receipts.js`), the client is credited twice. Phase 1 ships the
    cash book while RMS's own payment entry stays live — what stops the double entry during
@@ -654,7 +682,7 @@ what every RPC already expects.
 | `qb_exports` | **New — build as specified** | Add `company_id`. `UNIQUE (cash_day_id)` per invariant 4. `checksum text` (sha-256 hex). |
 | `pdc_register` | **Conflict — reuse `pdc_cheques`** | `pdc_cheques` already carries `company_id`, `project_id`, `sale_id`, `client_id`, `cheque_no`, `bank_name`, `amount`, `cheque_date`, `deposit_date`, `clearance_date`, `status`, `payment_id`, `bounce_reason`, `replaced_by_id`, has `_trg_audit` attached, has a live page (`js/pages/pdc.js`) behind feature flag `pdc`, and `mark_pdc_cleared` already creates the payment on clearing. **Add** `kind text NOT NULL DEFAULT 'RECEIVABLE' CHECK (kind IN ('RECEIVABLE','PAYABLE'))`, `party_payee_id uuid`, `unit_id uuid`, `cleared_entry_id uuid`. Do not build a parallel register. |
 | `reconciliations` | **New — build as specified** | Add `company_id`. `UNIQUE (project_id, business_date)`. |
-| `audit_log` | **Do not build.** | `audit_logs` already exists, is append-only at the grant level, is written by `audit_trigger_function()` on 28 tables, carries actor/before/after/reason/IP/user-agent, and has a director-only viewer (`js/pages/audit.js`). Attach the trigger to the new tables (invariant 7) and delete this table from the plan. Only genuine loss: `audit_logs` has `company_id` but **no `project_id`** — add one, defaulted from the row's own `project_id` when present, in `<date>b_…sql`. |
+| `audit_log` | **Do not build.** | `audit_logs` already exists, is append-only at the grant level, is written by `audit_trigger_function()` on 28 tables, carries actor/before/after/reason/IP/user-agent, and has a director-only viewer (`js/pages/audit.js`). Attach the trigger to the new tables (invariant 7) and delete this table from the plan. Only genuine loss: `audit_logs` has `company_id` but **no `project_id`** — add one, defaulted from the row's own `project_id` when present, in `20260903f_…sql`. |
 
 **Two structural mappings that are not table-shaped:**
 
