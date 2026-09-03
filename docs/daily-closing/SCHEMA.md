@@ -43,7 +43,7 @@ verification script are not applied and never are — they are tools.
 | 2 | Opening is derived | Partial unique indexes `cash_days_setup_opening_once` (one setup opening per project, ever) and `cash_days_one_open_per_project` (at most one OPEN day). Deriving the figure itself is service work — P2. |
 | 3 | Close locks | **`cash_entries_day_guard()`** on `BEFORE INSERT` takes `SELECT … FOR UPDATE` on the day and raises `DAY_LOCKED` for a non-adjustment into a CLOSED day. `CHECK (is_adjustment = false OR adjustment_reason IS NOT NULL)` makes a reasonless adjustment impossible. |
 | 4 | Export once | `UNIQUE (cash_day_id)` on `qb_exports`; `CHECK ((qb_status='EXPORTED') = (qb_export_id IS NOT NULL))` on `cash_entries`. |
-| 5 | Receipts are advances | `entry_type_defaults` holds the default head per type. The override-reason requirement is a service check (P2) — it needs a lookup, which a CHECK cannot do. **Not yet enforced at the DB layer.** |
+| 5 | Receipts are advances | `entry_type_defaults` holds the default head per type, seeded in P2. **`cash_entries_qb_head_guard()`** on `BEFORE INSERT` (P2, `20260904b`) raises `OVERRIDE_REASON_REQUIRED` when the head differs from the type's default with no written reason, and `REVENUE_ACCOUNT_FENCED` for account 4010 unless the transaction-local flag `dc.revenue_recognition` is `'on'` — which only Phase 3's handover JV will set. |
 | 6 | Names from masters | FKs `payee_id → payees` and `qb_account_id → qb_accounts`. There is no free-text payee or account column to fall back to. |
 | 7 | Everything is audited | The existing `audit_trigger_function()`, attached to all 12 new tables; `audit_logs` is append-only by revoked grants. Closing a day and posting an adjustment are flagged `is_sensitive`, and an adjustment's reason is carried into `audit_logs.reason`. |
 | 8 | Project-scoped | `project_id NOT NULL` (and `company_id NOT NULL`) on every table; `cash_entries_day_guard()` refuses an entry whose project or company is not its day's; RLS `deny_all_anon` + revoked grants on all 13 tables. |
@@ -157,20 +157,121 @@ rollback drops `pdc_register` cleanly and `pdc_cheques` gains `kind`, `party_pay
 
 ## What P1 does NOT include
 
-No services, no RPCs, no screens, and **no seed data** — `qb_accounts` and
-`entry_type_defaults` are created empty. The 52-account chart must be copied from the live
-Awami QuickBooks company file, not from `BLUEPRINT.md` §A14, because the names must match
-that file exactly and QuickBooks caps them at 31 characters.
+No services, no RPCs, no screens, and no seed data — `qb_accounts` and `entry_type_defaults`
+were created empty. P2 fills them; see below.
 
-> ### ⚠️ Invariant 5 is NOT enforced yet
-> The override-reason rule requires a lookup against `entry_type_defaults`, and a CHECK
-> constraint cannot query another table — so it has to be a trigger, and P1 did not build one.
-> **Until it exists the schema will accept any QuickBooks head on any entry type, including
-> `4010 Unit - Shop Sales`.**
+> ### Invariant 5 — the P1 flag comes down
+> P1 shipped `entry_type_defaults` with nothing enforcing it, and this section carried a
+> warning that the schema would accept any QuickBooks head on any entry type. **P2's
+> `cash_entries_qb_head_guard()` closes it**, proved in both directions by tests 23–30 of
+> `scripts/verify-daily-closing-seed.js` — including a red check confirming the suite fails
+> when the trigger is removed.
 >
-> This is a **Definition-of-Done item for P2** (`PHASES.md` → "Definition of Done — P2",
-> items 4 and 7), agreed with the owner on the condition that it stays visible. This flag is
-> removed only when the trigger is live and tested — not when P2 is otherwise finished.
+> ⚠️ **The flag is down in the code, not yet in the database.** `20260904b` is written and
+> tested but **not applied**; until it is, the live schema still accepts any head. This
+> sentence is what comes out when it is applied.
+
+---
+
+# P2 — seeds, the payee master, invariant 5
+
+| Migration | Purpose |
+|---|---|
+| `20260904a_the_chart_and_the_people_paid.sql` | `seed_daily_closing_chart()` + the pilot's run; `payees.normalized_name` regenerated |
+| `20260904b_a_head_that_is_not_the_default_needs_a_reason.sql` | invariant 5 — `cash_entries_qb_head_guard()` |
+| `20260904c_a_private_shelf_for_the_days_documents.sql` | the private `daily-closing` storage bucket |
+| `20260904d_the_payee_master_opens.sql` | `list_payees` · `create_payee` · `rename_payee` · `set_payee_active` · `_dc_can_manage_payees()` |
+| `20260904e_the_role_column_was_never_free_text.sql` | corrects a false comment P1 left on `app_users.role` |
+| `scripts/verify-daily-closing-seed.js` | 33 assertions inside `BEGIN … ROLLBACK` |
+
+## The seeder
+
+`seed_daily_closing_chart(p_company_id, p_project_id)` — `service_role` only, and **idempotent
+by construction**: `ON CONFLICT DO UPDATE` on every insert, so a re-run inserts what is
+missing, corrects a name that has drifted, and reactivates what was switched off. It never
+deletes, because an account an entry has cited is cited forever. Test 04 proves the drift
+correction by renaming and deactivating 2020 and re-running.
+
+It seeds three things:
+
+- **53 QuickBooks accounts** (§A14), for the tenant. ⚠️ **The names are the contract** — the
+  Phase-3 IIF export matches on NAME, and QuickBooks silently creates a new account when a
+  name does not resolve. Longest is `Construction - Development Cost` at exactly 31, which is
+  QuickBooks' own cap. Test 02 asserts nothing exceeds it; test 03 asserts exact spellings
+  including the apostrophe in `Owner's Capital`.
+- **5 `entry_type_defaults`.** Only `CLIENT_RECEIPT` has a default — `2020 Advance from
+  Customers`, which *is* invariant 5. The other four are deliberately NULL: choosing among
+  5xxx/6xxx/7xxx for an expense is the ordinary act, not an override, and a default there
+  would make every real entry an "override" needing a reason. §A14's *mode* defaults
+  (CASH → 1010, BANK → 1030) are not entry-type defaults at all — they belong to the drawer
+  and the bank account, and land on `cash_accounts`.
+- **2 `cash_accounts` for the pilot** — `Cash in Hand` → 1010, `Bank Al-Habib - Awami` → 1030.
+
+## Bank identity — which table is the source of truth
+
+**`project_bank_accounts` is the source of truth for bank identity** — the account title,
+number, IBAN and branch. `cash_accounts` says *where money moves* and carries only a name, a
+kind, its QuickBooks head, and `bank_account_id` pointing at that master. A bank account is
+described in one place.
+
+At the pilot, `project_bank_accounts` currently holds **no row for Awami** (nor does the
+company-wide `banks` table), so `cash_accounts.bank_account_id` is NULL and the BANK row
+stands alone. The seeder looks the link up on **every run** — `bank_name ILIKE '%al%habib%'`,
+primary first — so adding the real row later and re-seeding links them with no migration.
+
+Until that row exists, `Bank Al-Habib - Awami` in `cash_accounts` is a label with no account
+number behind it. That is fine for the cash book, which only needs to know a movement was
+"bank" — and it is **not** fine for the Phase-3 export, which will need the real account.
+
+## `payees.normalized_name` — regenerated in P2
+
+P1 shipped lower + trim + collapse-whitespace. P2's brief adds punctuation stripping, so the
+generated expression was replaced:
+
+```sql
+btrim(regexp_replace(regexp_replace(lower(btrim(name)), '[[:punct:]]', '', 'g'), '\s+', ' ', 'g'))
+```
+
+Postgres cannot alter a generation expression in place, so the column was dropped and re-added
+with its unique index — safe only because the table is empty, and not a pattern to repeat once
+it carries rows.
+
+`[[:punct:]]` rather than `[^a-z0-9 ]` on purpose: the second erases an Urdu or accented name
+down to the empty string, and a payee master for a Peshawar site cannot assume ASCII. Test 09
+covers it. Collapse runs *after* the strip, so `Ahmed & Sons` → `ahmed sons`, not `ahmed  sons`.
+
+Consequence worth knowing: `M/s. Ahmed & Sons` and `Ms Ahmed   Sons` are now **one payee**
+(test 08). That is the intent — a master list exists to stop the same vendor appearing twice —
+but it is stricter than P1 was, and a genuinely different name that differs only by punctuation
+would now collide and return `PAYEE_DUPLICATE`.
+
+Generated columns are excluded from backup INSERTs by `scripts/backup-full.js:252`, which
+already handles this — the ⚠️ in RULES invariant 6 is satisfied and needs no change.
+
+## The payee master
+
+Four RPCs, all `SECURITY DEFINER`, all returning `{success, error}` jsonb in §A9's vocabulary:
+`list_payees` · `create_payee` · `rename_payee` · `set_payee_active`.
+
+**There is no delete, and there will not be one** (test 21 asserts none exists). A payee named
+on an entry is named on it forever; deactivating removes them from the picker and leaves the
+history readable.
+
+**Who may maintain it:** `_dc_can_manage_payees()` = `role IN ('finance','accounts')` OR
+`_dc_is_cfo()`. That is §A10's "Accountant+" exactly. Plain `admin` is **refused** (test 17) —
+in this database admin is the everyday data-entry role. Reading the list is wider: a cashier
+has to pick a payee, so `list_payees` admits any tenant user with the project assignment
+(tests 18–19).
+
+## The `daily-closing` bucket
+
+`public = false`, 10 MB cap, and **no storage policy at all** — the shape `20260828j` used for
+employee documents. `anon` and `authenticated` cannot read, write or list it by any route;
+every read is a short-lived signed URL minted server-side. Test 31 asserts the bucket exists,
+is private, and that no `storage.objects` policy references it.
+
+Created in P2 rather than P7 because the renderer is not its first user: `cash_entry_attachments`
+needs it as soon as the composer exists.
 
 ## Rollback
 

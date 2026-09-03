@@ -37,7 +37,7 @@ times in a row. Excel is retired on day fifteen, not on the day the tests go gre
 |---|---|---|---|
 | P0 | Discovery — BLUEPRINT / ARCHITECTURE_NOTES / RULES | given | ✅ done |
 | P1 | Schema & models | given | ✅ done — `20260903e/f/g`, `SCHEMA.md` |
-| P2 | **Seeds + payee master** | **owner** | next |
+| P2 | **Seeds + payee master** | **owner** | ✅ built & tested — `20260904a-e`, not applied |
 | P3 | Services / use cases + error taxonomy | *inferred* | — |
 | P4 | Design system "Ledger" (`--dc-*`) | *inferred* | — |
 | P5 | Day Workspace (S1) | *inferred* | — |
@@ -121,27 +121,56 @@ This one is a **proposal, not a decision** — say if you would rather it stayed
 
 ---
 
-## Definition of Done — P2
+## Definition of Done — P2  ·  built and tested 2026-09-04, **not yet applied**
 
-Recorded here so the deferred item cannot be quietly dropped.
+Recorded here so the deferred item cannot be quietly dropped. Status against each item below.
 
-1. `qb_accounts` seeded from the **live Awami QuickBooks company file** — not from
-   `BLUEPRINT.md` §A14. The names must match that file exactly and QuickBooks caps them at 31
-   characters; the blueprint is a transcription and transcriptions drift.
-2. `entry_type_defaults` seeded: `CLIENT_RECEIPT → 2020 Advance from Customers`, `CASH → 1010`,
-   `BANK → 1030`, `TRANSFER → 1010 ↔ 1030`, and the suggested type lists for `EXPENSE` and
-   `LOAN_CAPITAL`.
-3. `cash_accounts` seeded for the pilot project — one CASH drawer, and the bank account(s)
-   that **RULES (b) Q2 is still waiting on**.
-4. **The invariant-5 trigger** (deviation 2): reject a `cash_entries` row whose
-   `qb_account_id` differs from its type's default unless `qb_override_reason` is present and
-   non-empty → `OVERRIDE_REASON_REQUIRED`. **Plus the `4010` fence:** no entry may cite
-   `4010 Unit - Shop Sales` at all until `recognize_revenue()` exists in Phase 3.
-5. The payee master: RPCs to list, create and rename/deactivate, admin-gated, with
-   `PAYEE_INACTIVE` returned rather than a silent pass.
-6. Tests, in the shape P1 set: assertions inside `BEGIN … ROLLBACK`, and each one proved able
-   to go red before it is trusted.
-7. `SCHEMA.md`'s "not yet enforced" flag on invariant 5 **removed** — and only then.
+1. ⚠️ **Deviation, on the owner's instruction.** This item said seed from the **live Awami
+   QuickBooks company file**, not from `BLUEPRINT.md` §A14, because the blueprint is a
+   transcription and transcriptions drift. P2's prompt said the opposite — *"the 53
+   qb_accounts from BLUEPRINT.md §A14 … names EXACTLY as written"* — and that is what was
+   built. The risk this item was written to catch is therefore **still open**: nobody has
+   diffed §A14 against the real company file. The Phase-3 IIF export matches on NAME, and
+   QuickBooks silently creates a new account when a name does not resolve, so one wrong
+   character becomes a duplicate account nobody notices until a reconciliation fails.
+   **A one-time diff against the live file is owed before P16.** Correcting a drifted name
+   afterwards is cheap — re-running the seeder fixes it (test 04).
+2. ✅ `entry_type_defaults` seeded — 5 rows, `CLIENT_RECEIPT → 2020`. The §A14 *mode* defaults
+   (`CASH → 1010`, `BANK → 1030`, `TRANSFER → 1010 ↔ 1030`) turned out not to belong here at
+   all: they describe the drawer and the bank account, so they land on `cash_accounts`
+   instead. The other four entry types are deliberately NULL — a default there would make
+   every ordinary expense an "override" needing a written reason. Test 05.
+3. ✅ `cash_accounts` seeded — `Cash in Hand` → 1010, `Bank Al-Habib - Awami` → 1030. Test 06.
+   **RULES (b) Q2 is now answered in practice:** `project_bank_accounts` is the source of
+   truth for bank *identity* and `cash_accounts` references it by FK; there is no Awami row
+   there yet, so the link is NULL and the seeder re-checks it on every run. See `SCHEMA.md`.
+4. ✅ **The invariant-5 trigger** — `cash_entries_qb_head_guard()`, `20260904b`. Both halves:
+   `OVERRIDE_REASON_REQUIRED` off-default with no reason (tests 24, 26), allowed with one
+   (test 25), no reason needed where there is no default (test 27); and the `4010` fence on
+   the single head (test 28), on **both legs of a JV** (test 29), opening only for Phase 3's
+   `dc.revenue_recognition` flag (test 30).
+5. ✅ The payee master — `list_payees` · `create_payee` · `rename_payee` · `set_payee_active`,
+   gated at **Accountant+** (`accounts` or `_dc_is_cfo`), plain `admin` refused. No delete
+   exists and none will (test 21). `PAYEE_INACTIVE` on *entry* rather than on listing is P3's
+   job — `record_cash_entry` does not exist yet, and that is where a payee is used.
+6. ✅ Tests — 33 assertions inside `BEGIN … ROLLBACK`, and the suite proved able to go red:
+   running the same batch with `20260904b` removed fails at test 24, as it must.
+7. ⚠️ `SCHEMA.md`'s invariant-5 flag is **rewritten, not removed**. It now says the trigger
+   exists and is tested but **is not yet applied to the live database** — so the live schema
+   still accepts any head. The last sentence comes out when the migrations are applied.
+
+### Other P2 outcomes worth carrying forward
+
+- 🚫 **New blocker: `app_users_role_check` refuses `cfo`.** Found by test 33 on its first run.
+  P1 recorded — wrongly — that the column has no CHECK. `_dc_is_cfo()` is correct; the column
+  will not hold the value, so §0.9's two accounts cannot be created. One-line fix, needs the
+  owner's word: **RULES §0.9**.
+- ✏️ **The Accountant's role value is `accounts`, not `finance`.** RULES §0.3 had that
+  backwards; corrected there and in §0.4.
+- 📄 **`PDC_DECISION.md` written** (RULES (b) Q6). Recommendation: **extend `pdc_cheques`,
+  drop `pdc_register`** — four columns missing, against thirteen live RPCs and a working page.
+  Deviation 3 above is resolved in principle; the drop happens in P16, not now.
+- ✅ **Deviation 4 accepted** — the private `daily-closing` bucket was created in P2.
 
 ---
 

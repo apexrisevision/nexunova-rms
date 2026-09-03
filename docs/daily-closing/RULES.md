@@ -64,7 +64,7 @@ Engine **approved** — see §0.5. Letterhead wording is fixed by §0.7.
 | Blueprint role | RMS role | Status |
 |---|---|---|
 | Cashier | `staff` + an explicit `dailyclosing` module grant | **accepted** |
-| Accountant | `finance` (legacy alias `accounts`) | **accepted** |
+| Accountant | **`accounts`** — the code also reads `finance` as a synonym, but `app_users_role_check` has only ever permitted `accounts`. This row said it the other way round; see §0.4. | **accepted, value corrected** |
 | Director | `manager` — already app-wide read-only (`js/ui.js:501`) and rejected outright by write RPCs (`20260902a…sql:127-129`) | **accepted** |
 | CFO | **new `cfo` role — do NOT map to `admin`** | see §0.4 |
 
@@ -118,8 +118,25 @@ left must still be able to close its books. The five places a new role must be r
 the front end are listed in `ARCHITECTURE_NOTES.md` §3.4 — those belong to the UI prompt, not
 to the schema.
 
-> Note `app_users.role` is `text NOT NULL` with **no CHECK constraint**, so the DB accepts
-> `'cfo'` today. The work is entirely in the five code sites, not in the schema.
+> ### ⚠️ Correction — `app_users.role` DOES have a CHECK, and it refuses `cfo`
+> This note previously read: *"`app_users.role` is `text NOT NULL` with no CHECK constraint,
+> so the DB accepts `'cfo'` today."* That is false. It was asserted from
+> `information_schema.columns`, which does not show CHECK constraints, and never verified
+> against `pg_constraint`. P2's test suite caught it on its first run.
+>
+> ```sql
+> app_users_role_check
+>   CHECK (role = ANY (ARRAY['owner','admin','manager','recovery','accounts','staff']))
+> ```
+>
+> Two consequences. **`cfo` cannot be stored**, so no CFO account can be created until the
+> CHECK is widened — see the blocker in §0.9. And **the Accountant's real value is
+> `accounts`**, not `finance`: the front end reads the two as synonyms
+> (`js/ui.js:494`) but only `accounts` has ever been storable, so §0.3's table had that
+> relationship backwards.
+>
+> `_dc_is_cfo()` itself is correct and tested (test 32); it is the column that will not hold
+> the value. `20260904e` corrects the false comment P1 left in the live schema.
 
 ### 0.5 PDF engine — **APPROVED** (owner, 2026-09-03)
 
@@ -247,6 +264,28 @@ user is a permission model that has never been tested.
 |---|---|---|---|
 | CFO | `cfo` (new, §0.4) | `user_project_assignments` → `59ded55b-…`, `is_active` | `dailyclosing` |
 | Site cashier | `staff` | same project, `is_active` | `dailyclosing` |
+
+> ### 🚫 BLOCKER — `cfo` cannot be stored yet (found in P2, 2026-09-04)
+> `app_users_role_check` permits only `owner, admin, manager, recovery, accounts, staff`.
+> Creating the CFO account above fails with a check violation today. The predicate
+> `_dc_is_cfo()` is live and correct; the column will not hold the value.
+>
+> The fix is one statement, and it alters a constraint on the table every tenant's login
+> depends on, so it is **not** being slipped into a seed-data prompt:
+>
+> ```sql
+> ALTER TABLE public.app_users DROP CONSTRAINT app_users_role_check;
+> ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check
+>   CHECK (role = ANY (ARRAY['owner','admin','manager','recovery','accounts','staff','cfo']));
+> ```
+>
+> **Needs the owner's word before it runs.** Nothing in P2 or P3 is blocked by it — the pilot's
+> only account is `owner`, which `_dc_is_cfo()` already admits — but §0.9's two accounts
+> cannot be created until it does, and P10's role×action suite cannot test a real `cfo`.
+>
+> `scripts/verify-daily-closing-seed.js` test 33 is a tripwire: it asserts the CHECK still
+> refuses `cfo`, so **it goes red the day this is fixed**, forcing whoever fixes it to clear
+> this blocker and the note in §0.4 in the same commit.
 
 **Do not simplify the permission model because only one person uses it today.** Every
 CFO-only action (setup opening · close day · adjustments · allocation approve/reject ·
@@ -402,18 +441,20 @@ Creation needs two full names, two usernames and a password decision from the ow
    `qb_override_reason` when the caller sends a different account →
    `OVERRIDE_REASON_REQUIRED`. This is the same shape as the existing mandatory-reason gate
    on `cancel_payment` (`20260706_phase2b_audit_hardening.sql:105-110`, min 10 chars).
-3. **⚠️ NOT YET ENFORCED AT THE DB LAYER — deferred to P2.**
-   `CHECK (qb_account_id = default_for_type OR qb_override_reason IS NOT NULL)` cannot be
-   written as a CHECK: it needs a lookup against `entry_type_defaults`, and CHECK constraints
-   cannot query another table. It therefore has to be a trigger, and P1 did **not** build it —
-   P1 shipped the shape and the immutability guards only. Until P2 adds it, the schema will
-   accept any QuickBooks head on any entry type. Recorded here and in `SCHEMA.md` so it is
-   not mistaken for done.
-4. **4010 is fenced** — also P2. A trigger rejects any `cash_entries` row citing account
-   `4010` unless `entry_type='OTHER' AND is_adjustment` and the row was created by
-   `recognize_revenue(p_unit_id)` (Phase 3). Until that RPC exists, `4010` is unreachable from
-   the composer in practice, because no UI offers it — but that is a UI accident, not a
-   guarantee.
+3. **✅ ENFORCED — `cash_entries_qb_head_guard()` (P2, `20260904b`).**
+   The rule could not be a CHECK — it needs a lookup against `entry_type_defaults`, and a
+   CHECK cannot query another table — so it is a `BEFORE INSERT` trigger. An entry whose
+   `qb_account_id` differs from its type's default and carries no non-blank
+   `qb_override_reason` is refused with `OVERRIDE_REASON_REQUIRED`. A type with **no**
+   default requires no reason: there is nothing to deviate from, and choosing among
+   5xxx/6xxx/7xxx for an expense is the ordinary act. Tests 23–27, plus a red check proving
+   the suite fails when the trigger is removed.
+4. **✅ 4010 is fenced** — same trigger. Any entry citing `4010 Unit - Shop Sales`, on the
+   single head **or on either leg of a journal voucher**, is refused with
+   `REVENUE_ACCOUNT_FENCED` unless the transaction-local flag `dc.revenue_recognition` is set
+   to `'on'`. That flag is the same mechanism the audit trail already uses for an operator's
+   reason (`rms.audit_reason`), so Phase 3's `recognize_revenue()` opens the gate by setting
+   it rather than by editing this trigger. Tests 28–30.
 5. **UI.** `SuggestedField` shows the resolved account with a `Suggested` tag; changing it
    reveals a required `Reason for override` (BLUEPRINT §A11).
 
@@ -434,9 +475,9 @@ Creation needs two full names, two usernames and a password decision from the ow
    `UNIQUE (COALESCE(project_id,'00000000-…'::uuid), normalized_name)` on `payees`, with
    `normalized_name` a generated lower/trim/collapse-whitespace column — so "PESCO " and
    "pesco" cannot both exist.
-   > ⚠️ `npm run backup` **must exclude generated columns** (memory
-   > `local_full_backup_script`); if `normalized_name` is generated, add it to the exclusion
-   > list in `scripts/backup-full.js` in the same commit.
+   > ✅ Checked in P2: `scripts/backup-full.js:252` already filters generated columns out of
+   > its INSERT column list (`tcols.filter(c => c.gen !== 's')`), so the backup handles this
+   > with no change. P2 also widened the expression to strip punctuation — see `SCHEMA.md`.
 4. **UI.** `EntitySelect` is a typeahead over the master with a "+ New payee" option gated to
    admin; it never accepts free text. Follow `js/pick.js` rather than assigning
    `sel.value = savedId` against a filtered list — that silently blanks the field
