@@ -10,8 +10,9 @@ What P1 creates, one line per table, plus the mechanisms that carry the invarian
 | `supabase/migrations/20260903r_rollback_the_cash_book.sql` | the down path (destructive; see its header) |
 | `scripts/verify-daily-closing-schema.js` | runs all four inside `BEGIN … ROLLBACK` and asserts 22 things |
 
-**Status: written and proven, NOT applied.** Nothing above has been run against the live
-database outside a rolled-back transaction. See "Applying this" at the end.
+**Status: APPLIED to the live RMS database (`itqxljtfbrppntgyfush`) on 2026-09-03**, after a
+full verified backup. Evidence in "Applying this" at the end. The rollback file and the
+verification script are not applied and never are — they are tools.
 
 ---
 
@@ -161,9 +162,15 @@ No services, no RPCs, no screens, and **no seed data** — `qb_accounts` and
 Awami QuickBooks company file, not from `BLUEPRINT.md` §A14, because the names must match
 that file exactly and QuickBooks caps them at 31 characters.
 
-Invariant 5's override-reason rule is also not yet enforced at the DB layer: it requires a
-lookup against `entry_type_defaults`, which a CHECK cannot do, so it becomes a trigger or a
-service check in P2. Until then the schema permits any head on any entry type.
+> ### ⚠️ Invariant 5 is NOT enforced yet
+> The override-reason rule requires a lookup against `entry_type_defaults`, and a CHECK
+> constraint cannot query another table — so it has to be a trigger, and P1 did not build one.
+> **Until it exists the schema will accept any QuickBooks head on any entry type, including
+> `4010 Unit - Shop Sales`.**
+>
+> This is a **Definition-of-Done item for P2** (`PHASES.md` → "Definition of Done — P2",
+> items 4 and 7), agreed with the owner on the condition that it stays visible. This flag is
+> removed only when the trigger is live and tested — not when P2 is otherwise finished.
 
 ## Rollback
 
@@ -177,18 +184,55 @@ It destroys data. It is for use before the pilot's first close, and not after.
 ## Applying this
 
 ```bash
-node scripts/verify-daily-closing-schema.js     # proves up + down against the real engine,
-                                                # inside BEGIN … ROLLBACK. Commits nothing.
+node scripts/verify-daily-closing-schema.js                 # dry run: sends up + assertions +
+                                                            # down inside BEGIN … ROLLBACK
+node scripts/verify-daily-closing-schema.js --against-live  # asserts the APPLIED schema only;
+                                                            # sends no migration at all
 ```
 
-Last run: **PASS** — migrations applied, 22 assertions held, rollback returned the database
-to its starting state. Verified afterwards that production still has 0 of the 13 tables, no
-`audit_logs.project_id`, none of the new functions, and an `audit_trigger_function` whose
-definition hashes to the same value as before the run.
+The dry run is what proved the migrations before they were applied: **PASS**, 22 assertions,
+rollback returned the database to its starting state, and production afterwards still had 0 of
+the 13 tables and an `audit_trigger_function` hashing to its pre-run value.
 
 The harness was also checked in the other direction — with the immutability test's exception
 handler removed, the batch fails with `23001 … cash_entries is immutable: amount cannot be
 updated`. A test that cannot go red proves nothing.
 
-To apply for real, run the three up migrations through `apply_migration`, in order:
-`20260903e` → `20260903f` → `20260903g`. **Not yet done — it needs the owner's go-ahead.**
+### The live apply — 2026-09-03
+
+1. **Backup first.** `node scripts/backup-full.js` → `backups/BACKUP_20260903_2336`, 265 MB,
+   160 table dumps, all 7 tenants, `MANIFEST.json` present. Row counts in the manifest match
+   the live database exactly: clients 360, sales 504, payments 3274, installments 16121,
+   units 2318, app_users 15, audit_logs 54055.
+2. **Applied in order** `20260903e` → `20260903f` → `20260903g`, each atomic on its own
+   `BEGIN … COMMIT`, and recorded in `supabase_migrations.schema_migrations` as
+   `20260903235001/2/3`. (The repo files keep letter suffixes; the recorded versions are
+   timestamps, which is what that table takes.)
+3. **`--against-live` verification: PASS**, 22 assertions against the real applied schema.
+
+### What was proved untouched afterwards
+
+| Check | Before | After |
+|---|---|---|
+| Schema fingerprint, excluding the 13 new tables and `audit_logs.project_id` | `37894cdf956332199f4afab9bec18103` / 2382 cols | **identical** |
+| `_trg_audit` triggers | 23 | 35 — the 12 new tables, none lost |
+| FMH: clients / sales / payments / installments / units | 184 / 255 / 1312 / 9519 / 455 | **identical** |
+| FMH payments total | `603,399,181.00` | **identical** |
+| KBH (Fourteen Group): clients / sales / payments / installments / units | 172 / 241 / 1957 / 6544 / 322 | **identical** |
+| KBH payments total | `669,934,989.00` | **identical** |
+| `audit_trigger_function` | `66c3a0390047ed512091e783105f67af` | `3ab9fee6f16a5a958200828cc662854e` — **intentionally rewired** |
+
+The audit function is the one existing object this module changes. Diffing the old body
+(embedded verbatim in `20260903r`) against the new one gives exactly four hunks and nothing
+else: the `v_project_id` declaration, the two Daily Closing sensitivity rules, the
+`project_id` capture, and `project_id` added to the INSERT. Every pre-existing rule —
+payments, sales, installments, pdc_cheques, units, subscriptions, backdating, the operator
+reason — is byte-identical.
+
+**FMH flow smoke**, run on real rows inside `BEGIN … ROLLBACK`: an UPDATE of a live FMH
+payment still fires the audit trigger and now carries the correct `project_id`; a full INSERT
+into `payments` still works and audits; and `payments` still accepts UPDATE **and** DELETE —
+only `cash_entries` is locked. All three passed, nothing persisted (0 rows left, `payments`
+still 3274).
+
+The cash book itself is empty and stays empty until P2: `cash_days` 0, `cash_entries` 0.

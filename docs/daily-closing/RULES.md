@@ -11,15 +11,16 @@ lives in a DB constraint, trigger or `SECURITY DEFINER` RPC, and the UI only mir
 
 | Slot | File | Status |
 |---|---|---|
-| Schema | `supabase/migrations/20260903e_a_day_of_cash_has_a_shape.sql` | **P1 — written, proven, not applied** |
-| Immutability + audit triggers | `supabase/migrations/20260903f_a_saved_entry_is_a_fact.sql` | **P1 — written, proven, not applied** |
-| New CFO privilege | `supabase/migrations/20260903g_closing_the_day_is_not_an_everyday_permission.sql` | **P1 — written, proven, not applied** |
+| Schema | `supabase/migrations/20260903e_a_day_of_cash_has_a_shape.sql` | **P1 — APPLIED 2026-09-03** |
+| Immutability + audit triggers | `supabase/migrations/20260903f_a_saved_entry_is_a_fact.sql` | **P1 — APPLIED 2026-09-03** |
+| New CFO privilege | `supabase/migrations/20260903g_closing_the_day_is_not_an_everyday_permission.sql` | **P1 — APPLIED 2026-09-03** |
 | Rollback | `supabase/migrations/20260903r_rollback_the_cash_book.sql` | **P1 — written, proven** |
 | Schema doc | `docs/daily-closing/SCHEMA.md` | **P1 — written** |
 | Schema test | `scripts/verify-daily-closing-schema.js` | **P1 — passing** |
-| Write RPCs | `supabase/migrations/<date>_opening_recording_and_closing_a_day.sql` | P2 |
-| Read RPCs | `supabase/migrations/<date>_what_the_day_looks_like.sql` | P2 |
-| Director PDF renderer | `supabase/functions/daily-closing-pdf/index.ts` (Deno + `pdf-lib`) | P2 — carries `DC_BRAND_NAME` (§0.7) |
+| Seeds + payee master + invariant-5 trigger | `supabase/migrations/<date>_the_chart_and_the_people_paid.sql` | P2 — see `PHASES.md` |
+| Write RPCs | `supabase/migrations/<date>_opening_recording_and_closing_a_day.sql` | P3 |
+| Read RPCs | `supabase/migrations/<date>_what_the_day_looks_like.sql` | P3 |
+| Director PDF renderer | `supabase/functions/daily-closing-pdf/index.ts` (Deno + `pdf-lib`) | **P7** — carries `DC_BRAND_NAME` (§0.7) |
 | Page | `js/pages/daily-closing.js` | later |
 | Page styles | `css/daily-closing.css` (+ `--dc-*` aliases) | later |
 | Page container | `login.html` → `<div class="pg" id="pg-dailyclosing">` | later |

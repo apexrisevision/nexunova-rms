@@ -330,20 +330,34 @@ END
 $down$;
 `;
 
+// --against-live : the migrations are already applied. Run ONLY the assertions,
+// against the schema that is really there, and do not send the rollback — a
+// down migration inside a transaction on a live database is a correct but
+// alarming thing to do, and once the cash book carries real rows it stops being
+// merely alarming. Fixture rows still roll back.
+const AGAINST_LIVE = process.argv.includes('--against-live');
+
 (async () => {
   console.log(`[verify-daily-closing-schema] project ${REF}`);
-  console.log('  up:   ' + UP.join('\n        '));
-  console.log('  down: ' + DOWN);
+  if (AGAINST_LIVE) {
+    console.log('  mode: --against-live — asserting the schema that is already applied.');
+    console.log('  the up and down migrations are NOT sent.');
+  } else {
+    console.log('  up:   ' + UP.join('\n        '));
+    console.log('  down: ' + DOWN);
+  }
   console.log('  everything below runs inside BEGIN … ROLLBACK — nothing is committed.\n');
 
-  const sql = [
-    'BEGIN;',
-    ...UP.map(body),
-    ASSERT_UP,
-    body(DOWN),
-    ASSERT_DOWN,
-    'ROLLBACK;',
-  ].join('\n');
+  const sql = AGAINST_LIVE
+    ? ['BEGIN;', ASSERT_UP, 'ROLLBACK;'].join('\n')
+    : [
+      'BEGIN;',
+      ...UP.map(body),
+      ASSERT_UP,
+      body(DOWN),
+      ASSERT_DOWN,
+      'ROLLBACK;',
+    ].join('\n');
 
   fs.writeFileSync(path.join(__dirname, '..', 'migration_work', '_dc_p1_probe.sql'), sql);
 
@@ -359,8 +373,13 @@ $down$;
   // The Management API does not return NOTICE output, so the assertions are
   // proved by the request succeeding: every one of them raises on failure, and
   // a raise aborts the batch.
-  console.log('✅ PASS — migrations applied, 22 assertions held, rollback returned the');
-  console.log('   database to its starting state. Nothing was committed.');
-  console.log('\n   Re-run any time. To apply for real, run the three up migrations');
-  console.log('   through apply_migration — this script never does.');
+  if (AGAINST_LIVE) {
+    console.log('✅ PASS — 22 assertions held against the LIVE applied schema.');
+    console.log('   Fixture rows rolled back; nothing was committed.');
+  } else {
+    console.log('✅ PASS — migrations applied, 22 assertions held, rollback returned the');
+    console.log('   database to its starting state. Nothing was committed.');
+    console.log('\n   Re-run any time. To apply for real, run the three up migrations');
+    console.log('   through apply_migration — this script never does.');
+  }
 })();
