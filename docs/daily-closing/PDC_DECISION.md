@@ -1,8 +1,36 @@
 # PDC — one register or two
 
 Written in P2 to answer `RULES.md` (b) Q6. **No PDC data was seeded and no PDC table was
-written to.** The final PDC work is Phase 3 (P16); this is the decision that has to be made
+written to.** The final PDC work is Phase 3 (P16); this is the decision that had to be made
 before it starts, because it decides whether a table created in P1 gets used or dropped.
+
+---
+
+## ✅ DECIDED — 2026-09-04, by the owner
+
+**The module adopts `public.pdc_cheques` as its single post-dated cheque table.
+`pdc_register` was dropped** — `20260904g_one_drawer_of_cheques_one_table.sql`.
+
+The reasoning below was accepted as written: a live table with thirteen RPCs, a page, deposit
+scheduling, bounce penalties and a replacement chain is richer than the blueprint's three-state
+model, and the blueprint's model is a **subset** of it. The drop was done immediately, while
+the table was empty and it was free.
+
+**The four missing fields are Phase 3 (P16) work and were deliberately NOT added now:**
+
+| Field | Why it waits |
+|---|---|
+| `kind` RECEIVABLE / PAYABLE | Nothing writes a payable cheque until the cash book records money out |
+| `party_payee_id` → `payees` | Follows from `kind`; the payee master only opened in P2 |
+| `cleared_entry_id` → `cash_entries` | There is no `record_cash_entry` to link to until P3 |
+| `status` CHECK | Would reject nothing today, and belongs with the lifecycle work |
+
+Also for P16: backfill the one live row whose `project_id` is NULL, then make it `NOT NULL`
+(invariant 8), and tighten `amount` to `numeric(18,2)`.
+
+`20260903e` — which created `pdc_register` — is **not** edited. An applied migration should
+keep saying what it did; a rebuild from scratch replays `e` (create) then `20260904g` (drop),
+which is consistent. `20260903r` drops it with `IF EXISTS` and needed no change.
 
 ---
 
@@ -136,6 +164,5 @@ belong in which register, enforced somewhere, or the two will drift within a mon
 
 ---
 
-**Decision needed from the owner before P16.** Nothing in P2 or P3 depends on it; this is
-recorded now because P1 created a table on a brief's say-so, and a table that may be dropped
-should not be discovered by whoever writes P16.
+**Decided 2026-09-04 — see the box at the top of this file.** `pdc_register` is gone;
+`pdc_cheques` is the one register; the four fields are P16's job.

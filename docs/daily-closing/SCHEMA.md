@@ -10,7 +10,8 @@ What P1 creates, one line per table, plus the mechanisms that carry the invarian
 | `supabase/migrations/20260903r_rollback_the_cash_book.sql` | the down path (destructive; see its header) |
 | `scripts/verify-daily-closing-schema.js` | runs all four inside `BEGIN … ROLLBACK` and asserts 22 things |
 
-**Status: APPLIED to the live RMS database (`itqxljtfbrppntgyfush`) on 2026-09-03**, after a
+**Status: P1 and P2 both APPLIED to the live RMS database (`itqxljtfbrppntgyfush`) — P1 on
+2026-09-03, P2 on 2026-09-04**, each after a
 full verified backup. Evidence in "Applying this" at the end. The rollback file and the
 verification script are not applied and never are — they are tools.
 
@@ -31,7 +32,7 @@ verification script are not applied and never are — they are tools.
 | `client_receipts` | One rendered receipt per approved client entry, numbered and retained. |
 | `day_documents` | Every version of the Director PDF for a day; a regeneration adds a version and keeps the old file. |
 | `qb_exports` | One export per day, with file name, checksum and entry count — the row that makes invariant 4 true. |
-| `pdc_register` | Blueprint §A6's post-dated cheque register. ⚠️ `pdc_cheques` is the one RMS actually uses — see below. |
+| ~~`pdc_register`~~ | **DROPPED 2026-09-04** (`20260904g`). The module adopts the live `pdc_cheques` as its single cheque table — see `PDC_DECISION.md`. |
 | `reconciliations` | A recorded comparison between this cash book and QuickBooks on a date; it stores what was compared and computes no balance. |
 | `audit_logs` *(existing, altered)* | Gains a nullable `project_id` so a director can be shown the audit for their own project and no other. |
 
@@ -94,7 +95,7 @@ in the schema, and adding a value to one later takes a lock where rewriting a CH
 | `cash_entries.qb_status` | `NOT_EXPORTED` `EXPORTED` |
 | `cash_accounts.kind` | `CASH` `BANK` |
 | `payees.kind` | `CUSTOMER` `VENDOR` `STAFF` `DEALER` `OTHER` |
-| `pdc_register.kind` / `.status` | `RECEIVABLE` `PAYABLE` / `PENDING` `CLEARED` `BOUNCED` |
+| ~~`pdc_register.kind` / `.status`~~ | table dropped; `pdc_cheques.status` holds `pending` `deposited` `cleared` `bounced` `replaced` and gains a CHECK in P16 |
 | `day_documents.kind` | `DIRECTOR_PDF` |
 
 ## Constraints worth knowing about
@@ -115,7 +116,9 @@ only in someone's memory:
   recorded and the money did not match it, the difference is named.
 - **`cash_days_closed_is_complete`** / **`cash_days_variance_explained`** — nothing reaches
   `CLOSED` half-filled, and `VARIANCE_UNEXPLAINED` blocks the close.
-- **`pdc_register_cleared_link`** — `CLEARED` and a linked entry are the same fact.
+- ~~**`pdc_register_cleared_link`**~~ — went with the table. The equivalent on `pdc_cheques`
+  is P16 work, and cannot be added before then: seven live rows already read `cleared` with no
+  cash entry behind them, and the constraint would reject them.
 
 ## Money and time
 
@@ -148,12 +151,14 @@ schema changed the answer, and the reasoning is recorded here rather than silent
 
 ## ⚠️ Two registers for one drawer of cheques
 
-`pdc_register` is created because §A6 and the P1 brief name it. **RMS already has
-`pdc_cheques`** — with a page (`js/pages/pdc.js`), a feature flag, an audit trigger, and RPCs
-where `mark_pdc_cleared` creates the payment on clearing. Nothing writes to `pdc_register`
-yet, and nothing should until RULES (b) Q7 is answered. If the answer is "reuse", the
-rollback drops `pdc_register` cleanly and `pdc_cheques` gains `kind`, `party_payee_id`,
-`unit_id` and `cleared_entry_id` instead.
+**Resolved 2026-09-04: there is one.** `pdc_register` was created in P1 only because the brief
+named its index; it never held a row, and `20260904g` dropped it. `public.pdc_cheques` — with
+a page (`js/pages/pdc.js`), a feature flag, an audit trigger, thirteen RPCs, deposit
+scheduling, bounce penalties and a replacement chain — is the module's single cheque table.
+Its live vocabulary (`pending` / `cleared` / `bounced`) is already §A4's three states, so the
+blueprint's model is a subset of what runs. Four fields are still owed and are P16 work:
+`kind`, `party_payee_id`, `cleared_entry_id`, and a `status` CHECK. Full reasoning:
+`PDC_DECISION.md`.
 
 ## What P1 does NOT include
 
@@ -167,9 +172,8 @@ were created empty. P2 fills them; see below.
 > `scripts/verify-daily-closing-seed.js` — including a red check confirming the suite fails
 > when the trigger is removed.
 >
-> ⚠️ **The flag is down in the code, not yet in the database.** `20260904b` is written and
-> tested but **not applied**; until it is, the live schema still accepts any head. This
-> sentence is what comes out when it is applied.
+> ✅ **Applied to the live database on 2026-09-04.** The flag is fully down: the live schema
+> now refuses an off-default head with no reason, and refuses `4010` outright.
 
 ---
 
@@ -182,7 +186,93 @@ were created empty. P2 fills them; see below.
 | `20260904c_a_private_shelf_for_the_days_documents.sql` | the private `daily-closing` storage bucket |
 | `20260904d_the_payee_master_opens.sql` | `list_payees` · `create_payee` · `rename_payee` · `set_payee_active` · `_dc_can_manage_payees()` |
 | `20260904e_the_role_column_was_never_free_text.sql` | corrects a false comment P1 left on `app_users.role` |
-| `scripts/verify-daily-closing-seed.js` | 33 assertions inside `BEGIN … ROLLBACK` |
+| `20260904f_the_cfo_role_becomes_storable.sql` | widens `app_users_role_check` to admit `cfo` |
+| `20260904g_one_drawer_of_cheques_one_table.sql` | drops `pdc_register`; `pdc_cheques` is the one register |
+| `scripts/verify-daily-closing-seed.js` | 37 assertions inside `BEGIN … ROLLBACK` — **applied 2026-09-04** |
+| `scripts/verify-qb-accounts.js` | diffs `qb_accounts` against a real QuickBooks chart export |
+
+## `app_users_role_check` — widened to admit `cfo`
+
+P1 recorded that `app_users.role` had no CHECK. It has one, and P2's test suite caught it on
+its first run. The constraint permitted `owner, admin, manager, recovery, accounts, staff` —
+so `_dc_is_cfo()` was a predicate for a value no account could hold, and the Accountant's real
+value is `accounts`, not `finance` (the front end reads both; only one is storable).
+
+`20260904f` adds `cfo` and nothing else. The change is additive — six existing values
+untouched, no row read or rewritten — and the migration asserts inside its own transaction
+that every row still passes **and** still holds one of the original six. Tests 32–36.
+
+---
+
+# THE QUICKBOOKS CONTRACT
+
+**This is the authoritative record of how the Phase-3 IIF export must address an account.**
+Verified against the real Awami company file on 2026-09-04, not inferred.
+
+## The rule
+
+> **Phase 3 writes the BARE account name in the `ACCNT` field — `Cash in Hand`, not
+> `1010 · Cash in Hand` — exactly as `BLUEPRINT.md` §A14's example shows.**
+
+## The evidence, and a correction
+
+I previously warned that if "Use account numbers" were switched on in the company file, the
+account's full name would include the number and the export would have to emit the prefixed
+form. **That warning was wrong**, and the real export settles it.
+
+"Use account numbers" **is** on in the Awami file — and the IIF export still writes:
+
+```
+!ACCNT  NAME            REFNUM  TIMESTAMP   ACCNTTYPE  OBAMOUNT  DESC                ACCNUM  …
+ACCNT   Cash in Hand    36      1788440359  BANK       0.00      Main cash account   1010    …
+```
+
+The number lives in its own `ACCNUM` column — in all 84 rows — and `NAME` is bare. The setting
+changes what the QuickBooks **user interface displays**; it does not change the IIF `NAME`
+field. An IIF export is what an IIF import reads back, so the exported form is the round-trip
+contract, and that form is the bare name.
+
+`scripts/verify-qb-accounts.js` now asserts this on every run and would flag a change.
+
+## The diff — 2026-09-04, `migration_work/qb_chart.iif`
+
+```
+parsed  84 account(s) from QuickBooks   (57 active, 27 inactive)
+parsed  53 account(s) from qb_accounts (live)
+✅ PASS
+```
+
+| Check | Result |
+|---|---|
+| In the chart but not in QuickBooks — *the dangerous direction* | **none** |
+| Ours, but inactive in QuickBooks (an import would be refused) | **none** |
+| Same number, different name | **none** |
+| Same name, different type | **none** |
+| Name over 31 characters | **none** (longest is `Construction - Development Cost`, exactly 31) |
+| Sub-accounts (`Parent:Child`) | **none** |
+
+All 53 seeded accounts exist in QuickBooks, active, with matching numbers and types.
+
+**Four QuickBooks accounts are not seeded, deliberately** — they are QuickBooks' own built-ins
+and nothing in this module posts to them: `24000 Payroll Liabilities`,
+`30000 Opening Balance Equity`, `32000 Retained Earnings`, `80000 Ask My Accountant`.
+
+**27 inactive accounts are expected and are not a diff failure.** They are the default
+contractor-template chart (`Construction in Progress`, `Retainage Receivable`,
+`Blueprints and Reproduction`, …), switched off in the company file. The script reads the IIF
+`HIDDEN` column, reports them separately, and does not count them. It *does* fail if one of
+**our** 53 turns up hidden, because posting to an inactive account is refused at import.
+
+## Running it
+
+```bash
+node scripts/verify-qb-accounts.js migration_work/qb_chart.iif
+```
+
+The export to ask for is in that script's header (IIF preferred, CSV accepted). Re-run it
+whenever the company file's chart is edited, and before P16 ships the export. Before P2 was
+applied the script read the chart out of `20260904a`'s own `VALUES` block; it now reads the
+live `qb_accounts` table.
 
 ## The seeder
 

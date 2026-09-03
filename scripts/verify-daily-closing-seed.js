@@ -37,6 +37,9 @@ const UP = [
   '20260904b_a_head_that_is_not_the_default_needs_a_reason.sql',
   '20260904c_a_private_shelf_for_the_days_documents.sql',
   '20260904d_the_payee_master_opens.sql',
+  '20260904e_the_role_column_was_never_free_text.sql',
+  '20260904f_the_cfo_role_becomes_storable.sql',
+  '20260904g_one_drawer_of_cheques_one_table.sql',
 ];
 
 const CO = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';   // Awami Market
@@ -62,6 +65,7 @@ DECLARE
   v_owner uuid; v_fin uuid; v_adm uuid; v_cash uuid;   -- app_users.id
   v_o_auth uuid := gen_random_uuid(); v_f_auth uuid := gen_random_uuid();
   v_a_auth uuid := gen_random_uuid(); v_c_auth uuid := gen_random_uuid();
+  v_cfo_auth uuid := gen_random_uuid(); v_cfo uuid;
   v_n integer; v_txt text; v_res jsonb; v_id uuid; v_id2 uuid;
   v_2020 uuid; v_6050 uuid; v_4010 uuid;
 BEGIN
@@ -384,16 +388,12 @@ BEGIN
     RAISE EXCEPTION 'FAIL 31: % storage policy/policies grant direct access to the bucket', v_n; END IF;
   RAISE NOTICE 'PASS 31  daily-closing exists, is private, and has no direct-access policy';
 
-  -- ═══ THE 'cfo' ROLE CANNOT YET BE STORED ════════════════════════════════
-  -- A tripwire, not a test that preserves a bug. RULES §0.3/§0.4 rest on a
-  -- 'cfo' role, and P1 recorded — wrongly — that app_users.role has no CHECK.
-  -- It has one, and it does not list 'cfo', so no CFO account can be created
-  -- until the owner approves widening it. _dc_is_cfo() itself is correct; it is
-  -- the column that will not hold the value.
-  --
-  -- When the CHECK is widened, THIS TEST GOES RED. That is the point: whoever
-  -- widens it must come back here, delete this block, and take the blocker out
-  -- of RULES §0.9 and PHASES.md in the same commit.
+  -- ═══ THE 'cfo' ROLE ═════════════════════════════════════════════════════
+  -- P1 recorded — wrongly — that app_users.role has no CHECK. It has one, and
+  -- until 20260904f it did not list 'cfo', so _dc_is_cfo() was a predicate for
+  -- a value no account could hold. This suite carried a tripwire asserting the
+  -- CHECK still refused it; 20260904f widened the constraint and the tripwire
+  -- has been flipped to assert the fix instead.
   IF public._dc_is_cfo(json_populate_record(NULL::public.app_users,
        '{"role":"cfo","is_super_admin":false}'::json)) IS NOT TRUE THEN
     RAISE EXCEPTION 'FAIL 32: _dc_is_cfo does not admit a role=cfo user'; END IF;
@@ -402,15 +402,48 @@ BEGIN
     RAISE EXCEPTION 'FAIL 32: _dc_is_cfo admits a plain admin'; END IF;
   RAISE NOTICE 'PASS 32  _dc_is_cfo admits cfo and refuses plain admin';
 
+  -- A real CFO account can now exist, and it can maintain the payee master.
+  INSERT INTO public.app_users (company_id, full_name, username, email, role,
+                                auth_provider, status, auth_user_id)
+  VALUES (v_co,'DC Test CFO','dctestcfo','dctestcfo@example.invalid','cfo',
+          'password','active', v_cfo_auth)
+  RETURNING id INTO v_cfo;
+  INSERT INTO public.user_project_assignments (company_id, user_id, project_id, access_level, is_active)
+  VALUES (v_co, v_cfo, v_pj, 'edit', true);
+  RAISE NOTICE 'PASS 33  role=cfo is storable — a CFO account can be created';
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v_cfo_auth)::text, true);
+  v_res := public.create_payee(v_co, 'Cantonment Board Peshawar', 'VENDOR', v_pj);
+  IF NOT (v_res->>'success')::boolean THEN
+    RAISE EXCEPTION 'FAIL 34: the CFO could not maintain the payee master: %', v_res; END IF;
+  RAISE NOTICE 'PASS 34  a real cfo account passes the Accountant+ gate';
+
+  -- The six original values still work — the widen is additive, not a swap.
+  FOREACH v_txt IN ARRAY ARRAY['owner','admin','manager','recovery','accounts','staff'] LOOP
+    INSERT INTO public.app_users (company_id, full_name, username, email, role, auth_provider, status)
+    VALUES (v_co, 'DC Role Probe '||v_txt, 'dcprobe'||v_txt, 'dcprobe'||v_txt||'@example.invalid',
+            v_txt, 'password', 'active');
+  END LOOP;
+  RAISE NOTICE 'PASS 35  all six original role values are still accepted';
+
   BEGIN
     INSERT INTO public.app_users (company_id, full_name, username, email, role, auth_provider, status)
-    VALUES (v_co,'DC Test CFO','dctestcfo','dctestcfo@example.invalid','cfo','password','active');
-    RAISE EXCEPTION 'FAIL 33: role=cfo is now storable — widen was done. Remove this tripwire, and clear the blocker from RULES 0.9 and PHASES.md.';
+    VALUES (v_co,'DC Bad Role','dcbadrole','dcbadrole@example.invalid','director','password','active');
+    RAISE EXCEPTION 'FAIL 36: an unknown role value was accepted';
   EXCEPTION WHEN check_violation THEN
-    RAISE NOTICE 'BLOCKER 33  app_users_role_check still refuses role=cfo — no CFO account can exist yet';
+    RAISE NOTICE 'PASS 36  the constraint still refuses anything outside the seven';
   END;
 
-  RAISE NOTICE '--- P2: ALL 33 ASSERTIONS PASSED ---';
+  -- ═══ ONE DRAWER OF CHEQUES ══════════════════════════════════════════════
+  IF to_regclass('public.pdc_register') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL 37: pdc_register still exists'; END IF;
+  IF to_regclass('public.pdc_cheques') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 37: pdc_cheques is missing — the wrong table was dropped'; END IF;
+  SELECT count(*) INTO v_n FROM public.pdc_cheques;
+  IF v_n <> 7 THEN RAISE EXCEPTION 'FAIL 37: pdc_cheques should still hold its 7 live rows, found %', v_n; END IF;
+  RAISE NOTICE 'PASS 37  pdc_register is gone; pdc_cheques and its 7 live rows are untouched';
+
+  RAISE NOTICE '--- P2: ALL 37 ASSERTIONS PASSED ---';
 END
 $test$;
 `;
@@ -440,7 +473,7 @@ $test$;
     return;
   }
 
-  console.log('✅ PASS — 33 assertions held' + (AGAINST_LIVE ? ' against the LIVE applied schema.' : '.'));
+  console.log('✅ PASS — 37 assertions held' + (AGAINST_LIVE ? ' against the LIVE applied schema.' : '.'));
   console.log('   Seeder run 4x, payee RPCs called as owner / accounts / admin / cashier /');
   console.log('   nobody, invariant 5 proved in both directions. Nothing was committed.');
 })();

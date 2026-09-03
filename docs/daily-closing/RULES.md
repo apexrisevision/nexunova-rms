@@ -265,27 +265,29 @@ user is a permission model that has never been tested.
 | CFO | `cfo` (new, §0.4) | `user_project_assignments` → `59ded55b-…`, `is_active` | `dailyclosing` |
 | Site cashier | `staff` | same project, `is_active` | `dailyclosing` |
 
-> ### 🚫 BLOCKER — `cfo` cannot be stored yet (found in P2, 2026-09-04)
-> `app_users_role_check` permits only `owner, admin, manager, recovery, accounts, staff`.
-> Creating the CFO account above fails with a check violation today. The predicate
-> `_dc_is_cfo()` is live and correct; the column will not hold the value.
->
-> The fix is one statement, and it alters a constraint on the table every tenant's login
-> depends on, so it is **not** being slipped into a seed-data prompt:
+> ### ✅ CLEARED — `cfo` is storable (2026-09-04)
+> The blocker recorded here was real: `app_users_role_check` permitted only
+> `owner, admin, manager, recovery, accounts, staff`, so `_dc_is_cfo()` was a predicate for a
+> value no account could hold. **`20260904f_the_cfo_role_becomes_storable.sql` widened it**,
+> on the owner's explicit instruction and after a full backup:
 >
 > ```sql
-> ALTER TABLE public.app_users DROP CONSTRAINT app_users_role_check;
-> ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check
->   CHECK (role = ANY (ARRAY['owner','admin','manager','recovery','accounts','staff','cfo']));
+> CHECK (role = ANY (ARRAY['owner','admin','manager','recovery','accounts','staff','cfo']))
 > ```
 >
-> **Needs the owner's word before it runs.** Nothing in P2 or P3 is blocked by it — the pilot's
-> only account is `owner`, which `_dc_is_cfo()` already admits — but §0.9's two accounts
-> cannot be created until it does, and P10's role×action suite cannot test a real `cfo`.
+> The change is **additive**: one value added to an IN-list, the six existing values untouched,
+> no existing row read or rewritten. Postgres validates the new constraint against every row
+> as it is added, so a violation would have failed the migration rather than half-applied. The
+> migration asserts, in the same transaction, that all rows still pass **and** that every one
+> still holds one of the original six — nothing quietly became a CFO.
 >
-> `scripts/verify-daily-closing-seed.js` test 33 is a tripwire: it asserts the CHECK still
-> refuses `cfo`, so **it goes red the day this is fixed**, forcing whoever fixes it to clear
-> this blocker and the note in §0.4 in the same commit.
+> Test 33 of `scripts/verify-daily-closing-seed.js` was a tripwire asserting the CHECK still
+> refused `cfo`; it has been flipped to assert the fix, and tests 34–36 now prove a real `cfo`
+> account can be created, passes the Accountant+ gate, that all six original values still
+> work, and that an unknown value is still refused.
+>
+> **§0.9's two accounts are no longer blocked.** They still need names, usernames and a
+> password decision from the owner — that is the only thing outstanding.
 
 **Do not simplify the permission model because only one person uses it today.** Every
 CFO-only action (setup opening · close day · adjustments · allocation approve/reject ·
@@ -455,7 +457,15 @@ Creation needs two full names, two usernames and a password decision from the ow
    to `'on'`. That flag is the same mechanism the audit trail already uses for an operator's
    reason (`rms.audit_reason`), so Phase 3's `recognize_revenue()` opens the gate by setting
    it rather than by editing this trigger. Tests 28–30.
-5. **UI.** `SuggestedField` shows the resolved account with a `Suggested` tag; changing it
+5. **The QuickBooks contract.** The Phase-3 IIF export addresses an account by its **bare
+   name** — `Cash in Hand`, not `1010 · Cash in Hand` — as §A14's example shows. Verified
+   against the real Awami company file on 2026-09-04: "Use account numbers" is ON there, and
+   the IIF export still writes a bare `NAME` with the number in its own `ACCNUM` column, in
+   all 84 rows. The setting changes what the QuickBooks UI displays, not the IIF field. This
+   corrects an earlier warning of mine that said the opposite. Authoritative record and the
+   full diff: `SCHEMA.md` → **THE QUICKBOOKS CONTRACT**. Re-checked by
+   `scripts/verify-qb-accounts.js`.
+6. **UI.** `SuggestedField` shows the resolved account with a `Suggested` tag; changing it
    reveals a required `Reason for override` (BLUEPRINT §A11).
 
 ---

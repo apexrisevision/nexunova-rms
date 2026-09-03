@@ -70,18 +70,24 @@ DECLARE
   v_entry uuid;
   v_n    integer;
   v_txt  text;
+  v_2020 uuid;
 BEGIN
   ---------------------------------------------------------------- fixtures --
   SELECT id INTO v_unit FROM public.units WHERE project_id = v_pj LIMIT 1;
   IF v_unit IS NULL THEN RAISE EXCEPTION 'FIXTURE: pilot project has no units'; END IF;
   SELECT id INTO v_user FROM public.app_users WHERE company_id = v_co LIMIT 1;
   IF v_user IS NULL THEN RAISE EXCEPTION 'FIXTURE: pilot tenant has no users'; END IF;
+  -- Since P2, invariant 5 requires a client receipt to carry its default head
+  -- (2020 Advance from Customers) or a written override reason. These fixtures
+  -- predate that trigger; they now do what a real receipt does. NULL until P2's
+  -- seeder has run, which is fine — the guard only fires when a default exists.
+  SELECT id INTO v_2020 FROM public.qb_accounts WHERE company_id = v_co AND number = '2020';
 
   ------------------------------------------------------- tables and indexes --
   FOREACH v_txt IN ARRAY ARRAY[
     'qb_accounts','cash_accounts','payees','entry_type_defaults','cash_days',
     'qb_exports','cash_entries','cash_entry_attachments','receipt_counters',
-    'client_receipts','day_documents','pdc_register','reconciliations'
+    'client_receipts','day_documents','reconciliations'
   ] LOOP
     IF to_regclass('public.' || v_txt) IS NULL THEN
       RAISE EXCEPTION 'FAIL: table % was not created', v_txt;
@@ -95,11 +101,11 @@ BEGIN
       RAISE EXCEPTION 'FAIL: deny_all_anon policy missing on %', v_txt;
     END IF;
   END LOOP;
-  RAISE NOTICE 'PASS 01  13 tables created, each RLS-enabled with deny_all_anon';
+  RAISE NOTICE 'PASS 01  12 tables created, each RLS-enabled with deny_all_anon';
 
   FOREACH v_txt IN ARRAY ARRAY[
     'cash_entries_day_seq_idx','cash_entries_qb_status_idx','cash_entries_rms_status_idx',
-    'pdc_register_due_idx','cash_days_project_date_idx',
+    'cash_days_project_date_idx',
     'cash_entries_voucher_unique','cash_days_one_open_per_project',
     'cash_days_setup_opening_once','payees_name_unique','audit_logs_project_idx'
   ] LOOP
@@ -116,7 +122,7 @@ BEGIN
 
   SELECT count(*) INTO v_n FROM information_schema.columns
    WHERE table_schema='public'
-     AND table_name IN ('cash_days','cash_entries','qb_exports','pdc_register','reconciliations')
+     AND table_name IN ('cash_days','cash_entries','qb_exports','reconciliations')
      AND data_type='numeric' AND (numeric_precision <> 18 OR numeric_scale <> 2);
   IF v_n > 0 THEN RAISE EXCEPTION 'FAIL: % money column(s) are not numeric(18,2)', v_n; END IF;
   RAISE NOTICE 'PASS 03  every money column is numeric(18,2)';
@@ -129,10 +135,10 @@ BEGIN
   INSERT INTO public.cash_entries (
     company_id, project_id, cash_day_id, seq_no, idempotency_key,
     entry_type, mode, direction, voucher_type, voucher_no, amount,
-    narration, unit_id, rms_status, created_by)
+    narration, unit_id, rms_status, created_by, qb_account_id)
   VALUES (v_co, v_pj, v_day, 1, gen_random_uuid(),
     'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0041', 150000.00,
-    'Installment #4', v_unit, 'PENDING', v_user)
+    'Installment #4', v_unit, 'PENDING', v_user, v_2020)
   RETURNING id INTO v_entry;
   RAISE NOTICE 'PASS 04  a cash entry can be recorded';
 
@@ -170,9 +176,9 @@ BEGIN
   ------------------------------------------------- the constraints, briefly --
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-      entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status)
+      entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status, qb_account_id)
     VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','BPV','TEST-0042', 100.00, v_unit, 'PENDING');
+      'CLIENT_RECEIPT','CASH','IN','BPV','TEST-0042', 100.00, v_unit, 'PENDING', v_2020);
     RAISE EXCEPTION 'FAIL 09: CASH/IN was accepted as a BPV';
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS 09  voucher type must match mode + direction';
@@ -180,9 +186,9 @@ BEGIN
 
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-      entry_type, mode, direction, voucher_type, voucher_no, amount, rms_status)
+      entry_type, mode, direction, voucher_type, voucher_no, amount, rms_status, qb_account_id)
     VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0043', 100.00, 'PENDING');
+      'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0043', 100.00, 'PENDING', v_2020);
     RAISE EXCEPTION 'FAIL 10: a client receipt was accepted with no unit';
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS 10  UNIT_REQUIRED on a client receipt';
@@ -191,9 +197,9 @@ BEGIN
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
       entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status,
-      expected_amount)
+      expected_amount, qb_account_id)
     VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0044', 100.00, v_unit, 'PENDING', 200.00);
+      'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0044', 100.00, v_unit, 'PENDING', 200.00, v_2020);
     RAISE EXCEPTION 'FAIL 11: a short payment was accepted with no variance tag';
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS 11  VARIANCE_TAG_REQUIRED when amount <> expected';
@@ -301,7 +307,7 @@ BEGIN
   FOREACH v_txt IN ARRAY ARRAY[
     'qb_accounts','cash_accounts','payees','entry_type_defaults','cash_days',
     'qb_exports','cash_entries','cash_entry_attachments','receipt_counters',
-    'client_receipts','day_documents','pdc_register','reconciliations'
+    'client_receipts','day_documents','reconciliations'
   ] LOOP
     IF to_regclass('public.' || v_txt) IS NOT NULL THEN
       RAISE EXCEPTION 'FAIL: rollback left table % behind', v_txt;

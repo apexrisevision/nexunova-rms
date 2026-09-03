@@ -101,11 +101,12 @@ nothing.
 **Why:** P1's brief named that index explicitly in its required list, so the table had to
 exist for the index to. The cost is a table sitting unused for two phases.
 
-**Flagged because it may be thrown away.** RULES (b) Q6 asks whether to reuse the
-`pdc_cheques` register RMS already runs — page, feature flag, audit trigger, and RPCs where
-`mark_pdc_cleared` creates the payment. If the answer is "reuse", `20260903r` drops
-`pdc_register` cleanly and `pdc_cheques` gains four columns instead. **Nothing should be
-written to `pdc_register` before that question is answered.**
+**✅ RESOLVED 2026-09-04 — it was thrown away.** `PDC_DECISION.md` was written in P2 and the
+owner accepted its recommendation: the module adopts the live `pdc_cheques`, and
+`20260904g` dropped `pdc_register` while it was still empty and the drop was free. The four
+fields `pdc_cheques` still needs — `kind`, `party_payee_id`, `cleared_entry_id`, a `status`
+CHECK — are P16 work and were deliberately not added now. Test 37 asserts `pdc_register` is
+gone and that `pdc_cheques` still holds its seven live rows.
 
 ### 4 · PROPOSED MOVE — the private `daily-closing` storage bucket, P7 → P2
 
@@ -161,16 +162,22 @@ Recorded here so the deferred item cannot be quietly dropped. Status against eac
 
 ### Other P2 outcomes worth carrying forward
 
-- 🚫 **New blocker: `app_users_role_check` refuses `cfo`.** Found by test 33 on its first run.
-  P1 recorded — wrongly — that the column has no CHECK. `_dc_is_cfo()` is correct; the column
-  will not hold the value, so §0.9's two accounts cannot be created. One-line fix, needs the
-  owner's word: **RULES §0.9**.
+- ✅ **`app_users_role_check` widened to admit `cfo`** (`20260904f`). Found by test 33 on its
+  first run — P1 recorded, wrongly, that the column had no CHECK. Additive change, approved by
+  the owner, applied after a backup; the migration asserts in its own transaction that all
+  rows still pass and none was rewritten. The tripwire is flipped: tests 33–36 now prove a
+  real `cfo` account can be created and passes the Accountant+ gate. **RULES §0.9 unblocked.**
 - ✏️ **The Accountant's role value is `accounts`, not `finance`.** RULES §0.3 had that
-  backwards; corrected there and in §0.4.
-- 📄 **`PDC_DECISION.md` written** (RULES (b) Q6). Recommendation: **extend `pdc_cheques`,
-  drop `pdc_register`** — four columns missing, against thirteen live RPCs and a working page.
-  Deviation 3 above is resolved in principle; the drop happens in P16, not now.
+  backwards; corrected there and in §0.4, and confirmed by the constraint itself.
+- ✅ **PDC decided** (RULES (b) Q6, `PDC_DECISION.md`). `pdc_register` **dropped now**, not in
+  P16 — while it was empty and free. `pdc_cheques` is the one register; its four missing
+  fields are P16.
 - ✅ **Deviation 4 accepted** — the private `daily-closing` bucket was created in P2.
+- 🔍 **`scripts/verify-qb-accounts.js` added**, closing DoD item 1's open risk early rather
+  than before P16. It diffs the seeded 53 against a real QuickBooks export and, critically,
+  detects whether QuickBooks names carry an account-number prefix — which decides what the
+  Phase-3 IIF must emit. **Waiting on the export file from the owner**; the exact format is in
+  the script's header.
 
 ---
 
