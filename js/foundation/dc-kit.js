@@ -395,14 +395,40 @@
       attr({ style: 'width:' + (o.width || '100%') + ';height:' + (o.height || '16px') }) + '></div>';
   }
 
-  /* Bottom-centre, 3s, never more than two stacked (§A11). */
-  function toast(message) {
-    var host = document.querySelector('.dc .dc-toasts');
-    if (!host) {
-      host = document.createElement('div');
-      host.className = 'dc-toasts';
-      (document.querySelector('.dc') || document.body).appendChild(host);
+  /* Bottom-centre, 3 s, never more than two stacked (§A11).
+     ── BURST COLLAPSING ──────────────────────────────────────────────────
+     Saving four entries in a row used to raise four near-identical toasts
+     that pushed each other off the screen, so the cashier read none of them.
+     A toast raised with a `collapse` key inside 2.5 s of another with the
+     same key REPLACES it and counts up: "CRV-0041 recorded" becomes
+     "2 entries recorded", then "3 entries recorded". Distinct messages —
+     an error, a void — keep their own line. */
+  var _burst = {};   // key → { el, n, timer }
+
+  function _host() {
+    var h = document.querySelector('.dc .dc-toasts');
+    if (!h) {
+      h = document.createElement('div');
+      h.className = 'dc-toasts';
+      (document.querySelector('.dc') || document.body).appendChild(h);
     }
+    return h;
+  }
+
+  function toast(message, opts) {
+    opts = opts || {};
+    var host = _host();
+    var key = opts.collapse;
+
+    if (key && _burst[key] && _burst[key].el.parentNode) {
+      var b = _burst[key];
+      b.n += 1;
+      b.el.textContent = opts.plural ? opts.plural(b.n) : (b.n + ' × ' + message);
+      clearTimeout(b.timer);
+      b.timer = setTimeout(function () { _dismiss(key, b.el); }, 3000);
+      return b.el;
+    }
+
     while (host.children.length >= 2) host.removeChild(host.firstChild);
     var el = document.createElement('div');
     el.className = 'dc-toast';
@@ -410,13 +436,105 @@
     el.textContent = message;
     host.appendChild(el);
     requestAnimationFrame(function () { el.classList.add('dc-in'); });
-    setTimeout(function () {
-      el.classList.remove('dc-in');
-      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 200);
-    }, 3000);
+
+    var t = setTimeout(function () { _dismiss(key, el); }, 3000);
+    if (key) _burst[key] = { el: el, n: 1, timer: t };
+    return el;
+  }
+
+  function _dismiss(key, el) {
+    if (key && _burst[key] && _burst[key].el === el) delete _burst[key];
+    el.classList.remove('dc-in');
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 200);
+  }
+
+  /* ── Dialog ──────────────────────────────────────────────────────────
+     A real modal, because window.prompt() cannot be styled, cannot hold two
+     fields, cannot mark one required, and looks like 1998 in the middle of a
+     screen that does not. Returns a promise: an object of values, or null if
+     the person backed out.
+
+     Focus moves in on open and returns to whatever had it on close; Esc
+     cancels; the backdrop is inert to clicks so a half-typed reason cannot be
+     lost by a stray one. */
+  function dialog(o) {
+    o = o || {};
+    return new Promise(function (resolve) {
+      var prev = document.activeElement;
+      var host = document.querySelector('.dc') || document.body;
+      var wrap = document.createElement('div');
+      wrap.className = 'dc-modal-back';
+      var id = uid('dlg');
+      wrap.innerHTML =
+        '<div class="dc-modal" role="dialog" aria-modal="true" aria-labelledby="' + id + '-t">' +
+          '<div class="dc-modal-t" id="' + id + '-t">' + esc(o.title || '') + '</div>' +
+          (o.message ? '<p class="dc-hint" style="margin:0 0 12px">' + esc(o.message) + '</p>' : '') +
+          '<form>' +
+          (o.fields || []).map(function (f, i) {
+            var fid = id + '-f' + i;
+            if (f.type === 'money') {
+              return moneyInput({ id: fid, label: f.label, required: f.required, value: f.value });
+            }
+            if (f.type === 'select') {
+              return '<div class="dc-field"><label class="dc-label" for="' + fid + '">' + esc(f.label) + '</label>' +
+                '<select class="dc-select" id="' + fid + '">' +
+                (f.options || []).map(function (op) {
+                  return '<option value="' + esc(op.value) + '">' + esc(op.label) + '</option>';
+                }).join('') + '</select></div>';
+            }
+            return '<div class="dc-field"><label class="dc-label" for="' + fid + '">' + esc(f.label) +
+              (f.required ? ' <span aria-hidden="true">*</span>' : '') + '</label>' +
+              '<input class="dc-input" id="' + fid + '" type="text"' +
+              attr({ placeholder: f.placeholder, value: f.value,
+                     'aria-required': f.required ? 'true' : null }) + '></div>';
+          }).join('') +
+          '<span class="dc-error" id="' + id + '-err" hidden></span>' +
+          '<div class="dc-row-between" style="justify-content:flex-end;margin-top:8px">' +
+            '<button type="button" class="dc-btn" data-cancel>Cancel</button>' +
+            '<button type="submit" class="dc-btn dc-btn--primary">' + esc(o.confirm || 'Save') + '</button>' +
+          '</div></form>' +
+        '</div>';
+      host.appendChild(wrap);
+
+      var form = wrap.querySelector('form');
+      (o.fields || []).forEach(function (f, i) {
+        if (f.type === 'money') bindMoneyInput(document.getElementById(id + '-f' + i));
+      });
+      var first = wrap.querySelector('input, select');
+      if (first) first.focus();
+
+      function close(val) {
+        wrap.remove();
+        if (prev && prev.focus) prev.focus();
+        resolve(val);
+      }
+      wrap.querySelector('[data-cancel]').addEventListener('click', function () { close(null); });
+      wrap.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(null); }
+      });
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var out = {}, missing = null;
+        (o.fields || []).forEach(function (f, i) {
+          var node = document.getElementById(id + '-f' + i);
+          var v = node.value.trim();
+          if (f.type === 'money') v = global.DCFmt.parseMoney(v);
+          if (f.required && (v === '' || v === null)) missing = missing || f;
+          out[f.name || ('f' + i)] = v;
+        });
+        if (missing) {
+          var err = document.getElementById(id + '-err');
+          err.textContent = missing.label + ' is required.';
+          err.hidden = false;
+          return;
+        }
+        close(out);
+      });
+    });
   }
 
   global.DCKit = {
+    dialog: dialog,
     esc: esc, icon: icon, FACES: FACES,
     heroFigure: heroFigure, statusChip: statusChip, voucherChip: voucherChip,
     segmented: segmented, bindSegmented: bindSegmented,

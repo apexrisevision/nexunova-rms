@@ -381,3 +381,64 @@ html[data-theme="dark"] .dc .dc-skel::after { background: linear-gradient(90deg,
   .dc .dc-band-date { font-size: var(--dc-t-lg); line-height: var(--dc-lh-lg); }
   .dc .dc-band { padding: var(--dc-sp-3) var(--dc-sp-4); }
 }
+
+/* ══ S1 — DAY WORKSPACE LAYOUT (§A12) ═══════════════════════════════════
+   Two columns 5/7 from 1024px; one column below, with the totals pinned to
+   the bottom of the viewport so a cashier scrolling the ledger on a phone
+   never loses the figure the whole screen is about. */
+.dc .dc-2col { display: grid; gap: var(--dc-sp-4); grid-template-columns: 1fr; }
+@media (min-width: 1024px) {
+  .dc .dc-2col { grid-template-columns: 5fr 7fr; align-items: start; }
+}
+
+.dc .dc-sticky-totals {
+  position: sticky; bottom: 0; z-index: 20;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: var(--dc-sp-4); margin-top: var(--dc-sp-4);
+  padding: var(--dc-sp-3) var(--dc-sp-4);
+  background: var(--dc-surface); border: 1px solid var(--dc-line);
+  border-radius: var(--dc-r-md); box-shadow: var(--dc-shadow-1);
+  font-weight: 600;
+}
+/* Above 1024 the ledger carries its own sticky totals row, so a second copy
+   would be two answers to one question. */
+@media (min-width: 1024px) { .dc .dc-sticky-totals { display: none; } }
+
+/* An adjustment on a closed day is read with its reason, never without it. */
+.dc .dc-adj-row {
+  display: grid; grid-template-columns: auto 120px 1fr; gap: var(--dc-sp-3);
+  align-items: center; padding: var(--dc-sp-2) 0;
+  border-bottom: 1px solid var(--dc-line);
+}
+.dc .dc-adj-row:last-child { border-bottom: 0; }
+.dc .dc-adj-row .dc-num { text-align: right; }
+.dc .dc-adj-reason { color: var(--dc-ink-600); font-style: italic; min-width: 0; }
+@media (max-width: 640px) {
+  .dc .dc-adj-row { grid-template-columns: auto 1fr; }
+  .dc .dc-adj-reason { grid-column: 1 / -1; }
+}
+
+/* The band's project switcher sits on navy, so it needs its own surface. */
+.dc .dc-band .dc-select, .dc .dc-band .dc-input {
+  background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.24); color: #fff;
+}
+.dc .dc-band .dc-select option { color: var(--dc-ink-900); }
+
+/* ══ DIALOG ═════════════════════════════════════════════════════════════
+   window.prompt() cannot be styled, cannot hold two fields and cannot mark
+   one required. This is the replacement. The backdrop is deliberately inert
+   to clicks — a stray one should not throw away a half-typed reason. */
+.dc .dc-modal-back {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(11,27,58,.44);
+  display: flex; align-items: center; justify-content: center; padding: var(--dc-sp-4);
+}
+.dc .dc-modal {
+  background: var(--dc-surface); border-radius: var(--dc-r-md);
+  box-shadow: 0 8px 32px rgba(17,24,39,.18);
+  width: 100%; max-width: 420px; padding: var(--dc-sp-6);
+  max-height: 90vh; overflow-y: auto;
+}
+.dc .dc-modal-t { font-size: var(--dc-t-lg); line-height: var(--dc-lh-lg);
+  font-weight: 600; margin-bottom: var(--dc-sp-3); }
+.dc .dc-modal .dc-row-between { gap: var(--dc-sp-2); }

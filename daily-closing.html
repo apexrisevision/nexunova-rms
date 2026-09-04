@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Closing</title>
+<meta name="robots" content="noindex, nofollow">
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     DAILY CLOSING — S1, the Day Workspace.
+
+     A host page, not the screen: js/pages/daily-closing.js is a mountable
+     component, and this file only signs in, works out who the caller is, and
+     hands it an `rpc`. P8 mounts the same component on a `.pg` div inside
+     login.html; nothing here will need rewriting for that.
+
+     GATED on the daily_closing feature flag, like the kit page.
+
+     ?stub=1 mounts it against scripted answers with no database at all. That
+     is what the tests and the screenshot script use — a screen test should
+     fail because the screen is wrong, not because a row moved overnight.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/foundation/tokens.css">
+<link rel="stylesheet" href="css/daily-closing.css">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--fk-bg-page,#F1F5F9);
+       font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--fk-text,#0F172A)}
+  .wrap{max-width:1280px;margin:0 auto;padding:20px 16px 40px}
+  #gate{max-width:560px;margin:80px auto;text-align:center;padding:32px}
+  #gate h2{font-size:16px;margin:0 0 8px}
+  #gate p{color:var(--fk-text-muted,#64748B);font-size:13px}
+  code{font-size:12px;background:var(--fk-bg-subtle,#F8FAFC);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div id="gate" hidden><h2 id="gate-t">Checking access…</h2><p id="gate-m">One moment.</p></div>
+<div class="wrap"><div id="dc-root"></div></div>
+
+<script src="js/vendor/supabase-js-2.34.0.umd.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/foundation/dc-format.js"></script>
+<script src="js/foundation/dc-kit.js"></script>
+<script src="js/pages/daily-closing.js"></script>
+<script src="js/pages/daily-closing-stub.js"></script>
+<script>
+(function () {
+  'use strict';
+  var params = new URLSearchParams(location.search);
+  var gate = document.getElementById('gate');
+  var root = document.getElementById('dc-root');
+
+  function deny(t, m) {
+    gate.hidden = false;
+    document.getElementById('gate-t').textContent = t;
+    document.getElementById('gate-m').innerHTML = m;
+  }
+
+  /* ── stub mode: no database, scripted answers ───────────────────────── */
+  if (params.get('stub') === '1') {
+    var stub = window.DCStub.make(params.get('state') || 'open');
+    window.DailyClosing.mount(root, {
+      rpc: stub.rpc, me: stub.me, projects: stub.projects,
+      projectId: stub.projects[0].id, date: '2026-09-03'
+    });
+    window.__dcStub = stub;   // the test reads what the screen sent
+    return;
+  }
+
+  /* ── real mode ───────────────────────────────────────────────────────── */
+  var raw = null;
+  try { raw = localStorage.getItem('nxn_sess'); } catch (_) {}
+  if (!raw) return deny('Sign in first',
+    'Open <code>/login.html</code>, sign in to Awami Market, then come back.');
+  var sess; try { sess = JSON.parse(raw); } catch (_) { sess = null; }
+  if (!sess || !sess.cid) return deny('Sign in first', 'That session could not be read.');
+
+  var SB = (typeof supabase !== 'undefined' && supabase && supabase.rpc) ? supabase : null;
+  if (!SB) return deny('Could not reach the database', 'Reload from inside the app.');
+
+  // Every call unwraps to the jsonb the RPCs return, so the component never
+  // has to know it is talking to PostgREST.
+  function rpc(name, args) {
+    return SB.rpc(name, args).then(function (r) {
+      if (r.error) throw new Error(r.error.message);
+      return r.data;
+    });
+  }
+
+  Promise.all([
+    SB.rpc('get_my_feature_flags'),
+    SB.rpc('get_user_projects', { p_user_id: sess.userId })
+  ]).then(function (res) {
+    var flags = res[0].data || [];
+    var on = Array.isArray(flags) && flags.some(function (x) {
+      return x.feature_key === 'daily_closing' && x.enabled !== false;
+    });
+    if (!on) return deny('Daily Closing is not switched on for this company',
+      'The <code>daily_closing</code> flag is off for this tenant.');
+
+    var gp = res[1].data;
+    var rows = Array.isArray(gp && gp.rows) ? gp.rows : (Array.isArray(gp) ? gp : []);
+    var projects = rows.map(function (r) {
+      return { id: r.project_id, name: r.project_name || r.name || r.project_id };
+    });
+    // An admin or CFO has no assignment rows and sees everything.
+    if (!projects.length && sess.assignedProjectIds === null) {
+      return rpc('list_projects', { p_company_id: sess.cid }).then(function (ps) {
+        start((ps || []).map(function (p) { return { id: p.id, name: p.project_name }; }));
+      });
+    }
+    start(projects);
+
+    function start(list) {
+      if (!list.length) return deny('No project', 'You are not assigned to a project yet.');
+      var role = String(sess.role || '').toLowerCase();
+      window.DailyClosing.mount(root, {
+        rpc: rpc,
+        me: {
+          companyId: sess.cid, userId: sess.userId, role: role,
+          isCfo: role === 'cfo' || role === 'owner',
+          isAccountantPlus: ['cfo', 'owner', 'accounts', 'finance'].indexOf(role) >= 0
+        },
+        projects: list,
+        projectId: params.get('project') || list[0].id,
+        date: params.get('date') || window.DCFmt.todayPK()
+      });
+    }
+  }).catch(function () {
+    deny('Could not read your access', 'Open this page from a signed-in browser.');
+  });
+})();
+</script>
+</body>
+</html>

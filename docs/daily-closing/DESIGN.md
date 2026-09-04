@@ -128,6 +128,90 @@ absent it **skips with a message saying so** rather than exiting green and looki
 1. **The band's group line is hard-coded in the demo.** `DC_BRAND_NAME = "FOURTEEN GROUP"` is
    the agreed constant (RULES §0.7) but it lives with the PDF renderer in P7. The kit's shell
    preview shows the project name only. Nothing depends on this before P7.
-2. **No toast queue beyond two.** §A11 says "no stacking beyond 2" and the implementation drops
-   the oldest. If a burst of saves should instead coalesce into one "3 entries recorded",
-   that is a P6 decision.
+2. ~~**No toast queue beyond two.**~~ **Answered in P6** — a burst of saves now coalesces into
+   one "3 entries recorded" rather than a queue of near-identical lines. See below.
+
+---
+
+# P6 — S1, the Day Workspace
+
+## Open it
+
+```
+https://<your RMS domain>/daily-closing.html
+```
+
+Sign in to **Awami Market** at `/login.html` first. Optional parameters:
+`?project=<uuid>` and `?date=YYYY-MM-DD` (default: today in Karachi).
+
+`?stub=1&state=open|closed|notopened|needsopening` renders the screen against scripted
+answers with **no database at all** — that is what the tests and the screenshot script use.
+
+## Files
+
+| File | What |
+|---|---|
+| `js/pages/daily-closing.js` | the screen, as a **mountable component** — `DailyClosing.mount(el, {rpc, me, projects, …})` |
+| `js/pages/daily-closing-stub.js` | scripted RPC answers for the tests |
+| `daily-closing.html` | host page: gate, session, project list, then mount |
+| `supabase/migrations/20260904k_…` | `list_units_for_picker` · `list_qb_accounts_for_project` · `get_cash_entry_project` |
+| `supabase/functions/daily-closing-file/index.ts` | the signed-URL bridge, **deployed** |
+| `scripts/verify-daily-closing-screen.js` | 49 assertions, real Chrome, clicking like a person |
+| `scripts/shot-daily-closing-screen.js` | 3 states × 2 widths |
+
+**It is a component, not a page.** `rpc` is injected rather than reached for, so P8 can mount
+the same file on a `.pg` div inside `login.html` without a rewrite — and so the test can drive
+it with scripted answers instead of a live database.
+
+## The attachment bridge, which P4 owed
+
+`supabase/functions/daily-closing-file` — **deployed, `verify_jwt: false`, ACTIVE, version 1.**
+Deployed with the CLI and `--no-verify-jwt`, because the function reads the Authorization
+header itself and deploying through MCP silently resets that flag to true.
+
+Two operations. `upload-url` returns a short-lived signed **upload** URL and **builds the
+storage key itself** — the browser never chooses where its file lands, and the key always
+begins with the entry's `project_id`. `read-url` returns a 10-minute signed download URL.
+
+Authorisation is the **database's**, not the function's: it forwards the caller's own JWT to
+`authorize_cash_attachment` / `get_cash_entry_project`, so invariant 8 applies here exactly as
+it does everywhere else. The service key is used only to mint the URL, after the answer is
+already yes.
+
+## Toast burst collapsing
+
+Saving four entries in a row used to raise four near-identical toasts that pushed each other
+off the screen, so the cashier read none of them. A toast raised with a `collapse` key within
+2.5 s of another with the same key now **replaces** it and counts up: "CRV-0041 recorded" →
+"2 entries recorded" → "3 entries recorded". A different message — an error, a void — still
+gets its own line. Asserted by the screen suite.
+
+## One design decision worth naming
+
+**A void written while the day was open is not a post-close adjustment.** Both carry
+`is_adjustment = true`, and the first version of the closed view grouped them together — so a
+correction made at 12:05 during the day appeared under "Adjustments" beside a JV posted the
+next morning. The group is now what was written **after `closed_at`**, which is what §A13's
+ADJUSTMENTS block means. The test caught it.
+
+## Screenshots
+
+`s1-notopened-1280/375` · `s1-open-1280/375` · `s1-closed-1280/375` in
+`docs/daily-closing/design/`.
+
+## Deviations and open questions
+
+1. **`Close Day` and `Add adjustment` are present but inert**, and `Director PDF` is rendered
+   disabled with a tooltip saying why. P7 owns all three; the buttons exist so the closed state
+   is not a dead end on screen.
+2. **The `Void` action is a picker plus a button, not a per-row menu.** §A12 says "Ledger row
+   actions (Accountant+): Void". A row menu needs a popover the kit does not have, and adding
+   one to §A11 unasked seemed worse than a control that is obvious and reachable. Say if you
+   want the row menu and it is a small addition to P5's kit.
+3. **Attachments queue but do not upload yet.** The file is held and announced; the actual
+   two-step (get signed URL → PUT → `add_cash_entry_attachment`) is wired to the bridge but not
+   exercised end-to-end, because there is no entry id until the save returns. It belongs with
+   the first real entry recorded on the pilot.
+4. **The screen suite goes red by timing out**, not by printing a clean ❌ — proved by removing
+   `DUPLICATE_VOUCHER` from the error map (exit 1). A timeout is a real failure, but a named
+   one would read better; worth tidying in P10.

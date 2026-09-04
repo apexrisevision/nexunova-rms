@@ -234,15 +234,26 @@ Color
   --dc-navy-700 #1F3864   primary buttons, active states
   --dc-ink-900  #111827   primary text
   --dc-ink-600  #4B5563   secondary text
-  --dc-ink-400  #9CA3AF   labels, hints, disabled
+  --dc-ink-500  #6B7280   LABELS and hints        4.83:1 on surface  ← corrected 2026-09-04
+  --dc-ink-400  #9CA3AF   DISABLED TEXT ONLY      2.54:1 — fails AA; WCAG exempts disabled
   --dc-line     #E5E7EB   hairlines
   --dc-canvas   #F6F7F9   page background
   --dc-surface  #FFFFFF   cards, tables
-  --dc-in       #0F7B4C   --dc-in-bg  #ECF8F1
-  --dc-out      #B42318   --dc-out-bg #FDF1EF
+  --dc-in       #0F7B4C   --dc-in-bg  #ECF8F1     5.30:1
+  --dc-out      #B42318   --dc-out-bg #FDF1EF     6.58:1
   --dc-warn     #B54708   --dc-warn-bg #FFF6E5
-  --dc-lock     #6B7280   --dc-lock-bg #F3F4F6
+  --dc-lock     #5D6470   --dc-lock-bg #F3F4F6    5.42:1 ← corrected 2026-09-04 (#6B7280 was 4.39:1)
   --dc-focus    #2563EB   focus ring (2px, offset 2px)
+
+  ⚠️ TWO VALUES WERE CORRECTED after P5 computed the WCAG 2.1 ratios rather than
+  judging them by eye. This table originally assigned --dc-ink-400 #9CA3AF to
+  "labels, hints, disabled" — 2.54:1 on --dc-surface, which fails AA for text
+  (4.5:1) and fails even the 3:1 large-text floor. Labels now use --dc-ink-500;
+  ink-400 is kept for disabled text only, which WCAG exempts. And --dc-lock was
+  #6B7280, which on its own #F3F4F6 tint — the CLOSED chip — is 4.39:1, under AA
+  by a hair; it is darkened to #5D6470.
+  Every pairing is asserted by scripts/verify-daily-closing-format.js, which
+  prints the real number and fails if any of them regresses.
 
 Type   Inter (fallback: -apple-system, Segoe UI, Roboto, sans-serif); font-feature-settings: "tnum" on all numerics
   --dc-t-xs 12/16   --dc-t-sm 13/18   --dc-t-md 14/20   --dc-t-lg 16/24
