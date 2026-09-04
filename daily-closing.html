@@ -63,11 +63,11 @@
 
   /* ── stub mode: no database, scripted answers ───────────────────────── */
   if (params.get('stub') === '1') {
-    var stub = window.DCStub.make(params.get('state') || 'open');
+    var stub = window.DCStub.make(params.get('state') || 'open', params.get('role') || 'CFO');
     window.DailyClosing.mount(root, {
       rpc: stub.rpc, fn: stub.fn, me: stub.me, projects: stub.projects,
       projectId: stub.projects[0].id, date: '2026-09-03',
-      view: params.get('view') === 'days' ? 'days' : 'day'
+      view: params.get('view') || 'day'
     });
     window.__dcStub = stub;   // the test reads what the screen sent
     return;
@@ -142,7 +142,7 @@
       var role = String(sess.role || '').toLowerCase();
       window.DailyClosing.mount(root, {
         rpc: rpc, fn: fn,
-        view: params.get('view') === 'days' ? 'days' : 'day',
+        view: params.get('view') || 'day',
         me: {
           companyId: sess.cid, userId: sess.userId, role: role,
           isCfo: role === 'cfo' || role === 'owner',

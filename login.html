@@ -46,6 +46,9 @@ window.ensureIntlTel=function(){if(window.intlTelInput)return Promise.resolve();
 <link rel="stylesheet" href="css/schedule.css?v=20260529a">
 <link rel="stylesheet" href="css/theme-system.css?v=20260604c">
 <link rel="stylesheet" href="css/theme.css?v=20260526c">
+<!-- Daily Closing: every selector in this file begins .dc, so it cannot
+     reach a page that is not the cash book. -->
+<link rel="stylesheet" href="css/daily-closing.css?v=20260904p8">
 <link rel="stylesheet" href="css/dashboard-premium.css?v=20260604a">
 <link rel="stylesheet" href="css/recovery-dashboard.css?v=20260526a">
 <link rel="stylesheet" href="css/sidebar-premium.css?v=20260622b">
@@ -1539,6 +1542,11 @@ footer.site-footer:hover .footer-bottom,footer.site-footer.is-open .footer-botto
       <div id="pg-promises"      class="pg"></div>
       <div id="pg-queue"         class="pg"></div>
       <div id="pg-audit"           class="pg"></div>
+      <!-- Daily Closing (P8). The host div is always present; the page is
+           unreachable without the daily_closing flag, which is checked in
+           nav() and again by every RPC it calls. An empty div costs a
+           tenant that does not have the module precisely nothing. -->
+      <div id="pg-dailyclosing"     class="pg"></div>
       <div id="pg-paylinks"         class="pg"></div>
       <div id="pg-paylink-detail"   class="pg"></div>
       <div id="pg-payment-methods"  class="pg"></div>

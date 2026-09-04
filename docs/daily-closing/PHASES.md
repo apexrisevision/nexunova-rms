@@ -239,3 +239,61 @@ quietly, and they are now part of **P10's Definition of Done**:
 - RULES (b) questions Q2 (bank account tables), Q3 (PDF grain), Q4 (voucher book grain),
   Q5 (client receipt duplication), Q7 (paisa display), Q8 (double-entry during the parallel
   run) remain unanswered and none of them blocks P8.
+
+---
+
+# Standing rules for this module's test suites
+
+These are not phase notes. They hold for every prompt from here on, and a new suite that
+breaks one of them is wrong even if it passes.
+
+## SR-1 · A project that holds permanent fixtures must never host a suite that wipes entries
+
+**Rule.** On any tenant, a project used as a *permanent* fixture (rows that outlive the run)
+and a project used by a *wiping* suite (`DELETE FROM public.cash_entries WHERE project_id = …`)
+must be different projects. Today: **ZZTEST Tower** holds the golden PDF fixture;
+**ZZTEST Garden** (`2da565ca-…`) is where the wiping suites run.
+
+**Why it is not merely tidy.** Invariant 1 makes `cash_entries` undeletable — the trigger raises
+on DELETE. A wipe against a project with entries in it therefore cannot succeed *and cannot be
+cleaned up afterwards*: there is no supported way to remove those rows. The only escape is
+`ALTER TABLE … DISABLE TRIGGER`, which turns invariant 1 off table-wide, for every tenant,
+for as long as the window lasts. A tidy-up is never worth that.
+
+**How it hid.** A wipe against a project with no entries raises nothing — a row trigger that
+fires on zero rows is silent. So the collision is invisible until the day someone adds a
+permanent fixture, and then it lands on the *first line of setup* of a suite that has been
+green for weeks and has nothing to do with the change.
+
+**What to do when you add a fixture that cannot be deleted.** Give it its own project, say so
+in the script's header, and check that no other suite wipes that project. Moving the fixture
+later is not an option — that is the whole point.
+
+## SR-2 · An assertion of the form "X must not appear" is suspect until it has been seen to fire
+
+**Rule.** Every negative assertion — *no phone number*, *no lakh grouping*, *no "delete" on the
+page*, *nothing was sent to the server* — must be accompanied by proof that it CAN fail:
+either a probe in the same run that feeds the detector something it must catch, or a positive
+control establishing that the thing being searched is real.
+
+**Why.** A negative assertion passes on the empty string, on gibberish, on a page that failed
+to load, and on a detector with a broken regex. It is green in every one of those cases, and
+green is exactly what it would be if everything were fine. This is the same shape as the
+NULL-comparison trap that made 52 assertions unfailable in P2–P4; it has now appeared three
+times in three costumes:
+
+1. `IF (v_res->>'error') <> 'X'` — NULL on success, so the check never ran. (P4)
+2. §A10's phone and lakh checks — green on an empty extraction, then green again on 700
+   characters of glyph-id gibberish; and the lakh regex only ever matched *crore* shapes, so
+   `1,50,000` passed it. (P7)
+3. The same checks after Inter was embedded — the length guard passed, because there was
+   plenty of text; it just was not language. (P8)
+
+**The two guards that answer it**, both now in `scripts/verify-daily-closing-pdf.js`:
+
+- **Detector self-test** — eight synthetic probes assert each detector fires on what it must
+  catch and stays silent on what it must not, every run.
+- **Intelligibility gate** — before any negative assertion runs, the extracted text must
+  contain known positive controls (`Daily Closing`, `FOURTEEN GROUP`, `Closing (C/F)`). If it
+  does not, the run stops there with a named failure and prints what it actually got, rather
+  than letting a wall of green report on nonsense.

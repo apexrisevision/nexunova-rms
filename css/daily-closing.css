@@ -586,3 +586,46 @@ html[data-theme="dark"] .dc .dc-skel::after { background: linear-gradient(90deg,
 .dc .dc-band .dc-views .dc-btn[aria-current] {
   background: #fff; color: var(--dc-navy-900); border-color: #fff; font-weight: 600;
 }
+
+/* ── The audit tab (§A10) ───────────────────────────────────────────────
+   A timeline, not a table: the time is the spine and everything else hangs
+   off it. Diffs are three columns — field, before, after — so a column of
+   changes reads down rather than being hunted for inside a sentence. */
+.dc .dc-audit { list-style: none; margin: 0; padding: 0; }
+.dc .dc-audit-row {
+  display: grid; grid-template-columns: 84px 1fr; gap: var(--dc-sp-4);
+  padding: var(--dc-sp-3) 0; border-bottom: 1px solid var(--dc-line);
+}
+.dc .dc-audit-row:last-child { border-bottom: 0; }
+.dc .dc-audit-when {
+  font-variant-numeric: tabular-nums; font-size: var(--dc-t-sm);
+  color: var(--dc-ink-900); white-space: nowrap;
+}
+.dc .dc-audit-date { display: block; color: var(--dc-ink-500); font-size: var(--dc-t-xs); }
+.dc .dc-audit-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--dc-sp-2);
+  font-size: var(--dc-t-md); color: var(--dc-ink-600);
+}
+.dc .dc-audit-head strong { color: var(--dc-ink-900); font-weight: 600; }
+.dc .dc-audit-role {
+  font-size: var(--dc-t-xs); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--dc-ink-500);
+}
+.dc .dc-audit-reason {
+  margin-top: var(--dc-sp-1); font-size: var(--dc-t-sm); color: var(--dc-ink-600);
+}
+.dc .dc-audit-diff {
+  display: grid; grid-template-columns: auto auto 16px auto; justify-content: start;
+  align-items: baseline; gap: var(--dc-sp-1) var(--dc-sp-2);
+  margin-top: var(--dc-sp-2); font-size: var(--dc-t-sm);
+}
+.dc .dc-audit-field { color: var(--dc-ink-500); }
+.dc .dc-audit-before { color: var(--dc-ink-600); text-decoration: line-through; }
+.dc .dc-audit-arrow { color: var(--dc-ink-500); text-align: center; }
+.dc .dc-audit-after { color: var(--dc-ink-900); font-weight: 600; }
+@media (max-width: 640px) {
+  .dc .dc-audit-row { grid-template-columns: 1fr; gap: var(--dc-sp-1); }
+  .dc .dc-audit-when { display: flex; gap: var(--dc-sp-2); align-items: baseline; }
+  .dc .dc-audit-date { display: inline; }
+  .dc .dc-audit-diff { grid-template-columns: auto auto 16px auto; }
+}

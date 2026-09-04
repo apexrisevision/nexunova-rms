@@ -653,3 +653,66 @@ trigger that fires on no rows raises nothing. They were moved to **ZZTEST Garden
 One ZZTEST project holds undeletable rows; the other holds none. **They must not be the same
 one.** The alternative was disabling the invariant-1 trigger on a live table to tidy up, which
 is not a thing this module does.
+
+> **Standing rule SR-1** — a project holding permanent fixtures must never also host a suite
+> that wipes `cash_entries`. Invariant 1 makes the collision unrecoverable without disabling
+> the trigger table-wide. Stated in full in `PHASES.md`.
+
+---
+
+# P8 — the role model, the audit read, and the derived registry
+
+`20260904p_who_may_do_what_and_what_it_leaves_behind.sql` — **applied**. No table changes.
+
+| Function | Who | What |
+|---|---|---|
+| `_dc_has_module_grant(user, key)` | service_role | reads `app_users.module_permissions -> key = 'true'` |
+| `_dc_role(user)` | service_role | **the one mapping** from an RMS role to a §A10 role, or NULL |
+| `_dc_may_view(user, co, pj)` | service_role | scope AND holds one of the four roles |
+| `_dc_may_record(user, co, pj)` | service_role | scope AND Cashier / Accountant / CFO |
+| `get_my_daily_closing_access(co, pj)` | authenticated | what the screen may draw — advisory |
+| `list_cash_day_audit(co, day, limit)` | authenticated, CFO+Director only | the audit tab |
+| `_dc_audit_whitelist(table)` | service_role | which fields may ever appear in a diff |
+| `_dc_service_registry()` | authenticated | every module service, derived from `pg_proc` |
+
+Re-gated in the same migration: `open_cash_day`, `record_cash_entry`,
+`add_cash_entry_attachment` (→ `_dc_may_record`) and `list_payees` (→ `_dc_may_view` plus an
+explicit role test; it had inlined invariant 8's chain instead of calling the shared predicate).
+
+## `_dc_role` is the only place the mapping lives
+
+```
+CFO         cfo · owner · super-admin · the company's owner_user_id
+ACCOUNTANT  accounts   (the code reads 'finance' too; only 'accounts' is storable)
+DIRECTOR    manager
+CASHIER     staff, AND ONLY WITH the dailyclosing module grant
+NULL        everything else — including a plain `admin`
+```
+
+Order matters: most-privileged first, so a company owner who also happens to be `staff` is a
+CFO and not a cashier.
+
+`_dc_may_touch_project` keeps invariant 8's canonical chain verbatim and gains one clause —
+`_dc_role(user) IS NOT NULL`. Scope is not a role; the role test sits **on top of** invariant
+8's chain, never inside it as an exception.
+
+## The audit diff is whitelisted
+
+`audit_logs.old_data`/`new_data` hold the whole row. `_dc_audit_whitelist` returns the fields
+that may be shown per table — for `cash_days` the status, the figures, the variance and its
+note; for `cash_entries` `is_voided`, `reversal_id`, `rms_status`, `qb_account_id`,
+`is_adjustment`. Narration, payee and unit are on no list and cannot reach the panel. §A10 keeps
+client detail out of the Director PDF; the audit tab must not become where it turns up instead.
+
+## The registry is derived, not written down
+
+`_dc_service_registry()` selects from `pg_proc`: in `public`, executable by `authenticated`,
+not a trigger function, name not starting `_`, and mentioning one of the seven module tables.
+A service created in a later phase appears in it immediately and the P8 suite fails until it has
+a cell in the RBAC matrix. That is the point — a hand-maintained list of "things to test" is a
+list of the things somebody remembered.
+
+`20260904n_the_sheet_gets_its_own_typeface.sql` — **applied**. Adds `font/ttf` to the
+`daily-closing` bucket's allow-list so Inter can live at `_assets/`, and asserts the bucket is
+still private, still capped at 10 MB, and still carries exactly the three attachment types plus
+the two new ones. The upload bridge is unchanged and still refuses anything but JPG/PNG/PDF.

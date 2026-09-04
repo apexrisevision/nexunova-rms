@@ -79,7 +79,15 @@ const STATES = [
       await page.click('#dc-view-days');
       await page.waitForSelector('.dc-days tbody tr', { timeout: 8000 });
     }
-  }
+  },
+  // P8 — the audit tab, and the same day seen by a Director who may not write.
+  { state: 'closed', label: 'audit', role: 'CFO', full: true,
+    prep: async page => {
+      await page.click('#dc-view-audit');
+      await page.waitForSelector('.dc-audit-row', { timeout: 8000 });
+    }
+  },
+  { state: 'open', label: 'director', role: 'DIRECTOR', full: true }
 ];
 const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
 
@@ -100,7 +108,8 @@ const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
           }
         });
         await page.setViewport({ width: v.w, height: v.h, deviceScaleFactor: 2 });
-        await page.goto(`http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${s.state}`,
+        await page.goto(`http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${s.state}`
+          + (s.role ? `&role=${s.role}` : ''),
           { waitUntil: 'networkidle2' });
         await page.waitForSelector('.dc-band', { timeout: 8000 });
         if (s.prep) await s.prep(page);
@@ -111,7 +120,10 @@ const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
         const file = path.join(OUT, name + '.png');
         // A panel is fixed to the viewport; fullPage would photograph the page
         // scrolled past it and lose the thing being shown.
-        await page.screenshot({ path: file, fullPage: !s.prep });
+        // A panel or a popover is fixed to the viewport, so fullPage would
+        // photograph the page scrolled past it. A view that is just a longer
+        // page (audit, director) still wants the whole thing.
+        await page.screenshot({ path: file, fullPage: !s.prep || !!s.full });
         console.log(`  ${name.padEnd(22)} ${String(Math.round(fs.statSync(file).size/1024)).padStart(5)} KB`);
         await page.close();
       }

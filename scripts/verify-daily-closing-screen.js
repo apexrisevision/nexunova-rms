@@ -59,7 +59,11 @@ function serve() {
   });
 }
 
-const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${state}`;
+// P8: the stub now also takes a role and a view, so one helper can open the
+// screen as any of the four §A10 callers.
+const url = (state, opt) => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${state}`
+  + (opt && opt.role ? `&role=${opt.role}` : '')
+  + (opt && opt.view ? `&view=${opt.view}` : '');
 
 (async () => {
   const srv = await serve();
@@ -67,7 +71,7 @@ const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=$
     args: ['--no-sandbox'] });
   const errors = [];
 
-  async function open(state, width = 1280) {
+  async function open(state, width = 1280, opt) {
     const page = await browser.newPage();
     page.on('pageerror', e => errors.push(`${state}: ${e.message}`));
     page.on('console', m => {
@@ -76,7 +80,7 @@ const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=$
       }
     });
     await page.setViewport({ width, height: 900 });
-    await page.goto(url(state), { waitUntil: 'networkidle2' });
+    await page.goto(url(state, opt), { waitUntil: 'networkidle2' });
     await page.waitForSelector('.dc', { timeout: 8000 });
     return page;
   }
@@ -532,6 +536,128 @@ const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=$
         .find(c => c.name === 'post_cash_adjustment').args.p_reason), 'cashier short by 3',
         'the reason is not optional and it is what was typed');
       await page.close();
+    }
+
+    // ═══ P8 · WHAT EACH ROLE SEES ══════════════════════════════════════
+    head('the screen draws what the server says, not what the session claims');
+    {
+      // The stub's `me` says isCfo:true for every role, deliberately. If the
+      // screen still read the session the way P6 did, every one of these would
+      // look like a CFO — so this is also the test that the switch happened.
+      const page = await open('open', 1280, { role: 'DIRECTOR' });
+      is(await page.evaluate(() => window.__dcStub.calls
+        .some(c => c.name === 'get_my_daily_closing_access')), true,
+        'the screen asks the server what this caller may do');
+      is(await page.$('#dc-form'), null, 'a Director gets no composer');
+      is(await page.$('#dc-close'), null, 'no Close Day');
+      is(await page.$$eval('.dc-ledger [data-menu-btn]', b => b.length), 0,
+        'and no row offers a void');
+      is(!!(await page.$('.dc-ledger')), true, 'but the ledger is there — the row is READ, not nothing');
+      is(!!(await page.$('#dc-view-audit')), true, 'and the audit tab is offered');
+      await page.close();
+    }
+    {
+      const page = await open('open', 1280, { role: 'CASHIER' });
+      is(!!(await page.$('#dc-form')), true, 'a Cashier gets the composer');
+      is(await page.$('#dc-close'), null, 'no Close Day');
+      is(await page.$$eval('.dc-ledger [data-menu-btn]', b => b.length), 0,
+        'and no void — that is Accountant and above');
+      is(await page.$('#dc-view-audit'), null, 'no audit tab');
+      await page.close();
+    }
+    {
+      const page = await open('open', 1280, { role: 'ACCOUNTANT' });
+      is(!!(await page.$('#dc-form')), true, 'an Accountant gets the composer');
+      is(await page.$$eval('.dc-ledger [data-menu-btn]', b => b.length), 3,
+        'and a void on each live row');
+      is(await page.$('#dc-close'), null, 'but no Close Day');
+      is(await page.$('#dc-view-audit'), null, 'and no audit tab');
+      await page.close();
+    }
+    {
+      const page = await open('open', 1280, { role: 'CFO' });
+      is(!!(await page.$('#dc-form')), true, 'the CFO gets the composer');
+      is(!!(await page.$('#dc-close')), true, 'Close Day');
+      is(await page.$$eval('.dc-ledger [data-menu-btn]', b => b.length), 3, 'the voids');
+      is(!!(await page.$('#dc-view-audit')), true, 'and the audit tab');
+      await page.close();
+    }
+
+    head('somebody with no role is told so, rather than shown an empty page');
+    {
+      const page = await open('open', 1280, { role: 'NONE' });
+      const t = await page.$eval('.dc-empty p', e => e.textContent);
+      t.includes('do not have access')
+        ? ok(`it says why — “${t.slice(0, 60)}…”`)
+        : bad(`the empty state read “${t}”`);
+      is(await page.$('#dc-form'), null, 'and there is no composer');
+      is(await page.$('.dc-ledger'), null, 'and no ledger');
+      await page.close();
+    }
+
+    head('a Director cannot open a day either');
+    {
+      const page = await open('notopened', 1280, { role: 'DIRECTOR' });
+      is(await page.$('#dc-open'), null, 'no Open day button is offered');
+      const t = await page.$eval('.dc-empty p', e => e.textContent);
+      t.includes('No day was opened')
+        ? ok('and the empty state states the fact instead of inviting an action')
+        : bad(`the empty state read “${t}”`);
+      // and the same screen for a cashier DOES offer it — otherwise the check
+      // above would pass on a broken empty state (SR-2)
+      const page2 = await open('notopened', 1280, { role: 'CASHIER' });
+      is(!!(await page2.$('#dc-open')), true, 'a Cashier on the same screen is offered it');
+      await page.close(); await page2.close();
+    }
+
+    // ═══ P8 · THE AUDIT TAB ════════════════════════════════════════════
+    head('the audit tab reads as a trail: who, when, what, and why');
+    {
+      const page = await open('closed', 1280, { role: 'CFO' });
+      await page.click('#dc-view-audit');
+      await page.waitForSelector('.dc-audit-row', { timeout: 5000 });
+      is(await page.evaluate(() => window.__dcStub.calls
+        .some(c => c.name === 'list_cash_day_audit')), true, 'it asks the server for the trail');
+      is(await page.$$eval('.dc-audit-row', r => r.length), 4, 'four events listed');
+
+      const first = await page.$eval('.dc-audit-row', e => e.textContent.replace(/\s+/g, ' '));
+      first.includes('Rashid') && first.includes('changed')
+        ? ok(`newest first, with the actor and the verb — “${first.slice(0, 64)}…”`)
+        : bad(`the first row read “${first.slice(0, 90)}”`);
+      is(first.includes('short 3, cashier'), true, 'the reason is shown');
+
+      const diff = await page.$$eval('.dc-audit-row:first-child .dc-audit-diff span',
+        s => s.map(x => x.textContent));
+      // The column is 'status'; the panel says 'Status', because a Director
+      // reading a column name is reading the database rather than the day.
+      is(diff.includes('Status'), true, 'the diff names the field, in words');
+      is(diff.includes('OPEN') && diff.includes('CLOSED'), true, 'with its before and after');
+
+      // POSITIVE CONTROL FIRST (SR-2): the diff renderer demonstrably prints
+      // fields, so the absence check below is about the whitelist and not
+      // about an empty panel.
+      is(diff.length >= 3, true, 'the diff renderer is producing output at all');
+      const all = await page.$eval('.dc', e => e.textContent);
+      is(/Installment #4|Yousaf Khan|Electricity bill/.test(all), false,
+        'and no narration, payee or unit appears anywhere on the audit tab');
+      await page.close();
+    }
+
+    head('the audit tab is not offered, and not reachable, without the role');
+    {
+      const page = await open('closed', 1280, { role: 'ACCOUNTANT' });
+      is(await page.$('#dc-view-audit'), null, 'no tab for an Accountant');
+      // and asking for it directly by URL still gets nothing
+      const direct = await open('closed', 1280, { role: 'ACCOUNTANT', view: 'audit' });
+      is(await direct.$('.dc-audit-row'), null, 'and ?view=audit shows no trail');
+      const t = await direct.$eval('.dc-empty p', e => e.textContent);
+      t.includes('CFO and the Directors')
+        ? ok('it says whose it is')
+        : bad(`the empty state read “${t}”`);
+      is(await direct.evaluate(() => window.__dcStub.calls
+        .filter(c => c.name === 'list_cash_day_audit').length), 0,
+        'and the screen does not even ask — but list_cash_day_audit refuses it anyway');
+      await page.close(); await direct.close();
     }
 
     // ═══ RESPONSIVE ════════════════════════════════════════════════════

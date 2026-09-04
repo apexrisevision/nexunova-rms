@@ -369,3 +369,177 @@ own rather than waiting for a leak to be missed.
    now asserts that no row holds anything outside the seven values and that none was rewritten.
 5. **The screen suite still goes red by timing out** in some paths rather than printing a named
    failure — carried into P10 as agreed, along with the attachment end-to-end item.
+
+---
+
+# P8 — roles, guards, the audit tab, and the shell
+
+## Open it
+
+Daily Closing is now in the sidebar, under **Sales & Money**, after Record Payment — for Awami
+Market only. `/daily-closing.html` still works and is what the tests drive.
+
+`?stub=1&role=CASHIER|ACCOUNTANT|CFO|DIRECTOR|NONE` renders the screen as any of §A10's callers
+with no database.
+
+## Files
+
+| File | What |
+|---|---|
+| `supabase/migrations/20260904p_…` | `_dc_role` · `_dc_may_view` · `_dc_may_record` · `_dc_has_module_grant` · `get_my_daily_closing_access` · `list_cash_day_audit` · `_dc_audit_whitelist` · `_dc_service_registry`, and the four endpoints that were gated wrongly |
+| `supabase/migrations/20260904n_…` | one MIME type added to the bucket so Inter can live in it |
+| `scripts/upload-inter-fonts.js` | downloads Inter v4.1 and puts it in `_assets/`; `--check` just reports |
+| `js/pages/daily-closing.js` | asks the server what it may do; audit tab; a Director's read-only day; the shell adapter `rDailyClosing()` |
+| `js/ui.js` · `login.html` · `js/lazy-pages.js` | the nav item, the page host, the lazy manifest — **all default-closed** |
+| `js/pages/daily-closing-stub.js` | `get_my_daily_closing_access`, `list_cash_day_audit`, and a `role` argument |
+| `css/daily-closing.css` | the audit timeline |
+| `scripts/verify-daily-closing-access.js` | **new** — 18 checks, 108 matrix cells |
+| `scripts/verify-daily-closing-shell.js` | **new** — 16 assertions that KBH and FMH see nothing |
+| `scripts/verify-daily-closing-screen.js` | 96 → **132** |
+
+## Three holes P8 closed
+
+All three were the same mistake wearing different clothes: **a scope test doing duty as a role
+test.** `_dc_may_touch_project` answers "is this project yours?", and four endpoints were
+treating that as "may you write?".
+
+1. **A Director could write.** `open_cash_day`, `record_cash_entry` and
+   `add_cash_entry_attachment` checked scope only, so a `manager` assigned to the project could
+   open a day and record entries. §A10 gives the Director a read-only row.
+2. **A data-entry admin got in by default.** `admin` in this database is the everyday
+   data-entry role — FMH's only admin is a filling clerk (RULES §0.4) — and it appears nowhere
+   in §A10's matrix. It now passes the scope test and is refused for having no Daily Closing
+   role.
+3. **The cashier's module grant was decoration.** RULES §0.3 defines the Cashier as `staff`
+   **plus** an explicit `dailyclosing` grant. The grant existed only in the Users & Roles UI;
+   the server never read it. It is now what makes a cashier.
+
+A fourth turned up while the matrix was running: **`list_payees` inlined invariant 8's chain**
+rather than calling the shared predicate, so the new role test did not reach it and any admin
+could list the payee master. Found by the matrix on its first green run of everything else.
+
+## What is deliberately unchanged
+
+`_dc_may_touch_project` keeps invariant 8's canonical chain **verbatim** — `_rms_caller()` →
+tenant → `_rms_is_admin()` → active assignment. Invariant 8 names that chain as its enforcement,
+so the role test goes **on top of it**, never inside it as an exception.
+
+## The audit tab
+
+Reverse-chronological, for the CFO and the Directors, from `list_cash_day_audit`. Each row: who,
+when, what they did, why (the reason the action carried), and the before/after of any
+**whitelisted** field.
+
+**The diff is whitelisted, not wholesale.** `audit_logs.old_data`/`new_data` hold the entire row,
+and a cash entry's row carries a payee, a unit and a narration. Handing that to a diff viewer
+would put a client's business into a panel that §A10 keeps out of the Director PDF two files
+away. `_dc_audit_whitelist` names the fields per table — status and the figures for a day,
+`is_voided`/`rms_status` for an entry — and nothing else is ever returned. Asserted from both
+ends: the suite proves the status change **is** there, and that narration, payee and unit are
+**not**, after first proving the diff renderer produces output at all.
+
+Field names are shown in words. A Director reading `counted_cash` is reading the database.
+
+Screenshot: `s1-audit-1280` · `s1-audit-375` · `s1-director-1280` · `s1-director-375`.
+
+## The UI stopped guessing
+
+P6 read a role string out of the session and worked out the buttons here. P8 replaces that with
+`get_my_daily_closing_access`, which returns the same booleans the server enforces with. The
+stub deliberately still says `me.isCfo = true` for every role — so if the screen had gone on
+reading the session, every one of the four role tests would show a CFO, and they do not.
+
+The payload has **one shape for everybody**, including a caller with no access at all. A
+function that returns `{role, may_view}` here and `{role, may_view, may_record, …}` there makes
+every consumer test for `undefined`, and `undefined` is falsy right up until somebody writes
+`!== false`.
+
+## The service registry
+
+"Assert each mutating service emits an audit row" is only worth anything if the list cannot go
+stale, so `_dc_service_registry()` **derives** it from `pg_proc`: every function in `public` that
+`authenticated` may execute, that is VOLATILE, and that mentions a Daily Closing table. A
+service added in P9 appears in it the moment it is created, and the suite fails until it has a
+cell in the RBAC matrix.
+
+Two trigger functions turned up in the first run and would have demanded RBAC cells. A trigger
+function is not a service — nobody calls it, the table does — so the registry excludes anything
+returning `trigger`.
+
+## The shell mount, and why it is default-closed
+
+**`hasFeature()` returns TRUE for a key it has never seen.** The SaaS model is deliberately
+default-open, so routing this module through it would have put the cash book into Khushal Bagh's
+and FMH's sidebars the moment the line shipped. Both gates — the sidebar item and `nav()` — test
+`window._featureFlags.daily_closing === true` explicitly and do not call `hasFeature` at all.
+
+`verify-daily-closing-shell.js` runs the real `buildSB()` and the real `nav()` twice and asserts:
+`hasFeature('daily_closing')` really does answer true for a tenant that has never heard of it;
+the sidebar has no item; `nav('dailyclosing')` lands on the dashboard; and — with the item cut
+out of the flagged sidebar — the two sidebars are **identical character for character**.
+
+The page is lazy: `login.html` carries an empty host div and no script tag, and the three files
+are in the lazy manifest, so a tenant that cannot reach the page never downloads it.
+
+## Inter
+
+The Director PDF renders in **Inter** now. `node scripts/upload-inter-fonts.js` takes the two
+static TTFs from the official rsms/inter v4.1 release (SIL OFL 1.1), uploads them to
+`daily-closing/_assets/` with the licence beside them, and reads them back to prove they are
+fonts. No redeploy: the renderer picks them up on the next render.
+
+The bucket's MIME allow-list had to gain **one** type, `font/ttf` (`20260904n`). That list is
+defence in depth, not the boundary: user uploads go through `daily-closing-file`, which
+independently refuses anything but JPG, PNG and PDF and **builds the storage key itself**, so
+nothing arriving at that door can land under `_assets/` whatever it claims to be. The migration
+asserts the bucket is still private, still 10 MB, still exactly six types, and still carries the
+three attachment types.
+
+## The extractor had to be rewritten, and that is the interesting part
+
+Switching the renderer to embedded Inter **broke the golden PDF test**, and the way it broke is
+the third appearance of the same bug.
+
+With Helvetica, pdf-lib writes WinAnsi codes: `<44 61 69 6C 79>` is literally "Daily". With an
+embedded subset it writes **glyph ids**, whose meaning lives only in that font's `/ToUnicode`
+CMap. The old extractor decoded those as WinAnsi and produced ~700 characters of confident
+nonsense — which sailed straight through the length guard, while **every §A10 check went green
+on the gibberish**.
+
+So the extractor now decodes **per font, through that font's own CMap**. The two subsets in one
+sheet share 33 codes and disagree about 29 of them, so a merged map is not an approximation, it
+is a lie. Two things had to be understood to get there: the font dictionaries live in
+**compressed object streams**, so a raw search for `/ToUnicode` finds zero hits in a file that
+has two; and pdf-lib names each font resource `/Inter-Regular-6837590713`, so a `\w+` name
+pattern matches "Inter", fails on the hyphen, and silently falls back to WinAnsi for everything.
+
+And a second guard was added: **an intelligibility gate**. Before any "must not appear"
+assertion runs, the extracted text must contain known positive controls. If it does not, the run
+stops with a named failure and prints what it actually got. Standing rule SR-2 is in
+`PHASES.md`.
+
+## Proving the suites can go red
+
+- **access** — `_dc_may_record` widened to include DIRECTOR. Result: `3 of 108 cells disagree
+  with §A10` naming exactly `open_cash_day`, `record_cash_entry`, `add_cash_entry_attachment`.
+- **shell** — the sidebar gate routed through `hasFeature('daily_closing')`, the real mistake it
+  exists to catch. Result: 4 failures, including the two sidebars no longer matching.
+- **pdf** — after Inter, the intelligibility gate fired on its own and refused to run 18
+  assertions on gibberish. That was not a staged red check; it was the guard doing its job.
+
+## Deviations and open questions
+
+1. **`admin` loses access it technically had.** Nobody is affected today — Awami's only user is
+   `owner`, which is CFO — and §A10's matrix has no admin row. Flagged because it is a
+   tightening of live behaviour, not an addition.
+2. **`audit_logs` grants `SELECT` to `anon` and `authenticated`.** RMS's default privileges hand
+   that out on every table. It reaches no rows: RLS is on with a deny-all policy `USING (false)`
+   covering both, and neither has UPDATE or DELETE. The suite asserts the RLS facts rather than
+   the grant, because the grant is true and does not matter. **Revoking it would touch a table
+   KBH and FMH use in production, so it is not done here — say the word and it is a one-line
+   migration.**
+3. **`get_my_daily_closing_access` is advisory.** Every flag it returns is re-checked
+   server-side by the call it guards. It exists to draw buttons.
+4. **A re-run of an older migration would revert P8's guards.** `20260904h`/`j` contain the
+   pre-P8 bodies of the three write endpoints. Forward-only migrations applied in order are
+   fine; re-applying an old one out of order is not, and never was.

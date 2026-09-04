@@ -48,16 +48,37 @@
       day: null, entries: [], payees: [], units: [], accounts: [],
       defaults: {}, busy: false,
       form: null, idemKey: null,
-      view: opts.view === 'days' ? 'days' : 'day',   // S1 or S3
-      days: null, panel: null,
+      view: ['days','audit'].indexOf(opts.view) >= 0 ? opts.view : 'day',  // S1, S3 or the audit tab
+      days: null, audit: null, panel: null,
       // The Director PDF is rendered by an edge function, not an RPC, so the
       // host injects a caller the same way it injects `rpc`. In stub mode the
       // stub provides one; nothing here knows what a Supabase URL looks like.
       fn: opts.fn || null
     };
     root.classList.add('dc');
-    S.isCfo = !!S.me.isCfo;
-    S.isAccountantPlus = !!(S.me.isAccountantPlus || S.me.isCfo);
+
+    /* ── WHAT THIS USER MAY DO IS THE SERVER'S ANSWER, NOT A GUESS ────────
+       P6 read a role string out of the session and worked the rest out here.
+       That is the wrong direction: §A10 says "UI hides, server enforces", and
+       a UI that decides for itself drifts from the thing enforcing. The screen
+       now ASKS — get_my_daily_closing_access — and every one of these flags is
+       re-checked server-side on the call it guards anyway. They exist to draw
+       the right buttons, not to be the rule. */
+    S.access = null;
+    S.dcRole = null;
+    S.mayRecord = false;
+    S.mayAudit = false;
+    S.isCfo = false;
+    S.isAccountantPlus = false;
+
+    function applyAccess(a) {
+      S.access = a || {};
+      S.dcRole = S.access.role || null;
+      S.mayRecord = !!S.access.may_record;
+      S.mayAudit = !!S.access.may_audit;
+      S.isCfo = !!S.access.may_close;
+      S.isAccountantPlus = !!S.access.may_void;
+    }
 
     /* ── data ─────────────────────────────────────────────────────────── */
     function loadDays() {
@@ -71,9 +92,35 @@
       }).catch(function (e) { S.error = e && e.message; S.days = []; render(false); });
     }
 
+    /* Access is re-read on every load, because it depends on the project and
+       the project can change under the picker. */
+    function loadAccess() {
+      return S.rpc('get_my_daily_closing_access', {
+        p_company_id: S.me.companyId, p_project_id: S.projectId
+      }).then(applyAccess).catch(function () { applyAccess(null); });
+    }
+
+    function loadAudit() {
+      render(true);
+      return loadAccess().then(function () {
+        if (!S.mayAudit) { S.audit = []; return render(false); }
+        return S.rpc('get_cash_day_summary', {
+          p_company_id: S.me.companyId, p_project_id: S.projectId, p_business_date: S.date
+        }).then(function (r) {
+          S.day = r || {};
+          if (!S.day.exists) { S.audit = []; return; }
+          return S.rpc('list_cash_day_audit', {
+            p_company_id: S.me.companyId, p_cash_day_id: S.day.cash_day_id, p_limit: 200
+          }).then(function (a) { S.audit = (a && a.events) || []; });
+        }).then(function () { render(false); });
+      }).catch(function (e) { S.error = e && e.message; S.audit = []; render(false); });
+    }
+
     function load() {
       if (S.view === 'days') return loadDays();
+      if (S.view === 'audit') return loadAudit();
       render(true);
+      return loadAccess().then(function () {
       return S.rpc('get_cash_day_summary', {
         p_company_id: S.me.companyId, p_project_id: S.projectId, p_business_date: S.date
       }).then(function (r) {
@@ -93,6 +140,7 @@
             .then(function (r) { S.units = (r && r.units) || []; })
             .catch(function () { S.units = []; })
         ]);
+      });
       }).then(function () { render(false); })
         .catch(function (e) { S.error = e && e.message; render(false); });
     }
@@ -101,12 +149,98 @@
     function render(loading) {
       root.innerHTML = header(loading) +
         (loading ? skeletonBody()
+                 : (S.access && S.dcRole === null) ? noAccessBody()
+                 : S.view === 'audit' ? auditBody()
                  : S.view === 'days' ? daysBody()
                  : !S.day || !S.day.exists ? notOpened()
                  : S.day.status === 'CLOSED' ? closedBody()
                  : openBody()) +
         '<div class="dc-toasts"></div>';
       if (!loading) wire();
+    }
+
+    /* The server said this person has no Daily Closing role at all. Saying so
+       is better than an empty screen that looks broken. */
+    function noAccessBody() {
+      return '<div class="dc-card">' + K.emptyState({
+        icon: 'lock',
+        message: 'You do not have access to the cash book for this project. ' +
+                 'Ask the CFO to grant it in Users & Roles.'
+      }) + '</div>';
+    }
+
+    /* ── the audit tab (§A10) ──────────────────────────────────────────
+       Reverse-chronological, for the CFO and the Directors. The before/after
+       is whitelisted server-side — narration, payee and unit never come back,
+       because the audit panel must not become the place where the client
+       detail the Director PDF withholds turns up instead. */
+    var AUDIT_LABEL = {
+      cash_days: 'Day', cash_entries: 'Entry', day_documents: 'Sheet',
+      cash_entry_attachments: 'Attachment', payees: 'Payee', qb_accounts: 'Account'
+    };
+    var AUDIT_VERB = { INSERT: 'created', UPDATE: 'changed', DELETE: 'deleted' };
+
+    /* The whitelist is a list of column names, and a Director reading
+       "counted_cash" is reading the database rather than the day. */
+    var AUDIT_FIELD = {
+      status: 'Status', closing_cash: 'Closing cash', closing_bank: 'Closing bank',
+      counted_cash: 'Counted cash', variance: 'Variance', variance_note: 'Variance note',
+      version: 'Version', closed_at: 'Closed at',
+      opening_cash: 'Opening cash', opening_bank: 'Opening bank',
+      is_voided: 'Voided', reversal_id: 'Reversal', rms_status: 'Allocation',
+      qb_account_id: 'QB head', is_adjustment: 'Adjustment',
+      is_active: 'Active', name: 'Name', kind: 'Kind',
+      mime: 'File type', size_bytes: 'File size', number: 'Number'
+    };
+    function auditField(f) { return AUDIT_FIELD[f] || String(f).replace(/_/g, ' '); }
+
+    function auditBody() {
+      if (!S.mayAudit) {
+        return '<div class="dc-card">' + K.emptyState({
+          icon: 'lock',
+          message: 'The audit trail is for the CFO and the Directors.' }) + '</div>';
+      }
+      if (!S.day || !S.day.exists) {
+        return '<div class="dc-card">' + K.emptyState({
+          message: 'No day on ' + F.dateShort(S.date) + ', so there is nothing to audit.' }) + '</div>';
+      }
+      if (!S.audit || !S.audit.length) {
+        return '<div class="dc-card">' + K.emptyState({
+          message: 'Nothing has happened on this day yet.' }) + '</div>';
+      }
+      return '<div class="dc-card"><ol class="dc-audit">' +
+        S.audit.map(function (e) {
+          var diff = e.diff || [];
+          return '<li class="dc-audit-row">' +
+            '<div class="dc-audit-when"><time datetime="' + esc(e.changed_at) + '">' +
+              esc(F.time(e.changed_at)) + '</time>' +
+              '<span class="dc-audit-date">' + esc(F.dateShort(e.changed_at)) + '</span></div>' +
+            '<div class="dc-audit-what">' +
+              '<div class="dc-audit-head">' +
+                '<strong>' + esc(e.changed_by_name || 'Unknown') + '</strong>' +
+                '<span class="dc-audit-role">' + esc(e.changed_by_role || '') + '</span>' +
+                '<span>' + esc(AUDIT_VERB[e.action] || String(e.action).toLowerCase()) + ' ' +
+                  esc((AUDIT_LABEL[e.table_name] || e.table_name).toLowerCase()) + '</span>' +
+                (e.is_sensitive ? '<span class="dc-chip dc-chip--unapplied">sensitive</span>' : '') +
+              '</div>' +
+              (e.reason ? '<div class="dc-audit-reason">“' + esc(e.reason) + '”</div>' : '') +
+              (diff.length ? '<div class="dc-audit-diff">' + diff.map(function (d) {
+                return '<span class="dc-audit-field">' + esc(auditField(d.field)) + '</span>' +
+                  '<span class="dc-audit-before">' + esc(auditVal(d.before)) + '</span>' +
+                  '<span class="dc-audit-arrow" aria-hidden="true">→</span>' +
+                  '<span class="dc-audit-after">' + esc(auditVal(d.after)) + '</span>';
+              }).join('') + '</div>' : '') +
+            '</div></li>';
+        }).join('') + '</ol></div>';
+    }
+
+    function auditVal(v) {
+      if (v === null || v === undefined) return '—';
+      if (typeof v === 'boolean') return v ? 'yes' : 'no';
+      if (typeof v === 'number') return F.amount(v);
+      var s = String(v);
+      // A money-shaped string reads better grouped; anything else stays as it is.
+      return /^-?\d+(\.\d+)?$/.test(s) && s.length > 3 ? F.amount(Number(s)) : s;
     }
 
     function header(loading) {
@@ -129,12 +263,18 @@
               (S.view === 'day' ? ' aria-current="true"' : '') + '>Day</button>' +
             '<button class="dc-btn" id="dc-view-days" type="button"' +
               (S.view === 'days' ? ' aria-current="true"' : '') + '>Days</button>' +
+            // §A10 gives the audit to the CFO and the Directors. The tab is
+            // simply not drawn for anybody else — and list_cash_day_audit
+            // refuses them anyway, which is the part that counts.
+            (S.mayAudit
+              ? '<button class="dc-btn" id="dc-view-audit" type="button"' +
+                (S.view === 'audit' ? ' aria-current="true"' : '') + '>Audit</button>' : '') +
           '</div>' +
-          (S.view === 'day'
+          (S.view === 'day' || S.view === 'audit'
             ? '<input class="dc-input" id="dc-date" type="date" value="' + esc(S.date) +
               '" style="width:150px;height:32px" aria-label="Business date">' +
               (status ? K.statusChip(status) : '') +
-              (status === 'OPEN' && S.isCfo
+              (status === 'OPEN' && S.isCfo && S.view === 'day'
                 ? '<button class="dc-btn dc-btn--primary" id="dc-close" type="button">Close Day</button>' : '')
             : '') +
         '</div>' +
@@ -196,14 +336,24 @@
     }
 
     function notOpened() {
+      // A Director may look at a day that has not been opened; they may not be
+      // the one to open it. Offering the button and then refusing the click
+      // would be worse than not offering it.
       return '<div class="dc-card">' + K.emptyState({
-        message: 'No day open for ' + F.dateShort(S.date),
-        action: 'Open day', actionId: 'dc-open'
+        message: S.mayRecord
+          ? 'No day open for ' + F.dateShort(S.date)
+          : 'No day was opened on ' + F.dateShort(S.date) + '.',
+        action: S.mayRecord ? 'Open day' : null,
+        actionId: S.mayRecord ? 'dc-open' : null
       }) + '</div>';
     }
 
     /* ── composer + ledger ─────────────────────────────────────────────── */
     function openBody() {
+      // §A10: the Director's row is read. No composer is drawn for them, and
+      // the ledger takes the full width rather than leaving a hole where the
+      // form would have been.
+      if (!S.mayRecord) return '<div>' + ledger() + '</div>' + stickyTotals();
       return '<div class="dc-2col">' +
         '<div class="dc-card">' + composer() + '</div>' +
         '<div>' + ledger() + '</div>' +
@@ -410,8 +560,11 @@
       if (vd) vd.addEventListener('click', function () { setView('day'); });
       var vs = el('dc-view-days');
       if (vs) vs.addEventListener('click', function () { setView('days'); });
+      var va = el('dc-view-audit');
+      if (va) va.addEventListener('click', function () { setView('audit'); });
 
       if (S.view === 'days') return wireDays();
+      if (S.view === 'audit') return;          // the audit tab is a list, not a form
 
       var open = el('dc-open');
       if (open) open.addEventListener('click', openDay);
@@ -423,6 +576,7 @@
       });
 
       if (!S.day || !S.day.exists || S.day.status !== 'OPEN') return wireClosed();
+      if (!S.mayRecord) return;                // a Director gets the ledger, not the form
 
       K.bindSegmented(el('dc-type'), function (v) { S.form.type = v; rerenderComposer(); });
       K.bindSegmented(el('dc-mode'), function (v) { S.form.mode = v; refreshChip(); });
@@ -471,6 +625,7 @@
       if (S.view === v) return;
       S.view = v;
       if (v === 'days') { S.days = null; return loadDays(); }
+      if (v === 'audit') { S.audit = null; return loadAudit(); }
       return load();
     }
 
@@ -1041,4 +1196,75 @@
   }
 
   global.DailyClosing = { mount: mount };
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE SHELL ADAPTER  ·  P8
+     ──────────────────────────────────────────────────────────────────────
+     nav('dailyclosing') calls window.rDailyClosing(). Everything above this
+     line still knows nothing about RMS's globals — the component takes `rpc`,
+     `fn` and `me` as arguments, which is why the same file runs under the
+     stub with no database at all. THIS is the only part that reaches for S,
+     supabase and the session, and it is thirty lines long on purpose.
+
+     It re-mounts on every navigation rather than caching a handle, because
+     the project switcher and the date both live inside the component and a
+     stale mount would show yesterday to somebody who has just switched
+     tenant.
+     ══════════════════════════════════════════════════════════════════════ */
+  global.rDailyClosing = function rDailyClosing() {
+    var host = document.getElementById('pg-dailyclosing');
+    if (!host) return;
+
+    // Belt and braces with nav()'s own gate: default-CLOSED, explicit true.
+    if (!(global._featureFlags && global._featureFlags.daily_closing === true)) {
+      host.innerHTML = '';
+      return;
+    }
+
+    var sess = global.S || {};
+    function rpc(name, args) {
+      return global.supabase.rpc(name, args).then(function (r) {
+        if (r.error) throw new Error(r.error.message);
+        return r.data;
+      });
+    }
+    function fn(name, body) {
+      return global.supabase.auth.getSession().then(function (s) {
+        var token = s && s.data && s.data.session && s.data.session.access_token;
+        if (!token) throw new Error('no session');
+        return fetch(SUPABASE_URL + '/functions/v1/' + name, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token,
+                     'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        }).then(function (r) { return r.json(); });
+      });
+    }
+
+    // The shell's own project list, already filtered to what this user may
+    // pick (_selectableProjects → hasProjectAccess). That filter is a
+    // convenience: every project id sent from here is re-checked by
+    // _dc_may_view on the server, and the component asks the server which
+    // projects it may see as well.
+    var raw = (typeof _selectableProjects === 'function')
+      ? _selectableProjects()
+      : (global._projectsCache || []);
+    var projects = raw.map(function (p) {
+      return { id: p.id, name: p.project_name || p.name || p.id };
+    });
+
+    // The project the rest of RMS is currently looking through, if it is one
+    // this user can use — so arriving from Units on Awami lands on Awami.
+    var active = (typeof activeProjectId === 'function') ? activeProjectId() : null;
+    var start = projects.filter(function (p) { return p.id === active; })[0];
+
+    host.innerHTML = '';
+    mount(host, {
+      rpc: rpc, fn: fn,
+      me: { companyId: sess.cid, userId: sess.userId, role: String(sess.role || '').toLowerCase() },
+      projects: projects,
+      projectId: (start || projects[0] || {}).id || null,
+      date: F.todayPK()
+    });
+  };
 })(window);

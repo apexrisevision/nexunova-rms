@@ -24,7 +24,8 @@
   var CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';
   var A2020 = 'acc-2020', A6050 = 'acc-6050', A1010 = 'acc-1010', A1030 = 'acc-1030';
 
-  function make(state) {
+  function make(state, role) {
+    role = role || 'CFO';
     var calls = [];
     var entries = [
       { id: 'e1', seq_no: 1, entry_type: 'CLIENT_RECEIPT', mode: 'CASH', direction: 'IN',
@@ -99,11 +100,59 @@
         variance_note: null, entries: 0, pdf_version: null, pdf_document_id: null }
     ];
 
+    /* P8 — what the server says this caller may do. `role` is set by
+       DCStub.make(state, role); the default is the CFO, which is what every
+       P6/P7 test was implicitly assuming. */
+    var ACCESS = {
+      CFO:        { may_record: true,  may_void: true,  may_close: true,  may_audit: true },
+      ACCOUNTANT: { may_record: true,  may_void: true,  may_close: false, may_audit: false },
+      CASHIER:    { may_record: true,  may_void: false, may_close: false, may_audit: false },
+      DIRECTOR:   { may_record: false, may_void: false, may_close: false, may_audit: true },
+      NONE:       { may_record: false, may_void: false, may_close: false, may_audit: false }
+    };
+
+    var auditEvents = [
+      { id: 9, changed_at: '2026-09-03T14:05:00Z', table_name: 'cash_days', action: 'UPDATE',
+        record_id: 'day-1', changed_by_name: 'Rashid', changed_by_role: 'cfo',
+        reason: 'short 3, cashier', is_sensitive: true,
+        diff: [{ field: 'status', before: 'OPEN', after: 'CLOSED' },
+               { field: 'counted_cash', before: null, after: '90720.00' },
+               { field: 'variance', before: null, after: '-3.00' }] },
+      { id: 8, changed_at: '2026-09-03T12:05:00Z', table_name: 'cash_entries', action: 'INSERT',
+        record_id: 'e5', changed_by_name: 'A. Khan', changed_by_role: 'accounts',
+        reason: 'receipt entered twice', is_sensitive: false, diff: [] },
+      { id: 7, changed_at: '2026-09-03T12:05:00Z', table_name: 'cash_entries', action: 'UPDATE',
+        record_id: 'e4', changed_by_name: 'A. Khan', changed_by_role: 'accounts',
+        reason: 'receipt entered twice', is_sensitive: false,
+        diff: [{ field: 'is_voided', before: false, after: true },
+               { field: 'rms_status', before: 'PENDING', after: 'UNAPPLIED' }] },
+      { id: 6, changed_at: '2026-09-03T09:10:00Z', table_name: 'cash_entries', action: 'INSERT',
+        record_id: 'e1', changed_by_name: 'Zubair', changed_by_role: 'staff',
+        reason: null, is_sensitive: false, diff: [] }
+    ];
+
     function rpc(name, args) {
       calls.push({ name: name, args: args });
       var scripted = take(name);
       if (scripted) return Promise.resolve(scripted);
       switch (name) {
+        case 'get_my_daily_closing_access': {
+          var a = ACCESS[role] || ACCESS.CFO;
+          return Promise.resolve({
+            success: true, role: role === 'NONE' ? null : role,
+            may_view: role !== 'NONE',
+            may_record: a.may_record, may_void: a.may_void,
+            may_close: a.may_close, may_audit: a.may_audit,
+            projects: [{ project_id: PJ, project_name: 'Awami Market' }]
+          });
+        }
+        case 'list_cash_day_audit':
+          if (!(ACCESS[role] || ACCESS.CFO).may_audit) {
+            return Promise.resolve({ success: false, error: 'NOT_AUTHORIZED',
+              message: 'The audit trail is for the CFO and the Directors.' });
+          }
+          return Promise.resolve({ success: true, business_date: '2026-09-03',
+                                   events: auditEvents });
         case 'list_cash_days':
           return Promise.resolve({ success: true, days: days });
         case 'authorize_day_document':
@@ -211,6 +260,11 @@
          second argument to script a different RPC — close_cash_day, say. */
       scriptNext: function (a, forRpc) { next[forRpc || 'record_cash_entry'] = a; },
       scriptNextFn: function (a, forFn) { fnNext[forFn || 'daily-closing-pdf'] = a; },
+      role: role,
+      // The screen no longer trusts these — it asks the server via
+      // get_my_daily_closing_access. Kept because the host still passes a
+      // session through, and to prove the screen ignores them (P8 asserts a
+      // DIRECTOR gets no composer even though me.isCfo says otherwise).
       me: { companyId: CO, userId: 'u-cfo', role: 'cfo', isCfo: true, isAccountantPlus: true },
       projects: [{ id: PJ, name: 'Awami Market' }, { id: 'pj2', name: 'Khushal Bagh' }]
     };

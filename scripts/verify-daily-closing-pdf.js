@@ -182,16 +182,38 @@ async function serviceKey() {
 
   const text = extractText(buf);
 
-  // ⚠️ Guard first. Without it, "no phone number appears" and "no lakh/crore
-  // grouping" both PASS on an empty string — an assertion that cannot fail is
-  // worse than none, because it buys false confidence. Same family of bug as
-  // the NULL-comparison trap in P4.
-  if (text.replace(/\s/g, '').length < 200) {
-    bad(`text extraction produced only ${text.replace(/\s/g, '').length} characters — ` +
-        'every content assertion below would pass vacuously, so they are not run');
+  // ⚠️ TWO GUARDS, AND BOTH ARE LOAD-BEARING. Below this point sit assertions
+  // of the form "X must not appear", which pass on an empty string and pass
+  // just as happily on gibberish — an assertion that cannot fail is worse than
+  // none, because it buys false confidence. Same family as the NULL trap in P4.
+  //
+  //   1 · QUANTITY. Nothing was extracted at all.
+  //   2 · INTELLIGIBILITY. Something was extracted and it is not language.
+  //
+  // The second guard exists because the first was not enough. Switching the
+  // renderer to embedded Inter made pdf-lib write glyph ids instead of WinAnsi
+  // codes; the old extractor turned those into ~700 characters of confident
+  // nonsense, which sailed through a length check while every §A10 check went
+  // green on it. A positive control — text the document certainly contains —
+  // is what tells the two apart.
+  const dense = text.replace(/\s/g, '').length;
+  if (dense < 200) {
+    bad(`text extraction produced only ${dense} characters — every content ` +
+        'assertion below would pass vacuously, so none of them is run');
     return report();
   }
-  ok(`extracted ${text.replace(/\s/g, '').length} characters of real text from the PDF`);
+
+  const CONTROL = ['Daily Closing', 'FOURTEEN GROUP', 'Closing (C/F)'];
+  const missing = CONTROL.filter(c => !text.includes(c));
+  if (missing.length) {
+    bad(`the extractor produced ${dense} characters that are not the document: ` +
+        `${missing.map(m => `“${m}”`).join(', ')} missing. Every "must not appear" ` +
+        'assertion below would pass on this, so none of them is run.');
+    console.log('     first 120 chars: ' + JSON.stringify(text.replace(/\s+/g, ' ').slice(0, 120)));
+    return report();
+  }
+  ok(`extracted ${dense} characters, and they are the document — ` +
+     `${CONTROL.length} positive controls found`);
 
   const want = [
     ['FOURTEEN GROUP', 'the brand constant, not companies.display_name'],
@@ -273,47 +295,110 @@ async function serviceKey() {
  * and collect the string operands of Tj / TJ. pdf-lib writes ASCII/WinAnsi
  * literals, so unescaping the four sequences that matter is enough.
  */
-function extractText(buf) {
-  let out = '';
-  let i = 0;
-  while (true) {
-    const s = buf.indexOf('stream', i);
-    if (s < 0) break;
-    let a = s + 6;
-    if (buf[a] === 0x0d) a++;
-    if (buf[a] === 0x0a) a++;
-    const e = buf.indexOf('endstream', a);
-    if (e < 0) break;
-    const chunk = buf.subarray(a, e);
-    let body;
-    try { body = zlib.inflateSync(chunk); } catch { body = chunk; }
-    const t = body.toString('latin1');
-    // pdf-lib emits HEX strings (<...>) rather than literals, for standard and
-    // embedded fonts alike — the first version of this extractor only looked
-    // for (...) and silently found nothing.
-    for (const m of t.matchAll(/<([0-9A-Fa-f\s]+)>\s*Tj/g)) out += hex(m[1]);
-    for (const m of t.matchAll(/\[([^\]]*)\]\s*TJ/g)) {
-      for (const p of m[1].matchAll(/<([0-9A-Fa-f\s]+)>/g)) out += hex(p[1]);
-    }
-    for (const m of t.matchAll(/\(((?:\\.|[^\\()])*)\)\s*Tj/g)) out += unesc(m[1]);
-    for (const m of t.matchAll(/\[((?:[^\][]|\\.)*)\]\s*TJ/g)) {
-      for (const p of m[1].matchAll(/\(((?:\\.|[^\\()])*)\)/g)) out += unesc(p[1]);
-    }
-    out += '\n';
-    i = e + 9;
+/* ══════════════════════════════════════════════════════════════════════════
+   Reading the text back out of the PDF
+   ──────────────────────────────────────────────────────────────────────────
+   THE POINT OF THIS FILE IS THAT IT KEEPS WORKING WHEN THE TYPEFACE CHANGES.
+
+   With one of the standard 14 fonts (Helvetica) pdf-lib writes WinAnsi codes:
+   <44 61 69 6C 79> is literally "Daily". With an EMBEDDED SUBSET (Inter) it
+   writes GLYPH IDS — <0001 0002 0003 0004 0005> — whose meaning lives only in
+   that font's /ToUnicode CMap. Decoding those as WinAnsi produces several
+   hundred characters of confident gibberish.
+
+   That mattered more than it sounds. The first time Inter was switched on,
+   eighteen content assertions failed — and the two §A10 checks, which look for
+   something that must be ABSENT, went GREEN on the gibberish. Same disease as
+   the NULL trap, third costume. So:
+
+     · text is decoded per font, through that font's own CMap. The two subsets
+       in one sheet share 33 codes and disagree about 29 of them, so a merged
+       map is not an approximation, it is a lie;
+     · and the caller must pass an INTELLIGIBILITY GATE before any "must not
+       appear" assertion is allowed to run.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Every object in the file, by object number.
+ *
+ * ⚠️ Most of them are NOT `N 0 obj … endobj` in the byte stream. pdf-lib packs
+ * the small dictionaries — including every /Font and its /ToUnicode pointer —
+ * into COMPRESSED OBJECT STREAMS (/Type /ObjStm), so a raw search for
+ * "/ToUnicode" finds zero hits in a file that has two. An ObjStm inflates to a
+ * header of `objnum offset` pairs followed by the object bodies at those
+ * offsets from /First. They are expanded here, or none of the font plumbing
+ * below can be resolved.
+ */
+function pdfObjects(buf) {
+  const s = buf.toString('latin1');
+  const objs = new Map();
+  for (const m of s.matchAll(/(\d+)\s+\d+\s+obj\b/g)) {
+    const start = m.index + m[0].length;
+    const end = s.indexOf('endobj', start);
+    if (end < 0) continue;
+    objs.set(Number(m[1]), { dict: s.slice(start, Math.min(end, start + 4000)), start, end });
   }
-  return out;
+
+  for (const [, obj] of [...objs]) {
+    if (!/\/Type\s*\/ObjStm/.test(obj.dict)) continue;
+    const bytes = streamOf(buf, s, obj);
+    if (!bytes) continue;
+    const body = bytes.toString('latin1');
+    const first = Number((/\/First\s+(\d+)/.exec(obj.dict) || [])[1] || 0);
+    const n = Number((/\/N\s+(\d+)/.exec(obj.dict) || [])[1] || 0);
+    const nums = body.slice(0, first).trim().split(/\s+/).map(Number);
+    for (let i = 0; i < n; i++) {
+      const num = nums[i * 2], off = nums[i * 2 + 1];
+      if (!Number.isFinite(num) || !Number.isFinite(off)) continue;
+      const nextOff = i + 1 < n ? nums[(i + 1) * 2 + 1] : body.length - first;
+      // Packed objects have no stream of their own, so start/end are absent —
+      // only `dict` is ever read for them.
+      objs.set(num, { dict: body.slice(first + off, first + nextOff), start: -1, end: -1 });
+    }
+  }
+  return { s, objs };
 }
-function unesc(s) {
-  return s.replace(/\\n/g, '\n').replace(/\\r/g, '\r')
-          .replace(/\\t/g, '\t').replace(/\\([()\\])/g, '$1');
+
+/** The inflated bytes of object N's stream, or null if it has none. */
+function streamOf(buf, s, obj) {
+  if (obj.start < 0) return null;          // an object packed inside an ObjStm
+  const p = s.indexOf('stream', obj.start);
+  if (p < 0 || p > obj.end) return null;
+  let a = p + 6;
+  if (buf[a] === 0x0d) a++;
+  if (buf[a] === 0x0a) a++;
+  const e = s.indexOf('endstream', a);
+  if (e < 0) return null;
+  const raw = buf.subarray(a, e);
+  try { return zlib.inflateSync(raw); } catch { return raw; }
 }
-/** WinAnsi hex string → text. One byte per character code for the standard 14. */
-function hex(h) {
-  const s = h.replace(/\s/g, '');
+
+/** /ToUnicode CMap → { '0001': 'D', … }. Handles bfchar and bfrange. */
+function parseCMap(text) {
+  const map = {};
+  const uni = h => String.fromCodePoint(...(h.match(/.{4}/g) || []).map(x => parseInt(x, 16)));
+  for (const blk of text.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+    for (const m of blk[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+      map[m[1].toUpperCase()] = uni(m[2]);
+    }
+  }
+  for (const blk of text.matchAll(/beginbfrange([\s\S]*?)endbfrange/g)) {
+    for (const m of blk[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+      const lo = parseInt(m[1], 16), hi = parseInt(m[2], 16), dst = parseInt(m[3], 16);
+      for (let c = lo; c <= hi && c - lo < 512; c++) {
+        map[c.toString(16).toUpperCase().padStart(m[1].length, '0')] =
+          String.fromCodePoint(dst + (c - lo));
+      }
+    }
+  }
+  return map;
+}
+
+/** WinAnsi, one byte per code — the standard-14 path. Kept, and still used. */
+function winAnsi(hexDigits) {
   let out = '';
-  for (let i = 0; i + 1 < s.length; i += 2) {
-    const c = parseInt(s.substr(i, 2), 16);
+  for (let i = 0; i + 1 < hexDigits.length; i += 2) {
+    const c = parseInt(hexDigits.substr(i, 2), 16);
     if (c >= 32 && c < 127) out += String.fromCharCode(c);
     else if (c === 0xB7) out += '·';
     else if (c === 0x97 || c === 0x96) out += '—';
@@ -322,3 +407,74 @@ function hex(h) {
   }
   return out;
 }
+
+function unesc(s) {
+  return s.replace(/\\n/g, '\n').replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t').replace(/\\([()\\])/g, '$1');
+}
+
+function extractText(buf) {
+  const { s, objs } = pdfObjects(buf);
+
+  // font object number → its CMap (absent for the standard 14)
+  const cmapFor = new Map();
+  for (const [num, obj] of objs) {
+    const tu = /\/ToUnicode\s+(\d+)\s+\d+\s+R/.exec(obj.dict);
+    if (!tu) continue;
+    const cm = objs.get(Number(tu[1]));
+    if (!cm) continue;
+    const bytes = streamOf(buf, s, cm);
+    if (bytes) cmapFor.set(num, parseCMap(bytes.toString('latin1')));
+  }
+
+  // resource name → CMap, gathered from every /Font dictionary.
+  //
+  // ⚠️ The names are NOT /F1 /F2. pdf-lib mints one per drawText call, like
+  // `/Inter-Regular-6837590713`, and a `\w+` name pattern matches "Inter" and
+  // then fails on the hyphen — so every lookup missed, every string fell back
+  // to WinAnsi, and the extractor produced fluent nonsense. A PDF name may hold
+  // anything but whitespace and delimiters.
+  const NAME = '[^\\s/<>\\[\\]()]+';
+  const byName = new Map();
+  for (const [, obj] of objs) {
+    const fd = /\/Font\s*<<([^>]*)>>/.exec(obj.dict);
+    if (!fd) continue;
+    for (const m of fd[1].matchAll(new RegExp('/(' + NAME + ')\\s+(\\d+)\\s+\\d+\\s+R', 'g'))) {
+      if (cmapFor.has(Number(m[2]))) byName.set(m[1], cmapFor.get(Number(m[2])));
+    }
+  }
+
+  let out = '';
+  for (const [, obj] of objs) {
+    const bytes = streamOf(buf, s, obj);
+    if (!bytes) continue;
+    const t = bytes.toString('latin1');
+    if (!/\bTf\b/.test(t) && !/\bTj\b/.test(t) && !/\bTJ\b/.test(t)) continue;
+
+    // Walk the operators in order so the font in scope is the right one.
+    let cmap = null;
+    const ops = new RegExp(
+      '/(' + NAME + ')\\s+[\\d.]+\\s+Tf' +
+      '|<([0-9A-Fa-f\\s]+)>\\s*Tj' +
+      '|\\[([^\\]]*)\\]\\s*TJ' +
+      '|\\(((?:\\\\.|[^\\\\()])*)\\)\\s*Tj', 'g');
+    for (const m of t.matchAll(ops)) {
+      if (m[1] !== undefined) { cmap = byName.get(m[1]) || null; continue; }
+      const decode = h => {
+        const d = h.replace(/\s/g, '').toUpperCase();
+        if (!cmap) return winAnsi(d);
+        let r = '';
+        for (let i = 0; i + 3 < d.length; i += 4) r += cmap[d.substr(i, 4)] ?? '';
+        return r;
+      };
+      if (m[2] !== undefined) out += decode(m[2]);
+      else if (m[3] !== undefined) {
+        for (const p of m[3].matchAll(/<([0-9A-Fa-f\s]+)>/g)) out += decode(p[1]);
+        for (const p of m[3].matchAll(/\(((?:\\.|[^\\()])*)\)/g)) out += unesc(p[1]);
+      } else if (m[4] !== undefined) out += unesc(m[4]);
+    }
+    out += '\n';
+  }
+  return out;
+}
+
