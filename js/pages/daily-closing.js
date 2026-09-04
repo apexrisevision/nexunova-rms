@@ -1258,13 +1258,22 @@
     var active = (typeof activeProjectId === 'function') ? activeProjectId() : null;
     var start = projects.filter(function (p) { return p.id === active; })[0];
 
+    // The S8 tile hands over the project and the day that was clicked, so
+    // "PDC due ≤ 7" or a row in the last-7-days table lands on that day rather
+    // than on today. Read once and cleared, so a later visit is not haunted.
+    var at = global._dcOpenAt || null;
+    global._dcOpenAt = null;
+    if (at && at.projectId && projects.filter(function (p) { return p.id === at.projectId; })[0]) {
+      start = { id: at.projectId };
+    }
+
     host.innerHTML = '';
     mount(host, {
       rpc: rpc, fn: fn,
       me: { companyId: sess.cid, userId: sess.userId, role: String(sess.role || '').toLowerCase() },
       projects: projects,
       projectId: (start || projects[0] || {}).id || null,
-      date: F.todayPK()
+      date: (at && at.date) || F.todayPK()
     });
   };
 })(window);

@@ -543,3 +543,152 @@ stops with a named failure and prints what it actually got. Standing rule SR-2 i
 4. **A re-run of an older migration would revert P8's guards.** `20260904h`/`j` contain the
    pre-P8 bodies of the three write endpoints. Forward-only migrations applied in order are
    fine; re-applying an old one out of order is not, and never was.
+
+---
+
+# P9 — S8, the dashboard tile
+
+## Where it is
+
+On the RMS dashboard, directly under the header, **for Awami Market only**. Not a page — a tile
+on the page everybody already lands on.
+
+`/daily-closing.html?stub=1&tile=1` mounts it on its own with no dashboard, no session and no
+database; add `&all=1` for the company-wide view and `&role=…` for any of §A10's callers.
+
+## Files
+
+| File | What |
+|---|---|
+| `supabase/migrations/20260904q_…` | `get_daily_closing_tile` — the whole tile in one round trip |
+| `js/pages/daily-closing-tile.js` | the tile component, plus the `rDailyClosingTile()` shell adapter |
+| `js/pages/dashboard.js` | **one function, `_dcTile()`**, and one call to it |
+| `js/lazy-pages.js` | exposes `_lazyLoadFiles` so the tile can be fetched on demand |
+| `js/pages/daily-closing.js` | honours `_dcOpenAt` so a click on the tile opens *that* day |
+| `js/foundation/dc-kit.js` | a `wallet` icon |
+| `css/daily-closing.css` | the tile |
+| `scripts/verify-daily-closing-tile.js` | **new** — 13 checks, counters against fixtures, plans |
+| `scripts/verify-daily-closing-screen.js` | 132 → **158** |
+| `scripts/verify-daily-closing-shell.js` | 16 → **23** — now covers the dashboard hook |
+| `scripts/verify-daily-closing-access.js` | the tile gets a cell; 108 → **114** matrix cells |
+
+## One call, and why that is the whole design
+
+`get_daily_closing_tile` returns the status, both figures, all five counters and the last seven
+days **together**. The tile is the first thing a CFO looks at, so the cost of drawing it is paid
+on every dashboard load; five queries would become fifteen the moment somebody picks "All
+projects", which is exactly the N+1 the Definition of Done asks about.
+
+The function resolves the visible projects **once** into a `uuid[]` and every counter is a single
+aggregate over `= ANY (v_pids)`. There is no loop in the body, and the suite asserts that: a
+plan review cannot see an N+1, because a plan is per statement — so the absence of `LOOP` and the
+presence of the array are asserted on the function's source.
+
+## The counters, and what each one means
+
+| Counter | Reads | Deliberately excludes |
+|---|---|---|
+| Receipts pending | `rms_status = 'PENDING'` | expenses (`NA`), voided receipts |
+| Not exported | `qb_status = 'NOT_EXPORTED'` **on a CLOSED day** | entries on the open day — the day is still being written, so they are not late |
+| Unapplied | `rms_status = 'UNAPPLIED'` | — |
+| PDC pending | `pdc_cheques.status = 'pending'` | deposited, cleared, bounced |
+| PDC due ≤ 7 days | pending **and** `cheque_date` within the week | the one due in 30 days |
+
+Each is a link, and each goes somewhere that exists: the three cash-book counters open the cash
+book, the two PDC counters open the PDC register RMS already has. None of them pretends to be a
+filtered list that has not been built.
+
+**A zero is drawn quietly** — lighter weight, muted — because a zero is not a problem and should
+not carry a problem's visual weight.
+
+**On the pilot, the PDC and export counters read zero, by design.** Awami has no `pdc_cheques`
+rows and no closed day with entries yet. Nothing from Phase 2 or Phase 3 is built here: no
+export, no PDC register, no Group Position.
+
+## What it is not
+
+**Group Position is Phase 4 and is absent.** Across projects the tile shows ONE aggregate — the
+summed figures, a breakdown of how many projects are open/closed/not opened, and the summed
+counters. It does not list the projects, and the last-7-days table is omitted with a line saying
+to pick a project. One row per project per date is the Phase 4 board, and building it here would
+have been building Phase 4 early.
+
+"All projects" is offered to the **CFO and the Director** only (§A12). A Cashier's row reads
+"own project"; an Accountant works one book at a time. Both are told to pick one rather than
+handed a company-wide total they were never given — and `get_daily_closing_tile` refuses it
+server-side, not just in the picker.
+
+## Query plans, honestly
+
+ZZTEST holds single-digit row counts, so Postgres picks a **sequential scan** for every counter
+and is right to. "It seq-scanned" therefore proves nothing, and grepping `pg_indexes` for a name
+proves only that somebody created an index — not that this predicate can use it.
+
+So each plan is taken **twice**: once as the planner really runs it, and once with
+`enable_seqscan = off`, which asks the question that matters — *can this WHERE clause be answered
+from that index at all?* If the answer is still a sequential scan, the index does not fit the
+predicate and the counter will scan the table forever.
+
+```
+✅ receipts PENDING / UNAPPLIED   can use cash_entries_rms_status_idx
+✅ NOT_EXPORTED on CLOSED days    can use cash_entries_rms_status_idx
+✅ the last seven days            can use cash_days_project_date_idx
+```
+
+Note the second line naming the `rms_status` index. Both candidate indexes **lead with
+`project_id`**, and with eight rows the second column is worth nothing, so the planner takes
+either. Pinning a specific index name here would be over-fitting the planner on a table this
+size; what is asserted is that the predicate is index-answerable.
+
+**No index was added.** `pdc_cheques` has a `(project_id)` index and **seven rows in the entire
+database**. A composite index would be a change to a table Khushal Bagh and FMH use in
+production, bought for nothing. Revisit when PDC is real (Phase 3).
+
+## The dashboard hook is one function, and it is default-closed
+
+`js/pages/dashboard.js` is eager-loaded by every tenant, so P9 adds exactly one function to it,
+`_dcTile()`, and one call. It returns immediately unless
+`window._featureFlags.daily_closing === true` — **not** `hasFeature()`, which answers true for a
+key it has never seen. Everything inside is wrapped in `try/catch`: a failure in the cash book
+must never take a tenant's dashboard down with it.
+
+`verify-daily-closing-shell.js` runs the real `_dcTile()` against a mock dashboard and asserts
+that with the flag absent **the dashboard HTML is byte-identical afterwards** and no host div is
+inserted — then, with the flag on, that the host div appears directly under the header.
+
+The tile's three files are fetched on demand through `_lazyLoadFiles`, so a tenant that cannot
+see it never downloads it.
+
+## Two things found while building
+
+1. **`<caption class="dc-label">` renders below the header row.** `.dc-label` sets
+   `display:block`, and a block-display caption is laid out inside the table's flow rather than
+   above it — "LAST 7 DAYS" appeared between the column names and the first row. It is a `div`
+   above the table now.
+2. **The suite's own arithmetic was wrong before the code was.** The first expected closing cash
+   forgot that a void writes a *reversing entry*, so it double-counted. The code was right; the
+   fixture comment now spells the sum out line by line.
+
+## Proving it can go red
+
+`NOT_EXPORTED` widened to count open days as well as closed ones — the single most plausible way
+to get that counter wrong. Result:
+
+```
+❌ FAIL 05: not_exported = 5, expected 4 (yesterday only)
+```
+
+Exactly the one counter, naming both numbers. Restored, green again.
+
+## Deviations and open questions
+
+1. **The counters compute real numbers rather than returning a hard-coded zero.** The brief says
+   the PDC and export counters "read zero for now by design". Both readings give zero on the
+   pilot today — Awami has no cheques and no closed day with entries — so the behaviour is
+   identical; the real query is what makes the counter correct the day the data exists, and what
+   makes it testable now against fixtures. Say the word if you want them literally pinned to 0.
+2. **The micro-table is per project.** Omitted in "All projects" with a line saying so, because
+   the alternative is Phase 4's Group Position.
+3. **The tile is not shown to a Cashier's "All projects"**, but the tile IS shown to a Cashier
+   for their own project. §A12's S8 row lists Accountant/CFO/Director; a Cashier who may record
+   into the day can see the day, which is the same information S1 already gives them.

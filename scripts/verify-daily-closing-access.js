@@ -41,7 +41,8 @@ const { q, REF } = require('./_sbq');
 
 const ROOT = path.resolve(__dirname, '..');
 const MIG = path.join(ROOT, 'supabase', 'migrations');
-const UP = ['20260904p_who_may_do_what_and_what_it_leaves_behind.sql'];
+const UP = ['20260904p_who_may_do_what_and_what_it_leaves_behind.sql',
+            '20260904q_one_look_at_where_the_day_stands.sql'];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal
 const PJ_A = '2da565ca-2b83-44bf-b4de-2cae762571df'; // ZZTEST Garden — the suite's own project
@@ -78,7 +79,7 @@ DECLARE
     'open_cash_day','record_cash_entry','add_cash_entry_attachment',
     'void_cash_entry','create_payee','rename_payee','set_payee_active',
     'setup_cash_opening','close_cash_day','post_cash_adjustment',
-    'list_cash_day_audit'];
+    'list_cash_day_audit','get_daily_closing_tile'];
 BEGIN
   -- ══ REFUSE TO RUN ANYWHERE BUT ZZTEST ═════════════════════════════════════
   IF (SELECT company_name FROM public.companies WHERE id = v_co) NOT LIKE 'ZZTEST%' THEN
@@ -220,6 +221,7 @@ BEGIN
       WHEN 'post_cash_adjustment'      THEN public.post_cash_adjustment(p_co, p_day,
              jsonb_build_object('mode','CASH','direction','OUT','amount',1), 'matrix probe')
       WHEN 'list_cash_day_audit'       THEN public.list_cash_day_audit(p_co, p_day, 10)
+      WHEN 'get_daily_closing_tile'    THEN public.get_daily_closing_tile(p_co, p_pj)
       ELSE jsonb_build_object('success', false, 'error', 'UNKNOWN_ACTION')
     END;
     IF (r->>'error') = 'UNKNOWN_ACTION' THEN
@@ -246,7 +248,7 @@ BEGIN
         WHEN v_role IN ('ADMIN_NOROLE','STAFF_NOGRANT') THEN 'DENIED'
         WHEN v_action IN ('get_cash_day_summary','list_cash_entries','list_cash_days',
                           'list_payees','get_cash_day_pdf_data','authorize_day_document',
-                          'authorize_cash_attachment')
+                          'authorize_cash_attachment','get_daily_closing_tile')
           THEN 'ALLOWED'                                        -- all four roles read
         WHEN v_action IN ('open_cash_day','record_cash_entry','add_cash_entry_attachment')
           THEN CASE WHEN v_role = 'DIRECTOR' THEN 'DENIED' ELSE 'ALLOWED' END
@@ -566,7 +568,7 @@ $t$;
   }
 
   console.log('✅ PASS — 18 checks held' + (AGAINST_LIVE ? ' against the LIVE applied schema.' : '.'));
-  console.log('   108 role x action cells, cross-project id-guessing, signed-URL expiry and');
+  console.log('   114 role x action cells, cross-project id-guessing, signed-URL expiry and');
   console.log('   scope, the audit tab and its whitelist, and the derived service registry.');
   console.log('   Nothing was committed.');
 })();

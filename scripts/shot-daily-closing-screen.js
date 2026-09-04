@@ -87,7 +87,10 @@ const STATES = [
       await page.waitForSelector('.dc-audit-row', { timeout: 8000 });
     }
   },
-  { state: 'open', label: 'director', role: 'DIRECTOR', full: true }
+  { state: 'open', label: 'director', role: 'DIRECTOR', full: true },
+  // P9 — the S8 dashboard tile, for one project and for all of them.
+  { state: 'closed', label: 'tile', role: 'CFO', tile: true, full: true },
+  { state: 'closed', label: 'tile-all', role: 'CFO', tile: true, all: true, full: true }
 ];
 const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
 
@@ -109,9 +112,10 @@ const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
         });
         await page.setViewport({ width: v.w, height: v.h, deviceScaleFactor: 2 });
         await page.goto(`http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${s.state}`
-          + (s.role ? `&role=${s.role}` : ''),
+          + (s.role ? `&role=${s.role}` : '')
+          + (s.tile ? '&tile=1' : '') + (s.all ? '&all=1' : ''),
           { waitUntil: 'networkidle2' });
-        await page.waitForSelector('.dc-band', { timeout: 8000 });
+        await page.waitForSelector(s.tile ? '.dc-tile-counters' : '.dc-band', { timeout: 8000 });
         if (s.prep) await s.prep(page);
         await page.evaluate(() => document.fonts && document.fonts.ready);
         await new Promise(r => setTimeout(r, 350));

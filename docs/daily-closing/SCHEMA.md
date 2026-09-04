@@ -716,3 +716,71 @@ list of the things somebody remembered.
 `daily-closing` bucket's allow-list so Inter can live at `_assets/`, and asserts the bucket is
 still private, still capped at 10 MB, and still carries exactly the three attachment types plus
 the two new ones. The upload bridge is unchanged and still refuses anything but JPG/PNG/PDF.
+
+---
+
+# A decision about `audit_logs`, so nobody tidies it by accident
+
+**`anon` and `authenticated` hold a bare `SELECT` grant on `public.audit_logs`. That is
+deliberate to leave alone. Do not "fix" it.**
+
+The grant comes from RMS's default privileges, which hand `SELECT` to both roles on every table
+in `public`. It looks alarming in a grant listing and it reaches nothing:
+
+| The real boundary | State |
+|---|---|
+| RLS on `audit_logs` | **enabled** |
+| Policy `deny_all_anon` | `USING (false)`, covering **both** `anon` and `authenticated` |
+| `UPDATE` / `DELETE` for `anon` or `authenticated` | **not granted at all** |
+| How the trail is actually read | `list_cash_day_audit`, `SECURITY DEFINER`, CFO and Director only |
+
+So invariant 7 — "append-only at the DB grant level" — holds on the two things that matter:
+nothing outside `service_role` can modify or remove a row, and the deny-all policy means the
+`SELECT` grant returns zero rows to a direct query.
+
+**Why it was not revoked (owner's decision, 2026-09-04).** `audit_logs` is a shared RMS table
+that Khushal Bagh and FMH write to on every payment, sale and unit change. Revoking a grant on
+it is a live-tenant change, and the practical gain is zero because RLS already denies the read.
+The rule this module follows — *touch a shared table only when there is a real problem to fix* —
+outranks the tidiness of a grant listing.
+
+**What the test asserts, and why.** `verify-daily-closing-access.js` asserts **RLS is enabled and
+a deny-all policy covers `anon`**, and that neither role holds `UPDATE` or `DELETE`. It
+deliberately does **not** assert "anon has no SELECT grant", because that assertion would be
+false and would be testing something that does not matter. An assertion about the wrong fact is
+worse than none: it goes red for a correct database and green for the wrong reason.
+
+If someone later revokes the grant anyway, nothing here breaks — but they should know they are
+changing a table two live tenants depend on, for cosmetics.
+
+---
+
+# P9 — the tile's one read
+
+`20260904q_one_look_at_where_the_day_stands.sql` — **applied**. One function, no table changes,
+**no new index**.
+
+`get_daily_closing_tile(p_company_id, p_project_id DEFAULT NULL)` → `authenticated`, `STABLE`.
+Returns the day's status and figures, the five §A12 counters and the last seven days, together.
+`p_project_id NULL` means every project the caller may see, which §A12 gives to the CFO and the
+Director; anyone else asking for it is refused server-side.
+
+| Counter | Predicate | Index it is built on |
+|---|---|---|
+| `receipts_pending` | `rms_status = 'PENDING'` | `cash_entries (project_id, rms_status)` |
+| `unapplied` | `rms_status = 'UNAPPLIED'` | same pass as above |
+| `not_exported` | `qb_status = 'NOT_EXPORTED'` **and the day is CLOSED** | `cash_entries (project_id, qb_status)` + join |
+| `pdc_pending` | `pdc_cheques.status = 'pending'` | `pdc_cheques (project_id)` |
+| `pdc_due_7` | pending and `cheque_date` inside 7 days | same pass as above |
+
+**No index was added to `pdc_cheques`.** It holds seven rows in the entire database and is a
+table Khushal Bagh and FMH use in production. A composite index there would be a live-tenant
+change bought for nothing. Revisit if PDC becomes real volume in Phase 3.
+
+**One pass per table, no loop.** The visible projects are resolved once into a `uuid[]` and every
+counter aggregates over `= ANY (v_pids)`. `verify-daily-closing-tile.js` asserts this on the
+function's source, because a query plan is per statement and cannot see an N+1 built from a loop.
+
+**Phase discipline.** The PDC and export counters run their real queries and read zero on the
+pilot today — Awami has no cheques and no closed day with entries. No export, no PDC register and
+no Group Position (one row per project plus a total) is built; that is Phase 4.

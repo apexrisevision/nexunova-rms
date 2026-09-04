@@ -629,3 +629,78 @@ html[data-theme="dark"] .dc .dc-skel::after { background: linear-gradient(90deg,
   .dc .dc-audit-date { display: inline; }
   .dc .dc-audit-diff { grid-template-columns: auto auto 16px auto; }
 }
+
+/* ── S8 · the dashboard tile (P9) ───────────────────────────────────────
+   It sits among RMS's own cards, so it borrows their outer shape and keeps
+   its own inside: hairlines, tabular figures, one accent per meaning. */
+.dc .dc-tile {
+  background: var(--dc-surface); border: 1px solid var(--dc-line);
+  border-radius: var(--dc-r-md); overflow: hidden;
+}
+.dc .dc-tile-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--dc-sp-3); flex-wrap: wrap;
+  padding: var(--dc-sp-3) var(--dc-sp-4); border-bottom: 1px solid var(--dc-line);
+}
+.dc .dc-tile-title {
+  display: inline-flex; align-items: center; gap: var(--dc-sp-2);
+  font-size: var(--dc-t-lg); line-height: var(--dc-lh-lg); font-weight: 600;
+}
+.dc .dc-tile-date { font-size: var(--dc-t-sm); font-weight: 400; color: var(--dc-ink-500); }
+.dc .dc-tile-actions { display: flex; align-items: center; gap: var(--dc-sp-2); }
+.dc .dc-tile-actions .dc-select { height: 32px; font-size: var(--dc-t-sm); max-width: 200px; }
+.dc .dc-tile-body { padding: var(--dc-sp-4); display: grid; gap: var(--dc-sp-4); }
+
+.dc .dc-tile-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--dc-sp-8); }
+.dc .dc-tile-figs .dc-hero-value { font-size: var(--dc-t-2xl); line-height: var(--dc-lh-2xl); }
+.dc .dc-tile-status { display: flex; flex-direction: column; gap: var(--dc-sp-1); }
+.dc .dc-tile-mix { font-size: var(--dc-t-sm); color: var(--dc-ink-600); }
+
+/* Five counters. Each is a button because each one goes somewhere. */
+.dc .dc-tile-counters {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--dc-sp-2);
+}
+.dc .dc-tile-counter {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: var(--dc-sp-3); min-height: 64px;
+  background: var(--dc-subtle); border: 1px solid transparent;
+  border-radius: var(--dc-r-sm); cursor: pointer; text-align: left; font: inherit;
+}
+.dc .dc-tile-counter:hover { border-color: var(--dc-line); background: var(--dc-surface); }
+.dc .dc-tile-n {
+  font-size: var(--dc-t-xl); line-height: var(--dc-lh-xl); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--dc-ink-900);
+}
+.dc .dc-tile-l { font-size: var(--dc-t-xs); color: var(--dc-ink-500); }
+/* A zero is not a problem, so it does not look like one. */
+.dc .dc-tile-counter--zero .dc-tile-n { color: var(--dc-ink-500); font-weight: 500; }
+
+.dc .dc-tile-recent { width: 100%; border-collapse: collapse; }
+.dc .dc-tile-recent { margin-top: var(--dc-sp-1); }
+.dc .dc-tile-recent th {
+  text-align: left; font-size: var(--dc-t-xs); font-weight: 500; color: var(--dc-ink-500);
+  padding: 0 var(--dc-sp-2) var(--dc-sp-1); border-bottom: 1px solid var(--dc-line);
+}
+.dc .dc-tile-recent td {
+  height: 32px; padding: 0 var(--dc-sp-2); font-size: var(--dc-t-sm);
+  border-bottom: 1px solid var(--dc-line);
+}
+.dc .dc-tile-recent tbody tr { cursor: pointer; }
+.dc .dc-tile-recent tbody tr:hover { background: var(--dc-subtle); }
+.dc .dc-tile-recent tbody tr:last-child td { border-bottom: 0; }
+.dc .dc-tile-recent .dc-num { text-align: right; font-variant-numeric: tabular-nums; }
+.dc .dc-tile-pdf { color: var(--dc-ink-500); display: inline-flex; }
+.dc .dc-tile-note { margin: 0; }
+
+/* 375 px: five counters across is four too many. */
+@media (max-width: 900px) {
+  .dc .dc-tile-counters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .dc .dc-tile-counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dc .dc-tile-figs { gap: var(--dc-sp-4); }
+  .dc .dc-tile-figs .dc-hero-value { font-size: var(--dc-t-xl); line-height: var(--dc-lh-xl); }
+  .dc .dc-tile-actions { width: 100%; }
+  .dc .dc-tile-actions .dc-select { flex: 1; max-width: none; }
+  .dc .dc-tile-counter { min-height: 56px; }
+}

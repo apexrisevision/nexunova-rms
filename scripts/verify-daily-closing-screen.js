@@ -63,7 +63,9 @@ function serve() {
 // screen as any of the four §A10 callers.
 const url = (state, opt) => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${state}`
   + (opt && opt.role ? `&role=${opt.role}` : '')
-  + (opt && opt.view ? `&view=${opt.view}` : '');
+  + (opt && opt.view ? `&view=${opt.view}` : '')
+  + (opt && opt.tile ? '&tile=1' : '')
+  + (opt && opt.all  ? '&all=1'  : '');
 
 (async () => {
   const srv = await serve();
@@ -658,6 +660,126 @@ const url = (state, opt) => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&
         .filter(c => c.name === 'list_cash_day_audit').length), 0,
         'and the screen does not even ask — but list_cash_day_audit refuses it anyway');
       await page.close(); await direct.close();
+    }
+
+    // ═══ P9 · THE S8 DASHBOARD TILE ════════════════════════════════════
+    head('the tile: one call, the figures, five counters, seven days');
+    {
+      const page = await open('closed', 1280, { tile: true, role: 'CFO' });
+      await page.waitForSelector('.dc-tile-counters', { timeout: 5000 });
+
+      // ONE call. A tile that fires five queries becomes fifteen on "All
+      // projects", which is the N+1 the Definition of Done asks about.
+      is(await page.evaluate(() => window.__dcStub.calls.length), 1,
+        'the whole tile is a single RPC');
+      is(await page.evaluate(() => window.__dcStub.calls[0].name), 'get_daily_closing_tile',
+        'and it is get_daily_closing_tile');
+
+      const figs = await page.$$eval('.dc-tile-figs .dc-hero-value', n => n.map(x => x.textContent));
+      is(figs[0], 'Rs 90,723', 'closing cash');
+      is(figs[1], 'Rs 51,000', 'closing bank');
+      is(!!(await page.$('.dc-tile-status .dc-chip')), true, 'and today’s status as a chip');
+
+      is(await page.$$eval('.dc-tile-counter', n => n.length), 5, 'five counters, per §A12');
+      const labels = await page.$$eval('.dc-tile-l', n => n.map(x => x.textContent));
+      is(labels.join(' | '),
+        'Receipts pending | Not exported | Unapplied | PDC pending | PDC due ≤ 7 days',
+        'named and ordered as the blueprint lists them');
+      const nums = await page.$$eval('.dc-tile-n', n => n.map(x => x.textContent));
+      is(nums.join(','), '2,6,1,2,0', 'each showing its own number');
+
+      // A zero is not an alarm, and does not get an alarm's weight.
+      is(await page.$eval('[data-counter="pdc_due_7"]',
+        e => e.classList.contains('dc-tile-counter--zero')), true,
+        'a zero counter is drawn quietly');
+      is(await page.$eval('[data-counter="receipts_pending"]',
+        e => e.classList.contains('dc-tile-counter--zero')), false,
+        'and a non-zero one is not');
+
+      is(await page.$$eval('.dc-tile-recent tbody tr', r => r.length), 3,
+        'the last-7-days table lists the days it has');
+      is(await page.$$eval('.dc-tile-recent .dc-tile-pdf', n => n.length), 2,
+        'with a sheet icon on the two days that have one');
+      await page.close();
+    }
+
+    head('every counter goes somewhere, and the right somewhere');
+    {
+      const page = await open('closed', 1280, { tile: true, role: 'CFO' });
+      await page.waitForSelector('.dc-tile-counters', { timeout: 5000 });
+      await page.evaluate(() => { window.nav = k => { window.__nav = k; }; });
+
+      await page.click('[data-counter="receipts_pending"]');
+      is(await page.evaluate(() => !!window.__dcOpened), true,
+        'a cash-book counter opens the cash book');
+      is(await page.evaluate(() => window.__nav), undefined,
+        'and does not send you to another module');
+
+      await page.click('[data-counter="pdc_due_7"]');
+      is(await page.evaluate(() => window.__nav), 'pdc',
+        'a PDC counter opens the PDC register, which is a page RMS already has');
+
+      // a row in the micro-table opens THAT day, not today
+      await page.evaluate(() => { window.__dcOpened = null; });
+      await page.click('.dc-tile-recent tbody tr:nth-child(2)');
+      is(await page.evaluate(() => window.__dcOpened && window.__dcOpened.date), '2026-09-02',
+        'and a row in the last-7-days table opens that day, not today');
+      await page.close();
+    }
+
+    head('all projects aggregates, and does not become Group Position');
+    {
+      const page = await open('closed', 1280, { tile: true, role: 'CFO', all: true });
+      await page.waitForSelector('.dc-tile-counters', { timeout: 5000 });
+      is(await page.evaluate(() => window.__dcStub.calls[0].args.p_project_id), null,
+        'it asks for every project the caller may see');
+      const nums = await page.$$eval('.dc-tile-n', n => n.map(x => x.textContent));
+      is(nums[0], '3', 'the counters are the sum, not one project’s');
+      is(await page.$eval('.dc-tile-mix', e => e.textContent.includes('open')), true,
+        'and the status becomes a breakdown of where the projects stand');
+
+      // POSITIVE CONTROL FIRST (SR-2): the tile demonstrably renders a
+      // micro-table for one project, so its absence here is a decision and not
+      // an empty render.
+      is(await page.$('.dc-tile-recent'), null,
+        'no micro-table — one row per project per date is Group Position, which is Phase 4');
+      const note = await page.$eval('.dc-tile-note', e => e.textContent);
+      note.includes('Pick a project')
+        ? ok('and it says so instead of showing an empty table')
+        : bad(`the note read “${note}”`);
+      await page.close();
+    }
+
+    head('the tile is not for everybody');
+    {
+      const cashier = await open('closed', 1280, { tile: true, role: 'CASHIER' });
+      await cashier.waitForSelector('.dc-tile-counters', { timeout: 5000 });
+      is(await cashier.$$eval('#dc-tile-project option', o => o.map(x => x.value)).then(v => v.includes('')),
+        false, 'a Cashier is not offered "All projects"');
+
+      const cfo = await open('closed', 1280, { tile: true, role: 'CFO' });
+      await cfo.waitForSelector('.dc-tile-counters', { timeout: 5000 });
+      is(await cfo.$$eval('#dc-tile-project option', o => o.map(x => x.value)).then(v => v.includes('')),
+        true, 'and the CFO is');
+
+      const none = await open('closed', 1280, { tile: true, role: 'NONE' });
+      await none.waitForFunction(() => document.querySelector('.dc') &&
+        !document.querySelector('.dc-tile'), { timeout: 5000 });
+      is(await none.$('.dc-tile'), null,
+        'somebody with no cash book gets no tile at all, not an error card');
+      await cashier.close(); await cfo.close(); await none.close();
+    }
+
+    head('the tile at 375');
+    {
+      const page = await open('closed', 375, { tile: true, role: 'CFO' });
+      await page.waitForSelector('.dc-tile-counters', { timeout: 5000 });
+      is(await page.$eval('.dc-tile-counters',
+        e => getComputedStyle(e).gridTemplateColumns.split(' ').length), 2,
+        'five counters wrap to two across — five in a row on a phone is unreadable');
+      is(await page.$eval('.dc-tile', e => e.scrollWidth <= e.clientWidth + 1), true,
+        'and nothing overflows the tile');
+      await page.close();
     }
 
     // ═══ RESPONSIVE ════════════════════════════════════════════════════

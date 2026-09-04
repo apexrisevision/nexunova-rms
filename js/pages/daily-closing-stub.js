@@ -146,6 +146,33 @@
             projects: [{ project_id: PJ, project_name: 'Awami Market' }]
           });
         }
+        case 'get_daily_closing_tile': {
+          var a2 = ACCESS[role] || ACCESS.CFO;
+          if (role === 'NONE') {
+            return Promise.resolve({ success: false, error: 'NOT_AUTHORIZED' });
+          }
+          var all = !args.p_project_id;
+          if (all && !(role === 'CFO' || role === 'DIRECTOR')) {
+            return Promise.resolve({ success: false, error: 'NOT_AUTHORIZED',
+              message: 'Choose a project. The company-wide view is for the CFO and the Directors.' });
+          }
+          return Promise.resolve({
+            success: true, role: role, all_projects: all,
+            projects: all ? 2 : 1, business_date: '2026-09-03',
+            status: all ? 'OPEN' : day.status || 'OPEN',
+            open_projects: all ? 1 : 1, closed_projects: all ? 1 : 0, not_opened_projects: 0,
+            closing_cash: all ? '108446.00' : '90723.00',
+            closing_bank: all ? '52000.00' : '51000.00',
+            counters: { receipts_pending: all ? 3 : 2, unapplied: 1,
+                        not_exported: all ? 9 : 6, pdc_pending: 2, pdc_due_7: all ? 1 : 0 },
+            recent: all ? [] : days.map(function (d) {
+              return { cash_day_id: d.cash_day_id, business_date: d.business_date,
+                       status: d.status, closing_cash: d.closing_cash,
+                       closing_bank: d.closing_bank, variance: d.variance,
+                       pdf_document_id: d.pdf_document_id };
+            })
+          });
+        }
         case 'list_cash_day_audit':
           if (!(ACCESS[role] || ACCESS.CFO).may_audit) {
             return Promise.resolve({ success: false, error: 'NOT_AUTHORIZED',

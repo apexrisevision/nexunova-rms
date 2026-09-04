@@ -65,6 +65,9 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>shell h
   </div>
   <div id="tb-t"></div><div id="nav-crumb-page"></div>
   <div id="nav-actions"><button id="nav-back"></button></div>
+  <!-- what rDash() leaves behind, so _dcTile() has something to insert into -->
+  <div id="dash-mock"><div class="nx"><div class="nx-page-header">Dashboard</div>
+    <div class="nx-card">the rest of the dashboard</div></div></div>
 <script>
   // ── the globals ui.js expects from the rest of the app ──
   window.S = { cid: 'co-1', userId: 'u-1', role: 'owner', projectId: null, assignedProjectIds: null };
@@ -211,15 +214,49 @@ function serve() {
       is(a.length < b.length, true, 'and the flagged one is the longer of the two');
     }
 
+    // ═══ THE DASHBOARD HOOK ════════════════════════════════════════════
+    // js/pages/dashboard.js is loaded eagerly by every tenant, so the one
+    // function P9 adds to it has to be inert for the two that do not have the
+    // module. _dcTile() is exercised for real here — not read, run.
+    head('the dashboard hook does nothing at all without the flag');
+    {
+      const src = fs.readFileSync(path.join(ROOT, 'js', 'pages', 'dashboard.js'), 'utf8');
+      const fn = /function _dcTile\(pg\) \{[\s\S]*?\n\}/.exec(src);
+      is(!!fn, true, '_dcTile is in dashboard.js and can be run on its own');
+
+      const off = await shell({ pdc: true });
+      await off.evaluate(f => { (0, eval)(f); }, fn[0]);
+      const before = await off.$eval('#dash-mock', e => e.innerHTML);
+      await off.evaluate(() => _dcTile(document.getElementById('dash-mock')));
+      is(await off.$eval('#dash-mock', e => e.innerHTML), before,
+        'with the flag absent the dashboard HTML is byte-identical after the hook runs');
+      is(await off.$('#dc-tile-host'), null, 'and no host div is inserted');
+      await off.close();
+
+      const on = await shell({ pdc: true, daily_closing: true });
+      await on.evaluate(f => { (0, eval)(f); }, fn[0]);
+      await on.evaluate(() => { window._lazyLoadFiles = () => Promise.resolve(); });
+      await on.evaluate(() => _dcTile(document.getElementById('dash-mock')));
+      is(!!(await on.$('#dc-tile-host')), true, 'with the flag on, the host div appears');
+      is(await on.$eval('#dc-tile-host',
+        e => e.previousElementSibling.className.includes('nx-page-header')), true,
+        'directly under the header, above the rest of the dashboard');
+      await on.close();
+    }
+
     // ═══ THE PAGE IS LAZY ══════════════════════════════════════════════
     head('the module is not downloaded by a tenant that cannot reach it');
     {
       const manifest = fs.readFileSync(path.join(ROOT, 'js', 'lazy-pages.js'), 'utf8');
       is(/dailyclosing:\s*\[/.test(manifest), true,
         'daily-closing.js is in the lazy manifest, not eager in login.html');
+      is(/_lazyLoadFiles = loadSeq/.test(manifest), true,
+        'and the loader exposes _lazyLoadFiles, so the tile can be fetched on demand too');
       const shellHtml = fs.readFileSync(path.join(ROOT, 'login.html'), 'utf8');
       is(/<script[^>]+js\/pages\/daily-closing\.js/.test(shellHtml), false,
         'and login.html does not load it with a script tag');
+      is(/<script[^>]+js\/pages\/daily-closing-tile\.js/.test(shellHtml), false,
+        'nor the tile');
       is(/id="pg-dailyclosing"/.test(shellHtml), true,
         'only the empty host div is in the shell');
     }

@@ -164,6 +164,11 @@
     return loadSeq(list).then(function () { return true; });
   };
 
+  // Load a list of scripts on demand, in order, each at most once. Used by the
+  // dashboard to fetch the Daily Closing tile ONLY for a tenant that has the
+  // flag — the tile is not a page, so it has no nav key to hang off.
+  window._lazyLoadFiles = loadSeq;
+
   // _navLazyGuard(pg,x) → true if it kicked off a load (caller should abort).
   // NON-DESTRUCTIVE: we never touch the target page's DOM here. Some pages (e.g.
   // Online Portal) keep static sub-containers inside #pg-<key> that their render

@@ -47,6 +47,7 @@
 <script src="js/foundation/dc-format.js"></script>
 <script src="js/foundation/dc-kit.js"></script>
 <script src="js/pages/daily-closing.js"></script>
+<script src="js/pages/daily-closing-tile.js"></script>
 <script src="js/pages/daily-closing-stub.js"></script>
 <script>
 (function () {
@@ -64,6 +65,17 @@
   /* ── stub mode: no database, scripted answers ───────────────────────── */
   if (params.get('stub') === '1') {
     var stub = window.DCStub.make(params.get('state') || 'open', params.get('role') || 'CFO');
+    window.__dcStub = stub;
+    // ?tile=1 mounts the S8 dashboard tile instead of the screen, so it can be
+    // driven and photographed without a dashboard, a session or a database.
+    if (params.get('tile') === '1') {
+      window.DCTile.mount(root, {
+        rpc: stub.rpc, me: stub.me, projects: stub.projects,
+        projectId: params.get('all') === '1' ? null : stub.projects[0].id,
+        onOpen: function (pid, date) { window.__dcOpened = { projectId: pid, date: date }; }
+      });
+      return;
+    }
     window.DailyClosing.mount(root, {
       rpc: stub.rpc, fn: stub.fn, me: stub.me, projects: stub.projects,
       projectId: stub.projects[0].id, date: '2026-09-03',

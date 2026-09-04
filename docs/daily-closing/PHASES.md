@@ -289,11 +289,25 @@ times in three costumes:
 3. The same checks after Inter was embedded — the length guard passed, because there was
    plenty of text; it just was not language. (P8)
 
-**The two guards that answer it**, both now in `scripts/verify-daily-closing-pdf.js`:
+**The three guards that answer it.** At least one must accompany every negative assertion.
 
-- **Detector self-test** — eight synthetic probes assert each detector fires on what it must
-  catch and stays silent on what it must not, every run.
-- **Intelligibility gate** — before any negative assertion runs, the extracted text must
-  contain known positive controls (`Daily Closing`, `FOURTEEN GROUP`, `Closing (C/F)`). If it
-  does not, the run stops there with a named failure and prints what it actually got, rather
-  than letting a wall of green report on nonsense.
+1. **Detector self-test.** Synthetic probes in the same run assert the detector fires on what it
+   must catch and stays silent on what it must not. A detector that has never fired is not a
+   detector. (`verify-daily-closing-pdf.js` runs eight of them every time.)
+
+2. **Intelligibility gate — REQUIRED whenever the subject is parsed, decoded, rendered or
+   fetched.** Before any "must not appear" assertion is allowed to run, **positive controls must
+   prove the text being searched is really the thing it claims to be.** Not that it is non-empty
+   — that it is *the document*. If the controls are missing, the run stops there with a named
+   failure and prints what it actually got.
+
+   This is the generalisation of the third instance, and it is the rule, not a P8 convenience.
+   An extracted string, a rendered page's `textContent`, an API response, a log file: every one
+   of them can arrive complete, plausible, the right length, and not be the thing you meant to
+   read. A length check does not distinguish 700 characters of glyph-id gibberish from 700
+   characters of English, and every absent-check downstream of it is then reporting on noise.
+   **A negative assertion may only run on output that has been proven readable.**
+
+3. **A paired positive case.** The same action by a caller who *is* permitted must succeed in
+   the same run, so a harness that can do nothing at all goes red instead of green. This is what
+   makes the P8 role matrix trustworthy: every deny cell has an allow cell beside it.

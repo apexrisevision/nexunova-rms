@@ -118,6 +118,37 @@ left must still be able to close its books. The five places a new role must be r
 the front end are listed in `ARCHITECTURE_NOTES.md` §3.4 — those belong to the UI prompt, not
 to the schema.
 
+### 0.4a — `admin` has no Daily Closing access at all (intentional, 2026-09-04, P8)
+
+This is a **tightening of live behaviour**, recorded here so that if an FMH or Khushal Bagh
+user ever meets it, the reason is on file rather than being rediscovered as a bug.
+
+**What changed.** Until P8, `_dc_may_touch_project` admitted `_rms_is_admin()`, which returns
+true for `role = 'admin'`. Any admin on a tenant could therefore read the cash book of any of
+its projects, and — because three write endpoints tested only that predicate — record entries
+into it. From `20260904p`, `_dc_role()` returns **NULL** for a plain `admin`, and a NULL role is
+refused everywhere: read, write, sign a URL, everything.
+
+**Why.** §A10's RBAC matrix has exactly four rows — Cashier, Accountant, CFO, Director — and
+`admin` is not one of them. In this database `admin` is the everyday **data-entry** role: it is
+what somebody gets so they can add a client or record a payment, and FMH's only admin is a
+filling clerk (the count in §0.4 above). "Whoever can add a client can also open and close the
+company's cash book" is precisely the conflation §0.4 was written to prevent, and leaving the
+scope predicate as the only gate would have reintroduced it one layer down.
+
+**Who is affected today: nobody.** Awami Market's only account is `owner`, which `_dc_is_cfo()`
+covers, so the pilot is unaffected. Khushal Bagh and FMH do not have the `daily_closing` flag
+and cannot reach the module at all. The two admins in the database are an FMH filling clerk and
+a ZZTEST account.
+
+**If an admin does need access**, the answer is a role, not a widening: give them `cfo` if they
+are an officer, `accounts` if they are the accountant, or `staff` plus the `dailyclosing`
+module grant if they are the cashier. Do not put `admin` back into `_dc_role()`.
+
+**Note what did NOT change.** `_dc_may_touch_project` still contains invariant 8's canonical
+chain verbatim, `_rms_is_admin()` included. The role test is a separate clause on top of it, so
+invariant 8's enforcement recipe stays quotable and true.
+
 > ### ⚠️ Correction — `app_users.role` DOES have a CHECK, and it refuses `cfo`
 > This note previously read: *"`app_users.role` is `text NOT NULL` with no CHECK constraint,
 > so the DB accepts `'cfo'` today."* That is false. It was asserted from

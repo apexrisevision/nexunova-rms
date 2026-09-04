@@ -93,6 +93,7 @@ async function rDash() {
   try {
     if (isAdmin) await _dashAdmin(pg);
     else         await _dashStaff(pg, role);
+    _dcTile(pg);
   } catch (e) {
     console.error('[dashboard] load failed', e);
     pg.innerHTML = `<div class="nx" style="padding:var(--fk-sp-6)">` +
@@ -100,6 +101,49 @@ async function rDash() {
       NX.banner('Could not load the dashboard. Check your connection and retry.', 'danger') +
       `<div style="margin-top:var(--fk-sp-3)">` +
         NX.button('Retry', { variant: 'secondary', onclick: 'rDash()' }) + `</div></div>`;
+  }
+}
+
+/* ── the Daily Closing tile (§A12 S8, P9) ──────────────────────────────────
+   The ONLY thing this file does for the cash book, and it does nothing at all
+   for a tenant without the module.
+
+   ⚠️ DEFAULT-CLOSED, and not through hasFeature(). hasFeature() returns TRUE
+   for a key it has never seen — the SaaS model is deliberately default-open —
+   so using it here would put the tile on Khushal Bagh's and FMH's dashboards.
+   The test scripts/verify-daily-closing-shell.js asserts their dashboard HTML
+   is byte-identical with the flag absent.
+
+   The tile's own files are fetched on demand, so a tenant that cannot see it
+   never downloads it. Everything below is wrapped: a failure here must never
+   take the dashboard down with it. */
+function _dcTile(pg) {
+  try {
+    if (!(window._featureFlags && window._featureFlags.daily_closing === true)) return;
+    if (!pg || document.getElementById('dc-tile-host')) return;
+
+    var slot = document.createElement('div');
+    slot.id = 'dc-tile-host';
+    slot.style.marginTop = 'var(--fk-sp-4)';
+    var col = pg.querySelector('.nx');
+    if (!col) return;
+    // Directly under the header, above the rest: it is the first thing a CFO
+    // wants and the last thing that should need scrolling to.
+    var header = col.querySelector('.nx-page-header');
+    if (header && header.nextSibling) col.insertBefore(slot, header.nextSibling);
+    else col.appendChild(slot);
+
+    if (typeof window.rDailyClosingTile === 'function') return window.rDailyClosingTile();
+    if (typeof window._lazyLoadFiles !== 'function') return;
+    window._lazyLoadFiles([
+      'js/foundation/dc-format.js?v=20260904p9',
+      'js/foundation/dc-kit.js?v=20260904p9',
+      'js/pages/daily-closing-tile.js?v=20260904p9'
+    ]).then(function () {
+      if (typeof window.rDailyClosingTile === 'function') window.rDailyClosingTile();
+    }).catch(function (e) { console.error('[daily-closing] tile failed to load', e); });
+  } catch (e) {
+    console.error('[daily-closing] tile skipped', e);
   }
 }
 
