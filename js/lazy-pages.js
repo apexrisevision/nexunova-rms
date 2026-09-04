@@ -106,13 +106,13 @@
     backup: ['js/pages/backup.js?v=20260618exp'],
     admin: ADMIN, changepassword: ADMIN,
     categories: ['js/pages/categories.js?v=20260613w2'],
-    users: ['js/pages/users.js?v=20260805grant'],
+    users: ['js/pages/users.js?v=20260905dc'],
     // Daily Closing (P8). Three files: the formatters and the kit the screen
     // needs, then the screen. Lazy like every other page, so a tenant without
     // the flag never downloads a byte of it.
-    dailyclosing: ['js/foundation/dc-format.js?v=20260904p8',
-                   'js/foundation/dc-kit.js?v=20260904p8',
-                   'js/pages/daily-closing.js?v=20260904p8'],
+    dailyclosing: ['js/foundation/dc-format.js?v=20260905dc',
+                   'js/foundation/dc-kit.js?v=20260905dc',
+                   'js/pages/daily-closing.js?v=20260905dc'],
     promises: PROMISES,
     audit: AUDIT,
     approvals: APPROVALS,

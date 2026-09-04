@@ -485,6 +485,12 @@ function _grantedExtraGroup(navGroups){
 }
 
 function buildSB(){
+  // Did this build happen before the feature flags were known? If so, any
+  // DEFAULT-CLOSED item (Daily Closing) was left out on a false negative, and
+  // loadFeatureFlags() will call buildSB() again once it has the answer.
+  // Nothing else in the sidebar depends on this: every other gated page is
+  // default-OPEN, so it is drawn now and hidden later if the flag says no.
+  window._sbBuiltWithoutFlags = !window._featureFlagsReady;
   const fus  = gfus();
   const role = effectiveRole();
   // Canonical roles (master context §2): owner, admin, recovery_officer, finance, manager.

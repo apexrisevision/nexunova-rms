@@ -22,6 +22,35 @@
  * "The item is absent" is an absent-thing assertion. Every one of them here is
  * paired with the same call under the flag, where the item must be PRESENT —
  * so a harness that renders nothing at all fails rather than passes.
+ *
+ * ── ⚠️ WHAT THIS FILE CANNOT SEE, AND DID NOT (standing rule SR-5) ──────────
+ * `shell()` below sets `window._featureFlags` with `evaluateOnNewDocument`,
+ * i.e. BEFORE the page loads. So every assertion here runs against a shell that
+ * already had its flags, and the file is a test of the GATE'S LOGIC only.
+ *
+ * It is not a test of WHEN the flags arrive, and on 2026-09-05 that distinction
+ * cost the pilot a working module: all sixteen assertions below were green
+ * while Daily Closing was invisible on Awami, because js/auth.js called
+ * buildSB() at line 383 and loadFeatureFlags() at line 411 — the gate was
+ * correct and it was evaluated against `null`.
+ *
+ * A test that supplies the state under test has not tested it.
+ *
+ * The ordering is covered by **scripts/verify-daily-closing-boot.js**, which
+ * seeds nothing and drives the real _completeLogin(). Do not add ordering
+ * assertions here; they would be answered by the seed, not by the code.
+ *
+ * The rest of the module's browser suites were audited for the same shape:
+ *   · verify-daily-closing-screen.js — stubs the NETWORK (?stub=1), not the
+ *     state. The screen still calls get_my_daily_closing_access and awaits it,
+ *     so its async path is real. It never reaches the feature-flag gate at all
+ *     (the host page returns before it in stub mode), so it would not have
+ *     caught this either — stated here rather than assumed.
+ *   · the tile tests, same: scripted answers, real awaits.
+ *   · verify-daily-closing-load.js only READS window.__dcPaintStart.
+ *   · the SQL, PDF, attachment and concurrency suites use the real database.
+ * One pre-seeder outside this module — scripts/verify-session-week.js:83 —
+ * has the same shape and has NOT been audited here.
  */
 'use strict';
 const http = require('http');

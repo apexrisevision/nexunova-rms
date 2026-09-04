@@ -136,9 +136,9 @@ function _dcTile(pg) {
     if (typeof window.rDailyClosingTile === 'function') return window.rDailyClosingTile();
     if (typeof window._lazyLoadFiles !== 'function') return;
     window._lazyLoadFiles([
-      'js/foundation/dc-format.js?v=20260904p9',
-      'js/foundation/dc-kit.js?v=20260904p9',
-      'js/pages/daily-closing-tile.js?v=20260904p9'
+      'js/foundation/dc-format.js?v=20260905dc',
+      'js/foundation/dc-kit.js?v=20260905dc',
+      'js/pages/daily-closing-tile.js?v=20260905dc'
     ]).then(function () {
       if (typeof window.rDailyClosingTile === 'function') window.rDailyClosingTile();
     }).catch(function (e) { console.error('[daily-closing] tile failed to load', e); });

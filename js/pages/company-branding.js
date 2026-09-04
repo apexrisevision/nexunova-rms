@@ -39,7 +39,7 @@ async function _migrateLocalLogoIfNeeded() {
 // window._featureFlags = null  →  not loaded yet (default-allow)
 // window._featureFlags = {}    →  loaded; missing key = enabled (default-open)
 async function loadFeatureFlags() {
-  if (!S || !S.cid) return;
+  if (!S || !S.cid) { window._featureFlagsReady = true; return; }
   try {
     // Caller-scoped reader (own company via _rms_caller); NOT the super-admin
     // list_company_feature_flags, which raises 42501→403 for normal users.
@@ -49,10 +49,45 @@ async function loadFeatureFlags() {
       data.forEach(r => { flags[r.feature_key] = r.enabled !== false; });
     }
     window._featureFlags = flags;
-    _updateSidebarFeatureVisibility();
   } catch (e) {
-    window._featureFlags = {}; // on error: allow everything
+    // ⚠️ ON ERROR, ALLOW EVERYTHING — never leave the shell without a sidebar.
+    // hasFeature() is default-open, so `{}` means every gated page stays
+    // reachable; a tenant is far better served by a working app that shows one
+    // page it has not paid for than by a blank frame. Daily Closing is the one
+    // exception and it fails CLOSED, because its gate is an explicit === true:
+    // if the flags could not be fetched, the cash book does not appear. That is
+    // the right way round — the module that touches money is the one that
+    // should not appear on a guess.
+    console.error('[feature-flags] load failed; allowing all gated pages', e);
+    window._featureFlags = {};
+  } finally {
+    window._featureFlagsReady = true;
+    try { _updateSidebarFeatureVisibility(); } catch (_) {}
+    try { _reapplyFeatureGatedUI(); } catch (_) {}
   }
+}
+
+/* ── RECOVERY: the flags arrived after the shell was drawn ──────────────────
+   _updateSidebarFeatureVisibility() can only ever HIDE an item that is already
+   in the DOM — `if (!el) return;`. An item that was never created because the
+   flags had not landed yet stays missing for the whole session, which is
+   exactly how Daily Closing went invisible on the pilot: buildSB() ran at
+   auth.js:383 and loadFeatureFlags() at :411, twenty-eight lines later.
+
+   The ordering is fixed at the call site, so this should now be a no-op. It
+   exists because "should" is not "does": a slow network can still lose the
+   race against the bounded wait, and when it does the sidebar must repair
+   itself rather than stay wrong until the next login. */
+function _reapplyFeatureGatedUI() {
+  if (!window._sbBuiltWithoutFlags) return;   // the shell already had the flags
+  window._sbBuiltWithoutFlags = false;
+
+  if (typeof buildSB === 'function') buildSB();
+
+  // and the dashboard, if that is what is on screen — its tile is decided at
+  // render time, not by a CSS class we could toggle.
+  const active = document.querySelector('.pg.on');
+  if (active && active.id === 'pg-dashboard' && typeof rDash === 'function') rDash();
 }
 
 // hasFeature(key) — true if enabled or unknown (default-open SaaS model)
@@ -75,6 +110,13 @@ function _updateSidebarFeatureVisibility() {
     'blacklist':  'blacklist',
     'escalations':'escalations',
     'pdc':        'pdc',
+    // ⚠️ Daily Closing is DEFAULT-CLOSED, unlike every entry above it, and
+    // hasFeature() below is DEFAULT-OPEN — an unknown key answers true. So this
+    // entry can only ever HIDE the item for a tenant whose flag says false; it
+    // must never be what shows it. The item is created (or not) by buildSB(),
+    // on an explicit === true. Listed here so a tenant whose flag is switched
+    // off later has the item hidden like any other gated page.
+    'dailyclosing': 'daily_closing',
   };
   Object.entries(_PAGE_TO_FLAG).forEach(([pg, flag]) => {
     const el = document.querySelector(`.ni[data-pg="${pg}"]`);

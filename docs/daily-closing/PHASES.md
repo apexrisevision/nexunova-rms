@@ -312,6 +312,43 @@ times in three costumes:
    the same run, so a harness that can do nothing at all goes red instead of green. This is what
    makes the P8 role matrix trustworthy: every deny cell has an allow cell beside it.
 
+## SR-5 · A test that supplies the state under test has not tested it
+
+**Rule.** When a harness injects the very state whose *acquisition* is the thing being relied on,
+it can only test what the code does with that state — never whether the code ever gets it. Say
+so in the file, and cover the acquisition somewhere that seeds nothing.
+
+**What it cost.** `verify-daily-closing-shell.js` had sixteen green assertions about the
+Daily Closing feature gate. Every one of them passed while the module was **invisible on the
+pilot**. It set `window._featureFlags` with `evaluateOnNewDocument` — before the page loaded —
+so `buildSB()` always saw populated flags. The gate's logic was correct and thoroughly proved.
+The bug was entirely in the *order*: `js/auth.js` called `buildSB()` at line 383 and
+`loadFeatureFlags()` at line 411, so in production the gate was evaluated against `null`.
+
+The owner found it by opening the app. Sixteen assertions did not.
+
+**Why it is the same family as SR-2.** A pre-seeded harness, a NULL comparison, an absent-thing
+detector that has never fired, a timing wrapped in `clock_timestamp()` that always reads zero —
+all four are a check that **cannot observe the thing it claims to cover**, and all four look
+exactly like a passing test.
+
+**How to apply.**
+
+- Ask of every harness: *what am I handing this code that production makes it go and get?*
+  A session, a feature flag, a cached list, a config object, a clock. Each one is a candidate.
+- Stub the **network**, not the **state**. `?stub=1` in this module replaces the RPC layer and
+  the screen still calls, awaits and handles the answer — that is a real async path. Setting
+  `window._featureFlags` replaces the *outcome* and skips the path entirely.
+- Where the acquisition matters, drive the real entry point with nothing seeded, and make the
+  dependency arrive **late and by a stub you control** — `verify-daily-closing-boot.js` answers
+  the flags after 1800 ms on purpose, because the interesting case is never the happy one.
+- Prove the new test would have caught the original bug. Reverting the fix must turn it red;
+  if it stays green, it is testing the fix rather than the failure.
+
+**Where it is done:** `scripts/verify-daily-closing-boot.js` — seeds nothing, runs the real
+`_completeLogin()`, and covers flags-on-time, flags-late (the shell must repair itself),
+flags-failed (the shell must survive), and a tenant with no flags at all.
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner
