@@ -24,7 +24,11 @@
   var CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';
   var A2020 = 'acc-2020', A6050 = 'acc-6050', A1010 = 'acc-1010', A1030 = 'acc-1030';
 
-  function make(state, role) {
+  /* P10 — DCStub.make(state, role, bulk) pads the day out to `bulk` entries so
+     the load suite can measure what S1 costs to paint with a real day's volume
+     on it. The rows are the same shape as the five hand-written ones; only the
+     voucher number and the amount move. */
+  function make(state, role, bulk) {
     role = role || 'CFO';
     var calls = [];
     var entries = [
@@ -54,6 +58,24 @@
         is_voided: false, attachments: 0, created_at: '2026-09-03T12:05:00Z' }
     ];
 
+
+    // Pad the day out to `bulk` rows so the load suite can paint a real one.
+    if (bulk && bulk > entries.length) {
+      var base = entries.length;
+      for (var bi = base; bi < bulk; bi++) {
+        entries.push({
+          id: 'b' + bi, seq_no: bi + 1, entry_type: 'EXPENSE', mode: 'CASH',
+          direction: bi % 3 === 0 ? 'IN' : 'OUT',
+          voucher_type: bi % 3 === 0 ? 'CRV' : 'CPV',
+          voucher_no: String(2000 + bi),
+          amount: String(((bi * 37) % 9000) + 100) + '.00',
+          narration: 'Bulk entry ' + bi, payee_name: 'PESCO',
+          qb_number: '6030', qb_name: 'Electricity & Utility Bills',
+          rms_status: 'NA', is_adjustment: false, is_voided: false,
+          attachments: 0, created_at: '2026-09-03T10:00:00Z'
+        });
+      }
+    }
     var closedExtra = {
       id: 'a1', seq_no: 6, entry_type: 'OTHER', mode: 'CASH', direction: 'OUT',
       voucher_type: 'CPV', voucher_no: 'JV-2026-0001', amount: '3.00',

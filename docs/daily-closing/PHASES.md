@@ -311,3 +311,82 @@ times in three costumes:
 3. **A paired positive case.** The same action by a caller who *is* permitted must succeed in
    the same run, so a harness that can do nothing at all goes red instead of green. This is what
    makes the P8 role matrix trustworthy: every deny cell has an allow cell beside it.
+
+## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
+
+**Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner
+really runs it, and once inside `SET LOCAL enable_seqscan = off`. Assert on the second.
+
+**Why both of the obvious checks are worthless here.**
+
+- **"It used an index" on the live data proves nothing.** ZZTEST holds single-digit row counts
+  and the pilot will hold hundreds for months. Postgres sequentially scans an eight-row table
+  and is *right* to; asserting an index scan would fail on a correct database, and asserting a
+  seq scan would fail the day the data grows. Neither is a fact about the query.
+- **Finding the index in `pg_indexes` proves only that somebody created an index.** It says
+  nothing about whether *this* predicate can use it — wrong column order, a type mismatch, a
+  function wrapped round the column, `IS DISTINCT FROM`, a `LIKE` with a leading wildcard: every
+  one of those leaves a perfectly real index that this query will never touch.
+
+Turning off sequential scans asks the only question that matters: **can this WHERE clause be
+answered from an index at all?** If the answer is still `Seq Scan` with seqscan disabled, the
+index does not fit the predicate and the query will scan the table forever, whatever
+`pg_indexes` says.
+
+**Two honest limits, to be stated rather than papered over.**
+
+- Do **not** assert a specific index *name*. Where two candidate indexes share a leading column,
+  the planner picks either on a small table, and pinning the name is over-fitting the planner.
+  Assert that the predicate is index-answerable, and print which one it chose.
+- `enable_seqscan = off` does not make the planner *prefer* the index at real volume; it only
+  shows the index is applicable. That is the claim, and it is the claim the assertion should
+  make.
+
+**Where it is done:** `scripts/verify-daily-closing-tile.js`, and any later suite asked for
+plans.
+
+## SR-4 · An N+1 cannot be seen in a query plan
+
+A plan is **per statement**. A loop that issues one correct, well-indexed statement per project
+produces N perfect plans and one bad page. So "no N+1" is asserted on the **service's source** —
+no `LOOP`, and the set resolved once into an array the aggregates run over — alongside the plan
+review, never instead of it. (`verify-daily-closing-tile.js`, check 13.)
+
+---
+
+# P10 — Phase 1 is finishable. Every open item, closed or carried.
+
+The Definition of Done asks that every open item from P1–P9 is either closed or explicitly
+carried with a reason. This is that list. Nothing has been quietly dropped.
+
+## Closed in P10
+
+| From | Item | How |
+|---|---|---|
+| P4 | Two-writer `seq_no` concurrency — deferred, and said so | `verify-daily-closing-concurrency.js`: 12 real connections, 12 commits, sequence 1..13 unbroken, nobody met the UNIQUE index |
+| P7 | Attach a real file; prove the key starts with the entry's `project_id`; prove another project cannot fetch the signed URL | `verify-daily-closing-attachment.js`, 17 assertions, a genuine PDF through the real bridge |
+| P6 | The screen suite fails by timing out rather than printing a named ❌ | Wrapped waits **and** interactions per page, plus an outer catch — proved by breaking the void action |
+| P8 | Prove the cashier is refused server-side, not merely shown no button | The role×action matrix (114 cells) and the E2E's ten refusals |
+| P9 | `audit_logs` grant decision | Recorded in `SCHEMA.md` with the reasoning — the grant stays, RLS is the boundary |
+| P8 | `admin` losing access — record it | `RULES.md` §0.4a, dated, with who is affected and what to do instead |
+
+## Carried into Phase 2, each with its reason
+
+| # | Item | Why it is not a Phase 1 blocker |
+|---|---|---|
+| Q2 | Bank accounts: three competing tables | Phase 1 uses `cash_accounts`, seeded per project. Reconciling `banks` and `project_bank_accounts` is Phase 2's, and touching them now would change tables KBH and FMH use. |
+| Q3 | Director PDF grain — per project, consolidated, or both | Awami has one project, so Phase 1 is per-project either way. The answer decides Phase 4's Group Position, not anything shipped. |
+| Q4 | Voucher books — per project or per company | Phase 1 enforces `UNIQUE(project, type, no)`, the stricter of the two. If the answer is per-company, the constraint tightens; nothing already recorded becomes wrong. |
+| Q5 | Client receipt: replace or duplicate the existing one | Phase 1 does not print a client receipt at all. Phase 2 owns `client_receipts`. |
+| Q7 | Paisa displayed or not | Phase 1 shows paisa only when non-zero; every RMS formatter rounds to 0 dp. The two differ and nothing has yet depended on it. |
+| **Q8** | **Double entry during the parallel run** | **Not a code question and the only open item that touches the parallel run directly.** RMS's Record Payment stays live; if the same client money is entered in both places the client is credited twice. Decide who enters client receipts and where BEFORE day one. Written into `RUNBOOK.md` §4. |
+| — | The PDF's 2 s budget | Measured at 5446 ms for 500 entries, of which ~2.1 s is embedding Inter on every render. Helvetica meets the budget and loses the typeface the owner asked for. An owner decision, not a defect to hide. |
+| — | The two Awami accounts (`cfo`, `staff` cashier) | The owner creates them in Users & Roles. The permission model is complete and tested without them. |
+| — | The `price_revision` branch of the approval dispatcher is dead | Noted at P0. Phase 2's allocation approval should route through that engine, so it needs a look **before** it is trusted — not before Phase 1 ships. |
+| — | A handover event does not exist in RMS | Three unreconciled representations and the only page that wrote one is archived. Blocks Phase 3's `RecognizeRevenue`, nothing earlier. |
+
+## What Phase 1 does NOT include, deliberately
+
+No QuickBooks export (P16), no client receipts, no allocation approval, no PDC register of its
+own, no Group Position board, no revenue recognition, and no general ledger of any kind. The
+cash book stores what happened to the cash. QuickBooks remains the book of account.

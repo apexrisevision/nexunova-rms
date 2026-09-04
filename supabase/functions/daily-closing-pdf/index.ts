@@ -135,12 +135,20 @@ Deno.serve(async (req) => {
   let body: Record<string, string>;
   try { body = await req.json(); } catch { return json({ error: "INVALID_TRANSITION" }, 400); }
 
+  // P10 — phase timings, returned with the answer. A render that is slow is
+  // only actionable if you know WHICH part is slow, and the load suite reports
+  // these into RUNBOOK.md.
+  const T0 = Date.now();
+  // NB: not called T — T is already the text-drawing helper further down.
+  const PHASE: { [k: string]: number } = {};
+  const mark = (k: string) => { PHASE[k] = Date.now() - T0; };
   const d = await rpcAsCaller(auth, "get_cash_day_pdf_data", {
     p_company_id: body.company_id, p_cash_day_id: body.cash_day_id,
   });
   if (!d || d.success !== true) return json({ error: d?.error ?? "NOT_AUTHORIZED" }, 403);
 
   // ── document ──────────────────────────────────────────────────────────────
+  mark("payload");
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   const inter = await interBytes();
@@ -148,6 +156,7 @@ Deno.serve(async (req) => {
                   : await pdf.embedFont(StandardFonts.Helvetica);
   const FB = inter ? await pdf.embedFont(inter.semi, { subset: true })
                    : await pdf.embedFont(StandardFonts.HelveticaBold);
+  mark("fonts");
   const typeface = inter ? "Inter" : "Helvetica";
 
   pdf.setTitle(`Daily Closing — ${d.project_name} — ${d.business_date}`);
@@ -304,7 +313,9 @@ Deno.serve(async (req) => {
     p.drawText(t, { x: PAGE_W - M - F.widthOfTextAtSize(t, 7), y: M - 12, size: 7, font: F, color: INK500 });
   });
 
+  mark("draw");
   const bytes = await pdf.save();
+  mark("save");
 
   // ── store, then record ────────────────────────────────────────────────────
   const filename = `${slug(d.project_name)}_Daily_Closing_${d.business_date}.pdf`;
@@ -317,31 +328,37 @@ Deno.serve(async (req) => {
   });
   if (!up.ok) return json({ error: "STORAGE_FAILED", detail: await up.text() }, 500);
 
-  const rec = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_day_document`, {
-    method: "POST",
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      p_company_id: body.company_id, p_cash_day_id: body.cash_day_id,
-      p_version: d.next_version, p_storage_key: key,
+  // P10 — THE VERSION ROW AND THE SIGNED LINK ARE ASKED FOR TOGETHER.
+  // Both depend only on `key`, and neither depends on the other, so running
+  // them in sequence cost a whole round trip (~0.4 s of a render measured at
+  // ~6 s) for nothing. The record is still the one that decides success: if it
+  // fails, the answer is RECORD_FAILED whatever the signer said.
+  const [rec, sign] = await Promise.all([
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/record_day_document`, {
+      method: "POST",
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_company_id: body.company_id, p_cash_day_id: body.cash_day_id,
+        p_version: d.next_version, p_storage_key: key,
+      }),
     }),
-  });
+    fetch(`${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${key}`, {
+      method: "POST",
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ expiresIn: 600 }),
+    }),
+  ]);
   const recJson = rec.ok ? await rec.json() : null;
   if (!recJson || recJson.success !== true) {
     return json({ error: "RECORD_FAILED", detail: recJson?.error ?? null }, 500);
   }
-
-  // a signed link the panel can offer straight away
-  const sign = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${key}`, {
-    method: "POST",
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ expiresIn: 600 }),
-  });
   const signed = sign.ok ? await sign.json() : null;
+  mark("total");
 
   return json({
     success: true, event: "DirectorPdfRendered",
     version: d.next_version, filename, storage_key: key, typeface,
-    bytes: bytes.length,
+    bytes: bytes.length, timings: PHASE,
     url: signed ? `${SUPABASE_URL}/storage/v1${signed.signedURL}` : null,
     expires_in: 600,
   });

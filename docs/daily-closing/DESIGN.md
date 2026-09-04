@@ -692,3 +692,120 @@ Exactly the one counter, naming both numbers. Restored, green again.
 3. **The tile is not shown to a Cashier's "All projects"**, but the tile IS shown to a Cashier
    for their own project. §A12's S8 row lists Accountant/CFO/Director; a Cashier who may record
    into the day can see the day, which is the same information S1 already gives them.
+
+---
+
+# P10 — making Phase 1 finishable
+
+No new migration. One edge-function change, five new suites, and the runbook.
+
+## Files
+
+| File | What |
+|---|---|
+| `docs/daily-closing/RUNBOOK.md` | **new** — deploy · seed · setup opening · the daily procedure · the 14-day Excel gate · rollback · troubleshooting by error code · the measured numbers |
+| `scripts/verify-daily-closing-e2e.js` | **new** — a whole day through the services, and ten ways to do it wrong |
+| `scripts/verify-daily-closing-attachment.js` | **new** — a real file through the real bridge (the P7 carry) |
+| `scripts/verify-daily-closing-concurrency.js` | **new** — two writers, one sequence (the P4 carry) |
+| `scripts/verify-daily-closing-load.js` | **new** — 500 entries, and the numbers |
+| `scripts/verify-daily-closing-security.js` | **new** — auth, RLS, grants, signed URLs |
+| `scripts/verify-daily-closing-screen.js` | a timeout is now a named ❌ (the P6 carry); 158 assertions |
+| `supabase/functions/daily-closing-pdf/index.ts` | phase timings in the answer; the version row and the signed link fetched in parallel |
+| `js/pages/daily-closing-stub.js` | `make(state, role, bulk)` — pads a day out for the load run |
+| `daily-closing.html` | `?entries=N`, and a paint-start mark |
+
+## The three items carried in from earlier prompts, now closed
+
+**A real file, through the real bridge** (carried from P7). `verify-daily-closing-attachment.js`
+uploads a genuine PDF with a signed URL the bridge issued, and asserts: the key **begins with the
+entry's `project_id`**; a `storage_key` supplied by the caller is **ignored**, because the bridge
+builds its own; an executable is refused a URL at all; the owner's signed link returns the file
+byte-for-byte and expires in ten minutes; and **a user on another project is refused the same
+attachment id** — paired with the owner's identical call succeeding first, so a broken harness
+cannot pass it.
+
+**Two writers, one sequence** (carried from P4, which said plainly that it could not do this).
+Every Management API call is its own connection, transaction and COMMIT, so twelve fired together
+are twelve real writers. Result: twelve accepted, sequence 1..13 unbroken, no duplicate
+`seq_no`, and nobody met the `UNIQUE` index — they queued on `SELECT … FOR UPDATE`. The run took
+3.2 s against ~20.8 s for twelve serial round trips, which is the assertion that says they
+actually overlapped rather than politely queuing in the driver.
+
+**A named ❌ instead of an explosion** (carried from P6). A wait that never came true used to
+throw, kill the process and print a puppeteer stack trace — no summary, no count, and every later
+assertion silently not run. Now the wait methods *and* the interaction methods are wrapped per
+page, a missing element prints one ❌ naming what it looked for, and an outer catch turns any
+remaining surprise into `the run stopped early: …`. Proved by breaking the void row action:
+`❌ FAIL (54 passed, 5 failed)` with four named lines, where before there was a stack trace.
+
+## What the end-to-end suite actually drives
+
+Opening balance → open → eight entries (2 receipts, 3 expenses, a transfer **pair from one
+call**, a loan) → void an expense → attach → close on an exact count with variance 0 → the sheet
+at v1 → tomorrow opens on today's closing → an ordinary entry on the closed day is `DAY_LOCKED`
+→ the CFO's adjustment lands without reopening it → the sheet re-issues at v2 with v1 kept → the
+dashboard counters agree with the tables → the Director reads the day, the audit and the sheet
+and is refused a write.
+
+Then ten refusals by code: `VARIANCE_UNEXPLAINED`, a second day on one date, `DUPLICATE_VOUCHER`,
+`OVERRIDE_REASON_REQUIRED`, the cashier's close, the cross-project read, `VERSION_CONFLICT`, the
+idempotent replay returning the *same* entry, the 10 MB + 1 byte attachment, and a JV on an open
+day. And then a good entry, so a wall of refusals cannot be a wedged service.
+
+**One honest limit, written into the file.** Inside a single transaction `now()` is frozen, so
+the void (written before the close) and the JV (written after it) share a `created_at` to the
+microsecond and no value of `closed_at` can separate them. The adjustments block is therefore
+asserted **by content**, not by count, and the `created_at > closed_at` boundary is exercised
+where the timestamps genuinely differ — the P6 and P7 screen suites.
+
+## Performance: five numbers, one of them red
+
+| What | Measured | Budget | |
+|---|--:|--:|---|
+| S1 first paint, 500 rows | 717 ms | 1500 | ✅ |
+| `get_cash_day_summary` | 10.3 ms | 200 | ✅ |
+| `get_daily_closing_tile` | 18 ms | — | |
+| `list_cash_entries` (500) | 137 ms | — | |
+| Director PDF, 500 entries | **5446 ms** | 2000 | ❌ |
+
+**The measurement was broken before the numbers were.** The first version wrapped each call in
+`(select clock_timestamp() t0), lateral (select fn(...))` and every figure came back **0.0 ms** —
+the planner is under no obligation to evaluate those in written order. Four green lines, all
+meaningless, and very nearly shipped. They come from `EXPLAIN ANALYZE`'s own Execution Time now
+(SR-2: a timing that always reads zero is a check that cannot fail).
+
+**The PDF misses, and the renderer says why.** It now reports its phases:
+`payload 654 · fonts 2743 · draw 3850 · save 3961 · total 5446 ms`. Embedding Inter is **~2.1 s
+of every render** whatever the day holds — pdf-lib parses and subsets both weights per document
+and there is nothing to cache. 500 rows add ~1.1 s; a normal day of 20–40 entries adds a tenth of
+that, so a real day renders in ~3.5 s. Helvetica brings it inside 2 s and loses Inter, which the
+owner asked for one prompt ago, so **nothing was changed to make the number go green.** Pre-
+subsetting Inter to the ~120 glyphs the sheet uses would fix it properly and needs a font tool
+this repo does not have.
+
+One cheap win was taken: the version row and the signed link depend only on the key and not on
+each other, so they are fetched in parallel instead of in sequence.
+
+## Two mistakes worth recording
+
+1. **`T` was already taken.** The phase-timing object was called `T`, which is also the
+   text-drawing helper thirty lines further down. The function boot-failed with
+   `Identifier 'T' has already been declared` and served 503s until the logs were read — worth
+   remembering that an edge function's boot error is invisible from the client, which only sees
+   `BOOT_ERROR`.
+2. **The invariant-5 trigger caught the load fixture.** The bulk insert put client receipts on
+   6050 with no reason and was refused by `cash_entries_qb_head_guard`. The guard was right and
+   the fixture was wrong — which is the correct direction for that to happen in.
+
+## Deviations and open questions
+
+1. **The PDF budget is not met.** Numbers, cause and options above and in `RUNBOOK.md` §5.
+   Needs an owner decision: Inter, or 2 s.
+2. **The e2e suite runs in one transaction**, so the two HTTP steps are represented by the rows
+   they produce and proved for real in their own suites. Stated at the top of the file.
+3. **The load fixture inserts directly**, not through `record_cash_entry` — 487 round trips would
+   take twenty minutes and the suite measures reads. The write path is proved by P4, the E2E and
+   the concurrency suite.
+4. **Permanent ZZTEST rows.** The four committing suites leave rows that invariant 1 forbids
+   deleting. They live on ZZ Map Tower and ZZTEST Tower; the wiping suites live on ZZTEST Garden
+   (SR-1).

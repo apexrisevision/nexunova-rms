@@ -73,8 +73,56 @@ const url = (state, opt) => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&
     args: ['--no-sandbox'] });
   const errors = [];
 
+  /* ── P10: a timeout is a NAMED failure, not an explosion ──────────────────
+     Until now a wait that never came true threw a puppeteer TimeoutError, which
+     escaped the try block, killed the process and printed a stack trace instead
+     of a line saying what the screen failed to do. The run ended with no
+     summary and no count, and every assertion after it never ran.
+
+     Both wait methods are wrapped per page: a timeout prints one ❌ naming what
+     was being waited for, and then RETURNS, so the assertions that follow fail
+     on their own terms and the suite still reports a total. A real failure is
+     still a failure — it just says so. */
+  function describe(t) {
+    if (typeof t === 'string') return `selector ${JSON.stringify(t)}`;
+    const src = String(t).replace(/\s+/g, ' ').trim();
+    return `condition ${src.slice(0, 72)}${src.length > 72 ? '…' : ''}`;
+  }
+  function nameTheTimeouts(page, label) {
+    // Not only the waits. Once a wait has failed, the click or the type that
+    // follows it throws "No element found for selector", which explodes the run
+    // just as thoroughly as the timeout did. Every method that reaches into the
+    // page is wrapped, so a missing element becomes one more named ❌ and the
+    // suite still reaches its summary.
+    for (const m of ['waitForSelector', 'waitForFunction',
+                     'click', 'type', 'select', 'focus', '$eval', '$$eval']) {
+      const orig = page[m].bind(page);
+      page[m] = async (...args) => {
+        try { return await orig(...args); }
+        catch (e) {
+          // puppeteer wraps the TimeoutError: the useful name is on `cause`,
+          // not on the error you catch. Looking only at e.message let the
+          // original explosion straight back through.
+          const seen = [e && e.name, e && e.message,
+                        e && e.cause && e.cause.name, e && e.cause && e.cause.message]
+            .filter(Boolean).join(' | ');
+          if (/timeouterror|timeout|waiting failed/i.test(seen)) {
+            bad(`[${label}] gave up waiting for ${describe(args[0])}`);
+            return null;
+          }
+          if (/no element found|node is either not clickable|not visible/i.test(seen)) {
+            bad(`[${label}] ${m}() found nothing at ${describe(args[0])}`);
+            return null;
+          }
+          throw e;
+        }
+      };
+    }
+  }
+
   async function open(state, width = 1280, opt) {
     const page = await browser.newPage();
+    nameTheTimeouts(page, state + (opt && opt.role ? '/' + opt.role : ''));
     page.on('pageerror', e => errors.push(`${state}: ${e.message}`));
     page.on('console', m => {
       if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) {
@@ -799,6 +847,13 @@ const url = (state, opt) => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&
         'with the totals pinned to the bottom');
       await narrow.close();
     }
+  } catch (e) {
+    // The last line of the same defence. Naming the timeouts stops the common
+    // case; this stops EVERY case. A suite that dies without a summary tells
+    // you nothing about the 130 assertions that had already passed, and the
+    // stack trace it prints instead is about puppeteer, not about the screen.
+    bad(`the run stopped early: ${(e && e.message ? e.message : String(e)).split('\n')[0]}`);
+    console.log('     (everything after this point did not run)');
   } finally {
     await browser.close();
     srv.close();

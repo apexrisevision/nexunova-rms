@@ -64,7 +64,9 @@
 
   /* ── stub mode: no database, scripted answers ───────────────────────── */
   if (params.get('stub') === '1') {
-    var stub = window.DCStub.make(params.get('state') || 'open', params.get('role') || 'CFO');
+    var stub = window.DCStub.make(params.get('state') || 'open', params.get('role') || 'CFO',
+                                  parseInt(params.get('entries'), 10) || 0);
+    window.__dcPaintStart = performance.now();
     window.__dcStub = stub;
     // ?tile=1 mounts the S8 dashboard tile instead of the screen, so it can be
     // driven and photographed without a dashboard, a session or a database.
