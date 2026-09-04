@@ -19,7 +19,8 @@
  * when a stubbed network answers — late, on purpose. Only the network is
  * faked; the sequence is the real one.
  *
- * It covers three cases, because the interesting one is not the happy path:
+ * It covers three cases on the login path, because the interesting one is not
+ * the happy path:
  *
  *   1 · flags answer quickly     → the item is there on first paint
  *   2 · flags answer SLOWLY,     → buildSB() runs without them, and the shell
@@ -28,8 +29,27 @@
  *                                  page is still reachable, and Daily Closing
  *                                  fails CLOSED
  *
+ * — and then does the whole thing again through the OTHER door.
+ *
+ * ── THE SECOND ROUND (standing rule SR-6) ──────────────────────────────────
+ * RMS reaches the app shell two ways and they are separate code:
+ *
+ *     fresh login      _completeLogin()      js/auth.js
+ *     returning visit  tryRestoreSession()   js/init.js
+ *
+ * The first version of this file drove only the first one, so it went green on
+ * a fix that had been applied to only half the app. The second one is what a
+ * hard refresh runs, which is how everybody but a developer arrives — and it
+ * had never loaded the feature flags in its life. A fix verified on one entry
+ * path is unverified on every other.
+ *
+ * So the restore path is driven too, and it is driven twice: once against the
+ * real js/init.js, and once against the same file with the two shell-context
+ * lines stripped out by the harness's own server. The second run must FAIL the
+ * same assertions the first run passes, or section 6 is decoration.
+ *
  * It also measures what the ordering fix costs a tenant with no flags at all —
- * KBH and FMH take this same login path.
+ * KBH and FMH take both of these paths.
  */
 'use strict';
 const http = require('http');
@@ -62,7 +82,7 @@ const head = t => console.log('\n── ' + t);
 
 /* The shell as login.html leaves it, plus the handful of globals auth.js
    reaches for that live in other files. NOTHING here sets _featureFlags. */
-const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>boot harness</title></head>
+const HARNESS = qs => `<!doctype html><html><head><meta charset="utf-8"><title>boot harness</title></head>
 <body>
   <div id="s-login" class="on"></div>
   <div id="s-app"></div>
@@ -73,11 +93,13 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>boot ha
     <div id="pg-units" class="pg"></div>
     <div id="pg-dailyclosing" class="pg"></div>
   </div>
-  <div id="tb-t"></div><div id="nav-crumb-page"></div>
+  <div id="tb-t"></div><div id="tb-c"></div><div id="nav-crumb-page"></div>
+  <div id="toast"><span id="t-ic"></span><span id="t-m"></span></div>
   <div id="nav-actions"><button id="nav-back"></button></div>
 <script>
   // ── the network, and only the network ──────────────────────────────────
   window.__flagDelay = 0;         // ms before get_my_feature_flags answers
+  window.__brandDelay = 0;        // ms before get_company_branding answers
   window.__flagFails = false;     // make it reject instead
   window.__rpcLog = [];
   window.__t0 = 0;
@@ -99,6 +121,16 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>boot ha
           window.__mark.flagsAnswered = Math.round(performance.now() - window.__t0);
           res({ data: window.__flagRows });
         }, window.__flagDelay));
+      }
+      if (name === 'get_company_branding') {
+        // The pilot's real shape, and the reason the company chip disagreed
+        // with itself: the DISPLAY name and the legal name are different
+        // words. Read it and the chip says "Fourteen Group of Companies";
+        // miss it and coDisplayName() falls back to S.coName.
+        return new Promise(res => setTimeout(() => res({
+          data: { company_name: 'Awami Market',
+                  display_name: 'Fourteen Group of Companies' },
+        }), window.__brandDelay));
       }
       if (name === 'get_user_projects') return Promise.resolve({ data: { rows: [] } });
       return Promise.resolve({ data: null });
@@ -124,6 +156,10 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>boot ha
   window.toggleNavMore = function(){};
   window._navLazyGuard = () => false;
   window._projectsCache = [{ id: 'p-1', project_name: 'Awami Market' }];
+  // js/init.js's DOMContentLoaded handler calls these two out of js/data.js,
+  // which is a localStorage database this file has no use for.
+  window.gdb = () => ({});
+  window.APP_BUILD = 'boot-harness';
   window._lazyLoadFiles = () => Promise.resolve();
 
   // The RMS foundation kit. dashboard.js references NX while it loads, and
@@ -155,10 +191,12 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>boot ha
   var _navStack = []; var _navBack = false; var _prevPg = null; var _uid = null;
   var _leakGuardOn = false; var _coid = null; var S = null;
 <\/script>
+<script src="js/helpers.js?boot=1"><\/script>
 <script src="js/ui.js?boot=1"><\/script>
 <script src="js/pages/company-branding.js?boot=1"><\/script>
 <script src="js/pages/dashboard.js?boot=1"><\/script>
 <script src="js/auth.js?boot=1"><\/script>
+<script src="js/init.js?${qs}"><\/script>
 <script>
   /* THE REAL rDash() RUNS. Only the two branches it picks between are stubbed
      — _dashAdmin needs six months of RPCs that are not what this file is about
@@ -185,6 +223,41 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8"><title>boot ha
     };
   })();
 
+  /* ── THE OTHER DOOR ────────────────────────────────────────────────────
+     __boot() above drives _completeLogin(): a fresh sign-in. This one drives
+     tryRestoreSession() out of js/init.js: a returning visit — every hard
+     refresh, every reopened tab, and the way Rashid and every user of the
+     pilot actually arrives at the app. It is a DIFFERENT function with its own
+     copy of the boot sequence, and for a week it was the one that had never
+     been driven by anything.
+
+     It seeds only what a browser would already hold: a saved nxn_sess and a
+     live Supabase token. window._featureFlags stays undefined. */
+  window.__bootRestore = function (rows, delay, fails) {
+    window.__flagRows = rows;
+    window.__flagDelay = delay || 0;
+    window.__flagFails = !!fails;
+    window.__rpcLog = []; window.__mark = {};
+    window._featureFlags = undefined;      // NOT SEEDED — the point of the file
+    window._featureFlagsReady = false;
+    window._sbBuiltWithoutFlags = false;
+    window._cobranding = null;
+    window.__shellCtx = null;
+    window.S = null;
+    localStorage.setItem('nxn_sess', JSON.stringify({
+      cid: 'co-1', userId: 'u-1', authUid: 'auth-1', name: 'Awami',
+      role: 'owner', coName: 'Awami Market', subStatus: 'active',
+      onboardingComplete: true, modulePermissions: {},
+    }));
+    localStorage.removeItem('nxn_active');   // never stamped → not idle-evicted
+    document.getElementById('s-app').classList.remove('on');
+    document.getElementById('s-login').classList.add('on');
+    document.getElementById('sb-nav').innerHTML = '';
+    window.__t0 = performance.now();
+    return tryRestoreSession()
+      .then(() => Math.round(performance.now() - window.__t0));
+  };
+
   window.__boot = function (rows, delay, fails) {
     window.__flagRows = rows;
     window.__flagDelay = delay || 0;
@@ -209,7 +282,24 @@ function serve() {
   return new Promise(res => {
     const s = http.createServer((rq, r) => {
       const p = decodeURIComponent(rq.url.split('?')[0]);
-      if (p === '/boot.html') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end(HARNESS); }
+      if (p === '/boot.html') {
+        r.writeHead(200, { 'Content-Type': 'text/html' });
+        return r.end(HARNESS(/unfixed=1/.test(rq.url) ? 'strip=1' : 'boot=1'));
+      }
+      if (p === '/js/init.js' && /strip=1/.test(rq.url)) {
+        // js/init.js as it stood before this fix: the two shell-context lines
+        // removed and NOTHING else touched. Serving it is how the restore-path
+        // assertions below are proved to be detectors rather than decoration
+        // (SR-2), and it is generated from the real file so it cannot rot.
+        const src = fs.readFileSync(path.join(ROOT, 'js', 'init.js'), 'utf8');
+        const NL = String.fromCharCode(10);
+        const out = src.split(NL)
+          .filter(l => !/startShellContext|awaitShellContext/.test(l))
+          .join(NL);
+        if (out === src) { r.writeHead(500); return r.end('nothing to strip'); }
+        r.writeHead(200, { 'Content-Type': 'text/javascript' });
+        return r.end(out);
+      }
       const f = path.join(ROOT, p);
       if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) {
         r.writeHead(404); return r.end();
@@ -252,15 +342,36 @@ const OTHER = [{ feature_key: 'pdc', enabled: true }];   // KBH/FMH shape: no da
     }
   }
 
-  async function boot(rows, delay, fails) {
+  async function open(label, opts) {
     const page = await browser.newPage();
-    nameTheTimeouts(page, `flags+${delay || 0}ms${fails ? '/fail' : ''}`);
+    nameTheTimeouts(page, label);
     page.on('pageerror', e => errors.push(e.message));
+    // Every page starts as a browser that has never seen this app. Pages share
+    // one profile, so without this the nxn_sess a previous case wrote would be
+    // found by js/init.js's own DOMContentLoaded handler and a whole extra
+    // restore would run before the case under test ever began.
+    await page.evaluateOnNewDocument(() => { try { localStorage.clear(); } catch (_) {} });
     await page.setViewport({ width: 1280, height: 900 });
-    await page.goto(`http://127.0.0.1:${PORT}/boot.html`, { waitUntil: 'networkidle2' });
+    await page.goto(`http://127.0.0.1:${PORT}/boot.html` + ((opts && opts.unfixed) ? '?unfixed=1' : ''),
+      { waitUntil: 'networkidle2' });
+    return page;
+  }
+  /* the FRESH-LOGIN door */
+  async function boot(rows, delay, fails) {
+    const page = await open(`login flags+${delay || 0}ms${fails ? '/fail' : ''}`);
     const took = await page.evaluate((r, d, f) => window.__boot(r, d, f), rows, delay || 0, !!fails);
     return { page, took };
   }
+  /* the RETURNING-VISIT door — the same four cases, the other function */
+  async function restore(rows, delay, opts) {
+    const page = await open(`restore flags+${delay || 0}ms${(opts && opts.unfixed) ? '/unfixed' : ''}`, opts);
+    const took = await page.evaluate((r, d) => window.__bootRestore(r, d, false), rows, delay || 0);
+    return { page, took };
+  }
+  // updateCoLogo() draws the chip as an initial-avatar span followed by a name
+  // span, so the name is the LAST child, not the whole textContent.
+  const chip = page => page.$eval('#tb-c',
+    n => (n.querySelector('span:last-child') || n).textContent.trim()).catch(() => '');
   const items = page => page.$$eval('.sb [data-pg]', n => n.map(x => x.dataset.pg));
 
   try {
@@ -347,6 +458,62 @@ const OTHER = [{ feature_key: 'pdc', enabled: true }];   // KBH/FMH shape: no da
       await page.close();
     }
 
+
+    // 6 · THE OTHER DOOR — A RETURNING VISIT
+    // Everything above drives _completeLogin(). This is tryRestoreSession(),
+    // which is how the pilot actually arrives, and the reason SR-6 exists: the
+    // ordering fix was verified on one entry path and was unverified on this
+    // one, where it had not been made at all.
+    head('Awami on a RETURNING VISIT — the path everybody actually takes');
+    {
+      const { page } = await restore(AWAMI, 80);
+      is(await page.evaluate(() => document.getElementById('s-app').classList.contains('on')),
+        true, 'the session restored and the app shell is showing');
+      const m = await page.evaluate(() => window.__mark);
+      is(m.flagsAtBuildSB, '{"daily_closing":true}',
+        'buildSB() ran with the flags already populated — on THIS path too');
+      is((await items(page)).includes('dailyclosing'), true,
+        'and Daily Closing is in the sidebar after a refresh, not only after a login');
+      is(m.buildCount, 1, 'built once — no repair was needed');
+      // the cosmetic half of the same bug, and the thing Rashid actually saw
+      is(await chip(page), 'Fourteen Group of Companies',
+        'the company chip shows the BRAND name — cobranding loaded here as well');
+      await page.close();
+    }
+
+    // 7 · THE SAME PATH, UNFIXED — proof the four above are detectors
+    // Serving js/init.js with the two shell-context lines removed and nothing
+    // else changed. If this page passes, section 6 proves nothing (SR-2).
+    head('the same visit against the UNFIXED js/init.js — the assertions must fire');
+    {
+      const { page } = await restore(AWAMI, 80, { unfixed: true });
+      is(await page.evaluate(() => document.getElementById('s-app').classList.contains('on')),
+        true, 'the shell still boots — the bug was never a crash, which is why it survived');
+      const m = await page.evaluate(() => window.__mark);
+      is(['undefined', 'null'].includes(m.flagsAtBuildSB), true,
+        `RED: buildSB() saw no flags (${m.flagsAtBuildSB}) — the bug, reproduced`);
+      is((await items(page)).includes('dailyclosing'), false,
+        'RED: Daily Closing is missing from the sidebar, exactly as reported');
+      is(await chip(page), 'Awami Market',
+        'RED: and the chip falls back to the legal name — the label Rashid saw flip');
+      // and it never repairs, because nothing ever asked for the flags
+      await new Promise(r => setTimeout(r, 600));
+      is(await page.evaluate(() => window._featureFlagsReady === true), false,
+        'RED: the flags are never fetched at all, so the shell cannot repair itself');
+      await page.close();
+    }
+
+    // 8 · KBH / FMH ON THE RESTORE PATH — the blast radius of the second fix
+    head('Khushal Bagh / FMH shape on a returning visit');
+    {
+      const { page } = await restore(OTHER, 0);
+      const nav = await items(page);
+      is(nav.includes('dailyclosing'), false, 'no Daily Closing item, as before');
+      is(nav.includes('units') && nav.includes('pdc'), true, 'and their own sidebar is intact');
+      is(await page.evaluate(() => window.__mark.buildCount), 1,
+        'built once — a tenant without the module pays for no rebuild here either');
+      await page.close();
+    }
     // ═══ 5 · WHAT THE ORDERING COSTS ═══════════════════════════════════
     head('the cost of awaiting the flags, measured');
     {

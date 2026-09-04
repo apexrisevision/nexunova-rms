@@ -346,25 +346,13 @@ async function _completeLogin(user, company) {
     return;
   }
 
-  // ── Feature flags: STARTED HERE, awaited just before buildSB() ────────────
-  // buildSB() has to know whether a DEFAULT-CLOSED module is switched on, and
-  // it used to run twenty-eight lines BEFORE the flags were fetched — so
-  // Daily Closing was gated on `null` and never appeared. A flag that arrives
-  // late is indistinguishable from a flag that is false.
-  //
-  // The fix costs nothing in wall time because the fetch is kicked off HERE,
-  // where it overlaps the seven cache loads and _loadRoleContext() below, and
-  // is only awaited at the point its answer is actually needed. It never
-  // rejects — loadFeatureFlags() handles its own errors and sets `{}` — but
-  // the .catch() is kept so a future edit inside it cannot take the login
-  // path down with it.
-  const _flagsLoaded = (typeof loadFeatureFlags === 'function')
-    ? loadFeatureFlags().catch(e => {
-        console.error('[login] feature flags failed; continuing', e);
-        window._featureFlags = window._featureFlags || {};
-        window._featureFlagsReady = true;
-      })
-    : Promise.resolve();
+  // ── The shell context: STARTED HERE, awaited just before buildSB() ────────
+  // Feature flags and cobranding — everything buildSB() and the first render
+  // need. Started here so it overlaps the cache loads below, and awaited only
+  // where its answer is needed. tryRestoreSession() calls exactly the same
+  // pair; see startShellContext() in js/pages/company-branding.js for why that
+  // matters and what it cost when only this path had them.
+  if (typeof startShellContext === 'function') startShellContext();
 
   // Each loader returns false on failure (and console.errors). Record failures in
   // window._cacheLoadFailed so a failed fetch is distinguishable from a genuinely
@@ -401,14 +389,8 @@ async function _completeLogin(user, company) {
   if(typeof startLeakGuard === 'function') startLeakGuard();
   await _loadRoleContext(company.id, user.id, user.role);   // hasFinanceUser + assignedProjectIds for buildSB / data filters
 
-  // The flags have had the whole cache-loading phase to arrive. Wait for them
-  // here, but NEVER unboundedly: a slow or hanging request must not hold the
-  // shell hostage for every tenant. If the bound is hit, buildSB() runs without
-  // them and _reapplyFeatureGatedUI() rebuilds the sidebar when they land.
-  await Promise.race([
-    _flagsLoaded,
-    new Promise(r => setTimeout(r, 1200)),
-  ]);
+  // It has had the whole cache-loading phase to arrive. Bounded, always.
+  if (typeof awaitShellContext === 'function') await awaitShellContext(1200);
 
   buildSB();
   if(typeof buildProjectSwitcher === 'function') buildProjectSwitcher();   // topbar active-project lens
@@ -437,10 +419,11 @@ async function _completeLogin(user, company) {
   _registerSession();   // record this device/session in user_sessions (create_session RPC)
   _startSessionHeartbeat();   // keep last_seen_at fresh → powers "time on system"
   _logAuthEvent(company.id, { event_type:'login_success', user_id:user.id, username:user.username });
-  if (typeof loadCobranding    === 'function') loadCobranding();
-  // loadFeatureFlags() used to be called HERE — after buildSB() and after
-  // nav('dashboard'), which is why a default-closed module could never appear.
-  // It is started at the top of this function now and awaited before buildSB().
+  // loadCobranding() and loadFeatureFlags() were both called HERE — after
+  // buildSB() and after nav('dashboard'). That is why a default-closed module
+  // could never appear, and why the company chip showed the brand name only
+  // some of the time. Both are in startShellContext() now, at the top of this
+  // function, and tryRestoreSession() calls the same one.
   _loadSubscription();
 }
 
@@ -667,8 +650,12 @@ function doLogout(reason){
   S=null;_coid=null;_navStack=[];_navBack=false;
   localStorage.removeItem('nxn_sess');
   window._featureFlags = null;
-  // …and the two markers that go with it, or the next login would believe the
-  // flags were already known and skip the rebuild that repairs a late arrival.
+  // …and everything that goes with it. Without clearing __shellCtx the next
+  // login would reuse the PREVIOUS tenant's in-flight promise and never fetch
+  // its own flags or branding; without the markers it would believe the flags
+  // were already known and skip the rebuild that repairs a late arrival.
+  window._cobranding = null;
+  window.__shellCtx = null;
   window._featureFlagsReady = false;
   window._sbBuiltWithoutFlags = false;
   window._cobranding   = null;

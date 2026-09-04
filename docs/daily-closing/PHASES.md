@@ -349,6 +349,54 @@ exactly like a passing test.
 `_completeLogin()`, and covers flags-on-time, flags-late (the shell must repair itself),
 flags-failed (the shell must survive), and a tenant with no flags at all.
 
+## SR-6 · A fix verified on one entry path is unverified on every other
+
+**Rule.** Before a fix is called done, name every way the code under it can be entered, and
+say which of them the test actually drove. The ones it did not drive are not "probably fine" —
+they are **untested**, and if the bug was an omission rather than a mistake, the untouched
+entry point is exactly where the omission still lives.
+
+**What it cost.** The SR-5 boot test above was written to catch the feature-flag ordering bug,
+and it did: it drove the real `_completeLogin()`, seeded nothing, and went red on the unfixed
+code. The fix shipped. **The module was still invisible on the pilot.**
+
+RMS reaches the app shell two ways, and they are separate code:
+
+| | | |
+|---|---|---|
+| fresh login | `_completeLogin()` | `js/auth.js` |
+| returning visit | `tryRestoreSession()` | `js/init.js` |
+
+The second is what a hard refresh runs — which is how the owner, and every user of every
+tenant, actually arrives. It had never loaded the feature flags in its life
+(`grep -c loadFeatureFlags js/init.js` → `0`), so the ordering fix could not help it: there
+was no order to get wrong. A nineteen-assertion suite went green on a fix applied to half the
+app, and the owner found the other half by opening the site.
+
+**Why it is the same family as SR-2 and SR-5.** All three are a green suite that cannot see
+the failure. SR-2 is a detector that never fires; SR-5 is a harness that hands over the state
+whose acquisition is the bug; SR-6 is a harness pointed at the door the bug is not behind. In
+each case the assertions are correct and the coverage is imaginary.
+
+**How to apply.**
+
+- Before fixing, `grep` for every caller and every entry point, and **write the list down**.
+  Two boot paths, a page-load and a `nav()`, an RPC and the edge function that wraps it, a
+  cron and the manual button beside it — these are the usual shapes.
+- Fix it **once, in one place**, and have every entry point call that place. `startShellContext()`
+  exists for exactly this: the next thing the shell needs cannot be added to only one path,
+  because there is only one path to add it to.
+- Drive each entry point in the harness. Not a variant of one — the actual other function.
+- Prove each one is a detector, per SR-2. `verify-daily-closing-boot.js` serves `js/init.js`
+  a second time with the two shell-context lines stripped out by its own server, and asserts
+  the restore-path checks go **red** against it. Generated from the real file, so it cannot rot.
+- If an entry point is deliberately left unfixed, say so where the finding lives, not in a
+  commit message. See Finding 2026-09-04-A in ARCHITECTURE_NOTES.md.
+
+**Where it is done:** `scripts/verify-daily-closing-boot.js` sections 6-8 — the returning
+visit, the same visit against the unfixed file, and the KBH/FMH shape on that path too.
+
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner

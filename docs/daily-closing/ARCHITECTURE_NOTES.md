@@ -18,6 +18,8 @@ from the RMS Supabase project `itqxljtfbrppntgyfush` via MCP on 2026-09-03.
 | Language | ES5/ES2017 **vanilla JavaScript**, classic `<script>` tags. No modules, no bundler, no transpile step. | `login.html:2480-2570` (37 eager `<script src=…>` tags); `js/lazy-pages.js` (hand-rolled loader) |
 | Framework | **None.** Pages are functions named `rXxx()` that write `innerHTML` into a `<div class="pg" id="pg-…">`. | `js/ui.js:1000` (`const fns={dashboard:W.rDash, …}`) |
 | App shell | `login.html` (2,784 lines) — login screen **and** the whole application shell in one file. `index.html` is the marketing site; `app.html` is the three-product launcher. | `login.html`; `js/lazy-pages.js:19-25` ("STAYS EAGER … loaded in login.html") |
+| **Production URL** | **`https://rms.nexunova.com`** — the shell is `https://rms.nexunova.com/login.html`. Served from `main` via Vercel; a push is a deploy. Recorded 2026-09-05, because it was nowhere in the repo and a diagnosis needed it. | owner, 2026-09-05 |
+| **Two boot paths, not one** | A **fresh login** runs `_completeLogin()` (`js/auth.js:310`). A **returning visit** runs `tryRestoreSession()` (`js/init.js:33`) off `localStorage.nxn_sess`, and that path does **not** call ten of the things the login path does — see §"Two boot paths" below. Anything the shell needs at build time must be in **both**. | `js/auth.js:310`, `js/init.js:33` |
 | Desktop | Electron thin wrapper around the same web app. | `main.js`, `package.json:"main":"main.js"`, `electron/` |
 | ORM | **None.** No Prisma/Sequelize/Knex/TypeORM anywhere. | `package.json` devDependencies = electron, electron-builder, puppeteer-core, xlsx only |
 | DB engine | **PostgreSQL 15+ on Supabase** (project ref `itqxljtfbrppntgyfush`). | `.mcp.json:8`; live `get_project_url` → `https://itqxljtfbrppntgyfush.supabase.co` |
@@ -521,3 +523,135 @@ Detailed mapping proposals are at the end of RULES.md; this is the index.
 | 11 | Own `audit_log` table | `audit_logs` exists, is append-only, and is trigger-driven | Medium — reuse |
 | 12 | Own `qb_accounts` master | Nothing exists. `banks` is company-scoped; `project_bank_accounts` is project-scoped but has no UI | New build |
 | 13 | "RMS has a client ledger to feed" | It does (`get_client_ledger`). The standing rule was *"RMS does not deal with financials — QuickBooks does"*; **the owner has deliberately reversed it for this module only (RULES §0.1): cash book yes, general ledger / P&L / balance sheet / financial statements never** | Resolved — with a standing guard |
+
+---
+
+# Two boot paths, and the ten things only one of them does
+
+**Discovered 2026-09-05**, while diagnosing why Daily Closing was invisible on the pilot.
+
+RMS has **two** ways to arrive at the application shell, and they are not the same code:
+
+| | Fresh login | Returning visit |
+|---|---|---|
+| Entry point | `_completeLogin()` — `js/auth.js:310` | `tryRestoreSession()` — `js/init.js:33` |
+| Triggered by | typing credentials and pressing Sign In | any page load with a valid Supabase session and `localStorage.nxn_sess` |
+| How often, in practice | **rarely** — once per device, per password change | **almost always**, including every hard refresh |
+
+`tryRestoreSession()` rebuilds `S` from `localStorage`, reloads the caches, calls
+`_loadRoleContext()` and `buildSB()`, and navigates — and then stops. It does **not** call:
+
+| Not called on a restored session | Consequence observed / expected |
+|---|---|
+| ~~`loadFeatureFlags()`~~ **FIXED 2026-09-04** | **`window._featureFlags` stayed `undefined` for the whole session.** Any DEFAULT-CLOSED gate read false for ever. This is what hid Daily Closing. Now loaded by `startShellContext()` on both paths. |
+| ~~`loadCobranding()`~~ **FIXED 2026-09-04** | `window._cobranding` stayed empty, so `coDisplayName()` fell through to `S.coName` — the **legal** name instead of the brand. Awami Market's `display_name` is "Fourteen Group of Companies", so the same tenant was labelled differently depending on which path booted it. Now loaded by `startShellContext()` on both paths. |
+| `_loadSubscription()` | not diagnosed |
+| `_startSessionCheck()` | **diagnosed, NOT fixed — see Finding 2026-09-04-A below** |
+| `_startIdleTimer()` | **diagnosed, NOT fixed — see Finding 2026-09-04-A below** |
+| `_registerSession()` | partly self-heals — also re-run on `visibilitychange` (`auth.js:550`) and on auth state change (`:562`) |
+| `_startSessionHeartbeat()` | see above |
+| `_checkPlatformAnnouncements()` | not diagnosed |
+| `buildProjectSwitcher()` | not diagnosed |
+| `_logAuthEvent()` | probably deliberate — a restore is not a login event |
+
+**Only the first two were fixed here.** The rest are outside this module and are listed so
+the gap is on the record, not because each one is known to be a defect — some are plainly
+intentional. Two of them (`_startSessionCheck`, `_startIdleTimer`) were looked at closely
+enough to be certain they are wrong; they are written up below and deliberately left alone.
+
+## The rule this establishes
+
+> **Anything the shell needs at build time must be loaded on BOTH paths.**
+> A feature gate, a branding lookup, a permission set, a config object: if `buildSB()`,
+> `nav()` or a page renderer reads it, and only `_completeLogin()` fetches it, then it works
+> for the developer who just logged in and fails for every user who simply opened the app.
+
+That asymmetry is also why the failure was so hard to see from the inside: a developer testing
+a change signs in, hits the path that works, and never meets the one everybody else uses.
+
+
+---
+
+# Finding 2026-09-04-A — restored sessions never start their security timers
+
+> **UNTRIAGED. OUTSIDE THE DAILY CLOSING SCOPE. NOT FIXED, DELIBERATELY.**
+> It is recorded here only because this is where it was found. It touches
+> **every tenant** — KBH, FMH, Fourteen Group, Awami — and every user of all of
+> them, so it deserves its own review and its own piece of work rather than a
+> ride along a module fix. Nothing in this document authorises changing it.
+
+## What was found
+
+`_startSessionCheck()` and `_startIdleTimer()` are called from exactly one place:
+
+| | |
+|---|---|
+| `js/auth.js:417` | `_startSessionCheck();` |
+| `js/auth.js:418` | `_startIdleTimer();` |
+
+Both lines are inside `_completeLogin()` — **the fresh-sign-in path only**.
+`tryRestoreSession()` (`js/init.js:33`) never calls either one, and no other file
+does; `grep -rn '_startSessionCheck(|_startIdleTimer(' js/` returns those two call
+sites, the two declarations (`js/auth.js:701`, `js/auth.js:816`) and one re-arm
+inside `_setIdleTimeoutMin()` (`js/auth.js:928`), which itself only runs when an
+admin changes the setting *in an already-timered session*.
+
+A restored session is how everybody normally arrives: every hard refresh, every
+reopened tab, every return to an open browser. A fresh login happens once, and then
+usually only after a sign-out or a password change.
+
+## What that means, precisely
+
+**1 · The idle timeout does not run.**
+`_startIdleTimer()` is what binds the six activity listeners and schedules the
+logout (`js/auth.js:816-823`). Without it `_idleActive` stays `false`, no timer is
+scheduled, and the 60-second warning bar can never appear. A restored tab left open
+is never signed out, however long it sits.
+
+**2 · The persistent check measures from a stamp that stopped moving.**
+This is the part that is easy to miss. `_stampActive()` — which writes
+`localStorage.nxn_active` — is called from exactly one place, `_resetIdleTimer()`
+at `js/auth.js:839`, and `_resetIdleTimer` is only ever bound as a listener *by
+`_startIdleTimer()`*. So on a restored session **nothing ever stamps the clock**.
+
+`tryRestoreSession()` does apply the rule once, at boot (`js/init.js:46`,
+`_idleTooLong()`) — but it compares `Date.now()` against a stamp last written
+during the user's most recent *fresh login* session. Someone who signs in on Monday
+and then works for a week through reopened tabs is measured against Monday. With
+the default of one week (`_IDLE_DEFAULT_MIN = 7 * 24 * 60`, `js/auth.js:894`) that
+surfaces as an eviction that looks arbitrary — heavy use does not postpone it,
+because heavy use is not being recorded.
+
+So the timeout is wrong in both directions at once: it does not fire when it should
+(inside a long-lived restored tab) and it does fire when it should not (on a return
+after a week of daily use).
+
+**3 · Session-validity polling does not run.**
+`_startSessionCheck()` schedules `_checkSessionValidity()` every five minutes
+(`js/auth.js:701-705`), which is what signs a user out after their password is
+changed or their `session_version` is bumped. On a restored session that poll never
+starts, so a revoked session keeps working until the tab is closed.
+
+## What is NOT affected
+
+`_registerSession()` and `_startSessionHeartbeat()` appear in the same list of
+skipped calls but **self-heal**: the IIFE at `js/auth.js:538-551` runs 1.8 s after
+DOMContentLoaded, finds the Supabase session and starts both. "Time on system" in
+the Command Center is therefore not affected by this finding.
+
+## How long this has existed
+
+Not established. `tryRestoreSession()` predates the security work that added the
+timers, so the likely shape is that the timers were added to the login path and the
+restore path was never revisited — the same shape as the feature-flag bug fixed
+above, found the same way.
+
+## Why it is not fixed here
+
+Calling the two functions from `tryRestoreSession()` is a two-line change and is
+almost certainly the right one. It is not made because the *consequence* is not
+two lines: it would start signing people out of KBH and FMH tabs that have never
+been signed out before, and it would change what `nxn_active` means for every
+existing browser that holds a stale stamp. That is a behaviour change to live
+tenants, which stops and asks. Rashid has it, flagged untriaged, to decide
+separately.

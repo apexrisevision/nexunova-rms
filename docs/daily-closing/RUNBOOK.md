@@ -465,6 +465,8 @@ node scripts/verify-daily-closing-attachment.js    # 17  a real file through the
 node scripts/verify-daily-closing-concurrency.js   #  8  two writers, one sequence
 node scripts/verify-daily-closing-security.js      # 26  auth, RLS, grants, signed URLs
 node scripts/verify-daily-closing-load.js          #     500 entries and the numbers above
+node scripts/verify-daily-closing-boot.js          # 32  BOTH boot paths, driven for real (SR-5, SR-6)
+node scripts/verify-daily-closing-isolation.js     # 18  a REAL foreign JWT over real HTTPS, refused
 ```
 
 Most run inside `BEGIN … ROLLBACK` and commit nothing. Four commit by necessity and say so in

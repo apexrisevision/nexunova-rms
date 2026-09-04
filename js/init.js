@@ -66,6 +66,20 @@ async function tryRestoreSession(){
     S=sess;_coid=sess.cid;
     if(typeof _installAuthGuard==='function')_installAuthGuard();
 
+    /* ── THE SHELL CONTEXT — the same one the login path loads ──────────────
+       This is the path almost everybody actually takes: any page load with a
+       valid session comes through here, including every hard refresh. It used
+       to call buildSB() below WITHOUT ever loading the feature flags or the
+       cobranding, so on a returning visit window._featureFlags stayed
+       undefined for the whole session — which made Daily Closing invisible on
+       the pilot, and made the company chip show the legal name instead of the
+       brand. A developer never sees it, because a developer has just logged in.
+
+       Started here so it overlaps the cache loads below; awaited with a bound
+       just before buildSB(). See startShellContext() in
+       js/pages/company-branding.js. */
+    if(typeof startShellContext==='function')startShellContext();
+
     // Route to payment wall if subscription not active
     const subStatus=sess.subStatus||'active';
     if(subStatus==='pending_payment'||subStatus==='payment_under_review'){
@@ -96,6 +110,10 @@ async function tryRestoreSession(){
     if(typeof updateCoLogo==='function')updateCoLogo();
     if(typeof startLeakGuard==='function')startLeakGuard();
     if(typeof _loadRoleContext==='function'){ try{ await _loadRoleContext(sess.cid, sess.userId, sess.role); }catch(_){} }  // refresh hasFinanceUser + assignedProjectIds on reload
+    // Bounded, exactly as on the login path: never let a slow fetch hold the
+    // shell. If the bound is lost, _reapplyFeatureGatedUI() repairs the sidebar
+    // and the company chip when the answer lands.
+    if(typeof awaitShellContext==='function'){ try{ await awaitShellContext(1200); }catch(_){} }
     buildSB();
     if(typeof initDemoBanner==='function')initDemoBanner();
     if(sess.onboardingComplete===false&&typeof OB!=='undefined'){OB.show(sess.cid);}

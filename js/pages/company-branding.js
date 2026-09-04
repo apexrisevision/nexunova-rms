@@ -67,6 +67,58 @@ async function loadFeatureFlags() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SHELL CONTEXT — everything buildSB() and the first render need, loaded
+   ONCE, on BOTH boot paths.
+   ──────────────────────────────────────────────────────────────────────────
+   RMS arrives at the app shell two ways, and they are different code:
+
+     fresh login      _completeLogin()      js/auth.js
+     returning visit  tryRestoreSession()   js/init.js   ← what everybody uses
+
+   On 2026-09-05 Daily Closing was invisible on the pilot for a week because
+   loadFeatureFlags() was called only from the first one. The same gap hid
+   loadCobranding(), which is why the company chip showed the legal name
+   ("Awami Market") on a restored session and the brand name ("Fourteen Group
+   of Companies") after a fresh login — the label was an accidental read-out
+   of which path had booted the shell.
+
+   THE RULE THIS ENFORCES: anything the shell needs AT BUILD TIME must load on
+   both paths. Not "should" — must, and from one place, so the next thing added
+   cannot be added to only one of them. Put it in here, and both paths get it.
+
+   Started early (it only needs S.cid) so it overlaps the cache loads, and
+   awaited with a BOUND just before buildSB() so a slow network can never hold
+   the shell hostage. If the bound is lost, _reapplyFeatureGatedUI() repairs
+   what was drawn without it. */
+function startShellContext() {
+  if (window.__shellCtx) return window.__shellCtx;          // once per page load
+  var jobs = [];
+  if (typeof loadFeatureFlags === 'function') {
+    jobs.push(loadFeatureFlags().catch(function (e) {
+      console.error('[shell-context] feature flags failed', e);
+      window._featureFlags = window._featureFlags || {};
+      window._featureFlagsReady = true;
+    }));
+  } else { window._featureFlagsReady = true; }
+  if (typeof loadCobranding === 'function') {
+    jobs.push(loadCobranding().catch(function (e) {
+      console.error('[shell-context] cobranding failed', e);
+    }));
+  }
+  window.__shellCtx = Promise.all(jobs);
+  return window.__shellCtx;
+}
+
+/* Wait for it, but never for longer than `ms`. Correctness does not depend on
+   winning this race — losing it costs one rebuild, not a wrong sidebar. */
+function awaitShellContext(ms) {
+  return Promise.race([
+    startShellContext(),
+    new Promise(function (r) { setTimeout(r, ms || 1200); }),
+  ]);
+}
+
 /* ── RECOVERY: the flags arrived after the shell was drawn ──────────────────
    _updateSidebarFeatureVisibility() can only ever HIDE an item that is already
    in the DOM — `if (!el) return;`. An item that was never created because the
@@ -79,6 +131,12 @@ async function loadFeatureFlags() {
    race against the bounded wait, and when it does the sidebar must repair
    itself rather than stay wrong until the next login. */
 function _reapplyFeatureGatedUI() {
+  // The company chip is drawn from _cobranding, which arrives with the flags.
+  // Refreshing it is unconditional and costs nothing: without this, a restored
+  // session that lost the race keeps showing the legal name for the whole
+  // session, which is the cosmetic half of the same bug.
+  try { if (typeof updateCoLogo === 'function') updateCoLogo(); } catch (_) {}
+
   if (!window._sbBuiltWithoutFlags) return;   // the shell already had the flags
   window._sbBuiltWithoutFlags = false;
 
