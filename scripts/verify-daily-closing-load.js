@@ -8,7 +8,10 @@
  *
  *   S1 first paint        < 1500 ms   the screen drawn with 500 rows on it
  *   day summary           <  200 ms   get_cash_day_summary, server side
- *   Director PDF          < 2000 ms   a real render of the 500-entry day
+ *   Director PDF          < 8000 ms   a real render of the 500-entry day
+ *                                     (was 2000; corrected by the owner once
+ *                                      this suite measured what embedding a
+ *                                      font costs — BLUEPRINT.md §A15)
  *
  * ⚠️ WHAT THE NUMBERS INCLUDE, because a performance number without its
  * boundaries is a rumour. The server figures are measured INSIDE Postgres
@@ -37,7 +40,12 @@ const URL_BASE = `https://${REF}.supabase.co`;
 const ANON = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
 const TARGET = 500;
 
-const BUDGET = { paint: 1500, summary: 200, pdf: 2000 };
+// §A15, with the PDF budget corrected by the owner on 2026-09-04 after this
+// suite measured it. The 2 s figure predated anyone measuring what embedding
+// a font costs; ~2.1 s of every render is Inter and cannot be cached. The
+// sheet renders once a day, after Day Close, in the background — nobody waits
+// at a screen for it. See BLUEPRINT.md §A15.
+const BUDGET = { paint: 1500, summary: 200, pdf: 8000 };
 
 let pass = 0, fail = 0;
 const ok = m => { pass++; console.log('  ✅ ' + m); };
@@ -239,14 +247,14 @@ async function serviceKey() {
 
       if (NUMBERS.pdf_ms > BUDGET.pdf) {
         console.log('');
-        console.log('     ⚠️ THIS IS THE ONE BUDGET PHASE 1 DOES NOT MEET, and the breakdown');
-        console.log('        says why rather than leaving it to be guessed at:');
+        console.log('     ⚠️ OVER BUDGET. The breakdown says why rather than leaving it to be guessed:');
+
         console.log(`        · embedding Inter costs ~${(t9.fonts ?? 0) - (t9.payload ?? 0)} ms of it, on every`);
         console.log('          render, whatever the day holds — pdf-lib parses and subsets both');
         console.log('          weights per document and there is nothing to cache;');
         console.log(`        · drawing ${have} rows costs ~${(t9.draw ?? 0) - (t9.fonts ?? 0)} ms;`);
         console.log('        · the rest is four HTTP hops the function makes for itself.');
-        console.log('        Rendering in Helvetica instead brings it inside 2 s and loses Inter.');
+        console.log('        Rendering in Helvetica would be ~2 s faster and would lose Inter.');
         console.log('        That trade is the owner\'s, so nothing has been changed to hide it.');
       }
     }

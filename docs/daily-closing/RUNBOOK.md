@@ -8,7 +8,123 @@ P&L, no balance sheet. QuickBooks stays the book of account (RULES §0.1).
 
 ---
 
-## 1 · What is deployed, and where
+## 1 · First day — walk the whole loop once, before any volume
+
+Seven steps, in the order you will actually do them. Do this on a quiet day with **one real
+entry**, not a made-up one — the point is to see the whole loop close, not to test.
+
+Everywhere below, **`<rms>`** is the address you normally open RMS at.
+
+---
+
+**1 · Sign in.**  →  `<rms>/login.html`
+
+Sign in to **Awami Market** as yourself. You hold `owner`, which the module reads as **CFO**, so
+you can do every step below without any further setup.
+
+---
+
+**2 · Check the module is there.**
+
+After signing in you land on the Dashboard. You should see:
+
+- a **Daily Closing** tile directly under the page header, and
+- **Daily Closing** in the left sidebar, under **Sales & Money**, just after Record Payment.
+
+If neither is there, the feature flag is off for the tenant — see §2, "Switching it on". Nothing
+else in this list will work until it is on.
+
+---
+
+**3 · Set the opening balance — once, ever.**  →  click **Daily Closing** in the sidebar
+
+The screen will say there is no day open. Press **Open day**; because this project has no
+opening balance yet, it will offer the *Opening balance* dialog instead.
+
+- **Cash in hand: `0`**
+- **Bank balance: `0`**
+
+**Start at zero deliberately.** Every day afterwards carries forward from this figure and you
+cannot set it twice — a second attempt answers `ALREADY_SET`. Starting at zero means the cash
+book measures *movement from today*, and the real drawer balance is whatever Excel says until
+the parallel run agrees. If you would rather start at the true drawer figure, use it — but be
+certain of it, because it cannot be corrected without an adjustment.
+
+Press **Set opening balance**.
+
+---
+
+**4 · Open the day.**
+
+The screen returns and offers **Open day** again. Press it. You now have today's cash book, with
+the composer on the left and an empty ledger on the right.
+
+---
+
+**5 · Record one real entry.**
+
+Take one voucher out of the physical book — an expense is easiest for a first run — and enter it:
+
+| Field | What to put |
+|---|---|
+| Type | **Expense** |
+| Mode / Direction | **Cash** / **Out** |
+| Voucher # | the number printed in the book — it is **not** generated |
+| Amount | the amount |
+| Payee | start typing; if the vendor is not in the list, **+ Add** creates them |
+| QB Head | leave the suggested one unless it is genuinely wrong |
+| Narration | what it was for |
+
+Watch the chip beside Mode/Direction: it should read **CPV**. That is derived — if it disagrees
+with the book, the Mode or the Direction is wrong, not the chip.
+
+Press **Save** (or Enter in Narration). The entry appears in the ledger with sequence number 1.
+
+---
+
+**6 · Close the day.**  →  **Close Day**, top right
+
+A panel opens on the right, 480 px, with the ledger still visible beside it.
+
+- **Book says** shows what the cash book expects the drawer to hold.
+- Count the drawer and enter the notes — 5,000 × how many, 1,000 × how many, and so on. The
+  **Recorded as** figure fills in as you go.
+- If the drawer holds coins, type the true figure over it.
+- If your count differs from the book, a variance banner appears and **Close will not enable
+  until you write why**. Write what actually happened.
+- Press **Close the day**, confirm, and wait a few seconds.
+
+---
+
+**7 · Open the sheet.**
+
+The panel finishes on **Closed · PDF ready**, with **Download** and **Share**. Press **Download**
+and open it.
+
+Check the top line reads **FOURTEEN GROUP · AWAMI MARKET**, the date is right, and the closing
+cash matches what you counted. That PDF is what the Directors get. The link works for ten
+minutes; the sheet itself is kept for ever and can be reopened any time from **Days**.
+
+---
+
+### If you get stuck
+
+| What you see | What it means |
+|---|---|
+| No sidebar item and no tile | The feature flag is off — §2 |
+| "You do not have access to the cash book" | Your account has no Daily Closing role — §2, "The accounts" |
+| **Close Day** is not there | You are not being read as CFO; check your role |
+| Close stays greyed out | The count differs from the book and the reason is empty |
+| The sheet is in a plain typeface | Inter is not in the bucket — `node scripts/upload-inter-fonts.js` |
+
+Everything else, by error code, is in §8.
+
+> **Before you start recording client money**, read the rule at the top of §5. It is the one
+> thing in this runbook that cannot be undone easily if it is got wrong.
+
+---
+
+## 2 · What is deployed, and where
 
 | Piece | Where it lives |
 |---|---|
@@ -76,7 +192,7 @@ give them one of the four roles above; do not widen the gate.
 
 ---
 
-## 2 · The setup opening — once per project, ever
+## 3 · The setup opening — once per project, ever
 
 Before the first day can be opened, the CFO sets the opening cash and bank balance. This is
 recorded as a **closed day** with `is_setup_opening = true`, so carry-forward has exactly one
@@ -92,7 +208,7 @@ invariant 2 means the opening of a day is derived, never typed.
 
 ---
 
-## 3 · The daily procedure
+## 4 · The daily procedure
 
 ### The cashier, during the day
 
@@ -125,7 +241,54 @@ close or adjust — and the server refuses, not just the screen.
 
 ---
 
-## 4 · The Excel parallel run — the 14-day gate
+## 5 · The Excel parallel run — the 14-day gate
+
+> # ⛔ THE ONE RULE THAT MATTERS MOST
+>
+> ## During the parallel run, client receipts are entered in ONE place: Daily Closing.
+>
+> **RMS's own Record Payment is not used for Awami. By anyone. For any reason.**
+> Not "usually not". Not "unless it is easier". Not once.
+>
+> ### Why, in plain language
+>
+> Both screens take a client's money and credit the client. Right now they do **not** know about
+> each other: the cash book records the receipt in the day, and Record Payment records it against
+> the installment. Enter the same money in both and **the client is credited twice.**
+>
+> ### Why that is worse than it sounds
+>
+> A double credit does not announce itself. Nothing turns red, no report flags it, and the day
+> still closes and balances — because each screen is individually correct about what it was told.
+> The error surfaces weeks later, when a customer who has paid four installments is shown as
+> having paid five, and asks why he is being told he owes less than he does. **It is found by an
+> angry customer, not by a report.** Unwinding it means voiding entries, reversing a payment, and
+> explaining to that customer why his statement was wrong.
+>
+> ### What to do instead
+>
+> | The money | Where it goes |
+> |---|---|
+> | A client's installment, in cash or by cheque | **Daily Closing only.** Record it as a CLIENT_RECEIPT with the unit. It sits `PENDING` until Phase 2 applies it. |
+> | An expense, a transfer, a loan | Daily Closing only. It was never Record Payment's job. |
+> | A payment on **Khushal Bagh or FMH** | Record Payment, exactly as today. Those tenants do not have the cash book and are unaffected. |
+>
+> ### When this rule ends
+>
+> **When Phase 2 lands** and the module posts to the client ledger itself. Until then the two
+> routes are separate books that both think they are right, and only a rule keeps them apart.
+>
+> ### Why a rule is enough, for now
+>
+> **Nothing in the code enforces this.** It cannot be, in Phase 1: Record Payment belongs to the
+> rest of RMS and blocking it for one tenant would change a screen Khushal Bagh and FMH use every
+> day. What makes a rule sufficient is that **Awami has one user today** — the CFO. One person,
+> one habit. The day a second person records money on Awami, this rule has to be told to them
+> before they are given the login, and it is the first thing to revisit if the pilot widens.
+>
+> *(This is RULES.md (b) Q8, answered by the owner on 2026-09-04.)*
+
+---
 
 Phase 1 is **not finished when the code ships**. It is finished when the module and the existing
 Excel sheet agree for fourteen consecutive business days.
@@ -172,7 +335,7 @@ still open, and it is the one open question that touches the parallel run direct
 
 ---
 
-## 5 · Performance, measured
+## 6 · Performance, measured
 
 Measured on **500 entries in one day**, ZZTEST, 2026-09-04. Rerun with
 `node scripts/verify-daily-closing-load.js`; the numbers are written to
@@ -185,7 +348,7 @@ Measured on **500 entries in one day**, ZZTEST, 2026-09-04. Rerun with
 | `get_daily_closing_tile` | **18 ms** | — | reported |
 | `list_cash_entries` (500) | **137 ms** | — | reported |
 | `list_cash_day_audit` (200) | **215 ms** | — | reported |
-| Director PDF, 500 entries | **5446 ms** | 2000 ms | ❌ **over** |
+| Director PDF, 500 entries | **5446–6714 ms** | 8000 ms | ✅ |
 
 **How these were measured.** The server figures come from `EXPLAIN ANALYZE`'s own Execution
 Time, so they are the query's cost and not the round trip — from a laptop in Peshawar one round
@@ -193,7 +356,7 @@ trip to the Supabase region is ~2.5 s, which would swamp every budget and measur
 The paint figure is Chrome, from mount to the last ledger row on screen. The PDF figure is the
 edge function's own clock, not the wall clock from here.
 
-### The PDF budget is not met, and this is why
+### Where the PDF time goes, and why the budget is 8 s
 
 The renderer reports its own phases:
 
@@ -207,14 +370,28 @@ payload 654 ms · fonts 2743 ms · draw 3850 ms · save 3961 ms · total 5446 ms
 - The remainder is four HTTP hops the function makes for itself. The version row and the signed
   link are already fetched in parallel; the payload read and the upload cannot be.
 
-**A normal day renders in about 3.5 s**, of which 2.1 s is the typeface. Rendering in
-**Helvetica instead brings it inside 2 s and loses Inter** — that trade belongs to the owner and
-nothing has been changed to hide the miss. Pre-subsetting Inter to the ~120 glyphs the sheet
+**A normal day renders in about 3.5 s**, of which 2.1 s is the typeface.
+
+**The budget was 2 s, and 2 s was a guess.** It was written before anyone had measured what
+embedding a font costs. The owner corrected it to **8 s** on 2026-09-04, with the reasoning
+recorded in `BLUEPRINT.md` §A15: the sheet renders **once a day, after Day Close, in the
+background** — nobody sits at a screen waiting for it — so forcing Helvetica and losing the
+typeface §A13 asks for, to save four seconds nobody experiences, would have been the wrong trade.
+It was the budget that was wrong, not the renderer.
+
+**Deliberately not optimised.** The fonts are not cached and nothing here has been tuned. If a
+real day ever takes uncomfortably long, revisit it then — with a measurement, as this was.
+
+**Expect the figure to move.** Two runs an hour apart gave 5446 ms and 6714 ms for the same
+500-entry day: the edge region's load and whether the isolate is warm both matter. 8 s is a
+ceiling with room in it, not a typical value — if a render ever exceeds it, that is a signal
+worth following rather than noise.
+Pre-subsetting Inter to the ~120 glyphs the sheet
 actually uses would fix it properly and needs a font tool this repo does not have.
 
 ---
 
-## 6 · Rollback
+## 7 · Rollback
 
 **Nothing in this module touches an existing RMS table's data.** Rolling it back is switching it
 off, not undoing writes.
@@ -235,7 +412,7 @@ rollback.
 
 ---
 
-## 7 · Troubleshooting, by error code
+## 8 · Troubleshooting, by error code
 
 Every service answers `{ success: false, error: '<CODE>', message: '<sentence>' }`. The codes
 are §A9's.
@@ -270,7 +447,7 @@ are §A9's.
 
 ---
 
-## 8 · The tests, and what each one is for
+## 9 · The tests, and what each one is for
 
 ```bash
 node scripts/verify-daily-closing-schema.js        # 22  the tables and the invariant mechanisms
@@ -301,7 +478,7 @@ table-wide.
 
 ---
 
-## 9 · What is carried into Phase 2
+## 10 · What is carried into Phase 2
 
 Listed so the parallel run starts with its eyes open. Full text in `RULES.md` (b).
 
@@ -312,6 +489,6 @@ Listed so the parallel run starts with its eyes open. Full text in `RULES.md` (b
 | Q4 | Voucher books — one series per project or per company | Phase 1 enforces `UNIQUE(project, type, no)`, which is the stricter of the two. |
 | Q5 | Does the client receipt replace or duplicate the existing one | Phase 2 owns `client_receipts`. Phase 1 does not print a client receipt. |
 | Q7 | Paisa: displayed or not | Phase 1 shows paisa only when non-zero. Every RMS formatter rounds to 0 dp; the two differ and nobody has been bitten yet. |
-| **Q8** | **Double entry during the parallel run** | **This one touches the parallel run directly — decide before day one.** See §4. |
-| — | The PDF's 2 s budget | Measured at 5.4 s for 500 entries; ~2.1 s of it is Inter. Needs an owner decision (§5). |
+| ~~Q8~~ | ~~Double entry during the parallel run~~ | **✅ ANSWERED 2026-09-04.** Client receipts go in Daily Closing **only**; Record Payment is not used for Awami until Phase 2. The rule, and why it matters, is at the top of §5. |
+| ~~—~~ | ~~The PDF's 2 s budget~~ | **✅ ANSWERED 2026-09-04.** The budget was a guess made before the measurement; it is **8 s** now, Inter stays, and nothing is optimised until a real day feels slow. §A15. |
 | — | `audit_logs` grants a bare `SELECT` to `anon` | Inert behind RLS deny-all; revoking touches a table KBH and FMH use. Decision recorded in `SCHEMA.md`. |

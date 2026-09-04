@@ -167,7 +167,36 @@ audit_log            id, project_id, entity, entity_id, action, actor_id, before
 | **Idempotency** | `RecordEntry` requires a client-generated `idempotency_key`; duplicate returns the original. `ExportDay` idempotent by day. `RecognizeRevenue` idempotent by unit. `CloseDay` uses `cash_days.version` optimistic lock. |
 | **Concurrency** | Two cashiers on one device or two devices: safe by seq_no locking + idempotency keys. Close while an entry is mid-save: entry insert checks status inside the same lock; loser gets `DAY_LOCKED`. |
 | **Attachments** | jpg/png/pdf ≤ 10 MB; private storage; signed URLs (10 min); RMS's scanner if present. |
-| **Performance** | Day Workspace first paint < 1.5 s with 500 entries; PDF render < 2 s; dashboard counters one indexed query each. |
+| **Performance** | Day Workspace first paint < 1.5 s with 500 entries; PDF render **< 8 s** (corrected 2026-09-04 — see below); dashboard counters one indexed query each. |
+
+> ### ⚠️ Correction — the PDF budget was 2 s, and 2 s was a guess
+>
+> **Corrected by the owner, 2026-09-04, after P10 measured it:** the Director PDF budget is
+> **8 seconds**, not 2.
+>
+> The 2 s figure was written before anyone had measured what embedding a font costs. The
+> measured cost, at 500 entries on one day:
+>
+> ```
+> payload 654 ms · fonts 2743 ms · draw 3850 ms · save 3961 ms · total 5446 ms
+> ```
+>
+> **~2.1 s of every render is embedding Inter**, whatever the day holds — pdf-lib parses and
+> subsets both weights per document and there is nothing to cache between renders. 500 entries
+> add ~1.1 s on top; a normal Awami day of 20–40 entries adds a tenth of that, so a real day
+> renders in about 3.5 s.
+>
+> **Why 8 s is the right number rather than a surrender.** The sheet is rendered **once per
+> day, after Day Close, in the background**. Nobody sits at a screen waiting for it: the panel
+> shows "Closed" and the sheet arrives. A budget that would have forced Helvetica — losing the
+> typeface §A13 asks for — to save four seconds nobody experiences was the wrong trade, and it
+> was the *budget* that was wrong, not the renderer.
+>
+> **Deliberately not done:** the fonts are not cached and nothing here is optimised. If a real
+> day ever takes uncomfortably long, revisit it then — with a measurement, as this was.
+>
+> Measured by `scripts/verify-daily-closing-load.js`; the numbers land in
+> `docs/daily-closing/RUNBOOK.md` §6.
 | **Observability** | Structured log per domain event; counters: `entries_recorded`, `days_closed`, `exports_generated`, `pdf_render_ms`. |
 
 ## A8. API contract (Phase 1)
