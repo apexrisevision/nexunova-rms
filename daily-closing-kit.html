@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Closing — Ledger kit</title>
+<meta name="robots" content="noindex, nofollow">
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     DAILY CLOSING — the "Ledger" kit, on its own page.
+
+     A story page, not a business screen: every component of BLUEPRINT §A11
+     with its states, so the design can be judged before a single real screen
+     is built on it. P6 is where the Day Workspace arrives.
+
+     WHY A STANDALONE FILE. login.html is the RMS shell that Khushal Bagh and
+     FMH open every morning. Adding a route to it to show a component gallery
+     would put module markup, module CSS and a module nav key into the file
+     they depend on, two prompts before any of it is needed. This page loads
+     the same tokens.css the app loads, so the mapping is real rather than
+     approximated, and touches nothing else.
+
+     GATED. It reads the signed-in RMS session from localStorage and asks the
+     database for the company's feature flags. Without daily_closing it shows
+     a locked notice and no kit.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/foundation/tokens.css">
+<link rel="stylesheet" href="css/daily-closing.css">
+
+<style>
+  /* Page chrome only — the kit itself owns nothing here. */
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--fk-bg-page,#F1F5F9);
+       font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--fk-text,#0F172A)}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+  header.pg{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:8px}
+  h1{font-size:20px;font-weight:600;margin:0}
+  .sub{color:var(--fk-text-muted,#64748B);font-size:13px;margin:0 0 24px}
+  section{margin:32px 0}
+  h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+     color:var(--fk-text-muted,#64748B);margin:0 0 4px}
+  .note{font-size:12px;color:var(--fk-text-muted,#64748B);margin:0 0 12px}
+  .panel{background:var(--fk-bg-card,#fff);border:1px solid var(--fk-border,#E2E8F0);
+         border-radius:12px;padding:20px}
+  .grid{display:grid;gap:20px}
+  @media(min-width:900px){.grid-2{grid-template-columns:1fr 1fr;align-items:start}}
+  .states{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+  .state{display:flex;flex-direction:column;gap:6px}
+  .state small{font-size:11px;color:var(--fk-text-muted,#64748B);text-transform:uppercase;letter-spacing:.06em}
+  .bar{display:flex;gap:8px;align-items:center}
+  .toggle{appearance:none;font:inherit;font-size:12px;padding:6px 12px;border-radius:8px;
+          border:1px solid var(--fk-border,#E2E8F0);background:var(--fk-bg-card,#fff);
+          color:var(--fk-text,#0F172A);cursor:pointer}
+  /* The "inside a simulated RMS page shell" view — the real sidebar+topbar
+     proportions, so the kit is judged in the place it will actually live. */
+  .shell{display:grid;grid-template-columns:220px 1fr;border:1px solid var(--fk-border,#E2E8F0);
+         border-radius:12px;overflow:hidden;background:var(--fk-bg-card,#fff)}
+  .shell aside{background:var(--fk-bg-sidebar,#fff);border-right:1px solid var(--fk-border,#E2E8F0);padding:16px 12px}
+  .shell .nv{font-size:13px;color:var(--fk-text-muted,#64748B);padding:8px 10px;border-radius:8px}
+  .shell .nv.on{background:rgba(79,70,229,.10);color:var(--fk-primary,#4F46E5);font-weight:600}
+  .shell .tb{height:52px;border-bottom:1px solid var(--fk-border,#E2E8F0);display:flex;
+             align-items:center;padding:0 20px;font-size:14px;font-weight:600}
+  .shell .bd{padding:20px;background:var(--fk-bg-page,#F1F5F9)}
+  @media(max-width:640px){.shell{grid-template-columns:1fr}.shell aside{display:none}}
+  #gate{max-width:560px;margin:80px auto;text-align:center;padding:32px}
+  #gate h2{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fk-text,#0F172A);margin-bottom:8px}
+  code{font-size:12px;background:var(--fk-bg-subtle,#F8FAFC);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div id="gate" hidden>
+  <h2 id="gate-t">Checking access…</h2>
+  <p class="sub" id="gate-m">One moment.</p>
+</div>
+
+<div class="wrap" id="kit" hidden>
+  <header class="pg">
+    <div>
+      <h1>Daily Closing — “Ledger”</h1>
+      <p class="sub">BLUEPRINT §A11. Every component with its states. No business screen here — that is P6.</p>
+    </div>
+    <div class="bar">
+      <button class="toggle" id="t-theme" type="button">Dark</button>
+      <button class="toggle" id="t-toast" type="button">Fire a toast</button>
+    </div>
+  </header>
+
+  <section>
+    <h2>Hero figures</h2>
+    <p class="note">Label over value, 40/44 at 600, tabular. <code>aria-live="polite"</code> so the closing figure is announced when it moves.</p>
+    <div class="panel"><div class="dc"><div class="dc-hero-row" id="d-hero"></div></div></div>
+  </section>
+
+  <section>
+    <h2>Status &amp; voucher chips</h2>
+    <p class="note">Colour is never the only signal — CLOSED carries a lock. The voucher chip is derived from mode + direction and updates the instant both are set.</p>
+    <div class="panel"><div class="dc"><div class="states" id="d-chips"></div></div></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div>
+      <h2>Segmented control</h2>
+      <p class="note">A real tablist. ← and → move between options; full width on mobile.</p>
+      <div class="panel"><div class="dc" id="d-seg"></div></div>
+    </div>
+    <div>
+      <h2>Money input</h2>
+      <p class="note">Right-aligned, 20/28, live thousands separators, <code>Rs</code> inside the field, numeric keypad on mobile. Letters are refused at the keystroke.</p>
+      <div class="panel"><div class="dc" id="d-money"></div></div>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <div>
+      <h2>Entity select</h2>
+      <p class="note">Typeahead over the master. Five recents first, “+ New payee” last. ↑ ↓ Enter Esc. Never accepts free text.</p>
+      <div class="panel"><div class="dc" id="d-entity"></div></div>
+    </div>
+    <div>
+      <h2>Suggested field</h2>
+      <p class="note">Change the account and the reason box slides in over 150 ms and becomes required, with an amber left border.</p>
+      <div class="panel"><div class="dc" id="d-sug"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ledger table</h2>
+    <p class="note">Hairline rows at 40 px, sticky header and totals, In green and Out rust. The voided row is struck through at 60% and links to its reversal — struck alone would say “gone”, and it is not gone, it is answered.</p>
+    <div class="panel"><div class="dc" id="d-ledger"></div></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div>
+      <h2>Variance banner</h2>
+      <p class="note">Amber, 3 px left border, icon, and the required field inline.</p>
+      <div class="panel"><div class="dc" id="d-variance"></div></div>
+    </div>
+    <div>
+      <h2>Denomination counter</h2>
+      <p class="note">5000 down to 10, line totals, sticky grand total. Type in a box and the counted figure moves.</p>
+      <div class="panel"><div class="dc" id="d-den"></div></div>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <div>
+      <h2>Lock badge, empty state</h2>
+      <div class="panel"><div class="dc" id="d-misc"></div></div>
+    </div>
+    <div>
+      <h2>Skeletons &amp; buttons</h2>
+      <p class="note">Grey blocks matching the final layout — no spinners on primary surfaces.</p>
+      <div class="panel"><div class="dc" id="d-skel"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Inside the RMS shell</h2>
+    <p class="note">The same components at the real sidebar and topbar proportions, so they are judged where they will live.</p>
+    <div class="shell">
+      <aside>
+        <div class="nv">Dashboard</div><div class="nv">Units</div><div class="nv">Clients</div>
+        <div class="nv on">Daily Closing</div><div class="nv">Reports</div>
+      </aside>
+      <div>
+        <div class="tb">Daily Closing</div>
+        <div class="bd"><div class="dc" id="d-shell"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="js/vendor/supabase-js-2.34.0.umd.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/foundation/dc-format.js"></script>
+<script src="js/foundation/dc-kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var F = window.DCFmt, K = window.DCKit;
+  var gate = document.getElementById('gate');
+  var kit  = document.getElementById('kit');
+
+  function deny(title, msg) {
+    gate.hidden = false;
+    document.getElementById('gate-t').textContent = title;
+    document.getElementById('gate-m').innerHTML = msg;
+  }
+
+  /* ── the flag gate ────────────────────────────────────────────────────
+     ?preview=1 renders the kit without a session. It shows only sample
+     data and reaches no tenant row, so it is safe for a screenshot run —
+     but it is NOT a way around the flag for anything real, because there
+     is nothing real on this page. */
+  function boot() {
+    var params = new URLSearchParams(location.search);
+    if (params.get('preview') === '1') return render();
+
+    var raw = null;
+    try { raw = localStorage.getItem('nxn_sess'); } catch (_) {}
+    if (!raw) {
+      return deny('Sign in first',
+        'Open <code>/login.html</code>, sign in to the Awami Market company, then come back to this page.');
+    }
+    var sess;
+    try { sess = JSON.parse(raw); } catch (_) { sess = null; }
+    if (!sess || !sess.cid) return deny('Sign in first', 'That session could not be read. Sign in again.');
+
+    // js/supabase.js is the app's own client — same URL, same publishable key,
+    // same auth-lock fix. Copying a key into this page would be a second place
+    // to update the day it rotates.
+    //
+    // It declares `const supabase`, which is a global LEXICAL binding, not a
+    // window property — window.supabase is the UMD library object, which has
+    // createClient and no rpc. So this reads the bare identifier.
+    var SB = (typeof supabase !== 'undefined' && supabase && supabase.rpc) ? supabase : null;
+    if (!SB) return deny('Could not reach the database', 'Reload the page from inside the app.');
+
+    SB.rpc('get_my_feature_flags').then(function (r) {
+      var on = Array.isArray(r.data) && r.data.some(function (x) {
+        return x.feature_key === 'daily_closing' && x.enabled !== false;
+      });
+      if (!on) {
+        return deny('Daily Closing is not switched on for this company',
+          'The <code>daily_closing</code> feature flag is off. It is on for Awami Market only.');
+      }
+      render();
+    }).catch(function () {
+      deny('Could not read the feature flags',
+        'Open this page from a signed-in browser, or append <code>?preview=1</code> to see the kit with sample data only.');
+    });
+  }
+
+  /* ── the story ───────────────────────────────────────────────────────── */
+  function render() {
+    gate.hidden = true; kit.hidden = false;
+
+    document.getElementById('d-hero').innerHTML =
+      K.heroFigure({ label: 'Closing cash', value: 90723, tone: 'in' }) +
+      K.heroFigure({ label: 'Closing bank', value: 51000 }) +
+      K.heroFigure({ label: 'Variance', value: -3, tone: 'out' }) +
+      K.heroFigure({ label: 'Entries', raw: '12' });
+
+    document.getElementById('d-chips').innerHTML =
+      ['OPEN','CLOSED','PENDING','POSTED','UNAPPLIED'].map(function (s) {
+        return '<div class="state"><small>' + s + '</small>' + K.statusChip(s) + '</div>';
+      }).join('') +
+      '<div class="state"><small>derived</small>' + K.voucherChip('CRV', { no: '0041' }) + '</div>' +
+      '<div class="state"><small>not yet</small>' + K.voucherChip(null) + '</div>' +
+      '<div class="state"><small>closed at</small>' + K.lockBadge({ at: '19:05', by: 'CFO' }) + '</div>';
+
+    var seg = document.getElementById('d-seg');
+    seg.innerHTML =
+      '<label class="dc-label" id="seg-l">Type</label>' +
+      K.segmented({ id: 'sg1', label: 'Entry type', value: 'CLIENT_RECEIPT', items: [
+        { value: 'CLIENT_RECEIPT', label: 'Receipt' }, { value: 'EXPENSE', label: 'Expense' },
+        { value: 'TRANSFER', label: 'Transfer' }, { value: 'LOAN_CAPITAL', label: 'Loan/Capital' },
+        { value: 'OTHER', label: 'Other', disabled: true }]}) +
+      '<div style="height:16px"></div>' +
+      '<label class="dc-label">Mode &amp; direction</label>' +
+      K.segmented({ id: 'sg2', label: 'Mode', value: 'CASH', items: [
+        { value: 'CASH', label: 'Cash' }, { value: 'BANK', label: 'Bank' }]}) +
+      '<div style="height:8px"></div>' +
+      K.segmented({ id: 'sg3', label: 'Direction', value: 'IN', items: [
+        { value: 'IN', label: 'In' }, { value: 'OUT', label: 'Out' }]}) +
+      '<div style="height:16px"></div><div id="sg-chip">' + K.voucherChip('CRV') + '</div>';
+    var mode = 'CASH', dir = 'IN';
+    function chip() {
+      var map = { 'CASH|IN': 'CRV', 'CASH|OUT': 'CPV', 'BANK|IN': 'BRV', 'BANK|OUT': 'BPV' };
+      document.getElementById('sg-chip').innerHTML = K.voucherChip(map[mode + '|' + dir]);
+    }
+    K.bindSegmented(document.getElementById('sg1'));
+    K.bindSegmented(document.getElementById('sg2'), function (v) { mode = v; chip(); });
+    K.bindSegmented(document.getElementById('sg3'), function (v) { dir = v; chip(); });
+
+    document.getElementById('d-money').innerHTML =
+      K.moneyInput({ id: 'm1', label: 'Amount', value: 150000, required: true, hint: 'Try typing letters — they will not go in.' }) +
+      K.moneyInput({ id: 'm2', label: 'Amount (error)', value: 0, error: 'An entry needs a positive amount.' }) +
+      K.moneyInput({ id: 'm3', label: 'Amount (disabled)', value: 77000, disabled: true });
+    K.bindMoneyInput(document.getElementById('m1'));
+    K.bindMoneyInput(document.getElementById('m2'));
+
+    document.getElementById('d-entity').innerHTML =
+      K.entitySelect({ id: 'e1', label: 'Payee', required: true, placeholder: 'Type to search…' }) +
+      K.entitySelect({ id: 'e2', label: 'Payee (error)', error: 'That payee has been deactivated.' });
+    K.bindEntitySelect(document.getElementById('e1'), {
+      allowNew: true,
+      items: [
+        { id: 1, label: 'Yousaf Khan', recent: true }, { id: 2, label: 'PESCO', recent: true },
+        { id: 3, label: 'Sui Northern Gas', recent: true }, { id: 4, label: 'A. Khan (staff)', recent: true },
+        { id: 5, label: 'Cantonment Board Peshawar', recent: true },
+        { id: 6, label: 'Al-Habib Builders' }, { id: 7, label: 'Frontier Stationers' },
+        { id: 8, label: 'Khyber Security Services' }],
+      onPick: function (it) { K.toast(it.label + ' selected'); }
+    });
+
+    document.getElementById('d-sug').innerHTML = K.suggestedField({
+      id: 's1', label: 'QuickBooks head', value: '2020', defaultValue: '2020',
+      options: [{ value: '2020', label: '2020 · Advance from Customers' },
+                { value: '6050', label: '6050 · Office Rent' },
+                { value: '4090', label: '4090 · Other Income' }] });
+    K.bindSuggestedField(document.getElementById('s1'));
+
+    document.getElementById('d-ledger').innerHTML = K.ledgerTable({
+      rows: [
+        { seq: 1, voucherType: 'CRV', voucherNo: '0041', payee: 'Yousaf Khan', narration: 'Unit 915 · Installment #4', in: 150000 },
+        { seq: 2, voucherType: 'CPV', voucherNo: '0112', payee: 'PESCO', narration: 'Electricity bill', out: 77000 },
+        { seq: 3, voucherType: 'BRV', voucherNo: '0007', payee: 'Al-Habib Builders', narration: 'Cheque deposited', in: 50000 },
+        { seq: 4, voucherType: 'CRV', voucherNo: '0042', payee: 'Zubair', narration: 'Entered twice', in: 500, voided: true, reversalId: 'r5' },
+        { seq: 5, voucherType: 'CPV', voucherNo: '0042-VOID', payee: 'Zubair', narration: 'Void of CRV-0042', out: 500 }
+      ],
+      totals: { in: 200500, out: 77500 } });
+
+    document.getElementById('d-variance').innerHTML = K.varianceBanner({ variance: -3 });
+
+    document.getElementById('d-den').innerHTML =
+      K.denominationCounter({ id: 'dn1', counts: { 5000: 18, 500: 1, 100: 2, 20: 1 } });
+    K.bindDenominationCounter(document.getElementById('dn1'));
+
+    document.getElementById('d-misc').innerHTML =
+      '<div style="margin-bottom:16px">' + K.lockBadge({ at: '19:05', by: 'CFO' }) + '</div>' +
+      K.emptyState({ message: 'No day open for 04 September', action: 'Open day', actionId: 'es1' });
+    document.getElementById('es1').addEventListener('click', function () { K.toast('A day would open here'); });
+
+    document.getElementById('d-skel').innerHTML =
+      '<div class="dc-stack">' +
+        K.skeleton({ height: '40px', width: '40%' }) +
+        K.skeleton({ height: '16px' }) + K.skeleton({ height: '16px', width: '80%' }) +
+      '</div><div style="height:20px"></div>' +
+      '<div class="bar" style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="dc-btn dc-btn--primary">Close day</button>' +
+        '<button class="dc-btn">Cancel</button>' +
+        '<button class="dc-btn dc-btn--primary dc-btn--loading">Saving</button>' +
+        '<button class="dc-btn" disabled>Disabled</button>' +
+      '</div>';
+
+    document.getElementById('d-shell').innerHTML =
+      '<div class="dc-band dc-row-between" style="margin-bottom:16px">' +
+        '<div><div class="dc-label">Awami Market</div>' +
+        '<div class="dc-band-date">' + F.dateLong('2026-09-03') + '</div></div>' +
+        K.statusChip('OPEN') + '</div>' +
+      '<div class="dc-card dc-stack">' +
+        '<div class="dc-hero-row">' +
+          K.heroFigure({ label: 'Closing cash', value: 90723, tone: 'in' }) +
+          K.heroFigure({ label: 'Closing bank', value: 51000 }) + '</div>' +
+        K.ledgerTable({
+          rows: [{ seq: 1, voucherType: 'CRV', voucherNo: '0041', payee: 'Yousaf Khan', narration: 'Installment #4', in: 150000 },
+                 { seq: 2, voucherType: 'CPV', voucherNo: '0112', payee: 'PESCO', narration: 'Electricity bill', out: 77000 }],
+          totals: { in: 150000, out: 77000 } }) +
+      '</div>';
+
+    document.getElementById('t-theme').addEventListener('click', function () {
+      var d = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', d ? 'light' : 'dark');
+      this.textContent = d ? 'Dark' : 'Light';
+    });
+    document.getElementById('t-toast').addEventListener('click', function () {
+      K.toast('CRV-0041 · ' + F.money(150000) + ' recorded');
+    });
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

@@ -40,7 +40,7 @@ times in a row. Excel is retired on day fifteen, not on the day the tests go gre
 | P2 | **Seeds + payee master** | **owner** | ✅ done — `20260904a-g`, applied |
 | P3 | **CashDay lifecycle ONLY** — SetupOpening · OpenDay · DaySummary · CloseDay · PostAdjustment | **owner** | ✅ done — `20260904h`, applied |
 | P4 | **Entry recording ONLY** — RecordEntry · VoidEntry · attachments · ListEntries | **owner** | ✅ done — `20260904j` (+`i`) |
-| P5 | Design system "Ledger" (`--dc-*`) | **owner** | — |
+| P5 | Design system "Ledger" (`--dc-*`) | **owner** | ✅ done — `DESIGN.md`, no DB change |
 | P6 | Day Workspace (S1) | **owner** | — |
 | P7 | **Close Day (S2) + Director PDF renderer** | **owner** | — |
 | P8 | Roles & RBAC — the front-end half | **owner** | — |

@@ -1,0 +1,383 @@
+/* ════════════════════════════════════════════════════════════════════════
+   DAILY CLOSING — "Ledger"  ·  BLUEPRINT §A11  ·  P5
+   ────────────────────────────────────────────────────────────────────────
+   EVERYTHING IN THIS FILE IS SCOPED TO `.dc`. Not one selector is global.
+   Khushal Bagh and FMH load the same stylesheet bundle and must look
+   identical to yesterday, so a rule that could reach outside the module is a
+   bug, not a shortcut. The demo page and every P6+ screen wrap their markup
+   in a single `<div class="dc">`.
+
+   TOKENS ARE ALIASES, NOT A SECOND PALETTE. Where the RMS foundation already
+   has a token (css/foundation/tokens.css), --dc-* points at it. That keeps one
+   design system and inherits dark mode for free. Only the values RMS genuinely
+   lacks — the money greens and rusts, the navy band, the 40px hero — are new.
+
+   ⚠️ ONE DELIBERATE DEPARTURE FROM §A11, measured not guessed.
+   §A11 uses --dc-ink-400 (#9CA3AF) for "labels, hints, disabled". Against
+   --dc-surface that is 2.54:1, which fails WCAG AA for text (needs 4.5:1) and
+   even fails the 3:1 large-text floor. Labels here therefore use a new
+   --dc-ink-500 (#6B7280 — §A11's own lock grey) at 4.83:1. --dc-ink-400 is
+   kept for DISABLED text only, which WCAG exempts. Numbers are asserted by
+   scripts/verify-daily-closing-format.js, which fails if any pairing regresses.
+
+   §A11 principles held throughout: no gradients, no illustrations, no
+   decorative icons, no card-inside-card. Hairlines and spacing do the work.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.dc {
+  /* ── COLOUR ─────────────────────────────────────────────────────────── */
+  --dc-navy-900: #0B1B3A;   /* header bands, PDF header */
+  --dc-navy-700: #1F3864;   /* primary buttons, active states */
+
+  --dc-ink-900: var(--fk-text, #111827);        /* primary text */
+  --dc-ink-600: var(--fk-text-muted, #4B5563);  /* secondary text */
+  --dc-ink-500: #6B7280;                        /* LABELS — see the note above */
+  --dc-ink-400: #9CA3AF;                        /* disabled only */
+
+  --dc-line:    var(--fk-border, #E5E7EB);
+  --dc-canvas:  var(--fk-bg-page, #F6F7F9);
+  --dc-surface: var(--fk-bg-card, #FFFFFF);
+  --dc-subtle:  var(--fk-bg-subtle, #F8FAFC);
+
+  --dc-in:      #0F7B4C;  --dc-in-bg:   #ECF8F1;   /* money in */
+  --dc-out:     #B42318;  --dc-out-bg:  #FDF1EF;   /* money out */
+  --dc-warn:    #B54708;  --dc-warn-bg: #FFF6E5;   /* needs attention */
+  /* §A11 gives --dc-lock #6B7280, but on its own #F3F4F6 tint that is 4.39:1 —
+     under AA by a hair. Darkened until it clears: 5.42:1. Second measured
+     departure from §A11, same family as ink-400. Asserted by the tests. */
+  --dc-lock:    #5D6470;  --dc-lock-bg: #F3F4F6;   /* locked */
+  --dc-focus:   var(--fk-info, #2563EB);
+
+  /* ── TYPE ───────────────────────────────────────────────────────────── */
+  --dc-font: var(--fk-font, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+  --dc-t-xs:   12px; --dc-lh-xs:   16px;
+  --dc-t-sm:   13px; --dc-lh-sm:   18px;
+  --dc-t-md:   14px; --dc-lh-md:   20px;
+  --dc-t-lg:   16px; --dc-lh-lg:   24px;
+  --dc-t-xl:   20px; --dc-lh-xl:   28px;
+  --dc-t-2xl:  28px; --dc-lh-2xl:  34px;
+  --dc-t-hero: 40px; --dc-lh-hero: 44px;
+
+  /* ── SPACE · RADIUS · SHADOW · MOTION · DENSITY ─────────────────────── */
+  --dc-sp-1: 4px; --dc-sp-2: 8px;  --dc-sp-3: 12px;
+  --dc-sp-4: 16px; --dc-sp-6: 24px; --dc-sp-8: 32px; --dc-sp-12: 48px;
+  --dc-r-sm: 6px;   /* inputs, chips */
+  --dc-r-md: 10px;  /* cards */
+  --dc-shadow-1: 0 1px 2px rgba(17,24,39,.06);   /* floating panels ONLY */
+  --dc-motion: 150ms;
+  --dc-row: 40px;      /* table row, desktop */
+  --dc-control: 40px;  /* input height, desktop */
+  --dc-touch: 44px;    /* minimum touch target */
+}
+
+/* Dark: only the surface ramp flips. The money colours are meaning, not
+   decoration, so they hold — but they are lightened enough to stay legible. */
+html[data-theme="dark"] .dc {
+  --dc-ink-500: #9CA3AF;
+  --dc-ink-400: #6B7280;
+  --dc-in:  #34D399; --dc-in-bg:   rgba(52,211,153,.12);
+  --dc-out: #F87171; --dc-out-bg:  rgba(248,113,113,.12);
+  --dc-warn:#FBBF24; --dc-warn-bg: rgba(251,191,36,.12);
+  --dc-lock:#9CA3AF; --dc-lock-bg: rgba(156,163,175,.12);
+}
+
+.dc { font-family: var(--dc-font); color: var(--dc-ink-900);
+      font-size: var(--dc-t-sm); line-height: var(--dc-lh-sm); }
+.dc *, .dc *::before, .dc *::after { box-sizing: border-box; }
+
+/* Numbers are first-class (§A11 principle 1): tabular, right-aligned, never
+   wrapped. Applied by the utility AND inside every money component. */
+.dc .dc-num, .dc .dc-money, .dc .dc-hero-value, .dc .dc-voucher,
+.dc .dc-ledger td.dc-num, .dc .dc-den input, .dc .dc-money-input input {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+
+/* One focus treatment, everywhere (§A11: 2px, offset 2px). */
+.dc :focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 2px;
+  border-radius: var(--dc-r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc *, .dc *::before, .dc *::after { transition: none !important; animation: none !important; }
+}
+
+/* ══ LABEL ══════════════════════════════════════════════════════════════ */
+.dc .dc-label {
+  font-size: var(--dc-t-xs); line-height: var(--dc-lh-xs); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--dc-ink-500);
+  display: block; margin-bottom: var(--dc-sp-1);
+}
+
+/* ══ HERO FIGURE ════════════════════════════════════════════════════════ */
+.dc .dc-hero { display: flex; flex-direction: column; gap: var(--dc-sp-1); }
+.dc .dc-hero-value {
+  font-size: var(--dc-t-hero); line-height: var(--dc-lh-hero);
+  font-weight: 600; letter-spacing: -.01em; color: var(--dc-ink-900);
+}
+.dc .dc-hero--in  .dc-hero-value { color: var(--dc-in); }
+.dc .dc-hero--out .dc-hero-value { color: var(--dc-out); }
+.dc .dc-hero-row { display: flex; flex-wrap: wrap; gap: var(--dc-sp-8); }
+
+/* ══ STATUS CHIP ════════════════════════════════════════════════════════ */
+.dc .dc-chip {
+  display: inline-flex; align-items: center; gap: var(--dc-sp-1);
+  height: 24px; padding: 0 var(--dc-sp-2); border-radius: 999px;
+  font-size: var(--dc-t-xs); line-height: 1; font-weight: 500;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.dc .dc-chip--open      { color: var(--dc-navy-700); background: var(--dc-canvas); border-color: var(--dc-line); }
+.dc .dc-chip--closed    { color: var(--dc-lock); background: var(--dc-lock-bg); }
+.dc .dc-chip--pending   { color: var(--dc-warn); background: var(--dc-warn-bg); }
+.dc .dc-chip--posted    { color: var(--dc-in);   background: var(--dc-in-bg); }
+.dc .dc-chip--unapplied { color: var(--dc-out);  background: var(--dc-out-bg); }
+html[data-theme="dark"] .dc .dc-chip--open { color: #93B4FF; }
+
+/* ══ VOUCHER CHIP ═══════════════════════════════════════════════════════ */
+.dc .dc-voucher {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 var(--dc-sp-2);
+  border: 1px solid var(--dc-line); border-radius: var(--dc-r-sm);
+  font-size: var(--dc-t-sm); line-height: 1; font-weight: 600;
+  color: var(--dc-ink-900); background: var(--dc-surface);
+  transition: border-color var(--dc-motion) ease-out, color var(--dc-motion) ease-out;
+}
+.dc .dc-voucher--empty { color: var(--dc-ink-400); border-style: dashed; }
+
+/* ══ SEGMENTED CONTROL ══════════════════════════════════════════════════ */
+.dc .dc-seg { display: flex; gap: var(--dc-sp-4); border-bottom: 1px solid var(--dc-line); }
+.dc .dc-seg button {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: var(--dc-t-sm); color: var(--dc-ink-600);
+  padding: var(--dc-sp-2) 0 calc(var(--dc-sp-2) - 2px);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color var(--dc-motion) ease-out, border-color var(--dc-motion) ease-out;
+}
+.dc .dc-seg button:hover:not([disabled]) { color: var(--dc-ink-900); }
+.dc .dc-seg button[aria-selected="true"] { color: var(--dc-navy-700); border-bottom-color: var(--dc-navy-700); font-weight: 600; }
+.dc .dc-seg button[disabled] { color: var(--dc-ink-400); cursor: not-allowed; }
+html[data-theme="dark"] .dc .dc-seg button[aria-selected="true"] { color: #93B4FF; border-bottom-color: #93B4FF; }
+@media (max-width: 640px) {
+  .dc .dc-seg { gap: 0; }
+  .dc .dc-seg button { flex: 1; min-height: var(--dc-touch); text-align: center; }
+}
+
+/* ══ FIELDS ═════════════════════════════════════════════════════════════ */
+.dc .dc-field { display: block; margin-bottom: var(--dc-sp-4); }
+.dc .dc-input, .dc .dc-select {
+  width: 100%; height: var(--dc-control); padding: 0 var(--dc-sp-3);
+  border: 1px solid var(--dc-line); border-radius: var(--dc-r-sm);
+  background: var(--dc-surface); color: var(--dc-ink-900);
+  font: inherit; font-size: var(--dc-t-md);
+  transition: border-color var(--dc-motion) ease-out;
+}
+.dc .dc-input:hover:not([disabled]), .dc .dc-select:hover:not([disabled]) { border-color: var(--dc-ink-400); }
+.dc .dc-input[disabled], .dc .dc-select[disabled] { color: var(--dc-ink-400); background: var(--dc-subtle); cursor: not-allowed; }
+.dc .dc-field--error .dc-input, .dc .dc-field--error .dc-select { border-color: var(--dc-out); }
+.dc .dc-error { color: var(--dc-out); font-size: var(--dc-t-xs); margin-top: var(--dc-sp-1); display: block; }
+.dc .dc-hint  { color: var(--dc-ink-500); font-size: var(--dc-t-xs); margin-top: var(--dc-sp-1); display: block; }
+@media (max-width: 640px) {
+  .dc .dc-input, .dc .dc-select { height: 48px; font-size: var(--dc-t-lg); }
+}
+
+/* ══ MONEY INPUT ════════════════════════════════════════════════════════ */
+.dc .dc-money-input { position: relative; }
+.dc .dc-money-input .dc-rs {
+  position: absolute; left: var(--dc-sp-3); top: 50%; transform: translateY(-50%);
+  color: var(--dc-ink-500); font-size: var(--dc-t-md); pointer-events: none;
+}
+.dc .dc-money-input input {
+  width: 100%; height: var(--dc-control);
+  padding: 0 var(--dc-sp-3) 0 calc(var(--dc-sp-3) + 26px);
+  text-align: right; font-size: var(--dc-t-xl); line-height: var(--dc-lh-xl); font-weight: 500;
+  border: 1px solid var(--dc-line); border-radius: var(--dc-r-sm);
+  background: var(--dc-surface); color: var(--dc-ink-900);
+  transition: border-color var(--dc-motion) ease-out;
+}
+.dc .dc-money-input input:hover:not([disabled]) { border-color: var(--dc-ink-400); }
+.dc .dc-money-input input[disabled] { color: var(--dc-ink-400); background: var(--dc-subtle); }
+.dc .dc-field--error .dc-money-input input { border-color: var(--dc-out); }
+@media (max-width: 640px) { .dc .dc-money-input input { height: 48px; } }
+
+/* ══ ENTITY SELECT (typeahead) ══════════════════════════════════════════ */
+.dc .dc-entity { position: relative; }
+.dc .dc-entity-menu {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
+  background: var(--dc-surface); border: 1px solid var(--dc-line);
+  border-radius: var(--dc-r-sm); box-shadow: var(--dc-shadow-1);
+  max-height: 260px; overflow-y: auto; padding: var(--dc-sp-1) 0;
+}
+.dc .dc-entity-menu[hidden] { display: none; }
+.dc .dc-entity-opt {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--dc-sp-2);
+  padding: var(--dc-sp-2) var(--dc-sp-3); cursor: pointer;
+  font-size: var(--dc-t-sm); color: var(--dc-ink-900); min-height: 36px;
+}
+.dc .dc-entity-opt[aria-selected="true"], .dc .dc-entity-opt:hover { background: var(--dc-subtle); }
+.dc .dc-entity-opt .dc-recent { font-size: var(--dc-t-xs); color: var(--dc-ink-500); }
+.dc .dc-entity-opt--new { color: var(--dc-navy-700); font-weight: 500; border-top: 1px solid var(--dc-line); }
+.dc .dc-entity-empty { padding: var(--dc-sp-3); color: var(--dc-ink-500); font-size: var(--dc-t-sm); }
+
+/* ══ SUGGESTED FIELD ════════════════════════════════════════════════════ */
+.dc .dc-suggested-tag {
+  font-size: var(--dc-t-xs); color: var(--dc-ink-500); margin-left: var(--dc-sp-2);
+  text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+.dc .dc-override {
+  margin-top: var(--dc-sp-2); padding-left: var(--dc-sp-3);
+  border-left: 3px solid var(--dc-warn);
+  overflow: hidden; max-height: 0; opacity: 0;
+  transition: max-height var(--dc-motion) ease-out, opacity var(--dc-motion) ease-out;
+}
+.dc .dc-override.dc-open { max-height: 140px; opacity: 1; }
+
+/* ══ LEDGER TABLE ═══════════════════════════════════════════════════════ */
+.dc .dc-ledger-wrap { overflow-x: auto; border: 1px solid var(--dc-line); border-radius: var(--dc-r-md); background: var(--dc-surface); }
+.dc .dc-ledger { width: 100%; border-collapse: collapse; font-size: var(--dc-t-sm); }
+.dc .dc-ledger th {
+  position: sticky; top: 0; z-index: 2; background: var(--dc-surface);
+  text-align: left; font-size: var(--dc-t-xs); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--dc-ink-500);
+  padding: var(--dc-sp-2) var(--dc-sp-3); border-bottom: 1px solid var(--dc-line); white-space: nowrap;
+}
+.dc .dc-ledger td { padding: 0 var(--dc-sp-3); height: var(--dc-row); border-bottom: 1px solid var(--dc-line); vertical-align: middle; }
+.dc .dc-ledger tbody tr:last-child td { border-bottom: 0; }
+.dc .dc-ledger .dc-num { text-align: right; }
+.dc .dc-ledger .dc-in-col  { color: var(--dc-in); }
+.dc .dc-ledger .dc-out-col { color: var(--dc-out); }
+.dc .dc-ledger tfoot td {
+  position: sticky; bottom: 0; background: var(--dc-surface);
+  border-top: 1px solid var(--dc-ink-900); border-bottom: 0;
+  font-weight: 600; height: var(--dc-row);
+}
+.dc .dc-ledger tr.dc-voided td { opacity: .6; text-decoration: line-through; }
+.dc .dc-ledger tr.dc-voided td.dc-linkcell { text-decoration: none; opacity: 1; }
+.dc .dc-ledger a.dc-link { color: var(--dc-ink-500); text-decoration: none; }
+.dc .dc-ledger a.dc-link:hover { color: var(--dc-navy-700); }
+@media (max-width: 640px) { .dc .dc-ledger td { height: 48px; } }
+
+/* ══ VARIANCE BANNER ════════════════════════════════════════════════════ */
+.dc .dc-variance {
+  background: var(--dc-warn-bg); border-left: 3px solid var(--dc-warn);
+  border-radius: 0 var(--dc-r-sm) var(--dc-r-sm) 0;
+  padding: var(--dc-sp-3); display: flex; gap: var(--dc-sp-3); align-items: flex-start;
+}
+.dc .dc-variance-body { flex: 1; min-width: 0; }
+.dc .dc-variance-title { color: var(--dc-warn); font-weight: 600; font-size: var(--dc-t-sm); }
+.dc .dc-variance svg { flex: none; color: var(--dc-warn); }
+
+/* ══ DENOMINATION COUNTER ═══════════════════════════════════════════════ */
+.dc .dc-den { display: grid; grid-template-columns: 72px 1fr 110px; gap: var(--dc-sp-2) var(--dc-sp-3); align-items: center; }
+.dc .dc-den .dc-den-face { color: var(--dc-ink-600); text-align: right; }
+.dc .dc-den input { height: 32px; width: 100%; text-align: right; padding: 0 var(--dc-sp-2);
+  border: 1px solid var(--dc-line); border-radius: var(--dc-r-sm);
+  background: var(--dc-surface); color: var(--dc-ink-900); font: inherit; }
+.dc .dc-den .dc-den-line { text-align: right; color: var(--dc-ink-900); }
+.dc .dc-den-total { grid-column: 1 / -1; display: flex; justify-content: space-between;
+  border-top: 1px solid var(--dc-line); padding-top: var(--dc-sp-2); margin-top: var(--dc-sp-1); font-weight: 600; }
+
+/* ══ LOCK BADGE ═════════════════════════════════════════════════════════ */
+.dc .dc-lockbadge { display: inline-flex; align-items: center; gap: var(--dc-sp-2);
+  color: var(--dc-lock); font-size: var(--dc-t-sm); }
+
+/* ══ EMPTY STATE ════════════════════════════════════════════════════════ */
+.dc .dc-empty { text-align: center; padding: var(--dc-sp-12) var(--dc-sp-4); }
+.dc .dc-empty svg { color: var(--dc-ink-400); }
+.dc .dc-empty p { margin: var(--dc-sp-3) 0 var(--dc-sp-4); color: var(--dc-ink-600); font-size: var(--dc-t-md); }
+
+/* ══ SKELETON ═══════════════════════════════════════════════════════════ */
+.dc .dc-skel { background: var(--dc-subtle); border-radius: var(--dc-r-sm); position: relative; overflow: hidden; }
+.dc .dc-skel::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  transform: translateX(-100%); animation: dc-shimmer 1.4s infinite;
+}
+html[data-theme="dark"] .dc .dc-skel::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
+@keyframes dc-shimmer { 100% { transform: translateX(100%); } }
+
+/* ══ TOAST ══════════════════════════════════════════════════════════════ */
+.dc .dc-toasts { position: fixed; left: 50%; bottom: var(--dc-sp-6); transform: translateX(-50%);
+  z-index: 60; display: flex; flex-direction: column; gap: var(--dc-sp-2); align-items: center; pointer-events: none; }
+.dc .dc-toast {
+  background: var(--dc-navy-900); color: #fff; border-radius: var(--dc-r-sm);
+  padding: var(--dc-sp-3) var(--dc-sp-4); font-size: var(--dc-t-sm); box-shadow: var(--dc-shadow-1);
+  max-width: 90vw; opacity: 0; transform: translateY(6px);
+  transition: opacity var(--dc-motion) ease-out, transform var(--dc-motion) ease-out;
+}
+.dc .dc-toast.dc-in { opacity: 1; transform: translateY(0); }
+
+/* ══ BUTTONS ════════════════════════════════════════════════════════════ */
+.dc .dc-btn {
+  appearance: none; font: inherit; font-size: var(--dc-t-sm); font-weight: 500;
+  height: var(--dc-control); padding: 0 var(--dc-sp-4);
+  border-radius: var(--dc-r-sm); border: 1px solid var(--dc-line);
+  background: var(--dc-surface); color: var(--dc-ink-900); cursor: pointer;
+  transition: background var(--dc-motion) ease-out, border-color var(--dc-motion) ease-out;
+}
+.dc .dc-btn:hover:not([disabled]) { background: var(--dc-subtle); }
+.dc .dc-btn--primary { background: var(--dc-navy-700); border-color: var(--dc-navy-700); color: #fff; }
+.dc .dc-btn--primary:hover:not([disabled]) { background: var(--dc-navy-900); border-color: var(--dc-navy-900); }
+.dc .dc-btn[disabled] { color: var(--dc-ink-400); cursor: not-allowed; background: var(--dc-subtle); }
+.dc .dc-btn--loading { color: transparent; position: relative; pointer-events: none; }
+.dc .dc-btn--loading::after {
+  content: ''; position: absolute; inset: 0; margin: auto; width: 14px; height: 14px;
+  border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+  color: var(--dc-ink-600); animation: dc-spin .7s linear infinite;
+}
+.dc .dc-btn--primary.dc-btn--loading::after { color: #fff; }
+@keyframes dc-spin { to { transform: rotate(360deg); } }
+
+/* ══ LAYOUT HELPERS (module-internal) ═══════════════════════════════════ */
+.dc .dc-card { background: var(--dc-surface); border: 1px solid var(--dc-line);
+  border-radius: var(--dc-r-md); padding: var(--dc-sp-4); }
+.dc .dc-band { background: var(--dc-navy-900); color: #fff; border-radius: var(--dc-r-md);
+  padding: var(--dc-sp-4) var(--dc-sp-6); }
+.dc .dc-band .dc-label { color: rgba(255,255,255,.72); }
+.dc .dc-band .dc-hero-value { color: #fff; }
+.dc .dc-stack > * + * { margin-top: var(--dc-sp-4); }
+.dc .dc-row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--dc-sp-3); flex-wrap: wrap; }
+
+/* ══ NARROW SCREENS — found by looking at the 375 px screenshot ═════════
+   Four things the desktop layout gets away with and a phone does not. */
+@media (max-width: 640px) {
+  /* 1. A 40px figure and a nowrap number cannot share a 335px row. Two of
+        them inside a card overflowed it. The hero steps down to the 2xl
+        size, which is still unmistakably the biggest thing on the screen. */
+  .dc { --dc-t-hero: 28px; --dc-lh-hero: 34px; }
+  .dc .dc-hero-row { gap: var(--dc-sp-4); }
+  .dc .dc-hero { min-width: 0; flex: 1 1 140px; }
+
+  /* 2. §A11 asks for a full-width segmented control on mobile. That is right
+        for two or three options and impossible for five — "Receipt Expense
+        Transfer Loan/Capital Other" collided. They wrap onto a second row
+        instead, each still a 44px target. */
+  .dc .dc-seg { flex-wrap: wrap; }
+  .dc .dc-seg button { flex: 1 1 30%; }
+}
+
+/* 3. The count box was taking every spare pixel, so a two-digit note count
+      sat in a 400px field next to a cramped total. Fixed-width count,
+      total pushed to the right where the eye expects it. */
+.dc .dc-den { grid-template-columns: 76px 96px 1fr; }
+
+/* 4. A voided row is struck through — but striking the voucher chip made the
+      one thing you need in order to find its reversal the hardest thing to
+      read. The row fades; the chip keeps its face. */
+.dc .dc-ledger tr.dc-voided td .dc-voucher { text-decoration: none; }
+
+/* A hero figure inside a CARD inside the shell has less room than one on the
+   open page, and a nowrap number cannot shrink to fit. Below 640px the row
+   stops negotiating and simply stacks. */
+@media (max-width: 640px) {
+  .dc .dc-hero-row { display: grid; grid-template-columns: 1fr; }
+}
+
+/* The date on the navy band. 20px reads well at 1280 and runs off the edge at
+   375, so it steps down with the viewport rather than being set once. */
+.dc .dc-band-date { font-size: var(--dc-t-xl); line-height: var(--dc-lh-xl); font-weight: 500; }
+@media (max-width: 640px) {
+  .dc .dc-band-date { font-size: var(--dc-t-lg); line-height: var(--dc-lh-lg); }
+  .dc .dc-band { padding: var(--dc-sp-3) var(--dc-sp-4); }
+}
