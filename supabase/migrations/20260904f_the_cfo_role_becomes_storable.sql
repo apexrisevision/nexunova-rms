@@ -20,8 +20,8 @@
 -- rewritten or revalidated in a way that could change it. Postgres validates
 -- the new constraint against every existing row as it is added, so if any row
 -- somehow did not satisfy it this migration would fail rather than half-apply.
--- The verification block at the end asserts all 15 rows still pass and that
--- every one of them still holds one of the original six values.
+-- The verification block at the end asserts every row still satisfies the
+-- constraint and that none was rewritten by the widen.
 --
 -- ⚠️ This is a constraint on a table every tenant's login reads. It is applied
 -- on the owner's explicit instruction (2026-09-04), after a full backup.
@@ -47,7 +47,7 @@ COMMENT ON COLUMN public.app_users.role IS
 
 -- ── Prove it, in the same transaction that made the change ─────────────────
 DO $verify$
-DECLARE v_total int; v_bad int; v_legacy int;
+DECLARE v_total int; v_bad int; v_legacy int; v_cfo int;
 BEGIN
   SELECT count(*) INTO v_total FROM public.app_users;
 
@@ -60,15 +60,27 @@ BEGIN
     RAISE EXCEPTION 'VERIFY FAILED: % of % app_users rows violate the new constraint', v_bad, v_total;
   END IF;
 
-  -- And every one of them still holds one of the ORIGINAL six — nothing was
-  -- rewritten, and no row has quietly become a cfo.
+  -- Nothing was REWRITTEN by the widen: no row moved off one of the original
+  -- six, and any 'cfo' row was deliberately created afterwards.
+  --
+  -- ⚠️ This check first read "v_legacy must equal v_total" — no cfo anywhere.
+  -- That was true the day it ran and became false the moment the first CFO
+  -- account was created, which is the very thing the widen exists to allow;
+  -- the P2 suite re-runs this migration and went red on it. An assertion that
+  -- expires is worse than none, because it fails on correct data. What the
+  -- migration can honestly claim is that it did not touch the rows it found,
+  -- and the ALTER above cannot rewrite a role, so the claim is the count of
+  -- non-cfo rows being intact.
   SELECT count(*) INTO v_legacy FROM public.app_users
    WHERE role IN ('owner','admin','manager','recovery','accounts','staff');
-  IF v_legacy <> v_total THEN
-    RAISE EXCEPTION 'VERIFY FAILED: % of % rows no longer hold an original role value', v_total - v_legacy, v_total;
+  SELECT count(*) INTO v_cfo FROM public.app_users WHERE role = 'cfo';
+  IF v_legacy + v_cfo <> v_total THEN
+    RAISE EXCEPTION 'VERIFY FAILED: % of % rows hold neither an original role nor cfo',
+      v_total - v_legacy - v_cfo, v_total;
   END IF;
 
-  RAISE NOTICE 'app_users_role_check widened; all % rows still valid, none rewritten', v_total;
+  RAISE NOTICE 'app_users_role_check widened; all % rows still valid (% legacy, % cfo), none rewritten',
+    v_total, v_legacy, v_cfo;
 END
 $verify$;
 

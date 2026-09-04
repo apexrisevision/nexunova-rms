@@ -206,3 +206,36 @@ Recorded here so the deferred item cannot be quietly dropped. Status against eac
 - **Both roles from day one.** The permission model is not simplified because one person uses
   it. P10 must prove the cashier is refused *server-side*, not merely shown no button.
   (RULES §0.9)
+
+---
+
+## P7 is done — what it left for P10
+
+P7 shipped S2 (the close panel), the Director PDF renderer, and S3 (the days list), and added
+RowMenu and SidePanel to the kit. Three items were carried forward deliberately rather than
+quietly, and they are now part of **P10's Definition of Done**:
+
+### P10 · Definition of Done — carried items
+
+1. **The attachment path, end to end, for real.** P4 built `daily-closing-file` and P6 wired the
+   composer to it, but no file has ever made the round trip. P10 must:
+   - attach a real file to a real entry on the pilot project;
+   - prove the storage key **starts with that entry's `project_id`** — the bridge builds the key
+     and the browser never chooses it, and that must be demonstrated rather than asserted;
+   - prove a user assigned to **another project cannot fetch the signed URL** for it.
+
+2. **A named red, not a timeout.** The screen suite proves it can fail, but some paths fail by
+   `waitForFunction` timing out rather than printing a `❌` that says what broke. A timeout is a
+   real failure; a named one is a usable one. Give every wait a message.
+
+3. **The cashier is refused server-side.** Unchanged from RULES §0.9 — P10 proves the `staff`
+   cashier is refused by `close_cash_day` and `post_cash_adjustment` themselves, not merely
+   shown no button.
+
+### Still open from earlier prompts
+
+- The two Awami accounts (a `cfo` and a `staff` cashier) are the owner's to create in
+  Users & Roles.
+- RULES (b) questions Q2 (bank account tables), Q3 (PDF grain), Q4 (voucher book grain),
+  Q5 (client receipt duplication), Q7 (paisa display), Q8 (double-entry during the parallel
+  run) remain unanswered and none of them blocks P8.

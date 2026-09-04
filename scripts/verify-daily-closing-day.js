@@ -7,7 +7,7 @@
  * Same shape as P1 and P2: one statement batch inside BEGIN … ROLLBACK, every
  * assertion raising, so the request failing IS the test failing.
  *
- * It runs on ZZTEST Tower, in the tenant whose name says it is safe to wipe —
+ * It runs on ZZTEST Garden, in the tenant whose name says it is safe to wipe —
  * not on the pilot. Awami will carry real days, and "once per project, ever"
  * has to stay testable after its opening has been set. A paying tenant's
  * plan-limit trigger also refuses a new project, correctly.
@@ -26,7 +26,18 @@ const MIG = path.join(ROOT, 'supabase', 'migrations');
 const UP = ['20260904h_a_day_opens_and_a_day_closes.sql'];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal — safe to wipe
-const PJ = '6b56d5ec-6141-4440-9465-ed2a9acbbd97';   // ZZTEST Tower (21 units, 0 cash_days)
+/* ZZTEST GARDEN, NOT ZZTEST TOWER — and the reason matters.
+ *
+ * This suite starts by wiping the project's cash_entries. Invariant 1 forbids
+ * deleting a cash entry at all, so that wipe only ever worked because the
+ * project had none: a row trigger that fires on no rows raises nothing.
+ *
+ * P7's golden PDF fixture then put PERMANENT entries on ZZTEST Tower — they
+ * cannot be removed, by design — and this suite went red on the first line of
+ * its own setup. Rather than disable the invariant to tidy up, the fixture
+ * keeps Tower and the wiping suites moved here. One project holds rows that
+ * can never be deleted; the other holds none. They must not be the same one. */
+const PJ = '2da565ca-2b83-44bf-b4de-2cae762571df';   // ZZTEST Garden (5 units, no cash days)
 const AGAINST_LIVE = process.argv.includes('--against-live');
 
 function body(file) {
@@ -50,7 +61,7 @@ DECLARE
   v_2020 uuid; v_6050 uuid; v_1010 uuid;
 BEGIN
   ---------------------------------------------------------------- fixtures --
-  -- ZZTEST Tower, the sanctioned throwaway tenant. NOT the pilot: "once per
+  -- ZZTEST Garden, the sanctioned throwaway tenant. NOT the pilot: "once per
   -- project, ever" has to stay testable after Awami's real opening is set, and
   -- a paying tenant's plan-limit trigger rightly refuses a new project anyway.
   -- This suite deletes cash days to get a clean slate. Everything is inside
@@ -65,7 +76,7 @@ BEGIN
   END IF;
 
   SELECT id INTO v_unit FROM public.units WHERE project_id = v_pj LIMIT 1;
-  IF v_unit IS NULL THEN RAISE EXCEPTION 'FIXTURE: ZZTEST Tower has no units'; END IF;
+  IF v_unit IS NULL THEN RAISE EXCEPTION 'FIXTURE: ZZTEST Garden has no units'; END IF;
   DELETE FROM public.cash_entries WHERE project_id = v_pj;
   DELETE FROM public.cash_days    WHERE project_id = v_pj;
 

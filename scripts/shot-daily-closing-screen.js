@@ -50,10 +50,36 @@ function serve() {
   });
 }
 
+/* `prep` runs in the page after it has loaded, so a screenshot can show a
+   state that only exists after an interaction — the close panel, the row
+   menu. It clicks the same things a person would. */
 const STATES = [
   { state: 'notopened', label: 'notopened' },
   { state: 'open',      label: 'open' },
-  { state: 'closed',    label: 'closed' }
+  { state: 'closed',    label: 'closed' },
+  {
+    state: 'open', label: 'closepanel', wait: '#dc-counted',
+    prep: async page => {
+      await page.click('#dc-close');
+      await page.waitForSelector('#dc-counted', { timeout: 8000 });
+      await page.type('#dc-den-5000', '18');
+      await page.type('#dc-var-r', 'cashier short, recovering tomorrow');
+    }
+  },
+  {
+    state: 'open', label: 'rowmenu', wait: '[role="menu"]:not([hidden])',
+    prep: async page => {
+      await page.click('.dc-ledger tbody tr:first-child [data-menu-btn]');
+      await page.waitForSelector('.dc-ledger [role="menu"]:not([hidden])', { timeout: 8000 });
+    }
+  },
+  {
+    state: 'open', label: 'days', wait: '.dc-days tbody tr',
+    prep: async page => {
+      await page.click('#dc-view-days');
+      await page.waitForSelector('.dc-days tbody tr', { timeout: 8000 });
+    }
+  }
 ];
 const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
 
@@ -77,12 +103,15 @@ const WIDTHS = [{ w: 1280, h: 900 }, { w: 375, h: 812 }];
         await page.goto(`http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=${s.state}`,
           { waitUntil: 'networkidle2' });
         await page.waitForSelector('.dc-band', { timeout: 8000 });
+        if (s.prep) await s.prep(page);
         await page.evaluate(() => document.fonts && document.fonts.ready);
         await new Promise(r => setTimeout(r, 350));
 
         const name = `s1-${s.label}-${v.w}`;
         const file = path.join(OUT, name + '.png');
-        await page.screenshot({ path: file, fullPage: true });
+        // A panel is fixed to the viewport; fullPage would photograph the page
+        // scrolled past it and lose the thing being shown.
+        await page.screenshot({ path: file, fullPage: !s.prep });
         console.log(`  ${name.padEnd(22)} ${String(Math.round(fs.statSync(file).size/1024)).padStart(5)} KB`);
         await page.close();
       }

@@ -120,6 +120,7 @@ html[data-theme="dark"] .dc {
 }
 .dc .dc-hero--in  .dc-hero-value { color: var(--dc-in); }
 .dc .dc-hero--out .dc-hero-value { color: var(--dc-out); }
+.dc .dc-hero--warn .dc-hero-value { color: var(--dc-warn); }
 .dc .dc-hero-row { display: flex; flex-wrap: wrap; gap: var(--dc-sp-8); }
 
 /* ══ STATUS CHIP ════════════════════════════════════════════════════════ */
@@ -442,3 +443,146 @@ html[data-theme="dark"] .dc .dc-skel::after { background: linear-gradient(90deg,
 .dc .dc-modal-t { font-size: var(--dc-t-lg); line-height: var(--dc-lh-lg);
   font-weight: 600; margin-bottom: var(--dc-sp-3); }
 .dc .dc-modal .dc-row-between { gap: var(--dc-sp-2); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   P7 — RowMenu · SidePanel · Days list · the closed-and-ready block
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── RowMenu (an addition to §A11, agreed in P7) ────────────────────────
+   The trigger is a 32 px target inside a 40 px row and grows to 44 px on a
+   phone, where the row is the only thing you can hit. */
+.dc .dc-menu { position: relative; display: inline-flex; }
+.dc .dc-menu-btn, .dc .dc-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--dc-r-sm); color: var(--dc-ink-500); cursor: pointer;
+}
+.dc .dc-menu-btn:hover, .dc .dc-icon-btn:hover {
+  background: var(--dc-subtle); color: var(--dc-ink-900);
+}
+.dc .dc-menu-btn[aria-expanded="true"] {
+  background: var(--dc-subtle); color: var(--dc-ink-900); border-color: var(--dc-line);
+}
+.dc .dc-menu-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 60;
+  min-width: 168px; padding: var(--dc-sp-1);
+  background: var(--dc-surface); border: 1px solid var(--dc-line);
+  border-radius: var(--dc-r-md); box-shadow: 0 8px 24px rgba(17,24,39,.14);
+}
+.dc .dc-menu-item {
+  display: block; width: 100%; text-align: left;
+  height: 36px; padding: 0 var(--dc-sp-3);
+  background: transparent; border: 0; border-radius: var(--dc-r-sm);
+  font: inherit; font-size: var(--dc-t-md); color: var(--dc-ink-900); cursor: pointer;
+}
+.dc .dc-menu-item:hover, .dc .dc-menu-item:focus-visible { background: var(--dc-subtle); }
+.dc .dc-menu-item--danger { color: var(--dc-out); }
+@media (max-width: 640px) {
+  .dc .dc-menu-btn, .dc .dc-icon-btn { width: var(--dc-touch); height: var(--dc-touch); }
+  .dc .dc-menu-item { height: var(--dc-touch); }
+}
+
+/* ── SidePanel · S2 ─────────────────────────────────────────────────────
+   480 px on the right so the ledger stays in view while the drawer is
+   counted; a full-height sheet below 640 px, where 480 px would be a modal
+   pretending otherwise. */
+.dc .dc-panel-back {
+  /* Below .dc-modal (80): the close confirmation is raised FROM this panel
+     and has to sit on top of it. */
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(11,27,58,.44);
+  display: flex; justify-content: flex-end;
+}
+.dc .dc-panel {
+  width: 480px; max-width: 100%; height: 100%;
+  background: var(--dc-surface);
+  box-shadow: -8px 0 32px rgba(17,24,39,.18);
+  display: flex; flex-direction: column;
+  animation: dc-panel-in var(--dc-motion) ease-out;
+}
+@keyframes dc-panel-in { from { transform: translateX(16px); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dc .dc-panel { animation: none; } }
+.dc .dc-panel-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--dc-sp-4);
+  padding: var(--dc-sp-6); border-bottom: 1px solid var(--dc-line);
+}
+.dc .dc-panel-t { font-size: var(--dc-t-xl); line-height: var(--dc-lh-xl); font-weight: 600; }
+.dc .dc-panel-sub { margin-top: var(--dc-sp-1); font-size: var(--dc-t-sm); color: var(--dc-ink-500); }
+.dc .dc-panel-body { flex: 1; overflow-y: auto; padding: var(--dc-sp-6); }
+.dc .dc-panel-foot {
+  display: flex; gap: var(--dc-sp-2); justify-content: flex-end;
+  padding-top: var(--dc-sp-4); margin-top: var(--dc-sp-4);
+  border-top: 1px solid var(--dc-line);
+}
+@media (max-width: 640px) {
+  .dc .dc-panel { width: 100%; }
+  .dc .dc-panel-head, .dc .dc-panel-body { padding: var(--dc-sp-4); }
+}
+
+/* The expected-vs-counted pair the whole panel exists to reconcile. */
+.dc .dc-count-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--dc-sp-4);
+  padding: var(--dc-sp-4); margin-bottom: var(--dc-sp-4);
+  background: var(--dc-subtle); border-radius: var(--dc-r-md);
+}
+.dc .dc-count-pair .dc-hero-value { font-size: var(--dc-t-2xl); line-height: var(--dc-lh-2xl); }
+@media (max-width: 640px) { .dc .dc-count-pair { grid-template-columns: 1fr; gap: var(--dc-sp-3); } }
+
+/* ── Closed, and the PDF is ready ───────────────────────────────────────
+   The end of the panel's life: a statement, then the two things a CFO
+   actually does next. */
+.dc .dc-done {
+  text-align: center; padding: var(--dc-sp-8) var(--dc-sp-4);
+}
+.dc .dc-done-t { font-size: var(--dc-t-xl); line-height: var(--dc-lh-xl); font-weight: 600; }
+.dc .dc-done-sub { margin-top: var(--dc-sp-2); font-size: var(--dc-t-sm); color: var(--dc-ink-500); }
+.dc .dc-done-actions {
+  display: flex; gap: var(--dc-sp-2); justify-content: center; margin-top: var(--dc-sp-6);
+  flex-wrap: wrap;
+}
+
+/* ── S3 · the Days list ─────────────────────────────────────────────────
+   A register, so it is a table; rows are a link to the day, and the whole
+   row is the target. */
+.dc .dc-days { width: 100%; border-collapse: collapse; }
+.dc .dc-days th {
+  text-align: left; font-size: var(--dc-t-sm); font-weight: 500; color: var(--dc-ink-500);
+  padding: 0 var(--dc-sp-3) var(--dc-sp-2); border-bottom: 1px solid var(--dc-line);
+  white-space: nowrap;
+}
+.dc .dc-days td {
+  height: var(--dc-row); padding: 0 var(--dc-sp-3);
+  border-bottom: 1px solid var(--dc-line); font-size: var(--dc-t-md);
+}
+.dc .dc-days tbody tr { cursor: pointer; }
+.dc .dc-days tbody tr:hover { background: var(--dc-subtle); }
+.dc .dc-days tbody tr:focus-visible {
+  outline: 2px solid var(--dc-focus); outline-offset: -2px;
+}
+.dc .dc-days .dc-num { text-align: right; font-variant-numeric: tabular-nums; }
+.dc .dc-days .dc-days-var { color: var(--dc-warn); }
+@media (max-width: 640px) {
+  .dc .dc-days td { height: 48px; }
+  .dc .dc-days .dc-hide-sm { display: none; }
+}
+
+/* The view switch that carries S1 ↔ S3. */
+.dc .dc-views { display: inline-flex; gap: var(--dc-sp-1); }
+/* The opening-balance day, marked inline so it cannot break its own row. */
+.dc .dc-days-tag {
+  display: inline-block; margin-left: var(--dc-sp-2);
+  font-size: var(--dc-t-sm); color: var(--dc-ink-500);
+}
+
+/* The view switch lives ON the navy band, where a navy "primary" fill would
+   disappear and the plain button would read as the selected one — backwards.
+   Inside the band the CURRENT view is the solid white one. */
+.dc .dc-band .dc-views .dc-btn {
+  background: transparent; color: rgba(255,255,255,.78);
+  border-color: rgba(255,255,255,.28);
+}
+.dc .dc-band .dc-views .dc-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+.dc .dc-band .dc-views .dc-btn[aria-current] {
+  background: #fff; color: var(--dc-navy-900); border-color: #fff; font-weight: 600;
+}

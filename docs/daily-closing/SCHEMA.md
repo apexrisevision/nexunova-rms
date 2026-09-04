@@ -599,3 +599,57 @@ only `cash_entries` is locked. All three passed, nothing persisted (0 rows left,
 still 3274).
 
 The cash book itself is empty and stays empty until P2: `cash_days` 0, `cash_entries` 0.
+
+---
+
+# P7 — the Director PDF's read, and the days list
+
+`20260904m_everything_the_director_pdf_is_allowed_to_know.sql` — **applied**. Four functions,
+no table changes, no new columns.
+
+| Function | Who may call it | What it is for |
+|---|---|---|
+| `get_cash_day_pdf_data(company, cash_day)` | `authenticated` (scoped by `_dc_may_touch_project`) | the ONE read the renderer makes |
+| `record_day_document(company, cash_day, version, key)` | **`service_role` only** | the version row, written by the renderer |
+| `list_cash_days(company, project, limit)` | `authenticated` (scoped) | S3 |
+| `authorize_day_document(company, document)` | `authenticated` (scoped) | a signed link to a stored sheet |
+
+## §A10 is enforced by absence, not by masking
+
+`get_cash_day_pdf_data` **does not select a client phone number**. Not masked, not truncated —
+never fetched. `clients` is joined only to reach a name and `units` only to reach a unit number.
+There is therefore nothing in the edge function that could leak one, whatever it does with the
+payload. The P7 suite extracts the text of a real render and asserts no phone-shaped string
+appears, and it self-tests the detector on synthetic strings so a broken check goes red on its
+own.
+
+## The version is claimed once
+
+`next_version` is computed inside the same read that builds the payload, and
+`day_documents` carries `UNIQUE (cash_day_id, kind, version)` underneath. Two regenerations
+racing cannot both claim v2: the loser gets `VERSION_CONFLICT` and renders again at the next
+number. **Prior files are never overwritten** — a regeneration after an adjustment writes a new
+version and leaves v1 in the bucket, so a Director holding v1 can be shown what changed.
+
+`record_day_document` is granted to `service_role` and to nobody else, including
+`authenticated`: only the renderer may say that a document exists.
+
+## What counts as an adjustment on the sheet
+
+The ADJUSTMENTS block is what was written **after `closed_at`** — the same boundary screen S1
+uses. A void made at 12:05 while the day was open also carries `is_adjustment`, and it belongs
+in Receipts/Payments with the rest of the day's story, not beside a JV posted the next morning.
+Both the PDF payload and the screen apply that rule; the P6 suite caught the first version,
+which grouped them together.
+
+## A note for whoever runs the suites next
+
+**ZZTEST Tower holds `cash_entries` that can never be deleted** — P7's golden PDF fixture,
+permanent by design because invariant 1 forbids the delete. The P3 and P4 suites begin by
+wiping their project's entries, which only ever worked because the project had none: a row
+trigger that fires on no rows raises nothing. They were moved to **ZZTEST Garden**
+(`2da565ca-…`, 5 units, no cash days).
+
+One ZZTEST project holds undeletable rows; the other holds none. **They must not be the same
+one.** The alternative was disabling the invariant-1 trigger on a live table to tidy up, which
+is not a thing this module does.

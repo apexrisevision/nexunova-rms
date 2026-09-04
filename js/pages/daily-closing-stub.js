@@ -76,11 +76,55 @@
                 closed_at: '2026-09-03T14:05:00Z' }
     }[state] || {};
 
-    var next = null;   // a test can script the next record_cash_entry answer
+    /* A test can script the next answer for ANY rpc — scriptNext(a) still
+       means record_cash_entry, which is what P6 used, but close_cash_day
+       needs the same thing to prove the VERSION_CONFLICT path. Each scripted
+       answer is used once and then forgotten, so the following call goes back
+       to the happy path without the test having to reset anything. */
+    var next = {};
+    function take(name) {
+      if (!next[name]) return null;
+      var a = next[name]; delete next[name]; return a;
+    }
+
+    var days = [
+      { cash_day_id: 'day-1', business_date: '2026-09-03', status: 'CLOSED', is_setup_opening: false,
+        closing_cash: '90723.00', closing_bank: '51000.00', variance: '-3.00',
+        variance_note: 'short 3, cashier', entries: 6, pdf_version: 2, pdf_document_id: 'doc-2' },
+      { cash_day_id: 'day-0', business_date: '2026-09-02', status: 'CLOSED', is_setup_opening: false,
+        closing_cash: '17723.00', closing_bank: '1000.00', variance: '0.00',
+        variance_note: null, entries: 4, pdf_version: 1, pdf_document_id: 'doc-1' },
+      { cash_day_id: 'day-s', business_date: '2026-09-01', status: 'CLOSED', is_setup_opening: true,
+        closing_cash: '10000.00', closing_bank: '1000.00', variance: '0.00',
+        variance_note: null, entries: 0, pdf_version: null, pdf_document_id: null }
+    ];
 
     function rpc(name, args) {
       calls.push({ name: name, args: args });
+      var scripted = take(name);
+      if (scripted) return Promise.resolve(scripted);
       switch (name) {
+        case 'list_cash_days':
+          return Promise.resolve({ success: true, days: days });
+        case 'authorize_day_document':
+          return Promise.resolve({ success: true, bucket: 'daily-closing',
+            storage_key: 'pj/documents/2026-09-03/v2_Awami_Daily_Closing_2026-09-03.pdf',
+            version: 2, expires_in: 600 });
+        case 'close_cash_day':
+          day = JSON.parse(JSON.stringify(day));
+          day.status = 'CLOSED';
+          day.version = Number(day.version || 0) + 1;
+          day.counted_cash = String(args.p_counted_cash);
+          day.variance = String(Number(args.p_counted_cash) - Number(day.closing_cash));
+          day.variance_note = args.p_variance_note;
+          day.closed_at = '2026-09-03T14:05:00Z';
+          return Promise.resolve({ success: true, event: 'DayClosed', cash_day_id: 'day-1',
+            business_date: '2026-09-03', closing_cash: day.closing_cash,
+            closing_bank: day.closing_bank, counted_cash: day.counted_cash,
+            variance: day.variance, denominations_total: null, denominations_match: true,
+            version: day.version });
+        case 'post_cash_adjustment':
+          return Promise.resolve({ success: true, event: 'AdjustmentPosted', entry_id: 'adj-1' });
         case 'get_cash_day_summary':
           return Promise.resolve(day);
         case 'list_cash_entries':
@@ -111,14 +155,11 @@
           return Promise.resolve({ success: true, units: [
             { id: 'u1', unit_no: '915' }, { id: 'u2', unit_no: '916' }, { id: 'u3', unit_no: 'G-02' }
           ]});
-        case 'record_cash_entry': {
-          var answer = next || { success: true, event: 'EntryRecorded', replayed: false,
+        case 'record_cash_entry':
+          return Promise.resolve({ success: true, event: 'EntryRecorded', replayed: false,
             entry_id: 'new-' + calls.length, seq_no: entries.length + 1,
             voucher_type: (args.p_payload || {}).mode === 'BANK' ? 'BRV' : 'CRV',
-            voucher_no: (args.p_payload || {}).voucher_no, rms_status: 'PENDING' };
-          next = null;
-          return Promise.resolve(answer);
-        }
+            voucher_no: (args.p_payload || {}).voucher_no, rms_status: 'PENDING' });
         case 'open_cash_day':
           if (state === 'needsopening') {
             return Promise.resolve({ success: false, error: 'SETUP_OPENING_REQUIRED',
@@ -141,11 +182,35 @@
       }
     }
 
+    /* The edge functions, scripted the same way. The screen calls these
+       through an injected `fn`, so nothing here needs a network. */
+    var fnNext = {};
+    function fn(name, body) {
+      calls.push({ name: 'fn:' + name, args: body });
+      if (fnNext[name]) { var a = fnNext[name]; delete fnNext[name]; return Promise.resolve(a); }
+      if (name === 'daily-closing-pdf') {
+        pdfVersion += 1;
+        return Promise.resolve({ success: true, event: 'DirectorPdfRendered',
+          version: pdfVersion, typeface: 'Helvetica', bytes: 4677,
+          filename: 'AwamiMarket_Daily_Closing_2026-09-03.pdf',
+          storage_key: 'pj/documents/2026-09-03/v' + pdfVersion + '_AwamiMarket_Daily_Closing_2026-09-03.pdf',
+          url: 'https://example.invalid/signed/v' + pdfVersion + '.pdf', expires_in: 600 });
+      }
+      if (name === 'daily-closing-file') {
+        return Promise.resolve({ success: true, url: 'https://example.invalid/stored/doc.pdf',
+          mime: 'application/pdf', expires_in: 600 });
+      }
+      return Promise.resolve({ success: true });
+    }
+    var pdfVersion = state === 'closed' ? 1 : 0;
+
     return {
-      rpc: rpc, calls: calls,
+      rpc: rpc, fn: fn, calls: calls,
       /* scriptNext({success:false, error:'DUPLICATE_VOUCHER', ...}) makes the
-         next save answer that, so the inline-error path is testable. */
-      scriptNext: function (a) { next = a; },
+         next save answer that, so the inline-error path is testable. Pass a
+         second argument to script a different RPC — close_cash_day, say. */
+      scriptNext: function (a, forRpc) { next[forRpc || 'record_cash_entry'] = a; },
+      scriptNextFn: function (a, forFn) { fnNext[forFn || 'daily-closing-pdf'] = a; },
       me: { companyId: CO, userId: 'u-cfo', role: 'cfo', isCfo: true, isAccountantPlus: true },
       projects: [{ id: PJ, name: 'Awami Market' }, { id: 'pj2', name: 'Khushal Bagh' }]
     };

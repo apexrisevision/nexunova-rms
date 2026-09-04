@@ -232,13 +232,14 @@ const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=$
       is(await page.$('#dc-form'), null, 'the composer is gone');
       is(!!(await page.$('.dc-lockbadge')), true, 'a lock badge says when it closed');
       is(!!(await page.$('#dc-adjust')), true, 'the CFO is offered Add adjustment');
-      is(await page.$eval('#dc-pdf', e => e.disabled), true,
-        'Director PDF is present but disabled until P7');
+      is(await page.$eval('#dc-pdf', e => e.disabled), false,
+        'Director PDF is live in P7, no longer disabled');
       const reason = await page.$eval('.dc-adj-reason', e => e.textContent);
       reason.includes('short by 3')
         ? ok(`the adjustment carries its reason — “${reason}”`)
         : bad(`the adjustment reason was “${reason}”`);
-      is(await page.$('#dc-void'), null, 'and nothing can be voided on a closed day');
+      is(await page.$('.dc-ledger [data-menu-btn]'), null,
+        'and no row offers a void, because a closed day cannot be voided into');
       await page.close();
     }
 
@@ -258,7 +259,8 @@ const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=$
       const body = await page.$eval('.dc', e => e.textContent.toLowerCase());
       is(/\bedit\b/.test(body), false, 'the word "edit" appears nowhere — invariant 1');
       is(/\bdelete\b/.test(body), false, 'nor "delete"');
-      is(!!(await page.$('#dc-void')), true, 'voiding is the only way back, and it is offered');
+      is(await page.$$eval('.dc-ledger [data-menu-btn]', b => b.length), 3,
+        'voiding is the only way back, offered on each of the three live rows');
       await page.close();
     }
 
@@ -280,6 +282,255 @@ const url = state => `http://127.0.0.1:${PORT}/daily-closing.html?stub=1&state=$
       await page.evaluate(() => window.DCKit.toast('Could not reach the server'));
       is(await page.$$eval('.dc-toast', t => t.length), 2,
         'a different message still gets its own line');
+      await page.close();
+    }
+
+    // ═══ P7 · THE VOID ROW MENU ════════════════════════════════════════
+    head('void is a row action, and the popover works from the keyboard');
+    {
+      const page = await open('open');
+      is(await page.$eval('.dc-ledger tbody tr:first-child [data-menu-btn]',
+        e => e.getAttribute('aria-expanded')), 'false', 'each live row has a closed menu');
+      is(await page.$eval('.dc-ledger tbody tr:first-child [data-menu-btn]',
+        e => e.getAttribute('aria-label')), 'Actions for voucher CRV-0041',
+        'and the trigger names the row it belongs to, not just "menu"');
+
+      await page.click('.dc-ledger tbody tr:first-child [data-menu-btn]');
+      is(await page.$eval('.dc-ledger tbody tr:first-child [data-menu-btn]',
+        e => e.getAttribute('aria-expanded')), 'true', 'clicking opens it');
+      is(await page.$eval('.dc-ledger tbody tr:first-child [role="menu"]',
+        e => !e.hidden), true, 'and the popover is really visible');
+      is(await page.evaluate(() => document.activeElement.getAttribute('role')), 'menuitem',
+        'focus moves into the menu, so the keyboard is not stranded behind it');
+
+      // Esc closes and gives the focus back — the thing a popover most often
+      // gets wrong.
+      await page.keyboard.press('Escape');
+      is(await page.$eval('.dc-ledger tbody tr:first-child [data-menu-btn]',
+        e => e.getAttribute('aria-expanded')), 'false', 'Escape closes it');
+      is(await page.evaluate(() => document.activeElement.hasAttribute('data-menu-btn')), true,
+        'and focus returns to the trigger');
+
+      // Opening a second menu closes the first: only one is ever open.
+      // Row 2 first, then row 1 — an open popover hangs OVER the row beneath
+      // it, so clicking row 2's trigger while row 1 is open would land on a
+      // menu item, which is what a person would see happen too.
+      await page.click('.dc-ledger tbody tr:nth-child(2) [data-menu-btn]');
+      await page.click('.dc-ledger tbody tr:nth-child(1) [data-menu-btn]');
+      is(await page.$$eval('.dc-ledger [aria-expanded="true"]', b => b.length), 1,
+        'opening another closes the first — never two at once');
+
+      // and the action reaches the right entry
+      await page.keyboard.press('Escape');
+      await page.focus('.dc-ledger tbody tr:first-child [data-menu-btn]');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');            // choose "Void…"
+      await page.waitForSelector('.dc-modal', { timeout: 5000 });
+      ok('choosing Void from the keyboard opens the reason dialog');
+      await page.type('.dc-modal input[type=text]', 'entered twice');
+      await page.click('.dc-modal button[type=submit]');
+      await page.waitForFunction(() =>
+        window.__dcStub.calls.some(c => c.name === 'void_cash_entry'), { timeout: 5000 });
+      const v = await page.evaluate(() =>
+        window.__dcStub.calls.find(c => c.name === 'void_cash_entry').args);
+      is(v.p_entry_id, 'e1', 'and it voided THE ROW IT WAS OPENED FROM, not a picked one');
+      is(v.p_reason, 'entered twice', 'carrying the reason typed');
+      await page.close();
+    }
+
+    // ═══ P7 · S2, THE CLOSE PANEL ══════════════════════════════════════
+    head('the close panel will not close a day whose difference is unexplained');
+    {
+      const page = await open('open');
+      await page.click('#dc-close');
+      await page.waitForSelector('.dc-panel', { timeout: 5000 });
+      ok('Close Day opens the side panel');
+      is(await page.$eval('.dc-panel', e => Math.round(e.getBoundingClientRect().width)), 480,
+        'at 480 px, per §A12');
+      is(await page.$eval('#dc-cp-exp', e => e.textContent), 'Rs 90,723',
+        'the book figure is shown before anything is counted');
+      is(await page.$eval('#dc-do-close', e => e.disabled), true,
+        'and Close is disabled until the drawer is counted');
+
+      // count in notes: 18 × 5000 = 90,000
+      await page.type('#dc-den-5000', '18');
+      is(await page.$eval('#dc-counted', e => e.value), '90,000',
+        'the note count fills the counted figure');
+      is(await page.$eval('#dc-var-slot [id$="-t"]', e => e.textContent),
+        'Variance (723) — the drawer is short',
+        'a shortfall is named, in parentheses, not with a minus');
+      is(await page.$eval('#dc-do-close', e => e.disabled), true,
+        'Close is STILL disabled — a variance without a reason cannot be closed');
+      is(await page.evaluate(() =>
+        window.__dcStub.calls.some(c => c.name === 'close_cash_day')), false,
+        'and nothing was sent to the server');
+
+      await page.type('#dc-var-r', 'cashier short, recovering tomorrow');
+      is(await page.$eval('#dc-do-close', e => e.disabled), false,
+        'a reason unlocks it');
+
+      // typing over the notes total: a drawer holds coins too
+      await page.click('#dc-counted');
+      await page.keyboard.down('Control');
+      await page.keyboard.press('KeyA');
+      await page.keyboard.up('Control');
+      await page.keyboard.type('90723');
+      is(await page.$eval('#dc-counted', e => e.value), '90,723',
+        'the counted figure can be typed over the note total');
+      is(await page.$eval('#dc-var-slot', e => e.textContent.trim()),
+        'The count agrees with the book.', 'and agreement is said plainly');
+      await page.close();
+    }
+
+    head('a keystroke in the middle of a count does not lose the field');
+    {
+      // The variance banner appears after the FIRST digit of 90000. If the
+      // panel repainted, the remaining four keystrokes would go nowhere —
+      // the reason the banner lives in a slot.
+      const page = await open('open');
+      await page.click('#dc-close');
+      await page.waitForSelector('#dc-counted', { timeout: 5000 });
+      await page.click('#dc-counted');
+      await page.keyboard.type('90000');
+      is(await page.$eval('#dc-counted', e => e.value), '90,000',
+        'all five digits arrived, with the banner appearing mid-word');
+      is(await page.evaluate(() => document.activeElement.id), 'dc-counted',
+        'and the focus never left the field');
+      await page.close();
+    }
+
+    head('closing the day renders the sheet and offers it');
+    {
+      const page = await open('open');
+      await page.click('#dc-close');
+      await page.waitForSelector('#dc-counted', { timeout: 5000 });
+      await page.click('#dc-counted');
+      await page.keyboard.type('90723');
+      await page.click('#dc-do-close');
+
+      await page.waitForSelector('.dc-modal', { timeout: 5000 });
+      const warn = await page.$eval('.dc-modal', e => e.textContent);
+      warn.includes('Nothing on a closed day can be edited')
+        ? ok('it asks for confirmation, and says what closing costs')
+        : bad(`the confirmation read “${warn.slice(0, 90)}”`);
+      await page.click('.dc-modal button[type=submit]');
+
+      await page.waitForFunction(() =>
+        document.querySelector('.dc-done-t') &&
+        /PDF ready/.test(document.querySelector('.dc-done-t').textContent), { timeout: 8000 });
+      ok('the panel ends on “Closed · PDF ready”');
+
+      const sent = await page.evaluate(() =>
+        window.__dcStub.calls.find(c => c.name === 'close_cash_day').args);
+      is(sent.p_counted_cash, 90723, 'the counted figure went as a number');
+      is(sent.p_version, 0, 'the version READ was sent back, for the optimistic lock');
+      is(JSON.stringify(sent.p_denominations), 'null',
+        'no denominations were invented for a figure typed by hand');
+
+      is(await page.evaluate(() =>
+        window.__dcStub.calls.some(c => c.name === 'fn:daily-closing-pdf')), true,
+        'the Director PDF was rendered as part of closing, not left for later');
+      is(await page.$eval('#dc-dl', e => e.getAttribute('download')),
+        'AwamiMarket_Daily_Closing_2026-09-03.pdf', 'Download carries the real filename');
+      is(!!(await page.$('#dc-share')), true, 'and Share is offered beside it');
+      await page.close();
+    }
+
+    head('a day that moved while it was being counted is refused, not overwritten');
+    {
+      const page = await open('open');
+      await page.evaluate(() => window.__dcStub.scriptNext({
+        success: false, error: 'VERSION_CONFLICT',
+        message: 'The day changed while you were counting. Reload and close again.',
+        expected_version: 1, sent_version: 0
+      }, 'close_cash_day'));
+
+      await page.click('#dc-close');
+      await page.waitForSelector('#dc-counted', { timeout: 5000 });
+      await page.click('#dc-counted');
+      await page.keyboard.type('90723');
+      await page.click('#dc-do-close');
+      await page.waitForSelector('.dc-modal', { timeout: 5000 });
+      await page.click('.dc-modal button[type=submit]');
+
+      await page.waitForFunction(() =>
+        document.querySelector('.dc-panel .dc-variance-title') &&
+        /while you were counting/.test(document.querySelector('.dc-panel .dc-variance-title').textContent),
+        { timeout: 8000 });
+      ok('the panel says an entry landed while the notes were being counted');
+      is(!!(await page.$('.dc-done-t')), false, 'and it did NOT report the day closed');
+      is(await page.evaluate(() =>
+        window.__dcStub.calls.some(c => c.name === 'fn:daily-closing-pdf')), false,
+        'no sheet was rendered for a close that never happened');
+      is(await page.evaluate(() => window.__dcStub.calls
+        .filter(c => c.name === 'get_cash_day_summary').length >= 2), true,
+        'the day was re-read underneath, so the figure shown is the new one');
+      is(!!(await page.$('#dc-counted')), true,
+        'and the count is still on screen — nobody recounts a drawer over a race');
+      await page.close();
+    }
+
+    // ═══ P7 · S3, THE DAYS LIST ════════════════════════════════════════
+    head('S3 lists the days, and a row is the way back into one');
+    {
+      const page = await open('open');
+      // Opening a sheet really does open a tab. Catch it in the capture phase
+      // instead, so the assertion can be about WHICH url was opened — which is
+      // the thing worth checking anyway.
+      await page.evaluate(() => {
+        window.__opened = [];
+        document.addEventListener('click', e => {
+          const a = e.target.closest && e.target.closest('a[target="_blank"]');
+          if (a) { window.__opened.push(a.href); e.preventDefault(); }
+        }, true);
+      });
+      await page.click('#dc-view-days');
+      await page.waitForSelector('.dc-days tbody tr', { timeout: 5000 });
+      is(await page.evaluate(() => window.__dcStub.calls
+        .find(c => c.name === 'list_cash_days').args.p_limit), 60, 'sixty days are asked for');
+      is(await page.$$eval('.dc-days tbody tr', r => r.length), 3, 'three days listed');
+      is(await page.$eval('.dc-days tbody tr:first-child', e => e.textContent.includes('90,723')),
+        true, 'with the closing cash of each');
+      is(await page.$$eval('.dc-days [data-pdf]', b => b.length), 2,
+        'the two days that have a sheet offer it; the one that does not, does not');
+      is(await page.$eval('.dc-days [data-pdf]', e => e.getAttribute('aria-label')),
+        'Open the Director PDF for 03 Sep 2026, version 2',
+        'and the link says which day and which version');
+
+      // the stored sheet is fetched, NOT re-rendered — a Director opening
+      // last week's sheet must not silently make a v3 of it
+      await page.click('.dc-days [data-pdf]');
+      await page.waitForFunction(() =>
+        window.__dcStub.calls.some(c => c.name === 'authorize_day_document'), { timeout: 5000 });
+      is(await page.evaluate(() =>
+        window.__dcStub.calls.some(c => c.name === 'fn:daily-closing-pdf')), false,
+        'opening a stored sheet does not re-render it into a new version');
+      is(await page.evaluate(() => window.__opened[0]), 'https://example.invalid/stored/doc.pdf',
+        'the signed link that opened is the STORED file, not a fresh one');
+
+      // the row itself goes to the day
+      await page.click('.dc-days tbody tr:nth-child(2)');
+      await page.waitForSelector('.dc-ledger, .dc-empty', { timeout: 5000 });
+      is(await page.$eval('#dc-date', e => e.value), '2026-09-02',
+        'clicking a row opens that day in S1');
+      await page.close();
+    }
+
+    head('a Director PDF is regenerated at the next version after an adjustment');
+    {
+      const page = await open('closed');
+      await page.click('#dc-adjust');
+      await page.waitForSelector('.dc-modal', { timeout: 5000 });
+      await page.type('.dc-modal .dc-money-input input', '3');
+      const texts = await page.$$('.dc-modal input[type=text]');
+      await texts[texts.length - 1].type('cashier short by 3');
+      await page.click('.dc-modal button[type=submit]');
+      await page.waitForFunction(() =>
+        window.__dcStub.calls.some(c => c.name === 'fn:daily-closing-pdf'), { timeout: 8000 });
+      ok('posting an adjustment re-issues the sheet');
+      is(await page.evaluate(() => window.__dcStub.calls
+        .find(c => c.name === 'post_cash_adjustment').args.p_reason), 'cashier short by 3',
+        'the reason is not optional and it is what was typed');
       await page.close();
     }
 

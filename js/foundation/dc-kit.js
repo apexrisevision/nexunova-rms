@@ -39,7 +39,12 @@
     lock:  '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
     inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
-    link:  '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
+    link:  '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    more:  '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
+    down:  '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+    share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>',
+    close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    file:  '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/>'
   };
   function icon(name, size) {
     var d = ICON[name]; if (!d) return '';
@@ -54,7 +59,8 @@
      figure change when an entry lands, without the page being re-read. */
   function heroFigure(o) {
     o = o || {};
-    var tone = o.tone === 'in' ? ' dc-hero--in' : o.tone === 'out' ? ' dc-hero--out' : '';
+    var tone = o.tone === 'in' ? ' dc-hero--in' : o.tone === 'out' ? ' dc-hero--out'
+           : o.tone === 'warn' ? ' dc-hero--warn' : '';
     var v = o.raw !== undefined ? o.raw : F.money(o.value);
     return '<div class="dc-hero' + tone + '">' +
       '<span class="dc-label">' + esc(o.label || '') + '</span>' +
@@ -293,6 +299,108 @@
      Sticky header and sticky totals. A voided row is struck through AND
      linked to its reversal — the strike alone would say "gone", and the
      row is not gone, it is answered. */
+  /* ── RowMenu ─────────────────────────────────────────────────────────
+     An ADDITION to §A11, agreed in P7 — not a deviation from it. §A12 asks
+     for row actions on the ledger and P6 shipped a picker plus a button
+     instead, because the kit had no popover. A picker is fine with eight
+     entries and unusable with forty: you cannot see which row you are about
+     to void. This is the missing piece.
+
+     It is a real menu: `aria-haspopup`, `role="menu"`, roving focus, ↑ ↓
+     Home End, Esc closes and returns focus to the trigger, Tab closes,
+     clicking anywhere else closes. Exactly one menu is open at a time. */
+  function rowMenu(o) {
+    o = o || {};
+    var id = o.id || uid('menu');
+    return '<div class="dc-menu">' +
+      '<button type="button" class="dc-menu-btn" id="' + id + '-b" data-menu-btn' +
+        ' aria-haspopup="menu" aria-expanded="false" aria-controls="' + id + '"' +
+        attr({ 'aria-label': o.label || 'Row actions' }) + '>' + icon('more', 16) + '</button>' +
+      '<div class="dc-menu-pop" id="' + id + '" role="menu" hidden' +
+        attr({ 'aria-labelledby': id + '-b' }) + '>' +
+        (o.items || []).map(function (it) {
+          return '<button type="button" role="menuitem" tabindex="-1" class="dc-menu-item' +
+            (it.danger ? ' dc-menu-item--danger' : '') + '"' +
+            attr({ 'data-action': it.code, 'data-row': o.row }) + '>' + esc(it.label) + '</button>';
+        }).join('') +
+      '</div></div>';
+  }
+
+  /* One delegated listener for every menu under `root`. onPick(code, rowId). */
+  function bindRowMenus(root, onPick) {
+    if (!root || root.__dcMenus) return;
+    root.__dcMenus = true;
+
+    function pop(btn) { return document.getElementById(btn.getAttribute('aria-controls')); }
+    function items(p) { return Array.prototype.slice.call(p.querySelectorAll('[role="menuitem"]')); }
+
+    function closeAll(except) {
+      Array.prototype.forEach.call(root.querySelectorAll('[data-menu-btn]'), function (b) {
+        if (b === except) return;
+        b.setAttribute('aria-expanded', 'false');
+        var p = pop(b); if (p) p.hidden = true;
+      });
+    }
+    function open(btn, focusLast) {
+      closeAll(btn);
+      var p = pop(btn); if (!p) return;
+      btn.setAttribute('aria-expanded', 'true');
+      p.hidden = false;
+      var list = items(p);
+      if (list.length) list[focusLast ? list.length - 1 : 0].focus();
+    }
+    function close(btn, refocus) {
+      btn.setAttribute('aria-expanded', 'false');
+      var p = pop(btn); if (p) p.hidden = true;
+      if (refocus) btn.focus();
+    }
+
+    root.addEventListener('click', function (ev) {
+      var btn = ev.target.closest && ev.target.closest('[data-menu-btn]');
+      if (btn) {
+        ev.stopPropagation();
+        return btn.getAttribute('aria-expanded') === 'true' ? close(btn, true) : open(btn);
+      }
+      var item = ev.target.closest && ev.target.closest('[role="menuitem"]');
+      if (item) {
+        ev.stopPropagation();
+        var owner = document.getElementById(item.parentNode.getAttribute('aria-labelledby'));
+        close(owner, false);
+        if (onPick) onPick(item.getAttribute('data-action'), item.getAttribute('data-row'));
+        return;
+      }
+      closeAll(null);
+    });
+
+    root.addEventListener('keydown', function (ev) {
+      var btn = ev.target.closest && ev.target.closest('[data-menu-btn]');
+      if (btn) {
+        if (ev.key === 'ArrowDown' || ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault(); return open(btn);
+        }
+        if (ev.key === 'ArrowUp') { ev.preventDefault(); return open(btn, true); }
+        if (ev.key === 'Escape') return close(btn, true);
+        return;
+      }
+      var item = ev.target.closest && ev.target.closest('[role="menuitem"]');
+      if (!item) return;
+      var p = item.parentNode, list = items(p), i = list.indexOf(item);
+      var owner = document.getElementById(p.getAttribute('aria-labelledby'));
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); list[(i + 1) % list.length].focus(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+      else if (ev.key === 'Home') { ev.preventDefault(); list[0].focus(); }
+      else if (ev.key === 'End') { ev.preventDefault(); list[list.length - 1].focus(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); close(owner, true); }
+      else if (ev.key === 'Tab') { close(owner, false); }
+    });
+
+    // A menu left open behind a click elsewhere on the page is a menu the
+    // keyboard can still reach but the eye has lost.
+    document.addEventListener('click', function (ev) {
+      if (!root.contains(ev.target)) closeAll(null);
+    });
+  }
+
   function ledgerTable(o) {
     o = o || {};
     var rows = (o.rows || []).map(function (r) {
@@ -305,7 +413,10 @@
         '<td class="dc-num dc-out-col">' + (r.out ? esc(F.amount(r.out)) : '') + '</td>' +
         '<td class="dc-linkcell">' + (r.voided
           ? '<a class="dc-link" href="#' + esc(r.reversalId || '') + '" title="Go to its reversal" aria-label="Go to the reversal of voucher ' + esc(r.voucherNo) + '">' + icon('link', 14) + '</a>'
-          : '') + '</td>' +
+          : (r.actions && r.actions.length
+              ? rowMenu({ row: r.id, items: r.actions,
+                          label: 'Actions for voucher ' + (r.voucherType || '') + '-' + (r.voucherNo || '') })
+              : '')) + '</td>' +
       '</tr>';
     }).join('');
     var t = o.totals || {};
@@ -533,8 +644,85 @@
     });
   }
 
+  /* ── SidePanel ───────────────────────────────────────────────────────
+     §A12's close panel is 480 px on the right, not a modal in the middle:
+     the cashier counts notes with the day's ledger still visible beside the
+     count. It is still a dialog to a screen reader — `aria-modal`, focus
+     moves in, Esc and the backdrop close it, and focus returns to whatever
+     opened it. Below 640 px it becomes a full-height sheet, because 480 px
+     of panel on a 375 px phone is a modal wearing a disguise.
+
+     open() returns a handle: { el, setBody, close }. The caller owns the
+     content — this only owns the shell and the focus. */
+  function sidePanel(o) {
+    o = o || {};
+    var prev = document.activeElement;
+    var id = uid('panel');
+
+    /* IT LIVES OUTSIDE THE SCREEN'S ROOT, DELIBERATELY. The panel stays open
+       across a reload of the day underneath it — a VERSION_CONFLICT reloads,
+       and so does a successful close before the sheet is offered — and the
+       screen reloads by rewriting root.innerHTML. A panel parented inside
+       that root would simply vanish mid-flow. It carries its own `.dc` so
+       the module's styles still reach it. */
+    var host = document.createElement('div');
+    host.className = 'dc';
+    document.body.appendChild(host);
+    var wrap = document.createElement('div');
+    wrap.className = 'dc-panel-back';
+    wrap.innerHTML =
+      '<aside class="dc-panel" role="dialog" aria-modal="true" aria-labelledby="' + id + '-t">' +
+        '<div class="dc-panel-head">' +
+          '<div>' +
+            '<div class="dc-panel-t" id="' + id + '-t">' + esc(o.title || '') + '</div>' +
+            (o.subtitle ? '<div class="dc-panel-sub">' + esc(o.subtitle) + '</div>' : '') +
+          '</div>' +
+          '<button type="button" class="dc-icon-btn" data-panel-close aria-label="Close this panel">' +
+            icon('close', 18) + '</button>' +
+        '</div>' +
+        '<div class="dc-panel-body" data-panel-body></div>' +
+      '</aside>';
+    host.appendChild(wrap);
+
+    var panel = wrap.querySelector('.dc-panel');
+    var body = wrap.querySelector('[data-panel-body]');
+    var closed = false;
+
+    function close() {
+      if (closed) return;
+      closed = true;
+      host.remove();
+      if (prev && prev.focus) prev.focus();
+      if (o.onClose) o.onClose();
+    }
+    function focusFirst() {
+      var f = panel.querySelector('input, select, textarea, button:not([data-panel-close])');
+      (f || panel.querySelector('[data-panel-close]')).focus();
+    }
+
+    wrap.querySelector('[data-panel-close]').addEventListener('click', close);
+    wrap.addEventListener('mousedown', function (e) { if (e.target === wrap) close(); });
+    wrap.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); return close(); }
+      if (e.key !== 'Tab') return;
+      var f = Array.prototype.filter.call(
+        panel.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+        function (n) { return !n.disabled && n.offsetParent !== null; });
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+
+    return {
+      el: panel, body: body, close: close, focusFirst: focusFirst,
+      setBody: function (html) { body.innerHTML = html; }
+    };
+  }
+
   global.DCKit = {
-    dialog: dialog,
+    dialog: dialog, sidePanel: sidePanel,
+    rowMenu: rowMenu, bindRowMenus: bindRowMenus,
     esc: esc, icon: icon, FACES: FACES,
     heroFigure: heroFigure, statusChip: statusChip, voucherChip: voucherChip,
     segmented: segmented, bindSegmented: bindSegmented,

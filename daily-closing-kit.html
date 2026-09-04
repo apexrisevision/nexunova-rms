@@ -136,6 +136,19 @@
 
   <section class="grid grid-2">
     <div>
+      <h2>Row menu <span class="note">added in P7</span></h2>
+      <p class="note">The ledger's row action, §A12. A real <code>role="menu"</code>: Enter, Space or ↓ opens it, ↑ ↓ Home End move, Esc closes and hands focus back to the trigger, Tab closes, and only one is ever open. Its label names the row — “Actions for voucher CRV-0041”, never “menu”.</p>
+      <div class="panel"><div class="dc" id="d-menu"></div></div>
+    </div>
+    <div>
+      <h2>Side panel <span class="note">added in P7</span></h2>
+      <p class="note">480 px on the right so the ledger stays in view while the drawer is counted; a full-height sheet below 640 px. Focus moves in and is trapped; Esc and the backdrop close it. It hangs off <code>body</code>, not the screen's root, so a reload underneath cannot delete it mid-count.</p>
+      <div class="panel"><div class="dc" id="d-panel"><button class="dc-btn dc-btn--primary" id="d-panel-open" type="button">Open a panel</button></div></div>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <div>
       <h2>Variance banner</h2>
       <p class="note">Amber, 3 px left border, icon, and the required field inline.</p>
       <div class="panel"><div class="dc" id="d-variance"></div></div>
@@ -315,6 +328,28 @@
         { seq: 5, voucherType: 'CPV', voucherNo: '0042-VOID', payee: 'Zubair', narration: 'Void of CRV-0042', out: 500 }
       ],
       totals: { in: 200500, out: 77500 } });
+
+    // RowMenu — shown open, because a closed popover photographs as nothing.
+    var menuHost = document.getElementById('d-menu');
+    menuHost.innerHTML = '<div class="dc-ledger-wrap"><table class="dc-ledger"><tbody>' +
+      '<tr><td class="dc-num">1</td><td>' + K.voucherChip('CRV', { no: '0041' }) + '</td>' +
+      '<td>Yousaf Khan</td><td class="dc-num dc-in-col">150,000</td>' +
+      '<td class="dc-linkcell">' + K.rowMenu({ id: 'kitmenu', row: 'e1',
+        label: 'Actions for voucher CRV-0041',
+        items: [{ code: 'void', label: 'Void…', danger: true }] }) + '</td></tr>' +
+      '</tbody></table></div>';
+    K.bindRowMenus(menuHost, function (code, row) { K.toast(code + ' on ' + row); });
+    var kitBtn = document.getElementById('kitmenu-b');
+    kitBtn.setAttribute('aria-expanded', 'true');
+    document.getElementById('kitmenu').hidden = false;
+
+    document.getElementById('d-panel-open').addEventListener('click', function () {
+      var p = K.sidePanel({ title: 'Close the day', subtitle: 'Thursday, 03 September 2026 · Awami Market' });
+      p.setBody(K.denominationCounter({ id: 'kitden' }) +
+        '<div class="dc-panel-foot"><button type="button" class="dc-btn dc-btn--primary">Close the day</button></div>');
+      K.bindDenominationCounter(document.getElementById('kitden'));
+      p.focusFirst();
+    });
 
     document.getElementById('d-variance').innerHTML = K.varianceBanner({ variance: -3 });
 

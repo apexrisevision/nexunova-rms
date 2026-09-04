@@ -215,3 +215,157 @@ ADJUSTMENTS block means. The test caught it.
 4. **The screen suite goes red by timing out**, not by printing a clean ❌ — proved by removing
    `DUPLICATE_VOUCHER` from the error map (exit 1). A timeout is a real failure, but a named
    one would read better; worth tidying in P10.
+
+---
+
+# P7 — S2 the close panel, the Director PDF, S3 the days list
+
+## Open it
+
+```
+https://<your RMS domain>/daily-closing.html            # S1, today
+https://<your RMS domain>/daily-closing.html?view=days  # S3
+```
+
+`?stub=1&state=open` still drives the whole of P7 with no database: the close panel, the
+version conflict, the days list and the PDF handoff are all scripted.
+
+## Files
+
+| File | What |
+|---|---|
+| `supabase/migrations/20260904m_…` | `get_cash_day_pdf_data` · `record_day_document` · `list_cash_days` · `authorize_day_document` |
+| `supabase/functions/daily-closing-pdf/index.ts` | the Director PDF, **deployed**, `verify_jwt: false` |
+| `js/foundation/dc-kit.js` | **+ RowMenu** (`rowMenu` / `bindRowMenus`) and **+ SidePanel** (`sidePanel`) |
+| `js/pages/daily-closing.js` | S2 close panel · S3 days list · PDF render/open/share · post-close adjustment |
+| `scripts/verify-daily-closing-pdf.js` | 38 assertions against a REAL rendered PDF |
+| `scripts/verify-daily-closing-screen.js` | now 96 assertions — P6's 60 plus P7's |
+| `docs/daily-closing/design/director_pdf_sample.pdf` | a real render, openable |
+
+## An addition to §A11: RowMenu
+
+§A12 asks for row actions on the ledger. P6 shipped a picker plus a button because the kit had
+no popover, and said so. **This is that popover, added to the kit properly** — it belongs in
+§A11 beside the other components, not recorded as a deviation from it.
+
+- trigger is a 32 px icon button (44 px under 640 px) carrying `aria-haspopup="menu"`,
+  `aria-expanded` and an `aria-label` that **names its row** — "Actions for voucher CRV-0041",
+  not "menu"
+- popover is a real `role="menu"` with `role="menuitem"` children at `tabindex="-1"`
+- **Enter · Space · down** open it and move focus to the first item; **up** opens on the last
+- **down up Home End** move between items, **Esc** closes and returns focus to the trigger,
+  **Tab** closes, a click anywhere else closes
+- exactly one menu is open at a time — opening another closes the first
+- a **voided** row has no menu; its cell keeps the link to its reversal, which is the more
+  useful thing to offer there
+
+Screenshot: `s1-rowmenu-1280` and `s1-rowmenu-375`.
+
+## An addition to §A11: SidePanel
+
+§A12's close panel is 480 px on the right rather than a modal in the middle, so the ledger stays
+in view while the drawer is counted. Below 640 px it becomes a full-height sheet — 480 px of
+panel on a 375 px phone is a modal wearing a disguise. It is still a dialog to a screen reader:
+`aria-modal`, focus moves in and is trapped, Esc and the backdrop close it, focus returns to
+whatever opened it.
+
+**It is parented to `document.body`, not to the screen's root, and that is deliberate.** The
+screen reloads by rewriting `root.innerHTML`; a panel inside that root would vanish mid-flow —
+which is exactly what happens on a VERSION_CONFLICT and again between closing and offering the
+sheet. It carries its own `.dc` so the module's styles still reach it. Its z-index sits *below*
+`.dc-modal`, because the close confirmation is raised from inside it.
+
+## S2 · what the close panel refuses
+
+Three things it is built around, in order of how much they matter:
+
+1. **The button is disabled until the count is valid** — but `close_cash_day` refuses on its own
+   with `VARIANCE_UNEXPLAINED`. The disabled button is a courtesy; the server is the rule. The
+   suite asserts both: that the button stays disabled, and that nothing was sent.
+2. **The version read is sent back.** If an entry lands while the notes are being counted the
+   close is refused, and the panel reloads the day underneath while **keeping the count on
+   screen**. Nobody recounts a drawer because of a race.
+3. **The denomination breakdown is reported, not enforced** — the server says so too. A drawer
+   holds coins, so the counted figure fills in from the notes and can be typed over. If the two
+   disagree the panel says so after the close rather than blocking before it.
+
+Two details found by building it:
+
+- **The variance banner lives in a slot, not in a branch.** Typing "90000" makes the variance
+  non-zero after the *first* digit; re-rendering the panel there would have eaten the other four
+  keystrokes. Asserted.
+- **The counter already ends on a row saying "Counted".** The money field beneath it was also
+  called "Counted cash" — the same word twice, one line apart, for two different things. It is
+  "Recorded as" now.
+
+Screenshot: `s1-closepanel-1280` and `s1-closepanel-375`.
+
+## The Director PDF
+
+Rendered by an edge function with `pdf-lib`, to §A13's layout, at A4. The header reads
+`FOURTEEN GROUP · <PROJECT NAME>` — the brand is the constant from RULES §0.7 and the project
+name comes from `projects.project_name`, **never** `companies.display_name`, because two tenant
+rows share that string.
+
+**§A10, mechanically.** `get_cash_day_pdf_data` does not SELECT a client phone number at all —
+not masked, not truncated, never fetched — so there is nothing in the renderer that could leak
+one. The suite extracts the text of a real render and asserts no phone-shaped string appears.
+
+**Versions are kept, never overwritten.** The next version is computed inside the same read that
+builds the payload, `day_documents` has `UNIQUE (cash_day_id, kind, version)` behind it, and a
+regeneration after an adjustment takes the next number. A Director holding v1 can be shown what
+changed. Opening a stored sheet from S3 fetches the file — it does not re-render and does not
+consume a version; asserted.
+
+Typeface: Inter if `_assets/Inter-Regular.ttf` and `Inter-SemiBold.ttf` are in the bucket,
+otherwise Helvetica. Nothing has been uploaded yet, so the sample renders in Helvetica; dropping
+the two files into the bucket switches it with no code change.
+
+## S3 · the days list
+
+Sixty days, newest first, from `list_cash_days`. Each row shows status, entry count, closing
+cash and bank, and any variance; a row is a link into that day in S1 and works from the keyboard.
+A day with a rendered sheet offers it, labelled with its version.
+
+The view switch sits on the navy band, where a navy "primary" fill disappeared and the plain
+button read as the selected one — backwards. Inside the band the **current** view is the solid
+white button.
+
+Screenshot: `s1-days-1280` and `s1-days-375`.
+
+## Proving the suites can go red
+
+- **Screen suite** — the optimistic lock was removed from the close payload
+  (`p_version: null`). Result: `the version READ was sent back, for the optimistic lock — got
+  null, want 0`, and `FAIL (95 passed, 1 failed)`. Restored, green again.
+- **PDF suite** — the renderer's thousands separator was switched to `en-IN` and the footer
+  reworded, then deployed for real. Result: three named failures. Restored and redeployed.
+
+That second red check found **two faults in the instruments themselves**:
+
+1. The lakh check only matched *crore*-shaped numbers, so a document reading `1,50,000` passed
+   it. It now matches lakh grouping too.
+2. The phone-number check had never fired in its life, on any input.
+
+Both are checks for something that should be **absent**, so on a clean document they are green
+whether they work or not — the same false-confidence shape as the NULL trap in P2. The suite now
+**self-tests both detectors on synthetic strings every run** (eight probes: each must fire on
+what it should catch and stay silent on what it must not), so a broken detector goes red on its
+own rather than waiting for a leak to be missed.
+
+## Deviations and open questions
+
+1. **Share uses the browser's share sheet, or copies the link.** Sending on WhatsApp is Phase 4
+   and is deliberately not wired.
+2. **The signed link lasts ten minutes** (§A7). The panel says so.
+3. **The golden fixture moved the other suites, not itself.** `cash_entries` can never be
+   deleted, so the fixture's rows on ZZTEST Tower are permanent by design — and P3/P4 begin by
+   wiping their project's entries, which only ever worked because there were none. Rather than
+   disable invariant 1 to tidy up, the wiping suites moved to **ZZTEST Garden**. One project
+   holds undeletable rows; the other holds none. They must not be the same one.
+4. **`20260904f`'s verify block was rewritten.** It asserted that *no* row holds `cfo` — true the
+   day it ran, false the moment the first CFO account existed, which is the thing the migration
+   exists to allow. An assertion that expires is worse than none: it fails on correct data. It
+   now asserts that no row holds anything outside the seven values and that none was rewritten.
+5. **The screen suite still goes red by timing out** in some paths rather than printing a named
+   failure — carried into P10 as agreed, along with the attachment end-to-end item.

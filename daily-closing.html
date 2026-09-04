@@ -65,8 +65,9 @@
   if (params.get('stub') === '1') {
     var stub = window.DCStub.make(params.get('state') || 'open');
     window.DailyClosing.mount(root, {
-      rpc: stub.rpc, me: stub.me, projects: stub.projects,
-      projectId: stub.projects[0].id, date: '2026-09-03'
+      rpc: stub.rpc, fn: stub.fn, me: stub.me, projects: stub.projects,
+      projectId: stub.projects[0].id, date: '2026-09-03',
+      view: params.get('view') === 'days' ? 'days' : 'day'
     });
     window.__dcStub = stub;   // the test reads what the screen sent
     return;
@@ -89,6 +90,26 @@
     return SB.rpc(name, args).then(function (r) {
       if (r.error) throw new Error(r.error.message);
       return r.data;
+    });
+  }
+
+  // The Director PDF and the attachment bridge are edge functions, not RPCs.
+  // Both read the Authorization header themselves and forward the caller's own
+  // JWT to the database, so the caller's access is still the database's
+  // decision — this only carries the token there.
+  function fn(name, body) {
+    return SB.auth.getSession().then(function (s) {
+      var token = s && s.data && s.data.session && s.data.session.access_token;
+      if (!token) throw new Error('no session');
+      return fetch(SUPABASE_URL + '/functions/v1/' + name, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body || {})
+      }).then(function (r) { return r.json(); });
     });
   }
 
@@ -120,7 +141,8 @@
       if (!list.length) return deny('No project', 'You are not assigned to a project yet.');
       var role = String(sess.role || '').toLowerCase();
       window.DailyClosing.mount(root, {
-        rpc: rpc,
+        rpc: rpc, fn: fn,
+        view: params.get('view') === 'days' ? 'days' : 'day',
         me: {
           companyId: sess.cid, userId: sess.userId, role: role,
           isCfo: role === 'cfo' || role === 'owner',

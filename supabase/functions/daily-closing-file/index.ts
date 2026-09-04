@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       `${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${ok.storage_key}`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ expiresIn: 600 }),   // §A7: ten minutes
       },
     );
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       `${SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${key}`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ expiresIn: 300 }),
       },
     );

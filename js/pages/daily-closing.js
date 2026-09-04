@@ -47,14 +47,32 @@
       date: opts.date || F.todayPK(),
       day: null, entries: [], payees: [], units: [], accounts: [],
       defaults: {}, busy: false,
-      form: null, idemKey: null
+      form: null, idemKey: null,
+      view: opts.view === 'days' ? 'days' : 'day',   // S1 or S3
+      days: null, panel: null,
+      // The Director PDF is rendered by an edge function, not an RPC, so the
+      // host injects a caller the same way it injects `rpc`. In stub mode the
+      // stub provides one; nothing here knows what a Supabase URL looks like.
+      fn: opts.fn || null
     };
     root.classList.add('dc');
     S.isCfo = !!S.me.isCfo;
     S.isAccountantPlus = !!(S.me.isAccountantPlus || S.me.isCfo);
 
     /* ── data ─────────────────────────────────────────────────────────── */
+    function loadDays() {
+      render(true);
+      return S.rpc('list_cash_days', {
+        p_company_id: S.me.companyId, p_project_id: S.projectId, p_limit: 60
+      }).then(function (r) {
+        S.days = (r && r.days) || [];
+        if (r && r.success === false) S.error = r.message || r.error;
+        render(false);
+      }).catch(function (e) { S.error = e && e.message; S.days = []; render(false); });
+    }
+
     function load() {
+      if (S.view === 'days') return loadDays();
       render(true);
       return S.rpc('get_cash_day_summary', {
         p_company_id: S.me.companyId, p_project_id: S.projectId, p_business_date: S.date
@@ -83,6 +101,7 @@
     function render(loading) {
       root.innerHTML = header(loading) +
         (loading ? skeletonBody()
+                 : S.view === 'days' ? daysBody()
                  : !S.day || !S.day.exists ? notOpened()
                  : S.day.status === 'CLOSED' ? closedBody()
                  : openBody()) +
@@ -101,17 +120,63 @@
               return '<option' + (p.id === S.projectId ? ' selected' : '') + ' value="' + esc(p.id) + '">' +
                 esc(p.name) + '</option>';
             }).join('') + '</select>' +
-          '<div class="dc-band-date" style="margin-top:8px">' + esc(F.dateLong(S.date)) + '</div>' +
+          '<div class="dc-band-date" style="margin-top:8px">' +
+            esc(S.view === 'days' ? 'The last 60 days' : F.dateLong(S.date)) + '</div>' +
         '</div>' +
         '<div class="dc-row-between" style="gap:12px">' +
-          '<input class="dc-input" id="dc-date" type="date" value="' + esc(S.date) +
-            '" style="width:150px;height:32px" aria-label="Business date">' +
-          (status ? K.statusChip(status) : '') +
-          (status === 'OPEN' && S.isCfo
-            ? '<button class="dc-btn" id="dc-close" type="button">Close Day</button>' : '') +
+          '<div class="dc-views" role="group" aria-label="View">' +
+            '<button class="dc-btn" id="dc-view-day" type="button"' +
+              (S.view === 'day' ? ' aria-current="true"' : '') + '>Day</button>' +
+            '<button class="dc-btn" id="dc-view-days" type="button"' +
+              (S.view === 'days' ? ' aria-current="true"' : '') + '>Days</button>' +
+          '</div>' +
+          (S.view === 'day'
+            ? '<input class="dc-input" id="dc-date" type="date" value="' + esc(S.date) +
+              '" style="width:150px;height:32px" aria-label="Business date">' +
+              (status ? K.statusChip(status) : '') +
+              (status === 'OPEN' && S.isCfo
+                ? '<button class="dc-btn dc-btn--primary" id="dc-close" type="button">Close Day</button>' : '')
+            : '') +
         '</div>' +
       '</div>' +
-      (loading ? '' : heroRow(d));
+      (loading || S.view === 'days' ? '' : heroRow(d));
+    }
+
+    /* ── S3 · the Days list (§A12) ─────────────────────────────────────
+       Sixty days, newest first. Every row opens that day in S1; a closed day
+       with a rendered PDF offers it here, which is where a Director looks
+       for last Tuesday's sheet rather than in a chat thread. */
+    function daysBody() {
+      if (S.days && !S.days.length) {
+        return '<div class="dc-card">' + K.emptyState({
+          message: 'No days recorded for this project yet.' }) + '</div>';
+      }
+      var rows = (S.days || []).map(function (d) {
+        var v = Number(d.variance || 0);
+        return '<tr tabindex="0" data-day="' + esc(d.business_date) + '">' +
+          '<td style="white-space:nowrap">' + esc(F.dateShort(d.business_date)) +
+            (d.is_setup_opening ? ' <span class="dc-days-tag">opening</span>' : '') + '</td>' +
+          '<td>' + K.statusChip(d.status) + '</td>' +
+          '<td class="dc-num dc-hide-sm">' + esc(d.entries || 0) + '</td>' +
+          '<td class="dc-num">' + (d.closing_cash === null || d.closing_cash === undefined
+            ? '<span class="dc-hint">—</span>' : esc(F.amount(d.closing_cash))) + '</td>' +
+          '<td class="dc-num dc-hide-sm">' + (d.closing_bank === null || d.closing_bank === undefined
+            ? '<span class="dc-hint">—</span>' : esc(F.amount(d.closing_bank))) + '</td>' +
+          '<td class="dc-num' + (v ? ' dc-days-var' : '') + '">' +
+            (v ? esc(F.amount(v)) : '') + '</td>' +
+          '<td class="dc-linkcell">' + (d.pdf_document_id
+            ? '<button type="button" class="dc-icon-btn" data-pdf="' + esc(d.pdf_document_id) + '"' +
+              ' title="Director PDF v' + esc(d.pdf_version) + '"' +
+              ' aria-label="Open the Director PDF for ' + esc(F.dateShort(d.business_date)) +
+              ', version ' + esc(d.pdf_version) + '">' + K.icon('file', 15) + '</button>'
+            : '') + '</td>' +
+        '</tr>';
+      }).join('');
+      return '<div class="dc-card"><table class="dc-days">' +
+        '<thead><tr><th>Date</th><th>Status</th><th class="dc-num dc-hide-sm">Entries</th>' +
+          '<th class="dc-num">Closing cash</th><th class="dc-num dc-hide-sm">Closing bank</th>' +
+          '<th class="dc-num">Variance</th><th></th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div>';
     }
 
     function heroRow(d) {
@@ -217,14 +282,28 @@
     }
 
     function ledgerRows() { return rowsFor(S.entries); }
+
+    /* §A12: "Ledger row actions (Accountant+): Void". P6 shipped a picker and
+       a button because the kit had no popover; P7 adds the RowMenu and this
+       is where it lands. A row already voided has no menu — its cell carries
+       the link to its reversal instead, which is the more useful thing. */
+    function actionsFor(e) {
+      if (!S.isAccountantPlus) return null;
+      if (e.is_voided || e.is_adjustment) return null;
+      if (!S.day || S.day.status !== 'OPEN') return null;
+      return [{ code: 'void', label: 'Void…', danger: true }];
+    }
+
     function rowsFor(list) {
       return list.map(function (e) {
         return {
+          id: e.id,
           seq: e.seq_no, voucherType: e.voucher_type, voucherNo: e.voucher_no,
           payee: e.payee_name, narration: e.narration,
           in: e.direction === 'IN' ? Number(e.amount) : 0,
           out: e.direction === 'OUT' ? Number(e.amount) : 0,
-          voided: !!e.is_voided, reversalId: e.reversal_id
+          voided: !!e.is_voided, reversalId: e.reversal_id,
+          actions: actionsFor(e)
         };
       });
     }
@@ -244,23 +323,7 @@
           message: 'Nothing recorded yet today. The first entry goes in on the left.' }) + '</div>';
       }
       var t = totals();
-      return K.ledgerTable({ rows: ledgerRows(), totals: t }) +
-        (S.isAccountantPlus ? voidBar() : '');
-    }
-
-    function voidBar() {
-      var live = S.entries.filter(function (e) { return !e.is_voided && !e.is_adjustment; });
-      if (!live.length) return '';
-      return '<div class="dc-card" style="margin-top:12px">' +
-        '<label class="dc-label" for="dc-void-pick">Void an entry</label>' +
-        '<div class="dc-row-between" style="gap:8px">' +
-          '<select class="dc-select" id="dc-void-pick" style="flex:1">' +
-            live.map(function (e) {
-              return '<option value="' + esc(e.id) + '">' + esc(e.voucher_type + '-' + e.voucher_no) +
-                ' · ' + esc(F.amount(e.amount)) + '</option>';
-            }).join('') + '</select>' +
-          '<button class="dc-btn" id="dc-void" type="button">Void…</button>' +
-        '</div></div>';
+      return K.ledgerTable({ rows: ledgerRows(), totals: t });
     }
 
     function stickyTotals() {
@@ -289,7 +352,7 @@
         '<div class="dc-row-between">' + K.lockBadge({ at: F.time(d.closed_at), by: 'CFO' }) +
           '<div class="dc-row-between" style="gap:8px">' +
             (S.isCfo ? '<button class="dc-btn" id="dc-adjust" type="button">Add adjustment</button>' : '') +
-            '<button class="dc-btn" id="dc-pdf" type="button" disabled title="The Director PDF arrives in P7">Director PDF</button>' +
+            '<button class="dc-btn dc-btn--primary" id="dc-pdf" type="button">Director PDF</button>' +
           '</div></div>' +
         (Number(d.variance) !== 0
           ? '<div class="dc-hint">Counted ' + esc(F.money(d.counted_cash)) + ' · variance ' +
@@ -337,12 +400,27 @@
 
     function wire() {
       var p = el('dc-project');
-      if (p) p.addEventListener('change', function () { S.projectId = p.value; S.day = null; load(); });
+      if (p) p.addEventListener('change', function () {
+        S.projectId = p.value; S.day = null; S.days = null; load();
+      });
       var dt = el('dc-date');
       if (dt) dt.addEventListener('change', function () { S.date = dt.value; S.day = null; load(); });
 
+      var vd = el('dc-view-day');
+      if (vd) vd.addEventListener('click', function () { setView('day'); });
+      var vs = el('dc-view-days');
+      if (vs) vs.addEventListener('click', function () { setView('days'); });
+
+      if (S.view === 'days') return wireDays();
+
       var open = el('dc-open');
       if (open) open.addEventListener('click', openDay);
+
+      // One delegated binding for every row menu on the screen, in both the
+      // open and the closed body.
+      K.bindRowMenus(root, function (code, rowId) {
+        if (code === 'void') voidEntry(rowId);
+      });
 
       if (!S.day || !S.day.exists || S.day.status !== 'OPEN') return wireClosed();
 
@@ -376,18 +454,42 @@
       el('dc-attach').addEventListener('click', function () { el('dc-file').click(); });
       el('dc-file').addEventListener('change', queueAttachment);
 
-      var v = el('dc-void');
-      if (v) v.addEventListener('click', voidEntry);
       var c = el('dc-close');
-      if (c) c.addEventListener('click', function () {
-        K.toast('Close Day is P7 — the panel and the Director PDF arrive together.');
-      });
+      if (c) c.addEventListener('click', openClosePanel);
     }
 
     function wireClosed() {
+      var c = el('dc-close');
+      if (c) c.addEventListener('click', openClosePanel);
       var a = el('dc-adjust');
-      if (a) a.addEventListener('click', function () {
-        K.toast('Adjustments use the same panel as Close Day — P7.');
+      if (a) a.addEventListener('click', addAdjustment);
+      var pd = el('dc-pdf');
+      if (pd) pd.addEventListener('click', function () { openPdf({ regenerate: false }); });
+    }
+
+    function setView(v) {
+      if (S.view === v) return;
+      S.view = v;
+      if (v === 'days') { S.days = null; return loadDays(); }
+      return load();
+    }
+
+    function wireDays() {
+      Array.prototype.forEach.call(root.querySelectorAll('.dc-days tbody tr'), function (tr) {
+        function go() { S.date = tr.getAttribute('data-day'); S.view = 'day'; S.day = null; load(); }
+        tr.addEventListener('click', function (e) {
+          if (e.target.closest('[data-pdf]')) return;   // the PDF button is not the row
+          go();
+        });
+        tr.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+        });
+      });
+      Array.prototype.forEach.call(root.querySelectorAll('[data-pdf]'), function (b) {
+        b.addEventListener('click', function (e) {
+          e.stopPropagation();
+          openStoredDocument(b.getAttribute('data-pdf'));
+        });
       });
     }
 
@@ -529,8 +631,385 @@
       var v = el('dc-voucher-no'); if (v) { v.value = ''; v.focus(); }
     }
 
-    function voidEntry() {
-      var id = el('dc-void-pick').value;
+
+    /* ════════════════════════════════════════════════════════════════════
+       S2 · the close panel  ·  §A12
+       ────────────────────────────────────────────────────────────────────
+       The one screen in this module where a person is asked to reconcile
+       something. It shows what the book says the drawer holds, lets the
+       cashier count it in notes, and refuses to close until any difference
+       has a sentence attached to it.
+
+       Three rules it is built around:
+
+       1 · The BUTTON IS DISABLED until the count is valid — but the server
+           still refuses on its own (VARIANCE_UNEXPLAINED). The disabled
+           button is a courtesy; `close_cash_day` is the rule.
+       2 · The VERSION READ IS SENT BACK. If an entry landed while the notes
+           were being counted, the close is refused with VERSION_CONFLICT and
+           this panel reloads the day in place, keeping the count typed so
+           far. Nobody recounts a drawer because of a race.
+       3 · The denomination breakdown is REPORTED, NOT ENFORCED (the server
+           says so too). A drawer holds coins; the counted figure may be
+           typed over the notes total, and if the two disagree the panel says
+           so rather than blocking.
+       ════════════════════════════════════════════════════════════════════ */
+    function openClosePanel() {
+      if (!S.day || !S.day.exists) return;
+      if (S.day.status === 'CLOSED') return openPdf({ regenerate: false });
+
+      var st = { counted: null, typed: false, note: '', busy: false, msg: null };
+
+      S.panel = K.sidePanel({
+        title: 'Close the day',
+        subtitle: F.dateLong(S.date) + ' · ' + projectName(),
+        onClose: function () { S.panel = null; }
+      });
+      paint();
+      S.panel.focusFirst();
+
+      function expected() { return Number(S.day.closing_cash || 0); }
+      function variance() {
+        return st.counted === null ? null : F.round2(st.counted - expected());
+      }
+      function valid() {
+        if (st.counted === null) return false;
+        if (st.counted < 0) return false;
+        var v = variance();
+        return v === 0 || !!st.note.trim();
+      }
+
+      function paint() {
+        var v = variance();
+        S.panel.setBody(
+          (st.msg ? '<div class="dc-variance" role="alert" style="margin-bottom:16px">' +
+            K.icon('alert', 18) + '<div class="dc-variance-body"><div class="dc-variance-title">' +
+            esc(st.msg) + '</div></div></div>' : '') +
+          '<div class="dc-count-pair">' +
+            K.heroFigure({ label: 'Book says', value: expected(), id: 'dc-cp-exp' }) +
+            K.heroFigure({ label: 'Counted', value: st.counted === null ? 0 : st.counted,
+                           tone: v === 0 ? 'in' : (v === null ? null : 'warn'), id: 'dc-cp-cnt' }) +
+          '</div>' +
+          '<label class="dc-label">Count the drawer</label>' +
+          K.denominationCounter({ id: 'dc-den' }) +
+          // The counter above already ends on a row that says 'Counted'. Naming
+          // this one 'Counted cash' printed the same word twice, one line
+          // apart, for two different things. This is the figure that gets
+          // recorded, so it says so.
+          K.moneyInput({ id: 'dc-counted', label: 'Recorded as',
+            value: st.counted === null ? '' : String(st.counted),
+            hint: 'Fills in from the notes above. Type over it if the drawer holds coins.' }) +
+          /* A SLOT, not a branch inside the panel body. Re-rendering the
+             panel when the banner appears would destroy the field being
+             typed into — after the first digit of "90000" the variance is
+             already non-zero, so a repaint would eat the other four
+             keystrokes. Only the slot is ever replaced. */
+          '<div id="dc-var-slot" data-v="' + (v === null ? 'none' : v === 0 ? 'zero' : 'var') +
+            '">' + varSlot(v) + '</div>' +
+          '<div class="dc-panel-foot">' +
+            '<button type="button" class="dc-btn" data-cancel>Cancel</button>' +
+            '<button type="button" class="dc-btn dc-btn--primary" id="dc-do-close"' +
+              (valid() && !st.busy ? '' : ' disabled') + '>Close the day</button>' +
+          '</div>');
+        wirePanel();
+      }
+
+      function varSlot(v) {
+        if (v === null) return '';
+        if (v === 0) return '<div class="dc-hint" style="margin-top:8px">' +
+          'The count agrees with the book.</div>';
+        return K.varianceBanner({ id: 'dc-var', variance: v });
+      }
+
+      function wirePanel() {
+        var body = S.panel.body;
+        var counted = body.querySelector('#dc-counted');
+        K.bindMoneyInput(counted);
+
+        K.bindDenominationCounter(body.querySelector('#dc-den'), function (total) {
+          // The notes drive the figure until the CFO types over it; after that
+          // the typed figure is theirs and the counter stops overwriting it.
+          if (st.typed) return;
+          st.counted = total;
+          counted.value = total ? F.maskMoney(String(total)) : '';
+          refresh();
+        });
+
+        counted.addEventListener('input', function () {
+          st.typed = true;
+          var n = F.parseMoney(counted.value);
+          st.counted = (n === null || isNaN(n)) ? null : n;
+          refresh();
+        });
+
+        bindNote();
+        body.querySelector('[data-cancel]').addEventListener('click', function () { S.panel.close(); });
+        body.querySelector('#dc-do-close').addEventListener('click', confirmClose);
+      }
+
+      function bindNote() {
+        var note = S.panel.body.querySelector('#dc-var-r');
+        if (!note) return;
+        note.value = st.note;
+        note.addEventListener('input', function () { st.note = note.value; refresh(); });
+      }
+
+      /* Update only what moved: the counted figure, the button, and the
+         variance slot. Never the fields themselves. */
+      function refresh() {
+        var body = S.panel.body, v = variance();
+
+        var cnt = body.querySelector('#dc-cp-cnt');
+        if (cnt) {
+          cnt.textContent = F.money(st.counted === null ? 0 : st.counted);
+          var wrap = cnt.parentNode;
+          wrap.className = 'dc-hero' + (v === 0 ? ' dc-hero--in' : v === null ? '' : ' dc-hero--warn');
+        }
+
+        var slot = body.querySelector('#dc-var-slot');
+        var was = slot.getAttribute('data-v');
+        var now = v === null ? 'none' : v === 0 ? 'zero' : 'var';
+        if (was !== now) {
+          slot.setAttribute('data-v', now);
+          slot.innerHTML = varSlot(v);
+          bindNote();
+        } else if (now === 'var') {
+          var t = body.querySelector('#dc-var-t');
+          if (t) t.textContent = 'Variance ' + F.amount(v) + ' — the drawer is ' +
+            (v < 0 ? 'short' : 'over');
+        }
+
+        var btn = body.querySelector('#dc-do-close');
+        if (btn) btn.disabled = !valid() || st.busy;
+      }
+
+      function confirmClose() {
+        var v = variance();
+        return K.dialog({
+          title: 'Close ' + F.dateShort(S.date) + '?',
+          message: v === 0
+            ? 'Nothing on a closed day can be edited. A correction after this becomes an adjustment, and it shows as one.'
+            : 'The drawer is ' + (v < 0 ? 'short' : 'over') + ' by ' + F.money(Math.abs(v)) +
+              '. That difference is recorded with your reason and appears on the Director PDF.',
+          confirm: 'Close the day'
+        }).then(function (go) {
+          if (!go) return;
+          return doClose();
+        });
+      }
+
+      function doClose() {
+        st.busy = true; st.msg = null;
+        var btn = S.panel.body.querySelector('#dc-do-close');
+        if (btn) { btn.disabled = true; btn.classList.add('dc-btn--loading'); }
+
+        return S.rpc('close_cash_day', {
+          p_company_id: S.me.companyId, p_cash_day_id: S.day.cash_day_id,
+          p_counted_cash: st.counted,
+          p_denominations: denomsFromPanel(),
+          p_variance_note: st.note.trim() || null,
+          p_version: S.day.version
+        }).then(function (r) {
+          st.busy = false;
+          if (r && r.success) return afterClose(r);
+
+          if (r && r.error === 'VERSION_CONFLICT') {
+            // Reload the day underneath, keep the count, tell them what moved.
+            return load().then(function () {
+              st.msg = 'An entry landed while you were counting. The book now says ' +
+                       F.money(expected()) + ' — check your count and close again.';
+              paint();
+            });
+          }
+          st.msg = (r && r.message) || (r && r.error) || 'The day could not be closed.';
+          paint();
+          if (r && r.error === 'VARIANCE_UNEXPLAINED') {
+            var n = S.panel.body.querySelector('#dc-var-r');
+            if (n) n.focus();
+          }
+        }).catch(function () {
+          st.busy = false;
+          st.msg = 'Could not reach the server. Nothing was closed — try again.';
+          paint();
+        });
+      }
+
+      function denomsFromPanel() {
+        var out = {}, any = false;
+        K.FACES.forEach(function (f) {
+          var i = S.panel.body.querySelector('[data-face="' + f + '"]');
+          var n = i ? (parseInt(String(i.value).replace(/[^0-9]/g, ''), 10) || 0) : 0;
+          if (n) { out[f] = n; any = true; }
+        });
+        return any ? out : null;
+      }
+
+      /* §A12: "Closed · PDF ready", with Download and Share. The PDF is
+         rendered here rather than on a later click, because a Director
+         expects the sheet to exist the moment the day is closed. */
+      function afterClose(r) {
+        S.panel.setBody('<div class="dc-done">' +
+          '<div class="dc-done-t">Closed · rendering the sheet…</div>' +
+          '<div class="dc-done-sub">Closing cash ' + esc(F.money(r.closing_cash)) +
+            ' · bank ' + esc(F.money(r.closing_bank)) + '</div></div>');
+
+        return renderPdf().then(function (pdf) {
+          return load().then(function () { donePanel(r, pdf); });
+        });
+      }
+
+      function donePanel(r, pdf) {
+        if (!S.panel) return;
+        var mismatch = r.denominations_match === false;
+        S.panel.setBody('<div class="dc-done">' +
+          '<div class="dc-done-t">Closed · ' + (pdf ? 'PDF ready' : 'PDF not rendered') + '</div>' +
+          '<div class="dc-done-sub">' + esc(F.dateLong(S.date)) + ' · closing cash ' +
+            esc(F.money(r.closing_cash)) + ' · bank ' + esc(F.money(r.closing_bank)) +
+            (Number(r.variance) ? ' · variance ' + esc(F.amount(r.variance)) : '') +
+            (pdf ? ' · v' + esc(pdf.version) : '') + '</div>' +
+          (mismatch ? '<div class="dc-hint" style="margin-top:12px">The notes counted came to ' +
+            esc(F.money(r.denominations_total)) + ', not ' + esc(F.money(r.counted_cash)) +
+            '. The counted figure is what was recorded.</div>' : '') +
+          (pdf ? '<div class="dc-done-actions">' +
+              '<a class="dc-btn dc-btn--primary" id="dc-dl" href="' + esc(pdf.url) + '"' +
+                ' download="' + esc(pdf.filename) + '" target="_blank" rel="noopener">' +
+                K.icon('down', 15) + ' Download</a>' +
+              '<button type="button" class="dc-btn" id="dc-share">' +
+                K.icon('share', 15) + ' Share</button>' +
+            '</div>' +
+            '<div class="dc-hint" style="margin-top:12px">The link works for ten minutes.</div>'
+            : '<div class="dc-hint" style="margin-top:12px">The day is closed. Render the sheet ' +
+              'again from the Director PDF button.</div>') +
+        '</div>');
+
+        var sh = S.panel.body.querySelector('#dc-share');
+        if (sh) sh.addEventListener('click', function () { sharePdf(pdf); });
+      }
+    }
+
+    function projectName() {
+      var p = S.projects.filter(function (x) { return x.id === S.projectId; })[0];
+      return (p && p.name) || '';
+    }
+
+    /* ── the Director PDF ────────────────────────────────────────────────
+       Rendered by the daily-closing-pdf edge function. It takes the version
+       itself (get_cash_day_pdf_data computes next_version under the same
+       read), so calling it twice makes v2 rather than overwriting v1 — which
+       is exactly what a regeneration after an adjustment must do. */
+    function renderPdf() {
+      if (!S.fn) return Promise.resolve(null);
+      return S.fn('daily-closing-pdf', {
+        company_id: S.me.companyId, cash_day_id: S.day.cash_day_id
+      }).then(function (r) {
+        if (r && r.success) return r;
+        K.toast((r && r.error) === 'STORAGE_FAILED'
+          ? 'The sheet could not be filed. The day is still closed.'
+          : 'The sheet could not be rendered. The day is still closed.');
+        return null;
+      }).catch(function () {
+        K.toast('The sheet could not be rendered. The day is still closed.');
+        return null;
+      });
+    }
+
+    function openPdf(o) {
+      if (!S.day || !S.day.exists || S.day.status !== 'CLOSED') return;
+      var btn = el('dc-pdf');
+      if (btn) btn.classList.add('dc-btn--loading');
+      return renderPdf().then(function (pdf) {
+        if (btn) btn.classList.remove('dc-btn--loading');
+        if (!pdf) return;
+        K.toast('Director PDF v' + pdf.version + ' ready');
+        openLink(pdf.url);
+      });
+    }
+
+    /* A stored version, from the Days list — no re-render, no new version. */
+    function openStoredDocument(documentId) {
+      return S.rpc('authorize_day_document', {
+        p_company_id: S.me.companyId, p_document_id: documentId
+      }).then(function (r) {
+        if (!r || !r.success) {
+          return K.toast((r && r.message) || (r && r.error) || 'That document is not available.');
+        }
+        if (!S.fn) return K.toast('Opening a stored sheet needs the file bridge.');
+        return S.fn('daily-closing-file', {
+          op: 'read-url', company_id: S.me.companyId, document_id: documentId,
+          storage_key: r.storage_key
+        }).then(function (f) {
+          if (f && f.success && f.url) return openLink(f.url);
+          K.toast('That document could not be opened.');
+        });
+      });
+    }
+
+    function openLink(url) {
+      if (!url) return;
+      var a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    /* §A12's Share is the browser's own share sheet where there is one, and a
+       copied link where there is not. Sending it on WhatsApp is Phase 4 and
+       is deliberately NOT wired here. */
+    function sharePdf(pdf) {
+      if (!pdf) return;
+      var text = projectName() + ' · Daily Closing · ' + F.dateShort(S.date);
+      if (global.navigator && navigator.share) {
+        return navigator.share({ title: pdf.filename, text: text, url: pdf.url })
+          .catch(function () {});
+      }
+      if (global.navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(pdf.url).then(function () {
+          K.toast('Link copied — it works for ten minutes');
+        }).catch(function () { openLink(pdf.url); });
+      }
+      openLink(pdf.url);
+    }
+
+    /* ── a post-close adjustment (§A12) ──────────────────────────────────
+       Same shape as the void: a reason is not optional, and the sheet is
+       re-rendered afterwards at the NEXT version, with the earlier one kept.
+       A Director who already has v1 in hand can be told what changed. */
+    function addAdjustment() {
+      if (!S.isCfo) return K.toast('Only the CFO may post an adjustment.');
+      return K.dialog({
+        title: 'Adjustment on a closed day',
+        message: 'The day stays closed. This is written as its own entry, appears in its own block on the sheet, and the sheet is re-issued at the next version.',
+        confirm: 'Post the adjustment',
+        fields: [
+          { name: 'mode', label: 'Cash or bank', type: 'select', options: [
+            { value: 'CASH', label: 'Cash' }, { value: 'BANK', label: 'Bank' }] },
+          { name: 'dir', label: 'In or out', type: 'select', options: [
+            { value: 'IN', label: 'In' }, { value: 'OUT', label: 'Out' }] },
+          { name: 'amount', label: 'Amount', type: 'money', required: true },
+          { name: 'reason', label: 'Reason', required: true,
+            placeholder: 'Why the closed day has to move' }
+        ]
+      }).then(function (v) {
+        if (!v) return;
+        return S.rpc('post_cash_adjustment', {
+          p_company_id: S.me.companyId, p_cash_day_id: S.day.cash_day_id,
+          p_payload: { mode: v.mode, direction: v.dir, amount: v.amount, narration: v.reason },
+          p_reason: v.reason
+        }).then(function (r) {
+          if (!r || !r.success) {
+            return K.toast((r && r.message) || (r && r.error) || 'The adjustment was not posted.');
+          }
+          K.toast('Adjustment posted — re-issuing the sheet');
+          return renderPdf().then(function (pdf) {
+            return load().then(function () {
+              if (pdf) K.toast('Director PDF v' + pdf.version + ' ready');
+            });
+          });
+        });
+      });
+    }
+
+    function voidEntry(id) {
+      if (!id) return;
       return K.dialog({
         title: 'Void this entry',
         message: 'The entry is not deleted — it never can be. A reversing entry is written beside it and both stay on the day.',

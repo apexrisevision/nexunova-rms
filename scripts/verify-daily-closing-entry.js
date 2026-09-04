@@ -4,7 +4,7 @@
  *   node scripts/verify-daily-closing-entry.js                 # dry run
  *   node scripts/verify-daily-closing-entry.js --against-live  # assert what is applied
  *
- * Runs on ZZTEST Tower — the tenant whose name says it is safe to wipe — inside
+ * Runs on ZZTEST Garden — the tenant whose name says it is safe to wipe — inside
  * BEGIN … ROLLBACK. Every assertion raises, so the request failing IS the test
  * failing.
  *
@@ -32,7 +32,10 @@ const UP = [
 ];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal — safe to wipe
-const PJ = '6b56d5ec-6141-4440-9465-ed2a9acbbd97';   // ZZTEST Tower
+// ZZTEST Garden, not Tower: Tower carries P7's permanent golden-PDF entries,
+// and this suite's setup wipes the project's entries — which invariant 1
+// forbids the moment there are any. See verify-daily-closing-day.js.
+const PJ = '2da565ca-2b83-44bf-b4de-2cae762571df';   // ZZTEST Garden (5 units, no cash days)
 const AGAINST_LIVE = process.argv.includes('--against-live');
 
 function body(file) {
