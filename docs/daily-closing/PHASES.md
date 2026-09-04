@@ -37,26 +37,37 @@ times in a row. Excel is retired on day fifteen, not on the day the tests go gre
 |---|---|---|---|
 | P0 | Discovery — BLUEPRINT / ARCHITECTURE_NOTES / RULES | given | ✅ done |
 | P1 | Schema & models | given | ✅ done — `20260903e/f/g`, `SCHEMA.md` |
-| P2 | **Seeds + payee master** | **owner** | ✅ built & tested — `20260904a-e`, not applied |
-| P3 | Services / use cases + error taxonomy | *inferred* | — |
-| P4 | Design system "Ledger" (`--dc-*`) | *inferred* | — |
-| P5 | Day Workspace (S1) | *inferred* | — |
-| P6 | Close Day (S2) + Days (S3) | *inferred* | — |
-| P7 | **Director PDF renderer** | **owner** | — |
-| P8 | Roles & RBAC — the front-end half | *inferred* | — |
-| P9 | Dashboard tile (S8) | *inferred* | — |
+| P2 | **Seeds + payee master** | **owner** | ✅ done — `20260904a-g`, applied |
+| P3 | **CashDay lifecycle ONLY** — SetupOpening · OpenDay · DaySummary · CloseDay · PostAdjustment | **owner** | ✅ done — `20260904h`, applied |
+| P4 | **Entry recording ONLY** — RecordEntry · VoidEntry · attachments · ListEntries | **owner** | ✅ done — `20260904j` (+`i`) |
+| P5 | Design system "Ledger" (`--dc-*`) | **owner** | — |
+| P6 | Day Workspace (S1) | **owner** | — |
+| P7 | **Close Day (S2) + Director PDF renderer** | **owner** | — |
+| P8 | Roles & RBAC — the front-end half | **owner** | — |
+| P9 | Dashboard tile (S8) | **owner** | — |
 | P10 | **Tests + runbook** (incl. the role×action suite) | **owner** | — |
 | P11–P13 | Unit lookup · allocation workflow · unapplied · client receipt | §A15 | Phase 2 |
 | P14–P16 | IIF export · handover JV · PDC register | §A15 | Phase 3 |
 | P17 | Group position · reconciliation · WhatsApp | §A15 | Phase 4 |
 
-**Three anchors are the owner's own words** — P2 is seeds + payee master, P7 is the PDF
-renderer, and P10 carries "the RBAC matrix and the role×action test suite". The six *inferred*
-rows are my reading of §A15's Phase-1 ship list — *cash book · design system · Day Workspace ·
-Close · Director PDF · roles · dashboard · tests · runbook* — laid against the ten Phase-1
-prompt slots: cash book spans P1–P3 (shape, data, behaviour), then one ship per prompt.
-It fits all three anchors exactly, which is why I believe it, but **P3, P4, P5, P6, P8 and P9
-are inferences and want confirming** before I run them.
+**All ten Phase-1 slots are now the owner's own, not inferred** (confirmed 2026-09-04).
+
+### ⚠️ P3 and P4 are two prompts, two commits, two reviews — do not combine them
+
+My earlier map had a single "Services / use cases" prompt at P3. The owner split it:
+
+- **P3 — the day.** SetupOpening, OpenDay, DaySummary, CloseDay, PostAdjustment. **Nothing
+  about entries.**
+- **P4 — the entry.** RecordEntry, VoidEntry, attachments, ListEntries.
+
+**Why the split, in his words:** *"P4's idempotency, seq_no locking and transfer atomicity need
+their own review; buried in a combined services commit they will get skimmed."* That is the
+whole reason — three of the hardest correctness rules in §A7 live in P4, and a reviewer reading
+one large services diff will skim past them. Anyone tempted to merge these later should read
+that sentence again.
+
+The knock-on: the design system moved P4→**P5**, Day Workspace P5→**P6**, and Close Day joins
+the PDF renderer at **P7**. P8, P9 and P10 are unchanged.
 
 ---
 
@@ -111,18 +122,18 @@ gone and that `pdc_cheques` still holds its seven live rows.
 ### 4 · PROPOSED MOVE — the private `daily-closing` storage bucket, P7 → P2
 
 *As approved:* the bucket was described alongside the PDF renderer, which is P7.
-*Proposal:* create it in **P2**, with the seeds.
+*Done:* created in **P2**. Accepted by the owner 2026-09-04.
 
 **Why:** the renderer is not its first user. `cash_entry_attachments` needs it as soon as a
 cashier attaches a bill, which is P3/P5 — two prompts before P7. Creating it in P2 costs one
 line and removes a dependency that would otherwise force P5 to either create the bucket
 out-of-band or ship attachments broken.
 
-This one is a **proposal, not a decision** — say if you would rather it stayed in P7.
+✅ Accepted.
 
 ---
 
-## Definition of Done — P2  ·  built and tested 2026-09-04, **not yet applied**
+## Definition of Done — P2  ·  built, tested and **applied** 2026-09-04
 
 Recorded here so the deferred item cannot be quietly dropped. Status against each item below.
 

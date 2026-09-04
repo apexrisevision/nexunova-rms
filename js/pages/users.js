@@ -10,14 +10,30 @@ const ROLE_LABELS = {
   recovery: 'Recovery',
   accounts: 'Accounts',
   manager:  'Manager',
-  staff:    'Staff'
+  staff:    'Staff',
+  cfo:      'CFO'
 };
+
+// ── Daily Closing (P8, brought forward) ───────────────────────────────────
+// Only the two things needed to CREATE the module's accounts: the cfo role in
+// the dropdown and the dailyclosing module tick. The rest of P8 — the sidebar
+// branch, nav()'s allow-list, hasPermission()'s defaults — is still P8's.
+//
+// Both are hidden unless the company has the daily_closing flag explicitly ON.
+// hasFeature() returns TRUE for an unknown key, which would have shown these to
+// every tenant, so this asks for an explicit true instead. Khushal Bagh and FMH
+// see exactly the screen they saw yesterday.
+function _umDailyClosingOn() {
+  var f = window._featureFlags;
+  return !!(f && f.daily_closing === true);
+}
 
 // Role chips stay quiet & on-kit: indigo for the privileged roles, neutral
 // otherwise (premium = restraint; no tutti-frutty per-role rainbow).
 function _umRoleTone(role) {
   if (role === 'owner') return 'primary';
   if (role === 'admin') return 'info';
+  if (role === 'cfo')   return 'info';
   return '';
 }
 
@@ -327,6 +343,7 @@ function _umModalMarkup(mode, u) {
   // Role options — exclude protected roles for new users; surface a disabled
   // protected option in edit mode so admin/owner accounts render their role.
   let roleVals = ['recovery','accounts','manager','staff'];
+  if (_umDailyClosingOn()) roleVals.push('cfo');
   let roleOpts = roleVals.map(function(r){
     const sel = (isEdit && u && u.role === r) ? ' selected' : '';
     return '<option value="' + r + '"' + sel + '>' + ROLE_LABELS[r] + '</option>';
@@ -338,7 +355,10 @@ function _umModalMarkup(mode, u) {
   }
 
   const perms = (isEdit && u && u.module_permissions) ? u.module_permissions : {};
-  const permCbs = MODULE_LIST.map(function(m){
+  const moduleList = _umDailyClosingOn()
+    ? MODULE_LIST.concat([{ key: 'dailyclosing', label: 'Daily Closing' }])
+    : MODULE_LIST;
+  const permCbs = moduleList.map(function(m){
     const ck = perms[m.key] ? ' checked' : '';
     return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:var(--fk-fs-body);color:var(--fk-text);cursor:pointer">' +
       '<input type="checkbox" class="um-perm-cb" data-key="' + m.key + '"' + ck + '> ' + NX.esc(m.label) + '</label>';

@@ -195,9 +195,9 @@ BEGIN
   RAISE NOTICE 'PASS 10  create_payee works for the owner and trims the name';
 
   v_res := public.create_payee(v_co, 'pesco', 'VENDOR', v_pj);
-  IF (v_res->>'error') <> 'PAYEE_DUPLICATE' THEN
+  IF (v_res->>'error') IS DISTINCT FROM 'PAYEE_DUPLICATE' THEN
     RAISE EXCEPTION 'FAIL 11: a duplicate did not return PAYEE_DUPLICATE: %', v_res; END IF;
-  IF (v_res->>'existing_name') <> 'PESCO' THEN
+  IF (v_res->>'existing_name') IS DISTINCT FROM 'PESCO' THEN
     RAISE EXCEPTION 'FAIL 11: PAYEE_DUPLICATE did not name the existing spelling: %', v_res; END IF;
   RAISE NOTICE 'PASS 11  PAYEE_DUPLICATE names the spelling already on the list (%)', v_res->>'existing_name';
 
@@ -210,7 +210,7 @@ BEGIN
   v_res := public.create_payee(v_co, 'K-Electric', 'VENDOR', v_pj);
   v_id2 := (v_res->>'payee_id')::uuid;
   v_res := public.rename_payee(v_id2, v_co, 'peshawar electric supply co');
-  IF (v_res->>'error') <> 'PAYEE_DUPLICATE' THEN
+  IF (v_res->>'error') IS DISTINCT FROM 'PAYEE_DUPLICATE' THEN
     RAISE EXCEPTION 'FAIL 13: renaming onto an existing name was allowed: %', v_res; END IF;
   RAISE NOTICE 'PASS 13  renaming onto an existing name is refused';
 
@@ -242,16 +242,16 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_a_auth)::text, true);
   v_res := public.create_payee(v_co, 'Some Vendor By Admin', 'VENDOR', v_pj);
-  IF (v_res->>'error') <> 'NOT_AUTHORIZED' THEN
+  IF (v_res->>'error') IS DISTINCT FROM 'NOT_AUTHORIZED' THEN
     RAISE EXCEPTION 'FAIL 17: a plain admin was allowed to maintain the payee master: %', v_res; END IF;
   RAISE NOTICE 'PASS 17  plain admin may NOT maintain the master (RULES 0.4)';
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_c_auth)::text, true);
   v_res := public.create_payee(v_co, 'Some Vendor By Cashier', 'VENDOR', v_pj);
-  IF (v_res->>'error') <> 'NOT_AUTHORIZED' THEN
+  IF (v_res->>'error') IS DISTINCT FROM 'NOT_AUTHORIZED' THEN
     RAISE EXCEPTION 'FAIL 18: the cashier was allowed to create a payee: %', v_res; END IF;
   v_res := public.set_payee_active(v_id, v_co, false);
-  IF (v_res->>'error') <> 'NOT_AUTHORIZED' THEN
+  IF (v_res->>'error') IS DISTINCT FROM 'NOT_AUTHORIZED' THEN
     RAISE EXCEPTION 'FAIL 18: the cashier was allowed to deactivate a payee: %', v_res; END IF;
   RAISE NOTICE 'PASS 18  the cashier may not create or deactivate';
 
@@ -262,7 +262,7 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   v_res := public.create_payee(v_co, 'Anonymous Vendor', 'VENDOR', v_pj);
-  IF (v_res->>'error') <> 'NOT_AUTHORIZED' THEN
+  IF (v_res->>'error') IS DISTINCT FROM 'NOT_AUTHORIZED' THEN
     RAISE EXCEPTION 'FAIL 20: an unauthenticated caller created a payee: %', v_res; END IF;
   RAISE NOTICE 'PASS 20  no session, no write';
 

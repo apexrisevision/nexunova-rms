@@ -41,8 +41,8 @@ verification script are not applied and never are — they are tools.
 | # | Invariant | Mechanism |
 |---|---|---|
 | 1 | Cash is a fact | **`cash_entries_immutable()`** on `BEFORE UPDATE OR DELETE` — rejects every DELETE, and any UPDATE touching anything but the five routing columns. Plus `cash_entries_no_truncate()` on `BEFORE TRUNCATE`, and revoked table grants. |
-| 2 | Opening is derived | Partial unique indexes `cash_days_setup_opening_once` (one setup opening per project, ever) and `cash_days_one_open_per_project` (at most one OPEN day). Deriving the figure itself is service work — P2. |
-| 3 | Close locks | **`cash_entries_day_guard()`** on `BEFORE INSERT` takes `SELECT … FOR UPDATE` on the day and raises `DAY_LOCKED` for a non-adjustment into a CLOSED day. `CHECK (is_adjustment = false OR adjustment_reason IS NOT NULL)` makes a reasonless adjustment impossible. |
+| 2 | Opening is derived | Partial unique indexes `cash_days_setup_opening_once` and `cash_days_one_open_per_project`, plus **`open_cash_day()`** (P3, `20260904h`) which takes **no opening parameter** — it reads the latest CLOSED day, and returns `SETUP_OPENING_REQUIRED` when there is none. `setup_cash_opening()` stores the starting balances as a CLOSED day so carry-forward has exactly one code path. |
+| 3 | Close locks | **`cash_entries_day_guard()`** on `BEFORE INSERT` locks the day and raises `DAY_LOCKED` for a non-adjustment into a CLOSED day. `CHECK (is_adjustment = false OR adjustment_reason IS NOT NULL)` makes a reasonless adjustment impossible. P3 adds **`close_cash_day()`** (optimistic lock on `version` → `VERSION_CONFLICT`; `VARIANCE_UNEXPLAINED` unless variance is 0 or a note is given) and **`post_cash_adjustment()`** (CFO only, CLOSED days only, reason always). |
 | 4 | Export once | `UNIQUE (cash_day_id)` on `qb_exports`; `CHECK ((qb_status='EXPORTED') = (qb_export_id IS NOT NULL))` on `cash_entries`. |
 | 5 | Receipts are advances | `entry_type_defaults` holds the default head per type, seeded in P2. **`cash_entries_qb_head_guard()`** on `BEFORE INSERT` (P2, `20260904b`) raises `OVERRIDE_REASON_REQUIRED` when the head differs from the type's default with no written reason, and `REVENUE_ACCOUNT_FENCED` for account 4010 unless the transaction-local flag `dc.revenue_recognition` is `'on'` — which only Phase 3's handover JV will set. |
 | 6 | Names from masters | FKs `payee_id → payees` and `qb_account_id → qb_accounts`. There is no free-text payee or account column to fall back to. |
@@ -201,6 +201,178 @@ value is `accounts`, not `finance` (the front end reads both; only one is storab
 `20260904f` adds `cfo` and nothing else. The change is additive — six existing values
 untouched, no row read or rewritten — and the migration asserts inside its own transaction
 that every row still passes **and** still holds one of the original six. Tests 32–36.
+
+---
+
+# P3 — the CashDay state machine
+
+| Migration | Purpose |
+|---|---|
+| `20260904h_a_day_opens_and_a_day_closes.sql` | pure domain helpers, the injected clock, and five services |
+| `scripts/verify-daily-closing-day.js` | 28 assertions inside `BEGIN … ROLLBACK` |
+
+**Services:** `setup_cash_opening` · `open_cash_day` · `get_cash_day_summary` ·
+`close_cash_day` · `post_cash_adjustment`. Entry recording is **P4** — deliberately a separate
+prompt, because its idempotency, `seq_no` locking and transfer atomicity need their own review.
+
+## Where the "domain layer" went
+
+§A3 asks for pure rules beneath a service layer. RMS has no application tier, so the split is
+expressed the only way it can be: **IMMUTABLE functions that compute and touch nothing**, and
+`SECURITY DEFINER` RPCs that do the I/O and own the transaction.
+
+| Pure (IMMUTABLE) | What it is |
+|---|---|
+| `_dc_voucher_for(mode, direction)` | the §A12 derivation — CASH/IN→CRV, CASH/OUT→CPV, BANK/IN→BRV, BANK/OUT→BPV. One definition, reused by P4, so screen, service and CHECK cannot disagree |
+| `_dc_variance(counted, closing)` | counted − closing. Negative is short |
+| `_dc_jv_number(year, seq)` | `JV-2026-0007` |
+| `_dc_may_close(status)` / `_dc_may_adjust(status)` | the §A4 guards as predicates rather than scattered IFs |
+
+Test 01 exercises all of them with **no fixture at all** — that is the point of separating them.
+
+## The clock
+
+`_dc_today()` is the one impure primitive and it is isolated. It reads **Asia/Karachi**, never
+`CURRENT_DATE`, which is UTC on this platform and would file the first five hours of every
+night under the previous business date (RULES risk 2). Tests override it with a
+transaction-local `dc.today` — the same seam as `rms.audit_reason` and `dc.revenue_recognition`.
+
+That setting is reachable only by something holding a direct SQL connection: PostgREST exposes
+RPCs, and `set_config` lives in `pg_catalog`, not the exposed schema. It is a test seam, not a
+back door. Test 02 asserts both the override and the real Karachi date.
+
+## SetupOpening — modelled as a CLOSED day
+
+Invariant 2's "one setup opening per project, once, by the CFO" is stored as a `cash_days` row
+with `is_setup_opening = true`, `status = 'CLOSED'`, opening 0/0 and closing = the balances
+given. Two things fall out of that: OpenDay's carry-forward has exactly **one** code path —
+"the latest CLOSED day" — and the row satisfies `cash_days_closed_is_complete` honestly,
+because the CFO did count the opening cash. Enforced by the partial unique index
+`cash_days_setup_opening_once` plus an explicit "this project already has a cash book" check.
+
+## DaySummary — computed, never stored
+
+Live from the entries. **JV rows carry `mode` NULL and are excluded**: a reclassification moves
+an amount between QuickBooks heads, it does not move cash. **Voids need no special case** — a
+void is a reversing entry with the opposite direction, so it nets itself out, which is only
+true because invariant 1 forbids touching the original.
+
+For a CLOSED day the summary reports the **stored** closing, not a recomputation: that figure
+is the record of what was locked. Test 22 proves an adjustment posted afterwards moves the
+totals while leaving the locked closing alone — and test 16 proves the two agree at the moment
+of closing.
+
+## ⚠️ Deviation — a cash-affecting adjustment is not a JV
+
+The P3 brief said an adjustment is written with `voucher_type='JV'`, and also that
+"for cash/bank-affecting adjustments set mode/direction". **Those cannot both hold.** §A6 says
+mode and direction are "NULL only for JV", and the shipped `cash_entries_jv_or_movement` CHECK
+enforces it. A JV that moves cash cannot exist.
+
+Resolved in favour of the blueprint and the constraint, because §A6 is the law and the brief's
+sentence contradicts it:
+
+| Adjustment | voucher_type | mode/direction | accounts |
+|---|---|---|---|
+| Cash- or bank-affecting | derived — `CRV`/`CPV`/`BRV`/`BPV` | set | `qb_account_id` |
+| Pure reclassification | **`JV`** | NULL | `qb_debit_account_id` + `qb_credit_account_id`, which must differ |
+
+Both are `is_adjustment = true`, both carry a reason, both auto-number `JV-{YYYY}-{seq}` from
+`voucher_sequences` under prefix `DCJV`, and both appear in the PDF's ADJUSTMENTS block.
+Nothing is weakened — §A12's derivation invariant is upheld. P1's own test 16 already wrote an
+adjustment this way. Tests 21 and 23 assert both shapes.
+
+The alternative — relaxing the CHECK so a JV may carry mode/direction — would let a voucher
+chip disagree with the row it labels, and was not taken.
+
+## Two layers, found by a red check
+
+Removing `close_cash_day`'s `VARIANCE_UNEXPLAINED` guard **did not** let a bad close through:
+the P1 CHECK `cash_days_variance_explained` rejected it at the database. The rule is enforced
+twice, and the service check exists to return a usable message rather than a constraint
+violation. The red check that does prove the suite can fail targets `VERSION_CONFLICT`, which
+is service-only — without it the stale close succeeds and the suite fails at test 15.
+
+---
+
+# P4 — recording and voiding an entry
+
+| Migration | Purpose |
+|---|---|
+| `20260904j_an_entry_is_recorded_and_an_entry_is_voided.sql` | `record_cash_entry` · `void_cash_entry` · `add_cash_entry_attachment` · `authorize_cash_attachment` · `list_cash_entries` |
+| `20260904i_awami_can_see_the_daily_closing_switches.sql` | one feature-flag row so Awami's Users & Roles offers the `cfo` role and the `dailyclosing` tick |
+| `scripts/verify-daily-closing-entry.js` | 24 assertions inside `BEGIN … ROLLBACK` |
+
+## The three hard ones
+
+**Idempotency.** The key is checked **before any validation**, so a replay returns the original
+entry and `success`, never a 409 and never a second row. A cashier whose phone lost the
+response can press Save again. The `UNIQUE (company_id, project_id, idempotency_key)` index is
+the backstop if two replays race, and the exception handler turns that race into the same
+replay answer. Tests 02 and 03.
+
+**seq_no.** Assigned after `SELECT … FOR UPDATE` on the `cash_days` row, so two writers on one
+day serialise; `UNIQUE (cash_day_id, seq_no)` is the backstop. Test 11 asserts the numbering is
+contiguous, that a duplicate is refused, and that the lock is present in the function body.
+
+> ⚠️ **Two-writer concurrency is NOT proved by this harness**, and the test file says so in its
+> header. Everything runs on one connection in one transaction. A real race needs two
+> connections that commit — and a committed `cash_entries` row cannot be removed, because
+> invariant 1 forbids deleting one. That test belongs in P10 against a disposable database.
+
+**Transfer atomicity.** Both legs are inserted in one function with **no exception handler
+around them**, so a failure on the second takes the first with it. Test 14 proves it rather
+than asserting it: a trigger installed for the duration of the test makes leg B raise, and the
+test then checks that **zero** `TX-2%` rows survive.
+
+## RecordEntry
+
+Derives `voucher_type` from mode + direction and **refuses a caller who tries to supply it** —
+a caller who could set it is a caller who could make the chip disagree with the row. Uniqueness
+is per `(project, voucher_type, voucher_no)` among non-adjustments, so `CPV 0041` and
+`CRV 0041` are different books; `DUPLICATE_VOUCHER` names the conflicting entry's date.
+
+A `TRANSFER` writes two rows sharing a `transfer_group_id`, `-A` and `-B`, each carrying **the
+other account's** QuickBooks head — so each row reads as a self-describing double entry
+(§A14: debit destination, credit source).
+
+> ⚠️ **For P16:** because each leg names the other account, the IIF export must emit **one**
+> transaction per `transfer_group_id`, not one per row, or a transfer is booked twice.
+
+## VoidEntry
+
+Accountant and up, `OPEN` days only. Writes a reversing row — same amount, opposite direction,
+derived voucher type, `{orig}-VOID`, `is_adjustment`, `adjusts_entry_id` — and touches the
+original only on `rms_status`, which is one of the five columns invariant 1's trigger allows to
+move. A voided `PENDING` receipt becomes `UNAPPLIED` with reason `Voided`: money received and
+then voided was never *applied*. No double void, and a reversal cannot itself be voided.
+
+## Attachments — half of it, honestly
+
+`add_cash_entry_attachment` validates type (jpg/png/pdf), size (≤ 10 MB) and that the storage
+key begins with the entry's `project_id`, so one project's bill can never be addressed from
+another's. `authorize_cash_attachment` answers "may this caller read this file, and where is it".
+
+> ⚠️ **The signing step does not exist yet.** Postgres cannot mint a signed URL — that is a
+> Storage API call — and the `daily-closing` bucket deliberately has no policy, so
+> `authenticated` cannot sign for itself. It needs a service-key bridge, the shape
+> `20260828j` used for employee documents. **That bridge ships with P6**, the screen that first
+> needs to show a thumbnail. Until then an attachment can be recorded and authorised but not
+> fetched.
+
+## Two test bugs this prompt found — in the tests, not the code
+
+Both were found by the red check, and both made assertions silently pass:
+
+1. **`IF (v_res->>'error') <> 'X'`** is `NULL <> 'X'` = NULL when the call unexpectedly
+   **succeeds**, so the assertion never fired. Every negative assertion across P2, P3 and P4
+   had it — 52 of them. All are now `IS DISTINCT FROM`.
+2. **`PERFORM` throws the result away**, so a `close_cash_day` that failed looked exactly like
+   one that worked, and the test that followed was quietly testing an *open* day. Results are
+   assigned and asserted now.
+
+The first one is why the red check exists at all: without it, the suite was green and three of
+its guards were decorative.
 
 ---
 
