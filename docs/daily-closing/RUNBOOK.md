@@ -309,6 +309,7 @@ Compare the **Director PDF** against the Excel sheet for the same date:
 | 8 | **Closing bank** | `Closing (C/F)`, BANK |
 | 9 | Physical count | the line under the ledger: `Cash counted …` |
 | 10 | Entry count | the number of ledger lines |
+| 11 | **Entry lag** | not on the PDF — query it (below). Every entry's `created_at` against the day's `business_date`. |
 
 ### What "match" means
 
@@ -318,12 +319,67 @@ Compare the **Director PDF** against the Excel sheet for the same date:
   the day carries, with the reason the CFO typed.
 - **Figure 10** may differ only when the Excel sheet groups vouchers that the cash book lists
   separately (a transfer is one act and two rows). Record the reason.
+- **Figure 11 is a pass/fail on its own, not a comparison.** See below. A day whose figures all
+  agree but whose entries were made three days later **fails**.
+
+### Entry lag — figure 11, and why it is here
+
+> **Same day, or a reason on the entry. An entry recorded late is a failed day even when every
+> figure matches.**
+
+This is the one criterion that is not about agreement, and it is here because of what August
+2026 looked like in RMS. KBH's August was reconciled against QuickBooks on 2026-09-05 and it
+agreed almost to the rupee — and **68 of that month's 78 received payments carry
+`audit_logs.reason = 'backdated_entry'`**, with entry lag running from 2 to 18 days. The month
+was typed up in five sittings after the fact. Unit UG-06 is the clearest case: the sale was
+created on 28 August and its 4,900,000 receipt was inserted thirteen minutes later, dated back
+to 18 August. Full write-up: `docs/findings/2026-09-05-D-rms-ran-ten-days-behind-the-book.md`.
+
+Totals cannot detect that. A month transcribed a fortnight late reconciles perfectly, which is
+exactly why agreement alone is not the gate.
+
+It matters more here than it did in RMS, because the cash book's whole model assumes the day is
+worked on the day: `cash_days` carries an opening position, a counted-cash figure and a variance
+(§A2). **A day closed and counted after the fact has a variance figure that means nothing** — a
+drawer counted on Thursday cannot evidence Monday's closing cash.
+
+**The measure.** For each day of the run:
+
+```sql
+select d.business_date,
+       count(*)                                                       as entries,
+       count(*) filter (where (e.created_at at time zone 'Asia/Karachi')::date
+                              > d.business_date)                      as late,
+       max((e.created_at at time zone 'Asia/Karachi')::date
+           - d.business_date)                                         as worst_lag_days
+from cash_entries e
+join cash_days d on d.id = e.cash_day_id
+where d.project_id = :project and d.business_date = :date
+group by 1;
+```
+
+**Acceptable lag is zero.** `late` must be 0 and `worst_lag_days` must be 0 or negative
+(an entry made earlier in the day than the date it is filed under is fine; a cheque dated ahead
+is a `pdc_cheques` matter, not a lag).
+
+**Anything later requires a reason recorded on the entry**, in `narration`, at the time it is
+entered — naming why it was late, not what it was for. "Received Fri, drawer key with the CFO,
+entered Mon" is a reason. "Client receipt 6-25" is not. A late entry with no such reason is a
+mismatch and resets the fourteen-day count like any other.
+
+> **Not enforced by the system.** `cash_entries` has no lag column, nothing refuses a late
+> insert, and `record_cash_entry` does not ask why. Figure 11 is a **procedure**, checked by
+> running the query above and reading the narrations. If the run shows lag is a real habit
+> rather than an occasional slip, that is the argument for building the constraint — and the
+> parallel run is the right place to find that out, not after it.
 
 ### The gate
 
-- **Fourteen consecutive business days** where all ten agree.
-- A mismatch **resets the count to zero**. It does not "carry over with a note".
-- Keep a log: date, the ten figures from each side, and either "match" or what differed and why.
+- **Fourteen consecutive business days** where figures 1–10 agree **and figure 11 passes.**
+- A mismatch **resets the count to zero**. It does not "carry over with a note". A late entry
+  without a recorded reason is a mismatch.
+- Keep a log: date, the ten figures from each side, the day's `late` / `worst_lag_days`, and
+  either "match" or what differed and why.
 - Only after fourteen clean days does Excel stop.
 
 ### During the run, the double-entry risk
@@ -332,6 +388,33 @@ RMS's own **Record Payment** stays live while the cash book runs. If the same cl
 entered in both, the client is credited twice. **Decide before day one who enters client
 receipts and where**, and do not let both routes be used for the same money. (RULES (b) Q8 —
 still open, and it is the one open question that touches the parallel run directly.)
+
+### If anything historical is re-keyed, the mode comes from the money, not from RMS
+
+CASH or BANK on a `cash_entries` row is the cashier's own judgement and the cash book keeps it
+independently — it does **not** read `payments.payment_method`. Keep it that way when re-keying
+anything from before the run, because that RMS column is not reliable:
+
+**In KBH's August 2026 alone, six payments are filed under a method their own note contradicts.**
+All six are recorded as `cash`:
+
+| Receipt | Amount | Unit | Why it is wrong |
+|---|---|---|---|
+| — (`14 Development Account FMH`) | 600,000 | 7-12 | the reference is a **bank account** |
+| CRV-10013 | 4,900,000 | UG-06 | the note says the money never reached cash **or** bank |
+| CRV-1275 | 100,000 | 2-06 | filed cash, but carries `bank_name = UBL` |
+| CRV-1335 | 100,000 | 1-25 | note: "Online payment received" |
+| CRV-1327 | 20,000 | 6-25 | note: "Online payment received" |
+| CRV-1287 | 70,000 | 2-08 | note says "Online" — weaker: it describes where the money **went** |
+
+**The rule: read the note, the reference and the bank name, and set the mode from the actual
+movement of the money. Never copy `payment_method` across.** Where the movement cannot be
+established from the paperwork, ask before recording — an entry is immutable once saved
+(Invariant 1) and a wrong mode cannot be edited out, only adjusted with a JV.
+
+These six are **not** being corrected in RMS and are not a blocker for the run: the cash book
+does not read that column, so they cannot leak into it. They are listed here because the
+cashier's eye is the only thing standing between them and a wrong CASH/BANK split.
 
 ---
 
