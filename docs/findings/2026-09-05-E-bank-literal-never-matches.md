@@ -4,7 +4,7 @@
 |---|---|
 | **Found** | 2026-09-05, reconciling KBH August 2026 collections against QuickBooks |
 | **Written up** | 2026-09-05 |
-| **Status** | **TRIAGED 2026-09-05 — safe to fix quietly. Not fixed yet.** Exposure measured in §3b: no money decision was ever recorded through either panel. |
+| **Status** | **FIXED 2026-09-05 — the bank filter only.** Exposure measured in §3b before fixing: no money decision was ever recorded through either panel. §4.2 and §4.4 remain open; so does the question in §3b. |
 | **Scope** | `js/pages/cancellation.js:304`, `js/pages/transfers.js:415`. **Every tenant, every sale.** |
 | **Severity** | Correctness of a figure shown at the moment a director approves a cancellation or a transfer. |
 
@@ -198,6 +198,51 @@ Six KBH payments in August 2026 alone are filed under a method their own note co
 carrying bank UBL; three more booked cash whose notes say "online"; and the 4,900,000 on UG-06
 booked cash against a note saying it never reached cash or bank). Correcting those is a data
 decision that is **not** part of this fix and needs its own approval.
+
+---
+
+## 5e · What was actually fixed, 2026-09-05 — and what was left
+
+**Fixed:** the bank predicate in both files, to the set `js/pages/search.js:1154` already uses:
+`['bank_transfer', 'bank', 'cheque', 'online']`. Confirmed by grep across `js/`, `electron/` and
+`scripts/` that **no third file** carries the `=== 'bank'` comparison — search.js was already
+correct, including its `adjPaid` (which it takes from `payment_method`, the right column).
+
+**Deliberately not touched, by instruction:**
+
+- **§4.2 — `adjPaid` still reads `payment_category`,** so it is still always 0 and the Adjustment
+  row still never renders. `adjustment` (203 rows) and `other` (19 rows) therefore still fall
+  into no bucket.
+- **§4.4 — `payment_category` is untouched.**
+- **The `total_paid = 0` / `net_refund_amount = 0` question raised in §3b stays open** and is not
+  investigated here. It is a different defect or a different explanation and needs its own work.
+- **§4.1's shared predicate** — three copies of the same list now exist rather than one helper.
+  Converging them is still the right end state and is still not done.
+
+**What the fix changes on the 14 live cancellations that have money against them:**
+
+| Unit | Cash | Bank, before | Bank, after | Still unbucketed | Total paid |
+|---|---|---|---|---|---|
+| 7-08 | 180,000 | 0 | **2,230,000** | — | 2,410,000 ✅ reconciles |
+| 3-02 | 250,000 | 0 | **1,650,000** | — | 1,900,000 ✅ reconciles |
+| 6-08 | 1,950,000 | 0 | **400,000** | 60,000 other | 2,410,000 |
+| 1-10 | 1,900,000 | 0 | **300,000** | 300,000 adj | 2,500,000 |
+| 7-12 | 750,000 | 0 | **90,000** | 100,000 other | 940,000 |
+| UG-01 | — | 0 | — | 4,000,000 adj | 4,000,000 |
+| UG-20 | — | 0 | — | 3,000,000 adj | 3,000,000 |
+| 1-04 | — | 0 | — | 3,000,000 adj | 3,000,000 |
+| UG-07 | 400,000 | 0 | — | 2,500,000 adj | 2,900,000 |
+| 4-21 | — | 0 | — | 2,000,000 adj | 2,000,000 |
+| UG-06 | 400,000 | 0 | — | 1,000,000 adj | 1,400,000 |
+| UG-05 | 400,000 | 0 | — | 1,000,000 adj | 1,400,000 |
+| 1-06 | 400,000 | 0 | — | 1,000,000 adj | 1,400,000 |
+| 6-04 (FMH) | — | 0 | — | 500,000 adj | 500,000 |
+
+Two of the fourteen now add up to Total Paid. **The other twelve still do not**, because the
+adjustment bucket is still dead — and on eight of them the entire amount paid is an adjustment,
+so the panel goes on showing a substantially-paid sale as near zero. Anyone reading these panels
+should know the breakdown is now *right where it reports* and still *incomplete*, until §4.2 is
+decided.
 
 ---
 

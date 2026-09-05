@@ -301,7 +301,10 @@ async function _cxOnUnit(unitId) {
     const pmtRes = await supabase.rpc('list_payments_for_sale', { p_sale_id: sale.id, p_company_id: S.cid });
     const pmts = pmtRes.data || [];
     const cashPaid = pmts.filter(p => p.payment_method === 'cash' && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
-    const bankPaid = pmts.filter(p => p.payment_method === 'bank' && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
+    // 'bank' is not a value payment_method has ever held — the column holds
+    // bank_transfer / cheque. Same set as search.js:1154. See
+    // docs/findings/2026-09-05-E-bank-literal-never-matches.md
+    const bankPaid = pmts.filter(p => ['bank_transfer', 'bank', 'cheque', 'online'].includes(p.payment_method) && p.payment_category !== 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
     const adjPaid = pmts.filter(p => p.payment_category === 'adjustment').reduce((s, p) => s + parseFloat(p.amount), 0);
 
     _cxData.totalPaid = totalPaid;

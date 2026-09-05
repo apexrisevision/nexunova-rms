@@ -382,6 +382,22 @@ mismatch and resets the fourteen-day count like any other.
   either "match" or what differed and why.
 - Only after fourteen clean days does Excel stop.
 
+### The lag count goes in the sign-off, clean run or not
+
+Criterion 11 has no system behind it and, for Phase 1, **one person enters the entries and the
+same person checks them.** That is marking your own homework for fourteen days, and it is only
+worth anything if the misses are written down rather than smoothed over.
+
+So: **`late` and `worst_lag_days` are logged every day regardless of outcome**, and if either was
+nonzero on any day of the run — even a day that was otherwise clean, even a day where the reason
+was recorded and the day therefore passed — **that goes in the sign-off note, with the dates and
+the reasons given.** Not as a failure; as the record of what the fourteen days actually looked
+like.
+
+A run that ends "fourteen clean days" with three late entries inside it is a different fact from
+a run that ends "fourteen clean days" with none, and Phase 2 needs to know which one it got. If
+the sign-off cannot say, the run did not measure the thing it was for.
+
 ### During the run, the double-entry risk
 
 RMS's own **Record Payment** stays live while the cash book runs. If the same client money is
