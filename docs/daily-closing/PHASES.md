@@ -446,6 +446,44 @@ executes `js/pages/daily-closing.js:1214-1277` and `daily-closing-tile.js:213-24
 own server re-serves both files with `supabase.` rewritten back to `global.supabase.`, generated
 from the real files, and every assertion must go red against them.
 
+## SR-8 · Evidence that cannot be seen is evidence that does not exist
+
+**Rule.** Never pipe a test, suite or gate run through `tail`, `head` or `grep`. Redirect the whole
+thing to a file and read what you need out of it. A summary is for reporting a result, never for
+observing one.
+
+**What it cost.** Three times in one week, on the same day's work:
+
+| | |
+|---|---|
+| `npm run gate` piped through `tail -30` | Ten of fifteen failures scrolled past unrecorded. Finding 2026-09-04-B still has no cause, and the missing ten lines are the single most valuable thing that could settle it. |
+| The daily-closing suites piped through `grep -E "PASS\|FAIL"` | The load suite failed once and the line naming which budget it blew was thrown away. Three clean re-runs later there is nothing to diagnose. |
+| `npm run gate` piped through `tail` again | A run died without printing its `RESULT` line; the truncated log made it look like a crash and sent an hour into a hypothesis (§6 of Finding B) that reading the suite for thirty seconds would have refuted. |
+
+Each time the run was *observed* through a filter chosen before knowing what mattered. Each time
+the filter removed exactly the part that did.
+
+**Why it is the same family as SR-2, SR-5, SR-6 and SR-7.** Those four are ways for a suite to be
+unable to see a failure. This is the way for the *operator* to be unable to see one — and it is
+worse, because it destroys evidence of failures the suite did catch. A green summary from a
+filtered run and a green summary from a passing run look identical.
+
+**How to apply.**
+
+- `node scripts/verify-x.js > "$SCRATCH/x.log" 2>&1; tail -3 "$SCRATCH/x.log"` — run to a file,
+  then read the file. Never `node scripts/verify-x.js | tail -3`.
+- For a batch, write one log per suite and `grep` **the files**, which keeps the evidence. Grepping
+  a pipe consumes it.
+- Reach for the log the moment anything is red, before re-running. **Re-running is what destroys
+  the evidence**, and the pressure to re-run is highest exactly when the gate is blocking a push.
+- An intermittent failure that has been "fixed by re-running" has not been diagnosed. Say so.
+- This applies to the model's own tool calls first. Nobody else was filtering these runs.
+
+**Where it is done:** the flake in `verify-daily-closing-boot.js` was caught this way — six runs
+written to six files, one of which was red, with the failing assertion named in full. It turned
+out to be a racing assertion rather than a product fault, which is a thing only the full line
+could have said.
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner

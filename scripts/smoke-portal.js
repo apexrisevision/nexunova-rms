@@ -184,6 +184,49 @@ async function preflight() {
 
   console.log('\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 SALES PORTAL SMOKE (real browser) \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550');
 
+  /* ── SWEEP FIRST. The finally block is not a guarantee ──────────────────
+     Fixtures are created in a LIVE tenant, and cleanup lived only in the exit
+     path — so any abort that takes the process out (a crash, a kill, Ctrl-C, a
+     harness that stops capturing) left ZZSMOKE rows sitting in Awami's leads
+     list for ever. That happened on 2026-09-05: four is_test leads survived a
+     run whose own cleanup never got to print.
+
+     A transaction is not available here. The rows have to be visible to a real
+     browser talking to PostgREST over HTTP, so they must be committed; nothing
+     this process holds open can be rolled back at the end.
+
+     So the lifecycle is made self-healing instead: every run sweeps what earlier
+     runs left behind, and only then seeds its own. Anything older than half an
+     hour cannot belong to a run that is still going (the suite takes about a
+     minute and its session expires in fifteen), so this is safe to run even if
+     two of these are somehow in flight at once. */
+  const orphans = await sql(
+    `select count(*)::int as n from public.leads
+      where name like 'ZZSMOKE-%' and created_at < now() - interval '30 minutes';`);
+  const orphanN = (orphans && orphans[0] && orphans[0].n) || 0;
+  if (orphanN) {
+    console.log(`\n⚠️  ${orphanN} ZZSMOKE lead(s) left behind by an earlier run — sweeping.`);
+    console.log('   A previous run aborted before its cleanup. Worth knowing about.');
+    for (const t of ['lead_views', 'lead_activities', 'lead_assignments', 'deals']) {
+      await sql(`delete from public.${t} where lead_id in (
+                   select id from public.leads
+                    where name like 'ZZSMOKE-%' and created_at < now() - interval '30 minutes');`);
+    }
+    await sql(`delete from public.leads
+                where name like 'ZZSMOKE-%' and created_at < now() - interval '30 minutes';`);
+  }
+  await sql(`delete from public.sales_sessions
+              where session_token like 'smoke\\_%' and expires_at < now();`);
+
+  // And prove the slate is clean before seeding, so a count assertion below can
+  // never be measuring somebody else's rows.
+  const left = await sql(`select count(*)::int as n from public.leads where name like 'ZZSMOKE-%';`);
+  if ((left && left[0] && left[0].n) || 0) {
+    console.log(`\n❌ ${left[0].n} ZZSMOKE lead(s) still present after the sweep — refusing to seed.`);
+    console.log('   Another run may be in flight, or the sweep failed. Investigate before re-running.');
+    process.exit(2);                      // 2 = could not run, not "the app failed"
+  }
+
   await sql(`insert into public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
              values ('${COMPANY}','${DIRECTOR}',null,'${TOKEN}', now() + interval '15 minutes');`);
 

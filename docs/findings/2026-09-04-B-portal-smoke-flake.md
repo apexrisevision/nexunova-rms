@@ -7,7 +7,7 @@
 | **Status** | **OPEN, not chased.** Logged deliberately rather than explained away. |
 | **Scope** | `scripts/smoke-portal.js` — the Sales Portal half of `npm run gate`. |
 | **Severity** | Unknown, and that is the problem. It is either a harmless timing flake or a real intermittent defect in bulk assign, and the evidence collected does not separate them. |
-| **Updated** | 2026-09-05 — a leading hypothesis now, with evidence. See §4.5. |
+| **Updated** | 2026-09-05 — the stale-fixture hypothesis was raised and then REFUTED (§6). Cause still unknown. A separate real defect it surfaced is fixed (§5). |
 
 A gate that fails one run in four and passes the rest is the kind of thing that gets explained
 away until the once it was real. It blocks pushes, so the pressure is always to re-run it, and
@@ -122,35 +122,66 @@ In rough order of value:
 4. **Run it 10 times back to back with full logs, then once after 10 minutes idle.** If failures
    only appear on a run started within a minute or two of a heavy database workload, contention is
    confirmed. If they scatter randomly, it is not.
-5. **Check for leftover fixtures.** Cleanup runs in a `finally` with three retries and prints a
-   loud warning if it fails, and run 1 did print `✓ fixtures removed`. Still worth a
-   `select count(*) from leads where name like 'ZZSMOKE-%'` before the next run — leftover rows
-   from an aborted run would change what "showing 4" means.
-
-   > **2026-09-05 — this stopped being hypothetical.** A gate run
-   > (`ZZSMOKE-1788596148952`) died after its last assertion and before its cleanup: the log ends
-   > at `✅ no console errors` with no `RESULT` line, no `✓ fixtures removed`, and no warning
-   > either, because the process did not live long enough to print one. It left **four
-   > `is_test` leads on Awami Market**, the tenant about to begin the parallel run. The next run
-   > passed 38/38 with those four still present.
-   >
-   > That is a mechanism, not a coincidence, and it fits the original failure: the suite creates
-   > four fixtures and then asserts `search narrowed to this run's 4 fixtures (showing 4)` and
-   > `Select all picked all 4`. Four stale rows sharing the `ZZSMOKE-` prefix change what those
-   > counts see, and a mismatch there would cascade into exactly the block of failures that were
-   > observed — selection, then the bulk-assign modals, then the RPC that never fires.
-   >
-   > **This is now the leading hypothesis**, ahead of database contention. It also predicts the
-   > pattern seen: the failure follows an aborted run rather than a slow one, which is why
-   > re-running "fixes" it — the second run's cleanup removes both sets.
-   >
-   > Two things follow. The suite should **assert a clean slate before it seeds** rather than
-   > trusting the previous run's `finally`, and its fixture prefix should be unique per run in the
-   > *query* as well as in the name. Neither is done yet; this remains not-chased.
+5. **Check for leftover fixtures.** Cleanup ran in a `finally` scoped to the run's **own** prefix,
+   so a run never removed anything an earlier run had left. That is now fixed — see §5 — but the
+   fix is hygiene, not the answer to this finding. See §6 for why.
 
 ---
 
-## 5 · Why it is being left alone for now
+## 5 · Resolved separately: fixtures could survive an abort (2026-09-05)
+
+`smoke-portal.js` seeds four `is_test` leads into the **live Awami tenant** and deleted them only
+in its exit path, matching `like '<its own prefix>%'`. Any abort that took the process out — a
+crash, a kill, Ctrl-C, a harness that stopped capturing — left those rows in the tenant's leads
+list permanently, and no later run would ever remove them. On 2026-09-05 four such rows
+(`ZZSMOKE-1788596148952 1…4`) were observed surviving a run whose cleanup never printed.
+
+A transaction is not an option: the rows have to be visible to a real browser talking to PostgREST
+over HTTP, so they must be committed, and nothing this process holds open can be rolled back.
+
+So the lifecycle is self-healing instead. Before seeding, the suite now sweeps **every** `ZZSMOKE-`
+lead older than thirty minutes (with its child rows) plus expired `smoke_` sessions, says loudly
+that it found them, and then **asserts a clean slate and refuses to seed if any remain** — exiting
+2 (could not run) rather than 1 (the app failed). Thirty minutes cannot overlap a run in flight:
+the suite takes about a minute and its session expires in fifteen.
+
+Proved by seeding two deliberately backdated orphans and running it: the warning fired, both were
+removed, the run passed 38/38, and the table was left empty. An aborted run is now cleaned up by
+the next one.
+
+**This does not close the finding.** It closes a real defect that this finding's investigation
+surfaced.
+
+---
+
+## 6 · The stale-fixture hypothesis, tested and REFUTED
+
+On 2026-09-05 this entry was updated to call stale fixtures from an aborted run "the leading
+hypothesis, ahead of contention". **That was wrong, and it is retracted here.** It was written
+from the fact that orphans existed, without checking whether they could reach the assertions that
+failed. They cannot.
+
+`smoke-portal.js` narrows the leads list by typing its **full unique fixture string** into the
+search box — `ZZSMOKE-<this run's epoch ms>`, not the `ZZSMOKE-` prefix — and then asserts the
+list shows exactly four rows. An orphan from any other run carries a different timestamp, does not
+match that search, and is never counted. The same string scopes `Select all picked all 4` and the
+bulk-assign counts downstream of it.
+
+So orphan rows are invisible to every assertion that failed. They are a hygiene problem in a live
+tenant — a real one, fixed in §5 — and **not the cause of this finding**.
+
+Two things are worth keeping from the mistake. The refutation came from reading the suite for
+thirty seconds, which should have happened before the claim was made rather than after. And a
+hypothesis that explains the *symptom* ("counts were wrong") is not the same as one that survives
+contact with the *mechanism* ("could those rows have been counted?").
+
+**Status: still open. Cause still unknown.** The evidence that would settle it is unchanged and is
+listed in §4 — full output on the next red run, above all. That is now standing rule SR-8, so the
+next occurrence should arrive with enough to diagnose it.
+
+---
+
+## 7 · Why it is being left alone for now
 
 The parallel run for Awami starts now, and this is in the Sales Portal, which the parallel run
 does not touch. The gate passes, so it is not blocking. Chasing an intermittent failure with the
@@ -162,7 +193,7 @@ the next time the gate goes red.
 
 ---
 
-## 6 · Related
+## 8 · Related
 
 - `docs/daily-closing/PHASES.md` — **SR-2**: an assertion is suspect until it has been seen to
   fire. The mirror of that rule applies here: a failure is suspect until it has been seen in full.
