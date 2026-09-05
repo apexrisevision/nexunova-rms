@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NexuFinance — Daily Closing</title>
+<meta name="robots" content="noindex, nofollow">
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     NEXUFINANCE — the cash book, on its own shell.
+
+     Same Supabase project, same auth, same users, same units and clients as
+     RMS. A different SHELL. That distinction is the whole design: the data
+     stays where it is so Phase 2 remains a foreign key, and the page stops
+     reaching into a shell it does not own.
+
+     WHAT THIS PAGE DELIBERATELY DOES NOT DO
+     ────────────────────────────────────────────────────────────────────────
+     · It does not read `nxn_sess`, `S`, `_featureFlags`, `_projectsCache`,
+       `_selectableProjects` or any other RMS global. Every one of those was a
+       failure this module already paid for.
+     · It has no feature flag. Whether a person sees a cash book is answered by
+       the role the SERVER returns, not by a flag that defaults open.
+     · It has no router. The component owns its own Day / Days / Audit views.
+       There is no nav() to swallow a synchronous throw.
+     · It has ONE session path. Not "fresh login" and "restored session" —
+       one. RMS's two-path split cost three days, and the rule agreed with the
+       owner is that a third case is not to be added quietly: if this page ever
+       seems to need one, stop and say so.
+
+     HOW SOMEBODY GETS HERE
+     ────────────────────────────────────────────────────────────────────────
+     Same origin as RMS, so the Supabase session already in this browser's
+     localStorage is the one this page reads. Somebody signed into RMS opens
+     this page and is simply already signed in. Nobody signs in HERE — there is
+     no login form in this file and there should never be one.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/foundation/tokens.css?v=20260906nf">
+<link rel="stylesheet" href="css/daily-closing.css?v=20260906nf">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--fk-bg-page,#F1F5F9);
+       font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+       color:var(--fk-text,#0F172A)}
+
+  /* The whole chrome. A bar, a name, a way back. Anything more than this is
+     the beginning of a second RMS. */
+  .nf-bar{display:flex;align-items:center;gap:16px;padding:10px 20px;
+          background:var(--dc-navy-900,#0B1B3A);color:#fff}
+  .nf-brand{font-weight:700;font-size:14px;letter-spacing:.2px;white-space:nowrap}
+  .nf-brand span{opacity:.62;font-weight:500}
+  .nf-co{font-size:13px;opacity:.86;overflow:hidden;text-overflow:ellipsis;
+         white-space:nowrap;flex:1;min-width:0}
+  .nf-who{font-size:12px;opacity:.7;white-space:nowrap}
+  .nf-link{color:#fff;opacity:.8;font-size:12px;text-decoration:none;
+           border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:4px 10px;
+           white-space:nowrap}
+  .nf-link:hover{opacity:1;border-color:rgba(255,255,255,.55)}
+  .wrap{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
+
+  #nf-gate{max-width:560px;margin:72px auto;text-align:center;padding:32px;
+           background:var(--dc-surface,#fff);border:1px solid var(--dc-line,#E5E7EB);
+           border-radius:12px}
+  #nf-gate h2{font-size:16px;margin:0 0 8px}
+  #nf-gate p{color:var(--dc-ink-600,#4B5563);font-size:13px;margin:0 0 16px;line-height:1.6}
+  #nf-gate a.btn{display:inline-block;background:var(--dc-navy-700,#1F3864);color:#fff;
+                 text-decoration:none;font-size:13px;font-weight:600;
+                 padding:9px 18px;border-radius:8px}
+  @media (max-width:640px){ .nf-who{display:none} .wrap{padding:12px 10px 40px} }
+</style>
+</head>
+<body>
+
+<header class="nf-bar">
+  <div class="nf-brand">NexuFinance <span>· Daily Closing</span></div>
+  <div class="nf-co" id="nf-co"></div>
+  <div class="nf-who" id="nf-who"></div>
+  <a class="nf-link" href="/login.html">Back to RMS</a>
+</header>
+
+<div class="wrap">
+  <div id="nf-gate" hidden><h2 id="nf-gate-t"></h2><p id="nf-gate-m"></p><span id="nf-gate-a"></span></div>
+  <div id="nf-root"></div>
+</div>
+
+<!-- The database client and the module. Nothing from the RMS shell: no ui.js,
+     no auth.js, no init.js, no lazy-pages.js, no dashboard.js. -->
+<script src="js/vendor/supabase-js-2.34.0.umd.js?v=20260906nf"></script>
+<script src="js/supabase.js?v=20260906nf"></script>
+<script src="js/foundation/dc-format.js?v=20260906nf"></script>
+<script src="js/foundation/dc-kit.js?v=20260906nf"></script>
+<script src="js/pages/daily-closing.js?v=20260906nf"></script>
+<script>
+(function () {
+  'use strict';
+
+  var root = document.getElementById('nf-root');
+  var params = new URLSearchParams(location.search);
+
+  /* ── the only place a global is read ──────────────────────────────────
+     js/supabase.js creates the client as `const supabase` — a script-scope
+     lexical binding that is NOT on window, which is exactly the trap that
+     cost this module a week inside RMS. It is read ONCE, here, checked, and
+     then passed by value into everything else. Nothing below this line ever
+     reaches for it again.
+
+     js/supabase.js is a database file, not an RMS shell file. Reusing it is
+     reusing the connection — which is the entire point of "same project" —
+     and it carries the auth-lock fix that stops sign-in deadlocking. */
+  var SB = null;
+  try { SB = (typeof supabase !== 'undefined' && supabase && typeof supabase.rpc === 'function') ? supabase : null; }
+  catch (e) { SB = null; }
+
+  var F = window.DCFmt, K = window.DCKit;
+
+  function gate(title, message, action) {
+    var g = document.getElementById('nf-gate');
+    document.getElementById('nf-gate-t').textContent = title;
+    document.getElementById('nf-gate-m').textContent = message;
+    document.getElementById('nf-gate-a').innerHTML = action || '';
+    g.hidden = false;
+    root.innerHTML = '';
+  }
+
+  /* Every failure this page can have ends here, with words and a way out.
+     A cash book that goes blank is worse than one that says what happened. */
+  function fail(what, e) {
+    try { console.error('[nexufinance] ' + what, e); } catch (_) {}
+    gate(what,
+      (e && e.message) ? e.message : 'The page could not finish loading.',
+      '<a class="btn" href="' + location.pathname + location.search + '">Try again</a>');
+  }
+
+  if (!SB) {
+    return fail('Could not reach the database',
+      new Error('The Supabase client did not load. Reload the page.'));
+  }
+  if (!F || !K || !window.DailyClosing) {
+    return fail('Could not load the cash book',
+      new Error('A module file did not load. Reload the page.'));
+  }
+
+  /* ── the calls the component is given ─────────────────────────────────── */
+  function rpc(name, args) {
+    // Present or refuse. supabase-js drops undefined keys when it serialises,
+    // so a missing value becomes a SHORTER REQUEST that PostgREST answers with
+    // "could not find the function" — which then reads like a deployment
+    // problem and, once, got laundered into "you do not have access".
+    var missing = [];
+    Object.keys(args || {}).forEach(function (k) { if (args[k] === undefined) missing.push(k); });
+    if (missing.length) {
+      return Promise.reject(new Error('Cannot call ' + name + ' — ' + missing.join(', ') +
+        ' missing. This is a fault in the app, not a permission problem.'));
+    }
+    return SB.rpc(name, args).then(function (r) {
+      if (r.error) throw new Error(r.error.message);
+      return r.data;
+    });
+  }
+
+  // The Director PDF and the attachment bridge are edge functions. Both read
+  // the Authorization header and forward the caller's own JWT, so access stays
+  // the database's decision; this only carries the token there.
+  function fn(name, body) {
+    return SB.auth.getSession().then(function (s) {
+      var token = s && s.data && s.data.session && s.data.session.access_token;
+      if (!token) throw new Error('Your session ended. Sign in again.');
+      return fetch(SUPABASE_URL + '/functions/v1/' + name, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token,
+                   'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      }).then(function (r) { return r.json(); });
+    });
+  }
+
+  /* ── ONE session path ─────────────────────────────────────────────────
+     There is no "fresh login" branch, because nobody logs in here. There is
+     a session or there is not. */
+  SB.auth.getSession()
+    .then(function (s) {
+      var session = s && s.data && s.data.session;
+      if (!session) {
+        gate('Sign in first',
+          'NexuFinance uses your RMS sign-in. Sign in there and open this page again.',
+          '<a class="btn" href="/login.html">Go to sign in</a>');
+        return null;
+      }
+      // ONE call answers who this is, which company, what they may do, and
+      // which projects they can see — resolved from auth.uid() on the server.
+      // Nothing about the caller is decided in this browser.
+      return rpc('get_my_daily_closing_context', {});
+    })
+    .then(function (ctx) {
+      if (!ctx) return;                       // the gate above already spoke
+
+      if (!ctx.success) {
+        return gate('Not signed in to this company',
+          'Your session did not resolve to a user. Sign in to RMS again.',
+          '<a class="btn" href="/login.html">Go to sign in</a>');
+      }
+
+      document.getElementById('nf-co').textContent = ctx.display_name || ctx.company_name || '';
+      document.getElementById('nf-who').textContent =
+        (ctx.full_name || '') + (ctx.role ? ' · ' + ctx.role : '');
+      document.title = 'NexuFinance — ' + (ctx.display_name || ctx.company_name || 'Daily Closing');
+
+      // No feature flag anywhere. The server said whether this person has a
+      // cash book, and that is the only answer this page will accept.
+      if (!ctx.role) {
+        return gate('You do not have a cash book here',
+          'No Daily Closing role is set for your account. A CFO can grant one in Users & Roles.');
+      }
+      var projects = (ctx.projects || []).map(function (p) {
+        return { id: p.project_id, name: p.project_name };
+      });
+      if (!projects.length) {
+        return gate('No project to open',
+          'Your account has a Daily Closing role but no project you may view.');
+      }
+
+      var wanted = params.get('project');
+      var start = projects.filter(function (p) { return p.id === wanted; })[0] || projects[0];
+
+      /* The boundary. The component has its own try/catch around rendering, a
+         watchdog, and an error banner — but the MOUNT itself is this page's
+         responsibility, and an exception here would otherwise leave an empty
+         frame with nothing to say. */
+      try {
+        window.DailyClosing.mount(root, {
+          rpc: rpc, fn: fn,
+          me: { companyId: ctx.company_id, userId: ctx.user_id,
+                role: String(ctx.role || '').toLowerCase() },
+          projects: projects,
+          projectId: start.id,
+          date: params.get('date') || F.todayPK(),
+          view: params.get('view') || 'day'
+        });
+      } catch (e) {
+        fail('The cash book could not be drawn', e);
+      }
+    })
+    .catch(function (e) { fail('Could not open the cash book', e); });
+})();
+</script>
+</body>
+</html>
