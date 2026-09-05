@@ -219,7 +219,17 @@ const HARNESS = qs => `<!doctype html><html><head><meta charset="utf-8"><title>b
       window.__mark.flagsAtBuildSB = window._featureFlags === undefined ? 'undefined'
         : window._featureFlags === null ? 'null' : JSON.stringify(window._featureFlags);
       window.__mark.buildCount = (window.__mark.buildCount || 0) + 1;
-      return real.apply(this, arguments);
+      const out = real.apply(this, arguments);
+      // What the sidebar ACTUALLY contained on each build, recorded here rather
+      // than read out of the DOM afterwards. The late-flags case is a 600 ms
+      // window between the 1200 ms bound and an 1800 ms answer, and reading the
+      // DOM after the driver has returned loses that race about one run in five:
+      // the repair has already put the item back and "legitimately absent" reads
+      // false. That was a flaky assertion, not a flaky product.
+      window.__mark.builds = window.__mark.builds || [];
+      window.__mark.builds.push(
+        [...document.querySelectorAll('.sb [data-pg]')].map(n => n.dataset.pg));
+      return out;
     };
   })();
 
@@ -406,8 +416,8 @@ const OTHER = [{ feature_key: 'pdc', enabled: true }];   // KBH/FMH shape: no da
       // mean "not populated", and both are what the old code shipped with.
       is(['undefined', 'null'].includes(early.flagsAtBuildSB), true,
         `buildSB() ran without the flags (${early.flagsAtBuildSB}), as it must rather than hang`);
-      is((await items(page)).includes('dailyclosing'), false,
-        'so the item is legitimately absent at that moment');
+      is((early.builds[0] || []).includes('dailyclosing'), false,
+        'so the item was legitimately absent from the sidebar THAT BUILD DREW');
       took < 1800
         ? ok(`and login did not wait for them — ${took} ms, bound is 1200 ms`)
         : bad(`login waited ${took} ms for a flag fetch it should have given up on`);
