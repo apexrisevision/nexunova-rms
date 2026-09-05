@@ -463,6 +463,19 @@ observing one.
 Each time the run was *observed* through a filter chosen before knowing what mattered. Each time
 the filter removed exactly the part that did.
 
+**And a truncated log does not only hide an event — it invents one.** The third row above is the
+worst of the three for that reason. The log ended without a `RESULT` line, so it was read as
+*"the run crashed"*. It had not: the **capture** ended when the shell call returned, while the
+node process carried on and finished its own cleanup minutes later. A crash that never happened
+then became the premise of an hour's reasoning — a hypothesis about orphaned fixtures, a finding
+updated with it, and a retraction the next day.
+
+Absence of output is not evidence of absence of execution. Before concluding that a run died,
+check whether the *process* died: did anything append to the log afterwards, did the side effects
+it was going to perform still happen, is there a pid. A missing final line means the observer
+stopped watching, and that is the likelier of the two explanations, because the observer is the
+thing under your control and the thing you just interrupted.
+
 **Why it is the same family as SR-2, SR-5, SR-6 and SR-7.** Those four are ways for a suite to be
 unable to see a failure. This is the way for the *operator* to be unable to see one — and it is
 worse, because it destroys evidence of failures the suite did catch. A green summary from a
@@ -477,7 +490,25 @@ filtered run and a green summary from a passing run look identical.
 - Reach for the log the moment anything is red, before re-running. **Re-running is what destroys
   the evidence**, and the pressure to re-run is highest exactly when the gate is blocking a push.
 - An intermittent failure that has been "fixed by re-running" has not been diagnosed. Say so.
+- Never report "the run died" from a short log alone. Establish that the process died, not the
+  capture.
 - This applies to the model's own tool calls first. Nobody else was filtering these runs.
+
+**A harness must say which of the three things happened.** The same rule one level down: a run
+that could not start is not a run that failed, and reporting them the same way is the summary
+version of the mistake above.
+
+| exit | meaning |
+|---|---|
+| `0` | it ran and the thing under test held |
+| `1` | it ran and **the thing under test failed** — a real defect |
+| `2` | **it could not run** — a dirty slate, no browser, no credentials. Nothing was learned. |
+
+`smoke-portal.js` exits 2 when it finds ZZSMOKE rows it cannot account for and refuses to seed
+onto a dirty slate; the browser-based suites exit 0 with an explicit `SKIPPED — nothing was
+verified. This is a skip, not a pass.` when Chrome is missing. Keep that distinction everywhere:
+a suite that returns 1 for "could not run" trains everyone to treat 1 as noise, which is exactly
+how a real 1 gets re-run away.
 
 **Where it is done:** the flake in `verify-daily-closing-boot.js` was caught this way — six runs
 written to six files, one of which was red, with the failing assertion named in full. It turned
