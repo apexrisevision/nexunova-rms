@@ -7,6 +7,7 @@
 | **Status** | **OPEN, not chased.** Logged deliberately rather than explained away. |
 | **Scope** | `scripts/smoke-portal.js` — the Sales Portal half of `npm run gate`. |
 | **Severity** | Unknown, and that is the problem. It is either a harmless timing flake or a real intermittent defect in bulk assign, and the evidence collected does not separate them. |
+| **Updated** | 2026-09-05 — a leading hypothesis now, with evidence. See §4.5. |
 
 A gate that fails one run in four and passes the rest is the kind of thing that gets explained
 away until the once it was real. It blocks pushes, so the pressure is always to re-run it, and
@@ -125,6 +126,27 @@ In rough order of value:
    loud warning if it fails, and run 1 did print `✓ fixtures removed`. Still worth a
    `select count(*) from leads where name like 'ZZSMOKE-%'` before the next run — leftover rows
    from an aborted run would change what "showing 4" means.
+
+   > **2026-09-05 — this stopped being hypothetical.** A gate run
+   > (`ZZSMOKE-1788596148952`) died after its last assertion and before its cleanup: the log ends
+   > at `✅ no console errors` with no `RESULT` line, no `✓ fixtures removed`, and no warning
+   > either, because the process did not live long enough to print one. It left **four
+   > `is_test` leads on Awami Market**, the tenant about to begin the parallel run. The next run
+   > passed 38/38 with those four still present.
+   >
+   > That is a mechanism, not a coincidence, and it fits the original failure: the suite creates
+   > four fixtures and then asserts `search narrowed to this run's 4 fixtures (showing 4)` and
+   > `Select all picked all 4`. Four stale rows sharing the `ZZSMOKE-` prefix change what those
+   > counts see, and a mismatch there would cascade into exactly the block of failures that were
+   > observed — selection, then the bulk-assign modals, then the RPC that never fires.
+   >
+   > **This is now the leading hypothesis**, ahead of database contention. It also predicts the
+   > pattern seen: the failure follows an aborted run rather than a slow one, which is why
+   > re-running "fixes" it — the second run's cleanup removes both sets.
+   >
+   > Two things follow. The suite should **assert a clean slate before it seeds** rather than
+   > trusting the previous run's `finally`, and its fixture prefix should be unique per run in the
+   > *query* as well as in the name. Neither is done yet; this remains not-chased.
 
 ---
 
