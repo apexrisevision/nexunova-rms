@@ -218,8 +218,13 @@
       return;
     }
     var sess = global.S || {};
+    // `supabase`, not `global.supabase` — see the long note in
+    // js/pages/daily-closing.js. The client is a `const` in js/supabase.js and
+    // is not on window; window.supabase is the UMD library and has no .rpc.
+    // Here the throw was swallowed by dashboard.js's try/catch, so the tile
+    // failed in silence and only ever wrote "[daily-closing] tile skipped".
     function rpc(name, args) {
-      return global.supabase.rpc(name, args).then(function (r) {
+      return supabase.rpc(name, args).then(function (r) {
         if (r.error) throw new Error(r.error.message);
         return r.data;
       });

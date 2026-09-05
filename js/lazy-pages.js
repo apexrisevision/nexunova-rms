@@ -110,9 +110,9 @@
     // Daily Closing (P8). Three files: the formatters and the kit the screen
     // needs, then the screen. Lazy like every other page, so a tenant without
     // the flag never downloads a byte of it.
-    dailyclosing: ['js/foundation/dc-format.js?v=20260905dc',
-                   'js/foundation/dc-kit.js?v=20260905dc',
-                   'js/pages/daily-closing.js?v=20260905dc'],
+    dailyclosing: ['js/foundation/dc-format.js?v=20260905dcfix',
+                   'js/foundation/dc-kit.js?v=20260905dcfix',
+                   'js/pages/daily-closing.js?v=20260905dcfix'],
     promises: PROMISES,
     audit: AUDIT,
     approvals: APPROVALS,

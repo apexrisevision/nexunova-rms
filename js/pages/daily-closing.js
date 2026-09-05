@@ -1222,14 +1222,31 @@
     }
 
     var sess = global.S || {};
+
+    /* ⚠️ `supabase`, not `global.supabase`.
+       js/supabase.js:37 creates the client as `const supabase = createClient(…)`.
+       A `const` at the top level of a classic script is a script-scope lexical
+       binding — every other classic script sees the bare name, but it is NOT a
+       property of `window`. And `window.supabase` is still what js/supabase.js:4
+       read from: the supabase-js UMD LIBRARY, which has createClient and no rpc.
+
+       So `global.supabase.rpc(...)` threw `TypeError: … is not a function`
+       synchronously, on the first call, after render(true) had already painted
+       the skeletons — and the screen sat on them for ever. The same three lines
+       are the reason the S8 tile has been failing silently since it shipped.
+
+       Note SUPABASE_URL, SUPABASE_ANON_KEY, _selectableProjects and
+       activeProjectId below are already reached for as bare names, because they
+       have to be. This is the same kind of global; it just looked like it was
+       not, because `window.supabase` exists and is the wrong object. */
     function rpc(name, args) {
-      return global.supabase.rpc(name, args).then(function (r) {
+      return supabase.rpc(name, args).then(function (r) {
         if (r.error) throw new Error(r.error.message);
         return r.data;
       });
     }
     function fn(name, body) {
-      return global.supabase.auth.getSession().then(function (s) {
+      return supabase.auth.getSession().then(function (s) {
         var token = s && s.data && s.data.session && s.data.session.access_token;
         if (!token) throw new Error('no session');
         return fetch(SUPABASE_URL + '/functions/v1/' + name, {
