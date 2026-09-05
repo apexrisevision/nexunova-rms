@@ -391,7 +391,7 @@ each case the assertions are correct and the coverage is imaginary.
   a second time with the two shell-context lines stripped out by its own server, and asserts
   the restore-path checks go **red** against it. Generated from the real file, so it cannot rot.
 - If an entry point is deliberately left unfixed, say so where the finding lives, not in a
-  commit message. See Finding 2026-09-04-A in ARCHITECTURE_NOTES.md.
+  commit message. See docs/findings/2026-09-04-A-session-timers.md.
 
 **Where it is done:** `scripts/verify-daily-closing-boot.js` sections 6-8 — the returning
 visit, the same visit against the unfixed file, and the KBH/FMH shape on that path too.

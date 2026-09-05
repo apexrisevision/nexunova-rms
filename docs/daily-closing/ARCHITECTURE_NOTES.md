@@ -574,84 +574,16 @@ a change signs in, hits the path that works, and never meets the one everybody e
 
 # Finding 2026-09-04-A — restored sessions never start their security timers
 
-> **UNTRIAGED. OUTSIDE THE DAILY CLOSING SCOPE. NOT FIXED, DELIBERATELY.**
-> It is recorded here only because this is where it was found. It touches
-> **every tenant** — KBH, FMH, Fourteen Group, Awami — and every user of all of
-> them, so it deserves its own review and its own piece of work rather than a
-> ride along a module fix. Nothing in this document authorises changing it.
+> **Moved.** It grew past what belongs in a module document, and it is not a Daily Closing
+> matter: it touches every tenant and every user. The full write-up — what breaks, the file and
+> line numbers, who is affected, what the correct behaviour is, and what would change for a KBH
+> or FMH user the moment it is fixed — lives at
+> **[docs/findings/2026-09-04-A-session-timers.md](../findings/2026-09-04-A-session-timers.md)**.
 
-## What was found
+In one line: `_startSessionCheck()` and `_startIdleTimer()` are called only from
+`js/auth.js:417-418`, inside `_completeLogin()`. A restored session starts neither, so the idle
+timeout never runs, `nxn_active` is never stamped (which makes the boot check measure from the
+user's last *fresh login* rather than their last activity), and the five-minute
+`check_session_valid` poll — which is also what refreshes permissions — never starts.
 
-`_startSessionCheck()` and `_startIdleTimer()` are called from exactly one place:
-
-| | |
-|---|---|
-| `js/auth.js:417` | `_startSessionCheck();` |
-| `js/auth.js:418` | `_startIdleTimer();` |
-
-Both lines are inside `_completeLogin()` — **the fresh-sign-in path only**.
-`tryRestoreSession()` (`js/init.js:33`) never calls either one, and no other file
-does; `grep -rn '_startSessionCheck(|_startIdleTimer(' js/` returns those two call
-sites, the two declarations (`js/auth.js:701`, `js/auth.js:816`) and one re-arm
-inside `_setIdleTimeoutMin()` (`js/auth.js:928`), which itself only runs when an
-admin changes the setting *in an already-timered session*.
-
-A restored session is how everybody normally arrives: every hard refresh, every
-reopened tab, every return to an open browser. A fresh login happens once, and then
-usually only after a sign-out or a password change.
-
-## What that means, precisely
-
-**1 · The idle timeout does not run.**
-`_startIdleTimer()` is what binds the six activity listeners and schedules the
-logout (`js/auth.js:816-823`). Without it `_idleActive` stays `false`, no timer is
-scheduled, and the 60-second warning bar can never appear. A restored tab left open
-is never signed out, however long it sits.
-
-**2 · The persistent check measures from a stamp that stopped moving.**
-This is the part that is easy to miss. `_stampActive()` — which writes
-`localStorage.nxn_active` — is called from exactly one place, `_resetIdleTimer()`
-at `js/auth.js:839`, and `_resetIdleTimer` is only ever bound as a listener *by
-`_startIdleTimer()`*. So on a restored session **nothing ever stamps the clock**.
-
-`tryRestoreSession()` does apply the rule once, at boot (`js/init.js:46`,
-`_idleTooLong()`) — but it compares `Date.now()` against a stamp last written
-during the user's most recent *fresh login* session. Someone who signs in on Monday
-and then works for a week through reopened tabs is measured against Monday. With
-the default of one week (`_IDLE_DEFAULT_MIN = 7 * 24 * 60`, `js/auth.js:894`) that
-surfaces as an eviction that looks arbitrary — heavy use does not postpone it,
-because heavy use is not being recorded.
-
-So the timeout is wrong in both directions at once: it does not fire when it should
-(inside a long-lived restored tab) and it does fire when it should not (on a return
-after a week of daily use).
-
-**3 · Session-validity polling does not run.**
-`_startSessionCheck()` schedules `_checkSessionValidity()` every five minutes
-(`js/auth.js:701-705`), which is what signs a user out after their password is
-changed or their `session_version` is bumped. On a restored session that poll never
-starts, so a revoked session keeps working until the tab is closed.
-
-## What is NOT affected
-
-`_registerSession()` and `_startSessionHeartbeat()` appear in the same list of
-skipped calls but **self-heal**: the IIFE at `js/auth.js:538-551` runs 1.8 s after
-DOMContentLoaded, finds the Supabase session and starts both. "Time on system" in
-the Command Center is therefore not affected by this finding.
-
-## How long this has existed
-
-Not established. `tryRestoreSession()` predates the security work that added the
-timers, so the likely shape is that the timers were added to the login path and the
-restore path was never revisited — the same shape as the feature-flag bug fixed
-above, found the same way.
-
-## Why it is not fixed here
-
-Calling the two functions from `tryRestoreSession()` is a two-line change and is
-almost certainly the right one. It is not made because the *consequence* is not
-two lines: it would start signing people out of KBH and FMH tabs that have never
-been signed out before, and it would change what `nxn_active` means for every
-existing browser that holds a stale stamp. That is a behaviour change to live
-tenants, which stops and asks. Rashid has it, flagged untriaged, to decide
-separately.
+**UNTRIAGED. NOT FIXED, DELIBERATELY.** Nothing here authorises changing it.
