@@ -467,6 +467,7 @@ node scripts/verify-daily-closing-security.js      # 26  auth, RLS, grants, sign
 node scripts/verify-daily-closing-load.js          #     500 entries and the numbers above
 node scripts/verify-daily-closing-boot.js          # 32  BOTH boot paths, driven for real (SR-5, SR-6)
 node scripts/verify-daily-closing-isolation.js     # 18  a REAL foreign JWT over real HTTPS, refused
+node scripts/verify-daily-closing-shell-adapter.js  # 33  login.html, real nav(), real globals (SR-7)
 ```
 
 Most run inside `BEGIN … ROLLBACK` and commit nothing. Four commit by necessity and say so in

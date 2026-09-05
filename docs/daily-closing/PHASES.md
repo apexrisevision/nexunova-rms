@@ -397,6 +397,55 @@ each case the assertions are correct and the coverage is imaginary.
 visit, the same visit against the unfixed file, and the KBH/FMH shape on that path too.
 
 
+## SR-7 · Replicate the environment; never construct it
+
+**Rule.** When the thing that broke is the *shape of the environment* — a global, a session, a
+storage key, a load order — a harness that builds that shape by hand has already destroyed what
+it was meant to test. Load the real files and let the shape happen. Whatever cannot be loaded,
+**write down that it is missing** rather than approximating it and staying quiet.
+
+**What it cost.** Daily Closing sat on skeletons for the whole first week of the pilot. The cause
+was one identifier: the shell adapter said `global.supabase.rpc`, but `js/supabase.js:37` creates
+the client as `const supabase = createClient(…)` — a script-scope lexical binding that is **not**
+a property of `window` — while `window.supabase` remains the supabase-js UMD library, which has
+`createClient` and no `rpc`. The call threw synchronously, escaped `nav()` (which catches promise
+rejections, not throws), and left the DOM exactly as `render(true)` had painted it.
+
+**The first attempt to reproduce it passed.** The repro set `window.supabase = { rpc, auth }`
+itself, and with that one line the bug cannot exist. It only went red after the harness stopped
+constructing the client and started creating it the way production does — and even then, writing
+`var supabase = …` instead of `const` hid it again, because `var` at script top level *does* put
+the binding on `window`. Two near misses on one identifier and one keyword.
+
+**Why it is the same family as SR-2, SR-5 and SR-6.** Four ways for a green suite to be blind:
+a detector that never fires (SR-2), a harness that hands over the state whose acquisition is the
+bug (SR-5), a harness pointed at the entry path the bug is not behind (SR-6), and a harness that
+rebuilds the environment the bug lives in (SR-7). All four look exactly like passing tests.
+
+**How to apply.**
+
+- Load the real files: the real vendor bundle, the real client module, the real `login.html`, the
+  real `nav()`, the real lazy loader. `verify-daily-closing-shell-adapter.js` asserts the trap
+  itself is present before it asserts anything else — `window.supabase.rpc === undefined` and
+  `supabase !== window.supabase`. If a future change makes those two false, the suite says so
+  rather than passing for the wrong reason.
+- Stub the **network** and the **browser's own storage** — a session in `localStorage`, a `fetch`
+  interceptor — never the application's globals. Storage is what a signed-in browser holds; a
+  global is what the code under test goes and finds.
+- Take the payloads from production rather than writing them out. This suite captures them at run
+  time by impersonating the pilot's owner, and its §0 **fails** if the pilot stops being in the
+  state the suite is about, instead of quietly testing a different case.
+- **Name what you could not reproduce, in the file, in the header.** This one cannot exercise TLS,
+  PostgREST's routing or the real 401 path (that is what the isolation suite is for), signs no
+  one in with a real credential, and answers other modules' RPCs with an empty array — and it
+  prints the list of every call that got that default, so a gap is visible instead of shaping the
+  result in silence.
+
+**Where it is done:** `scripts/verify-daily-closing-shell-adapter.js` — the only suite that
+executes `js/pages/daily-closing.js:1214-1277` and `daily-closing-tile.js:213-244` at all. Its
+own server re-serves both files with `supabase.` rewritten back to `global.supabase.`, generated
+from the real files, and every assertion must go red against them.
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner
