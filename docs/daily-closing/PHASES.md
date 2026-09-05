@@ -515,6 +515,98 @@ written to six files, one of which was red, with the failing assertion named in 
 out to be a racing assertion rather than a product fault, which is a thing only the full line
 could have said.
 
+## SR-9 · Stubbing a network means asserting the request, not only supplying the response
+
+**Rule.** A call has two halves. If a harness intercepts one, it owns both: assert what was
+**sent** as well as answering it. A stub that matches on the endpoint and replies from a map has
+not tested a call — it has tested half of one, and the half it skipped is the half the client
+builds.
+
+**What it cost.** `verify-daily-closing-shell-adapter.js` was written specifically to catch a
+shell-adapter bug, drove the real `login.html`, loaded the real globals rather than constructing
+them, and went red against a deliberately re-broken file. It passed 39/39 while the pilot could
+not open the screen at all.
+
+Its interceptor matched `/rest/v1/rpc/<name>` and answered from the captured map. It never looked
+at `init.body`. So when `sess.cid` was `undefined` — `js/data.js:5` is `let S = null`, another
+lexical binding that is not on window — the page sent `{p_project_id, p_business_date}` with
+`p_company_id` **silently dropped by JSON.stringify**, and the stub cheerfully returned a valid
+summary anyway. Production answered `PGRST202 … with parameters p_business_date, p_project_id`,
+which the module then laundered into *"You do not have access to the cash book. Ask the CFO."*
+Three translations from an undefined variable to a false statement about someone's permissions.
+
+**SR-5 was followed, and it still missed it.** SR-5 says stub the network, not the state, and that
+is exactly what this harness did — the rule was right and the execution was half. Answering a
+request is not intercepting it. Assert the request or you have replaced the client's contribution
+to the call with your own assumption about it.
+
+**How to apply.**
+
+- Record every intercepted request body and assert its **whole shape**, not the one argument that
+  once caused an outage. See SR-10 for why that distinction is the entire point.
+- Watch for silent droppers. `JSON.stringify` removes `undefined` values, `URLSearchParams`
+  stringifies them as `"undefined"`, and a missing header is simply absent. None of them raise;
+  each turns a missing value into a differently-shaped request.
+- The same applies to anything else the code under test *emits*: a payload posted, a file written,
+  a log line, an argument passed to an injected function.
+
+**The audit that came with this rule** (2026-09-05, every harness that intercepts a call):
+
+| harness | asserts the request? |
+|---|---|
+| `verify-daily-closing-shell-adapter.js` | **was the gap** — now records every body and checks all six argument shapes |
+| `scripts/smoke-portal.js` | **yes** — `call.args.p_lead_ids.length === selCount`, and it exists because of a past "only 1 lead went" regression. The precedent. |
+| `verify-daily-closing-screen.js` | partly — nine assertions on `args` (idempotency key, `p_limit`, `p_reason`, void and close payloads), but never on `p_company_id`, and it could not: the stub page constructs its own `me`. That gap is SR-7, not this one. |
+| `js/pages/daily-closing-stub.js` | reads args and behaves on them, which is why the screen suite can assert them at all |
+| `verify-daily-closing-boot.js` | **no** — its `rpc` stub takes `(name, args)` and logs only the name. Left as is: it drives the shell's boot ordering, not the module, so no module argument reaches it. Recorded rather than fixed. |
+| the SQL suites | nothing is intercepted; the call *is* the request |
+
+## SR-10 · A red proof you chose proves the assertion; a mutant you did not choose finds the assertion you never wrote
+
+**Rule.** Every red proof in this repo is one mutation, hand-picked *after* the cause was known.
+That is worth having — it shows the assertion fires. It can never show the assertion that was
+never written. Before trusting a suite, break the product in ways **nobody chose**, mechanically,
+and require the suite to notice. Anything that survives is a blind spot, named before production
+finds it.
+
+**Why this rule exists.** Four times now a green suite could not see the failure it was written
+to catch: the NULL-trap in P4, absent-detectors that had never fired, a fix verified on one boot
+path, and a stub that only supplied responses. SR-2, SR-5, SR-6, SR-7, SR-8 and SR-9 were each
+written afterwards, and each is correct. They share a shape that guarantees a fifth: **an
+assertion written after a bug is shaped like that bug.** The suite that just caught a missing
+`p_company_id` checks `p_company_id` on every call, and nothing else, because `p_company_id` is
+what hurt.
+
+**What the first pass found.** Four mechanical mutations of `js/pages/daily-closing.js`, run
+against the 39-assertion shell-adapter suite:
+
+| mutation | result |
+|---|---|
+| `p_company_id` → a different tenant's id | **killed** — the argument that had just bitten us |
+| `p_business_date` → `null` | **survived** — a cash book silently reading a day nobody asked for |
+| `list_units_for_picker` loses its project scope | **survived** — a unit picker widened across projects |
+| `p_project_id` → `null` on the summary call | **survived** |
+
+Three of four. The first three are now killed by asserting the whole argument shape. The fourth
+survives for a different reason and the distinction matters: it mutated the call inside
+`loadAudit()`, a view this suite never drives — an **uncovered path** (SR-6) rather than a missing
+assertion (SR-9). A mutation pass separates those two automatically, which reading the suite does
+not.
+
+**How to apply.**
+
+- Mutate mechanically and in bulk: null an argument, drop a call, invert a condition, make a
+  function throw, return an empty list. Choose them from the *code*, never from the bug list.
+- Run the suite against each; a non-zero exit is a kill. A survivor is a finding.
+- Triage every survivor into **no assertion** (write one) or **no coverage** (drive the path, or
+  record it as knowingly uncovered).
+- Do this before a module carries real money, not after. The first pass here took four minutes
+  and found three real gaps.
+
+**Where it is done:** the pass above was a throwaway. Turning it into a committed runner over the
+Daily Closing module is the obvious next step and is **not done yet** — it is the standing
+recommendation this rule exists to make.
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner

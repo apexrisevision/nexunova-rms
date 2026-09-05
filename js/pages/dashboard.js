@@ -138,7 +138,7 @@ function _dcTile(pg) {
     window._lazyLoadFiles([
       'js/foundation/dc-format.js?v=20260905dcfix',
       'js/foundation/dc-kit.js?v=20260905dcfix',
-      'js/pages/daily-closing-tile.js?v=20260905dcfix'
+      'js/pages/daily-closing-tile.js?v=20260905dcargs'
     ]).then(function () {
       if (typeof window.rDailyClosingTile === 'function') window.rDailyClosingTile();
     }).catch(function (e) { console.error('[daily-closing] tile failed to load', e); });

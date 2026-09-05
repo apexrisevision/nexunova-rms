@@ -171,9 +171,18 @@ const MIME = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css',
 // The two module files as they stood BEFORE the fix: `supabase.` put back to
 // `global.supabase.` inside the shell adapter, and nothing else touched.
 // Generated from the real files at request time so it can never go stale.
-function unfix(rel) {
+function unfix(rel, which) {
   const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-  const out = src.replace(/(\n\s*)return supabase\.(rpc|auth)\b/g, '$1return global.supabase.$2');
+  // BOTH bugs put back, because they are the same bug twice: the client and the
+  // session are each a lexical binding that is not on window, and each was read
+  // off `global`. Generated from the real files, so it cannot go stale.
+  let out = src;
+  if (which === 'client') {
+    out = out.replace(/(\n\s*)return supabase\.(rpc|auth)\b/g, '$1return global.supabase.$2');
+  }
+  if (which === 'session') {
+    out = out.replace(/(\n\s*)var sess = S \|\| \{\};/g, '$1var sess = global.S || {};');
+  }
   return { src, out };
 }
 
@@ -181,9 +190,10 @@ function serve() {
   return new Promise(res => {
     const s = http.createServer((rq, r) => {
       const p = decodeURIComponent(rq.url.split('?')[0]);
-      const unfixed = /unfixed=1/.test(rq.url);
+      const unfixed = /unfixed=(1|client|session)/.test(rq.url);
       if (unfixed && (p === '/js/pages/daily-closing.js' || p === '/js/pages/daily-closing-tile.js')) {
-        const { src, out } = unfix(p.slice(1));
+        const which = /unfixed=session/.test(rq.url) ? 'session' : 'client';
+        const { src, out } = unfix(p.slice(1), which);
         if (out === src) { r.writeHead(500); return r.end('nothing to un-fix in ' + p); }
         r.writeHead(200, { 'Content-Type': 'text/javascript' });
         return r.end(out);
@@ -229,6 +239,7 @@ function serve() {
       try { localStorage.clear(); } catch (_) {}
       window.__unstubbed = [];
       window.__rpcCalls = [];
+      window.__rpcBodies = [];
 
       // The browser's own storage, as a signed-in browser holds it. Not app state.
       const now = Math.floor(Date.now() / 1000);
@@ -256,6 +267,18 @@ function serve() {
         const m = url.match(/\/rest\/v1\/rpc\/([a-zA-Z0-9_]+)/);
         if (m) {
           window.__rpcCalls.push(m[1]);
+          /* ⚠️ RECORD WHAT WAS SENT, NOT ONLY WHAT CAME BACK (SR-9).
+             This interceptor used to match on the URL and answer from the
+             captured map without ever looking at init.body — so it returned a
+             valid summary no matter what arguments the page sent, including
+             none. That is precisely how a request missing p_company_id passed
+             this suite and then failed on the pilot with PGRST202. The body is
+             the request; a stub that ignores it is testing half a call. */
+          try {
+            window.__rpcBodies.push([m[1], JSON.parse((init && init.body) || '{}')]);
+          } catch (e) {
+            window.__rpcBodies.push([m[1], { __unparseable: String((init && init.body) || '') }]);
+          }
           // A request that never answers. Not an error, not a timeout — the
           // shape that leaves a promise chain hanging for ever.
           if (hang && /cash|payee|closing|qb_accounts|units_for_picker/.test(m[1])) {
@@ -275,15 +298,16 @@ function serve() {
     }, CAP, USER_ID, AUTH_UID, REF, fakeJwt(), CO, PJ, hang);
 
     await page.setViewport({ width: 1440, height: 950 });
-    await page.goto(`http://127.0.0.1:${PORT}/login.html` + (opts && opts.unfixed ? '?unfixed=1' : ''),
+    await page.goto(`http://127.0.0.1:${PORT}/login.html` + (opts && opts.unfixed ? '?unfixed=' + opts.unfixed : ''),
       { waitUntil: 'networkidle2' });
     return { page, errors, unstubbed };
   }
 
   // The lazy loader appends <script src="js/pages/daily-closing.js?v=…">, which
   // must carry the unfixed flag too or the red run would quietly load the fix.
-  async function forceUnfixedLazy(page) {
-    await page.evaluate(() => {
+  async function forceUnfixedLazy(page, which) {
+    await page.evaluate((w) => {
+      window.__unfixWhich = w;
       const real = document.createElement.bind(document);
       document.createElement = function (tag) {
         const el = real(tag);
@@ -291,12 +315,12 @@ function serve() {
           const d = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
           Object.defineProperty(el, 'src', {
             get() { return d.get.call(this); },
-            set(v) { d.set.call(this, v + (v.indexOf('?') > -1 ? '&' : '?') + 'unfixed=1'); },
+            set(v) { d.set.call(this, v + (v.indexOf('?') > -1 ? '&' : '?') + 'unfixed=' + window.__unfixWhich); },
           });
         }
         return el;
       };
-    });
+    }, which);
   }
 
   async function driveToScreen(page) {
@@ -324,6 +348,7 @@ function serve() {
       hasError: !!(h.querySelector && h.querySelector('.dc-error-note')),
       text: ((h.textContent || '')).replace(/\s+/g, ' ').trim().slice(0, 240),
       rpcCalls: window.__rpcCalls.slice(),
+      rpcBodies: (window.__rpcBodies || []).slice(),
       unstubbed: window.__unstubbed.slice(),
     };
   });
@@ -404,6 +429,63 @@ function serve() {
         'the adapter really reached the network \u2014 get_cash_day_summary was called');
       is(s.rpcCalls.indexOf('list_qb_accounts_for_project') > -1, true,
         'and the rest of the load sequence ran');
+
+      /* ── WHAT WAS SENT, not only what came back (SR-9) ────────────────────
+         Every Daily Closing RPC takes p_company_id as its first, required,
+         non-defaulted argument. supabase-js drops undefined values when it
+         serialises, so a missing session value does not raise here — it
+         silently produces a shorter request that PostgREST answers with
+         PGRST202. Asserting the response alone cannot see that; asserting the
+         body is the only thing that can. */
+      const dcBodies = s.rpcBodies.filter(([n]) => /^(get_cash_day_summary|get_my_daily_closing_access|list_payees|list_qb_accounts_for_project|list_units_for_picker|list_cash_days|list_cash_entries|get_daily_closing_tile)$/.test(n));
+      is(dcBodies.length > 0, true, `${dcBodies.length} Daily Closing request bodies captured`);
+      const noCompany = dcBodies.filter(([, b]) => !b || b.p_company_id === undefined);
+      is(noCompany.length, 0, noCompany.length
+        ? 'sent WITHOUT p_company_id: ' + noCompany.map(([n]) => n).join(', ')
+        : 'every one carries p_company_id — the argument PostgREST said was missing');
+      const wrongCompany = dcBodies.filter(([, b]) => b && b.p_company_id && b.p_company_id !== CO);
+      is(wrongCompany.length, 0, wrongCompany.length
+        ? 'sent with the WRONG company: ' + wrongCompany.map(([n]) => n).join(', ')
+        : 'and it is Awami\'s id, taken off the real session rather than a default');
+      const anyUndef = dcBodies.filter(([, b]) =>
+        b && Object.keys(b).some(k => b[k] === undefined || (b[k] === null && /company/.test(k))));
+      is(anyUndef.length, 0, anyUndef.length
+        ? 'a request carried an empty required argument: ' + anyUndef.map(([n]) => n).join(', ')
+        : 'no request was built from an undefined session value');
+
+      /* ── THE WHOLE ARGUMENT SHAPE, not just the one that bit us ───────────
+         A mutation pass on 2026-09-05 killed the mutant that swapped
+         p_company_id for another tenant's id, and SURVIVED three others:
+         p_project_id → null on the summary call, p_business_date → null, and
+         the unit picker losing its project scope. All three are real hazards —
+         a null project silently widens the query on a multi-project tenant, and
+         a null date makes a cash book read a day nobody asked for — and the
+         suite could not see any of them, because its assertions were shaped
+         around the argument that had already caused an outage.
+
+         So every argument is checked, not the famous one. See SR-10. */
+      const TODAY = CAP.rpc.get_cash_day_summary.business_date;
+      const EXPECT = {
+        get_my_daily_closing_access:  { p_company_id: CO, p_project_id: PJ },
+        get_cash_day_summary:         { p_company_id: CO, p_project_id: PJ, p_business_date: TODAY },
+        list_payees:                  { p_company_id: CO, p_project_id: PJ },
+        list_qb_accounts_for_project: { p_company_id: CO, p_project_id: PJ },
+        list_units_for_picker:        { p_company_id: CO, p_project_id: PJ },
+        get_daily_closing_tile:       { p_company_id: CO, p_project_id: PJ },
+      };
+      const wrongArgs = [];
+      dcBodies.forEach(([n, b]) => {
+        const want = EXPECT[n];
+        if (!want) return;
+        Object.keys(want).forEach(k => {
+          if ((b || {})[k] !== want[k]) {
+            wrongArgs.push(`${n}.${k}=${JSON.stringify((b || {})[k])} (want ${JSON.stringify(want[k])})`);
+          }
+        });
+      });
+      is(wrongArgs.length, 0, wrongArgs.length
+        ? 'wrong argument sent: ' + wrongArgs.slice(0, 3).join(' | ')
+        : `every argument of every call is what it should be (${Object.keys(EXPECT).length} shapes checked)`);
       const dcErrors = errors.filter(e => /supabase|daily-closing|is not a function/i.test(e));
       is(dcErrors.length, 0, dcErrors.length
         ? 'Daily Closing errors: ' + dcErrors.slice(0, 2).join(' | ')
@@ -455,12 +537,12 @@ function serve() {
     // fourth green one that could not see the bug (SR-6).
     head('the same journey against the UNFIXED adapter \u2014 it must fail');
     {
-      const { page, errors } = await open({ unfixed: true });
+      const { page, errors } = await open({ unfixed: 'client' });
       await page.waitForFunction(
         () => document.getElementById('s-app') &&
               document.getElementById('s-app').classList.contains('on'), { timeout: 20000 });
       await page.waitForFunction(() => window._featureFlagsReady === true, { timeout: 20000 });
-      await forceUnfixedLazy(page);
+      await forceUnfixedLazy(page, 'client');
 
       const thrown = await page.evaluate(
         () => { try { nav('dailyclosing'); return null; } catch (e) { return String(e); } });
@@ -486,6 +568,49 @@ function serve() {
       is(s.hasError, true,
         'it ends on the error note \u2014 S.error is finally read, not just written');
       is(s.retryBtn, true, 'and a Try-again button, which is the way out');
+
+      /* The message must never be the permission one. A failed call is not a
+         denial, and "ask the CFO for access" sends a person who already has the
+         access to the wrong colleague with the wrong question \u2014 believing it,
+         because it is specific and plausible. */
+      is(/do not have access|ask the cfo/i.test(s.text), false,
+        'RED: and it does NOT say "you do not have access" \u2014 a failure is not a denial');
+      await page.close();
+    }
+
+    /* \u2550\u2550\u2550 4c \u00b7 THE SESSION IS MISSING \u2014 the argument-shape bug itself \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+    // The unfixed files put `var sess = global.S` back, which makes companyId
+    // undefined and every request one argument short. This is the case that got
+    // to the pilot, and the assertions that must catch it are about the REQUEST.
+    head('the unfixed session read \u2014 every request goes out a company short');
+    {
+      const { page } = await open({ unfixed: 'session' });
+      await page.waitForFunction(
+        () => document.getElementById('s-app') &&
+              document.getElementById('s-app').classList.contains('on'), { timeout: 20000 });
+      await page.waitForFunction(() => window._featureFlagsReady === true, { timeout: 20000 });
+      await forceUnfixedLazy(page, 'session');
+      // The dashboard already drew, so the TILE loaded and called before the
+      // un-fixing was armed — one well-formed body that belongs to the fixed
+      // build. Clear the log so what follows is only the un-fixed page.
+      await page.evaluate(() => { window.__rpcCalls = []; window.__rpcBodies = []; });
+      await page.evaluate(() => { try { nav('dailyclosing'); } catch (e) {} });
+      await new Promise(r => setTimeout(r, 2500));
+      const s = await readScreen(page);
+      const dc = s.rpcBodies.filter(([n]) => /cash|payee|closing|qb_accounts|units_for_picker/.test(n));
+      // Either the request went out short, or the module refused to send it \u2014
+      // both are the bug being detected. What must NOT happen is a well-formed
+      // request, which would mean the un-fixing failed to reproduce anything.
+      is(dc.length, 0,
+        'RED: not one Daily Closing request went out — the adapter refused to build one');
+      is(/could not start/i.test(s.text), true,
+        'RED: and it says the screen could not start');
+      is(/company/i.test(s.text), true,
+        'RED: naming what is missing — the company, off the session');
+      is(/fault in the app/i.test(s.text), true,
+        'RED: and saying whose problem it is, so nobody goes asking for access');
+      is(/do not have access|ask the cfo/i.test(s.text), false,
+        'RED: and even here the screen does not blame the user\'s permissions');
       await page.close();
     }
 

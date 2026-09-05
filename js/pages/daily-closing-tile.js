@@ -217,13 +217,23 @@
       host.innerHTML = '';
       return;
     }
-    var sess = global.S || {};
-    // `supabase`, not `global.supabase` — see the long note in
-    // js/pages/daily-closing.js. The client is a `const` in js/supabase.js and
-    // is not on window; window.supabase is the UMD library and has no .rpc.
-    // Here the throw was swallowed by dashboard.js's try/catch, so the tile
-    // failed in silence and only ever wrote "[daily-closing] tile skipped".
+    // `S` and `supabase`, not `global.S` / `global.supabase` — see the long
+    // notes in js/pages/daily-closing.js. Both are lexical bindings (`let S` in
+    // js/data.js:5, `const supabase` in js/supabase.js:37) and neither is a
+    // property of window. Reading them off `global` gave an empty session and
+    // the UMD library. Here both failures were swallowed by dashboard.js's
+    // try/catch, so the tile died in silence and only ever wrote
+    // "[daily-closing] tile skipped" to a console nobody was reading.
+    var sess = S || {};
     function rpc(name, args) {
+      var missing = [];
+      Object.keys(args || {}).forEach(function (k) {
+        if (args[k] === undefined) missing.push(k);
+      });
+      if (missing.length) {
+        return Promise.reject(new Error(
+          'Cannot call ' + name + ' — ' + missing.join(', ') + ' missing from the session.'));
+      }
       return supabase.rpc(name, args).then(function (r) {
         if (r.error) throw new Error(r.error.message);
         return r.data;

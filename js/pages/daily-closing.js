@@ -70,6 +70,7 @@
     S.mayAudit = false;
     S.isCfo = false;
     S.isAccountantPlus = false;
+    S.accessFailed = false;   // "the call did not arrive" — never the same as a denial
 
     function applyAccess(a) {
       S.access = a || {};
@@ -116,11 +117,32 @@
     }
 
     /* Access is re-read on every load, because it depends on the project and
-       the project can change under the picker. */
+       the project can change under the picker.
+
+       ⚠️ A FAILED CALL IS NOT A DENIAL. This used to be
+       `.catch(function () { applyAccess(null); })`, which set an empty access
+       object and a null role — indistinguishable from a server that had actually
+       said no. So when the RPC could not be reached at all, the screen told the
+       Awami owner "You do not have access to the cash book for this project. Ask
+       the CFO to grant it in Users & Roles." He IS the CFO. The message was
+       specific, plausible and completely wrong, and it would have sent someone to
+       the wrong person with the wrong question — and they would have believed it.
+
+       A denial is a fact the server stated. A failure is the absence of any fact.
+       They must never render the same. */
     function loadAccess() {
       return S.rpc('get_my_daily_closing_access', {
         p_company_id: S.me.companyId, p_project_id: S.projectId
-      }).then(applyAccess).catch(function () { applyAccess(null); });
+      }).then(function (a) {
+        S.accessFailed = false;
+        applyAccess(a);
+      }).catch(function (e) {
+        S.accessFailed = true;                 // NOT applyAccess(null)
+        S.access = null;                       // no claim either way
+        S.dcRole = null;
+        S.mayRecord = S.mayAudit = S.isCfo = S.isAccountantPlus = false;
+        S.error = (e && e.message) || 'Could not check your Daily Closing access.';
+      });
     }
 
     function loadAudit() {
@@ -160,12 +182,26 @@
         return Promise.all([
           S.rpc('list_payees', { p_company_id: S.me.companyId, p_project_id: S.projectId })
             .then(function (r) { S.payees = (r && r.payees) || []; }),
+          /* The same catch-and-degrade shape as loadAccess had, and audited with
+             it: an empty account list is a CLAIM — "this project has no heads to
+             post to" — and a failed fetch is not entitled to make it. The list
+             still falls back to empty so the rest of the screen works, but the
+             failure is recorded and shown rather than presented as a fact about
+             the chart of accounts. */
           S.rpc('list_qb_accounts_for_project', { p_company_id: S.me.companyId, p_project_id: S.projectId })
             .then(function (r) { S.accounts = (r && r.accounts) || []; S.defaults = (r && r.defaults) || {}; })
-            .catch(function () { S.accounts = []; S.defaults = {}; }),
+            .catch(function (e) {
+              S.accounts = []; S.defaults = {};
+              S.error = S.error || ('Account heads could not be loaded — ' +
+                ((e && e.message) || 'unknown error') + '. Do not record against a guessed head.');
+            }),
           S.rpc('list_units_for_picker', { p_company_id: S.me.companyId, p_project_id: S.projectId })
             .then(function (r) { S.units = (r && r.units) || []; })
-            .catch(function () { S.units = []; })
+            .catch(function (e) {
+              S.units = [];
+              S.error = S.error || ('The unit list could not be loaded — ' +
+                ((e && e.message) || 'unknown error') + '. A receipt needs a unit.');
+            })
         ]);
       });
       }).then(function () { render(false); })
@@ -244,7 +280,14 @@
         html = header(loading) +
           (loading ? skeletonBody()
                    : errorNote() +
-                     ((S.access && S.dcRole === null) ? noAccessBody()
+                     // `S.access` is only truthy when the SERVER answered. On a
+                     // failed call it is null and accessFailed is set, and the
+                     // error note above is then the WHOLE body — not the
+                     // permission message (a guess dressed as a fact) and not
+                     // "No day open" either, which would assert something else
+                     // we did not manage to find out.
+                     (S.accessFailed ? ''
+                     : (S.access && S.dcRole === null) ? noAccessBody()
                      : S.view === 'audit' ? auditBody()
                      : S.view === 'days' ? daysBody()
                      : !S.day || !S.day.exists ? notOpened()
@@ -1333,7 +1376,19 @@
       return;
     }
 
-    var sess = global.S || {};
+    /* ⚠️ `S`, not `global.S` — the same trap as `supabase` below, one identifier
+       over, and it shipped in the same thirty lines.
+
+       js/data.js:5 is `let S = null`. A `let` at the top of a classic script is
+       a script-scope lexical binding, so `window.S` is UNDEFINED and every other
+       RMS file uses the bare name without ever noticing. Reading `global.S` gave
+       `{}`, so `sess.cid` was `undefined`, so `p_company_id: undefined` went into
+       the args object — and JSON.stringify DROPS undefined values, so the request
+       left the browser with two of the three arguments. PostgREST answered
+       PGRST202 "could not find the function … with parameters p_business_date,
+       p_project_id", which the access call then laundered into "you do not have
+       access to the cash book". All eighteen RPCs in this module were affected. */
+    var sess = S || {};
 
     /* ⚠️ `supabase`, not `global.supabase`.
        js/supabase.js:37 creates the client as `const supabase = createClient(…)`.
@@ -1351,7 +1406,30 @@
        activeProjectId below are already reached for as bare names, because they
        have to be. This is the same kind of global; it just looked like it was
        not, because `window.supabase` exists and is the wrong object. */
+    /* PRESENT OR REFUSE. Never send a request built from `undefined`.
+
+       supabase-js serialises the argument object with JSON.stringify, which
+       silently DROPS any key whose value is undefined. A missing session value
+       therefore does not produce a missing-value error — it produces a request
+       with fewer arguments, which PostgREST reports as "could not find the
+       function", which reads like a deployment or schema-cache problem, and
+       which this module then turned into a permissions message. Three
+       translations away from the truth.
+
+       So the check is generic rather than a special case for companyId: if any
+       argument is undefined, the call does not go out, and the failure names the
+       thing that is missing. The next global that turns out not to be on window
+       fails here, legibly, instead of somewhere three layers downstream. */
     function rpc(name, args) {
+      var missing = [];
+      Object.keys(args || {}).forEach(function (k) {
+        if (args[k] === undefined) missing.push(k);
+      });
+      if (missing.length) {
+        return Promise.reject(new Error(
+          'Cannot call ' + name + ' — ' + missing.join(', ') +
+          ' missing from the session. This is a fault in the app, not a permission problem.'));
+      }
       return supabase.rpc(name, args).then(function (r) {
         if (r.error) throw new Error(r.error.message);
         return r.data;
@@ -1394,6 +1472,44 @@
     global._dcOpenAt = null;
     if (at && at.projectId && projects.filter(function (p) { return p.id === at.projectId; })[0]) {
       start = { id: at.projectId };
+    }
+
+    /* THE SHELL AUDIT. Every value this adapter takes off RMS, checked before a
+       screen is drawn from it.
+
+       Audited 2026-09-05, and the result is worth writing down: of everything
+       below, `S` was the ONLY one reached through `global.` that is not a
+       property of window. `_featureFlags` (js/auth.js:652), `_projectsCache`
+       (js/store/db.js:446), `_dcOpenAt` (daily-closing-tile.js:247), `DCFmt`
+       and `DCKit` are all genuinely assigned to window; `_selectableProjects`
+       and `activeProjectId` are function declarations, so they are on window and
+       reachable bare. That audit is a snapshot, which is why the check below is
+       generic and runs every time rather than being a comment about one bug. */
+    var shellMissing = [];
+    if (!sess.cid) shellMissing.push('company');
+    if (!projects.length) shellMissing.push('project list');
+    if (typeof F !== 'object' || !F || typeof F.todayPK !== 'function') shellMissing.push('formatters');
+    if (typeof K !== 'object' || !K || typeof K.emptyState !== 'function') shellMissing.push('UI kit');
+    if (typeof supabase === 'undefined' || !supabase || typeof supabase.rpc !== 'function') {
+      shellMissing.push('database client');
+    }
+    if (shellMissing.length) {
+      /* Say what is wrong and say whose problem it is. The one thing this must
+         never do is degrade into a plausible business explanation — the whole
+         reason this check exists is that a missing company id spent a week
+         presenting itself as "ask the CFO for access you already have". */
+      try { console.error('[daily-closing] shell context incomplete:', shellMissing.join(', ')); } catch (_) {}
+      host.className = 'dc';
+      host.innerHTML =
+        '<div class="dc-card dc-error-note" role="alert">' +
+          '<div class="dc-label">Daily Closing could not start</div>' +
+          '<div style="font-size:13px;margin:6px 0 12px">Missing from this session: ' +
+            (K && K.esc ? K.esc(shellMissing.join(', ')) : shellMissing.join(', ')) +
+            '. This is a fault in the app, not a permission problem — reload the page, ' +
+            'and if it persists report it rather than asking for access.</div>' +
+          '<button class="dc-btn" type="button" onclick="location.reload()">Reload</button>' +
+        '</div>';
+      return;
     }
 
     host.innerHTML = '';
