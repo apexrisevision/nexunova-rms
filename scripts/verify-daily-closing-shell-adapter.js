@@ -91,6 +91,9 @@ const PJ = '59ded55b-9bc2-45b2-a372-49fc31807fa9';   // Awami Market (project)
 const AUTH_UID = '315f2852-852f-4653-9253-a5a27a7828c8';
 const USER_ID = '03b790d0-199b-4f5c-9010-a60a4129dc66';
 const REF = 'itqxljtfbrppntgyfush';
+const ZCO = 'a2915ce7-c01c-463b-ba50-b144b2240337';  // ZZTEST Internal — only
+const ZPJ = '708605fc-33e9-4538-8b7c-0513b2d2e8b9';  // used to borrow a real
+                                                     // OPEN-day summary SHAPE
 
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
                 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
@@ -115,6 +118,13 @@ const head = t => console.log('\n\u2500\u2500 ' + t);
 
 /* ── capture what production actually answers, as the Awami owner ────────── */
 const IMP = `select set_config('request.jwt.claims', json_build_object('sub','${AUTH_UID}')::text, true);`;
+const ZAUTH = 'c1c18cde-e154-4682-b697-675da70445da';   // dc-att-owner, CFO in ZZTEST
+async function callAsUser(auth, sql) {
+  const imp = `select set_config('request.jwt.claims', json_build_object('sub','${auth}')::text, true);`;
+  const rows = await q('BEGIN; ' + imp + ' ' + sql + '; ROLLBACK;');
+  const row = Array.isArray(rows) ? rows.find(x => x && x.r !== undefined) : null;
+  return row ? row.r : null;
+}
 async function callAs(sql) {
   const rows = await q('BEGIN; ' + IMP + ' ' + sql + '; ROLLBACK;');
   const row = Array.isArray(rows) ? rows.find(x => x && x.r !== undefined) : null;
@@ -122,9 +132,10 @@ async function callAs(sql) {
 }
 
 async function capture() {
-  const [access, summary, payees, accounts, units, days, tile, flags, projects] = await Promise.all([
+  const [access, summary, payees, accounts, units, days, tile, flags, projects,
+         setupRequired, openShape] = await Promise.all([
     callAs(`select get_my_daily_closing_access('${CO}','${PJ}') as r`),
-    callAs(`select get_cash_day_summary('${CO}','${PJ}', current_date) as r`),
+    callAs(`select get_cash_day_summary('${CO}','${PJ}', (now() at time zone 'Asia/Karachi')::date) as r`),
     callAs(`select list_payees('${CO}','${PJ}') as r`),
     callAs(`select list_qb_accounts_for_project('${CO}','${PJ}') as r`),
     callAs(`select list_units_for_picker('${CO}','${PJ}') as r`),
@@ -133,6 +144,15 @@ async function capture() {
     q(`select coalesce(jsonb_agg(jsonb_build_object('feature_key',feature_key,'enabled',is_enabled)),'[]'::jsonb) as r
          from company_feature_flags where company_id='${CO}'`).then(r => r[0].r),
     callAs(`select list_projects('${CO}') as r`),
+    // What the pilot really answers when a project has no opening balance.
+    callAs(`select open_cash_day('${CO}','${PJ}', (now() at time zone 'Asia/Karachi')::date) as r`),
+    // A real OPEN-day summary, taken from a project that has one. Its ids and
+    // date are rewritten to the pilot's below; the SHAPE is production's.
+    callAsUser(ZAUTH, `select get_cash_day_summary('${ZCO}','${ZPJ}',
+              (select (d->>'business_date')::date
+                 from jsonb_array_elements(
+                        list_cash_days('${ZCO}','${ZPJ}',60)->'days') d
+                where d->>'status'='OPEN' limit 1)) as r`),
   ]);
   return {
     rpc: {
@@ -146,6 +166,8 @@ async function capture() {
       get_my_feature_flags: flags,
       list_projects: projects,
     },
+    setupRequired: setupRequired,
+    openShape: openShape,
   };
 }
 
@@ -180,6 +202,18 @@ function unfix(rel, which) {
   if (which === 'client') {
     out = out.replace(/(\n\s*)return supabase\.(rpc|auth)\b/g, '$1return global.supabase.$2');
   }
+  if (which === 'kit') {
+    // dialog() as it was: mounting into whichever .dc is first in the
+    // document, which on the real shell is the tile host inside the hidden
+    // #pg-dashboard. Generated from the real file so it cannot rot.
+    // dialog() and toast() now share overlayHost(), so the match has to name
+    // dialog(): its next line builds the wrap element. Un-fixing the first
+    // occurrence silently reverted toast() instead and the proof passed green.
+    out = out.replace(
+      "var host = overlayHost();" + String.fromCharCode(10) + "      var wrap",
+      "var host = document.querySelector('.dc') || document.body;" +
+      String.fromCharCode(10) + "      var wrap");
+  }
   if (which === 'session') {
     out = out.replace(/(\n\s*)var sess = S \|\| \{\};/g, '$1var sess = global.S || {};');
   }
@@ -190,11 +224,17 @@ function serve() {
   return new Promise(res => {
     const s = http.createServer((rq, r) => {
       const p = decodeURIComponent(rq.url.split('?')[0]);
-      const unfixed = /unfixed=(1|client|session)/.test(rq.url);
-      if (unfixed && (p === '/js/pages/daily-closing.js' || p === '/js/pages/daily-closing-tile.js')) {
-        const which = /unfixed=session/.test(rq.url) ? 'session' : 'client';
+      const unfixed = /unfixed=(1|client|session|kit)/.test(rq.url);
+      const MUTABLE = ['/js/pages/daily-closing.js', '/js/pages/daily-closing-tile.js',
+                      '/js/foundation/dc-kit.js'];
+      if (unfixed && MUTABLE.indexOf(p) > -1) {
+        const which = /unfixed=session/.test(rq.url) ? 'session'
+                    : /unfixed=kit/.test(rq.url) ? 'kit' : 'client';
         const { src, out } = unfix(p.slice(1), which);
-        if (out === src) { r.writeHead(500); return r.end('nothing to un-fix in ' + p); }
+        // A file this variant does not touch is served unchanged; only a
+        // variant that changes NOTHING ANYWHERE would be a broken red proof,
+        // and the assertions below catch that by going green.
+        if (out !== src) { r.writeHead(200, { 'Content-Type': 'text/javascript' }); return r.end(out); }
         r.writeHead(200, { 'Content-Type': 'text/javascript' });
         return r.end(out);
       }
@@ -223,6 +263,10 @@ function serve() {
   is(CAP.rpc.get_daily_closing_tile.status, null, 'the tile agrees: no day open');
   is(JSON.stringify(CAP.rpc.get_my_feature_flags).indexOf('daily_closing') > -1, true,
     'and the daily_closing flag is really on for this tenant');
+  is(!!(CAP.setupRequired && CAP.setupRequired.error === 'SETUP_OPENING_REQUIRED'), true,
+    'open_cash_day really refuses with SETUP_OPENING_REQUIRED — captured, not written down');
+  is(!!(CAP.openShape && CAP.openShape.exists && CAP.openShape.status === 'OPEN'), true,
+    'and a real OPEN-day summary shape was borrowed for the second half of the journey');
 
   const srv = await serve();
   const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
@@ -235,11 +279,32 @@ function serve() {
     page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
     const hang = !!(opts && opts.hangDailyClosing);
-    await page.evaluateOnNewDocument((cap, uid, authUid, ref, jwt, co, pj, hang) => {
+    const unfixWhich = (opts && opts.unfixed) || null;
+    await page.evaluateOnNewDocument((cap, uid, authUid, ref, jwt, co, pj, hang, unfixWhich) => {
+      /* The un-fixing has to be armed BEFORE the first script runs. The
+         dashboard tile lazy-loads dc-format/dc-kit/daily-closing-tile during
+         boot, so arming it after the shell is up served the FIXED kit and
+         the red proof passed for the wrong reason. lazy-pages.js caches by
+         src, so the second request never happens. */
+      if (unfixWhich) {
+        const realCreate = document.createElement.bind(document);
+        document.createElement = function (tag) {
+          const el = realCreate(tag);
+          if (String(tag).toLowerCase() === 'script') {
+            const d = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+            Object.defineProperty(el, 'src', {
+              get() { return d.get.call(this); },
+              set(v) { d.set.call(this, v + (v.indexOf('?') > -1 ? '&' : '?') + 'unfixed=' + unfixWhich); },
+            });
+          }
+          return el;
+        };
+      }
       try { localStorage.clear(); } catch (_) {}
       window.__unstubbed = [];
       window.__rpcCalls = [];
       window.__rpcBodies = [];
+      window.__stage = { openedOnce: false };
 
       // The browser's own storage, as a signed-in browser holds it. Not app state.
       const now = Math.floor(Date.now() / 1000);
@@ -284,6 +349,38 @@ function serve() {
           if (hang && /cash|payee|closing|qb_accounts|units_for_picker/.test(m[1])) {
             return new Promise(function () {});
           }
+          /* ── THE FIRST-DAY JOURNEY, as a state machine ───────────────────
+             Up to here the stub answered every call with the same captured
+             payload, which is fine for a screen that only renders. It is not
+             fine for an ACTION: pressing Open day changes what the server would
+             say next, and a stub frozen in one state can never let the journey
+             move. So the responses advance.
+
+             CAPTURED VERBATIM from production: the SETUP_OPENING_REQUIRED
+             refusal (Awami's own, for a project with no opening) and the shape
+             of an OPEN-day summary (borrowed from a ZZTEST project that has one,
+             with its ids and date rewritten to the pilot's).
+             SYNTHESISED, and said so: the two success acknowledgements, because
+             producing them for real would mean writing to a live tenant. Their
+             ARGUMENTS are still asserted (SR-9); it is only the acks that are
+             ours. */
+          if (m[1] === 'open_cash_day') {
+            return json(window.__stage.openedOnce
+              ? { success: true, cash_day_id: 'dc-journey-day', business_date: cap.rpc.get_cash_day_summary.business_date }
+              : cap.setupRequired);
+          }
+          if (m[1] === 'setup_cash_opening') {
+            window.__stage.openedOnce = true;          // the next open succeeds
+            return json({ success: true });
+          }
+          if (m[1] === 'get_cash_day_summary' && window.__stage.openedOnce) {
+            var open = JSON.parse(JSON.stringify(cap.openShape || {}));
+            open.business_date = cap.rpc.get_cash_day_summary.business_date;
+            open.cash_day_id = 'dc-journey-day';
+            return json(open);
+          }
+          if (m[1] === 'list_cash_entries') return json({ success: true, entries: [] });
+
           if (Object.prototype.hasOwnProperty.call(cap.rpc, m[1])) return json(cap.rpc[m[1]]);
           window.__unstubbed.push(m[1]);
           // An ARRAY, not {}. Every RMS cache loader does (data || []).map(…)
@@ -295,7 +392,7 @@ function serve() {
         if (/\/auth\/v1\//.test(url)) return json({});
         return json({});
       };
-    }, CAP, USER_ID, AUTH_UID, REF, fakeJwt(), CO, PJ, hang);
+    }, CAP, USER_ID, AUTH_UID, REF, fakeJwt(), CO, PJ, hang, unfixWhich);
 
     await page.setViewport({ width: 1440, height: 950 });
     await page.goto(`http://127.0.0.1:${PORT}/login.html` + (opts && opts.unfixed ? '?unfixed=' + opts.unfixed : ''),
@@ -305,7 +402,10 @@ function serve() {
 
   // The lazy loader appends <script src="js/pages/daily-closing.js?v=…">, which
   // must carry the unfixed flag too or the red run would quietly load the fix.
-  async function forceUnfixedLazy(page, which) {
+  // Retained as a no-op: the patch is installed in open() now, before any
+  // script runs. Patching twice would double the query string.
+  async function forceUnfixedLazy() {}
+  async function _forceUnfixedLazyOld(page, which) {
     await page.evaluate((w) => {
       window.__unfixWhich = w;
       const real = document.createElement.bind(document);
@@ -527,6 +627,152 @@ function serve() {
       is(skipped.length, 0, skipped.length
         ? 'dashboard.js swallowed a tile error: ' + skipped[0]
         : 'dashboard.js\'s try/catch caught nothing \u2014 the tile did not throw');
+      await page.close();
+    }
+
+    /* ═══ 3b · THE FIRST-DAY JOURNEY, IN THE REAL SHELL (SR-11) ══════════
+       Every screen state in this module has been asserted to death and almost
+       no ACTION had been driven where it lives. The screen suite clicks
+       #dc-open and walks the whole setup dialog — but on a standalone page with
+       exactly ONE .dc node. This suite had the real shell, with two, and only
+       ever checked that the button EXISTED.
+
+       That product of two half-covered conditions is what let K.dialog() mount
+       into #dc-tile-host — inside #pg-dashboard, which `.pg { display:none }`
+       hides the moment you navigate away. The dialog was built, focus-trapped
+       and invisible; the button looked inert. So did every failure message,
+       because K.toast() made the same assumption. */
+    head('pressing Open day in the real shell — the journey, not the state');
+    {
+      const { page, errors } = await open();
+      await page.waitForFunction(
+        () => document.getElementById('s-app') &&
+              document.getElementById('s-app').classList.contains('on'), { timeout: 20000 });
+      await page.waitForFunction(() => window._featureFlagsReady === true, { timeout: 20000 });
+      // Land on the dashboard first, exactly as a person does. This is what puts
+      // the tile's .dc into the document AHEAD of the screen's.
+      await page.evaluate(() => nav('dashboard'));
+      // The tile's .dc only exists once the tile has drawn, and it is lazily
+      // loaded. Waiting for the node is the point: this assertion is what
+      // makes the rest of the section meaningful.
+      await page.waitForFunction(() => {
+        const t = document.getElementById('dc-tile-host');
+        return t && t.classList.contains('dc');
+      }, { timeout: 20000 }).catch(() => {});
+      await driveToScreen(page);
+
+      /* The condition, checked where it exists: once the screen is mounted BOTH
+         nodes carry .dc, and the tile's — inside the now-hidden #pg-dashboard —
+         is the one document order reaches first. That is the whole trap, and it
+         cannot occur on the standalone stub page, which has exactly one. */
+      const dcNodes = await page.evaluate(() =>
+        [...document.querySelectorAll('.dc')].map(n => n.id || n.className));
+      is(dcNodes.length >= 2, true,
+        `the real shell has ${dcNodes.length} .dc nodes (${dcNodes.join(', ') || 'none'})` +
+        ' — the condition the stub page cannot have');
+      is(dcNodes[0] !== 'pg-dailyclosing', true,
+        `and the FIRST one is not the screen (it is ${dcNodes[0]}) — which is why` +
+        ' querySelector for .dc put the dialog in a hidden page');
+      const before = await readScreen(page);
+      is(before.openBtn, true, 'the Open day button is there (the old assertion)');
+
+      await page.evaluate(() => { const b = document.querySelector('#dc-open'); if (b) b.click(); });
+      await new Promise(r => setTimeout(r, 1200));
+
+      /* VISIBLE, not merely present. offsetParent is null for anything inside a
+         display:none ancestor, which is precisely the failure. */
+      const dlg = await page.evaluate(() => {
+        const d = document.querySelector('.dc-modal');
+        if (!d) return { present: false };
+        const r = d.getBoundingClientRect();
+        return { present: true, visible: !!d.offsetParent && r.width > 0 && r.height > 0,
+                 host: (d.closest('[id]') || {}).id || '(none)',
+                 text: (d.textContent || '').replace(/s+/g, ' ').trim().slice(0, 90) };
+      });
+      is(dlg.present, true, 'the click built the opening-balance dialog');
+      is(dlg.visible, true,
+        `THE ASSERTION THAT WAS MISSING: the dialog is actually VISIBLE (host ${dlg.host})`);
+      is(/opening balance/i.test(dlg.text || ''), true,
+        'and it is the setup-opening dialog, which is the right first step');
+
+      // open_cash_day really went, with the whole argument shape (SR-9)
+      const oc = before.rpcBodies.concat((await readScreen(page)).rpcBodies)
+        .filter(([n]) => n === 'open_cash_day').pop();
+      is(!!oc, true, 'open_cash_day was sent');
+      if (oc) {
+        is(oc[1].p_company_id, CO, 'with the company off the real session');
+        is(oc[1].p_project_id, PJ, 'and the project the picker is showing');
+      }
+
+      /* Fill it in and confirm — the action, all the way to the RPC. */
+      await page.evaluate(() => {
+        const ins = [...document.querySelectorAll('.dc-modal input')];
+        if (ins[0]) { ins[0].value = '50000'; ins[0].dispatchEvent(new Event('input', { bubbles: true })); }
+        if (ins[1]) { ins[1].value = '250000'; ins[1].dispatchEvent(new Event('input', { bubbles: true })); }
+        const btn = [...document.querySelectorAll('.dc-modal button')]
+          .find(b => /set opening balance/i.test(b.textContent || ''));
+        if (btn) btn.click();
+      });
+      await new Promise(r => setTimeout(r, 2000));
+
+      const after = await readScreen(page);
+      const su = after.rpcBodies.filter(([n]) => n === 'setup_cash_opening').pop();
+      is(!!su, true, 'setup_cash_opening was sent — the dialog is wired, not decorative');
+      if (su) {
+        is(su[1].p_company_id, CO, 'with the company');
+        is(su[1].p_project_id, PJ, 'the project');
+        is(Number(su[1].p_cash), 50000, 'the cash figure that was typed');
+        is(Number(su[1].p_bank), 250000, 'and the bank figure');
+        is(!!su[1].p_effective_date, true, 'and an effective date');
+      }
+
+      // and the day opens: the screen leaves the empty state for the composer
+      is(/No day open/.test(after.text), false, 'the empty state is gone');
+      is(await page.evaluate(() => !!document.querySelector('#dc-form')), true,
+        'the day is open and the composer is on screen — the first-day step done');
+      const silent = errors.filter(e => /Unhandled|not a function/i.test(e));
+      is(silent.length, 0, silent.length ? 'silent failure: ' + silent[0]
+                                         : 'and nothing failed silently on the way');
+      await page.close();
+    }
+
+    /* ═══ 3c · THE JOURNEY AGAINST THE UN-FIXED dialog() ═════════════════ */
+    // Same journey, with dc-kit.js served exactly as it was: mounting into
+    // whichever .dc comes first. If this passes, section 3b proves nothing.
+    head('the same press against the un-fixed dialog() — it must fail');
+    {
+      const { page } = await open({ unfixed: 'kit' });
+      await page.waitForFunction(
+        () => document.getElementById('s-app') &&
+              document.getElementById('s-app').classList.contains('on'), { timeout: 20000 });
+      await page.waitForFunction(() => window._featureFlagsReady === true, { timeout: 20000 });
+      await forceUnfixedLazy(page, 'kit');
+      await page.evaluate(() => nav('dashboard'));
+      await page.waitForFunction(() => {
+        const t = document.getElementById('dc-tile-host');
+        return t && t.classList.contains('dc');
+      }, { timeout: 20000 }).catch(() => {});
+      await driveToScreen(page);
+      await page.evaluate(() => { const b = document.querySelector('#dc-open'); if (b) b.click(); });
+      await new Promise(r => setTimeout(r, 1500));
+      const dlg = await page.evaluate(() => {
+        const d = document.querySelector('.dc-modal');
+        if (!d) return { present: false };
+        const r = d.getBoundingClientRect();
+        return { present: true, visible: !!d.offsetParent && r.width > 0 && r.height > 0,
+                 host: (d.closest('[id]') || {}).id || '(none)' };
+      });
+      const nodes3c = await page.evaluate(() => [...document.querySelectorAll('.dc')].map(n => n.id || n.className));
+      console.log('     .dc order:', nodes3c.join(' | '));
+      const kitSrc = await page.evaluate(() => (window.DCKit && String(window.DCKit.dialog).indexOf('overlayHost') > -1) ? 'FIXED' : 'unfixed');
+      // Proves the UN-FIXED kit was actually served. Without this the proof can
+      // pass for the wrong reason: the tile lazy-loads dc-kit during boot, and
+      // an un-fix armed too late, or aimed at the wrong one of two identical
+      // lines, leaves the FIXED file in place and everything looks fine.
+      is(kitSrc, 'unfixed', 'the un-fixed dc-kit.js really is the one that loaded');
+      is(dlg.present, true, 'RED: the dialog is still BUILT — nothing throws, which is why it hid so well');
+      is(dlg.visible, false,
+        `RED: and it is INVISIBLE, mounted in ${dlg.host} — the reported inert button`);
       await page.close();
     }
 

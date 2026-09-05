@@ -516,14 +516,43 @@
      same key REPLACES it and counts up: "CRV-0041 recorded" becomes
      "2 entries recorded", then "3 entries recorded". Distinct messages —
      an error, a void — keep their own line. */
+  /* ── ONE OVERLAY HOST, and it is never "whichever .dc is first" ────────
+     dialog() used to mount into `document.querySelector('.dc')`. On the real
+     RMS shell there are TWO .dc nodes: the S8 tile host inside #pg-dashboard
+     (login.html:1492) and the screen itself (#pg-dailyclosing, :1549). The
+     dashboard is the landing page so its tile always exists first, and
+     `.pg { display:none }` hides it the moment you navigate away — so the
+     modal was built, focus-trapped and inserted INTO A HIDDEN PAGE. The Open
+     day button looked inert for the whole first week of the pilot.
+
+     sidePanel() already avoided this in P7 by making its own container. It
+     keeps doing that, because it removes the container on close and must not
+     take a shared one with it. dialog() and toast() use this instead: one
+     host, on document.body, carrying .dc so the module's tokens and scoped
+     rules apply, created once and reused. */
+  function overlayHost() {
+    var h = document.getElementById('dc-overlay-host');
+    if (!h || !document.body.contains(h)) {
+      h = document.createElement('div');
+      h.id = 'dc-overlay-host';
+      h.className = 'dc';
+      document.body.appendChild(h);
+    }
+    return h;
+  }
   var _burst = {};   // key → { el, n, timer }
 
   function _host() {
-    var h = document.querySelector('.dc .dc-toasts');
+    // Was `document.querySelector('.dc .dc-toasts')` with a fallback that
+    // appended into the first .dc — the same hidden-page trap as dialog().
+    // A toast nobody can see is worse than no toast: openDay() reports its
+    // failures through this.
+    var host = overlayHost();
+    var h = host.querySelector(':scope > .dc-toasts');
     if (!h) {
       h = document.createElement('div');
       h.className = 'dc-toasts';
-      (document.querySelector('.dc') || document.body).appendChild(h);
+      host.appendChild(h);
     }
     return h;
   }
@@ -574,7 +603,7 @@
     o = o || {};
     return new Promise(function (resolve) {
       var prev = document.activeElement;
-      var host = document.querySelector('.dc') || document.body;
+      var host = overlayHost();
       var wrap = document.createElement('div');
       wrap.className = 'dc-modal-back';
       var id = uid('dlg');

@@ -820,7 +820,27 @@
         if (r && r.success) { K.toast('Day opened'); return load(); }
         if (r && r.error === 'SETUP_OPENING_REQUIRED') return setupOpeningDialog();
         K.toast((r && r.message) || (r && r.error) || 'Could not open the day');
+      }).catch(function (e) {
+        /* This was missing, and it is the third way this button could be silent.
+           openDay is bound straight to the click, so a REJECTED rpc — a dropped
+           network, a PostgREST error, a throw inside the handler — produced an
+           unhandled rejection and no outcome at all. The other two ways were the
+           dialog and the toast both mounting into a hidden page.
+
+           A mutation pass cannot find this one: the defect was an ABSENT catch,
+           and there is no line to mutate. Same shape as tryRestoreSession never
+           calling loadFeatureFlags. */
+        showRpcFailure('Could not open the day', e);
       });
+    }
+
+    /* One place for "the call did not come back". It writes S.error, which the
+       error note renders with a Try again beside it — a route that does not
+       depend on a toast being visible. */
+    function showRpcFailure(what, e) {
+      S.error = what + ' — ' + ((e && e.message) || 'the request did not complete') + '.';
+      try { console.error('[daily-closing] ' + what, e); } catch (_) {}
+      render(false);
     }
 
     function setupOpeningDialog() {
@@ -845,6 +865,8 @@
         if (!r) return;
         if (r && r.success) { K.toast('Opening balance set'); return openDay(); }
         K.toast((r && r.message) || (r && r.error) || 'Could not set the opening balance');
+      }).catch(function (e) {
+        showRpcFailure('Could not set the opening balance', e);   // same gap, same fix
       });
     }
 

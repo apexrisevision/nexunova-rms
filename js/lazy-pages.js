@@ -111,8 +111,8 @@
     // needs, then the screen. Lazy like every other page, so a tenant without
     // the flag never downloads a byte of it.
     dailyclosing: ['js/foundation/dc-format.js?v=20260905dcfix',
-                   'js/foundation/dc-kit.js?v=20260905dcfix',
-                   'js/pages/daily-closing.js?v=20260905dcargs'],
+                   'js/foundation/dc-kit.js?v=20260906dcopen',
+                   'js/pages/daily-closing.js?v=20260906dcopen'],
     promises: PROMISES,
     audit: AUDIT,
     approvals: APPROVALS,

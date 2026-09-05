@@ -662,6 +662,126 @@ point** — this is a strong instrument aimed at the half of the system that has
 and it is worth having precisely because that half is the half about to hold money.
 
 
+### The first run · 2026-09-05 · recorded, not fixed
+
+`node scripts/mutate-daily-closing.js --n=24 --seed=1` against `screen` + `shell-adapter`.
+**killed 7 · survived 17 of 24.** A 29% kill rate on a module with 208 assertions, which is the
+number worth sitting with.
+
+**None of these is a live defect.** A survivor means the *mutated* code went unnoticed; the shipped
+line is correct in every case below. They are recorded here on the owner's instruction and are
+**not to be fixed** until he has real days behind him. The one live defect this exercise did
+surface — `openDay()` and `setupOpeningDialog()` having no rejection handler — was **not found by
+mutation** and was fixed separately; see the note at the end.
+
+**UNASSERTED (SR-9) — the code ran and nothing checked the difference.** 15:
+
+| file:line | function | mutation |
+|---|---|---|
+| `dc-kit.js:47` | `uid()` | `2` → `0` |
+| `daily-closing-tile.js:97` | `head()` | project `<option>` markup → `''` |
+| `daily-closing.js:478` | `heroRow()` | `if (!d.exists)` → `if (true)` |
+| `daily-closing.js:1309` | `addAdjustment()` | `\|\|` → `&&` |
+| `dc-kit.js:333` | `bindRowMenus()` | `if (!root \|\| root.__dcMenus)` → `if (false)` |
+| `daily-closing.js:47` | `mount()` | `\|\|` → `&&` |
+| `daily-closing.js:703` | `showError()` | `\|\|` → `&&` |
+| `dc-kit.js:498` | `emptyState()` | icon size `48` → `0` |
+| `dc-kit.js:39` ×3 | `uid()` | `18` → `0`, `1` → `0` |
+| **`daily-closing.js:821`** | **`openDay()`** | **`&&` → `\|\|`** |
+| `daily-closing.js:761` | `wire()` | `if (e.key === 'Enter')` → `if (false)` |
+| `daily-closing.js:1343` | `uuid()` | the fallback UUID string → `''` |
+| `daily-closing.js:847` | `setupOpeningDialog()` | `&&` → `\|\|` |
+| `daily-closing.js:1022` | `paint()` | `!s` → `s` |
+
+Three worth naming, because they are the ones that could matter once money is moving:
+
+- **`openDay():821`** — `if (r && r.error === 'SETUP_OPENING_REQUIRED')` flipped to `||` opens the
+  setup-opening dialog for **every** failure, including `PREVIOUS_DAY_OPEN` and `NOT_AUTHORIZED`.
+  Nothing distinguishes "you need an opening balance" from any other refusal. `setupOpeningDialog():847`
+  is the same shape one screen further in.
+- **`uuid():1343`** — the idempotency key's fallback becomes `''`. The screen suite asserts the key
+  is *the same across retries*, never that it is a real uuid, so an empty key would pass. Note the
+  fallback only runs where `crypto.randomUUID` is absent, which is why nothing reached it — see the
+  limitation below.
+- **`heroRow():478`** — forced to return nothing, so an open day's closing-cash and closing-bank
+  figures vanish, and no assertion notices.
+
+**UNDRIVEN (SR-6) — the code never ran.** 1: `dc-kit.js:655 close()`, the side-panel close
+animation duration `375` → `0`. Knowingly uncovered; the panel's teardown timing is not asserted
+anywhere.
+
+**UNCLASSIFIED.** 1: `dc-format.js:19 (top level)` — `if (root)` → `if (true)`. The reachability
+probe is textual and needs a named function to inject a `throw` into; a top-level IIFE body defeats
+it. Look by hand if it matters.
+
+**A limitation the first run exposed, worth knowing before reading the next one.** The probe is
+**function-level**. `uuid()` is reported as *driven* — and it is — but the mutated line is inside a
+branch that never executes in a browser with `crypto.randomUUID`. So "UNASSERTED" here really means
+"in a function that runs", not "on a line that runs". Statement-level coverage would split those;
+that is a real improvement and is not built.
+
+**And the defect mutation could not find.** `openDay()` had no `.catch`, so a rejected RPC produced
+no outcome at all — the third way that button could be silent, after the dialog and the toast both
+mounting into a hidden page. **There is no line to mutate for an absent handler.** It is exactly the
+class SR-10 names: mutation reaches logic, not absence. Fixed in the same commit as the dialog, and
+recorded here because it is the sharpest illustration available of what this instrument is for and
+what it is not.
+
+## SR-11 · Asserting that a control exists is not testing that it works, and the environment it is tested in is part of the test
+
+**Rule.** A suite that renders a screen and checks what is on it has tested a *state*. The thing a
+person does next — the click, the dialog, the submit — is a different thing, and it has to be
+driven **in the environment where it will actually run**. Two suites each holding half of that
+condition add up to nothing.
+
+**What it cost.** 208 green assertions, and the first button the owner pressed did nothing.
+
+Daily Closing rendered its empty state perfectly: "No day open for 05 Sep 2026", an **Open day**
+button, the Audit tab, the tile showing Rs 0 / Rs 0 and *Not opened*. Pressing Open day produced
+no dialog, no error, no toast, no change. The button looked inert. It was not — every line ran,
+and the server answered correctly.
+
+`K.dialog()` mounted with `document.querySelector('.dc')` — **the first `.dc` in the document**.
+On the real shell there are two: `#dc-tile-host` inside `#pg-dashboard` (login.html:1492, given
+`.dc` by daily-closing-tile.js) and `#pg-dailyclosing` (login.html:1549). The dashboard is the
+landing page, so its tile always exists first; and once you navigate away, `.pg { display: none }`
+hides it. The modal was built, focus-trapped, and inserted **into a hidden page**.
+
+Now the part that matters:
+
+| suite | drives the click? | right environment? |
+|---|---|---|
+| `verify-daily-closing-screen.js` | **yes** — clicks `#dc-open`, walks the setup-opening dialog, asserts `setup_cash_opening`'s arguments | **no** — the standalone stub page has exactly ONE `.dc`, so the query finds the right node |
+| `verify-daily-closing-shell-adapter.js` | **no** — asserts only that the button exists | **yes** — the real shell, with both `.dc` nodes |
+
+Each suite held one half. **The action was driven in the wrong environment, and the right
+environment never drove the action.** No amount of adding assertions to either one would have
+found it; the gap was in the product of the two.
+
+**Why it is the same family as SR-6 and SR-7.** SR-6 says a fix verified on one entry path is
+unverified on every other. SR-7 says replicate the environment rather than construct it. This is
+what happens when both are half-observed at once: a real action in a synthetic world, and a real
+world with no action in it.
+
+**How to apply.**
+
+- For every control a person can press, ask two questions and answer both: *is it driven?* and
+  *where?* "Driven somewhere" is not an answer.
+- Assertions about existence — `is(!!button, true, 'the button is there')` — are cheap and nearly
+  worthless on their own. They are worth having only next to a test that presses it.
+- Drive the whole action to its consequence: the click, the dialog it opens, the field it fills,
+  the RPC it sends (SR-9), and the state it lands in.
+- The environment is part of the test. A DOM with one mount point is not the DOM with two. A
+  standalone page is not the shell. If the suite that can act cannot run in the real environment,
+  that is the gap — say so in the file rather than assuming the other suite covers it.
+- **The first-day journey belongs in the real shell**, end to end: open the day, record an entry,
+  close with a count, produce the document. Every step the owner is about to take, driven once
+  where he will take it.
+
+**Where it is done:** `verify-daily-closing-shell-adapter.js` — the actions sections, added after
+this bug, which drive the journey in the real `login.html` with both `.dc` nodes present, and go
+red against the un-fixed `dialog()`.
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner
