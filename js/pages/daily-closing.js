@@ -81,6 +81,29 @@
     }
 
     /* ── data ─────────────────────────────────────────────────────────── */
+
+    /* Every load runs inside this. A load that throws SYNCHRONOUSLY — before it
+       has returned a promise — used to escape the module altogether: out of
+       mount(), out of rDailyClosing(), out of nav(), which catches rejections
+       and not throws. Nothing was left to repaint the screen, so the skeletons
+       stayed. Now the throw is caught where it happens and turned into
+       something on screen with a way out of it. */
+    function guarded(work) {
+      S.error = null;
+      S.stalled = false;
+      try {
+        var p = work();
+        return (p && typeof p.then === 'function')
+          ? p.catch(function (e) { S.error = (e && e.message) || String(e); render(false); })
+          : Promise.resolve(p);
+      } catch (e) {
+        S.error = (e && e.message) || String(e);
+        try { console.error('[daily-closing] load threw', e); } catch (_) {}
+        render(false);
+        return Promise.resolve();
+      }
+    }
+
     function loadDays() {
       render(true);
       return S.rpc('list_cash_days', {
@@ -117,6 +140,10 @@
     }
 
     function load() {
+      return guarded(function () { return _load(); });
+    }
+
+    function _load() {
       if (S.view === 'days') return loadDays();
       if (S.view === 'audit') return loadAudit();
       render(true);
@@ -145,18 +172,103 @@
         .catch(function (e) { S.error = e && e.message; render(false); });
     }
 
-    /* ── render ───────────────────────────────────────────────────────── */
+    /* ── render ───────────────────────────────────────────────────────────
+       A SCREEN MUST ALWAYS END SOMEWHERE A PERSON CAN ACT.
+
+       It did not. On 2026-09-05 the pilot sat on four grey blocks for a week:
+       render(true) painted the skeletons, the first RPC threw synchronously,
+       and nothing ever painted again. There was no error on screen, no empty
+       state, no button — and no way for the person looking at it to tell the
+       difference between "still loading" and "dead".
+
+       Three things stop that happening again, and they are independent because
+       the failure they guard against is not the same one:
+
+         1 · the watchdog below   — nothing came back at all
+         2 · the try/catch here   — a body builder threw while drawing
+         3 · errorNote()          — something failed and we know what to say
+
+       Together they mean the only way to keep the skeletons is for the whole
+       page to stop executing. */
+    var _watchdog = null;
+    var WATCHDOG_MS = 15000;
+
+    /* Armed by every render(true), cleared by every render(false). If it fires,
+       the load neither resolved nor rejected — a request that never came back,
+       or a throw that escaped the promise chain entirely (which is exactly what
+       global.supabase.rpc did). The screen stops pretending to load and says so. */
+    function armWatchdog() {
+      clearWatchdog();
+      _watchdog = setTimeout(function () {
+        _watchdog = null;
+        if (!S.error) S.error = 'This screen did not finish loading.';
+        S.stalled = true;
+        render(false);
+      }, WATCHDOG_MS);
+    }
+    function clearWatchdog() {
+      if (_watchdog) { clearTimeout(_watchdog); _watchdog = null; }
+    }
+
+    /* S.error was written in four places and read in none, so even a failure
+       that DID come back left a screen with nothing on it to explain itself.
+       It is read here, above whatever else the view has to show, so a partial
+       failure still shows its data and its problem at the same time. */
+    function errorNote() {
+      if (!S.error) return '';
+      return '<div class="dc-card dc-error-note" role="alert" style="margin-bottom:16px">' +
+        '<div class="dc-row-between" style="gap:12px;align-items:center">' +
+          '<div style="min-width:0">' +
+            '<div class="dc-label">Something went wrong</div>' +
+            '<div style="font-size:13px">' + esc(String(S.error)) + '</div>' +
+          '</div>' +
+          '<button class="dc-btn" id="dc-retry" type="button">Try again</button>' +
+        '</div></div>';
+    }
+
+    /* The last resort. If drawing itself throws there is no body to show, so
+       show the fact — with the way out — rather than the previous paint. */
+    function brokenBody(e) {
+      return '<div class="dc-card" role="alert">' +
+        '<div class="dc-label">This screen could not be drawn</div>' +
+        '<div style="font-size:13px;margin:6px 0 12px">' +
+          esc((e && e.message) || String(e)) + '</div>' +
+        '<button class="dc-btn" id="dc-retry" type="button">Try again</button></div>';
+    }
+
     function render(loading) {
-      root.innerHTML = header(loading) +
-        (loading ? skeletonBody()
-                 : (S.access && S.dcRole === null) ? noAccessBody()
-                 : S.view === 'audit' ? auditBody()
-                 : S.view === 'days' ? daysBody()
-                 : !S.day || !S.day.exists ? notOpened()
-                 : S.day.status === 'CLOSED' ? closedBody()
-                 : openBody()) +
-        '<div class="dc-toasts"></div>';
-      if (!loading) wire();
+      if (loading) armWatchdog(); else clearWatchdog();
+
+      var html;
+      try {
+        html = header(loading) +
+          (loading ? skeletonBody()
+                   : errorNote() +
+                     ((S.access && S.dcRole === null) ? noAccessBody()
+                     : S.view === 'audit' ? auditBody()
+                     : S.view === 'days' ? daysBody()
+                     : !S.day || !S.day.exists ? notOpened()
+                     : S.day.status === 'CLOSED' ? closedBody()
+                     : openBody()));
+      } catch (e) {
+        // The header is drawn from S alone and is the least likely thing to
+        // fail, but if it does there is still no excuse for a blank frame.
+        var top = '';
+        try { top = header(false); } catch (_) { top = ''; }
+        html = top + brokenBody(e);
+        try { console.error('[daily-closing] render failed', e); } catch (_) {}
+      }
+
+      root.innerHTML = html + '<div class="dc-toasts"></div>';
+      if (!loading) {
+        try { wire(); } catch (e) {
+          // wire() runs after the HTML is in place, so a failure here leaves a
+          // readable but inert screen. Say so instead of leaving dead buttons.
+          try { console.error('[daily-closing] wire failed', e); } catch (_) {}
+        }
+        var retry = el('dc-retry');
+        if (retry) retry.onclick = function () { S.error = null; S.stalled = false; load(); };
+      }
     }
 
     /* The server said this person has no Daily Closing role at all. Saying so

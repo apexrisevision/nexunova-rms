@@ -224,7 +224,8 @@ function serve() {
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
-    await page.evaluateOnNewDocument((cap, uid, authUid, ref, jwt, co, pj) => {
+    const hang = !!(opts && opts.hangDailyClosing);
+    await page.evaluateOnNewDocument((cap, uid, authUid, ref, jwt, co, pj, hang) => {
       try { localStorage.clear(); } catch (_) {}
       window.__unstubbed = [];
       window.__rpcCalls = [];
@@ -255,6 +256,11 @@ function serve() {
         const m = url.match(/\/rest\/v1\/rpc\/([a-zA-Z0-9_]+)/);
         if (m) {
           window.__rpcCalls.push(m[1]);
+          // A request that never answers. Not an error, not a timeout — the
+          // shape that leaves a promise chain hanging for ever.
+          if (hang && /cash|payee|closing|qb_accounts|units_for_picker/.test(m[1])) {
+            return new Promise(function () {});
+          }
           if (Object.prototype.hasOwnProperty.call(cap.rpc, m[1])) return json(cap.rpc[m[1]]);
           window.__unstubbed.push(m[1]);
           // An ARRAY, not {}. Every RMS cache loader does (data || []).map(…)
@@ -266,7 +272,7 @@ function serve() {
         if (/\/auth\/v1\//.test(url)) return json({});
         return json({});
       };
-    }, CAP, USER_ID, AUTH_UID, REF, fakeJwt(), CO, PJ);
+    }, CAP, USER_ID, AUTH_UID, REF, fakeJwt(), CO, PJ, hang);
 
     await page.setViewport({ width: 1440, height: 950 });
     await page.goto(`http://127.0.0.1:${PORT}/login.html` + (opts && opts.unfixed ? '?unfixed=1' : ''),
@@ -314,7 +320,9 @@ function serve() {
     return {
       skeletons: h.querySelectorAll ? h.querySelectorAll('[class*=skel]').length : 0,
       openBtn: !!(h.querySelector && h.querySelector('#dc-open')),
-      text: (h.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 200),
+      retryBtn: !!(h.querySelector && h.querySelector('#dc-retry')),
+      hasError: !!(h.querySelector && h.querySelector('.dc-error-note')),
+      text: ((h.textContent || '')).replace(/\s+/g, ' ').trim().slice(0, 240),
       rpcCalls: window.__rpcCalls.slice(),
       unstubbed: window.__unstubbed.slice(),
     };
@@ -463,12 +471,52 @@ function serve() {
         errors.some(e => /supabase\.rpc is not a function/.test(e));
       is(sawTypeError, true,
         'RED: the TypeError is back \u2014 global.supabase.rpc is not a function');
-      is(s.skeletons > 0, true,
-        `RED: the screen is stuck on ${s.skeletons} skeletons, exactly as reported`);
       is(/No day open/.test(s.text), false, 'RED: and the empty state never draws');
-      is(s.openBtn, false, 'RED: no Open-day button \u2014 nothing the owner can do');
+      is(s.openBtn, false, 'RED: no Open-day button \u2014 the cash book is unusable');
       is(s.rpcCalls.indexOf('get_cash_day_summary') === -1, true,
         'RED: not one Daily Closing request ever left the browser');
+
+      // \u2026and this is the part that changed. The ORIGINAL bug is faithfully back,
+      // but it can no longer produce an indefinite skeleton: guarded() catches
+      // the synchronous throw where it happens and the screen ends on something
+      // the person can act on. A broken screen that says it is broken is a
+      // different thing from a screen that lies about still loading.
+      is(s.skeletons, 0,
+        'even with the bug back, the screen does NOT sit on skeletons any more');
+      is(s.hasError, true,
+        'it ends on the error note \u2014 S.error is finally read, not just written');
+      is(s.retryBtn, true, 'and a Try-again button, which is the way out');
+      await page.close();
+    }
+
+    /* \u2550\u2550\u2550 4b \u00b7 NOTHING COMES BACK AT ALL \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+    // The other way to be stuck: a request that neither resolves nor rejects.
+    // No harness hook shortens the watchdog \u2014 the real 15 s is waited out, which
+    // is why this section is slow. A test timeout that is not the product's
+    // timeout proves nothing about the product (SR-7).
+    head('a load that never comes back \u2014 the watchdog must end it (~16s)');
+    {
+      const { page } = await open({ hangDailyClosing: true });
+      await page.waitForFunction(
+        () => document.getElementById('s-app') &&
+              document.getElementById('s-app').classList.contains('on'), { timeout: 20000 });
+      await page.waitForFunction(() => window._featureFlagsReady === true, { timeout: 20000 });
+      await page.evaluate(() => { try { nav('dailyclosing'); } catch (e) {} });
+
+      await new Promise(r => setTimeout(r, 6000));
+      const mid = await readScreen(page);
+      is(mid.skeletons > 0, true,
+        'at six seconds it is still loading, and still says so \u2014 the watchdog has not fired early');
+
+      await page.waitForFunction(
+        () => { const h = document.getElementById('pg-dailyclosing');
+                return !!(h && h.querySelector('#dc-retry')); }, { timeout: 20000 })
+        .catch(() => {});
+      const done = await readScreen(page);
+      is(done.skeletons, 0, 'the watchdog fired and the skeletons are gone');
+      is(done.retryBtn, true, 'the screen offers Try again rather than loading for ever');
+      is(/did not finish loading/i.test(done.text), true,
+        `and it says what happened (${JSON.stringify(done.text.slice(0, 60))})`);
       await page.close();
     }
 

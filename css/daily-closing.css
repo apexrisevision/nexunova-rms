@@ -178,6 +178,13 @@ html[data-theme="dark"] .dc .dc-seg button[aria-selected="true"] { color: #93B4F
 .dc .dc-input[disabled], .dc .dc-select[disabled] { color: var(--dc-ink-400); background: var(--dc-subtle); cursor: not-allowed; }
 .dc .dc-field--error .dc-input, .dc .dc-field--error .dc-select { border-color: var(--dc-out); }
 .dc .dc-error { color: var(--dc-out); font-size: var(--dc-t-xs); margin-top: var(--dc-sp-1); display: block; }
+
+/* The banner that reads S.error. It used to be written and never read, so a
+   failure that DID come back still left a screen with nothing on it to explain
+   itself. It sits above the body, so a partial failure shows its data and its
+   problem together. --dc-out-bg is the same wash the money-out chips use. */
+.dc .dc-error-note { border-left: 3px solid var(--dc-out); background: var(--dc-out-bg); }
+.dc .dc-error-note .dc-label { color: var(--dc-out); }
 .dc .dc-hint  { color: var(--dc-ink-500); font-size: var(--dc-t-xs); margin-top: var(--dc-sp-1); display: block; }
 @media (max-width: 640px) {
   .dc .dc-input, .dc .dc-select { height: 48px; font-size: var(--dc-t-lg); }

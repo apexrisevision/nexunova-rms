@@ -112,7 +112,7 @@
     // the flag never downloads a byte of it.
     dailyclosing: ['js/foundation/dc-format.js?v=20260905dcfix',
                    'js/foundation/dc-kit.js?v=20260905dcfix',
-                   'js/pages/daily-closing.js?v=20260905dcfix'],
+                   'js/pages/daily-closing.js?v=20260905dcterm'],
     promises: PROMISES,
     audit: AUDIT,
     approvals: APPROVALS,

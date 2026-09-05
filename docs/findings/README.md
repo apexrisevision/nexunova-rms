@@ -18,3 +18,4 @@ authorisation to ship.
 |---|---|---|---|
 | [2026-09-04-A](2026-09-04-A-session-timers.md) | A restored session starts none of its security timers | RMS shell — **every tenant, every user** | Untriaged. Scheduled after the Awami parallel run. |
 | [2026-09-04-B](2026-09-04-B-portal-smoke-flake.md) | The portal push gate failed once and passed three times | `scripts/smoke-portal.js` | Open, not chased. Fix the evidence collection before judging it. |
+| [2026-09-04-C](2026-09-04-C-nav-swallows-sync-throws.md) | A page that throws while rendering freezes the whole shell | `js/ui.js` — nav(), **every page, every tenant** | Untriaged. To be scheduled with A. |
