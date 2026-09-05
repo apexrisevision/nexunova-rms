@@ -603,9 +603,64 @@ not.
 - Do this before a module carries real money, not after. The first pass here took four minutes
   and found three real gaps.
 
-**Where it is done:** the pass above was a throwaway. Turning it into a committed runner over the
-Daily Closing module is the obvious next step and is **not done yet** — it is the standing
-recommendation this rule exists to make.
+**Where it is done:** `scripts/mutate-daily-closing.js`, built 2026-09-05.
+
+```
+node scripts/mutate-daily-closing.js              # a reproducible sample
+node scripts/mutate-daily-closing.js --all        # all 1609
+node scripts/mutate-daily-closing.js --n=40 --seed=7
+```
+
+Fifteen mechanical operators over the four module files produce **1609 mutants** — arguments
+nulled, conditions forced either way, comparisons and connectives flipped, negations dropped,
+literals zeroed, returned markup emptied. There is no list of interesting cases and there must
+never be one: **the moment someone curates the list this becomes another backward-looking rule**
+and stops finding what nobody thought of. If a mutant is uninteresting that is a fact about the
+suites, not a reason to delete the mutant. Sampling is seeded so a run reproduces exactly.
+
+It **separates the two kinds of survivor mechanically**, because "3 survived" sends you looking in
+the wrong place. For every function containing a survivor it builds a *reachability probe* — the
+same file with `throw` as that function's first statement — and runs the suites again. Probe
+killed → the function is driven → the survivor is **unasserted (SR-9)**. Probe survives → the
+function never runs → the survivor is **undriven (SR-6)**. That is the `loadAudit` distinction
+that separated itself by accident, done on purpose.
+
+It is scoped to the daily-closing module and refuses to mutate anything else. KBH and FMH paths
+are deliberately excluded: findings there would surface in live tenant code and have to be triaged
+under time pressure, and the point is to harden the cash book *before* it holds money.
+
+**It reports; it does not gate.** Exit 0 whatever survives, exit 2 only if it could not run. A
+mutation score wired into the push gate on day one gets tuned down to whatever passes, and then it
+is worse than nothing because it looks like a control.
+
+### What mutation testing will NOT catch — the honest summary of this module's first week
+
+The cash book **has never held a real transaction.** Every bug found so far has been in the
+**wiring between the RMS shell and the module**, not in the cash book: a feature flag read before
+it was loaded, a client read off the wrong object, a session read off the wrong object, a boot path
+nobody drove, a failed call rendered as a permissions message. The schema, the services, the eight
+invariants and the tenant isolation have held up under real testing, including a real foreign JWT
+over real HTTPS against production.
+
+And the wiring is exactly what this runner is **worst** at reaching:
+
+- It mutates the module's own source. `global.supabase` vs `supabase`, `global.S` vs `S` are
+  one-token differences an operator could generate in principle — but the bug was about which of
+  two globals *exists at runtime*, a property of `js/data.js` and `js/supabase.js`, not of this
+  module.
+- It cannot mutate load **order**, which is where the feature-flag bug lived.
+- It cannot mutate the **absence** of a call. `tryRestoreSession` never called
+  `loadFeatureFlags`; there was no line to change.
+- It cannot mutate the **harness**. A suite that stubs away the thing under test kills mutants
+  happily and proves nothing. SR-5 and SR-7 remain the only defence there.
+- It says nothing about whether the module's **rules** are right. A mutant that survives because
+  both behaviours are wrong is invisible to it.
+
+What it does reach is logic: predicates, arguments, branches, arithmetic, returned shapes. That is
+most of the cash book and almost none of this week's bugs. **Both halves of that sentence are the
+point** — this is a strong instrument aimed at the half of the system that has not been failing,
+and it is worth having precisely because that half is the half about to hold money.
+
 
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
