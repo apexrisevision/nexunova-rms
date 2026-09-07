@@ -517,37 +517,196 @@ function serve() {
       : bad('took ' + (tPaint / 1000).toFixed(1) + 's to become interactive');
     await slow.close();
 
-    /* ── the contract, end to end, on ZZTEST ────────────────────────────── */
-    step('End to end on ZZTEST — a real link, created and revoked');
-    const zz = await sql(`SELECT p.id, p.project_name, c.company_name
+    /* ══ LIFTED FROM verify-public-availability.js ═════════════════════════
+       Twenty-six assertions from the old suite that never depended on the tower
+       model: the token, the hash, the table's permissions, what the wire
+       carries, rotation, revocation, and what a dead link says. They are the
+       reason that file existed, and the redesign does not touch any of them, so
+       they move here rather than being retired with it.
+
+       Everything runs on ZZTEST, where a link can be created and thrown away.
+       Nothing here reaches Awami. ══════════════════════════════════════════ */
+    step('The token, the table and the permissions \u2014 lifted from the old suite');
+    const zz = await sql(`SELECT p.id, p.project_name, c.id AS co, c.company_name
                             FROM public.projects p JOIN public.companies c ON c.id = p.company_id
                            WHERE c.company_name ILIKE '%zztest%'
                              AND EXISTS (SELECT 1 FROM public.units u WHERE u.project_id = p.id)
                            ORDER BY p.project_name LIMIT 1;`);
     if (!zz.length) { bad('no ZZTEST project with units to test against'); }
     else {
-      await sql(`DELETE FROM public.sales_sessions WHERE session_token='zz-avail-shot';
+      const ZZ = zz[0].co, ZZ_PROJECT = zz[0].id;
+      await sql(`DELETE FROM public.sales_sessions WHERE session_token IN ('zz-avail-dir','zz-avail-rep');
         INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
-        SELECT s.company_id, s.id, NULL, 'zz-avail-shot', now() + interval '5 minutes'
-          FROM public.sales_users s JOIN public.companies c ON c.id = s.company_id
-         WHERE c.company_name ILIKE '%zztest%' AND s.role='director' LIMIT 1;`);
-      const made = await sql(`SELECT public.create_availability_link('zz-avail-shot','${zz[0].id}','shot-availability') AS r;`);
-      const tok = made[0].r && made[0].r.token;
-      if (!tok) { bad('could not create a ZZTEST link: ' + JSON.stringify(made[0].r)); }
-      else {
-        const live = await slowFetch(browser, tok);
-        live.ok
-          ? ok('the real /a/<token> route loads over the real anon key on ' + zz[0].project_name)
-          : bad('the live route failed: ' + JSON.stringify(live));
-        live.noPrice ? ok('and the live payload carries no price either')
-                     : bad('the live payload carries a price');
-        await sql(`SELECT public.revoke_availability_link('zz-avail-shot','${tok}');`);
-        const after = await sql(`SELECT (public.get_public_availability('${tok}')->>'success') AS ok;`);
-        after[0].ok === 'false'
-          ? ok('and the same URL is dead the moment it is revoked')
-          : bad('a revoked link still answers');
+        SELECT s.company_id, s.id, NULL, 'zz-avail-dir', now() + interval '10 minutes'
+          FROM public.sales_users s WHERE s.company_id='${ZZ}' AND s.role='director' LIMIT 1;`);
+
+      const made = await sql(`SELECT public.create_availability_link('zz-avail-dir','${ZZ_PROJECT}','avail shot') AS r;`);
+      const TOKEN = made[0].r && made[0].r.token;
+      /* 1 */ (made[0].r.success && /^[0-9a-f]{32}$/.test(TOKEN || ''))
+        ? ok('token is 128 random bits: ' + String(TOKEN).slice(0, 8) + '\u2026')
+        : bad('token looks wrong: ' + JSON.stringify(made[0].r));
+
+      const stored = await sql(`SELECT token_hash, label FROM public.availability_links
+                                 WHERE token_hash = public._availability_token_hash('${TOKEN}');`);
+      /* 2 */ stored.length === 1 ? ok('the link is stored') : bad('the link was not stored');
+      /* 3 */ (stored[0] && stored[0].token_hash !== TOKEN && /^[0-9a-f]{64}$/.test(stored[0].token_hash))
+        ? ok('stored as a sha256 hash, not the link: ' + stored[0].token_hash.slice(0, 12) + '\u2026')
+        : bad('the raw token is in the table');
+      const anyRaw = await sql(`SELECT count(*)::int n FROM public.availability_links
+                                 WHERE token_hash LIKE '%${TOKEN}%';`);
+      /* 4 */ Number(anyRaw[0].n) === 0
+        ? ok('a dump of the table yields no working link')
+        : bad('the table contains the raw token');
+      const cols = await sql(`SELECT column_name FROM information_schema.columns
+                               WHERE table_schema='public' AND table_name='availability_links';`);
+      /* 5 */ !cols.some(c => c.column_name === 'token')
+        ? ok('the plaintext token column is gone')
+        : bad('availability_links still has a plaintext token column');
+
+      const listed = await sql(`SELECT public.list_availability_links('zz-avail-dir') AS r;`);
+      const one = (listed[0].r.links || [])[0];
+      /* 6 */ !JSON.stringify(listed[0].r).includes(TOKEN)
+        ? ok('the director list never echoes the link back')
+        : bad('list_availability_links leaked the token');
+      /* 7 */ (one && one.label)
+        ? ok('but it does show which links exist: "' + one.label + '" on ' + one.project)
+        : bad('the director cannot see which links exist');
+
+      await sql(`DELETE FROM public.sales_sessions WHERE session_token='zz-avail-rep';
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT s.company_id, s.id, s.project_id, 'zz-avail-rep', now()+interval '10 minutes'
+          FROM public.sales_users s WHERE s.company_id='${ZZ}' AND s.role NOT IN ('director','admin','cfo') LIMIT 1;`);
+      const repTry = await sql(`SELECT public.create_availability_link('zz-avail-rep','${ZZ_PROJECT}','nope') AS r;`);
+      /* 8 */ repTry[0].r.success === false
+        ? ok('a rep cannot mint a public link \u2014 refused with ' + repTry[0].r.error)
+        : bad('a rep minted a public link: ' + JSON.stringify(repTry[0].r));
+
+      const acl = await sql(`SELECT has_table_privilege('anon','public.availability_links','SELECT') AS s,
+                                    relrowsecurity AS rls
+                               FROM pg_class WHERE oid='public.availability_links'::regclass;`);
+      /* 9  */ acl[0].s === false ? ok('anon has no SELECT on availability_links')
+                                  : bad('anon can read the token table');
+      /* 10 */ acl[0].rls === true ? ok('and RLS is on (deny-all, no policies)')
+                                   : bad('RLS is off on availability_links');
+
+      /* The management RPCs ARE callable by anon and that is not a hole: the
+         whole portal is an unauthenticated client that identifies its user with
+         a session token passed as an argument, so every portal RPC runs as anon.
+         The control is the session and role check inside each function, not the
+         GRANT \u2014 and that is what has to be measured. An earlier version of the
+         old harness asserted grant-level exclusivity instead, which was both
+         wrong and the reason the Share-link screen 401'd for real directors. */
+      const guarded = await sql(`
+        SELECT (public.list_availability_links('no-such-session')->>'error')                  AS l,
+               (public.create_availability_link('no-such-session','${ZZ_PROJECT}')->>'error') AS c,
+               (public.revoke_availability_link('no-such-session','x')->>'error')             AS r;`);
+      /* 11 */ (guarded[0].l === 'session_expired' && guarded[0].c === 'session_expired' &&
+                guarded[0].r === 'session_expired')
+        ? ok('the three management RPCs refuse a caller with no session')
+        : bad('a management RPC answered without a session: ' + JSON.stringify(guarded[0]));
+      const repGuard = await sql(`
+        SELECT (public.list_availability_links('zz-avail-rep')->>'error')                  AS l,
+               (public.create_availability_link('zz-avail-rep','${ZZ_PROJECT}')->>'error') AS c;`);
+      /* 12 */ (!!repGuard[0].l && !!repGuard[0].c)
+        ? ok('and refuse a rep who does have a session (list: ' + repGuard[0].l +
+             ', create: ' + repGuard[0].c + ')')
+        : bad('a rep reached a management RPC: ' + JSON.stringify(repGuard[0]));
+      const pubOk = await sql(`SELECT (public.get_public_availability('nope')->>'error') AS e;`);
+      /* 13 */ pubOk[0].e === 'not_available'
+        ? ok('while the public one answers anyone, safely')
+        : bad('the public function said something else: ' + pubOk[0].e);
+
+      /* ── the browser, on the real route ──────────────────────────────── */
+      const live = await visitToken(browser, TOKEN);
+      /* 14 */ live.wire.length > 0
+        ? ok('captured the response body over the real anon key')
+        : bad('nothing came back on the wire');
+      const SECRETS = await sql(`
+        SELECT COALESCE(c.full_name,'zz-no-buyer') AS buyer, COALESCE(c.phone_primary,'zz-no-phone') AS phone,
+               COALESCE(s.sale_number,'zz-no-sale') AS sale_no
+          FROM public.sales s LEFT JOIN public.clients c ON c.id = s.client_id
+         WHERE s.project_id='${ZZ_PROJECT}' AND s.status='active' LIMIT 1;`);
+      const secret = SECRETS[0] || {};
+      const leaked = Object.keys(secret).filter(k => secret[k] && live.wire.includes(secret[k]));
+      /* 15 */ leaked.length === 0
+        ? ok('no buyer name, phone or sale number on the wire' +
+             (secret.buyer ? ' (looked for ' + secret.buyer + ')' : ''))
+        : bad('LEAKED on the wire: ' + leaked.join(', '));
+      const privKeys = ['client', 'phone', 'paid', 'outstanding', 'overdue', 'net_amount',
+                        'sale_number', 'due', 'price', 'base_price']
+        .filter(k => new RegExp('"[a-z_]*' + k, 'i').test(live.wire));
+      /* 16 */ privKeys.length === 0
+        ? ok('not one private key name is present, price included')
+        : bad('private key names on the wire: ' + privKeys.join(', '));
+      const rpcNames = [...new Set((live.code.match(/\.rpc\(\s*['"]([a-z_]+)['"]/g) || [])
+        .map(m => m.replace(/.*['"]([a-z_]+)['"]/, '$1')))];
+      /* 17 */ (rpcNames.length === 1 && rpcNames[0] === 'get_public_availability')
+        ? ok('the page can call exactly one function, and it is ' + rpcNames[0])
+        : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));
+
+      /* ══ THE ASSERTION THAT WAS INVERTED ═══════════════════════════════
+         The old suite asserted "all 30 ZZTEST units drawn". Under the new model
+         that is not merely obsolete, it is the OPPOSITE of the requirement: the
+         page must never put a whole building in the document. Dropping it would
+         have left the redesign's central rule as an intention. It is inverted
+         instead \u2014 on the real route, with a real token, the number of unit
+         chips in the document must be LESS than the project's unit count, and on
+         the first screen it must be zero. */
+      /* 18 */ (live.unitsOnHome === 0 && live.totalUnits > 0)
+        ? ok('on the real route the first screen renders 0 of ' + live.totalUnits + ' units')
+        : bad('the first screen rendered ' + live.unitsOnHome + ' units');
+      /* 19 */ (live.unitsAfterFloor > 0 && live.unitsAfterFloor < live.totalUnits)
+        ? ok('and opening a floor renders ' + live.unitsAfterFloor + ' of ' + live.totalUnits +
+             ' \u2014 never the whole building')
+        : bad('a floor rendered ' + live.unitsAfterFloor + ' of ' + live.totalUnits + ' units');
+
+      /* ── rotation ────────────────────────────────────────────────────── */
+      const other = await sql(`SELECT id FROM public.projects
+                                WHERE company_id='${ZZ}' AND id <> '${ZZ_PROJECT}' LIMIT 1;`);
+      let OTHER = null;
+      if (other.length) {
+        const m2 = await sql(`SELECT public.create_availability_link('zz-avail-dir','${other[0].id}','avail second') AS r;`);
+        OTHER = m2[0].r.token;
+        /* 20 */ (OTHER && OTHER !== TOKEN)
+          ? ok('a second project gets a different token')
+          : bad('two projects share a token');
+      } else { ok('only one ZZTEST project exists \u2014 isolation covered by rotation'); }
+
+      const rot = await sql(`SELECT public.create_availability_link('zz-avail-dir','${ZZ_PROJECT}','avail rotated') AS r;`);
+      const ROTATED = rot[0].r.token;
+      const oldDead = await sql(`SELECT (public.get_public_availability('${TOKEN}')->>'success') AS s;`);
+      const newLive = await sql(`SELECT (public.get_public_availability('${ROTATED}')->>'success') AS s;`);
+      /* 21 */ oldDead[0].s === 'false' ? ok('rotating retires the previous link for that project')
+                                        : bad('the old link still works after rotation');
+      /* 22 */ newLive[0].s === 'true' ? ok('and the fresh one works')
+                                       : bad('the rotated link does not work');
+      if (OTHER) {
+        const otherLive = await sql(`SELECT (public.get_public_availability('${OTHER}')->>'success') AS s;`);
+        /* 23 */ otherLive[0].s === 'true'
+          ? ok("the other project's link is untouched")
+          : bad('rotating one project killed another');
       }
-      await sql(`DELETE FROM public.sales_sessions WHERE session_token='zz-avail-shot';`);
+
+      /* ── revocation, and what a dead link says ───────────────────────── */
+      const rev = await sql(`SELECT public.revoke_availability_link('zz-avail-dir','${ROTATED}') AS r;`);
+      /* 24 */ rev[0].r.success === true ? ok('the director revoked it')
+                                         : bad('revoke failed: ' + JSON.stringify(rev[0].r));
+      const dead = await visitToken(browser, ROTATED);
+      /* 25 */ /not available/i.test(dead.text)
+        ? ok('the revoked link says so plainly')
+        : bad('a revoked link shows: ' + dead.text.slice(0, 60));
+      /* 26 */ !new RegExp(zz[0].project_name.split(' ')[0], 'i').test(dead.text)
+        ? ok('and does not even name the project it used to show')
+        : bad('the dead page names the project');
+      /* 27 */ dead.url.includes('/a/')
+        ? ok('still on the public route, never redirected into the portal')
+        : bad('a dead link redirected to ' + dead.url);
+      const guess = await visitToken(browser, 'deadbeefdeadbeefdeadbeefdeadbeef');
+      /* 28 */ guess.text === dead.text
+        ? ok('a guessed token gives the identical answer \u2014 no oracle')
+        : bad('a guessed token answers differently from a revoked one');
+
+      await sql(`DELETE FROM public.sales_sessions WHERE session_token IN ('zz-avail-dir','zz-avail-rep');`);
     }
 
     /* ── nothing was created on Awami ───────────────────────────────────── */
@@ -568,25 +727,35 @@ function serve() {
   process.exit(FAILED ? 1 : 0);
 })().catch(e => { console.error('\nFAILED:', e.message); process.exit(1); });
 
-/* Load the page through the REAL route with a REAL token, so the one thing the
+/* Load the page through the REAL route with a REAL token, so the one thing a
    captured payload cannot prove — that the page and the function actually talk
-   to each other — is proven on the tenant it is safe to prove it on. */
-async function slowFetch(browser, token) {
-  const p = await browser.newPage();
-  const seen = [];
+   to each other — is proven on the tenant it is safe to prove it on. Also
+   reports how much of the building reached the document, which is what the
+   inverted "all units drawn" assertion needs. */
+async function visitToken(browser, token) {
+  const ctx = await browser.createBrowserContext();   // empty: no storage, no session
+  const p = await ctx.newPage();
+  const wire = [];
   p.on('response', async r => {
     if (!/get_public_availability/.test(r.url())) return;
-    try { seen.push(await r.text()); } catch (e) {}
+    try { wire.push(await r.text()); } catch (e) {}
   });
   try {
     await p.setViewport({ width: 380, height: 780 });
     await p.goto(BASE + '/a/' + token, { waitUntil: 'networkidle2', timeout: 30000 });
-    await sleep(400);
-    const shown = await p.evaluate(() =>
-      document.querySelectorAll('#floors button').length > 0 ||
-      /not available/i.test(document.body.innerText));
-    const body = seen.join('');
-    return { ok: shown && seen.length > 0,
-             noPrice: !/"p"\s*:|base_price/i.test(body) };
-  } finally { await p.close(); }
+    await sleep(600);
+    const out = await p.evaluate(() => {
+      const home = document.querySelectorAll('#units button').length;
+      const total = (window.P && window.P.floors)
+        ? window.P.floors.reduce((n, f) => n + f.units.length, 0) : 0;
+      const chip = document.querySelector('#floors button');
+      if (chip) chip.click();
+      return { home, total, after: document.querySelectorAll('#units button').length,
+               text: document.body.innerText };
+    });
+    const code = fs.readFileSync(path.join(ROOT, 'availability.html'), 'utf8');
+    return { wire: wire.join('\n'), code,
+             unitsOnHome: out.home, unitsAfterFloor: out.after, totalUnits: out.total,
+             text: out.text, url: p.url() };
+  } finally { await ctx.close(); }
 }
