@@ -97,6 +97,8 @@
       ".tg-hold{background:#FFF4E5;color:#8A5300;border-color:#F3D9B0}" +
       ".tg-reserved{background:#E9F0FB;color:#22508F;border-color:#C9DAF2}" +
       ".tg-booked{background:#E9F7EF;color:#1C6B3F;border-color:#C4E6D3}" +
+      /* Only the DESK uses this. Its "Booked today" list keeps cancelled rows so
+         the operator can see what they undid; the daybook drops them entirely. */
       ".tg-off{background:var(--fk-bg-soft,#F1F2F4);color:var(--fk-text-muted);border-color:var(--fk-border);text-decoration:line-through}" +
       ".rd-undo{flex:none;height:32px;padding:0 11px;border-radius:9px;border:1px solid var(--fk-border);" +
         "background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);" +
@@ -975,7 +977,7 @@
 
   function _dbPaint(host) {
     var d = DB.data, h = d.header || {};
-    var resv = d.reserved || [], sold = d.sold || [], exp = d.expiring || [], av = d.available || [];
+    var resv = _liveOnly(d.reserved), sold = d.sold || [], exp = d.expiring || [], av = d.available || [];
     /* `holding` is the whole active set and is not date-scoped, so it is stamped
        with the server's clock rather than with the date in the picker. */
     var hold = d.holding || [];
@@ -995,23 +997,17 @@
         '</div>' +
 
         /* "Booked today" rather than "Reserved today": with three tags in play
-           the old heading named only one of them. Rows that were undone stay on
-           the list — the desk still shows them, and a daybook that quietly drops
-           an event of the day is a different kind of wrong — but they wear a
-           struck-through tag and show the time they were let go, not an expiry
-           date that stopped meaning anything the moment they were cancelled. */
+           the old heading named only one of them. A booking that was undone is
+           not here at all — see the RPC. The desk's own list still has it. */
         _dbSec('Booked today', resv.length, resv.length
-          ? _dbTable(['Unit', 'Tag', 'Floor', 'Requested by', 'Buyer', 'Expires / released'],
+          ? _dbTable(['Unit', 'Tag', 'Floor', 'Requested by', 'Buyer', 'Expires'],
               resv.map(function (r) {
-                var liveRow = _isLive(r);
                 return ['<b>' + esc(r.unit_no) + '</b>',
-                        '<span class="tg ' + (liveRow ? _tagCls(r.tag_code) : 'tg-off') + '">' +
-                          esc(r.tag || 'Reserved') + '</span>',
+                        '<span class="tg ' + _tagCls(r.tag_code) + '">' + esc(r.tag || 'Reserved') + '</span>',
                         esc(r.floor),
                         esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
                         r.client_name ? esc(r.client_name) : '<span class="t">—</span>',
-                        liveRow ? esc(_pkDate(r.expiry_date))
-                                : '<span class="t">released ' + esc(r.cancelled_at ? _pkTime(r.cancelled_at) : '') + '</span>'];
+                        esc(_pkDate(r.expiry_date))];
               }))
           : '<div class="rd-empty">Nothing booked on this day.</div>') +
 
@@ -1086,24 +1082,17 @@
     if (h.company) L.push(h.company);
     L.push('');
 
-    var resv = d.reserved || [];
-    var live = resv.filter(_isLive);
-    var gone = resv.filter(function (r) { return !_isLive(r); });
-    L.push('*Booked today (' + live.length + ')*');
-    if (!live.length) L.push('— none —');
-    else live.forEach(function (r) {
+    /* Cancelled bookings are not in this payload and are not listed here. The
+       group reads every line as a unit that is off the board, so a released one
+       appearing at all — even labelled — was the thing being complained about.
+       "On hold now" below is the authoritative answer to what is unavailable. */
+    var resv = _liveOnly(d.reserved);
+    L.push('*Booked today (' + resv.length + ')*');
+    if (!resv.length) L.push('— none —');
+    else resv.forEach(function (r) {
       L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
              ' for ' + r.requested_by + ' · till ' + _pkDate(r.expiry_date));
     });
-    /* Named, not hidden: an agent who was told at noon that a unit was held
-       needs to read that it came back, or they will keep quoting it. */
-    if (gone.length) {
-      L.push('');
-      L.push('*Released again today (' + gone.length + ')*');
-      gone.forEach(function (r) {
-        L.push('• ' + r.unit_no + ' (' + r.floor + ') — back on the board');
-      });
-    }
     L.push('');
 
     var sold = d.sold || [];
@@ -1213,10 +1202,12 @@
   /* One definition of urgency, read by both the screen and the print builder.
      Two copies of these thresholds would eventually drift, and the drift would
      show up as a unit that is red on the page and calm on the screen. */
-  /* A reservation that was undone is not a hold with time left on it. Both
-     surfaces ask this rather than computing days from an expiry that stopped
-     meaning anything the moment it was cancelled. */
+  /* A cancelled booking is not on this report at all — the RPC filters it out,
+     and this filters it again on the way in. Belt and braces on purpose: an
+     older RPC still deployed somewhere would otherwise put a released unit back
+     on a page that is pasted into the sales group as "off the board". */
   function _isLive(r) { return !r.status || r.status === 'active'; }
+  function _liveOnly(rows) { return (rows || []).filter(_isLive); }
 
   function _holdLeft(r) {
     if (r.overdue) return { t: 'LAPSED', tone: 'red' };
@@ -1352,8 +1343,10 @@
     /* Only the bookings that still stand. Counting a released one here said
        PKR 1.53 Cr was held on a day when nothing was: the figure has to follow
        the same live/released split as the counts beside it. */
-    var todayResVal = (d.reserved || []).filter(_isLive)
-                        .reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
+    /* One filtered list, read by the summary and by section 01 alike, so the
+       money and the rows can never be counting different things. */
+    var dayRows = _liveOnly(d.reserved);
+    var todayResVal = dayRows.reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     var todaySoldVal = (d.sold || []).reduce(function (a, r) { return a + Number(r.amount || 0); }, 0);
 
     var sum = _el('div');
@@ -1377,18 +1370,11 @@
     var b = _el('div');
     b.style.marginTop = '4mm';
     b.appendChild(_el('div', 'sum-l', 'Today · ' + _dCaps(dateISO)));
-    /* "Reserved 1" on a day whose single booking was undone an hour later is a
-       true count of an event and a false statement about the position. Split. */
-    var dayRows = d.reserved || [];
-    var dayLive = dayRows.filter(_isLive).length;
-    var dayOff  = dayRows.length - dayLive;
-    var todayCells = [
-      ['Booked', _num(dayLive), null],
+    b.appendChild(sumRow([
+      ['Booked', _num(dayRows.length), null],
       ['Sold', _num((d.sold || []).length), null],
       ['Expiring 48h', _num((d.expiring || []).length), null]
-    ];
-    if (dayOff) todayCells.splice(1, 0, ['Released', _num(dayOff), null]);
-    b.appendChild(sumRow(todayCells, true));
+    ], true));
     sum.appendChild(b);
 
     /* The PERIOD table is not here. It cost 28mm of page and carried seven em
@@ -1447,24 +1433,17 @@
          apply, so it was wrong on two rows in three. */
       { title: 'Booked Today', unit: 'unit', noun: 'bookings',
         cols: [['Unit'], ['Tag'], ['Floor'], ['Requested by'], ['Booked by'], ['Buyer'], ['Expires'], ['Left', 'n']],
-        rows: (d.reserved || []).map(function (r) {
-          var liveRow = _isLive(r);
+        rows: dayRows.map(function (r) {
           var ed = _pk(r.expiry_date);
           var days = ed ? Math.max(0, Math.ceil((ed - new Date()) / 864e5)) : null;
-          /* A released row shows WHEN it was released, not when it would have
-             expired — that date describes a hold that no longer exists. */
-          var when = liveRow ? _dShort(r.expiry_date)
-                             : (r.cancelled_at ? _pkTime(r.cancelled_at) : '—');
-          var left = !liveRow ? { v: 'RELEASED', pill: 'off', cls: 'n' }
-                   : days == null ? { v: '—', cls: 'n mut' }
-                   : { v: days + 'd', pill: 'amber', cls: 'n' };
           return [{ v: r.unit_no, cls: 'u' },
-                  { v: r.tag || 'Reserved', pill: liveRow ? _pillOf(r.tag_code) : 'off' },
+                  { v: r.tag || 'Reserved', pill: _pillOf(r.tag_code) },
                   r.floor,
                   whoCell(r.requested_by, r.agent_code),
                   r.booked_by || '—',
                   r.client_name ? r.client_name : { v: '—', cls: 'mut' },
-                  when, left];
+                  _dShort(r.expiry_date),
+                  days == null ? { v: '—', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
         }),
         empty: function () { return 'No units reserved on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
 

@@ -142,28 +142,26 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         : badC('screen hold list carries no as-at line');
 
       /* ── THE UNDO DEFECT ────────────────────────────────────────────────
-         A reservation created today and cancelled today must appear in the
-         day's list marked released, and must NOT appear in the hold list. */
+         A booking that was cancelled must be GONE from the daybook — not
+         marked, not struck through, absent. The first fix marked them and
+         Rashid rejected it, so this asserts the count the database says is
+         still standing, and nothing else. Today's live data has one cancelled
+         booking and no live one, so the check can actually fail. */
       const bt = scr.secs.find(x => /^Booked today/.test(x.t));
       const btRows = bt ? bt.rows : 0;
-      btRows === (scr.dbToday.live + scr.dbToday.gone)
-        ? okC("today's list has all " + btRows + ' booking(s) the database recorded today (' +
-              scr.dbToday.live + ' live, ' + scr.dbToday.gone + ' released)')
-        : badC("today's list shows " + btRows + ' rows; the database recorded ' +
-               (scr.dbToday.live + scr.dbToday.gone));
-      if (scr.dbToday.gone > 0) {
-        (bt && bt.released === scr.dbToday.gone)
-          ? okC('all ' + scr.dbToday.gone + ' undone booking(s) say "released" instead of an expiry date')
-          : badC((bt && bt.released) + ' rows say released; ' + scr.dbToday.gone + ' were cancelled');
-        (bt && bt.tags.filter(t => t && t.off).length === scr.dbToday.gone)
-          ? okC('their tags are struck through, so they cannot be read as live holds')
-          : badC('an undone booking still wears a live tag');
-      } else {
-        okC('no bookings were undone today — the released path is untested on live data');
-      }
-      /* Whatever was released today must be gone from the hold list entirely. */
-      (holdRows === scr.payloadHolds && !(hold && hold.tags.some(t => t && t.off)))
-        ? okC('nothing released is carried into the hold list')
+      btRows === scr.dbToday.live
+        ? okC("today's list shows the " + btRows + ' booking(s) still standing, of ' +
+              (scr.dbToday.live + scr.dbToday.gone) + ' made today')
+        : badC("today's list shows " + btRows + ' rows; only ' + scr.dbToday.live +
+               ' of today\u2019s bookings are still active');
+      scr.dbToday.gone > 0
+        ? (btRows === scr.dbToday.live && (!bt || bt.released === 0)
+            ? okC('the ' + scr.dbToday.gone + ' cancelled booking(s) appear nowhere on the daybook')
+            : badC('a cancelled booking is still on the daybook'))
+        : okC('nothing was cancelled today \u2014 this check had nothing to catch');
+      /* And never on the hold list either. */
+      holdRows === scr.payloadHolds
+        ? okC('the hold list matches the database exactly')
         : badC('a released reservation is still on the hold list');
       titles.indexOf('Expiring within 48 hours') < 0
         ? okC('screen and PDF agree: no separate 48-hour section')
@@ -330,6 +328,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       // the hold section, by its heading, and how many rows it printed
       const heads2=[...document.querySelectorAll('#rd-print .sec-t')].map(e=>e.textContent.trim());
       const holdIdx=heads2.indexOf('Units On Hold');
+      // rows in the printed day list, to compare against the stub's live count
+      const bookIdx=heads2.indexOf('Booked Today');
       let holdRows=0, holdNote='';
       if (holdIdx>=0) {
         const hd=[...document.querySelectorAll('#rd-print .sec-t')][holdIdx].closest('.sec-h');
@@ -348,7 +348,18 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       return { n:pgs.length, foot, headsOnP1:heads[0], headsRest:heads.slice(1).every(Boolean),
                orphan, overflow, wide, clash, theads, bodyRows, headless, sigPages:sig,
                prepared: /Prepared by|Approved by/.test(txt),
-               secTitles: heads2, holdIdx, holdRows, holdNote,
+               secTitles: heads2, holdIdx, holdRows, holdNote, bookIdx,
+               bookRows: (function(){
+                 if(bookIdx<0) return 0;
+                 const seq=[...document.querySelectorAll('#rd-print .sec-h, #rd-print tbody tr')];
+                 let cur=-1,n=0;
+                 for(const x of seq){
+                   if(x.classList.contains('sec-h')){
+                     cur=heads2.indexOf(((x.querySelector('.sec-t')||{}).textContent||'').trim());
+                   } else if(cur===bookIdx && !x.classList.contains('tot')) n++;
+                 }
+                 return n;
+               })(),
                };
     });
     /* \u2550\u2550 SEMANTIC \u2550\u2550 The masthead names a project; every floor in the position
@@ -474,6 +485,13 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
                    : bad('no "Units On Hold" section: ' + JSON.stringify(chk.secTitles));
     chk.holdRows===18 ? ok('all 18 held units printed, none dropped across the page break')
                       : bad('hold list printed ' + chk.holdRows + ' of 18 rows');
+    /* THE CLIENT FILTER, EXERCISED. The stub feeds 40 bookings of which 4 are
+       cancelled — a payload the live RPC will no longer produce, which is
+       exactly the point: if an older RPC is still deployed somewhere, the page
+       must still refuse to draw them. 36 rows, or the second filter is dead. */
+    chk.bookRows===36
+      ? ok('36 of 40 stub bookings printed — the 4 cancelled ones were dropped client-side too')
+      : bad("today's list printed " + chk.bookRows + ' rows; 36 of the 40 stubs are active');
     /Every reservation still active|still active/.test(chk.holdNote)
       ? ok('hold section is stamped with the moment it was read: ' + chk.holdNote.slice(0,58))
       : bad('hold section carries no as-at note: ' + JSON.stringify(chk.holdNote));
