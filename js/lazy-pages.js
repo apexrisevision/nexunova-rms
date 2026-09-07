@@ -30,7 +30,7 @@
   'use strict';
 
   // ── shared bundle arrays (deduped; versions match the former eager tags) ──
-  var SALES        = ['js/pages/sales.js?v=20260817disc'];
+  var SALES        = ['js/pages/sales.js?v=20260907desk'];
   var PROJECTS     = ['js/pages/projects.js?v=20260613ps'];
   var UNITS        = ['js/pages/units.js?v=20260616a'];
   var AGENTS       = ['js/pages/agents.js?v=20260828priv'];
@@ -57,7 +57,7 @@
   var PORTAL = [
     'js/pages/sales-access.js?v=20260828priv',
     'js/pages/sale-submissions.js?v=20260617nom',
-    'js/pages/reservations.js?v=20260615p2',
+    'js/pages/reservations.js?v=20260907desk',
     'js/pages/dealer-agreement.js?v=20260618'
   ];
   // agenttransactions renders with agents.js CSS/format helpers (_agCSS/_agK).

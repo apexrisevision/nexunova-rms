@@ -165,22 +165,10 @@
   /* Clipboard, with the fallback that matters: the portal runs inside a webview
      on some phones where navigator.clipboard is undefined, and a director who
      taps Copy and gets nothing has lost the only chance to see the token. */
+  // The implementation moved to js/portal-copy.js so the Reserve Desk could use
+  // the same one. This screen's failure message is kept, because "copy it from
+  // the box above" is only true here — the link is on screen.
   function _copy(text, okMsg) {
-    var done = function () { try { toast(okMsg, 'ok'); } catch (e) {} };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () { _copyFallback(text, done); });
-    } else { _copyFallback(text, done); }
-  }
-  function _copyFallback(text, done) {
-    var t = document.createElement('textarea');
-    t.value = text;
-    t.setAttribute('readonly', '');
-    t.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0';
-    document.body.appendChild(t);
-    t.select(); t.setSelectionRange(0, text.length);
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(t);
-    if (ok) done(); else try { toast('Copy the link from the box above', 'warn'); } catch (e) {}
+    _portalCopy(text, okMsg, 'Copy the link from the box above');
   }
 })();

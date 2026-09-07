@@ -424,13 +424,38 @@ async function rNewSale() {
   _nsRender();
 }
 
+/* The convert banner's opening clause.
+   It used to be `for <strong>${clientName||''}</strong>` unconditionally, which
+   on a Reserve Desk booking rendered an empty <strong> — the buyer is usually
+   not named at the moment a unit is held on a rep's word. Stage 2 made
+   convert_reservation_prefill return requested_by_name, so the banner can name
+   the person who actually asked instead of naming nobody.
+   Three cases, and none of them emits an empty element. */
+function _nsConvertWho(cv) {
+  const buyer = (cv.clientName || '').trim();
+  const who   = (cv.requestedByName || '').trim();
+  const code  = (cv.requestedByAgentCode || '').trim();
+  const unit  = (cv.unitNo || '').trim();
+  const asked = who
+    ? `requested by <strong>${esc(who)}</strong>${code ? ` (${esc(code)})` : ''}`
+    : '';
+
+  if (buyer) {
+    return `Converting the reservation for <strong>${esc(buyer)}</strong>${asked ? ` · ${asked}` : ''}`;
+  }
+  if (who) {
+    return `Converting${unit ? ` <strong>${esc(unit)}</strong>` : ' this reservation'} — ${asked}, buyer not named yet`;
+  }
+  return `Converting${unit ? ` <strong>${esc(unit)}</strong>` : ' this reservation'} — buyer not named yet`;
+}
+
 function _nsRender() {
   const pg = document.getElementById('pg-newsale');
   if (!pg || !_ns) return;
   pg.innerHTML = `<div class="nx-page">
     <div class="no-p" style="margin-bottom:var(--fk-sp-3)">${NX.button('← Back to Sales', { variant:'ghost', size:'sm', onclick:"nav('sales')" })}</div>
     <div class="nx-page-header"><h1 class="nx-page-title">${_ns.convert ? 'Convert Reservation → Sale' : 'New Sale'}</h1></div>
-    ${_ns.convert ? `<div class="nx-banner nx-banner--info" style="margin:var(--fk-sp-3) 0">${NX.icon('bookmark-check',16)}<span>Converting the reservation for <strong>${esc(_ns.convert.clientName||'')}</strong>${_ns.convert.clientPhone?` · ${esc(_ns.convert.clientPhone)}`:''}${_ns.convert.tokenReceived?` · token PKR ${Number(_ns.convert.tokenAmount||0).toLocaleString('en-US')} recorded by the sales person (context only — not posted as a payment)`:''}. Record the actual deal and payments below as normal.</span></div>` : ''}
+    ${_ns.convert ? `<div class="nx-banner nx-banner--info" style="margin:var(--fk-sp-3) 0">${NX.icon('bookmark-check',16)}<span>${_nsConvertWho(_ns.convert)}${_ns.convert.clientPhone?` · ${esc(_ns.convert.clientPhone)}`:''}${_ns.convert.tokenReceived?` · token PKR ${Number(_ns.convert.tokenAmount||0).toLocaleString('en-US')} recorded by the sales person (context only — not posted as a payment)`:''}. Record the actual deal and payments below as normal.</span></div>` : ''}
     ${_nsStepper()}
     <div id="ns-body" style="margin-top:var(--fk-sp-4)"></div>
   </div>`;

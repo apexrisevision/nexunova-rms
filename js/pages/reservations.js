@@ -140,9 +140,12 @@ async function _rsvConvert(id) {
     }
     const r = data.reservation;
     window._nsConvert = {
-      reservationId: r.reservation_id, unitId: r.unit_id, projectId: r.project_id,
+      reservationId: r.reservation_id, unitId: r.unit_id, unitNo: r.unit_no, projectId: r.project_id,
       clientId: r.client_id, clientName: r.client_name, clientPhone: r.client_phone,
-      tokenReceived: r.token_received, tokenAmount: r.token_amount
+      tokenReceived: r.token_received, tokenAmount: r.token_amount,
+      // Stage 2: who asked for the unit. On a Reserve Desk booking this is often
+      // the only name there is — the buyer gets named at conversion, not before.
+      requestedByName: r.requested_by_name, requestedByAgentCode: r.requested_by_agent_code
     };
     nav('newsale');
   } catch (e) {
