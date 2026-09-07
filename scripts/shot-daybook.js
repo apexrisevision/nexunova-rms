@@ -136,10 +136,15 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         ? okP('a day 30 days back shows nothing at all \u2014 the range holds its edges')
         : badP('activity from outside the range leaked into a quiet day: ' + JSON.stringify(q));
 
-      /* Today must NOT be empty, or the check above proved nothing. */
-      (t && (t.n_booked > 0 || t.h_close > 0))
-        ? okP("today is not empty (" + t.n_booked + ' booked, ' + t.h_close + ' held), so that check could have failed')
-        : badP('today is empty too, so the edge test proved nothing');
+      /* Today must NOT be empty, or the check above proved nothing. Measured on
+         MOVEMENT, not on what survived: a day can have five bookings and end
+         with none still held, and it is still a day the range test can fail on.
+         The first version asked h_close and went red the moment Rashid cancelled
+         the last hold — the assertion was wrong, not the report. */
+      const moved = t ? (t.h_add + t.h_rem + (t.s_close - 0)) : 0;
+      (t && moved > 0)
+        ? okP('today had movement (' + t.h_add + ' taken, ' + t.h_rem + ' released), so that check could have failed')
+        : badP('nothing at all happened today either, so the edge test proved nothing');
 
       /* And the old single-date call still means a one-day period. */
       (l && l.one_day === true && t && l.h_close === t.h_close && l.n_booked === t.n_booked)
@@ -723,6 +728,58 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
        this renders a real PDF with printBackground:false — the programmatic
        equivalent of unchecking "Background graphics" — and reopens it in Chrome's
        own viewer to photograph what actually comes out. */
+    console.log('\n── Movement and Released are switchable');
+    {
+      const okW = m => console.log('  ✅ ' + m);
+      const badW = m => { console.log('  ❌ ' + m); FAILED = true; };
+      /* An "it disappears when switched off" check proves nothing on its own —
+         a selector typo reads exactly like a working switch. Both states, the
+         same payload, one after the other. */
+      const both = await page.evaluate(async (AW) => {
+        const r = await sb.rpc('get_reservation_daybook',
+          { p_session_token: TOKEN, p_date: null, p_project_id: AW, p_from: null, p_to: null });
+        const look = () => ({
+          movement: !!document.querySelector('#rd-print table.mv-t'),
+          released: [...document.querySelectorAll('#rd-print .sec-t')]
+                      .some(e => /Released In This Period/.test(e.textContent)),
+          floors:   [...document.querySelectorAll('#rd-print .sec-t')]
+                      .some(e => /Floor-wise Position/.test(e.textContent)),
+          none:     /Nothing was released/.test(document.getElementById('rd-print').textContent)
+        });
+        const d1 = JSON.parse(JSON.stringify(r.data));
+        d1.showMovement = true;  d1.showReleased = true;
+        window._dbPreview(d1, d1.date);
+        const on = look();
+        const d2 = JSON.parse(JSON.stringify(r.data));
+        d2.showMovement = false; d2.showReleased = false;
+        window._dbPreview(d2, d2.date);
+        const off = look();
+        return { on, off, released: (r.data.released || []).length };
+      }, AWAMI);
+
+      (both.on.movement && !both.off.movement)
+        ? okW('the movement table is there when switched on and gone when switched off')
+        : badW('the movement switch does nothing: ' + JSON.stringify({ on: both.on.movement, off: both.off.movement }));
+
+      if (both.released > 0) {
+        (both.on.released && !both.off.released)
+          ? okW('the released list is there when switched on and gone when switched off')
+          : badW('the released switch does nothing: ' + JSON.stringify({ on: both.on.released, off: both.off.released }));
+        /* Switched off it must leave NO trace — not a heading, not a count, and
+           not a line announcing that it is empty. A reader who turned it off did
+           not ask to be told it is absent. */
+        !both.off.none
+          ? okW('switched off it leaves no "nothing was released" line either')
+          : badW('switching it off replaced the section with a line saying it is empty');
+      } else {
+        okW('nothing was released in this period, so the released switch had nothing to hide');
+      }
+
+      both.on.floors && both.off.floors
+        ? okW('the rest of the report is untouched by either switch')
+        : badW('a switch took the floor table with it');
+    }
+
     console.log('\n── Print with Background graphics OFF');
     await page.evaluate(async (AWAMI) => {
       const r = await sb.rpc('get_reservation_daybook',

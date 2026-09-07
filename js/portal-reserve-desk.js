@@ -119,6 +119,9 @@
       ".db-wrap{overflow-x:auto;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card)}" +
       ".db-asat{padding:8px 10px;font-size:11px;color:var(--fk-text-soft);border-bottom:1px solid var(--fk-border)}" +
       ".db-rng{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}" +
+      ".db-opts{display:flex;gap:14px;flex-wrap:wrap;margin:2px 2px 10px}" +
+      ".db-opts label{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600;cursor:pointer}" +
+      ".db-opts input{width:15px;height:15px;accent-color:var(--fk-primary);cursor:pointer}" +
       ".db-rng label{font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
       ".db-rng input{flex:0 0 auto;width:auto}" +
       ".db-tbl td .db-red{color:#B3261E;font-weight:650}" +
@@ -962,7 +965,31 @@
   }
 
   /* ══ DAYBOOK ═════════════════════════════════════════════════════════════ */
-  var DB = { data: null, date: null };
+  /* WHAT THE REPORT CARRIES.
+     Movement and Released are the two blocks that answer "what changed"; the
+     rest of the page answers "where things stand". Not every reader wants
+     both, and a board page is judged on what it does not say as much as on
+     what it does, so they are switches rather than fixtures. Default ON,
+     because that is what the page did before the switches existed.
+
+     Kept in localStorage: it is a per-reader convenience, not shared state,
+     and it must survive a refresh or the setting is a nuisance rather than a
+     preference. Every read and write is guarded — a private window, cleared
+     site data or a browser set to block storage all throw here rather than
+     return empty, and the report must still render. */
+  function _pref(key, dflt) {
+    try {
+      var v = localStorage.getItem('rms.daybook.' + key);
+      return v === null ? dflt : v === '1';
+    } catch (e) { return dflt; }
+  }
+  function _setPref(key, on) {
+    try { localStorage.setItem('rms.daybook.' + key, on ? '1' : '0'); } catch (e) {}
+  }
+
+  var DB = { data: null, date: null,
+             showMovement: _pref('movement', true),
+             showReleased: _pref('released', true) };
 
   window.renderDaybook = async function () {
     var host = document.getElementById('app-body');
@@ -1036,6 +1063,14 @@
           '</span>' +
           '<button class="rd-chip" id="db-back">' + li('x', 14) + ' Desk</button>' +
         '</div>' +
+        /* Placed with the export buttons, not with the date controls: these
+           change what the report SAYS, not which period it covers. */
+        '<div class="db-opts">' +
+          '<label><input type="checkbox" id="db-mv"' + (DB.showMovement ? ' checked' : '') +
+            '> Movement</label>' +
+          '<label><input type="checkbox" id="db-rl"' + (DB.showReleased ? ' checked' : '') +
+            '> Released</label>' +
+        '</div>' +
         '<div class="db-acts">' +
           '<button class="rd-chip" id="db-copy">' + li('copy', 15) + ' Copy for WhatsApp</button>' +
           '<button class="rd-chip" id="db-wa">' + li('send', 15) + ' WhatsApp</button>' +
@@ -1048,7 +1083,7 @@
         /* The same four numbers as the PDF, in the same order. If the screen
            and the paper ever disagree about an opening balance, the one being
            looked at is the one that will be believed. */
-        (d.ledger ? _dbSec('Movement · ' + _periodShort(d), '',
+        (d.ledger && DB.showMovement ? _dbSec('Movement · ' + _periodShort(d), '',
           _dbTable(['', 'Opening', '+ Added', '− Released', '= Closing'],
             [['Held', d.ledger.held], ['Sold', d.ledger.sold]].map(function (row) {
               var v = row[1] || {};
@@ -1113,7 +1148,7 @@
 
         /* The minus line, named. "− Released 1" is a number nobody can check
            until the unit is on the page beside it. */
-        ((d.released || []).length ? _dbSec('Released in this period', d.released.length,
+        ((d.released || []).length && DB.showReleased ? _dbSec('Released in this period', d.released.length,
           _dbTable(['Unit', 'Floor', 'Reserved by', 'Taken', 'Went', 'How'],
             d.released.map(function (r) {
               var how = r.went === 'cancelled' ? 'Cancelled' : r.went === 'sold' ? 'Sold' : 'Lapsed';
@@ -1141,6 +1176,19 @@
       '</div>';
 
     var back = _dbq('#db-back'); if (back) back.addEventListener('click', function () { setTab('desk'); });
+    /* Repaint from the payload already in hand. Refetching would be a round
+       trip to change nothing but which parts of it are drawn. */
+    [['#db-mv', 'movement', 'showMovement'], ['#db-rl', 'released', 'showReleased']]
+      .forEach(function (spec) {
+        var el = _dbq(spec[0]); if (!el) return;
+        el.addEventListener('change', function () {
+          DB[spec[2]] = !!el.checked;
+          _setPref(spec[1], DB[spec[2]]);
+          var host = document.getElementById('app-body');
+          if (host && DB.data) _dbPaint(host);
+        });
+      });
+
     var tdy = _dbq('#db-today');
     if (tdy) tdy.addEventListener('click', function () {
       DB.from = null; DB.to = null; DB.date = null;   // let the server say what today is
@@ -1221,7 +1269,7 @@
       L.push('');
     }
 
-    if (d.ledger && d.ledger.held) {
+    if (d.ledger && d.ledger.held && DB.showMovement) {
       var lh = d.ledger.held, lav = d.ledger.available || {};
       L.push('*Movement*');
       L.push('Held: ' + (lh.opening || 0) + ' + ' + (lh.added || 0) + ' \u2212 ' +
@@ -1410,6 +1458,8 @@
 
   function _dbBuild() {
     var d = DB.data || {}, h = d.header || {};
+    var showMv = (d.showMovement === undefined) ? DB.showMovement !== false : d.showMovement !== false;
+    var showRl = (d.showReleased === undefined) ? DB.showReleased !== false : d.showReleased !== false;
     var host = _printHost();
     host.className = '';
     host.innerHTML = '';
@@ -1566,7 +1616,10 @@
        Removed is not counted anywhere — the RPC derives it as opening + added
        − closing, so if any of the three were wrong the row would visibly fail
        to add up rather than quietly under-report. */
-    var lg = d.ledger || {};
+    /* The switches reach the PDF because the PDF is the report. A page that
+       shows one thing on screen and prints another is the disagreement this
+       whole build keeps closing. */
+    var lg = showMv ? (d.ledger || {}) : {};
     if (lg.held) {
       var mv = _el('div', 'mv');
       mv.appendChild(_el('div', 'sum-l', 'Movement \u00b7 ' + _periodLabel(d, true)));
@@ -1725,8 +1778,13 @@
          list; this says which one and how. Without it "− Released 1" is a
          number nobody can check. Cancelled, lapsed and sold are different
          events and the column says which, because a hold that expired is a
-         follow-up nobody made and a hold that was cancelled is a decision. */
+         follow-up nobody made and a hold that was cancelled is a decision.
+
+         Switched off, it leaves no trace: no heading, no number and no "none"
+         line, because a reader who turned it off did not ask to be told it is
+         absent. `skip` is dropped from the section list entirely. */
       { title: 'Released In This Period', unit: 'unit', noun: 'releases',
+        skip: !showRl,
         cols: [['Unit'], ['Tag'], ['Floor'], ['Reserved by'], ['Taken'], ['Went'], ['How']],
         rows: (d.released || []).map(function (r) {
           var how = r.went === 'cancelled' ? { v: 'Cancelled', pill: 'off' }
@@ -1766,6 +1824,7 @@
        pieces of furniture around the word "none". They collapse into one line
        placed where they would have been, and the numbering follows what is
        actually on the page. */
+    secs = secs.filter(function (x) { return !x.skip; });
     var live = secs.filter(function (x) { return x.rows.length; });
     var bare = secs.filter(function (x) { return !x.rows.length; });
 
@@ -1859,6 +1918,7 @@
      single row anywhere. */
   window._dbPreview = function (data, date) {
     if (data) { DB.data = data; DB.date = date || data.date; }
+
     var n = _dbBuild();
     _printHost().className = 'preview';
     document.body.classList.add('rd-printing');
