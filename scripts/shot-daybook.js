@@ -75,6 +75,51 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     await page.waitForFunction(()=>!!document.getElementById('db-root'), { timeout:60000 });
     await sleep(1200);
 
+    console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
+    {
+      /* Counted in the DATABASE, not read back out of the payload the page was
+         drawn from. A page compared against its own input agrees with itself by
+         construction; this is the only version of the check that can fail. */
+      const dbHolds = Number((await sql(`select count(*)::int n from public.reservations
+                                          where project_id='${AWAMI}' and status='active';`))[0].n);
+      const scr = await page.evaluate(async () => {
+        // exactly what the desk does: no stubbing, no arguments, today's book
+        await window.renderDaybook();
+        const root = document.getElementById('db-root');
+        const secs = [...root.querySelectorAll('.db-sec')].map(x => ({
+          t: (x.querySelector('.db-t') || {}).textContent.trim(),
+          rows: x.querySelectorAll('.db-tbl tbody tr').length,
+          asat: !!x.querySelector('.db-asat') }));
+        return { secs };
+      });
+      scr.payloadHolds = dbHolds;
+      scr.hasGeneratedAt = await page.evaluate(async (AW) => {
+        const r = await sb.rpc('get_reservation_daybook',
+          { p_session_token: TOKEN, p_date: null, p_project_id: AW });
+        return !!(r.data && r.data.generated_at);
+      }, AWAMI);
+      const okC = m => console.log('  \u2705 ' + m);
+      const badC = m => { console.log('  \u274C ' + m); FAILED = true; };
+      const titles = scr.secs.map(x => x.t.replace(/\s+\d+$/, '').trim());
+      const hold = scr.secs.find(x => /^Units on hold/.test(x.t));
+      scr.hasGeneratedAt ? okC('the RPC returns generated_at, so the page can date its own hold list')
+                         : badC('generated_at missing from the payload');
+      hold ? okC('screen shows a "Units on hold" section')
+           : badC('no hold section on screen: ' + JSON.stringify(titles));
+      /* The payload count is the truth; the screen has to match it exactly. A
+         hold that is in the data and not on the page reads as an available
+         unit, which is the one error that costs a double booking. */
+      hold && hold.rows === scr.payloadHolds
+        ? okC('screen lists all ' + scr.payloadHolds + ' unit(s) the DATABASE says are on hold')
+        : badC('screen shows ' + (hold && hold.rows) + ' rows; the database has ' + scr.payloadHolds + ' active holds');
+      (!hold || scr.payloadHolds === 0 || hold.asat)
+        ? okC('screen stamps the hold list with the moment it was read')
+        : badC('screen hold list carries no as-at line');
+      titles.indexOf('Expiring within 48 hours') < 0
+        ? okC('screen and PDF agree: no separate 48-hour section')
+        : badC('screen still carries the 48-hour section the PDF dropped');
+    }
+
     async function shot(tag, dateISO, pad, grey) {
       const n = await page.evaluate(async (dt, padN, AWAMI) => {
         const r = await sb.rpc('get_reservation_daybook',
@@ -108,6 +153,22 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
           d.expiring = d.reserved.slice(0,6).map((x,i)=>({
             unit_no:x.unit_no, floor:x.floor, requested_by:x.requested_by, hours_left:6+i*4,
             expiry_date:new Date(Date.now()+(6+i*4)*36e5).toISOString() }));
+          const HOLD=[]; {
+            const hn=['Nimra Khan','Malik Sikandar','Fawad khan','IQRA','Fawad khan','Naseer khan'];
+            for(let i=0;i<18;i++){
+              const hrs = i===0 ? -30 : (i<4 ? 6+i*9 : (i<9 ? 30+i*22 : 200+i*60));
+              HOLD.push({ unit_no:floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(80+i),
+                floor:floors[i%5], area:900+i*115, area_unit:'sqft', price:12500000+i*640000,
+                requested_by:hn[i%hn.length], agent_code:'AGT-2026-'+String(11+i).padStart(4,'0'),
+                booked_by:'Rashid Manzoor', client_name:(i%4===0)?null:'Buyer '+(i+1),
+                reserved_at:new Date(Date.now()-(3+i)*864e5).toISOString(),
+                expiry_date:new Date(Date.now()+hrs*36e5).toISOString(),
+                overdue:hrs<0, days_left:Math.max(0,Math.ceil(hrs/24)),
+                hours_left:Math.max(0,Math.round(hrs)) });
+            }
+          }
+          d.holding = HOLD;
+          d.generated_at = new Date().toISOString();
         }
         return window._dbPreview(d, d.date);
       }, dateISO, pad || 0, AWAMI);
@@ -148,6 +209,22 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       d.expiring=d.reserved.slice(0,6).map((x,i)=>({unit_no:x.unit_no,floor:x.floor,
         requested_by:x.requested_by,hours_left:6+i*4,
         expiry_date:new Date(Date.now()+(6+i*4)*36e5).toISOString()}));
+      const HOLD=[]; {
+        const hn=['Nimra Khan','Malik Sikandar','Fawad khan','IQRA','Fawad khan','Naseer khan'];
+        for(let i=0;i<18;i++){
+          const hrs = i===0 ? -30 : (i<4 ? 6+i*9 : (i<9 ? 30+i*22 : 200+i*60));
+          HOLD.push({ unit_no:floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(80+i),
+            floor:floors[i%5], area:900+i*115, area_unit:'sqft', price:12500000+i*640000,
+            requested_by:hn[i%hn.length], agent_code:'AGT-2026-'+String(11+i).padStart(4,'0'),
+            booked_by:'Rashid Manzoor', client_name:(i%4===0)?null:'Buyer '+(i+1),
+            reserved_at:new Date(Date.now()-(3+i)*864e5).toISOString(),
+            expiry_date:new Date(Date.now()+hrs*36e5).toISOString(),
+            overdue:hrs<0, days_left:Math.max(0,Math.ceil(hrs/24)),
+            hours_left:Math.max(0,Math.round(hrs)) });
+        }
+      }
+      d.holding = HOLD;
+      d.generated_at = new Date().toISOString();
       window._dbPreview(d, d.date);
     }, AWAMI);
     const chk = await page.evaluate(() => {
@@ -167,16 +244,38 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       }).filter(x=>x && x.gapPx < 0);
       const overflow=pgs.some(p=>{ const c=p.querySelector('.col');
         return c && c.getBoundingClientRect().bottom > p.getBoundingClientRect().bottom + 1; });
-      // a page that carries table ROWS must carry a header for them; a page
-      // that carries none (the signature page) needs no header at all
+      // a page that carries table ROWS must carry a header for them. There is no
+      // longer a signature page, so every page here holds either rows or the
+      // summary block, and only the former needs a thead.
       const bodyRows=pgs.map(p=>p.querySelectorAll('tbody tr').length);
       const theads=pgs.map(p=>p.querySelectorAll('thead').length);
       const headless=pgs.map((p,i)=>({i:i+1,rows:bodyRows[i],heads:theads[i]}))
                         .filter(x=>x.rows>0 && x.heads===0);
       const sig=pgs.filter(p=>p.querySelector('.sig')).length;
+      const txt=pgs.map(p=>p.textContent||'').join(' ');
+      // the hold section, by its heading, and how many rows it printed
+      const heads2=[...document.querySelectorAll('#rd-print .sec-t')].map(e=>e.textContent.trim());
+      const holdIdx=heads2.indexOf('Units On Hold');
+      let holdRows=0, holdNote='';
+      if (holdIdx>=0) {
+        const hd=[...document.querySelectorAll('#rd-print .sec-t')][holdIdx].closest('.sec-h');
+        holdNote=(hd.parentElement.querySelector('.sec-note')||{}).textContent||'';
+        // Document order, not sibling order: a spilled section continues on the
+        // next PAGE, so its rows are nowhere near the heading in the tree.
+        const seq=[...document.querySelectorAll('#rd-print .sec-h, #rd-print tbody tr')];
+        let cur=-1;
+        for(const n of seq){
+          if(n.classList.contains('sec-h')){
+            const t=(n.querySelector('.sec-t')||{}).textContent||'';
+            cur = heads2.indexOf(t.trim());
+          } else if(cur===holdIdx && !n.classList.contains('tot')){ holdRows++; }
+        }
+      }
       return { n:pgs.length, foot, headsOnP1:heads[0], headsRest:heads.slice(1).every(Boolean),
                orphan, overflow, clash, theads, bodyRows, headless, sigPages:sig,
-               sigSplit: pgs.some(p=>{const s=p.querySelector('.sig'); return s && s.getBoundingClientRect().bottom > p.getBoundingClientRect().bottom;}) };
+               prepared: /Prepared by|Approved by/.test(txt),
+               secTitles: heads2, holdIdx, holdRows, holdNote,
+               };
     });
     /* \u2550\u2550 SEMANTIC \u2550\u2550 The masthead names a project; every floor in the position
        table must belong to THAT project, and the KPI cards must equal the floor
@@ -189,9 +288,18 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         { p_session_token: TOKEN, p_date: '2026-09-07', p_project_id: AW });
       window._dbPreview(r.data, r.data.date);
       const p1 = document.querySelector('#rd-print .rd-pg');
-      const tables = [...document.querySelectorAll('#rd-print table')];
-      const ft = tables[tables.length - 1];
-      const rows = [...ft.querySelectorAll('tbody tr')];
+      // Collect the floor section's rows wherever they landed: a spilled section
+      // continues on the next PAGE, so its rows are not siblings of its heading.
+      const titles = [...document.querySelectorAll('#rd-print .sec-t')].map(e => e.textContent.trim());
+      const fIdx = titles.indexOf('Floor-wise Position');
+      const seq = [...document.querySelectorAll('#rd-print .sec-h, #rd-print tbody tr')];
+      const rows = [];
+      let cur = -1;
+      for (const n of seq) {
+        if (n.classList.contains('sec-h')) {
+          cur = titles.indexOf(((n.querySelector('.sec-t') || {}).textContent || '').trim());
+        } else if (cur === fIdx && fIdx >= 0) rows.push(n);
+      }
       const tot = rows.find(t => t.classList.contains('tot'));
       const N = s => Number(String(s).replace(/[^0-9.-]/g, '')) || 0;
       // the summary is a line of figures now, not four cards
@@ -274,7 +382,27 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     !chk.overflow ? ok('no page overflows its 297mm box') : bad('content spills past the page box');
     chk.clash.length===0 ? ok('nothing collides with the footer rule')
                          : bad('content runs into the footer: '+JSON.stringify(chk.clash));
-    chk.sigPages===1 && !chk.sigSplit ? ok('signature block whole, on one page') : bad('signature block split or missing');
+    /* The signature block was REMOVED, so both the element and the words have to
+       be gone. Asserted two ways because a class can be renamed and the text
+       survive, or the text be dropped and an empty block remain. */
+    chk.sigPages===0 ? ok('no signature block on any page')
+                     : bad('a .sig block is still rendered on ' + chk.sigPages + ' page(s)');
+    !chk.prepared ? ok('the words "Prepared by" / "Approved by" appear nowhere')
+                  : bad('the report still says Prepared by / Approved by');
+
+    /* The hold list. 18 stub rows go in; 18 rows have to come out, or the
+       section is silently dropping units \u2014 which is the failure that matters,
+       since a unit missing from this page reads as available. */
+    chk.holdIdx>=0 ? ok('"Units On Hold" section present, at position ' + (chk.holdIdx+1))
+                   : bad('no "Units On Hold" section: ' + JSON.stringify(chk.secTitles));
+    chk.holdRows===18 ? ok('all 18 held units printed, none dropped across the page break')
+                      : bad('hold list printed ' + chk.holdRows + ' of 18 rows');
+    /Every reservation still active|still active/.test(chk.holdNote)
+      ? ok('hold section is stamped with the moment it was read: ' + chk.holdNote.slice(0,58))
+      : bad('hold section carries no as-at note: ' + JSON.stringify(chk.holdNote));
+    chk.secTitles.indexOf('Expiring Within 48 Hours')<0
+      ? ok('the 48-hour section is folded in, so no unit prints twice')
+      : bad('both "Expiring Within 48 Hours" and the hold list are on the page');
 
     /* ══ BACKGROUND GRAPHICS OFF ══ The design is carried by its backgrounds, so
        this renders a real PDF with printBackground:false — the programmatic

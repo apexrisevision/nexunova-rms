@@ -107,6 +107,9 @@
       ".db-tbl td{padding:8px;border-bottom:1px solid var(--fk-border);vertical-align:top}" +
       ".db-tbl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}" +
       ".db-wrap{overflow-x:auto;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card)}" +
+      ".db-asat{padding:8px 10px;font-size:11px;color:var(--fk-text-soft);border-bottom:1px solid var(--fk-border)}" +
+      ".db-tbl td .db-red{color:#B3261E;font-weight:650}" +
+      ".db-tbl td .db-amber{color:#9A6510;font-weight:650}" +
       ".db-acts{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}" +
       /* ══ PRINT — a board report ═══════════════════════════════════════════
          Rebuilt, not tweaked. The previous sheet was a restrained typographic
@@ -215,14 +218,13 @@
       "#rd-print td.u{font-weight:600}" +
       "#rd-print td.mut{color:var(--slate)}" +
       "#rd-print td.code{font-size:8pt;color:var(--slate)}" +
+      "#rd-print .wc{font-size:7.5pt;color:var(--slate)}" +
+      "#rd-print .sec-note{font-size:7.5pt;color:var(--slate);margin:-1mm 0 2.5mm;font-style:italic}" +
       "#rd-print tr.tot td{border-top:1pt solid var(--navy);font-weight:700;background:var(--tint);font-size:8.5pt}" +
       /* ── empty state ── */
-      /* ── signatures ── */
-      "#rd-print .sig{display:flex;gap:30mm;margin-top:16mm}" +
-      "#rd-print .sig div{width:70mm}" +
-      "#rd-print .sig .rule{border-top:.5pt solid var(--ink);margin-bottom:2mm}" +
-      "#rd-print .sig .l{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
-        "letter-spacing:.10em}" +
+      /* No signature rules. Nobody signed this page: it is generated from the
+         desk's own records and is read, not countersigned. Two ruled lines
+         asking for signatures that never arrive make it look unfinished. */
       /* ── footer ── */
       "#rd-print .ft{position:absolute;left:14mm;right:14mm;bottom:9mm;border-top:1pt solid var(--navy);" +
         "padding-top:2.5mm;display:flex;justify-content:space-between;font-size:7pt;color:var(--slate)}" +
@@ -874,6 +876,10 @@
   function _dbPaint(host) {
     var d = DB.data, h = d.header || {};
     var resv = d.reserved || [], sold = d.sold || [], exp = d.expiring || [], av = d.available || [];
+    /* `holding` is the whole active set and is not date-scoped, so it is stamped
+       with the server's clock rather than with the date in the picker. */
+    var hold = d.holding || [];
+    var genISO = d.generated_at || new Date().toISOString();
     var totAvail = av.reduce(function (s, f) { return s + Number(f.available || 0); }, 0);
 
     host.innerHTML =
@@ -906,13 +912,23 @@
               }))
           : '<div class="rd-empty">Nothing sold on this day.</div>') +
 
-        _dbSec('Expiring within 48 hours', exp.length, exp.length
-          ? _dbTable(['Unit', 'Floor', 'Requested by', 'Hours left'],
-              exp.map(function (r) {
-                return ['<b>' + esc(r.unit_no) + '</b>', esc(r.floor), esc(r.requested_by),
-                        '<span class="n">' + esc(String(r.hours_left)) + '</span>'];
+        /* UNITS ON HOLD, in place of "Expiring within 48 hours". Everything that
+           section listed is in this one wearing a red chip, so keeping both would
+           have shown the same units twice — and the screen has to tell the same
+           story as the PDF, or the two disagree about the same day. */
+        _dbSec('Units on hold', hold.length, hold.length
+          ? '<div class="db-asat">As at ' + esc(_pkDate(genISO)) + ' ' + esc(_pkTime(genISO)) +
+            ' PKT — soonest to lapse first.</div>' +
+            _dbTable(['Unit', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
+              hold.map(function (r) {
+                var L = _holdLeft(r);
+                return ['<b>' + esc(r.unit_no) + '</b>', esc(r.floor),
+                        '<span class="n">' + esc(_area(r.area, r.area_unit)) + '</span>',
+                        esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
+                        esc(_pkDate(r.reserved_at)), esc(_pkDate(r.expiry_date)),
+                        '<span class="n' + (L.tone ? ' db-' + L.tone : '') + '">' + esc(L.t) + '</span>'];
               }))
-          : '<div class="rd-empty">Nothing expiring in the next two days.</div>') +
+          : '<div class="rd-empty">No units are on hold right now.</div>') +
 
         _dbSec('Available by floor', totAvail,
           _dbTable(['Floor', 'Available', 'Reserved', 'Sold', 'Total'],
@@ -1059,6 +1075,21 @@
   /* A Date shifted into Pakistan time, or null. A board report must not fail to
      render because one row is missing a date — it prints an em dash and the rest
      of the page still arrives. */
+  /* 1,250 sqft — the unit comes from the row, never assumed. */
+  function _area(n, u) {
+    n = Number(n || 0);
+    if (!n) return '\u2014';
+    return n.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + (u || 'sqft');
+  }
+  /* One definition of urgency, read by both the screen and the print builder.
+     Two copies of these thresholds would eventually drift, and the drift would
+     show up as a unit that is red on the page and calm on the screen. */
+  function _holdLeft(r) {
+    if (r.overdue) return { t: 'LAPSED', tone: 'red' };
+    if (Number(r.hours_left) <= 48) return { t: r.hours_left + 'h', tone: 'red' };
+    if (Number(r.days_left) <= 7)  return { t: r.days_left + 'd', tone: 'amber' };
+    return { t: r.days_left + 'd', tone: null };
+  }
   function _pk(iso) {
     if (iso == null || iso === '') return null;
     var d;
@@ -1183,6 +1214,7 @@
       return r;
     }
 
+    var hold = d.holding || [];
     var todayResVal = (d.reserved || []).reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     var todaySoldVal = (d.sold || []).reduce(function (a, r) { return a + Number(r.amount || 0); }, 0);
 
@@ -1195,9 +1227,14 @@
       ['Reserved', _num(tRes), _pct(tRes, tAll)],
       ['Available', _num(tAv), _pct(tAv, tAll)]
     ], false));
+    /* `holding` is the whole active set, not a day's slice, so the value tied up
+       in reservations IS derivable now — unlike the sold and period figures,
+       which stay date-bound. Stated separately for exactly that reason. */
+    var holdVal = hold.reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     sum.appendChild(_el('div', 'sum-pkr',
-      'Reserved today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal)));
-    // today's, never cumulative — the payload carries no other money
+      'Reserved today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal) +
+      (hold.length ? '  ·  On hold ' + _pkr(holdVal) + ' across ' + _num(hold.length) +
+                     ' unit' + (hold.length === 1 ? '' : 's') : '')));
 
     var b = _el('div');
     b.style.marginTop = '4mm';
@@ -1224,6 +1261,16 @@
       hd.appendChild(_el('div', 'pill count', _num(count) + ' ' + unit + (count === 1 ? '' : 's')));
       return hd;
     }
+    /* A name alone is not an identity here: two salespeople share one, which is
+       why the picker was keyed on agent_id. The code rides beside the name so
+       the printed line can be resolved to a person too. */
+    function whoCell(name, code) {
+      if (!code) return name || '\u2014';
+      var w = _el('span');
+      w.appendChild(document.createTextNode(name || '\u2014'));
+      w.appendChild(_el('span', 'wc', '  \u00b7 ' + code));
+      return { node: w };
+    }
     function thead(cols) {
       var t = _el('thead'), tr = _el('tr');
       cols.forEach(function (c) { tr.appendChild(_el('th', c[1] === 'n' ? 'n' : null, c[0])); });
@@ -1244,6 +1291,11 @@
       cells.forEach(function (c) { tr.appendChild(cell(c)); });
       return tr;
     }
+
+    /* One stamp, so the section note and the page footer cannot disagree. The
+       server's clock is preferred over the browser's: the hold list was computed
+       there, and `days_left` was measured against that same now(). */
+    var genISO = d.generated_at || new Date().toISOString();
 
     var secs = [
       { title: 'Reservations Today', unit: 'unit', noun: 'reservations',
@@ -1267,13 +1319,31 @@
         }),
         empty: function () { return 'No units sold on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
 
-      { title: 'Expiring Within 48 Hours', unit: 'reservation', noun: 'expiries',
-        cols: [['Unit'], ['Floor'], ['Requested by'], ['Expires'], ['Hours left', 'n']],
-        rows: (d.expiring || []).map(function (r) {
-          return [{ v: r.unit_no, cls: 'u' }, r.floor, r.requested_by, _dShort(r.expiry_date),
-                  { v: r.hours_left + 'h', pill: 'red', cls: 'n' }];
+      /* UNITS ON HOLD — the standing position, and the only section on this page
+         that is not about one date.
+
+         It replaces "Expiring Within 48 Hours" rather than joining it. Every row
+         that section printed is in this one, carrying a red pill, so keeping both
+         would print the same units twice on a report specced as a single page.
+
+         Ordered by when the unit comes back, soonest first, because that is the
+         order the list is worked: the top of it is what has to be chased today.
+         The booking date is still a column, so the other reading is available
+         to the eye even though it is not the sort. */
+      { title: 'Units On Hold', unit: 'unit', noun: 'units on hold', undated: true,
+        note: 'As at ' + _dShort(genISO) + ' ' + _pkTime(genISO) + ' PKT \u2014 every reservation still active, soonest to lapse first.',
+        cols: [['Unit'], ['Floor'], ['Size', 'n'], ['Reserved by'], ['Buyer'],
+               ['Reserved on'], ['Expires'], ['Left', 'n']],
+        rows: hold.map(function (r) {
+          var L = _holdLeft(r);
+          var left = L.tone ? { v: L.t, pill: L.tone, cls: 'n' } : { v: L.t, cls: 'n' };
+          return [{ v: r.unit_no, cls: 'u' }, r.floor,
+                  { v: _area(r.area, r.area_unit), cls: 'n' },
+                  whoCell(r.requested_by, r.agent_code),
+                  r.client_name ? r.client_name : { v: '\u2014', cls: 'mut' },
+                  _dShort(r.reserved_at), _dShort(r.expiry_date), left];
         }),
-        empty: function () { return 'No reservations expire within 48 hours of ' + _dLong(dateISO).split(', ')[1] + '.'; } },
+        empty: function () { return 'No units are on hold.'; } },
 
       { title: 'Floor-wise Position', unit: 'floor', noun: 'inventory',
         cols: [['Floor'], ['Sold', 'n'], ['Reserved', 'n'], ['Available', 'n'], ['Total', 'n'], ['% Sold', 'n']],
@@ -1299,6 +1369,7 @@
       var block = _el('div');
       block.style.marginTop = si === 0 ? '8mm' : '7mm';
       block.appendChild(secHead(String(si + 1).padStart(2, '0'), sec.title, sec.rows.length, sec.unit));
+      if (sec.note) block.appendChild(_el('div', 'sec-note', sec.note));
 
       var table = _el('table');
       table.appendChild(thead(sec.cols));
@@ -1337,22 +1408,23 @@
     });
 
     if (bare.length) {
+      /* "No units on hold on 07 September" would be a lie about a list that is
+         not date-scoped, so the dateless sections get their own sentence. */
+      var dated = bare.filter(function (x) { return !x.undated; }).map(function (x) { return x.noun; });
+      var free  = bare.filter(function (x) { return x.undated; }).map(function (x) { return x.noun; });
+      var lines = [];
+      if (dated.length) lines.push('No ' + dated.join(' and no ') + ' on ' + _dLong(dateISO).split(', ')[1] + '.');
+      if (free.length)  lines.push('No ' + free.join(' and no ') + ' at this moment.');
       var none = _el('div', 'noneline');
       none.style.marginTop = '7mm';
-      var what = bare.map(function (x) { return x.noun; });
-      none.textContent = 'No ' + what.join(' and no ') + ' on ' + _dLong(dateISO).split(', ')[1] + '.';
+      none.textContent = lines.join('  ');
       push(none);
     }
 
-    /* ── signatures, never split ───────────────────────────────────────── */
-    var sig = _el('div', 'sig');
-    [['Prepared by', 'Reservation Desk'], ['Approved by', 'Director']].forEach(function (p) {
-      var c = _el('div');
-      c.appendChild(_el('div', 'rule'));
-      c.appendChild(_el('div', 'l', p[0] + ' — ' + p[1]));
-      sig.appendChild(c);
-    });
-    push(sig);
+    /* No "Prepared by / Approved by". Removed on request: the desk generates this
+       page from its own records, nobody countersigns it, and two ruled lines
+       waiting for signatures that never come made a finished report look
+       provisional. The footer already says who generated it and when. */
 
     /* ── footer on every page ──────────────────────────────────────────── */
     var now = new Date().toISOString();
