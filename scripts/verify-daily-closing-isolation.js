@@ -127,7 +127,10 @@ const refused = r =>
     ['list_cash_days',              { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ, p_limit: 60 }],
     ['list_payees',                 { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
     ['list_qb_accounts_for_project',{ p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
-    ['list_units_for_picker',       { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
+    // list_units_for_picker is RETIRED (2026-09-07). It is deliberately not
+    // listed: PostgREST answers PGRST202 for a function that does not exist,
+    // and refused() rightly declines to count a routing error as a refusal.
+    // Asserting on it would be asserting that a missing function is secure.
     ['open_cash_day',               { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
     // every named argument, because PostgREST matches on the FULL name set —
     // an incomplete one 404s as PGRST202, and a routing error is not a refusal

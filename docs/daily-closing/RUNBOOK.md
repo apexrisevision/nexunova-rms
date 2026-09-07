@@ -243,6 +243,38 @@ close or adjust — and the server refuses, not just the screen.
 
 ## 5 · The Excel parallel run — the 14-day gate
 
+### ⚠️ Where the count starts — and the two days that do not belong to it
+
+The book already contains **two days that are not part of the run and never will be**:
+
+| date | what it is |
+|---|---|
+| **2026-09-03** | pre-pilot experiment. Opening 0, one 100,000 expense OUT, drawer counted at 5,000, closing **(Rs 100,000)**, variance 105,000. |
+| **2026-09-06** | pre-pilot experiment. Opened and closed empty; 0 entries. |
+
+Both were the owner's own exploration on the evening of 2026-09-05, made while the module was
+still a page inside RMS. **Neither is a real day and neither will be removed.** A cash entry is a
+fact (invariant 1) and a closed day does not reopen (invariant 3); those rules are not suspended
+for the convenience of a clean-looking ledger. Removing them would mean disabling the trigger
+whose only job is to refuse deletion, and the property *"no entry has ever been deleted from this
+book"* would be false for ever afterwards. It is worth more intact than the two rows are worth
+gone.
+
+They are also useful. 2026-09-03 is the day that closed with a negative drawer, and it is the
+reason the negative-cash invariant exists at all — see the closing note in `PHASES.md`. It stands
+as the evidence.
+
+> **THE COUNT DOES NOT START FROM THE FIRST DAY IN THE BOOK. It starts from a declared date.**
+>
+> Declared start date: **_______________** (set when the separation is finished and NexuFinance
+> has carried one clean day; confirmed by the owner, then written here).
+>
+> Every check in this section — figures 1 to 11, the fourteen consecutive agreements — is read
+> against **days on or after the declared start date**. The two days above are excluded by date,
+> not by deletion, and any reconciliation query in this runbook must carry
+> `and d.business_date >= '<declared start date>'`.
+
+
 > # ⛔ THE ONE RULE THAT MATTERS MOST
 >
 > ## During the parallel run, client receipts are entered in ONE place: Daily Closing.

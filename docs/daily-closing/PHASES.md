@@ -782,6 +782,48 @@ world with no action in it.
 this bug, which drive the journey in the real `login.html` with both `.dc` nodes present, and go
 red against the un-fixed `dialog()`.
 
+---
+
+# Closing note on the standing rules
+
+> **The instruments test what was written. Only use tests what was meant.**
+
+Eleven standing rules, eighteen suites, roughly six hundred assertions, a real foreign JWT over
+real HTTPS, a golden PDF read back glyph by glyph, two-writer concurrency proved against
+production, and a mutation runner that generates 1609 mutants from the source.
+
+On 2026-09-05 the owner recorded his first real transaction. Opening zero, one expense of
+100,000 out, drawer counted at 5,000. **The day closed.** A cash drawer had paid out money it did
+not hold, and the module reported it as a variance of 105,000 rather than refusing it.
+
+Nothing was broken. `record_cash_entry` has seventeen error codes and not one of them considers
+the drawer's position; `close_cash_day` guards a negative *counted* figure but computes
+`opening + in − out` without ever looking at the sign. The word "negative" appears in the whole
+specification exactly twice, both times about how to *display* one. **There was no rule to
+violate.**
+
+That is why none of it fired. Every instrument above answers the question *does the code do what
+the specification says?* — and every one of them answered yes, correctly. Not one of them could
+ask *is the specification right?*, because that question has no fixed point inside the system:
+the tests are derived from the spec, the mutants are derived from the code, and both are silent
+on a rule nobody thought to write.
+
+Three consequences worth carrying forward:
+
+- **A gap in the specification is invisible to every instrument built on it.** SR-2 through SR-10
+  each close a way for a suite to be blind to a *defect*. None of them can see an *absence*. This
+  is the same shape as `openDay()` having no `.catch` — mutation could not reach it because there
+  was no line to mutate — but one level up: there was no rule to test.
+- **Real use is not the last line of defence, it is a different instrument.** It is the only one
+  that carries intent into the system. Fourteen days of parallel running is not a formality after
+  the tests pass; it is the first time the thing is measured against what somebody meant.
+- **Therefore: do not let the suites decide when a module is ready to hold money.** They decide
+  when it is ready to be *used*. The gap between those two is exactly the size of everything
+  nobody wrote down, and the only way to measure it is to use the thing.
+
+The first real transaction found in one evening what the whole apparatus could not find in a week.
+That is not a failure of the apparatus. It is the boundary of what an apparatus is.
+
 ## SR-3 · Review a query plan with `enable_seqscan = off`, not by reading `pg_indexes`
 
 **Rule.** When a prompt asks for query plans, take each plan **twice**: once as the planner

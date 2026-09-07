@@ -23,7 +23,14 @@ const { q, REF } = require('./_sbq');
 
 const ROOT = path.resolve(__dirname, '..');
 const MIG = path.join(ROOT, 'supabase', 'migrations');
-const UP = ['20260904h_a_day_opens_and_a_day_closes.sql'];
+const UP = ['20260904h_a_day_opens_and_a_day_closes.sql',
+  // The separation (2026-09-07). Without these the rehearsal restores the
+  // pre-separation schema inside the transaction — the units FK, the
+  // 'a receipt has a unit' CHECK, the Phase 2 rms_status ladder — and then
+  // asserts against a database that no longer exists.
+  '20260907a_the_cash_book_stops_pointing_into_rms.sql',
+  '20260907b_a_receipt_carries_a_name_not_a_key.sql',
+];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal — safe to wipe
 /* ZZTEST GARDEN, NOT ZZTEST TOWER — and the reason matters.
@@ -75,6 +82,9 @@ BEGIN
     RAISE EXCEPTION 'FIXTURE: project % is not in the ZZTEST tenant', v_pj;
   END IF;
 
+  -- Phase 2 cancelled 2026-09-07: fixtures carry a typed name, not a unit key.
+  -- The lookup survives only so the "no units" fixture check below still
+  -- tells you the test project is the one you think it is.
   SELECT id INTO v_unit FROM public.units WHERE project_id = v_pj LIMIT 1;
   IF v_unit IS NULL THEN RAISE EXCEPTION 'FIXTURE: ZZTEST Garden has no units'; END IF;
   DELETE FROM public.cash_entries WHERE project_id = v_pj;
@@ -164,9 +174,9 @@ BEGIN
   -- ═══ ENTRIES, AND WHAT THE SUMMARY DOES WITH THEM ═══════════════════════
   -- P4 owns RecordEntry; these go in directly, which is all P3 needs.
   INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-    entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status, qb_account_id, created_by)
+    entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status, qb_account_id, created_by)
   VALUES (v_co, v_pj, v_day, 1, gen_random_uuid(),
-    'CLIENT_RECEIPT','CASH','IN','CRV','P3-0001', 150000.00, v_unit, 'PENDING', v_2020, v_cfo);
+    'CLIENT_RECEIPT','CASH','IN','CRV','P3-0001', 150000.00, 'G-04', 'NA', v_2020, v_cfo);
   INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
     entry_type, mode, direction, voucher_type, voucher_no, amount, rms_status, qb_account_id, created_by)
   VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),

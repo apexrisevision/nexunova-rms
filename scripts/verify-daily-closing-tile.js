@@ -30,7 +30,12 @@ const { q, REF } = require('./_sbq');
 
 const ROOT = path.resolve(__dirname, '..');
 const MIG = path.join(ROOT, 'supabase', 'migrations');
-const UP = ['20260904q_one_look_at_where_the_day_stands.sql'];
+const UP = ['20260904q_one_look_at_where_the_day_stands.sql',
+  // The separation (2026-09-07): without these the rehearsal restores the
+  // pre-separation schema and function bodies inside the transaction.
+  '20260907a_the_cash_book_stops_pointing_into_rms.sql',
+  '20260907b_a_receipt_carries_a_name_not_a_key.sql',
+];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal
 const PJ_A = '2da565ca-2b83-44bf-b4de-2cae762571df'; // ZZTEST Garden — this suite's project
@@ -100,14 +105,14 @@ BEGIN
   -- two client receipts on the closed day → both PENDING, both NOT_EXPORTED
   v_res := public.record_cash_entry(v_co, v_yday, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','9101',
-    'amount', 1000, 'payee_id', v_payee, 'unit_id', v_unit, 'qb_account_id', v_a2020));
+    'amount', 1000, 'payee_id', v_payee, 'party_label', 'G-04', 'qb_account_id', v_a2020));
   IF (v_res->>'success')::boolean IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FIXTURE: receipt 1: %', v_res; END IF;
   v_e := (v_res->>'entry_id')::uuid;
 
   v_res := public.record_cash_entry(v_co, v_yday, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','9102',
-    'amount', 2000, 'payee_id', v_payee, 'unit_id', v_unit, 'qb_account_id', v_a2020));
+    'amount', 2000, 'payee_id', v_payee, 'party_label', 'G-04', 'qb_account_id', v_a2020));
   IF (v_res->>'success')::boolean IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FIXTURE: receipt 2: %', v_res; END IF;
 
@@ -143,7 +148,7 @@ BEGIN
   v_day := (v_res->>'cash_day_id')::uuid;
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','9201',
-    'amount', 7000, 'payee_id', v_payee, 'unit_id', v_unit, 'qb_account_id', v_a2020));
+    'amount', 7000, 'payee_id', v_payee, 'party_label', 'G-04', 'qb_account_id', v_a2020));
   IF (v_res->>'success')::boolean IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FIXTURE: today receipt: %', v_res; END IF;
 

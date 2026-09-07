@@ -36,6 +36,12 @@ const UP = [
   '20260903e_a_day_of_cash_has_a_shape.sql',
   '20260903f_a_saved_entry_is_a_fact.sql',
   '20260903g_closing_the_day_is_not_an_everyday_permission.sql',
+  // The separation (2026-09-07). Without these the rehearsal restores the
+  // pre-separation schema inside the transaction — the units FK, the
+  // 'a receipt has a unit' CHECK, the Phase 2 rms_status ladder — and then
+  // asserts against a database that no longer exists.
+  '20260907a_the_cash_book_stops_pointing_into_rms.sql',
+  '20260907b_a_receipt_carries_a_name_not_a_key.sql',
 ];
 const DOWN = '20260903r_rollback_the_cash_book.sql';
 
@@ -73,6 +79,9 @@ DECLARE
   v_2020 uuid;
 BEGIN
   ---------------------------------------------------------------- fixtures --
+  -- Phase 2 cancelled 2026-09-07: fixtures carry a typed name, not a unit key.
+  -- The lookup survives only so the "no units" fixture check below still
+  -- tells you the test project is the one you think it is.
   SELECT id INTO v_unit FROM public.units WHERE project_id = v_pj LIMIT 1;
   IF v_unit IS NULL THEN RAISE EXCEPTION 'FIXTURE: pilot project has no units'; END IF;
   SELECT id INTO v_user FROM public.app_users WHERE company_id = v_co LIMIT 1;
@@ -135,10 +144,10 @@ BEGIN
   INSERT INTO public.cash_entries (
     company_id, project_id, cash_day_id, seq_no, idempotency_key,
     entry_type, mode, direction, voucher_type, voucher_no, amount,
-    narration, unit_id, rms_status, created_by, qb_account_id)
+    narration, party_label, rms_status, created_by, qb_account_id)
   VALUES (v_co, v_pj, v_day, 1, gen_random_uuid(),
     'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0041', 150000.00,
-    'Installment #4', v_unit, 'PENDING', v_user, v_2020)
+    'Installment #4', 'G-04', 'NA', v_user, v_2020)
   RETURNING id INTO v_entry;
   RAISE NOTICE 'PASS 04  a cash entry can be recorded';
 
@@ -176,9 +185,9 @@ BEGIN
   ------------------------------------------------- the constraints, briefly --
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-      entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status, qb_account_id)
+      entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status, qb_account_id)
     VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','BPV','TEST-0042', 100.00, v_unit, 'PENDING', v_2020);
+      'CLIENT_RECEIPT','CASH','IN','BPV','TEST-0042', 100.00, 'G-04', 'NA', v_2020);
     RAISE EXCEPTION 'FAIL 09: CASH/IN was accepted as a BPV';
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS 09  voucher type must match mode + direction';
@@ -196,10 +205,10 @@ BEGIN
 
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-      entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status,
+      entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status,
       expected_amount, qb_account_id)
     VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0044', 100.00, v_unit, 'PENDING', 200.00, v_2020);
+      'CLIENT_RECEIPT','CASH','IN','CRV','TEST-0044', 100.00, 'G-04', 'NA', 200.00, v_2020);
     RAISE EXCEPTION 'FAIL 11: a short payment was accepted with no variance tag';
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS 11  VARIANCE_TAG_REQUIRED when amount <> expected';

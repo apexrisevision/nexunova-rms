@@ -160,6 +160,38 @@ blueprint's model is a subset of what runs. Four fields are still owed and are P
 `kind`, `party_payee_id`, `cleared_entry_id`, and a `status` CHECK. Full reasoning:
 `PDC_DECISION.md`.
 
+## ⚠️ OPEN RESIDUE — the last read that still reaches into RMS
+
+**Recorded 2026-09-07, when Phase 2 was cancelled and the cash book stopped pointing into RMS.
+This is not resolved. It is written here rather than only in a migration comment so that the
+standalone blueprint has to account for it instead of inheriting it silently.**
+
+| | |
+|---|---|
+| **What** | `get_cash_day_pdf_data` still contains `LEFT JOIN public.units u ON u.id = e.unit_id`, read as `COALESCE(e.party_label, u.unit_no)`. |
+| **Why it survived** | 98 existing entries carry a `unit_id`, and one of them sits in the **permanent golden-PDF fixture**. Dropping the join outright would blank the unit number on any re-render of those days, and would force that golden artefact to be re-baselined as a side effect of a housekeeping migration. Re-approving a golden file to make a cleanup tidy is the quiet kind of weakening this module exists to refuse. |
+| **What it is not** | It is **not** a live dependency. `list_units_for_picker` is dropped, `record_cash_entry` no longer writes `unit_id` or `sale_id`, and `_trg_cash_entries_frozen` **refuses any new row that carries either**. Nothing selects a unit anywhere. This is display-only, for rows written before the cancellation. |
+| **Blast radius today** | All 98 rows are on **ZZTEST**. Awami has none — its single entry is an `EXPENSE` with `unit_id` NULL. |
+
+### The trigger for removing it
+
+> **`unit_id`, `sale_id` and the `units` join leave when identity and tenancy are replaced.**
+
+That is the same piece of work that replaces `company_id → companies`, `project_id → projects` and
+`created_by / closed_by / exported_by → app_users` — the eleven keys the separation deliberately
+left alone. When NexuFinance owns its own users, companies and projects, the ZZTEST rows that
+justify this fallback leave with the tenant, and the join has nothing left to preserve.
+
+**So the blueprint must state, explicitly, what happens to these three things.** If it does not
+mention them, it has inherited them.
+
+### How we will know if it starts creeping back
+
+`_trg_cash_entries_frozen` raises `restrict_violation` on any INSERT that sets `unit_id` or
+`sale_id`. A frozen column that quietly starts filling again is how a residue becomes permanent,
+and "no caller writes it" is a statement about today; the trigger is a statement about every day.
+It is proved to fire — an assertion that has never been seen to fire is not a guard (SR-2).
+
 ## What P1 does NOT include
 
 No services, no RPCs, no screens, and no seed data — `qb_accounts` and `entry_type_defaults`

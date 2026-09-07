@@ -41,6 +41,10 @@ const MIG = path.join(ROOT, 'supabase', 'migrations');
 const UP = [
   '20260904p_who_may_do_what_and_what_it_leaves_behind.sql',
   '20260904q_one_look_at_where_the_day_stands.sql',
+  // The separation (2026-09-07): without these the rehearsal restores the
+  // pre-separation schema and function bodies inside the transaction.
+  '20260907a_the_cash_book_stops_pointing_into_rms.sql',
+  '20260907b_a_receipt_carries_a_name_not_a_key.sql',
 ];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal
@@ -139,18 +143,18 @@ BEGIN
   -- 2 receipts (one bank), 3 expenses, a transfer (two rows, one act), a loan.
   v_res := public.record_cash_entry(v_co, v_d1, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','1001',
-    'amount',120000,'payee_id',v_p_cli,'unit_id',v_unit,'qb_account_id',v_a2020,
+    'amount',120000,'payee_id',v_p_cli,'party_label','G-04','qb_account_id',v_a2020,
     'narration','Installment 3'));
   IF (v_res->>'success')::boolean IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 04a: receipt 1: %', v_res; END IF;
   IF (v_res->>'voucher_type') IS DISTINCT FROM 'CRV' THEN
     RAISE EXCEPTION 'FAIL 04a: CASH+IN derived % not CRV', v_res->>'voucher_type'; END IF;
-  IF (v_res->>'rms_status') IS DISTINCT FROM 'PENDING' THEN
-    RAISE EXCEPTION 'FAIL 04a: a client receipt should land PENDING, got %', v_res->>'rms_status'; END IF;
+  IF (v_res->>'rms_status') IS DISTINCT FROM 'NA' THEN
+    RAISE EXCEPTION 'FAIL 04a: a client receipt lands NA now (Phase 2 cancelled), got %', v_res->>'rms_status'; END IF;
 
   v_res := public.record_cash_entry(v_co, v_d1, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','BANK','direction','IN','voucher_no','1002',
-    'amount',80000,'payee_id',v_p_cli,'unit_id',v_unit,'qb_account_id',v_a2020));
+    'amount',80000,'payee_id',v_p_cli,'party_label','G-04','qb_account_id',v_a2020));
   IF (v_res->>'voucher_type') IS DISTINCT FROM 'BRV' THEN
     RAISE EXCEPTION 'FAIL 04b: BANK+IN derived % not BRV', v_res->>'voucher_type'; END IF;
 
@@ -386,7 +390,7 @@ BEGIN
   -- 4 · a QuickBooks head off the default, with no reason
   v_res := public.record_cash_entry(v_co, v_d2, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','1301',
-    'amount',10,'payee_id',v_p_cli,'unit_id',v_unit,'qb_account_id',v_a6050));
+    'amount',10,'payee_id',v_p_cli,'party_label','G-04','qb_account_id',v_a6050));
   IF (v_res->>'error') IS DISTINCT FROM 'OVERRIDE_REASON_REQUIRED' THEN
     RAISE EXCEPTION 'FAIL N4: an unexplained head override answered %', v_res; END IF;
 

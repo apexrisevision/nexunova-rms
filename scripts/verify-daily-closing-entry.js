@@ -29,6 +29,12 @@ const MIG = path.join(ROOT, 'supabase', 'migrations');
 const UP = [
   '20260904h_a_day_opens_and_a_day_closes.sql',
   '20260904j_an_entry_is_recorded_and_an_entry_is_voided.sql',
+  // The separation: the four RMS foreign keys go, unit_id and sale_id freeze,
+  // and a client receipt starts carrying a name instead of a key. Without these
+  // the rehearsal restores the pre-separation record_cash_entry inside the
+  // transaction and asserts against a function that no longer exists live.
+  '20260907a_the_cash_book_stops_pointing_into_rms.sql',
+  '20260907b_a_receipt_carries_a_name_not_a_key.sql',
 ];
 
 const CO = 'a2915ce7-c01c-463b-ba50-b144b2240337';   // ZZTEST Internal — safe to wipe
@@ -65,6 +71,8 @@ BEGIN
   IF (SELECT company_name FROM public.companies WHERE id = v_co) NOT LIKE 'ZZTEST%' THEN
     RAISE EXCEPTION 'REFUSING TO RUN: this suite wipes cash days and is only for a ZZTEST tenant';
   END IF;
+  -- Still read, but ONLY to prove the freeze guard refuses it. Nothing in the
+  -- module selects a unit any more; list_units_for_picker is dropped.
   SELECT id INTO v_unit FROM public.units WHERE project_id = v_pj LIMIT 1;
   DELETE FROM public.cash_entry_attachments WHERE company_id = v_co;
   DELETE FROM public.cash_entries WHERE project_id = v_pj;
@@ -101,12 +109,14 @@ BEGIN
   -- ═══ RECORD ═════════════════════════════════════════════════════════════
   v_res := public.record_cash_entry(v_co, v_day, v_key, jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','0041',
-    'amount',150000,'payee_id',v_payee,'unit_id',v_unit,'narration','Installment #4'));
+    'amount',150000,'payee_id',v_payee,'party_label','G-04','narration','Installment #4'));
   IF NOT (v_res->>'success')::boolean THEN RAISE EXCEPTION 'FAIL 01: record failed: %', v_res; END IF;
   v_e1 := (v_res->>'entry_id')::uuid;
   IF (v_res->>'voucher_type') IS DISTINCT FROM 'CRV' THEN RAISE EXCEPTION 'FAIL 01: CASH/IN must derive CRV'; END IF;
   IF (v_res->>'seq_no')::int <> 1 THEN RAISE EXCEPTION 'FAIL 01: first entry is seq_no 1'; END IF;
-  IF (v_res->>'rms_status') IS DISTINCT FROM 'PENDING' THEN RAISE EXCEPTION 'FAIL 01: a client receipt starts PENDING'; END IF;
+  -- Phase 2 cancelled 2026-09-07: nothing is pending, because there is no
+  -- allocation waiting to happen. A receipt is complete when it is recorded.
+  IF (v_res->>'rms_status') IS DISTINCT FROM 'NA' THEN RAISE EXCEPTION 'FAIL 01: a client receipt is NA now, not PENDING: %', v_res; END IF;
   IF (SELECT qb_account_id FROM public.cash_entries WHERE id=v_e1) <> v_2020 THEN
     RAISE EXCEPTION 'FAIL 01: the 2020 default was not applied'; END IF;
   RAISE NOTICE 'PASS 01  a cashier records a receipt: CRV, seq 1, PENDING, defaulted to 2020';
@@ -114,7 +124,7 @@ BEGIN
   -- ── IDEMPOTENCY ──────────────────────────────────────────────────────────
   v_res2 := public.record_cash_entry(v_co, v_day, v_key, jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','9999',
-    'amount',999,'payee_id',v_payee,'unit_id',v_unit));
+    'amount',999,'payee_id',v_payee,'party_label','G-04'));
   IF NOT (v_res2->>'success')::boolean THEN RAISE EXCEPTION 'FAIL 02: a replay was an error: %', v_res2; END IF;
   IF NOT (v_res2->>'replayed')::boolean THEN RAISE EXCEPTION 'FAIL 02: the replay was not flagged'; END IF;
   IF (v_res2->>'entry_id')::uuid <> v_e1 THEN RAISE EXCEPTION 'FAIL 02: the replay returned a different id'; END IF;
@@ -149,8 +159,8 @@ BEGIN
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','0042',
     'amount',100,'payee_id',v_payee));
-  IF (v_res->>'error') IS DISTINCT FROM 'UNIT_REQUIRED' THEN RAISE EXCEPTION 'FAIL 06: a receipt with no unit: %', v_res; END IF;
-  RAISE NOTICE 'PASS 06  UNIT_REQUIRED on a client receipt';
+  IF (v_res->>'error') IS DISTINCT FROM 'PARTY_REQUIRED' THEN RAISE EXCEPTION 'FAIL 06: a receipt with no party: %', v_res; END IF;
+  RAISE NOTICE 'PASS 06  PARTY_REQUIRED on a client receipt (a name, not a key)';
 
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','EXPENSE','mode','CASH','direction','OUT','voucher_no','0113',
@@ -165,12 +175,12 @@ BEGIN
   -- ── THE QUICKBOOKS HEAD ──────────────────────────────────────────────────
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','0043',
-    'amount',100,'payee_id',v_payee,'unit_id',v_unit,'qb_account_id',v_6050));
+    'amount',100,'payee_id',v_payee,'party_label','G-04','qb_account_id',v_6050));
   IF (v_res->>'error') IS DISTINCT FROM 'OVERRIDE_REASON_REQUIRED' THEN
     RAISE EXCEPTION 'FAIL 08: off-default with no reason: %', v_res; END IF;
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','0043',
-    'amount',100,'payee_id',v_payee,'unit_id',v_unit,'qb_account_id',v_6050,
+    'amount',100,'payee_id',v_payee,'party_label','G-04','qb_account_id',v_6050,
     'qb_override_reason','client settled the office rent share directly'));
   IF NOT (v_res->>'success')::boolean THEN RAISE EXCEPTION 'FAIL 08: with a reason: %', v_res; END IF;
   RAISE NOTICE 'PASS 08  OVERRIDE_REASON_REQUIRED off-default; allowed with a reason';
@@ -191,7 +201,7 @@ BEGIN
   -- ── DUPLICATE VOUCHER ────────────────────────────────────────────────────
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','0041',
-    'amount',5,'payee_id',v_payee,'unit_id',v_unit));
+    'amount',5,'payee_id',v_payee,'party_label','G-04'));
   IF (v_res->>'error') IS DISTINCT FROM 'DUPLICATE_VOUCHER' THEN RAISE EXCEPTION 'FAIL 10: duplicate CRV 0041: %', v_res; END IF;
   IF (v_res->>'conflicting_date') IS NULL THEN
     RAISE EXCEPTION 'FAIL 10: DUPLICATE_VOUCHER must name the conflicting date: %', v_res; END IF;
@@ -296,12 +306,19 @@ BEGIN
     RAISE EXCEPTION 'FAIL 16: the reversal is not shaped correctly'; END IF;
   RAISE NOTICE 'PASS 16  the reversal is same amount, opposite direction, CPV, 0041-VOID, NA';
 
-  IF (SELECT rms_status FROM public.cash_entries WHERE id=v_e1) <> 'UNAPPLIED'
-  OR (SELECT rms_status_reason FROM public.cash_entries WHERE id=v_e1) <> 'Voided' THEN
-    RAISE EXCEPTION 'FAIL 17: a voided PENDING receipt must become UNAPPLIED with reason Voided'; END IF;
+  -- Phase 2 cancelled 2026-09-07. A receipt is NA from the moment it is
+  -- recorded, so there is no PENDING to leave and no UNAPPLIED to arrive at:
+  -- voiding marks the entry voided and writes a reversal, and that is all.
+  -- The rms_status ladder survives only for the 98 rows written before today.
+  IF (SELECT rms_status FROM public.cash_entries WHERE id=v_e1) <> 'NA' THEN
+    RAISE EXCEPTION 'FAIL 17: a voided receipt is NA now, not UNAPPLIED: %',
+      (SELECT rms_status FROM public.cash_entries WHERE id=v_e1); END IF;
+  -- invariant 1 is the part that still matters and is unchanged
   IF (SELECT amount FROM public.cash_entries WHERE id=v_e1) <> 150000.00 THEN
     RAISE EXCEPTION 'FAIL 17: invariant 1 — the original amount was altered'; END IF;
-  RAISE NOTICE 'PASS 17  the original becomes UNAPPLIED/"Voided" and is otherwise untouched';
+  IF (SELECT party_label FROM public.cash_entries WHERE id=v_e1) IS DISTINCT FROM 'G-04' THEN
+    RAISE EXCEPTION 'FAIL 17: invariant 1 — the original party_label was altered'; END IF;
+  RAISE NOTICE 'PASS 17  the original stays NA and is otherwise untouched (amount and name)';
 
   v_res := public.void_cash_entry(v_co, v_e1, 'again');
   IF (v_res->>'error') IS DISTINCT FROM 'INVALID_TRANSITION' THEN
@@ -351,11 +368,64 @@ BEGIN
                   AND record_id=v_e2::text AND action='INSERT' AND project_id=v_pj
                   AND reason='receipt entered twice, second one cancelled') THEN
     RAISE EXCEPTION 'FAIL 22: the void reason did not reach the audit'; END IF;
+  -- The status ladder is gone, so what must be audited is the VOIDING itself.
+  -- ⚠️ A REAL CHANGE, not just a renamed assertion. Voiding used to mark the
+  -- ORIGINAL row (rms_status PENDING -> UNAPPLIED, reason Voided). With Phase 2
+  -- cancelled a receipt starts NA, that branch never fires, and void_cash_entry
+  -- no longer touches the original at all — so there is no UPDATE to audit.
+  -- The void is still fully traceable, but through the REVERSAL: it is audited
+  -- on insert and carries adjusts_entry_id back to the original. That is what
+  -- is asserted here, because it is what is now true.
   IF NOT EXISTS (SELECT 1 FROM public.audit_logs WHERE table_name='cash_entries'
-                  AND record_id=v_e1::text AND action='UPDATE'
-                  AND 'rms_status' = ANY(changed_fields)) THEN
-    RAISE EXCEPTION 'FAIL 22: the UNAPPLIED transition was not audited'; END IF;
-  RAISE NOTICE 'PASS 22  recording, voiding and the status change are all audited';
+                  AND record_id=v_e2::text AND action='INSERT') THEN
+    RAISE EXCEPTION 'FAIL 22: the reversal was not audited'; END IF;
+  IF (SELECT adjusts_entry_id FROM public.cash_entries WHERE id=v_e2) <> v_e1 THEN
+    RAISE EXCEPTION 'FAIL 22: the reversal does not point back at the original'; END IF;
+  RAISE NOTICE 'PASS 22  recording and voiding are audited; the reversal links back to the original';
+
+  -- ── 25 · THE FROZEN COLUMNS STAY FROZEN ─────────────────────────────
+  -- Phase 2 was cancelled on 2026-09-07 and unit_id / sale_id were frozen:
+  -- kept for the rows that already carry them, never written again. A frozen
+  -- column that quietly starts filling again is how a residue becomes
+  -- permanent, so the freeze is a trigger, not an intention — and a guard
+  -- that has never been seen to fire is not a guard (SR-2). This makes it fire.
+  BEGIN
+    INSERT INTO public.cash_entries (
+      company_id, project_id, cash_day_id, seq_no, idempotency_key, entry_type,
+      mode, direction, voucher_type, voucher_no, amount, payee_id, party_label,
+      unit_id, qb_account_id, rms_status, created_by)
+    VALUES (v_co, v_pj, v_day, 9001, gen_random_uuid(), 'CLIENT_RECEIPT',
+      'CASH', 'IN', 'CRV', '9001', 1, v_payee, 'G-04', v_unit, v_2020, 'NA', v_cfo);
+    RAISE EXCEPTION 'FAIL 25: a new row was accepted carrying unit_id';
+  -- The freeze guard raises restrict_violation (23001), not P0001. Catching the
+  -- wrong SQLSTATE would let a firing guard read as a failing test.
+  EXCEPTION
+    WHEN sqlstate 'P0001' THEN
+      IF SQLERRM LIKE 'FAIL 25%' THEN RAISE; END IF;
+      RAISE EXCEPTION 'FAIL 25: refused, but not by the freeze guard: %', SQLERRM;
+    WHEN sqlstate '23001' THEN
+      IF SQLERRM NOT LIKE '%frozen%' THEN
+        RAISE EXCEPTION 'FAIL 25: refused by a different rule: %', SQLERRM; END IF;
+  END;
+  RAISE NOTICE 'PASS 25  a new row carrying unit_id is refused by the freeze guard';
+
+  -- the paired positive: the SAME insert without the frozen column is accepted,
+  -- so the guard is proved to be about unit_id and not about the insert itself.
+  INSERT INTO public.cash_entries (
+    company_id, project_id, cash_day_id, seq_no, idempotency_key, entry_type,
+    mode, direction, voucher_type, voucher_no, amount, payee_id, party_label,
+    qb_account_id, rms_status, created_by)
+  VALUES (v_co, v_pj, v_day, 9002, gen_random_uuid(), 'CLIENT_RECEIPT',
+    'CASH', 'IN', 'CRV', '9002', 1, v_payee, 'G-04', v_2020, 'NA', v_cfo);
+  RAISE NOTICE 'PASS 26  the same row with party_label instead is accepted';
+
+  -- and nothing the module itself writes carries either frozen column
+  IF EXISTS (SELECT 1 FROM public.cash_entries
+              WHERE cash_day_id = v_day AND (unit_id IS NOT NULL OR sale_id IS NOT NULL)) THEN
+    RAISE EXCEPTION 'FAIL 27: record_cash_entry wrote a frozen column';
+  END IF;
+  RAISE NOTICE 'PASS 27  nothing recorded through the module carries unit_id or sale_id';
+
 
   PERFORM set_config('request.jwt.claims', '', true);
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
@@ -375,7 +445,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_cash_auth)::text, true);
   v_res := public.record_cash_entry(v_co, v_day, gen_random_uuid(), jsonb_build_object(
     'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN','voucher_no','0041R',
-    'amount',150000,'payee_id',v_payee,'unit_id',v_unit,'narration','re-entry after void'));
+    'amount',150000,'payee_id',v_payee,'party_label','G-04','narration','re-entry after void'));
   IF NOT (v_res->>'success')::boolean THEN
     RAISE EXCEPTION 'FAIL 24: the corrected re-entry failed: %', v_res; END IF;
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_cfo_auth)::text, true);
@@ -399,7 +469,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL 24: voided on a closed day: %', v_res; END IF;
   RAISE NOTICE 'PASS 24  DAY_LOCKED for both recording and voiding once the day is closed';
 
-  RAISE NOTICE '--- P4: ALL 24 ASSERTIONS PASSED ---';
+  RAISE NOTICE '--- P4: ALL 27 ASSERTIONS PASSED ---';
 END
 $test$;
 `;
@@ -426,9 +496,10 @@ $test$;
     return;
   }
 
-  console.log('✅ PASS — 24 assertions held' + (AGAINST_LIVE ? ' against the LIVE applied schema.' : '.'));
+  console.log('✅ PASS — 27 assertions held' + (AGAINST_LIVE ? ' against the LIVE applied schema.' : '.'));
   console.log('   Idempotent replay, derived voucher, DUPLICATE_VOUCHER, payee and account');
-  console.log('   guards, transfer atomicity under an injected failure, void → UNAPPLIED,');
-  console.log('   attachments, ListEntries flags. Nothing was committed.');
+  console.log('   guards, transfer atomicity under an injected failure, void and its reversal,');
+  console.log('   attachments, ListEntries flags, and the frozen columns staying frozen.');
+  console.log('   Nothing was committed.');
   console.log('\n   NOT proved here: two-writer seq_no concurrency — see the header.');
 })();

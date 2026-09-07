@@ -28,7 +28,7 @@
   var FIELD_FOR = {
     DUPLICATE_VOUCHER:        'dc-voucher-no',
     OVERRIDE_REASON_REQUIRED: 'dc-qb-reason',
-    UNIT_REQUIRED:            'dc-unit',
+    PARTY_REQUIRED:           'dc-party',
     VARIANCE_TAG_REQUIRED:    'dc-amount',
     PAYEE_INACTIVE:           'dc-payee',
     ACCOUNT_INACTIVE:         'dc-qb',
@@ -195,13 +195,11 @@
               S.error = S.error || ('Account heads could not be loaded — ' +
                 ((e && e.message) || 'unknown error') + '. Do not record against a guessed head.');
             }),
-          S.rpc('list_units_for_picker', { p_company_id: S.me.companyId, p_project_id: S.projectId })
-            .then(function (r) { S.units = (r && r.units) || []; })
-            .catch(function (e) {
-              S.units = [];
-              S.error = S.error || ('The unit list could not be loaded — ' +
-                ((e && e.message) || 'unknown error') + '. A receipt needs a unit.');
-            })
+          /* The unit picker is gone. Phase 2 was cancelled on 2026-09-07, so
+             there is no RMS master to select from and no foreign key to fill:
+             a receipt carries a typed name. One fewer call on every load, and
+             1,467 rows that no longer cross the wire. */
+          Promise.resolve()
         ]);
       });
       }).then(function () { render(false); })
@@ -544,8 +542,13 @@
         K.entitySelect({ id: 'dc-payee', label: 'Payee', required: true, placeholder: 'Type to search…' }) +
         '<span class="dc-error" id="dc-payee-err" hidden></span>' +
         (isReceipt
-          ? K.entitySelect({ id: 'dc-unit', label: 'Unit', required: true, placeholder: 'Unit number…' }) +
-            '<span class="dc-error" id="dc-unit-err" hidden></span>'
+          ? '<div class="dc-field"><label class="dc-label" for="dc-party">' +
+              'For <span aria-hidden="true">*</span></label>' +
+              '<input class="dc-input" id="dc-party" type="text" autocomplete="off"' +
+              ' placeholder="Unit number or party name" aria-required="true">' +
+              '<span class="dc-hint">Typed, not selected — this is a name, not a link.</span>' +
+            '</div>' +
+            '<span class="dc-error" id="dc-party-err" hidden></span>'
           : '') +
         (isTransfer ? transferFields() : '') +
         qbField() +
@@ -683,7 +686,7 @@
 
     /* ── wiring ───────────────────────────────────────────────────────── */
     function clearErrors() {
-      ['dc-voucher-no', 'dc-amount', 'dc-payee', 'dc-unit', 'dc-qb'].forEach(function (id) {
+      ['dc-voucher-no', 'dc-amount', 'dc-payee', 'dc-party', 'dc-qb'].forEach(function (id) {
         var e = el(id + '-err'); if (e) { e.hidden = true; e.textContent = ''; }
         var f = el(id); if (f && f.closest('.dc-field')) f.closest('.dc-field').classList.remove('dc-field--error');
       });
@@ -747,12 +750,7 @@
         onPick: function (it) { S.form.payeeId = it.id; },
         onNew: newPayee
       });
-      if (el('dc-unit')) {
-        K.bindEntitySelect(el('dc-unit'), {
-          items: S.units.map(function (u) { return { id: u.id, label: u.unit_no }; }),
-          onPick: function (it) { S.form.unitId = it.id; }
-        });
-      }
+      // dc-party is a plain input: nothing to bind, nothing to look up.
 
       var form = el('dc-form');
       form.addEventListener('submit', function (e) { e.preventDefault(); save(); });
@@ -928,7 +926,10 @@
         qb_account_id: el('dc-qb') ? el('dc-qb').value : null
       };
       if (S.form.type !== 'TRANSFER') { payload.mode = S.form.mode; payload.direction = S.form.dir; }
-      if (S.form.type === 'CLIENT_RECEIPT') payload.unit_id = S.form.unitId || null;
+      // A name, not a key. The server refuses an empty one with PARTY_REQUIRED.
+      if (S.form.type === 'CLIENT_RECEIPT') {
+        payload.party_label = (el('dc-party') && el('dc-party').value.trim()) || '';
+      }
       if (S.form.type === 'TRANSFER') {
         payload.from_cash_account_id = el('dc-from') && el('dc-from').value;
         payload.to_cash_account_id = el('dc-to') && el('dc-to').value;

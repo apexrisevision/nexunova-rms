@@ -40,6 +40,12 @@ const UP = [
   '20260904e_the_role_column_was_never_free_text.sql',
   '20260904f_the_cfo_role_becomes_storable.sql',
   '20260904g_one_drawer_of_cheques_one_table.sql',
+  // The separation (2026-09-07). Without these the rehearsal restores the
+  // pre-separation schema inside the transaction — the units FK, the
+  // 'a receipt has a unit' CHECK, the Phase 2 rms_status ladder — and then
+  // asserts against a database that no longer exists.
+  '20260907a_the_cash_book_stops_pointing_into_rms.sql',
+  '20260907b_a_receipt_carries_a_name_not_a_key.sql',
 ];
 
 const CO = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';   // Awami Market
@@ -69,6 +75,9 @@ DECLARE
   v_n integer; v_txt text; v_res jsonb; v_id uuid; v_id2 uuid;
   v_2020 uuid; v_6050 uuid; v_4010 uuid;
 BEGIN
+  -- Phase 2 cancelled 2026-09-07: fixtures carry a typed name, not a unit key.
+  -- The lookup survives only so the "no units" fixture check below still
+  -- tells you the test project is the one you think it is.
   SELECT id INTO v_unit FROM public.units WHERE project_id = v_pj LIMIT 1;
   IF v_unit IS NULL THEN RAISE EXCEPTION 'FIXTURE: pilot project has no units'; END IF;
 
@@ -295,17 +304,17 @@ BEGIN
 
   -- on the default: fine
   INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-    entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status, qb_account_id)
+    entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status, qb_account_id)
   VALUES (v_co, v_pj, v_day, 1, gen_random_uuid(),
-    'CLIENT_RECEIPT','CASH','IN','CRV','P2-0001', 150000.00, v_unit, 'PENDING', v_2020);
+    'CLIENT_RECEIPT','CASH','IN','CRV','P2-0001', 150000.00, 'G-04', 'NA', v_2020);
   RAISE NOTICE 'PASS 23  a client receipt on 2020 (the default) is accepted';
 
   -- off the default with no reason: refused
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-      entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status, qb_account_id)
+      entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status, qb_account_id)
     VALUES (v_co, v_pj, v_day, 2, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','CRV','P2-0002', 1000.00, v_unit, 'PENDING', v_6050);
+      'CLIENT_RECEIPT','CASH','IN','CRV','P2-0002', 1000.00, 'G-04', 'NA', v_6050);
     RAISE EXCEPTION 'FAIL 24: a client receipt on 6050 with no reason was ACCEPTED';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM NOT LIKE '%OVERRIDE_REASON_REQUIRED%' THEN RAISE; END IF;
@@ -314,20 +323,20 @@ BEGIN
 
   -- off the default WITH a reason: allowed
   INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-    entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status,
+    entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status,
     qb_account_id, qb_override_reason)
   VALUES (v_co, v_pj, v_day, 3, gen_random_uuid(),
-    'CLIENT_RECEIPT','CASH','IN','CRV','P2-0003', 1000.00, v_unit, 'PENDING',
+    'CLIENT_RECEIPT','CASH','IN','CRV','P2-0003', 1000.00, 'G-04', 'NA',
     v_6050, 'client paid the office rent share directly, agreed with CFO');
   RAISE NOTICE 'PASS 25  off-default WITH a written reason is accepted';
 
   -- whitespace is not a reason
   BEGIN
     INSERT INTO public.cash_entries (company_id, project_id, cash_day_id, seq_no, idempotency_key,
-      entry_type, mode, direction, voucher_type, voucher_no, amount, unit_id, rms_status,
+      entry_type, mode, direction, voucher_type, voucher_no, amount, party_label, rms_status,
       qb_account_id, qb_override_reason)
     VALUES (v_co, v_pj, v_day, 4, gen_random_uuid(),
-      'CLIENT_RECEIPT','CASH','IN','CRV','P2-0004', 1000.00, v_unit, 'PENDING', v_6050, '   ');
+      'CLIENT_RECEIPT','CASH','IN','CRV','P2-0004', 1000.00, 'G-04', 'NA', v_6050, '   ');
     RAISE EXCEPTION 'FAIL 26: whitespace was accepted as an override reason';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM NOT LIKE '%OVERRIDE_REASON_REQUIRED%' THEN RAISE; END IF;
