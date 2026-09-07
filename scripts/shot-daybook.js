@@ -75,6 +75,67 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     await page.waitForFunction(()=>!!document.getElementById('db-root'), { timeout:60000 });
     await sleep(1200);
 
+    console.log('\n\u2500\u2500 A booking survives its own tag');
+    {
+      const okT = m => console.log('  \u2705 ' + m);
+      const badT = m => { console.log('  \u274C ' + m); FAILED = true; };
+      /* One transaction, rolled back. Nothing below reaches Awami. */
+      const rows = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('${CO}','${DIR}',NULL,'dbshot_tagprobe', now() + interval '2 minutes');
+        CREATE TEMP TABLE probe_out ON COMMIT DROP AS
+          WITH tags AS (
+            SELECT cus.id, upper(cus.status_code) AS code,
+                   row_number() OVER (ORDER BY cus.status_code) AS n
+              FROM public.category_unit_statuses cus
+             WHERE cus.project_id = '${AWAMI}' AND cus.is_active
+               AND upper(cus.status_code) IN ('HOLD','RESERVED','BOOKED')),
+          units AS (
+            SELECT u.id, row_number() OVER (ORDER BY u.unit_no) AS n
+              FROM public.units u
+              JOIN public.category_unit_statuses st ON st.id = u.status_id
+             WHERE u.project_id = '${AWAMI}' AND st.is_available)
+          SELECT t.code,
+                 public.reserve_unit_desk('dbshot_tagprobe', u.id, NULL, NULL,
+                   'Tag Probe', NULL, NULL, 7, false, 0, NULL, t.id) AS r
+            FROM tags t JOIN units u ON u.n = t.n;
+        SELECT p.code,
+               (p.r->>'success') AS ok,
+               (p.r->>'error')   AS err,
+               res.status                    AS res_status,
+               upper(cus.status_code)        AS unit_status
+          FROM probe_out p
+          LEFT JOIN public.reservations res ON res.id = (p.r->>'reservation_id')::uuid
+          LEFT JOIN public.units u2 ON u2.id = res.unit_id
+          LEFT JOIN public.category_unit_statuses cus ON cus.id = u2.status_id
+         ORDER BY p.code;
+        ROLLBACK;`);
+
+      const want = ['BOOKED','HOLD','RESERVED'];
+      const got = rows.map(r => r.code).sort();
+      JSON.stringify(got) === JSON.stringify(want)
+        ? okT('all three tags booked a unit: ' + got.join(', '))
+        : badT('the desk did not book every tag: ' + JSON.stringify(rows));
+
+      const dead = rows.filter(r => r.res_status !== 'active');
+      dead.length === 0
+        ? okT('every reservation is still ACTIVE after its tag was stamped on the unit')
+        : badT('a tag cancelled its own booking: ' +
+               JSON.stringify(dead.map(r => ({ tag: r.code, reservation: r.res_status }))));
+
+      const wrong = rows.filter(r => r.unit_status !== r.code);
+      wrong.length === 0
+        ? okT('each unit carries the tag it was booked with')
+        : badT('unit status does not match the tag: ' + JSON.stringify(wrong));
+
+      /* And the probe must have left nothing behind. */
+      const left = Number((await sql(`select count(*)::int n from public.reservations
+                                       where requested_by_name='Tag Probe';`))[0].n);
+      left === 0 ? okT('the probe rolled back cleanly \u2014 no rows on Awami')
+                 : badT(left + ' probe reservation(s) were left behind on a live tenant');
+    }
+
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
     {
       /* Counted in the DATABASE, not read back out of the payload the page was
@@ -122,11 +183,11 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const okC = m => console.log('  \u2705 ' + m);
       const badC = m => { console.log('  \u274C ' + m); FAILED = true; };
       const titles = scr.secs.map(x => x.t.replace(/\s+\d+$/, '').trim());
-      const hold = scr.secs.find(x => /^Units on hold/.test(x.t));
+      const hold = scr.secs.find(x => /^Units held/.test(x.t));
       scr.hasGeneratedAt ? okC('the RPC returns generated_at, so the page can date its own hold list')
                          : badC('generated_at missing from the payload');
-      hold ? okC('screen shows a "Units on hold" section')
-           : badC('no hold section on screen: ' + JSON.stringify(titles));
+      hold ? okC('screen shows a "Units held" section')
+           : badC('no held section on screen: ' + JSON.stringify(titles));
       /* The payload count is the truth; the screen has to match it exactly. A
          hold that is in the data and not on the page reads as an available
          unit, which is the one error that costs a double booking. */
@@ -327,7 +388,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const txt=pgs.map(p=>p.textContent||'').join(' ');
       // the hold section, by its heading, and how many rows it printed
       const heads2=[...document.querySelectorAll('#rd-print .sec-t')].map(e=>e.textContent.trim());
-      const holdIdx=heads2.indexOf('Units On Hold');
+      const holdIdx=heads2.indexOf('Units Held');
       // rows in the printed day list, to compare against the stub's live count
       const bookIdx=heads2.indexOf('Booked Today');
       let holdRows=0, holdNote='';
@@ -396,9 +457,18 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         proj: (p1.querySelector('.mh-proj') || {}).textContent.trim(),
         floors: rows.filter(t => !t.classList.contains('tot')).map(t => t.cells[0].textContent.trim()),
         kpi: { total: sumv[0], sold: sumv[1], res: sumv[2], av: sumv[3] },
-        // Floor · Sold · Reserved · Available · Total · %Sold
-        tbl: { sold: N(tot.cells[1].textContent), res: N(tot.cells[2].textContent),
-               av: N(tot.cells[3].textContent), total: N(tot.cells[4].textContent) },
+        // Read the total row BY ITS HEADER, not by a remembered index. The
+        // column order changed once already and an index-based reader would
+        // have gone on comparing the wrong two numbers without saying so.
+        tbl: (function () {
+          const hs = [...document.querySelectorAll('#rd-print table')]
+                       .map(t => [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()))
+                       .find(h => h[0] === 'Floor') || [];
+          const at = name => { const i = hs.indexOf(name);
+                               return i < 0 ? null : N(tot.cells[i].textContent); };
+          return { cols: hs, hold: at('On hold'), res: at('Reserved'), booked: at('Booked'),
+                   sold: at('Sold'), other: at('Other'), av: at('Available'), total: at('Total') };
+        })(),
         // how much of the page the summary block eats
         sumMM: (function () {
           const blocks = p1.querySelectorAll('.col > div');
@@ -441,13 +511,32 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     sem.floors.length === allowed.size
       ? okS("all " + allowed.size + " of the project's floors are present")
       : badS(sem.floors.length + ' floors shown, the project has ' + allowed.size);
+    /* The position line says Held, which is the three hold columns added up. */
     (sem.kpi.total === sem.tbl.total && sem.kpi.sold === sem.tbl.sold &&
-     sem.kpi.res === sem.tbl.res && sem.kpi.av === sem.tbl.av)
-      ? okS('KPI cards equal the floor-table totals (' + sem.kpi.total + ' = ' + sem.tbl.total + ')')
-      : badS('KPI vs table mismatch: ' + JSON.stringify(sem));
-    (sem.tbl.sold + sem.tbl.res + sem.tbl.av === sem.tbl.total)
-      ? okS('sold + reserved + available = total')
-      : badS('the totals do not add up: ' + JSON.stringify(sem.tbl));
+     sem.kpi.res === (sem.tbl.hold + sem.tbl.res + sem.tbl.booked) &&
+     sem.kpi.av === sem.tbl.av)
+      ? okS('the position line equals the floor table (' + sem.kpi.total + ' = ' + sem.tbl.total +
+            ', held ' + sem.kpi.res + ')')
+      : badS('position line vs table mismatch: ' + JSON.stringify({kpi: sem.kpi, tbl: sem.tbl}));
+    /* THE ARITHMETIC MUST CLOSE. This used to read sold + reserved + available
+       and it held only because three states were all the table could show. The
+       night the desk learned to stamp On Hold and Booked, a unit fell out of
+       every column and Awami printed 1,467 total over 0 + 0 + 1,466 — this
+       check would have caught it, and now it covers every column the table has
+       rather than the three it used to have. */
+    {
+      const t = sem.tbl;
+      const parts = ['hold','res','booked','sold','other','av']
+                      .filter(k => t[k] !== null && t[k] !== undefined);
+      const sum = parts.reduce((a, k) => a + t[k], 0);
+      sum === t.total
+        ? okS(parts.join(' + ') + ' = total (' + sum + ')')
+        : badS('the floor table loses units: ' + parts.join('+') + ' = ' + sum +
+               ' but total = ' + t.total + '  ' + JSON.stringify(t));
+      ['On hold','Reserved','Booked','Sold','Available','Total'].every(c => t.cols.indexOf(c) >= 0)
+        ? okS('every state has its own column: ' + t.cols.join(' · '))
+        : badS('a state has no column of its own: ' + JSON.stringify(t.cols));
+    }
     sem.sumMM && sem.sumMM.h <= 297 / 4
       ? okS('summary block is ' + sem.sumMM.h + 'mm — under a quarter of the page (74mm)')
       : badS('summary block is ' + (sem.sumMM && sem.sumMM.h) + 'mm, over a quarter of the page');
@@ -481,8 +570,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     /* The hold list. 18 stub rows go in; 18 rows have to come out, or the
        section is silently dropping units \u2014 which is the failure that matters,
        since a unit missing from this page reads as available. */
-    chk.holdIdx>=0 ? ok('"Units On Hold" section present, at position ' + (chk.holdIdx+1))
-                   : bad('no "Units On Hold" section: ' + JSON.stringify(chk.secTitles));
+    chk.holdIdx>=0 ? ok('"Units Held" section present, at position ' + (chk.holdIdx+1))
+                   : bad('no "Units Held" section: ' + JSON.stringify(chk.secTitles));
     chk.holdRows===18 ? ok('all 18 held units printed, none dropped across the page break')
                       : bad('hold list printed ' + chk.holdRows + ' of 18 rows');
     /* THE CLIENT FILTER, EXERCISED. The stub feeds 40 bookings of which 4 are

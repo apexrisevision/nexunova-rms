@@ -461,6 +461,11 @@
     return c === 'HOLD' ? 'hold' : c === 'BOOKED' ? 'booked' : 'reserved';
   }
 
+  /* Does any floor carry a unit in a state with no column of its own? */
+  function _avOther(av) {
+    return (av || []).some(function (f) { return Number(f.other || 0) > 0; });
+  }
+
   function _tagCls(code) {
     var c = String(code || 'RESERVED').toUpperCase();
     return c === 'HOLD' ? 'tg-hold' : c === 'BOOKED' ? 'tg-booked' : 'tg-reserved';
@@ -700,9 +705,16 @@
     }
 
     if (go) go.disabled = true;
-    if (u.s === 'reserved' && u.h) {
+    /* Was `u.s === 'reserved'`. get_reserve_desk returns the status code
+       lowercased for anything it does not special-case, so a unit tagged On
+       Hold arrives as 'hold' and a Booked one as 'booked' — both fell past this
+       branch into the generic line and showed no holder at all. Typing LG-12
+       said "On Hold" and nothing else: not who asked for it, not until when,
+       which is the entire reason the holder block exists. The test is now
+       "somebody holds it", not "it is called Reserved". */
+    if (u.h) {
       hit.className = 'rd-hit warn';
-      hit.innerHTML = '<b>' + esc(u.n) + '</b> — Reserved' +
+      hit.innerHTML = '<b>' + esc(u.n) + '</b> — ' + esc(u.sn || 'Reserved') +
         '<div class="rd-meta">by <b style="font-size:inherit">' + esc(u.h.by || '—') + '</b>' +
         (u.h.code ? ' (' + esc(u.h.code) + ')' : '') +
         (u.h.exp ? ' · ' + esc(_left(u.h.exp)) + ', to ' + esc(_pkDate(u.h.exp)) : '') +
@@ -841,13 +853,21 @@
      navigated away, or the next visit to the desk would show a unit as free
      that this session just booked. */
   function _patchAfterBooking(d, r, u, clientName) {
-    u.s = 'reserved';
+    /* Both of these come from the SERVER's answer, not from the chip that was
+       armed here. It hardcoded 'reserved' and no tag, so a unit booked as On
+       Hold painted itself Reserved on the board and in "Booked today" until the
+       next refetch — the optimistic patch quietly disagreeing with the row that
+       had just been written. */
+    var tcode = String(d.tag_code || 'RESERVED').toUpperCase();
+    u.s = tcode === 'HOLD' ? 'hold' : tcode === 'BOOKED' ? 'booked' : 'reserved';
+    u.sn = d.tag || u.sn || 'Reserved';
     u.h = { by: d.requested_by, code: r.kind === 'agent' ? r.code : null,
             booked: (ME && ME.sales_user_name) || null, exp: d.expiry_date };
     DESK.data.today = DESK.data.today || [];
     DESK.data.today.unshift({
       id: d.reservation_id, unit_id: u.id, unit_no: d.unit_no || u.n,
       floor: u.f, by: d.requested_by, client_name: clientName || null,
+      tag: d.tag || 'Reserved', tag_code: tcode,
       status: 'active', expiry_date: d.expiry_date, created_at: new Date().toISOString()
     });
   }
@@ -1023,7 +1043,7 @@
            section listed is in this one wearing a red chip, so keeping both would
            have shown the same units twice — and the screen has to tell the same
            story as the PDF, or the two disagree about the same day. */
-        _dbSec('Units on hold', hold.length, hold.length
+        _dbSec('Units held', hold.length, hold.length
           ? '<div class="db-asat">As at ' + esc(_pkDate(genISO)) + ' ' + esc(_pkTime(genISO)) +
             ' PKT — soonest to lapse first.</div>' +
             _dbTable(['Unit', 'Tag', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
@@ -1037,16 +1057,22 @@
                         esc(_pkDate(r.reserved_at)), esc(_pkDate(r.expiry_date)),
                         '<span class="n' + (L.tone ? ' db-' + L.tone : '') + '">' + esc(L.t) + '</span>'];
               }))
-          : '<div class="rd-empty">No units are on hold right now.</div>') +
+          : '<div class="rd-empty">No units are held right now.</div>') +
 
+        /* Same five states as the PDF, same order, so the two never disagree
+           about a floor. Other only appears when a floor actually has some. */
         _dbSec('Available by floor', totAvail,
-          _dbTable(['Floor', 'Available', 'Reserved', 'Sold', 'Total'],
+          _dbTable(['Floor', 'Available', 'On hold', 'Reserved', 'Booked', 'Sold']
+                     .concat(_avOther(av) ? ['Other'] : []).concat(['Total']),
             av.map(function (f) {
               return [esc(f.floor),
-                      '<span class="n"><b>' + esc(String(f.available)) + '</b></span>',
-                      '<span class="n">' + esc(String(f.reserved)) + '</span>',
-                      '<span class="n">' + esc(String(f.sold)) + '</span>',
-                      '<span class="n">' + esc(String(f.total)) + '</span>'];
+                      '<span class="n"><b>' + esc(String(f.available || 0)) + '</b></span>',
+                      '<span class="n">' + esc(String(f.hold || 0)) + '</span>',
+                      '<span class="n">' + esc(String(f.reserved || 0)) + '</span>',
+                      '<span class="n">' + esc(String(f.booked || 0)) + '</span>',
+                      '<span class="n">' + esc(String(f.sold || 0)) + '</span>']
+                     .concat(_avOther(av) ? ['<span class="n">' + esc(String(f.other || 0)) + '</span>'] : [])
+                     .concat(['<span class="n">' + esc(String(f.total || 0)) + '</span>']);
             }))) +
       '</div>';
 
@@ -1108,7 +1134,7 @@
        actually acts on: what is off the board right now and when it returns. */
     var hold = d.holding || [];
     if (hold.length) {
-      L.push('*On hold now (' + hold.length + ')*');
+      L.push('*Held right now (' + hold.length + ')*');
       hold.forEach(function (r) {
         var L2 = _holdLeft(r);
         L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
@@ -1121,7 +1147,11 @@
     var tot = 0;
     (d.available || []).forEach(function (f) {
       tot += Number(f.available || 0);
-      L.push('• ' + f.floor + ': ' + f.available + ' of ' + f.total);
+      /* Held, not broken down: the group asks "can I sell it", and any of
+         the three tags answers no. The daybook itself carries the split. */
+      var held = Number(f.hold || 0) + Number(f.reserved || 0) + Number(f.booked || 0);
+      L.push('• ' + f.floor + ': ' + f.available + ' of ' + f.total +
+             (held ? '  (' + held + ' held)' : ''));
     });
     L.push('*Total available: ' + tot + '*');
     return L.join('\n');
@@ -1260,11 +1290,21 @@
 
     /* ── figures: summed from the floor table, client-side ─────────────── */
     var avail = d.available || [];
-    var tSold = 0, tRes = 0, tAv = 0, tAll = 0;
+    var tSold = 0, tRes = 0, tHold = 0, tBook = 0, tAv = 0, tOther = 0, tAll = 0;
     avail.forEach(function (f) {
-      tSold += Number(f.sold || 0); tRes += Number(f.reserved || 0);
-      tAv += Number(f.available || 0); tAll += Number(f.total || 0);
+      tSold  += Number(f.sold || 0);     tRes   += Number(f.reserved || 0);
+      tHold  += Number(f.hold || 0);     tBook  += Number(f.booked || 0);
+      tAv    += Number(f.available || 0); tOther += Number(f.other || 0);
+      tAll   += Number(f.total || 0);
     });
+    /* The Other column is drawn only when something is in it. On Awami it is
+       always zero; a project with Dead or Mortgaged units gets the column and
+       the row still adds up to the total either way. */
+    var showOther = tOther > 0;
+    /* Every unit that is not available is off the market, whichever tag it
+       wears. The position line needs one figure for that, or a reader has to
+       add three columns in their head to answer "how much is gone". */
+    var tHeld = tRes + tHold + tBook;
 
     var pages = [], body = null, pageNo = 0;
 
@@ -1355,16 +1395,24 @@
     sum.appendChild(sumRow([
       ['Total', _num(tAll), null],
       ['Sold', _num(tSold), _pct(tSold, tAll)],
-      ['Reserved', _num(tRes), _pct(tRes, tAll)],
+      ['Held', _num(tHeld), _pct(tHeld, tAll)],
       ['Available', _num(tAv), _pct(tAv, tAll)]
     ], false));
+    /* The split under it, because "held" is three different promises and the
+       board wants to know which. Suppressed entirely when nothing is held. */
+    if (tHeld || tOther) {
+      sum.appendChild(_el('div', 'sum-pkr',
+        'Of which: on hold ' + _num(tHold) + '  \u00b7  reserved ' + _num(tRes) +
+        '  \u00b7  booked ' + _num(tBook) +
+        (tOther ? '  \u00b7  other ' + _num(tOther) : '')));
+    }
     /* `holding` is the whole active set, not a day's slice, so the value tied up
        in reservations IS derivable now — unlike the sold and period figures,
        which stay date-bound. Stated separately for exactly that reason. */
     var holdVal = hold.reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     sum.appendChild(_el('div', 'sum-pkr',
       'Booked today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal) +
-      (hold.length ? '  ·  On hold ' + _pkr(holdVal) + ' across ' + _num(hold.length) +
+      (hold.length ? '  ·  Held ' + _pkr(holdVal) + ' across ' + _num(hold.length) +
                      ' unit' + (hold.length === 1 ? '' : 's') : '')));
 
     var b = _el('div');
@@ -1466,7 +1514,7 @@
          order the list is worked: the top of it is what has to be chased today.
          The booking date is still a column, so the other reading is available
          to the eye even though it is not the sort. */
-      { title: 'Units On Hold', unit: 'unit', noun: 'units on hold', undated: true,
+      { title: 'Units Held', unit: 'unit', noun: 'units held', undated: true,
         note: 'As at ' + _dShort(genISO) + ' ' + _pkTime(genISO) + ' PKT \u2014 every reservation still active, soonest to lapse first.',
         cols: [['Unit'], ['Tag'], ['Floor'], ['Size', 'n'], ['Reserved by'],
                ['Buyer'], ['Reserved on'], ['Expires'], ['Left', 'n']],
@@ -1481,18 +1529,32 @@
                   r.client_name ? r.client_name : { v: '\u2014', cls: 'mut' },
                   _dShort(r.reserved_at), _dShort(r.expiry_date), left];
         }),
-        empty: function () { return 'No units are on hold.'; } },
+        empty: function () { return 'No units are held.'; } },
 
+      /* Five states across, in the order a unit travels: on hold, reserved,
+         booked, sold — then what is still free. Before this the table showed
+         three of them and a unit tagged On Hold or Booked was counted in Total
+         and in no column at all, which is how 1,467 came to sit above
+         0 + 0 + 1,466. */
       { title: 'Floor-wise Position', unit: 'floor', noun: 'inventory',
-        cols: [['Floor'], ['Sold', 'n'], ['Reserved', 'n'], ['Available', 'n'], ['Total', 'n'], ['% Sold', 'n']],
+        cols: [['Floor'], ['On hold', 'n'], ['Reserved', 'n'], ['Booked', 'n'], ['Sold', 'n']]
+              .concat(showOther ? [['Other', 'n']] : [])
+              .concat([['Available', 'n'], ['Total', 'n'], ['% Sold', 'n']]),
         rows: avail.map(function (f) {
           var t = Number(f.total || 0);
-          return [f.floor, { v: _num(f.sold), cls: 'n' }, { v: _num(f.reserved), cls: 'n' },
-                  { v: _num(f.available), cls: 'n' }, { v: _num(t), cls: 'n' },
-                  { v: _pct(Number(f.sold || 0), t), cls: 'n' }];
+          return [f.floor,
+                  { v: _num(f.hold), cls: 'n' }, { v: _num(f.reserved), cls: 'n' },
+                  { v: _num(f.booked), cls: 'n' }, { v: _num(f.sold), cls: 'n' }]
+                 .concat(showOther ? [{ v: _num(f.other), cls: 'n' }] : [])
+                 .concat([{ v: _num(f.available), cls: 'n' }, { v: _num(t), cls: 'n' },
+                          { v: _pct(Number(f.sold || 0), t), cls: 'n' }]);
         }),
-        total: ['Total', { v: _num(tSold), cls: 'n' }, { v: _num(tRes), cls: 'n' },
-                { v: _num(tAv), cls: 'n' }, { v: _num(tAll), cls: 'n' }, { v: _pct(tSold, tAll), cls: 'n' }],
+        total: ['Total',
+                { v: _num(tHold), cls: 'n' }, { v: _num(tRes), cls: 'n' },
+                { v: _num(tBook), cls: 'n' }, { v: _num(tSold), cls: 'n' }]
+               .concat(showOther ? [{ v: _num(tOther), cls: 'n' }] : [])
+               .concat([{ v: _num(tAv), cls: 'n' }, { v: _num(tAll), cls: 'n' },
+                        { v: _pct(tSold, tAll), cls: 'n' }]),
         empty: function () { return 'No inventory recorded for this project.'; } }
     ];
 
