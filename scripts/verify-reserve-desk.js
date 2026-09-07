@@ -471,6 +471,52 @@ async function deskUp(page) {
     });
     assert(/LG-12/.test(awUnit), 'typing LG-12 on Awami resolves: ' + awUnit.slice(0, 70));
 
+    /* ══ BOARD CARDS — price hidden, layout intact at 430px ══════════════ */
+    step('Board unit cards at 430px — no price, nothing else shifted');
+    await page.evaluate(() => setTab('board'));
+    await until(page, () => !!document.getElementById('bv-body'), null, 30000);
+    await clearChrome(page);
+    // the board opens grouped by floor; the unit CARDS live in 'Every unit'
+    await page.evaluate(() => { if (typeof _bvMode === 'function') _bvMode('detailed'); });
+    await until(page, () => document.querySelectorAll('.units .unit').length > 0, null, 30000);
+    const cards = await page.evaluate(() => {
+      const els = [...document.querySelectorAll('.units .unit')];
+      const rows = {};
+      els.forEach(e => {
+        const r = Math.round(e.getBoundingClientRect().top);
+        (rows[r] = rows[r] || []).push(Math.round(e.getBoundingClientRect().height));
+      });
+      const heights = Object.values(rows);
+      return {
+        n: els.length,
+        priceSpans: document.querySelectorAll('.units .unit .upr').length,
+        areaSpans: document.querySelectorAll('.units .unit .uar').length,
+        unoSpans: document.querySelectorAll('.units .unit .uno').length,
+        ustSpans: document.querySelectorAll('.units .unit .ust').length,
+        // every card in a given row must be the same height (grid-auto-rows:1fr)
+        raggedRows: heights.filter(h => new Set(h).size > 1).length,
+        minH: Math.min(...els.map(e => e.getBoundingClientRect().height)),
+        // nothing may push the page sideways on a 430px phone
+        docW: document.documentElement.scrollWidth,
+        winW: window.innerWidth,
+        anyOverflow: els.some(e => e.getBoundingClientRect().right > window.innerWidth + 1)
+      };
+    });
+    assert(cards.n > 0, cards.n + ' unit cards rendered');
+    assert(cards.priceSpans === 0, 'no .upr price element on any card (found ' + cards.priceSpans + ')');
+    assert(cards.unoSpans === cards.n && cards.ustSpans === cards.n,
+           'unit number and status still on every card');
+    assert(cards.areaSpans > 0, 'the area/rate line survives (' + cards.areaSpans + ' cards carry it)');
+    assert(cards.raggedRows === 0, 'no ragged row — every card in a row is the same height');
+    assert(cards.minH >= 56, 'cards keep their min-height (' + Math.round(cards.minH) + 'px)');
+    assert(cards.docW <= cards.winW + 1,
+           'no horizontal overflow at ' + cards.winW + 'px (document is ' + cards.docW + 'px)');
+    assert(!cards.anyOverflow, 'no card extends past the right edge');
+    try {
+      await page.screenshot({ path: path.join(ROOT, 'marketing_shots', 'board-cards-430.png') });
+      console.log('     screenshot: marketing_shots/board-cards-430.png');
+    } catch (e) {}
+
     /* ══ console ═════════════════════════════════════════════════════════ */
     step('Console');
     /* The only 404s this harness can legitimately produce are things the static

@@ -12954,7 +12954,13 @@ function unitCell(u){
     +'<span class="uno">'+esc(u.unit_no)+'</span><span class="ust">'
     +esc(_sells ? (u.status_name||code||'—') : (isAvail?'Available':'Not available'))+'</span>'
     +(arLine?'<span class="uar">'+esc(arLine)+'</span>':'')
-    +(price>0?'<span class="upr">'+esc(pkrShort(price))+'</span>':'')
+    /* The total price is deliberately NOT on the card. On a 1,467-unit tower a
+       full PKR figure on every tile is noise, and the card's job is to say which
+       units are free. This is PRESENTATION ONLY — base_price is still in the
+       board payload and still governed by _sales_sees_prices /
+       _sales_sees_sold_price, it is still passed to openReserve() below, and the
+       client-facing quote in openShareUnit() is unchanged. Do not "restore" this
+       line thinking a permission is missing; nothing was withheld. */
     +(by?'<span class="uby">'+esc(by)+'</span>':'')+'</div>';
 }
 function showReservedInfo(uno,resJson){
