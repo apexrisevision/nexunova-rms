@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Found** | 2026-09-07, while verifying the Reserve Desk on all four boot paths |
-| **Status** | **FIXED 2026-09-07 (Stage 4, approved).** Measured before and after — see §3 and §6. |
+| **Status** | **PARTLY FIXED 2026-09-07 (Stage 4, approved).** The Reserve Desk is protected; the general shell race is NOT — see §7. Measured before and after: §3, §6, §7. |
 | **Scope** | `sales-portal.html`. **Every portal user, every tenant.** Nothing specific to the Reserve Desk. |
 | **Severity** | Low frequency, confusing when it happens. No data is lost or wrongly written. |
 
@@ -171,3 +171,44 @@ That was **verified in a real browser before the code was written**, not assumed
 
 `npm run measure:overpaint` — 16 of 16 cells pass, against 4 and 5 failures
 respectively before. `npm run gate` 38/38, `npm run verify:desk` 56/56.
+
+---
+
+## 7 · Correction — the redraw is NARROWER than §6 claimed (2026-09-07, same day)
+
+§6 said one mechanism covers every renderer. **Detection does. The corrective
+action does not, and §6 overstated it.**
+
+`npm run gate` failed twice, reproducibly, on the same assertion: the Director
+board's "See their leads" screen was *"stuck on a skeleton"*. Isolated by
+disabling `_navRepaint` and re-running — 38/38 — so the correction itself was
+the cause, not a flake and not the data.
+
+**Why.** The only non-destructive way to undo a stale paint is to re-dispatch
+the tab, and re-dispatching throws away whatever state a screen holds *inside*
+itself. `renderTeam` re-runs and lands back on the board, dropping the drill-down
+into a member's leads. Two alternatives were considered and rejected on the
+evidence:
+
+- **Restrict the correction to boot's own navigation** (`NAV.bootSeq`). Tried;
+  the gate still failed. Boot's render *is* the late one, and by the time it
+  lands the user has already drilled in — so the restriction excludes nothing.
+- **Restore the previous `innerHTML` instead of re-dispatching.** Rejected
+  without trying it in anger: replacing innerHTML builds new nodes, and every
+  listener attached by `addEventListener` dies with the old ones. The screen
+  would look correct and answer no clicks, which is worse than a visible flicker.
+
+**What shipped.** `NAV_REDRAWABLE = ['desk','daybook']` — the correction fires
+only when the screen being defended rebuilds losslessly from its own cache. The
+desk and its daybook do. Nothing else claims to, so nothing else is touched, and
+every other screen keeps the behaviour this finding describes.
+
+**So this finding is only partly closed.** The Reserve Desk is protected. The
+general shell race is not, and the proper fix is still §5: a nav token checked
+by each renderer *before it paints*, which prevents the stale paint instead of
+undoing it. That remains unapproved work.
+
+### After, measured again
+
+`npm run measure:overpaint` — 16/16 cells pass (localhost and throttled, delays
+0 through 3000 ms). `npm run gate` 38/38. `npm run verify:desk` 74/74.

@@ -35,7 +35,8 @@
     projectId: null,     // project the cache belongs to
     fetchedAt: 0,
     idx: {},             // UNIT_NO (upper) -> unit object, for O(1) typing
-    reqIdx: {},          // requester label (lower) -> {kind,id,name}
+    reqById: {},         // agent_id / sales_user_id -> requester   (IDENTITY)
+    reqByLabel: {},      // label (lower) -> [requesters]           (typing aid only)
     sel: null,           // resolved unit
     days: 7,
     busy: false
@@ -179,15 +180,83 @@
   }
 
   /* ── the cache ─────────────────────────────────────────────────────────── */
+  /* 03009025113 -> 0300-9025113. Also accepts +92/0092 forms, because the same
+     person is stored either way depending on when they were entered. */
+  function _phoneDisp(p) {
+    var d = String(p == null ? '' : p).replace(/\D/g, '');
+    if (d.length === 12 && d.slice(0, 2) === '92') d = '0' + d.slice(2);
+    else if (d.length === 14 && d.slice(0, 4) === '0092') d = '0' + d.slice(4);
+    return d.length >= 8 ? d.slice(0, 4) + '-' + d.slice(4) : String(p == null ? '' : p);
+  }
+
+  /* Two people in Awami are both called "Fawad khan" — different CNICs,
+     different agent codes, 2 and 14 real sales apiece. They are not a duplicate
+     and neither is going away, so the picker has to tell them apart at the
+     moment of typing. The agent code does that in the data but not in the head:
+     nobody recognises AGT-2026-0005. The PHONE is what the operator has just
+     read in the WhatsApp group, so that is what is appended — and only to the
+     entries that actually collide, so 120-odd unique names stay clean. */
   function _reindex() {
-    DESK.idx = {}; DESK.reqIdx = {};
-    var u = (DESK.data && DESK.data.units) || [], i;
-    for (i = 0; i < u.length; i++) DESK.idx[String(u[i].n || '').toUpperCase()] = u[i];
-    var r = (DESK.data && DESK.data.requesters) || [];
+    DESK.idx = {}; DESK.reqById = {}; DESK.reqByLabel = {};
+    /* Unit numbers are unique inside a tower, not across towers — LG-12 exists
+       in more than one. The payload is scoped to one project server-side, but
+       this index must not depend on that being true: it records EVERY unit for
+       a number, so an ambiguous one is refused rather than resolved to whichever
+       happened to load last. Same rule as the requester: a display string is
+       never an identity. */
+    var u = (DESK.data && DESK.data.units) || [], i, un;
+    for (i = 0; i < u.length; i++) {
+      un = String(u[i].n || '').toUpperCase();
+      (DESK.idx[un] = DESK.idx[un] || []).push(u[i]);
+    }
+
+    /* THE INDEX IS KEYED ON id, NEVER ON THE LABEL.
+       It used to be keyed on the label, and nine entries in the Awami picker
+       carried byte-identical labels — same name, same agent code, same phone,
+       differing only by tenant — so each silently overwrote the last and a pick
+       resolved to whichever happened to load second. A booking would have
+       succeeded with requested_by_agent_id pointing at another company's row and
+       nothing on screen to say so. A label is for a person to read. Identity is
+       the id. */
+    var r = (DESK.data && DESK.data.requesters) || [], byName = {}, k;
     for (i = 0; i < r.length; i++) {
-      var lbl = r[i].code ? (r[i].name + ' · ' + r[i].code) : r[i].name;
+      k = String(r[i].name || '').trim().toLowerCase();
+      byName[k] = (byName[k] || 0) + 1;
+    }
+
+    // pass 1 — name, code, and the phone only where the NAME repeats
+    for (i = 0; i < r.length; i++) {
+      k = String(r[i].name || '').trim().toLowerCase();
+      r[i]._collides = byName[k] > 1;
+      var lbl = r[i].name;
+      if (r[i].code) lbl += ' · ' + r[i].code;
+      if (r[i]._collides && r[i].phone) lbl += ' · ' + _phoneDisp(r[i].phone);
       r[i]._label = lbl;
-      DESK.reqIdx[lbl.toLowerCase()] = r[i];
+    }
+
+    // pass 2 — the company, only where that label STILL repeats. The same person
+    // holds one agent row per tenant with the same name, code and phone, so this
+    // is the only thing left that differs. Scoping the picker to the project's
+    // company removes most of these; it does not make labels unique, because two
+    // different people can share a name inside one tenant.
+    var lblCount = {};
+    for (i = 0; i < r.length; i++) {
+      k = r[i]._label.toLowerCase();
+      lblCount[k] = (lblCount[k] || 0) + 1;
+    }
+    for (i = 0; i < r.length; i++) {
+      k = r[i]._label.toLowerCase();
+      if (lblCount[k] > 1 && r[i].company) r[i]._label += ' · ' + r[i].company;
+    }
+
+    // resolve by id; the label map is a convenience for typing and may still be
+    // ambiguous, so it records EVERY match rather than the last one to be seen.
+    DESK.reqById = {};
+    DESK.reqByLabel = {};
+    for (i = 0; i < r.length; i++) {
+      if (r[i].id) DESK.reqById[String(r[i].id)] = r[i];
+      k = r[i]._label.toLowerCase();
+      (DESK.reqByLabel[k] = DESK.reqByLabel[k] || []).push(r[i]);
     }
   }
 
@@ -391,23 +460,36 @@
     if (!hit) return;
     if (!key) { hit.innerHTML = ''; if (go) go.disabled = true; return; }
 
-    var u = DESK.idx[key];
-    if (!u) {
+    var hits = DESK.idx[key] || [];
+    if (!hits.length) {
       // forgive a missing separator: "LG12" finds "LG-12"
       var loose = key.replace(/[^A-Z0-9]/g, '');
-      var keys = Object.keys(DESK.idx), match = null, n = 0;
-      for (var i = 0; i < keys.length && n < 2; i++) {
-        if (keys[i].replace(/[^A-Z0-9]/g, '') === loose) { match = DESK.idx[keys[i]]; n++; }
+      var keys = Object.keys(DESK.idx);
+      for (var i = 0; i < keys.length && hits.length < 3; i++) {
+        if (keys[i].replace(/[^A-Z0-9]/g, '') === loose) hits = hits.concat(DESK.idx[keys[i]]);
       }
-      if (n === 1) u = match;
     }
 
-    if (!u) {
+    if (!hits.length) {
       hit.className = 'rd-hit no';
       hit.innerHTML = 'No unit <b>' + esc(key) + '</b> in this project.';
       if (go) go.disabled = true;
       return;
     }
+
+    /* More than one unit answers to that number. Booking the wrong tower's flat
+       is not recoverable by looking at the screen afterwards, so this refuses
+       and says so instead of picking one. */
+    if (hits.length > 1) {
+      hit.className = 'rd-hit no';
+      hit.innerHTML = '<b>' + esc(key) + '</b> matches ' + hits.length +
+        ' units — the desk will not guess.<div class="rd-meta">Pick the project first: ' +
+        esc(hits.map(function (x) { return x.f; }).join(', ')) + '</div>';
+      if (go) go.disabled = true;
+      return;
+    }
+
+    var u = hits[0];
 
     var meta = esc(u.f) + (Number(u.a) ? ' · ' + Number(u.a).toLocaleString('en-US') + ' ' + esc(u.u || 'sqft') : '') +
                (u.p != null ? ' · ' + pkrFull(u.p) : '');
@@ -437,18 +519,28 @@
   }
 
   /* ── requester: resolved against the picker, free text only as a fallback ─ */
+  /* Returns the requester, or an 'ambiguous' marker, or free text. It NEVER
+     picks one of several matches on its own: two people who look identical in
+     the box are exactly the case where guessing corrupts attribution silently,
+     which is the whole reason the index moved off the label. */
   function _resolveReq() {
     var el = _q('#rd-req'); if (!el) return null;
     var raw = String(el.value || '').trim();
     if (!raw) return null;
-    var exact = DESK.reqIdx[raw.toLowerCase()];
-    if (exact) return exact;
+    var lo = raw.toLowerCase();
+
+    var exact = DESK.reqByLabel[lo];
+    if (exact && exact.length === 1) return exact[0];
+    if (exact && exact.length > 1) return { kind: 'ambiguous', matches: exact, name: raw };
+
     // a unique prefix is as good as an exact pick, and much faster to type
-    var keys = Object.keys(DESK.reqIdx), lo = raw.toLowerCase(), found = null, n = 0;
-    for (var i = 0; i < keys.length && n < 2; i++) {
-      if (keys[i].indexOf(lo) === 0) { found = DESK.reqIdx[keys[i]]; n++; }
+    var keys = Object.keys(DESK.reqByLabel), hits = [];
+    for (var i = 0; i < keys.length && hits.length < 3; i++) {
+      if (keys[i].indexOf(lo) === 0) hits = hits.concat(DESK.reqByLabel[keys[i]]);
     }
-    if (n === 1) return found;
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1) return { kind: 'ambiguous', matches: hits, name: raw };
+
     return { kind: 'free', id: null, name: raw, _label: raw };
   }
 
@@ -456,8 +548,18 @@
     var out = _q('#rd-reqhit'); if (!out) return;
     var r = _resolveReq();
     if (!r) { out.textContent = ''; return; }
-    if (r.kind === 'agent') out.innerHTML = 'Agent · <b>' + esc(r.code || '') + '</b> ' + esc(r.name);
-    else if (r.kind === 'user') out.innerHTML = 'Portal member · ' + esc(r.name);
+    // On a colliding name the confirmation line carries the phone too. This is
+    // the last thing read before Enter, so it must name the person the same way
+    // the picker did, not just the one they share a name with.
+    if (r.kind === 'ambiguous') {
+      out.innerHTML = '<span style="color:var(--fk-danger)">' + r.matches.length +
+        ' people match that — pick one from the list:</span> ' +
+        esc(r.matches.map(function (m) { return m._label; }).join('  |  '));
+      return;
+    }
+    var ph = (r._collides && r.phone) ? ' · <b>' + esc(_phoneDisp(r.phone)) + '</b>' : '';
+    if (r.kind === 'agent') out.innerHTML = 'Agent · <b>' + esc(r.code || '') + '</b> ' + esc(r.name) + ph;
+    else if (r.kind === 'user') out.innerHTML = 'Portal member · ' + esc(r.name) + ph;
     else out.innerHTML = '<span style="color:var(--fk-warning)">New name — recorded as typed</span>';
   }
 
@@ -468,6 +570,14 @@
     if (!u) { toast('Pick a unit that is available.', 'warn'); var ue = _q('#rd-unit'); if (ue) ue.focus(); return; }
     var r = _resolveReq();
     if (!r) { toast('Record who asked for this unit.', 'warn'); var re = _q('#rd-req'); if (re) re.focus(); return; }
+    /* Refuse rather than guess. Picking one of several identical-looking people
+       would write an agent id nobody chose, and dealer reporting would carry it
+       silently for the life of the reservation. */
+    if (r.kind === 'ambiguous') {
+      toast(r.matches.length + ' people match that name — pick the exact one from the list.', 'err');
+      var ra = _q('#rd-req'); if (ra) ra.focus();
+      return;
+    }
 
     var go = _q('#rd-go');
     DESK.busy = true; if (go) { go.disabled = true; go.textContent = 'Reserving…'; }
@@ -596,8 +706,13 @@
     for (i = 0; i < rows.length; i++) {
       if (rows[i].id === id) {
         rows[i].status = 'cancelled';
-        var u = DESK.idx[String(rows[i].unit_no || '').toUpperCase()];
-        if (u) { u.s = 'available'; u.h = null; }
+        // find the unit by its ID, not by its number — a number can answer for
+        // more than one unit, and freeing the wrong tile would show a booked
+        // flat as available
+        var all = DESK.idx[String(rows[i].unit_no || '').toUpperCase()] || [];
+        for (var k = 0; k < all.length; k++) {
+          if (all[k].id === rows[i].unit_id) { all[k].s = 'available'; all[k].h = null; break; }
+        }
         break;
       }
     }

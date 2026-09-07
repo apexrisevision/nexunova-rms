@@ -202,6 +202,13 @@ async function deskUp(page) {
                     failed_pin_attempts = 0, locked_until = null
               where id = '${ZZ_DIR}';`);
   await sql(`delete from public.sales_sessions where sales_user_id = '${ZZ_DIR}';`);
+
+  /* A name collision, on purpose. Awami has two real "Fawad khan" and that is
+     the case that must not resolve by guesswork, but booking on Awami is a live
+     write — so the same shape is built here, where it is safe to wipe. */
+  await sql(`delete from public.agents where company_id='${ZZ_CO}' and agent_code='ZZAG-TWIN';`);
+  await sql(`insert into public.agents (company_id, project_id, agent_code, full_name, cnic, phone, status, join_date)
+             values ('${ZZ_CO}','${ZZ_PROJ}','ZZAG-TWIN','ZZTEST Agent','99999-9999999-9','03009998877','active', current_date);`);
   await sql(`insert into public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
              values ('${AWAMI_CO}','${AWAMI_DIR}',null,'${AW_TOKEN}', now() + interval '20 minutes');`);
 
@@ -362,6 +369,40 @@ async function deskUp(page) {
       document.getElementById('rd-root').querySelector('#rd-reqhit').textContent.trim());
     assert(/Agent/i.test(reqEcho), 'requester echo names the agent: ' + reqEcho);
 
+    step('Identical labels resolve to DIFFERENT ids, and the booking records the one picked');
+    const twins = await page.evaluate(async () => {
+      const r = await sb.rpc('get_reserve_desk', { p_session_token: TOKEN, p_project_id: null });
+      const all = (r.data && r.data.requesters) || [];
+      const mine = all.filter(x => x.name === 'ZZTEST Agent');
+      return { n: mine.length, ids: mine.map(x => x.id), codes: mine.map(x => x.code),
+               phones: mine.map(x => x.phone), companies: mine.map(x => x.company) };
+    });
+    assert(twins.n === 2, 'two requesters share the name "ZZTEST Agent" (' + twins.n + ')');
+    assert(new Set(twins.ids).size === 2,
+           'they are DIFFERENT agent ids — a label never collapses two identities');
+    const labels = await page.evaluate(() => {
+      const r = document.getElementById('rd-root');
+      return [...r.querySelectorAll('#rd-reqlist option')].map(o => o.value)
+               .filter(v => v.indexOf('ZZTEST Agent') === 0);
+    });
+    assert(labels.length === 2 && new Set(labels).size === 2,
+           'both are separately selectable in the picker: ' + JSON.stringify(labels));
+
+    // pick the TWIN specifically — the one that is NOT the original
+    const twinLabel = labels.find(l => /ZZAG-TWIN/.test(l));
+    assert(!!twinLabel, 'the twin is addressable by its own label: ' + twinLabel);
+    await page.evaluate(l => {
+      const r = document.getElementById('rd-root');
+      const el = r.querySelector('#rd-req');
+      el.value = l; el.dispatchEvent(new Event('input', { bubbles: true }));
+    }, twinLabel);
+    await sleep(150);
+    const resolved = await page.evaluate(() => {
+      const r = document.getElementById('rd-root');
+      return { echo: r.querySelector('#rd-reqhit').textContent.trim() };
+    });
+    assert(/ZZAG-TWIN/.test(resolved.echo), 'the desk resolved the twin, not its namesake: ' + resolved.echo);
+
     step('Reserve → toast → line clears → focus returns to the unit box');
     await page.evaluate(() => document.getElementById('rd-root').querySelector('#rd-go').click());
     const booked = await until(page, () => {
@@ -387,8 +428,32 @@ async function deskUp(page) {
                count: r.querySelector('#rd-count').textContent };
     });
     assert(after.focused === 'rd-unit', 'cursor is back in the unit box (focus=' + after.focused + ')');
-    assert(after.req === 'ZZTEST Agent', 'requester deliberately kept for the next booking');
+    // compare against what was actually typed — the label now carries the code
+    // and phone, so hard-coding the bare name made this assert a stale value
+    assert(after.req === twinLabel,
+           'requester deliberately kept for the next booking (' + after.req + ')');
     assert(after.rows >= 1, "today's list shows the booking (" + after.rows + ' row/s, count=' + after.count + ')');
+
+    step('The stored reservation names the exact agent row that was picked');
+    const stored = await sql(`select r.requested_by_agent_id::text as agent_id,
+                                     a.agent_code, a.full_name, a.company_id::text as agent_company,
+                                     u.unit_no, p.company_id::text as project_company,
+                                     (a.company_id = p.company_id) as same_company
+                                from public.reservations r
+                                join public.units u    on u.id = r.unit_id
+                                join public.projects p on p.id = r.project_id
+                                left join public.agents a on a.id = r.requested_by_agent_id
+                               where r.company_id='${ZZ_CO}' and r.status='active'
+                               order by r.created_at desc limit 1;`);
+    const row = stored[0] || {};
+    const twinId = await sql(`select id::text from public.agents
+                               where company_id='${ZZ_CO}' and agent_code='ZZAG-TWIN';`);
+    assert(!!row.agent_id, 'the reservation carries a requested_by_agent_id');
+    assert(row.agent_id === (twinId[0] || {}).id,
+           'it is the EXACT agent row that was picked (' + row.agent_code + ')');
+    assert(row.same_company === true,
+           "that agent's company matches the unit's project company (" +
+           row.agent_company + ' vs ' + row.project_company + ')');
 
     step('Per-row Undo releases through the existing cancel_reservation');
     await page.evaluate(() => {
@@ -488,6 +553,58 @@ async function deskUp(page) {
       return { units: (r.data.units || []).length, reqs: (r.data.requesters || []).length,
                kb: Math.round(JSON.stringify(r.data).length / 1024) };
     });
+    /* Colliding names must be separable at the moment of typing, unique ones
+       must stay clean. Awami has two live "Fawad khan" — different people,
+       different CNICs — so this is asserted against real data, not a fixture. */
+    const dis = await page.evaluate(() => {
+      const r = document.getElementById('rd-root'); if (!r) return null;
+      const opts = [...r.querySelectorAll('#rd-reqlist option')].map(o => o.value);
+      const byName = {};
+      opts.forEach(v => { const n = v.split(' · ')[0].trim().toLowerCase();
+                          (byName[n] = byName[n] || []).push(v); });
+      const collided = Object.keys(byName).filter(n => byName[n].length > 1);
+      const unique = Object.keys(byName).filter(n => byName[n].length === 1);
+      const hasPhone = v => /\b0\d{3}-\d{6,8}\b/.test(v);
+      return {
+        total: opts.length,
+        collidedNames: collided.length,
+        collidedLabels: collided.reduce((a, n) => a.concat(byName[n]), []),
+        collidedAllPhoned: collided.every(n => byName[n].every(hasPhone)),
+        uniqueWithPhone: unique.filter(n => hasPhone(byName[n][0])).length
+      };
+    });
+    assert(dis && dis.total > 0, 'requester datalist rendered (' + (dis && dis.total) + ' options)');
+    assert(dis.collidedNames > 0, dis.collidedNames + ' name(s) collide in Awami — real data to test against');
+    assert(dis.collidedAllPhoned, 'every colliding entry carries a phone: ' + JSON.stringify(dis.collidedLabels));
+    assert(dis.uniqueWithPhone === 0, 'no unique name was given a phone (' + dis.uniqueWithPhone + ')');
+
+    /* The desk's OWN cache, not a hand-scoped RPC call. It opened with no
+       project argument, which used to fall through to the whole umbrella group:
+       2,244 units, 250 unit numbers appearing twice, and LG-12 matching two
+       different flats in two different towers. */
+    const cache = await page.evaluate(() => {
+      const opts = [...document.querySelectorAll('#rd-root #rd-reqlist option')].map(o => o.value);
+      return { reqOptions: opts.length, dupLabels: opts.length - new Set(opts).size };
+    });
+    const idxState = await page.evaluate(async () => {
+      const r = await sb.rpc('get_reserve_desk', { p_session_token: TOKEN });   // no project arg
+      const u = (r.data && r.data.units) || [];
+      const seen = {}; let dup = 0, lg = 0;
+      u.forEach(x => { const k = String(x.n).toUpperCase();
+        if (seen[k]) dup++; seen[k] = 1; if (k === 'LG-12') lg++; });
+      return { units: u.length, dup, lg, reqs: (r.data.requesters || []).length,
+               floors: new Set(u.map(x => x.f)).size };
+    });
+    assert(idxState.units === 1467,
+           'opening with NO project argument loads one tower, not the group (' + idxState.units + ')');
+    assert(idxState.dup === 0, 'no duplicate unit numbers in the index (' + idxState.dup + ')');
+    assert(idxState.lg === 1, 'LG-12 matches exactly one unit (' + idxState.lg + ')');
+    assert(idxState.floors === 7, 'seven Awami floors, not three towers (' + idxState.floors + ')');
+    assert(idxState.reqs < 40,
+           'requester picker scoped to the project: ' + idxState.reqs + ' (was 125 across the group)');
+    assert(cache.dupLabels === 0,
+           'no two picker options share a label (' + cache.dupLabels + ' duplicates)');
+
     assert(aw.units === 1467, 'Awami index carries all 1,467 units');
     assert(aw.reqs > 0, aw.reqs + ' requesters, agents first');
     console.log('     index size: ' + aw.kb + ' KB');
@@ -579,6 +696,7 @@ async function deskUp(page) {
   } finally {
     await browser.close(); server.close();
     // restore ZZTEST and remove the probe session
+    await sql(`delete from public.agents where company_id='${ZZ_CO}' and agent_code='ZZAG-TWIN';`);
     await sql(`delete from public.reservations where company_id='${ZZ_CO}';
                delete from public.sales_sessions where sales_user_id='${ZZ_DIR}';
                delete from public.sales_sessions where session_token='${AW_TOKEN}';

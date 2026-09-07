@@ -3166,7 +3166,21 @@ const _BTAB_OF={
    The six renderers that live in js/portal-*.js assign window.renderX
    themselves, which is why _navWrap() runs from bootstrap(), after those files
    have loaded. ═══════════════════════════════════════════════════════════ */
-const NAV = { seq: 0, fixing: false, fixedFor: -1, wrapped: 0, missing: [] };
+const NAV = { seq: 0, fixing: false, fixedFor: -1, bootSeq: -1, wrapped: 0, missing: [] };
+
+/* Which screens may be REDRAWN to undo a stale paint.
+   Detection covers all 43 renderers. The corrective ACTION does not, and that
+   is deliberate rather than unfinished: the only non-destructive way to undo a
+   stale paint is to re-dispatch the tab, and re-dispatching throws away any
+   state a screen holds inside itself. renderTeam is the proof — correcting it
+   dropped the driver out of "their leads" back to the board, seven assertions
+   down in npm run gate. Restoring the previous innerHTML instead is worse: it
+   looks right and answers no clicks, because the listeners died with the nodes.
+   So a screen is redrawn only if it rebuilds losslessly from its own cache.
+   The desk and its daybook do; nothing else here claims to. Everything outside
+   this list keeps the pre-existing behaviour, which finding 2026-09-07-G
+   documents and does not pretend is fixed. */
+const NAV_REDRAWABLE = ['desk', 'daybook'];
 
 // Every renderer setTab can dispatch to. If a tab is added to setTab and not to
 // this list, _navWrap() names it at boot and the driver fails.
@@ -3209,6 +3223,14 @@ function _navWrap(){
         const check = function(){
           if(NAV.seq === my) return;      // still the navigation this render belongs to
           if(TAB === myTab) return;       // same screen re-entered — its paint IS correct
+          /* ONLY boot's own render is corrected. The correction re-dispatches
+             the tab, which is fine for a screen that draws itself from scratch
+             and destructive for one the user has drilled into: re-running
+             renderTeam throws away "their leads" and lands back on the board.
+             npm run gate caught exactly that. Boot is the only render that can
+             land on a screen the user chose, because it is the only one already
+             in flight before they could choose. */
+          if(NAV_REDRAWABLE.indexOf(TAB) === -1) return;
           _navRepaint();
         };
         r.then(check, check);
@@ -3232,18 +3254,18 @@ function _syncBtabs(t){
    repainted. NAV.seq>0 means setTab has run, so a choice exists to respect. */
 function _bootTab(dflt){ return PENDING_TAB || (NAV.seq > 0 && TAB ? TAB : dflt); }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
-  if(ME&&ME.role==='lead_entry'){ setTab(_bootTab('leadentry')); PENDING_TAB=null; try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&ME.role==='lead_entry'){ setTab(_bootTab('leadentry')); NAV.bootSeq=NAV.seq; PENDING_TAB=null; try{ _startProfileWatch(); }catch(e){} return; }
   /* The office side returns early, and it used to hardcode 'home' — so a deep
      link from a notification was thrown away for exactly the people the
      notifications are sent to. It honours ?tab= like every other role now;
      setTab still applies its own permission check on the way through. */
-  if(ME&&_isOfficeRole(ME.role)){ setTab(_bootTab('home')); PENDING_TAB=null; try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&_isOfficeRole(ME.role)){ setTab(_bootTab('home')); NAV.bootSeq=NAV.seq; PENDING_TAB=null; try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   /* ?tab= is honoured for ANY screen, not only alerts. It used to read
      PENDING_TAB==='alerts'?'alerts':'home', so every other deep link was
      silently swallowed and the person landed on the dashboard wondering what
      the notification had been about. setTab does its own permission check, so
      a tab somebody may not open still falls back safely. */
-  setTab(_bootTab('home')); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
+  setTab(_bootTab('home')); NAV.bootSeq=NAV.seq; PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ _notifLoad(); }catch(e){} try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
