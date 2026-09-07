@@ -17,7 +17,8 @@
     "gate": "node scripts/predeploy-check.js && node scripts/smoke-portal.js",
     "backup": "node scripts/backup-full.js",
     "backup:quick": "node scripts/backup-full.js --skip-audit",
-    "verify:desk": "node scripts/verify-reserve-desk.js"
+    "verify:desk": "node scripts/verify-reserve-desk.js",
+    "measure:overpaint": "node scripts/measure-desk-overpaint.js"
   },
   "build": {
     "appId": "com.nexunova.rms",

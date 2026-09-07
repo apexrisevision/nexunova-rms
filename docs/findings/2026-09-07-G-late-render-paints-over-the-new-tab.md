@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Found** | 2026-09-07, while verifying the Reserve Desk on all four boot paths |
-| **Status** | **NOT FIXED — deliberately.** Pre-existing, affects every tab, and the fix is a shell change that needs its own approval. |
+| **Status** | **NOT FIXED — deliberately.** Pre-existing, affects every tab, and the fix is a shell change that needs its own approval. Window since **measured**: see §3. |
 | **Scope** | `sales-portal.html`. **Every portal user, every tenant.** Nothing specific to the Reserve Desk. |
 | **Severity** | Low frequency, confusing when it happens. No data is lost or wrongly written. |
 
@@ -54,9 +54,38 @@ the desk that took it.
 | fresh login, then tap a tab **during** boot | **Yes** | home is still awaiting its RPCs |
 | restored session, then tap during boot | **Yes** | same |
 
-So it needs a tap inside the boot window — a second or two on a fast connection,
-longer on a phone on mobile data, which is where this portal lives. The user's
-recovery is to tap the tab again, which works.
+So it needs a tap inside the boot window. **That window was measured rather than
+guessed** — `scripts/measure-desk-overpaint.js` signs in for real, waits N ms,
+opens the desk, and checks four seconds later whether it survived:
+
+| Tap delay after login completes | localhost | slow 3G (400 kbps / 400 ms RTT) |
+|---|---|---|
+| 0 ms | ❌ never painted, `TAB` reverted to `home` | ❌ never painted, `TAB` reverted |
+| 200 ms | ❌ never painted, `TAB` reverted | ❌ never painted, `TAB` reverted |
+| 400 ms | ❌ painted, then overpainted | ❌ never painted, `TAB` reverted |
+| 700 ms | ❌ painted, then overpainted | ❌ painted, then overpainted |
+| 1000 ms | ✅ survived | ❌ painted, then overpainted |
+| 1500 ms | ✅ survived | ✅ survived |
+| 2000 ms | ✅ survived | ✅ survived |
+| 3000 ms | ✅ survived | ✅ survived |
+
+**The failing window is 0–700 ms on localhost and 0–1000 ms throttled.** Median
+login itself was 420–500 ms in both.
+
+Two things this shows that the description above understated:
+
+1. **Below ~400 ms the tab itself is reverted**, not just the paint: `TAB` reads
+   `home` afterwards, because `_showApp()`'s own `setTab('home')` runs after the
+   user's `setTab('desk')`. The user's navigation is discarded outright.
+2. **The window opens exactly when the app becomes visible and tappable.** The
+   nav rail is on screen and live throughout it.
+
+Caveat on the throttling: Chrome's emulation shapes the page's own traffic, but
+the Supabase RPCs still cross the real internet from this machine, so a genuinely
+slow connection would likely widen the window beyond the 1000 ms measured here,
+not narrow it.
+
+The user's recovery is to tap the tab again, which works.
 
 ## 4 · What was done instead
 

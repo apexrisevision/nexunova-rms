@@ -38,8 +38,17 @@ const PAGE = `${BASE}/sales-portal.html`;
 const ZZ_CO   = 'a2915ce7-c01c-463b-ba50-b144b2240337';
 const ZZ_CODE = 'zztestinternalsafeto';
 const ZZ_DIR  = '3e5ec7c8-89c8-435f-8f52-141b87c4b5b0';
-const ZZ_PHONE = '+923459990000';   // doLogin enforces /^+92d{10}$/
-const ZZ_PIN  = '246810';
+const ZZ_PHONE = '+923459990000';   // doLogin rejects anything not in +92########## form
+/* The PIN is NOT in this file. It is a credential, and a credential written into
+   a committed script is a habit that eventually gets repeated against a real
+   tenant. This one only ever unlocks ZZTEST, which is safe to wipe — but the
+   habit is the risk, not this value.
+
+   Set it before running, and the script will set that PIN on the ZZTEST
+   director and then sign in with it:
+       PowerShell   $env:ZZTEST_PIN = '<6 digits>'; npm run verify:desk
+       bash         ZZTEST_PIN=<6 digits> npm run verify:desk                  */
+const ZZ_PIN = process.env.ZZTEST_PIN || '';
 const ZZ_PROJ = '6b56d5ec-6141-4440-9465-ed2a9acbbd97';
 
 const AWAMI_CO  = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';
@@ -169,6 +178,21 @@ async function deskUp(page) {
 }
 
 (async () => {
+  if (!ZZ_PIN) {
+    console.log('\nSKIPPED — ZZTEST_PIN is not set.\n');
+    console.log('  This driver signs in through the real login form, so it needs a PIN to');
+    console.log('  set on the ZZTEST director (' + ZZ_PHONE + ', company ' + ZZ_CODE + ').');
+    console.log('  ZZTEST is the internal scratch tenant and is safe to wipe; no real');
+    console.log('  tenant credential is involved.\n');
+    console.log('    PowerShell   $env:ZZTEST_PIN = \'<6 digits>\'; npm run verify:desk');
+    console.log('    bash         ZZTEST_PIN=<6 digits> npm run verify:desk\n');
+    process.exit(0);              // a missing local secret is not a failing build
+  }
+  if (!/^\d{4,6}$/.test(ZZ_PIN)) {
+    console.error('\nZZTEST_PIN must be 4 to 6 digits.\n');
+    process.exit(2);
+  }
+
   const exe = BROWSERS.find(p => fs.existsSync(p));
   if (!exe) { console.error('No Chrome/Edge found'); process.exit(2); }
 
