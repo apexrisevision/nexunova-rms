@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Found** | 2026-09-07, while verifying the Reserve Desk on all four boot paths |
-| **Status** | **NOT FIXED — deliberately.** Pre-existing, affects every tab, and the fix is a shell change that needs its own approval. Window since **measured**: see §3. |
+| **Status** | **FIXED 2026-09-07 (Stage 4, approved).** Measured before and after — see §3 and §6. |
 | **Scope** | `sales-portal.html`. **Every portal user, every tenant.** Nothing specific to the Reserve Desk. |
 | **Severity** | Low frequency, confusing when it happens. No data is lost or wrongly written. |
 
@@ -121,3 +121,53 @@ approval — which is why it is written down here rather than done in passing.
 
 See [[portal_push_gate]] for how a change that wide has to be verified before it
 ships.
+
+---
+
+## 6 · What shipped (Stage 4, 2026-09-07)
+
+Not the per-renderer guard sketched in §5. One mechanism, applied to every
+renderer from one list, with nothing edited inside any renderer:
+
+- `NAV = { seq, fixedFor, ... }` in `sales-portal.html`. `setTab()` bumps `seq`,
+  so every navigation carries a token.
+- `NAV_RENDERERS` — the 43 renderers `setTab` can dispatch to.
+- `_navWrap()` wraps each of them once. The wrapper remembers the token **and
+  the tab** the render belongs to; when the render finishes it corrects the
+  screen only if the navigation has moved on *and* the tab has actually changed.
+- `_bootTab(dflt)` — `_showApp()` no longer forces `home` over a `?tab=` deep
+  link **or over a tab the person has already opened**. That is what made the
+  0–400 ms cells discard the navigation outright rather than merely repaint it.
+
+Wrapping works because these are top-level function declarations, so they are
+properties of the global object and a bare call resolves through that property.
+That was **verified in a real browser before the code was written**, not assumed.
+
+### Two things this got wrong first, both caught by a check rather than by luck
+
+1. **`_navWrap()` ran too early.** It was called from the main inline script,
+   which executes *before* the seven `js/portal-*.js` files that assign
+   `window.renderX` themselves. 36 of 43 were wrapped and the other seven —
+   including the Reserve Desk's own — were silently left unguarded. That is
+   precisely the "one was left out and we won't know which" failure this
+   mechanism exists to prevent. The call moved to a trailing `<script>` after
+   those files, and `verify-reserve-desk.js` now asserts, **by name**, that
+   every renderer `setTab` dispatches is present in `NAV_RENDERERS` and carries
+   the wrapper's mark. It reads `setTab`'s own source to do it, so the list
+   cannot silently drift from the dispatch chain.
+2. **The correction escalated.** The first version bumped the token on every
+   correction, so a corrective render and the render it was correcting ran
+   concurrently on the same tab, each finishing to find the token moved and
+   asking for another correction. `npm run gate` caught it: the Director board
+   rendered empty, 7 assertions down. Fixed by `fixedFor` (at most one
+   correction per navigation) plus the same-tab check (a screen re-entering
+   itself is not a stale paint).
+
+### After
+
+| Tap delay | localhost | slow 3G |
+|---|---|---|
+| 0 / 200 / 400 / 700 / 1000 / 1500 / 2000 / 3000 ms | ✅ all | ✅ all |
+
+`npm run measure:overpaint` — 16 of 16 cells pass, against 4 and 5 failures
+respectively before. `npm run gate` 38/38, `npm run verify:desk` 56/56.

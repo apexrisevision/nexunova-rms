@@ -3139,23 +3139,111 @@ const _BTAB_OF={
   more:'more', project:'more', torecover:'money', collection:'money', site:'board', performance:'more', teamperf:'more', team:'more', dailyreport:'more', givenleads:'more', org:'more', targets:'more',
   livemap:'more', adroi:'more', fbsettings:'more', updates:'more', profile:'more', command:'more'
 };
+/* ══ NAVIGATION TOKEN ═══════════════════════════════════════════════════════
+   #app-body belongs to whichever tab is current when a render's await
+   RESOLVES, not when it started. Nothing used to check that, so two overlapping
+   navigations landed in completion order rather than in the order they were
+   asked for — and the slower one won. Measured before this existed: tap a tab
+   within 700ms of signing in (1000ms on a throttled connection) and the screen
+   you opened was replaced by the dashboard, with TAB still naming the screen
+   you asked for. Below ~400ms the navigation was discarded outright, because
+   _showApp()'s own setTab('home') ran after yours.
+
+   ONE mechanism, applied to EVERY renderer, from ONE list:
+
+   Each renderer is wrapped once at boot. The wrapper remembers the navigation
+   it belongs to; if that navigation is no longer current when the render
+   finishes, whatever it just painted is wrong, so the current tab is drawn
+   again. Nothing is edited inside any renderer, so a renderer cannot be
+   "missed" by being forgotten — it can only be missed by being absent from
+   NAV_RENDERERS, and _navWrap() reports exactly that, which the boot-path
+   driver then asserts is empty. That is the answer to "if one is left out we
+   won't know which one": we will, by name.
+
+   Wrapping works because these are top-level function declarations, which are
+   properties of the global object, and a bare call resolves through that
+   property — verified in a real browser before this was written, not assumed.
+   The six renderers that live in js/portal-*.js assign window.renderX
+   themselves, which is why _navWrap() runs from bootstrap(), after those files
+   have loaded. ═══════════════════════════════════════════════════════════ */
+const NAV = { seq: 0, fixing: false, fixedFor: -1, wrapped: 0, missing: [] };
+
+// Every renderer setTab can dispatch to. If a tab is added to setTab and not to
+// this list, _navWrap() names it at boot and the driver fails.
+const NAV_RENDERERS = ['renderAdRoi','renderAdSpend','renderAlerts','renderBoard','renderClients',
+  'renderCollection','renderCommand','renderConnections','renderDailyReport','renderDaybook',
+  'renderDistribute','renderFbConnect','renderFbSettings','renderGivenLeads','renderHome',
+  'renderInstagram','renderLeadEntry','renderLeaderboard','renderLeads','renderLiveMap','renderMine',
+  'renderMoney','renderMore','renderMyEntered','renderMyLeads','renderMyRecord','renderMySales',
+  'renderOrg','renderPerformance','renderProfile','renderProject','renderRecovery','renderReserveDesk',
+  'renderShareLinks','renderSite','renderTargets','renderTeam','renderTeamRecovery','renderToRecover',
+  'renderUnitMap','renderUpdates','renderWebLeads','renderWhatsApp'];
+
+// Put the screen the user actually asked for back on top of a stale paint.
+// setTab bumps NAV.seq, so the corrective render's own token matches and it
+// cannot trigger another correction; `fixing` only blocks synchronous recursion.
+/* At most ONE correction per navigation. The first version of this bumped the
+   token on every correction, so the correcting render and the render it was
+   correcting were both in flight on the same tab at once, each finishing to find
+   the token moved and asking for another correction. The Director board caught
+   it: two overlapping renderTeam runs left it empty. fixedFor is stamped with
+   the token setTab has just issued, so every other stale render finishing
+   afterwards sees the screen has already been put right and does nothing. */
+function _navRepaint(){
+  if(NAV.fixing || !TAB || NAV.fixedFor === NAV.seq) return;
+  NAV.fixing = true;
+  try{ setTab(TAB, true); NAV.fixedFor = NAV.seq; }
+  finally { setTimeout(function(){ NAV.fixing = false; }, 0); }
+}
+
+function _navWrap(){
+  NAV.wrapped = 0; NAV.missing = [];
+  NAV_RENDERERS.forEach(function(n){
+    const f = window[n];
+    if(typeof f !== 'function'){ NAV.missing.push(n); return; }
+    if(f.__navWrapped){ NAV.wrapped++; return; }
+    const w = function(){
+      const my = NAV.seq, myTab = TAB;
+      const r = f.apply(this, arguments);
+      if(r && typeof r.then === 'function'){
+        const check = function(){
+          if(NAV.seq === my) return;      // still the navigation this render belongs to
+          if(TAB === myTab) return;       // same screen re-entered — its paint IS correct
+          _navRepaint();
+        };
+        r.then(check, check);
+      }
+      return r;
+    };
+    w.__navWrapped = true;
+    window[n] = w; NAV.wrapped++;
+  });
+  if(NAV.missing.length) try{ console.warn('[nav] renderers not wrapped:', NAV.missing.join(', ')); }catch(e){}
+  return NAV;
+}
+
 function _syncBtabs(t){
   const base=_BTAB_OF[t]||'more';
   document.querySelectorAll('#btabs .btab').forEach(b=>b.classList.toggle('on', b.getAttribute('data-btab')===base));
 }
+/* Which screen boot should land on. A ?tab= deep link wins, and so does a tab
+   the person has ALREADY opened — boot used to force 'home' over both, which is
+   why a tap during the first second was thrown away rather than merely
+   repainted. NAV.seq>0 means setTab has run, so a choice exists to respect. */
+function _bootTab(dflt){ return PENDING_TAB || (NAV.seq > 0 && TAB ? TAB : dflt); }
 function _showApp(){ showScreen('screen-app'); _applyLeadAccess(); try{ _maybeShowInstall(); }catch(e){} try{ _maybeVerifyGate(); }catch(e){}   // post-login install nudge (all roles)
-  if(ME&&ME.role==='lead_entry'){ setTab(PENDING_TAB||'leadentry'); PENDING_TAB=null; try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&ME.role==='lead_entry'){ setTab(_bootTab('leadentry')); PENDING_TAB=null; try{ _startProfileWatch(); }catch(e){} return; }
   /* The office side returns early, and it used to hardcode 'home' — so a deep
      link from a notification was thrown away for exactly the people the
      notifications are sent to. It honours ?tab= like every other role now;
      setTab still applies its own permission check on the way through. */
-  if(ME&&_isOfficeRole(ME.role)){ setTab(PENDING_TAB||'home'); PENDING_TAB=null; try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
+  if(ME&&_isOfficeRole(ME.role)){ setTab(_bootTab('home')); PENDING_TAB=null; try{ loadAnnouncements(); }catch(e){} try{ _notifLoad(); }catch(e){} try{ _startProfileWatch(); }catch(e){} return; }
   /* ?tab= is honoured for ANY screen, not only alerts. It used to read
      PENDING_TAB==='alerts'?'alerts':'home', so every other deep link was
      silently swallowed and the person landed on the dashboard wondering what
      the notification had been about. setTab does its own permission check, so
      a tab somebody may not open still falls back safely. */
-  setTab(PENDING_TAB || 'home'); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
+  setTab(_bootTab('home')); PENDING_TAB=null; try{ _startLiveLocation(); }catch(e){} try{ _refreshFuBadge(); }catch(e){} try{ _startProfileWatch(); }catch(e){} try{ _startBgRefresh(); }catch(e){}
   try{ _notifLoad(); }catch(e){} try{ window.AlertBell&&AlertBell.refresh(); }catch(e){} try{ _consumePendingLead(); }catch(e){} try{ _consumePendingAnn(); }catch(e){} try{ _consumePendingBrief(); }catch(e){} try{ _maybePushPrompt(); }catch(e){} }
 async function enterApp(){
   // on a session restore (page refresh) ME is empty — repopulate name/role/company so "Welcome <name>" + sidebar show correctly
@@ -3227,6 +3315,7 @@ function setTab(t,_back){
   // own record, the company's notices and their profile — which for a guard or
   // an office boy is not a lesser app, it is the whole one.
   if(ME && _isOfficeRole(ME.role) && !['myrecord','ess-att','ess-leave','ess-visit','ess-pay','ess-docs','ess-file','project','board','unitmap','home','updates','profile','torecover','collection','site'].includes(t)) t='myrecord';
+  NAV.seq++;                                  // every navigation gets its own token
   if(!_back && TAB && TAB!==t){ NAV_HIST.push(TAB); if(NAV_HIST.length>30) NAV_HIST.shift(); } TAB=t;
   if(t!=='leads' && typeof LEADSEL!=='undefined' && LEADSEL.on){   // leaving Leads drops selection mode
     LEADSEL.on=false; LEADSEL.ids=[]; try{ _selbarSync(); }catch(e){}
@@ -12934,9 +13023,15 @@ function unitCell(u){
   const isReserved=code==='RESERVED';
   const ar=_areaTxt(u);
   const price=Number(u.base_price)||0, area=Number(u.area)||0, aUnit=u.area_unit||'sqft';
-  const rt=rateTxt(price,area,aUnit);
-  // line under area: "1,200 sqft @ ₨24,900" (rate hangs off the area when both exist)
-  const arLine = ar ? (ar + (rt? ' @ ₨'+Math.round(price/area).toLocaleString('en-US') : '')) : rt;
+  /* AREA ONLY. The card used to append the per-sqft rate here ("256 sqft @
+     ₨75,000") and carry the total below it; both are gone. A money figure on
+     every one of 1,467 tiles is noise, and at 430px the rate wrapped the card
+     onto three lines. The tile answers one question — which units are free.
+     PRESENTATION ONLY: base_price is untouched in the payload, still gated by
+     _sales_sees_prices / _sales_sees_sold_price, still handed to openReserve()
+     below, and still shown in the desk's single-unit lookup and in the
+     client-facing quote (openShareUnit). Nothing was withheld from anyone. */
+  const arLine = ar;
   let cls='unit', click='';
   if(isAvail){ cls+=' avail'; click='onclick="openReserve(\''+u.unit_id+'\',\''+esc(u.unit_no)+'\','+area+',\''+esc(aUnit)+'\','+price+')"'; }
   else if(isReserved){ cls+=' reserved'; click='onclick="showReservedInfo(\''+esc(u.unit_no)+'\','+JSON.stringify(JSON.stringify(u.reservation||{})).replace(/"/g,'&quot;')+')"'; }
@@ -13950,5 +14045,13 @@ bootstrap().finally(function(){ _navReady = true; _armBack(); });
 <script src="js/portal-teamreport.js?v=20260818pdf"></script>
 <script src="js/portal-givenleads.js?v=20260820done"></script>
 <script src="js/portal-alerts.js?v=20260820done"></script>
+<!-- LAST. Seven renderers live in the files above and assign window.renderX
+     themselves, so the wrapper can only reach them once those have run. Calling
+     _navWrap() from the inline block above wrapped 36 of 43 and silently left
+     those seven unguarded — which is exactly the "one was left out" failure the
+     mechanism exists to prevent, and which the boot-path driver now asserts
+     against by name. Script execution is ordered, and bootstrap() has only
+     reached its first await by now, so nothing has rendered yet. -->
+<script>try{ _navWrap(); }catch(e){}</script>
 </body>
 </html>

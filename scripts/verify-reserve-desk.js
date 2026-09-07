@@ -272,6 +272,42 @@ async function deskUp(page) {
     assert(g.sbOnWindow === false,
            'window.sb is undefined — confirms the module must not use window.* (it does not)');
 
+    /* ══ nav token — the whole point is that NOTHING is left out ═════════ */
+    step('Navigation token wrapped every renderer, by name');
+    const nav = await page.evaluate(() => {
+      if (typeof NAV === 'undefined') return { absent: true };
+      return { wrapped: NAV.wrapped, missing: NAV.missing.slice(),
+               listed: (typeof NAV_RENDERERS !== 'undefined') ? NAV_RENDERERS.length : -1,
+               seq: NAV.seq,
+               // every renderer setTab can reach must carry the wrapper's mark
+               unmarked: (typeof NAV_RENDERERS === 'undefined') ? ['NAV_RENDERERS missing']
+                 : NAV_RENDERERS.filter(n => !(window[n] && window[n].__navWrapped)) };
+    });
+    assert(!nav.absent, 'the NAV token exists in the shell');
+    assert(nav.missing.length === 0,
+           nav.missing.length ? 'renderers NOT wrapped: ' + nav.missing.join(', ')
+                              : 'no renderer missing from NAV_RENDERERS');
+    assert(nav.unmarked.length === 0,
+           nav.unmarked.length ? 'renderers without the wrapper mark: ' + nav.unmarked.join(', ')
+                               : 'every listed renderer carries __navWrapped');
+    assert(nav.wrapped === nav.listed,
+           'all ' + nav.listed + ' dispatched renderers wrapped (' + nav.wrapped + ')');
+    assert(nav.seq > 0, 'navigations are being counted (seq=' + nav.seq + ')');
+
+    /* Guard against the list silently drifting from the dispatch chain: read
+       setTab's own source and diff the render names it can call. */
+    const drift = await page.evaluate(() => {
+      const src = String(setTab);
+      // only names that are actually CALLED. Matching every "render*" word made
+      // this cry wolf on the word "renderer" inside a comment in setTab.
+      const called = [...new Set((src.match(/\brender[A-Za-z0-9_]+(?=\s*\()/g) || []))];
+      const listed = new Set(NAV_RENDERERS);
+      return called.filter(n => !listed.has(n));
+    });
+    assert(drift.length === 0,
+           drift.length ? 'setTab dispatches renderers missing from NAV_RENDERERS: ' + drift.join(', ')
+                        : 'NAV_RENDERERS matches every renderer setTab dispatches');
+
     /* ══ scoping: no desk selector may resolve outside the desk root ══════ */
     step('DOM scoping — every desk id must be unique and inside #rd-root');
     const scope = await page.evaluate(() => {
@@ -491,6 +527,10 @@ async function deskUp(page) {
         n: els.length,
         priceSpans: document.querySelectorAll('.units .unit .upr').length,
         areaSpans: document.querySelectorAll('.units .unit .uar').length,
+        // the card must carry NO money at all: no total, and no per-sqft rate
+        moneyOnCards: [...document.querySelectorAll('.units .unit')]
+          .filter(e => /[₨]|\bRs\b|\bPKR\b|@|\d{1,3}(,\d{3})+/.test(e.textContent)).length,
+        sampleCard: (document.querySelector('.units .unit') || {}).textContent || '',
         unoSpans: document.querySelectorAll('.units .unit .uno').length,
         ustSpans: document.querySelectorAll('.units .unit .ust').length,
         // every card in a given row must be the same height (grid-auto-rows:1fr)
@@ -506,7 +546,10 @@ async function deskUp(page) {
     assert(cards.priceSpans === 0, 'no .upr price element on any card (found ' + cards.priceSpans + ')');
     assert(cards.unoSpans === cards.n && cards.ustSpans === cards.n,
            'unit number and status still on every card');
-    assert(cards.areaSpans > 0, 'the area/rate line survives (' + cards.areaSpans + ' cards carry it)');
+    assert(cards.areaSpans > 0, 'the area line survives (' + cards.areaSpans + ' cards carry it)');
+    assert(cards.moneyOnCards === 0,
+           'no money on any card — no total, no @rate (' + cards.moneyOnCards + ' offenders)');
+    console.log('     a card now reads: ' + JSON.stringify(cards.sampleCard.replace(/\s+/g, ' ').trim()));
     assert(cards.raggedRows === 0, 'no ragged row — every card in a row is the same height');
     assert(cards.minH >= 56, 'cards keep their min-height (' + Math.round(cards.minH) + 'px)');
     assert(cards.docW <= cards.winW + 1,
