@@ -108,75 +108,133 @@
       ".db-tbl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}" +
       ".db-wrap{overflow-x:auto;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card)}" +
       ".db-acts{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}" +
-      /* ══ PRINT — the daybook as a document ═══════════════════════════════
-         Reference register: an audited statement, not a dashboard on paper.
-         The page is paginated in JS (see _dbPrint) so every page is a real
-         .rd-pg box of exactly A4; @page carries no margin because the box
-         supplies its own. That is what makes "Page N of M", repeating table
-         headers and an unsplittable signature block possible in Chrome, which
-         supports neither @page margin boxes nor counter(pages).
-         Two families, no webfont: a webfont that fails at print time takes the
-         masthead with it. Georgia is metric-safe and present everywhere.       */
+      /* ══ PRINT — a board report ═══════════════════════════════════════════
+         Rebuilt, not tweaked. The previous sheet was a restrained typographic
+         register and read as thin on a boardroom table; this one carries weight:
+         a full-bleed masthead, large numerals, numbered sections, and position
+         shown as bars rather than only as digits.
+
+         Still paginated in JS (see _dbBuild). Chrome supports neither @page
+         margin boxes nor counter(pages), so "Page 2 of 3", a running header that
+         starts on page 2, a repeating thead and an unsplittable signature block
+         are unreachable from CSS alone. Every page is a real 210×297mm box with
+         NO padding of its own, which is what lets the masthead bleed to the
+         edge; the content column supplies the 14mm side margins instead.
+
+         PRINT COLOUR. This design is carried by its backgrounds — navy band,
+         tinted cards, coloured bars. print-color-adjust:exact is set on html,
+         body AND every page, which is what keeps them when Chrome's "Background
+         graphics" box is unchecked. Verified against a real printBackground:false
+         render, not assumed.
+
+         FONT. Inter is not in this repo and a CDN font fails at print time, so
+         the stack is Segoe UI / system-ui — the sanctioned fallback. Weight, not
+         family, carries the hierarchy.                                        */
       "#rd-print{display:none}" +
       "@page{size:A4 portrait;margin:0}" +
       "@media print{" +
+        "html,body{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}" +
         "body.rd-printing #screen-app,body.rd-printing #btabs,body.rd-printing #modal-host," +
         "body.rd-printing #toastbar,body.rd-printing #loc-bar,body.rd-printing #pwa-bar," +
         "body.rd-printing #verify-gate{display:none !important}" +
         "body.rd-printing #rd-print{display:block !important}" +
       "}" +
-      "#rd-print{--ink:#1a1a1a;--mut:#6b6b6b;--rule:#d8d8d8;--hair:#ededed;--accent:#1f3a5f;" +
-        "--serif:Georgia,'Times New Roman',Times,serif;" +
-        "--sans:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif}" +
-      "#rd-print .rd-pg{width:210mm;height:297mm;padding:18mm 16mm 20mm;box-sizing:border-box;" +
-        "position:relative;background:#fff;color:var(--ink);font-family:var(--sans);" +
-        "font-size:9pt;line-height:1.55;overflow:hidden;page-break-after:always;break-after:page}" +
+      "#rd-print{--navy:#0B2545;--navy2:#13315C;--ink:#111827;--slate:#64748B;" +
+        "--line:#D6DBE3;--tint:#F3F5F9;--amber:#D97706;--red:#B42318;--avail:#E2E8F0;" +
+        "--sans:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif}" +
+      "#rd-print .rd-pg{width:210mm;height:297mm;padding:0;box-sizing:border-box;position:relative;" +
+        "background:#FFF;color:var(--ink);font-family:var(--sans);font-size:10pt;line-height:1.45;" +
+        "font-variant-numeric:tabular-nums;overflow:hidden;" +
+        "-webkit-print-color-adjust:exact;print-color-adjust:exact;" +
+        "page-break-after:always;break-after:page}" +
       "#rd-print .rd-pg:last-child{page-break-after:auto;break-after:auto}" +
-      "#rd-print *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}" +
-      /* masthead — page 1 only */
-      "#rd-print .mh{display:flex;align-items:flex-start;gap:10mm}" +
-      "#rd-print .mh-mark{font-family:var(--serif);font-size:22pt;line-height:1;color:var(--accent);" +
-        "letter-spacing:-.01em;flex:none}" +
-      "#rd-print .mh img{height:16mm;width:auto;flex:none}" +
-      "#rd-print .mh h1{font-family:var(--serif);font-size:22pt;font-weight:400;margin:0;line-height:1.15;" +
-        "letter-spacing:-.01em}" +
-      "#rd-print .mh .sub{font-size:9pt;color:var(--mut);margin-top:1.5mm}" +
-      "#rd-print .mh-rule{border-top:1pt solid var(--accent);margin:4mm 0 0}" +
-      /* running header — pages 2+ */
-      "#rd-print .rh{font-size:7pt;color:var(--mut);letter-spacing:.06em;padding-bottom:1.5mm;" +
-        "border-bottom:.5pt solid var(--rule);margin-bottom:6mm}" +
-      /* summary band */
-      "#rd-print .sm{display:flex;gap:14mm;margin:7mm 0 0}" +
-      "#rd-print .sm .k{font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);" +
-        "font-weight:500}" +
-      "#rd-print .sm .v{font-size:16pt;font-family:var(--serif);line-height:1.2;" +
-        "font-variant-numeric:tabular-nums;margin-top:.5mm}" +
-      /* sections */
-      "#rd-print .sec{margin-top:14mm}" +
-      "#rd-print .sec.first{margin-top:12mm}" +
-      "#rd-print h2{font-family:var(--serif);font-size:11pt;font-weight:400;margin:0 0 4mm;" +
-        "padding-left:3mm;border-left:1pt solid var(--accent);line-height:1.2}" +
-      "#rd-print table{width:100%;border-collapse:collapse;font-size:9pt;line-height:1.55}" +
+      /* flow-root, not a plain block. The first child carries a 14mm top margin and a
+   plain block lets that margin COLLAPSE out of the parent, so scrollHeight came
+   back 14mm short and the paginator believed a page had room it did not — the
+   last block ran 5mm into the footer rule. A block formatting context makes the
+   measurement honest. */
+      "#rd-print .col{padding:0 14mm;display:flow-root}" +
+      /* ── masthead, page 1, full bleed ── */
+      "#rd-print .mh{height:42mm;padding:6mm 14mm 4mm;box-sizing:border-box;position:relative;" +
+        "background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 100%);color:#FFF;display:flex;" +
+        "justify-content:space-between;align-items:flex-start}" +
+      "#rd-print .mh-amber{position:absolute;left:0;right:0;bottom:0;height:3pt;background:var(--amber)}" +
+      "#rd-print .mh-logo{height:14mm;width:auto;display:block;margin-bottom:2mm}" +
+      "#rd-print .mh-name{font-size:12pt;font-weight:700;color:#FFF;padding-bottom:1.5mm;" +
+        "border-bottom:.5pt solid rgba(255,255,255,.9);display:inline-block;margin-bottom:2mm}" +
+      "#rd-print .mh-proj{font-size:11pt;font-weight:600;letter-spacing:.14em;color:rgba(255,255,255,.8);line-height:1.2}" +
+      "#rd-print .mh-t{font-size:28pt;font-weight:700;letter-spacing:-.01em;line-height:1.05;margin:.5mm 0 1mm}" +
+      "#rd-print .mh-d{font-size:11pt;font-weight:400;color:rgba(255,255,255,.8);line-height:1.2}" +
+      "#rd-print .mh-r{text-align:right;font-size:9pt;color:rgba(255,255,255,.8);line-height:1.5}" +
+      /* ── running header, pages 2+ ── */
+      "#rd-print .rh{height:10mm;padding:0 14mm;box-sizing:border-box;background:#FFF;" +
+        "border-bottom:.5pt solid var(--line);display:flex;align-items:center;" +
+        "justify-content:space-between;margin-bottom:6mm}" +
+      "#rd-print .rh .l{font-size:8pt;color:var(--slate)}" +
+      "#rd-print .rh .r{font-size:8pt;font-weight:600;color:var(--navy);display:flex;align-items:center;gap:2mm}" +
+      "#rd-print .rh .sq{width:3mm;height:3mm;background:var(--navy);display:inline-block}" +
+      /* ── band labels ── */
+      "#rd-print .lbl{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
+        "letter-spacing:.12em;margin-bottom:4mm}" +
+      /* ── KPI cards ── */
+      "#rd-print .kpis{display:flex;gap:6mm}" +
+      "#rd-print .kpi{flex:1;background:var(--tint);padding:10mm 6mm;box-sizing:border-box;border-radius:2px}" +
+      "#rd-print .kpi.sec{background:#FFF;border:.5pt solid var(--line);padding:8mm 6mm}" +
+      "#rd-print .kpi .k{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
+        "letter-spacing:.12em}" +
+      "#rd-print .kpi .v{font-size:32pt;font-weight:700;color:var(--navy);line-height:1.1;margin-top:2mm}" +
+      "#rd-print .kpi.sec .v{font-size:24pt;color:var(--ink)}" +
+      "#rd-print .kpi .s{font-size:9pt;font-weight:400;color:var(--slate);margin-top:1mm}" +
+      "#rd-print .kpi .v.red{color:var(--red)}" +
+      /* ── stacked bars ── */
+      "#rd-print .bar{display:flex;height:8mm;width:100%;margin-top:6mm;background:var(--avail);border-radius:2px;overflow:hidden}" +
+      "#rd-print .bar i{display:block;height:100%}" +
+      "#rd-print .bar i.sold{background:var(--navy)}" +
+      "#rd-print .bar i.res{background:var(--amber)}" +
+      "#rd-print .bar i.av{background:var(--avail)}" +
+      "#rd-print .lg{display:flex;gap:8mm;margin-top:3mm;font-size:8pt;color:var(--slate)}" +
+      "#rd-print .lg span{display:flex;align-items:center;gap:2mm}" +
+      "#rd-print .lg i{width:3mm;height:3mm;display:inline-block}" +
+      "#rd-print .mini{display:flex;height:4mm;width:45mm;background:var(--avail);border-radius:1px;overflow:hidden}" +
+      "#rd-print .mini i{display:block;height:100%}" +
+      /* ── sections ── */
+      "#rd-print .sec-h{display:flex;align-items:baseline;gap:4mm;border-bottom:1pt solid var(--navy);" +
+        "padding-bottom:3mm;margin-bottom:6mm}" +
+      "#rd-print .sec-n{font-size:20pt;font-weight:700;color:rgba(11,37,69,.25);line-height:1}" +
+      "#rd-print .sec-t{font-size:14pt;font-weight:700;color:var(--ink);flex:1}" +
+      "#rd-print .pill{font-size:8pt;font-weight:600;padding:1mm 3mm;border-radius:2px;white-space:nowrap}" +
+      "#rd-print .pill.count{background:var(--tint);color:var(--slate)}" +
+      "#rd-print .pill.amber{background:#FDF3E7;color:var(--amber)}" +
+      "#rd-print .pill.red{background:#FBEAE8;color:var(--red)}" +
+      /* ── tables ── */
+      "#rd-print table{width:100%;border-collapse:collapse;font-size:10pt}" +
       "#rd-print thead{display:table-header-group}" +
       "#rd-print tr{page-break-inside:avoid;break-inside:avoid}" +
-      "#rd-print th{font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;font-weight:500;" +
-        "color:var(--mut);text-align:left;padding:0 3mm 1.5mm 0;border-bottom:.5pt solid var(--rule)}" +
-      "#rd-print th.n,#rd-print td.n{text-align:right;padding-right:0;padding-left:3mm;" +
-        "font-variant-numeric:tabular-nums}" +
-      "#rd-print td{padding:1.6mm 3mm 1.6mm 0;border-bottom:.25pt solid var(--hair);vertical-align:baseline}" +
-      "#rd-print tbody tr:last-child td{border-bottom:.5pt solid var(--rule)}" +
-      "#rd-print td.u{font-variant-numeric:tabular-nums;white-space:nowrap}" +
-      "#rd-print tr.tot td{border-top:1pt solid var(--rule);border-bottom:none;font-weight:500;" +
-        "padding-top:2mm}" +
-      "#rd-print .none{font-size:8pt;font-style:italic;color:var(--mut)}" +
-      /* signature block */
-      "#rd-print .sig{display:flex;gap:25mm;margin-top:18mm}" +
-      "#rd-print .sig div{width:60mm;border-top:.5pt solid var(--ink);padding-top:2mm;" +
-        "font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:500}" +
-      /* footer, every page */
-      "#rd-print .ft{position:absolute;left:16mm;right:16mm;bottom:10mm;display:flex;" +
-        "justify-content:space-between;font-size:7pt;color:var(--mut);" +
-        "font-variant-numeric:tabular-nums}" +
+      "#rd-print th{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
+        "letter-spacing:.10em;text-align:left;background:var(--tint);padding:3mm 2mm;" +
+        "white-space:nowrap;border-bottom:.5pt solid var(--line)}" +
+      "#rd-print td{padding:0 2mm;height:9mm;vertical-align:middle;color:var(--ink);white-space:nowrap}" +
+      "#rd-print td.wrap{white-space:normal}" +
+      "#rd-print tbody tr:nth-child(even) td{background:var(--tint)}" +
+      "#rd-print tbody tr:last-child td{border-bottom:.5pt solid var(--line)}" +
+      "#rd-print th.n,#rd-print td.n{text-align:right}" +
+      "#rd-print td.u{font-weight:600}" +
+      "#rd-print td.mut{color:var(--slate)}" +
+      "#rd-print td.code{font-size:9pt;color:var(--slate)}" +
+      "#rd-print tr.tot td{border-top:1pt solid var(--navy);font-weight:700;background:var(--tint)}" +
+      /* ── empty state ── */
+      "#rd-print .empty{height:18mm;background:var(--tint);display:flex;align-items:center;" +
+        "justify-content:center;font-size:10pt;color:var(--slate);border-radius:2px}" +
+      /* ── signatures ── */
+      "#rd-print .sig{display:flex;gap:30mm;margin-top:16mm}" +
+      "#rd-print .sig div{width:70mm}" +
+      "#rd-print .sig .rule{border-top:.5pt solid var(--ink);margin-bottom:2mm}" +
+      "#rd-print .sig .l{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
+        "letter-spacing:.10em}" +
+      /* ── footer ── */
+      "#rd-print .ft{position:absolute;left:14mm;right:14mm;bottom:9mm;border-top:1pt solid var(--navy);" +
+        "padding-top:2.5mm;display:flex;justify-content:space-between;font-size:7.5pt;color:var(--slate)}" +
+      "#rd-print .ft .c{font-weight:600;letter-spacing:.06em}" +
       /* on screen the pages sit on a grey field so they read as sheets */
       "@media screen{body.rd-printing #screen-app,body.rd-printing #btabs," +
         "body.rd-printing #modal-host,body.rd-printing #toastbar,body.rd-printing #loc-bar," +
@@ -958,22 +1016,24 @@
     catch (e) { _portalCopy(t, 'Copied — paste it into the group.'); }
   }
 
-  /* ══ THE DAYBOOK AS A DOCUMENT ═══════════════════════════════════════════
-     This goes to a board. It is paginated here, in JS, rather than left to the
-     browser, because Chrome supports neither @page margin boxes nor
-     counter(pages) — so "Page 2 of 3", a running header that starts on page 2,
-     a table header that repeats after a break and a signature block that
-     cannot be split are all unreachable from CSS alone.
+  /* ══ THE DAYBOOK AS A BOARD REPORT ═══════════════════════════════════════
+     Paginated here rather than by the browser: Chrome supports neither @page
+     margin boxes nor counter(pages), so "Page 2 of 3", a running header that
+     begins on page 2, a thead that repeats after a break and a signature block
+     that cannot be split are all unreachable from CSS alone.
 
-     Every page is a real 210×297mm box that carries its own margins, which has
-     a second benefit: what a screenshot of .rd-pg shows is exactly what prints.
+     A page carries NO padding of its own — that is what lets the masthead bleed
+     to the paper edge — so the content column supplies the 14mm side margins and
+     the usable height is worked out per page from what the band above it took.
 
-     Content is unchanged — same four sections, same figures, straight from
-     get_reservation_daybook. Only the hierarchy is new.                      */
+     Content is unchanged. Every figure still comes from get_reservation_daybook;
+     the four KPI totals are summed from the floor table on the client, which is
+     why no RPC moved.                                                        */
 
-  var PG = { W: 210, H: 297, T: 18, S: 16, B: 20 };   // mm
+  var PG = { W: 210, H: 297 };                  // mm
+  var BAND = { mast: 42, run: 16, foot: 20 };   // mm consumed above / below the column
 
-  function _mm() {                      // one millimetre, in px, measured
+  function _mm() {
     var p = document.createElement('div');
     p.style.cssText = 'position:absolute;visibility:hidden;width:100mm';
     document.body.appendChild(p);
@@ -981,50 +1041,120 @@
     document.body.removeChild(p);
     return px || 3.7795;
   }
-
   function _printHost() {
     var host = document.getElementById('rd-print');
     if (!host) { host = document.createElement('div'); host.id = 'rd-print'; document.body.appendChild(host); }
     return host;
   }
-
   function _el(tag, cls, txt) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
     if (txt != null) e.textContent = txt;
     return e;
   }
+  function _num(n) { return Number(n || 0).toLocaleString('en-US'); }
+  function _pct(n, d) { return d ? (Math.round(n / d * 1000) / 10).toFixed(1) + '%' : '0.0%'; }
 
-  /* Build the paginated document into #rd-print and return the page count. */
+  var _MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var _DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  /* A Date shifted into Pakistan time, or null. A board report must not fail to
+     render because one row is missing a date — it prints an em dash and the rest
+     of the page still arrives. */
+  function _pk(iso) {
+    if (iso == null || iso === '') return null;
+    var d;
+    try { d = new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Karachi' })); }
+    catch (e) { d = new Date(iso); }
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function _dLong(iso) { var d = _pk(iso); if (!d) return '—';   // Monday, 07 September 2026
+    return _DAY[d.getDay()] + ', ' + String(d.getDate()).padStart(2, '0') + ' ' +
+           _MON[d.getMonth()] + ' ' + d.getFullYear(); }
+  function _dShort(iso) { var d = _pk(iso); if (!d) return '—';  // 07 Sep 2026
+    return String(d.getDate()).padStart(2, '0') + ' ' + _MON[d.getMonth()].slice(0, 3) + ' ' + d.getFullYear(); }
+  function _dCaps(iso) { return _dShort(iso).toUpperCase(); }
+  function _dRef(iso) { var d = _pk(iso) || new Date();   // 20260907
+    return '' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
+  function _initials(s) {
+    return String(s || '').trim().split(/\s+/).map(function (w) { return w.charAt(0); })
+      .join('').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'RP';
+  }
+  /* A segment under half a percent still has to be visible, or a board reads a
+     sold unit as none at all. Floor is 1.5mm, taken from the largest segment. */
+  function _seg(parent, cls, value, total, widthMM) {
+    if (!total || value <= 0) return;
+    var pct = value / total, mm = pct * widthMM;
+    if (mm < 1.5) mm = 1.5;
+    var i = _el('i', cls);
+    i.style.width = mm.toFixed(2) + 'mm';
+    parent.appendChild(i);
+  }
+
   function _dbBuild() {
     var d = DB.data || {}, h = d.header || {};
     var host = _printHost();
     host.className = '';
     host.innerHTML = '';
-    // lay it out off-screen so heights are real
     host.style.cssText = 'display:block;position:absolute;left:-99999px;top:0;width:' + PG.W + 'mm';
 
     var MM = _mm();
-    var LIMIT = (PG.H - PG.T - PG.B) * MM;     // usable content height, px
+    var COLW = PG.W - 28;                       // content column, mm
+    var project = h.project || 'Project';
+    var company = h.company || '';
+    var dateISO = d.date;
 
-    var title = 'Reservation Daybook';
-    var dateTxt = _pkDate(d.date);
-    // project · title · date — the company is named on the masthead, page 1
-    var runTxt = [h.project, title, dateTxt].filter(Boolean).join('  ·  ');
+    /* ── figures: summed from the floor table, client-side ─────────────── */
+    var avail = d.available || [];
+    var tSold = 0, tRes = 0, tAv = 0, tAll = 0;
+    avail.forEach(function (f) {
+      tSold += Number(f.sold || 0); tRes += Number(f.reserved || 0);
+      tAv += Number(f.available || 0); tAll += Number(f.total || 0);
+    });
 
-    var pages = [], body = null;
+    var pages = [], body = null, pageNo = 0;
 
     function newPage(first) {
       var pg = _el('div', 'rd-pg');
-      body = _el('div', 'pg-body');
+      pages.push(pg); host.appendChild(pg); pageNo++;
+
+      if (first) {
+        var mh = _el('div', 'mh');
+        var L = _el('div');
+        if (h.logo_url) {
+          var img = document.createElement('img'); img.className = 'mh-logo'; img.src = h.logo_url; img.alt = '';
+          L.appendChild(img);
+        } else {
+          // No logo on file. The company name, ruled, stands in for it — never a
+          // single letter, which reads as a placeholder rather than a mark.
+          L.appendChild(_el('div', 'mh-name', company || project));
+        }
+        L.appendChild(_el('div', 'mh-proj', project.toUpperCase()));
+        L.appendChild(_el('div', 'mh-t', 'Reservation Daybook'));
+        L.appendChild(_el('div', 'mh-d', _dLong(dateISO)));
+        var R = _el('div', 'mh-r');
+        [company, 'Karkhano, Peshawar',
+         'Report ref: ' + _initials(project) + '-DB-' + _dRef(dateISO)]
+          .filter(Boolean).forEach(function (t) { R.appendChild(_el('div', null, t)); });
+        mh.appendChild(L); mh.appendChild(R);
+        mh.appendChild(_el('div', 'mh-amber'));
+        pg.appendChild(mh);
+      } else {
+        var rh = _el('div', 'rh');
+        rh.appendChild(_el('div', 'l', project + '  ·  Reservation Daybook  ·  ' + _dShort(dateISO)));
+        var r = _el('div', 'r');
+        r.appendChild(_el('span', 'sq'));
+        r.appendChild(_el('span', null, 'Fourteen Group'));
+        rh.appendChild(r);
+        pg.appendChild(rh);
+      }
+
+      body = _el('div', 'col');
       pg.appendChild(body);
-      host.appendChild(pg);
-      pages.push(pg);
-      if (!first) body.appendChild(_el('div', 'rh', runTxt));
+      body.__limit = (PG.H - (first ? BAND.mast : BAND.run) - BAND.foot) * MM;
       return pg;
     }
-    function fits() { return body.scrollHeight <= LIMIT; }
-    function push(node) {                       // append, or start a page first
+    function fits() { return body.scrollHeight <= body.__limit; }
+    function push(node) {
       body.appendChild(node);
       if (!fits() && body.childNodes.length > 1) { body.removeChild(node); newPage(false); body.appendChild(node); }
       return node;
@@ -1032,162 +1162,202 @@
 
     newPage(true);
 
-    /* ── masthead, page 1 only ─────────────────────────────────────────── */
-    var mh = _el('div', 'mh');
-    if (h.logo_url) {
-      var img = document.createElement('img'); img.src = h.logo_url; img.alt = '';
-      mh.appendChild(img);
-    } else {
-      // No logo on file for this company. A serif monogram is a deliberate
-      // stand-in — better than a gap, and better than a placeholder box.
-      mh.appendChild(_el('div', 'mh-mark', String(h.company || h.project || 'N').trim().charAt(0).toUpperCase()));
+    /* ── PROJECT POSITION ──────────────────────────────────────────────── */
+    var pos = _el('div');
+    pos.style.marginTop = '14mm';
+    pos.appendChild(_el('div', 'lbl', 'Project position · Cumulative'));
+    var k1 = _el('div', 'kpis');
+    [['Total units', _num(tAll), null, 'var(--navy)'],
+     ['Sold', _num(tSold), _pct(tSold, tAll) + ' of inventory', 'var(--navy)'],
+     ['Reserved', _num(tRes), _pct(tRes, tAll) + ' of inventory', 'var(--amber)'],
+     ['Available', _num(tAv), _pct(tAv, tAll) + ' of inventory', 'var(--avail)']
+    ].forEach(function (c) {
+      var card = _el('div', 'kpi');
+      card.style.borderTop = '4pt solid ' + c[3];
+      card.appendChild(_el('div', 'k', c[0]));
+      card.appendChild(_el('div', 'v', c[1]));
+      if (c[2]) card.appendChild(_el('div', 's', c[2]));
+      k1.appendChild(card);
+    });
+    pos.appendChild(k1);
+
+    var bar = _el('div', 'bar');
+    _seg(bar, 'sold', tSold, tAll, COLW);
+    _seg(bar, 'res', tRes, tAll, COLW);
+    pos.appendChild(bar);
+    var lg = _el('div', 'lg');
+    [['var(--navy)', 'Sold', tSold], ['var(--amber)', 'Reserved', tRes],
+     ['var(--avail)', 'Available', tAv]].forEach(function (x) {
+      var s = _el('span'); var i = _el('i'); i.style.background = x[0];
+      s.appendChild(i); s.appendChild(_el('span', null, x[1] + '  ' + _num(x[2])));
+      lg.appendChild(s);
+    });
+    pos.appendChild(lg);
+    body.appendChild(pos);
+
+    /* ── TODAY'S ACTIVITY ──────────────────────────────────────────────── */
+    var nRes = (d.reserved || []).length, nSold = (d.sold || []).length, nExp = (d.expiring || []).length;
+    var act = _el('div');
+    act.style.marginTop = '12mm';
+    act.appendChild(_el('div', 'lbl', "Today's activity · " + _dCaps(dateISO)));
+    var k2 = _el('div', 'kpis');
+    [['Reserved today', nRes, 'var(--amber)', false],
+     ['Sold today', nSold, 'var(--navy)', false],
+     ['Expiring within 48h', nExp, 'var(--red)', nExp > 0]
+    ].forEach(function (c) {
+      var card = _el('div', 'kpi sec');
+      card.style.borderTop = '3pt solid ' + c[2];
+      card.appendChild(_el('div', 'k', c[0]));
+      card.appendChild(_el('div', 'v' + (c[3] ? ' red' : ''), _num(c[1])));
+      k2.appendChild(card);
+    });
+    act.appendChild(k2);
+    push(act);
+
+    /* ── sections ──────────────────────────────────────────────────────── */
+    function secHead(no, title, count, unit) {
+      var hd = _el('div', 'sec-h');
+      hd.appendChild(_el('div', 'sec-n', no));
+      hd.appendChild(_el('div', 'sec-t', title));
+      hd.appendChild(_el('div', 'pill count', _num(count) + ' ' + unit + (count === 1 ? '' : 's')));
+      return hd;
     }
-    var mhTxt = _el('div');
-    mhTxt.appendChild(_el('h1', null, title));
-    mhTxt.appendChild(_el('div', 'sub', [h.project, h.company].filter(Boolean).join('  ·  ') + '  ·  ' + dateTxt));
-    mh.appendChild(mhTxt);
-    body.appendChild(mh);
-    body.appendChild(_el('div', 'mh-rule'));
-
-    /* ── summary band ──────────────────────────────────────────────────── */
-    var avail = d.available || [];
-    var totAvail = 0, totRes = 0, totSold = 0, totAll = 0;
-    avail.forEach(function (f) {
-      totAvail += Number(f.available || 0); totRes += Number(f.reserved || 0);
-      totSold += Number(f.sold || 0); totAll += Number(f.total || 0);
-    });
-    var sm = _el('div', 'sm');
-    [['Reserved today', (d.reserved || []).length],
-     ['Sold today', (d.sold || []).length],
-     ['Expiring 48h', (d.expiring || []).length],
-     ['Available', totAvail]].forEach(function (p) {
-      var c = _el('div');
-      c.appendChild(_el('div', 'k', p[0]));
-      c.appendChild(_el('div', 'v', String(p[1])));
-      sm.appendChild(c);
-    });
-    body.appendChild(sm);
-
-    /* ── the four sections ─────────────────────────────────────────────── */
-    var secs = [
-      { h: 'Reserved Today',
-        cols: [['Unit', 'u'], ['Floor', ''], ['Requested by', ''], ['Booked by', ''], ['Buyer', ''], ['Expires', '']],
-        rows: (d.reserved || []).map(function (r) {
-          return [r.unit_no, r.floor,
-                  r.requested_by + (r.agent_code ? '  (' + r.agent_code + ')' : ''),
-                  r.booked_by || '—', r.client_name || '—', _pkDate(r.expiry_date)];
-        }),
-        empty: 'No units reserved on this date.' },
-      { h: 'Sold Today',
-        cols: [['Unit', 'u'], ['Floor', ''], ['Sale', ''], ['Buyer', ''], ['Agent', '']],
-        rows: (d.sold || []).map(function (s) {
-          return [s.unit_no, s.floor, s.sale_number || '—', s.client_name || '—', s.agent || '—'];
-        }),
-        empty: 'No units sold on this date.' },
-      { h: 'Expiring within 48 Hours',
-        cols: [['Unit', 'u'], ['Floor', ''], ['Requested by', ''], ['Hours left', 'n']],
-        rows: (d.expiring || []).map(function (r) {
-          return [r.unit_no, r.floor, r.requested_by, String(r.hours_left)];
-        }),
-        empty: 'No reservations expire within the next two days.' },
-      { h: 'Availability by Floor',
-        cols: [['Floor', ''], ['Available', 'n'], ['Reserved', 'n'], ['Sold', 'n'], ['Total', 'n']],
-        rows: avail.map(function (f) {
-          return [f.floor, String(f.available), String(f.reserved), String(f.sold), String(f.total)];
-        }),
-        total: ['Total', String(totAvail), String(totRes), String(totSold), String(totAll)],
-        empty: 'No inventory recorded for this project.' }
-    ];
-
     function thead(cols) {
       var t = _el('thead'), tr = _el('tr');
-      cols.forEach(function (c) {
-        var th = _el('th', c[1] === 'n' ? 'n' : null, c[0]);
-        tr.appendChild(th);
-      });
-      t.appendChild(tr);
-      return t;
+      cols.forEach(function (c) { tr.appendChild(_el('th', c[1] === 'n' ? 'n' : null, c[0])); });
+      t.appendChild(tr); return t;
     }
-    function trow(cols, cells, cls) {
+    function cell(spec) {                       // string | {v,cls} | {node}
+      if (spec && spec.node) { var td = _el('td', spec.cls || null); td.appendChild(spec.node); return td; }
+      if (spec && typeof spec === 'object') {
+        var t2 = _el('td', spec.cls || null);
+        if (spec.pill) { t2.appendChild(_el('span', 'pill ' + spec.pill, spec.v)); }
+        else t2.textContent = spec.v;
+        return t2;
+      }
+      return _el('td', null, spec);
+    }
+    function trow(cells, cls) {
       var tr = _el('tr', cls || null);
-      cells.forEach(function (v, i) {
-        var k = cols[i] ? cols[i][1] : '';
-        tr.appendChild(_el('td', k || null, v));
-      });
+      cells.forEach(function (c) { tr.appendChild(cell(c)); });
       return tr;
     }
 
-    secs.forEach(function (sec, si) {
-      var block = _el('div', 'sec' + (si === 0 ? ' first' : ''));
-      block.appendChild(_el('h2', null, sec.h));
+    var secs = [
+      { no: '01', title: 'Reservations Today', unit: 'unit',
+        cols: [['Unit'], ['Floor'], ['Requested by'], ['Agent code'], ['Booked by'], ['Buyer'], ['Expires'], ['Days left', 'n']],
+        rows: (d.reserved || []).map(function (r) {
+          var ed = _pk(r.expiry_date);
+          var days = ed ? Math.max(0, Math.ceil((ed - new Date()) / 864e5)) : null;
+          return [{ v: r.unit_no, cls: 'u' }, r.floor, r.requested_by,
+                  { v: r.agent_code || '—', cls: 'code' }, r.booked_by || '—',
+                  r.client_name ? r.client_name : { v: '—', cls: 'mut' },
+                  _dShort(r.expiry_date),
+                  days == null ? { v: '—', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
+        }),
+        empty: function () { return 'No units reserved on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
+
+      { no: '02', title: 'Sales Today', unit: 'unit',
+        cols: [['Unit'], ['Floor'], ['Buyer'], ['Agent'], ['Sale ref']],
+        rows: (d.sold || []).map(function (s) {
+          return [{ v: s.unit_no, cls: 'u' }, s.floor, s.client_name || '—', s.agent || '—',
+                  { v: s.sale_number || '—', cls: 'code' }];
+        }),
+        empty: function () { return 'No units sold on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
+
+      { no: '03', title: 'Expiring Within 48 Hours', unit: 'reservation',
+        cols: [['Unit'], ['Floor'], ['Requested by'], ['Expires'], ['Hours left', 'n']],
+        rows: (d.expiring || []).map(function (r) {
+          return [{ v: r.unit_no, cls: 'u' }, r.floor, r.requested_by, _dShort(r.expiry_date),
+                  { v: r.hours_left + 'h', pill: 'red', cls: 'n' }];
+        }),
+        empty: function () { return 'No reservations expire within 48 hours of ' + _dLong(dateISO).split(', ')[1] + '.'; } },
+
+      { no: '04', title: 'Floor-wise Position', unit: 'floor',
+        cols: [['Floor'], ['Distribution'], ['Sold', 'n'], ['Reserved', 'n'], ['Available', 'n'], ['Total', 'n'], ['% Sold', 'n']],
+        rows: avail.map(function (f) {
+          var t = Number(f.total || 0);
+          var m = _el('div', 'mini');
+          _seg(m, 'sold', Number(f.sold || 0), t, 45);
+          _seg(m, 'res', Number(f.reserved || 0), t, 45);
+          return [f.floor, { node: m }, { v: _num(f.sold), cls: 'n' }, { v: _num(f.reserved), cls: 'n' },
+                  { v: _num(f.available), cls: 'n' }, { v: _num(t), cls: 'n' },
+                  { v: _pct(Number(f.sold || 0), t), cls: 'n' }];
+        }),
+        total: ['Total', '', { v: _num(tSold), cls: 'n' }, { v: _num(tRes), cls: 'n' },
+                { v: _num(tAv), cls: 'n' }, { v: _num(tAll), cls: 'n' }, { v: _pct(tSold, tAll), cls: 'n' }],
+        empty: function () { return 'No inventory recorded for this project.'; } }
+    ];
+
+    secs.forEach(function (sec) {
+      var block = _el('div');
+      block.style.marginTop = '12mm';
+      block.appendChild(secHead(sec.no, sec.title, sec.rows.length, sec.unit));
 
       if (!sec.rows.length) {
-        block.appendChild(_el('div', 'none', sec.empty));
+        block.appendChild(_el('div', 'empty', sec.empty()));
         push(block);
         return;
       }
 
       var table = _el('table');
       table.appendChild(thead(sec.cols));
-      var tb = _el('tbody');
-      table.appendChild(tb);
+      var tb = _el('tbody'); table.appendChild(tb);
       block.appendChild(table);
       push(block);
 
-      /* A heading must never be the last thing on a page: the first two rows go
-         on with it, and if they do not fit the whole block moves. */
-      var i = 0;
-      for (; i < sec.rows.length; i++) {
-        tb.appendChild(trow(sec.cols, sec.rows[i]));
+      for (var i = 0; i < sec.rows.length; i++) {
+        tb.appendChild(trow(sec.rows[i]));
         if (!fits()) {
           tb.removeChild(tb.lastChild);
-          if (i < 2 && body.childNodes.length > 1) {         // orphan heading — move it all
-            body.removeChild(block);
-            newPage(false);
-            body.appendChild(block);
-            i--; continue;
+          if (i < 2 && body.childNodes.length > 1) {      // never strand the heading
+            body.removeChild(block); newPage(false); body.appendChild(block); i--; continue;
           }
-          // continue the table on a fresh page, with its header repeated
           newPage(false);
-          block = _el('div', 'sec cont');
-          table = _el('table');
-          table.appendChild(thead(sec.cols));
-          tb = _el('tbody');
-          table.appendChild(tb);
+          block = _el('div');
+          table = _el('table'); table.appendChild(thead(sec.cols));
+          tb = _el('tbody'); table.appendChild(tb);
           block.appendChild(table);
           body.appendChild(block);
           i--;
         }
       }
       if (sec.total) {
-        tb.appendChild(trow(sec.cols, sec.total, 'tot'));
+        tb.appendChild(trow(sec.total, 'tot'));
         if (!fits()) {
           tb.removeChild(tb.lastChild);
           newPage(false);
           var t2 = _el('table'); t2.appendChild(thead(sec.cols));
           var tb2 = _el('tbody'); t2.appendChild(tb2);
-          tb2.appendChild(trow(sec.cols, sec.total, 'tot'));
-          var b2 = _el('div', 'sec cont'); b2.appendChild(t2);
+          tb2.appendChild(trow(sec.total, 'tot'));
+          var b2 = _el('div'); b2.appendChild(t2);
           body.appendChild(b2);
         }
       }
     });
 
-    /* ── signature block, never split ──────────────────────────────────── */
+    /* ── signatures, never split ───────────────────────────────────────── */
     var sig = _el('div', 'sig');
-    ['Prepared by', 'Approved by'].forEach(function (l) { sig.appendChild(_el('div', null, l)); });
+    [['Prepared by', 'Reservation Desk'], ['Approved by', 'Director']].forEach(function (p) {
+      var c = _el('div');
+      c.appendChild(_el('div', 'rule'));
+      c.appendChild(_el('div', 'l', p[0] + ' — ' + p[1]));
+      sig.appendChild(c);
+    });
     push(sig);
 
     /* ── footer on every page ──────────────────────────────────────────── */
-    var stamp = 'Generated ' + _pkDate(new Date().toISOString()) + ' ' + _pkTime(new Date().toISOString()) + ' PKT';
+    var now = new Date().toISOString();
+    var stamp = 'Generated ' + _dShort(now) + ' ' + _pkTime(now) + ' PKT · Fourteen Group RMS';
     pages.forEach(function (pg, i) {
       var ft = _el('div', 'ft');
       ft.appendChild(_el('span', null, stamp));
+      ft.appendChild(_el('span', 'c', 'CONFIDENTIAL — FOR BOARD OF DIRECTORS'));
       ft.appendChild(_el('span', null, 'Page ' + (i + 1) + ' of ' + pages.length));
       pg.appendChild(ft);
     });
 
-    host.style.cssText = '';            // hand it back to the stylesheet
+    host.style.cssText = '';
     return pages.length;
   }
 
@@ -1207,8 +1377,6 @@
     if (data) { DB.data = data; DB.date = date || data.date; }
     var n = _dbBuild();
     _printHost().className = 'preview';
-    // hide the app exactly as printing does, so a screenshot of a page cannot
-    // pick up the fixed bottom bar sitting behind it
     document.body.classList.add('rd-printing');
     return n;
   };

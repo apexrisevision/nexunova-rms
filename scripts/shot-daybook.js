@@ -65,6 +65,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
   page.on('pageerror', e => errs.push(String(e.message||e)));
   page.on('console', m => { if (m.type()==='error') errs.push(m.text()); });
 
+  let FAILED=false, SEMFAIL=false;
   try {
     await page.goto(PAGE, { waitUntil:'domcontentloaded' });
     await page.evaluate(t => { localStorage.setItem('rms.sales.token', t);
@@ -98,7 +99,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
             d.reserved.push(c);
           }
           d.expiring = d.reserved.slice(0,6).map((x,i)=>({
-            unit_no:x.unit_no, floor:x.floor, requested_by:x.requested_by, hours_left:6+i*4 }));
+            unit_no:x.unit_no, floor:x.floor, requested_by:x.requested_by, hours_left:6+i*4,
+            expiry_date:new Date(Date.now()+(6+i*4)*36e5).toISOString() }));
         }
         return window._dbPreview(d, d.date);
       }, dateISO, pad || 0, AWAMI);
@@ -137,7 +139,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         c.agent_code='AGT-2026-'+String(1+(i%40)).padStart(4,'0');
         c.client_name=(i%3===0)?null:'Buyer '+(i+1); d.reserved.push(c); }
       d.expiring=d.reserved.slice(0,6).map((x,i)=>({unit_no:x.unit_no,floor:x.floor,
-        requested_by:x.requested_by,hours_left:6+i*4}));
+        requested_by:x.requested_by,hours_left:6+i*4,
+        expiry_date:new Date(Date.now()+(6+i*4)*36e5).toISOString()}));
       window._dbPreview(d, d.date);
     }, AWAMI);
     const chk = await page.evaluate(() => {
@@ -147,31 +150,133 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const orphan=pgs.some(p=>{ const b=p.querySelector('.pg-body'); if(!b) return false;
         const last=b.lastElementChild; return !!(last && last.classList.contains('sec') &&
           last.querySelector('h2') && !last.querySelector('tbody tr') && !last.querySelector('.none')); });
-      const overflow=pgs.some(p=>{ const b=p.querySelector('.pg-body');
-        return b && b.scrollHeight > p.clientHeight - 1; });
+      // does any content actually collide with the footer rule?
+      const clash=pgs.map((p,i)=>{
+        const col=p.querySelector('.col'), ft=p.querySelector('.ft');
+        if(!col||!ft) return null;
+        const last=col.lastElementChild; if(!last) return null;
+        const gap=Math.round((ft.getBoundingClientRect().top-last.getBoundingClientRect().bottom));
+        return {page:i+1, gapPx:gap};
+      }).filter(x=>x && x.gapPx < 0);
+      const overflow=pgs.some(p=>{ const c=p.querySelector('.col');
+        return c && c.getBoundingClientRect().bottom > p.getBoundingClientRect().bottom + 1; });
+      // a page that carries table ROWS must carry a header for them; a page
+      // that carries none (the signature page) needs no header at all
+      const bodyRows=pgs.map(p=>p.querySelectorAll('tbody tr').length);
       const theads=pgs.map(p=>p.querySelectorAll('thead').length);
+      const headless=pgs.map((p,i)=>({i:i+1,rows:bodyRows[i],heads:theads[i]}))
+                        .filter(x=>x.rows>0 && x.heads===0);
       const sig=pgs.filter(p=>p.querySelector('.sig')).length;
       return { n:pgs.length, foot, headsOnP1:heads[0], headsRest:heads.slice(1).every(Boolean),
-               orphan, overflow, theads, sigPages:sig,
+               orphan, overflow, clash, theads, bodyRows, headless, sigPages:sig,
                sigSplit: pgs.some(p=>{const s=p.querySelector('.sig'); return s && s.getBoundingClientRect().bottom > p.getBoundingClientRect().bottom;}) };
     });
+    /* \u2550\u2550 SEMANTIC \u2550\u2550 The masthead names a project; every floor in the position
+       table must belong to THAT project, and the KPI cards must equal the floor
+       table's totals. This is the check that would have caught the three-tower
+       report, whose numbers were internally consistent and simply were not this
+       project's. The floor set is read from the database, not from the page. */
+    console.log('\n\u2500\u2500 Semantics \u2014 the page must be about ONE project');
+    const sem = await page.evaluate(async (AW) => {
+      const r = await sb.rpc('get_reservation_daybook',
+        { p_session_token: TOKEN, p_date: '2026-09-07', p_project_id: AW });
+      window._dbPreview(r.data, r.data.date);
+      const p1 = document.querySelector('#rd-print .rd-pg');
+      const tables = [...document.querySelectorAll('#rd-print table')];
+      const ft = tables[tables.length - 1];
+      const rows = [...ft.querySelectorAll('tbody tr')];
+      const tot = rows.find(t => t.classList.contains('tot'));
+      const N = s => Number(String(s).replace(/[^0-9.-]/g, '')) || 0;
+      const kpi = [...p1.querySelectorAll('.kpi')].slice(0, 4)
+                    .map(k => N(k.querySelector('.v').textContent));
+      return {
+        proj: (p1.querySelector('.mh-proj') || {}).textContent.trim(),
+        floors: rows.filter(t => !t.classList.contains('tot')).map(t => t.cells[0].textContent.trim()),
+        kpi: { total: kpi[0], sold: kpi[1], res: kpi[2], av: kpi[3] },
+        tbl: { sold: N(tot.cells[2].textContent), res: N(tot.cells[3].textContent),
+               av: N(tot.cells[4].textContent), total: N(tot.cells[5].textContent) }
+      };
+    }, AWAMI);
+    const dbFloors = await sql(`select distinct coalesce(nullif(floor_label,''),'-') f
+                                  from public.units where project_id='${AWAMI}';`);
+    const allowed = new Set(dbFloors.map(r => r.f));
+    const stray = sem.floors.filter(f => !allowed.has(f));
+    const okS = m => console.log('  \u2705 ' + m);
+    const badS = m => { console.log('  \u274C ' + m); SEMFAIL = true; };
+    sem.proj === 'AWAMI MARKET' ? okS('masthead names the project: ' + sem.proj)
+                                : badS('masthead says ' + JSON.stringify(sem.proj));
+    stray.length === 0 ? okS(sem.floors.length + ' floor rows, every one belongs to that project')
+                       : badS('floors from another project: ' + stray.join(', '));
+    sem.floors.length === allowed.size
+      ? okS("all " + allowed.size + " of the project's floors are present")
+      : badS(sem.floors.length + ' floors shown, the project has ' + allowed.size);
+    (sem.kpi.total === sem.tbl.total && sem.kpi.sold === sem.tbl.sold &&
+     sem.kpi.res === sem.tbl.res && sem.kpi.av === sem.tbl.av)
+      ? okS('KPI cards equal the floor-table totals (' + sem.kpi.total + ' = ' + sem.tbl.total + ')')
+      : badS('KPI vs table mismatch: ' + JSON.stringify(sem));
+    (sem.tbl.sold + sem.tbl.res + sem.tbl.av === sem.tbl.total)
+      ? okS('sold + reserved + available = total')
+      : badS('the totals do not add up: ' + JSON.stringify(sem.tbl));
+
     console.log('\n\u2500\u2500 Structure (padded render)');
     const ok=m=>console.log('  \u2705 '+m), bad=m=>{console.log('  \u274C '+m); FAILED=true;};
-    let FAILED=false;
     chk.n>1 ? ok(chk.n+' pages — breaks exercised') : bad('only '+chk.n+' page, no break to test');
     chk.headsOnP1===false ? ok('no running header on page 1') : bad('running header leaked onto page 1');
     chk.headsRest ? ok('running header on every page after the first') : bad('a later page has no running header');
     chk.foot.every((f,i)=>f.indexOf('Page '+(i+1)+' of '+chk.n)>-1)
       ? ok('footer numbering correct: '+JSON.stringify(chk.foot[chk.foot.length-1])) : bad('footer numbering wrong: '+JSON.stringify(chk.foot));
-    chk.theads.every(t=>t>0) ? ok('table headers repeat on every page ('+chk.theads.join(',')+')') : bad('a page carries rows with no header: '+chk.theads.join(','));
+    chk.headless.length===0 ? ok('every page with rows carries a header (rows '+chk.bodyRows.join(',')+' / heads '+chk.theads.join(',')+')') : bad('page(s) carry rows with no header: '+JSON.stringify(chk.headless));
     !chk.orphan ? ok('no section heading stranded without rows') : bad('an orphaned section heading');
     !chk.overflow ? ok('no page overflows its 297mm box') : bad('content spills past the page box');
+    chk.clash.length===0 ? ok('nothing collides with the footer rule')
+                         : bad('content runs into the footer: '+JSON.stringify(chk.clash));
     chk.sigPages===1 && !chk.sigSplit ? ok('signature block whole, on one page') : bad('signature block split or missing');
+
+    /* ══ BACKGROUND GRAPHICS OFF ══ The design is carried by its backgrounds, so
+       this renders a real PDF with printBackground:false — the programmatic
+       equivalent of unchecking "Background graphics" — and reopens it in Chrome's
+       own viewer to photograph what actually comes out. */
+    console.log('\n── Print with Background graphics OFF');
+    await page.evaluate(async (AWAMI) => {
+      const r = await sb.rpc('get_reservation_daybook',
+        { p_session_token: TOKEN, p_date: '2026-09-07', p_project_id: AWAMI });
+      window._dbPreview(r.data, r.data.date);
+      document.getElementById('rd-print').className = '';   // print layout, not preview
+    }, AWAMI);
+    /* The footer says "Page 1 of N" from the JS pagination. If Chrome's own
+       pagination disagrees, that footer is a lie on paper — so the PDF is
+       produced whole and its page count compared against ours. */
+    const jsPages = await page.evaluate(() => document.querySelectorAll('#rd-print .rd-pg').length);
+    const pdfPath = path.join(OUT, '05-nobg.pdf');
+    await page.pdf({ path: pdfPath, width: '210mm', height: '297mm',
+                     printBackground: false, margin: {top:0,right:0,bottom:0,left:0} });
+    /* Read the count with pdf-lib (already vendored) rather than by grepping the
+       file: a PDF's page objects live in compressed object streams, so a text
+       search finds nothing and reports zero pages very convincingly. */
+    const { PDFDocument } = require(path.join(ROOT, 'vendor', 'pdf-lib.min.js'));
+    const pdfPages = (await PDFDocument.load(fs.readFileSync(pdfPath))).getPageCount();
+    if (pdfPages === jsPages) {
+      console.log('  ✅ Chrome paginates it the same way we do (' + pdfPages +
+                  ' pages) — the footer count is true on paper');
+    } else {
+      console.log('  ❌ the printed PDF has ' + pdfPages +
+                  ' pages but the footer claims ' + jsPages);
+      FAILED = true;
+    }
+    const pv = await browser.newPage();
+    await pv.setViewport({ width: 900, height: 1300, deviceScaleFactor: 2 });
+    await pv.goto('file:///' + pdfPath.split(path.sep).join('/'), { waitUntil: 'networkidle2' });
+    await sleep(3000);
+    await pv.screenshot({ path: path.join(OUT, '05-print-nobg-p1.png') });
+    await pv.close();
+    console.log('  rendered 05-print-nobg-p1.png from a printBackground:false PDF');
 
     const real=errs.filter(e=>!/favicon|manifest|404|Not Found/i.test(e));
     real.length===0 ? ok('no console errors') : bad('console: '+real.slice(0,3).join(' | '));
-    console.log('\n' + (FAILED ? '\u274C SOMETHING IS WRONG' : '\u2705 STRUCTURE OK') + '  \u2192 ' + OUT);
-    process.exitCode = FAILED ? 1 : 0;
+    // a semantic failure must fail the run too, or the check is decoration
+    const BAD = FAILED || SEMFAIL;
+    console.log('\n' + (BAD ? '\u274C SOMETHING IS WRONG' : '\u2705 ALL CHECKS OK') + '  \u2192 ' + OUT);
+    process.exitCode = BAD ? 1 : 0;
   } finally {
     await browser.close(); server.close();
     await sql(`delete from public.sales_sessions where session_token='${TOK}';`);
