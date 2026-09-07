@@ -118,6 +118,9 @@
       ".db-tbl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}" +
       ".db-wrap{overflow-x:auto;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card)}" +
       ".db-asat{padding:8px 10px;font-size:11px;color:var(--fk-text-soft);border-bottom:1px solid var(--fk-border)}" +
+      ".db-rng{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}" +
+      ".db-rng label{font-size:var(--fs-caption);color:var(--fk-text-muted);font-weight:600}" +
+      ".db-rng input{flex:0 0 auto;width:auto}" +
       ".db-tbl td .db-red{color:#B3261E;font-weight:650}" +
       ".db-tbl td .db-amber{color:#9A6510;font-weight:650}" +
       ".db-acts{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}" +
@@ -203,6 +206,15 @@
       "#rd-print .sum-r .sep{width:0;height:6mm;border-left:.5pt solid var(--line)}" +
       "#rd-print .sum-pkr{font-size:8.5pt;color:var(--slate);margin-top:1mm}" +
       "#rd-print .sum-b{margin-top:4mm}" +
+      /* The movement block. Deliberately a table and not more figure cards:
+         opening, added, released and closing only mean anything read across. */
+      "#rd-print .mv{margin-top:4mm}" +
+      "#rd-print table.mv-t{width:auto;min-width:110mm}" +
+      "#rd-print table.mv-t th{background:transparent;border-bottom:.5pt solid var(--line)}" +
+      "#rd-print table.mv-t td{height:5mm}" +
+      "#rd-print table.mv-t td:first-child{font-weight:600}" +
+      "#rd-print table.mv-t tr:last-child td{border-bottom:0}" +
+      "#rd-print .mv-c{font-weight:700}" +
       "#rd-print .sum-b .sum-i .v{font-size:11pt}" +
       /* ── sections ── */
       "#rd-print .sec-h{display:flex;align-items:baseline;gap:3mm;border-bottom:.5pt solid var(--navy);" +
@@ -981,17 +993,21 @@
       if (!_alive('daybook')) return;
     }
 
-    var day = DB.date || null;
+    /* A single date is still a period, of one day. DB.from/DB.to are the range;
+       DB.date is kept as the label a one-day report prints. */
+    var from = DB.from || DB.date || null;
+    var to   = DB.to   || DB.date || null;
     var r;
     try {
       r = await sb.rpc('get_reservation_daybook',
-        { p_session_token: TOKEN, p_date: day, p_project_id: DESK.projectId || null });
+        { p_session_token: TOKEN, p_date: null, p_project_id: DESK.projectId || null,
+          p_from: from, p_to: to });
     } catch (e) { return _netErr(); }
     var d = r && r.data;
     if (!_alive('daybook')) return;                    // shell moved on mid-load
     if (d && d.error === 'session_expired') return sessionGone();
     if (!d || !d.success) return _netErr();
-    DB.data = d; DB.date = d.date;
+    DB.data = d; DB.date = d.date; DB.from = d.from; DB.to = d.to;
     _dbPaint(host);
   };
 
@@ -1008,7 +1024,16 @@
     host.innerHTML =
       '<div class="rd" id="db-root">' +
         '<div class="rd-top">' +
-          '<input class="rd-sm" type="date" id="db-date" value="' + esc(String(d.date).slice(0, 10)) + '" style="flex:0 0 auto;width:auto">' +
+          /* Two ways in, because they answer different questions. Today is one
+             press for the thing asked for most; From/To is for a week, a month
+             or a single past day. Nothing outside the range reaches the page. */
+          '<button class="rd-chip' + (_isToday(d) ? ' on' : '') + '" id="db-today">Today</button>' +
+          '<span class="db-rng">' +
+            '<label>From</label>' +
+            '<input class="rd-sm" type="date" id="db-from" value="' + esc(String(d.from || d.date).slice(0, 10)) + '">' +
+            '<label>To</label>' +
+            '<input class="rd-sm" type="date" id="db-to" value="' + esc(String(d.to || d.date).slice(0, 10)) + '">' +
+          '</span>' +
           '<button class="rd-chip" id="db-back">' + li('x', 14) + ' Desk</button>' +
         '</div>' +
         '<div class="db-acts">' +
@@ -1020,7 +1045,26 @@
         /* "Booked today" rather than "Reserved today": with three tags in play
            the old heading named only one of them. A booking that was undone is
            not here at all — see the RPC. The desk's own list still has it. */
-        _dbSec('Booked today', resv.length, resv.length
+        /* The same four numbers as the PDF, in the same order. If the screen
+           and the paper ever disagree about an opening balance, the one being
+           looked at is the one that will be believed. */
+        (d.ledger ? _dbSec('Movement · ' + _periodShort(d), '',
+          _dbTable(['', 'Opening', '+ Added', '− Released', '= Closing'],
+            [['Held', d.ledger.held], ['Sold', d.ledger.sold]].map(function (row) {
+              var v = row[1] || {};
+              return ['<b>' + esc(row[0]) + '</b>',
+                      '<span class="n">' + esc(String(v.opening || 0)) + '</span>',
+                      '<span class="n">' + esc(String(v.added || 0)) + '</span>',
+                      '<span class="n">' + esc(String(v.removed || 0)) + '</span>',
+                      '<span class="n"><b>' + esc(String(v.closing || 0)) + '</b></span>'];
+            }).concat([[
+              '<b>Available</b>',
+              '<span class="n">' + esc(String((d.ledger.available || {}).opening || 0)) + '</span>',
+              '<span class="t">—</span>', '<span class="t">—</span>',
+              '<span class="n"><b>' + esc(String((d.ledger.available || {}).closing || 0)) + '</b></span>'
+            ]]))) : '') +
+
+        _dbSec(d.single_day ? 'Booked today' : 'Booked in this period', resv.length, resv.length
           ? _dbTable(['Unit', 'Tag', 'Floor', 'Requested by', 'Buyer', 'Expires'],
               resv.map(function (r) {
                 return ['<b>' + esc(r.unit_no) + '</b>',
@@ -1030,15 +1074,15 @@
                         r.client_name ? esc(r.client_name) : '<span class="t">—</span>',
                         esc(_pkDate(r.expiry_date))];
               }))
-          : '<div class="rd-empty">Nothing booked on this day.</div>') +
+          : '<div class="rd-empty">Nothing booked ' + esc(_periodPhrase(d)) + '.</div>') +
 
-        _dbSec('Sold today', sold.length, sold.length
+        _dbSec(d.single_day ? 'Sold today' : 'Sold in this period', sold.length, sold.length
           ? _dbTable(['Unit', 'Floor', 'Sale', 'Buyer', 'Agent'],
               sold.map(function (s) {
                 return ['<b>' + esc(s.unit_no) + '</b>', esc(s.floor), esc(s.sale_number || '—'),
                         esc(s.client_name || '—'), esc(s.agent || '—')];
               }))
-          : '<div class="rd-empty">Nothing sold on this day.</div>') +
+          : '<div class="rd-empty">Nothing sold ' + esc(_periodPhrase(d)) + '.</div>') +
 
         /* UNITS ON HOLD, in place of "Expiring within 48 hours". Everything that
            section listed is in this one wearing a red chip, so keeping both would
@@ -1049,9 +1093,9 @@
            already lists the day's own bookings and printing both made three
            bookings read as six. The total is stated in the line beneath the
            heading rather than dropped. */
-        _dbSec('Held from earlier days', heldEarlier.length, heldEarlier.length
+        _dbSec('Held from before', heldEarlier.length, heldEarlier.length
           ? '<div class="db-asat">As at ' + esc(_pkDate(genISO)) + ' ' + esc(_pkTime(genISO)) +
-            ' PKT — still held from before this day; today’s are listed above.' +
+            ' PKT — still held from before the period; bookings inside it are listed above.' +
             (heldEarlier.length !== hold.length ? ' ' + hold.length + ' held in total.' : '') +
             '</div>' +
             _dbTable(['Unit', 'Tag', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
@@ -1066,6 +1110,18 @@
                         '<span class="n' + (L.tone ? ' db-' + L.tone : '') + '">' + esc(L.t) + '</span>'];
               }))
           : '<div class="rd-empty">Nothing is held from an earlier day.</div>') +
+
+        /* The minus line, named. "− Released 1" is a number nobody can check
+           until the unit is on the page beside it. */
+        ((d.released || []).length ? _dbSec('Released in this period', d.released.length,
+          _dbTable(['Unit', 'Floor', 'Reserved by', 'Taken', 'Went', 'How'],
+            d.released.map(function (r) {
+              var how = r.went === 'cancelled' ? 'Cancelled' : r.went === 'sold' ? 'Sold' : 'Lapsed';
+              return ['<b>' + esc(r.unit_no) + '</b>', esc(r.floor),
+                      esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
+                      esc(_pkDate(r.reserved_at)), esc(_pkDate(r.went_at)),
+                      '<span class="tg tg-off">' + esc(how) + '</span>'];
+            }))) : '') +
 
         /* Same five states as the PDF, same order, so the two never disagree
            about a floor. Other only appears when a floor actually has some. */
@@ -1085,8 +1141,22 @@
       '</div>';
 
     var back = _dbq('#db-back'); if (back) back.addEventListener('click', function () { setTab('desk'); });
-    var dt = _dbq('#db-date');
-    if (dt) dt.addEventListener('change', function () { DB.date = dt.value; window.renderDaybook(); });
+    var tdy = _dbq('#db-today');
+    if (tdy) tdy.addEventListener('click', function () {
+      DB.from = null; DB.to = null; DB.date = null;   // let the server say what today is
+      window.renderDaybook();
+    });
+    /* Both ends refetch, and a range entered backwards is straightened by the
+       RPC rather than refused — it is a slip, not a request for nothing. */
+    ['#db-from', '#db-to'].forEach(function (sel) {
+      var el = _dbq(sel); if (!el) return;
+      el.addEventListener('change', function () {
+        DB.from = (_dbq('#db-from') || {}).value || null;
+        DB.to   = (_dbq('#db-to')   || {}).value || null;
+        DB.date = null;
+        window.renderDaybook();
+      });
+    });
     var cp = _dbq('#db-copy'); if (cp) cp.addEventListener('click', _dbCopy);
     var wa = _dbq('#db-wa'); if (wa) wa.addEventListener('click', _dbWa);
     var pf = _dbq('#db-pdf'); if (pf) pf.addEventListener('click', _dbPrint);
@@ -1112,7 +1182,7 @@
   function _dbText() {
     var d = DB.data || {}, h = d.header || {};
     var L = [];
-    L.push('*' + (h.project || 'Inventory') + '* — ' + _pkDate(d.date));
+    L.push('*' + (h.project || 'Inventory') + '* — ' + _periodShort(d));
     if (h.company) L.push(h.company);
     L.push('');
 
@@ -1121,7 +1191,7 @@
        appearing at all — even labelled — was the thing being complained about.
        "On hold now" below is the authoritative answer to what is unavailable. */
     var resv = _liveOnly(d.reserved);
-    L.push('*Booked today (' + resv.length + ')*');
+    L.push('*' + (d.single_day ? 'Booked today' : 'Booked in this period') + ' (' + resv.length + ')*');
     if (!resv.length) L.push('— none —');
     else resv.forEach(function (r) {
       L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
@@ -1130,7 +1200,7 @@
     L.push('');
 
     var sold = d.sold || [];
-    L.push('*Sold today (' + sold.length + ')*');
+    L.push('*' + (d.single_day ? 'Sold today' : 'Sold in this period') + ' (' + sold.length + ')*');
     if (!sold.length) L.push('— none —');
     else sold.forEach(function (s) {
       L.push('• ' + s.unit_no + ' (' + s.floor + ')' + (s.agent ? ' — ' + s.agent : ''));
@@ -1142,12 +1212,21 @@
        actually acts on: what is off the board right now and when it returns. */
     var hold = _heldEarlier(d.holding);
     if (hold.length) {
-      L.push('*Also held, from earlier days (' + hold.length + ')*');
+      L.push('*Also held, from before (' + hold.length + ')*');
       hold.forEach(function (r) {
         var L2 = _holdLeft(r);
         L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
                ' · ' + r.requested_by + ' · ' + (r.overdue ? 'LAPSED' : L2.t + ' left'));
       });
+      L.push('');
+    }
+
+    if (d.ledger && d.ledger.held) {
+      var lh = d.ledger.held, lav = d.ledger.available || {};
+      L.push('*Movement*');
+      L.push('Held: ' + (lh.opening || 0) + ' + ' + (lh.added || 0) + ' \u2212 ' +
+             (lh.removed || 0) + ' = *' + (lh.closing || 0) + '*');
+      L.push('Available: ' + (lav.opening || 0) + ' \u2192 *' + (lav.closing || 0) + '*');
       L.push('');
     }
 
@@ -1253,6 +1332,41 @@
      computed against the same Karachi day section 01 filters on — matching on
      unit numbers here would have worked too, and would have been the third
      time in this build that a display string was used as a key. */
+  /* Is the report showing today, and only today? */
+  function _isToday(d) {
+    if (!d || !d.single_day) return false;
+    var pk = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
+    var y = pk.getFullYear() + '-' + String(pk.getMonth() + 1).padStart(2, '0') +
+            '-' + String(pk.getDate()).padStart(2, '0');
+    return String(d.to || d.date).slice(0, 10) === y;
+  }
+
+  /* How the period is named on the page. A single day keeps the old wording;
+     a range says both ends, because "today" on a report covering a week is the
+     kind of label that gets quoted back wrongly. */
+  function _periodLabel(d, caps) {
+    var a = d.from || d.date, b = d.to || d.date;
+    if (d.single_day || String(a).slice(0,10) === String(b).slice(0,10)) {
+      return caps ? _dCaps(b) : _dLong(b);
+    }
+    return (caps ? _dCaps(a) : _dShort(a)) + '  \u2192  ' + (caps ? _dCaps(b) : _dShort(b));
+  }
+  /* "on 07 September" for a day, "between 01 and 07 September" for a range —
+     so the empty states read as sentences rather than as a date stuck on. */
+  function _periodPhrase(d) {
+    var a = d.from || d.date, b = d.to || d.date;
+    if (String(a).slice(0,10) === String(b).slice(0,10)) {
+      return 'on ' + _dLong(b).split(', ')[1];
+    }
+    return 'between ' + _dShort(a) + ' and ' + _dShort(b);
+  }
+
+  function _periodShort(d) {
+    var a = d.from || d.date, b = d.to || d.date;
+    return (String(a).slice(0,10) === String(b).slice(0,10))
+      ? _dShort(b) : _dShort(a) + ' \u2013 ' + _dShort(b);
+  }
+
   function _heldEarlier(hold) {
     return (hold || []).filter(function (r) { return !r.booked_today; });
   }
@@ -1342,7 +1456,9 @@
         }
         L.appendChild(_el('div', 'mh-proj', project.toUpperCase()));
         L.appendChild(_el('div', 'mh-t', 'Reservation Daybook'));
-        L.appendChild(_el('div', 'mh-d', _dLong(dateISO)));
+        /* A week-long report headed with a single date is the kind of label
+           that gets quoted back as fact. Both ends, whenever there are two. */
+        L.appendChild(_el('div', 'mh-d', _periodLabel(d, false)));
         var R = _el('div', 'mh-r');
         [company, 'Karkhano, Peshawar',
          'Report ref: ' + _initials(project) + '-DB-' + _dRef(dateISO)]
@@ -1352,7 +1468,7 @@
         pg.appendChild(mh);
       } else {
         var rh = _el('div', 'rh');
-        rh.appendChild(_el('div', 'l', project + '  ·  Reservation Daybook  ·  ' + _dShort(dateISO)));
+        rh.appendChild(_el('div', 'l', project + '  ·  Reservation Daybook  ·  ' + _periodShort(d)));
         var r = _el('div', 'r');
         r.appendChild(_el('span', 'sq'));
         r.appendChild(_el('span', null, 'Fourteen Group'));
@@ -1434,19 +1550,57 @@
        which stay date-bound. Stated separately for exactly that reason. */
     var holdVal = hold.reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     sum.appendChild(_el('div', 'sum-pkr',
-      'Booked today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal) +
+      'Booked ' + _pkr(todayResVal) + '  ·  Sold ' + _pkr(todaySoldVal) +
       (hold.length ? '  ·  Held ' + _pkr(holdVal) + ' across ' + _num(hold.length) +
-                     ' unit' + (hold.length === 1 ? '' : 's') : '')));
+                     ' unit' + (hold.length === 1 ? '' : 's') : '') +
+      /* From NOW, not from the period: the only figure on the page about what
+         happens next rather than about what happened. */
+      ((d.expiring || []).length ? '  \u00b7  ' + _num(d.expiring.length) +
+                                   ' expiring within 48h' : '')));
 
-    var b = _el('div');
-    b.style.marginTop = '4mm';
-    b.appendChild(_el('div', 'sum-l', 'Today · ' + _dCaps(dateISO)));
-    b.appendChild(sumRow([
-      ['Booked', _num(dayRows.length), null],
-      ['Sold', _num((d.sold || []).length), null],
-      ['Expiring 48h', _num((d.expiring || []).length), null]
-    ], true));
-    sum.appendChild(b);
+    /* ── MOVEMENT ──────────────────────────────────────────────────────────
+       What Rashid asked for in his own words: opening, the plus and minus
+       during the period, and closing. A table rather than more figure cards,
+       because these four numbers only mean anything read across a row.
+
+       Removed is not counted anywhere — the RPC derives it as opening + added
+       − closing, so if any of the three were wrong the row would visibly fail
+       to add up rather than quietly under-report. */
+    var lg = d.ledger || {};
+    if (lg.held) {
+      var mv = _el('div', 'mv');
+      mv.appendChild(_el('div', 'sum-l', 'Movement \u00b7 ' + _periodLabel(d, true)));
+      var mt = _el('table', 'mv-t');
+      var mh2 = _el('thead'), mhr = _el('tr');
+      ['', 'Opening', '+ Added', '\u2212 Released', '= Closing'].forEach(function (c, i) {
+        mhr.appendChild(_el('th', i ? 'n' : null, c));
+      });
+      mh2.appendChild(mhr); mt.appendChild(mh2);
+      var mb = _el('tbody');
+      [['Held', lg.held], ['Sold', lg.sold]].forEach(function (row) {
+        var v = row[1] || {}, tr = _el('tr');
+        tr.appendChild(_el('td', null, row[0]));
+        [v.opening, v.added, v.removed].forEach(function (n) {
+          tr.appendChild(_el('td', 'n', _num(n || 0)));
+        });
+        tr.appendChild(_el('td', 'n mv-c', _num(v.closing || 0)));
+        mb.appendChild(tr);
+      });
+      /* Available has no movement of its own — it is what the other two leave
+         behind — so the middle columns are blank rather than filled with a
+         number that would look like a count of something. */
+      var av = lg.available || {}, atr = _el('tr');
+      atr.appendChild(_el('td', null, 'Available'));
+      atr.appendChild(_el('td', 'n', _num(av.opening || 0)));
+      atr.appendChild(_el('td', 'n mut', '\u2014'));
+      atr.appendChild(_el('td', 'n mut', '\u2014'));
+      atr.appendChild(_el('td', 'n mv-c', _num(av.closing || 0)));
+      mb.appendChild(atr);
+      mt.appendChild(mb); mv.appendChild(mt);
+      sum.appendChild(mv);
+    }
+
+
 
     /* The PERIOD table is not here. It cost 28mm of page and carried seven em
        dashes and two numbers, because get_reservation_daybook is a single-date
@@ -1502,7 +1656,10 @@
     var secs = [
       /* "Reservations Today" named one of the three tags this desk can now
          apply, so it was wrong on two rows in three. */
-      { title: 'Booked Today', unit: 'unit', noun: 'bookings',
+      /* The headings say what the report covers. "Booked Today" on a report
+         spanning a week is the kind of label a reader trusts and should not. */
+      { title: d.single_day ? 'Booked Today' : 'Booked In This Period',
+        unit: 'unit', noun: 'bookings',
         cols: [['Unit'], ['Tag'], ['Floor'], ['Requested by'], ['Booked by'], ['Buyer'], ['Expires'], ['Left', 'n']],
         rows: dayRows.map(function (r) {
           var ed = _pk(r.expiry_date);
@@ -1516,15 +1673,16 @@
                   _dShort(r.expiry_date),
                   days == null ? { v: '—', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
         }),
-        empty: function () { return 'No units reserved on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
+        empty: function () { return 'No units booked ' + _periodPhrase(d) + '.'; } },
 
-      { title: 'Sales Today', unit: 'unit', noun: 'sales',
+      { title: d.single_day ? 'Sales Today' : 'Sales In This Period',
+        unit: 'unit', noun: 'sales',
         cols: [['Unit'], ['Floor'], ['Buyer'], ['Agent'], ['Sale ref']],
         rows: (d.sold || []).map(function (s) {
           return [{ v: s.unit_no, cls: 'u' }, s.floor, s.client_name || '—', s.agent || '—',
                   { v: s.sale_number || '—', cls: 'code' }];
         }),
-        empty: function () { return 'No units sold on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
+        empty: function () { return 'No units sold ' + _periodPhrase(d) + '.'; } },
 
       /* UNITS ON HOLD — the standing position, and the only section on this page
          that is not about one date.
@@ -1537,9 +1695,9 @@
          order the list is worked: the top of it is what has to be chased today.
          The booking date is still a column, so the other reading is available
          to the eye even though it is not the sort. */
-      { title: 'Held From Earlier Days', unit: 'unit', noun: 'earlier holds', undated: true,
+      { title: 'Held From Before', unit: 'unit', noun: 'earlier holds', undated: true,
         note: 'As at ' + _dShort(genISO) + ' ' + _pkTime(genISO) + ' PKT \u2014 still held from before ' +
-              _dShort(dateISO) + ', soonest to lapse first. The day\u2019s own bookings are in 01' +
+              _dShort(d.from || dateISO) + ', soonest to lapse first. Bookings inside the period are in 01' +
               (heldEarlier.length !== hold.length
                 ? '; ' + _num(hold.length) + ' unit' + (hold.length === 1 ? '' : 's') + ' held in total.'
                 : '.'),
@@ -1563,6 +1721,25 @@
          three of them and a unit tagged On Hold or Booked was counted in Total
          and in no column at all, which is how 1,467 came to sit above
          0 + 0 + 1,466. */
+      /* THE MINUS LINE, NAMED. The movement table says one unit left the hold
+         list; this says which one and how. Without it "− Released 1" is a
+         number nobody can check. Cancelled, lapsed and sold are different
+         events and the column says which, because a hold that expired is a
+         follow-up nobody made and a hold that was cancelled is a decision. */
+      { title: 'Released In This Period', unit: 'unit', noun: 'releases',
+        cols: [['Unit'], ['Tag'], ['Floor'], ['Reserved by'], ['Taken'], ['Went'], ['How']],
+        rows: (d.released || []).map(function (r) {
+          var how = r.went === 'cancelled' ? { v: 'Cancelled', pill: 'off' }
+                  : r.went === 'sold'      ? { v: 'Sold', pill: 'booked' }
+                  :                          { v: 'Lapsed', pill: 'red' };
+          return [{ v: r.unit_no, cls: 'u' },
+                  { v: r.tag || 'Reserved', pill: 'off' },
+                  r.floor,
+                  whoCell(r.requested_by, r.agent_code),
+                  _dShort(r.reserved_at), _dShort(r.went_at), how];
+        }),
+        empty: function () { return 'Nothing was released ' + _periodPhrase(d) + '.'; } },
+
       { title: 'Floor-wise Position', unit: 'floor', noun: 'inventory',
         cols: [['Floor'], ['On hold', 'n'], ['Reserved', 'n'], ['Booked', 'n'], ['Sold', 'n']]
               .concat(showOther ? [['Other', 'n']] : [])
@@ -1640,7 +1817,7 @@
       var dated = bare.filter(function (x) { return !x.undated; }).map(function (x) { return x.noun; });
       var free  = bare.filter(function (x) { return x.undated; }).map(function (x) { return x.noun; });
       var lines = [];
-      if (dated.length) lines.push('No ' + dated.join(' and no ') + ' on ' + _dLong(dateISO).split(', ')[1] + '.');
+      if (dated.length) lines.push('No ' + dated.join(' and no ') + ' ' + _periodPhrase(d) + '.');
       if (free.length)  lines.push('No ' + free.join(' and no ') + ' at this moment.');
       var none = _el('div', 'noneline');
       none.style.marginTop = '7mm';

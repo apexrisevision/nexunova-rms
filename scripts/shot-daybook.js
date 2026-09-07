@@ -75,6 +75,78 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     await page.waitForFunction(()=>!!document.getElementById('db-root'), { timeout:60000 });
     await sleep(1200);
 
+    /* ── THE PERIOD ────────────────────────────────────────────────────────
+       Rashid's condition was blunt: nothing before the From and nothing after
+       the To may appear. That is a question about the RPC, not about pixels,
+       so it is asked of the database directly — and asked for a day on which
+       nothing happened, which is the only shape in which a leak shows. */
+    console.log('\n\u2500\u2500 The period holds its edges');
+    {
+      const okP = m => console.log('  \u2705 ' + m);
+      const badP = m => { console.log('  \u274C ' + m); FAILED = true; };
+      const rows = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('${CO}','${DIR}',NULL,'dbshot_period', now() + interval '2 minutes');
+        CREATE TEMP TABLE per ON COMMIT DROP AS
+          SELECT 'today'::text AS label, public.get_reservation_daybook('dbshot_period', NULL, '${AWAMI}',
+                   (now() AT TIME ZONE 'Asia/Karachi')::date,
+                   (now() AT TIME ZONE 'Asia/Karachi')::date) AS d
+          UNION ALL
+          SELECT 'a quiet day before', public.get_reservation_daybook('dbshot_period', NULL, '${AWAMI}',
+                   (now() AT TIME ZONE 'Asia/Karachi')::date - 30,
+                   (now() AT TIME ZONE 'Asia/Karachi')::date - 30)
+          UNION ALL
+          SELECT 'legacy p_date', public.get_reservation_daybook('dbshot_period',
+                   (now() AT TIME ZONE 'Asia/Karachi')::date, '${AWAMI}');
+        SELECT label,
+               (d->>'single_day')::boolean                       AS one_day,
+               (d->'ledger'->'held'->>'opening')::int            AS h_open,
+               (d->'ledger'->'held'->>'added')::int              AS h_add,
+               (d->'ledger'->'held'->>'removed')::int            AS h_rem,
+               (d->'ledger'->'held'->>'closing')::int            AS h_close,
+               (d->'ledger'->'sold'->>'closing')::int            AS s_close,
+               (d->'ledger'->'available'->>'closing')::int       AS av_close,
+               (d->'ledger'->>'total')::int                      AS total,
+               jsonb_array_length(d->'reserved')                 AS n_booked,
+               jsonb_array_length(d->'released')                 AS n_released,
+               jsonb_array_length(d->'holding')                  AS n_earlier
+          FROM per ORDER BY label;
+        ROLLBACK;`);
+
+      const by = {}; rows.forEach(r => { by[r.label] = r; });
+      const t = by['today'], q = by['a quiet day before'], l = by['legacy p_date'];
+
+      /* The ledger has to close on every one of them, or the four figures are
+         four opinions rather than one position. */
+      const bad = rows.filter(r => r.h_open + r.h_add - r.h_rem !== r.h_close);
+      bad.length === 0
+        ? okP('opening + added \u2212 released = closing on all ' + rows.length + ' periods')
+        : badP('the ledger does not close: ' + JSON.stringify(bad));
+
+      const off = rows.filter(r => r.h_close + r.s_close + r.av_close !== r.total);
+      off.length === 0
+        ? okP('held + sold + available = total on all ' + rows.length + ' periods')
+        : badP('the board does not add up: ' + JSON.stringify(off));
+
+      /* A day thirty days back, before this project had any activity at all.
+         Anything non-zero here is something from outside the range leaking in. */
+      (q && q.h_open === 0 && q.h_add === 0 && q.h_close === 0 &&
+       q.n_booked === 0 && q.n_released === 0 && q.n_earlier === 0 && q.av_close === q.total)
+        ? okP('a day 30 days back shows nothing at all \u2014 the range holds its edges')
+        : badP('activity from outside the range leaked into a quiet day: ' + JSON.stringify(q));
+
+      /* Today must NOT be empty, or the check above proved nothing. */
+      (t && (t.n_booked > 0 || t.h_close > 0))
+        ? okP("today is not empty (" + t.n_booked + ' booked, ' + t.h_close + ' held), so that check could have failed')
+        : badP('today is empty too, so the edge test proved nothing');
+
+      /* And the old single-date call still means a one-day period. */
+      (l && l.one_day === true && t && l.h_close === t.h_close && l.n_booked === t.n_booked)
+        ? okP('the old p_date call still returns exactly the same one-day report')
+        : badP('p_date and an explicit one-day range disagree: ' + JSON.stringify({ legacy: l, today: t }));
+    }
+
     console.log('\n\u2500\u2500 A booking survives its own tag');
     {
       const okT = m => console.log('  \u2705 ' + m);
@@ -183,10 +255,10 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const okC = m => console.log('  \u2705 ' + m);
       const badC = m => { console.log('  \u274C ' + m); FAILED = true; };
       const titles = scr.secs.map(x => x.t.replace(/\s+\d+$/, '').trim());
-      const hold = scr.secs.find(x => /^Held from earlier days/.test(x.t));
+      const hold = scr.secs.find(x => /^Held from before/.test(x.t));
       scr.hasGeneratedAt ? okC('the RPC returns generated_at, so the page can date its own hold list')
                          : badC('generated_at missing from the payload');
-      hold ? okC('screen shows a "Held from earlier days" section')
+      hold ? okC('screen shows a "Held from before" section')
            : okC('nothing is held from an earlier day, so that section collapsed');
       /* The payload count is the truth; the screen has to match it exactly. A
          hold that is in the data and not on the page reads as an available
@@ -414,7 +486,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const txt=pgs.map(p=>p.textContent||'').join(' ');
       // the hold section, by its heading, and how many rows it printed
       const heads2=[...document.querySelectorAll('#rd-print .sec-t')].map(e=>e.textContent.trim());
-      const holdIdx=heads2.indexOf('Held From Earlier Days');
+      const holdIdx=heads2.indexOf('Held From Before');
       // rows in the printed day list, to compare against the stub's live count
       const bookIdx=heads2.indexOf('Booked Today');
       let holdRows=0, holdNote='';
@@ -611,8 +683,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     /* The hold list. 18 stub rows go in; 18 rows have to come out, or the
        section is silently dropping units \u2014 which is the failure that matters,
        since a unit missing from this page reads as available. */
-    chk.holdIdx>=0 ? ok('"Held From Earlier Days" section present, at position ' + (chk.holdIdx+1))
-                   : bad('no "Held From Earlier Days" section: ' + JSON.stringify(chk.secTitles));
+    chk.holdIdx>=0 ? ok('"Held From Before" section present, at position ' + (chk.holdIdx+1))
+                   : bad('no "Held From Before" section: ' + JSON.stringify(chk.secTitles));
     /* 18 holds go in, 4 of them flagged as booked on the day being reported and
        already listed above. 14 must print here, and NONE of the four. */
     chk.holdRows===14 ? ok("14 of 18 holds printed \u2014 the 4 booked today are not repeated")
@@ -621,7 +693,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       /* THE COMPLAINT, ASSERTED. Three bookings printed as six because both
          sections were right about the same rows. No unit may appear in both. */
       const a = chk.unitsBy['Booked Today'] || [];
-      const b = chk.unitsBy['Held From Earlier Days'] || [];
+      const b = chk.unitsBy['Held From Before'] || [];
       const both = a.filter(u => b.indexOf(u) >= 0);
       (a.length && b.length && both.length === 0)
         ? ok('no unit is printed in both lists (' + a.length + ' booked today, ' + b.length + ' held from earlier)')
@@ -640,7 +712,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
        day's own bookings are elsewhere - that second half is the whole reason
        this section is narrower than the payload. */
     (/^As at /.test(chk.holdNote) && /still held from before/.test(chk.holdNote) &&
-     /bookings are in 01/.test(chk.holdNote))
+     /inside the period are in 01/.test(chk.holdNote))
       ? ok('the note says as-at, and says where today’s bookings are: ' + chk.holdNote.slice(0,64))
       : bad('the earlier-holds note is wrong or missing: ' + JSON.stringify(chk.holdNote));
     chk.secTitles.indexOf('Expiring Within 48 Hours')<0
