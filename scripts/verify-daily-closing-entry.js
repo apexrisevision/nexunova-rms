@@ -100,7 +100,12 @@ BEGIN
 
   PERFORM set_config('dc.today', '2026-09-04', true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_cfo_auth)::text, true);
-  PERFORM public.setup_cash_opening(v_co, v_pj, 17723, 1000, DATE '2026-09-01');
+  -- The drawer has to FUND this suite. 17,723 was chosen before invariant 9
+  -- existed, when a day could go negative without complaint; the spending here
+  -- takes it to -2,187 and is now correctly refused. Raising the opening keeps
+  -- every existing assertion about vouchers, idempotency and voiding intact
+  -- while letting them run — the cash floor has its own suite.
+  PERFORM public.setup_cash_opening(v_co, v_pj, 500000, 1000, DATE '2026-09-01');
   v_res := public.open_cash_day(v_co, v_pj, DATE '2026-09-02');
   v_day := (v_res->>'cash_day_id')::uuid;
 

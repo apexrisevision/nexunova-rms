@@ -89,9 +89,17 @@ const one = r => (Array.isArray(r) ? r[0] : r) || {};
     `select set_config('request.jwt.claims',
        json_build_object('sub','${auth}')::text, true);
      select public.record_cash_entry('${CO}','${day}', gen_random_uuid(), jsonb_build_object(
-       'entry_type','EXPENSE','mode','CASH','direction','OUT',
+       -- CASH IN, not OUT. Invariant 9 (2026-09-07) refuses a payment the
+       -- drawer cannot fund, and this fixture day on ZZ Map Tower is deeply
+       -- negative from years of accumulated probes. The race under test is
+       -- seq_no contention, which has nothing to do with direction — so the
+       -- writers take money IN and the two rules stop interfering.
+       'entry_type','CLIENT_RECEIPT','mode','CASH','direction','IN',
+       'party_label','G-04',
        'voucher_no','R${tag}${String(i).padStart(2, '0')}',
-       'amount', ${100 + i}, 'payee_id','${payee}', 'qb_account_id','${acct}',
+       -- No explicit head: invariant 5 defaults a receipt to 2020 Advance from
+       -- Customers, and naming the expense head here would trip its override rule.
+       'amount', ${100 + i}, 'payee_id','${payee}',
        'narration','concurrency probe')) r;`, 1);
 
   const t0 = Date.now();

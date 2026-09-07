@@ -29,6 +29,9 @@
     DUPLICATE_VOUCHER:        'dc-voucher-no',
     OVERRIDE_REASON_REQUIRED: 'dc-qb-reason',
     PARTY_REQUIRED:           'dc-party',
+    // Invariant 9. It goes under the AMOUNT, because the amount is what the
+    // person would change — the drawer is not a field they can edit.
+    INSUFFICIENT_CASH:        'dc-amount',
     VARIANCE_TAG_REQUIRED:    'dc-amount',
     PAYEE_INACTIVE:           'dc-payee',
     ACCOUNT_INACTIVE:         'dc-qb',
@@ -539,6 +542,17 @@
           '<span class="dc-error" id="dc-voucher-no-err" hidden></span></div>' +
         K.moneyInput({ id: 'dc-amount', label: 'Amount', required: true }) +
         '<span class="dc-error" id="dc-amount-err" hidden></span>' +
+        /* Invariant 9's override. Hidden until the server has actually refused,
+           and drawn only for a CFO — a box that is always on screen invites
+           somebody to fill it in, and the whole point is that it is exceptional. */
+        (S.isCfo
+          ? '<div class="dc-field" id="dc-cashwhy-wrap" hidden>' +
+              '<label class="dc-label" for="dc-cashwhy">Why the drawer may go below zero</label>' +
+              '<input class="dc-input" id="dc-cashwhy" type="text" maxlength="300"' +
+              ' placeholder="e.g. the receipt that funds this is being entered next">' +
+              '<span class="dc-hint">Only the CFO may do this, and the reason is printed on the day sheet.</span>' +
+            '</div>'
+          : '') +
         K.entitySelect({ id: 'dc-payee', label: 'Payee', required: true, placeholder: 'Type to search…' }) +
         '<span class="dc-error" id="dc-payee-err" hidden></span>' +
         (isReceipt
@@ -693,6 +707,13 @@
     }
 
     function showError(code, message) {
+      /* Invariant 9: reveal the override box the moment the server refuses, and
+         only then. A CFO sees why it appeared and what it is for; a cashier
+         never sees it at all, because the server would refuse them anyway. */
+      if (code === 'INSUFFICIENT_CASH') {
+        var wrap = el('dc-cashwhy-wrap');
+        if (wrap) wrap.hidden = false;
+      }
       var target = FIELD_FOR[code];
       var box = target && el(target + '-err');
       if (box) {
@@ -936,6 +957,8 @@
       }
       var reason = el('dc-qb-reason');
       if (reason && reason.value.trim()) payload.qb_override_reason = reason.value.trim();
+      var cashWhy = el('dc-cashwhy');
+      if (cashWhy && cashWhy.value.trim()) payload.insufficient_cash_reason = cashWhy.value.trim();
 
       S.busy = true; btn.classList.add('dc-btn--loading');
       return S.rpc('record_cash_entry', {

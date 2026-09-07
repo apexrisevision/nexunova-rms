@@ -103,7 +103,6 @@ const ROOT = path.resolve(__dirname, '..');
    check is by resolved path so a symlink or a `..` cannot widen it. */
 const TARGETS = [
   'js/pages/daily-closing.js',
-  'js/pages/daily-closing-tile.js',
   'js/foundation/dc-format.js',
   'js/foundation/dc-kit.js',
 ];

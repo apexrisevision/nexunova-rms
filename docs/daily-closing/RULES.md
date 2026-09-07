@@ -786,3 +786,68 @@ what every RPC already expects.
   (or a `pg_cron` job calling an edge function, the pattern `comms-dispatch` uses).
   Dashboard counters are one indexed query each, computed on read — RMS has no counter
   cache anywhere and should not gain one here.
+## Invariant 9 — A drawer cannot pay out money it does not hold
+
+> A project's **cash** position may never go below zero. **Bank may**, because overdrafts are real.
+
+**Written 2026-09-07, after the pilot's first real day closed with a negative drawer.** This
+invariant did not exist. Opening zero, one expense of 100,000 out, drawer counted at 5,000, closing
+**(Rs 100,000)** — and the day closed, reporting a variance of 105,000 rather than refusing the
+entry. Nothing was broken: `record_cash_entry` had seventeen error codes and not one of them
+considered the drawer's position, and `close_cash_day` computed `opening + in − out` without ever
+looking at the sign. **There was no rule to violate.** See the closing note in `PHASES.md`.
+
+### What the rule is, precisely
+
+The **position** of a day is `opening_cash + Σ(cash in) − Σ(cash out)` over every entry in that
+day, voids and their reversals included — they net to zero, which is correct.
+
+An entry that would take that position below zero is **refused at the point of recording**, not
+caught at close and not reported as variance. Every other §A9 error is refused at record time and
+lands under its own field; a ninth belongs in the same shape.
+
+**It applies to `mode = 'CASH'` and `direction = 'OUT'` only.**
+
+- **Bank is exempt** by design. A bank account can be overdrawn; a drawer cannot hold minus notes.
+- **A transfer's OUT leg is not exempt.** A transfer is stored as *two rows*, each with a real
+  mode and direction, so a cash→bank transfer is a genuine cash OUT. Moving money out of an empty
+  drawer is exactly as impossible as spending it.
+- **Adjustments are exempt** because a `JV` carries no mode or direction and moves no cash.
+
+### The override, and why there is one
+
+> **A CFO may record a cash-negative entry by writing a reason. Nobody else may, at all.**
+
+Ordering makes this necessary. A cashier who takes 50,000 in at 11am and pays 40,000 out at 10am,
+entering the payment first, would be blocked on a day that is perfectly sound. The owner's
+reasoning, recorded because it is the argument that decides the shape:
+
+> *"A hard block would teach people to fake entry times to get past it, which is worse than the
+> thing being prevented."*
+
+The override uses the same pattern the QuickBooks head already uses: a reason, supplied with the
+entry, **stored on the row**, and shown wherever the entry is shown — the ledger, the audit, and
+the Director's sheet. An override that is allowed but invisible is worse than no override at all.
+
+**Enforced by:**
+
+1. **A trigger**, `_trg_cash_entries_cash_floor`, `BEFORE INSERT` on `cash_entries`. It is the
+   floor, not a courtesy: a direct insert cannot bypass it, and neither can a future caller that
+   forgets. *File:* `20260907d_…sql`.
+2. **`record_cash_entry`**, which returns `INSUFFICIENT_CASH` in the §A9 shape with the field it
+   belongs under, so the person sees it beneath the amount rather than as a database error.
+3. **The override is CFO-only**, checked with `_dc_is_cfo()` in both places. A non-CFO supplying a
+   reason is refused as if no reason had been given.
+4. **`get_cash_day_pdf_data`** carries `insufficient_cash_reason` onto the Director's sheet.
+5. **Tests.** `verify-daily-closing-cashfloor.js`: an entry that must be refused, an entry that
+   must be allowed, a CFO override that must succeed and be recorded, and the override appearing
+   on the PDF — plus the mutation runner pointed at the predicate.
+
+### What this invariant does NOT do
+
+It does not stop a day *opening* with a negative carried-forward opening balance. If a day closed
+negative before this rule existed — 2026-09-03 did — a later day carrying from it would open
+negative and every cash payment would then be refused until the position is restored. That is
+arguably correct behaviour, and it is left as it is rather than special-cased, but it is written
+down here so it is not discovered as a surprise.
+
