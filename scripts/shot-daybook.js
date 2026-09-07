@@ -98,6 +98,13 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
             c.client_name = (i%3===0) ? null : 'Buyer '+(i+1);
             d.reserved.push(c);
           }
+          d.sold = [];
+          for (let i=0;i<12;i++){
+            d.sold.push({ unit_no:'SL-'+String(i+1).padStart(2,'0'), floor:floors[i%5],
+              client_name:'Buyer '+(i+1), agent:names[i%names.length],
+              sale_number:'SAL-2026-'+String(100+i), amount:15000000+i*250000,
+              sale_date:dt });
+          }
           d.expiring = d.reserved.slice(0,6).map((x,i)=>({
             unit_no:x.unit_no, floor:x.floor, requested_by:x.requested_by, hours_left:6+i*4,
             expiry_date:new Date(Date.now()+(6+i*4)*36e5).toISOString() }));
@@ -121,8 +128,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     console.log('\n\u2500\u2500 Renders');
     await shot('01-with-activity', '2026-09-07', 0, false);
     await shot('02-empty-day',     '2026-09-06', 0, false);
-    await shot('03-page-break',    '2026-09-07', 34, false);
-    await shot('04-greyscale',     '2026-09-07', 34, true);
+    await shot('03-page-break',    '2026-09-07', 40, false);
+    await shot('04-greyscale',     '2026-09-07', 40, true);
 
     // structural checks on the padded render (the one with breaks)
     await page.evaluate(async (AWAMI) => {
@@ -133,7 +140,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const floors=['Lower Ground','Ground Floor','First Floor','Second Floor','Third Floor'];
       const base=(d.reserved&&d.reserved[0])||{};
       d.reserved=[];
-      for(let i=0;i<34;i++){ const c=JSON.parse(JSON.stringify(base));
+      for(let i=0;i<40;i++){ const c=JSON.parse(JSON.stringify(base));
         c.unit_no=floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(i+1).padStart(2,'0');
         c.floor=floors[i%5]; c.requested_by=names[i%names.length];
         c.agent_code='AGT-2026-'+String(1+(i%40)).padStart(4,'0');
@@ -187,14 +194,45 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const rows = [...ft.querySelectorAll('tbody tr')];
       const tot = rows.find(t => t.classList.contains('tot'));
       const N = s => Number(String(s).replace(/[^0-9.-]/g, '')) || 0;
-      const kpi = [...p1.querySelectorAll('.kpi')].slice(0, 4)
-                    .map(k => N(k.querySelector('.v').textContent));
+      // the summary is a line of figures now, not four cards
+      const kpi = [...p1.querySelectorAll('.sum-r')][0]
+                    ? [...p1.querySelectorAll('.sum-r')][0].querySelectorAll('.sum-i')
+                    : [];
+      const sumv = [...kpi].map(c => N(c.querySelector('.v').textContent));
       return {
         proj: (p1.querySelector('.mh-proj') || {}).textContent.trim(),
         floors: rows.filter(t => !t.classList.contains('tot')).map(t => t.cells[0].textContent.trim()),
-        kpi: { total: kpi[0], sold: kpi[1], res: kpi[2], av: kpi[3] },
-        tbl: { sold: N(tot.cells[2].textContent), res: N(tot.cells[3].textContent),
-               av: N(tot.cells[4].textContent), total: N(tot.cells[5].textContent) }
+        kpi: { total: sumv[0], sold: sumv[1], res: sumv[2], av: sumv[3] },
+        // Floor · Sold · Reserved · Available · Total · %Sold
+        tbl: { sold: N(tot.cells[1].textContent), res: N(tot.cells[2].textContent),
+               av: N(tot.cells[3].textContent), total: N(tot.cells[4].textContent) },
+        // how much of the page the summary block eats
+        sumMM: (function () {
+          const blocks = p1.querySelectorAll('.col > div');
+          const first = blocks[0];
+          if (!first) return null;
+          const r = first.getBoundingClientRect();
+          const probe = document.createElement('div');
+          probe.style.cssText = 'position:absolute;visibility:hidden;width:100mm';
+          document.body.appendChild(probe);
+          const mm = probe.getBoundingClientRect().width / 100;
+          document.body.removeChild(probe);
+          return { h: Math.round(r.height / mm), pageH: 297 };
+        })(),
+        // nothing above 13pt except the masthead title
+        oversize: (function () {
+          const bad = [];
+          p1.querySelectorAll('*').forEach(function (el) {
+            if (!el.textContent || !el.textContent.trim()) return;
+            if (el.children.length) return;             // leaf nodes only
+            const pt = parseFloat(getComputedStyle(el).fontSize) * 72 / 96;
+            if (pt > 13.05 && !el.classList.contains('mh-t')) {
+              bad.push(el.className + ' ' + pt.toFixed(1) + 'pt: ' +
+                       el.textContent.trim().slice(0, 24));
+            }
+          });
+          return bad;
+        })()
       };
     }, AWAMI);
     const dbFloors = await sql(`select distinct coalesce(nullif(floor_label,''),'-') f
@@ -217,6 +255,12 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     (sem.tbl.sold + sem.tbl.res + sem.tbl.av === sem.tbl.total)
       ? okS('sold + reserved + available = total')
       : badS('the totals do not add up: ' + JSON.stringify(sem.tbl));
+    sem.sumMM && sem.sumMM.h <= 297 / 4
+      ? okS('summary block is ' + sem.sumMM.h + 'mm — under a quarter of the page (74mm)')
+      : badS('summary block is ' + (sem.sumMM && sem.sumMM.h) + 'mm, over a quarter of the page');
+    sem.oversize.length === 0
+      ? okS('no element above 13pt except the masthead title')
+      : badS('type above 13pt: ' + sem.oversize.join(' | '));
 
     console.log('\n\u2500\u2500 Structure (padded render)');
     const ok=m=>console.log('  \u2705 '+m), bad=m=>{console.log('  \u274C '+m); FAILED=true;};

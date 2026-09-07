@@ -155,16 +155,16 @@
    measurement honest. */
       "#rd-print .col{padding:0 14mm;display:flow-root}" +
       /* ── masthead, page 1, full bleed ── */
-      "#rd-print .mh{height:42mm;padding:6mm 14mm 4mm;box-sizing:border-box;position:relative;" +
+      "#rd-print .mh{height:30mm;padding:6mm 14mm 4mm;box-sizing:border-box;position:relative;" +
         "background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 100%);color:#FFF;display:flex;" +
         "justify-content:space-between;align-items:flex-start}" +
       "#rd-print .mh-amber{position:absolute;left:0;right:0;bottom:0;height:3pt;background:var(--amber)}" +
       "#rd-print .mh-logo{height:14mm;width:auto;display:block;margin-bottom:2mm}" +
       "#rd-print .mh-name{font-size:12pt;font-weight:700;color:#FFF;padding-bottom:1.5mm;" +
         "border-bottom:.5pt solid rgba(255,255,255,.9);display:inline-block;margin-bottom:2mm}" +
-      "#rd-print .mh-proj{font-size:11pt;font-weight:600;letter-spacing:.14em;color:rgba(255,255,255,.8);line-height:1.2}" +
-      "#rd-print .mh-t{font-size:28pt;font-weight:700;letter-spacing:-.01em;line-height:1.05;margin:.5mm 0 1mm}" +
-      "#rd-print .mh-d{font-size:11pt;font-weight:400;color:rgba(255,255,255,.8);line-height:1.2}" +
+      "#rd-print .mh-proj{font-size:10pt;font-weight:600;letter-spacing:.14em;color:rgba(255,255,255,.8);line-height:1.2}" +
+      "#rd-print .mh-t{font-size:24pt;font-weight:700;letter-spacing:-.01em;line-height:1.05;margin:.5mm 0 1mm}" +
+      "#rd-print .mh-d{font-size:10pt;font-weight:400;color:rgba(255,255,255,.8);line-height:1.2}" +
       "#rd-print .mh-r{text-align:right;font-size:9pt;color:rgba(255,255,255,.8);line-height:1.5}" +
       /* ── running header, pages 2+ ── */
       "#rd-print .rh{height:10mm;padding:0 14mm;box-sizing:border-box;background:#FFF;" +
@@ -177,54 +177,46 @@
       "#rd-print .lbl{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
         "letter-spacing:.12em;margin-bottom:4mm}" +
       /* ── KPI cards ── */
-      "#rd-print .kpis{display:flex;gap:6mm}" +
-      "#rd-print .kpi{flex:1;background:var(--tint);padding:10mm 6mm;box-sizing:border-box;border-radius:2px}" +
-      "#rd-print .kpi.sec{background:#FFF;border:.5pt solid var(--line);padding:8mm 6mm}" +
-      "#rd-print .kpi .k{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
-        "letter-spacing:.12em}" +
-      "#rd-print .kpi .v{font-size:32pt;font-weight:700;color:var(--navy);line-height:1.1;margin-top:2mm}" +
-      "#rd-print .kpi.sec .v{font-size:24pt;color:var(--ink)}" +
-      "#rd-print .kpi .s{font-size:9pt;font-weight:400;color:var(--slate);margin-top:1mm}" +
-      "#rd-print .kpi .v.red{color:var(--red)}" +
       /* ── stacked bars ── */
-      "#rd-print .bar{display:flex;height:8mm;width:100%;margin-top:6mm;background:var(--avail);border-radius:2px;overflow:hidden}" +
-      "#rd-print .bar i{display:block;height:100%}" +
-      "#rd-print .bar i.sold{background:var(--navy)}" +
-      "#rd-print .bar i.res{background:var(--amber)}" +
-      "#rd-print .bar i.av{background:var(--avail)}" +
-      "#rd-print .lg{display:flex;gap:8mm;margin-top:3mm;font-size:8pt;color:var(--slate)}" +
-      "#rd-print .lg span{display:flex;align-items:center;gap:2mm}" +
-      "#rd-print .lg i{width:3mm;height:3mm;display:inline-block}" +
-      "#rd-print .mini{display:flex;height:4mm;width:45mm;background:var(--avail);border-radius:1px;overflow:hidden}" +
-      "#rd-print .mini i{display:block;height:100%}" +
+      /* ── compact summary: one block, no cards, no fills ── */
+      "#rd-print .sum-l{font-size:7pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
+        "letter-spacing:.12em;margin-bottom:1mm}" +
+      "#rd-print .sum-r{display:flex;align-items:center;gap:5mm;flex-wrap:wrap}" +
+      "#rd-print .sum-i{display:flex;align-items:baseline;gap:2mm}" +
+      "#rd-print .sum-i .k{font-size:7pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
+        "letter-spacing:.10em}" +
+      "#rd-print .sum-i .v{font-size:13pt;font-weight:700;color:var(--ink);line-height:1.1}" +
+      "#rd-print .sum-i .p{font-size:9pt;font-weight:400;color:var(--slate)}" +
+      "#rd-print .sum-r .sep{width:0;height:6mm;border-left:.5pt solid var(--line)}" +
+      "#rd-print .sum-pkr{font-size:8.5pt;color:var(--slate);margin-top:1mm}" +
+      "#rd-print .sum-b{margin-top:4mm}" +
+      "#rd-print .sum-b .sum-i .v{font-size:11pt}" +
       /* ── sections ── */
-      "#rd-print .sec-h{display:flex;align-items:baseline;gap:4mm;border-bottom:1pt solid var(--navy);" +
-        "padding-bottom:3mm;margin-bottom:6mm}" +
-      "#rd-print .sec-n{font-size:20pt;font-weight:700;color:rgba(11,37,69,.25);line-height:1}" +
-      "#rd-print .sec-t{font-size:14pt;font-weight:700;color:var(--ink);flex:1}" +
-      "#rd-print .pill{font-size:8pt;font-weight:600;padding:1mm 3mm;border-radius:2px;white-space:nowrap}" +
+      "#rd-print .sec-h{display:flex;align-items:baseline;gap:3mm;border-bottom:.5pt solid var(--navy);" +
+        "padding-bottom:2mm;margin-bottom:3mm}" +
+      "#rd-print .sec-n{font-size:11pt;font-weight:700;color:rgba(11,37,69,.30);line-height:1}" +
+      "#rd-print .sec-t{font-size:11pt;font-weight:700;color:var(--ink);flex:1}" +
+      "#rd-print .pill{font-size:7pt;font-weight:600;padding:.6mm 2mm;border-radius:2px;white-space:nowrap}" +
       "#rd-print .pill.count{background:var(--tint);color:var(--slate)}" +
       "#rd-print .pill.amber{background:#FDF3E7;color:var(--amber)}" +
       "#rd-print .pill.red{background:#FBEAE8;color:var(--red)}" +
       /* ── tables ── */
-      "#rd-print table{width:100%;border-collapse:collapse;font-size:10pt}" +
+      "#rd-print table{width:100%;border-collapse:collapse;font-size:8.5pt}" +
       "#rd-print thead{display:table-header-group}" +
       "#rd-print tr{page-break-inside:avoid;break-inside:avoid}" +
       "#rd-print th{font-size:8pt;font-weight:600;color:var(--slate);text-transform:uppercase;" +
-        "letter-spacing:.10em;text-align:left;background:var(--tint);padding:3mm 2mm;" +
+        "letter-spacing:.10em;text-align:left;background:var(--tint);padding:2mm;font-size:7.5pt;" +
         "white-space:nowrap;border-bottom:.5pt solid var(--line)}" +
-      "#rd-print td{padding:0 2mm;height:9mm;vertical-align:middle;color:var(--ink);white-space:nowrap}" +
+      "#rd-print td{padding:0 2mm;height:6mm;vertical-align:middle;color:var(--ink);white-space:nowrap}" +
       "#rd-print td.wrap{white-space:normal}" +
       "#rd-print tbody tr:nth-child(even) td{background:var(--tint)}" +
       "#rd-print tbody tr:last-child td{border-bottom:.5pt solid var(--line)}" +
       "#rd-print th.n,#rd-print td.n{text-align:right}" +
       "#rd-print td.u{font-weight:600}" +
       "#rd-print td.mut{color:var(--slate)}" +
-      "#rd-print td.code{font-size:9pt;color:var(--slate)}" +
-      "#rd-print tr.tot td{border-top:1pt solid var(--navy);font-weight:700;background:var(--tint)}" +
+      "#rd-print td.code{font-size:8pt;color:var(--slate)}" +
+      "#rd-print tr.tot td{border-top:1pt solid var(--navy);font-weight:700;background:var(--tint);font-size:8.5pt}" +
       /* ── empty state ── */
-      "#rd-print .empty{height:18mm;background:var(--tint);display:flex;align-items:center;" +
-        "justify-content:center;font-size:10pt;color:var(--slate);border-radius:2px}" +
       /* ── signatures ── */
       "#rd-print .sig{display:flex;gap:30mm;margin-top:16mm}" +
       "#rd-print .sig div{width:70mm}" +
@@ -233,7 +225,7 @@
         "letter-spacing:.10em}" +
       /* ── footer ── */
       "#rd-print .ft{position:absolute;left:14mm;right:14mm;bottom:9mm;border-top:1pt solid var(--navy);" +
-        "padding-top:2.5mm;display:flex;justify-content:space-between;font-size:7.5pt;color:var(--slate)}" +
+        "padding-top:2.5mm;display:flex;justify-content:space-between;font-size:7pt;color:var(--slate)}" +
       "#rd-print .ft .c{font-weight:600;letter-spacing:.06em}" +
       /* on screen the pages sit on a grey field so they read as sheets */
       "@media screen{body.rd-printing #screen-app,body.rd-printing #btabs," +
@@ -1031,7 +1023,7 @@
      why no RPC moved.                                                        */
 
   var PG = { W: 210, H: 297 };                  // mm
-  var BAND = { mast: 42, run: 16, foot: 20 };   // mm consumed above / below the column
+  var BAND = { mast: 30, run: 16, foot: 20 };   // mm consumed above / below the column
 
   function _mm() {
     var p = document.createElement('div');
@@ -1054,6 +1046,13 @@
   }
   function _num(n) { return Number(n || 0).toLocaleString('en-US'); }
   function _pct(n, d) { return d ? (Math.round(n / d * 1000) / 10).toFixed(1) + '%' : '0.0%'; }
+  /* PKR the way it is read here: crore and lac, not millions. */
+  function _pkr(n) {
+    n = Number(n || 0);
+    if (n >= 1e7) return 'PKR ' + (n / 1e7).toFixed(2) + ' Cr';
+    if (n >= 1e5) return 'PKR ' + (n / 1e5).toFixed(2) + ' Lac';
+    return 'PKR ' + n.toLocaleString('en-US');
+  }
 
   var _MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var _DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -1120,13 +1119,11 @@
       if (first) {
         var mh = _el('div', 'mh');
         var L = _el('div');
+        // The company is named on the RIGHT of the band. It used to be printed on
+        // the left as well, which read as a mistake rather than as emphasis.
         if (h.logo_url) {
           var img = document.createElement('img'); img.className = 'mh-logo'; img.src = h.logo_url; img.alt = '';
           L.appendChild(img);
-        } else {
-          // No logo on file. The company name, ruled, stands in for it — never a
-          // single letter, which reads as a placeholder rather than a mark.
-          L.appendChild(_el('div', 'mh-name', company || project));
         }
         L.appendChild(_el('div', 'mh-proj', project.toUpperCase()));
         L.appendChild(_el('div', 'mh-t', 'Reservation Daybook'));
@@ -1162,57 +1159,62 @@
 
     newPage(true);
 
-    /* ── PROJECT POSITION ──────────────────────────────────────────────── */
-    var pos = _el('div');
-    pos.style.marginTop = '14mm';
-    pos.appendChild(_el('div', 'lbl', 'Project position · Cumulative'));
-    var k1 = _el('div', 'kpis');
-    [['Total units', _num(tAll), null, 'var(--navy)'],
-     ['Sold', _num(tSold), _pct(tSold, tAll) + ' of inventory', 'var(--navy)'],
-     ['Reserved', _num(tRes), _pct(tRes, tAll) + ' of inventory', 'var(--amber)'],
-     ['Available', _num(tAv), _pct(tAv, tAll) + ' of inventory', 'var(--avail)']
-    ].forEach(function (c) {
-      var card = _el('div', 'kpi');
-      card.style.borderTop = '4pt solid ' + c[3];
-      card.appendChild(_el('div', 'k', c[0]));
-      card.appendChild(_el('div', 'v', c[1]));
-      if (c[2]) card.appendChild(_el('div', 's', c[2]));
-      k1.appendChild(card);
-    });
-    pos.appendChild(k1);
+    /* ── SUMMARY ────────────────────────────────────────────────────────
+       One block, about 28mm, in place of ~90mm of cards and a full-width bar.
+       A board report is read, not scanned from across a room, so the position
+       is a line of figures rather than four boxes.
 
-    var bar = _el('div', 'bar');
-    _seg(bar, 'sold', tSold, tAll, COLW);
-    _seg(bar, 'res', tRes, tAll, COLW);
-    pos.appendChild(bar);
-    var lg = _el('div', 'lg');
-    [['var(--navy)', 'Sold', tSold], ['var(--amber)', 'Reserved', tRes],
-     ['var(--avail)', 'Available', tAv]].forEach(function (x) {
-      var s = _el('span'); var i = _el('i'); i.style.background = x[0];
-      s.appendChild(i); s.appendChild(_el('span', null, x[1] + '  ' + _num(x[2])));
-      lg.appendChild(s);
-    });
-    pos.appendChild(lg);
-    body.appendChild(pos);
+       WHAT IS NOT HERE, and why. Cumulative money and period buckets are not in
+       get_reservation_daybook: `available` carries counts only, and `price` /
+       `amount` exist solely on TODAY's rows. So the PKR line states today's
+       value — which is what the data actually is — and the period table shows
+       counts it can prove and an em dash where it cannot. Nothing here is
+       inferred; a board figure that is quietly wrong is worse than one absent. */
+    function sumRow(items, small) {
+      var r = _el('div', 'sum-r' + (small ? ' sum-b' : ''));
+      items.forEach(function (it, i) {
+        if (i) r.appendChild(_el('div', 'sep'));
+        var c = _el('div', 'sum-i');
+        c.appendChild(_el('span', 'k', it[0]));
+        c.appendChild(_el('span', 'v', it[1]));
+        if (it[2]) c.appendChild(_el('span', 'p', '(' + it[2] + ')'));
+        r.appendChild(c);
+      });
+      return r;
+    }
 
-    /* ── TODAY'S ACTIVITY ──────────────────────────────────────────────── */
-    var nRes = (d.reserved || []).length, nSold = (d.sold || []).length, nExp = (d.expiring || []).length;
-    var act = _el('div');
-    act.style.marginTop = '12mm';
-    act.appendChild(_el('div', 'lbl', "Today's activity · " + _dCaps(dateISO)));
-    var k2 = _el('div', 'kpis');
-    [['Reserved today', nRes, 'var(--amber)', false],
-     ['Sold today', nSold, 'var(--navy)', false],
-     ['Expiring within 48h', nExp, 'var(--red)', nExp > 0]
-    ].forEach(function (c) {
-      var card = _el('div', 'kpi sec');
-      card.style.borderTop = '3pt solid ' + c[2];
-      card.appendChild(_el('div', 'k', c[0]));
-      card.appendChild(_el('div', 'v' + (c[3] ? ' red' : ''), _num(c[1])));
-      k2.appendChild(card);
-    });
-    act.appendChild(k2);
-    push(act);
+    var todayResVal = (d.reserved || []).reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
+    var todaySoldVal = (d.sold || []).reduce(function (a, r) { return a + Number(r.amount || 0); }, 0);
+
+    var sum = _el('div');
+    sum.style.marginTop = '7mm';
+    sum.appendChild(_el('div', 'sum-l', 'Project position'));
+    sum.appendChild(sumRow([
+      ['Total', _num(tAll), null],
+      ['Sold', _num(tSold), _pct(tSold, tAll)],
+      ['Reserved', _num(tRes), _pct(tRes, tAll)],
+      ['Available', _num(tAv), _pct(tAv, tAll)]
+    ], false));
+    sum.appendChild(_el('div', 'sum-pkr',
+      'Reserved today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal)));
+    // today's, never cumulative — the payload carries no other money
+
+    var b = _el('div');
+    b.style.marginTop = '4mm';
+    b.appendChild(_el('div', 'sum-l', 'Today · ' + _dCaps(dateISO)));
+    b.appendChild(sumRow([
+      ['Reserved', _num((d.reserved || []).length), null],
+      ['Sold', _num((d.sold || []).length), null],
+      ['Expiring 48h', _num((d.expiring || []).length), null]
+    ], true));
+    sum.appendChild(b);
+
+    /* The PERIOD table is not here. It cost 28mm of page and carried seven em
+       dashes and two numbers, because get_reservation_daybook is a single-date
+       report: `available` has counts only, and `price` / `amount` exist solely
+       on today's rows, so week, month and cumulative value cannot be derived
+       from it. It comes back when the RPC can answer it, not before. */
+    body.appendChild(sum);
 
     /* ── sections ──────────────────────────────────────────────────────── */
     function secHead(no, title, count, unit) {
@@ -1244,7 +1246,7 @@
     }
 
     var secs = [
-      { no: '01', title: 'Reservations Today', unit: 'unit',
+      { title: 'Reservations Today', unit: 'unit', noun: 'reservations',
         cols: [['Unit'], ['Floor'], ['Requested by'], ['Agent code'], ['Booked by'], ['Buyer'], ['Expires'], ['Days left', 'n']],
         rows: (d.reserved || []).map(function (r) {
           var ed = _pk(r.expiry_date);
@@ -1257,7 +1259,7 @@
         }),
         empty: function () { return 'No units reserved on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
 
-      { no: '02', title: 'Sales Today', unit: 'unit',
+      { title: 'Sales Today', unit: 'unit', noun: 'sales',
         cols: [['Unit'], ['Floor'], ['Buyer'], ['Agent'], ['Sale ref']],
         rows: (d.sold || []).map(function (s) {
           return [{ v: s.unit_no, cls: 'u' }, s.floor, s.client_name || '—', s.agent || '—',
@@ -1265,7 +1267,7 @@
         }),
         empty: function () { return 'No units sold on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
 
-      { no: '03', title: 'Expiring Within 48 Hours', unit: 'reservation',
+      { title: 'Expiring Within 48 Hours', unit: 'reservation', noun: 'expiries',
         cols: [['Unit'], ['Floor'], ['Requested by'], ['Expires'], ['Hours left', 'n']],
         rows: (d.expiring || []).map(function (r) {
           return [{ v: r.unit_no, cls: 'u' }, r.floor, r.requested_by, _dShort(r.expiry_date),
@@ -1273,32 +1275,30 @@
         }),
         empty: function () { return 'No reservations expire within 48 hours of ' + _dLong(dateISO).split(', ')[1] + '.'; } },
 
-      { no: '04', title: 'Floor-wise Position', unit: 'floor',
-        cols: [['Floor'], ['Distribution'], ['Sold', 'n'], ['Reserved', 'n'], ['Available', 'n'], ['Total', 'n'], ['% Sold', 'n']],
+      { title: 'Floor-wise Position', unit: 'floor', noun: 'inventory',
+        cols: [['Floor'], ['Sold', 'n'], ['Reserved', 'n'], ['Available', 'n'], ['Total', 'n'], ['% Sold', 'n']],
         rows: avail.map(function (f) {
           var t = Number(f.total || 0);
-          var m = _el('div', 'mini');
-          _seg(m, 'sold', Number(f.sold || 0), t, 45);
-          _seg(m, 'res', Number(f.reserved || 0), t, 45);
-          return [f.floor, { node: m }, { v: _num(f.sold), cls: 'n' }, { v: _num(f.reserved), cls: 'n' },
+          return [f.floor, { v: _num(f.sold), cls: 'n' }, { v: _num(f.reserved), cls: 'n' },
                   { v: _num(f.available), cls: 'n' }, { v: _num(t), cls: 'n' },
                   { v: _pct(Number(f.sold || 0), t), cls: 'n' }];
         }),
-        total: ['Total', '', { v: _num(tSold), cls: 'n' }, { v: _num(tRes), cls: 'n' },
+        total: ['Total', { v: _num(tSold), cls: 'n' }, { v: _num(tRes), cls: 'n' },
                 { v: _num(tAv), cls: 'n' }, { v: _num(tAll), cls: 'n' }, { v: _pct(tSold, tAll), cls: 'n' }],
         empty: function () { return 'No inventory recorded for this project.'; } }
     ];
 
-    secs.forEach(function (sec) {
-      var block = _el('div');
-      block.style.marginTop = '12mm';
-      block.appendChild(secHead(sec.no, sec.title, sec.rows.length, sec.unit));
+    /* An empty section gets no heading, no number and no box — those are three
+       pieces of furniture around the word "none". They collapse into one line
+       placed where they would have been, and the numbering follows what is
+       actually on the page. */
+    var live = secs.filter(function (x) { return x.rows.length; });
+    var bare = secs.filter(function (x) { return !x.rows.length; });
 
-      if (!sec.rows.length) {
-        block.appendChild(_el('div', 'empty', sec.empty()));
-        push(block);
-        return;
-      }
+    live.forEach(function (sec, si) {
+      var block = _el('div');
+      block.style.marginTop = si === 0 ? '8mm' : '7mm';
+      block.appendChild(secHead(String(si + 1).padStart(2, '0'), sec.title, sec.rows.length, sec.unit));
 
       var table = _el('table');
       table.appendChild(thead(sec.cols));
@@ -1335,6 +1335,14 @@
         }
       }
     });
+
+    if (bare.length) {
+      var none = _el('div', 'noneline');
+      none.style.marginTop = '7mm';
+      var what = bare.map(function (x) { return x.noun; });
+      none.textContent = 'No ' + what.join(' and no ') + ' on ' + _dLong(dateISO).split(', ')[1] + '.';
+      push(none);
+    }
 
     /* ── signatures, never split ───────────────────────────────────────── */
     var sig = _el('div', 'sig');
