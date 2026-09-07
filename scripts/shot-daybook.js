@@ -1,0 +1,179 @@
+/**
+ * Reservation Daybook — render every page at A4 and screenshot it.
+ *
+ * The document paginates itself into real 210×297mm .rd-pg boxes, and the CSS
+ * that shapes them lives OUTSIDE @media print — only the show/hide toggle is
+ * inside it. So what this screenshots on screen is what comes out of the
+ * printer, rather than an approximation of it.
+ *
+ * Three renders, because the failure modes differ:
+ *   1. a date with real activity          (2026-09-07, Awami: LG-02 reserved)
+ *   2. a date with none                   (the empty state is what looks broken)
+ *   3. the same data padded to force page breaks — rows are added to the
+ *      PAYLOAD IN THE BROWSER ONLY. Nothing is written to any database.
+ * Plus a greyscale pass, because the accent must not be carrying meaning.
+ *
+ *   ZZTEST_PIN unused. Read-only: one short-lived session, deleted at the end.
+ *   node scripts/shot-daybook.js
+ */
+const fs = require('fs'), path = require('path'), http = require('http'), https = require('https'),
+      puppeteer = require('puppeteer-core');
+const ROOT = path.resolve(__dirname, '..');
+const PORT = 4195, BASE = 'http://127.0.0.1:' + PORT, PAGE = BASE + '/sales-portal.html';
+const OUT = path.join(ROOT, 'marketing_shots', 'daybook');
+const CO = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';
+const DIR = '015effd0-7ac7-4939-a1b3-dd2826ab8fba';
+const AWAMI = '59ded55b-9bc2-45b2-a372-49fc31807fa9';   // the daybook is ONE project's book
+const TOK = 'dbshot_' + Math.random().toString(36).slice(2, 10);
+const BROWSERS = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+                  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function sql(q){
+  const mcp = JSON.parse(fs.readFileSync(path.join(ROOT,'.mcp.json'),'utf8'));
+  const key = mcp.mcpServers.supabase.env.SUPABASE_ACCESS_TOKEN;
+  const body = JSON.stringify({ query: q });
+  return new Promise((res,rej)=>{ const r=https.request({hostname:'api.supabase.com',
+    path:'/v1/projects/itqxljtfbrppntgyfush/database/query',method:'POST',
+    headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)}},
+    x=>{let d='';x.on('data',c=>d+=c);x.on('end',()=>x.statusCode<300?res(JSON.parse(d||'[]')):rej(new Error(d)));});
+    r.on('error',rej); r.write(body); r.end(); });
+}
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json',
+            '.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2','.ico':'image/x-icon'};
+function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
+  const p=path.join(ROOT,decodeURIComponent(q.url.split('?')[0]));
+  if(!p.startsWith(ROOT)||!fs.existsSync(p)||fs.statSync(p).isDirectory()){res.writeHead(404);return res.end('nf');}
+  res.writeHead(200,{'Content-Type':MIME[path.extname(p).toLowerCase()]||'application/octet-stream'});
+  fs.createReadStream(p).pipe(res); }); s.listen(PORT,'127.0.0.1',()=>r(s)); }); }
+
+(async () => {
+  /* Clear first. A shorter render leaves the previous run's extra pages behind,
+     and a stale p3 sitting next to a fresh p1 is exactly the kind of thing that
+     gets reviewed as if it were current. */
+  fs.mkdirSync(OUT, { recursive: true });
+  fs.readdirSync(OUT).filter(function (n) { return /.png$/.test(n); })
+    .forEach(function (n) { fs.unlinkSync(path.join(OUT, n)); });
+  await sql(`insert into public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+             values ('${CO}','${DIR}',null,'${TOK}', now() + interval '20 minutes');`);
+  const server = await serve();
+  const exe = BROWSERS.find(p => fs.existsSync(p));
+  const browser = await puppeteer.launch({ executablePath: exe, headless: 'new',
+                                           args: ['--no-sandbox', '--force-device-scale-factor=2'] });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1000, height: 1400, deviceScaleFactor: 2 });
+  const errs = [];
+  page.on('pageerror', e => errs.push(String(e.message||e)));
+  page.on('console', m => { if (m.type()==='error') errs.push(m.text()); });
+
+  try {
+    await page.goto(PAGE, { waitUntil:'domcontentloaded' });
+    await page.evaluate(t => { localStorage.setItem('rms.sales.token', t);
+      localStorage.setItem('rms.sales.active', String(Date.now()));
+      sessionStorage.setItem('nx.hub.bounce','1'); }, TOK);
+    await page.goto(PAGE + '?tab=daybook', { waitUntil:'domcontentloaded' });
+    await page.waitForFunction(()=>!!document.getElementById('db-root'), { timeout:60000 });
+    await sleep(1200);
+
+    async function shot(tag, dateISO, pad, grey) {
+      const n = await page.evaluate(async (dt, padN, AWAMI) => {
+        const r = await sb.rpc('get_reservation_daybook',
+          { p_session_token: TOKEN, p_date: dt, p_project_id: AWAMI });
+        const d = r.data;
+        if (padN) {
+          // BROWSER-ONLY padding, to force page breaks. No DB write.
+          const base = (d.reserved && d.reserved[0]) || {
+            unit_no:'LG-01', floor:'Lower Ground', requested_by:'Nimra Khan',
+            agent_code:'AGT-2026-0009', booked_by:'Rashid Manzoor',
+            client_name:null, expiry_date:new Date(Date.now()+6e8).toISOString() };
+          const names=['Nimra Khan','Malik Sikandar','Muhammad Saeed','IQRA','Salman Sajjad','Naseer khan'];
+          const floors=['Lower Ground','Ground Floor','First Floor','Second Floor','Third Floor'];
+          d.reserved = [];
+          for (let i=0;i<padN;i++){
+            const c = JSON.parse(JSON.stringify(base));
+            c.unit_no = floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(i+1).padStart(2,'0');
+            c.floor = floors[i%5];
+            c.requested_by = names[i%names.length];
+            c.agent_code = 'AGT-2026-'+String(1+(i%40)).padStart(4,'0');
+            c.client_name = (i%3===0) ? null : 'Buyer '+(i+1);
+            d.reserved.push(c);
+          }
+          d.expiring = d.reserved.slice(0,6).map((x,i)=>({
+            unit_no:x.unit_no, floor:x.floor, requested_by:x.requested_by, hours_left:6+i*4 }));
+        }
+        return window._dbPreview(d, d.date);
+      }, dateISO, pad || 0, AWAMI);
+
+      if (grey) await page.evaluate(()=>{ document.getElementById('rd-print').style.filter='grayscale(1)'; });
+      const files = [];
+      for (let i = 0; i < n; i++) {
+        const el = (await page.$$('#rd-print .rd-pg'))[i];
+        const f = path.join(OUT, tag + '-p' + (i+1) + '.png');
+        await el.screenshot({ path: f });
+        files.push(path.basename(f));
+      }
+      if (grey) await page.evaluate(()=>{ document.getElementById('rd-print').style.filter=''; });
+      console.log('  ' + tag.padEnd(22) + n + ' page(s)  ' + files.join('  '));
+      return n;
+    }
+
+    console.log('\n\u2500\u2500 Renders');
+    await shot('01-with-activity', '2026-09-07', 0, false);
+    await shot('02-empty-day',     '2026-09-06', 0, false);
+    await shot('03-page-break',    '2026-09-07', 34, false);
+    await shot('04-greyscale',     '2026-09-07', 34, true);
+
+    // structural checks on the padded render (the one with breaks)
+    await page.evaluate(async (AWAMI) => {
+      const r = await sb.rpc('get_reservation_daybook',
+        { p_session_token: TOKEN, p_date: '2026-09-07', p_project_id: AWAMI });
+      const d = r.data;
+      const names=['Nimra Khan','Malik Sikandar','Muhammad Saeed','IQRA','Salman Sajjad','Naseer khan'];
+      const floors=['Lower Ground','Ground Floor','First Floor','Second Floor','Third Floor'];
+      const base=(d.reserved&&d.reserved[0])||{};
+      d.reserved=[];
+      for(let i=0;i<34;i++){ const c=JSON.parse(JSON.stringify(base));
+        c.unit_no=floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(i+1).padStart(2,'0');
+        c.floor=floors[i%5]; c.requested_by=names[i%names.length];
+        c.agent_code='AGT-2026-'+String(1+(i%40)).padStart(4,'0');
+        c.client_name=(i%3===0)?null:'Buyer '+(i+1); d.reserved.push(c); }
+      d.expiring=d.reserved.slice(0,6).map((x,i)=>({unit_no:x.unit_no,floor:x.floor,
+        requested_by:x.requested_by,hours_left:6+i*4}));
+      window._dbPreview(d, d.date);
+    }, AWAMI);
+    const chk = await page.evaluate(() => {
+      const pgs=[...document.querySelectorAll('#rd-print .rd-pg')];
+      const foot=pgs.map(p=>(p.querySelector('.ft')||{}).textContent||'');
+      const heads=pgs.map(p=>!!p.querySelector('.rh'));
+      const orphan=pgs.some(p=>{ const b=p.querySelector('.pg-body'); if(!b) return false;
+        const last=b.lastElementChild; return !!(last && last.classList.contains('sec') &&
+          last.querySelector('h2') && !last.querySelector('tbody tr') && !last.querySelector('.none')); });
+      const overflow=pgs.some(p=>{ const b=p.querySelector('.pg-body');
+        return b && b.scrollHeight > p.clientHeight - 1; });
+      const theads=pgs.map(p=>p.querySelectorAll('thead').length);
+      const sig=pgs.filter(p=>p.querySelector('.sig')).length;
+      return { n:pgs.length, foot, headsOnP1:heads[0], headsRest:heads.slice(1).every(Boolean),
+               orphan, overflow, theads, sigPages:sig,
+               sigSplit: pgs.some(p=>{const s=p.querySelector('.sig'); return s && s.getBoundingClientRect().bottom > p.getBoundingClientRect().bottom;}) };
+    });
+    console.log('\n\u2500\u2500 Structure (padded render)');
+    const ok=m=>console.log('  \u2705 '+m), bad=m=>{console.log('  \u274C '+m); FAILED=true;};
+    let FAILED=false;
+    chk.n>1 ? ok(chk.n+' pages — breaks exercised') : bad('only '+chk.n+' page, no break to test');
+    chk.headsOnP1===false ? ok('no running header on page 1') : bad('running header leaked onto page 1');
+    chk.headsRest ? ok('running header on every page after the first') : bad('a later page has no running header');
+    chk.foot.every((f,i)=>f.indexOf('Page '+(i+1)+' of '+chk.n)>-1)
+      ? ok('footer numbering correct: '+JSON.stringify(chk.foot[chk.foot.length-1])) : bad('footer numbering wrong: '+JSON.stringify(chk.foot));
+    chk.theads.every(t=>t>0) ? ok('table headers repeat on every page ('+chk.theads.join(',')+')') : bad('a page carries rows with no header: '+chk.theads.join(','));
+    !chk.orphan ? ok('no section heading stranded without rows') : bad('an orphaned section heading');
+    !chk.overflow ? ok('no page overflows its 297mm box') : bad('content spills past the page box');
+    chk.sigPages===1 && !chk.sigSplit ? ok('signature block whole, on one page') : bad('signature block split or missing');
+
+    const real=errs.filter(e=>!/favicon|manifest|404|Not Found/i.test(e));
+    real.length===0 ? ok('no console errors') : bad('console: '+real.slice(0,3).join(' | '));
+    console.log('\n' + (FAILED ? '\u274C SOMETHING IS WRONG' : '\u2705 STRUCTURE OK') + '  \u2192 ' + OUT);
+    process.exitCode = FAILED ? 1 : 0;
+  } finally {
+    await browser.close(); server.close();
+    await sql(`delete from public.sales_sessions where session_token='${TOK}';`);
+  }
+})().catch(e=>{ console.error('DRIVER ERROR:', e); process.exit(2); });

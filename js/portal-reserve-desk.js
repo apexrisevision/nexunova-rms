@@ -108,26 +108,81 @@
       ".db-tbl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}" +
       ".db-wrap{overflow-x:auto;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card)}" +
       ".db-acts{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}" +
-      /* ── print: the daybook only ── */
+      /* ══ PRINT — the daybook as a document ═══════════════════════════════
+         Reference register: an audited statement, not a dashboard on paper.
+         The page is paginated in JS (see _dbPrint) so every page is a real
+         .rd-pg box of exactly A4; @page carries no margin because the box
+         supplies its own. That is what makes "Page N of M", repeating table
+         headers and an unsplittable signature block possible in Chrome, which
+         supports neither @page margin boxes nor counter(pages).
+         Two families, no webfont: a webfont that fails at print time takes the
+         masthead with it. Georgia is metric-safe and present everywhere.       */
       "#rd-print{display:none}" +
+      "@page{size:A4 portrait;margin:0}" +
       "@media print{" +
-        "body.rd-printing #screen-app,body.rd-printing #modal-host,body.rd-printing #toastbar{display:none !important}" +
-        "body.rd-printing #rd-print{display:block !important;padding:0;margin:0}" +
-        "#rd-print *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}" +
-        "#rd-print{font:12px/1.5 Inter,system-ui,sans-serif;color:#0F172A}" +
-        "#rd-print .ph{display:flex;align-items:center;gap:12px;border-bottom:2px solid #0F172A;padding-bottom:9px;margin-bottom:12px}" +
-        "#rd-print .ph img{height:44px;width:auto}" +
-        "#rd-print .ph h1{font-size:17px;font-weight:700;margin:0}" +
-        "#rd-print .ph .s{font-size:11px;color:#475569;margin-top:2px}" +
-        "#rd-print h2{font-size:13px;font-weight:600;margin:14px 0 5px;color:#0F172A}" +
-        "#rd-print table{width:100%;border-collapse:collapse;font-size:11px}" +
-        "#rd-print th{background:#F1F5F9;text-align:left;padding:5px 7px;border:1px solid #CBD5E1;font-weight:600}" +
-        "#rd-print td{padding:5px 7px;border:1px solid #CBD5E1}" +
-        "#rd-print td.n{text-align:right;font-variant-numeric:tabular-nums}" +
-        "#rd-print .sig{margin-top:34px;display:flex;gap:44px}" +
-        "#rd-print .sig div{flex:1;border-top:1px solid #0F172A;padding-top:5px;font-size:10px;color:#475569}" +
-        "#rd-print .none{color:#64748B;font-style:italic;font-size:11px}" +
-      "}";
+        "body.rd-printing #screen-app,body.rd-printing #btabs,body.rd-printing #modal-host," +
+        "body.rd-printing #toastbar,body.rd-printing #loc-bar,body.rd-printing #pwa-bar," +
+        "body.rd-printing #verify-gate{display:none !important}" +
+        "body.rd-printing #rd-print{display:block !important}" +
+      "}" +
+      "#rd-print{--ink:#1a1a1a;--mut:#6b6b6b;--rule:#d8d8d8;--hair:#ededed;--accent:#1f3a5f;" +
+        "--serif:Georgia,'Times New Roman',Times,serif;" +
+        "--sans:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif}" +
+      "#rd-print .rd-pg{width:210mm;height:297mm;padding:18mm 16mm 20mm;box-sizing:border-box;" +
+        "position:relative;background:#fff;color:var(--ink);font-family:var(--sans);" +
+        "font-size:9pt;line-height:1.55;overflow:hidden;page-break-after:always;break-after:page}" +
+      "#rd-print .rd-pg:last-child{page-break-after:auto;break-after:auto}" +
+      "#rd-print *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}" +
+      /* masthead — page 1 only */
+      "#rd-print .mh{display:flex;align-items:flex-start;gap:10mm}" +
+      "#rd-print .mh-mark{font-family:var(--serif);font-size:22pt;line-height:1;color:var(--accent);" +
+        "letter-spacing:-.01em;flex:none}" +
+      "#rd-print .mh img{height:16mm;width:auto;flex:none}" +
+      "#rd-print .mh h1{font-family:var(--serif);font-size:22pt;font-weight:400;margin:0;line-height:1.15;" +
+        "letter-spacing:-.01em}" +
+      "#rd-print .mh .sub{font-size:9pt;color:var(--mut);margin-top:1.5mm}" +
+      "#rd-print .mh-rule{border-top:1pt solid var(--accent);margin:4mm 0 0}" +
+      /* running header — pages 2+ */
+      "#rd-print .rh{font-size:7pt;color:var(--mut);letter-spacing:.06em;padding-bottom:1.5mm;" +
+        "border-bottom:.5pt solid var(--rule);margin-bottom:6mm}" +
+      /* summary band */
+      "#rd-print .sm{display:flex;gap:14mm;margin:7mm 0 0}" +
+      "#rd-print .sm .k{font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);" +
+        "font-weight:500}" +
+      "#rd-print .sm .v{font-size:16pt;font-family:var(--serif);line-height:1.2;" +
+        "font-variant-numeric:tabular-nums;margin-top:.5mm}" +
+      /* sections */
+      "#rd-print .sec{margin-top:14mm}" +
+      "#rd-print .sec.first{margin-top:12mm}" +
+      "#rd-print h2{font-family:var(--serif);font-size:11pt;font-weight:400;margin:0 0 4mm;" +
+        "padding-left:3mm;border-left:1pt solid var(--accent);line-height:1.2}" +
+      "#rd-print table{width:100%;border-collapse:collapse;font-size:9pt;line-height:1.55}" +
+      "#rd-print thead{display:table-header-group}" +
+      "#rd-print tr{page-break-inside:avoid;break-inside:avoid}" +
+      "#rd-print th{font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;font-weight:500;" +
+        "color:var(--mut);text-align:left;padding:0 3mm 1.5mm 0;border-bottom:.5pt solid var(--rule)}" +
+      "#rd-print th.n,#rd-print td.n{text-align:right;padding-right:0;padding-left:3mm;" +
+        "font-variant-numeric:tabular-nums}" +
+      "#rd-print td{padding:1.6mm 3mm 1.6mm 0;border-bottom:.25pt solid var(--hair);vertical-align:baseline}" +
+      "#rd-print tbody tr:last-child td{border-bottom:.5pt solid var(--rule)}" +
+      "#rd-print td.u{font-variant-numeric:tabular-nums;white-space:nowrap}" +
+      "#rd-print tr.tot td{border-top:1pt solid var(--rule);border-bottom:none;font-weight:500;" +
+        "padding-top:2mm}" +
+      "#rd-print .none{font-size:8pt;font-style:italic;color:var(--mut)}" +
+      /* signature block */
+      "#rd-print .sig{display:flex;gap:25mm;margin-top:18mm}" +
+      "#rd-print .sig div{width:60mm;border-top:.5pt solid var(--ink);padding-top:2mm;" +
+        "font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:500}" +
+      /* footer, every page */
+      "#rd-print .ft{position:absolute;left:16mm;right:16mm;bottom:10mm;display:flex;" +
+        "justify-content:space-between;font-size:7pt;color:var(--mut);" +
+        "font-variant-numeric:tabular-nums}" +
+      /* on screen the pages sit on a grey field so they read as sheets */
+      "@media screen{body.rd-printing #screen-app,body.rd-printing #btabs," +
+        "body.rd-printing #modal-host,body.rd-printing #toastbar,body.rd-printing #loc-bar," +
+        "body.rd-printing #pwa-bar,body.rd-printing #verify-gate{display:none !important}" +
+        "#rd-print.preview{display:block;background:#8a8a8a;padding:10mm 0}" +
+        "#rd-print.preview .rd-pg{margin:0 auto 10mm;box-shadow:0 1px 4px rgba(0,0,0,.4)}}";
     document.head.appendChild(st);
   })();
 
@@ -732,6 +787,26 @@
       return;
     }
     host.innerHTML = _skel();
+
+    /* THE DAYBOOK IS ONE PROJECT'S BOOK, like the desk it belongs to.
+       This used to pass DESK.projectId || null, and null means "the whole
+       dealer group" to get_reservation_daybook — so opening the Daybook without
+       opening the desk first produced a report that mixed three towers: floors
+       called MF and Mezzanine next to Awami's, an Available figure of 1,799,
+       and reservations from another tenant listed as today's. It read as an
+       Awami document and was not one. Warming the desk index resolves the
+       project the same way the desk does, and the call is cached, so arriving
+       here from the desk costs nothing. */
+    if (!DESK.projectId) {
+      var w = await _load(null, false);
+      if (w === 'expired') return sessionGone();
+      if (w === true && DESK.data) {
+        DESK.projectId = DESK.data.scope_project_id ||
+                         (DESK.data.projects && DESK.data.projects[0] && DESK.data.projects[0].id) || null;
+      }
+      if (!_alive('daybook')) return;
+    }
+
     var day = DB.date || null;
     var r;
     try {
@@ -883,64 +958,259 @@
     catch (e) { _portalCopy(t, 'Copied — paste it into the group.'); }
   }
 
-  /* ── PDF via print-CSS. No library: the browser's own print dialogue saves a
-        PDF, and that is the route every other report in the group uses. ───── */
-  function _dbPrint() {
-    var d = DB.data || {}, h = d.header || {};
+  /* ══ THE DAYBOOK AS A DOCUMENT ═══════════════════════════════════════════
+     This goes to a board. It is paginated here, in JS, rather than left to the
+     browser, because Chrome supports neither @page margin boxes nor
+     counter(pages) — so "Page 2 of 3", a running header that starts on page 2,
+     a table header that repeats after a break and a signature block that
+     cannot be split are all unreachable from CSS alone.
+
+     Every page is a real 210×297mm box that carries its own margins, which has
+     a second benefit: what a screenshot of .rd-pg shows is exactly what prints.
+
+     Content is unchanged — same four sections, same figures, straight from
+     get_reservation_daybook. Only the hierarchy is new.                      */
+
+  var PG = { W: 210, H: 297, T: 18, S: 16, B: 20 };   // mm
+
+  function _mm() {                      // one millimetre, in px, measured
+    var p = document.createElement('div');
+    p.style.cssText = 'position:absolute;visibility:hidden;width:100mm';
+    document.body.appendChild(p);
+    var px = p.getBoundingClientRect().width / 100;
+    document.body.removeChild(p);
+    return px || 3.7795;
+  }
+
+  function _printHost() {
     var host = document.getElementById('rd-print');
     if (!host) { host = document.createElement('div'); host.id = 'rd-print'; document.body.appendChild(host); }
+    return host;
+  }
 
-    function tbl(head, rows, none) {
-      if (!rows.length) return '<div class="none">' + esc(none) + '</div>';
-      return '<table><thead><tr>' + head.map(function (x) { return '<th>' + esc(x) + '</th>'; }).join('') +
-        '</tr></thead><tbody>' + rows.map(function (r) {
-          return '<tr>' + r.map(function (c) { return '<td' + (c && c.n ? ' class="n"' : '') + '>' +
-            esc(c && c.v !== undefined ? c.v : c) + '</td>'; }).join('') + '</tr>';
-        }).join('') + '</tbody></table>';
+  function _el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  /* Build the paginated document into #rd-print and return the page count. */
+  function _dbBuild() {
+    var d = DB.data || {}, h = d.header || {};
+    var host = _printHost();
+    host.className = '';
+    host.innerHTML = '';
+    // lay it out off-screen so heights are real
+    host.style.cssText = 'display:block;position:absolute;left:-99999px;top:0;width:' + PG.W + 'mm';
+
+    var MM = _mm();
+    var LIMIT = (PG.H - PG.T - PG.B) * MM;     // usable content height, px
+
+    var title = 'Reservation Daybook';
+    var dateTxt = _pkDate(d.date);
+    // project · title · date — the company is named on the masthead, page 1
+    var runTxt = [h.project, title, dateTxt].filter(Boolean).join('  ·  ');
+
+    var pages = [], body = null;
+
+    function newPage(first) {
+      var pg = _el('div', 'rd-pg');
+      body = _el('div', 'pg-body');
+      pg.appendChild(body);
+      host.appendChild(pg);
+      pages.push(pg);
+      if (!first) body.appendChild(_el('div', 'rh', runTxt));
+      return pg;
+    }
+    function fits() { return body.scrollHeight <= LIMIT; }
+    function push(node) {                       // append, or start a page first
+      body.appendChild(node);
+      if (!fits() && body.childNodes.length > 1) { body.removeChild(node); newPage(false); body.appendChild(node); }
+      return node;
     }
 
-    var tot = 0; (d.available || []).forEach(function (f) { tot += Number(f.available || 0); });
+    newPage(true);
 
-    host.innerHTML =
-      '<div class="ph">' +
-        (h.logo_url ? '<img src="' + esc(h.logo_url) + '" alt="">' : '') +
-        '<div><h1>' + esc(h.project || 'Inventory') + ' — Reservation Daybook</h1>' +
-        '<div class="s">' + esc(h.company || '') + ' · ' + esc(_pkDate(d.date)) +
-        ' · printed ' + esc(_pkDate(new Date().toISOString())) + '</div></div>' +
-      '</div>' +
+    /* ── masthead, page 1 only ─────────────────────────────────────────── */
+    var mh = _el('div', 'mh');
+    if (h.logo_url) {
+      var img = document.createElement('img'); img.src = h.logo_url; img.alt = '';
+      mh.appendChild(img);
+    } else {
+      // No logo on file for this company. A serif monogram is a deliberate
+      // stand-in — better than a gap, and better than a placeholder box.
+      mh.appendChild(_el('div', 'mh-mark', String(h.company || h.project || 'N').trim().charAt(0).toUpperCase()));
+    }
+    var mhTxt = _el('div');
+    mhTxt.appendChild(_el('h1', null, title));
+    mhTxt.appendChild(_el('div', 'sub', [h.project, h.company].filter(Boolean).join('  ·  ') + '  ·  ' + dateTxt));
+    mh.appendChild(mhTxt);
+    body.appendChild(mh);
+    body.appendChild(_el('div', 'mh-rule'));
 
-      '<h2>Reserved today (' + (d.reserved || []).length + ')</h2>' +
-      tbl(['Unit', 'Floor', 'Requested by', 'Buyer', 'Booked by', 'Expires'],
-        (d.reserved || []).map(function (r) {
+    /* ── summary band ──────────────────────────────────────────────────── */
+    var avail = d.available || [];
+    var totAvail = 0, totRes = 0, totSold = 0, totAll = 0;
+    avail.forEach(function (f) {
+      totAvail += Number(f.available || 0); totRes += Number(f.reserved || 0);
+      totSold += Number(f.sold || 0); totAll += Number(f.total || 0);
+    });
+    var sm = _el('div', 'sm');
+    [['Reserved today', (d.reserved || []).length],
+     ['Sold today', (d.sold || []).length],
+     ['Expiring 48h', (d.expiring || []).length],
+     ['Available', totAvail]].forEach(function (p) {
+      var c = _el('div');
+      c.appendChild(_el('div', 'k', p[0]));
+      c.appendChild(_el('div', 'v', String(p[1])));
+      sm.appendChild(c);
+    });
+    body.appendChild(sm);
+
+    /* ── the four sections ─────────────────────────────────────────────── */
+    var secs = [
+      { h: 'Reserved Today',
+        cols: [['Unit', 'u'], ['Floor', ''], ['Requested by', ''], ['Booked by', ''], ['Buyer', ''], ['Expires', '']],
+        rows: (d.reserved || []).map(function (r) {
           return [r.unit_no, r.floor,
-                  r.requested_by + (r.agent_code ? ' (' + r.agent_code + ')' : ''),
-                  r.client_name || '—', r.booked_by || '—', _pkDate(r.expiry_date)];
-        }), 'Nothing reserved on this day.') +
-
-      '<h2>Sold today (' + (d.sold || []).length + ')</h2>' +
-      tbl(['Unit', 'Floor', 'Sale', 'Buyer', 'Agent'],
-        (d.sold || []).map(function (s) {
+                  r.requested_by + (r.agent_code ? '  (' + r.agent_code + ')' : ''),
+                  r.booked_by || '—', r.client_name || '—', _pkDate(r.expiry_date)];
+        }),
+        empty: 'No units reserved on this date.' },
+      { h: 'Sold Today',
+        cols: [['Unit', 'u'], ['Floor', ''], ['Sale', ''], ['Buyer', ''], ['Agent', '']],
+        rows: (d.sold || []).map(function (s) {
           return [s.unit_no, s.floor, s.sale_number || '—', s.client_name || '—', s.agent || '—'];
-        }), 'Nothing sold on this day.') +
+        }),
+        empty: 'No units sold on this date.' },
+      { h: 'Expiring within 48 Hours',
+        cols: [['Unit', 'u'], ['Floor', ''], ['Requested by', ''], ['Hours left', 'n']],
+        rows: (d.expiring || []).map(function (r) {
+          return [r.unit_no, r.floor, r.requested_by, String(r.hours_left)];
+        }),
+        empty: 'No reservations expire within the next two days.' },
+      { h: 'Availability by Floor',
+        cols: [['Floor', ''], ['Available', 'n'], ['Reserved', 'n'], ['Sold', 'n'], ['Total', 'n']],
+        rows: avail.map(function (f) {
+          return [f.floor, String(f.available), String(f.reserved), String(f.sold), String(f.total)];
+        }),
+        total: ['Total', String(totAvail), String(totRes), String(totSold), String(totAll)],
+        empty: 'No inventory recorded for this project.' }
+    ];
 
-      '<h2>Expiring within 48 hours (' + (d.expiring || []).length + ')</h2>' +
-      tbl(['Unit', 'Floor', 'Requested by', 'Hours left'],
-        (d.expiring || []).map(function (r) {
-          return [r.unit_no, r.floor, r.requested_by, { v: r.hours_left, n: 1 }];
-        }), 'Nothing expiring in the next two days.') +
+    function thead(cols) {
+      var t = _el('thead'), tr = _el('tr');
+      cols.forEach(function (c) {
+        var th = _el('th', c[1] === 'n' ? 'n' : null, c[0]);
+        tr.appendChild(th);
+      });
+      t.appendChild(tr);
+      return t;
+    }
+    function trow(cols, cells, cls) {
+      var tr = _el('tr', cls || null);
+      cells.forEach(function (v, i) {
+        var k = cols[i] ? cols[i][1] : '';
+        tr.appendChild(_el('td', k || null, v));
+      });
+      return tr;
+    }
 
-      '<h2>Available by floor — ' + tot + ' available</h2>' +
-      tbl(['Floor', 'Available', 'Reserved', 'Sold', 'Total'],
-        (d.available || []).map(function (f) {
-          return [f.floor, { v: f.available, n: 1 }, { v: f.reserved, n: 1 },
-                  { v: f.sold, n: 1 }, { v: f.total, n: 1 }];
-        }), 'No inventory.') +
+    secs.forEach(function (sec, si) {
+      var block = _el('div', 'sec' + (si === 0 ? ' first' : ''));
+      block.appendChild(_el('h2', null, sec.h));
 
-      '<div class="sig"><div>Prepared by</div><div>Checked by</div><div>Approved by</div></div>';
+      if (!sec.rows.length) {
+        block.appendChild(_el('div', 'none', sec.empty));
+        push(block);
+        return;
+      }
 
+      var table = _el('table');
+      table.appendChild(thead(sec.cols));
+      var tb = _el('tbody');
+      table.appendChild(tb);
+      block.appendChild(table);
+      push(block);
+
+      /* A heading must never be the last thing on a page: the first two rows go
+         on with it, and if they do not fit the whole block moves. */
+      var i = 0;
+      for (; i < sec.rows.length; i++) {
+        tb.appendChild(trow(sec.cols, sec.rows[i]));
+        if (!fits()) {
+          tb.removeChild(tb.lastChild);
+          if (i < 2 && body.childNodes.length > 1) {         // orphan heading — move it all
+            body.removeChild(block);
+            newPage(false);
+            body.appendChild(block);
+            i--; continue;
+          }
+          // continue the table on a fresh page, with its header repeated
+          newPage(false);
+          block = _el('div', 'sec cont');
+          table = _el('table');
+          table.appendChild(thead(sec.cols));
+          tb = _el('tbody');
+          table.appendChild(tb);
+          block.appendChild(table);
+          body.appendChild(block);
+          i--;
+        }
+      }
+      if (sec.total) {
+        tb.appendChild(trow(sec.cols, sec.total, 'tot'));
+        if (!fits()) {
+          tb.removeChild(tb.lastChild);
+          newPage(false);
+          var t2 = _el('table'); t2.appendChild(thead(sec.cols));
+          var tb2 = _el('tbody'); t2.appendChild(tb2);
+          tb2.appendChild(trow(sec.cols, sec.total, 'tot'));
+          var b2 = _el('div', 'sec cont'); b2.appendChild(t2);
+          body.appendChild(b2);
+        }
+      }
+    });
+
+    /* ── signature block, never split ──────────────────────────────────── */
+    var sig = _el('div', 'sig');
+    ['Prepared by', 'Approved by'].forEach(function (l) { sig.appendChild(_el('div', null, l)); });
+    push(sig);
+
+    /* ── footer on every page ──────────────────────────────────────────── */
+    var stamp = 'Generated ' + _pkDate(new Date().toISOString()) + ' ' + _pkTime(new Date().toISOString()) + ' PKT';
+    pages.forEach(function (pg, i) {
+      var ft = _el('div', 'ft');
+      ft.appendChild(_el('span', null, stamp));
+      ft.appendChild(_el('span', null, 'Page ' + (i + 1) + ' of ' + pages.length));
+      pg.appendChild(ft);
+    });
+
+    host.style.cssText = '';            // hand it back to the stylesheet
+    return pages.length;
+  }
+
+  function _dbPrint() {
+    _dbBuild();
     document.body.classList.add('rd-printing');
     var clean = function () { document.body.classList.remove('rd-printing'); };
     try { window.addEventListener('afterprint', clean, { once: true }); } catch (e) {}
     setTimeout(function () { try { window.print(); } catch (e) {} setTimeout(clean, 1500); }, 60);
   }
+
+  /* The verification harness renders the same pages on screen. It accepts a
+     payload so the harness never has to reach inside this module for DB — and
+     so a padded, page-break-forcing render can be produced without writing a
+     single row anywhere. */
+  window._dbPreview = function (data, date) {
+    if (data) { DB.data = data; DB.date = date || data.date; }
+    var n = _dbBuild();
+    _printHost().className = 'preview';
+    // hide the app exactly as printing does, so a screenshot of a page cannot
+    // pick up the fixed bottom bar sitting behind it
+    document.body.classList.add('rd-printing');
+    return n;
+  };
+
 })();
