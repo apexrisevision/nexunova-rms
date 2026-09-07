@@ -39,6 +39,7 @@
     reqByLabel: {},      // label (lower) -> [requesters]           (typing aid only)
     sel: null,           // resolved unit
     days: 7,
+    statusId: null,      // which tag the next booking applies (id, never a name)
     busy: false
   };
   var STALE_MS = 15 * 60 * 1000;   // a soft ceiling; bookings patch in between
@@ -90,6 +91,13 @@
       ".rd-row .w{flex:1;min-width:0;font-size:var(--fs-secondary);color:var(--fk-text-muted);" +
         "overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
       ".rd-row .t{font-size:var(--fs-caption);color:var(--fk-text-muted);flex:none}" +
+      /* One chip, three tags. Colour carries the difference in commitment, not
+         the wording alone, because these are read at a glance in a list. */
+      ".tg{flex:none;font-size:11px;font-weight:650;padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap}" +
+      ".tg-hold{background:#FFF4E5;color:#8A5300;border-color:#F3D9B0}" +
+      ".tg-reserved{background:#E9F0FB;color:#22508F;border-color:#C9DAF2}" +
+      ".tg-booked{background:#E9F7EF;color:#1C6B3F;border-color:#C4E6D3}" +
+      ".tg-off{background:var(--fk-bg-soft,#F1F2F4);color:var(--fk-text-muted);border-color:var(--fk-border);text-decoration:line-through}" +
       ".rd-undo{flex:none;height:32px;padding:0 11px;border-radius:9px;border:1px solid var(--fk-border);" +
         "background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);" +
         "font-weight:600;cursor:pointer}" +
@@ -203,6 +211,10 @@
       "#rd-print .pill.count{background:var(--tint);color:var(--slate)}" +
       "#rd-print .pill.amber{background:#FDF3E7;color:var(--amber)}" +
       "#rd-print .pill.red{background:#FBEAE8;color:var(--red)}" +
+      "#rd-print .pill.hold{background:#FFF4E5;color:#8A5300}" +
+      "#rd-print .pill.reserved{background:#E9F0FB;color:#22508F}" +
+      "#rd-print .pill.booked{background:#E9F7EF;color:#1C6B3F}" +
+      "#rd-print .pill.off{background:var(--tint);color:var(--slate);text-decoration:line-through}" +
       /* ── tables ── */
       "#rd-print table{width:100%;border-collapse:collapse;font-size:8.5pt}" +
       "#rd-print thead{display:table-header-group}" +
@@ -412,6 +424,46 @@
     _paint(host);
   };
 
+  /* The tags this project offers, in the order the RPC ranked them. Keyed on
+     id like everything else here: a status NAME is a display string and two
+     projects can spell the same idea differently. */
+  function _tags() { return (DESK.data && DESK.data.statuses) || []; }
+
+  /* Falls back to Reserved when nothing is armed, which is what the desk did
+     before this existed and what the RPC still defaults to. */
+  function _armedTag() {
+    var t = _tags();
+    if (!t.length) return null;
+    var hit = null;
+    for (var i = 0; i < t.length; i++) if (t[i].id === DESK.statusId) hit = t[i];
+    if (hit) return hit;
+    for (var j = 0; j < t.length; j++) if (String(t[j].code).toUpperCase() === 'RESERVED') return t[j];
+    return t[0];
+  }
+
+  /* The button says what it is about to do, because with three tags "Reserve"
+     would be wrong two times out of three. */
+  function _goLabel() {
+    var t = _armedTag();
+    if (!t) return 'Reserve';
+    var c = String(t.code).toUpperCase();
+    return c === 'HOLD' ? 'Put on hold' : c === 'BOOKED' ? 'Book' : 'Reserve';
+  }
+
+  /* Class from the CODE, never the name: the name is what a tenant typed into
+     its own settings and can read anything. */
+  /* Print pill name for a tag code. Separate from the screen's class because
+     the two style systems are separate; both read the CODE, never the name. */
+  function _pillOf(code) {
+    var c = String(code || 'RESERVED').toUpperCase();
+    return c === 'HOLD' ? 'hold' : c === 'BOOKED' ? 'booked' : 'reserved';
+  }
+
+  function _tagCls(code) {
+    var c = String(code || 'RESERVED').toUpperCase();
+    return c === 'HOLD' ? 'tg-hold' : c === 'BOOKED' ? 'tg-booked' : 'tg-reserved';
+  }
+
   function _paint(host) {
     var d = DESK.data, projects = d.projects || [];
     var cur = DESK.projectId ||
@@ -428,6 +480,11 @@
         }).join('') + '</select>'
       : '<div class="rd-sm" style="display:flex;align-items:center;font-weight:600">' +
         esc((projects[0] && projects[0].name) || 'Inventory') + '</div>';
+
+    /* Arm a tag before the first paint so the chips are never all off and the
+       button never reads for a tag nobody chose. */
+    var tags = _tags();
+    if (!DESK.statusId) { var a0 = _armedTag(); DESK.statusId = a0 ? a0.id : null; }
 
     var reqOpts = (d.requesters || []).map(function (r) {
       return '<option value="' + esc(r._label) + '"></option>';
@@ -452,7 +509,24 @@
           '<datalist id="rd-reqlist">' + reqOpts + '</datalist>' +
           '<div id="rd-reqhit" class="rd-meta" style="margin-top:5px;font-size:var(--fs-caption)"></div>' +
 
-          '<div class="rd-lb" style="margin-top:13px">Hold for</div>' +
+          /* WHAT KIND OF HOLD. The list comes from the RPC, which reads the
+             project's own category_unit_statuses — never hardcoded here, so a
+             project that has not configured On Hold simply shows fewer chips.
+             Sold is not among them: this desk writes no sale, and a unit marked
+             sold with no sale behind it is money that exists nowhere. */
+          (tags.length > 1
+            ? '<div class="rd-lb" style="margin-top:13px">Mark as</div>' +
+              '<div class="rd-chips" id="rd-tags">' +
+                tags.map(function (t) {
+                  return '<button class="rd-chip' + (DESK.statusId === t.id ? ' on' : '') +
+                         '" data-tag="' + esc(t.id) + '">' + esc(t.name) + '</button>';
+                }).join('') +
+              '</div>'
+            : '') +
+
+          /* Was "Hold for". With On Hold now one of the tags, that label asked
+             two different questions with the same word. */
+          '<div class="rd-lb" style="margin-top:13px">Expires in</div>' +
           '<div class="rd-chips" id="rd-days">' +
             [1, 3, 7, 15].map(function (n) {
               return '<button class="rd-chip' + (DESK.days === n ? ' on' : '') + '" data-d="' + n + '">' + n + 'd</button>';
@@ -473,7 +547,7 @@
             '</div>' +
           '</details>' +
 
-          '<button class="rd-go" id="rd-go" disabled>Reserve</button>' +
+          '<button class="rd-go" id="rd-go" disabled>' + esc(_goLabel()) + '</button>' +
         '</div>' +
 
         '<div class="rd-h">Booked today ' +
@@ -532,6 +606,20 @@
         _reserve();
       });
     }
+
+    /* Repainting the whole desk to move one chip would blow away the unit the
+       operator has already typed and resolved, so the chips are toggled in
+       place and only the button label is rewritten. */
+    var tagbox = _q('#rd-tags');
+    if (tagbox) tagbox.addEventListener('click', function (e) {
+      var b = e.target.closest('.rd-chip[data-tag]'); if (!b) return;
+      DESK.statusId = b.getAttribute('data-tag');
+      var all = tagbox.querySelectorAll('.rd-chip[data-tag]');
+      for (var i = 0; i < all.length; i++) {
+        all[i].classList.toggle('on', all[i].getAttribute('data-tag') === DESK.statusId);
+      }
+      var g = _q('#rd-go'); if (g) g.textContent = _goLabel();
+    });
 
     var days = _q('#rd-days');
     if (days) days.addEventListener('click', function (e) {
@@ -687,7 +775,7 @@
     }
 
     var go = _q('#rd-go');
-    DESK.busy = true; if (go) { go.disabled = true; go.textContent = 'Reserving…'; }
+    DESK.busy = true; if (go) { go.disabled = true; go.textContent = 'Saving…'; }
 
     var tamt = Number(String((_q('#rd-tamt') || {}).value || '').replace(/[^0-9.]/g, '')) || 0;
     var args = {
@@ -701,14 +789,17 @@
       p_expiry_days: DESK.days,
       p_token_received: tamt > 0,
       p_token_amount: tamt,
-      p_note: String((_q('#rd-note') || {}).value || '').trim() || null
+      p_note: String((_q('#rd-note') || {}).value || '').trim() || null,
+      /* null is a valid answer: the RPC then falls back to Reserved exactly as
+         it did before this parameter existed. */
+      p_unit_status_id: DESK.statusId || null
     };
 
     var res;
     try { res = await sb.rpc('reserve_unit_desk', args); }
     catch (e) { res = null; }
     DESK.busy = false;
-    if (go) { go.textContent = 'Reserve'; }
+    if (go) { go.textContent = _goLabel(); }
 
     var d = res && res.data;
     if (d && d.error === 'session_expired') return sessionGone();
@@ -733,7 +824,12 @@
     }
 
     _patchAfterBooking(d, r, u, args.p_client_name);
-    toast(esc(d.unit_no || u.n) + ' reserved for ' + d.requested_by + ' · ' + d.expiry_days + 'd', 'ok');
+    /* The verb comes from the tag the SERVER stamped, not from the chip that
+       was armed in the browser: if the two ever disagree, the database is the
+       one telling the truth. */
+    var tg = String(d.tag_code || 'RESERVED').toUpperCase();
+    var verb = tg === 'HOLD' ? 'put on hold for' : tg === 'BOOKED' ? 'booked for' : 'reserved for';
+    toast(esc(d.unit_no || u.n) + ' ' + verb + ' ' + d.requested_by + ' · ' + d.expiry_days + 'd', 'ok');
     _clearLine();
     _paintToday();
   }
@@ -776,8 +872,12 @@
     }
     box.innerHTML = rows.map(function (r) {
       var live = r.status === 'active';
+      /* A released row keeps its tag but wears it struck through, so the list
+         reads as "this WAS a hold" rather than as a live one. */
+      var tcls = live ? _tagCls(r.tag_code) : 'tg-off';
       return '<div class="rd-row" data-id="' + esc(r.id) + '">' +
         '<span class="u">' + esc(r.unit_no) + '</span>' +
+        '<span class="tg ' + tcls + '">' + esc(r.tag || 'Reserved') + '</span>' +
         '<span class="w">' + esc(r.by || '—') +
           (r.client_name ? ' · ' + esc(r.client_name) : '') + '</span>' +
         '<span class="t">' + esc(_pkTime(r.created_at)) + '</span>' +
@@ -894,15 +994,26 @@
           '<button class="rd-chip" id="db-pdf">' + li('fileText', 15) + ' PDF</button>' +
         '</div>' +
 
-        _dbSec('Reserved today', resv.length, resv.length
-          ? _dbTable(['Unit', 'Floor', 'Requested by', 'Buyer', 'Expires'],
+        /* "Booked today" rather than "Reserved today": with three tags in play
+           the old heading named only one of them. Rows that were undone stay on
+           the list — the desk still shows them, and a daybook that quietly drops
+           an event of the day is a different kind of wrong — but they wear a
+           struck-through tag and show the time they were let go, not an expiry
+           date that stopped meaning anything the moment they were cancelled. */
+        _dbSec('Booked today', resv.length, resv.length
+          ? _dbTable(['Unit', 'Tag', 'Floor', 'Requested by', 'Buyer', 'Expires / released'],
               resv.map(function (r) {
-                return ['<b>' + esc(r.unit_no) + '</b>', esc(r.floor),
+                var liveRow = _isLive(r);
+                return ['<b>' + esc(r.unit_no) + '</b>',
+                        '<span class="tg ' + (liveRow ? _tagCls(r.tag_code) : 'tg-off') + '">' +
+                          esc(r.tag || 'Reserved') + '</span>',
+                        esc(r.floor),
                         esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
                         r.client_name ? esc(r.client_name) : '<span class="t">—</span>',
-                        esc(_pkDate(r.expiry_date))];
+                        liveRow ? esc(_pkDate(r.expiry_date))
+                                : '<span class="t">released ' + esc(r.cancelled_at ? _pkTime(r.cancelled_at) : '') + '</span>'];
               }))
-          : '<div class="rd-empty">Nothing reserved on this day.</div>') +
+          : '<div class="rd-empty">Nothing booked on this day.</div>') +
 
         _dbSec('Sold today', sold.length, sold.length
           ? _dbTable(['Unit', 'Floor', 'Sale', 'Buyer', 'Agent'],
@@ -919,10 +1030,12 @@
         _dbSec('Units on hold', hold.length, hold.length
           ? '<div class="db-asat">As at ' + esc(_pkDate(genISO)) + ' ' + esc(_pkTime(genISO)) +
             ' PKT — soonest to lapse first.</div>' +
-            _dbTable(['Unit', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
+            _dbTable(['Unit', 'Tag', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
               hold.map(function (r) {
                 var L = _holdLeft(r);
-                return ['<b>' + esc(r.unit_no) + '</b>', esc(r.floor),
+                return ['<b>' + esc(r.unit_no) + '</b>',
+                        '<span class="tg ' + _tagCls(r.tag_code) + '">' + esc(r.tag || 'Reserved') + '</span>',
+                        esc(r.floor),
                         '<span class="n">' + esc(_area(r.area, r.area_unit)) + '</span>',
                         esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
                         esc(_pkDate(r.reserved_at)), esc(_pkDate(r.expiry_date)),
@@ -974,12 +1087,23 @@
     L.push('');
 
     var resv = d.reserved || [];
-    L.push('*Reserved today (' + resv.length + ')*');
-    if (!resv.length) L.push('— none —');
-    else resv.forEach(function (r) {
-      L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + r.requested_by +
-             ' · till ' + _pkDate(r.expiry_date));
+    var live = resv.filter(_isLive);
+    var gone = resv.filter(function (r) { return !_isLive(r); });
+    L.push('*Booked today (' + live.length + ')*');
+    if (!live.length) L.push('— none —');
+    else live.forEach(function (r) {
+      L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
+             ' for ' + r.requested_by + ' · till ' + _pkDate(r.expiry_date));
     });
+    /* Named, not hidden: an agent who was told at noon that a unit was held
+       needs to read that it came back, or they will keep quoting it. */
+    if (gone.length) {
+      L.push('');
+      L.push('*Released again today (' + gone.length + ')*');
+      gone.forEach(function (r) {
+        L.push('• ' + r.unit_no + ' (' + r.floor + ') — back on the board');
+      });
+    }
     L.push('');
 
     var sold = d.sold || [];
@@ -990,11 +1114,16 @@
     });
     L.push('');
 
-    var exp = d.expiring || [];
-    if (exp.length) {
-      L.push('*Expiring in 48h (' + exp.length + ')*');
-      exp.forEach(function (r) {
-        L.push('• ' + r.unit_no + ' — ' + r.requested_by + ' · ' + r.hours_left + 'h left');
+    /* The standing position, in place of the 48-hour slice — which was a subset
+       of this list and printed the same units twice. This is the part the group
+       actually acts on: what is off the board right now and when it returns. */
+    var hold = d.holding || [];
+    if (hold.length) {
+      L.push('*On hold now (' + hold.length + ')*');
+      hold.forEach(function (r) {
+        var L2 = _holdLeft(r);
+        L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
+               ' · ' + r.requested_by + ' · ' + (r.overdue ? 'LAPSED' : L2.t + ' left'));
       });
       L.push('');
     }
@@ -1084,6 +1213,11 @@
   /* One definition of urgency, read by both the screen and the print builder.
      Two copies of these thresholds would eventually drift, and the drift would
      show up as a unit that is red on the page and calm on the screen. */
+  /* A reservation that was undone is not a hold with time left on it. Both
+     surfaces ask this rather than computing days from an expiry that stopped
+     meaning anything the moment it was cancelled. */
+  function _isLive(r) { return !r.status || r.status === 'active'; }
+
   function _holdLeft(r) {
     if (r.overdue) return { t: 'LAPSED', tone: 'red' };
     if (Number(r.hours_left) <= 48) return { t: r.hours_left + 'h', tone: 'red' };
@@ -1215,7 +1349,11 @@
     }
 
     var hold = d.holding || [];
-    var todayResVal = (d.reserved || []).reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
+    /* Only the bookings that still stand. Counting a released one here said
+       PKR 1.53 Cr was held on a day when nothing was: the figure has to follow
+       the same live/released split as the counts beside it. */
+    var todayResVal = (d.reserved || []).filter(_isLive)
+                        .reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     var todaySoldVal = (d.sold || []).reduce(function (a, r) { return a + Number(r.amount || 0); }, 0);
 
     var sum = _el('div');
@@ -1232,18 +1370,25 @@
        which stay date-bound. Stated separately for exactly that reason. */
     var holdVal = hold.reduce(function (a, r) { return a + Number(r.price || 0); }, 0);
     sum.appendChild(_el('div', 'sum-pkr',
-      'Reserved today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal) +
+      'Booked today ' + _pkr(todayResVal) + '  ·  Sold today ' + _pkr(todaySoldVal) +
       (hold.length ? '  ·  On hold ' + _pkr(holdVal) + ' across ' + _num(hold.length) +
                      ' unit' + (hold.length === 1 ? '' : 's') : '')));
 
     var b = _el('div');
     b.style.marginTop = '4mm';
     b.appendChild(_el('div', 'sum-l', 'Today · ' + _dCaps(dateISO)));
-    b.appendChild(sumRow([
-      ['Reserved', _num((d.reserved || []).length), null],
+    /* "Reserved 1" on a day whose single booking was undone an hour later is a
+       true count of an event and a false statement about the position. Split. */
+    var dayRows = d.reserved || [];
+    var dayLive = dayRows.filter(_isLive).length;
+    var dayOff  = dayRows.length - dayLive;
+    var todayCells = [
+      ['Booked', _num(dayLive), null],
       ['Sold', _num((d.sold || []).length), null],
       ['Expiring 48h', _num((d.expiring || []).length), null]
-    ], true));
+    ];
+    if (dayOff) todayCells.splice(1, 0, ['Released', _num(dayOff), null]);
+    b.appendChild(sumRow(todayCells, true));
     sum.appendChild(b);
 
     /* The PERIOD table is not here. It cost 28mm of page and carried seven em
@@ -1298,16 +1443,28 @@
     var genISO = d.generated_at || new Date().toISOString();
 
     var secs = [
-      { title: 'Reservations Today', unit: 'unit', noun: 'reservations',
-        cols: [['Unit'], ['Floor'], ['Requested by'], ['Agent code'], ['Booked by'], ['Buyer'], ['Expires'], ['Days left', 'n']],
+      /* "Reservations Today" named one of the three tags this desk can now
+         apply, so it was wrong on two rows in three. */
+      { title: 'Booked Today', unit: 'unit', noun: 'bookings',
+        cols: [['Unit'], ['Tag'], ['Floor'], ['Requested by'], ['Booked by'], ['Buyer'], ['Expires'], ['Left', 'n']],
         rows: (d.reserved || []).map(function (r) {
+          var liveRow = _isLive(r);
           var ed = _pk(r.expiry_date);
           var days = ed ? Math.max(0, Math.ceil((ed - new Date()) / 864e5)) : null;
-          return [{ v: r.unit_no, cls: 'u' }, r.floor, r.requested_by,
-                  { v: r.agent_code || '—', cls: 'code' }, r.booked_by || '—',
+          /* A released row shows WHEN it was released, not when it would have
+             expired — that date describes a hold that no longer exists. */
+          var when = liveRow ? _dShort(r.expiry_date)
+                             : (r.cancelled_at ? _pkTime(r.cancelled_at) : '—');
+          var left = !liveRow ? { v: 'RELEASED', pill: 'off', cls: 'n' }
+                   : days == null ? { v: '—', cls: 'n mut' }
+                   : { v: days + 'd', pill: 'amber', cls: 'n' };
+          return [{ v: r.unit_no, cls: 'u' },
+                  { v: r.tag || 'Reserved', pill: liveRow ? _pillOf(r.tag_code) : 'off' },
+                  r.floor,
+                  whoCell(r.requested_by, r.agent_code),
+                  r.booked_by || '—',
                   r.client_name ? r.client_name : { v: '—', cls: 'mut' },
-                  _dShort(r.expiry_date),
-                  days == null ? { v: '—', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
+                  when, left];
         }),
         empty: function () { return 'No units reserved on ' + _dLong(dateISO).split(', ')[1] + '.'; } },
 
@@ -1332,12 +1489,14 @@
          to the eye even though it is not the sort. */
       { title: 'Units On Hold', unit: 'unit', noun: 'units on hold', undated: true,
         note: 'As at ' + _dShort(genISO) + ' ' + _pkTime(genISO) + ' PKT \u2014 every reservation still active, soonest to lapse first.',
-        cols: [['Unit'], ['Floor'], ['Size', 'n'], ['Reserved by'], ['Buyer'],
-               ['Reserved on'], ['Expires'], ['Left', 'n']],
+        cols: [['Unit'], ['Tag'], ['Floor'], ['Size', 'n'], ['Reserved by'],
+               ['Buyer'], ['Reserved on'], ['Expires'], ['Left', 'n']],
         rows: hold.map(function (r) {
           var L = _holdLeft(r);
           var left = L.tone ? { v: L.t, pill: L.tone, cls: 'n' } : { v: L.t, cls: 'n' };
-          return [{ v: r.unit_no, cls: 'u' }, r.floor,
+          return [{ v: r.unit_no, cls: 'u' },
+                  { v: r.tag || 'Reserved', pill: _pillOf(r.tag_code) },
+                  r.floor,
                   { v: _area(r.area, r.area_unit), cls: 'n' },
                   whoCell(r.requested_by, r.agent_code),
                   r.client_name ? r.client_name : { v: '\u2014', cls: 'mut' },

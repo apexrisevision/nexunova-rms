@@ -82,6 +82,17 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
          construction; this is the only version of the check that can fail. */
       const dbHolds = Number((await sql(`select count(*)::int n from public.reservations
                                           where project_id='${AWAMI}' and status='active';`))[0].n);
+      /* Reservations CREATED today that were undone again before the day ended.
+         This is the defect Rashid reported: they used to print as live holds.
+         Read from the database so the assertion cannot pass by agreeing with
+         the page it is checking. */
+      const dbToday = (await sql(`select
+            count(*) filter (where status='active')::int    as live,
+            count(*) filter (where status<>'active')::int   as gone
+          from public.reservations
+         where project_id='${AWAMI}'
+           and (created_at at time zone 'Asia/Karachi')::date
+               = (now() at time zone 'Asia/Karachi')::date;`))[0];
       const scr = await page.evaluate(async () => {
         // exactly what the desk does: no stubbing, no arguments, today's book
         await window.renderDaybook();
@@ -89,10 +100,20 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         const secs = [...root.querySelectorAll('.db-sec')].map(x => ({
           t: (x.querySelector('.db-t') || {}).textContent.trim(),
           rows: x.querySelectorAll('.db-tbl tbody tr').length,
-          asat: !!x.querySelector('.db-asat') }));
+          asat: !!x.querySelector('.db-asat'),
+          // every tag chip in the section, and whether it reads as struck off
+          tags: [...x.querySelectorAll('.db-tbl tbody tr')].map(tr => {
+            const g = tr.querySelector('.tg');
+            return g ? { txt: g.textContent.trim(), off: g.classList.contains('tg-off') } : null;
+          }),
+          // does any row still claim time left after being released?
+          released: [...x.querySelectorAll('.db-tbl tbody tr')]
+                      .filter(tr => /released/i.test(tr.textContent)).length
+        }));
         return { secs };
       });
       scr.payloadHolds = dbHolds;
+      scr.dbToday = dbToday;
       scr.hasGeneratedAt = await page.evaluate(async (AW) => {
         const r = await sb.rpc('get_reservation_daybook',
           { p_session_token: TOKEN, p_date: null, p_project_id: AW });
@@ -109,12 +130,41 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       /* The payload count is the truth; the screen has to match it exactly. A
          hold that is in the data and not on the page reads as an available
          unit, which is the one error that costs a double booking. */
-      hold && hold.rows === scr.payloadHolds
-        ? okC('screen lists all ' + scr.payloadHolds + ' unit(s) the DATABASE says are on hold')
-        : badC('screen shows ' + (hold && hold.rows) + ' rows; the database has ' + scr.payloadHolds + ' active holds');
-      (!hold || scr.payloadHolds === 0 || hold.asat)
+      /* With zero holds the section collapses to an empty state and prints no
+         rows, which is correct — so the expected row count is the database's
+         count either way, and 0 has to mean 0 rather than mean "skip". */
+      const holdRows = hold ? hold.rows : 0;
+      holdRows === scr.payloadHolds
+        ? okC('screen lists exactly the ' + scr.payloadHolds + ' unit(s) the DATABASE says are on hold')
+        : badC('screen shows ' + holdRows + ' rows; the database has ' + scr.payloadHolds + ' active holds');
+      (scr.payloadHolds === 0 || (hold && hold.asat))
         ? okC('screen stamps the hold list with the moment it was read')
         : badC('screen hold list carries no as-at line');
+
+      /* ── THE UNDO DEFECT ────────────────────────────────────────────────
+         A reservation created today and cancelled today must appear in the
+         day's list marked released, and must NOT appear in the hold list. */
+      const bt = scr.secs.find(x => /^Booked today/.test(x.t));
+      const btRows = bt ? bt.rows : 0;
+      btRows === (scr.dbToday.live + scr.dbToday.gone)
+        ? okC("today's list has all " + btRows + ' booking(s) the database recorded today (' +
+              scr.dbToday.live + ' live, ' + scr.dbToday.gone + ' released)')
+        : badC("today's list shows " + btRows + ' rows; the database recorded ' +
+               (scr.dbToday.live + scr.dbToday.gone));
+      if (scr.dbToday.gone > 0) {
+        (bt && bt.released === scr.dbToday.gone)
+          ? okC('all ' + scr.dbToday.gone + ' undone booking(s) say "released" instead of an expiry date')
+          : badC((bt && bt.released) + ' rows say released; ' + scr.dbToday.gone + ' were cancelled');
+        (bt && bt.tags.filter(t => t && t.off).length === scr.dbToday.gone)
+          ? okC('their tags are struck through, so they cannot be read as live holds')
+          : badC('an undone booking still wears a live tag');
+      } else {
+        okC('no bookings were undone today — the released path is untested on live data');
+      }
+      /* Whatever was released today must be gone from the hold list entirely. */
+      (holdRows === scr.payloadHolds && !(hold && hold.tags.some(t => t && t.off)))
+        ? okC('nothing released is carried into the hold list')
+        : badC('a released reservation is still on the hold list');
       titles.indexOf('Expiring within 48 hours') < 0
         ? okC('screen and PDF agree: no separate 48-hour section')
         : badC('screen still carries the 48-hour section the PDF dropped');
@@ -141,6 +191,11 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
             c.requested_by = names[i%names.length];
             c.agent_code = 'AGT-2026-'+String(1+(i%40)).padStart(4,'0');
             c.client_name = (i%3===0) ? null : 'Buyer '+(i+1);
+            const TG=[['On Hold','HOLD'],['Reserved','RESERVED'],['Booked','BOOKED']];
+            const tg=TG[i%3];
+            c.tag=tg[0]; c.tag_code=tg[1];
+            c.status=(i%9===4)?'cancelled':'active';
+            c.cancelled_at=(i%9===4)?new Date(Date.now()-36e5).toISOString():null;
             d.reserved.push(c);
           }
           d.sold = [];
@@ -160,6 +215,8 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
               HOLD.push({ unit_no:floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(80+i),
                 floor:floors[i%5], area:900+i*115, area_unit:'sqft', price:12500000+i*640000,
                 requested_by:hn[i%hn.length], agent_code:'AGT-2026-'+String(11+i).padStart(4,'0'),
+            tag:['On Hold','Reserved','Booked'][i%3], tag_code:['HOLD','RESERVED','BOOKED'][i%3],
+                tag:['On Hold','Reserved','Booked'][i%3], tag_code:['HOLD','RESERVED','BOOKED'][i%3],
                 booked_by:'Rashid Manzoor', client_name:(i%4===0)?null:'Buyer '+(i+1),
                 reserved_at:new Date(Date.now()-(3+i)*864e5).toISOString(),
                 expiry_date:new Date(Date.now()+hrs*36e5).toISOString(),
@@ -205,7 +262,13 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         c.unit_no=floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(i+1).padStart(2,'0');
         c.floor=floors[i%5]; c.requested_by=names[i%names.length];
         c.agent_code='AGT-2026-'+String(1+(i%40)).padStart(4,'0');
-        c.client_name=(i%3===0)?null:'Buyer '+(i+1); d.reserved.push(c); }
+        c.client_name=(i%3===0)?null:'Buyer '+(i+1);
+        const TG=[['On Hold','HOLD'],['Reserved','RESERVED'],['Booked','BOOKED']];
+        const tg=TG[i%3];
+        c.tag=tg[0]; c.tag_code=tg[1];
+        c.status=(i%9===4)?'cancelled':'active';
+        c.cancelled_at=(i%9===4)?new Date(Date.now()-36e5).toISOString():null;
+        d.reserved.push(c); }
       d.expiring=d.reserved.slice(0,6).map((x,i)=>({unit_no:x.unit_no,floor:x.floor,
         requested_by:x.requested_by,hours_left:6+i*4,
         expiry_date:new Date(Date.now()+(6+i*4)*36e5).toISOString()}));
@@ -216,6 +279,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
           HOLD.push({ unit_no:floors[i%5].split(' ')[0].slice(0,2).toUpperCase()+'-'+String(80+i),
             floor:floors[i%5], area:900+i*115, area_unit:'sqft', price:12500000+i*640000,
             requested_by:hn[i%hn.length], agent_code:'AGT-2026-'+String(11+i).padStart(4,'0'),
+            tag:['On Hold','Reserved','Booked'][i%3], tag_code:['HOLD','RESERVED','BOOKED'][i%3],
             booked_by:'Rashid Manzoor', client_name:(i%4===0)?null:'Buyer '+(i+1),
             reserved_at:new Date(Date.now()-(3+i)*864e5).toISOString(),
             expiry_date:new Date(Date.now()+hrs*36e5).toISOString(),
@@ -244,6 +308,16 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       }).filter(x=>x && x.gapPx < 0);
       const overflow=pgs.some(p=>{ const c=p.querySelector('.col');
         return c && c.getBoundingClientRect().bottom > p.getBoundingClientRect().bottom + 1; });
+      // sideways: a nowrap table that does not fit is silently cropped on paper
+      const wide=[];
+      pgs.forEach((p,i)=>{
+        p.querySelectorAll('table').forEach(t=>{
+          const col=t.closest('.col'); if(!col) return;
+          const over=Math.round(t.scrollWidth - col.clientWidth);
+          if(over>1) wide.push({page:i+1, overPx:over,
+            head:[...t.querySelectorAll('thead th')].map(h=>h.textContent.trim()).join('|')});
+        });
+      });
       // a page that carries table ROWS must carry a header for them. There is no
       // longer a signature page, so every page here holds either rows or the
       // summary block, and only the former needs a thead.
@@ -272,7 +346,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         }
       }
       return { n:pgs.length, foot, headsOnP1:heads[0], headsRest:heads.slice(1).every(Boolean),
-               orphan, overflow, clash, theads, bodyRows, headless, sigPages:sig,
+               orphan, overflow, wide, clash, theads, bodyRows, headless, sigPages:sig,
                prepared: /Prepared by|Approved by/.test(txt),
                secTitles: heads2, holdIdx, holdRows, holdNote,
                };
@@ -380,6 +454,9 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     chk.headless.length===0 ? ok('every page with rows carries a header (rows '+chk.bodyRows.join(',')+' / heads '+chk.theads.join(',')+')') : bad('page(s) carry rows with no header: '+JSON.stringify(chk.headless));
     !chk.orphan ? ok('no section heading stranded without rows') : bad('an orphaned section heading');
     !chk.overflow ? ok('no page overflows its 297mm box') : bad('content spills past the page box');
+    chk.wide.length===0
+      ? ok('no table is wider than its column — nothing is cropped off the right edge')
+      : bad('table(s) run past the page width: ' + JSON.stringify(chk.wide));
     chk.clash.length===0 ? ok('nothing collides with the footer rule')
                          : bad('content runs into the footer: '+JSON.stringify(chk.clash));
     /* The signature block was REMOVED, so both the element and the words have to

@@ -358,6 +358,25 @@ async function deskUp(page) {
     assert(/Available/i.test(hit.txt), 'unit card shows Available: ' + hit.txt.slice(0, 60));
     assert(hit.goEnabled, 'Reserve button enabled once a free unit resolves');
 
+    /* ── WHICH TAGS THE DESK OFFERS ───────────────────────────────────────
+       Sold is the one that matters. Every SOLD unit in this database has a row
+       in public.sales behind it; this desk writes none, so a unit stamped sold
+       here would be money that exists nowhere. Asserting its ABSENCE is only
+       worth anything if the check can fire, so the positive half — that the
+       chips are there at all — is asserted in the same breath. */
+    const tagChips = await page.evaluate(() => {
+      const box = document.getElementById('rd-root').querySelector('#rd-tags');
+      if (!box) return null;
+      return [...box.querySelectorAll('.rd-chip[data-tag]')].map(b => ({
+        label: b.textContent.trim(), on: b.classList.contains('on') }));
+    });
+    assert(tagChips && tagChips.length >= 2,
+           'the desk offers a tag to apply: ' + JSON.stringify(tagChips && tagChips.map(c => c.label)));
+    assert(!tagChips || !tagChips.some(c => /sold/i.test(c.label)),
+           'Sold is NOT one of them — selling stays on the path that writes a sale');
+    assert(!tagChips || tagChips.filter(c => c.on).length === 1,
+           'exactly one tag is armed before anything is clicked');
+
     step('Requester resolves against the agents master first');
     await page.evaluate(() => {
       const r = document.getElementById('rd-root');
@@ -534,8 +553,12 @@ async function deskUp(page) {
       return captured;
     });
     assert(typeof copied === 'string' && copied.length > 0, 'clipboard received the daybook text');
-    assert(/Reserved today/.test(copied) && /Sold today/.test(copied) && /Available by floor/.test(copied),
+    assert(/Booked today/.test(copied) && /Sold today/.test(copied) && /Available by floor/.test(copied),
            'WhatsApp text carries all the required sections');
+    /* The pasted text is what sixteen agents read. A reservation that was undone
+       must never be listed there as still held — that was the live defect. */
+    assert(!/Reserved today/.test(copied),
+           'the WhatsApp text no longer says "Reserved today" for a list that can hold three tags');
 
     /* ══ AWAMI, READ-ONLY — the 1,467-unit index and its cache ═══════════ */
     step('Awami Market read-only — 1,467-unit index, and the cache is not refetched');
