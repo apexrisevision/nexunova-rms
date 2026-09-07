@@ -1001,6 +1001,7 @@
     /* `holding` is the whole active set and is not date-scoped, so it is stamped
        with the server's clock rather than with the date in the picker. */
     var hold = d.holding || [];
+    var heldEarlier = _heldEarlier(hold);
     var genISO = d.generated_at || new Date().toISOString();
     var totAvail = av.reduce(function (s, f) { return s + Number(f.available || 0); }, 0);
 
@@ -1042,12 +1043,19 @@
         /* UNITS ON HOLD, in place of "Expiring within 48 hours". Everything that
            section listed is in this one wearing a red chip, so keeping both would
            have shown the same units twice — and the screen has to tell the same
-           story as the PDF, or the two disagree about the same day. */
-        _dbSec('Units held', hold.length, hold.length
+           story as the PDF, or the two disagree about the same day.
+
+           It lists only what was held BEFORE this day, because section 01 above
+           already lists the day's own bookings and printing both made three
+           bookings read as six. The total is stated in the line beneath the
+           heading rather than dropped. */
+        _dbSec('Held from earlier days', heldEarlier.length, heldEarlier.length
           ? '<div class="db-asat">As at ' + esc(_pkDate(genISO)) + ' ' + esc(_pkTime(genISO)) +
-            ' PKT — soonest to lapse first.</div>' +
+            ' PKT — still held from before this day; today’s are listed above.' +
+            (heldEarlier.length !== hold.length ? ' ' + hold.length + ' held in total.' : '') +
+            '</div>' +
             _dbTable(['Unit', 'Tag', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
-              hold.map(function (r) {
+              heldEarlier.map(function (r) {
                 var L = _holdLeft(r);
                 return ['<b>' + esc(r.unit_no) + '</b>',
                         '<span class="tg ' + _tagCls(r.tag_code) + '">' + esc(r.tag || 'Reserved') + '</span>',
@@ -1057,7 +1065,7 @@
                         esc(_pkDate(r.reserved_at)), esc(_pkDate(r.expiry_date)),
                         '<span class="n' + (L.tone ? ' db-' + L.tone : '') + '">' + esc(L.t) + '</span>'];
               }))
-          : '<div class="rd-empty">No units are held right now.</div>') +
+          : '<div class="rd-empty">Nothing is held from an earlier day.</div>') +
 
         /* Same five states as the PDF, same order, so the two never disagree
            about a floor. Other only appears when a floor actually has some. */
@@ -1132,9 +1140,9 @@
     /* The standing position, in place of the 48-hour slice — which was a subset
        of this list and printed the same units twice. This is the part the group
        actually acts on: what is off the board right now and when it returns. */
-    var hold = d.holding || [];
+    var hold = _heldEarlier(d.holding);
     if (hold.length) {
-      L.push('*Held right now (' + hold.length + ')*');
+      L.push('*Also held, from earlier days (' + hold.length + ')*');
       hold.forEach(function (r) {
         var L2 = _holdLeft(r);
         L.push('• ' + r.unit_no + ' (' + r.floor + ') — ' + (r.tag || 'Reserved') +
@@ -1237,6 +1245,17 @@
      older RPC still deployed somewhere would otherwise put a released unit back
      on a page that is pasted into the sales group as "off the board". */
   function _isLive(r) { return !r.status || r.status === 'active'; }
+
+  /* THE HELD LIST MINUS WHAT SECTION 01 ALREADY SHOWED.
+     Three bookings printed as six because both sections were right: one is the
+     day's movement, the other the standing position, and on a day when nothing
+     has been released they are the same rows. The flag comes from the server,
+     computed against the same Karachi day section 01 filters on — matching on
+     unit numbers here would have worked too, and would have been the third
+     time in this build that a display string was used as a key. */
+  function _heldEarlier(hold) {
+    return (hold || []).filter(function (r) { return !r.booked_today; });
+  }
   function _liveOnly(rows) { return (rows || []).filter(_isLive); }
 
   function _holdLeft(r) {
@@ -1380,6 +1399,10 @@
     }
 
     var hold = d.holding || [];
+    /* Narrowed for the printed rows only. Everything that counts or adds up
+       money below still reads `hold`: the standing position is the whole set,
+       whether or not part of it happened today. */
+    var heldEarlier = _heldEarlier(hold);
     /* Only the bookings that still stand. Counting a released one here said
        PKR 1.53 Cr was held on a day when nothing was: the figure has to follow
        the same live/released split as the counts beside it. */
@@ -1514,11 +1537,15 @@
          order the list is worked: the top of it is what has to be chased today.
          The booking date is still a column, so the other reading is available
          to the eye even though it is not the sort. */
-      { title: 'Units Held', unit: 'unit', noun: 'units held', undated: true,
-        note: 'As at ' + _dShort(genISO) + ' ' + _pkTime(genISO) + ' PKT \u2014 every reservation still active, soonest to lapse first.',
+      { title: 'Held From Earlier Days', unit: 'unit', noun: 'earlier holds', undated: true,
+        note: 'As at ' + _dShort(genISO) + ' ' + _pkTime(genISO) + ' PKT \u2014 still held from before ' +
+              _dShort(dateISO) + ', soonest to lapse first. The day\u2019s own bookings are in 01' +
+              (heldEarlier.length !== hold.length
+                ? '; ' + _num(hold.length) + ' unit' + (hold.length === 1 ? '' : 's') + ' held in total.'
+                : '.'),
         cols: [['Unit'], ['Tag'], ['Floor'], ['Size', 'n'], ['Reserved by'],
                ['Buyer'], ['Reserved on'], ['Expires'], ['Left', 'n']],
-        rows: hold.map(function (r) {
+        rows: heldEarlier.map(function (r) {
           var L = _holdLeft(r);
           var left = L.tone ? { v: L.t, pill: L.tone, cls: 'n' } : { v: L.t, cls: 'n' };
           return [{ v: r.unit_no, cls: 'u' },
@@ -1529,7 +1556,7 @@
                   r.client_name ? r.client_name : { v: '\u2014', cls: 'mut' },
                   _dShort(r.reserved_at), _dShort(r.expiry_date), left];
         }),
-        empty: function () { return 'No units are held.'; } },
+        empty: function () { return 'Nothing is held from an earlier day.'; } },
 
       /* Five states across, in the order a unit travels: on hold, reserved,
          booked, sold — then what is still free. Before this the table showed

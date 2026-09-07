@@ -183,24 +183,31 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const okC = m => console.log('  \u2705 ' + m);
       const badC = m => { console.log('  \u274C ' + m); FAILED = true; };
       const titles = scr.secs.map(x => x.t.replace(/\s+\d+$/, '').trim());
-      const hold = scr.secs.find(x => /^Units held/.test(x.t));
+      const hold = scr.secs.find(x => /^Held from earlier days/.test(x.t));
       scr.hasGeneratedAt ? okC('the RPC returns generated_at, so the page can date its own hold list')
                          : badC('generated_at missing from the payload');
-      hold ? okC('screen shows a "Units held" section')
-           : badC('no held section on screen: ' + JSON.stringify(titles));
+      hold ? okC('screen shows a "Held from earlier days" section')
+           : okC('nothing is held from an earlier day, so that section collapsed');
       /* The payload count is the truth; the screen has to match it exactly. A
          hold that is in the data and not on the page reads as an available
          unit, which is the one error that costs a double booking. */
       /* With zero holds the section collapses to an empty state and prints no
          rows, which is correct — so the expected row count is the database's
          count either way, and 0 has to mean 0 rather than mean "skip". */
+      /* The section shows what was held BEFORE today. The database count of
+         everything active minus what was booked today is the number it owes. */
       const holdRows = hold ? hold.rows : 0;
-      holdRows === scr.payloadHolds
-        ? okC('screen lists exactly the ' + scr.payloadHolds + ' unit(s) the DATABASE says are on hold')
-        : badC('screen shows ' + holdRows + ' rows; the database has ' + scr.payloadHolds + ' active holds');
-      (scr.payloadHolds === 0 || (hold && hold.asat))
-        ? okC('screen stamps the hold list with the moment it was read')
-        : badC('screen hold list carries no as-at line');
+      const earlierExpected = scr.payloadHolds - scr.dbToday.live;
+      holdRows === earlierExpected
+        ? okC('screen lists the ' + earlierExpected + ' unit(s) held from before today (' +
+              scr.payloadHolds + ' held in total, ' + scr.dbToday.live + ' booked today)')
+        : badC('screen shows ' + holdRows + ' earlier holds; the database says ' + earlierExpected);
+      /* A section with no rows collapses to one line and carries no note - that
+         is the empty state, not a missing stamp. */
+      (!hold || holdRows === 0 || hold.asat)
+        ? okC(holdRows ? 'screen stamps the held list with the moment it was read'
+                       : 'nothing held from earlier, so the section is one line with no stamp')
+        : badC('screen held list carries no as-at line');
 
       /* ── THE UNDO DEFECT ────────────────────────────────────────────────
          A booking that was cancelled must be GONE from the daybook — not
@@ -221,9 +228,10 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
             : badC('a cancelled booking is still on the daybook'))
         : okC('nothing was cancelled today \u2014 this check had nothing to catch');
       /* And never on the hold list either. */
-      holdRows === scr.payloadHolds
-        ? okC('the hold list matches the database exactly')
-        : badC('a released reservation is still on the hold list');
+      /* Nothing released may reach either list. */
+      (bt && bt.released === 0 && holdRows === earlierExpected)
+        ? okC('no released reservation reaches either list')
+        : badC('a released reservation is still being listed');
       titles.indexOf('Expiring within 48 hours') < 0
         ? okC('screen and PDF agree: no separate 48-hour section')
         : badC('screen still carries the 48-hour section the PDF dropped');
@@ -283,6 +291,15 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
                 hours_left:Math.max(0,Math.round(hrs)) });
             }
           }
+            /* The first four holds ARE the day's own bookings: same unit numbers
+               as the reserved stubs, flagged the way the RPC flags them. Without
+               this the two lists never intersect and the de-duplication check
+               passes while doing nothing. */
+            HOLD.slice(0,4).forEach(function(h,k){
+              h.booked_today = true;
+              h.unit_no = d.reserved[k].unit_no;
+              h.floor   = d.reserved[k].floor;
+            });
           d.holding = HOLD;
           d.generated_at = new Date().toISOString();
         }
@@ -346,6 +363,15 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
             hours_left:Math.max(0,Math.round(hrs)) });
         }
       }
+      /* The first four holds ARE the day's own bookings: same unit numbers
+         as the reserved stubs, flagged the way the RPC flags them. Without
+         this the two lists never intersect and the de-duplication check
+         passes while doing nothing. */
+      HOLD.slice(0,4).forEach(function(h,k){
+        h.booked_today = true;
+        h.unit_no = d.reserved[k].unit_no;
+        h.floor   = d.reserved[k].floor;
+      });
       d.holding = HOLD;
       d.generated_at = new Date().toISOString();
       window._dbPreview(d, d.date);
@@ -388,7 +414,7 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       const txt=pgs.map(p=>p.textContent||'').join(' ');
       // the hold section, by its heading, and how many rows it printed
       const heads2=[...document.querySelectorAll('#rd-print .sec-t')].map(e=>e.textContent.trim());
-      const holdIdx=heads2.indexOf('Units Held');
+      const holdIdx=heads2.indexOf('Held From Earlier Days');
       // rows in the printed day list, to compare against the stub's live count
       const bookIdx=heads2.indexOf('Booked Today');
       let holdRows=0, holdNote='';
@@ -410,6 +436,21 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
                orphan, overflow, wide, clash, theads, bodyRows, headless, sigPages:sig,
                prepared: /Prepared by|Approved by/.test(txt),
                secTitles: heads2, holdIdx, holdRows, holdNote, bookIdx,
+               // unit numbers printed under each of the two lists, in order
+               unitsBy: (function () {
+                 const out = {};
+                 const seq = [...document.querySelectorAll('#rd-print .sec-h, #rd-print tbody tr')];
+                 let cur = null;
+                 for (const x of seq) {
+                   if (x.classList.contains('sec-h')) {
+                     cur = ((x.querySelector('.sec-t') || {}).textContent || '').trim();
+                     out[cur] = out[cur] || [];
+                   } else if (cur && !x.classList.contains('tot') && x.cells.length) {
+                     out[cur].push(x.cells[0].textContent.trim());
+                   }
+                 }
+                 return out;
+               })(),
                bookRows: (function(){
                  if(bookIdx<0) return 0;
                  const seq=[...document.querySelectorAll('#rd-print .sec-h, #rd-print tbody tr')];
@@ -570,10 +611,24 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     /* The hold list. 18 stub rows go in; 18 rows have to come out, or the
        section is silently dropping units \u2014 which is the failure that matters,
        since a unit missing from this page reads as available. */
-    chk.holdIdx>=0 ? ok('"Units Held" section present, at position ' + (chk.holdIdx+1))
-                   : bad('no "Units Held" section: ' + JSON.stringify(chk.secTitles));
-    chk.holdRows===18 ? ok('all 18 held units printed, none dropped across the page break')
-                      : bad('hold list printed ' + chk.holdRows + ' of 18 rows');
+    chk.holdIdx>=0 ? ok('"Held From Earlier Days" section present, at position ' + (chk.holdIdx+1))
+                   : bad('no "Held From Earlier Days" section: ' + JSON.stringify(chk.secTitles));
+    /* 18 holds go in, 4 of them flagged as booked on the day being reported and
+       already listed above. 14 must print here, and NONE of the four. */
+    chk.holdRows===14 ? ok("14 of 18 holds printed \u2014 the 4 booked today are not repeated")
+                      : bad('the earlier-holds list printed ' + chk.holdRows + ' rows; 14 were held from before');
+    {
+      /* THE COMPLAINT, ASSERTED. Three bookings printed as six because both
+         sections were right about the same rows. No unit may appear in both. */
+      const a = chk.unitsBy['Booked Today'] || [];
+      const b = chk.unitsBy['Held From Earlier Days'] || [];
+      const both = a.filter(u => b.indexOf(u) >= 0);
+      (a.length && b.length && both.length === 0)
+        ? ok('no unit is printed in both lists (' + a.length + ' booked today, ' + b.length + ' held from earlier)')
+        : bad(both.length ? 'printed twice: ' + both.join(', ')
+                          : 'one of the two lists is empty, so this proved nothing: ' +
+                            JSON.stringify({ bookedToday: a.length, earlier: b.length }));
+    }
     /* THE CLIENT FILTER, EXERCISED. The stub feeds 40 bookings of which 4 are
        cancelled — a payload the live RPC will no longer produce, which is
        exactly the point: if an older RPC is still deployed somewhere, the page
@@ -581,9 +636,13 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     chk.bookRows===36
       ? ok('36 of 40 stub bookings printed — the 4 cancelled ones were dropped client-side too')
       : bad("today's list printed " + chk.bookRows + ' rows; 36 of the 40 stubs are active');
-    /Every reservation still active|still active/.test(chk.holdNote)
-      ? ok('hold section is stamped with the moment it was read: ' + chk.holdNote.slice(0,58))
-      : bad('hold section carries no as-at note: ' + JSON.stringify(chk.holdNote));
+    /* The note must carry BOTH the moment it was read and the fact that the
+       day's own bookings are elsewhere - that second half is the whole reason
+       this section is narrower than the payload. */
+    (/^As at /.test(chk.holdNote) && /still held from before/.test(chk.holdNote) &&
+     /bookings are in 01/.test(chk.holdNote))
+      ? ok('the note says as-at, and says where today’s bookings are: ' + chk.holdNote.slice(0,64))
+      : bad('the earlier-holds note is wrong or missing: ' + JSON.stringify(chk.holdNote));
     chk.secTitles.indexOf('Expiring Within 48 Hours')<0
       ? ok('the 48-hour section is folded in, so no unit prints twice')
       : bad('both "Expiring Within 48 Hours" and the hold list are on the page');
