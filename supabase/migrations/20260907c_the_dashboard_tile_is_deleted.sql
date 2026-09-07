@@ -1,0 +1,21 @@
+-- ════════════════════════════════════════════════════════════════════════
+-- SEPARATION · the S8 dashboard tile is deleted
+-- ────────────────────────────────────────────────────────────────────────
+-- v1 of NexuFinance has no dashboard tile. Keeping it would mean keeping a
+-- shell adapter inside RMS's dashboard, reaching for RMS globals — which is
+-- precisely what the separation is leaving behind.
+--
+-- Two of its five counters, receipts_pending and unapplied, were Phase 2
+-- concepts and became permanently zero the moment Phase 2 was cancelled.
+-- Removing two dead counters from a function that is itself condemned is work
+-- spent on something already condemned, so the whole thing goes instead.
+--
+-- Gone with it: js/pages/daily-closing-tile.js, scripts/verify-daily-closing-tile.js,
+-- the _dcTile block in js/pages/dashboard.js, the ?tile=1 mode of
+-- daily-closing.html, the stub's handler, and five sections of the screen suite.
+--
+-- If a figure is ever wanted on the RMS dashboard again it will be a link with
+-- one RPC behind it, written as RMS code — not a ported module.
+-- ════════════════════════════════════════════════════════════════════════
+
+DROP FUNCTION IF EXISTS public.get_daily_closing_tile(uuid, uuid);

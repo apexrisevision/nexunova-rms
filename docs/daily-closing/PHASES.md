@@ -782,6 +782,53 @@ world with no action in it.
 this bug, which drive the journey in the real `login.html` with both `.dc` nodes present, and go
 red against the un-fixed `dialog()`.
 
+## SR-12 · A behaviour may be encoded in more than one layer, and reading one is not knowing the rule
+
+**Rule.** Before changing a behaviour, find **every** place it is written down — the function, the
+table, the trigger, the client, the type. Reading one of them and being satisfied is not knowing
+the rule; it is knowing one expression of it. A migration that changes the function and not the
+table is refused by the table, and the refusal arrives in production.
+
+**What it cost.** On 2026-09-07 Phase 2 was cancelled and a client receipt stopped carrying a unit.
+`record_cash_entry` was read carefully: `UNIT_REQUIRED` was found, changed to `PARTY_REQUIRED`,
+the payload rewritten, `unit_id` stopped being written. That looked complete.
+
+The same rule was **also** sitting in the table, twice, and in the opposite direction:
+
+- `cash_entries_client_receipt_unit` — CHECK: a `CLIENT_RECEIPT` **must have** `unit_id`.
+- `cash_entries_rms_status_scope` — CHECK: a `CLIENT_RECEIPT` **must not** be `NA`; exactly
+  backwards once nothing is pending.
+
+Neither was found by reading the function, because neither is in the function. Both were found by
+the P4 rehearsal running the real migrations against the real schema inside `BEGIN … ROLLBACK`.
+Without it, the first client receipt on the pilot would have been refused by a constraint nobody
+had looked at, and the message would have named a column the code no longer writes.
+
+A third, worse one followed from the same blindness: `void_cash_entry` copied `unit_id` into its
+reversal, so the freeze trigger added by the very same migration would have refused **every void
+of a historical receipt**. 98 such rows exist. Awami has none — which is precisely why it had to
+be a test that found it and not a user.
+
+**Why it is the same family as the negative-cash invariant.** That rule did not exist anywhere and
+so could not fire. These rules existed in a place nobody looked. Both are *the rule living
+somewhere other than where you are reading*, and both are invisible to an instrument pointed at the
+code alone.
+
+**How to apply.**
+
+- For any behaviour you are about to change, enumerate the layers it could live in and check each
+  one by name: the RPC, `pg_constraint` (CHECK **and** FK), `pg_trigger`, the column's `NOT NULL`
+  and default, the client's validation, and any enum or type. Write the list down.
+- `select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'x'::regclass`
+  takes ten seconds and would have found two of the three above.
+- **Rehearse against the real schema, not a description of it.** These suites run their migrations
+  and their assertions as one batch inside `BEGIN … ROLLBACK`; that is what caught all three. A
+  test that mocks the database cannot catch a constraint.
+- When a rule is relaxed in one layer, ask what the *other* layers now forbid that they should not.
+  `cash_entries_rms_status_scope` was not too strict — it was pointing the wrong way.
+- Prefer `NOT VALID` when tightening a rule that history cannot satisfy: it binds every new row
+  and leaves the past alone, which is the only option when the past is immutable by design.
+
 ---
 
 # Closing note on the standing rules

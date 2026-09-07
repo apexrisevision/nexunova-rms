@@ -330,20 +330,8 @@ BEGIN
     RAISE EXCEPTION 'FAIL 12: v1 is gone — prior versions are never overwritten'; END IF;
   RAISE NOTICE 'PASS 12  the sheet is re-issued at v2 with the adjustment; v1 is still there';
 
-  -- ══ 12 · THE DASHBOARD AGREES ═════════════════════════════════════════════
-  v_res := public.get_daily_closing_tile(v_co, v_pj);
-  IF (v_res->>'success')::boolean IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'FAIL 13: the tile was refused: %', v_res; END IF;
-  SELECT count(*) INTO v_n FROM public.cash_entries
-   WHERE project_id = v_pj AND rms_status = 'PENDING';
-  IF (v_res->'counters'->>'receipts_pending')::int IS DISTINCT FROM v_n THEN
-    RAISE EXCEPTION 'FAIL 13: the tile says % receipts pending, the table says %',
-      v_res->'counters'->>'receipts_pending', v_n; END IF;
-  IF (v_res->>'closing_cash')::numeric IS DISTINCT FROM
-     (SELECT d.opening_cash + t.in_cash - t.out_cash FROM public.cash_days d,
-        LATERAL public._dc_day_totals(d.id) t WHERE d.id = v_d2) THEN
-    RAISE EXCEPTION 'FAIL 13: the tile''s closing cash disagrees with the open day'; END IF;
-  RAISE NOTICE 'PASS 13  the dashboard counters and figures agree with the tables';
+  -- The S8 tile was deleted 2026-09-07; assertion 13 went with it.
+
 
   -- ══ 13 · THE DIRECTOR READS, AND ONLY READS ═══════════════════════════════
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_dir_auth)::text, true);

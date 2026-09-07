@@ -40,7 +40,7 @@ const SERVICES = [
   'open_cash_day', 'record_cash_entry', 'add_cash_entry_attachment',
   'void_cash_entry', 'create_payee', 'rename_payee', 'set_payee_active',
   'setup_cash_opening', 'close_cash_day', 'post_cash_adjustment',
-  'list_cash_day_audit', 'get_my_daily_closing_access', 'get_daily_closing_tile',
+  'list_cash_day_audit', 'get_my_daily_closing_access',
   // list_units_for_picker was RETIRED on 2026-09-07 when Phase 2 was
   // cancelled: nothing selects an RMS unit from the cash book any more.
   'list_qb_accounts_for_project', 'get_cash_entry_project',

@@ -160,6 +160,39 @@ blueprint's model is a subset of what runs. Four fields are still owed and are P
 `kind`, `party_payee_id`, `cleared_entry_id`, and a `status` CHECK. Full reasoning:
 `PDC_DECISION.md`.
 
+## Voiding leaves no mark on the original row — and that is the model, not a gap
+
+**Changed 2026-09-07, deliberately, and written here because the absence of a marker is the kind
+of thing a later reader mistakes for a missing feature.**
+
+Before Phase 2 was cancelled, `void_cash_entry` set the original row's `rms_status` from `PENDING`
+to `UNAPPLIED` with `rms_status_reason = 'Voided'`. A receipt now starts at `NA` — there is no
+allocation waiting to happen — so that branch never fires and **the function does not touch the
+original row at all.**
+
+Nothing was lost. What changed is where the fact lives:
+
+| | |
+|---|---|
+| **The fact of the void** | the **reversal**: a new `cash_entries` row, same amount, opposite direction, `is_adjustment = true`, carrying `adjusts_entry_id` back to the original. |
+| **Audited** | on INSERT, like every other entry. |
+| **The original** | unchanged, as invariant 1 says a saved entry must be. |
+
+**This is the honest model.** A flag on the original would be a second place where the same fact
+is recorded, and the two could disagree — a row marked voided with no reversal, or a reversal with
+no mark. The reversal *is* the fact; a marker would only be a convenience that could go stale.
+
+A neutral `voided_at` column was considered and **deliberately not added** for exactly that reason.
+
+**What this means when reading the ledger:** to know whether an entry was voided, look for a row
+whose `adjusts_entry_id` points at it. Do not look for a status on the entry itself; there is not
+one, and there is not meant to be. `list_cash_entries` already surfaces this as a flag on the row
+so no screen has to do that join by hand.
+
+**Assertion 22 in `verify-daily-closing-entry.js` asserts this** — the reversal is audited and
+links back — rather than the old `rms_status` transition. It asserts what is now true rather than
+what used to be.
+
 ## ⚠️ OPEN RESIDUE — the last read that still reaches into RMS
 
 **Recorded 2026-09-07, when Phase 2 was cancelled and the cash book stopped pointing into RMS.

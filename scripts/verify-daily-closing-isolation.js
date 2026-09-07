@@ -112,17 +112,12 @@ const refused = r =>
       ? ok(`own tenant: role ${r.body.role}, may_view ${r.body.may_view}`)
       : bad(`the caller cannot reach its OWN tenant either: ${JSON.stringify(r.body).slice(0, 140)}`);
 
-    const d = await rpc(JWT, 'get_daily_closing_tile', { p_company_id: ZZ_CO, p_project_id: ZZ_PJ });
-    (d.body && d.body.success === true)
-      ? ok('own tenant: the tile answers with real figures')
-      : bad(`own tenant tile failed: ${JSON.stringify(d.body).slice(0, 140)}`);
   }
 
   // ══ 2 · THE SAME CALLS, POINTED AT AWAMI ══════════════════════════════════
   head("now the same caller, pointed at Awami Market's cash book");
   const AWAMI_CALLS = [
     ['get_my_daily_closing_access', { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
-    ['get_daily_closing_tile',      { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
     ['get_cash_day_summary',        { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],
     ['list_cash_days',              { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ, p_limit: 60 }],
     ['list_payees',                 { p_company_id: AWAMI_CO, p_project_id: AWAMI_PJ }],

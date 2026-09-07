@@ -199,10 +199,6 @@ async function serviceKey() {
   NUMBERS.list_ms = listMs;
   console.log(`     ${'list_cash_entries'.padEnd(34)} ${String(listMs).padStart(6)} ms   (no budget set; reported)`);
 
-  const tileMs = await timed(`public.get_daily_closing_tile('${CO}','${PJ}')`, 'tile');
-  NUMBERS.tile_ms = tileMs;
-  console.log(`     ${'get_daily_closing_tile'.padEnd(34)} ${String(tileMs).padStart(6)} ms   (no budget set; reported)`);
-
   const auditMs = await timed(`public.list_cash_day_audit('${CO}','${day}', 200)`, 'audit');
   NUMBERS.audit_ms = auditMs;
   console.log(`     ${'list_cash_day_audit'.padEnd(34)} ${String(auditMs).padStart(6)} ms   (no budget set; reported)`);

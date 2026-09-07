@@ -243,35 +243,10 @@ function serve() {
       is(a.length < b.length, true, 'and the flagged one is the longer of the two');
     }
 
-    // ═══ THE DASHBOARD HOOK ════════════════════════════════════════════
-    // js/pages/dashboard.js is loaded eagerly by every tenant, so the one
-    // function P9 adds to it has to be inert for the two that do not have the
-    // module. _dcTile() is exercised for real here — not read, run.
-    head('the dashboard hook does nothing at all without the flag');
-    {
-      const src = fs.readFileSync(path.join(ROOT, 'js', 'pages', 'dashboard.js'), 'utf8');
-      const fn = /function _dcTile\(pg\) \{[\s\S]*?\n\}/.exec(src);
-      is(!!fn, true, '_dcTile is in dashboard.js and can be run on its own');
-
-      const off = await shell({ pdc: true });
-      await off.evaluate(f => { (0, eval)(f); }, fn[0]);
-      const before = await off.$eval('#dash-mock', e => e.innerHTML);
-      await off.evaluate(() => _dcTile(document.getElementById('dash-mock')));
-      is(await off.$eval('#dash-mock', e => e.innerHTML), before,
-        'with the flag absent the dashboard HTML is byte-identical after the hook runs');
-      is(await off.$('#dc-tile-host'), null, 'and no host div is inserted');
-      await off.close();
-
-      const on = await shell({ pdc: true, daily_closing: true });
-      await on.evaluate(f => { (0, eval)(f); }, fn[0]);
-      await on.evaluate(() => { window._lazyLoadFiles = () => Promise.resolve(); });
-      await on.evaluate(() => _dcTile(document.getElementById('dash-mock')));
-      is(!!(await on.$('#dc-tile-host')), true, 'with the flag on, the host div appears');
-      is(await on.$eval('#dc-tile-host',
-        e => e.previousElementSibling.className.includes('nx-page-header')), true,
-        'directly under the header, above the rest of the dashboard');
-      await on.close();
-    }
+    // The S8 dashboard tile was DELETED on 2026-09-07 (see migration 20260907c).
+    // The section that proved _dcTile() was inert without the flag went with it:
+    // there is no hook in dashboard.js any more, which is a stronger guarantee
+    // than an inert one.
 
     // ═══ THE PAGE IS LAZY ══════════════════════════════════════════════
     head('the module is not downloaded by a tenant that cannot reach it');
