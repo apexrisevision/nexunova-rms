@@ -633,6 +633,40 @@ under time pressure, and the point is to harden the cash book *before* it holds 
 mutation score wired into the push gate on day one gets tuned down to whatever passes, and then it
 is worse than nothing because it looks like a control.
 
+### ⚠️ The runner cannot reach SQL, and most of this module's rules are SQL
+
+Found on 2026-09-07 while trying to point it at invariant 9. `TARGETS` is three
+JavaScript files; the cash floor lives in a `BEFORE INSERT` trigger and a `plpgsql`
+predicate inside a migration. Running the runner with the cash-floor suite produced
+**14 survivors, all correctly classified UNDRIVEN** — the SQL suite never loads a
+browser file, so mutating one cannot be noticed. The classification was right and the
+exercise was worthless, which is the honest way to describe it.
+
+**So the strongest instrument in the repo is aimed at the smaller half of the module.**
+Postgres holds the eight — now nine — invariants, the day lifecycle, seq_no locking,
+idempotency, carry-forward and every predicate that decides whether money may move.
+JavaScript holds the screen.
+
+Invariant 9 was therefore mutated **by hand**, and the four breaks are recorded with it:
+
+| break | result |
+|---|---|
+| control, nothing broken | green |
+| the trigger is dropped | red — and **only** the direct-insert proof, showing the RPC layer stands alone |
+| `_dc_cash_position` always returns a large number | red at the fixture check |
+| `_dc_is_cfo` always returns true | red at the cashier-override proof |
+
+Each break fails a **different, specific** assertion, which is what a mutation pass is
+for. But they were chosen by the person who wrote the rule, so SR-10's own objection
+applies to them: they prove the assertions fire, not that the missing assertion is
+absent.
+
+**A SQL mutation generator is the obvious next instrument and is not built.** The
+operators would be much the same — null an argument, invert a comparison, drop a
+`RAISE`, flip an `AND`, remove a guard clause — applied to migration bodies, with the
+suites as the oracle. Until it exists, every SQL rule in this module is covered only by
+assertions written by the same hand that wrote the rule.
+
 ### What mutation testing will NOT catch — the honest summary of this module's first week
 
 The cash book **has never held a real transaction.** Every bug found so far has been in the
