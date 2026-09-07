@@ -104,6 +104,16 @@
         "background:var(--fk-bg-card);color:var(--fk-text);font:inherit;font-size:var(--fs-caption);" +
         "font-weight:600;cursor:pointer}" +
       ".rd-undo:disabled{opacity:.45;cursor:default}" +
+      /* The list sits in the flow rather than floating: the desk is used on a
+         phone, where an absolutely positioned menu ends up under the keyboard. */
+      ".rd-sugg{margin-top:7px;border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card);overflow:auto;max-height:min(46vh,320px)}" +
+      ".rd-sg{display:flex;align-items:baseline;gap:10px;width:100%;padding:10px 12px;border:0;border-bottom:1px solid var(--fk-border);background:none;color:var(--fk-text);font:inherit;text-align:left;cursor:pointer}" +
+      ".rd-sg:last-of-type{border-bottom:0}" +
+      ".rd-sg:hover,.rd-sg.on{background:var(--fk-primary-tint)}" +
+      ".rd-sg .n{font-weight:700;min-width:80px}" +
+      ".rd-sg .f{flex:1;min-width:0;font-size:var(--fs-caption);color:var(--fk-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      ".rd-sg .a{font-size:var(--fs-caption);color:var(--fk-text-muted);white-space:nowrap}" +
+      ".rd-sg-more{padding:8px 12px;font-size:var(--fs-caption);color:var(--fk-text-muted);border-top:1px solid var(--fk-border)}" +
       ".rd-empty{padding:20px;text-align:center;color:var(--fk-text-muted);font-size:var(--fs-secondary)}" +
       ".rd-top{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}" +
       ".rd-top select{flex:1 1 160px;min-width:0}" +
@@ -524,6 +534,7 @@
           '<input class="rd-in" id="rd-unit" autocomplete="off" autocapitalize="characters" ' +
                  'spellcheck="false" enterkeyhint="next" placeholder="LG-12">' +
           '<div id="rd-hit"></div>' +
+          '<div id="rd-sugg" class="rd-sugg" style="display:none"></div>' +
 
           '<div class="rd-lb" style="margin-top:13px">Who asked for it</div>' +
           '<input class="rd-in rq" id="rd-req" list="rd-reqlist" autocomplete="off" ' +
@@ -610,13 +621,39 @@
 
     var unit = _q('#rd-unit');
     if (unit) {
-      unit.addEventListener('input', function () { _lookup(unit.value); });
+      unit.addEventListener('input', function () {
+        _lookup(unit.value);
+        _paintSuggest(unit.value);
+      });
       unit.addEventListener('keydown', function (e) {
+        /* Arrows walk the list, Escape puts it away, and Enter takes whatever
+           is lit. With nothing lit Enter does what it always did — moves on to
+           the requester — so the old muscle memory of typing a full number and
+           pressing Enter is untouched. */
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          if (_moveSuggest(e.key === 'ArrowDown' ? 1 : -1)) e.preventDefault();
+          return;
+        }
+        if (e.key === 'Escape') { _closeSuggest(); return; }
         if (e.key !== 'Enter') return;
         e.preventDefault();
+        if (SG.at >= 0) { _takeSuggest(SG.at); return; }
+        _closeSuggest();
         var r = _q('#rd-req'); if (r) r.focus();
       });
+      /* Leaving the box closes the list, but not before a click on it has
+         landed — blur fires first, so the close is deferred by a frame. */
+      unit.addEventListener('blur', function () { SG.t = setTimeout(_closeSuggest, 160); });
     }
+
+    var sugg = _q('#rd-sugg');
+    if (sugg) sugg.addEventListener('mousedown', function (e) {
+      /* mousedown, not click: the input blurs on mousedown and the deferred
+         close would otherwise race the click. */
+      var b = e.target.closest('.rd-sg'); if (!b) return;
+      e.preventDefault();
+      _takeSuggest(Number(b.getAttribute('data-i')));
+    });
 
     var req = _q('#rd-req');
     if (req) {
@@ -670,6 +707,104 @@
 
   /* ── unit lookup: the holder is shown inline, so the group gets an answer
         without leaving this screen ──────────────────────────────────────── */
+  /* TYPE-AHEAD ON THE UNIT BOX.
+     Type L and every AVAILABLE unit on a floor beginning with L is offered;
+     type G after it and the list narrows to LG; see the one you want and tap
+     it instead of finishing the number.
+
+     Only available units are listed, because this box exists to book. A unit
+     that is already held is not a suggestion, it is an answer to a different
+     question — and typing its number in full still gives the holder card
+     underneath, which is where that question is answered.
+
+     Matching ignores separators on both sides, so LG1 finds LG-1 the same way
+     the exact lookup already forgave a missing dash. */
+  function _norm(x) { return String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+
+  function _suggest(key) {
+    var k = _norm(key);
+    if (!k) return [];
+    var all = (DESK.data && DESK.data.units) || [], out = [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].s !== 'available') continue;
+      if (_norm(all[i].n).indexOf(k) !== 0) continue;
+      out.push(all[i]);
+    }
+    /* Unit-wise, like every list in the report: floor in its configured order,
+       then the numeric tail, so LG-2 comes before LG-10 rather than after it. */
+    out.sort(function (a, b) {
+      var ra = Number(a.r || 999), rb = Number(b.r || 999);
+      if (ra !== rb) return ra - rb;
+      var na = parseInt(String(a.n).replace(/\D+/g, ''), 10) || 0;
+      var nb = parseInt(String(b.n).replace(/\D+/g, ''), 10) || 0;
+      if (na !== nb) return na - nb;
+      return String(a.n).localeCompare(String(b.n));
+    });
+    return out;
+  }
+
+  /* `t` holds the deferred close armed by blur. Leaving the box schedules a
+     close 160ms later so a click on the list can land first — but if anything
+     REOPENS the list inside that window, the old timer arrives and shuts a list
+     that was never the one it was told to close. Picking a suggestion and
+     immediately typing again does exactly that. The timer is cancelled by every
+     paint, so only the most recent blur can ever close anything. */
+  var SG = { list: [], at: -1, t: null };
+  var SG_CAP = 24;
+
+  function _paintSuggest(key) {
+    var box = _q('#rd-sugg'); if (!box) return;
+    if (SG.t) { clearTimeout(SG.t); SG.t = null; }
+    SG.list = _suggest(key); SG.at = -1;
+    /* An exact, unambiguous hit has already been answered above the list; a
+       one-item list repeating it is noise. */
+    if (SG.list.length === 1 && _norm(SG.list[0].n) === _norm(key)) SG.list = [];
+    if (!SG.list.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+    var show = SG.list.slice(0, SG_CAP);
+    box.innerHTML = show.map(function (u, i) {
+      return '<button type="button" class="rd-sg" data-i="' + i + '">' +
+        '<span class="n">' + esc(u.n) + '</span>' +
+        '<span class="f">' + esc(u.f || '') + '</span>' +
+        (Number(u.a) ? '<span class="a">' + esc(Number(u.a).toLocaleString('en-US', { maximumFractionDigits: 2 })) +
+                       ' ' + esc(u.u || 'sqft') + '</span>' : '') +
+      '</button>';
+    }).join('') +
+      (SG.list.length > SG_CAP
+        ? '<div class="rd-sg-more">' + (SG.list.length - SG_CAP) + ' more \u2014 keep typing</div>'
+        : '');
+    box.style.display = 'block';
+  }
+
+  function _closeSuggest() {
+    if (SG.t) { clearTimeout(SG.t); SG.t = null; }
+    var box = _q('#rd-sugg'); if (!box) return;
+    box.innerHTML = ''; box.style.display = 'none'; SG.list = []; SG.at = -1;
+  }
+
+  /* Taking one fills the box with the real unit number and then runs the same
+     resolution a typed number runs, so a picked unit and a typed one end up in
+     exactly the same state — there is no second path to keep in step. */
+  function _takeSuggest(i) {
+    var u = SG.list[i]; if (!u) return;
+    var el = _q('#rd-unit'); if (el) { el.value = u.n; }
+    _closeSuggest();
+    _lookup(u.n);
+    var r = _q('#rd-req'); if (r) { try { r.focus(); } catch (e) {} }
+  }
+
+  function _moveSuggest(step) {
+    var box = _q('#rd-sugg'); if (!box || !SG.list.length) return false;
+    var n = Math.min(SG.list.length, SG_CAP);
+    /* Cycle through -1, 0 … n-1, where -1 means nothing is lit. Done on
+       SG.at + 1 so the modulo has a 0-based run to work on; the first version
+       wrapped straight back to -1 and the down arrow did nothing at all. */
+    SG.at = ((SG.at + 1 + step) + (n + 1)) % (n + 1) - 1;
+    var btns = box.querySelectorAll('.rd-sg');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', i === SG.at);
+    if (SG.at >= 0 && btns[SG.at]) { try { btns[SG.at].scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+    return true;
+  }
+
   function _lookup(raw) {
     var hit = _q('#rd-hit'), go = _q('#rd-go');
     var key = String(raw || '').trim().toUpperCase();
@@ -688,9 +823,15 @@
     }
 
     if (!hits.length) {
-      hit.className = 'rd-hit no';
-      hit.innerHTML = 'No unit <b>' + esc(key) + '</b> in this project.';
       if (go) go.disabled = true;
+      /* Half a unit number is not a mistake, it is the middle of typing one.
+         While the list below is offering matches this says nothing at all; the
+         red line is kept for a number that genuinely matches nothing. */
+      /* No class either: `.rd-hit` draws a bordered box, and an empty one sits
+         under the field looking like a control that failed to load. */
+      if (_suggest(key).length) { hit.className = ''; hit.innerHTML = ''; return; }
+      hit.className = 'rd-hit no';
+      hit.innerHTML = 'No available unit starts with <b>' + esc(key) + '</b> in this project.';
       return;
     }
 
@@ -892,6 +1033,9 @@
     for (var i = 0; i < ids.length; i++) { var el = _q(ids[i]); if (el) el.value = ''; }
     DESK.sel = null;
     var hit = _q('#rd-hit'); if (hit) { hit.className = ''; hit.innerHTML = ''; }
+    /* The unit just booked is no longer available, so a list left open would be
+       offering it. */
+    _closeSuggest();
     var go = _q('#rd-go'); if (go) go.disabled = true;
     // the requester is deliberately LEFT IN PLACE: a rep usually asks for
     // several units in a row, and retyping the same name each time is the thing

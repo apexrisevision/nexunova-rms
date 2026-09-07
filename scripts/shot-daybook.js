@@ -780,6 +780,158 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         : badW('a switch took the floor table with it');
     }
 
+    /* ── THE UNIT TYPE-AHEAD ───────────────────────────────────────────────
+       This belongs in verify-reserve-desk.js, which is the desk's own suite —
+       but that one needs ZZTEST_PIN and has not run all evening, and a check
+       that never executes is not a check. This harness already boots the portal
+       as the Awami director, so it drives the real box on the real 1,467-unit
+       index rather than a stub. */
+    console.log('\n── The unit box searches as you type');
+    {
+      const okU = m => console.log('  ✅ ' + m);
+      const badU = m => { console.log('  ❌ ' + m); FAILED = true; };
+
+      /* The print host is still on screen from the render steps above and would
+       otherwise be what gets photographed. Put it away before touching the desk. */
+      await page.evaluate(() => {
+        document.body.classList.remove('rd-printing');
+        const p = document.getElementById('rd-print');
+        if (p) { p.innerHTML = ''; p.style.cssText = 'display:none'; }
+        setTab('desk');
+      });
+      await page.waitForFunction(() => !!document.getElementById('rd-root'), { timeout: 30000 });
+      await sleep(900);
+
+      const type = async (txt) => await page.evaluate(t => {
+        const el = document.getElementById('rd-root').querySelector('#rd-unit');
+        el.value = t;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        const box = document.getElementById('rd-root').querySelector('#rd-sugg');
+        const rows = [...box.querySelectorAll('.rd-sg')].map(b => ({
+          unit: b.querySelector('.n').textContent.trim(),
+          floor: (b.querySelector('.f') || {}).textContent || ''
+        }));
+        const hit = document.getElementById('rd-root').querySelector('#rd-hit');
+        return { rows, open: box.style.display !== 'none',
+                 more: /more/.test(box.textContent),
+                 hitText: hit.textContent.trim(), hitCls: hit.className };
+      }, txt);
+
+      /* What the DATABASE says is available, so the page cannot be graded
+         against the payload it was drawn from. */
+      const avail = await sql(`
+        select u.unit_no,
+               coalesce(f.sort_order, u.floor_no, 999) as rank,
+               coalesce(nullif(regexp_replace(u.unit_no, '[^0-9]', '', 'g'),'')::bigint, 0) as num
+          from public.units u
+          join public.category_unit_statuses st on st.id = u.status_id
+          left join public.floors f on f.id = u.floor_id
+         where u.project_id = '${AWAMI}' and st.is_available
+         order by rank, num, u.unit_no;`);
+      const availSet = new Set(avail.map(r => String(r.unit_no).toUpperCase()));
+      const norm = x => String(x).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+      const L  = await type('L');
+      const LG = await type('LG');
+
+      L.rows.length > 0
+        ? okU('typing L offers ' + L.rows.length + ' unit(s)' + (L.more ? ' and says there are more' : ''))
+        : badU('typing L offered nothing at all');
+
+      /* Only available ones. A held unit is not a suggestion — this box exists
+         to book, and offering something that cannot be booked is worse than
+         offering nothing. */
+      const notFree = L.rows.filter(r => !availSet.has(r.unit.toUpperCase()));
+      notFree.length === 0
+        ? okU('every unit offered is one the database says is available')
+        : badU('offered units that are not available: ' + notFree.map(r => r.unit).join(', '));
+
+      const wrongPrefix = L.rows.filter(r => norm(r.unit).indexOf('L') !== 0);
+      wrongPrefix.length === 0
+        ? okU('every unit offered starts with what was typed')
+        : badU('offered units that do not start with L: ' + wrongPrefix.map(r => r.unit).join(', '));
+
+      LG.rows.length > 0 && LG.rows.every(r => norm(r.unit).indexOf('LG') === 0)
+        ? okU('typing G after it keeps ' + LG.rows.length + ' unit(s), all of them LG')
+        : badU('LG offered something that is not an LG unit: ' + JSON.stringify(LG.rows.slice(0, 5)));
+
+      /* THE ORDER IS THE POINT. A capped list is only useful if it is capped at
+         the RIGHT end — the first N in the order the building is walked, floor
+         by floor and then by number, so LG-2 is above LG-10. Compared against
+         the database's own ordering rather than against the page's. */
+      {
+        const want = avail.filter(r => norm(r.unit_no).indexOf('L') === 0)
+                          .map(r => String(r.unit_no))
+                          .slice(0, L.rows.length);
+        const got = L.rows.map(r => r.unit);
+        JSON.stringify(got) === JSON.stringify(want)
+          ? okU('offered in unit-wise order, first ' + got.length + ': ' + got.slice(0, 4).join(', ') + ' …')
+          : badU('the list is not the first ' + got.length + ' in unit-wise order.' +
+                 ' got ' + JSON.stringify(got.slice(0, 6)) + ' want ' + JSON.stringify(want.slice(0, 6)));
+      }
+
+      /* And a prefix that genuinely narrows within the cap, so "typing more
+         narrows it" is asserted somewhere it can actually fail. */
+      {
+        const deep = String((L.rows[0] || {}).unit || '').slice(0, 4);
+        if (deep.length >= 3) {
+          const D = await type(deep);
+          const dbCount = avail.filter(r => norm(r.unit_no).indexOf(norm(deep)) === 0).length;
+          (D.rows.length <= L.rows.length && D.rows.length === Math.min(dbCount, 24) &&
+           D.rows.every(r => norm(r.unit).indexOf(norm(deep)) === 0))
+            ? okU('typing ' + deep + ' narrows to ' + D.rows.length + ', matching the database exactly')
+            : badU('a longer prefix did not narrow correctly: ' +
+                   JSON.stringify({ typed: deep, shown: D.rows.length, inDb: dbCount }));
+        } else {
+          okU('no unit number long enough to test a deeper prefix on this project');
+        }
+      }
+
+      /* Taking one must leave the box in exactly the state typing the number in
+         full would leave it: resolved, and ready to book. */
+      const picked = await page.evaluate(() => {
+        const root = document.getElementById('rd-root');
+        const b = root.querySelector('#rd-sugg .rd-sg');
+        const want = b.querySelector('.n').textContent.trim();
+        b.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        return { want, value: root.querySelector('#rd-unit').value,
+                 goEnabled: !root.querySelector('#rd-go').disabled,
+                 hit: root.querySelector('#rd-hit').textContent.trim(),
+                 listOpen: root.querySelector('#rd-sugg').style.display !== 'none' };
+      });
+      (picked.value === picked.want && picked.goEnabled && /Available/.test(picked.hit) && !picked.listOpen)
+        ? okU('picking ' + picked.want + ' fills the box, resolves it and enables the button')
+        : badU('picking a suggestion left the desk in a half state: ' + JSON.stringify(picked));
+
+      /* And a number that matches nothing must say so — the quiet state is only
+         for the middle of typing something real. */
+      /* A picture of it open, because the assertions above prove it WORKS and
+         say nothing about whether it is legible on a phone. */
+      await type('LG-0');
+      await page.evaluate(() => document.getElementById('rd-root').scrollIntoView());
+      await sleep(400);
+      /* The list must STILL be open when the shutter goes: a deferred close from
+         an earlier blur used to arrive during this wait and shut it. */
+      const stillOpen = await page.evaluate(() =>
+        document.getElementById('rd-root').querySelectorAll('#rd-sugg .rd-sg').length);
+      stillOpen > 0
+        ? okU('the list is still open ' + stillOpen + ' rows deep after a pause — nothing closes it behind your back')
+        : badU('the list closed itself while nobody was typing');
+      await page.screenshot({ path: path.join(OUT, '06-typeahead.png') });
+      console.log('  rendered 06-typeahead.png with the list open');
+
+      const none = await type('ZQ9');
+      (!none.open && /No available unit starts with/.test(none.hitText))
+        ? okU('a number that matches nothing says so, with no list')
+        : badU('a non-matching number did not report itself: ' + JSON.stringify(none));
+
+      await page.evaluate(() => { const e = document.getElementById('rd-root').querySelector('#rd-unit');
+                                  e.value = ''; e.dispatchEvent(new Event('input', { bubbles: true })); });
+      await page.evaluate(() => setTab('daybook'));
+      await page.waitForFunction(() => !!document.getElementById('db-root'), { timeout: 30000 });
+      await sleep(700);
+    }
+
     console.log('\n── Print with Background graphics OFF');
     await page.evaluate(async (AWAMI) => {
       const r = await sb.rpc('get_reservation_daybook',
