@@ -348,7 +348,7 @@ function serve() {
       const out = {
         open: document.getElementById('sheet').classList.contains('on'),
         unit: document.getElementById('sh-n').textContent.trim(),
-        label: document.getElementById('go').textContent.trim(),
+        label: document.getElementById('wa').textContent.trim(),
         note: document.querySelector('.go-n').textContent.trim(),
         durs: [...document.querySelectorAll('#dur button')].map(b => b.textContent.trim()),
         preset: (document.querySelector('#dur button.on') || {}).textContent,
@@ -359,10 +359,24 @@ function serve() {
       return Object.assign(out, { msg: message() });
     }, 0);
     sheet.open ? ok('the sheet opens on an available unit') : bad('no sheet');
-    sheet.label === 'Request Reservation'
-      ? ok('the button says "Request Reservation"')
+    /* One action now. It must not read as though tapping it holds the unit. */
+    /^Done/.test(sheet.label)
+      ? ok('the button says "' + sheet.label + '"')
       : bad('the button says "' + sheet.label + '"');
-    /reserve now/i.test(sheet.label) ? bad('the button implies it reserves') : ok('and never "Reserve Now"');
+    /reserve|book|hold/i.test(sheet.label)
+      ? bad('the button implies it reserves: ' + sheet.label)
+      : ok('and never implies the unit is already held');
+    /* The duration chips are buttons too, so counting every button in the
+       sheet counts the wrong thing. What must be exactly two is the action
+       row: one thing to press and one way out. Two buttons wired to the same
+       call is how this sheet asked the same question twice, in the same
+       colour — and nothing here noticed. */
+    sheet.acts.length === 2
+      ? ok('one action and one way out: ' + sheet.acts.join(' / '))
+      : bad('the action row holds ' + JSON.stringify(sheet.acts));
+    !/request reservation/i.test(JSON.stringify(sheet.acts))
+      ? ok('and the old duplicate button is gone')
+      : bad('two buttons still send the same request');
     /only held once you receive a confirmation/i.test(sheet.note)
       ? ok('and says the unit is only held once confirmed')
       : bad('the note under the button is wrong: ' + sheet.note);
@@ -1202,18 +1216,23 @@ function serve() {
                    beforeArr + ' \u2192 ' + arrived.cards + ', badge ' + arrived.badge + ')')
             : badU2('the open desk did not pick it up: ' + JSON.stringify(arrived));
           await sql(`DELETE FROM public.availability_requests WHERE ref='${arriving[0].ref}';`);
-          await deskPage.evaluate(async () => {
-            document.dispatchEvent(new Event('visibilitychange'));
-            await new Promise(r => setTimeout(r, 1200));
-          });
-          const cleared = await deskPage.evaluate(() => {
+          /* Waited on rather than slept through: a fixed 1200ms measured the
+             network on a busy machine, not whether the desk lets go. The tick
+             is nudged more than once because one of them may land before the
+             delete is visible. */
+          const cleared = await deskPage.evaluate(async want => {
+            for (let i = 0; i < 30; i++) {
+              document.dispatchEvent(new Event('visibilitychange'));
+              await new Promise(r => setTimeout(r, 400));
+              if (document.querySelectorAll('#rd-reqs .rq-c').length === want) break;
+            }
             const b = document.getElementById('nav-badge-requests');
             return { cards: document.querySelectorAll('#rd-reqs .rq-c').length,
                      shown: !!b && b.classList.contains('show') };
-          });
+          }, beforeArr);
           cleared.cards === beforeArr
             ? okU2('and it disappears again when it is gone')
-            : badU2('a withdrawn request stayed on the desk');
+            : badU2('a withdrawn request stayed on the desk: ' + JSON.stringify(cleared));
         }
         await deskCtx.close();
 

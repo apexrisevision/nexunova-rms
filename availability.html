@@ -414,7 +414,9 @@ button{cursor:pointer;background:none;border:0}
 
    No session is created. Nothing is written. reserve_unit is unreachable from
    here — the button on this page composes a WhatsApp message and does not book
-   anything, which is why it says "Request Reservation" and not "Reserve". */
+   anything, which is why nothing here says "Reserve" — the action sends the
+   ask, and the line under it says the unit is not held until somebody
+   answers. */
 const SUPABASE_URL = 'https://itqxljtfbrppntgyfush.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_OkIT2ttNgBiOm-E4HJLnFw_OmIz-8VG';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
@@ -861,13 +863,12 @@ function paintSheet() {
             (CUSTOM(SHEET.days) ? 'class="on" value="' + SHEET.days + '"' : '') + '>' +
         '</div>') +
 
-    '<button class="go" id="go"' + (gone ? ' disabled' : '') + '>Request Reservation</button>' +
-    '<div class="go-n">The unit is only held once you receive a confirmation.</div>' +
 
     '<div class="acts">' +
       '<button id="wa" class="prim"' + (gone ? ' disabled' : '') + '>Done \u2014 send on WhatsApp</button>' +
       '<button id="cx">Cancel</button>' +
-    '</div>';
+    '</div>' +
+    '<div class="go-n">The unit is only held once you receive a confirmation.</div>';
 
   $('sh-x').onclick = closeSheet;
   /* Outside the not-gone branch on purpose: a unit that has just been taken
@@ -895,10 +896,8 @@ function paintSheet() {
       var n = parseInt(cust.value, 10);
       if (!(n >= 1 && n <= 90)) { cust.value = ''; cust.classList.remove('on'); markDur(); }
     });
-    /* All three do the same thing: register the request, then hand the dealer
-       the message. Copy is not a lesser path \u2014 on desktop it is the only one
-       that visibly works. */
-    $('go').onclick = function () { requestAndSend('wa'); };
+    /* One action. It registers the request and hands the dealer the message
+       in the same tap — there is nothing else here to press. */
     $('wa').onclick = function () { requestAndSend('wa'); };
   }
 }
@@ -940,11 +939,12 @@ async function requestAndSend(how) {
   if (!NAME) { askNameInSheet(how); return; }
 
   SENDING = true;
-  var go = document.getElementById('go');
+  var go = document.getElementById('wa');
+  var goWas = go ? go.textContent : '';
   if (go) { go.disabled = true; go.textContent = 'Sending\u2026'; }
   var res = await submitRequest();
   SENDING = false;
-  if (go) { go.disabled = false; go.textContent = 'Request Reservation'; }
+  if (go) { go.disabled = false; go.textContent = goWas; }
 
   if (res && !res.ok) {
     if (res.error === 'unit_unavailable') { toast('That unit has just been taken.'); return refreshSheet(); }
