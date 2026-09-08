@@ -822,6 +822,53 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         ? okT('while a rep still cannot release a hold that is not theirs')
         : badT('a rep released somebody else’s hold: ' + JSON.stringify(relRep[0]));
 
+      /* ── AND TODAY'S HOLDS, WHICH IS WHERE IT ACTUALLY BIT ────────────────
+         The first version put Release only on 'Held from before'. A hold made
+         TODAY by somebody else therefore had no release anywhere: the desk's
+         own list is filtered to your own bookings, and this section had no
+         button. Rashid found it by trying. A standing hold is a standing hold
+         whether it was taken this morning or last week. */
+      const relToday = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', s.id, '59ded55b-9bc2-45b2-a372-49fc31807fa9', 'dbshot_rt_rep', now()+interval '5 minutes'
+          FROM public.sales_users s WHERE s.company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND s.role='sale_rep'
+           AND s.status='active' LIMIT 1;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_rt_dir', now()+interval '5 minutes');
+
+        /* the REP books it, right now, so it belongs to TODAY and to somebody else */
+        CREATE TEMP TABLE rt ON COMMIT DROP AS
+          SELECT public.reserve_unit_desk('dbshot_rt_rep',
+            (SELECT u.id FROM public.units u
+               JOIN public.category_unit_statuses st ON st.id=u.status_id
+              WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+              ORDER BY u.unit_no DESC LIMIT 1),
+            NULL,NULL,'Someone Else',NULL,NULL,7,false,0,NULL,NULL) AS r;
+
+        CREATE TEMP TABLE rto(step text, r jsonb) ON COMMIT DROP;
+        INSERT INTO rto SELECT 'on the day list',
+          (SELECT jsonb_build_object('n', count(*), 'has_id', bool_and((x->>'res_id') IS NOT NULL))
+             FROM jsonb_array_elements(
+               public.get_reservation_daybook('dbshot_rt_dir',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'reserved') x
+            WHERE x->>'requested_by'='Someone Else');
+        INSERT INTO rto SELECT 'director releases it',
+          public.cancel_reservation('dbshot_rt_dir', (SELECT (r->>'reservation_id')::uuid FROM rt));
+
+        SELECT (SELECT r->>'n'       FROM rto WHERE step='on the day list') AS on_list,
+               (SELECT r->>'has_id'  FROM rto WHERE step='on the day list') AS has_id,
+               (SELECT r->>'success' FROM rto WHERE step='director releases it') AS released,
+               (SELECT status FROM public.reservations
+                 WHERE id=(SELECT (r->>'reservation_id')::uuid FROM rt)) AS res_now;
+        ROLLBACK;`);
+      const rt0 = relToday[0] || {};
+      (Number(rt0.on_list) === 1 && rt0.has_id === 'true')
+        ? okT('a hold taken TODAY by somebody else is on the director’s day list, and names itself')
+        : badT('today’s hold cannot be acted on: ' + JSON.stringify(rt0));
+      (rt0.released === 'true' && rt0.res_now === 'cancelled')
+        ? okT('and he can release that one too — not only the ones from earlier days')
+        : badT('today’s hold could not be released: ' + JSON.stringify(rt0));
+
       /* ══ A REP CAN ASK FOR A CHANGE, NOT ONLY FOR A UNIT ═════════════════
          The gap: a rep reserves through the link, the deal matures, and there
          was no way to say so — the link could only ask for units that were

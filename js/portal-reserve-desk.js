@@ -1643,14 +1643,24 @@
             ]]))) : '') +
 
         _dbSec(d.single_day ? 'Booked today' : 'Booked in this period', resv.length, resv.length
-          ? _dbTable(['Unit', 'Tag', 'Floor', 'Requested by', 'Buyer', 'Expires'],
+          ? _dbTable(['Unit', 'Tag', 'Floor', 'Requested by', 'Buyer', 'Expires', ''],
               resv.map(function (r) {
                 return ['<b>' + esc(r.unit_no) + '</b>',
                         '<span class="tg ' + _tagCls(r.tag_code) + '">' + esc(r.tag || 'Reserved') + '</span>',
                         esc(r.floor),
                         esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
                         r.client_name ? esc(r.client_name) : '<span class="t">—</span>',
-                        esc(_pkDate(r.expiry_date))];
+                        esc(_pkDate(r.expiry_date)),
+                        /* TODAY'S HOLDS NEEDED THIS TOO. Release only sat on
+                           'Held from before', so a hold made TODAY by somebody
+                           else had no release anywhere: the desk's own list is
+                           filtered to your own bookings, and this section had no
+                           button. A standing hold is a standing hold whether it
+                           was taken this morning or last week. */
+                        (r.res_id && _isLive(r)
+                          ? '<button class="db-rel" data-rel="' + esc(r.res_id) +
+                            '" data-unit="' + esc(r.unit_no) + '">Release</button>'
+                          : '')];
               }))
           : '<div class="rd-empty">Nothing booked ' + esc(_periodPhrase(d)) + '.</div>') +
 
