@@ -239,6 +239,27 @@ button{cursor:pointer;background:none;border:0}
 .myq-r .d{flex:1;min-width:0;font-size:12px;color:var(--mut);
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .myq-r .s{font-size:11.5px;font-weight:650;white-space:nowrap}
+/* The ask sits under the row it is about, quiet until it is opened. */
+.myq-c{padding:0 16px 12px}
+.myq-ask{height:34px;padding:0 12px;border-radius:var(--r);background:var(--sunk);
+         font-size:12.5px;font-weight:600;color:var(--soft);
+         transition:transform var(--t-fast) var(--ease)}
+.myq-ask:active{transform:scale(.97)}
+.myq-c.open{padding-bottom:14px}
+.myq-h2{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+        color:var(--mut);margin-bottom:8px}
+.myq-c input{width:100%;height:46px;padding:0 14px;border:1px solid var(--line);
+             border-radius:var(--r);background:var(--card);font-size:15px;outline:none}
+.myq-c input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.myq-b{display:flex;gap:8px;margin-top:9px}
+.myq-b button{height:44px;padding:0 16px;border-radius:var(--r);background:var(--sunk);
+              font-size:13.5px;font-weight:600;color:var(--soft);
+              transition:transform var(--t-fast) var(--ease)}
+.myq-b button:active{transform:scale(.985)}
+.myq-b .prim{flex:1;background:var(--accent);color:#fff}
+.myq-b .prim:disabled{opacity:.45}
+/* Said plainly, because a dealer typing "sold" must not think they set it. */
+.myq-n{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.5}
 .s-pending{color:var(--mut)}
 .s-approved,.s-held{color:#1C6B3F}
 .s-declined{color:#8A2F26}
@@ -690,27 +711,94 @@ var SAYS = { pending: 'Waiting', held: 'Reserved for you', ended: 'Hold ended',
 var SETTLED = { declined: 1, ended: 1, stale: 1, expired: 1 };
 function stateOf(r) { return r.state || r.status || 'pending'; }
 
+function _myqClick(e) {
+  var a = e.target.closest('[data-ask]');
+  if (a) return openAsk(a.getAttribute('data-ask'));
+  var sd = e.target.closest('[data-send]');
+  if (sd) return sendAsk(sd.getAttribute('data-send'));
+}
+
 function paintMyReqs() {
   var box = $('myq');
   if (!box) return;
   if (!REQS.length) { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
   box.className = 'myq';
+  /* Bound once. paintMyReqs runs on every refetch and a listener per paint
+     would fire the fifth ask five times. */
+  if (!box.__askBound) { box.addEventListener('click', _myqClick); box.__askBound = true; }
   box.innerHTML = '<div class="myq-h">Your requests</div>' +
     REQS.slice(0, 6).map(function (r) {
       var st = stateOf(r);
+      /* A HELD UNIT CAN STILL NEED SOMETHING. The deal matures, and until now
+         the link had nothing to say about a unit that was already theirs — it
+         could only ask for units that were FREE, so the moment one became
+         theirs it fell out of the only channel they have. */
+      var canAsk = (st === 'held' && r.kind !== 'change');
       return '<div class="myq-r">' +
         '<span class="u">' + esc(r.unit) + '</span>' +
         '<span class="d">' + esc(r.days) + ' day' + (r.days === 1 ? '' : 's') +
           '  \u00b7  ' + esc(initials(P && P.project)) + '-REQ-' + esc(r.ref) + '</span>' +
         '<span class="s s-' + esc(st) + '">' + esc(SAYS[st] || st) + '</span>' +
-      '</div>';
+      '</div>' +
+      (canAsk
+        ? (ASKING === r.ref
+            ? '<div class="myq-c open">' +
+                '<div class="myq-h2">What has changed?</div>' +
+                '<input id="ask-note" maxlength="120" ' +
+                  'placeholder="e.g. Deal done \u2014 please mark it sold">' +
+                '<div class="myq-b">' +
+                  '<button id="ask-send" class="prim" data-send="' + esc(r.ref) + '">Send</button>' +
+                  '<button data-ask="' + esc(r.ref) + '">Cancel</button>' +
+                '</div>' +
+                '<div class="myq-n">The desk decides the status. This just tells them why.</div>' +
+              '</div>'
+            : '<div class="myq-c"><button class="myq-ask" data-ask="' + esc(r.ref) + '">' +
+              'Ask to change this</button></div>')
+        : '');
     }).join('');
 }
 
 /* Asks only about the refs this phone holds, through the link that made them.
    Folded into the same two-minute rhythm as the availability itself, so a
    decision reaches the dealer without them doing anything. */
+/* ASKING FOR A CHANGE. The dealer says what happened; they do not choose a
+   status. That is the same rule as everywhere else on this page and the
+   reason a link like this can be handed to anybody: nothing here decides
+   what a unit becomes. The desk reads the note and picks the tag. */
+var ASKING = null;
+function openAsk(ref) {
+  if (ASKING === ref) { ASKING = null; paintMyReqs(); return; }
+  ASKING = ref; paintMyReqs();
+  var i = document.getElementById('ask-note'); if (i) { try { i.focus(); } catch (e) {} }
+}
+
+async function sendAsk(ref) {
+  var i = document.getElementById('ask-note');
+  var note = i ? String(i.value || '').trim() : '';
+  var b = document.getElementById('ask-send');
+  if (b) { b.disabled = true; b.textContent = 'Sending\u2026'; }
+  var r;
+  try {
+    r = await sb.rpc('submit_change_request',
+      { p_token: TOKEN, p_ref: ref, p_note: note || null });
+  } catch (e) { r = null; }
+  var d = r && r.data;
+  if (b) { b.disabled = false; b.textContent = 'Send'; }
+  if (!d || !d.success) {
+    toast((d && d.message) || 'Could not send that. Please try again.');
+    return;
+  }
+  /* Kept on this phone the same way a booking request is, so the answer
+     comes back to the row rather than to nobody. */
+  var list = readReqs();
+  list.unshift({ ref: d.ref, unit: d.unit_no, days: 0, status: 'pending', kind: 'change' });
+  REQS = list; writeReqs(list);
+  ASKING = null;
+  paintMyReqs();
+  toast('Sent \u2014 the desk will answer on ' + esc(d.unit_no) + '.');
+}
+
 async function refreshMyReqs() {
   if (!REQS.length) return;
   /* Everything that can still change, not everything that has not changed

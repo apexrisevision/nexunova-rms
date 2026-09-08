@@ -94,6 +94,12 @@
       "  background:var(--fk-bg-card);font-size:12.5px;font-weight:600;white-space:nowrap}" +
       ".rq-t:hover{border-color:var(--fk-primary);color:var(--fk-primary)}" +
       ".rq-t.perm{border-style:dashed}" +
+      /* A change request is a different question and looks like one. */
+      ".rq-c.chg{border-left:3px solid var(--fk-primary)}" +
+      ".rq-k{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;" +
+      "  color:var(--fk-primary);margin-right:7px}" +
+      ".rq-was{margin-top:6px;font-size:12px;color:var(--fk-text-muted);line-height:1.45}" +
+      ".rq-was b{color:var(--fk-text);font-weight:650}" +
       ".rq-cancel{margin-top:8px;height:30px;padding:0 11px;border-radius:8px;" +
       "  border:1px solid var(--fk-border);background:var(--fk-bg-card);" +
       "  color:var(--fk-text-muted);font-size:12px;font-weight:600}" +
@@ -1226,8 +1232,13 @@
         var waited = mins < 1 ? 'just now'
                    : mins < 60 ? mins + ' min ago'
                    : Math.round(mins / 60) + 'h ago';
-        return '<div class="rq-c" data-r="' + esc(r.id) + '">' +
+        /* TWO KINDS OF ASK IN ONE QUEUE. 'new' wants a unit; 'change' wants a
+           different tag on one this dealer already holds. Answering them the
+           same way would be answering the wrong question. */
+        var isChg = r.kind === 'change';
+        return '<div class="rq-c' + (isChg ? ' chg' : '') + '" data-r="' + esc(r.id) + '">' +
           '<div class="rq-top">' +
+            (isChg ? '<span class="rq-k">Change</span>' : '') +
             '<span class="rq-u">' + esc(r.unit_no) + '</span>' +
             '<span class="rq-m">' + esc(r.floor) +
               (Number(r.area) ? ' \u00b7 ' + esc(_area(r.area, r.area_unit)) : '') + '</span>' +
@@ -1241,14 +1252,20 @@
           '</div>' +
           /* Say it BEFORE the tap. Approving a unit that has gone fails, and a
              button that is going to fail should look like one. */
-          (r.still_free ? '' :
-            '<div class="rq-gone">This unit is no longer available \u2014 approving will not book it.</div>') +
+          (isChg
+            ? '<div class="rq-was">Held as <b>' + esc(r.current_tag || 'Reserved') + '</b>' +
+              (r.note ? ' · “' + esc(r.note) + '”' : '') + '</div>'
+            /* A change request is about a unit that is ALREADY held, so
+               still_free is false by definition and the warning below would
+               be a lie on every one of them. */
+            : (r.still_free ? ''
+              : '<div class="rq-gone">This unit is no longer available — approving will not book it.</div>')) +
           /* APPROVE ASKS WHICH. It used to apply whatever tag happened to be
              armed on the desk behind this queue — invisible from here, and
              wrong the moment the last booking was a Pagri and this one is not.
              The question is asked where the decision is made. */
           '<div class="rq-a">' +
-            '<button class="ok" data-act="approve"' + (r.still_free ? '' : ' disabled') +
+            '<button class="ok" data-act="approve"' + ((isChg || r.still_free) ? '' : ' disabled') +
               '>Approve\u2026</button>' +
             '<button data-act="decline">Decline</button>' +
           '</div>' +

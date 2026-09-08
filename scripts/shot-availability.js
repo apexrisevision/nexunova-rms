@@ -938,11 +938,13 @@ function serve() {
       const rpcNames = [...new Set((live.code.match(/\.rpc\(\s*['"]([a-z_]+)['"]/g) || [])
         .map(m => m.replace(/.*['"]([a-z_]+)['"]/, '$1')))];
       /* 17 — THE PAGE'S WHOLE REACH INTO THE SERVER, by name, from its source.
-         Three now: read the board, register a request, ask what happened to it.
-         Nothing that books, nothing that names a portal RPC. The set is exact,
-         so a fourth appearing is a failure rather than a surprise. */
+         Four: read the board, register a request, ask for a change on a unit it
+         already holds, and ask what happened to any of them. Nothing that books,
+         nothing that decides, nothing that names a portal RPC. The set is exact,
+         so a fifth appearing is a failure rather than a surprise — which is the
+         only reason this page can be handed to anybody. */
       const allowedRpc = ['get_public_availability', 'get_request_status',
-                          'submit_availability_request'].sort();
+                          'submit_availability_request', 'submit_change_request'].sort();
       (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
         ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));
@@ -1384,15 +1386,20 @@ function serve() {
             ORDER BY u.unit_no DESC LIMIT 1), 5, 'Second Rep')->>'ref') AS ref;`);
         if (!arriving[0].ref) { badU2('could not make a second request to arrive'); }
         else {
-          const arrived = await deskPage.evaluate(async () => {
-            /* the real path: the browser fires this when a tab comes back, and the
-               watch catches up on it rather than waiting out the interval */
-            document.dispatchEvent(new Event('visibilitychange'));
-            await new Promise(r => setTimeout(r, 1200));
+          const arrived = await deskPage.evaluate(async want => {
+            /* The real path: the browser fires this when a tab comes back and
+               the watch catches up rather than waiting out its interval. Nudged
+               until the card lands, because a fixed sleep here measured the
+               network on a busy machine and not whether the desk noticed. */
+            for (let i = 0; i < 30; i++) {
+              document.dispatchEvent(new Event('visibilitychange'));
+              await new Promise(r => setTimeout(r, 400));
+              if (document.querySelectorAll('#rd-reqs .rq-c').length === want) break;
+            }
             const b = document.getElementById('nav-badge-requests');
             return { cards: document.querySelectorAll('#rd-reqs .rq-c').length,
                      badge: b ? b.textContent.trim() : '' };
-          });
+          }, beforeArr + 1);
           (arrived.cards === beforeArr + 1 && arrived.badge === String(beforeArr + 1))
             ? okU2('a request arriving while the desk is open appears without a reload (' +
                    beforeArr + ' \u2192 ' + arrived.cards + ', badge ' + arrived.badge + ')')

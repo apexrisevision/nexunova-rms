@@ -740,8 +740,9 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
        dr.anon_reads === false && dr.auth_reads === false)
         ? okT('and the table itself is shut: row security on, no policies, no direct read')
         : badT('the requests table can be read around the RPCs: ' + JSON.stringify(dr));
-      Number(dr.fns) === 4
-        ? okT('exactly four functions touch it \u2014 the two gated ones, the dealer\u2019s receipt, and submit')
+      Number(dr.fns) === 5
+        ? okT('exactly five functions touch it — the two gated ones, the dealer’s ' +
+             'receipt, and the two ways they ask (for a unit, or for a change on one they hold)')
         : badT(dr.fns + ' functions touch availability_requests; a new door may have opened');
 
       /* ══ A HOLD YOU CAN SEE IS A HOLD YOU CAN LET GO OF ══════════════════
@@ -820,6 +821,92 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       (relRep[0] || {}).rep_err === 'not_found_or_not_yours'
         ? okT('while a rep still cannot release a hold that is not theirs')
         : badT('a rep released somebody else’s hold: ' + JSON.stringify(relRep[0]));
+
+      /* ══ A REP CAN ASK FOR A CHANGE, NOT ONLY FOR A UNIT ═════════════════
+         The gap: a rep reserves through the link, the deal matures, and there
+         was no way to say so — the link could only ask for units that were
+         FREE, so the moment one became theirs it fell out of the only channel
+         they have.
+
+         The whole story in one rolled-back transaction: ask, approve, deal
+         matures, ask again, approve as permanent. What must be true at the
+         end is that the SAME hold carries the new tag — not a release and a
+         rebooking, which would put a cancellation on the daybook that nobody
+         performed and lose who asked for it in the first place. */
+      const chg = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_chg', now() + interval '5 minutes');
+        INSERT INTO public.category_unit_statuses
+          (company_id, project_id, status_code, status_name, color_hex, sort_order,
+           is_active, is_available, nature, hold_days)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZCHG','ZZ Sold - Entry Pending','#7e22ce',99,true,false,'permanent',NULL);
+
+        CREATE TEMP TABLE lk3 ON COMMIT DROP AS SELECT
+          (public.create_availability_link('dbshot_chg','59ded55b-9bc2-45b2-a372-49fc31807fa9','chg probe')->>'token') AS tok;
+        CREATE TEMP TABLE q1 ON COMMIT DROP AS
+          SELECT public.submit_availability_request((SELECT tok FROM lk3),
+            (SELECT u.unit_no FROM public.units u
+               JOIN public.category_unit_statuses st ON st.id=u.status_id
+              WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+                AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                                 WHERE x.unit_id=u.id AND x.status='pending')
+              ORDER BY u.unit_no DESC LIMIT 1), 3, 'Field Rep') AS r;
+        CREATE TEMP TABLE q2 ON COMMIT DROP AS
+          SELECT public.decide_reservation_request('dbshot_chg',
+            (SELECT id FROM public.availability_requests WHERE ref=(SELECT r->>'ref' FROM q1)),
+            'approve', NULL) AS r;
+
+        /* somebody quoting a ref they overheard */
+        CREATE TEMP TABLE q0 ON COMMIT DROP AS
+          SELECT public.submit_change_request((SELECT tok FROM lk3), 'ZZZZZZ', 'not mine') AS r;
+
+        CREATE TEMP TABLE q3 ON COMMIT DROP AS
+          SELECT public.submit_change_request((SELECT tok FROM lk3),
+                   (SELECT r->>'ref' FROM q1), 'Deal done, please mark it sold') AS r;
+        CREATE TEMP TABLE q4 ON COMMIT DROP AS
+          SELECT public.decide_reservation_request('dbshot_chg',
+            (SELECT id FROM public.availability_requests WHERE ref=(SELECT r->>'ref' FROM q3)),
+            'approve',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='ZZCHG')) AS r;
+
+        SELECT (SELECT r->>'error'   FROM q0) AS stranger_err,
+               (SELECT r->>'success' FROM q3) AS asked,
+               (SELECT r->>'success' FROM q4) AS approved,
+               (SELECT r->'booking'->>'tag' FROM q4) AS now_tagged,
+               (SELECT count(*)::int FROM public.reservations rr
+                 WHERE rr.unit_id=(SELECT unit_id FROM public.availability_requests
+                                    WHERE ref=(SELECT r->>'ref' FROM q1))
+                   AND rr.status='active') AS active_holds,
+               (SELECT count(*)::int FROM public.reservations rr
+                 WHERE rr.unit_id=(SELECT unit_id FROM public.availability_requests
+                                    WHERE ref=(SELECT r->>'ref' FROM q1))
+                   AND rr.status='cancelled') AS cancelled_holds,
+               ((SELECT rr.id FROM public.reservations rr
+                  WHERE rr.id=(SELECT (r->'booking'->>'reservation_id')::uuid FROM q4))
+                = (SELECT (r->'booking'->>'reservation_id')::uuid FROM q2)) AS same_hold,
+               (SELECT rr.expiry_date IS NULL FROM public.reservations rr
+                 WHERE rr.id=(SELECT (r->'booking'->>'reservation_id')::uuid FROM q4)) AS no_expiry,
+               (SELECT r->>'note' FROM q3) AS ignore1;
+        ROLLBACK;`);
+      const c0 = chg[0] || {};
+
+      c0.asked === 'true'
+        ? okT('a rep can ask, from the link, about a unit they already hold')
+        : badT('the change request was refused: ' + JSON.stringify(c0));
+      c0.stranger_err === 'not_yours'
+        ? okT('and a ref somebody merely overheard is refused \u2014 there is no login here,')
+        : badT('a stranger could ask about somebody else\u2019s hold: ' + JSON.stringify(c0));
+      (c0.approved === 'true' && /Entry Pending/.test(c0.now_tagged || ''))
+        ? okT('  so ownership is the link that issued the ref, the approval, and a live hold')
+        : badT('the change was not applied: ' + JSON.stringify(c0));
+      (c0.same_hold === true && Number(c0.active_holds) === 1 && Number(c0.cancelled_holds) === 0)
+        ? okT('the SAME hold carries the new tag \u2014 no release, no rebooking, nothing on the daybook that nobody did')
+        : badT('approving a change rebooked the unit: ' + JSON.stringify(c0));
+      c0.no_expiry === true
+        ? okT('and a permanent tag takes its expiry away, the same as booking one outright')
+        : badT('the changed hold kept an expiry: ' + JSON.stringify(c0));
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
