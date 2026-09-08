@@ -22,19 +22,30 @@
    accent and it is used for the thing you press. No shadows, no gradients, no
    emoji — the type hierarchy does the work. ════════════════════════════════ */
 
+/* TWO COLOURS, TWO JOBS, AND NOTHING ELSE CARRIES MEANING.
+   Blue is the thing you press. Amber is a unit somebody already has. A page
+   whose palette says one thing and whose text says another is read wrong at a
+   glance, and a glance is all this page gets.
+
+   Everything else is grey, and the hierarchy is carried by SIZE and WEIGHT —
+   there are no shadows and no gradients here, which is the harder discipline
+   and the reason the page still looks calm with a second colour in it. */
 :root{
-  --bg:#FBFBFA; --card:#FFFFFF; --ink:#14181F; --soft:#5A6472; --mut:#8C95A3;
-  --line:#E6E8EC; --line2:#F0F1F4; --tint:#F5F6F8;
+  --bg:#FAFAF9; --card:#FFFFFF; --ink:#0F1419; --soft:#525C6B; --mut:#8B94A2;
+  --line:#E7E9ED; --line2:#F1F2F5; --tint:#F5F6F8;
   --accent:#1F5EFF; --accent-tint:#EEF3FF; --accent-line:#CFDDFF;
+  /* held: warm, legible, and never mistaken for an error */
+  --held:#B4600C; --held-bg:#FFF5EA; --held-line:#F3DCC0; --held-bar:#E8933A;
   --warn:#8A5300;
-  --r:10px; --r-lg:14px;
+  --r:10px; --r-lg:14px; --r-xl:18px;
   --pad:16px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0F1216; --card:#161A20; --ink:#EDEFF3; --soft:#A6AFBC; --mut:#79828F;
-    --line:#252A32; --line2:#1C2027; --tint:#1A1E25;
+    --bg:#0D1014; --card:#151920; --ink:#EEF1F5; --soft:#A3ACBA; --mut:#77808E;
+    --line:#242932; --line2:#1B1F26; --tint:#191D24;
     --accent:#6D9BFF; --accent-tint:#18202E; --accent-line:#2C3B57;
+    --held:#E9A860; --held-bg:#261D12; --held-line:#43301B; --held-bar:#C77C2E;
     --warn:#D9A441;
   }
 }
@@ -46,6 +57,17 @@ body{
   -webkit-font-smoothing:antialiased;
   padding:0 0 env(safe-area-inset-bottom);
 }
+/* THE SCALE. Five sizes with real distance between them, so a reader lands on
+   the number first and the label second without being told to. */
+.t-display{font-size:25px;font-weight:700;letter-spacing:-.032em;line-height:1.1}
+.t-title{font-size:19px;font-weight:650;letter-spacing:-.022em;line-height:1.15}
+.t-huge{font-size:34px;font-weight:700;letter-spacing:-.035em;line-height:1;
+        font-variant-numeric:tabular-nums}
+.t-fig{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.05;
+       font-variant-numeric:tabular-nums}
+.t-lab{font-size:10px;font-weight:650;letter-spacing:.10em;text-transform:uppercase;
+       color:var(--mut)}
+.t-cap{font-size:11.5px;color:var(--mut);line-height:1.4}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0}
 .num{font-variant-numeric:tabular-nums}
@@ -53,22 +75,24 @@ button{cursor:pointer;background:none;border:0}
 /* ── the frame ──────────────────────────────────────────────────────────── */
 .wrap{max-width:520px;margin:0 auto;padding:var(--pad) var(--pad) 28px}
 
-.hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
-.hd-t{font-size:19px;font-weight:650;letter-spacing:-.015em;line-height:1.15}
-.hd-c{font-size:12px;color:var(--mut);margin-top:2px}
-.hd-u{font-size:11.5px;color:var(--mut);white-space:nowrap;flex:none}
+.hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:15px}
+.hd-t{font-size:25px;font-weight:700;letter-spacing:-.032em;line-height:1.08}
+.hd-c{font-size:11.5px;color:var(--mut);margin-top:4px;letter-spacing:.01em}
+.hd-u{font-size:11px;color:var(--mut);white-space:nowrap;flex:none;padding-top:5px}
 /* A refetch that failed must SAY the data is old rather than keep a confident
    timestamp that quietly stopped being true. */
 .hd-u.stale{color:var(--warn)}
 
 /* ── search: the primary action, because most dealers know the number ───── */
-.sr{position:relative;margin-bottom:16px}
+.sr{position:relative;margin-bottom:13px}
 .sr input{
-  width:100%;height:50px;padding:0 14px;border:1px solid var(--line);
-  border-radius:var(--r-lg);background:var(--card);font-size:16px;font-weight:500;
-  outline:none;transition:border-color .12s
+  width:100%;height:52px;padding:0 15px;border:1px solid var(--line);
+  border-radius:var(--r-lg);background:var(--card);font-size:16px;font-weight:550;
+  letter-spacing:-.01em;outline:none;transition:border-color .14s,box-shadow .14s
 }
-.sr input:focus{border-color:var(--accent)}
+/* A ring rather than a shadow: the brief said no shadows, and a 3px tint ring
+   does the same job without pretending the field is floating. */
+.sr input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
 .sr input::placeholder{color:var(--mut);font-weight:400}
 
 .res{margin-top:8px;border:1px solid var(--line);border-radius:var(--r-lg);
@@ -80,25 +104,65 @@ button{cursor:pointer;background:none;border:0}
 .res-r .f{flex:1;min-width:0;font-size:12px;color:var(--soft);
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .res-r .a{font-size:12px;color:var(--mut);white-space:nowrap}
-.res-r[disabled]{cursor:default}
-.res-r[disabled] .n{color:var(--mut);font-weight:500}
+.res-r[disabled]{cursor:default;background:var(--held-bg)}
+.res-r[disabled] .n{color:var(--held);font-weight:650}
+/* A held row must not read differently here than on the floor grid, or the
+   two screens are describing two different buildings. */
+.res-r[disabled] .a{color:var(--held);font-weight:650;font-size:10px;
+                    letter-spacing:.06em;text-transform:uppercase}
 .res-more{padding:9px 14px;font-size:11.5px;color:var(--mut);border-top:1px solid var(--line2)}
 .res-none{padding:14px;font-size:13px;color:var(--mut)}
 
 /* ── floor chips: two columns, seven of them, one screen ────────────────── */
 .fl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fl button{
-  padding:11px 12px;border:1px solid var(--line);border-radius:var(--r);
-  background:var(--card);text-align:left;min-height:62px;
-  display:flex;flex-direction:column;justify-content:center;gap:3px;
-  transition:border-color .12s,background .12s
+  padding:9px 12px 8px;border:1px solid var(--line);border-radius:var(--r-lg);
+  background:var(--card);text-align:left;min-height:66px;
+  display:flex;flex-direction:column;gap:0;
+  transition:border-color .14s,background .14s,transform .14s
 }
-.fl button:hover{border-color:var(--accent-line);background:var(--accent-tint)}
-.fl .fn{font-size:13px;font-weight:650;letter-spacing:-.01em}
-.fl .fc{font-size:11px;color:var(--soft)}
-.fl .fc.none{color:var(--mut)}
+.fl button:hover{border-color:var(--accent-line);background:var(--accent-tint);
+                 transform:translateY(-1px)}
+.fl button:active{transform:none}
+/* Label small and quiet, number large and confident: the eye lands on how
+   many are free, which is the only reason anyone taps a floor. */
+.fl .fn{font-size:10px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+        color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl .fv{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.1;
+        font-variant-numeric:tabular-nums;margin-top:2px}
+.fl .fc{font-size:10.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+/* A floor with nothing free is not an error, it is just finished. Amber, and
+   the number stops shouting. */
+.fl button.empty{background:var(--held-bg);border-color:var(--held-line)}
+.fl button.empty:hover{border-color:var(--held-line);background:var(--held-bg)}
+.fl button.empty .fv{font-size:14px;font-weight:650;color:var(--held);
+                     letter-spacing:-.015em;margin-top:5px;line-height:1.2}
+.fl button.empty .fn{color:var(--held);opacity:.8}
 
-.tot{margin-top:14px;font-size:12px;color:var(--mut);text-align:center}
+/* One block, and the only large number on the screen. The bar underneath is
+   the same fact drawn once more for the eye that does not read numbers. */
+.hero{border:1px solid var(--line);border-radius:var(--r-xl);background:var(--card);
+      padding:13px 15px 12px;margin-bottom:13px}
+.hero-top{display:flex;align-items:flex-end;gap:11px}
+.hero-n{font-size:34px;font-weight:700;letter-spacing:-.035em;line-height:1.05;
+        font-variant-numeric:tabular-nums}
+.hero-p{font-size:12.5px;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums;
+        padding-bottom:5px}
+.hero-l{font-size:10px;font-weight:650;letter-spacing:.10em;text-transform:uppercase;
+        color:var(--mut);line-height:1}
+.bar{display:flex;height:5px;border-radius:999px;overflow:hidden;background:var(--line2);
+     margin:10px 0 8px}
+.bar i{display:block;height:100%}
+.bar .free{background:var(--accent)}
+.bar .held{background:var(--held-bar)}
+.hero-f{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11.5px;
+        color:var(--soft)}
+.hero-f b{font-weight:650;font-variant-numeric:tabular-nums;color:var(--ink)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;
+     vertical-align:1px}
+.dot.free{background:var(--accent)}
+.dot.held{background:var(--held-bar)}
+.tot{margin-top:14px;font-size:11.5px;color:var(--mut);text-align:center}
 
 /* What this phone has asked for, and what came back. Quiet: it is a receipt,
    not the point of the page. */
@@ -150,32 +214,41 @@ button{cursor:pointer;background:none;border:0}
 .bk:hover{background:var(--tint);color:var(--ink)}
 .bk i{width:7px;height:7px;border-left:1.5px solid currentColor;
       border-bottom:1.5px solid currentColor;transform:rotate(45deg);display:inline-block}
-.fh{display:flex;align-items:baseline;gap:9px;margin:6px 0 12px}
-.fh h1{margin:0;font-size:18px;font-weight:650;letter-spacing:-.015em}
-.fh span{font-size:12.5px;color:var(--mut)}
+.fh{display:flex;align-items:baseline;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
+.fh h1{margin:0;font-size:23px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.fh span{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.fh b{font-weight:700;color:var(--ink)}
 
-.sw{display:flex;align-items:center;gap:8px;margin-bottom:14px;
-    font-size:12px;color:var(--soft)}
+/* Secondary on purpose: revealing what cannot be bought is not the reason
+   anyone opened this. */
+.sw{display:inline-flex;align-items:center;gap:8px;margin-bottom:14px;padding:7px 11px;
+    border:1px solid var(--line);border-radius:999px;background:var(--card);
+    font-size:11.5px;color:var(--soft)}
 .sw input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
 .sw label{cursor:pointer;user-select:none}
 
 .ug{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 @media (min-width:440px){ .ug{grid-template-columns:repeat(5,1fr)} }
 .ug button{
-  padding:8px 4px;border:1px solid var(--line);border-radius:8px;background:var(--card);
-  display:flex;flex-direction:column;align-items:center;gap:1px;min-height:46px;
-  justify-content:center;transition:border-color .12s,background .12s
+  padding:9px 4px;border:1px solid var(--line);border-radius:9px;background:var(--card);
+  display:flex;flex-direction:column;align-items:center;gap:2px;min-height:50px;
+  justify-content:center;transition:border-color .14s,background .14s,transform .14s
 }
-.ug button:hover{border-color:var(--accent-line);background:var(--accent-tint)}
-.ug .un{font-size:12.5px;font-weight:650;letter-spacing:-.01em;line-height:1.2}
-.ug .ua{font-size:10px;color:var(--mut);line-height:1.2}
+.ug button:hover{border-color:var(--accent-line);background:var(--accent-tint);
+                 transform:translateY(-1px)}
+.ug button:active{transform:none}
+.ug .un{font-size:13px;font-weight:700;letter-spacing:-.015em;line-height:1.15}
+.ug .ua{font-size:9.5px;color:var(--mut);line-height:1.2;font-variant-numeric:tabular-nums}
 /* Not available: no colour, just less of everything. The dealer needs to know
    they cannot have it, not who has it. */
-.ug button.off{background:var(--tint);border-color:var(--line2);cursor:default}
-.ug button.off:hover{border-color:var(--line2);background:var(--tint)}
-.ug button.off .un{color:var(--mut);font-weight:500}
-.ug button.off .ua{color:var(--mut);opacity:.65}
-.ug .off-l{font-size:9px;color:var(--mut);letter-spacing:.02em}
+/* HELD READS AMBER. Grey said "disabled"; amber says "somebody has this",
+   which is the actual fact and the one a dealer scans a floor for. The number
+   keeps its weight — a held unit is still a real unit, not a smudge. */
+.ug button.off{background:var(--held-bg);border-color:var(--held-line);cursor:default}
+.ug button.off:hover{border-color:var(--held-line);background:var(--held-bg);transform:none}
+.ug button.off .un{color:var(--held);font-weight:650}
+.ug .off-l{font-size:8.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;
+           color:var(--held);opacity:.85}
 
 .empty{padding:26px 8px;text-align:center;color:var(--mut);font-size:13px}
 
@@ -200,13 +273,13 @@ button{cursor:pointer;background:none;border:0}
 @media (prefers-reduced-motion:reduce){ .sheet,.scrim{transition:none} }
 
 .sh-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.sh-n{font-size:21px;font-weight:650;letter-spacing:-.02em}
+.sh-n{font-size:26px;font-weight:700;letter-spacing:-.035em;line-height:1.05}
 .sh-x{width:32px;height:32px;border-radius:8px;color:var(--mut);font-size:17px;line-height:1;flex:none}
 .sh-x:hover{background:var(--tint);color:var(--ink)}
-.sh-m{font-size:12.5px;color:var(--soft);margin-top:2px}
+.sh-m{font-size:12.5px;color:var(--soft);margin-top:4px;font-variant-numeric:tabular-nums}
 
-.sh-l{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
-      color:var(--mut);margin:18px 0 7px}
+.sh-l{font-size:10px;font-weight:650;letter-spacing:.10em;text-transform:uppercase;
+      color:var(--mut);margin:18px 0 8px}
 .dur{display:flex;gap:7px}
 .dur button{flex:1;height:40px;border:1px solid var(--line);border-radius:var(--r);
             background:var(--card);font-size:13px;font-weight:600;color:var(--soft)}
@@ -287,6 +360,10 @@ button{cursor:pointer;background:none;border:0}
        No unit is rendered here, ever. -->
   <section id="home">
     <div id="myq" hidden></div>
+    <!-- The single fact this page exists to state, said once and said large.
+         It sits above the search because it is a reading, not an action — the
+         search is still the first thing anyone can touch. -->
+    <div class="hero" id="hero"></div>
     <div class="sr">
       <input id="q" type="search" inputmode="search" autocomplete="off"
              autocapitalize="characters" spellcheck="false"
@@ -294,7 +371,6 @@ button{cursor:pointer;background:none;border:0}
       <div id="res" hidden></div>
     </div>
     <div class="fl" id="floors"></div>
-    <div class="tot" id="tot"></div>
   </section>
 
   <!-- SCREEN TWO — one floor, and only ever one ─────────────────────────── -->
@@ -549,18 +625,42 @@ function renderHome() {
   var tot = 0, av = 0;
   $('floors').innerHTML = (P.floors || []).map(function (f, i) {
     tot += Number(f.total || 0); av += Number(f.available || 0);
-    var n = Number(f.available || 0);
-    return '<button data-f="' + i + '">' +
+    var n = Number(f.available || 0), t = Number(f.total || 0);
+    /* The count is the headline of the chip and the floor name is the caption,
+       because nobody scans this grid looking for the word "Second". */
+    return '<button data-f="' + i + '"' + (n ? '' : ' class="empty"') + '>' +
       '<span class="fn">' + esc(f.floor_label) + '</span>' +
-      '<span class="fc' + (n ? '' : ' none') + '">' +
-        (n ? '<span class="num">' + n + '</span> available' : 'none available') +
-      '</span></button>';
+      (n ? '<span class="fv num">' + n + '</span>' +
+           '<span class="fc">of ' + t + ' available</span>'
+         : '<span class="fv">None available</span>' +
+           '<span class="fc">all ' + t + ' taken</span>') +
+      '</button>';
   }).join('');
 
-  $('tot').innerHTML = '<span class="num">' + av + '</span> of <span class="num">' +
-    tot + '</span> units available';
+  paintHero(av, tot);
 
   runSearch();          // keep any query alive across a refetch
+}
+
+/* One number, one bar, one line of legend. The bar is the same fact drawn a
+   second time for the eye that does not read digits; it is never the only
+   place a number appears, so colour is never load-bearing on its own. */
+function paintHero(av, tot) {
+  var held = Math.max(0, tot - av);
+  var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
+  var fw = tot ? (av * 100 / tot) : 0;
+  $('hero').innerHTML =
+    '<div class="hero-top">' +
+      '<div><div class="hero-l">Available now</div>' +
+        '<div class="hero-n">' + av + '</div></div>' +
+      '<div class="hero-p">' + (tot ? pct + '% of ' + tot : '') + '</div>' +
+    '</div>' +
+    '<div class="bar"><i class="free" style="width:' + fw + '%"></i>' +
+      '<i class="held" style="width:' + (100 - fw) + '%"></i></div>' +
+    '<div class="hero-f">' +
+      '<span><i class="dot free"></i><b>' + av + '</b> available</span>' +
+      '<span><i class="dot held"></i><b>' + held + '</b> not available</span>' +
+    '</div>';
 }
 
 function renderFloor() {
@@ -570,7 +670,7 @@ function renderFloor() {
   $('res').hidden = true;
   $('floor').hidden = false;
   $('fname').textContent = f.floor_label;
-  $('fcount').innerHTML = '<span class="num">' + Number(f.available || 0) + '</span> of ' +
+  $('fcount').innerHTML = '<b class="num">' + Number(f.available || 0) + '</b> of ' +
     '<span class="num">' + Number(f.total || 0) + '</span> available';
   $('showall').checked = SHOWALL;
 

@@ -215,7 +215,12 @@ function serve() {
       docH: document.documentElement.scrollHeight,
       winH: window.innerHeight,
       unitsInDom: document.querySelectorAll('#units button').length,
-      total: document.getElementById('tot').textContent.trim()
+      hero: document.querySelector('.hero-n').textContent.trim(),
+      heroFoot: document.querySelector('.hero-f').textContent.trim(),
+      heroSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-n')).fontSize)),
+      labSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-l')).fontSize)),
+      barFree: document.querySelector('.bar .free').style.width,
+      total: document.querySelector('.hero').textContent.trim()
     }));
     one.chips.length === payload.floors.length
       ? ok('all ' + one.chips.length + ' floor chips are on screen one')
@@ -229,8 +234,22 @@ function serve() {
     one.unitsInDom === 0
       ? ok('not one unit is in the document on screen one')
       : bad(one.unitsInDom + ' units are mounted on screen one');
-    console.log('     chip ' + one.chips[0].w + '\u00d7' + one.chips[0].h + 'px  ·  ' +
-                one.total);
+    /* ── the hierarchy, measured rather than admired ─────────────────
+       "Flat" is a measurable complaint: it means the biggest thing and the
+       smallest thing on the screen are nearly the same size. The headline
+       number must be at least three times its own label, or the eye has
+       nothing to land on first. */
+    const sumFree = payload.floors.reduce((a, f) => a + Number(f.available || 0), 0);
+    one.hero === String(sumFree)
+      ? ok('the hero states ' + one.hero + ' available, which is what the floors add up to')
+      : bad('the hero says ' + one.hero + ' but the floors add up to ' + sumFree);
+    (one.heroSize >= one.labSize * 3)
+      ? ok('and it is ' + one.heroSize + 'px against a ' + one.labSize +
+           'px label — a real hierarchy, not a flat page')
+      : bad('the hero is ' + one.heroSize + 'px and its label ' + one.labSize +
+            'px — that is flat');
+    console.log('     chip ' + one.chips[0].w + '×' + one.chips[0].h + 'px  ·  ' +
+                one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
 
     /* ── b. search across floors ────────────────────────────────────────── */
@@ -434,8 +453,13 @@ function serve() {
       cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
       const after = document.querySelectorAll('#units button').length;
       const off = [...document.querySelectorAll('#units button.off')];
+      const on = document.querySelector('#units button:not(.off)');
+      const px = e => e ? getComputedStyle(e) : null;
       return { before, after, offCount: off.length,
-               label: off.length ? off[0].textContent.replace(/\s+/g, ' ').trim() : '' };
+               label: off.length ? off[0].textContent.replace(/\s+/g, ' ').trim() : '',
+               offBg: off.length ? px(off[0]).backgroundColor : '',
+               onBg: on ? px(on).backgroundColor : '',
+               offInk: off.length ? px(off[0].querySelector('.un')).color : '' };
     }, bigIdx);
     tog.after > tog.before
       ? ok('the toggle reveals ' + (tog.after - tog.before) + ' more unit(s) (' +
@@ -444,6 +468,18 @@ function serve() {
     tog.offCount > 0 && /Not Available/.test(tog.label)
       ? ok('and the ' + tog.offCount + ' revealed units read "Not Available"')
       : bad('revealed units are labelled "' + tog.label + '"');
+    /* ── held units are AMBER ─────────────────────────────────
+       Read off the computed style, not the class list, because a class that
+       no rule matches is exactly the failure this is here to catch. Amber is
+       asserted as "red channel clearly above blue" — a hue test, not a hex
+       test, so the palette can be tuned without the check going stale. */
+    const rgbOf = t => (String(t).match(/[0-9]+/g) || []).map(Number);
+    const warm = t => { const c = rgbOf(t); return c.length >= 3 && c[0] > c[2] + 18; };
+    (tog.offCount > 0 && warm(tog.offBg) && warm(tog.offInk) && !warm(tog.onBg))
+      ? ok('and they are drawn amber — held ' + tog.offBg + ' on ink ' + tog.offInk +
+           ', available still ' + tog.onBg)
+      : bad('held units are not amber: ' + JSON.stringify(
+            { off: tog.offBg, ink: tog.offInk, on: tog.onBg }));
     /* the sheet from the step before is still up; a screenshot of a toggle with a
        modal over it shows neither */
     await page.evaluate(() => { closeSheet(); window.scrollTo(0, 0); });
@@ -455,14 +491,14 @@ function serve() {
     const failState = await page.evaluate(async () => {
       document.getElementById('back').click();
       const chipsBefore = document.querySelectorAll('#floors button').length;
-      const totalBefore = document.getElementById('tot').textContent.trim();
+      const totalBefore = document.querySelector('.hero').textContent.trim();
       const orig = sb.rpc;
       sb.rpc = function () { return Promise.reject(new Error('offline')); };
       await load(false);
       sb.rpc = orig;
       return { chipsBefore, totalBefore,
                chipsAfter: document.querySelectorAll('#floors button').length,
-               totalAfter: document.getElementById('tot').textContent.trim(),
+               totalAfter: document.querySelector('.hero').textContent.trim(),
                upd: document.getElementById('upd').textContent.trim(),
                stale: document.getElementById('upd').classList.contains('stale') };
     });
@@ -790,9 +826,18 @@ function serve() {
                                JOIN public.units u ON u.project_id=p.id
                                LEFT JOIN public.category_unit_statuses st ON st.id=u.status_id
                               WHERE c.company_name ILIKE '%zztest%'
+                               AND EXISTS (SELECT 1 FROM public.sales_users su
+                                            WHERE su.company_id = p.company_id AND su.role = 'director')
                               GROUP BY p.id, p.company_id, p.project_name
                              HAVING count(*) FILTER (WHERE st.is_available) >= 2
-                              ORDER BY free DESC LIMIT 1;`);
+                              /* A DETERMINISTIC PICK. Three ZZTEST projects sit on
+                                 exactly 18 free units, so "the freest one" was a coin
+                                 toss, and one of the three companies has no director —
+                                 which is why this whole section passed twice and then
+                                 failed twice without a line of it changing. The director
+                                 is now a condition of being chosen, and the tie is
+                                 broken by id so the same project is picked every run. */
+                              ORDER BY free DESC, p.id LIMIT 1;`);
       /* Clear whatever a previous run left behind. ZZTEST only, and only rows
          this harness could have written — a failed run must not poison the
          next one's reading of the queue. */
@@ -808,6 +853,11 @@ function serve() {
             FROM public.sales_users s WHERE s.company_id='${zz2[0].company_id}' AND s.role='director' LIMIT 1;`);
         const mk = await sql(`SELECT public.create_availability_link('zz-rt-dir','${zz2[0].id}','round trip') AS r;`);
         const T = mk[0].r.token;
+        /* If the link was never minted, every assertion below is really about
+           THIS, and blaming the dealer page for a token that does not exist
+           sent me looking in the wrong file once already. */
+        if (!T) { badU2('no link to test with — create_availability_link said: ' +
+                        JSON.stringify(mk[0].r)); throw new Error('link not minted'); }
 
         /* THE DEALER. A fresh browser profile: no name, no history. */
         const ctx = await browser.createBrowserContext();
@@ -1015,7 +1065,47 @@ function serve() {
            moves the badge \u2014 not the length of the interval. */
         await deskPage.evaluate(() => setTab('desk'));
         await deskPage.waitForFunction(() => !!document.getElementById('rd-root'), { timeout: 40000 });
-        await sleep(900);
+        /* WAIT FOR THE QUEUE, DO NOT GUESS AT IT. A fixed sleep here measured
+           the network, not the code: coming back to the desk costs two RPCs,
+           and 900ms was sometimes not enough, so the baseline was read as an
+           empty queue and every later comparison was against a lie. The one
+           card already waiting is a known fact — wait for it, and say so
+           plainly if it never comes. */
+        const queueBack = await deskPage
+          .waitForFunction(() => document.querySelectorAll('#rd-reqs .rq-c').length > 0,
+                           { timeout: 20000 })
+          .then(() => true).catch(() => false);
+        queueBack
+          ? okU2('coming back to the desk brings the waiting request with it')
+          : badU2('the desk came back empty — the request that is pending did not redraw');
+
+        /* ── AND IT DOES NOT NARROW ITSELF TO THE OPEN TAB ─────────────
+           The queue used to be fetched for whichever project the desk happened
+           to be showing, and that project is only decided by the FIRST paint —
+           so a request could be visible when the desk opened and gone the
+           moment he came back to it. Switch the tower deliberately: a request
+           addressed to a person must not disappear because he is looking at a
+           different building. */
+        const spanned = await deskPage.evaluate(async myRef => {
+          const sel = document.getElementById('rd-proj');
+          if (!sel || sel.options.length < 2) return { only: true };
+          const other = [...sel.options].find(o => o.value !== sel.value);
+          sel.value = other.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          const mine = () => [...document.querySelectorAll('#rd-reqs .rq-c')]
+            .some(c => c.innerText.indexOf(myRef) >= 0);
+          for (let i = 0; i < 60 && !mine(); i++) await new Promise(r => setTimeout(r, 250));
+          return { only: false, tower: other.textContent.trim(),
+                   cards: document.querySelectorAll('#rd-reqs .rq-c').length,
+                   found: mine() };
+        }, asked.ref);
+        spanned.only
+          ? okU2('this company has one tower, so there is no other tab to lose it to')
+          : (spanned.found
+              ? okU2('and switching to ' + spanned.tower + ' still shows THIS request — ' +
+                     'the queue is his, not the tab’s')
+              : badU2('switching to ' + spanned.tower + ' lost our request (' +
+                      spanned.cards + ' other card(s) on screen)'));
         const beforeArr = await deskPage.evaluate(() =>
           document.querySelectorAll('#rd-reqs .rq-c').length);
 

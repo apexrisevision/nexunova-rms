@@ -491,7 +491,7 @@
     var r;
     try {
       r = await sb.rpc('list_reservation_requests',
-        { p_session_token: TOKEN, p_project_id: DESK.projectId || null });
+        { p_session_token: TOKEN, p_project_id: null });
     } catch (e) { return false; }
     var d = r && r.data;
     if (!d || !d.success) return false;
@@ -1261,7 +1261,7 @@
     var r;
     try {
       r = await sb.rpc('list_reservation_requests',
-        { p_session_token: tok, p_project_id: DESK.projectId || null });
+        { p_session_token: tok, p_project_id: null });   // see _loadReqs
     } catch (e) { return; }          // a blip keeps the last count, never blanks it
     var d = r && r.data;
     if (!d) return;
