@@ -496,6 +496,7 @@
     var d = r && r.data;
     if (!d || !d.success) return false;
     DESK.reqs = d.requests || [];
+    _badge(DESK.reqs.length);
     return true;
   }
 
@@ -1215,6 +1216,95 @@
        so the board, the index and today's list are all now out of date. */
     await _refreshReqs(true);
   }
+
+  /* ══ THE WATCH ═════════════════════════════════════════════════════════
+     A request arrives while somebody is looking at the Daybook, or at nothing
+     at all. Two things had to change: the sidebar has to say a request is
+     waiting from anywhere in the portal, and the desk has to notice one
+     arriving while it is already open.
+
+     One timer does both. It is the only poller in this module and it only
+     runs while the tab is VISIBLE — a phone in a pocket must not poll — and
+     it catches up the moment the tab comes back rather than waiting out the
+     interval.
+
+     Forty-five seconds. A request is answered in minutes, not seconds, so
+     anything faster is noise on a mobile connection; anything much slower and
+     a dealer is left staring at their phone. */
+  var WATCH = { t: null, on: false, stop: false };
+
+  function _badge(n) {
+    var b = document.getElementById('nav-badge-requests');
+    if (!b) return;
+    if (n > 0) {
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.classList.add('show', 'bdg-amber');
+    } else {
+      b.classList.remove('show', 'bdg-amber');
+      b.textContent = '';
+    }
+    /* A collapsed group header sums its children, so the count still shows
+       when Company is folded away. */
+    try { if (typeof _syncGroupBadges === 'function') _syncGroupBadges(); } catch (e) {}
+    /* And on a phone the whole rail is behind the burger, so the count is
+       set somewhere nobody can see. A dot says there is something in there. */
+    var burger = document.querySelector('.sb-toggle');
+    if (burger) burger.classList.toggle('has-req', n > 0);
+  }
+
+  async function _watchTick() {
+    if (WATCH.stop || document.hidden) return;
+    var tok; try { tok = TOKEN; } catch (e) { return; }
+    if (!tok) return;
+    if (!_mayUse()) { WATCH.stop = true; _badge(0); return; }
+
+    var r;
+    try {
+      r = await sb.rpc('list_reservation_requests',
+        { p_session_token: tok, p_project_id: DESK.projectId || null });
+    } catch (e) { return; }          // a blip keeps the last count, never blanks it
+    var d = r && r.data;
+    if (!d) return;
+    if (d.error === 'session_expired') { WATCH.stop = true; return; }
+    /* A role that cannot use the desk will answer this way every time. Stop
+       rather than ask again for the life of the session. */
+    if (d.error === 'role_cannot_sell' || d.error === 'forbidden') {
+      WATCH.stop = true; _badge(0); return;
+    }
+    if (!d.success) return;
+
+    var was = (DESK.reqs || []).map(function (x) { return x.id; }).join(',');
+    DESK.reqs = d.requests || [];
+    _badge(DESK.reqs.length);
+
+    /* Repaint only if the desk is on screen AND the set actually changed —
+       redrawing under a thumb that is reaching for Approve is its own bug. */
+    var now = DESK.reqs.map(function (x) { return x.id; }).join(',');
+    if (was !== now && _alive('desk') && !DESK.reqBusy && document.getElementById('rd-reqs')) {
+      _paintReqs();
+    }
+  }
+
+  function _startWatch() {
+    if (WATCH.on) return;
+    WATCH.on = true;
+    _watchTick();
+    WATCH.t = setInterval(_watchTick, 45000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) _watchTick();      // catch up on return
+    });
+  }
+
+  /* Started once the shell has a session. Deferred rather than run at load,
+     because this file is parsed before login has happened. */
+  (function boot() {
+    var tries = 0;
+    var iv = setInterval(function () {
+      var tok; try { tok = TOKEN; } catch (e) { tok = null; }
+      if (tok) { clearInterval(iv); _startWatch(); return; }
+      if (++tries > 60) clearInterval(iv);      // no session in a minute: give up quietly
+    }, 1000);
+  })();
 
   async function _refreshReqs(full) {
     if (full) {

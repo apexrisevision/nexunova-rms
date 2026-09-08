@@ -960,6 +960,102 @@ function serve() {
         deskErrs.length === 0 ? okU2('no errors on the desk')
                               : badU2('desk errors: ' + deskErrs.slice(0, 2).join(' | '));
         await deskPage.screenshot({ path: path.join(OUT, 'm-desk-queue.png') });
+
+        /* ── THE SIDEBAR, FROM ANOTHER SCREEN ──────────────────────────
+           A request is useless if it only announces itself on the screen you
+           would have to already be on. Checked from the Daybook, which is
+           where he actually is when one arrives. */
+        await deskPage.evaluate(() => setTab('daybook'));
+        await deskPage.waitForFunction(() => !!document.getElementById('db-root'), { timeout: 40000 });
+        await sleep(900);
+        const badge = await deskPage.evaluate(async () => {
+          const b = document.getElementById('nav-badge-requests');
+          return { exists: !!b, shown: !!b && b.classList.contains('show'),
+                   text: b ? b.textContent.trim() : '',
+                   onDesk: (typeof TAB !== 'undefined') ? TAB : null };
+        });
+        (badge.exists && badge.shown && badge.text === '1' && badge.onDesk === 'daybook')
+          ? okU2('the sidebar shows \u201c1\u201d on Reserve Desk while standing on the Daybook')
+          : badU2('the sidebar badge is wrong from another tab: ' + JSON.stringify(badge));
+        /* At 420px the sidebar is behind the hamburger, so the badge is set but
+           not visible. Photographed at a width where the rail is open, and the
+           narrow case is checked separately below. */
+        await deskPage.setViewport({ width: 1280, height: 900, deviceScaleFactor: 2 });
+        await sleep(500);
+        const wide = await deskPage.evaluate(() => {
+          const b = document.getElementById('nav-badge-requests');
+          const r = b ? b.getBoundingClientRect() : null;
+          return { visible: !!r && r.width > 0 && r.height > 0 && r.left >= 0, text: b ? b.textContent.trim() : '' };
+        });
+        wide.visible
+          ? okU2('and on a wide screen the badge is actually on the rail, reading ' + wide.text)
+          : badU2('the badge is set but not rendered on the rail: ' + JSON.stringify(wide));
+        await deskPage.screenshot({ path: path.join(OUT, 'n-sidebar-badge.png') });
+        await deskPage.setViewport({ width: 420, height: 900, deviceScaleFactor: 2 });
+        await sleep(400);
+        /* The narrow case, which is the one he actually uses. The badge is
+           behind the drawer, so the burger has to carry the news itself. */
+        const narrow = await deskPage.evaluate(() => {
+          const t = document.querySelector('.sb-toggle');
+          const b2 = document.getElementById('nav-badge-requests');
+          const r = b2 ? b2.getBoundingClientRect() : null;
+          return { burgerShown: !!t && getComputedStyle(t).display !== 'none',
+                   dot: !!t && t.classList.contains('has-req'),
+                   badgeOffscreen: !r || r.width === 0 || r.left < 0 };
+        });
+        (narrow.burgerShown && narrow.dot)
+          ? okU2('on a phone the rail is closed, so the burger carries a dot instead')
+          : badU2('nothing on the phone says a request is waiting: ' + JSON.stringify(narrow));
+        await deskPage.screenshot({ path: path.join(OUT, 'o-phone-dot.png') });
+
+        /* ── A REQUEST ARRIVING WHILE THE DESK IS OPEN ─────────────────
+           The watch runs every 45 seconds; waiting that long in a test proves
+           patience, not correctness, so the tick is called directly. What is
+           being asserted is that a tick with new data repaints the queue and
+           moves the badge \u2014 not the length of the interval. */
+        await deskPage.evaluate(() => setTab('desk'));
+        await deskPage.waitForFunction(() => !!document.getElementById('rd-root'), { timeout: 40000 });
+        await sleep(900);
+        const beforeArr = await deskPage.evaluate(() =>
+          document.querySelectorAll('#rd-reqs .rq-c').length);
+
+        /* a second dealer, elsewhere, asks for something */
+        const arriving = await sql(`SELECT (public.submit_availability_request('${T}',
+          (SELECT u.unit_no FROM public.units u
+             JOIN public.category_unit_statuses st ON st.id=u.status_id
+            WHERE u.project_id='${zz2[0].id}' AND st.is_available
+              AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                               WHERE x.unit_id=u.id AND x.status='pending')
+            ORDER BY u.unit_no DESC LIMIT 1), 5, 'Second Rep')->>'ref') AS ref;`);
+        if (!arriving[0].ref) { badU2('could not make a second request to arrive'); }
+        else {
+          const arrived = await deskPage.evaluate(async () => {
+            /* the real path: the browser fires this when a tab comes back, and the
+               watch catches up on it rather than waiting out the interval */
+            document.dispatchEvent(new Event('visibilitychange'));
+            await new Promise(r => setTimeout(r, 1200));
+            const b = document.getElementById('nav-badge-requests');
+            return { cards: document.querySelectorAll('#rd-reqs .rq-c').length,
+                     badge: b ? b.textContent.trim() : '' };
+          });
+          (arrived.cards === beforeArr + 1 && arrived.badge === String(beforeArr + 1))
+            ? okU2('a request arriving while the desk is open appears without a reload (' +
+                   beforeArr + ' \u2192 ' + arrived.cards + ', badge ' + arrived.badge + ')')
+            : badU2('the open desk did not pick it up: ' + JSON.stringify(arrived));
+          await sql(`DELETE FROM public.availability_requests WHERE ref='${arriving[0].ref}';`);
+          await deskPage.evaluate(async () => {
+            document.dispatchEvent(new Event('visibilitychange'));
+            await new Promise(r => setTimeout(r, 1200));
+          });
+          const cleared = await deskPage.evaluate(() => {
+            const b = document.getElementById('nav-badge-requests');
+            return { cards: document.querySelectorAll('#rd-reqs .rq-c').length,
+                     shown: !!b && b.classList.contains('show') };
+          });
+          cleared.cards === beforeArr
+            ? okU2('and it disappears again when it is gone')
+            : badU2('a withdrawn request stayed on the desk');
+        }
         await deskCtx.close();
 
         const dec = await sql(`SELECT public.decide_reservation_request('zz-rt-dir',
