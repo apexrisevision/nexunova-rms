@@ -607,6 +607,84 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       o1.unit_stamped === 'SOLD'
         ? okT('and the sale stamps Sold, not the hold that was sitting above it in the list')
         : badT('the sale stamped ' + o1.unit_stamped + ' \u2014 a desk tag, not a sold status');
+
+      /* ══ A REFUSED APPROVAL MUST NOT KILL THE REQUEST ════════════════════
+         Approving used to retire the dealer's request whatever went wrong, so
+         a tag the desk may not apply told the dealer "Unit was taken" and
+         threw the request away — for a unit that was free the whole time.
+         Two refusals, told apart: one about the tag, one about the unit. */
+      const refuse = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_refuse', now() + interval '5 minutes');
+        CREATE TEMP TABLE lk ON COMMIT DROP AS SELECT
+          (public.create_availability_link('dbshot_refuse','59ded55b-9bc2-45b2-a372-49fc31807fa9','refuse probe')->>'token') AS tok;
+        CREATE TEMP TABLE rq ON COMMIT DROP AS
+          SELECT public.submit_availability_request((SELECT tok FROM lk),
+            (SELECT u.unit_no FROM public.units u
+               JOIN public.category_unit_statuses st ON st.id=u.status_id
+              WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+                AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                                 WHERE x.unit_id=u.id AND x.status='pending')
+              ORDER BY u.unit_no DESC LIMIT 1), 3, 'Refuse Probe') AS r;
+
+        CREATE TEMP TABLE d1 ON COMMIT DROP AS
+          SELECT public.decide_reservation_request('dbshot_refuse',
+            (SELECT id FROM public.availability_requests WHERE ref=(SELECT r->>'ref' FROM rq)),
+            'approve',
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='SOLD')) AS r;
+
+        SELECT (SELECT r->>'status'  FROM d1) AS said,
+               (SELECT r->>'message' FROM d1) AS msg,
+               (SELECT r->'detail'->>'error' FROM d1) AS why,
+               (SELECT x.status FROM public.availability_requests x
+                 WHERE x.ref=(SELECT r->>'ref' FROM rq)) AS request_now;
+        ROLLBACK;`);
+      const rf2 = refuse[0] || {};
+
+      rf2.request_now === 'pending'
+        ? okT('a tag the desk may not apply leaves the request WAITING, not retired')
+        : badT('the request was thrown away over a tag: ' + JSON.stringify(rf2));
+      rf2.said === 'pending'
+        ? okT('and the desk is told it is still pending, so it can be approved again properly')
+        : badT('the desk was told the wrong thing: ' + JSON.stringify(rf2));
+      (rf2.msg && !/taken/i.test(rf2.msg) && rf2.why === 'bad_status')
+        ? okT('with the real reason in words: \u201c' + rf2.msg + '\u201d')
+        : badT('the reason did not reach the desk: ' + JSON.stringify(rf2));
+
+      /* ...and the case that IS about the unit still retires it. */
+      const gone = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_gone', now() + interval '5 minutes');
+        CREATE TEMP TABLE lk2 ON COMMIT DROP AS SELECT
+          (public.create_availability_link('dbshot_gone','59ded55b-9bc2-45b2-a372-49fc31807fa9','gone probe')->>'token') AS tok;
+        CREATE TEMP TABLE u2 ON COMMIT DROP AS
+          SELECT u.id, u.unit_no FROM public.units u
+            JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+             AND NOT EXISTS (SELECT 1 FROM public.availability_requests x
+                              WHERE x.unit_id=u.id AND x.status='pending')
+           ORDER BY u.unit_no DESC LIMIT 1;
+        CREATE TEMP TABLE rq2 ON COMMIT DROP AS
+          SELECT public.submit_availability_request((SELECT tok FROM lk2),
+                   (SELECT unit_no FROM u2), 3, 'Gone Probe') AS r;
+        /* somebody else books it in the meantime */
+        SELECT public.reserve_unit_desk('dbshot_gone',(SELECT id FROM u2),
+          NULL,NULL,'Somebody Else',NULL,NULL,3,false,0,NULL,NULL);
+        CREATE TEMP TABLE d2 ON COMMIT DROP AS
+          SELECT public.decide_reservation_request('dbshot_gone',
+            (SELECT id FROM public.availability_requests WHERE ref=(SELECT r->>'ref' FROM rq2)),
+            'approve', NULL) AS r;
+        SELECT (SELECT r->>'status' FROM d2) AS said,
+               (SELECT x.status FROM public.availability_requests x
+                 WHERE x.ref=(SELECT r->>'ref' FROM rq2)) AS request_now;
+        ROLLBACK;`);
+      const g2 = gone[0] || {};
+      (g2.said === 'stale' && g2.request_now === 'stale')
+        ? okT('but a unit that really was taken still retires the request \u2014 the two are told apart')
+        : badT('a genuinely taken unit did not retire the request: ' + JSON.stringify(g2));
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');

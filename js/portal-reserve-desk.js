@@ -1263,14 +1263,20 @@
 
     if (d.success && d.status === 'approved') {
       var bk = d.booking || {};
-      toast(esc(bk.unit_no || '') + ' reserved for ' + esc(bk.requested_by || '') +
-            ' \u00b7 ' + esc(String(bk.expiry_days || '')) + 'd', 'ok');
+      /* A permanent tag comes back with no days, and ' · d' is not a
+         confirmation anybody can read. */
+      var span = (bk.expiry_days == null) ? 'no expiry' : (bk.expiry_days + 'd');
+      toast(esc(bk.unit_no || '') + ' · ' + esc(bk.tag || 'reserved') + ' for ' +
+            esc(bk.requested_by || '') + ' · ' + span, 'ok');
     } else if (d.success && d.status === 'declined') {
       toast('Declined \u2014 the dealer will see it on the link.', 'ok');
     } else if (d.error === 'already_decided') {
       toast(d.message || 'Already decided.', 'warn');
     } else if (d.error === 'could_not_book') {
-      toast('That unit was taken before this was approved.', 'err');
+      /* The server now says WHY, and whether the request survived. Saying
+         "that unit was taken" for a tag the desk may not apply told the
+         operator the one thing that was not true. */
+      toast(d.message || 'That unit was taken before this was approved.', 'err');
     } else {
       toast((d && d.message) || 'Could not complete that.', 'err');
     }
