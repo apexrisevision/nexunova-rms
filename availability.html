@@ -259,6 +259,11 @@ button{cursor:pointer;background:none;border:0}
 .scrim{position:fixed;inset:0;background:rgba(15,18,22,.42);opacity:0;
        pointer-events:none;transition:opacity .16s;z-index:40}
 .scrim.on{opacity:1;pointer-events:auto}
+/* A CLOSED SHEET MUST NOT BE ABLE TO BE CLICKED. Below it is only moved or
+   faded, and a faded element still takes the pointer — which is how an
+   invisible box came to eat half the unit grid on a laptop. */
+.sheet{pointer-events:none}
+.sheet.on{pointer-events:auto}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:41;
   background:var(--card);border-top:1px solid var(--line);
@@ -303,11 +308,15 @@ button{cursor:pointer;background:none;border:0}
 .go-n{margin-top:9px;font-size:11.5px;color:var(--mut);text-align:center;line-height:1.4}
 
 .acts{display:flex;gap:8px;margin-top:14px}
-/* Copy is NOT a fallback. On desktop wa.me opens a page that does nothing
-   visible, so the two are the same size and sit side by side. */
-.acts button{flex:1;height:44px;border:1px solid var(--line);border-radius:var(--r);
+/* Not two equal choices any more: one of them is the thing you came to do
+   and the other is the way out, so they are not the same size. */
+.acts button{height:44px;border:1px solid var(--line);border-radius:var(--r);
              background:var(--card);font-size:13.5px;font-weight:600}
 .acts button:hover{border-color:var(--accent-line);background:var(--accent-tint)}
+.acts .prim{flex:1;background:var(--accent);border-color:var(--accent);color:#fff}
+.acts .prim:hover{background:var(--accent);border-color:var(--accent);filter:brightness(1.05)}
+.acts .prim:disabled{opacity:.5}
+.acts #cx{flex:none;padding:0 16px;color:var(--soft)}
 
 .gone{margin-top:16px;padding:11px 12px;border:1px solid var(--line);
       border-radius:var(--r);background:var(--tint);font-size:12.5px;color:var(--soft)}
@@ -856,11 +865,14 @@ function paintSheet() {
     '<div class="go-n">The unit is only held once you receive a confirmation.</div>' +
 
     '<div class="acts">' +
-      '<button id="wa"' + (gone ? ' disabled' : '') + '>WhatsApp</button>' +
-      '<button id="cp"' + (gone ? ' disabled' : '') + '>Copy</button>' +
+      '<button id="wa" class="prim"' + (gone ? ' disabled' : '') + '>Done \u2014 send on WhatsApp</button>' +
+      '<button id="cx">Cancel</button>' +
     '</div>';
 
   $('sh-x').onclick = closeSheet;
+  /* Outside the not-gone branch on purpose: a unit that has just been taken
+     still needs a way out of this sheet. */
+  var cxb = $('cx'); if (cxb) cxb.onclick = closeSheet;
   if (!gone) {
     $('dur').onclick = function (e) {
       var b = e.target.closest('button[data-d]'); if (!b) return;
@@ -888,7 +900,6 @@ function paintSheet() {
        that visibly works. */
     $('go').onclick = function () { requestAndSend('wa'); };
     $('wa').onclick = function () { requestAndSend('wa'); };
-    $('cp').onclick = function () { requestAndSend('copy'); };
   }
 }
 

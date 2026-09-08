@@ -685,6 +685,42 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       (g2.said === 'stale' && g2.request_now === 'stale')
         ? okT('but a unit that really was taken still retires the request \u2014 the two are told apart')
         : badT('a genuinely taken unit did not retire the request: ' + JSON.stringify(g2));
+
+      /* ══ WHO MAY TOUCH THE QUEUE AT ALL ══════════════════════════════════
+         The gate used to be "may this person sell", and every sale rep may.
+         So reps opened the desk and found other people's requests waiting
+         with Approve and Decline under them. One of them sent Rashid a
+         screenshot. Asked here of every role that exists on the tenant, with
+         a real session each, because the answer is a matrix and not a rule
+         anybody can hold in their head. */
+      const roles = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', s.id, NULL, 'dbshot_role_'||s.role, now()+interval '2 minutes'
+          FROM public.sales_users s
+         WHERE s.company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND s.status='active'
+           AND s.id = (SELECT s2.id FROM public.sales_users s2
+                        WHERE s2.company_id=s.company_id AND s2.role=s.role
+                          AND s2.status='active' LIMIT 1);
+        SELECT su.role,
+               COALESCE(public.list_reservation_requests(ss.session_token)->>'error','SEES IT') AS queue,
+               COALESCE(public.decide_reservation_request(ss.session_token,
+                          '00000000-0000-0000-0000-000000000000','approve')->>'error','?') AS decide
+          FROM public.sales_sessions ss
+          JOIN public.sales_users su ON su.id = ss.sales_user_id
+         WHERE ss.session_token LIKE 'dbshot_role_%'
+         ORDER BY su.role;
+        ROLLBACK;`);
+      const canSee = roles.filter(r => r.queue === 'SEES IT').map(r => r.role);
+      const canDecide = roles.filter(r => !['forbidden','role_cannot_sell','session_expired']
+                                            .includes(r.decide)).map(r => r.role);
+      JSON.stringify(canSee) === JSON.stringify(['director'])
+        ? okT('only a director sees the request queue (checked ' + roles.length + ' roles)')
+        : badT('these roles can see the queue: ' + JSON.stringify(canSee));
+      JSON.stringify(canDecide) === JSON.stringify(['director'])
+        ? okT('and only a director gets past the gate on approve/decline')
+        : badT('these roles can decide: ' + JSON.stringify(canDecide) + ' — ' +
+               JSON.stringify(roles));
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');

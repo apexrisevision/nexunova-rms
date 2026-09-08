@@ -373,8 +373,11 @@ function serve() {
       ? ok('with a box beside them for any other number')
       : bad('there is no way to type a custom duration');
     /7/.test(sheet.preset || '') ? ok('7 days preselected') : bad('preselected ' + sheet.preset);
-    JSON.stringify(sheet.acts) === JSON.stringify(['WhatsApp', 'Copy'])
-      ? ok('WhatsApp and Copy, side by side and the same size')
+    /* Copy is gone: on a desktop wa.me opens a page that looks like it did
+       nothing, so it read as a second equal choice for no reason. One action,
+       and a way back that is not a small x in the corner. */
+    (sheet.acts.length === 2 && /whatsapp/i.test(sheet.acts[0]) && /cancel/i.test(sheet.acts[1]))
+      ? ok('one action and a way out: ' + sheet.acts.join(' / '))
       : bad('actions are ' + JSON.stringify(sheet.acts));
     await sleep(400);            // let it finish sliding before measuring or shooting
     const fit = await page.evaluate(() => {
@@ -572,6 +575,47 @@ function serve() {
       ? ok('the column is held at ' + dw.wrap + 'px, centred, floors ' + dw.cols + ' across \u2014 not a stretched phone')
       : bad('desktop layout: ' + JSON.stringify(dw));
     await desk.screenshot({ path: path.join(OUT, 'g-desktop-1280.png') });
+
+    /* ── NOTHING INVISIBLE IS SITTING ON THE PAGE ─────────────────────────
+       Every assertion in this file clicked things by calling .click() on the
+       element, which fires whether or not a person could ever reach it. So a
+       closed sheet parked over the middle of the page at opacity 0 — fixed,
+       520px wide, and never told to ignore the pointer — swallowed real
+       clicks on the unit grid for weeks while every test went on passing.
+
+       This asks the browser the question a thumb asks: at the centre of this
+       button, what would actually be hit? Only on the wide layout, because
+       that is the layout where the closed sheet has a position on screen at
+       all. */
+    const reach = await desk.evaluate(() => {
+      document.querySelector('#floors button').click();
+      const seen = [];
+      const check = els => els.map(el => {
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        /* Bound the POINT, not the box: a button straddling the fold has its
+           top on screen and its centre below it, and elementFromPoint outside
+           the viewport answers null — which is not the same as 'covered'. */
+        if (r.width === 0 || cy < 0 || cy > innerHeight || cx < 0 || cx > innerWidth) return null;
+        const hit = document.elementFromPoint(cx, cy);
+        if (hit && (hit === el || el.contains(hit))) return null;
+        return { what: (el.textContent || '').trim().split('\n')[0].slice(0, 12),
+                 blockedBy: hit ? (hit.id || hit.className || hit.tagName) : 'nothing' };
+      }).filter(Boolean);
+      const units  = check([...document.querySelectorAll('#units button')]);
+      document.getElementById('back').click();
+      const floors = check([...document.querySelectorAll('#floors button')]);
+      return { units, floors,
+               nUnits: document.querySelectorAll('#units button').length };
+    });
+    reach.units.length === 0
+      ? ok('every unit on screen can actually be clicked \u2014 nothing invisible is over the grid')
+      : bad(reach.units.length + ' unit(s) are covered by something: ' +
+            JSON.stringify(reach.units.slice(0, 3)));
+    reach.floors.length === 0
+      ? ok('and every floor chip too')
+      : bad(reach.floors.length + ' floor chip(s) are covered: ' +
+            JSON.stringify(reach.floors.slice(0, 3)));
     await desk.close();
 
     /* ── TIME TO INTERACTIVE, throttled ─────────────────────────────────── */
@@ -907,7 +951,10 @@ function serve() {
           await new Promise(r => setTimeout(r, 250));
           /* 3 days, not the default 7 — so the duration is proven to travel */
           document.querySelector('#dur button[data-d="3"]').click();
-          document.getElementById('cp').click();      // Copy: registers, no popup
+          /* The Copy button is gone from the sheet — one action and a cancel
+             now — but requestAndSend still knows how to register without
+             opening WhatsApp, which is the only reason a test used it. */
+          await requestAndSend('copy');
           await new Promise(r => setTimeout(r, 1400));
           return { unit, ref: (window.SHEET || {}).ref, msg: message() };
         });
@@ -939,7 +986,7 @@ function serve() {
           box.dispatchEvent(new Event('input', { bubbles: true }));
           const litChips = [...document.querySelectorAll('#dur button.on')].length;
           const boxLit = box.classList.contains('on');
-          document.getElementById('cp').click();
+          await requestAndSend('copy');
           await new Promise(r => setTimeout(r, 1400));
           return { ref: (window.SHEET || {}).ref, days: (window.SHEET || {}).days,
                    unit: (window.SHEET || {}).n, litChips, boxLit, msg: message() };
@@ -1205,7 +1252,7 @@ function serve() {
           if (!u) return null;
           u.click();
           await new Promise(r => setTimeout(r, 250));
-          document.getElementById('cp').click();
+          await requestAndSend('copy');
           await new Promise(r => setTimeout(r, 1400));
           return (window.SHEET || {}).ref;
         });
