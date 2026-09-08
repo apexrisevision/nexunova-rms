@@ -418,6 +418,89 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       leftNat === 0
         ? okT('and the invented statuses rolled back — none on Awami')
         : badT(leftNat + ' invented status(es) were left on a live tenant');
+
+      /* ══ AND THE HOLD LETS GO WHEN THE UNIT SELLS ════════════════════════
+         The whole point of "Sold - Entry Pending" is that the real sale is
+         entered later. The daybook used to ask whether THIS reservation was
+         converted into a sale, which only the portal's own submit-and-approve
+         path ever sets — so a sale entered in RMS beside the hold left that
+         hold standing on the page for good.
+
+         Told as a story, in one rolled-back transaction: hold it, wait three
+         days, sell it. Then look at the same page again. ═════════════════ */
+      const handoff = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_handoff', now() + interval '2 minutes');
+        INSERT INTO public.category_unit_statuses
+          (company_id, project_id, status_code, status_name, color_hex, sort_order,
+           is_active, is_available, nature, hold_days)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZPEND','ZZ Sold - Entry Pending','#7e22ce',95,true,false,'permanent',NULL);
+
+        CREATE TEMP TABLE ho_unit ON COMMIT DROP AS
+          SELECT u.id FROM public.units u
+            JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available
+           ORDER BY u.unit_no LIMIT 1;
+
+        SELECT public.reserve_unit_desk('dbshot_handoff',(SELECT id FROM ho_unit),
+          NULL,NULL,'Handoff Probe',NULL,NULL,7,false,0,NULL,
+          (SELECT id FROM public.category_unit_statuses
+            WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='ZZPEND'));
+
+        /* taken three days ago, so it belongs to the STANDING list */
+        UPDATE public.reservations SET created_at = now() - interval '3 days'
+         WHERE requested_by_name='Handoff Probe';
+
+        CREATE TEMP TABLE ho_before ON COMMIT DROP AS
+          SELECT (SELECT count(*)::int FROM jsonb_array_elements(
+             public.get_reservation_daybook('dbshot_handoff',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'holding') x
+            WHERE x->>'requested_by'='Handoff Probe') AS n;
+
+        /* and now somebody enters the sale in RMS, the way they actually do */
+        INSERT INTO public.clients (company_id, project_id, full_name, client_code, phone_primary)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZ Handoff Buyer','ZZ-HO-1','0000000000');
+        INSERT INTO public.sales (company_id, project_id, unit_id, client_id, sale_number, sale_date, status)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9', (SELECT id FROM ho_unit),
+               (SELECT id FROM public.clients WHERE client_code='ZZ-HO-1'),
+               'ZZ-HANDOFF-1', current_date, 'active';
+        UPDATE public.units SET status_id=(SELECT id FROM public.category_unit_statuses
+          WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='SOLD')
+         WHERE id=(SELECT id FROM ho_unit);
+
+        SELECT (SELECT n FROM ho_before) AS before_sale,
+               (SELECT count(*)::int FROM jsonb_array_elements(
+                  public.get_reservation_daybook('dbshot_handoff',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'holding') x
+                 WHERE x->>'requested_by'='Handoff Probe') AS after_sale,
+               (SELECT count(*)::int FROM jsonb_array_elements(
+                  public.get_reservation_daybook('dbshot_handoff',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'released') x
+                 WHERE x->>'requested_by'='Handoff Probe') AS in_released,
+               (SELECT x->>'went' FROM jsonb_array_elements(
+                  public.get_reservation_daybook('dbshot_handoff',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'released') x
+                 WHERE x->>'requested_by'='Handoff Probe' LIMIT 1) AS went,
+               public._map_unit_state((SELECT id FROM ho_unit)) AS unit_state;
+        ROLLBACK;`);
+      const h0 = handoff[0] || {};
+
+      Number(h0.before_sale) === 1
+        ? okT('a permanent hold taken three days ago is on the standing list')
+        : badT('the hold was not on the list to begin with \u2014 this check is inert: ' +
+               JSON.stringify(h0));
+      h0.unit_state === 'sold'
+        ? okT('and once the sale is entered the unit really does read as sold')
+        : badT('entering the sale did not make the unit sold: ' + JSON.stringify(h0));
+      Number(h0.after_sale) === 0
+        ? okT('so the hold lets go \u2014 it is off the standing list, not stranded there for good')
+        : badT('the hold outlived the sale it was standing in for: ' + JSON.stringify(h0));
+      (Number(h0.in_released) === 1 && h0.went === 'sold')
+        ? okT('and it is accounted for as released BECAUSE SOLD, not written off as lapsed')
+        : badT('the released list tells the wrong story: ' + JSON.stringify(h0));
+
+      const leftHo = Number((await sql(`select count(*)::int n from public.sales
+                                         where sale_number='ZZ-HANDOFF-1';`))[0].n);
+      leftHo === 0
+        ? okT('and the probe sale rolled back \u2014 no invented sale on Awami')
+        : badT(leftHo + ' probe sale(s) were left on a live tenant');
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
