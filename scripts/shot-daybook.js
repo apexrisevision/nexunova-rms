@@ -721,6 +721,28 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         ? okT('and only a director gets past the gate on approve/decline')
         : badT('these roles can decide: ' + JSON.stringify(canDecide) + ' — ' +
                JSON.stringify(roles));
+
+      /* And no OTHER door into the same table. Two RPCs are gated above; this
+         asks whether anything else can reach the rows — another function, a
+         permissive policy, or a plain SELECT. Rashid asked for "not even by
+         accident", and an accident is usually a later migration, not today. */
+      const doors = await sql(`
+        SELECT (SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                 WHERE n.nspname='public'
+                   AND pg_get_functiondef(p.oid) ILIKE '%availability_requests%') AS fns,
+               (SELECT count(*)::int FROM pg_policies WHERE tablename='availability_requests') AS policies,
+               has_table_privilege('anon','public.availability_requests','SELECT') AS anon_reads,
+               has_table_privilege('authenticated','public.availability_requests','SELECT') AS auth_reads,
+               (SELECT c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+                 WHERE n.nspname='public' AND c.relname='availability_requests') AS rls_on;`);
+      const dr = doors[0] || {};
+      (dr.rls_on === true && Number(dr.policies) === 0 &&
+       dr.anon_reads === false && dr.auth_reads === false)
+        ? okT('and the table itself is shut: row security on, no policies, no direct read')
+        : badT('the requests table can be read around the RPCs: ' + JSON.stringify(dr));
+      Number(dr.fns) === 4
+        ? okT('exactly four functions touch it \u2014 the two gated ones, the dealer\u2019s receipt, and submit')
+        : badT(dr.fns + ' functions touch availability_requests; a new door may have opened');
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
