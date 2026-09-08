@@ -105,7 +105,7 @@
     statements: ['js/pages/statements.js?v=20260617b'],
     backup: ['js/pages/backup.js?v=20260618exp'],
     admin: ADMIN, changepassword: ADMIN,
-    categories: ['js/pages/categories.js?v=20260613w2'],
+    categories: ['js/pages/categories.js?v=20260908nature'],
     users: ['js/pages/users.js?v=20260905dc'],
     // Daily Closing (P8). Three files: the formatters and the kit the screen
     // needs, then the screen. Lazy like every other page, so a tenant without

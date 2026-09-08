@@ -211,6 +211,213 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
                                        where requested_by_name='Tag Probe';`))[0].n);
       left === 0 ? okT('the probe rolled back cleanly \u2014 no rows on Awami')
                  : badT(left + ' probe reservation(s) were left behind on a live tenant');
+
+      /* ══ A STATUS SAYS WHAT KIND OF THING IT IS ═══════════════════════════
+         The desk used to know three tag codes by name. It now reads a NATURE
+         off the statuses table, so a tenant can invent "Verbally Hold" and
+         "Landowner" without a line of code changing. Two things have to be
+         true for that to be worth having, and neither is visible on a screen:
+         a permanent hold must carry NO expiry and survive the sweep that
+         releases lapsed ones, and a custom tag must not be cancelled by the
+         trigger that keeps units and reservations in step — which is exactly
+         what happened the last time a tag was added.
+
+         One transaction, rolled back. The statuses invented here never exist
+         outside it. ════════════════════════════════════════════════════════ */
+      const nat = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}',NULL,'nat_dir', now() + interval '2 minutes');
+        /* a rep who may sell, to prove the director gate is a gate */
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', s.id, NULL, 'nat_rep', now() + interval '2 minutes'
+          FROM public.sales_users s WHERE s.company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND s.role='sale_rep'
+           AND s.status = 'active' LIMIT 1;
+
+        INSERT INTO public.category_unit_statuses
+          (company_id, project_id, status_code, status_name, color_hex, sort_order,
+           is_active, is_available, nature, hold_days)
+        VALUES
+          ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZVERBAL','ZZ Verbally Hold','#f59e0b',90,true,false,'temporary',2),
+          ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZLANDOWNER','ZZ Landowner','#8b5cf6',91,true,false,'permanent',NULL);
+
+        CREATE TEMP TABLE nat_out ON COMMIT DROP AS
+        WITH t AS (SELECT id, status_code, row_number() OVER (ORDER BY status_code) n
+                     FROM public.category_unit_statuses
+                    WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code IN ('ZZVERBAL','ZZLANDOWNER')),
+             u AS (SELECT u.id, row_number() OVER (ORDER BY u.unit_no) n
+                     FROM public.units u
+                     JOIN public.category_unit_statuses st ON st.id=u.status_id
+                    WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available)
+        SELECT t.status_code AS code,
+               public.reserve_unit_desk('nat_dir', u.id, NULL, NULL, 'Nature Probe',
+                 NULL, NULL, 2, false, 0, NULL, t.id) AS r
+          FROM t JOIN u ON u.n = t.n;
+
+        SELECT o.code,
+               (o.r->>'success')     AS ok,
+               (o.r->>'error')       AS err,
+               (o.r->>'nature')      AS nature,
+               (o.r->>'expiry_days') AS days,
+               res.status            AS res_status,
+               (res.expiry_date IS NULL) AS no_expiry,
+               upper(cus.status_code)    AS unit_now,
+               /* would the hourly sweep let go of it? */
+               COALESCE(res.status='active' AND res.expiry_date < now(), false) AS would_lapse,
+               /* and would a rep have been allowed to do the same thing? */
+               (public.reserve_unit_desk('nat_rep',
+                  (SELECT u3.id FROM public.units u3
+                     JOIN public.category_unit_statuses s3 ON s3.id=u3.status_id
+                    WHERE u3.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND s3.is_available
+                    ORDER BY u3.unit_no DESC LIMIT 1),
+                  NULL,NULL,'Rep Probe',NULL,NULL,2,false,0,NULL,
+                  (SELECT id FROM public.category_unit_statuses
+                    WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code=o.code))->>'error') AS rep_err
+          FROM nat_out o
+          LEFT JOIN public.reservations res ON res.id = (o.r->>'reservation_id')::uuid
+          LEFT JOIN public.units u2 ON u2.id = res.unit_id
+          LEFT JOIN public.category_unit_statuses cus ON cus.id = u2.status_id
+         ORDER BY o.code;
+        ROLLBACK;`);
+
+      const byCode = Object.fromEntries(nat.map(r => [r.code, r]));
+      const perm = byCode.ZZLANDOWNER, temp = byCode.ZZVERBAL;
+
+      (temp && temp.ok === 'true' && temp.res_status === 'active')
+        ? okT('a tag this code has never heard of books a unit and the hold survives')
+        : badT('a custom temporary tag did not book: ' + JSON.stringify(temp));
+      (temp && temp.days === '2' && temp.no_expiry === false && temp.unit_now === 'ZZVERBAL')
+        ? okT('and it holds for its own 2 days, with the unit carrying its own tag')
+        : badT('the custom tag lost its duration or its stamp: ' + JSON.stringify(temp));
+
+      (perm && perm.ok === 'true' && perm.res_status === 'active' && perm.no_expiry === true)
+        ? okT('a permanent tag books with NO expiry date at all')
+        : badT('the permanent tag did not take: ' + JSON.stringify(perm));
+      (perm && perm.days === null && perm.unit_now === 'ZZLANDOWNER')
+        ? okT('and it asks for no number of days — the unit is simply off the market')
+        : badT('a permanent hold came back with a duration: ' + JSON.stringify(perm));
+      (perm && perm.would_lapse === false)
+        ? okT('the hourly sweep would not release it: nothing to compare against now()')
+        : badT('a permanent hold is in reach of cron_expire_reservations');
+
+      /* THE GATE IS A GATE, not a hidden button. The screen only offers
+         permanent to a director; this is the half that would still be true if
+         somebody called the RPC directly. */
+      (perm && perm.rep_err === 'director_only')
+        ? okT('a sale rep calling the RPC directly is refused the permanent tag')
+        : badT('a rep was allowed to take a unit off the market for good: ' +
+               JSON.stringify(perm && perm.rep_err));
+      (temp && temp.rep_err === null)
+        ? okT('and the same rep can still apply a temporary one')
+        : badT('the director gate caught a temporary tag too: ' +
+               JSON.stringify(temp && temp.rep_err));
+
+      /* ── WHAT THE DAYBOOK DOES WITH A HOLD THAT NEVER ENDS ─────────────
+         Seven filters in that function read "expiry_date >= x", and NULL >=
+         anything is NULL, so before this a permanent hold would have been
+         absent from the page entirely: the unit off the market and nothing
+         anywhere saying why. */
+      /* Two of them: one booked now, which belongs in today's list, and one
+         backdated to last week, which is the case the NULL filters actually
+         guard — a permanent hold taken days ago and still standing. The
+         second is the one that would have vanished. */
+      const seen = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}',NULL,'nat_dir2', now() + interval '2 minutes');
+        INSERT INTO public.category_unit_statuses
+          (company_id, project_id, status_code, status_name, color_hex, sort_order,
+           is_active, is_available, nature, hold_days)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZLANDOWNER','ZZ Landowner','#8b5cf6',91,true,false,'permanent',NULL);
+        SELECT public.reserve_unit_desk('nat_dir2', u.id,
+                 NULL,NULL,'Nature Probe',NULL,NULL,2,false,0,NULL,
+                 (SELECT id FROM public.category_unit_statuses
+                   WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9'
+                     AND status_code='ZZLANDOWNER'))
+          FROM (SELECT u.id, row_number() OVER (ORDER BY u.unit_no) n
+                  FROM public.units u
+                  JOIN public.category_unit_statuses st ON st.id=u.status_id
+                 WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9'
+                   AND st.is_available) u
+         WHERE u.n <= 2;
+
+        /* Backdate ONE of them. A hold taken last week and never expiring is
+           the row every "expiry_date >= start of period" filter would have
+           dropped, and it is the whole reason those seven lines changed. */
+        UPDATE public.reservations SET created_at = now() - interval '7 days'
+         WHERE requested_by_name = 'Nature Probe'
+           AND id = (SELECT id FROM public.reservations
+                      WHERE requested_by_name = 'Nature Probe'
+                      ORDER BY created_at DESC LIMIT 1);
+        WITH d AS (SELECT public.get_reservation_daybook(
+                     'nat_dir2', NULL, '59ded55b-9bc2-45b2-a372-49fc31807fa9') AS j),
+             hold AS (SELECT x FROM d, jsonb_array_elements(d.j->'holding') x
+                       WHERE x->>'requested_by' = 'Nature Probe'),
+             today AS (SELECT x FROM d, jsonb_array_elements(d.j->'reserved') x
+                        WHERE x->>'requested_by' = 'Nature Probe')
+        SELECT (SELECT count(*)::int FROM hold)  AS on_page,
+               (SELECT count(*)::int FROM today) AS booked_today,
+               (SELECT x->>'permanent' FROM hold LIMIT 1) AS flagged,
+               (SELECT x->'days_left'  FROM hold LIMIT 1) AS days_left,
+               (SELECT x->'overdue'    FROM hold LIMIT 1) AS overdue,
+               (SELECT count(*)::int FROM d, jsonb_array_elements(d.j->'expiring') e
+                 WHERE e->>'requested_by' = 'Nature Probe') AS in_expiring;
+        ROLLBACK;`);
+      const d0 = seen[0] || {};
+      Number(d0.on_page) === 1
+        ? okT('a permanent hold taken last week is still on the daybook a week later')
+        : badT('a permanent hold is missing from the standing list: ' + JSON.stringify(d0));
+      Number(d0.booked_today) === 1
+        ? okT('and one taken today is in today’s list — each appears once, in one place')
+        : badT('the permanent hold taken today is not in the day’s list: ' + JSON.stringify(d0));
+      (d0.flagged === 'true' && d0.days_left === null && d0.overdue === false)
+        ? okT('marked permanent, no days-left, and not overdue — not "0 days", which reads as today')
+        : badT('the daybook describes it wrongly: ' + JSON.stringify(d0));
+      Number(d0.in_expiring) === 0
+        ? okT('and it never appears in “expiring within 48 hours”, because it does not')
+        : badT('a hold with no end date is listed as expiring soon');
+
+      /* ── WHAT CANNOT BE GIVEN A NATURE ─────────────────────────────────
+         Sold and its relatives are produced by the sales module and read by
+         the register, the receivables and the commission report. A unit the
+         desk had stamped Sold would appear in none of them. */
+      const refused = await sql(`
+        BEGIN;
+        SELECT set_config('request.jwt.claims',
+          json_build_object('sub', (SELECT auth_user_id::text FROM public.app_users
+             WHERE company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND auth_user_id IS NOT NULL LIMIT 1),
+            'role','authenticated')::text, true);
+        SELECT
+          (public.upsert_unit_status('96d210e7-e63b-4ef0-b1d0-74e622eac7ce',
+             jsonb_build_object('nature','permanent'),
+             (SELECT id FROM public.category_unit_statuses
+               WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='SOLD'))->>'error') AS sold_err,
+          (public.upsert_unit_status('96d210e7-e63b-4ef0-b1d0-74e622eac7ce',
+             jsonb_build_object('nature','temporary'),
+             (SELECT id FROM public.category_unit_statuses
+               WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='AVAILABLE'))->>'error') AS avail_err,
+          (public.upsert_unit_status('96d210e7-e63b-4ef0-b1d0-74e622eac7ce',
+             jsonb_build_object('nature','whenever'),
+             (SELECT id FROM public.category_unit_statuses
+               WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='HOLD'))->>'error') AS junk_err;
+        ROLLBACK;`);
+      const rf = refused[0] || {};
+      rf.sold_err === 'reserved_code'
+        ? okT('SOLD cannot be turned into a desk tag — only a sale writes it')
+        : badT('SOLD accepted a nature: ' + JSON.stringify(rf));
+      (rf.avail_err === 'sellable_has_no_nature' || rf.avail_err === 'reserved_code')
+        ? okT('and a sellable status cannot also be a way of holding a unit')
+        : badT('a bookable status accepted a nature: ' + JSON.stringify(rf));
+      rf.junk_err === 'bad_nature'
+        ? okT('a nature the system does not have is refused rather than stored')
+        : badT('an invented nature was accepted: ' + JSON.stringify(rf));
+
+      const leftNat = Number((await sql(`select count(*)::int n
+          from public.category_unit_statuses
+         where status_code like 'ZZ%';`))[0].n);
+      leftNat === 0
+        ? okT('and the invented statuses rolled back — none on Awami')
+        : badT(leftNat + ' invented status(es) were left on a live tenant');
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');

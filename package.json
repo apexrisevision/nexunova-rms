@@ -20,7 +20,8 @@
     "verify:desk": "node scripts/verify-reserve-desk.js",
     "measure:overpaint": "node scripts/measure-desk-overpaint.js",
     "shot:daybook": "node scripts/shot-daybook.js",
-    "shot:availability": "node scripts/shot-availability.js"
+    "shot:availability": "node scripts/shot-availability.js",
+    "verify:status-nature": "node scripts/verify-status-nature-ui.js"
   },
   "build": {
     "appId": "com.nexunova.rms",

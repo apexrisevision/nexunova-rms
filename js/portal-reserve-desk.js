@@ -76,6 +76,14 @@
         "box-shadow:0 1px 0 rgba(15,23,42,.05)}" +
       ".rd-chip.on{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff}" +
       ".rd-chip.cust{width:78px;text-align:center;font-weight:700}" +
+      /* A permanent tag is not a louder version of a temporary one, it is a
+         different KIND of act — so it does not borrow the colour the timed
+         tags use. A dashed edge and the infinity mark carry it. */
+      ".rd-chip.perm{border-style:dashed}" +
+      ".rd-chip.perm.on{border-style:solid}" +
+      ".rd-note-perm{margin-top:13px;padding:9px 11px;border:1px solid var(--fk-border);" +
+      "  border-radius:var(--fk-radius);color:var(--fk-text-muted);" +
+      "  font-size:var(--fk-fs-label);line-height:1.45}" +
       ".rd-go{margin-top:12px;width:100%;height:50px;border:0;border-radius:var(--fk-radius-control);" +
         "background:var(--fk-primary);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer;" +
         "box-shadow:0 2px 0 rgba(15,23,42,.14)}" +
@@ -338,6 +346,10 @@
     } catch (e) { return String(iso).slice(0, 10); }
   }
   function _left(iso) {
+    /* A hold with no expiry date is PERMANENT, not unknown and not lapsed.
+       Returning '' here would have printed nothing at all beside a unit that
+       is off the market for good. */
+    if (iso === null) return 'no expiry';
     if (!iso) return '';
     var ms = new Date(iso) - new Date();
     if (ms <= 0) return 'expired';
@@ -518,7 +530,39 @@
     var t = _armedTag();
     if (!t) return 'Reserve';
     var c = String(t.code).toUpperCase();
-    return c === 'HOLD' ? 'Put on hold' : c === 'BOOKED' ? 'Book' : 'Reserve';
+    if (c === 'HOLD')   return 'Put on hold';
+    if (c === 'BOOKED') return 'Book';
+    if (c === 'RESERVED') return 'Reserve';
+    /* A tenant-invented tag has no verb anybody can guess, so the button says
+       the tag's own name rather than pretending it is a reservation. */
+    return 'Mark ' + String(t.name || 'Reserved');
+  }
+
+  /* Permanent tags take the unit off the market with no end date. The days
+     control is not merely ignored for them — it is hidden, because a number
+     sitting next to a permanent hold reads like a promise the system will
+     not keep. */
+  /* Called on every tag change and once on paint. Also pulls the tag's own
+     default duration across, so "Verbally Hold, 1 day" needs no second tap. */
+  function _syncNature() {
+    var perm = _armedPermanent(), t = _armedTag();
+    var lb = _q('#rd-days-lb'), box = _q('#rd-days'), note = _q('#rd-perm-note');
+    if (lb)   lb.style.display   = perm ? 'none' : '';
+    if (box)  box.style.display  = perm ? 'none' : '';
+    if (note) note.style.display = perm ? '' : 'none';
+    if (!perm && t && t.days) {
+      var n = Number(t.days);
+      if (n >= 1 && n <= 90) {
+        DESK.days = n;
+        var cu = _q('#rd-dcust'); if (cu) cu.value = ([1, 3, 7, 15].indexOf(n) < 0) ? String(n) : '';
+        _syncDays();
+      }
+    }
+  }
+
+  function _armedPermanent() {
+    var t = _armedTag();
+    return !!t && t.nature === 'permanent';
   }
 
   /* Class from the CODE, never the name: the name is what a tenant typed into
@@ -598,14 +642,20 @@
               '<div class="rd-chips" id="rd-tags">' +
                 tags.map(function (t) {
                   return '<button class="rd-chip' + (DESK.statusId === t.id ? ' on' : '') +
-                         '" data-tag="' + esc(t.id) + '">' + esc(t.name) + '</button>';
+                         (t.nature === 'permanent' ? ' perm' : '') +
+                         '" data-tag="' + esc(t.id) + '" data-nature="' + esc(t.nature || '') + '"' +
+                         (t.days ? ' data-days="' + esc(t.days) + '"' : '') + '>' + esc(t.name) +
+                         (t.nature === 'permanent' ? ' \u221e' : '') + '</button>';
                 }).join('') +
               '</div>'
             : '') +
 
           /* Was "Hold for". With On Hold now one of the tags, that label asked
              two different questions with the same word. */
-          '<div class="rd-lb" style="margin-top:13px">Expires in</div>' +
+          '<div class="rd-lb" style="margin-top:13px" id="rd-days-lb">Expires in</div>' +
+          '<div class="rd-note-perm" id="rd-perm-note" style="display:none">' +
+            'This takes the unit off the market with no end date. It will not release itself \u2014 somebody has to undo it here.' +
+          '</div>' +
           '<div class="rd-chips" id="rd-days">' +
             [1, 3, 7, 15].map(function (n) {
               return '<button class="rd-chip' + (DESK.days === n ? ' on' : '') + '" data-d="' + n + '">' + n + 'd</button>';
@@ -635,6 +685,7 @@
       '</div>';
 
     _wire();
+    _syncNature();
     _paintReqs();
     _paintToday();
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
@@ -725,6 +776,7 @@
         all[i].classList.toggle('on', all[i].getAttribute('data-tag') === DESK.statusId);
       }
       var g = _q('#rd-go'); if (g) g.textContent = _goLabel();
+      _syncNature();
     });
 
     var days = _q('#rd-days');
@@ -920,7 +972,11 @@
       hit.innerHTML = '<b>' + esc(u.n) + '</b> — ' + esc(u.sn || 'Reserved') +
         '<div class="rd-meta">by <b style="font-size:inherit">' + esc(u.h.by || '—') + '</b>' +
         (u.h.code ? ' (' + esc(u.h.code) + ')' : '') +
-        (u.h.exp ? ' · ' + esc(_left(u.h.exp)) + ', to ' + esc(_pkDate(u.h.exp)) : '') +
+        /* A permanent hold arrives with exp null. The old test hid the whole
+           clause, so the one kind of hold that never lets go was also the one
+           that said nothing about how long it lasts. */
+        (u.h.exp ? ' · ' + esc(_left(u.h.exp)) + ', to ' + esc(_pkDate(u.h.exp))
+                 : ' · no expiry') +
         (u.h.booked ? '<br>booked by ' + esc(u.h.booked) : '') + '</div>' +
         '<div class="rd-meta">' + meta + '</div>';
       return;
@@ -1003,7 +1059,10 @@
       p_requested_by_name: r.name,
       p_client_name: String((_q('#rd-cname') || {}).value || '').trim() || null,
       p_client_phone: String((_q('#rd-cphone') || {}).value || '').trim() || null,
-      p_expiry_days: DESK.days,
+      /* null for a permanent tag: the server ignores it either way, but
+         sending 7 alongside a permanent hold would put a number in the
+         request log that never meant anything. */
+      p_expiry_days: _armedPermanent() ? null : DESK.days,
       p_token_received: tamt > 0,
       p_token_amount: tamt,
       p_note: String((_q('#rd-note') || {}).value || '').trim() || null,
@@ -1045,8 +1104,12 @@
        was armed in the browser: if the two ever disagree, the database is the
        one telling the truth. */
     var tg = String(d.tag_code || 'RESERVED').toUpperCase();
-    var verb = tg === 'HOLD' ? 'put on hold for' : tg === 'BOOKED' ? 'booked for' : 'reserved for';
-    toast(esc(d.unit_no || u.n) + ' ' + verb + ' ' + d.requested_by + ' · ' + d.expiry_days + 'd', 'ok');
+    var verb = tg === 'HOLD' ? 'put on hold for' : tg === 'BOOKED' ? 'booked for'
+             : tg === 'RESERVED' ? 'reserved for' : (String(d.tag || 'marked') + ' for');
+    /* Permanent comes back with no days, and " · nulld" is how a good
+       confirmation turns into a bug report. */
+    var span = (d.expiry_days == null) ? 'no expiry' : (d.expiry_days + 'd');
+    toast(esc(d.unit_no || u.n) + ' ' + verb + ' ' + d.requested_by + ' · ' + span, 'ok');
     _clearLine();
     _paintToday();
   }
@@ -1807,6 +1870,11 @@
   function _liveOnly(rows) { return (rows || []).filter(_isLive); }
 
   function _holdLeft(r) {
+    /* PERMANENT FIRST, because every test below it is a number comparison
+       and null loses all of them quietly: Number(null) is 0, so a hold that
+       never expires would have been drawn in red as "0h" — the most
+       urgent thing on the page, and the exact opposite of the truth. */
+    if (r.permanent || r.days_left == null) return { t: '\u221e', tone: null };
     if (r.overdue) return { t: 'LAPSED', tone: 'red' };
     if (Number(r.hours_left) <= 48) return { t: r.hours_left + 'h', tone: 'red' };
     if (Number(r.days_left) <= 7)  return { t: r.days_left + 'd', tone: 'amber' };
@@ -2109,8 +2177,8 @@
                   whoCell(r.requested_by, r.agent_code),
                   r.booked_by || '—',
                   r.client_name ? r.client_name : { v: '—', cls: 'mut' },
-                  _dShort(r.expiry_date),
-                  days == null ? { v: '—', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
+                  ed ? _dShort(r.expiry_date) : { v: 'No expiry', cls: 'mut' },
+                  days == null ? { v: '\u221e', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
         }),
         empty: function () { return 'No units booked ' + _periodPhrase(d) + '.'; } },
 

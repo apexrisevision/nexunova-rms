@@ -709,6 +709,8 @@ async function loadStatusesCache(companyId) {
       name: s.status_name || '',
       color: s.color_hex || '#6b7280',
       isAvailable: s.is_available || false,
+      /* null = not a desk tag at all. See 20260908g. */
+      nature: s.nature || null, holdDays: s.hold_days == null ? null : Number(s.hold_days),
       sortOrder: Number(s.sort_order || 0), isActive: s.is_active !== false
     }));
     window._statusesCacheLoaded = true;

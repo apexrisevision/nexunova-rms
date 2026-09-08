@@ -403,6 +403,21 @@ function rStatusesTab() {
     '</div>').join('');
   body.innerHTML = html;
 }
+/* ── WHAT KIND OF STATUS IS THIS? ─────────────────────────────────────────
+   A status used to say only whether a unit could still be sold. Now it can
+   also say HOW it is being held: temporary lapses on its own after a number
+   of days, permanent stays until somebody releases it. A status with no
+   nature is not something the desk can apply at all — that is how Sold and
+   the other sale-driven ones stay where they belong. */
+function _catNatureLabel(s) {
+  if (s.isAvailable) return 'Bookable';
+  if (s.nature === 'permanent') return 'Locked from sale · permanent hold';
+  if (s.nature === 'temporary') {
+    return 'Locked from sale · holds for ' + (s.holdDays ? s.holdDays + ' day' + (s.holdDays === 1 ? '' : 's') : 'a set time');
+  }
+  return 'Locked from sale · set by the sales module';
+}
+
 function _catStatusRow(s) {
   const active = s.isActive !== false, tone = _catStatusTone(s);
   const code = s.statusCode || s.status_code || (s.name || '').slice(0, 4).toUpperCase();
@@ -418,7 +433,7 @@ function _catStatusRow(s) {
     lead +
     '<span style="white-space:nowrap">' + NX.badge(code, tone) + '</span>' +
     '<span style="min-width:0"><span title="' + esc(s.name) + '" style="display:block;font-size:var(--fk-fs-body);color:var(--fk-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.name) + '</span>' +
-      '<span class="nx-kpi-label" style="text-transform:none">' + (s.isAvailable ? 'Bookable' : 'Locked from sale') + '</span></span>' +
+      '<span class="nx-kpi-label" style="text-transform:none">' + _catNatureLabel(s) + '</span></span>' +
     '<span class="num" style="white-space:nowrap;color:var(--fk-text-muted);font-size:var(--fk-fs-label)">' + (usage > 0 ? usage + ' units' : '—') + '</span>' +
     '<span style="white-space:nowrap">' + (locked ? '<span class="nx-badge">' + _I.lock + ' System</span>' : _catActivePill(s.id, active, 'toggleStatusActive')) + '</span>' +
     '<span style="white-space:nowrap">' + _catKebabBtn('statuses', s.id) + '</span>' +
@@ -766,17 +781,68 @@ function openStatusModal(id) {
         NX.field({ label:'Short label', name:'st-code-lbl', value:s?.statusCode || s?.status_code || '', placeholder:'Avl', attrs:'maxlength="6" oninput="_stPrev()"' }) + '</div>' +
       '<div class="nx-field"><label class="nx-label">Tone</label><div id="st-tone-seg" style="display:flex;gap:6px;flex-wrap:wrap">' +
         _CAT_TONES.map(t => '<button type="button" class="nx-btn ' + (t.tone === curTone ? 'nx-btn--primary' : 'nx-btn--secondary') + ' nx-btn--sm" data-tone="' + t.tone + '" onclick="_stPickTone(this)">' + NX.badge(t.label, t.tone) + '</button>').join('') + '</div></div>' +
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:var(--fk-sp-2)"><input type="checkbox" id="st-avail"' + (s ? (s.isAvailable === true ? ' checked' : '') : '') + ' onchange="_stPrev()"><span><span style="font-size:var(--fk-fs-body);color:var(--fk-text)">Sellable</span><div class="nx-kpi-label" style="text-transform:none">Units with this status appear in New Sale</div></span></label>' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:var(--fk-sp-2)"><input type="checkbox" id="st-avail"' + (s ? (s.isAvailable === true ? ' checked' : '') : '') + ' onchange="_stNatSync();_stPrev()"><span><span style="font-size:var(--fk-fs-body);color:var(--fk-text)">Sellable</span><div class="nx-kpi-label" style="text-transform:none">Units with this status appear in New Sale</div></span></label>' +
+      _stNatureBlock(s) +
       '<div class="nx-field"><label class="nx-label">Position</label><div id="st-pos-picker" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
       _catActiveToggle('st-active', s ? s.isActive !== false : true, '_stPrev()'),
     footer: _catModalFooter('st-add-btn', 'saveStatusForm(true)', 'st-save-btn', 'saveStatusForm()', 'Save status', !s) }));
-  _catPosPicker('st-pos-picker', _catStatuses(), s?.id || null, 'st-sort'); _stPrev();
+  _catPosPicker('st-pos-picker', _catStatuses(), s?.id || null, 'st-sort'); _stNatSync(); _stPrev();
   setTimeout(() => document.getElementById('st-name')?.focus(), 120);
 }
+/* ── THE NATURE PICKER ────────────────────────────────────────────────────
+   Three choices, and the middle one is the only one that asks a follow-up
+   question. Permanent deliberately asks for nothing: that is the whole
+   difference between the two, so showing a greyed-out days box next to it
+   would suggest the number still means something. It doesn't. */
+function _stNatureBlock(s) {
+  const nat = s ? (s.nature || 'none') : 'none';
+  const days = s && s.holdDays ? s.holdDays : 3;
+  const opt = (v, title, sub) =>
+    '<label style="display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid var(--fk-border);border-radius:var(--fk-radius);cursor:pointer" id="st-nat-w-' + v + '">' +
+      '<input type="radio" name="st-nature" value="' + v + '"' + (nat === v ? ' checked' : '') + ' onchange="_stNatSync();_stPrev()" style="margin-top:2px">' +
+      '<span><span style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + title + '</span>' +
+        '<div class="nx-kpi-label" style="text-transform:none">' + sub + '</div></span></label>';
+  return '<div class="nx-field" id="st-nat-field" style="margin-top:var(--fk-sp-3)"><label class="nx-label">When this status is applied at the desk</label>' +
+    '<div style="display:flex;flex-direction:column;gap:6px">' +
+      opt('none', 'Not applied at the desk',
+          'The sales module sets it — like Sold or Possession Given. It will not appear as a booking tag.') +
+      opt('temporary', 'Temporary hold',
+          'Holds the unit for a number of days, then releases it on its own.') +
+      '<div id="st-days-row" style="display:none;padding:0 0 2px 30px">' +
+        '<label class="nx-label" style="margin-bottom:4px">Default days</label>' +
+        '<input class="nx-input" id="st-days" type="number" min="1" max="90" style="max-width:120px" value="' + days + '" oninput="_stPrev()">' +
+        '<div class="nx-kpi-label" style="text-transform:none;margin-top:4px">What the desk offers first. Whoever books can still type another number, 1 to 90.</div>' +
+      '</div>' +
+      opt('permanent', 'Permanent',
+          'Takes the unit off the market with no end date. It never releases itself — only a director can apply it, and only by hand can it be undone.') +
+    '</div></div>';
+}
+
+/* Sellable and "held at the desk" are contradictory, and the server refuses
+   the combination. Saying so here saves a round trip and a red toast. */
+function _stNatSync() {
+  const avail = document.getElementById('st-avail')?.checked;
+  const field = document.getElementById('st-nat-field');
+  if (field) { field.style.display = avail ? 'none' : ''; }
+  if (avail) { const n = document.querySelector('input[name="st-nature"][value="none"]'); if (n) n.checked = true; }
+  const nat = _stNature();
+  const row = document.getElementById('st-days-row');
+  if (row) row.style.display = nat === 'temporary' ? '' : 'none';
+}
+function _stNature() {
+  const el = document.querySelector('input[name="st-nature"]:checked');
+  return el ? el.value : 'none';
+}
+
 function _stPickTone(btn) { document.querySelectorAll('#st-tone-seg .nx-btn').forEach(b => { b.classList.remove('nx-btn--primary'); b.classList.add('nx-btn--secondary'); }); btn.classList.remove('nx-btn--secondary'); btn.classList.add('nx-btn--primary'); document.getElementById('st-tone').value = btn.dataset.tone; _stPrev(); }
 function _stPrev() {
   const name = document.getElementById('st-name')?.value || '', avail = document.getElementById('st-avail')?.checked, tone = document.getElementById('st-tone')?.value || '', code = document.getElementById('st-code-lbl')?.value || (name ? name.slice(0, 4).toUpperCase() : 'AVL');
-  const prev = document.getElementById('st-prev'); if (prev) prev.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + (esc(name) || '—') + '</span>' + NX.badge(code || 'AVL', tone) + '<span class="nx-kpi-label" style="text-transform:none">' + (avail ? 'Available for sale' : 'Not bookable') + '</span></div>';
+  const nat = _stNature(), days = parseInt(document.getElementById('st-days')?.value, 10);
+  const says = avail ? 'Available for sale'
+    : nat === 'permanent' ? 'Off the market permanently, director only'
+    : nat === 'temporary' ? ('Holds for ' + (days > 0 ? days + ' day' + (days === 1 ? '' : 's') : 'a set time') + ', then releases itself')
+    : 'Not bookable — set by the sales module';
+  const prev = document.getElementById('st-prev'); if (prev) prev.innerHTML = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:var(--fk-fs-body);color:var(--fk-text)">' + (esc(name) || '—') + '</span>' + NX.badge(code || 'AVL', tone) + '<span class="nx-kpi-label" style="text-transform:none">' + says + '</span></div>';
 }
 async function saveStatusForm(addAnother) {
   const name = document.getElementById('st-name').value.trim(); if (!name) { notify.warning('Status name is required'); return; }
@@ -786,7 +852,12 @@ async function saveStatusForm(addAnother) {
   const statusCode = (shortLabel ? shortLabel.toUpperCase().replace(/[^A-Z0-9]+/g, '_') : name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30)) || 'STATUS';
   const btn = document.getElementById('st-save-btn'), sp = btn?.querySelector('span'); if (btn) { btn.disabled = true; if (sp) sp.textContent = 'Saving…'; }
   try {
-    const payload = { company_id: S.cid, status_name: name, status_code: statusCode, color_hex: _catToneHex(tone), is_available: isAvailable, sort_order: sortOrder, is_active: isActive };
+    /* nature is sent on EVERY save, including 'none', so choosing "not
+       applied at the desk" actually clears it rather than being read as
+       "leave whatever was there". */
+    const nature = isAvailable ? 'none' : _stNature();
+    const holdDays = nature === 'temporary' ? (parseInt(document.getElementById('st-days')?.value, 10) || null) : null;
+    const payload = { company_id: S.cid, status_name: name, status_code: statusCode, color_hex: _catToneHex(tone), is_available: isAvailable, sort_order: sortOrder, is_active: isActive, nature: nature, hold_days: holdDays };
     if (id) payload.id = id; else payload.project_id = _catProject;
     const result = await _saveWithFallback(saveUnitStatus, payload);
     if (!result || result._error) { notify.error('Status save failed', { detail: result?._error?.message || 'Check console (F12)' }); return; }
