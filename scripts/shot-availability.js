@@ -1233,9 +1233,41 @@ function serve() {
         (deskQ.found && deskQ.count === 1)
           ? okU2('the desk shows this request and only this one, badge "' + deskQ.badge + '"')
           : badU2('the desk queue holds ' + deskQ.count + ' card(s), ours found: ' + deskQ.found);
-        JSON.stringify(deskQ.acts) === JSON.stringify(['Approve', 'Decline'])
-          ? okU2('with exactly two buttons: Approve and Decline')
+        (deskQ.acts.length === 2 && /^approve/i.test(deskQ.acts[0]) && /decline/i.test(deskQ.acts[1]))
+          ? okU2('with exactly two buttons: ' + deskQ.acts.join(' and '))
           : badU2('the card offers ' + JSON.stringify(deskQ.acts));
+
+        /* ── APPROVE ASKS WHICH ────────────────────────────────────────────
+           It used to apply whatever tag was armed on the desk behind this
+           queue — invisible from the card, and wrong the moment the last
+           booking was a Pagri and this one is not. The question is now asked
+           where the decision is made, and the answer travels with it. */
+        const pick = await deskPage.evaluate(myRef => {
+          const card = [...document.querySelectorAll('#rd-reqs .rq-c')]
+            .find(c => c.innerText.indexOf(myRef) >= 0);
+          if (!card) return { none: true };
+          card.querySelector('.rq-a button[data-act="approve"]').click();
+          const box = card.querySelector('.rq-pick');
+          const tags = [...card.querySelectorAll('.rq-t')].map(b => ({
+            name: b.textContent.trim(), nature: b.getAttribute('data-nature') }));
+          return { none: false,
+                   opened: !!box && !box.hidden,
+                   actionsHidden: !!card.querySelector('.rq-a').hidden,
+                   tags };
+        }, asked.ref);
+        (!pick.none && pick.opened && pick.actionsHidden)
+          ? okU2('pressing Approve asks which status, on the card itself')
+          : badU2('Approve did not ask: ' + JSON.stringify(pick));
+        (pick.tags && pick.tags.length && pick.tags.every(t => t.nature))
+          ? okU2('and it offers this project\u2019s own tags: ' +
+                 pick.tags.map(t => t.name).join(', '))
+          : badU2('the picker offers nothing usable: ' + JSON.stringify(pick.tags));
+        await deskPage.screenshot({ path: path.join(OUT, 'm2-approve-asks.png') });
+        /* put it back, so the decision below is made the way a person makes it */
+        await deskPage.evaluate(() => {
+          const b = document.querySelector('#rd-reqs .rq-pick button[data-act="cancelpick"]');
+          if (b) b.click();
+        });
         /Round Trip Rep/.test(deskQ.first) && /3 days/.test(deskQ.first)
           ? okU2('and the card already carries the name and the duration: ' +
                  deskQ.first.slice(0, 70))

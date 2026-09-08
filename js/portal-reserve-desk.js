@@ -76,6 +76,27 @@
         "box-shadow:0 1px 0 rgba(15,23,42,.05)}" +
       ".rd-chip.on{background:var(--fk-primary);border-color:var(--fk-primary);color:#fff}" +
       ".rd-chip.cust{width:78px;text-align:center;font-weight:700}" +
+      /* Quiet until it is armed, then it says the unit's name out loud —
+         because the second tap puts a unit back on sale and the dealer
+         holding it is not told. */
+      ".db-rel{height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--fk-border);" +
+      "  background:var(--fk-bg-card);color:var(--fk-text-muted);font-size:12px;font-weight:600;" +
+      "  white-space:nowrap}" +
+      ".db-rel:hover{border-color:var(--fk-danger);color:var(--fk-danger)}" +
+      ".db-rel.on{border-color:var(--fk-danger);background:var(--fk-danger);color:#fff}" +
+      ".db-rel:disabled{opacity:.5;cursor:default}" +
+      /* Asked on the card, under the request it is about. */
+      ".rq-pick{margin-top:9px;padding-top:9px;border-top:1px solid var(--fk-border)}" +
+      ".rq-pl{font-size:10px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;" +
+      "  color:var(--fk-text-muted);margin-bottom:7px}" +
+      ".rq-pc{display:flex;gap:6px;flex-wrap:wrap}" +
+      ".rq-t{height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--fk-border);" +
+      "  background:var(--fk-bg-card);font-size:12.5px;font-weight:600;white-space:nowrap}" +
+      ".rq-t:hover{border-color:var(--fk-primary);color:var(--fk-primary)}" +
+      ".rq-t.perm{border-style:dashed}" +
+      ".rq-cancel{margin-top:8px;height:30px;padding:0 11px;border-radius:8px;" +
+      "  border:1px solid var(--fk-border);background:var(--fk-bg-card);" +
+      "  color:var(--fk-text-muted);font-size:12px;font-weight:600}" +
       /* A permanent tag is not a louder version of a temporary one, it is a
          different KIND of act — so it does not borrow the colour the timed
          tags use. A dashed edge and the infinity mark carry it. */
@@ -1222,10 +1243,25 @@
              button that is going to fail should look like one. */
           (r.still_free ? '' :
             '<div class="rq-gone">This unit is no longer available \u2014 approving will not book it.</div>') +
+          /* APPROVE ASKS WHICH. It used to apply whatever tag happened to be
+             armed on the desk behind this queue — invisible from here, and
+             wrong the moment the last booking was a Pagri and this one is not.
+             The question is asked where the decision is made. */
           '<div class="rq-a">' +
             '<button class="ok" data-act="approve"' + (r.still_free ? '' : ' disabled') +
-              '>Approve</button>' +
+              '>Approve\u2026</button>' +
             '<button data-act="decline">Decline</button>' +
+          '</div>' +
+          '<div class="rq-pick" hidden>' +
+            '<div class="rq-pl">Approve as</div>' +
+            '<div class="rq-pc">' +
+              _tags().map(function (t) {
+                return '<button class="rq-t' + (t.nature === 'permanent' ? ' perm' : '') +
+                       '" data-tag="' + esc(t.id) + '" data-nature="' + esc(t.nature || '') + '">' +
+                       esc(t.name) + (t.nature === 'permanent' ? ' \u221e' : '') + '</button>';
+              }).join('') +
+            '</div>' +
+            '<button class="rq-cancel" data-act="cancelpick">Cancel</button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -1236,11 +1272,45 @@
     if (!box.__reqBound) { box.addEventListener('click', _reqClick); box.__reqBound = true; }
   }
 
+  /* Only one card asks at a time: two open pickers is two half-made
+     decisions sitting next to each other. */
+  function _reqPick(card, on) {
+    var box = _q('#rd-reqs'); if (!box) return;
+    var all = box.querySelectorAll('.rq-c');
+    for (var i = 0; i < all.length; i++) {
+      var p = all[i].querySelector('.rq-pick'), a = all[i].querySelector('.rq-a');
+      var open = on && all[i] === card;
+      if (p) p.hidden = !open;
+      if (a) a.hidden = open;
+    }
+  }
+
   async function _reqClick(e) {
+    /* The tag buttons carry no data-act, so they are read first. */
+    var tg = e.target.closest('.rq-t');
+    if (tg) {
+      var card0 = tg.closest('.rq-c'); if (!card0) return;
+      return _reqDecide(card0, card0.getAttribute('data-r'), 'approve',
+                        tg.getAttribute('data-tag'), tg);
+    }
     var b = e.target.closest('button[data-act]'); if (!b) return;
+    if (b.getAttribute('data-act') === 'cancelpick') {
+      var c1 = b.closest('.rq-c'); if (c1) _reqPick(c1, false);
+      return;
+    }
+    if (b.getAttribute('data-act') === 'approve') {
+      var c2 = b.closest('.rq-c'); if (c2) _reqPick(c2, true);
+      return;
+    }
     var card = b.closest('.rq-c'); if (!card) return;
-    var id = card.getAttribute('data-r');
-    var act = b.getAttribute('data-act');
+    return _reqDecide(card, card.getAttribute('data-r'),
+                      b.getAttribute('data-act'), null, b);
+  }
+
+  /* One decision, whichever button reached it: Decline arrives with no tag,
+     Approve arrives carrying the one that was chosen. */
+  async function _reqDecide(card, id, act, tagId, b) {
+    if (!card || !id) return;
     if (DESK.reqBusy) return;
     DESK.reqBusy = id;
     var all = card.querySelectorAll('button');
@@ -1251,9 +1321,10 @@
     try {
       res = await sb.rpc('decide_reservation_request',
         { p_session_token: TOKEN, p_request_id: id, p_action: act,
-          /* Whatever tag is armed on the desk applies, so approving from the
-             queue and booking by hand put the same thing on the unit. */
-          p_unit_status_id: DESK.statusId || null });
+          /* The tag chosen ON THE CARD, because that is where the decision was
+             made. The desk's armed chip is the fallback for a client that has
+             not been redeployed, and null still means Reserved server-side. */
+          p_unit_status_id: tagId || DESK.statusId || null });
     } catch (e2) { res = null; }
     DESK.reqBusy = null;
     var d = res && res.data;
@@ -1588,7 +1659,7 @@
             ' PKT — still held from before the period; bookings inside it are listed above.' +
             (heldEarlier.length !== hold.length ? ' ' + hold.length + ' held in total.' : '') +
             '</div>' +
-            _dbTable(['Unit', 'Tag', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left'],
+            _dbTable(['Unit', 'Tag', 'Floor', 'Size', 'Reserved by', 'Reserved on', 'Expires', 'Left', ''],
               heldEarlier.map(function (r) {
                 var L = _holdLeft(r);
                 return ['<b>' + esc(r.unit_no) + '</b>',
@@ -1597,7 +1668,15 @@
                         '<span class="n">' + esc(_area(r.area, r.area_unit)) + '</span>',
                         esc(r.requested_by) + (r.agent_code ? ' <span class="t">(' + esc(r.agent_code) + ')</span>' : ''),
                         esc(_pkDate(r.reserved_at)), esc(_pkDate(r.expiry_date)),
-                        '<span class="n' + (L.tone ? ' db-' + L.tone : '') + '">' + esc(L.t) + '</span>'];
+                        '<span class="n' + (L.tone ? ' db-' + L.tone : '') + '">' + esc(L.t) + '</span>',
+                        /* A hold you can see is a hold you can let go of. Until now
+                           this list named a unit on every row and gave you nothing to
+                           press, and the only way back was the Reservations screen in
+                           RMS — for a hold you had booked yourself. */
+                        (r.res_id
+                          ? '<button class="db-rel" data-rel="' + esc(r.res_id) +
+                            '" data-unit="' + esc(r.unit_no) + '">Release</button>'
+                          : '')];
               }))
           : '<div class="rd-empty">Nothing is held from an earlier day.</div>') +
 
@@ -1663,6 +1742,58 @@
     var cp = _dbq('#db-copy'); if (cp) cp.addEventListener('click', _dbCopy);
     var wa = _dbq('#db-wa'); if (wa) wa.addEventListener('click', _dbWa);
     var pf = _dbq('#db-pdf'); if (pf) pf.addEventListener('click', _dbPrint);
+
+    /* Delegated on the root: the table is rebuilt on every render and a
+       listener per button would stack one for each redraw. */
+    var root = _dbRoot();
+    if (root) root.addEventListener('click', _dbRelease);
+  }
+
+  /* RELEASING IS NOT UNDOING. Undo on the desk is for a booking made a moment
+     ago by mistake; this is a standing hold, days old, that somebody has
+     decided to let go of before its time. It asks first, because the unit
+     goes back on sale the instant it is pressed and the dealer holding it
+     will not be told. */
+  var DBREL = null;
+  async function _dbRelease(e) {
+    var b = e.target.closest('.db-rel'); if (!b || DBREL) return;
+    var id = b.getAttribute('data-rel'), unit = b.getAttribute('data-unit') || 'this unit';
+    if (!id) return;
+    if (b.getAttribute('data-armed') !== '1') {
+      /* One tap arms, the second releases. A confirm() dialog on a phone is a
+         system box nobody reads; the button saying what it is about to do is
+         read, because it is the thing under the thumb. */
+      var all = _dbRoot().querySelectorAll('.db-rel[data-armed="1"]');
+      for (var i = 0; i < all.length; i++) {
+        all[i].removeAttribute('data-armed'); all[i].textContent = 'Release';
+        all[i].classList.remove('on');
+      }
+      b.setAttribute('data-armed', '1');
+      b.textContent = 'Release ' + unit + '?';
+      b.classList.add('on');
+      return;
+    }
+    DBREL = id;
+    b.disabled = true; b.textContent = 'Releasing\u2026';
+    var res;
+    try { res = await sb.rpc('cancel_reservation', { p_session_token: TOKEN, p_reservation_id: id }); }
+    catch (e2) { res = null; }
+    DBREL = null;
+    var d = res && res.data;
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (d && d.success) {
+      toast(unit + ' released \u2014 it is back on sale.', 'ok');
+      /* The whole book is redrawn, not the row: releasing moves a unit out of
+         the held column and into available, and the ledger above has to agree
+         with the table below. */
+      window.renderDaybook();
+      return;
+    }
+    b.disabled = false; b.removeAttribute('data-armed');
+    b.textContent = 'Release'; b.classList.remove('on');
+    toast((d && (d.message || d.error)) === 'not_found_or_not_yours'
+      ? 'That hold is not yours to release.'
+      : ((d && (d.message || d.error)) || 'Could not release that hold.'), 'err');
   }
 
   function _dbSec(title, count, inner) {

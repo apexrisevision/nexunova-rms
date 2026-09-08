@@ -743,6 +743,83 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       Number(dr.fns) === 4
         ? okT('exactly four functions touch it \u2014 the two gated ones, the dealer\u2019s receipt, and submit')
         : badT(dr.fns + ' functions touch availability_requests; a new door may have opened');
+
+      /* ══ A HOLD YOU CAN SEE IS A HOLD YOU CAN LET GO OF ══════════════════
+         cancel_reservation would only cancel a hold you booked YOURSELF. That
+         is right for a rep and wrong for the person who approves the queue: he
+         books units for other people all day, so letting one go for them is
+         the same job — and before the clock runs out, not only after.
+
+         And the standing hold list named a unit on every row and never named
+         the hold, so there was nothing to act on even once he was allowed to. */
+      const rel = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_rel_dir', now() + interval '5 minutes');
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', s.id, '59ded55b-9bc2-45b2-a372-49fc31807fa9', 'dbshot_rel_rep', now() + interval '5 minutes'
+          FROM public.sales_users s WHERE s.company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND s.role='sale_rep'
+           AND s.status='active' LIMIT 1;
+
+        /* the REP books it, so the director is releasing somebody else's hold */
+        CREATE TEMP TABLE rl ON COMMIT DROP AS
+          SELECT public.reserve_unit_desk('dbshot_rel_rep',
+            (SELECT u.id FROM public.units u
+               JOIN public.category_unit_statuses st ON st.id=u.status_id
+              WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available ORDER BY u.unit_no DESC LIMIT 1),
+            NULL,NULL,'Release Probe',NULL,NULL,7,false,0,NULL,NULL) AS r;
+        UPDATE public.reservations SET created_at = now() - interval '4 days'
+         WHERE requested_by_name='Release Probe';
+
+        CREATE TEMP TABLE rlo(step text, r jsonb) ON COMMIT DROP;
+        /* the row must name the hold, or there is nothing to press */
+        INSERT INTO rlo SELECT 'row names the hold',
+          (SELECT jsonb_build_object('has_id', (x->>'res_id') IS NOT NULL)
+             FROM jsonb_array_elements(public.get_reservation_daybook('dbshot_rel_dir',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'holding') x
+            WHERE x->>'requested_by'='Release Probe' LIMIT 1);
+        INSERT INTO rlo SELECT 'director releases it',
+          public.cancel_reservation('dbshot_rel_dir',
+            (SELECT (r->>'reservation_id')::uuid FROM rl));
+        SELECT (SELECT r->>'has_id' FROM rlo WHERE step='row names the hold') AS has_id,
+               (SELECT r->>'success' FROM rlo WHERE step='director releases it') AS released,
+               (SELECT status FROM public.reservations
+                 WHERE id=(SELECT (r->>'reservation_id')::uuid FROM rl)) AS res_now,
+               (SELECT count(*)::int FROM jsonb_array_elements(
+                  public.get_reservation_daybook('dbshot_rel_dir',NULL,'59ded55b-9bc2-45b2-a372-49fc31807fa9')->'holding') x
+                 WHERE x->>'requested_by'='Release Probe') AS still_held;
+        ROLLBACK;`);
+      const rl0 = rel[0] || {};
+      rl0.has_id === 'true'
+        ? okT('every standing hold names its own reservation, so it can be acted on')
+        : badT('the hold list still has nothing to press: ' + JSON.stringify(rl0));
+      rl0.released === 'true'
+        ? okT('and a director can release a hold somebody else booked, before its time')
+        : badT('the director could not release it: ' + JSON.stringify(rl0));
+      (rl0.res_now === 'cancelled' && Number(rl0.still_held) === 0)
+        ? okT('the unit leaves the standing list the moment it is released')
+        : badT('the released hold is still standing: ' + JSON.stringify(rl0));
+
+      /* and the rule everyone else had is untouched */
+      const relRep = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_rr_dir', now() + interval '5 minutes');
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        SELECT '96d210e7-e63b-4ef0-b1d0-74e622eac7ce', s.id, '59ded55b-9bc2-45b2-a372-49fc31807fa9', 'dbshot_rr_rep', now() + interval '5 minutes'
+          FROM public.sales_users s WHERE s.company_id='96d210e7-e63b-4ef0-b1d0-74e622eac7ce' AND s.role='sale_rep'
+           AND s.status='active' LIMIT 1;
+        CREATE TEMP TABLE rr ON COMMIT DROP AS
+          SELECT public.reserve_unit_desk('dbshot_rr_dir',
+            (SELECT u.id FROM public.units u
+               JOIN public.category_unit_statuses st ON st.id=u.status_id
+              WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available ORDER BY u.unit_no DESC LIMIT 1),
+            NULL,NULL,'Dir Hold',NULL,NULL,7,false,0,NULL,NULL) AS r;
+        SELECT (public.cancel_reservation('dbshot_rr_rep',
+                  (SELECT (r->>'reservation_id')::uuid FROM rr))->>'error') AS rep_err;
+        ROLLBACK;`);
+      (relRep[0] || {}).rep_err === 'not_found_or_not_yours'
+        ? okT('while a rep still cannot release a hold that is not theirs')
+        : badT('a rep released somebody else’s hold: ' + JSON.stringify(relRep[0]));
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
