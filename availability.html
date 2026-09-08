@@ -100,6 +100,37 @@ button{cursor:pointer;background:none;border:0}
 
 .tot{margin-top:14px;font-size:12px;color:var(--mut);text-align:center}
 
+/* What this phone has asked for, and what came back. Quiet: it is a receipt,
+   not the point of the page. */
+.myq{margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r-lg);
+     background:var(--card);overflow:hidden}
+.myq-h{padding:9px 13px;font-size:10.5px;font-weight:600;letter-spacing:.07em;
+       text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--line2)}
+.myq-r{display:flex;align-items:baseline;gap:9px;padding:9px 13px;
+       border-bottom:1px solid var(--line2);font-size:12.5px}
+.myq-r:last-child{border-bottom:0}
+.myq-r .u{font-weight:650;min-width:66px}
+.myq-r .d{flex:1;min-width:0;font-size:11.5px;color:var(--mut);
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.myq-r .s{font-size:11px;font-weight:650;white-space:nowrap}
+.s-pending{color:var(--mut)}
+.s-approved{color:#1C6B3F}
+.s-declined{color:#8A2F26}
+.s-stale,.s-expired{color:var(--mut);text-decoration:line-through}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .s-approved{color:#5FCB90}
+  :root:not([data-theme="light"]) .s-declined{color:#E58A7E}
+}
+
+/* Asked in the sheet, at the moment it matters, if it was skipped earlier. */
+.ask{margin-top:16px;padding:12px;border:1px solid var(--accent-line);
+     border-radius:var(--r);background:var(--accent-tint)}
+.ask-t{font-size:12.5px;font-weight:600;margin-bottom:8px}
+.ask-r{display:flex;gap:8px}
+.ask-r input{flex:1;height:42px;padding:0 12px;border:1px solid var(--line);
+             border-radius:var(--r);background:var(--card);font-size:15px}
+.ask-r input:focus{outline:none;border-color:var(--accent)}
+
 /* Desktop is not a wider phone, and it is not a phone floating in a field
    either. Above 760px the column widens and the floors go to three across, so
    the seven of them read as a building rather than as a list that ran out. */
@@ -180,6 +211,14 @@ button{cursor:pointer;background:none;border:0}
 .dur button{flex:1;height:40px;border:1px solid var(--line);border-radius:var(--r);
             background:var(--card);font-size:13px;font-weight:600;color:var(--soft)}
 .dur button.on{border-color:var(--accent);background:var(--accent-tint);color:var(--accent)}
+/* The same shape the desk uses for the same question, so a rep who has seen
+   one recognises the other. Narrower than a chip because a number is short. */
+.dur input{flex:0 0 62px;width:62px;height:40px;padding:0 8px;text-align:center;
+           border:1px solid var(--line);border-radius:var(--r);background:var(--card);
+           font-size:13px;font-weight:600;color:var(--ink)}
+.dur input:focus{outline:none;border-color:var(--accent)}
+.dur input.on{border-color:var(--accent);background:var(--accent-tint);color:var(--accent)}
+.dur input::placeholder{color:var(--mut);font-weight:400}
 
 .go{width:100%;height:50px;margin-top:18px;border-radius:var(--r-lg);
     background:var(--accent);color:#fff;font-size:15px;font-weight:650;letter-spacing:-.01em}
@@ -247,6 +286,7 @@ button{cursor:pointer;background:none;border:0}
        Search first: most dealers already know the unit. Then the floors.
        No unit is rendered here, ever. -->
   <section id="home">
+    <div id="myq" hidden></div>
     <div class="sr">
       <input id="q" type="search" inputmode="search" autocomplete="off"
              autocapitalize="characters" spellcheck="false"
@@ -343,6 +383,20 @@ function readName() {
 function writeName(v) {
   try { localStorage.setItem('avail.name', v); } catch (e) {}
 }
+/* THE REQUESTS THIS PHONE HAS MADE.
+   Refs only — six readable characters each. Not the unit id, not the request
+   id, nothing that identifies the dealer to anyone but themselves. They are
+   kept so the page can ask what happened: pending, approved, or declined by
+   management. Capped so a busy week does not grow this list forever. */
+var REQS = [];
+function readReqs() {
+  try { return JSON.parse(localStorage.getItem('avail.reqs') || '[]') || []; }
+  catch (e) { return []; }
+}
+function writeReqs(list) {
+  try { localStorage.setItem('avail.reqs', JSON.stringify(list.slice(0, 25))); } catch (e) {}
+}
+
 function nameAsked() {
   try { return localStorage.getItem('avail.name.asked') === '1'; } catch (e) { return true; }
 }
@@ -394,6 +448,7 @@ async function load(first) {
   }
 
   P = d; FETCHED = Date.now(); STALE = false;
+  refreshMyReqs();          // a decision reaches the dealer on the same rhythm
 
   if (first) {
     $('boot').hidden = true;
@@ -401,6 +456,50 @@ async function load(first) {
     document.title = (P.project || 'Availability');
   }
   render();
+}
+
+var SAYS = { pending: 'Waiting', approved: 'Reserved for you',
+             declined: 'Declined by Management', stale: 'Unit was taken',
+             expired: 'Expired' };
+
+function paintMyReqs() {
+  var box = $('myq');
+  if (!box) return;
+  if (!REQS.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.className = 'myq';
+  box.innerHTML = '<div class="myq-h">Your requests</div>' +
+    REQS.slice(0, 6).map(function (r) {
+      var st = r.status || 'pending';
+      return '<div class="myq-r">' +
+        '<span class="u">' + esc(r.unit) + '</span>' +
+        '<span class="d">' + esc(r.days) + ' day' + (r.days === 1 ? '' : 's') +
+          '  \u00b7  ' + esc(initials(P && P.project)) + '-REQ-' + esc(r.ref) + '</span>' +
+        '<span class="s s-' + esc(st) + '">' + esc(SAYS[st] || st) + '</span>' +
+      '</div>';
+    }).join('');
+}
+
+/* Asks only about the refs this phone holds, through the link that made them.
+   Folded into the same two-minute rhythm as the availability itself, so a
+   decision reaches the dealer without them doing anything. */
+async function refreshMyReqs() {
+  if (!REQS.length) return;
+  var open = REQS.filter(function (r) { return (r.status || 'pending') === 'pending'; });
+  if (!open.length) return;
+  try {
+    var r = await sb.rpc('get_request_status',
+      { p_token: TOKEN, p_refs: open.map(function (x) { return x.ref; }) });
+    var d = r && r.data;
+    if (!d || !d.success) return;
+    var by = {};
+    (d.requests || []).forEach(function (x) { by[x.ref] = x.status; });
+    var changed = false;
+    REQS.forEach(function (x) {
+      if (by[x.ref] && by[x.ref] !== x.status) { x.status = by[x.ref]; changed = true; }
+    });
+    if (changed) { writeReqs(REQS); paintMyReqs(); }
+  } catch (e) { /* the receipt can wait; the board matters more */ }
 }
 
 function dead() {
@@ -435,6 +534,7 @@ function render() {
   $('co').textContent = P.company || '';
   paintUpdated();
   paintNameAsk();
+  paintMyReqs();
   if (FLOOR == null) { renderHome(); } else { renderFloor(); }
   if (SHEET) refreshSheet();
 }
@@ -540,13 +640,24 @@ function runSearch() {
 }
 
 /* ── the request sheet ───────────────────────────────────────────────────── */
-function refCode() {
-  /* Short, readable, sayable down a phone. Not a UUID: this ends up typed back
-     into a WhatsApp reply by a person. No 0/O or 1/I. */
-  var A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = '';
-  for (var i = 0; i < 6; i++) s += A[Math.floor(Math.random() * A.length)];
-  return s;
+/* refCode() is gone. The ref is issued by the server when the request is
+   written, so the number in the WhatsApp message is the number the desk holds.
+   A ref invented in the browser was a number nobody could look up. */
+/* Is this duration one of the chips, or something the rep typed? */
+function CUSTOM(d) { return [1, 3, 7].indexOf(Number(d)) < 0; }
+
+/* One place decides which control is lit, so a chip and the box can never
+   both look chosen. */
+function markDur() {
+  var box = $('dur'); if (!box) return;
+  var all = box.querySelectorAll('button');
+  for (var i = 0; i < all.length; i++) {
+    all[i].classList.toggle('on', Number(all[i].getAttribute('data-d')) === Number(SHEET.days));
+  }
+  var cu = $('dcust');
+  if (cu) cu.classList.toggle('on', CUSTOM(SHEET.days));
 }
+
 function initials(name) {
   var w = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (!w.length) return 'AV';
@@ -558,7 +669,7 @@ function openSheet(unitNo, floorIdx) {
   var u = (f.units || []).filter(function (x) { return x.n === unitNo; })[0];
   /* Tapping an unavailable unit does nothing at all — no sheet, no message. */
   if (!u || u.s !== 'available') return;
-  SHEET = { n: unitNo, fi: floorIdx, days: 7, ref: refCode() };
+  SHEET = { n: unitNo, fi: floorIdx, days: 7, ref: null };
   paintSheet();
   $('scrim').classList.add('on');
   $('sheet').classList.add('on');
@@ -579,7 +690,10 @@ function message() {
   var u = sheetUnit(), f = P.floors[SHEET.fi];
   var L = [];
   L.push((P.project || 'Availability') + ' — Reservation Request');
-  L.push('Ref: ' + initials(P.project) + '-REQ-' + SHEET.ref);
+  /* The server's ref, not one invented here. Without it the request did not
+     register, and the line says so instead of printing a number nobody holds. */
+  L.push(SHEET.ref ? ('Ref: ' + initials(P.project) + '-REQ-' + SHEET.ref)
+                   : 'Ref: not registered \u2014 please confirm in the group');
   L.push('');
   L.push('Unit: ' + SHEET.n);
   L.push('Floor: ' + f.floor_label);
@@ -612,6 +726,11 @@ function paintSheet() {
             return '<button data-d="' + d + '"' + (SHEET.days === d ? ' class="on"' : '') +
                    '>' + d + ' day' + (d === 1 ? '' : 's') + '</button>';
           }).join('') +
+          /* Anything else the rep needs. inputmode=numeric so a phone opens the
+             number pad rather than a keyboard. */
+          '<input id="dcust" inputmode="numeric" maxlength="2" placeholder="\u2026" ' +
+            'title="Any number of days, 1 to 90" ' +
+            (CUSTOM(SHEET.days) ? 'class="on" value="' + SHEET.days + '"' : '') + '>' +
         '</div>') +
 
     '<button class="go" id="go"' + (gone ? ' disabled' : '') + '>Request Reservation</button>' +
@@ -627,22 +746,118 @@ function paintSheet() {
     $('dur').onclick = function (e) {
       var b = e.target.closest('button[data-d]'); if (!b) return;
       SHEET.days = Number(b.getAttribute('data-d'));
-      var all = $('dur').querySelectorAll('button');
-      for (var i = 0; i < all.length; i++) {
-        all[i].classList.toggle('on', Number(all[i].getAttribute('data-d')) === SHEET.days);
-      }
+      var cu = $('dcust'); if (cu) { cu.value = ''; cu.classList.remove('on'); }
+      markDur();
     };
-    $('go').onclick = sendWhatsApp;
-    $('wa').onclick = sendWhatsApp;
-    $('cp').onclick = function () {
-      /* The portal's one copy implementation. Not reimplemented here: it already
-         handles the non-secure origin, the unfocused document and the Android
-         WebView, and it says so out loud when both paths fail. */
-      window._portalCopy(message(),
-        'Request copied — paste it into the group.',
-        'Could not copy. Select the text and copy it by hand.');
-    };
+    var cust = $('dcust');
+    if (cust) cust.addEventListener('input', function () {
+      /* Out of range does not silently become something else: the box keeps
+         what was typed until it is a number this can honour, and the chips
+         only let go once it is. */
+      var n = parseInt(cust.value, 10);
+      if (!(n >= 1 && n <= 90)) { cust.classList.remove('on'); return; }
+      SHEET.days = n;
+      markDur();
+    });
+    /* Leaving an unusable number behind would send a duration nobody chose. */
+    if (cust) cust.addEventListener('blur', function () {
+      var n = parseInt(cust.value, 10);
+      if (!(n >= 1 && n <= 90)) { cust.value = ''; cust.classList.remove('on'); markDur(); }
+    });
+    /* All three do the same thing: register the request, then hand the dealer
+       the message. Copy is not a lesser path \u2014 on desktop it is the only one
+       that visibly works. */
+    $('go').onclick = function () { requestAndSend('wa'); };
+    $('wa').onclick = function () { requestAndSend('wa'); };
+    $('cp').onclick = function () { requestAndSend('copy'); };
   }
+}
+
+/* THE REQUEST REACHES THE DESK, and the WhatsApp message is the receipt.
+
+   The row is written FIRST so the Ref printed in the message is the one the
+   desk holds — a ref invented here and never registered would be a number the
+   dealer reads out that nobody can find.
+
+   If the write fails, the message still goes. That is exactly how this worked
+   before the queue existed, so a dealer is never blocked by our server being
+   unreachable — but the message says so, and a toast says so, rather than
+   letting them believe a request is waiting when it is not. */
+var SENDING = false;
+async function submitRequest() {
+  if (!SHEET) return null;
+  try {
+    var r = await sb.rpc('submit_availability_request', {
+      p_token: TOKEN, p_unit_no: SHEET.n, p_days: SHEET.days, p_name: NAME || null });
+    var d = r && r.data;
+    if (d && d.success) {
+      SHEET.ref = d.ref;
+      var list = readReqs().filter(function (x) { return x.ref !== d.ref; });
+      list.unshift({ ref: d.ref, unit: SHEET.n, days: SHEET.days, status: 'pending' });
+      REQS = list; writeReqs(list); paintMyReqs();
+      return { ok: true, already: !!d.already };
+    }
+    return { ok: false, error: (d && d.error) || 'failed',
+             message: (d && d.message) || null };
+  } catch (e) { return { ok: false, error: 'offline' }; }
+}
+
+async function requestAndSend(how) {
+  if (!SHEET || SENDING) return;
+  /* If the name was skipped earlier, ask HERE — this is the moment it means
+     something, and the desk is useless without it. Once given it is final,
+     the same as if it had been given on the first screen. */
+  if (!NAME) { askNameInSheet(how); return; }
+
+  SENDING = true;
+  var go = document.getElementById('go');
+  if (go) { go.disabled = true; go.textContent = 'Sending\u2026'; }
+  var res = await submitRequest();
+  SENDING = false;
+  if (go) { go.disabled = false; go.textContent = 'Request Reservation'; }
+
+  if (res && !res.ok) {
+    if (res.error === 'unit_unavailable') { toast('That unit has just been taken.'); return refreshSheet(); }
+    if (res.error === 'queue_full' || res.error === 'too_many') { toast(res.message); return; }
+    if (res.error === 'not_available') { toast('This link is no longer active.'); return; }
+    /* offline or unknown: send anyway, and say the desk has not got it */
+    toast('Sent, but the desk has not registered it \u2014 please confirm in the group.');
+    SHEET.ref = null;
+  } else if (res && res.already) {
+    toast('A request for this unit is already waiting.');
+  }
+  if (how === 'copy') {
+    window._portalCopy(message(),
+      'Request copied \u2014 paste it into the group.',
+      'Could not copy. Select the text and copy it by hand.');
+  } else { sendWhatsApp(); }
+  paintSheet();
+}
+
+function askNameInSheet(how) {
+  var host = document.getElementById('sheet');
+  if (document.getElementById('ask-in')) { document.getElementById('ask-in').focus(); return; }
+  var box = document.createElement('div');
+  box.className = 'ask';
+  box.innerHTML =
+    '<div class="ask-t">Your name, so the desk knows who asked</div>' +
+    '<div class="ask-r"><input id="ask-in" type="text" autocomplete="name" ' +
+      'placeholder="e.g. Fawad khan"><button class="go" id="ask-ok" ' +
+      'style="width:auto;margin:0;padding:0 18px;height:42px">Save</button></div>';
+  host.appendChild(box);
+  var input = document.getElementById('ask-in');
+  try { input.focus(); } catch (e) {}
+  function save() {
+    var v = String(input.value || '').trim();
+    if (!v) { try { input.focus(); } catch (e) {} return; }
+    NAME = v; writeName(v); markAsked(); paintNameAsk();
+    box.remove();
+    requestAndSend(how);
+  }
+  document.getElementById('ask-ok').onclick = save;
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+  });
 }
 
 function sendWhatsApp() {
@@ -691,6 +906,7 @@ document.addEventListener('keydown', function (e) {
 
 /* ── go ──────────────────────────────────────────────────────────────────── */
 NAME = readName();
+REQS = readReqs();
 /* The screenshot harness renders a CAPTURED payload so the scale screens can be
    photographed without an Awami link being created. ?preview=1 only stops this
    page from fetching on its own — it grants nothing, reveals nothing, and
@@ -706,6 +922,7 @@ window._availPreview = function (payload) {
   P = payload; FETCHED = Date.now(); STALE = false;
   $('boot').hidden = true; $('app').hidden = false;
   FLOOR = null; SHEET = null; SHOWALL = false;
+  REQS = readReqs();
   render();
   return (P.floors || []).length;
 };

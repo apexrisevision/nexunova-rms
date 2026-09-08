@@ -40,6 +40,8 @@
     sel: null,           // resolved unit
     days: 7,
     statusId: null,      // which tag the next booking applies (id, never a name)
+    reqs: [],            // pending requests from the public link
+    reqBusy: null,       // id of the request being decided
     busy: false
   };
   var STALE_MS = 15 * 60 * 1000;   // a soft ceiling; bookings patch in between
@@ -114,6 +116,24 @@
       ".rd-sg .f{flex:1;min-width:0;font-size:var(--fs-caption);color:var(--fk-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
       ".rd-sg .a{font-size:var(--fs-caption);color:var(--fk-text-muted);white-space:nowrap}" +
       ".rd-sg-more{padding:8px 12px;font-size:var(--fs-caption);color:var(--fk-text-muted);border-top:1px solid var(--fk-border)}" +
+      /* THE REQUEST QUEUE. Sits above everything because it is the only part of
+         this screen where somebody is waiting on an answer. Deliberately plain:
+         a unit, who asked, how long they asked for, and two buttons. */
+      ".rq{margin-bottom:16px}" +
+      ".rq-h{font-weight:700;margin:0 2px 8px;display:flex;align-items:center;gap:8px}" +
+      ".rq-n{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--fk-warning-tint,#FFF4E5);color:#8A5300}" +
+      ".rq-c{border:1px solid var(--fk-border);border-radius:11px;background:var(--fk-bg-card);padding:12px 13px;margin-bottom:8px}" +
+      ".rq-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}" +
+      ".rq-u{font-weight:700;font-size:var(--fs-section)}" +
+      ".rq-m{font-size:var(--fs-caption);color:var(--fk-text-muted)}" +
+      ".rq-w{margin-left:auto;font-size:var(--fs-caption);color:var(--fk-text-muted)}" +
+      ".rq-by{margin-top:5px;font-size:var(--fs-secondary)}" +
+      ".rq-by b{font-weight:650}" +
+      ".rq-gone{margin-top:7px;font-size:var(--fs-caption);color:var(--fk-danger)}" +
+      ".rq-a{display:flex;gap:8px;margin-top:11px}" +
+      ".rq-a button{flex:1;height:40px;border-radius:9px;font:inherit;font-size:var(--fs-secondary);font-weight:650;border:1px solid var(--fk-border);background:var(--fk-bg-card);color:var(--fk-text);cursor:pointer}" +
+      ".rq-a .ok{border-color:transparent;background:var(--fk-primary);color:#fff}" +
+      ".rq-a button:disabled{opacity:.45;cursor:default}" +
       ".rd-empty{padding:20px;text-align:center;color:var(--fk-text-muted);font-size:var(--fs-secondary)}" +
       ".rd-top{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}" +
       ".rd-top select{flex:1 1 160px;min-width:0}" +
@@ -448,6 +468,13 @@
       }
       return _netErr();
     }
+    /* The queue is fetched BEFORE the first paint so the desk never appears
+       without requests that are already waiting — a director glancing at it and
+       seeing nothing, a second before three cards appear, would trust the
+       nothing. It is awaited but not gated on: if it fails the desk still
+       renders, just without the queue. */
+    await _loadReqs();
+    if (!_alive('desk')) return;
     _paint(host);
   };
 
@@ -455,6 +482,22 @@
      id like everything else here: a status NAME is a display string and two
      projects can spell the same idea differently. */
   function _tags() { return (DESK.data && DESK.data.statuses) || []; }
+
+  /* THE QUEUE FROM THE PUBLIC LINK.
+     Loaded beside the desk rather than inside get_reserve_desk: it changes on
+     a different rhythm (a dealer taps at any moment, the unit list does not)
+     and a failure to read it must not take the desk down with it. */
+  async function _loadReqs() {
+    var r;
+    try {
+      r = await sb.rpc('list_reservation_requests',
+        { p_session_token: TOKEN, p_project_id: DESK.projectId || null });
+    } catch (e) { return false; }
+    var d = r && r.data;
+    if (!d || !d.success) return false;
+    DESK.reqs = d.requests || [];
+    return true;
+  }
 
   /* Falls back to Reserved when nothing is armed, which is what the desk did
      before this existed and what the RPC still defaults to. */
@@ -529,6 +572,8 @@
           '<button class="rd-chip" id="rd-daybook">' + li('fileText', 15) + ' Daybook</button>' +
         '</div>' +
 
+        '<div id="rd-reqs" class="rq"></div>' +
+
         '<div class="rd-bar">' +
           '<div class="rd-lb">Unit</div>' +
           '<input class="rd-in" id="rd-unit" autocomplete="off" autocapitalize="characters" ' +
@@ -589,6 +634,7 @@
       '</div>';
 
     _wire();
+    _paintReqs();
     _paintToday();
     var u = _q('#rd-unit'); if (u) { try { u.focus(); } catch (e) {} }
   }
@@ -1036,6 +1082,9 @@
     /* The unit just booked is no longer available, so a list left open would be
        offering it. */
     _closeSuggest();
+    /* A queued request for the unit just booked can no longer be approved, and a
+       card that still says it can is a button that will fail. */
+    _refreshReqs();
     var go = _q('#rd-go'); if (go) go.disabled = true;
     // the requester is deliberately LEFT IN PLACE: a rep usually asks for
     // several units in a row, and retyping the same name each time is the thing
@@ -1074,6 +1123,109 @@
        click would fire five cancels. The flag lives on the node, so a fresh
        _paint (which builds a new node) gets a fresh binding. */
     if (!box.__undoBound) { box.addEventListener('click', _undoClick); box.__undoBound = true; }
+  }
+
+  /* One card per request, oldest first, with what the dealer chose already
+     filled in. Nothing here asks a second question: the duration is theirs,
+     the name is theirs, and the only decision left is yes or no. */
+  function _paintReqs() {
+    var box = _q('#rd-reqs'); if (!box) return;
+    var rows = DESK.reqs || [];
+    if (!rows.length) { box.innerHTML = ''; return; }
+
+    box.innerHTML =
+      '<div class="rq-h">Requests from the link ' +
+        '<span class="rq-n">' + rows.length + '</span></div>' +
+      rows.map(function (r) {
+        var mins = Number(r.minutes_waiting || 0);
+        var waited = mins < 1 ? 'just now'
+                   : mins < 60 ? mins + ' min ago'
+                   : Math.round(mins / 60) + 'h ago';
+        return '<div class="rq-c" data-r="' + esc(r.id) + '">' +
+          '<div class="rq-top">' +
+            '<span class="rq-u">' + esc(r.unit_no) + '</span>' +
+            '<span class="rq-m">' + esc(r.floor) +
+              (Number(r.area) ? ' \u00b7 ' + esc(_area(r.area, r.area_unit)) : '') + '</span>' +
+            '<span class="rq-w">' + esc(waited) + '</span>' +
+          '</div>' +
+          '<div class="rq-by">' +
+            (r.requested_by ? '<b>' + esc(r.requested_by) + '</b>' :
+              '<span class="rq-m">no name given</span>') +
+            ' \u00b7 ' + esc(r.days) + ' day' + (Number(r.days) === 1 ? '' : 's') +
+            ' \u00b7 <span class="rq-m">' + esc(r.ref) + '</span>' +
+          '</div>' +
+          /* Say it BEFORE the tap. Approving a unit that has gone fails, and a
+             button that is going to fail should look like one. */
+          (r.still_free ? '' :
+            '<div class="rq-gone">This unit is no longer available \u2014 approving will not book it.</div>') +
+          '<div class="rq-a">' +
+            '<button class="ok" data-act="approve"' + (r.still_free ? '' : ' disabled') +
+              '>Approve</button>' +
+            '<button data-act="decline">Decline</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+    /* Bound once per painted list, for the same reason Undo is: _paintReqs
+       runs after every decision, and stacking a listener each time would make
+       the fifth Approve fire five decisions. */
+    if (!box.__reqBound) { box.addEventListener('click', _reqClick); box.__reqBound = true; }
+  }
+
+  async function _reqClick(e) {
+    var b = e.target.closest('button[data-act]'); if (!b) return;
+    var card = b.closest('.rq-c'); if (!card) return;
+    var id = card.getAttribute('data-r');
+    var act = b.getAttribute('data-act');
+    if (DESK.reqBusy) return;
+    DESK.reqBusy = id;
+    var all = card.querySelectorAll('button');
+    for (var i = 0; i < all.length; i++) all[i].disabled = true;
+    b.textContent = act === 'approve' ? 'Approving\u2026' : 'Declining\u2026';
+
+    var res;
+    try {
+      res = await sb.rpc('decide_reservation_request',
+        { p_session_token: TOKEN, p_request_id: id, p_action: act,
+          /* Whatever tag is armed on the desk applies, so approving from the
+             queue and booking by hand put the same thing on the unit. */
+          p_unit_status_id: DESK.statusId || null });
+    } catch (e2) { res = null; }
+    DESK.reqBusy = null;
+    var d = res && res.data;
+
+    if (d && d.error === 'session_expired') return sessionGone();
+    if (!d) { toast('Could not reach the server.', 'err'); return _refreshReqs(); }
+
+    if (d.success && d.status === 'approved') {
+      var bk = d.booking || {};
+      toast(esc(bk.unit_no || '') + ' reserved for ' + esc(bk.requested_by || '') +
+            ' \u00b7 ' + esc(String(bk.expiry_days || '')) + 'd', 'ok');
+    } else if (d.success && d.status === 'declined') {
+      toast('Declined \u2014 the dealer will see it on the link.', 'ok');
+    } else if (d.error === 'already_decided') {
+      toast(d.message || 'Already decided.', 'warn');
+    } else if (d.error === 'could_not_book') {
+      toast('That unit was taken before this was approved.', 'err');
+    } else {
+      toast((d && d.message) || 'Could not complete that.', 'err');
+    }
+
+    /* The whole desk is reloaded, not just the queue: approving books a unit,
+       so the board, the index and today's list are all now out of date. */
+    await _refreshReqs(true);
+  }
+
+  async function _refreshReqs(full) {
+    if (full) {
+      var okd = await _load(DESK.projectId, true);
+      if (!_alive('desk')) return;
+      if (okd === 'expired') return sessionGone();
+    }
+    await _loadReqs();
+    if (!_alive('desk')) return;
+    if (full) { _paint(document.getElementById('app-body')); }
+    else { _paintReqs(); }
   }
 
   async function _undoClick(e) {

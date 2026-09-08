@@ -74,6 +74,12 @@ function serve() {
   fs.mkdirSync(OUT, { recursive: true });
   fs.readdirSync(OUT).filter(n => /\.png$/.test(n)).forEach(n => fs.unlinkSync(path.join(OUT, n)));
 
+  /* Counted BEFORE anything runs, so "untouched" is a comparison rather than
+     an assumption about what Rashid has done in the meantime. */
+  const AWAMI_LINKS_BEFORE = (await sql(`SELECT count(*)::int n, count(*) FILTER (WHERE revoked)::int r
+                                           FROM public.availability_links
+                                          WHERE project_id = '${AWAMI_PR}';`))[0];
+
   /* ── 1. THE PAYLOAD, from the real function, without creating a link ───── */
   step('The payload — real function, real Awami, rolled back');
   const cap = await sql(`
@@ -136,6 +142,48 @@ function serve() {
   bytes < 150 * 1024
     ? ok('payload is ' + Math.round(bytes / 1024) + ' KB, under the 150 KB ceiling')
     : bad('payload is ' + Math.round(bytes / 1024) + ' KB');
+
+  /* ── DURATIONS OUT OF RANGE ─────────────────────────────────────────────
+     Clamped to the desk's own 1..90, never discarded and never silently
+     rewritten to the default — a number appearing in the queue that nobody
+     asked for is worse than a refusal. Run inside a rolled-back transaction on
+     Awami so it cannot run out of units and leaves nothing behind. */
+  step('A duration outside 1..90');
+  {
+    const clamp = await sql(`
+      BEGIN;
+      INSERT INTO public.availability_links (token_hash, company_id, project_id, label)
+      VALUES (public._availability_token_hash('clamp_probe'),
+              '${AWAMI_CO}','${AWAMI_PR}','CLAMP PROBE — rolled back');
+      CREATE TEMP TABLE cl ON COMMIT DROP AS
+        SELECT 'high' AS k, public.submit_availability_request('clamp_probe',
+                 (SELECT u.unit_no FROM public.units u
+                    JOIN public.category_unit_statuses st ON st.id=u.status_id
+                   WHERE u.project_id='${AWAMI_PR}' AND st.is_available
+                   ORDER BY u.unit_no LIMIT 1), 999, 'Clamp') AS d
+        UNION ALL
+        SELECT 'low', public.submit_availability_request('clamp_probe',
+                 (SELECT u.unit_no FROM public.units u
+                    JOIN public.category_unit_statuses st ON st.id=u.status_id
+                   WHERE u.project_id='${AWAMI_PR}' AND st.is_available
+                   ORDER BY u.unit_no OFFSET 1 LIMIT 1), 0, 'Clamp')
+        UNION ALL
+        SELECT 'mid', public.submit_availability_request('clamp_probe',
+                 (SELECT u.unit_no FROM public.units u
+                    JOIN public.category_unit_statuses st ON st.id=u.status_id
+                   WHERE u.project_id='${AWAMI_PR}' AND st.is_available
+                   ORDER BY u.unit_no OFFSET 2 LIMIT 1), 12, 'Clamp');
+      SELECT k, (SELECT days FROM public.availability_requests r WHERE r.ref = cl.d->>'ref') AS days
+        FROM cl ORDER BY k;
+      ROLLBACK;`);
+    const by = {}; clamp.forEach(r => { by[r.k] = Number(r.days); });
+    by.high === 90 ? ok('999 days is clamped to 90, the desk\u2019s own ceiling')
+                   : bad('999 days became ' + by.high);
+    by.low === 1   ? ok('0 days is clamped to 1, not dropped')
+                   : bad('0 days became ' + by.low);
+    by.mid === 12  ? ok('and 12 days is taken as 12 \u2014 nothing in range is rewritten')
+                   : bad('12 days became ' + by.mid);
+  }
 
   /* ── 2. the browser ────────────────────────────────────────────────────── */
   const server = await serve();
@@ -278,7 +326,7 @@ function serve() {
       NAME = 'Fawad khan';
       document.querySelector('#floors button[data-f="' + i + '"]').click();
       document.querySelector('#units button:not(.off)').click();
-      return {
+      const out = {
         open: document.getElementById('sheet').classList.contains('on'),
         unit: document.getElementById('sh-n').textContent.trim(),
         label: document.getElementById('go').textContent.trim(),
@@ -286,8 +334,10 @@ function serve() {
         durs: [...document.querySelectorAll('#dur button')].map(b => b.textContent.trim()),
         preset: (document.querySelector('#dur button.on') || {}).textContent,
         acts: [...document.querySelectorAll('.acts button')].map(b => b.textContent.trim()),
-        msg: message()
+        custom: !!document.getElementById('dcust')
       };
+      SHEET.ref = 'AB2CD3';   // the server issues this for real; seeded to check the shape
+      return Object.assign(out, { msg: message() });
     }, 0);
     sheet.open ? ok('the sheet opens on an available unit') : bad('no sheet');
     sheet.label === 'Request Reservation'
@@ -298,8 +348,11 @@ function serve() {
       ? ok('and says the unit is only held once confirmed')
       : bad('the note under the button is wrong: ' + sheet.note);
     JSON.stringify(sheet.durs) === JSON.stringify(['1 day', '3 days', '7 days'])
-      ? ok('durations are 1 / 3 / 7 and nothing longer')
-      : bad('durations are ' + JSON.stringify(sheet.durs));
+      ? ok('the chips are 1 / 3 / 7')
+      : bad('the chips are ' + JSON.stringify(sheet.durs));
+    sheet.custom
+      ? ok('with a box beside them for any other number')
+      : bad('there is no way to type a custom duration');
     /7/.test(sheet.preset || '') ? ok('7 days preselected') : bad('preselected ' + sheet.preset);
     JSON.stringify(sheet.acts) === JSON.stringify(['WhatsApp', 'Copy'])
       ? ok('WhatsApp and Copy, side by side and the same size')
@@ -640,8 +693,14 @@ function serve() {
         : bad('private key names on the wire: ' + privKeys.join(', '));
       const rpcNames = [...new Set((live.code.match(/\.rpc\(\s*['"]([a-z_]+)['"]/g) || [])
         .map(m => m.replace(/.*['"]([a-z_]+)['"]/, '$1')))];
-      /* 17 */ (rpcNames.length === 1 && rpcNames[0] === 'get_public_availability')
-        ? ok('the page can call exactly one function, and it is ' + rpcNames[0])
+      /* 17 — THE PAGE'S WHOLE REACH INTO THE SERVER, by name, from its source.
+         Three now: read the board, register a request, ask what happened to it.
+         Nothing that books, nothing that names a portal RPC. The set is exact,
+         so a fourth appearing is a failure rather than a surprise. */
+      const allowedRpc = ['get_public_availability', 'get_request_status',
+                          'submit_availability_request'].sort();
+      (JSON.stringify(rpcNames.slice().sort()) === JSON.stringify(allowedRpc))
+        ? ok('the page can call exactly these and nothing else: ' + rpcNames.sort().join(', '))
         : bad('the page calls: ' + (rpcNames.join(', ') || 'nothing at all'));
 
       /* ══ THE ASSERTION THAT WAS INVERTED ═══════════════════════════════
@@ -709,13 +768,293 @@ function serve() {
       await sql(`DELETE FROM public.sales_sessions WHERE session_token IN ('zz-avail-dir','zz-avail-rep');`);
     }
 
+    /* ══ THE WHOLE ROUND TRIP ══════════════════════════════════════════════
+       A dealer taps Request on the real page, through the real link, and the
+       request has to arrive in the desk with the duration THEY chose and the
+       name THEIR phone carries — then one tap books it, for real, with the
+       reservation carrying that duration. Nothing about that can be seen in a
+       screenshot, and nothing about it is provable from either end alone.
+
+       On ZZTEST. The link is created and revoked here. ══════════════════ */
+    step('A dealer asks, the desk answers \u2014 the whole round trip');
+    const okU2 = m => console.log('  \u2705 ' + m);
+    const badU2 = m => { console.log('  \u274C ' + m); FAILED = true; };
+    {
+      /* TWO free units at least: the round trip approves one and declines
+         another, and a project with one would leave the decline half silently
+         untested. */
+      const zz2 = await sql(`SELECT p.id, p.company_id, p.project_name,
+                                    count(*) FILTER (WHERE st.is_available) AS free
+                               FROM public.projects p
+                               JOIN public.companies c ON c.id=p.company_id
+                               JOIN public.units u ON u.project_id=p.id
+                               LEFT JOIN public.category_unit_statuses st ON st.id=u.status_id
+                              WHERE c.company_name ILIKE '%zztest%'
+                              GROUP BY p.id, p.company_id, p.project_name
+                             HAVING count(*) FILTER (WHERE st.is_available) >= 2
+                              ORDER BY free DESC LIMIT 1;`);
+      /* Clear whatever a previous run left behind. ZZTEST only, and only rows
+         this harness could have written — a failed run must not poison the
+         next one's reading of the queue. */
+      await sql(`DELETE FROM public.availability_requests r
+                  USING public.companies c
+                  WHERE c.id = r.company_id AND c.company_name ILIKE '%zztest%';`);
+
+      if (!zz2.length) { bad('no ZZTEST project with two free units'); }
+      else {
+        await sql(`DELETE FROM public.sales_sessions WHERE session_token='zz-rt-dir';
+          INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+          SELECT s.company_id, s.id, NULL, 'zz-rt-dir', now()+interval '10 minutes'
+            FROM public.sales_users s WHERE s.company_id='${zz2[0].company_id}' AND s.role='director' LIMIT 1;`);
+        const mk = await sql(`SELECT public.create_availability_link('zz-rt-dir','${zz2[0].id}','round trip') AS r;`);
+        const T = mk[0].r.token;
+
+        /* THE DEALER. A fresh browser profile: no name, no history. */
+        const ctx = await browser.createBrowserContext();
+        const dp = await ctx.newPage();
+        const derrs = [];
+        dp.on('pageerror', e => derrs.push(String(e.message || e)));
+        await dp.setViewport({ width: 380, height: 780 });
+        await dp.goto(BASE + '/a/' + T, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        /* Wait for the thing the next step touches, not for the network. A
+           crash on a null element hides whether the page loaded at all. */
+        const ready = await dp.waitForFunction(() =>
+          !!document.getElementById('nm-in') ||
+          /not available/i.test(document.body.innerText), { timeout: 30000 })
+          .then(() => true).catch(() => false);
+        const shape = await dp.evaluate(() => ({
+          dead: /not available/i.test(document.body.innerText),
+          asks: !!document.getElementById('nm-in'),
+          floors: document.querySelectorAll('#floors button').length }));
+        (ready && shape.asks && shape.floors > 0)
+          ? okU2('a fresh phone opens the link and is asked for a name (' + shape.floors + ' floors)')
+          : badU2('the dealer page did not come up: ' + JSON.stringify(shape));
+        if (!shape.asks) throw new Error('dealer page not usable: ' + JSON.stringify(shape));
+
+        const asked = await dp.evaluate(async () => {
+          /* give the name the way a dealer does */
+          document.getElementById('nm-in').value = 'Round Trip Rep';
+          document.getElementById('nm-ok').click();
+          await new Promise(r => setTimeout(r, 150));
+          document.querySelector('#floors button').click();
+          const u = document.querySelector('#units button:not(.off)');
+          const unit = u.querySelector('.un').textContent.trim();
+          u.click();
+          await new Promise(r => setTimeout(r, 250));
+          /* 3 days, not the default 7 — so the duration is proven to travel */
+          document.querySelector('#dur button[data-d="3"]').click();
+          document.getElementById('cp').click();      // Copy: registers, no popup
+          await new Promise(r => setTimeout(r, 1400));
+          return { unit, ref: (window.SHEET || {}).ref, msg: message() };
+        });
+        asked.ref
+          ? okU2('the dealer\u2019s tap registered a request, ref ' + asked.ref)
+          : badU2('no ref came back from the server');
+        new RegExp('REQ-' + asked.ref).test(asked.msg || '')
+          ? okU2('and the WhatsApp message carries THAT ref, not one invented in the browser')
+          : badU2('the message ref does not match: ' + String(asked.msg).split('\n')[1]);
+        await dp.screenshot({ path: path.join(OUT, 'k-request-sent.png') });
+
+        /* A TYPED DURATION, all the way through. 12 is not one of the chips and
+           not the default, so if anything anywhere quietly rewrites it the
+           number that comes out the other end will not be 12. */
+        const custom = await dp.evaluate(async () => {
+          closeSheet();
+          document.getElementById('back').click();
+          document.querySelector('#floors button').click();
+          const free = [...document.querySelectorAll('#units button:not(.off)')];
+          const u = free[free.length - 1];
+          if (!u) return null;
+          u.click();
+          await new Promise(r => setTimeout(r, 250));
+          const box = document.getElementById('dcust');
+          box.value = '12';
+          box.dispatchEvent(new Event('input', { bubbles: true }));
+          const litChips = [...document.querySelectorAll('#dur button.on')].length;
+          const boxLit = box.classList.contains('on');
+          document.getElementById('cp').click();
+          await new Promise(r => setTimeout(r, 1400));
+          return { ref: (window.SHEET || {}).ref, days: (window.SHEET || {}).days,
+                   litChips, boxLit, msg: message() };
+        });
+        if (!custom || !custom.ref) { badU2('the custom duration request did not register'); }
+        else {
+          (custom.litChips === 0 && custom.boxLit)
+            ? okU2('typing 12 lights the box and lets go of every chip')
+            : badU2('both a chip and the box look chosen: ' + JSON.stringify(custom));
+          /Duration: 12 days/.test(custom.msg)
+            ? okU2('the WhatsApp message says 12 days')
+            : badU2('the message says ' + (String(custom.msg).match(/Duration:.*/) || [''])[0]);
+          const cRow = await sql(`SELECT days, status FROM public.availability_requests
+                                   WHERE ref='${custom.ref}';`);
+          Number(cRow[0] && cRow[0].days) === 12
+            ? okU2('and the desk receives 12 days, not a rewritten 7')
+            : badU2('the queue received ' + JSON.stringify(cRow[0]));
+          await sql(`DELETE FROM public.availability_requests WHERE ref='${custom.ref}';`);
+        }
+
+        /* NOTHING IS BOOKED YET. This is the whole safety of the anon write. */
+        const mid = await sql(`
+          SELECT (SELECT count(*)::int FROM public.availability_requests
+                   WHERE ref='${asked.ref}' AND status='pending')                    AS pending,
+                 (SELECT requested_by_name FROM public.availability_requests WHERE ref='${asked.ref}') AS who,
+                 (SELECT days FROM public.availability_requests WHERE ref='${asked.ref}')              AS days,
+                 (SELECT count(*)::int FROM public.reservations r
+                    JOIN public.units u ON u.id=r.unit_id
+                   WHERE u.unit_no='${asked.unit}' AND u.project_id='${zz2[0].id}'
+                     AND r.status='active')                                          AS booked;`);
+        (mid[0].pending === 1 && mid[0].booked === 0)
+          ? okU2('the request is waiting and NOTHING is booked \u2014 submit reserves nothing')
+          : badU2('state after the ask: ' + JSON.stringify(mid[0]));
+        (mid[0].who === 'Round Trip Rep' && Number(mid[0].days) === 3)
+          ? okU2('it carries the name and the 3 days the dealer chose')
+          : badU2('the request lost the name or the duration: ' + JSON.stringify(mid[0]));
+
+        /* THE DESK. Same session, the real list function. */
+        const q = await sql(`SELECT public.list_reservation_requests('zz-rt-dir','${zz2[0].id}') AS r;`);
+        const rows = (q[0].r.requests || []).filter(x => x.ref === asked.ref);
+        rows.length === 1
+          ? okU2('it appears in the desk queue with unit ' + rows[0].unit_no + ', ' +
+                 rows[0].days + ' days, ' + rows[0].requested_by)
+          : badU2('the request is not in the desk queue');
+
+        /* ── the desk, with the request waiting on it ─────────────────── */
+        const deskCtx = await browser.createBrowserContext();
+        const deskPage = await deskCtx.newPage();
+        const deskErrs = [];
+        deskPage.on('pageerror', e2 => deskErrs.push(String(e2.message || e2)));
+        await deskPage.setViewport({ width: 420, height: 900, deviceScaleFactor: 2 });
+        await deskPage.goto(BASE + '/sales-portal.html', { waitUntil: 'domcontentloaded' });
+        await deskPage.evaluate(t => {
+          localStorage.setItem('rms.sales.token', t);
+          localStorage.setItem('rms.sales.active', String(Date.now()));
+          sessionStorage.setItem('nx.hub.bounce', '1');
+        }, 'zz-rt-dir');
+        await deskPage.goto(BASE + '/sales-portal.html?tab=desk', { waitUntil: 'domcontentloaded' });
+        await deskPage.waitForFunction(() => !!document.getElementById('rd-root'), { timeout: 60000 });
+        await sleep(1800);
+        const deskQ = await deskPage.evaluate(myRef => {
+          const box = document.getElementById('rd-reqs');
+          const cards = [...(box ? box.querySelectorAll('.rq-c') : [])];
+          /* BY REF, not by position. The queue is oldest-first and anything
+             else waiting is somebody else's row. */
+          const mine = cards.filter(c => c.innerText.indexOf(myRef) >= 0)[0] || null;
+          return {
+            count: cards.length,
+            badge: (box && box.querySelector('.rq-n') || {}).textContent || '',
+            found: !!mine,
+            first: mine ? mine.innerText.replace(/\s+/g, ' ').trim() : '',
+            acts: mine ? [...mine.querySelectorAll('.rq-a button')].map(b2 => b2.textContent.trim()) : []
+          };
+        }, asked.ref);
+        (deskQ.found && deskQ.count === 1)
+          ? okU2('the desk shows this request and only this one, badge "' + deskQ.badge + '"')
+          : badU2('the desk queue holds ' + deskQ.count + ' card(s), ours found: ' + deskQ.found);
+        JSON.stringify(deskQ.acts) === JSON.stringify(['Approve', 'Decline'])
+          ? okU2('with exactly two buttons: Approve and Decline')
+          : badU2('the card offers ' + JSON.stringify(deskQ.acts));
+        /Round Trip Rep/.test(deskQ.first) && /3 days/.test(deskQ.first)
+          ? okU2('and the card already carries the name and the duration: ' +
+                 deskQ.first.slice(0, 70))
+          : badU2('the card is missing the name or the duration: ' + deskQ.first);
+        deskErrs.length === 0 ? okU2('no errors on the desk')
+                              : badU2('desk errors: ' + deskErrs.slice(0, 2).join(' | '));
+        await deskPage.screenshot({ path: path.join(OUT, 'm-desk-queue.png') });
+        await deskCtx.close();
+
+        const dec = await sql(`SELECT public.decide_reservation_request('zz-rt-dir',
+                                 (SELECT id FROM public.availability_requests WHERE ref='${asked.ref}'),
+                                 'approve') AS r;`);
+        dec[0].r.success === true
+          ? okU2('one tap approves it')
+          : badU2('approve failed: ' + JSON.stringify(dec[0].r));
+        const after = await sql(`
+          SELECT (SELECT status FROM public.availability_requests WHERE ref='${asked.ref}') AS st,
+                 (SELECT count(*)::int FROM public.reservations r JOIN public.units u ON u.id=r.unit_id
+                   WHERE u.unit_no='${asked.unit}' AND u.project_id='${zz2[0].id}' AND r.status='active') AS booked,
+                 (SELECT r.requested_by_name FROM public.reservations r JOIN public.units u ON u.id=r.unit_id
+                   WHERE u.unit_no='${asked.unit}' AND u.project_id='${zz2[0].id}' AND r.status='active') AS who,
+                 (SELECT EXTRACT(DAY FROM (r.expiry_date - r.created_at))::int
+                    FROM public.reservations r JOIN public.units u ON u.id=r.unit_id
+                   WHERE u.unit_no='${asked.unit}' AND u.project_id='${zz2[0].id}' AND r.status='active') AS days;`);
+        (after[0].st === 'approved' && after[0].booked === 1 &&
+         after[0].who === 'Round Trip Rep' && Number(after[0].days) === 3)
+          ? okU2('and the unit is really reserved \u2014 for ' + after[0].who + ', ' + after[0].days + ' days')
+          : badU2('after approve: ' + JSON.stringify(after[0]));
+
+        /* THE DEALER SEES THE ANSWER. Decline a second one and read it back
+           through the page's own status call. */
+        const second = await dp.evaluate(async () => {
+          closeSheet();
+          document.getElementById('back').click();
+          document.querySelector('#floors button').click();
+          /* A DIFFERENT unit. The payload in this browser still predates the
+             approval, so the first free chip is the one just booked and the
+             request would be refused — which is correct behaviour, and not what
+             this half is testing. */
+          const free = [...document.querySelectorAll('#units button:not(.off)')];
+          const u = free[1] || free[0];
+          if (!u) return null;
+          u.click();
+          await new Promise(r => setTimeout(r, 250));
+          document.getElementById('cp').click();
+          await new Promise(r => setTimeout(r, 1400));
+          return (window.SHEET || {}).ref;
+        });
+        if (!second) { badU2('no second unit to decline'); }
+        else {
+          await sql(`SELECT public.decide_reservation_request('zz-rt-dir',
+                       (SELECT id FROM public.availability_requests WHERE ref='${second}'),
+                       'decline');`);
+          const seen = await dp.evaluate(async () => {
+            await refreshMyReqs();
+            await new Promise(r => setTimeout(r, 300));
+            return document.getElementById('myq').innerText;
+          });
+          /Declined by Management/.test(seen)
+            ? okU2('a decline reaches the dealer\u2019s page as \u201cDeclined by Management\u201d')
+            : badU2('the dealer does not see the decline: ' + String(seen).replace(/\s+/g, ' ').slice(0, 90));
+          /Reserved for you/.test(seen)
+            ? okU2('and the approved one reads \u201cReserved for you\u201d')
+            : badU2('the approved request does not show as reserved');
+          await dp.screenshot({ path: path.join(OUT, 'l-dealer-sees-decision.png') });
+        }
+
+        /* THE CAPS. One pending per unit, asserted by asking twice. */
+        const twice = await sql(`
+          SELECT (public.submit_availability_request('${T}','${asked.unit}',7,'Someone')->>'error') AS e;`);
+        twice[0].e === 'unit_unavailable'
+          ? okU2('asking for a unit that is now booked is refused')
+          : badU2('a booked unit accepted a request: ' + twice[0].e);
+
+        derrs.length === 0 ? okU2('no page errors on the dealer\u2019s side')
+                           : badU2('dealer page errors: ' + derrs.slice(0, 2).join(' | '));
+
+        await ctx.close();
+        /* put ZZTEST back */
+        await sql(`
+          UPDATE public.reservations SET status='cancelled', cancelled_at=now()
+           WHERE id IN (SELECT reservation_id FROM public.availability_requests
+                         WHERE ref IN ('${asked.ref}','${second}') AND reservation_id IS NOT NULL);
+          DELETE FROM public.availability_requests WHERE ref IN ('${asked.ref}','${second}');
+          SELECT public.revoke_availability_link('zz-rt-dir','${T}');
+          DELETE FROM public.sales_sessions WHERE session_token='zz-rt-dir';`);
+        okU2('ZZTEST put back: requests deleted, reservation cancelled, link revoked');
+      }
+    }
+
     /* ── nothing was created on Awami ───────────────────────────────────── */
+    /* Rashid creates the Awami link himself and sees the token once, so the
+       claim is not "none exists" — it is that this run made no new one and
+       revoked none. Counted at the start, compared at the end. */
     step('Awami is untouched');
-    const links = await sql(`SELECT count(*)::int n FROM public.availability_links
-                              WHERE project_id = '${AWAMI_PR}';`);
-    links[0].n === 0
-      ? ok('no availability link exists for Awami \u2014 this script created none')
-      : bad(links[0].n + ' Awami link(s) exist; this script must not have made one');
+    const linksAfter = await sql(`SELECT count(*)::int n, count(*) FILTER (WHERE revoked)::int r
+                                    FROM public.availability_links
+                                   WHERE project_id = '${AWAMI_PR}';`);
+    (linksAfter[0].n === AWAMI_LINKS_BEFORE.n && linksAfter[0].r === AWAMI_LINKS_BEFORE.r)
+      ? ok('Awami still has exactly the ' + linksAfter[0].n + ' link(s) it started with \u2014 ' +
+           'this run created none and revoked none')
+      : bad('Awami links changed: ' + JSON.stringify({ before: AWAMI_LINKS_BEFORE, after: linksAfter[0] }));
 
     errs.length === 0 ? ok('no console errors') : bad('console: ' + errs.slice(0, 3).join(' | '));
   } finally {
@@ -735,15 +1074,21 @@ function serve() {
 async function visitToken(browser, token) {
   const ctx = await browser.createBrowserContext();   // empty: no storage, no session
   const p = await ctx.newPage();
-  const wire = [];
-  p.on('response', async r => {
+  const wire = [], pending = [];
+  p.on('response', r => {
     if (!/get_public_availability/.test(r.url())) return;
-    try { wire.push(await r.text()); } catch (e) {}
+    pending.push(r.text().then(t => wire.push(t)).catch(() => {}));
   });
   try {
     await p.setViewport({ width: 380, height: 780 });
-    await p.goto(BASE + '/a/' + token, { waitUntil: 'networkidle2', timeout: 30000 });
-    await sleep(600);
+    await p.goto(BASE + '/a/' + token, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    /* Rendered, or dead. Waiting on the network going quiet is not the same
+       question and answered too early. */
+    await p.waitForFunction(() =>
+      document.querySelectorAll('#floors button').length > 0 ||
+      /not available/i.test(document.body.innerText), { timeout: 30000 }).catch(() => {});
+    await Promise.all(pending);
+    await sleep(200);
     const out = await p.evaluate(() => {
       const home = document.querySelectorAll('#units button').length;
       const total = (window.P && window.P.floors)
