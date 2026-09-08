@@ -18,170 +18,232 @@
    else, no scrolling), screen two is ONE floor. No screen ever holds more than
    one floor's units, and switching floors unmounts the last one.
 
-   Availability is signalled by weight and contrast, not by colour. There is one
-   accent and it is used for the thing you press. No shadows, no gradients, no
-   emoji — the type hierarchy does the work. ════════════════════════════════ */
+   THE VISUAL RULES, and they are short on purpose:
 
-/* TWO COLOURS, TWO JOBS, AND NOTHING ELSE CARRIES MEANING.
-   Blue is the thing you press. Amber is a unit somebody already has. A page
-   whose palette says one thing and whose text says another is read wrong at a
-   glance, and a glance is all this page gets.
+   · One family, the system stack. No webfont, because 40KB of Inter is four
+     seconds of a 3G first paint and weight and size already carry hierarchy.
+   · One accent, and it does exactly two jobs: the thing you press, and the
+     ring around whatever has focus. Nowhere else.
+   · Cards are white ON a warmer near-white ground, with NO border. One or the
+     other, never both, and never a shadow underneath.
+   · Availability is contrast and weight, not colour. The bar under the count
+     is ink at two strengths.
+   · Every animation is caused by a finger, lasts under 300ms, and happens
+     once. Nothing on this page moves by itself.
+   ════════════════════════════════════════════════════════════════════════ */
 
-   Everything else is grey, and the hierarchy is carried by SIZE and WEIGHT —
-   there are no shadows and no gradients here, which is the harder discipline
-   and the reason the page still looks calm with a second colour in it. */
 :root{
-  --bg:#FAFAF9; --card:#FFFFFF; --ink:#0F1419; --soft:#525C6B; --mut:#8B94A2;
-  --line:#E7E9ED; --line2:#F1F2F5; --tint:#F5F6F8;
-  --accent:#1F5EFF; --accent-tint:#EEF3FF; --accent-line:#CFDDFF;
-  /* held: warm, legible, and never mistaken for an error */
-  --held:#B4600C; --held-bg:#FFF5EA; --held-line:#F3DCC0; --held-bar:#E8933A;
+  /* A warmer, slightly deeper ground so a pure-white card separates on its
+     own. This is what buys the borderless surface. */
+  --bg:#F5F5F4;
+  --card:#FFFFFF;
+  --ink:#14171C;
+  --soft:#565E6A;
+  --mut:#8A919B;
+  /* hairlines, for the few places a card is not enough: inputs and dividers */
+  --line:#E3E4E6;
+  --hair:rgba(20,23,28,.07);
+  --sunk:#EDEDEC;
+  /* THE one accent */
+  --accent:#1D4ED8;
+  --accent-soft:#EDF2FE;
+  --ring:rgba(29,78,216,.18);
+  /* Held is deliberately low-chroma. It has to be distinguishable at arm's
+     length in sunlight without ever being the loudest thing on the screen. */
+  --held:#8A6224;
+  --held-bg:#F3EEE5;
   --warn:#8A5300;
-  --r:10px; --r-lg:14px; --r-xl:18px;
-  --pad:16px;
+
+  --r:12px;
+  --r-lg:20px;
+  --pad:18px;
+
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --t-fast:120ms;
+  --t:160ms;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0D1014; --card:#151920; --ink:#EEF1F5; --soft:#A3ACBA; --mut:#77808E;
-    --line:#242932; --line2:#1B1F26; --tint:#191D24;
-    --accent:#6D9BFF; --accent-tint:#18202E; --accent-line:#2C3B57;
-    --held:#E9A860; --held-bg:#261D12; --held-line:#43301B; --held-bar:#C77C2E;
+    --bg:#0E1013; --card:#171A1F; --ink:#EDEFF2; --soft:#A2A9B4; --mut:#79808A;
+    --line:#272B31; --hair:rgba(255,255,255,.07); --sunk:#1C1F24;
+    --accent:#7AA2FF; --accent-soft:#161C28; --ring:rgba(122,162,255,.22);
+    --held:#C99A55; --held-bg:#221C13;
     --warn:#D9A441;
   }
 }
+
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--ink);
-  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
+  /* Every number on this page lines up under every other one, everywhere,
+     without being asked for again. */
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
   padding:0 0 env(safe-area-inset-bottom);
 }
-/* THE SCALE. Five sizes with real distance between them, so a reader lands on
-   the number first and the label second without being told to. */
-.t-display{font-size:25px;font-weight:700;letter-spacing:-.032em;line-height:1.1}
-.t-title{font-size:19px;font-weight:650;letter-spacing:-.022em;line-height:1.15}
-.t-huge{font-size:34px;font-weight:700;letter-spacing:-.035em;line-height:1;
-        font-variant-numeric:tabular-nums}
-.t-fig{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.05;
-       font-variant-numeric:tabular-nums}
-.t-lab{font-size:10px;font-weight:650;letter-spacing:.10em;text-transform:uppercase;
-       color:var(--mut)}
-.t-cap{font-size:11.5px;color:var(--mut);line-height:1.4}
-button,input{font:inherit;color:inherit}
+button,input{font:inherit;color:inherit;font-variant-numeric:inherit}
 button{cursor:pointer;background:none;border:0}
 .num{font-variant-numeric:tabular-nums}
 
-/* ── the frame ──────────────────────────────────────────────────────────── */
-.wrap{max-width:520px;margin:0 auto;padding:var(--pad) var(--pad) 28px}
+/* THE SCALE. Six steps, and nothing on the page is allowed a size that is not
+   one of them. Large text tracks tighter, small caps track looser. */
+.t-display{font-size:26px;font-weight:700;letter-spacing:-.028em;line-height:1.12}
+.t-title  {font-size:20px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
+.t-fig    {font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.t-body   {font-size:14.5px;line-height:1.55}
+.t-cap    {font-size:12px;color:var(--mut);line-height:1.55}
+.t-lab    {font-size:10.5px;font-weight:650;letter-spacing:.11em;
+           text-transform:uppercase;color:var(--mut);line-height:1.2}
 
-.hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:15px}
-.hd-t{font-size:25px;font-weight:700;letter-spacing:-.032em;line-height:1.08}
-.hd-c{font-size:11.5px;color:var(--mut);margin-top:4px;letter-spacing:.01em}
-.hd-u{font-size:11px;color:var(--mut);white-space:nowrap;flex:none;padding-top:5px}
+/* ── the frame ──────────────────────────────────────────────────────────── */
+.wrap{max-width:520px;margin:0 auto;padding:15px var(--pad) 40px}
+
+.hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+    margin-bottom:15px}
+.hd-t{font-size:26px;font-weight:700;letter-spacing:-.028em;line-height:1.12}
+.hd-c{font-size:12px;color:var(--mut);margin-top:5px;line-height:1.5}
+.hd-u{font-size:11px;color:var(--mut);white-space:nowrap;flex:none;padding-top:7px;
+      transition:color var(--t) var(--ease)}
 /* A refetch that failed must SAY the data is old rather than keep a confident
-   timestamp that quietly stopped being true. */
+   timestamp that quietly stopped being true. A change of tone, no banner. */
 .hd-u.stale{color:var(--warn)}
 
-/* ── search: the primary action, because most dealers know the number ───── */
-.sr{position:relative;margin-bottom:13px}
+/* ── the reading ─────────────────────────────────────────────────────────
+   Not a card and not a headline. The search below is the focal point of this
+   screen, so this states the position and gets out of the way. */
+.hero{margin-bottom:15px}
+.hero-top{display:flex;align-items:baseline;gap:10px}
+.hero-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+        color:var(--mut);line-height:1.2;margin-bottom:6px}
+.hero-n{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.hero-p{font-size:12px;color:var(--mut)}
+/* Ink at two strengths, not two hues. Availability is contrast here. */
+.bar{display:flex;height:3px;border-radius:999px;overflow:hidden;background:var(--sunk);
+     margin:9px 0 7px}
+.bar i{display:block;height:100%}
+.bar .free{background:var(--ink);opacity:.28}
+.bar .held{background:transparent}
+.hero-f{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;
+        color:var(--mut);line-height:1.45}
+.hero-f b{font-weight:650;color:var(--soft)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;
+     vertical-align:1px}
+.dot.free{background:var(--ink);opacity:.28}
+.dot.held{background:var(--sunk);box-shadow:inset 0 0 0 1px var(--hair)}
+.tot{margin-top:16px;font-size:12px;color:var(--mut);text-align:center}
+
+/* ── search: THE focal point of screen one ──────────────────────────────── */
+.sr{position:relative;margin-bottom:17px}
 .sr input{
-  width:100%;height:52px;padding:0 15px;border:1px solid var(--line);
-  border-radius:var(--r-lg);background:var(--card);font-size:16px;font-weight:550;
-  letter-spacing:-.01em;outline:none;transition:border-color .14s,box-shadow .14s
+  width:100%;height:58px;padding:0 18px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--card);font-size:16.5px;font-weight:500;
+  letter-spacing:-.01em;outline:none;
+  transition:border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
 }
-/* A ring rather than a shadow: the brief said no shadows, and a 3px tint ring
-   does the same job without pretending the field is floating. */
-.sr input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+/* A ring, never a shadow: the same job without pretending the field floats. */
+.sr input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
 .sr input::placeholder{color:var(--mut);font-weight:400}
 
-.res{margin-top:8px;border:1px solid var(--line);border-radius:var(--r-lg);
-     background:var(--card);overflow:hidden}
-.res-r{display:flex;align-items:baseline;gap:10px;width:100%;padding:11px 14px;
-       border-bottom:1px solid var(--line2);text-align:left}
+.res{margin-top:10px;border-radius:var(--r);background:var(--card);overflow:hidden;
+     animation:fade var(--t) var(--ease) both}
+.res-r{display:flex;align-items:baseline;gap:12px;width:100%;padding:14px 16px;
+       border-bottom:1px solid var(--hair);text-align:left;min-height:48px;
+       transition:background var(--t-fast) var(--ease)}
 .res-r:last-child{border-bottom:0}
-.res-r .n{font-weight:650;font-size:14px;min-width:72px}
-.res-r .f{flex:1;min-width:0;font-size:12px;color:var(--soft);
+.res-r:active{background:var(--sunk)}
+.res-r .n{font-weight:650;font-size:14.5px;min-width:76px;letter-spacing:-.01em}
+.res-r .f{flex:1;min-width:0;font-size:12.5px;color:var(--soft);
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .res-r .a{font-size:12px;color:var(--mut);white-space:nowrap}
 .res-r[disabled]{cursor:default;background:var(--held-bg)}
-.res-r[disabled] .n{color:var(--held);font-weight:650}
+.res-r[disabled]:active{background:var(--held-bg)}
+.res-r[disabled] .n{color:var(--held);font-weight:600}
 /* A held row must not read differently here than on the floor grid, or the
    two screens are describing two different buildings. */
 .res-r[disabled] .a{color:var(--held);font-weight:650;font-size:10px;
-                    letter-spacing:.06em;text-transform:uppercase}
-.res-more{padding:9px 14px;font-size:11.5px;color:var(--mut);border-top:1px solid var(--line2)}
-.res-none{padding:14px;font-size:13px;color:var(--mut)}
+                    letter-spacing:.08em;text-transform:uppercase}
+.res-more{padding:12px 16px;font-size:12px;color:var(--mut);border-top:1px solid var(--hair)}
+/* An empty search is not an error. One quiet line, centred, and no red. */
+.res-none{padding:26px 16px;font-size:13.5px;color:var(--mut);text-align:center;line-height:1.6}
 
-/* ── floor chips: two columns, seven of them, one screen ────────────────── */
-.fl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* ── floor chips ────────────────────────────────────────────────────────── */
+.fl{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .fl button{
-  padding:9px 12px 8px;border:1px solid var(--line);border-radius:var(--r-lg);
-  background:var(--card);text-align:left;min-height:66px;
-  display:flex;flex-direction:column;gap:0;
-  transition:border-color .14s,background .14s,transform .14s
+  padding:13px 15px 12px;border:0;border-radius:var(--r);
+  background:var(--card);text-align:left;min-height:70px;
+  display:flex;flex-direction:column;justify-content:center;
+  transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
 }
-.fl button:hover{border-color:var(--accent-line);background:var(--accent-tint);
-                 transform:translateY(-1px)}
-.fl button:active{transform:none}
-/* Label small and quiet, number large and confident: the eye lands on how
-   many are free, which is the only reason anyone taps a floor. */
-.fl .fn{font-size:10px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+/* The tactile press. This, more than anything else here, is what makes a page
+   feel like an application rather than a document on a phone. */
+@media (hover:hover){ .fl button:hover{background:#FDFDFD} }
+/* AFTER the hover rule, not before. Same specificity means the last one
+   wins, and a mouse is hovering at the moment it presses — so a press
+   declared first shows the hover tint and the tactile answer is lost on
+   every device that has a cursor. */
+.fl button:active{transform:scale(.975);background:var(--sunk)}
+.fl .fn{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
         color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fl .fv{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.1;
-        font-variant-numeric:tabular-nums;margin-top:2px}
-.fl .fc{font-size:10.5px;color:var(--mut);font-variant-numeric:tabular-nums}
-/* A floor with nothing free is not an error, it is just finished. Amber, and
-   the number stops shouting. */
-.fl button.empty{background:var(--held-bg);border-color:var(--held-line)}
-.fl button.empty:hover{border-color:var(--held-line);background:var(--held-bg)}
-.fl button.empty .fv{font-size:14px;font-weight:650;color:var(--held);
-                     letter-spacing:-.015em;margin-top:5px;line-height:1.2}
-.fl button.empty .fn{color:var(--held);opacity:.8}
+.fl .fr{display:flex;align-items:baseline;gap:7px;margin-top:6px}
+.fl .fv{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.fl .fc{font-size:11.5px;color:var(--mut);line-height:1.4}
+/* A floor with nothing free is not an error, it is just finished. It sinks
+   rather than shouting. */
+.fl button.empty{background:var(--held-bg)}
+@media (hover:hover){ .fl button.empty:hover{background:var(--held-bg)} }
+.fl button.empty:active{background:var(--held-bg);transform:scale(.975)}
+.fl button.empty .fv{font-size:15px;font-weight:600;color:var(--held);letter-spacing:-.01em}
+.fl button.empty .fc{color:var(--held);opacity:.75}
+.fl button.empty .fn{color:var(--held);opacity:.75}
 
-/* One block, and the only large number on the screen. The bar underneath is
-   the same fact drawn once more for the eye that does not read numbers. */
-.hero{border:1px solid var(--line);border-radius:var(--r-xl);background:var(--card);
-      padding:13px 15px 12px;margin-bottom:13px}
-.hero-top{display:flex;align-items:flex-end;gap:11px}
-.hero-n{font-size:34px;font-weight:700;letter-spacing:-.035em;line-height:1.05;
-        font-variant-numeric:tabular-nums}
-.hero-p{font-size:12.5px;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums;
-        padding-bottom:5px}
-.hero-l{font-size:10px;font-weight:650;letter-spacing:.10em;text-transform:uppercase;
-        color:var(--mut);line-height:1}
-.bar{display:flex;height:5px;border-radius:999px;overflow:hidden;background:var(--line2);
-     margin:10px 0 8px}
-.bar i{display:block;height:100%}
-.bar .free{background:var(--accent)}
-.bar .held{background:var(--held-bar)}
-.hero-f{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11.5px;
-        color:var(--soft)}
-.hero-f b{font-weight:650;font-variant-numeric:tabular-nums;color:var(--ink)}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;
-     vertical-align:1px}
-.dot.free{background:var(--accent)}
-.dot.held{background:var(--held-bar)}
-.tot{margin-top:14px;font-size:11.5px;color:var(--mut);text-align:center}
+/* A BRIEF ENTRANCE, ONCE. Added by the first paint and taken off immediately,
+   so a refetch two minutes later never repeats it. */
+.fl.stagger button{animation:rise 180ms var(--ease) both;
+                   animation-delay:calc(var(--i,0) * 30ms)}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* ── SKELETON ────────────────────────────────────────────────────────────
+   Matched to the real thing's dimensions, so the page does not jump when the
+   payload lands. It does not shimmer: a looping animation on a first paint is
+   the page telling the user to look at it while it has nothing to say. */
+.sk{border-radius:var(--r);background:var(--card)}
+.sk-line{border-radius:6px;background:var(--sunk)}
+.sk-hd{height:29px;width:62%;margin-bottom:9px}
+.sk-co{height:13px;width:40%;margin-bottom:15px}
+.sk-hero{height:14px;width:34%;margin-bottom:11px}
+.sk-bar{height:3px;width:100%;border-radius:999px;margin-bottom:8px}
+.sk-leg{height:13px;width:56%;margin-bottom:15px}
+.sk-sr{height:58px;width:100%;margin-bottom:17px;border-radius:var(--r)}
+.sk-fl{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.sk-ch{height:70px;border-radius:var(--r)}
+
+/* ── SCREEN TRANSITION — user-initiated, one way in, one way back ───────── */
+.scr-in {animation:scrIn  var(--t) var(--ease) both}
+.scr-out{animation:scrOut var(--t) var(--ease) both}
+@keyframes scrIn {from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+@keyframes scrOut{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 
 /* What this phone has asked for, and what came back. Quiet: it is a receipt,
    not the point of the page. */
-.myq{margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r-lg);
-     background:var(--card);overflow:hidden}
-.myq-h{padding:9px 13px;font-size:10.5px;font-weight:600;letter-spacing:.07em;
-       text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--line2)}
-.myq-r{display:flex;align-items:baseline;gap:9px;padding:9px 13px;
-       border-bottom:1px solid var(--line2);font-size:12.5px}
+.myq{margin-bottom:22px;border-radius:var(--r);background:var(--card);overflow:hidden}
+.myq-h{padding:12px 16px 10px;font-size:10.5px;font-weight:650;letter-spacing:.11em;
+       text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--hair)}
+.myq-r{display:flex;align-items:baseline;gap:11px;padding:12px 16px;
+       border-bottom:1px solid var(--hair);font-size:13px}
 .myq-r:last-child{border-bottom:0}
-.myq-r .u{font-weight:650;min-width:66px}
-.myq-r .d{flex:1;min-width:0;font-size:11.5px;color:var(--mut);
+.myq-r .u{font-weight:650;min-width:70px;letter-spacing:-.01em}
+.myq-r .d{flex:1;min-width:0;font-size:12px;color:var(--mut);
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.myq-r .s{font-size:11px;font-weight:650;white-space:nowrap}
+.myq-r .s{font-size:11.5px;font-weight:650;white-space:nowrap}
 .s-pending{color:var(--mut)}
 .s-approved,.s-held{color:#1C6B3F}
 .s-declined{color:#8A2F26}
 /* Neither green nor red: nothing went wrong, the hold is simply over. */
-.s-ended,.s-stale,.s-expired{color:var(--held)}
+.s-ended{color:var(--held)}
 .s-stale,.s-expired{color:var(--mut);text-decoration:line-through}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]) .s-approved,
@@ -190,74 +252,78 @@ button{cursor:pointer;background:none;border:0}
 }
 
 /* Asked in the sheet, at the moment it matters, if it was skipped earlier. */
-.ask{margin-top:16px;padding:12px;border:1px solid var(--accent-line);
-     border-radius:var(--r);background:var(--accent-tint)}
-.ask-t{font-size:12.5px;font-weight:600;margin-bottom:8px}
-.ask-r{display:flex;gap:8px}
-.ask-r input{flex:1;height:42px;padding:0 12px;border:1px solid var(--line);
-             border-radius:var(--r);background:var(--card);font-size:15px}
-.ask-r input:focus{outline:none;border-color:var(--accent)}
+.ask{margin-top:18px;padding:14px;border-radius:var(--r);background:var(--sunk)}
+.ask-t{font-size:13px;font-weight:600;margin-bottom:10px;line-height:1.5}
+.ask-r{display:flex;gap:9px}
+.ask-r input{flex:1;height:46px;padding:0 14px;border:1px solid var(--line);
+             border-radius:var(--r);background:var(--card);font-size:15.5px;outline:none}
+.ask-r input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
 
 /* Desktop is not a wider phone, and it is not a phone floating in a field
    either. Above 760px the column widens and the floors go to three across, so
-   the seven of them read as a building rather than as a list that ran out. */
+   the seven of them read as a building rather than a list that ran out. */
 @media (min-width:760px){
-  .wrap{max-width:720px;padding:26px 24px 40px}
-  .hd-t{font-size:22px}
-  .fl{grid-template-columns:repeat(3,1fr);gap:10px}
-  .fl button{min-height:70px;padding:13px 14px}
-  .sr input{height:54px}
-  .ug{grid-template-columns:repeat(8,1fr);gap:7px}
+  .wrap{max-width:760px;padding:40px 28px 56px}
+  .hd{margin-bottom:28px}
+  .hd-t{font-size:28px}
+  .hero{margin-bottom:26px}
+  .sr{margin-bottom:30px}
+  .fl{grid-template-columns:repeat(3,1fr);gap:12px}
+  .fl button{min-height:92px;padding:17px 18px}
+  .sr input{height:60px}
+  .ug{grid-template-columns:repeat(8,1fr);gap:9px}
 }
 
 /* ── one floor ──────────────────────────────────────────────────────────── */
-.ft{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-.bk{display:inline-flex;align-items:center;gap:6px;padding:7px 11px 7px 8px;
-    margin-left:-8px;border-radius:var(--r);font-size:13px;color:var(--soft)}
-.bk:hover{background:var(--tint);color:var(--ink)}
+.ft{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.bk{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px 0 11px;
+    margin-left:-11px;border-radius:var(--r);font-size:13.5px;color:var(--soft);
+    transition:background var(--t-fast) var(--ease)}
+@media (hover:hover){ .bk:hover{background:var(--sunk);color:var(--ink)} }
+.bk:active{background:var(--sunk);color:var(--ink)}
 .bk i{width:7px;height:7px;border-left:1.5px solid currentColor;
       border-bottom:1.5px solid currentColor;transform:rotate(45deg);display:inline-block}
-.fh{display:flex;align-items:baseline;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
-.fh h1{margin:0;font-size:23px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
-.fh span{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
-.fh b{font-weight:700;color:var(--ink)}
+.fh{display:flex;align-items:baseline;gap:11px;margin:10px 0 18px;flex-wrap:wrap}
+.fh h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.028em;line-height:1.12}
+.fh span{font-size:12.5px;color:var(--mut)}
+.fh b{font-weight:650;color:var(--soft)}
 
 /* Secondary on purpose: revealing what cannot be bought is not the reason
-   anyone opened this. */
-.sw{display:inline-flex;align-items:center;gap:8px;margin-bottom:14px;padding:7px 11px;
-    border:1px solid var(--line);border-radius:999px;background:var(--card);
-    font-size:11.5px;color:var(--soft)}
-.sw input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+   anyone opened this. Still a 44px target. */
+.sw{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;
+    height:44px;padding:0 16px;border-radius:999px;background:var(--card);
+    font-size:12.5px;color:var(--soft);
+    transition:background var(--t-fast) var(--ease)}
+.sw:active{background:var(--sunk)}
+.sw input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin:0}
 .sw label{cursor:pointer;user-select:none}
 
-.ug{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ug{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media (min-width:440px){ .ug{grid-template-columns:repeat(5,1fr)} }
 .ug button{
-  padding:9px 4px;border:1px solid var(--line);border-radius:9px;background:var(--card);
-  display:flex;flex-direction:column;align-items:center;gap:2px;min-height:50px;
-  justify-content:center;transition:border-color .14s,background .14s,transform .14s
+  padding:11px 5px;border:0;border-radius:var(--r);background:var(--card);
+  display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px;
+  justify-content:center;
+  transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
 }
-.ug button:hover{border-color:var(--accent-line);background:var(--accent-tint);
-                 transform:translateY(-1px)}
-.ug button:active{transform:none}
-.ug .un{font-size:13px;font-weight:700;letter-spacing:-.015em;line-height:1.15}
-.ug .ua{font-size:9.5px;color:var(--mut);line-height:1.2;font-variant-numeric:tabular-nums}
-/* Not available: no colour, just less of everything. The dealer needs to know
-   they cannot have it, not who has it. */
-/* HELD READS AMBER. Grey said "disabled"; amber says "somebody has this",
-   which is the actual fact and the one a dealer scans a floor for. The number
-   keeps its weight — a held unit is still a real unit, not a smudge. */
-.ug button.off{background:var(--held-bg);border-color:var(--held-line);cursor:default}
-.ug button.off:hover{border-color:var(--held-line);background:var(--held-bg);transform:none}
-.ug button.off .un{color:var(--held);font-weight:650}
-.ug .off-l{font-size:8.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;
-           color:var(--held);opacity:.85}
+@media (hover:hover){ .ug button:hover{background:#FDFDFD} }
+.ug button:active{transform:scale(.94);background:var(--sunk)}
+.ug .un{font-size:13.5px;font-weight:650;letter-spacing:-.015em;line-height:1.2}
+.ug .ua{font-size:10px;color:var(--mut);line-height:1.3}
+/* Held: a warm, muted ground. It says somebody has this without ever being
+   the loudest thing on a screen of three hundred units. */
+.ug button.off{background:var(--held-bg);cursor:default}
+@media (hover:hover){ .ug button.off:hover{background:var(--held-bg)} }
+.ug button.off:active{transform:none;background:var(--held-bg)}
+.ug button.off .un{color:var(--held);font-weight:600}
+.ug .off-l{font-size:9px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;
+           color:var(--held);opacity:.85;line-height:1.3}
 
-.empty{padding:26px 8px;text-align:center;color:var(--mut);font-size:13px}
+.empty{padding:34px 8px;text-align:center;color:var(--mut);font-size:13.5px;line-height:1.6}
 
 /* ── the request sheet ──────────────────────────────────────────────────── */
-.scrim{position:fixed;inset:0;background:rgba(15,18,22,.42);opacity:0;
-       pointer-events:none;transition:opacity .16s;z-index:40}
+.scrim{position:fixed;inset:0;background:rgba(14,16,19,.44);opacity:0;
+       pointer-events:none;transition:opacity var(--t) var(--ease);z-index:40}
 .scrim.on{opacity:1;pointer-events:auto}
 /* A CLOSED SHEET MUST NOT BE ABLE TO BE CLICKED. Below it is only moved or
    faded, and a faded element still takes the pointer — which is how an
@@ -266,95 +332,152 @@ button{cursor:pointer;background:none;border:0}
 .sheet.on{pointer-events:auto}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:41;
-  background:var(--card);border-top:1px solid var(--line);
-  border-radius:16px 16px 0 0;padding:18px var(--pad) calc(18px + env(safe-area-inset-bottom));
-  transform:translateY(101%);transition:transform .2s cubic-bezier(.22,.61,.36,1);
+  background:var(--card);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  padding:22px var(--pad) calc(22px + env(safe-area-inset-bottom));
+  transform:translateY(101%);
+  transition:transform 220ms var(--ease);
   max-width:520px;margin:0 auto
 }
 .sheet.on{transform:none}
 @media (min-width:560px){
-  .sheet{bottom:auto;top:50%;transform:translate(0,-46%) scale(.98);opacity:0;
-         border-radius:16px;border:1px solid var(--line);
-         left:50%;right:auto;margin-left:-260px;width:520px}
+  .sheet{bottom:auto;top:50%;transform:translate(0,-46%) scale(.985);opacity:0;
+         border-radius:var(--r-lg);
+         left:50%;right:auto;margin-left:-260px;width:520px;
+         transition:transform 220ms var(--ease), opacity var(--t) var(--ease)}
   .sheet.on{transform:translate(0,-50%);opacity:1}
 }
-@media (prefers-reduced-motion:reduce){ .sheet,.scrim{transition:none} }
 
-.sh-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.sh-n{font-size:26px;font-weight:700;letter-spacing:-.035em;line-height:1.05}
-.sh-x{width:32px;height:32px;border-radius:8px;color:var(--mut);font-size:17px;line-height:1;flex:none}
-.sh-x:hover{background:var(--tint);color:var(--ink)}
-.sh-m{font-size:12.5px;color:var(--soft);margin-top:4px;font-variant-numeric:tabular-nums}
+.sh-h{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.sh-n{font-size:26px;font-weight:700;letter-spacing:-.028em;line-height:1.12}
+.sh-x{width:44px;height:44px;margin:-8px -10px 0 0;border-radius:var(--r);
+      color:var(--mut);font-size:18px;line-height:1;flex:none;
+      transition:background var(--t-fast) var(--ease)}
+@media (hover:hover){ .sh-x:hover{background:var(--sunk);color:var(--ink)} }
+.sh-x:active{background:var(--sunk);color:var(--ink)}
+.sh-m{font-size:13px;color:var(--soft);margin-top:6px;line-height:1.5}
 
-.sh-l{font-size:10px;font-weight:650;letter-spacing:.10em;text-transform:uppercase;
-      color:var(--mut);margin:18px 0 8px}
-.dur{display:flex;gap:7px}
-.dur button{flex:1;height:40px;border:1px solid var(--line);border-radius:var(--r);
-            background:var(--card);font-size:13px;font-weight:600;color:var(--soft)}
-.dur button.on{border-color:var(--accent);background:var(--accent-tint);color:var(--accent)}
+.sh-l{font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+      color:var(--mut);margin:24px 0 10px}
+.dur{display:flex;gap:8px}
+.dur button{flex:1;height:46px;border:1px solid var(--line);border-radius:var(--r);
+            background:var(--card);font-size:13.5px;font-weight:600;color:var(--soft);
+            transition:background var(--t-fast) var(--ease),
+                       border-color var(--t-fast) var(--ease),
+                       transform var(--t-fast) var(--ease)}
+.dur button:active{transform:scale(.96)}
+.dur button.on{border-color:var(--ink);background:var(--ink);color:var(--card)}
 /* The same shape the desk uses for the same question, so a rep who has seen
    one recognises the other. Narrower than a chip because a number is short. */
-.dur input{flex:0 0 62px;width:62px;height:40px;padding:0 8px;text-align:center;
+.dur input{flex:0 0 66px;width:66px;height:46px;padding:0 8px;text-align:center;
            border:1px solid var(--line);border-radius:var(--r);background:var(--card);
-           font-size:13px;font-weight:600;color:var(--ink)}
-.dur input:focus{outline:none;border-color:var(--accent)}
-.dur input.on{border-color:var(--accent);background:var(--accent-tint);color:var(--accent)}
+           font-size:13.5px;font-weight:600;color:var(--ink);outline:none}
+.dur input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.dur input.on{border-color:var(--ink);background:var(--ink);color:var(--card)}
 .dur input::placeholder{color:var(--mut);font-weight:400}
 
-.go{width:100%;height:50px;margin-top:18px;border-radius:var(--r-lg);
-    background:var(--accent);color:#fff;font-size:15px;font-weight:650;letter-spacing:-.01em}
-.go[disabled]{opacity:.4;cursor:default}
+/* The one accent action on the page. */
+.go{width:100%;height:52px;margin-top:22px;border-radius:var(--r);
+    background:var(--accent);color:#fff;font-size:15px;font-weight:650;letter-spacing:-.01em;
+    transition:transform var(--t-fast) var(--ease),filter var(--t-fast) var(--ease)}
+.go:active{transform:scale(.985)}
+.go[disabled]{opacity:.45;cursor:default}
 /* The button does not reserve anything, and neither does the sentence under it. */
-.go-n{margin-top:9px;font-size:11.5px;color:var(--mut);text-align:center;line-height:1.4}
+.go-n{margin-top:12px;font-size:12px;color:var(--mut);text-align:center;line-height:1.55}
 
-.acts{display:flex;gap:8px;margin-top:14px}
-/* Not two equal choices any more: one of them is the thing you came to do
-   and the other is the way out, so they are not the same size. */
-.acts button{height:44px;border:1px solid var(--line);border-radius:var(--r);
-             background:var(--card);font-size:13.5px;font-weight:600}
-.acts button:hover{border-color:var(--accent-line);background:var(--accent-tint)}
-.acts .prim{flex:1;background:var(--accent);border-color:var(--accent);color:#fff}
-.acts .prim:hover{background:var(--accent);border-color:var(--accent);filter:brightness(1.05)}
-.acts .prim:disabled{opacity:.5}
-.acts #cx{flex:none;padding:0 16px;color:var(--soft)}
+.acts{display:flex;gap:9px;margin-top:22px}
+/* Not two equal choices: one is the thing you came to do, the other is the
+   way out, so they are not the same size. */
+.acts button{height:52px;border-radius:var(--r);background:var(--sunk);
+             font-size:14px;font-weight:600;color:var(--soft);
+             transition:transform var(--t-fast) var(--ease),
+                        background var(--t-fast) var(--ease)}
+.acts button:active{transform:scale(.985)}
+.acts .prim{flex:1;background:var(--accent);color:#fff}
+.acts .prim:active{background:var(--accent)}
+.acts .prim:disabled{opacity:.45}
+.acts #cx{flex:none;padding:0 20px}
 
-.gone{margin-top:16px;padding:11px 12px;border:1px solid var(--line);
-      border-radius:var(--r);background:var(--tint);font-size:12.5px;color:var(--soft)}
+.gone{margin-top:18px;padding:14px;border-radius:var(--r);background:var(--sunk);
+      font-size:13px;color:var(--soft);line-height:1.55}
+
+/* SENT. A moment of confirmation before the sheet goes, so the tap has an
+   ending rather than just an absence. */
+.done{padding:30px 8px 22px;text-align:center;animation:fade var(--t) var(--ease) both}
+.done-k{width:46px;height:46px;margin:0 auto 16px;border-radius:50%;
+        background:var(--accent-soft);display:grid;place-items:center}
+.done-k i{width:15px;height:8px;border-left:2px solid var(--accent);
+          border-bottom:2px solid var(--accent);transform:rotate(-45deg) translate(1px,-2px);
+          display:block}
+.done-t{font-size:17px;font-weight:650;letter-spacing:-.015em}
+.done-s{font-size:13px;color:var(--mut);margin-top:7px;line-height:1.55}
 
 /* ── the name, asked once ───────────────────────────────────────────────── */
-.nm{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--card);
-    padding:14px;margin-bottom:16px}
-.nm-t{font-size:13px;font-weight:600;margin-bottom:3px}
-.nm-s{font-size:11.5px;color:var(--mut);margin-bottom:10px;line-height:1.4}
-.nm-r{display:flex;gap:8px}
-.nm-r input{flex:1;height:42px;padding:0 12px;border:1px solid var(--line);
-            border-radius:var(--r);background:var(--bg);font-size:15px}
-.nm-r input:focus{outline:none;border-color:var(--accent)}
-.nm-r button{height:42px;padding:0 15px;border-radius:var(--r);background:var(--accent);
-             color:#fff;font-size:13.5px;font-weight:600}
-/* Skip is not a second Save. .nm-r button already painted it accent blue and
-   won on specificity, so the quiet choice looked like the loud one. */
-.nm-r button.nm-sk{background:none;color:var(--mut);font-weight:500;padding:0 12px}
-.nm-r button.nm-sk:hover{background:var(--tint);color:var(--soft)}
+.nm{border-radius:var(--r);background:var(--card);padding:14px;margin-bottom:15px}
+.nm-t{font-size:14px;font-weight:650;margin-bottom:5px;letter-spacing:-.01em}
+.nm-s{font-size:12.5px;color:var(--mut);margin-bottom:11px;line-height:1.5}
+.nm-r{display:flex;gap:9px;align-items:center}
+.nm-r input{min-width:0}
+.nm-r input{flex:1;height:46px;padding:0 14px;border:1px solid var(--line);
+            border-radius:var(--r);background:var(--card);font-size:15.5px;outline:none}
+.nm-r input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.nm-r button{height:46px;padding:0 16px;flex:none;border-radius:var(--r);background:var(--accent);
+             color:#fff;font-size:14px;font-weight:650;
+             transition:transform var(--t-fast) var(--ease)}
+.nm-r button:active{transform:scale(.97)}
+/* Skip is not a second Save. */
+.nm-r button.nm-sk{background:none;color:var(--mut);font-weight:500;padding:0 12px;flex:none}
+.nm-r button.nm-sk:active{background:var(--sunk)}
 
 /* ── boot and dead link ─────────────────────────────────────────────────── */
-.boot{min-height:70vh;display:grid;place-items:center;color:var(--mut);font-size:13.5px}
+.boot{padding:22px var(--pad) 40px;max-width:520px;margin:0 auto}
+@media (min-width:760px){ .boot{max-width:760px;padding:40px 28px 56px} }
 .dead{max-width:340px;margin:22vh auto;text-align:center;padding:0 var(--pad)}
-.dead b{display:block;font-size:16px;font-weight:650;color:var(--ink);margin-bottom:6px}
-.dead span{font-size:13px;color:var(--mut);line-height:1.5}
+.dead b{display:block;font-size:17px;font-weight:650;color:var(--ink);margin-bottom:8px;
+        letter-spacing:-.015em}
+.dead span{font-size:13.5px;color:var(--mut);line-height:1.6}
 
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);
-       background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(14px);
+       background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;
        font-size:13px;font-weight:500;opacity:0;pointer-events:none;
-       transition:opacity .16s,transform .16s;z-index:60;max-width:90vw}
+       transition:opacity var(--t) var(--ease),transform var(--t) var(--ease);
+       z-index:60;max-width:90vw;line-height:1.4}
 .toast.on{opacity:1;transform:translateX(-50%)}
+
+/* NOTHING MOVES FOR ANYONE WHO HAS ASKED FOR THAT. One rule, at the end, so
+   it cannot be forgotten by whatever is added above it. */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-delay:0ms !important;
+    transition-duration:.001ms !important;
+  }
+}
 
 [hidden]{display:none !important}
 </style>
 </head>
 <body>
 
-<div class="boot" id="boot">Loading availability…</div>
+<!-- Shaped like the thing it stands in for — same header, same 58px field,
+     same seven chips at the same height — so the payload landing changes
+     what the page says and not where anything sits. It does not shimmer: a
+     loop on a first paint is the page asking to be watched while it has
+     nothing to show. -->
+<div class="boot" id="boot" aria-hidden="true">
+  <div class="sk-line sk-hd"></div>
+  <div class="sk-line sk-co"></div>
+  <div class="sk-line sk-hero"></div>
+  <div class="sk-line sk-bar"></div>
+  <div class="sk-line sk-leg"></div>
+  <div class="sk sk-sr"></div>
+  <div class="sk-fl">
+    <div class="sk sk-ch"></div><div class="sk sk-ch"></div>
+    <div class="sk sk-ch"></div><div class="sk sk-ch"></div>
+    <div class="sk sk-ch"></div><div class="sk sk-ch"></div>
+    <div class="sk sk-ch"></div>
+  </div>
+</div>
 
 <div class="wrap" id="app" hidden>
   <div class="hd">
@@ -436,6 +559,13 @@ var SHOWALL = false;
 var SHEET = null;          // { unit, floorIdx, days, ref }
 var FETCHED = 0;           // ms of the last SUCCESSFUL fetch
 var STALE = false;
+/* The entrance plays for the first grid of chips and never again, and the
+   home screen slides the other way only when a person pressed Back. */
+var STAGGERED = false;
+var BACKING = false;
+/* The confirmation dismisses itself. That timer must die with the sheet
+   that started it, or it closes whichever sheet is open when it fires. */
+var SENT_T = null;
 var NAME = '';
 
 var $ = function (id) { return document.getElementById(id); };
@@ -645,12 +775,22 @@ function render() {
   if (SHEET) refreshSheet();
 }
 
+/* One animation class, taken off when it finishes so it can be given again.
+   Reading offsetWidth in between is what makes the browser start it over
+   rather than ignore a class it already had. */
+function playScr(el, cls) {
+  el.classList.remove('scr-in', 'scr-out');
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+
 function renderHome() {
   $('floor').hidden = true;
   /* UNMOUNTED, not hidden. The one hard rule of this page is that a floor's
      units are never in the document unless that floor is open. */
   $('units').innerHTML = '';
   $('home').hidden = false;
+  if (BACKING) { BACKING = false; playScr($('home'), 'scr-out'); }
 
   var tot = 0, av = 0;
   $('floors').innerHTML = (P.floors || []).map(function (f, i) {
@@ -658,16 +798,29 @@ function renderHome() {
     var n = Number(f.available || 0), t = Number(f.total || 0);
     /* The count is the headline of the chip and the floor name is the caption,
        because nobody scans this grid looking for the word "Second". */
-    return '<button data-f="' + i + '"' + (n ? '' : ' class="empty"') + '>' +
+    return '<button data-f="' + i + '" style="--i:' + i + '"' +
+      (n ? '' : ' class="empty"') + '>' +
       '<span class="fn">' + esc(f.floor_label) + '</span>' +
-      (n ? '<span class="fv num">' + n + '</span>' +
-           '<span class="fc">of ' + t + ' available</span>'
-         : '<span class="fv">None available</span>' +
-           '<span class="fc">all ' + t + ' taken</span>') +
+      '<span class="fr">' +
+        (n ? '<span class="fv num">' + n + '</span>' +
+             '<span class="fc">of ' + t + '</span>'
+           : '<span class="fv">None free</span>' +
+             '<span class="fc">of ' + t + '</span>') +
+      '</span>' +
       '</button>';
   }).join('');
 
   paintHero(av, tot);
+
+  /* ONCE. The entrance belongs to the first time these chips exist, not to
+     every two-minute refetch — a grid that re-animates itself while somebody
+     is reading it is the page fidgeting. */
+  if (!STAGGERED) {
+    STAGGERED = true;
+    var fl = $('floors');
+    fl.classList.add('stagger');
+    setTimeout(function () { fl.classList.remove('stagger'); }, 500);
+  }
 
   runSearch();          // keep any query alive across a refetch
 }
@@ -680,25 +833,29 @@ function paintHero(av, tot) {
   var pct = tot ? Math.round(av * 1000 / tot) / 10 : 0;
   var fw = tot ? (av * 100 / tot) : 0;
   $('hero').innerHTML =
+    '<div class="hero-l">Available now</div>' +
     '<div class="hero-top">' +
-      '<div><div class="hero-l">Available now</div>' +
-        '<div class="hero-n">' + av + '</div></div>' +
-      '<div class="hero-p">' + (tot ? pct + '% of ' + tot : '') + '</div>' +
+      '<div class="hero-n">' + av + '</div>' +
+      '<div class="hero-p">of ' + tot + (tot ? ' · ' + pct + '%' : '') + '</div>' +
     '</div>' +
     '<div class="bar"><i class="free" style="width:' + fw + '%"></i>' +
       '<i class="held" style="width:' + (100 - fw) + '%"></i></div>' +
     '<div class="hero-f">' +
-      '<span><i class="dot free"></i><b>' + av + '</b> available</span>' +
-      '<span><i class="dot held"></i><b>' + held + '</b> not available</span>' +
+      (held ? '<span><i class="dot held"></i><b>' + held + '</b> not available</span>'
+            : '<span>Every unit is free</span>') +
     '</div>';
 }
 
 function renderFloor() {
   var f = P.floors[FLOOR];
   if (!f) { FLOOR = null; return renderHome(); }
+  var opening = $('floor').hidden;
   $('home').hidden = true;
   $('res').hidden = true;
   $('floor').hidden = false;
+  /* Only when the screen actually changes. A refetch while a floor is open
+     must not slide it in again under the reader. */
+  if (opening) playScr($('floor'), 'scr-in');
   $('fname').textContent = f.floor_label;
   $('fcount').innerHTML = '<b class="num">' + Number(f.available || 0) + '</b> of ' +
     '<span class="num">' + Number(f.total || 0) + '</span> available';
@@ -733,7 +890,10 @@ function renderFloor() {
 function runSearch() {
   var q = String($('q').value || '').trim();
   var box = $('res');
-  if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+  if (!q) { box.hidden = true; box.className = ''; box.innerHTML = ''; return; }
+  /* The panel exists all along and is only unhidden, so the entrance has to
+     be re-armed by hand or it plays exactly once in the life of the page. */
+  var wasHidden = box.hidden;
 
   var k = norm(q), out = [];
   (P.floors || []).forEach(function (f, fi) {
@@ -750,6 +910,8 @@ function runSearch() {
   });
 
   box.hidden = false;
+  box.className = 'res';
+  if (wasHidden) { void box.offsetWidth; }
   if (!out.length) {
     box.innerHTML = '<div class="res-none">No unit starts with ' + esc(q) + '.</div>';
     return;
@@ -795,6 +957,7 @@ function initials(name) {
 }
 
 function openSheet(unitNo, floorIdx) {
+  clearTimeout(SENT_T); SENT_T = null;
   var f = P.floors[floorIdx];
   var u = (f.units || []).filter(function (x) { return x.n === unitNo; })[0];
   /* Tapping an unavailable unit does nothing at all — no sheet, no message. */
@@ -805,6 +968,7 @@ function openSheet(unitNo, floorIdx) {
   $('sheet').classList.add('on');
 }
 function closeSheet() {
+  clearTimeout(SENT_T); SENT_T = null;
   SHEET = null;
   $('scrim').classList.remove('on');
   $('sheet').classList.remove('on');
@@ -961,7 +1125,25 @@ async function requestAndSend(how) {
       'Request copied \u2014 paste it into the group.',
       'Could not copy. Select the text and copy it by hand.');
   } else { sendWhatsApp(); }
+
+  /* AN ENDING, NOT AN ABSENCE. The sheet closing on its own reads as a
+     dismissal; a second of confirmation first tells the dealer the ask is
+     registered and what the number is. Only when the desk actually has it. */
+  if (res && res.ok && SHEET && SHEET.ref) { showSent(); return; }
   paintSheet();
+}
+
+function showSent() {
+  var host = document.getElementById('sheet');
+  var ref = initials(P && P.project) + '-REQ-' + (SHEET.ref || '');
+  host.innerHTML =
+    '<div class="done">' +
+      '<div class="done-k"><i></i></div>' +
+      '<div class="done-t">Request sent</div>' +
+      '<div class="done-s">' + esc(SHEET.n) + ' \u00b7 ' + esc(ref) + '<br>' +
+        'The desk will confirm. The unit is not held until they do.</div>' +
+    '</div>';
+  SENT_T = setTimeout(function () { if (SHEET) closeSheet(); }, 1600);
 }
 
 function askNameInSheet(how) {
@@ -1020,7 +1202,10 @@ $('floors').addEventListener('click', function (e) {
   renderFloor();
   window.scrollTo(0, 0);
 });
-$('back').onclick = function () { FLOOR = null; renderHome(); window.scrollTo(0, 0); };
+$('back').onclick = function () {
+  BACKING = true;
+  FLOOR = null; renderHome(); window.scrollTo(0, 0);
+};
 $('showall').addEventListener('change', function () {
   SHOWALL = !!$('showall').checked;
   renderFloor();

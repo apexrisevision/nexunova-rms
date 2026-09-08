@@ -219,6 +219,8 @@ function serve() {
       heroFoot: document.querySelector('.hero-f').textContent.trim(),
       heroSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-n')).fontSize)),
       labSize: Math.round(parseFloat(getComputedStyle(document.querySelector('.hero-l')).fontSize)),
+      searchH: Math.round(document.getElementById('q').getBoundingClientRect().height),
+      chipH: Math.round(document.querySelector('#floors button').getBoundingClientRect().height),
       barFree: document.querySelector('.bar .free').style.width,
       total: document.querySelector('.hero').textContent.trim()
     }));
@@ -243,14 +245,138 @@ function serve() {
     one.hero === String(sumFree)
       ? ok('the hero states ' + one.hero + ' available, which is what the floors add up to')
       : bad('the hero says ' + one.hero + ' but the floors add up to ' + sumFree);
-    (one.heroSize >= one.labSize * 3)
-      ? ok('and it is ' + one.heroSize + 'px against a ' + one.labSize +
-           'px label — a real hierarchy, not a flat page')
-      : bad('the hero is ' + one.heroSize + 'px and its label ' + one.labSize +
-            'px — that is flat');
+    /* THE FOCAL POINT IS THE SEARCH FIELD, not the count. Most dealers open
+       this already knowing the unit number, so the thing they can type into
+       has to be the largest object on the screen — larger than the reading
+       above it and larger than any single chip below. The count used to be a
+       34px headline and this checked that it was; the design changed and so
+       does what is checked. */
+    (one.searchH > one.heroSize * 2 && one.searchH >= 56)
+      ? ok('the search field is the focal point: ' + one.searchH + 'px tall against a ' +
+           one.heroSize + 'px reading')
+      : bad('the search is not the focal point: field ' + one.searchH +
+            'px, reading ' + one.heroSize + 'px');
+    (one.heroSize > one.labSize)
+      ? ok('and the reading still outranks its own label (' + one.heroSize + '/' +
+           one.labSize + 'px)')
+      : bad('the reading and its label are the same size');
+    /* Every tappable thing clears the 44px the thumb actually needs. */
+    (one.chipH >= 44 && one.searchH >= 44)
+      ? ok('and nothing tappable is under 44px (chip ' + one.chipH + 'px)')
+      : bad('a target is too small: chip ' + one.chipH + 'px, search ' + one.searchH + 'px');
     console.log('     chip ' + one.chips[0].w + '×' + one.chips[0].h + 'px  ·  ' +
                 one.hero + ' free  ·  hero ' + one.heroSize + 'px/label ' + one.labSize + 'px');
     await page.screenshot({ path: path.join(OUT, 'a-screen-one-380.png') });
+
+    /* ── THE STATES, PHOTOGRAPHED AND MEASURED ────────────────────────────
+       A skeleton is only worth having if it stands where the real thing will
+       stand; one that is a different height moves the page under the reader
+       at the exact moment they started reading it. So it is compared against
+       the settled layout rather than admired in a screenshot. */
+    const skel = await browser.newPage();
+    await skel.setViewport({ width: 380, height: 780, deviceScaleFactor: 2 });
+    await skel.goto(BASE + '/availability.html?preview=1', { waitUntil: 'domcontentloaded' });
+    await sleep(250);
+    const sk = await skel.evaluate(() => {
+      const b = document.getElementById('boot');
+      const chips = [...document.querySelectorAll('.sk-ch')];
+      return { shown: !!b && !b.hidden,
+               chips: chips.length,
+               chipH: chips.length ? Math.round(chips[0].getBoundingClientRect().height) : 0,
+               searchH: Math.round((document.querySelector('.sk-sr') || {getBoundingClientRect:()=>({height:0})}).getBoundingClientRect().height),
+               /* nothing may loop while the page has nothing to say */
+               looping: chips.some(c => getComputedStyle(c).animationIterationCount !== 'none'
+                                     && getComputedStyle(c).animationName !== 'none') };
+    });
+    await skel.screenshot({ path: path.join(OUT, 'b-skeleton.png') });
+    (sk.shown && sk.chips === 7)
+      ? ok('the first paint is a skeleton of seven chips, not a spinner')
+      : bad('the skeleton is wrong: ' + JSON.stringify(sk));
+    (Math.abs(sk.chipH - one.chipH) <= 4 && Math.abs(sk.searchH - one.searchH) <= 2)
+      ? ok('and it stands exactly where the real thing lands \u2014 chip ' + sk.chipH +
+           'px vs ' + one.chipH + 'px, field ' + sk.searchH + 'px vs ' + one.searchH + 'px')
+      : bad('the skeleton would shift the page: ' + JSON.stringify(sk) +
+            ' vs chip ' + one.chipH + ', field ' + one.searchH);
+    !sk.looping
+      ? ok('and nothing on it loops while the page has nothing to say')
+      : bad('the skeleton animates on its own');
+    await skel.close();
+
+    /* ── THE PRESS ────────────────────────────────────────────────────────
+       Held down with a real mouse, not a class added by hand: the point is
+       that :active resolves to a visibly different thing under a thumb. */
+    const press = await page.evaluate(() => {
+      const b = document.querySelector('#floors button');
+      const r = b.getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2),
+               restBg: getComputedStyle(b).backgroundColor,
+               hoverBg: '#FDFDFD' === '' ? '' : 'rgb(253, 253, 253)',
+               restTf: getComputedStyle(b).transform };
+    });
+    await page.mouse.move(press.x, press.y);
+    await page.mouse.down();
+    await sleep(90);
+    const held = await page.evaluate(() => {
+      const b = document.querySelector('#floors button');
+      return { bg: getComputedStyle(b).backgroundColor, tf: getComputedStyle(b).transform };
+    });
+    await page.screenshot({ path: path.join(OUT, 'd-chip-pressed.png') });
+    await page.mouse.up();
+    await sleep(120);
+    /* The press must beat the hover it is sitting inside: a mouse is
+       hovering at the instant it presses, so "different from rest" is not
+       enough — it has to be different from the HOVER too. */
+    (held.bg !== press.restBg && held.bg !== press.hoverBg &&
+     held.tf !== press.restTf && held.tf !== 'none')
+      ? ok('a pressed chip answers the thumb: ' + press.restBg + ' \u2192 ' + held.bg +
+           ', and it scales')
+      : bad('the press is invisible: ' + JSON.stringify({ rest: press, held }));
+    /* the press opened a floor; put the page back where it was */
+    await page.evaluate(() => { document.getElementById('back').click(); });
+    await sleep(260);
+
+    /* ── AND FOR ANYONE WHO HAS ASKED FOR STILLNESS ───────────────────────
+       Not "the animations are shorter": nothing may run at all. Measured by
+       asking the browser, in that mode, what the durations resolve to. */
+    const calm = await browser.newPage();
+    await calm.setViewport({ width: 380, height: 780, deviceScaleFactor: 2 });
+    await calm.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+    await calm.goto(BASE + '/availability.html?preview=1', { waitUntil: 'domcontentloaded' });
+    await calm.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
+    await calm.evaluate(p => window._availPreview(p), payload);
+    await sleep(350);
+    const still = await calm.evaluate(() => {
+      const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
+      const worst = [];
+      [...document.querySelectorAll('#floors button, .sr input, #app, .hero')].forEach(el => {
+        const c = getComputedStyle(el);
+        worst.push(secs(c.animationDuration), secs(c.transitionDuration));
+      });
+      return { worstMs: Math.round(Math.max.apply(null, worst) * 1000),
+               chips: document.querySelectorAll('#floors button').length };
+    });
+    await calm.screenshot({ path: path.join(OUT, 'g-reduced-motion.png') });
+    (still.worstMs <= 1 && still.chips === payload.floors.length)
+      ? ok('with reduced motion asked for, nothing moves at all \u2014 and the page is whole')
+      : bad('reduced motion still runs animation: ' + JSON.stringify(still));
+    await calm.close();
+
+    /* ── THE MOTION BUDGET ────────────────────────────────────────────────
+       One number, across every rule in the stylesheet, so a 600ms flourish
+       cannot be added quietly later. */
+    const budget = await page.evaluate(() => {
+      const secs = t => Math.max(...String(t).split(',').map(x => parseFloat(x) || 0));
+      let worst = 0, where = '';
+      [...document.querySelectorAll('*')].forEach(el => {
+        const c = getComputedStyle(el);
+        const m = Math.max(secs(c.animationDuration), secs(c.transitionDuration));
+        if (m > worst) { worst = m; where = el.id || el.className || el.tagName; }
+      });
+      return { ms: Math.round(worst * 1000), where: String(where).slice(0, 30) };
+    });
+    budget.ms <= 300
+      ? ok('no animation on the page runs longer than 300ms (worst ' + budget.ms + 'ms)')
+      : bad('an animation runs ' + budget.ms + 'ms on ' + budget.where);
 
     /* ── b. search across floors ────────────────────────────────────────── */
     step('Search — across every floor, no server call');
@@ -491,11 +617,21 @@ function serve() {
        asserted as "red channel clearly above blue" — a hue test, not a hex
        test, so the palette can be tuned without the check going stale. */
     const rgbOf = t => (String(t).match(/[0-9]+/g) || []).map(Number);
-    const warm = t => { const c = rgbOf(t); return c.length >= 3 && c[0] > c[2] + 18; };
-    (tog.offCount > 0 && warm(tog.offBg) && warm(tog.offInk) && !warm(tog.onBg))
-      ? ok('and they are drawn amber — held ' + tog.offBg + ' on ink ' + tog.offInk +
+    /* Warm, in the only sense that matters here: more red than blue. The
+       threshold used to be 18 and the ground has since been muted on purpose
+       — held must be distinguishable at arm's length without ever being the
+       loudest thing on a screen of three hundred units. So the GROUND is
+       tested for warmth against the available one, and the INK, which carries
+       the meaning, is tested properly. */
+    const warm = (t, n) => { const c = rgbOf(t); return c.length >= 3 && c[0] > c[2] + n; };
+    const heldWarmer = (() => {
+      const a = rgbOf(tog.offBg), b = rgbOf(tog.onBg);
+      return a.length >= 3 && b.length >= 3 && (a[0] - a[2]) > (b[0] - b[2]) + 8;
+    })();
+    (tog.offCount > 0 && heldWarmer && warm(tog.offInk, 40) && !warm(tog.onBg, 4))
+      ? ok('and they are drawn warm — held ' + tog.offBg + ' on ink ' + tog.offInk +
            ', available still ' + tog.onBg)
-      : bad('held units are not amber: ' + JSON.stringify(
+      : bad('held units do not read warm: ' + JSON.stringify(
             { off: tog.offBg, ink: tog.offInk, on: tog.onBg }));
     /* the sheet from the step before is still up; a screenshot of a toggle with a
        modal over it shows neither */
@@ -969,8 +1105,15 @@ function serve() {
              now — but requestAndSend still knows how to register without
              opening WhatsApp, which is the only reason a test used it. */
           await requestAndSend('copy');
-          await new Promise(r => setTimeout(r, 1400));
-          return { unit, ref: (window.SHEET || {}).ref, msg: message() };
+          /* Captured while the sheet is still up: it confirms and then closes
+             itself, and a sleep long enough for the request to land is also
+             long enough for SHEET to be gone. */
+          const out = { unit, ref: (window.SHEET || {}).ref, msg: message() };
+          /* Past the 1600ms the confirmation waits before it goes — a shorter
+             sleep would measure the timer rather than the behaviour. */
+          await new Promise(r => setTimeout(r, 2000));
+          out.dismissed = !window.SHEET;
+          return out;
         });
         asked.ref
           ? okU2('the dealer\u2019s tap registered a request, ref ' + asked.ref)
@@ -978,6 +1121,12 @@ function serve() {
         new RegExp('REQ-' + asked.ref).test(asked.msg || '')
           ? okU2('and the WhatsApp message carries THAT ref, not one invented in the browser')
           : badU2('the message ref does not match: ' + String(asked.msg).split('\n')[1]);
+        /* A tap needs an ending. The sheet says the ask is registered, shows the
+           number the desk will quote back, and then goes — rather than simply
+           vanishing, which reads as a dismissal. */
+        asked.dismissed
+          ? okU2('the sheet confirms the request and then dismisses itself')
+          : badU2('the sheet stayed open after sending');
         await dp.screenshot({ path: path.join(OUT, 'k-request-sent.png') });
 
         /* A TYPED DURATION, all the way through. 12 is not one of the chips and
@@ -1001,9 +1150,10 @@ function serve() {
           const litChips = [...document.querySelectorAll('#dur button.on')].length;
           const boxLit = box.classList.contains('on');
           await requestAndSend('copy');
+          const out2 = { ref: (window.SHEET || {}).ref, days: (window.SHEET || {}).days,
+                         unit: (window.SHEET || {}).n, litChips, boxLit, msg: message() };
           await new Promise(r => setTimeout(r, 1400));
-          return { ref: (window.SHEET || {}).ref, days: (window.SHEET || {}).days,
-                   unit: (window.SHEET || {}).n, litChips, boxLit, msg: message() };
+          return out2;
         }, asked.unit);
         if (!custom || !custom.ref) { badU2('the custom duration request did not register'); }
         else {
