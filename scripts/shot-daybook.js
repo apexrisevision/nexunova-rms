@@ -501,6 +501,112 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
       leftHo === 0
         ? okT('and the probe sale rolled back \u2014 no invented sale on Awami')
         : badT(leftHo + ' probe sale(s) were left on a live tenant');
+
+      /* ══ ONE UNIT, ONE SALE ══════════════════════════════════════════════
+         The point of marking a unit "Sold - Entry Pending" is that nobody
+         sells it again while the real sale is still to be entered. Checking
+         that turned up something older: the sale function looked at the
+         client, the agent and the arithmetic, and never once at the unit. The
+         same unit took two sales in a row here before this was fixed.
+
+         Four things have to be true at once, and they pull against each
+         other: a second sale must be refused, the FIRST one must still go
+         through on a held unit (or Rashid cannot enter his own sale), a
+         cancelled sale must not block a fresh one, and the status a sale
+         stamps must never be the hold. ══════════════════════════════════ */
+      const onesale = await sql(`
+        BEGIN;
+        SELECT set_config('request.jwt.claims',
+          json_build_object('sub',(SELECT auth_user_id::text FROM public.app_users
+                                    WHERE id='03b790d0-199b-4f5c-9010-a60a4129dc66'),
+            'role','authenticated')::text, true);
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}','59ded55b-9bc2-45b2-a372-49fc31807fa9','dbshot_onesale', now() + interval '2 minutes');
+        INSERT INTO public.category_unit_statuses
+          (company_id, project_id, status_code, status_name, color_hex, sort_order,
+           is_active, is_available, nature, hold_days)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZPEND2','ZZ Sold - Entry Pending','#7e22ce',96,true,false,'permanent',NULL);
+
+        /* the hold sorts ABOVE the real Sold status, which is the one drag in
+           Categories that used to be enough to stamp the wrong one */
+        UPDATE public.category_unit_statuses SET sort_order = 900
+         WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='SOLD';
+        UPDATE public.category_unit_statuses SET sort_order = 3
+         WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='ZZPEND2';
+
+        CREATE TEMP TABLE os_unit ON COMMIT DROP AS
+          SELECT u.id FROM public.units u
+            JOIN public.category_unit_statuses st ON st.id=u.status_id
+           WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND st.is_available ORDER BY u.unit_no LIMIT 1;
+        INSERT INTO public.clients (company_id, project_id, full_name, client_code, phone_primary)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','59ded55b-9bc2-45b2-a372-49fc31807fa9','ZZ One Sale Buyer','ZZ-OS-1','0000000000');
+        CREATE TEMP TABLE os(step text, r jsonb) ON COMMIT DROP;
+
+        INSERT INTO os SELECT 'held',
+          public.reserve_unit_desk('dbshot_onesale',(SELECT id FROM os_unit),
+            NULL,NULL,'Rashid',NULL,NULL,7,false,0,NULL,
+            (SELECT id FROM public.category_unit_statuses
+              WHERE project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9' AND status_code='ZZPEND2'));
+
+        INSERT INTO os SELECT 'first sale',
+          public.create_sale_with_schedule(
+            jsonb_build_object('company_id','96d210e7-e63b-4ef0-b1d0-74e622eac7ce','project_id','59ded55b-9bc2-45b2-a372-49fc31807fa9',
+              'unit_id',(SELECT id FROM os_unit),
+              'client_id',(SELECT id FROM public.clients WHERE client_code='ZZ-OS-1'),
+              'price_per_sqft',100,'area_sqft',10,'discount',0,'down_payment',0,
+              'installment_count',1,'sale_date',current_date),
+            jsonb_build_array(jsonb_build_object('installment_number',1,'amount_due',1000,
+                                                 'due_date',current_date)));
+
+        INSERT INTO os SELECT 'second sale',
+          public.create_sale_with_schedule(
+            jsonb_build_object('company_id','96d210e7-e63b-4ef0-b1d0-74e622eac7ce','project_id','59ded55b-9bc2-45b2-a372-49fc31807fa9',
+              'unit_id',(SELECT id FROM os_unit),
+              'client_id',(SELECT id FROM public.clients WHERE client_code='ZZ-OS-1'),
+              'price_per_sqft',100,'area_sqft',10,'discount',0,'down_payment',0,
+              'installment_count',1,'sale_date',current_date),
+            jsonb_build_array(jsonb_build_object('installment_number',1,'amount_due',1000,
+                                                 'due_date',current_date)));
+
+        /* cancel it, and the unit must be sellable again */
+        UPDATE public.sales SET status='cancelled', cancellation_date=now()
+         WHERE unit_id=(SELECT id FROM os_unit) AND status='active';
+        INSERT INTO os SELECT 'after cancelling',
+          public.create_sale_with_schedule(
+            jsonb_build_object('company_id','96d210e7-e63b-4ef0-b1d0-74e622eac7ce','project_id','59ded55b-9bc2-45b2-a372-49fc31807fa9',
+              'unit_id',(SELECT id FROM os_unit),
+              'client_id',(SELECT id FROM public.clients WHERE client_code='ZZ-OS-1'),
+              'price_per_sqft',100,'area_sqft',10,'discount',0,'down_payment',0,
+              'installment_count',1,'sale_date',current_date),
+            jsonb_build_array(jsonb_build_object('installment_number',1,'amount_due',1000,
+                                                 'due_date',current_date)));
+
+        SELECT (SELECT r->>'success' FROM os WHERE step='first sale')  AS first_ok,
+               (SELECT r->>'success' FROM os WHERE step='second sale') AS second_ok,
+               (SELECT r->>'error'   FROM os WHERE step='second sale') AS second_err,
+               (SELECT r->>'sale_number' FROM os WHERE step='second sale') AS second_points_at,
+               (SELECT r->>'success' FROM os WHERE step='after cancelling') AS resell_ok,
+               (SELECT upper(st.status_code) FROM public.units u
+                  JOIN public.category_unit_statuses st ON st.id=u.status_id
+                 WHERE u.id=(SELECT id FROM os_unit)) AS unit_stamped;
+        ROLLBACK;`);
+      const o1 = onesale[0] || {};
+
+      o1.first_ok === 'true'
+        ? okT('a unit held as Sold - Entry Pending still takes the real sale when it is entered')
+        : badT('the hold blocked the sale it was standing in for: ' + JSON.stringify(o1));
+      (o1.second_ok === 'false' && o1.second_err === 'already_sold')
+        ? okT('and a SECOND sale on that unit is refused \u2014 nobody sells it twice')
+        : badT('the same unit took two sales: ' + JSON.stringify(o1));
+      (o1.second_err === 'already_sold' && o1.second_points_at)
+        ? okT('the refusal names the sale that already stands (' + o1.second_points_at + '), not just “no”')
+        : badT('the refusal does not say which sale is in the way: ' + JSON.stringify(o1));
+      o1.resell_ok === 'true'
+        ? okT('cancel the sale and the unit sells again \u2014 cancel-and-resell is untouched')
+        : badT('a cancelled sale still blocks the unit: ' + JSON.stringify(o1));
+      o1.unit_stamped === 'SOLD'
+        ? okT('and the sale stamps Sold, not the hold that was sitting above it in the list')
+        : badT('the sale stamped ' + o1.unit_stamped + ' \u2014 a desk tag, not a sold status');
     }
 
     console.log('\n\u2500\u2500 On-screen daybook \u2014 the same day, told the same way');
