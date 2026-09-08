@@ -178,11 +178,14 @@ button{cursor:pointer;background:none;border:0}
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .myq-r .s{font-size:11px;font-weight:650;white-space:nowrap}
 .s-pending{color:var(--mut)}
-.s-approved{color:#1C6B3F}
+.s-approved,.s-held{color:#1C6B3F}
 .s-declined{color:#8A2F26}
+/* Neither green nor red: nothing went wrong, the hold is simply over. */
+.s-ended,.s-stale,.s-expired{color:var(--held)}
 .s-stale,.s-expired{color:var(--mut);text-decoration:line-through}
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]) .s-approved{color:#5FCB90}
+  :root:not([data-theme="light"]) .s-approved,
+  :root:not([data-theme="light"]) .s-held{color:#5FCB90}
   :root:not([data-theme="light"]) .s-declined{color:#E58A7E}
 }
 
@@ -534,9 +537,17 @@ async function load(first) {
   render();
 }
 
-var SAYS = { pending: 'Waiting', approved: 'Reserved for you',
+/* Keyed on the DERIVED state now. 'approved' stays in the table because a
+   phone that has been away still has that word in its storage, and it must
+   not render as a raw slug while the next refresh is in flight. */
+var SAYS = { pending: 'Waiting', held: 'Reserved for you', ended: 'Hold ended',
+             approved: 'Reserved for you',
              declined: 'Declined by Management', stale: 'Unit was taken',
              expired: 'Expired' };
+
+/* Nothing further will ever happen to these, so the phone stops asking. */
+var SETTLED = { declined: 1, ended: 1, stale: 1, expired: 1 };
+function stateOf(r) { return r.state || r.status || 'pending'; }
 
 function paintMyReqs() {
   var box = $('myq');
@@ -546,7 +557,7 @@ function paintMyReqs() {
   box.className = 'myq';
   box.innerHTML = '<div class="myq-h">Your requests</div>' +
     REQS.slice(0, 6).map(function (r) {
-      var st = r.status || 'pending';
+      var st = stateOf(r);
       return '<div class="myq-r">' +
         '<span class="u">' + esc(r.unit) + '</span>' +
         '<span class="d">' + esc(r.days) + ' day' + (r.days === 1 ? '' : 's') +
@@ -561,7 +572,10 @@ function paintMyReqs() {
    decision reaches the dealer without them doing anything. */
 async function refreshMyReqs() {
   if (!REQS.length) return;
-  var open = REQS.filter(function (r) { return (r.status || 'pending') === 'pending'; });
+  /* Everything that can still change, not everything that has not changed
+     yet. A held unit can be released at the desk at any moment, and that is
+     precisely the news this band exists to carry. */
+  var open = REQS.filter(function (r) { return !SETTLED[stateOf(r)]; });
   if (!open.length) return;
   try {
     var r = await sb.rpc('get_request_status',
@@ -569,10 +583,15 @@ async function refreshMyReqs() {
     var d = r && r.data;
     if (!d || !d.success) return;
     var by = {};
-    (d.requests || []).forEach(function (x) { by[x.ref] = x.status; });
+    (d.requests || []).forEach(function (x) { by[x.ref] = x; });
     var changed = false;
     REQS.forEach(function (x) {
-      if (by[x.ref] && by[x.ref] !== x.status) { x.status = by[x.ref]; changed = true; }
+      var got = by[x.ref]; if (!got) return;
+      /* An older server that does not send `state` still answers with
+         `status`, and the row must not blank out because of it. */
+      var st = got.state || got.status;
+      if (st && st !== stateOf(x)) { x.state = st; x.status = got.status; changed = true; }
+      if (got.held_until !== x.until) { x.until = got.held_until || null; changed = true; }
     });
     if (changed) { writeReqs(REQS); paintMyReqs(); }
   } catch (e) { /* the receipt can wait; the board matters more */ }
