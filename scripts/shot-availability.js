@@ -230,9 +230,32 @@ function serve() {
     one.cols === 2
       ? ok('laid out in two columns')
       : bad('the floor grid has ' + one.cols + ' columns, not 2');
-    one.docH <= one.winH
-      ? ok('no scrolling at 380\u00d7780 \u2014 the page is ' + one.docH + 'px of ' + one.winH + 'px')
-      : bad('screen one scrolls: ' + one.docH + 'px of ' + one.winH + 'px available');
+    /* ── THE PROMISE, MEASURED IN THE STATE IT IS ABOUT ───────────────────
+       Screen one holds the whole building without scrolling. On the very
+       first visit it also carries a one-time card asking for a name, and with
+       an eighth row on the screen (All units) the two no longer both fit —
+       150px of card against 52px of row.
+
+       So the promise is checked where it lives: the screen a dealer sees
+       every time after the first. The first visit is measured too and
+       reported, because "it scrolls a little while it asks your name once" is
+       a fact somebody should be able to read here rather than discover. */
+    const settled = await page.evaluate(() => {
+      const sk = document.getElementById('nm-skip');
+      if (sk) sk.click();
+      return { docH: document.documentElement.scrollHeight, winH: window.innerHeight };
+    });
+    await sleep(200);
+    settled.docH <= settled.winH
+      ? ok('no scrolling at 380×780 once the name is settled — ' +
+           settled.docH + 'px of ' + settled.winH + 'px, eight rows and all')
+      : bad('screen one scrolls even after the name card: ' + settled.docH +
+            'px of ' + settled.winH + 'px');
+    console.log('     first visit, with the name card: ' + one.docH + 'px of ' +
+                one.winH + 'px — ' + Math.max(0, one.docH - one.winH) + 'px of scroll, once');
+    (one.docH - one.winH) <= 90
+      ? ok('and the first visit is at most a nudge (' + Math.max(0, one.docH - one.winH) + 'px)')
+      : bad('the first visit scrolls ' + (one.docH - one.winH) + 'px, which is a screenful');
     one.unitsInDom === 0
       ? ok('not one unit is in the document on screen one')
       : bad(one.unitsInDom + ' units are mounted on screen one');
@@ -461,6 +484,118 @@ function serve() {
     walk.afterBack === 0
       ? ok('going back unmounts them \u2014 zero units in the document')
       : bad(walk.afterBack + ' units left mounted after going back');
+
+    /* ── THE WHOLE BUILDING, ON PURPOSE ───────────────────────────────────
+       Every other rule on this page exists to avoid drawing 1,467 units.
+       This draws them, because somebody asked for it by name. The question
+       is therefore not whether it works but what it COSTS, so the cost is
+       measured here rather than assumed: how long the browser takes to lay
+       it out, and how many nodes it leaves behind. */
+    step('All units \u2014 the one screen that draws the whole building');
+    const allOpen = await page.evaluate(() => {
+      document.getElementById('back') && document.getElementById('back').click();
+      const t0 = performance.now();
+      document.querySelector('.all-chip').click();
+      /* Forced: reading offsetHeight makes the browser finish the layout it
+         would otherwise defer, so the number is the real cost and not the
+         time it took to assign a string. */
+      const h = document.getElementById('all-body').offsetHeight;
+      const ms = Math.round(performance.now() - t0);
+      const secs = [...document.querySelectorAll('#all-body .as')].map(x => ({
+        name: x.querySelector('.as-n').textContent.trim(),
+        meta: x.querySelector('.as-m').textContent.replace(/\s+/g, ' ').trim(),
+        units: x.querySelectorAll('.ug button').length
+      }));
+      return {
+        ms, height: h,
+        shown: !document.getElementById('all').hidden,
+        homeHidden: document.getElementById('home').hidden,
+        floorUnitsInDom: document.querySelectorAll('#units button').length,
+        sections: secs,
+        units: document.querySelectorAll('#all-body .ug button').length,
+        nodes: document.getElementById('all-body').querySelectorAll('*').length,
+        head: document.getElementById('all-head').textContent.replace(/\s+/g, ' ').trim(),
+        headVals: [...document.querySelectorAll('#all-head .ah-v')].map(v => v.textContent.trim()),
+        headLabs: [...document.querySelectorAll('#all-head .ah-l')].map(v => v.textContent.trim()),
+        filters: [...document.querySelectorAll('#all-filter button')].map(b => b.textContent.trim()),
+        stuck: getComputedStyle(document.querySelector('#all-body .as-h')).position
+      };
+    });
+    const totalUnits = payload.floors.reduce((a, f2) => a + (f2.units || []).length, 0);
+
+    (allOpen.shown && allOpen.homeHidden && allOpen.floorUnitsInDom === 0)
+      ? ok('the All units chip opens a screen of its own, and the floor screen stays unmounted')
+      : bad('the all-units screen did not take over: ' + JSON.stringify(allOpen).slice(0, 160));
+    allOpen.units === totalUnits
+      ? ok('it draws every one of the ' + totalUnits + ' units in the building')
+      : bad('it drew ' + allOpen.units + ' of ' + totalUnits + ' units');
+    JSON.stringify(allOpen.sections.map(x => x.name)) ===
+      JSON.stringify(payload.floors.map(f2 => f2.floor_label))
+      ? ok('floor by floor, in the order the building is walked: ' +
+           allOpen.sections.map(x => x.name).join(' \u2192 '))
+      : bad('the floors came out in the wrong order: ' +
+            JSON.stringify(allOpen.sections.map(x => x.name)));
+
+    /* Every floor states its own three numbers where the floor begins, so
+       three hundred identical chips are never anonymous. */
+    const f0 = payload.floors[0];
+    const s0 = allOpen.sections[0] || {};
+    (new RegExp(f0.total + ' units').test(s0.meta) &&
+     new RegExp((f0.total - f0.available) + ' not available').test(s0.meta) &&
+     new RegExp(f0.available + ' available').test(s0.meta))
+      ? ok('and each one opens with its own count: \u201c' + s0.meta + '\u201d')
+      : bad('the floor heading does not state its numbers: ' + s0.meta);
+    allOpen.stuck === 'sticky'
+      ? ok('which stays on screen while you are inside that floor')
+      : bad('the floor heading scrolls away: position ' + allOpen.stuck);
+
+    const wantHead = [payload.floors.length, totalUnits,
+                      totalUnits - payload.floors.reduce((a, f2) => a + Number(f2.available || 0), 0),
+                      payload.floors.reduce((a, f2) => a + Number(f2.available || 0), 0)];
+    /* Read as four values, not as one run-together string: 'available1Available'
+       has no word boundary around the 1, and a regex over it calls the page
+       wrong when the page is right. */
+    JSON.stringify(allOpen.headVals) === JSON.stringify(wantHead.map(String))
+      ? ok('the top states the building: ' +
+           allOpen.headLabs.map((l, i2) => l + ' ' + allOpen.headVals[i2]).join(' · '))
+      : bad('the header reads ' + JSON.stringify(allOpen.headVals) +
+            ', expected ' + JSON.stringify(wantHead));
+
+    /* THE COST, in the open. A phone has to lay this out. */
+    console.log('     ' + allOpen.units + ' units \u00b7 ' + allOpen.nodes + ' nodes \u00b7 laid out in ' +
+                allOpen.ms + 'ms \u00b7 ' + allOpen.height + 'px tall');
+    allOpen.ms <= 900
+      ? ok('drawn in ' + allOpen.ms + 'ms \u2014 one assignment, not one per floor')
+      : bad('drawing the building took ' + allOpen.ms + 'ms');
+    await page.screenshot({ path: path.join(OUT, 'h-all-units.png') });
+
+    /* ── THE FILTER CUTS, IT DOES NOT TINT ────────────────────────────────
+       Finding the held units among 1,467 by looking for a colour is not
+       finding them. */
+    const heldTotal = totalUnits - payload.floors.reduce((a, f2) => a + Number(f2.available || 0), 0);
+    const cut = await page.evaluate(() => {
+      const press = v => {
+        document.querySelector('#all-filter button[data-f="' + v + '"]').click();
+        return { units: document.querySelectorAll('#all-body .ug button').length,
+                 off: document.querySelectorAll('#all-body .ug button.off').length };
+      };
+      return { held: press('held'), free: press('free'), all: press('all') };
+    });
+    (cut.held.units === heldTotal && cut.held.off === heldTotal)
+      ? ok('\u201cNot available\u201d shows the ' + heldTotal + ' held units and nothing else')
+      : bad('the held filter showed ' + JSON.stringify(cut.held));
+    (cut.free.units === totalUnits - heldTotal && cut.free.off === 0)
+      ? ok('\u201cAvailable\u201d shows the other ' + cut.free.units + ', with none of them held')
+      : bad('the available filter showed ' + JSON.stringify(cut.free));
+    cut.all.units === totalUnits
+      ? ok('and \u201cAll\u201d puts the building back')
+      : bad('the all filter showed ' + cut.all.units);
+
+    await page.evaluate(() => { document.getElementById('all-back').click(); });
+    await sleep(260);
+    (await page.evaluate(() => document.querySelectorAll('#all-body .ug button').length)) === 0
+      ? ok('and leaving it unmounts all ' + totalUnits + ' of them again')
+      : bad('the building stayed in the document after going back');
 
     /* ── d. the request sheet and its message ───────────────────────────── */
     step('The request sheet');

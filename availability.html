@@ -342,6 +342,53 @@ button{cursor:pointer;background:none;border:0}
 
 .empty{padding:34px 8px;text-align:center;color:var(--mut);font-size:13.5px;line-height:1.6}
 
+/* ── the whole building ──────────────────────────────────────────────────
+   A different question from a floor, so a different chip: lighter, wider,
+   and it says which floor it is not. */
+#allrow{margin-top:9px}
+.all-chip{width:100%;height:52px;padding:0 15px;border:0;border-radius:var(--r);
+          background:var(--sunk);text-align:left;
+          display:flex;align-items:center;gap:9px;
+          transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+@media (hover:hover){ .all-chip:hover{background:#EAEAE9} }
+.all-chip:active{transform:scale(.985);background:#E6E6E5}
+.all-chip .ac-t{font-size:13.5px;font-weight:650;letter-spacing:-.01em;flex:none}
+.all-chip .ac-m{flex:1;min-width:0;font-size:12px;color:var(--mut);
+                overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.all-chip .ac-m b{font-weight:650;color:var(--soft)}
+.all-chip .ac-x{flex:none;display:flex;align-items:center;color:var(--mut)}
+.all-chip .ac-x i{width:7px;height:7px;border-right:1.5px solid currentColor;
+                  border-top:1.5px solid currentColor;transform:rotate(45deg);display:block}
+
+/* the four numbers this screen exists to state */
+.ah{margin:10px 0 14px}
+.ah-r{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ah-c{background:var(--card);border-radius:var(--r);padding:11px 12px}
+.ah-l{font-size:9.5px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--mut);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah-v{font-size:19px;font-weight:650;letter-spacing:-.02em;line-height:1.25;margin-top:4px}
+.ah-v.held{color:var(--held)}
+
+/* Cuts the list rather than tinting it: the way to find eleven held units
+   among 1,467 on a phone is to be shown eleven. */
+.af{display:flex;gap:7px;margin-bottom:16px}
+.af button{flex:1;height:44px;border-radius:var(--r);background:var(--card);
+           font-size:13px;font-weight:600;color:var(--soft);
+           transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.af button:active{transform:scale(.97)}
+.af button.on{background:var(--ink);color:var(--card)}
+
+/* The floor's own numbers ride with the floor. Stuck to the top while you
+   are inside it, because three hundred identical chips with no heading in
+   sight are three hundred anonymous chips. */
+.as{margin-bottom:22px}
+.as-h{position:sticky;top:0;z-index:5;background:var(--bg);
+      padding:9px 0 8px;margin-bottom:8px}
+.as-n{display:block;font-size:15px;font-weight:650;letter-spacing:-.015em;line-height:1.3}
+.as-m{display:block;font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:2px}
+.as-m b{font-weight:650;color:var(--soft)}
+.as-m b.held{color:var(--held)}
+
 /* ── the request sheet ──────────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;background:rgba(14,16,19,.44);opacity:0;
        pointer-events:none;transition:opacity var(--t) var(--ease);z-index:40}
@@ -527,6 +574,22 @@ button{cursor:pointer;background:none;border:0}
       <div id="res" hidden></div>
     </div>
     <div class="fl" id="floors"></div>
+    <!-- Deliberately outside #floors: it is not a floor, and every check
+         that counts floors would have counted it. -->
+    <div id="allrow"></div>
+  </section>
+
+  <!-- SCREEN THREE — THE WHOLE BUILDING, WHEN SOMEBODY ASKS FOR IT ────────
+       Everything else here exists to avoid rendering 1,467 units, and this
+       renders 1,467 units. It is a deliberate exception, reached only by
+       pressing a chip that says so, and it is the one screen on this page
+       measured for how long it takes to draw. -->
+  <section id="all" hidden>
+    <div class="ft"><button class="bk" id="all-back"><i></i>All floors</button></div>
+    <div class="ah" id="all-head"></div>
+    <div class="af" id="all-filter"></div>
+    <div id="all-body"></div>
+    <div class="empty" id="all-empty" hidden></div>
   </section>
 
   <!-- SCREEN TWO — one floor, and only ever one ─────────────────────────── -->
@@ -587,6 +650,11 @@ var BACKING = false;
 /* The confirmation dismisses itself. That timer must die with the sheet
    that started it, or it closes whichever sheet is open when it fires. */
 var SENT_T = null;
+/* The whole-building screen, and what it is filtered to. Kept out of FLOOR
+   so that going back from it lands on the building rather than on a floor
+   nobody chose. */
+var ALLV = false;
+var ALLF = 'all';        // all | free | held
 var NAME = '';
 
 var $ = function (id) { return document.getElementById(id); };
@@ -859,7 +927,8 @@ function render() {
   paintUpdated();
   paintNameAsk();
   paintMyReqs();
-  if (FLOOR == null) { renderHome(); } else { renderFloor(); }
+  if (ALLV) { renderAll(); }
+  else if (FLOOR == null) { renderHome(); } else { renderFloor(); }
   if (SHEET) refreshSheet();
 }
 
@@ -874,6 +943,8 @@ function playScr(el, cls) {
 
 function renderHome() {
   $('floor').hidden = true;
+  $('all').hidden = true;
+  $('all-body').innerHTML = '';      // unmounted, like a floor
   /* UNMOUNTED, not hidden. The one hard rule of this page is that a floor's
      units are never in the document unless that floor is open. */
   $('units').innerHTML = '';
@@ -897,6 +968,16 @@ function renderHome() {
       '</span>' +
       '</button>';
   }).join('');
+
+  /* One quiet line, because the seven chips above already carry the weight
+     and screen one has to stay whole on a phone. */
+  $('allrow').innerHTML =
+    '<button class="all-chip" data-all="1">' +
+      '<span class="ac-t">All units</span>' +
+      '<span class="ac-m"><b class="num">' + av + '</b> of ' +
+        '<span class="num">' + tot + '</span> \u00b7 every floor</span>' +
+      '<span class="ac-x"><i></i></span>' +
+    '</button>';
 
   paintHero(av, tot);
 
@@ -934,10 +1015,102 @@ function paintHero(av, tot) {
     '</div>';
 }
 
+/* ── THE WHOLE BUILDING ───────────────────────────────────────────────────
+   Every other decision on this page exists to avoid drawing 1,467 units,
+   and this draws them. That is fine because a person asked for it by name,
+   but it means the two things that keep it usable are not decoration:
+
+   · the floor's own numbers ride WITH the floor, stuck to the top of the
+     screen while you are inside it, so three hundred identical chips are
+     never anonymous;
+   · the filter cuts the list rather than tinting it, because on a phone the
+     way to find the eleven held units among 1,467 is to be shown eleven.
+
+   It is built as ONE string and assigned once. Appending floor by floor
+   would lay the page out seven times. */
+function renderAll() {
+  $('home').hidden = true;
+  $('res').hidden = true;
+  $('floor').hidden = true;
+  $('units').innerHTML = '';        // the one-floor screen stays unmounted
+  var opening = $('all').hidden;
+  $('all').hidden = false;
+  if (opening) playScr($('all'), 'scr-in');
+
+  var fl = P.floors || [];
+  var tot = 0, av = 0;
+  fl.forEach(function (f) { tot += Number(f.total || 0); av += Number(f.available || 0); });
+  var held = Math.max(0, tot - av);
+
+  $('all-head').innerHTML =
+    '<div class="ah-r">' +
+      '<div class="ah-c"><div class="ah-l">Floors</div>' +
+        '<div class="ah-v num">' + fl.length + '</div></div>' +
+      '<div class="ah-c"><div class="ah-l">Units</div>' +
+        '<div class="ah-v num">' + tot + '</div></div>' +
+      '<div class="ah-c"><div class="ah-l">Not available</div>' +
+        '<div class="ah-v num held">' + held + '</div></div>' +
+      '<div class="ah-c"><div class="ah-l">Available</div>' +
+        '<div class="ah-v num">' + av + '</div></div>' +
+    '</div>';
+
+  $('all-filter').innerHTML = [
+    ['all',  'All'],
+    ['free', 'Available'],
+    ['held', 'Not available']
+  ].map(function (o) {
+    return '<button data-f="' + o[0] + '"' + (ALLF === o[0] ? ' class="on"' : '') +
+           '>' + o[1] + '</button>';
+  }).join('');
+
+  var shown = 0;
+  var html = fl.map(function (f, fi) {
+    var units = (f.units || []).filter(function (u) {
+      if (ALLF === 'free') return u.s === 'available';
+      if (ALLF === 'held') return u.s !== 'available';
+      return true;
+    });
+    if (!units.length) return '';
+    shown += units.length;
+    var t = Number(f.total || 0), a = Number(f.available || 0), h = Math.max(0, t - a);
+    return '<div class="as">' +
+      '<div class="as-h">' +
+        '<span class="as-n">' + esc(f.floor_label) + '</span>' +
+        '<span class="as-m">' +
+          '<b class="num">' + t + '</b> units' +
+          ' \u00b7 <b class="num held">' + h + '</b> not available' +
+          ' \u00b7 <b class="num">' + a + '</b> available' +
+        '</span>' +
+      '</div>' +
+      '<div class="ug">' +
+        units.map(function (u) {
+          var off = u.s !== 'available';
+          return '<button data-u="' + esc(u.n) + '" data-fi="' + fi + '"' +
+            (off ? ' class="off" disabled' : '') + '>' +
+            '<span class="un">' + esc(u.n) + '</span>' +
+            (off ? '<span class="off-l">Not Available</span>'
+                 : '<span class="ua">' + esc(area(u)) + '</span>') +
+          '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  $('all-body').innerHTML = html;
+  $('all-empty').hidden = !!shown;
+  if (!shown) {
+    $('all-empty').textContent = ALLF === 'held'
+      ? 'Every unit in the building is available.'
+      : 'Nothing is available in the building right now.';
+  }
+}
+
 function renderFloor() {
   var f = P.floors[FLOOR];
   if (!f) { FLOOR = null; return renderHome(); }
   var opening = $('floor').hidden;
+  $('all').hidden = true;
+  $('all-body').innerHTML = '';
   $('home').hidden = true;
   $('res').hidden = true;
   $('floor').hidden = false;
@@ -1290,6 +1463,32 @@ $('floors').addEventListener('click', function (e) {
   renderFloor();
   window.scrollTo(0, 0);
 });
+/* The chip lives inside the floor grid, so its click arrives on the same
+   listener; it is read first because it carries no data-f. */
+$('allrow').addEventListener('click', function (e) {
+  if (!e.target.closest('[data-all]')) return;
+  ALLV = true; FLOOR = null; renderAll(); window.scrollTo(0, 0);
+});
+
+$('all-back').onclick = function () {
+  ALLV = false; BACKING = true;
+  renderHome(); window.scrollTo(0, 0);
+};
+
+$('all-filter').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-f]'); if (!b) return;
+  ALLF = b.getAttribute('data-f');
+  renderAll();
+  /* Back to the top: the list under the filter is a different list, and
+     leaving the reader halfway down the old one is a different building. */
+  window.scrollTo(0, 0);
+});
+
+$('all-body').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-u]'); if (!b || b.disabled) return;
+  openSheet(b.getAttribute('data-u'), Number(b.getAttribute('data-fi')));
+});
+
 $('back').onclick = function () {
   BACKING = true;
   FLOOR = null; renderHome(); window.scrollTo(0, 0);
