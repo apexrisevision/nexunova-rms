@@ -94,12 +94,54 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
     await page.waitForFunction(() => typeof window._availPreview === 'function', { timeout: 20000 });
     await page.evaluate(p => window._availPreview(p), payload);
     await sleep(400);
+    /* ── A FLOOR WITHOUT A DRAWING COMES FIRST, DELIBERATELY ─────────────
+       Only the Lower Ground has a plate so far. Walking a floor that has none
+       used to switch the plan off for the whole session, and every plated
+       floor opened afterwards came up as a list — which reads exactly like
+       the plan defaulting to off. So the suite walks the unplated floor
+       first, the way a dealer does, and then asks for the plated one. */
+    const other = payload.floors.findIndex((x, i) => i !== lg && (x.units || []).length);
+    if (other >= 0) {
+      await page.evaluate(i => { FLOOR = i; renderFloor(); }, other);
+      await sleep(500);
+    }
     await page.evaluate(i => { FLOOR = i; renderFloor(); }, lg);
     await page.waitForFunction(() => {
       const b = document.querySelector('#pv-in .base svg');
       return !!b && document.querySelectorAll('#pv-in .over .u').length > 0;
     }, { timeout: 30000 });
     await sleep(600);
+
+    const opened = await page.evaluate(() => ({
+      plan: PLANV,
+      listHidden: document.getElementById('units').hidden,
+      seg: document.getElementById('pv-plan').classList.contains('on')
+    }));
+    (opened.plan && opened.listHidden && opened.seg)
+      ? ok('the floor opens on the drawing, even after a floor that has none')
+      : bad('it did not open on the plan: ' + JSON.stringify(opened));
+
+    /* ── AND NOTHING IS LAID ACROSS IT ───────────────────────────────────
+       A ground behind the linework and a wash over every free shop both read
+       as a film on the plate. What is gone still carries a colour, because
+       that is the one thing the drawing cannot say for itself. */
+    const veil = await page.evaluate(() => {
+      const inn = getComputedStyle(document.getElementById('pv-in'));
+      const free = document.querySelector('#pv-in .u:not(.off)');
+      const off = document.querySelector('#pv-in .u.off');
+      const alpha = el => {
+        const m = /rgba?\(([^)]+)\)/.exec(getComputedStyle(el).fill);
+        if (!m) return 1;
+        const p = m[1].split(',').map(parseFloat);
+        return p.length > 3 ? p[3] : 1;
+      };
+      return { ground: inn.backgroundImage, freeA: free ? alpha(free) : 1,
+               offA: off ? alpha(off) : 0 };
+    });
+    (veil.ground === 'none' && veil.freeA <= 0.06 && veil.offA >= 0.1)
+      ? ok('nothing is laid across the drawing — no ground behind it, free shops ' +
+           'left at ' + veil.freeA + ' and only the taken ones coloured')
+      : bad('something is veiling the plate: ' + JSON.stringify(veil));
 
     const seen = await page.evaluate(() => ({
       basePaths: document.querySelectorAll('#pv-in .base svg path').length,

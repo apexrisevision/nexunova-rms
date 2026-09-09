@@ -375,8 +375,8 @@ button{cursor:pointer;background:none;border:0}
      font-size:12px;color:var(--soft);cursor:pointer;
      transition:opacity var(--t) var(--ease),border-color var(--t) var(--ease)}
 .key i{width:11px;height:11px;border-radius:3px;display:block;border:1px solid transparent}
-.key.free i{background:var(--accent-soft);border-color:rgba(29,78,216,.35)}
-.key.held i{background:var(--held-bg);border-color:rgba(138,98,36,.45)}
+.key.free i{background:#fff;border-color:rgba(29,78,216,.45)}
+.key.held i{background:#EFE7DA;border-color:rgba(138,98,36,.5)}
 .key b{color:var(--ink);font-weight:700}
 .key.off{opacity:.45}
 .key.off b{color:var(--mut)}
@@ -394,11 +394,12 @@ button{cursor:pointer;background:none;border:0}
 .pv{position:relative;margin:10px 0 0;border-radius:0 0 var(--r-lg) var(--r-lg);
     background:var(--card);overflow:auto;-webkit-overflow-scrolling:touch;
     overscroll-behavior-x:contain}
-/* graph paper under the linework, the way a plate is printed */
-.pv .in{position:relative;transform-origin:0 0;
-        background-image:linear-gradient(rgba(29,78,216,.045) 1px,transparent 1px),
-                         linear-gradient(90deg,rgba(29,78,216,.045) 1px,transparent 1px);
-        background-size:26px 26px}
+/* NOTHING OVER THE DRAWING. A graph-paper ground was tried here and it read
+   as a film laid across the plate: the architect's reds and magentas are
+   already a light-weight line, and anything behind or over them takes the
+   snap out of the whole sheet. The plate is white, the way it is printed. */
+.pv .in{position:relative;transform-origin:0 0;background:#fff}
+.pv .base svg{shape-rendering:geometricPrecision}
 .pv.grab{cursor:grab}
 .pv.grabbing{cursor:grabbing}
 .pv svg{display:block;width:100%;height:auto}
@@ -410,11 +411,16 @@ button{cursor:pointer;background:none;border:0}
    of the shop — exactly where a thumb lands — and the cross lies across it;
    both are drawn after the shape, so both were eating the tap and the shape
    only answered around its edges. A tap on a name is a tap on the shop. */
-.pv .u{fill:var(--accent-soft);stroke:rgba(29,78,216,.18);stroke-width:.6;
-       cursor:pointer;pointer-events:all;vector-effect:non-scaling-stroke;
+/* A FREE SHOP IS LEFT ALONE. The wash over every available shop was tinting
+   the very thing it was meant to point at \u2014 168 translucent rectangles laid
+   over an architect's linework is a veil, however faint each one is. Free is
+   now the bright, untouched drawing; only what is GONE carries a colour, and
+   that is the one thing a plan cannot say for itself. */
+.pv .u{fill:rgba(29,78,216,.035);stroke:none;
+       cursor:pointer;pointer-events:all;
        transition:fill var(--t-fast) var(--ease)}
 .pv .x,.pv .n,.pv .base,.pv .base *{pointer-events:none}
-.pv .u.off{fill:var(--held-bg);stroke:rgba(138,98,36,.22)}
+.pv .u.off{fill:rgba(138,98,36,.16)}
 @media (hover:hover){.pv .u:not(.off):hover{fill:rgba(29,78,216,.16)}}
 .pv .u:not(.off):active{fill:rgba(29,78,216,.22)}
 /* WHAT YOU LAST ASKED ABOUT STAYS MARKED. Close the sheet on a floor of a
@@ -1942,10 +1948,13 @@ async function showPlan(f) {
   var plan = await loadPlan(f);
   var card = $('pv-b'), box = $('pv'), note = $('pv-note');
   if (!plan) {
-    /* a floor with no drawing is not an error \u2014 it is a floor with no drawing,
-       and the list is still the list */
+    /* A FLOOR WITH NO DRAWING MUST NOT DECIDE FOR THE ONES THAT HAVE ONE.
+       This used to turn the plan off outright, and since the switch is one
+       flag for the whole session, walking through a floor without a plate
+       left every plated floor after it opening as a list \u2014 which read as the
+       plan defaulting to off. It only hides itself now. */
     card.hidden = true; box.hidden = true; note.hidden = true;
-    PLANV = false; return false;
+    return false;
   }
   /* THE CARD STAYS WHEN THE LIST IS SHOWING. Its head names the floor and its
      switch is how you come back \u2014 taking the whole plate away in list view
