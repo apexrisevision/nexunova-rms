@@ -60,7 +60,37 @@ function wallPaths(file) {
 }
 
 (async () => {
-  const labels = JSON.parse(fs.readFileSync(path.join(DIR, PAGE + '-read.json'), 'utf8'));
+  let labels = JSON.parse(fs.readFileSync(path.join(DIR, PAGE + '-read.json'), 'utf8'));
+
+  /* ── ONLY WHAT THE SYSTEM HOLDS GETS FLOODED ───────────────────────────
+     A sheet carries more magenta than units. The First Floor has two shops
+     the register has never heard of (FF-83A and FF-159A, both 171.38 sq ft,
+     drawn between 83/84 and 159/160), and two stray fragments of punctuation
+     that the grouper read as labels of their own.
+
+     Flooding those would not just waste time: a room found for something that
+     is not a unit becomes SOLID GROUND for its neighbours a few lines below,
+     and a piece of nonsense sitting inside a real shop would wall that shop
+     out of its own floor. So the register decides what is flooded — and every
+     name it turns away is printed, because a shop the system does not know
+     about is exactly the kind of thing somebody needs to be told. */
+  let bookNames = null;
+  if (FLOORNO !== null) {
+    const rows = await sql('select unit_no, area::float8 as area from public.units' +
+                           " where project_id = '" + AWAMI + "' and floor_no = " + FLOORNO);
+    bookNames = {}; rows.forEach(r => { bookNames[r.unit_no] = r.area; });
+    const before = labels.length;
+    const turned = labels.filter(l => !(l.u in bookNames)).map(l => l.u);
+    labels = labels.filter(l => l.u in bookNames);
+    console.log('  the register holds ' + rows.length + ' units on this floor; ' +
+                labels.length + ' of the ' + before + ' labels on the sheet match one');
+    if (turned.length) console.log('  ON THE SHEET BUT NOT IN THE REGISTER (' + turned.length + '): ' +
+                                  turned.map(t => JSON.stringify(t)).join(', '));
+    const noLabel = Object.keys(bookNames).filter(u => !labels.some(l => l.u === u));
+    if (noLabel.length) console.log('  IN THE REGISTER BUT NOT ON THE SHEET (' + noLabel.length + '): ' +
+                                    noLabel.join(', '));
+  }
+
   const paths = wallPaths(path.join(DIR, PAGE + '.svg'));
   console.log(PAGE + ': ' + labels.length + ' units, ' + paths.length + ' wall paths');
 
@@ -230,13 +260,7 @@ function wallPaths(file) {
 
      Nothing is silently accepted. A room that never comes within the
      tolerance is left named and shapeless, for a person to look at. */
-  let book = null;
-  if (FLOORNO !== null) {
-    const rows = await sql('select unit_no, area::float8 as area from public.units' +
-                           " where project_id = '" + AWAMI + "' and floor_no = " + FLOORNO);
-    book = {}; rows.forEach(r => { book[r.unit_no] = r.area; });
-    console.log('  the register holds ' + rows.length + ' units on this floor');
-  }
+  let book = bookNames;
 
   if (book) {
       /* THE ROOMS ALREADY FOUND, AS SOLID GROUND, near one seed. Sent as the

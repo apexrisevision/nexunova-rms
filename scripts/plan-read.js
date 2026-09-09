@@ -21,7 +21,38 @@ const fs = require('fs'), path = require('path');
 const DIR = process.argv[2] || 'marketing_shots/plan';
 const PAGE = process.argv[3] || 'page1';
 const MAP = process.argv[4] || null;
-const COLOUR = '#ba0d70';
+/* WHAT THE SHEET WRITES IS NOT ALWAYS WHAT THE REGISTER HOLDS. The upper
+   floors are printed "F.F-155", "4TH.F-33", "5TH.F-01", and the register
+   calls the same shops FF-155, 4F-33, 5F-01. Rashid had to say this out loud
+   once already — "ye 4F-33 aur 4th.F-33 same hain" — so it is written down
+   here instead of being remembered.
+
+   Given a prefix, a label is reduced to the digits it ends with and rebuilt as
+   PREFIX-digits. That also settles the dot: a dot and a dash both rasterise to
+   a solid block and no picture can tell them apart, and neither of them
+   survives this step, so neither of them has to be told apart. Anything that
+   does NOT end in digits is left exactly as it was read, so it shows up as a
+   mismatch rather than being tidied into something plausible. */
+const PREFIX = process.argv[5] || null;
+function asRegister(raw) {
+  if (!PREFIX) return raw;
+  /* digits, and a letter after them if there is one: the First Floor has
+     FF-83A and FF-159A, drawn between 83/84 and 159/160 — shops the register
+     did not hold until the drawing was read. */
+  const m = /([0-9]+[A-Za-z]?)$/.exec(raw);
+  return m ? PREFIX + '-' + m[1] : raw;
+}
+/* THE UNIT NUMBERS ARE MAGENTA. Everything else the draughtsman wrote — the
+   type, the dimensions, the area, the buyer's name — is black, in the same
+   traced outlines, and can be read exactly the same way. Reading it matters:
+   when the register and the drawing disagree about how big a shop is, the
+   number PRINTED ON THE SHEET is the drawing's own answer, and measuring the
+   room with a flood is only ever within a percent or so of it.
+
+   A window can be given too, because nobody needs to read a whole floor's
+   worth of black text to settle one shop. */
+const COLOUR = (process.argv[6] || '#ba0d70').toLowerCase();
+const WIN = process.argv[7] ? process.argv[7].split(',').map(Number) : null;   // x,y,w,h
 const W = 12, H = 16;                        // the bitmap every character is drawn into
 
 function glyphs(file) {
@@ -33,6 +64,8 @@ function glyphs(file) {
     if (m[2].toLowerCase() !== COLOUR && m[3].toLowerCase() !== COLOUR) continue;
     const pts = [...m[1].matchAll(/([-\d.]+) ([-\d.]+)/g)].map(p => [Number(p[1]), Number(p[2])]);
     if (pts.length < 3) continue;
+    if (WIN && !pts.some(p => p[0] >= WIN[0] && p[0] <= WIN[0] + WIN[2] &&
+                              p[1] >= WIN[1] && p[1] <= WIN[1] + WIN[3])) continue;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of pts) {
       if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0];
@@ -144,7 +177,8 @@ if (!MAP) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     L.forEach(p => { x0 = Math.min(x0, p.x0); y0 = Math.min(y0, p.y0);
                      x1 = Math.max(x1, p.x1); y1 = Math.max(y1, p.y1); });
-    return { u: cs.map(c => table[groups.findIndex(g => g.id === c.g)] || '?').join(''),
+    const raw = cs.map(c => table[groups.findIndex(g => g.id === c.g)] || '?').join('');
+    return { u: asRegister(raw), raw: raw,
              x0: +x0.toFixed(2), y0: +y0.toFixed(2), x1: +x1.toFixed(2), y1: +y1.toFixed(2),
              cx: +((x0 + x1) / 2).toFixed(2), cy: +((y0 + y1) / 2).toFixed(2) };
   });

@@ -6,6 +6,7 @@
    made a row of shops look as though it had no side walls at all. */
 const fs = require('fs'), path = require('path'), puppeteer = require('puppeteer-core');
 const [, , DIR, PAGE, X, Y, W, H, OUT] = process.argv;
+const PEN = process.argv[10] || '1.2';
 const src = fs.readFileSync(path.join(DIR, PAGE + '.svg'), 'utf8');
 const x = Number(X), y = Number(Y), w = Number(W), h = Number(H);
 const keep = [];
@@ -25,7 +26,12 @@ while ((m = re.exec(src))) {
 }
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + x + ' ' + y + ' ' + w + ' ' + h +
   '" width="1000" height="' + Math.round(1000 * h / w) + '"><rect x="' + x + '" y="' + y +
-  '" width="' + w + '" height="' + h + '" fill="#fff"/>' + keep.join('') + '</svg>';
+  '" width="' + w + '" height="' + h + '" fill="#fff"/>' +
+  /* THE PEN, THINNED. Every path in the converted page carries stroke-width
+     1.2, which on a filled letter fattens it until an o closes and a dot
+     becomes an L. A thinner pen shows the glyph the draughtsman drew. */
+  '<style>path{stroke-width:' + PEN + ' !important}</style>' +
+  keep.join('') + '</svg>';
 const f = path.join(DIR, '_crop.html');
 fs.writeFileSync(f, '<body style="margin:0">' + svg);
 const B = ['C:/Program Files/Google/Chrome/Application/chrome.exe',

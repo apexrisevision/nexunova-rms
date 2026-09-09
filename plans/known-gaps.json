@@ -2,6 +2,7 @@
   "_": "Units the drawing cannot give a shape to, named on purpose with the reason. The suite fails on any gap NOT listed here, and also on a listed gap that has quietly fixed itself, so this file cannot rot into an excuse. Empty is the right state: it means every unit in the register has a shape on its floor's plate.",
   "awami-market": {
     "LG": {},
-    "GF": {}
+    "GF": {},
+    "FF": {}
   }
 }
