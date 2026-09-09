@@ -419,6 +419,13 @@ button{cursor:pointer;background:none;border:0}
    invisible box came to eat half the unit grid on a laptop. */
 .sheet{pointer-events:none}
 .sheet.on{pointer-events:auto}
+/* A COLUMN, NOT A BLOCK. The sheet is anchored to the bottom of the phone, so
+   anything that makes it taller pushes its own HEAD off the top of the screen —
+   the unit number and the ✕ that closes it. The unit list inside it did exactly
+   that: 850px of sheet on a 780px screen, with the first 70px above the glass.
+
+   So the middle scrolls and the two ends do not. Whatever is added here later,
+   the heading stays reachable and the send button stays on the screen. */
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:41;
   background:var(--card);
@@ -426,8 +433,13 @@ button{cursor:pointer;background:none;border:0}
   padding:22px var(--pad) calc(22px + env(safe-area-inset-bottom));
   transform:translateY(101%);
   transition:transform 220ms var(--ease);
-  max-width:520px;margin:0 auto
+  max-width:520px;margin:0 auto;
+  display:flex;flex-direction:column;max-height:92vh
 }
+/* min-height:0 is what lets a flex child actually shrink and scroll rather
+   than growing its parent past the cap above it. */
+.sh-b{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+      margin:0 calc(var(--pad) * -1);padding:0 var(--pad)}
 .sheet.on{transform:none}
 @media (min-width:560px){
   .sheet{bottom:auto;top:50%;transform:translate(0,-46%) scale(.985);opacity:0;
@@ -480,6 +492,22 @@ button{cursor:pointer;background:none;border:0}
        border-radius:var(--r);background:var(--card);color:var(--ink);font:inherit;
        font-size:14px;font-weight:600;letter-spacing:.01em}
 .uc-in:focus{outline:none;border-color:var(--ink)}
+/* THE LIST INSIDE THE SHEET. Same rows as the search on the first screen,
+   because a rep who has used one has used the other. Capped and scrollable:
+   the sheet is anchored to the bottom of the phone and a list that grows
+   without limit pushes the send button off the screen. */
+.uc-sg{margin-top:9px;border-radius:var(--r);background:var(--sunk);overflow:auto;
+       max-height:min(38vh,240px)}
+.uc-sg button{display:flex;align-items:baseline;gap:12px;width:100%;padding:12px 14px;
+              border:0;border-bottom:1px solid var(--hair);background:none;text-align:left;
+              min-height:46px;font:inherit;color:var(--ink)}
+.uc-sg button:last-child{border-bottom:0}
+.uc-sg button:active{background:var(--card)}
+.uc-sg .n{font-weight:650;font-size:14px;min-width:74px;letter-spacing:-.01em}
+.uc-sg .f{flex:1;min-width:0;font-size:12px;color:var(--soft);
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uc-sg .a{font-size:11.5px;color:var(--mut);white-space:nowrap}
+.uc-sg .more{padding:10px 14px;font-size:11.5px;color:var(--mut);border-top:1px solid var(--hair)}
 .uc-s{margin-top:9px;font-size:12px;color:var(--mut);line-height:1.5}
 .uc-s b{color:var(--soft);font-weight:650}
 
@@ -1443,6 +1471,52 @@ function absorbUnits(el) {
   return true;
 }
 
+/* ══ TYPE A LETTER, TAP WHAT COMES BACK ══════════════════════════════════
+   Adding units by typing them out in full, with commas, is fine for a list
+   pasted off a group and hopeless for a rep who knows they want six shops on
+   the ground floor and not which numbers they carry. Type G and the free
+   ground-floor units come up; tap them.
+
+   Only AVAILABLE ones, and never one already chosen \u2014 a row that does
+   nothing when tapped is worse than a row that is not there. */
+var SG_CAP = 8;
+function unitMatches(key) {
+  var k = norm(key); if (!k) return [];
+  var picked = sheetAll(), bad = SHEET ? SHEET.bad : [], out = [];
+  (P.floors || []).forEach(function (fl) {
+    (fl.units || []).forEach(function (u) {
+      if (u.s !== 'available') return;
+      if (norm(u.n).indexOf(k) !== 0) return;
+      if (picked.indexOf(u.n) >= 0) return;
+      if (bad.indexOf(u.n.toUpperCase()) >= 0) return;
+      out.push({ u: u, f: fl });
+    });
+  });
+  return out;
+}
+
+function paintUnitList(key) {
+  var box = $('uc-sg'); if (!box) return;
+  var hits = unitMatches(key);
+  /* An exact single hit has nothing to add: the next keystroke is a comma
+     and the chip appears anyway. */
+  if (!hits.length || (hits.length === 1 && norm(hits[0].u.n) === norm(key))) {
+    box.hidden = true; box.innerHTML = ''; return;
+  }
+  var show = hits.slice(0, SG_CAP);
+  box.hidden = false;
+  box.innerHTML = show.map(function (h) {
+    return '<button type="button" data-u="' + esc(h.u.n) + '">' +
+      '<span class="n">' + esc(h.u.n) + '</span>' +
+      '<span class="f">' + esc(h.f.floor_label) + '</span>' +
+      '<span class="a">' + esc(area(h.u)) + '</span>' +
+    '</button>';
+  }).join('') +
+    (hits.length > show.length
+      ? '<div class="more">' + (hits.length - show.length) + ' more \u2014 keep typing</div>'
+      : '');
+}
+
 function addUnit(raw) {
   var key = String(raw || '').trim().toUpperCase();
   if (!key) return;
@@ -1513,6 +1587,7 @@ function paintSheet() {
       '</div>' +
     '</div><button class="sh-x" id="sh-x" aria-label="Close">✕</button></div>' +
 
+    '<div class="sh-b">' +
     (gone
       ? '<div class="gone">This unit is no longer available. It was taken while ' +
         'this was open.</div>'
@@ -1535,7 +1610,8 @@ function paintSheet() {
             '</div>'
           : '') +
         '<input class="uc-in" id="uc-in" autocomplete="off" autocapitalize="characters" ' +
-          'spellcheck="false" placeholder="Add another unit \u2014 or paste a list">' +
+          'spellcheck="false" placeholder="Type a letter \u2014 e.g. G \u2014 or paste a list">' +
+        '<div class="uc-sg" id="uc-sg" hidden></div>' +
         (SHEET.bad.length
           ? '<div class="uc-s"><b>' + SHEET.bad.length + '</b> of those ' +
             (SHEET.bad.length === 1 ? 'is not available' : 'are not available') +
@@ -1568,7 +1644,7 @@ function paintSheet() {
           /* Nothing greyed out and nothing to ignore: a permanent ask simply
              does not have a duration, so the question is not on the screen. */
           : '<div class="ask-n">No end date \u2014 the desk decides and confirms.</div>')) +
-
+    '</div>' +
 
     '<div class="acts">' +
       '<button id="wa" class="prim"' + (gone ? ' disabled' : '') + '>Done \u2014 send on WhatsApp</button>' +
@@ -1625,9 +1701,14 @@ function paintSheet() {
     var mi = $('uc-in');
     if (mi) {
       mi.addEventListener('input', function () {
-        if (absorbUnits(mi)) { var keep = mi.value; paintSheet();
-                               var m2 = $('uc-in');
-                               if (m2) { m2.value = keep; try { m2.focus(); } catch (e) {} } }
+        if (absorbUnits(mi)) {
+          var keep = mi.value; paintSheet();
+          var m2 = $('uc-in');
+          if (m2) { m2.value = keep; try { m2.focus(); } catch (e) {} }
+          paintUnitList(keep);
+          return;
+        }
+        paintUnitList(mi.value);
       });
       mi.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
@@ -1638,6 +1719,19 @@ function paintSheet() {
         var m3 = $('uc-in'); if (m3) { try { m3.focus(); } catch (e2) {} }
       });
     }
+    /* A TAP IS A SELECTION. The typed letters stay where they are and the list
+       comes back without the unit just taken, so six shops are six taps rather
+       than six rounds of typing a number and a comma. */
+    var sg = $('uc-sg');
+    if (sg) sg.onclick = function (e) {
+      var b = e.target.closest('button[data-u]'); if (!b) return;
+      var keep = String(($('uc-in') || {}).value || '');
+      addUnit(b.getAttribute('data-u'));
+      paintSheet();
+      var el = $('uc-in');
+      if (el) { el.value = keep; try { el.focus(); } catch (e2) {} }
+      paintUnitList(keep);
+    };
     var ur = $('uc-r');
     if (ur) ur.onclick = function (e) {
       var b = e.target.closest('button[data-x],button[data-b]'); if (!b) return;

@@ -818,6 +818,72 @@ function serve() {
       ? ok('and one can be taken back off the list again')
       : bad('removing a chip did not work: ' + JSON.stringify(bulk.dropped.sending));
 
+    /* ── A LETTER, AND A LIST TO TAP ───────────────────────────────────────
+       Typing unit numbers out with commas is fine for a list pasted off a
+       WhatsApp group and hopeless for a rep who knows they want six shops on
+       one floor and not which numbers those carry. The sheet now answers a
+       single letter with the free units behind it, and a tap picks one.
+
+       The rule the list has to keep is that every row does something: only
+       available units, and never one already on the sheet \u2014 a row that is a
+       no-op when tapped is worse than a row that is not there. */
+    const sg = await page.evaluate(() => {
+      const box = document.getElementById('uc-in');
+      const letter = String(SHEET.n).charAt(0);
+      box.value = letter;
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      const read = () => ({
+        shown: !document.getElementById('uc-sg').hidden,
+        rows: [...document.querySelectorAll('#uc-sg button[data-u]')]
+                .map(b => b.getAttribute('data-u')),
+        typed: (document.getElementById('uc-in') || {}).value,
+        picked: sheetAll()
+      });
+      const first = read();
+      const b = document.querySelector('#uc-sg button[data-u]');
+      const want = b ? b.getAttribute('data-u') : null;
+      if (b) b.click();
+      return { letter: letter, first: first, want: want, after: read() };
+    });
+
+    (sg.first.shown && sg.first.rows.length > 0 &&
+     sg.first.rows.every(n => n.charAt(0).toUpperCase() === sg.letter.toUpperCase()))
+      ? ok('one letter in the sheet lists the free units behind it: ' +
+           sg.first.rows.slice(0, 4).join(', ') + (sg.first.rows.length > 4 ? ' \u2026' : ''))
+      : bad('the sheet did not answer a bare letter: ' + JSON.stringify(sg.first));
+    /* The unit already on the sheet must not be offered back to itself. */
+    sg.first.rows.indexOf(sg.first.picked[0]) < 0
+      ? ok('and never offers a unit already on the sheet')
+      : bad(sg.first.picked[0] + ' was offered although it is already chosen');
+    (sg.want && sg.after.picked.indexOf(sg.want) >= 0)
+      ? ok('tapping ' + sg.want + ' selects it \u2014 ' + sg.after.picked.length +
+           ' units on the sheet now')
+      : bad('the tap did not select: ' + JSON.stringify(sg));
+    (sg.after.typed === sg.letter && sg.after.rows.indexOf(sg.want) < 0)
+      ? ok('the letter stays in the box and the row leaves the list, so the next ' +
+           'unit is one more tap')
+      : bad('the list did not refresh around the pick: ' + JSON.stringify(sg.after));
+
+    /* A picture of it open, and a measurement: the sheet is anchored to the
+       bottom of the phone, so a list that grows without limit pushes the send
+       button off the screen. It is capped and scrolls inside itself. */
+    await page.screenshot({ path: path.join(OUT, 'p-sheet-typeahead.png') });
+    const fit2 = await page.evaluate(() => {
+      const r = document.getElementById('sheet').getBoundingClientRect();
+      const go = document.getElementById('wa').getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom),
+               goBottom: Math.round(go.bottom), win: window.innerHeight };
+    });
+    (fit2.top >= 0 && fit2.bottom <= fit2.win + 1 && fit2.goBottom <= fit2.win + 1)
+      ? ok('and the sheet still fits with the list open — the send button is at ' +
+           fit2.goBottom + 'px of ' + fit2.win + 'px, on the screen')
+      : bad('the list pushed the sheet off the screen: ' + JSON.stringify(fit2));
+
+    await page.evaluate(() => {
+      const el = document.getElementById('uc-in');
+      if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    });
+
     /* Back to the one unit that was tapped, so everything below sends exactly
        what it has always sent. */
     await page.evaluate(() => {
