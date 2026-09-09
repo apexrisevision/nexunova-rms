@@ -15,11 +15,31 @@
 
    node scripts/plan-rooms.js <dir> <pageN>
 */
-const fs = require('fs'), path = require('path'), puppeteer = require('puppeteer-core');
+const fs = require('fs'), path = require('path'), https = require('https'),
+      puppeteer = require('puppeteer-core');
 const DIR = process.argv[2] || 'marketing_shots/plan';
 const PAGE = process.argv[3] || 'page1';
-const PX = Number(process.argv[4] || 8);          // pixels per drawing unit
-const BAND = Number(process.argv[5] || 420);      // drawing units per tile
+const FLOORNO = process.argv[4] ? Number(process.argv[4]) : null;   // judge against the register
+const PX = Number(process.argv[5] || 8);          // pixels per drawing unit
+const BAND = Number(process.argv[6] || 420);      // drawing units per tile
+const TOL = 0.10;                                 // how far a room may be from its record
+const AWAMI = '59ded55b-9bc2-45b2-a372-49fc31807fa9';
+
+function sql(q) {
+  const mcp = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.mcp.json'), 'utf8'));
+  const key = mcp.mcpServers.supabase.env.SUPABASE_ACCESS_TOKEN;
+  const body = JSON.stringify({ query: q });
+  return new Promise((res, rej) => {
+    const r = https.request({ hostname: 'api.supabase.com',
+      path: '/v1/projects/itqxljtfbrppntgyfush/database/query', method: 'POST',
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json',
+                 'Content-Length': Buffer.byteLength(body) } },
+      x => { let d = ''; x.on('data', c => d += c);
+             x.on('end', () => x.statusCode < 300 ? res(JSON.parse(d || '[]')) : rej(new Error(d))); });
+    r.on('error', rej); r.write(body); r.end();
+  });
+}
+const median = a => { const q = [...a].sort((p, r) => p - r); return q[Math.floor(q.length / 2)]; };
 const BROWSERS = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
                   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -154,24 +174,114 @@ function wallPaths(file) {
     console.log('  band y ' + bandY.toFixed(0) + '  seeds ' + seeds.length +
                 '  filled ' + res.out.length + '  refused ' + res.bad.length);
   }
-  /* ── A SECOND PASS FOR WHAT ESCAPED ─────────────────────────────────────
-     A fill that runs away is almost always a doorway: a gap narrower than the
-     wall it sits in. Drawing the walls thicker closes those and leaves real
-     openings open, so a room that fills on the second pass was always a room.
-     Anything still escaping is reported by name and gets no shape at all. */
-  const stuck = failed.map(f => f[0]);
-  if (stuck.length) {
-    console.log('  second pass, walls drawn thicker, for: ' + stuck.join(', '));
-    for (const u of stuck) {
-      const seed = labels.find(l => l.u === u);
-      if (!seed) continue;
-      const y0 = seed.cy - 60, y1 = seed.cy + 60;
-      const res = await page.evaluate(async (o) => window.__flood(o),
-        { X0: X0, X1: X1, y0: y0, y1: y1, PX: PX, seeds: [seed], thick: 2.5 });
-      if (res.out.length) {
-        found[u] = res.out[0];
-        failed.splice(failed.findIndex(f => f[0] === u), 1);
-        console.log('    ' + u + ' filled on the second pass');
+  /* ── MORE PASSES FOR WHAT ESCAPED, WITH A THICKER PEN EACH TIME ─────────
+     A fill that runs away has found a gap. Two kinds exist on these sheets:
+     a doorway, which is narrower than the wall beside it, and a DASHED
+     boundary — the road-facing edge of the front row is drawn as a broken
+     line, and a broken line is a line, but not to a flood. Drawing the walls
+     thicker closes both and leaves real openings open.
+
+     The pen is widened step by step and the first width that holds is kept,
+     along with WHICH width it needed, because that is the thing to be
+     suspicious about later. Nothing here decides whether the shape is right:
+     a thicker pen eats into the room, so every shape is measured against the
+     area the register holds before any of it is shipped. Anything still
+     escaping at the widest pen is reported by name and gets no shape at all. */
+  /* ── THE BOOK DECIDES, NOT THE CAP ──────────────────────────────────────
+     A cap catches a fill that runs across the whole sheet. It does NOT catch
+     one that runs through a doorway into the next five shops, which is what
+     GF-256 did: a perfectly plausible-looking room, five cells tall, well
+     under any cap. The only thing that knows how big a shop is, is the book
+     the building is sold from.
+
+     So the sheet's scale is derived from the rooms that filled cleanly at the
+     ordinary pen, and every room is then measured against its own record.
+     Anything that failed, or that disagrees, is flooded again with a wider
+     pen — and the pen that lands CLOSEST TO THE RECORD is kept. This cannot
+     run away with itself: a wider pen eats into the room, so over-thickening
+     makes the area worse, not better, and loses.
+
+     Nothing is silently accepted. A room that never comes within the
+     tolerance is left named and shapeless, for a person to look at. */
+  let book = null;
+  if (FLOORNO !== null) {
+    const rows = await sql('select unit_no, area::float8 as area from public.units' +
+                           " where project_id = '" + AWAMI + "' and floor_no = " + FLOORNO);
+    book = {}; rows.forEach(r => { book[r.unit_no] = r.area; });
+    console.log('  the register holds ' + rows.length + ' units on this floor');
+  }
+
+  if (book) {
+    const STEPS = [2.5, 5, 9];   // wider was tried; it never rescued a room
+    const clean = Object.keys(found).filter(u => book[u] > 0);
+    const K = median(clean.map(u => book[u] / (found[u].area / (PX * PX))));
+    console.log('  1 drawing unit\u00b2 = ' + K.toFixed(4) + ' sq ft, from the rooms as first flooded');
+    /* THE PEN EATS THE ROOM IT DRAWS. A wall rendered nine times thicker grows
+       inward by half of that all the way round, so a perfectly correct fill at
+       a wide pen measures a tenth too small and would be thrown out for being
+       right. The bite is given back before judging: half the stroke, along the
+       whole boundary. At the ordinary pen this is a fraction of a percent; at
+       nine times it is the difference between keeping a room and losing it. */
+    const bite = thick => 1.2 / PX * 2 * thick / 2;
+    const trueArea = (r, thick) => r.area / (PX * PX) +
+      2 * ((r.x1 - r.x0) + (r.y1 - r.y0)) * bite(thick);
+    const offBy = (u, r, thick) =>
+      Math.abs(trueArea(r, thick || 1) * K - book[u]) / book[u];
+
+    const retry = failed.map(x => x[0])
+      .concat(Object.keys(found).filter(u => book[u] > 0 && offBy(u, found[u], 1) > TOL));
+    if (retry.length) {
+      console.log('  flooding again with a wider pen: ' + retry.join(', '));
+      for (const u of retry) {
+        const seed = labels.find(l => l.u === u);
+        if (!seed) continue;
+        let best = found[u] && book[u] > 0 ? { r: found[u], off: offBy(u, found[u], 1), pen: 1 } : null;
+        for (const thick of STEPS) {
+          const y0 = seed.cy - 110, y1 = seed.cy + 110;
+          const res = await page.evaluate(async (o) => window.__flood(o),
+            { X0: X0, X1: X1, y0: y0, y1: y1, PX: PX, seeds: [seed], thick: thick });
+          if (!res.out.length) continue;
+          const off = book[u] > 0 ? offBy(u, res.out[0], thick) : 0;
+          if (!best || off < best.off) best = { r: res.out[0], off: off, pen: thick };
+        }
+        if (!best) { console.log('    ' + u + ' \u2014 no fill at any pen'); continue; }
+        const i = failed.findIndex(x => x[0] === u);
+        if (i >= 0) failed.splice(i, 1);
+        /* ── A ROOM THAT DISAGREES IS NOT AUTOMATICALLY A WRONG ROOM ──────
+           Two different things look the same in the arithmetic. A fill that
+           ran through a doorway is wrong: it is lying on top of the shops it
+           swallowed. A cell the architect simply drew a different size from
+           the one the register records is RIGHT as a shape — the walls are
+           where the walls are — and only its area is in dispute.
+
+           They are told apart by asking whether the shape sits on anybody
+           else. One that does is dropped, because a wrong tap target is worse
+           than none. One that sits alone is kept and reported, for a person
+           who knows the building to settle. */
+        const overlaps = Object.keys(found).filter(v => {
+          if (v === u) return false;
+          const a = best.r, b = found[v];
+          const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+          const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+          if (w <= 1 || h <= 1) return false;
+          return (w * h) > 0.25 * Math.min((a.x1 - a.x0) * (a.y1 - a.y0),
+                                           (b.x1 - b.x0) * (b.y1 - b.y0));
+        });
+        if (best.off <= TOL) {
+          found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
+          console.log('    ' + u + ' at pen ' + best.pen + '\u00d7 \u2014 matches the register');
+        } else if (!overlaps.length) {
+          found[u] = best.r; found[u].pen = best.pen; found[u].off = +best.off.toFixed(3);
+          found[u].disputed = true;
+          console.log('    ' + u + ' \u2014 a clean cell of its own, but ' +
+                      (best.off * 100).toFixed(0) + '% off the register. Kept, and reported.');
+        } else {
+          delete found[u];
+          failed.push([u, 'the fill lies on top of ' + overlaps.slice(0, 3).join(', ') +
+                          ' \u2014 ' + (best.off * 100).toFixed(0) + '% off the register']);
+          console.log('    ' + u + ' \u2014 lies on top of ' + overlaps.slice(0, 3).join(', ') +
+                      '; no shape');
+        }
       }
     }
   }

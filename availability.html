@@ -399,7 +399,24 @@ button{cursor:pointer;background:none;border:0}
    already a light-weight line, and anything behind or over them takes the
    snap out of the whole sheet. The plate is white, the way it is printed. */
 .pv .in{position:relative;transform-origin:0 0;background:#fff}
+/* WHY THE DRAWING LOOKED SOFT. Every line on the sheet is 1.2 drawing units
+   thick, and the plate is 514 units across. Fitted to a phone that is a
+   stroke less than one pixel wide, and a sub-pixel line is not drawn thin —
+   it is drawn grey, spread across two pixels by the antialiaser. A whole
+   floor of them reads as a photocopy of a plan rather than a plan.
+
+   non-scaling-stroke takes the line weight out of the drawing's units and
+   puts it in screen pixels: 1.2px at every zoom, black where it is black
+   and red where it is red. Not one coordinate moves — the shape of the
+   map is exactly what the architect drew, and only the pen is held
+   steady, which is what a CAD viewer does when you zoom out. */
 .pv .base svg{shape-rendering:geometricPrecision}
+/* AND THE WEIGHT ITSELF. The file carries stroke-width 0.28, which with a
+   non-scaling stroke is 0.28 of a SCREEN pixel — no display can draw that, so
+   every wall came out as a grey smear whatever the zoom. A hairline is one
+   pixel; on a phone at three times density that is three crisp device pixels,
+   and the plan finally reads as ink. */
+.pv .base svg path{vector-effect:non-scaling-stroke;stroke-width:1px}
 .pv.grab{cursor:grab}
 .pv.grabbing{cursor:grabbing}
 .pv svg{display:block;width:100%;height:auto}
@@ -1981,15 +1998,11 @@ async function showPlan(f) {
   $('k-held').classList.toggle('off', !PLANF.held);
 
   if (PLANV) {
-    /* THE PLATE IS TALLER THAN IT IS WIDE, BY FOUR TO ONE. Fitted to the
-       width of a phone a shop is ten pixels across and its number cannot be
-       read at all, so the first view is opened at a size the writing works
-       at and the plate scrolls sideways — which is how a paper plan of this
-       shape is read too. On a wide screen it fits and nothing is done. */
-    if (!PLANZSET) {
-      var wide = $('pv').clientWidth || 360;
-      setZoom(Math.max(1, Math.min(2.5, 720 / wide)));
-    }
+    /* THE WHOLE FLOOR FIRST. Opening enlarged was tried and it starts the
+       reader inside the building with no idea which end they are at; the
+       plate is meant to be seen whole and then gone into. The zoom sits
+       beside the legend for that, and follows you down the page. */
+    if (!PLANZSET) setZoom(1);
     paintPlan(plan, f);
     note.innerHTML = 'Tap a shop to ask for it. ' +
       (gone ? '<b>' + gone + '</b> crossed out are already taken.' : 'Every shop on this floor is free.');

@@ -18,7 +18,8 @@ const fs = require('fs'), path = require('path'), http = require('http'), https 
       puppeteer = require('puppeteer-core');
 const ROOT = path.resolve(__dirname, '..');
 const PORT = 4201, BASE = 'http://127.0.0.1:' + PORT;
-const OUT = path.join(ROOT, 'marketing_shots', 'floorplan');
+const OUT = path.join(ROOT, 'marketing_shots', 'floorplan',
+                      (process.argv[2] || 'LG').toLowerCase());
 const CO = '96d210e7-e63b-4ef0-b1d0-74e622eac7ce';
 const DIR = '015effd0-7ac7-4939-a1b3-dd2826ab8fba';
 const AWAMI = '59ded55b-9bc2-45b2-a372-49fc31807fa9';
@@ -73,8 +74,13 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
     SELECT d::text AS payload FROM cap;
     ROLLBACK;`);
   const payload = JSON.parse(cap[0].payload);
-  const lg = (payload.floors || []).findIndex(f => /lower ground/i.test(f.floor_label));
-  if (lg < 0) { console.log('no Lower Ground in the payload'); process.exit(1); }
+  /* WHICHEVER FLOOR IS ASKED FOR. Every plated floor faces the same battery —
+     a second floor shipped on the strength of the first one's tests is a
+     second floor nobody tested. `npm run shot:floorplan` runs them all. */
+  const WANT = (process.argv[2] || 'LG').toUpperCase();
+  const pfx = u => String(u.n || '').split('-')[0].toUpperCase();
+  const lg = (payload.floors || []).findIndex(f => (f.units || []).length && pfx(f.units[0]) === WANT);
+  if (lg < 0) { console.log('no floor with the prefix ' + WANT + ' in the payload'); process.exit(1); }
   const F = payload.floors[lg];
   const gone = F.units.filter(u => u.s !== 'available');
   console.log('\n\u2500\u2500 The floor as it was drawn');
@@ -143,6 +149,33 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
            'left at ' + veil.freeA + ' and only the taken ones coloured')
       : bad('something is veiling the plate: ' + JSON.stringify(veil));
 
+    /* ── AND THE LINE IS A LINE, NOT A GREY SMUDGE ───────────────────────
+       The sheet is drawn at 1.2 units on a plate 514 units wide: fitted to a
+       phone that is a stroke thinner than one pixel, which no screen can
+       draw — it comes out grey and spread, and the whole floor reads soft.
+       The weight has to be held in screen pixels instead. */
+    const pen = await page.evaluate(() => {
+      const p = document.querySelector('#pv-in .base svg path');
+      const box = document.getElementById('pv-in');
+      const svg = document.querySelector('#pv-in .base svg');
+      const vb = svg.viewBox.baseVal;
+      return { effect: p ? getComputedStyle(p).vectorEffect : '',
+               width: p ? getComputedStyle(p).strokeWidth : '',
+               scale: box.clientWidth / (vb.width || 1) };
+    });
+    (pen.effect === 'non-scaling-stroke' && parseFloat(pen.width) >= 0.8 && pen.scale < 1)
+      ? ok('the pen is ' + pen.width + ' of screen, held there — at this width the ' +
+           'drawing is scaled to ' + pen.scale.toFixed(2) + 'x, where a scaling ' +
+           'stroke would be under a pixel and grey')
+      : bad('the linework is scaled with the drawing: ' + JSON.stringify(pen));
+
+    const zoom0 = await page.evaluate(() => ({ z: PLANZ,
+      label: document.getElementById('pv-zoom').textContent,
+      w: document.getElementById('pv-in').style.width }));
+    (zoom0.z === 1 && zoom0.label === '100%')
+      ? ok('and the plate opens whole, at 100%')
+      : bad('it did not open at 100%: ' + JSON.stringify(zoom0));
+
     const seen = await page.evaluate(() => ({
       basePaths: document.querySelectorAll('#pv-in .base svg path').length,
       shapes: document.querySelectorAll('#pv-in .over .u').length,
@@ -158,18 +191,31 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       ? ok('the architect\u2019s own linework is on the page \u2014 ' + seen.basePaths +
            ' paths, walls and columns and stairs, not a redrawing')
       : bad('the drawing did not load: ' + seen.basePaths + ' paths');
-    /* The one unit whose walls have a gap has no shape yet, and is named rather
-       than quietly missing. */
+    /* ── A GAP MUST BE DECLARED, NOT TOLERATED ───────────────────────────
+       Some cells on these sheets have no closed boundary — a front row open
+       to the road, a wall with a gap the fill runs through — and no honest
+       shape can be made for them. Those are written down in
+       plans/known-gaps.json with the reason, one line each, and the missing
+       set is checked against that list EXACTLY. A gap nobody declared fails
+       here; so does a declared gap that has quietly fixed itself, so the list
+       cannot rot into an excuse. */
+    const GAPS = JSON.parse(fs.readFileSync(path.join(ROOT, 'plans', 'known-gaps.json'), 'utf8'));
+    const allowed = Object.keys(((GAPS['awami-market'] || {})[WANT]) || {});
     const want = new Set(F.units.map(u => u.n));
     const have = new Set(seen.ids);
     const missing = [...want].filter(u => !have.has(u));
     const stray = [...have].filter(u => !want.has(u));
-    (stray.length === 0 && missing.length <= 1)
+    const undeclared = missing.filter(u => allowed.indexOf(u) < 0);
+    const stale = allowed.filter(u => missing.indexOf(u) < 0);
+    (stray.length === 0 && undeclared.length === 0 && stale.length === 0)
       ? ok(seen.shapes + ' of ' + F.units.length + ' units have a shape' +
-           (missing.length ? ', and the one that does not is ' + missing[0] : '') +
+           (missing.length ? ', and the ' + missing.length + ' that do not (' +
+            missing.join(', ') + ') are written down as open on the drawing' : '') +
            ' \u2014 and every shape belongs to this floor')
-      : bad('shapes do not match the floor: missing ' + missing.length +
-            ' ' + missing.slice(0, 5).join(',') + '  stray ' + stray.slice(0, 5).join(','));
+      : bad('shapes do not match the floor:' +
+            (undeclared.length ? '  gaps nobody declared: ' + undeclared.join(',') : '') +
+            (stale.length ? '  declared but not missing: ' + stale.join(',') : '') +
+            (stray.length ? '  stray: ' + stray.slice(0, 5).join(',') : ''));
     (seen.off === seen.crosses && Math.abs(seen.off - gone.length) <= 1)
       ? ok('what is crossed out is what the system says is gone \u2014 ' + seen.crosses +
            ' crosses against ' + gone.length + ' taken units')
@@ -422,17 +468,17 @@ const bad = m => { console.log('  \u274C ' + m); FAILED = true; };
       : bad('a taken unit opened the sheet: ' + JSON.stringify(tap2));
 
     /* ── the weight ──────────────────────────────────────────────────────── */
-    const svgB = fs.statSync(path.join(ROOT, 'plans', 'awami-market', 'LG.svg')).size;
-    const jsonB = fs.statSync(path.join(ROOT, 'plans', 'awami-market', 'LG.json')).size;
+    const svgB = fs.statSync(path.join(ROOT, 'plans', 'awami-market', WANT + '.svg')).size;
+    const jsonB = fs.statSync(path.join(ROOT, 'plans', 'awami-market', WANT + '.json')).size;
     const gz = require('zlib');
-    const gzTotal = gz.gzipSync(fs.readFileSync(path.join(ROOT, 'plans', 'awami-market', 'LG.svg'))).length +
-                    gz.gzipSync(fs.readFileSync(path.join(ROOT, 'plans', 'awami-market', 'LG.json'))).length;
+    const gzTotal = gz.gzipSync(fs.readFileSync(path.join(ROOT, 'plans', 'awami-market', WANT + '.svg'))).length +
+                    gz.gzipSync(fs.readFileSync(path.join(ROOT, 'plans', 'awami-market', WANT + '.json'))).length;
     (gzTotal < 120 * 1024)
       ? ok('the whole floor costs ' + Math.round(gzTotal / 1024) + ' KB over the wire ' +
            '(' + Math.round((svgB + jsonB) / 1024) + ' KB raw) \u2014 the sheet it came from is 9 MB')
       : bad('the floor weighs ' + Math.round(gzTotal / 1024) + ' KB gzipped');
     /* the drawing is a brochure, and must carry nothing that is not */
-    const plan = fs.readFileSync(path.join(ROOT, 'plans', 'awami-market', 'LG.json'), 'utf8');
+    const plan = fs.readFileSync(path.join(ROOT, 'plans', 'awami-market', WANT + '.json'), 'utf8');
     !/price|client|phone|sold|hold|reserved|status/i.test(plan)
       ? ok('and the drawing files carry geometry only \u2014 no price, no holder, no status')
       : bad('the plan file carries something it should not');
