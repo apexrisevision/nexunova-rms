@@ -1803,6 +1803,50 @@ function serve() {
           /Reserved for you/.test(seen)
             ? okU2('and the approved one reads \u201cReserved for you\u201d')
             : badU2('the approved request does not show as reserved');
+
+          /* ── AND HIS OWN POSITION, ON THE PAGE HE ALREADY HAS OPEN ────────
+             A dealer holding fourteen units could see fourteen request rows and
+             no total, and nothing at all about the clock \u2014 which is the number
+             that matters, because a hold lets go on its own and the unit goes
+             back on the board.
+
+             Counted from the GRANTED tag rather than the asked one, and only
+             from holds still standing: one approved, one declined, so the
+             summary has to say ONE. */
+          const mine = await dp.evaluate(() => ({
+            head: (document.querySelector('#myq .myq-s .n') || {}).textContent || '',
+            tags: [...document.querySelectorAll('#myq .myq-t span')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
+            clock: (document.querySelector('#myq .myq-w') || {}).textContent || '',
+            rows: document.querySelectorAll('#myq .myq-r').length,
+            summary: (window.mySummary ? mySummary() : null)
+          }));
+
+          /* The page carries more requests than holds \u2014 one approved, one
+             declined, one still waiting \u2014 which is exactly the case the count
+             has to get right: it counts UNITS HE HAS, not rows on the screen. */
+          (mine.summary && mine.summary.held === 1 && mine.rows > 1 &&
+           /^1\s*unit with you/.test(mine.head.replace(/\s+/g, ' ')))
+            ? okU2('his own line at the top says \u201c' + mine.head.replace(/\s+/g, ' ').trim() +
+                   '\u201d \u2014 ' + mine.rows + ' requests on the page, one unit actually his')
+            : badU2('the summary miscounts: ' + JSON.stringify(mine));
+          (mine.summary && mine.summary.pending >= 1 &&
+           mine.tags.some(t => /waiting$/.test(t)))
+            ? okU2('and what is still waiting is counted apart from what he holds')
+            : badU2('the waiting count is missing: ' + JSON.stringify(mine.tags));
+          /* THE GRANTED TAG. He asked for one thing and the desk answers with
+             whatever it chooses; counting the asks would summarise the one
+             number he already knew. */
+          (mine.tags.length && /^1 Reserved$/.test(mine.tags[0]))
+            ? okU2('and names what was GRANTED, not what was asked for: ' + mine.tags.join(' / '))
+            : badU2('the tag chips read ' + JSON.stringify(mine.tags));
+          /3 days left/.test(mine.clock) && new RegExp(asked.unit).test(mine.clock)
+            ? okU2('with the clock on it \u2014 \u201c' + mine.clock.replace(/\s+/g, ' ').trim() + '\u201d')
+            : badU2('the release countdown is wrong: ' + JSON.stringify(mine.clock));
+
+          /* Shot from the HOME screen: that is where his own position sits, and
+             a picture of the floor grid says nothing about it. */
+          await dp.evaluate(() => { const b = document.getElementById('back'); if (b) b.click(); });
+          await sleep(400);
           await dp.screenshot({ path: path.join(OUT, 'l-dealer-sees-decision.png') });
 
           /* ── AND THE HOLD BEING UNDONE REACHES HIM TOO ───────────────
@@ -1829,6 +1873,26 @@ function serve() {
           /Declined by Management/.test(undone)
             ? okU2('and the declined one still reads as declined')
             : badU2('the decline changed when the other hold was released');
+
+          /* THE COUNTDOWN MUST NOT SURVIVE THE HOLD. A summary that goes on
+             saying \u201c1 unit with you \u00b7 3 days left\u201d after the desk has let the
+             unit go is the same lie the row used to tell, moved to a bigger
+             typeface. */
+          const after2 = await dp.evaluate(() => ({
+            strip: !!document.querySelector('#myq .myq-s'),
+            head: (document.querySelector('#myq .myq-s .n') || {}).textContent || '',
+            clock: (document.querySelector('#myq .myq-w') || {}).textContent || '',
+            rows: document.querySelectorAll('#myq .myq-r').length
+          }));
+          /* The strip itself stays while a request is still waiting \u2014 it has
+             something true to say. What must not survive is the COUNT and the
+             COUNTDOWN, which were about a unit the desk has taken back. */
+          (/^0\s*units? with you/.test(after2.head.replace(/\s+/g, ' ')) &&
+           after2.clock === '' && after2.rows > 1)
+            ? okU2('and his position goes with it \u2014 \u201c' +
+                   after2.head.replace(/\s+/g, ' ').trim() + '\u201d and no countdown, ' +
+                   'while every row stays on the page')
+            : badU2('the summary outlived the hold: ' + JSON.stringify(after2));
           /* The record of the decision is NOT rewritten — only what the
              dealer is told. A decided row that quietly becomes undecided is
              a forged record, and the desk's own history reads from it. */

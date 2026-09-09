@@ -260,6 +260,24 @@ button{cursor:pointer;background:none;border:0}
 .myq-b .prim:disabled{opacity:.45}
 /* Said plainly, because a dealer typing "sold" must not think they set it. */
 .myq-n{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.5}
+
+/* YOUR OWN POSITION, at the top of the page you already have open. A dealer
+   holding fourteen units had to count them off a list of requests, and the
+   one thing they actually watch — how long before a hold lets go — was on no
+   screen at all. */
+.myq-s{padding:14px 16px 15px;border-bottom:1px solid var(--line)}
+.myq-s .n{display:block;font-size:26px;font-weight:700;letter-spacing:-.025em;
+          line-height:1.1;color:var(--ink)}
+.myq-s .n small{font-size:13px;font-weight:600;color:var(--mut);letter-spacing:-.01em;
+                margin-left:7px}
+.myq-t{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.myq-t span{display:inline-flex;align-items:baseline;gap:5px;padding:4px 10px;
+            border-radius:999px;background:var(--sunk);font-size:12px;color:var(--soft)}
+.myq-t span b{font-weight:700;color:var(--ink);font-size:12.5px}
+.myq-w{margin-top:11px;font-size:12.5px;line-height:1.5;color:var(--soft)}
+.myq-w b{color:var(--ink);font-weight:650}
+.myq-w.soon b{color:var(--held)}
+.myq-r .t{font-size:11.5px;color:var(--mut);white-space:nowrap}
 .s-pending{color:var(--mut)}
 .s-approved,.s-held{color:#1C6B3F}
 .s-declined{color:#8A2F26}
@@ -824,6 +842,52 @@ function _myqClick(e) {
   if (sd) return sendAsk(sd.getAttribute('data-send'));
 }
 
+/* HOW LONG IS LEFT, in the words somebody says out loud. Hours under a day,
+   because "1 day" on something that goes at four this afternoon is the kind of
+   rounding that loses a unit. */
+function leftSay(iso) {
+  if (!iso) return null;
+  var t = Date.parse(iso); if (isNaN(t)) return null;
+  var ms = t - Date.now();
+  if (ms <= 0) return { t: 'ending now', soon: true };
+  var hrs = ms / 36e5;
+  if (hrs < 1)  return { t: Math.max(1, Math.round(ms / 6e4)) + ' min left', soon: true };
+  if (hrs < 48) return { t: Math.round(hrs) + ' hour' + (Math.round(hrs) === 1 ? '' : 's') + ' left', soon: true };
+  return { t: Math.round(hrs / 24) + ' days left', soon: false };
+}
+
+/* ══ YOUR OWN POSITION ═══════════════════════════════════════════════════
+   A dealer with fourteen units on this link could see fourteen request rows
+   and no total, and nothing at all about the clock — which is the one number
+   they care about, because a hold lets go on its own and the unit goes back on
+   the board.
+
+   Counted from the GRANTED tag, never the asked one, and only from holds that
+   are still standing. Everything here is this phone's own list of requests
+   through this link: there is no login on a page anybody can forward, so it
+   cannot be anyone else's position and does not pretend to be. */
+function mySummary() {
+  var by = {}, order = [], held = 0, pending = 0, soonest = null;
+  REQS.forEach(function (r) {
+    var st = stateOf(r);
+    if (st === 'pending') { pending++; return; }
+    if (st !== 'held') return;
+    held++;
+    var k = r.tag || r.asked || 'Held';
+    if (!by[k]) { by[k] = 0; order.push(k); }
+    by[k]++;
+    if (r.until) {
+      var t = Date.parse(r.until);
+      if (!isNaN(t) && (soonest === null || t < soonest.t)) soonest = { t: t, unit: r.unit };
+    }
+  });
+  return { held: held, pending: pending, by: by, order: order, soonest: soonest,
+           /* Permanent ones have no clock at all, and saying nothing about them
+              is better than implying they are safe until a date. */
+           forever: REQS.filter(function (r) {
+             return stateOf(r) === 'held' && !r.until; }).length };
+}
+
 function paintMyReqs() {
   var box = $('myq');
   if (!box) return;
@@ -833,7 +897,36 @@ function paintMyReqs() {
   /* Bound once. paintMyReqs runs on every refetch and a listener per paint
      would fire the fifth ask five times. */
   if (!box.__askBound) { box.addEventListener('click', _myqClick); box.__askBound = true; }
-  box.innerHTML = '<div class="myq-h">Your requests</div>' +
+  var S = mySummary();
+  var L = S.soonest ? leftSay(new Date(S.soonest.t).toISOString()) : null;
+
+  box.innerHTML =
+    (S.held || S.pending
+      ? '<div class="myq-s">' +
+          '<span class="n">' + S.held +
+            '<small>' + (S.held === 1 ? 'unit with you' : 'units with you') + '</small></span>' +
+          (S.order.length
+            ? '<div class="myq-t">' +
+                S.order.map(function (k) {
+                  return '<span><b>' + S.by[k] + '</b> ' + esc(k) + '</span>';
+                }).join('') +
+                (S.pending ? '<span><b>' + S.pending + '</b> waiting</span>' : '') +
+              '</div>'
+            : (S.pending
+                ? '<div class="myq-t"><span><b>' + S.pending + '</b> waiting</span></div>'
+                : '')) +
+          /* THE CLOCK. The soonest one, named, because that is the unit that
+             has to be chased today — not the count, which changes nothing. */
+          (L
+            ? '<div class="myq-w' + (L.soon ? ' soon' : '') + '">' +
+                'Next to release: <b>' + esc(S.soonest.unit) + '</b> · ' + esc(L.t) +
+              '</div>'
+            : (S.forever && !S.pending
+                ? '<div class="myq-w">Nothing here releases on its own.</div>'
+                : '')) +
+        '</div>'
+      : '') +
+    '<div class="myq-h">Your requests</div>' +
     REQS.slice(0, 6).map(function (r) {
       var st = stateOf(r);
       /* A HELD UNIT CAN STILL NEED SOMETHING. The deal matures, and until now
@@ -841,11 +934,19 @@ function paintMyReqs() {
          could only ask for units that were FREE, so the moment one became
          theirs it fell out of the only channel they have. */
       var canAsk = (st === 'held' && r.kind !== 'change');
+      /* A held row says what it IS now and when it goes, in place of what was
+         asked for and how many days were asked for — both of which stopped
+         being the news the moment the desk answered. */
+      var W = (st === 'held') ? leftSay(r.until) : null;
+      var mid = (st === 'held')
+        ? (esc(r.tag || r.asked || 'Held') + '  \u00b7  ' +
+           (r.until ? esc(W ? W.t : '') : 'no end date'))
+        : ((r.days == null ? esc(r.asked || 'No end date')
+                           : esc(r.days) + ' day' + (r.days === 1 ? '' : 's')) +
+           '  \u00b7  ' + esc(initials(P && P.project)) + '-REQ-' + esc(r.ref));
       return '<div class="myq-r">' +
         '<span class="u">' + esc(r.unit) + '</span>' +
-        '<span class="d">' + (r.days == null ? esc(r.asked || 'No end date')
-                             : esc(r.days) + ' day' + (r.days === 1 ? '' : 's')) +
-          '  \u00b7  ' + esc(initials(P && P.project)) + '-REQ-' + esc(r.ref) + '</span>' +
+        '<span class="d">' + mid + '</span>' +
         '<span class="s s-' + esc(st) + '">' + esc(SAYS[st] || st) + '</span>' +
       '</div>' +
       (canAsk
@@ -929,6 +1030,11 @@ async function refreshMyReqs() {
       if (st && st !== stateOf(x)) { x.state = st; x.status = got.status; changed = true; }
       if (got.held_until !== x.until) { x.until = got.held_until || null; changed = true; }
       if (got.asked && got.asked !== x.asked) { x.asked = got.asked; changed = true; }
+      /* WHAT WAS GRANTED, not what was asked for. The desk answers a request
+         for Hold with Pagri often enough that counting the asks would be a
+         summary of the wrong thing. Cleared as well as set: a hold that ends
+         must stop carrying the tag it had. */
+      if ((got.tag || null) !== (x.tag || null)) { x.tag = got.tag || null; changed = true; }
     });
     if (changed) { writeReqs(REQS); paintMyReqs(); }
   } catch (e) { /* the receipt can wait; the board matters more */ }

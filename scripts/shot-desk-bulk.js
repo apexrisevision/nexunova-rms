@@ -129,6 +129,73 @@ function serve() {
            '\u201c' + one.go.trim() + '\u201d')
       : bad('the single-unit path changed: ' + JSON.stringify(one));
 
+    console.log('\n\u2500\u2500 Typing a letter and tapping what comes back');
+    /* ══ A TAP SELECTS ═══════════════════════════════════════════════════
+       Rashid's words: type L and every free unit on the L floors should come
+       up, and tapping one should pick it. It used to fill the box and move to
+       the requester, which ends a booking \u2014 right for one unit, useless for
+       ten, because the first tap closed the selection.
+
+       The list is bound on MOUSEDOWN, not click: the box blurs on mousedown
+       and a deferred close would otherwise race the click. So this drives a
+       real mouse rather than calling .click(), which fires neither. */
+    const listed = await page.evaluate(() => {
+      const el = document.getElementById('rd-unit');
+      el.value = 'L';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return {
+        rows: [...document.querySelectorAll('#rd-sugg .rd-sg .n')].map(x => x.textContent.trim()),
+        shown: (document.getElementById('rd-sugg') || {}).style.display
+      };
+    });
+    (listed.shown === 'block' && listed.rows.length >= 3 && listed.rows.every(n => /^L/i.test(n)))
+      ? ok('one letter brings up the free units on that floor: ' +
+           listed.rows.slice(0, 4).join(', ') + (listed.rows.length > 4 ? ' \u2026' : ''))
+      : bad('the list did not answer a bare letter: ' + JSON.stringify(listed));
+
+    async function tapFirst() {
+      const box = await page.$('#rd-sugg .rd-sg');
+      if (!box) return null;
+      const b = await box.boundingBox();
+      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+      await sleep(120);
+      return page.evaluate(() => ({
+        chips: [...document.querySelectorAll('#rd-cart .rd-uc')]
+                 .map(c => c.textContent.replace(/\u00d7/g, '').trim()),
+        rows: [...document.querySelectorAll('#rd-sugg .rd-sg .n')].map(x => x.textContent.trim()),
+        box: document.getElementById('rd-unit').value,
+        focused: document.activeElement && document.activeElement.id,
+        go: (document.getElementById('rd-go') || {}).textContent || ''
+      }));
+    }
+
+    const first = await tapFirst();
+    (first && first.chips.length === 1 && first.chips[0] === listed.rows[0])
+      ? ok('tapping one selects it \u2014 ' + first.chips[0] + ' is now a chip')
+      : bad('the tap did not select: ' + JSON.stringify(first));
+    (first && first.box === 'L' && first.rows.indexOf(listed.rows[0]) < 0)
+      ? ok('the letter stays in the box and the list comes back WITHOUT it \u2014 ' +
+           'a unit already picked is not offered again')
+      : bad('the list did not refresh around the pick: ' + JSON.stringify(first));
+    (first && first.focused === 'rd-unit')
+      ? ok('and the thumb is left where the next tap is')
+      : bad('focus moved to ' + JSON.stringify(first && first.focused));
+
+    const second = await tapFirst();
+    (second && second.chips.length === 2 && /\b2 units\b/.test(second.go))
+      ? ok('so they can be tapped one after another: ' + second.chips.join(' ') +
+           ' \u2014 \u201c' + second.go.trim() + '\u201d')
+      : bad('the second tap did not add: ' + JSON.stringify(second));
+
+    await page.screenshot({ path: path.join(OUT, 'c-tap-to-pick.png') });
+
+    /* Cleared, so the paste test below starts from the screen it expects. */
+    await page.evaluate(() => {
+      let x; while ((x = document.querySelector('#rd-cart .rd-uc button[data-x]'))) x.click();
+      const el = document.getElementById('rd-unit');
+      el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
     console.log('\n\u2500\u2500 A pasted list');
     /* ONE input event, which is exactly what a paste is. Forty units off a
        WhatsApp group arrive this way, not keystroke by keystroke. */

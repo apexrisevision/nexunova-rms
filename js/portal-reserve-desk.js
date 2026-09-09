@@ -369,6 +369,15 @@
       "#rd-print td.code{font-size:8pt;color:var(--slate)}" +
       "#rd-print .wc{font-size:7.5pt;color:var(--slate)}" +
       "#rd-print .sec-note{font-size:7.5pt;color:var(--slate);margin:-1mm 0 2.5mm;font-style:italic}" +
+      /* A GROUPED TABLE HAS NO STRIPES. Zebra rows count in twos, and an entry
+         here is a line plus the unit numbers under it — striping them made the
+         list look like it was banded at random. A hairline above each entry
+         separates them instead, which is also how a ledger does it. */
+      "#rd-print table.grp tbody tr:nth-child(even) td{background:transparent}" +
+      "#rd-print table.grp tbody tr.g td{border-top:.4pt solid var(--line)}" +
+      "#rd-print table.grp tbody tr.g:first-child td{border-top:0}" +
+      "#rd-print tr.ul td{height:auto;padding:0 2mm 1.8mm;white-space:normal;" +
+        "font-size:7.5pt;line-height:1.45;color:var(--slate);letter-spacing:.01em}" +
       "#rd-print tr.tot td{border-top:1pt solid var(--navy);font-weight:700;background:var(--tint);font-size:8.5pt}" +
       /* ── empty state ── */
       /* No signature rules. Nobody signed this page: it is generated from the
@@ -976,6 +985,11 @@
     for (var i = 0; i < all.length; i++) {
       if (all[i].s !== 'available') continue;
       if (_norm(all[i].n).indexOf(k) !== 0) continue;
+      /* ALREADY PICKED IS NOT A SUGGESTION. Offering a unit that is already a
+         chip means a tap that does nothing \u2014 the operator taps it, the list
+         does not change, and there is no way to tell a duplicate from a dead
+         button. It leaves the list the moment it joins the tray. */
+      if (_cartHas(all[i].id)) continue;
       out.push(all[i]);
     }
     /* Unit-wise, like every list in the report: floor in its configured order,
@@ -1032,24 +1046,28 @@
   /* Taking one fills the box with the real unit number and then runs the same
      resolution a typed number runs, so a picked unit and a typed one end up in
      exactly the same state — there is no second path to keep in step. */
+  /* ══ PICKING FROM THE LIST IS SELECTING ══════════════════════════════════
+     It used to fill the box with the unit's number and move to the requester,
+     which is the right end to one booking and the wrong end to ten: the first
+     tap finished the selection, so a list of units could only be built by
+     typing them with commas. Rashid asked for the other thing \u2014 type L, see
+     every free unit on the L floors, and tap them.
+
+     So a tap ADDS, always, and three things follow from that. The typed
+     prefix stays in the box, the list is repainted without the unit just
+     taken, and the focus does not move \u2014 the next tap is on the same list, one
+     row higher. One unit is the same gesture with one tap in it. */
   function _takeSuggest(i) {
     var u = SG.list[i]; if (!u) return;
     var el = _q('#rd-unit');
-    /* Once a batch is being built, picking from the list adds to it rather
-       than replacing what is in the box — and the focus stays on the box,
-       because the next thing this operator does is name another unit. */
-    if (DESK.cart.length || DESK.unknown.length) {
-      _cartAdd(u.n);
-      if (el) { el.value = ''; try { el.focus(); } catch (e) {} }
-      _closeSuggest();
-      _lookup('');
-      _paintCart();
-      return;
-    }
-    if (el) { el.value = u.n; }
-    _closeSuggest();
-    _lookup(u.n);
-    var r = _q('#rd-req'); if (r) { try { r.focus(); } catch (e) {} }
+    var key = el ? String(el.value || '') : '';
+    _cartAdd(u.n);
+    _lookup('');
+    _paintCart();
+    /* Repainted from the same prefix, so the list a thumb is working down
+       stays where it was rather than closing under it. */
+    if (el) { try { el.focus(); } catch (e) {} }
+    _paintSuggest(key);
   }
 
   function _moveSuggest(step) {
@@ -1405,8 +1423,20 @@
       toast(d.done + ' booked, ' + d.failed + ' refused \u2014 see the list below.',
             d.done ? 'warn' : 'err');
     } else {
-      toast(d.done + ' unit' + (d.done === 1 ? '' : 's') + ' \u2014 ' +
-            (r.name || 'recorded') + '.', 'ok');
+      /* With one unit this is the everyday booking, and the confirmation it
+         has always given names the unit, the verb and how long. Losing that to
+         a count of one would be a worse screen for the commonest action. */
+      var only = (d.done === 1 && rows.length) ? rows.filter(function (x) { return x.success; })[0] : null;
+      if (only) {
+        var tg = String(only.tag_code || 'RESERVED').toUpperCase();
+        var verb = tg === 'HOLD' ? 'put on hold for' : tg === 'BOOKED' ? 'booked for'
+                 : tg === 'RESERVED' ? 'reserved for' : (String(only.tag || 'marked') + ' for');
+        toast(esc(only.unit_no || '') + ' ' + verb + ' ' + (r.name || '') + ' \u00b7 ' +
+              (only.expiry_days == null ? 'no expiry' : only.expiry_days + 'd'), 'ok');
+      } else {
+        toast(d.done + ' unit' + (d.done === 1 ? '' : 's') + ' \u2014 ' +
+              (r.name || 'recorded') + '.', 'ok');
+      }
       /* A clean batch leaves nothing behind but the requester, exactly as the
          single path does: the next ask from the same rep needs no retyping. */
       var ids = ['#rd-cname', '#rd-cphone', '#rd-tamt', '#rd-note'];
@@ -2101,7 +2131,12 @@
 
   var DB = { data: null, date: null,
              showMovement: _pref('movement', true),
-             showReleased: _pref('released', true) };
+             showReleased: _pref('released', true),
+             /* OFF by default, which means grouped by default. 113 units to one
+                landowner in one afternoon printed 113 lines that differed in
+                nothing but the unit number, and a five-page daybook is a daybook
+                nobody opens. Ticking it puts every unit back on its own line. */
+             showEach: _pref('each', false) };
 
   window.renderDaybook = async function () {
     var host = document.getElementById('app-body');
@@ -2182,6 +2217,8 @@
             '> Movement</label>' +
           '<label><input type="checkbox" id="db-rl"' + (DB.showReleased ? ' checked' : '') +
             '> Released</label>' +
+          '<label><input type="checkbox" id="db-ea"' + (DB.showEach ? ' checked' : '') +
+            '> Unit by unit (PDF)</label>' +
         '</div>' +
         '<div class="db-acts">' +
           '<button class="rd-chip" id="db-copy">' + li('copy', 15) + ' Copy for WhatsApp</button>' +
@@ -2308,7 +2345,8 @@
     var back = _dbq('#db-back'); if (back) back.addEventListener('click', function () { setTab('desk'); });
     /* Repaint from the payload already in hand. Refetching would be a round
        trip to change nothing but which parts of it are drawn. */
-    [['#db-mv', 'movement', 'showMovement'], ['#db-rl', 'released', 'showReleased']]
+    [['#db-mv', 'movement', 'showMovement'], ['#db-rl', 'released', 'showReleased'],
+     ['#db-ea', 'each', 'showEach']]
       .forEach(function (spec) {
         var el = _dbq(spec[0]); if (!el) return;
         el.addEventListener('change', function () {
@@ -2620,6 +2658,20 @@
     catch (e) { d = new Date(iso); }
     return isNaN(d.getTime()) ? null : d;
   }
+  /* DAYS TO THE DATE ON THE PAGE, not hours divided by 24. The row prints an
+     expiry DATE and a number of days beside it; deriving the number from the
+     raw timestamp let two units of the same batch read "24 Sep · 15d" and
+     "24 Sep · 16d" purely because they were booked a second apart either side
+     of a boundary — which then split one action into two entries on the
+     grouped report. Counted between calendar dates in PKT, the two columns
+     cannot disagree. */
+  function _daysTo(iso) {
+    var b = _pk(iso); if (!b) return null;
+    var a = _pk(new Date().toISOString()); if (!a) return null;
+    var d = (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) -
+             Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5;
+    return Math.max(0, Math.round(d));
+  }
   function _dLong(iso) { var d = _pk(iso); if (!d) return '—';   // Monday, 07 September 2026
     return _DAY[d.getDay()] + ', ' + String(d.getDate()).padStart(2, '0') + ' ' +
            _MON[d.getMonth()] + ' ' + d.getFullYear(); }
@@ -2647,6 +2699,7 @@
     var d = DB.data || {}, h = d.header || {};
     var showMv = (d.showMovement === undefined) ? DB.showMovement !== false : d.showMovement !== false;
     var showRl = (d.showReleased === undefined) ? DB.showReleased !== false : d.showReleased !== false;
+    var showEa = (d.showEach === undefined) ? DB.showEach === true : d.showEach === true;
     var host = _printHost();
     host.className = '';
     host.innerHTML = '';
@@ -2667,14 +2720,23 @@
       tAv    += Number(f.available || 0); tOther += Number(f.other || 0);
       tAll   += Number(f.total || 0);
     });
-    /* The Other column is drawn only when something is in it. On Awami it is
-       always zero; a project with Dead or Mortgaged units gets the column and
-       the row still adds up to the total either way. */
+    /* The Other column is drawn only when something is in it. A project with
+       Dead or Mortgaged units gets the column, and so does one using tags of
+       its own — Awami's Pagri, Landowner and Sold - Entry Pending all land
+       here — and the row adds up to the total either way. */
     var showOther = tOther > 0;
     /* Every unit that is not available is off the market, whichever tag it
        wears. The position line needs one figure for that, or a reader has to
-       add three columns in their head to answer "how much is gone". */
-    var tHeld = tRes + tHold + tBook;
+       add three columns in their head to answer "how much is gone".
+
+       OTHER IS PART OF IT. It was left out, so a building with 110 ordinary
+       holds and 31 units under its own tags reported HELD 110 — and the four
+       headline figures added to 1,436 against a total of 1,467. Thirty-one
+       units, twelve of them marked Sold - Entry Pending, were on a board
+       report in no column at all. With `other` counted, this figure also
+       agrees with the Movement table's closing balance beside it, which counts
+       reservations and had been saying 141 next to a headline saying 110. */
+    var tHeld = tRes + tHold + tBook + tOther;
 
     var pages = [], body = null, pageNo = 0;
 
@@ -2774,13 +2836,22 @@
       ['Held', _num(tHeld), _pct(tHeld, tAll)],
       ['Available', _num(tAv), _pct(tAv, tAll)]
     ], false));
-    /* The split under it, because "held" is three different promises and the
-       board wants to know which. Suppressed entirely when nothing is held. */
-    if (tHeld || tOther) {
-      sum.appendChild(_el('div', 'sum-pkr',
-        'Of which: on hold ' + _num(tHold) + '  \u00b7  reserved ' + _num(tRes) +
-        '  \u00b7  booked ' + _num(tBook) +
-        (tOther ? '  \u00b7  other ' + _num(tOther) : '')));
+    /* The split under it, because "held" is four different promises and the
+       board wants to know which. Suppressed entirely when nothing is held.
+
+       Only the ones that are not zero. "on hold 110 \u00b7 reserved 0 \u00b7 booked 0 \u00b7
+       other 31" spends half its width saying nothing happened, and the two
+       figures that matter have to be found among the noughts. */
+    if (tHeld) {
+      var of = [];
+      if (tHold)  of.push('on hold ' + _num(tHold));
+      if (tRes)   of.push('reserved ' + _num(tRes));
+      if (tBook)  of.push('booked ' + _num(tBook));
+      /* Named for what they are: a unit under Pagri, Landowner or Sold - Entry
+         Pending is off the market under a tag this project invented, and the
+         floor table's Other column is where it is counted. */
+      if (tOther) of.push('under other tags ' + _num(tOther));
+      sum.appendChild(_el('div', 'sum-pkr', 'Of which: ' + of.join('  \u00b7  ')));
     }
     /* `holding` is the whole active set, not a day's slice, so the value tied up
        in reservations IS derivable now — unlike the sold and period figures,
@@ -2888,10 +2959,100 @@
       return tr;
     }
 
+    /* ══ ONE ACTION IS ONE LINE ═══════════════════════════════════════════
+       113 units marked for the landowner in one afternoon printed as 113 rows
+       that differed in nothing but the unit number — five pages of a report
+       whose whole job is to be read. That is not detail, it is the same fact
+       restated a hundred times.
+
+       Rows that agree on every column except the unit become one entry: the
+       count where the unit number was, and every unit number printed on the
+       line underneath. NOTHING IS DROPPED — a reader can still find any unit
+       on the page, and can still tick \u201cUnit by unit\u201d to get the old table
+       back. A daybook is a ledger; a ledger may summarise, it may not omit. */
+    /* A byte no unit number, name or date can contain, so two fields cannot
+       run together and read as a third. */
+    var SEP = String.fromCharCode(1);   // written this way on purpose: a raw control byte in a source file survives no round trip through an editor
+    function collapse(rows, keyOf) {
+      var out = [], by = {};
+      rows.forEach(function (r) {
+        var k = keyOf(r);
+        /* Object.create(null) is overkill here, but a unit called
+           \u201cconstructor\u201d would otherwise find a function waiting for it. */
+        if (!Object.prototype.hasOwnProperty.call(by, k)) { by[k] = { rows: [] }; out.push(by[k]); }
+        by[k].rows.push(r);
+      });
+      return out;
+    }
+    /* Grouping is a rendering choice, so it is switched off by returning the
+       rows one to a group rather than by branching everywhere below. */
+    function groups(rows, keyOf) {
+      if (showEa) return rows.map(function (r) { return { rows: [r] }; });
+      return collapse(rows, keyOf);
+    }
+    function unitsIn(g) {
+      return g.rows.map(function (x) { return x.unit_no; }).join(', ');
+    }
+    /* The unit numbers already carry their floor, so naming five of them across
+       the top of a grouped row would say it twice. */
+    function floorsIn(g) {
+      var seen = {}, n = 0, one = null;
+      g.rows.forEach(function (x) {
+        var k = String(x.floor || '');
+        if (!seen[k]) { seen[k] = 1; n++; one = x.floor; }
+      });
+      return n === 1 ? (one || '\u2014') : { v: n + ' floors', cls: 'mut' };
+    }
+    function areaIn(g, unit) {
+      var t = 0, ok = true;
+      g.rows.forEach(function (x) { if (Number(x.area)) t += Number(x.area); else ok = false; });
+      return ok && t ? { v: _area(t, unit), cls: 'n' } : { v: '\u2014', cls: 'n mut' };
+    }
+    /* Said once, under the heading, so a reader knows the count above is units
+       and the lines below are actions. */
+    function groupNote(rows, gs) {
+      if (showEa || gs.length === rows.length) return null;
+      return _num(rows.length) + ' unit' + (rows.length === 1 ? '' : 's') + ' in ' +
+             _num(gs.length) + ' entr' + (gs.length === 1 ? 'y' : 'ies') +
+             ' \u2014 bookings that agree on tag, holder and expiry are shown as one ' +
+             'line, with every unit number listed beneath it.';
+    }
+
     /* One stamp, so the section note and the page footer cannot disagree. The
        server's clock is preferred over the browser's: the hold list was computed
        there, and `days_left` was measured against that same now(). */
     var genISO = d.generated_at || new Date().toISOString();
+
+    /* WHAT COUNTS AS THE SAME ACTION: rows whose PRINTED cells are identical
+       except for the unit number. The key is built from the same strings the
+       table will show — the formatted expiry, the days-left figure — and never
+       from the underlying timestamps.
+
+       That distinction is the whole feature. Six units marked for one dealer a
+       minute apart carry expiries a minute apart, so keying on the raw
+       timestamp grouped none of them, and the first attempt at this printed
+       almost the same five pages. Two rows a reader cannot tell apart ARE one
+       entry: folding them hides nothing, because everything they differ in is
+       already invisible on the page.
+
+       The floor is deliberately NOT in the key. A dealer taking a row across
+       three floors is one action, and the entry says "3 floors" rather than
+       splitting into three lines to protect a column the unit numbers below it
+       already carry. */
+    function leftOf(r) {
+      var n = _daysTo(r.expiry_date);
+      return n == null ? 'inf' : String(n);
+    }
+    var bookedG = groups(dayRows, function (r) {
+      return [r.tag || 'Reserved', r.requested_by, r.agent_code, r.booked_by,
+              r.client_name || '', _dShort(r.expiry_date), leftOf(r)].join(SEP);
+    });
+    var heldG = groups(heldEarlier, function (r) {
+      var L = _holdLeft(r);
+      return [r.tag || 'Reserved', r.requested_by, r.agent_code, r.client_name || '',
+              _dShort(r.reserved_at), _dShort(r.expiry_date),
+              L.t, L.tone || ''].join(SEP);
+    });
 
     var secs = [
       /* "Reservations Today" named one of the three tags this desk can now
@@ -2900,18 +3061,27 @@
          spanning a week is the kind of label a reader trusts and should not. */
       { title: d.single_day ? 'Booked Today' : 'Booked In This Period',
         unit: 'unit', noun: 'bookings',
+        count: dayRows.length,
+        note: groupNote(dayRows, bookedG),
+        grouped: !showEa,
         cols: [['Unit'], ['Tag'], ['Floor'], ['Requested by'], ['Booked by'], ['Buyer'], ['Expires'], ['Left', 'n']],
-        rows: dayRows.map(function (r) {
+        rows: bookedG.map(function (g) {
+          var r = g.rows[0], n = g.rows.length;
           var ed = _pk(r.expiry_date);
-          var days = ed ? Math.max(0, Math.ceil((ed - new Date()) / 864e5)) : null;
-          return [{ v: r.unit_no, cls: 'u' },
+          var days = _daysTo(r.expiry_date);
+          var cells = [n > 1 ? { v: n + ' units', cls: 'u' } : { v: r.unit_no, cls: 'u' },
                   { v: r.tag || 'Reserved', pill: _pillOf(r.tag_code) },
-                  r.floor,
+                  n > 1 ? floorsIn(g) : r.floor,
                   whoCell(r.requested_by, r.agent_code),
                   r.booked_by || '—',
                   r.client_name ? r.client_name : { v: '—', cls: 'mut' },
                   ed ? _dShort(r.expiry_date) : { v: 'No expiry', cls: 'mut' },
-                  days == null ? { v: '\u221e', cls: 'n mut' } : { v: days + 'd', pill: 'amber', cls: 'n' }];
+                  days == null
+                    ? { v: '\u221e', cls: 'n mut' }
+                    /* Nought days is not "expired", it is "today", and today is
+                       the one a reader has to act on before the office shuts. */
+                    : { v: days === 0 ? 'Today' : days + 'd', pill: 'amber', cls: 'n' }];
+          return n > 1 ? { cells: cells, units: unitsIn(g) } : cells;
         }),
         empty: function () { return 'No units booked ' + _periodPhrase(d) + '.'; } },
 
@@ -2940,19 +3110,28 @@
               _dShort(d.from || dateISO) + ', soonest to lapse first. Bookings inside the period are in 01' +
               (heldEarlier.length !== hold.length
                 ? '; ' + _num(hold.length) + ' unit' + (hold.length === 1 ? '' : 's') + ' held in total.'
-                : '.'),
+                : '.') +
+              (groupNote(heldEarlier, heldG) ? ' ' + groupNote(heldEarlier, heldG) : ''),
+        count: heldEarlier.length,
+        grouped: !showEa,
         cols: [['Unit'], ['Tag'], ['Floor'], ['Size', 'n'], ['Reserved by'],
                ['Buyer'], ['Reserved on'], ['Expires'], ['Left', 'n']],
-        rows: heldEarlier.map(function (r) {
+        rows: heldG.map(function (g) {
+          var r = g.rows[0], n = g.rows.length;
           var L = _holdLeft(r);
           var left = L.tone ? { v: L.t, pill: L.tone, cls: 'n' } : { v: L.t, cls: 'n' };
-          return [{ v: r.unit_no, cls: 'u' },
+          var cells = [n > 1 ? { v: n + ' units', cls: 'u' } : { v: r.unit_no, cls: 'u' },
                   { v: r.tag || 'Reserved', pill: _pillOf(r.tag_code) },
-                  r.floor,
-                  { v: _area(r.area, r.area_unit), cls: 'n' },
+                  n > 1 ? floorsIn(g) : r.floor,
+                  /* The whole entry\u2019s area. Summed, not repeated: nine units of
+                     170 sqft are 1,530 sqft, and printing one unit\u2019s size on a
+                     line that speaks for nine would be a figure about the wrong
+                     thing. An em dash when any of them has no area recorded. */
+                  n > 1 ? areaIn(g, r.area_unit) : { v: _area(r.area, r.area_unit), cls: 'n' },
                   whoCell(r.requested_by, r.agent_code),
                   r.client_name ? r.client_name : { v: '\u2014', cls: 'mut' },
                   _dShort(r.reserved_at), _dShort(r.expiry_date), left];
+          return n > 1 ? { cells: cells, units: unitsIn(g) } : cells;
         }),
         empty: function () { return 'Nothing is held from an earlier day.'; } },
 
@@ -3018,25 +3197,47 @@
     live.forEach(function (sec, si) {
       var block = _el('div');
       block.style.marginTop = si === 0 ? '8mm' : '7mm';
-      block.appendChild(secHead(String(si + 1).padStart(2, '0'), sec.title, sec.rows.length, sec.unit));
+      /* The pill counts UNITS. With identical bookings folded together the row
+         count is the number of ACTIONS, and a heading reading "15 units" over a
+         day that moved 141 of them would be the one figure on the page a reader
+         checks against their own memory. */
+      block.appendChild(secHead(String(si + 1).padStart(2, '0'), sec.title,
+                                sec.count == null ? sec.rows.length : sec.count, sec.unit));
       if (sec.note) block.appendChild(_el('div', 'sec-note', sec.note));
 
-      var table = _el('table');
+      var table = _el('table', sec.grouped ? 'grp' : null);
       table.appendChild(thead(sec.cols));
       var tb = _el('tbody'); table.appendChild(tb);
       block.appendChild(table);
       push(block);
 
+      /* An entry is a line, and sometimes a line plus the unit numbers under
+         it. They are appended and withdrawn TOGETHER, or a page break lands
+         between "71 units" and the list of which seventy-one. */
+      function entry(spec) {
+        if (spec && spec.cells) {
+          var main = trow(spec.cells, 'g');
+          if (!spec.units) return [main];
+          var ur = _el('tr', 'ul');
+          var td = _el('td', null, spec.units);
+          td.colSpan = sec.cols.length;
+          ur.appendChild(td);
+          return [main, ur];
+        }
+        return [trow(spec, sec.grouped ? 'g' : null)];
+      }
+
       for (var i = 0; i < sec.rows.length; i++) {
-        tb.appendChild(trow(sec.rows[i]));
+        var nodes = entry(sec.rows[i]);
+        nodes.forEach(function (n) { tb.appendChild(n); });
         if (!fits()) {
-          tb.removeChild(tb.lastChild);
+          nodes.forEach(function (n) { tb.removeChild(n); });
           if (i < 2 && body.childNodes.length > 1) {      // never strand the heading
             body.removeChild(block); newPage(false); body.appendChild(block); i--; continue;
           }
           newPage(false);
           block = _el('div');
-          table = _el('table'); table.appendChild(thead(sec.cols));
+          table = _el('table', sec.grouped ? 'grp' : null); table.appendChild(thead(sec.cols));
           tb = _el('tbody'); table.appendChild(tb);
           block.appendChild(table);
           body.appendChild(block);

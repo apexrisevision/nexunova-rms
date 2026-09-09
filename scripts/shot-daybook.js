@@ -28,6 +28,7 @@ const TOK = 'dbshot_' + Math.random().toString(36).slice(2, 10);
 const BROWSERS = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
                   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const _n = v => Number(v).toLocaleString('en-US');
 function sql(q){
   const mcp = JSON.parse(fs.readFileSync(path.join(ROOT,'.mcp.json'),'utf8'));
   const key = mcp.mcpServers.supabase.env.SUPABASE_ACCESS_TOKEN;
@@ -1498,11 +1499,17 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
     sem.floors.length === allowed.size
       ? okS("all " + allowed.size + " of the project's floors are present")
       : badS(sem.floors.length + ' floors shown, the project has ' + allowed.size);
-    /* The position line says Held, which is the three hold columns added up. */
+    /* The position line says Held, which is every column that is not sold and
+       not available: the three named holds AND "other". Other used to be left
+       out of it, and on a project using tags of its own — Awami has three —
+       that put thirty-one units in the total and in no column, four centimetres
+       under a Movement table that counted them. */
     (sem.kpi.total === sem.tbl.total && sem.kpi.sold === sem.tbl.sold &&
-     sem.kpi.res === (sem.tbl.hold + sem.tbl.res + sem.tbl.booked) &&
-     sem.kpi.av === sem.tbl.av)
-      ? okS('the position line equals the floor table (' + sem.kpi.total + ' = ' + sem.tbl.total +
+     sem.kpi.res === (sem.tbl.hold + sem.tbl.res + sem.tbl.booked + sem.tbl.other) &&
+     sem.kpi.av === sem.tbl.av &&
+     sem.kpi.total === (sem.kpi.sold + sem.kpi.res + sem.kpi.av))
+      ? okS('the position line equals the floor table AND adds up to itself (' +
+            sem.kpi.total + ' = ' + sem.tbl.total +
             ', held ' + sem.kpi.res + ')')
       : badS('position line vs table mismatch: ' + JSON.stringify({kpi: sem.kpi, tbl: sem.tbl}));
     /* THE ARITHMETIC MUST CLOSE. This used to read sold + reserved + available
@@ -1756,21 +1763,46 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
         }
       }
 
-      /* Taking one must leave the box in exactly the state typing the number in
-         full would leave it: resolved, and ready to book. */
+      /* ── TAKING ONE IS SELECTING IT ────────────────────────────────────────
+         This used to assert the opposite: that picking a suggestion FILLED THE
+         BOX with the unit's number and moved on. That is the right end to one
+         booking and the wrong end to ten \u2014 the first tap finished the
+         selection, so a list could only be built by typing numbers with commas
+         between them.
+
+         A tap now adds a chip, leaves the typed prefix where it was, and
+         repaints the list without the unit just taken, so the next tap is on
+         the same list one row higher. */
       const picked = await page.evaluate(() => {
         const root = document.getElementById('rd-root');
         const b = root.querySelector('#rd-sugg .rd-sg');
         const want = b.querySelector('.n').textContent.trim();
+        const typed = root.querySelector('#rd-unit').value;
         b.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        return { want, value: root.querySelector('#rd-unit').value,
-                 goEnabled: !root.querySelector('#rd-go').disabled,
-                 hit: root.querySelector('#rd-hit').textContent.trim(),
-                 listOpen: root.querySelector('#rd-sugg').style.display !== 'none' };
+        return { want: want, typed: typed,
+                 value: root.querySelector('#rd-unit').value,
+                 chips: [...root.querySelectorAll('#rd-cart .rd-uc')]
+                          .map(c => c.textContent.replace(/\u00d7/g, '').trim()),
+                 offered: [...root.querySelectorAll('#rd-sugg .rd-sg .n')]
+                            .map(x => x.textContent.trim()),
+                 go: root.querySelector('#rd-go').textContent,
+                 goEnabled: !root.querySelector('#rd-go').disabled };
       });
-      (picked.value === picked.want && picked.goEnabled && /Available/.test(picked.hit) && !picked.listOpen)
-        ? okU('picking ' + picked.want + ' fills the box, resolves it and enables the button')
+      (picked.chips.length === 1 && picked.chips[0] === picked.want &&
+       picked.value === picked.typed && picked.goEnabled && /\b1 unit\b/.test(picked.go))
+        ? okU('picking ' + picked.want + ' selects it \u2014 \u201c' + picked.go.trim() +
+              '\u201d, with the typed letters still in the box')
         : badU('picking a suggestion left the desk in a half state: ' + JSON.stringify(picked));
+      picked.offered.indexOf(picked.want) < 0
+        ? okU('and it leaves the list, so a second tap cannot be a tap on nothing')
+        : badU(picked.want + ' is still being offered after it was taken');
+
+      /* Emptied again, because everything below types into a desk it expects to
+         be holding nothing. */
+      await page.evaluate(() => {
+        const root = document.getElementById('rd-root');
+        let x; while ((x = root.querySelector('#rd-cart .rd-uc button[data-x]'))) x.click();
+      });
 
       /* And a number that matches nothing must say so — the quiet state is only
          for the middle of typing something real. */
@@ -2027,6 +2059,204 @@ function serve(){ return new Promise(r=>{ const s=http.createServer((q,res)=>{
             ? okB('a sale rep asking the PLURAL to approve is refused exactly as the ' +
                   'singular refuses them \u2014 the loop is not a way round the gate')
             : badB('a rep got past the bulk approve: ' + JSON.stringify(rp)));
+    }
+
+    console.log('\n\u2500\u2500 A day that moved a hundred units still fits on a page');
+    {
+      const okG = m => console.log('  \u2705 ' + m);
+      const badG = m => { console.log('  \u274C ' + m); FAILED = true; };
+
+      /* ══ ONE ACTION IS ONE LINE ═══════════════════════════════════════════
+         Rashid marked 113 units for the landowner in one afternoon and the
+         daybook printed five pages of rows that differed in nothing but the
+         unit number. His words: \u201citni lengthy report koi nahi dekhta\u201d.
+
+         Rows whose PRINTED cells are identical apart from the unit now collapse
+         into one entry with every unit number listed beneath it. What has to be
+         proved is that this SHORTENS without LOSING: the entry count falls, the
+         unit count in the heading does not, every single unit number is still
+         somewhere on the page, and the switch puts the old table back.
+
+         Rendered from a payload handed to the page. No database is touched. */
+      const made = await page.evaluate(async (dt, AWAMI) => {
+        const r = await sb.rpc('get_reservation_daybook',
+          { p_session_token: TOKEN, p_date: dt, p_project_id: AWAMI });
+        const d = r.data;
+        const exp = new Date(Date.now() + 15 * 864e5).toISOString();
+        const mk = (no, who, buyer, expiry) => ({
+          unit_no: no, floor: 'Lower Ground', tag: 'On Hold', tag_code: 'HOLD',
+          requested_by: who, agent_code: 'AGT-2026-0019', booked_by: 'Rashid Manzoor',
+          client_name: buyer, expiry_date: expiry, price: 1000000, status: 'active'
+        });
+        const rows = [];
+        /* forty that are one action \u2014 and the expiries deliberately differ by
+           seconds, the way forty bookings typed one after another actually do */
+        for (let k = 0; k < 40; k++) {
+          rows.push(mk('LG-' + String(k + 1).padStart(2, '0'), 'Waqar Landlord', null,
+                       new Date(Date.parse(exp) + k * 1000).toISOString()));
+        }
+        /* and three that are genuinely different: another dealer, a buyer, a tag */
+        rows.push(mk('GF-01', 'Haseeb', null, exp));
+        rows.push(mk('GF-02', 'Waqar Landlord', 'Bilawar', exp));
+        const sold = mk('GF-03', 'Waqar Landlord', null, null);
+        sold.tag = 'Sold - Entry Pending'; sold.tag_code = 'SOLD_ENTRY_PENDING';
+        rows.push(sold);
+
+        d.reserved = rows; d.sold = []; d.holding = []; d.released = [];
+        d.generated_at = new Date().toISOString();
+
+        const read = () => ({
+          entries: document.querySelectorAll('#rd-print table.grp tbody tr.g').length,
+          plain: document.querySelectorAll('#rd-print table tbody tr').length,
+          lists: document.querySelectorAll('#rd-print tr.ul').length,
+          pill: (document.querySelector('#rd-print .sec-h .pill.count') || {}).textContent || '',
+          note: (document.querySelector('#rd-print .sec-note') || {}).textContent || '',
+          first: (document.querySelector('#rd-print table.grp tbody tr.g td') || {}).textContent || '',
+          text: document.getElementById('rd-print').innerText
+        });
+
+        d.showEach = false;
+        const gPages = window._dbPreview(d, d.date);
+        const grouped = read();
+        d.showEach = true;
+        const ePages = window._dbPreview(d, d.date);
+        const each = read();
+        return { gPages, gr: grouped, ePages, ea: each };
+      }, '2026-09-07', AWAMI);
+
+      const g = made.gr, e = made.ea;
+      (g.entries === 4)
+        ? okG('forty-three bookings print as four entries \u2014 the forty that are ' +
+              'one action, and the three that are not')
+        : badG('the grouping produced ' + g.entries + ' entries, expected 4');
+      /* THE TRAP THIS CHECK EXISTS FOR. Forty units booked one after another
+         carry expiry timestamps seconds apart; keying on the raw timestamp
+         grouped none of them and printed the same five pages. */
+      /^40 units/.test(g.first)
+        ? okG('and the first entry says \u201c40 units\u201d \u2014 expiries seconds apart are ' +
+              'the same promise, because the page prints them as the same date')
+        : badG('the first entry reads ' + JSON.stringify(g.first));
+      /43 units/.test(g.pill)
+        ? okG('the heading still counts UNITS, not entries: ' + g.pill.trim())
+        : badG('the heading says ' + JSON.stringify(g.pill));
+      /43 units in 4 entries/.test(g.note)
+        ? okG('and the line under it says which is which')
+        : badG('the note reads ' + JSON.stringify(g.note));
+
+      /* NOTHING MAY GO MISSING. A shorter report that quietly drops a unit is
+         worse than a long one. */
+      const lost = [];
+      for (let k = 0; k < 40; k++) {
+        const n = 'LG-' + String(k + 1).padStart(2, '0');
+        if (g.text.indexOf(n) < 0) lost.push(n);
+      }
+      lost.length === 0
+        ? okG('every one of the forty unit numbers is still printed on the page')
+        : badG(lost.length + ' unit(s) vanished from the report: ' + lost.slice(0, 5).join(', '));
+      (g.lists === 1)
+        ? okG('listed once, under the entry that speaks for them')
+        : badG(g.lists + ' unit-list rows, expected 1');
+
+      (e.plain >= 43 && e.lists === 0)
+        ? okG('and \u201cUnit by unit\u201d puts the old table back \u2014 ' + e.plain +
+              ' rows, no grouping')
+        : badG('the switch did not restore the full table: ' + JSON.stringify(e));
+      (made.gPages < made.ePages)
+        ? okG('which is the whole point: ' + made.ePages + ' pages unit by unit, ' +
+              made.gPages + ' grouped')
+        : badG('grouping did not shorten the report: ' + made.gPages + ' vs ' + made.ePages);
+    }
+
+    console.log('\n\u2500\u2500 The figures add up to their own total');
+    {
+      const one = rows => (rows && rows[0]) || {};
+      const okB = m => console.log('  \u2705 ' + m);
+      const badB = m => { console.log('  \u274C ' + m); FAILED = true; };
+
+      /* ══ THE CHECK WHOSE ABSENCE LET IT STAND ═════════════════════════════
+         The board sheet printed TOTAL 1,467 over SOLD 0 + HELD 110 + AVAILABLE
+         1,326, which is 1,436. Thirty-one units \u2014 twelve of them marked Sold -
+         Entry Pending \u2014 were counted in the total and in no column, because the
+         floor table sorts on tag_code and Awami invented three tags of its own.
+
+         Nothing here tests for those three tags by name. It tests the property
+         that was broken: whatever a project calls its statuses, the columns must
+         add up to the total, on every floor and in the footer. A seventh tag
+         invented next month is caught by the same line. */
+      const bal = await sql(`
+        BEGIN;
+        INSERT INTO public.sales_sessions (company_id, sales_user_id, project_id, session_token, expires_at)
+        VALUES ('96d210e7-e63b-4ef0-b1d0-74e622eac7ce','${DIR}',NULL,'dbshot_bal', now() + interval '5 minutes');
+        CREATE TEMP TABLE bl ON COMMIT DROP AS
+          SELECT public.get_reservation_daybook('dbshot_bal', NULL, '59ded55b-9bc2-45b2-a372-49fc31807fa9') AS d;
+        SELECT (SELECT count(*)::int FROM jsonb_array_elements((SELECT d FROM bl)->'available') f) AS floors,
+               (SELECT count(*)::int FROM jsonb_array_elements((SELECT d FROM bl)->'available') f
+                 WHERE (f->>'total')::int <>
+                       ((f->>'sold')::int + (f->>'hold')::int + (f->>'reserved')::int
+                      + (f->>'booked')::int + COALESCE((f->>'other')::int,0)
+                      + (f->>'available')::int)) AS floors_out,
+               (SELECT sum((f->>'total')::int) FROM jsonb_array_elements((SELECT d FROM bl)->'available') f) AS total,
+               (SELECT sum((f->>'sold')::int + (f->>'hold')::int + (f->>'reserved')::int
+                         + (f->>'booked')::int + COALESCE((f->>'other')::int,0)
+                         + (f->>'available')::int)
+                  FROM jsonb_array_elements((SELECT d FROM bl)->'available') f) AS columns,
+               (SELECT sum(COALESCE((f->>'other')::int,0)) FROM jsonb_array_elements((SELECT d FROM bl)->'available') f) AS other,
+               ((SELECT d FROM bl)->'ledger'->'held'->>'closing')::int AS movement_closing,
+               (SELECT count(*)::int FROM public.units u
+                  JOIN public.category_unit_statuses st ON st.id = u.status_id
+                 WHERE u.project_id='59ded55b-9bc2-45b2-a372-49fc31807fa9'
+                   AND NOT st.is_available
+                   AND upper(st.status_code) NOT IN ('RESERVED','HOLD','BOOKED')) AS on_a_tag_of_its_own;
+        ROLLBACK;`);
+      const b = one(bal);
+
+      (Number(b.floors) > 0 && Number(b.floors_out) === 0)
+        ? okB('every one of the ' + b.floors + ' floor rows adds up to its own total')
+        : badB(b.floors_out + ' floor row(s) do not add up: ' + JSON.stringify(b));
+      (Number(b.total) === Number(b.columns))
+        ? okB('and so does the footer \u2014 ' + _n(b.columns) + ' across the columns ' +
+              'against a total of ' + _n(b.total))
+        : badB('the columns come to ' + b.columns + ' against a total of ' + b.total);
+      /* The bug is only VISIBLE on a project that uses tags of its own; on one
+         that does not, the two checks above pass whether or not it is fixed. */
+      Number(b.on_a_tag_of_its_own) > 0
+        ? okB('with ' + b.on_a_tag_of_its_own + ' unit(s) under tags this project ' +
+              'invented \u2014 which is the case the arithmetic used to fail on')
+        : badB('no unit on Awami carries a tag of its own, so the two checks above ' +
+               'prove nothing today');
+
+      /* THE PRINTED HEADLINE IS A SECOND SUM, computed in the browser, and it
+         had the same hole: it added reserved + hold + booked and left `other`
+         out, so the page carried HELD 110 four centimetres above a Movement
+         table saying the closing balance was 141. */
+      const head = await page.evaluate(async (AWAMI) => {
+        const r = await sb.rpc('get_reservation_daybook',
+          { p_session_token: TOKEN, p_date: null, p_project_id: AWAMI });
+        window._dbPreview(r.data, r.data.date);
+        const fig = {};
+        document.querySelectorAll('#rd-print .sum-r .sum-i').forEach(el => {
+          const k = (el.querySelector('.k') || {}).textContent || '';
+          const v = (el.querySelector('.v') || {}).textContent || '';
+          fig[k.trim().toLowerCase()] = Number(String(v).replace(/[^0-9]/g, ''));
+        });
+        const rows = [...document.querySelectorAll('#rd-print .mv-t tbody tr')];
+        const held = rows.find(t => /Held/.test(t.textContent));
+        const closing = held ? Number(String(held.lastElementChild.textContent).replace(/[^0-9]/g, '')) : null;
+        return { fig: fig, closing: closing,
+                 ofWhich: (document.querySelector('#rd-print .sum-pkr') || {}).textContent || '' };
+      }, AWAMI);
+
+      (head.fig.total === head.fig.sold + head.fig.held + head.fig.available)
+        ? okB('the printed position line adds up: ' + head.fig.sold + ' sold + ' +
+              head.fig.held + ' held + ' + head.fig.available + ' available = ' + head.fig.total)
+        : badB('the printed headline does not add up: ' + JSON.stringify(head.fig));
+      (head.closing != null && head.fig.held === head.closing)
+        ? okB('and agrees with the Movement table beside it (closing ' + head.closing + ')')
+        : badB('HELD ' + head.fig.held + ' but Movement closes at ' + head.closing);
+      /^Of which: /.test(head.ofWhich.trim()) && !/\b0\b/.test(head.ofWhich)
+        ? okB('and the split under it names only what is there \u2014 \u201c' +
+              head.ofWhich.trim() + '\u201d')
+        : badB('the of-which line still prints noughts: ' + JSON.stringify(head.ofWhich));
     }
 
     const real=errs.filter(e=>!/favicon|manifest|404|Not Found/i.test(e));
